@@ -6,11 +6,11 @@ import { fontInfo, licenseLabel } from './fontInfo.js';
 const u16 = (n) => [n >> 8, n & 255];
 const u32 = (n) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
 const utf16be = (s) => [...s].flatMap((c) => u16(c.charCodeAt(0)));
-function nameTable(names) {
+function nameTable(names, platform = 3) {
   const strings = names.map(([, s]) => utf16be(s));
   const head = [...u16(0), ...u16(names.length), ...u16(6 + 12 * names.length)];
   let off = 0;
-  const recs = names.flatMap(([id], i) => { const r = [...u16(3), ...u16(1), ...u16(0x409), ...u16(id), ...u16(strings[i].length), ...u16(off)]; off += strings[i].length; return r; });
+  const recs = names.flatMap(([id], i) => { const r = [...u16(platform), ...u16(platform === 3 ? 1 : 3), ...u16(platform === 3 ? 0x409 : 0), ...u16(id), ...u16(strings[i].length), ...u16(off)]; off += strings[i].length; return r; });
   return Uint8Array.from([...head, ...recs, ...strings.flat()]);
 }
 const os2 = (weight) => Uint8Array.from([...u16(4), ...u16(500), ...u16(weight), ...new Array(90).fill(0)]);
@@ -60,4 +60,15 @@ test('licences get their short names', () => {
   assert.equal(licenseLabel('Licensed under the Apache License, Version 2.0', null), 'Apache License 2.0');
   assert.equal(licenseLabel(null, null), null);
   assert.equal(licenseLabel('Copyright Foundry. All rights reserved. Not for resale.', null), 'Copyright Foundry.');
+});
+
+test('a font that names itself only for Unicode (some Apple fonts) reads the same names', async () => {
+  const info = await fontInfo(sfnt({ name: nameTable(NAMES, 0) }), 'x.ttf');
+  assert.deepEqual([info.family, info.style], ['Fraunces', 'Black']);
+});
+
+test("a file name's words are split: Courier Prime, Bold Italic", async () => {
+  const info = await fontInfo(Uint8Array.from([...[...'wOF2'].map((c) => c.charCodeAt(0)), 0, 0]), 'CourierPrime-BoldItalic.woff2');
+  assert.deepEqual([info.family, info.style], ['Courier Prime', 'Bold Italic']);
+  assert.equal((await fontInfo(Uint8Array.from([1]), 'Open_Sans_Light.ttf')).family, 'Open Sans');
 });

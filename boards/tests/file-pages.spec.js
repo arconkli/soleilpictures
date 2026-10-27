@@ -91,6 +91,8 @@ test("in the Files page a text file's tile is its first page too", async ({ page
 });
 
 test("Quick look reads a text file's page with its numbers, a table under its header, and says when it shows only the start", async ({ page }) => {
+  // Five files in Quick look, one of them 2 MB of lines.
+  test.slow();
   await board(page);
   // A log past Quick look's 2 MB.
   await page.evaluate(() => {
@@ -158,4 +160,61 @@ test("Quick look shows a file that only says it's text as its card", async ({ pa
   await card(page, 'fake').locator('.filec-body').dblclick();
   await expect(page.locator('.ql .ql-card-preview')).toBeVisible();
   await expect(page.locator('.ql .qpage')).toHaveCount(0);
+});
+
+// Courier Prime (OFL, public/fonts) is a font the app already serves.
+async function addFonts(page) {
+  await page.evaluate(() => {
+    window.__qaUrls['qa-files/CourierPrime-Bold.woff2'] = '/fonts/CourierPrime-Bold.woff2';
+    window.__qaSizes['qa-files/CourierPrime-Bold.woff2'] = 19348;
+    window.__qaUrls['qa-files/broken.ttf'] = URL.createObjectURL(new Blob(['not a font at all']));
+    window.__qaSizes['qa-files/broken.ttf'] = 17;
+  });
+  await add(page, [
+    { id: 'font', fileSrc: 'r2:qa-files/CourierPrime-Bold.woff2', fileName: 'CourierPrime-Bold.woff2', ext: 'woff2', x: 60, y: 60, w: 320, h: 220 },
+    { id: 'broken', fileSrc: 'r2:qa-files/broken.ttf', fileName: 'broken.ttf', ext: 'ttf', x: 420, y: 60, w: 320, h: 220 },
+  ]);
+}
+
+test("a font's card is a specimen of itself, drawn in the font; a file that won't load as one keeps its icon", async ({ page }) => {
+  await board(page);
+  await addFonts(page);
+  const spec = card(page, 'font').locator('.fpg-spec');
+  await expect(spec.locator('.fpg-spec-fam')).toHaveText('Courier Prime Bold');
+  await expect(spec.locator('.fpg-spec-sty')).toHaveText('Bold · WOFF2');
+  await expect(spec.locator('.fpg-spec-aa')).toHaveText('Aa');
+  // Drawn in the file itself, under a name of its own, never the font's.
+  const family = await spec.locator('.fpg-spec-aa').evaluate((el) => getComputedStyle(el).fontFamily);
+  expect(family).toMatch(/^soleil-font-\d+,/);
+  expect(await page.evaluate((f) => document.fonts.check(`16px ${f}`), family.split(',')[0])).toBe(true);
+  await expect(card(page, 'font').locator('.filec-info-name')).toHaveText('CourierPrime-Bold.woff2');
+  await expect(card(page, 'broken').locator('.filec-glyph svg')).toBeVisible();
+  await expect(card(page, 'broken').locator('.fpg-spec')).toHaveCount(0);
+});
+
+test('Quick look opens a font as a page to try it on: type, change the size, see it at five sizes', async ({ page }) => {
+  await board(page);
+  await addFonts(page);
+  await card(page, 'font').locator('.filec-body').dblclick();
+  const ql = page.locator('.ql');
+  const stage = ql.locator('.fst-font');
+  await expect(stage.locator('.fst-font-fam')).toHaveText('Courier Prime Bold');
+  await expect(stage.locator('.fst-font-facts')).toContainText('WOFF2 · 19 KB');
+  await expect(ql.locator('.ql-meta')).toHaveText('Font');
+  await expect(stage.locator('.fst-font-fall > div')).toHaveCount(5);
+  await expect(stage.locator('.fst-font-glyphs span')).toHaveCount(66);
+  const field = stage.getByLabel('Type to try it');
+  await field.fill('Hello');
+  await expect(stage.locator('.fst-font-fall span').first()).toHaveText('Hello');
+  // Space types a space in the field; Quick look stays open.
+  await field.press('End');
+  await field.press('Space');
+  await expect(field).toHaveValue('Hello ');
+  await expect(ql).toBeVisible();
+  await stage.getByLabel('Size').fill('120');
+  await expect(stage.locator('.fst-font-size output')).toHaveText('120 px');
+  expect(await field.evaluate((el) => getComputedStyle(el).fontSize)).toBe('120px');
+  expect(await field.evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/^soleil-font-\d+,/);
+  await field.press('Escape');
+  await expect(ql).toHaveCount(0);
 });

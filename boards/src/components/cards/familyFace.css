@@ -34,3 +34,25 @@
 .fpg-grid { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
 .fpg-grid th { text-align: left; font-weight: 700; color: #111; padding: 0 14px 8px 0; border-bottom: 1.5px solid #1d1d1f; white-space: nowrap; }
 .fpg-grid td { padding: 8px 14px 8px 0; border-bottom: 1px solid #e4e4e8; color: #2a2a2e; white-space: nowrap; }
+
+/* A font: a specimen of itself, every sample in the face. On a card the name
+   strip runs over the foot, so the alphabet keeps clear of it there, by the
+   strip's height in the card's own pixels (--fpg-scale is the page's scale). */
+.fpg-spec {
+  position: absolute; inset: 0; box-sizing: border-box; padding: 34px 40px;
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: 1fr auto; column-gap: 34px; align-items: center;
+  color: #111;
+}
+.filec-body .fpg-spec { padding-bottom: calc(18px + 30px / var(--fpg-scale, 1)); }
+.fpg-spec-aa { max-width: 330px; overflow: hidden; font-size: 210px; line-height: .9; letter-spacing: -.02em; font-weight: normal; white-space: nowrap; }
+.fpg-spec-side { min-width: 0; }
+.fpg-spec-fam { font-size: 34px; line-height: 1.05; font-weight: normal; overflow-wrap: anywhere; }
+.fpg-spec-sty { margin-top: 8px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: #8a8a90; }
+.fpg-spec-smp {
+  margin-top: 18px; font-size: 25px; line-height: 1.15; font-weight: normal; color: #1d1d1f;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.fpg-spec-abc {
+  grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid #e4e4e8;
+  font-size: 19px; letter-spacing: .02em; font-weight: normal; color: #3a3a40; white-space: nowrap; overflow: hidden;
+}

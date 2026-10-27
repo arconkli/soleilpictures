@@ -1,12 +1,13 @@
 // Quick look's pages for the files a browser can read: text and code with
 // their line numbers, Markdown set as a document, a table under its header
-// row, subtitles as their cues. Up to TEXT_STAGE_MAX_BYTES of a file; past
-// that, the page says so and the whole file is one click away. White in both
-// themes, as a PDF's pages are. Lazy, like FamilyFace (whose reads and
-// Markdown it shares): Quick look loads it for the first such file it shows.
+// row, subtitles as their cues, and a font as a page to try it on. Up to
+// TEXT_STAGE_MAX_BYTES of a text file; past that, the page says so and the
+// whole file is one click away. White in both themes, as a PDF's pages are.
+// Lazy, like FamilyFace (whose reads, Markdown and fonts it shares): Quick
+// look loads it for the first such file it shows.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useHeadText, markdownHtml } from '../cards/FamilyFace.jsx';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useHeadText, markdownHtml, useFont, fontName, FONT_SAMPLE } from '../cards/FamilyFace.jsx';
 import { humanSize } from '../cards/FileCard.jsx';
 import { headLines, parseCues, stageTable } from '../../lib/textPages.js';
 import { TEXT_STAGE_MAX_BYTES, TABLE_STAGE_MAX_ROWS, TABLE_STAGE_MAX_CELLS } from '../../lib/fileFaceLimits.js';
@@ -123,6 +124,71 @@ function CuesStage({ got, top }) {
 
 const TEXT_STAGES = { markdown: MarkdownStage, table: TableStage, subtitles: CuesStage, text: TextStage, code: TextStage };
 
+const WATERFALL = [12, 16, 24, 36, 48];
+const GLYPHS = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789&?!@'];
+
+// A font, to try on: its name in itself and what the file says it is, a
+// line to type into at any size from 12 to 160 px, that line at five sizes,
+// and its letters and numbers. Typing is the field's (Quick look leaves
+// keys in a field alone, Escape apart), so Space types a space there.
+function FontStage({ font, sizeBytes }) {
+  const { cssFamily, info } = font;
+  const face = { fontFamily: `${cssFamily}, var(--font-sans)` };
+  const [text, setText] = useState(FONT_SAMPLE);
+  // A phone starts smaller, so a word fits across it.
+  const [px, setPx] = useState(() => (window.innerWidth <= 720 ? 40 : 66));
+  const field = useRef(null);
+  const id = useId();
+  // The field grows with what's typed, as a line of type does.
+  useLayoutEffect(() => {
+    const el = field.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [text, px]);
+  const sample = text.trim() ? text : FONT_SAMPLE;
+  const facts = [
+    ['Style', [info.style, info.weight].filter(Boolean).join(', ')],
+    ['Format', [info.format, sizeBytes ? humanSize(sizeBytes) : ''].filter(Boolean).join(' · ')],
+    ['Licence', info.license],
+  ].filter(([, v]) => v);
+  return (
+    <Sheet kind="font">
+      <div className="fst-font-hd">
+        <div className="fst-font-fam" style={face}>{fontName(info)}</div>
+        <dl className="fst-font-facts">{facts.map(([k, v]) => [<dt key={`k${k}`}>{k}</dt>, <dd key={`v${k}`}>{v}</dd>])}</dl>
+      </div>
+      <div className="fst-font-try">
+        <div className="fst-font-lab">
+          <label htmlFor={id}>Type to try it</label>
+          <span className="fst-font-size">
+            <input type="range" min="12" max="160" value={px} aria-label="Size" onChange={(e) => setPx(Number(e.target.value))} />
+            <output>{px} px</output>
+          </span>
+        </div>
+        <textarea id={id} ref={field} className="fst-font-field" rows={1} spellCheck={false}
+                  style={{ ...face, fontSize: px }} value={text} onChange={(e) => setText(e.target.value)} />
+      </div>
+      <div className="fst-font-fall">
+        {WATERFALL.map((n) => (
+          <div key={n} style={{ fontSize: n, lineHeight: `${Math.round(n * 1.25)}px` }}><i>{n}</i><span style={face}>{sample}</span></div>
+        ))}
+      </div>
+      <div className="fst-font-glyphs" style={face}>{GLYPHS.map((c) => <span key={c}>{c}</span>)}</div>
+    </Sheet>
+  );
+}
+
+function FontFamily({ item, fallback }) {
+  const p = item.preview || {};
+  const sizeBytes = item.sizeBytes ?? item.card?.sizeBytes ?? null;
+  const font = useFont(p.src, sizeBytes, item.card?.fileName || item.name || '');
+  // Too big, broken, or refused: Quick look's own card.
+  if (font === null) return fallback;
+  if (font === undefined) return <div className="qpage fst-font" aria-busy="true" />;
+  return <FontStage font={font} sizeBytes={sizeBytes} />;
+}
+
 function TextFamily({ family, item, onDownload, fallback }) {
   const p = item.preview || {};
   const sizeBytes = item.sizeBytes ?? item.card?.sizeBytes ?? null;
@@ -136,6 +202,7 @@ function TextFamily({ family, item, onDownload, fallback }) {
 }
 
 export default function FileStage(props) {
+  if (props.family === 'font') return <FontFamily {...props} />;
   if (TEXT_STAGES[props.family]) return <TextFamily {...props} />;
   return props.fallback;
 }

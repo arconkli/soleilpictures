@@ -17,6 +17,7 @@ created — you never pick "upload as image" from a menu.
 | PDF | A [page-one thumbnail](/docs/files/pdf) opening into a full viewer |
 | Document (Word, PowerPoint, Excel, Keynote, Pages, Numbers, OpenDocument, RTF) | A card showing its first page, opening on all its pages |
 | Text, Markdown, code, logs, `.csv`, `.tsv`, `.srt`, `.vtt` | A white page showing the start of the file: Markdown set as a document, a table's rows, subtitle cues, code and logs as the file has them |
+| Font (`.ttf`, `.otf`, `.woff`, `.woff2`, `.ttc`) | A specimen drawn in the font: Aa, its name and style, a sample line and its alphabet |
 | Screenplay (`.fountain`, `.fdx`) | A new [script document](/docs/documents/screenplay), title page included — free on every plan |
 | PureRef scene (`.pur`) | Nothing yet — Clusters cannot open PureRef boards. Export the images from PureRef and drop those |
 | An unfinished download (`.crdownload`, `.part`) | Skipped, with a note to drop it again once it has finished |
@@ -38,6 +39,11 @@ A text file opens as its page, with line numbers, up to its first
 saves the whole file. A `.csv` or `.tsv` opens as a table under its header row,
 up to 5,000 rows. Subtitles open as their cues, and Markdown
 as a document whose links open in a new tab.
+
+A font opens as a page to try it on: type your own words and change the size,
+with the font set at five sizes and its letters and numbers below, and its
+style, format and licence as the font itself states them. A font over
+16 MB, or one that won't load, keeps its icon.
 
 ## Limits
 

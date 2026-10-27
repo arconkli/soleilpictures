@@ -1,25 +1,27 @@
 // A file's first page, drawn from what the file says: Markdown set as a
 // document, a table under its header row, subtitle cues, text and code as
-// the file has them. Lazy (FileCard and CardPreview import it on demand), so
-// a board with no such files never loads it. The page is drawn at a fixed
-// width and scaled to its box, as the converter's pictures of a document's
-// page are, so a small card shows the same page smaller. It reads at most
-// CARD_HEAD_BYTES of the file, however big the file is.
+// the file has them, and a font as a specimen of itself. Lazy (FileCard and
+// CardPreview import it on demand), so a board with no such files never
+// loads it. The page is drawn at a fixed width and scaled to its box, as the
+// converter's pictures of a document's page are, so a small card shows the
+// same page smaller. A text file costs at most CARD_HEAD_BYTES however big
+// it is; a font is read whole (lib/fontLoad.js).
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { resolveSrc } from '../../lib/r2.js';
 import { readHead, decodeText } from '../../lib/fileHead.js';
 import { headLines, sniffSep, parseDelimited, parseCues } from '../../lib/textPages.js';
 import { CARD_HEAD_BYTES } from '../../lib/fileFaceLimits.js';
-import { FileMd, FileTxt, FileCsv, Subtitles, CodeIcon } from '../../lib/icons.js';
+import { loadFontFile } from '../../lib/fontLoad.js';
+import { FileMd, FileTxt, FileCsv, Subtitles, CodeIcon, Type } from '../../lib/icons.js';
 import './familyFace.css';
 
-const GLYPHS = { markdown: FileMd, text: FileTxt, table: FileCsv, subtitles: Subtitles, code: CodeIcon };
+const GLYPHS = { markdown: FileMd, text: FileTxt, table: FileCsv, subtitles: Subtitles, code: CodeIcon, font: Type };
 // The strip's icon for a family the card draws.
 export function familyGlyph(family, ext) { return GLYPHS[family] || null; }
 
-const PAGE_W = { table: 640 };
-const PAD = { markdown: '46px 48px', text: '36px 34px', code: '36px 34px', subtitles: '38px 44px', table: '34px 36px' };
+const PAGE_W = { table: 640, font: 640 };
+const PAD = { markdown: '46px 48px', text: '36px 34px', code: '36px 34px', subtitles: '38px 44px', table: '34px 36px', font: 0 };
 
 // One read per file and ceiling, however many cards and tiles show it. A
 // file that isn't text is remembered as such; a read that failed is not,
@@ -62,6 +64,22 @@ export function useHeadText(src, max, sizeBytes) {
   }, [key, src, max, sizeBytes]);
   return got.key === key ? got.value : undefined;
 }
+
+// A font loaded to draw in: { cssFamily, info } once loaded; null when it's
+// too big, broken or refused; undefined while it loads.
+export function useFont(src, sizeBytes, fileName) {
+  const [got, setGot] = useState({ src: '', value: undefined });
+  useEffect(() => {
+    if (!src) return undefined;
+    let live = true;
+    loadFontFile(src, { sizeBytes, fileName }).then((r) => { if (live) setGot({ src, value: r }); });
+    return () => { live = false; };
+  }, [src, sizeBytes, fileName]);
+  return got.src === src ? got.value : undefined;
+}
+
+// A face's full name: "Fraunces Black", or "Fraunces" for its Regular.
+export const fontName = (info) => (info.style && !/^regular$/i.test(info.style) ? `${info.family} ${info.style}` : info.family);
 
 // Markdown to HTML with no raw HTML in it, and nothing that loads or styles:
 // no pictures, media, frames, forms or style attributes.
@@ -123,6 +141,28 @@ function LinesPage({ text, complete }) {
   return <pre className={`fpg-pre${wrap ? ' is-wrapped' : ''}`}>{shown}</pre>;
 }
 
+// The specimen's line (the owner's pick, direction A), which Quick look's
+// page to try a font on starts from too.
+export const FONT_SAMPLE = 'The lake keeps everything';
+
+// Aa in the font, its name, style and format, a sample line and its
+// alphabet, every sample in the face itself (its own weight, so normal).
+function SpecimenPage({ font }) {
+  const { cssFamily, info } = font;
+  const face = { fontFamily: `${cssFamily}, var(--font-sans)` };
+  return (
+    <div className="fpg-spec">
+      <div className="fpg-spec-aa" style={face}>Aa</div>
+      <div className="fpg-spec-side">
+        <div className="fpg-spec-fam" style={face}>{fontName(info)}</div>
+        <div className="fpg-spec-sty">{[info.style, info.format].filter(Boolean).join(' · ')}</div>
+        <div className="fpg-spec-smp" style={face}>{FONT_SAMPLE}</div>
+      </div>
+      <div className="fpg-spec-abc" style={face}>ABCDEFGHIJKLM abcdefghijklm 0123456789</div>
+    </div>
+  );
+}
+
 // The box the page is scaled into: the card's size when it's given, then
 // whatever the page's own box measures (a tile, a card with a title under it).
 function useBox(w, h) {
@@ -141,23 +181,46 @@ function useBox(w, h) {
   return [ref, box];
 }
 
-export default function FamilyFace({ family, src, ext = '', sizeBytes = null, w = 0, h = 0, fallback = null }) {
-  const got = useHeadText(src, CARD_HEAD_BYTES, sizeBytes);
+// The page at its design width, scaled to its box; white and empty until
+// there's something on it.
+function Page({ family, w, h, children }) {
   const [ref, box] = useBox(w, h);
-  if (got === null) return fallback;
   const vw = PAGE_W[family] || 520;
   const scale = box ? box.w / vw : 0;
   return (
     <div ref={ref} className="fpg" data-family={family} aria-hidden="true">
-      {box && got && (
+      {box && children && (
         <div className="fpg-sheet"
-             style={{ width: vw, height: Math.ceil(box.h / scale), transform: `scale(${scale})`, padding: PAD[family] }}>
-          {family === 'markdown' && <MarkdownPage text={got.text} />}
-          {family === 'table' && <TablePage text={got.text} ext={ext} complete={got.complete} />}
-          {family === 'subtitles' && <CuesPage text={got.text} />}
-          {(family === 'text' || family === 'code') && <LinesPage text={got.text} complete={got.complete} />}
+             style={{ width: vw, height: Math.ceil(box.h / scale), transform: `scale(${scale})`, padding: PAD[family], '--fpg-scale': scale }}>
+          {children}
         </div>
       )}
     </div>
   );
+}
+
+function TextFace({ family, src, ext, sizeBytes, w, h, fallback }) {
+  const got = useHeadText(src, CARD_HEAD_BYTES, sizeBytes);
+  if (got === null) return fallback;
+  return (
+    <Page family={family} w={w} h={h}>
+      {got && (
+        family === 'markdown' ? <MarkdownPage text={got.text} />
+          : family === 'table' ? <TablePage text={got.text} ext={ext} complete={got.complete} />
+            : family === 'subtitles' ? <CuesPage text={got.text} />
+              : <LinesPage text={got.text} complete={got.complete} />
+      )}
+    </Page>
+  );
+}
+
+function SpecimenFace({ src, sizeBytes, name, w, h, fallback }) {
+  const font = useFont(src, sizeBytes, name);
+  if (font === null) return fallback;
+  return <Page family="font" w={w} h={h}>{font && <SpecimenPage font={font} />}</Page>;
+}
+
+export default function FamilyFace({ family, src, ext = '', name = '', sizeBytes = null, w = 0, h = 0, fallback = null }) {
+  const Face = family === 'font' ? SpecimenFace : TextFace;
+  return <Face family={family} src={src} ext={ext} name={name} sizeBytes={sizeBytes} w={w} h={h} fallback={fallback} />;
 }

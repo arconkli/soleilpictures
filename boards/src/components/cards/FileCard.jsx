@@ -66,7 +66,7 @@ export function iconForFile(ext, mime) {
   if (/^(doc|docx|docm|dot|dotx|dotm|pages|rtf|odt|ott|wpd|wps|sxw)$/.test(e)) return FileDoc;
   const family = fileFamily(e, m);
   if (family === 'code') return CodeIcon;
-  if (family && family !== 'doc') return FileText;
+  if (family && family !== 'doc' && family !== 'font') return FileText;
   if (/^(psd|ai|sketch|fig|xd|eps|svg|tiff?|raw|cr2|nef|heic)$/.test(e) || m.startsWith('image/')) return ImagePh;
   if (m.startsWith('audio/')) return Headphones;
   if (m.startsWith('video/')) return Clapperboard;
@@ -162,7 +162,7 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
                    className={`filec-page${family === 'sheet' ? ' is-sheet' : ''}`} draggable="false"
                    placeholder={docPlaceholder} />
         ) : drawn ? (
-          faces && <faces.default family={drawnFamily} src={fileSrc} ext={e} sizeBytes={sizeBytes} w={w} h={h} fallback={glyph} />
+          faces && <faces.default family={drawnFamily} src={fileSrc} ext={e} name={fileName} sizeBytes={sizeBytes} w={w} h={h} fallback={glyph} />
         ) : glyph}
         {pending && (
           <div className="ic-upload-overlay" aria-label="Uploading file">

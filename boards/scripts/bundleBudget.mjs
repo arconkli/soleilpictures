@@ -102,7 +102,11 @@ export const CEILINGS = {
   // loads the page itself later (FamilyFace.jsx), and the old small-text
   // preview it replaces is gone. Measured as CI builds: 689.8 KB on c7ae42ee,
   // this change 690.03.
-  appJs: 690_100,
+  // 2026-10-27: +0.1 KB for a font's card: lib/fileView.js names a font (by
+  // its extension or a font's type) and lands it at a specimen's size; the
+  // specimen itself loads later, with the page (FamilyFace.jsx, fontLoad.js).
+  // Measured as CI builds: 690.03 KB before, this change 690.10.
+  appJs: 690_200,
   appCss: 21_000,
 };
 
