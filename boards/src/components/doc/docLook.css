@@ -709,6 +709,9 @@ button.dl-drow { cursor: pointer; }
   .dl-swrow .tl-sw.is-none { overflow: visible; }
   .dl-swrow .tl-sw.is-none::after { top: 0; bottom: 0; }
 }
+/* Stepped into More formatting's place, on a phone (toolbar/Menu.jsx), at its
+   width: as many to a row as fit there. */
+.is-step .dl-swrow { grid-template-columns: repeat(auto-fill, var(--tl-sws)); }
 
 /* The menus off the bar. A style says what it looks like; a font is in its
    own face. */

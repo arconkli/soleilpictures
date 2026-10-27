@@ -276,6 +276,19 @@
 .tl-mi.is-danger { color: var(--ink-error); }
 .tl-mi.is-danger svg { color: currentColor; }
 .tl-msep { display: block; height: 1px; margin: 4px 8px; background: var(--line-1); }
+/* A submenu stepped in, on a phone (Menu.jsx): the menu hides under it, ‹ and
+   its name stay at the top, and its rows scroll under them, fading out at the
+   foot while more follow. */
+.tl-menu.is-under { visibility: hidden; }
+.tl-menu.is-step { display: flex; flex-direction: column; overflow: hidden; }
+.tl-menu.is-step > * { flex: none; }
+.tl-menu.is-step > .tl-mstep-body { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.tl-mstep-body[data-more] {
+  -webkit-mask-image: linear-gradient(#000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(#000 calc(100% - 32px), transparent);
+}
+.tl-mi.is-back svg { color: var(--ink-1); }
+.tl-mi.is-back .tl-mt { color: var(--ink-0); font-weight: 600; }
 /* Under a menu that takes the press closing it (Menu's scrim). */
 .tl-scrim { position: fixed; inset: 0; z-index: 2147483599; }
 /* A row of buttons inside a menu (zoom's − 100% +, the three aligns). */
