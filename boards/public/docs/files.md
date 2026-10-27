@@ -1,6 +1,6 @@
 # Files and uploads
 
-> Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; Word, PowerPoint, Excel and other documents show their first page; everything else — a .fig, a .zip, a project file — becomes a file card with a type icon and a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
+> Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; documents (Word, PowerPoint, Excel) show their first page and design files (Sketch, Figma, Procreate) the picture saved inside; anything else becomes a file card with a download, on every plan. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
 
 _Source: https://clusters.soleilpictures.com/docs/files · Updated 2026-10-27_
 
@@ -19,6 +19,7 @@ created — you never pick "upload as image" from a menu.
 | Text, Markdown, code, logs, `.csv`, `.tsv`, `.srt`, `.vtt` | A white page showing the start of the file: Markdown set as a document, a table's rows, subtitle cues, code and logs as the file has them |
 | Font (`.ttf`, `.otf`, `.woff`, `.woff2`, `.ttc`) | A specimen drawn in the font: Aa, its name and style, a sample line and its alphabet |
 | Email (`.eml`, `.msg`) | A letter: its subject, who it's from and to, the date and its first lines |
+| Design file (Sketch, Figma, Adobe XD, Procreate, Krita, OpenRaster, Affinity, InDesign, Illustrator, EPS) | A card showing the picture saved inside the file, at its shape |
 | Screenplay (`.fountain`, `.fdx`) | A new [script document](/docs/documents/screenplay), title page included — free on every plan |
 | PureRef scene (`.pur`) | Nothing yet — Clusters cannot open PureRef boards. Export the images from PureRef and drop those |
 | An unfinished download (`.crdownload`, `.part`) | Skipped, with a note to drop it again once it has finished |
@@ -51,6 +52,16 @@ by one or put on the board together. Pictures from the web stay hidden until
 you choose **Show pictures**, and nothing in an email can run. An email over
 50 MB doesn't open there (download it to read it), and an
 Outlook `.msg` over 4 MB keeps its icon on the board.
+
+A design file's card shows the picture the file keeps of itself — a Sketch,
+Figma, XD, Procreate, Krita or OpenRaster file's own preview, an Affinity
+file's, an InDesign file's thumbnail, an Illustrator file's first page, an
+EPS's preview — at the picture's shape, and opens on it, to zoom as a photo's
+does. It's made once, in the background: of a Sketch, Figma, XD, Procreate,
+Krita or OpenRaster file of any size, and of the others up to
+1 GB. A file with no picture inside it (a Figma file from
+before 2023, an EPS saved without a preview) stays a file card, with the
+download.
 
 ## Limits
 

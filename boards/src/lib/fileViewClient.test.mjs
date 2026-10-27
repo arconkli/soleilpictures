@@ -132,6 +132,29 @@ test('a document with no page coming goes back to a file card, if it is still th
   assert.deepEqual(noPageCardPatch({ kind: 'image', src: 'r2:ws/b/a.heic', w: 300, h: 388 }), {});
 });
 
+const sketch = (over = {}) => ({ id: 'g', kind: 'file', fileSrc: 'r2:ws/b/Title card v3.sketch', w: 320, h: 240, ...over });
+
+test("a design file's card still at the size it landed at takes its picture's shape, a small picture keeping it small", () => {
+  assert.deepEqual(viewFileCardPatch(sketch(), { w: 2048, h: 1152 }), { w: 320, h: 180 });
+  assert.deepEqual(viewFileCardPatch(sketch({ fileSrc: 'r2:ws/b/Festival flyer.indd' }), { w: 256, h: 384 }), { w: 160, h: 240 },
+    "InDesign's thumbnail: at most 1.6 times smaller than itself");
+  assert.deepEqual(viewFileCardPatch(sketch({ fileSrc: 'r2:ws/b/Comic.procreat' }), { w: 800, h: 10000 }), { w: 320, h: 1200 },
+    'a tall picture is cropped to the paste window');
+  assert.deepEqual(viewFileCardPatch(sketch(), { w: 1600, h: 1200 }), {}, 'a 4:3 picture is the drop size already');
+  assert.deepEqual(viewFileCardPatch(sketch(), {}), {});
+});
+
+test('a design file card placed before pictures came, or resized, keeps its size; it never turns into an image card', () => {
+  assert.deepEqual(viewFileCardPatch(sketch({ w: 240, h: 150 }), { w: 2048, h: 1152 }), {});
+  assert.deepEqual(viewFileCardPatch(sketch({ w: 500, h: 500 }), { w: 2048, h: 1152 }), {});
+  assert.equal(viewFileCardPatch(sketch(), { w: 2048, h: 1152 }).kind, undefined);
+});
+
+test('a design file with no picture inside goes back to a file card, if it is still the size it landed at', () => {
+  assert.deepEqual(noPageCardPatch(sketch({ fileSrc: 'r2:ws/b/Old cut.fig' })), { w: 240, h: 150 });
+  assert.deepEqual(noPageCardPatch(sketch({ w: 320, h: 180 })), {});
+});
+
 test('the view columns carry the PDF’s number of pages', () => {
   assert.ok(VIEW_COLS.split(',').includes('page_count'));
 });

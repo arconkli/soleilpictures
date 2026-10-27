@@ -13,7 +13,7 @@ import { computeCellRects } from './gridLayout.js';
 import { schedItems, schedLegacyRows } from './schedLayout.js';
 import { monthTitle } from './schedDates.js';
 import { formatLabel, audioMetaLine, keyOrder } from './loopMeta.js';
-import { viewKindOfKey, fileFamily } from './fileView.js';
+import { viewKindOfKey, isCardViewKind, fileFamily } from './fileView.js';
 
 // Cap the grid schematic: past this many cells the subdivision is unreadable at
 // thumb size and re-tiling wastes work, so we draw the raw box instead.
@@ -28,7 +28,7 @@ export const TYPE_LABELS = {
 // What a file the card draws is called by its family (lib/fileView.js
 // fileFamily): in a list's Type column, the search, Quick look's bar. Any
 // other file is a File.
-const FAMILY_LABELS = { markdown: 'Text', text: 'Text', code: 'Code', table: 'Spreadsheet', subtitles: 'Subtitles', font: 'Font', mail: 'Email' };
+const FAMILY_LABELS = { markdown: 'Text', text: 'Text', code: 'Code', table: 'Spreadsheet', subtitles: 'Subtitles', font: 'Font', mail: 'Email', design: 'Design file' };
 
 // Coarse buckets for the type filter. Several kinds collapse (board+boardlink →
 // 'cluster'); 'other' catches shape/schedule/grid/unknown.
@@ -235,9 +235,10 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
         };
         item.typeLabel = FAMILY_LABELS[family] || item.typeLabel;
       }
-      // A document's first page, once it's made, is its picture (CardPreview).
+      // A document's first page, or a design file's own picture, once it's
+      // made, is its picture (CardPreview).
       if (typeof card.fileSrc === 'string' && card.fileSrc.startsWith('r2:')
-          && viewKindOfKey(card.fileSrc.slice(3)) === 'doc') item.preview.page = card.fileSrc;
+          && isCardViewKind(viewKindOfKey(card.fileSrc.slice(3)))) item.preview.page = card.fileSrc;
       item.sizeBytes = card.sizeBytes ?? null;
       break;
     case 'note': {

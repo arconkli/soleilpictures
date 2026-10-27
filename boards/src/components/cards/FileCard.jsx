@@ -1,8 +1,10 @@
 // Generic file card — any uploaded file that isn't a richer card kind
 // (image/pdf/video/audio). Shows a type icon, filename + size, and a
 // download/open button. A text file (Markdown, a table, subtitles, code, a
-// log) shows its first page, drawn from the file (FamilyFace.jsx), and a
-// document (Word, PowerPoint, Excel…) its first page. The original lives at
+// log) shows its first page, drawn from the file (FamilyFace.jsx), a
+// document (Word, PowerPoint, Excel…) its first page, and a design file
+// (Sketch, Figma, Procreate, Illustrator…) the picture it keeps of itself.
+// The original lives at
 // `fileSrc` ("r2:<key>"). Read-only safe (works on public boards:
 // download/preview just resolve a signed read URL).
 
@@ -66,8 +68,10 @@ export function iconForFile(ext, mime) {
   if (/^(doc|docx|docm|dot|dotx|dotm|pages|rtf|odt|ott|wpd|wps|sxw)$/.test(e)) return FileDoc;
   const family = fileFamily(e, m);
   if (family === 'code') return CodeIcon;
+  // A design file's own app's glyph comes with its card's picture (FamilyFace.jsx familyGlyph).
+  if (family === 'design') return ImagePh;
   if (family && family !== 'doc' && family !== 'font') return FileText;
-  if (/^(psd|ai|sketch|fig|xd|eps|svg|tiff?|raw|cr2|nef|heic)$/.test(e) || m.startsWith('image/')) return ImagePh;
+  if (/^(psd|svg|tiff?|raw|cr2|nef|heic)$/.test(e) || m.startsWith('image/')) return ImagePh;
   if (m.startsWith('audio/')) return Headphones;
   if (m.startsWith('video/')) return Clapperboard;
   return FileIcon;
@@ -100,12 +104,15 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
   // A document shows its first page (lib/fileView.js), as a PDF card shows
   // its: the page fills the card from its top (a sheet's cells from their top
   // left), so a card placed before pages showed, still a file card's shape,
-  // shows the top of the page. Until the page is here the card is its glyph,
-  // saying so while the page is being made, and one that won't get a page
-  // stays its glyph. Its strip counts its pages (slides, for a deck) once it
-  // knows them, and gives its size until then.
-  const docKey = !pending && typeof fileSrc === 'string' && fileSrc.startsWith('r2:')
-    && viewKindOfKey(fileSrc.slice(3)) === 'doc' ? fileSrc.slice(3) : '';
+  // shows the top of the page. A design file shows its picture covering the
+  // card, at the picture's own shape once it is made. Until the page is here
+  // the card is its glyph, saying so while the page is being made, and one
+  // that won't get a page stays its glyph. Its strip counts its pages
+  // (slides, for a deck) once it knows them, and gives its size until then.
+  const viewRef = !pending && typeof fileSrc === 'string' && fileSrc.startsWith('r2:') ? fileSrc.slice(3) : '';
+  const viewKind = viewRef ? viewKindOfKey(viewRef) : null;
+  const docKey = viewKind === 'doc' ? viewRef : '';
+  const designKey = viewKind === 'design' ? viewRef : '';
   const family = docKey ? docFamily(extOfKey(docKey)) : null;
   const pages = Number(pageCount) > 0 ? Math.floor(Number(pageCount)) : 0;
   const unit = family === 'slides' ? (pages === 1 ? 'slide' : 'slides') : (pages === 1 ? 'page' : 'pages');
@@ -113,7 +120,7 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
   const metaText = docKey && pages ? `${pages}${pages >= DOC_MAX_PAGES ? '+' : ''} ${unit}` : sizeText;
   const docPlaceholder = (state) => (
     <div className={`filec-glyph${state === 'making' ? ' is-making' : ''}`}>
-      <Icon as={GlyphIcon} size={42} />
+      <Icon as={designKey ? StripIcon : GlyphIcon} size={42} />
       {state === 'making' && <span className="filec-making">Making a preview…</span>}
     </div>
   );
@@ -122,11 +129,11 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
   // page once its chunk and the file's first bytes are here, and its glyph
   // when the file only says it's text. Its strip wears its family's icon,
   // and says what the page knows that its size doesn't (an email's
-  // attachments) once it knows it.
+  // attachments) once it knows it. A design file's strip wears its app's.
   const drawnFamily = !docKey && !pending && fileSrc ? fileFamily(e, mime) : null;
   const drawn = isDrawnFamily(drawnFamily);
-  const faces = useFaces(drawn);
-  const StripIcon = (drawn && faces?.familyGlyph(drawnFamily, e)) || GlyphIcon;
+  const faces = useFaces(drawn || !!designKey);
+  const StripIcon = ((drawn || designKey) && faces?.familyGlyph(drawnFamily, e)) || GlyphIcon;
   const [faceMeta, setFaceMeta] = useState(null);
   const stripMeta = (drawn && faceMeta) || metaText;
   // Uploading, the spinner stands alone on the card.
@@ -161,9 +168,9 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
   return (
     <div className="filec ic">
       <div className={`filec-body${drawn ? ' is-page' : ''}`} onDoubleClick={opensOnBoard ? undefined : download}>
-        {docKey ? (
+        {docKey || designKey ? (
           <R2Image progressive src={fileSrc} alt={label} w={w} h={h} boardId={boardId} cardId={cardId}
-                   className={`filec-page${family === 'sheet' ? ' is-sheet' : ''}`} draggable="false"
+                   className={`filec-page${designKey ? ' is-picture' : family === 'sheet' ? ' is-sheet' : ''}`} draggable="false"
                    placeholder={docPlaceholder} />
         ) : drawn ? (
           faces && <faces.default family={drawnFamily} src={fileSrc} ext={e} name={fileName} sizeBytes={sizeBytes} w={w} h={h}

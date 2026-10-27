@@ -17,12 +17,21 @@ import { CARD_HEAD_BYTES, MAIL_CARD_MAX_BYTES, MAIL_HEAD_BYTES } from '../../lib
 import { loadFontFile } from '../../lib/fontLoad.js';
 import { Icon } from '../Icon.jsx';
 import { humanSize } from './FileCard.jsx';
-import { FileMd, FileTxt, FileCsv, Subtitles, CodeIcon, Type, EnvelopeSimple, FileImage, FilePdf, FileIcon } from '../../lib/icons.js';
+import {
+  FileMd, FileTxt, FileCsv, Subtitles, CodeIcon, Type, EnvelopeSimple, FileImage, FilePdf, FileIcon, SketchLogo, FigmaLogo,
+  PaintBrush, PenNib,
+} from '../../lib/icons.js';
 import './familyFace.css';
 
 const GLYPHS = { markdown: FileMd, text: FileTxt, table: FileCsv, subtitles: Subtitles, code: CodeIcon, font: Type, mail: EnvelopeSimple };
-// The strip's icon for a family the card draws.
-export function familyGlyph(family, ext) { return GLYPHS[family] || null; }
+// A design file's: its app's, a brush for the painting apps', a pen nib for
+// the rest.
+const DESIGN_GLYPHS = { sketch: SketchLogo, fig: FigmaLogo, procreate: PaintBrush, procreat: PaintBrush, kra: PaintBrush, ora: PaintBrush, afphoto: PaintBrush };
+// The strip's icon for a family the card draws, or a design file's.
+export function familyGlyph(family, ext) {
+  if (family === 'design') return DESIGN_GLYPHS[String(ext || '').toLowerCase()] || PenNib;
+  return GLYPHS[family] || null;
+}
 
 const PAGE_W = { table: 640, font: 640 };
 const PAD = { markdown: '46px 48px', text: '36px 34px', code: '36px 34px', subtitles: '38px 44px', table: '34px 36px', font: 0, mail: '44px 46px' };
