@@ -28,7 +28,7 @@ test('every format the app asks views of has a decoder here, and no other', () =
 });
 
 test('a design file that is a zip is read by byte ranges, any other one whole', () => {
-  for (const ext of ['sketch', 'fig', 'xd', 'procreate', 'KRA', 'ora']) assert.equal(decoderOf(ext), 'design-zip', ext);
+  for (const ext of ['sketch', 'fig', 'xd', 'procreate', 'procreat', 'KRA', 'ora']) assert.equal(decoderOf(ext), 'design-zip', ext);
   for (const ext of ['afdesign', 'afphoto', 'afpub', 'indd', 'AI', 'eps']) assert.equal(decoderOf(ext), 'design', ext);
   for (const ext of Object.keys(DESIGN_PICTURES)) assert.ok(DESIGN_EXTS.includes(ext), `${ext}: every zip format is a design file`);
 });

@@ -28,6 +28,8 @@ export const DESIGN_PICTURES = Object.freeze({
   kra: ['mergedimage.png', 'preview.png'],
   ora: ['mergedimage.png', 'Thumbnails/thumbnail.png'],
   procreate: ['QuickLook/Thumbnail.png'],
+  // A .procreate as the uploader stores it (boards/src/lib/fileView.js).
+  procreat: ['QuickLook/Thumbnail.png'],
   fig: ['thumbnail.png'],
 });
 
