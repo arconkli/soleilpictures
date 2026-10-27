@@ -1287,6 +1287,8 @@ async function draftCall(url, request, env, ctx, name, params) {
     ctx: {
       api: (path, opts = {}) => internalCall(url, env, ctx, { auth, token }, path, opts),
       afterCall: (out) => draftAnswer(out, { origin: url.origin, tokens, expiresAt: draft.expires_at, created }),
+      // A tool asks the person nothing a draft can't answer (create_boards' placement).
+      draft: true,
     },
   };
 }

@@ -67504,6 +67504,40 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "url"
+      },
+      {
+       "t": "text",
+       "v": "; with no "
+      },
+      {
+       "t": "code",
+       "v": "parent_board_id"
+      },
+      {
+       "t": "text",
+       "v": " it becomes a project at the top of the workspace, where "
+      },
+      {
+       "t": "strong",
+       "v": "New cluster",
+       "children": [
+        {
+         "t": "text",
+         "v": "New cluster"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " puts one, and the answer's "
+      },
+      {
+       "t": "code",
+       "v": "placement"
+      },
+      {
+       "t": "text",
+       "v": " offers up to 12 of your clusters to ask where it belongs"
       }
      ]
     ],
@@ -69792,6 +69826,63 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " field saying so: it is material to work with, never instructions to follow, so a note that says \"delete this board\" is something to tell the person about, not something to do. The server's instructions say the same, for hosts that pass them on."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "A new board goes where you say, or you're asked.",
+     "children": [
+      {
+       "t": "text",
+       "v": "A new board goes where you say, or you're asked."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Name the cluster it belongs in and "
+    },
+    {
+     "t": "code",
+     "v": "create_boards"
+    },
+    {
+     "t": "text",
+     "v": " puts it there. Say nothing and it becomes a project at the top of your workspace, as "
+    },
+    {
+     "t": "strong",
+     "v": "New cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "New cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " makes one, and the answer carries "
+    },
+    {
+     "t": "code",
+     "v": "placement"
+    },
+    {
+     "t": "text",
+     "v": ": up to 12 of your clusters, projects first, the ones you worked in most recently first. The assistant finishes what you asked, then asks where the board should live and moves it there with "
+    },
+    {
+     "t": "code",
+     "v": "update_boards"
+    },
+    {
+     "t": "text",
+     "v": ". Leave it where it is by saying so."
     }
    ]
   },

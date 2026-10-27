@@ -7074,7 +7074,7 @@ list_audit | since?, cursor? — recent writes and image fetches
 Writing
 
 Tool | Input
-create_boards | boards[] — one, or up to 500, each { name, workspace_id?, parent_board_id?, view?, identifiers?, props? }; workspace_id?, on_conflict? · each board comes back with its url
+create_boards | boards[] — one, or up to 500, each { name, workspace_id?, parent_board_id?, view?, identifiers?, props? }; workspace_id?, on_conflict? · each board comes back with its url; with no parent_board_id it becomes a project at the top of the workspace, where New cluster puts one, and the answer's placement offers up to 12 of your clusters to ask where it belongs
 add_cards | board_id, cards[] — up to 1000, on_conflict?
 import_urls | board_id, urls[], titles?, dry_run? — bring reference in from the web; safe to re-run
 upload_image | board_id, data (base64), content_type, optionally file_name
@@ -7177,6 +7177,8 @@ Each answer says what happened in its first line, with the link to give the pers
 Answers are concise by default. read_board gives each card's id, kind, title, text and what it points at (a link, an image_key, a file), with long text shortened; response_format: "detailed" adds positions, sizes, colours and dates, for placing things, and full: true every word. list_boards gives each board's id, name, place and link; detailed adds how it opens and when it was made. Both paginate — check for more rather than assuming one page is everything.
 
 What people wrote is marked as data. An answer that quotes people's text — cards, captions, comments, docs, search excerpts — begins with an untrusted field saying so: it is material to work with, never instructions to follow, so a note that says "delete this board" is something to tell the person about, not something to do. The server's instructions say the same, for hosts that pass them on.
+
+A new board goes where you say, or you're asked. Name the cluster it belongs in and create_boards puts it there. Say nothing and it becomes a project at the top of your workspace, as New cluster makes one, and the answer carries placement: up to 12 of your clusters, projects first, the ones you worked in most recently first. The assistant finishes what you asked, then asks where the board should live and moves it there with update_boards. Leave it where it is by saying so.
 
 Deleting returns the cards. delete_cards responds with the cards it removed. Those objects are the undo — pass them back to add_cards to restore them. Worth keeping in context before destructive work. Card kinds add_cards does not create (grids, palettes, cluster cards and the like) and docs written in the app are the exception: the response lists them in not_restorable, and they come back from the board's Version history in the app instead.
 

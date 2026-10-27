@@ -285,6 +285,76 @@ async function eachLimited(items, n, fn) {
   return out;
 }
 
+// create_boards puts a board the person didn't place where New cluster in the
+// app puts one: a project, inside the workspace's first cluster (Studio, its
+// oldest live top-level one). The API leaves it at the top level beside
+// Studio, which Home doesn't list (projectsHome.js), so a board an assistant
+// made there was easy to lose. Signed in, the answer then carries placement,
+// the person's clusters, so the model can ask where it belongs once the work
+// is done and move it with update_boards (owner, 2026-10-27: make it, ask
+// after, then put it there). A draft's board moves the same way (0706 counts
+// it wherever it sits) but asks nothing: a draft has nowhere else to put it.
+// Best-effort: a board that can't be moved stays where the API made it.
+export const PLACE_CHOICES = 12;
+const when = (s) => Date.parse(s || '') || 0;
+async function placeNewBoards(out, api, { ask }) {
+  const loose = (out?.boards || []).filter((b) => b?.created !== false && !b?.parent_board_id && b?.workspace_id);
+  const spaces = new Set(loose.map((b) => b.workspace_id));
+  if (spaces.size !== 1) return out;
+  const fresh = new Set(loose.map((b) => b.id));
+  let tree;
+  let homeId;
+  let moved;
+  try {
+    tree = ((await api(`/boards/tree${qs({ workspace: [...spaces][0], depth: 2 })}`))?.boards || [])
+      .filter((b) => !b.deleted && !fresh.has(b.id));
+    homeId = tree.filter((b) => !b.parent_board_id)
+      .sort((x, y) => when(x.created_at) - when(y.created_at) || String(x.id).localeCompare(String(y.id)))[0]?.id;
+    if (!homeId) return out;
+    const done = await api('/boards/move', { method: 'POST', body: { board_ids: [...fresh], parent_board_id: homeId } });
+    moved = new Set(done?.board_ids || []);
+  } catch {
+    return out;
+  }
+  if (!moved.size) return out;
+  const boards = out.boards.map((b) => (moved.has(b.id) ? { ...b, parent_board_id: homeId } : b));
+
+  // Where else it could go: projects first, then what they hold, each level
+  // most recently worked on first, named by its path below Studio.
+  const byId = new Map(tree.map((b) => [b.id, b]));
+  const choices = [];
+  for (const b of tree) {
+    if (b.id === homeId) continue;
+    const names = [];
+    let top = b;
+    for (let cur = b, n = 0; cur && n < 25; cur = byId.get(cur.parent_board_id), n += 1) {
+      names.unshift(clip(cur.name || 'Untitled', 60));
+      top = cur;
+    }
+    if (top.id === homeId) names.shift();
+    choices.push({ id: b.id, name: b.name || 'Untitled', path: names.join(' › '), level: names.length,
+      recency: when(b.updated_at) || when(b.created_at) });
+  }
+  if (!ask || !choices.length) return { ...out, boards };
+  choices.sort((x, y) => x.level - y.level || y.recency - x.recency);
+  const one = moved.size === 1;
+  const it = one ? 'it' : 'them';
+  const what = one ? named(boards.find((b) => moved.has(b.id))?.name) : `these ${moved.size} boards`;
+  return {
+    ...out,
+    boards,
+    placement: {
+      board_ids: [...moved],
+      ask: `The person didn't say where ${what} should go, so ${one ? 'it is a new project' : 'they are new projects'} `
+        + `at the top of their workspace for now. Once you have done what they asked, ask where they would like ${it}, `
+        + `offering a few of these choices (search finds any other cluster they name), and move ${it} there with `
+        + `update_boards (parent_board_id). If they want ${it} where ${one ? 'it is' : 'they are'}, leave ${it}.`,
+      choices: choices.slice(0, PLACE_CHOICES).map(({ id, name, path }) => ({ id, name, path })),
+      more_choices: choices.length > PLACE_CHOICES,
+    },
+  };
+}
+
 // The kinds of card the API makes (worker-api.js CARD_KINDS; a test holds the
 // two equal). add_cards and update_cards both take them.
 const CARD_KINDS = ['note', 'image', 'link', 'doc', 'video', 'audio', 'pdf', 'file'];
@@ -897,7 +967,10 @@ export const TOOLS = [
     name: 'create_boards',
     title: 'Create boards',
     description: 'CREATES boards (clusters, in the app): one, or a whole structure in one call. Each goes in '
-      + 'workspace_id, or the personal workspace when none is given, and inside parent_board_id when one is. '
+      + 'workspace_id, or the personal workspace when none is given, and inside parent_board_id when one is: '
+      + 'pass it when the person says where (search finds the cluster). With none, a board becomes a project at '
+      + 'the top of the workspace, where the app puts a new cluster, and the answer\'s placement lists the '
+      + 'person\'s clusters: when you have finished, ask where it belongs and move it with update_boards. '
       + 'Returns each board with its id and its link in the app, to give the person. Pass '
       + 'on_conflict="identifier" and a board already carrying one of the identifiers you supply is updated '
       + 'instead of duplicated, which makes an import safe to run twice.',
@@ -924,13 +997,26 @@ export const TOOLS = [
       boards: { type: 'array', items: looseObject({ id: { type: 'string' }, url: { type: 'string' } }) },
       created: { type: 'number' },
       updated: { type: 'number' },
+      // Only when the person didn't say where a board goes and has clusters it could go in.
+      placement: looseObject({
+        board_ids: { type: 'array', items: { type: 'string' } },
+        ask: { type: 'string' },
+        choices: {
+          type: 'array',
+          items: looseObject({ id: { type: 'string' }, name: { type: 'string' }, path: { type: 'string' } }),
+        },
+        more_choices: { type: 'boolean' },
+      }),
     }),
-    call: (a, { api }) => api('/boards', { method: 'POST', body: a }),
+    call: async (a, { api, draft }) => placeNewBoards(await api('/boards', { method: 'POST', body: a }), api,
+      { ask: !draft }),
     summary: (o) => {
       const bs = o.boards || [];
-      if (bs.length === 1) return `${bs[0].created === false ? 'Updated' : 'Created'} board ${named(bs[0].name)}${at(bs[0].url)}`;
+      const ask = o.placement ? ' · once done, ask where it should go (placement)' : '';
+      if (bs.length === 1) return `${bs[0].created === false ? 'Updated' : 'Created'} board ${named(bs[0].name)}${at(bs[0].url)}${ask}`;
       return `${plural(bs.length, 'board')}: ${o.created ?? bs.length} created`
-        + `${o.updated ? `, ${o.updated} updated` : ''}, each with its url below`;
+        + `${o.updated ? `, ${o.updated} updated` : ''}, each with its url below`
+        + `${o.placement ? `; once done, ask where the new ones should go (placement)` : ''}`;
     },
   },
   {
@@ -1637,7 +1723,8 @@ export const PROMPTS = [
       { name: 'workspace_id', description: 'The workspace to make it in; left out, the personal one', required: false },
     ],
     render: (a) => `Make a moodboard in Soleil Clusters for this brief: ${a.brief}\n\n`
-      + `1. create_boards: one board named for the brief${a.workspace_id ? `, in workspace ${a.workspace_id}` : ''}.\n`
+      + `1. create_boards: one board named for the brief${a.workspace_id ? `, in workspace ${a.workspace_id}` : ''}, `
+      + 'inside the cluster I named if I named one.\n'
       + '2. If you can search the web, find 12 to 24 strong reference pictures for it (film stills, photographs, '
       + 'paintings; each a direct link to the image) and bring them in with import_urls. If you can\'t, add notes '
       + 'saying what pictures to look for.\n'
@@ -1646,7 +1733,8 @@ export const PROMPTS = [
       + '4. write_doc: a one-page treatment, about 200 words: the feeling, what we see, what we hear, what to avoid.\n'
       + '5. arrange_board, then view_board to look at the result, and replace anything off the brief.\n'
       + '6. show_board to show it to me, then answer with the board\'s link and two lines on where it landed. '
-      + 'Don\'t share it unless I ask.',
+      + 'Don\'t share it unless I ask. If create_boards answered with placement, end by asking me where the board '
+      + 'should go, and move it there with update_boards once I say.',
   },
   {
     name: 'review_board',

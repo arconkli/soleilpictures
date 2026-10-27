@@ -205,6 +205,25 @@ test('create_boards makes a draft and runs as it; the next call finds it by its 
   assert.doesNotMatch(textOf(again), /Started a draft/);
 });
 
+// A cluster a draft makes is a project under the draft's root, as New cluster
+// makes one, so a keeper's Home lists it; and a draft is never asked where it
+// goes (it has nowhere else).
+test('a draft\'s new cluster becomes a project under its root, and nothing asks where it goes', async () => {
+  const ROOT = '0d0d0d0d-0d0d-4d0d-8d0d-0d0d0d0d0d0d';
+  on('POST', 'rpc/board_tree', (c) => reply([
+    ...[...boards.values()].map((b) => ({ ...b, depth: 0, created_at: '2026-10-27T10:00:00Z', deleted: false })),
+    { id: ROOT, parent_board_id: null, name: 'Studio', workspace_id: WS, depth: 0, created_at: '2026-10-27T09:59:59Z', deleted: false },
+  ]));
+  on('POST', 'rpc/move_boards_under', (c) => reply({ moved: c.body.p_child_ids, skipped: [] }));
+  const r = await callTool('create_boards', { boards: [{ name: 'Tokyo noir' }] }, { ua: CLAUDE });
+  assert.notEqual(r.body.result.isError, true, textOf(r));
+  const [made] = [...boards.keys()];
+  assert.deepEqual(rpcCalls('move_boards_under')[0].body, { p_child_ids: [made], p_target_id: ROOT });
+  assert.equal(r.body.result.structuredContent.boards[0].parent_board_id, ROOT);
+  assert.equal(r.body.result.structuredContent.placement, undefined);
+  assert.doesNotMatch(textOf(r), /placement/);
+});
+
 test('in ChatGPT the same anonymous user finds their draft without the key', async () => {
   const meta = { 'openai/subject': SUBJECT, 'openai/session': 's1' };
   const first = await callTool('create_boards', { boards: [{ name: 'Noir' }] }, { meta });
