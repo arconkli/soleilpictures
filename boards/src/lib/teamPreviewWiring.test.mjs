@@ -63,15 +63,25 @@ test('only the sample, the model, App, the probe and the page mention sampleTeam
 });
 
 // ── The buying walk-through (Team card on /pricing, /team/new) ───────────────
-test('the Team card never reaches the public pricing page', () => {
-  assert.doesNotMatch(read('auth/PublicPricingPage.jsx'), /teamCard|TeamPlanCard/);
+test('both pricing pages pass the Team card only while Team is open here', () => {
+  const pub = read('auth/PublicPricingPage.jsx');
+  assert.ok(pub.includes('on: teamPricingAllowed(),'));
+  assert.ok(pub.includes('teamCard={teamCard}'));
+  assert.equal((pub.match(/teamCard=/g) || []).length, 1);
+  const page = read('auth/PricingPage.jsx');
+  assert.ok(page.includes('on: teamPricingAllowed() || (teamPreviewAvailable() && !!readTeamPreview()),'));
+  assert.ok(page.includes('teamCard={teamCard}'));
+  assert.equal((page.match(/teamCard=/g) || []).length, 1);
+  // Team's own hold off dev (the preview host now, production at launch).
+  assert.match(read('lib/appHost.js'), /export function teamPricingAllowed\(\) \{\n  if \(!import\.meta\.env\.DEV\) return teamsAllowed\(\);/);
 });
 
-test('PricingPage passes teamCard only behind the preview check', () => {
-  const page = read('auth/PricingPage.jsx');
-  assert.ok(page.includes('const teamOn = teamPreviewAvailable() && !!readTeamPreview();'));
-  assert.ok(page.includes('teamCard={teamOn ? {'));
-  assert.equal((page.match(/teamCard=/g) || []).length, 1);
+test('a signed-out Team start opens the setup after sign-in, only while Team is open', () => {
+  const gate = read('auth/AuthGate.jsx');
+  assert.equal((gate.match(/if \(consumeTeamStart\(\)\) return;/g) || []).length, 2);
+  assert.match(gate, /function consumeTeamStart\(\) \{[\s\S]*?if \(!teamsAllowed\(\)\) return false;\n  window\.location\.replace\(teamStartHref\(start\)\);/);
+  // AuthGate is in the entry: the stash module carries nothing else.
+  assert.doesNotMatch(read('lib/teamStart.js'), /^import /m);
 });
 
 test('PricingPageView lazy-imports the card and renders it only when teamCard is set', () => {
@@ -82,24 +92,26 @@ test('PricingPageView lazy-imports the card and renders it only when teamCard is
   assert.ok(view.includes("teamCard = null,"));
 });
 
-test('the shared pricing view never imports the team model; PricingPage loads it only for the preview', () => {
+test('the pricing pages never import the team model; the card loads it only while it shows', () => {
   // PricingPageView is the signed-out page too: a static import would ship the
-  // team model to every visitor for one preview sentence.
+  // team model to every visitor for one sentence.
   const view = read('auth/PricingPageView.jsx');
   assert.doesNotMatch(view, /lib\/teamModel/);
   assert.ok(view.includes('{teamCard?.heroLine && ` ${teamCard.heroLine}`}'));
-  const page = read('auth/PricingPage.jsx');
-  assert.doesNotMatch(page, /^import[^\n]*lib\/teamModel/m);
-  assert.ok(page.includes("if (!teamOn) return undefined;"));
-  assert.ok(page.includes("import('../lib/teamModel.js').then((m) => { if (live) setTeamHero(m.teamHeroLine(EDITOR_LIMIT)); }, () => {});"));
+  for (const f of ['auth/PricingPage.jsx', 'auth/PublicPricingPage.jsx', 'auth/useTeamPricingCard.js']) {
+    assert.doesNotMatch(read(f), /^import[^\n]*lib\/teamModel/m, f);
+  }
+  const hook = read('auth/useTeamPricingCard.js');
+  assert.ok(hook.includes("if (!on) return undefined;"));
+  assert.ok(hook.includes("import('../lib/teamModel.js').then((m) => { if (live) setHeroLine(m.teamHeroLine(EDITOR_LIMIT)); }, () => {});"));
   // The model stays a leaf: an app import there would split that module out of the app chunk.
   assert.doesNotMatch(read('lib/teamModel.js'), /^import /m);
 });
 
-test('/team/new is a preview-only branch that lazy-loads TeamSetup', () => {
+test('/team/new opens where Team does and lazy-loads TeamSetup', () => {
   const router = read('auth/TierRouter.jsx');
   assert.ok(router.includes("lazyWithReload(() => import('../components/team/TeamSetup.jsx'))"));
-  assert.match(router, /path === '\/team\/new' && teamPreviewAvailable\(\)/);
+  assert.match(router, /path === '\/team\/new' && teamsAllowed\(\)/);
   assert.doesNotMatch(router, /^import[^\n]*components\/team\/TeamSetup/m);
 });
 

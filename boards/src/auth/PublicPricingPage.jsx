@@ -32,6 +32,9 @@ import { PricingPageView } from './PricingPageView.jsx';
 import { CTA, PRICING, PRICING_PAGE, creatorIntentLabels } from '../lib/billingCopy.js';
 import { trackViewContent } from '../lib/metaPixel.js';
 import { stashCreatorIntent, clearCreatorIntent } from '../lib/creatorIntent.js';
+import { teamPricingAllowed } from '../lib/appHost.js';
+import { stashTeamStart, clearTeamStart } from '../lib/teamStart.js';
+import { useTeamPricingCard } from './useTeamPricingCard.js';
 
 const SURFACE = 'public_page';
 
@@ -89,7 +92,9 @@ export function PublicPricingPage() {
     // (useCreatorIntentResume). Before 2026-10-01 nothing remembered it.
     // Any FREE button clears an earlier one: someone who pressed Get Creator,
     // came back and chose Start free has changed their mind, and the offer
-    // must not ambush their first screen anyway.
+    // must not ambush their first screen anyway. Any press here also drops a
+    // kept Team start (lib/teamStart.js): the newest press wins.
+    clearTeamStart();
     const carried = pos === 'creator'
       ? stashCreatorIntent({ plan: extra?.plan, from: 'public_pricing', ...creatorIntentLabels(extra?.plan) })
       : (clearCreatorIntent(), false);
@@ -97,6 +102,21 @@ export function PublicPricingPage() {
     lp.tracker.ctaClick(pos, '/');
     window.location.assign('/');
   };
+
+  // The Team card, while Team is open here (teamPricingAllowed: the preview
+  // host now, production at launch). A visitor can't start a team signed out,
+  // so Start writes down the seats and billing the card showed and goes to
+  // sign in; AuthGate opens the setup with them once they're in
+  // (lib/teamStart.js). The newest press wins, as between Creator and free.
+  const teamCard = useTeamPricingCard({
+    on: teamPricingAllowed(),
+    plan,
+    onStart: (seats) => {
+      clearCreatorIntent();
+      stashTeamStart({ seats, billing: plan });
+      window.location.assign('/');
+    },
+  });
 
   return (
     <PricingPageView
@@ -113,6 +133,7 @@ export function PublicPricingPage() {
         label: CTA.getCreator,
         onClick: () => goSignIn(EV.PRICING_CREATOR_INTENT, 'creator', { plan, already_paid: false }),
       }}
+      teamCard={teamCard}
       footer={
         <div className="pp-foot t-meta">
           Already have an account? <a className="auth-link" href="/">Sign in</a>

@@ -30,8 +30,8 @@ import { DEMO_FEATURES, PRICING_PAGE, PLAN_COMPARISON, PRICING_FAQ, PLAN_NAME, C
 import { PRICING_ANSWER } from '../lib/pricingCrawlable.js';
 import '../pages/seoLanding.css';
 
-// The Team card (the team preview only: PricingPage passes `teamCard`, and
-// nothing else does). Lazy, so the signed-out page and production never load it.
+// The Team card, which both pricing pages pass while Team is open
+// (appHost teamPricingAllowed). Lazy, so nothing loads it while Team is held.
 const TeamPlanCard = lazy(() => import('../components/team/TeamPlanCard.jsx'));
 // With the card, the comparison gains a Team column (the same lazy module).
 const TeamCompareTable = lazy(() => import('../components/team/TeamPlanCard.jsx').then((m) => ({ default: m.TeamCompareTable })));
@@ -62,10 +62,10 @@ export function PricingPageView({
   showPlanToggle = true,
   showPrice = true,
   footer = null,
-  // The team preview's third card: { plan, seats, setSeats(n), onStart(),
-  // talkNote, onTalk(), heroLine }. Null everywhere but the signed-in preview.
-  // heroLine arrives from PricingPage, so this shared page never imports the
-  // team model.
+  // The third card, Team: { plan, seats, setSeats(n), onStart(), talkNote,
+  // onTalk(), heroLine, editorLimit } (auth/useTeamPricingCard.js). Null while
+  // Team is held. heroLine arrives with it, so this shared page never imports
+  // the team model.
   teamCard = null,
 }) {
   const shot = PRICING_PAGE.shot;

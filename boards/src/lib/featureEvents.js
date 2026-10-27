@@ -121,7 +121,7 @@ export const FEATURE_EVENTS = Object.freeze({
   },
   // The 10-editor limit: the share panel's note, Members' "People who can
   // edit", and the notices. The server logs editor_limit_viewer_fallback
-  // (0521); check_instrumentation watches it from S5.
+  // (0521) in the statement that writes its notice.
   editorLimit: {
     exposure: [EV.EDITOR_LIMIT_SEEN],
     action: [EV.EDITOR_LIMIT_ASK_SENT, EV.EDITOR_LIMIT_SEE_WHO, EV.EDITOR_LIMIT_MAKE_ROOM, EV.EDITOR_LIMIT_NOTICE_OPEN],
@@ -132,6 +132,10 @@ export const FEATURE_EVENTS = Object.freeze({
   // The Team plan: S2a is server only (the server logs team_created,
   // team_joined, team_seat_viewer_fallback, team_closed).
   teams: { unmeasured: 'S2a server only; S4 instruments the page' },
+  // The Team card on both pricing pages (auth/useTeamPricingCard.js).
+  teamPricing: {
+    unmeasured: 'The Team card on /pricing records nothing yet. Before it opens: the card seen, Start a Team trial pressed, and Talk to us sent.',
+  },
 
   // Shipped without a hold.
   messages: {

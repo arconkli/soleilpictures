@@ -37,6 +37,7 @@ import { readSetupOverride, setupMayOpenFirst } from '../lib/setupRule.js';
 import { parseShareReturn, stashShareReturn, readShareReturn, clearShareReturn, shareReturnHref, parseFileReturn, stashFileReturn, readFileReturn, clearFileReturn, fileReturnHref } from '../lib/shareReturn.js';
 import { readScoutPhone, clearScoutPhone } from '../lib/scoutClaim.js';
 import { readCreatorIntent } from '../lib/creatorIntent.js';
+import { readTeamStart, clearTeamStart, teamStartHref } from '../lib/teamStart.js';
 import { getFbCookies } from '../lib/metaPixel.js';
 import { suggestEmail, emailProblem } from '../lib/emailTypo.js';
 import { savePendingCode, readPendingCode, clearPendingCode, resendWait } from '../lib/pendingCode.js';
@@ -230,6 +231,18 @@ function consumeFileReturn() {
   clearFileReturn();
   try { logEventNow(EV.FILE_SHARE_RETURN_LANDED); } catch (_) {}
   window.location.replace(fileReturnHref(token));
+  return true;
+}
+
+// "Start a Team trial" on the signed-out /pricing (lib/teamStart.js): once a
+// session exists, open the team setup with the seats and billing the card
+// showed. Returns true when it navigated — the caller must not render the app.
+function consumeTeamStart() {
+  const start = readTeamStart();
+  if (!start) return false;
+  clearTeamStart();
+  if (!teamsAllowed()) return false;
+  window.location.replace(teamStartHref(start));
   return true;
 }
 
@@ -647,6 +660,7 @@ export function AuthGate({ children, signedOut = null, warmApp = null }) {
           await consumeScoutClaim(data.session.user.id);
           if (consumeShareReturn()) return;
           if (consumeFileReturn()) return;
+          if (consumeTeamStart()) return;
           // Already signed in when the link was opened: ask first.
           if (!signingInByForm && workspaceSetupAllowed()) {
             const ws = readWsJoin();
@@ -704,6 +718,7 @@ export function AuthGate({ children, signedOut = null, warmApp = null }) {
           await consumeScoutClaim(sess.user.id);
           if (consumeShareReturn()) return;
           if (consumeFileReturn()) return;
+          if (consumeTeamStart()) return;
         }
         if (sess?.user?.id && !cancelled) {
           startBootPrefetch(sess.user.id);
@@ -847,6 +862,8 @@ function SignIn({ warmApp = null }) {
   // Non-null when "Get Creator" on /pricing sent them here (creatorIntent.js).
   // Read once: an expired entry is removed on read and simply shows nothing.
   const [creatorHint] = useState(() => { try { return readCreatorIntent(); } catch (_) { return null; } });
+  // Non-null when "Start a Team trial" on /pricing sent them here (teamStart.js).
+  const [teamStartHint] = useState(() => { try { return teamsAllowed() ? readTeamStart() : null; } catch (_) { return null; } });
   const codeRef = useRef(null);
   const captchaRef = useRef(null);   // where Turnstile shows a check, if it ever needs one
   const emailEngagedRef = useRef(false);   // fire landing_field_engage once per field
@@ -1206,6 +1223,11 @@ function SignIn({ warmApp = null }) {
           Sign in to finish getting <b>{creatorHint.planName || 'the paid plan'}</b>
           {creatorHint.priceLabel ? <> at <b>{creatorHint.priceLabel}</b></> : null}
           {' '}— the offer opens as soon as you are in.
+        </div>
+      )}
+      {!inviteHint && !joinHint && !wsJoinHint && !teamLink && !creatorHint && teamStartHint && (
+        <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
+          Sign in to start your <b>Team</b> trial — the setup opens as soon as you are in.
         </div>
       )}
 

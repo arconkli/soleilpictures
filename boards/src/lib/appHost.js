@@ -176,6 +176,17 @@ export function teamsAllowed() {
   return onPreviewHost() || !!import.meta.env.DEV;
 }
 
+// The Team card on both pricing pages, signed in and signed out. It follows
+// teamsAllowed() (the preview host now, production at launch), except on dev,
+// where it is opt-in (localStorage soleil.dev.teamPricing = '1', or Settings ›
+// Preview's sample team) so the pricing specs keep reading production's two
+// cards until the launch shows the third.
+export const TEAM_PRICING_DEV_FLAG = 'soleil.dev.teamPricing';
+export function teamPricingAllowed() {
+  if (!import.meta.env.DEV) return teamsAllowed();
+  try { return window.localStorage.getItem(TEAM_PRICING_DEV_FLAG) === '1'; } catch (_) { return false; }
+}
+
 // ---------------------------------------------------------------------------
 // The full Files page's new look
 //
@@ -302,6 +313,7 @@ export function featureFlags() {
     touchPass: touchPassAllowed,
     editorLimit: editorLimitAllowed,
     teams: teamsAllowed,
+    teamPricing: teamPricingAllowed,
     fileShares: fileSharesAllowed,
     sharedFiles: sharedFilesAllowed,
     docShares: docSharesAllowed,
