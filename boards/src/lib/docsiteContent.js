@@ -33909,7 +33909,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " on a phone. Only the workspace's owner or a co-owner can make one. Making it sends nothing to anyone."
+     "v": " on a phone. A phone with no share sheet copies the link instead and says "
+    },
+    {
+     "t": "strong",
+     "v": "Copied",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copied"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; where the browser won't copy at all, the link itself is shown, selected, to copy by hand. Only the workspace's owner or a co-owner can make one. Making it sends nothing to anyone."
     }
    ]
   },

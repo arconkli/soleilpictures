@@ -478,7 +478,7 @@ export const EV = Object.freeze({
   // The whole-workspace sibling of invite_link_*: ?wsjoin=<token> on the app's
   // root. One funnel: created → shared → landed → claim result (server: claimed).
   WORKSPACE_LINK_CREATED:  'workspace_link_created',      // made or reused as an invite panel opened {surface:'setup'|'reask', role}
-  WORKSPACE_LINK_SHARED:   'workspace_link_shared',       // {surface, method:'copy'|'share', ok (copy reached the clipboard), completed (the share sheet finished; closing it still counts as out)} (must-land)
+  WORKSPACE_LINK_SHARED:   'workspace_link_shared',       // {surface, method:'copy'|'share', ok (copy reached the clipboard), by:'hand' (the browser refused, and they copied the shown link themselves), completed (the share sheet finished; closing it still counts as out)} (must-land)
   WORKSPACE_LINK_LANDED:   'workspace_link_landed',       // someone opened a ?wsjoin link {status:'live'|'member'|'dead'|'error', signed_in}
   WORKSPACE_LINK_CLAIM_RESULT:'workspace_link_claim_result', // a claim's outcome, every branch {status:'joined'|'member'|'dead'|'error', at:'signup'|'card', reason} (must-land)
   WORKSPACE_LINK_CLAIMED:  'workspace_link_claimed',      // SERVER: claim_workspace_invite_link let someone in {workspace_id, role, status}

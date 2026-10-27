@@ -13,6 +13,8 @@
 //   &deadlink=1         the seeded Lost Time link no longer works
 //   &wsjoin=<token>     arrive by a workspace link (QA_LINK_TOKEN is Lost Time's)
 //   &theme=light        &latency=<ms>        &fresh=1 (drop the kept fake)
+//   &share=cancel|none  the share sheet is closed unshared, or there is none
+//   &clip=fail          the browser refuses the clipboard, both ways
 //   &inws=tips|reask|joiner   after the setup, in the workspace: the tips and
 //                       the re-ask (SetupInWorkspace) over the real sidebar
 //                       (local/setupqa/InWorkspaceQa.jsx has its own params)
@@ -114,13 +116,23 @@ try {
 // sends the analytics queue first, so a spec reads every row logged so far.
 const qa = { ...fake.qa, events: () => { flushNow(); return fake.qa.events(); }, clipboard: [], shared: [] };
 try {
+  const refuse = QS.get('clip') === 'fail';
   Object.defineProperty(navigator, 'clipboard', {
     configurable: true,
-    value: { writeText: async (t) => { qa.clipboard.push(String(t)); } },
+    value: {
+      writeText: async (t) => {
+        if (refuse) throw new DOMException('Write permission denied.', 'NotAllowedError');
+        qa.clipboard.push(String(t));
+      },
+    },
   });
+  if (refuse) {
+    const exec = document.execCommand.bind(document);
+    document.execCommand = (cmd, ...rest) => (String(cmd).toLowerCase() === 'copy' ? false : exec(cmd, ...rest));
+  }
   Object.defineProperty(navigator, 'share', {
     configurable: true,
-    value: async (data) => {
+    value: QS.get('share') === 'none' ? undefined : async (data) => {
       if (QS.get('share') === 'cancel') throw new DOMException('Share canceled', 'AbortError');
       qa.shared.push(data);
     },

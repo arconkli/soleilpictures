@@ -126,6 +126,11 @@
 .su-link .su-btn.is-done{box-shadow:none;background:var(--bg-2);color:var(--ink-0)}
 .su-link .su-btn.is-done svg{color:var(--msg-ok)}
 .su-share-btn{width:100%;margin-top:20px}
+.su-share-btn.is-done{background:var(--bg-2);color:var(--ink-0)}
+.su-share-btn.is-done svg{color:var(--msg-ok)}
+/* A refused clipboard: the link itself, selected, to copy by hand. */
+.su-link-field{border:0;padding:0;background:transparent;outline:none;cursor:text}
+.su-link-field-phone{margin-top:10px}
 .su-linknote{margin-top:10px;max-width:440px;color:var(--ink-2);font:400 13px/1.5 var(--font-sans)}
 .su.is-phone .su-linknote{font-size:12px}
 .su-or{display:flex;align-items:center;gap:12px;margin-top:22px;color:var(--ink-2);font:500 12px/1 var(--font-sans);white-space:nowrap}

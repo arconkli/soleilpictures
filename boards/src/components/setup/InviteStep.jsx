@@ -1,12 +1,14 @@
 // InviteStep — the invite panel of the first-run setup and of its one re-ask.
 //
 // The workspace's invite link leads: Copy on a computer, the phone's own share
-// sheet on a phone (closing the sheet counts as shared). Then "or invite by
-// email", one row and a secondary Send. Email goes out through
-// lib/inviteSubmit.js, the same way the share panel sends it. The parent owns
-// the way on: it hears onOut('link') when the link goes out and onOut('email')
-// when an email was sent, and onInvited(addresses) for the workspace card's
-// faces.
+// sheet on a phone (closing the sheet counts as shared). A phone with no share
+// sheet copies instead, and says Copied. Where the browser refuses the
+// clipboard, the link is shown selected, to copy by hand (which counts as out
+// too): the press is never silent. Then "or invite by email", one row and a
+// secondary Send. Email goes out through lib/inviteSubmit.js, the same way the
+// share panel sends it. The parent owns the way on: it hears onOut('link') when
+// the link goes out and onOut('email') when an email was sent, and
+// onInvited(addresses) for the workspace card's faces.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LinkSimple, Copy, Check, Export, Plus, X, CaretDown, Gift, Info, CheckCircle } from '@phosphor-icons/react';
@@ -35,11 +37,43 @@ function linkProblem(e) {
 
 const sentence = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
+// The link onto the clipboard: the Clipboard API, then the old select-and-copy,
+// which some in-app browsers still allow when they refuse the API. Whether
+// either worked.
+async function writeLink(url) {
+  try { await navigator.clipboard.writeText(url); return true; } catch (_) { /* the old way next */ }
+  const was = document.activeElement;
+  const ta = document.createElement('textarea');
+  try {
+    ta.value = url;
+    ta.setAttribute('readonly', '');
+    // 16px, or iOS zooms the page to the field it is about to select.
+    Object.assign(ta.style, { position: 'fixed', top: '0', left: '0', opacity: '0', fontSize: '16px' });
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, url.length);
+    return document.execCommand('copy');
+  } catch (_) { return false; } finally {
+    ta.remove();
+    try { was?.focus?.(); } catch (_) { /* focus is only a courtesy */ }
+  }
+}
+
+const isMac = () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
+
+// The whole link selected from its end back, so the field shows where it starts.
+function selectLink(el) {
+  try { el.setSelectionRange(0, el.value.length, 'backward'); el.scrollLeft = 0; } catch (_) { /* still on screen to copy */ }
+}
+
 export function InviteStep({ workspaceId, workspaceName, surface, isPhone, onOut, onInvited }) {
   const [token, setToken] = useState(null);
   const [terms, setTerms] = useState(null);
   const [linkError, setLinkError] = useState(null);
   const [copied, setCopied] = useState(false);
+  // The browser refused the clipboard: the link is shown, selected, instead.
+  const [copyRefused, setCopyRefused] = useState(false);
+  const linkFieldRef = useRef(null);
   const [rows, setRows] = useState(() => [newRow()]);
   const [sending, setSending] = useState(false);
   const [results, setResults] = useState([]);
@@ -75,21 +109,40 @@ export function InviteStep({ workspaceId, workspaceName, surface, isPhone, onOut
 
   useEffect(() => () => clearTimeout(copiedTimer.current), []);
 
+  useEffect(() => {
+    if (!copyRefused) return;
+    const el = linkFieldRef.current;
+    if (!el) return;
+    try { el.focus(); } catch (_) { /* still on screen to copy */ }
+    selectLink(el);
+  }, [copyRefused]);
+
   const termsLine = linkTermsLine({
     workspaceName, role: terms?.role || 'editor', expiresAt: terms?.expires_at,
     maxUses: terms?.max_uses, uses: terms?.uses, now: Date.now(),
   });
 
-  const copyLink = async () => {
-    if (!url) return;
-    let ok = false;
-    try { await navigator.clipboard.writeText(url); ok = true; } catch (_) { ok = false; }
-    try { logEventNow(EV.WORKSPACE_LINK_SHARED, { surface, method: 'copy', ok }); } catch (_) {}
-    if (!ok) return;
+  const markCopied = () => {
+    setCopyRefused(false);
     setCopied(true);
     onOut?.('link');
     clearTimeout(copiedTimer.current);
     copiedTimer.current = setTimeout(() => setCopied(false), 2400);
+  };
+
+  const copyLink = async () => {
+    if (!url) return;
+    const ok = await writeLink(url);
+    try { logEventNow(EV.WORKSPACE_LINK_SHARED, { surface, method: 'copy', ok }); } catch (_) {}
+    if (!ok) { setCopyRefused(true); return; }
+    markCopied();
+  };
+
+  // They copied the shown link themselves. The field leaves on the next tick,
+  // once the browser has taken the selection.
+  const copiedByHand = () => {
+    try { logEventNow(EV.WORKSPACE_LINK_SHARED, { surface, method: 'copy', ok: true, by: 'hand' }); } catch (_) {}
+    setTimeout(markCopied, 0);
   };
 
   const shareLink = async () => {
@@ -161,23 +214,37 @@ export function InviteStep({ workspaceId, workspaceName, surface, isPhone, onOut
   };
 
   const reward = inviteRewardCopy().lead;
+  const refusedHint = isPhone
+    ? 'Copying didn’t work here. Press and hold the link to copy it.'
+    : `Copying didn’t work here. The link is selected: press ${isMac() ? '⌘C' : 'Ctrl+C'} to copy it.`;
+  const linkField = (
+    <input ref={linkFieldRef} className={isPhone ? 'su-input su-link-field-phone' : 'su-link-url su-link-field'}
+      type="text" readOnly value={url || ''} aria-label="Invite link"
+      onFocus={(e) => selectLink(e.target)} onCopy={copiedByHand} />
+  );
 
   return (
     <>
       {isPhone ? (
-        <button type="button" className="su-btn su-primary su-share-btn" onClick={shareLink} disabled={!url}>
-          <Icon as={Export} size={18} weight="regular" />Share invite link
-        </button>
+        <>
+          {/* With no share sheet the press copies, so it says so. */}
+          <button type="button" className={`su-btn su-primary su-share-btn${copied ? ' is-done' : ''}`} onClick={shareLink} disabled={!url}>
+            <Icon as={copied ? Check : Export} size={18} weight="regular" />{copied ? 'Copied' : 'Share invite link'}
+          </button>
+          {copyRefused && linkField}
+        </>
       ) : (
         <div className="su-link" role="group" aria-label="Invite link">
           <Icon as={LinkSimple} size={18} weight="regular" className="su-link-ico" />
-          <span className={`su-link-url${url ? '' : ' is-waiting'}`}>{url ? url.replace(/^https?:\/\//, '') : (linkError ? 'No link right now' : 'Making your link…')}</span>
+          {copyRefused ? linkField : (
+            <span className={`su-link-url${url ? '' : ' is-waiting'}`}>{url ? url.replace(/^https?:\/\//, '') : (linkError ? 'No link right now' : 'Making your link…')}</span>
+          )}
           <button type="button" className={`su-btn ${copied ? 'su-secondary is-done' : 'su-primary'}`} onClick={copyLink} disabled={!url}>
             <Icon as={copied ? Check : Copy} size={16} weight="regular" />{copied ? 'Copied' : 'Copy link'}
           </button>
         </div>
       )}
-      <p className="su-linknote" aria-live="polite">{linkError || termsLine}</p>
+      <p className="su-linknote" aria-live="polite">{linkError || (copyRefused ? refusedHint : termsLine)}</p>
 
       <div className="su-or" role="presentation"><span>or invite by email</span></div>
       <div className="su-rows">
