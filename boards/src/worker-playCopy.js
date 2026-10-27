@@ -87,7 +87,8 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), {
 const validKey = (k) => typeof k === 'string' && KEY_RE.test(k) && !k.includes('..') && !isCopyKey(k) && !isViewKey(k);
 
 // The kind of work an original's file gets ('video' | 'audio' | 'image' |
-// 'doc') and the queue it waits in, or null for a file that gets none.
+// 'doc' | 'design') and the queue it waits in, or null for a file that gets
+// none.
 function workOf(key) {
   if (!validKey(key)) return null;
   const media = mediaKindOfKey(key);
@@ -182,8 +183,8 @@ export async function forgetPlayCopies(env, paths, deps = {}) {
     const made = batch.flatMap((p) => {
       const kind = workOf(p).kind;
       const v = viewKeys(p);
-      if (kind === 'image') return [v.view, v.sm];
       if (kind === 'doc') return [v.view, v.sm, v.pdf];
+      if (isView(kind)) return [v.view, v.sm];
       return kind === 'audio' ? [copyKeys(p).audio] : [copyKeys(p).video, copyKeys(p).poster];
     });
     await d.svcDelete(env, 'images', `storage_path=${inList(made)}`);
