@@ -1,6 +1,9 @@
 -- 0542: Teams, part 13 — "Talk to us" (S5).
 --
--- STATUS: written 2026-10-27. NOT applied (waits for the owner's go).
+-- STATUS: APPLIED 2026-10-27 on the owner's go, as two parts
+-- (team_contact_0542_part1: the table and request_team_contact;
+-- team_contact_0542_part2: the admin functions and the proof), then probed
+-- in a rolled-back transaction: sent, already, invalid, busy, one paged alert.
 --
 -- The pricing page's "Need SSO, invoices or more than 100 seats? Talk to us"
 -- (the owner's decision of 2026-10-21: a short form that lands in /admin with

@@ -21,7 +21,7 @@ import '../setup/setup.css';
 import './teamSetup.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../Icon.jsx';
-import { Plus, Minus, Check, ArrowRight, Lock, Info, ChevronLeft, LinkSimple, Copy, Globe, Clock, Users, Envelope, CheckCircle } from '../../lib/icons.js';
+import { Plus, Minus, Check, ArrowRight, Lock, ChevronLeft, LinkSimple, Copy, Globe, Clock, Users, Envelope, CheckCircle } from '../../lib/icons.js';
 import { Behind } from '../setup/WorkspaceSetup.jsx';
 import { useBreakpoint } from '../../hooks/useBreakpoint.js';
 import { parseEmails } from '../../lib/inviteSubmit.js';
@@ -95,7 +95,6 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
   const [paying, setPaying] = useState(false);
   const [payLine, setPayLine] = useState('');
   const [reask, setReask] = useState(0);
-  const [endCreator, setEndCreator] = useState(true);
   // null follows the picked workspaces' editors; a number is what the URL or the stepper set.
   const [seatsSet, setSeatsSet] = useState(url.seats);
   const [billing, setBilling] = useState(url.billing);
@@ -264,15 +263,11 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
                 )}
                 <p className="tm-hint">Every cluster, file and link stays where it is. Workspaces you leave out stay yours, and you can move one in later.</p>
               </div>
-              {!real && (
-              <div className="tm-box">
-                <Icon as={Info} size={16} weight="regular" />
-                <span className="tm-box-t">
-                  <b>End your Creator plan when the team’s first payment goes through</b>
-                  <span>What’s left of it comes off the team’s bill.{leftOut ? ` ${leftOut.name} stays personal: while you hold a seat it keeps unlimited cards and 50 GB.` : ''}</span>
-                </span>
-                <Switch on={endCreator} onChange={setEndCreator} label="End Creator with credit" />
-              </div>
+              {/* Creator isn't ended or credited here: the team launched
+                  without it (the owner, 2026-10-27), so a Creator buyer keeps
+                  Creator until they end it in Billing. */}
+              {!real && leftOut && (
+                <p className="tm-hint">{leftOut.name} stays personal: while you hold a seat it keeps unlimited cards and 50 GB.</p>
               )}
               {real && closedLine && <p className="su-error" role="alert">{closedLine}</p>}
               <div className="su-actions">
@@ -355,7 +350,7 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
               <div className="tm-facts">
                 <div className="tm-fact">
                   <Icon as={Clock} size={16} weight="regular" />
-                  <span className="tm-fact-t"><b>14 days free</b><span>Your card is charged {total} on {chargeDay}.{endCreator ? ' Creator ends then, and what’s left of it comes off that bill.' : ''}</span></span>
+                  <span className="tm-fact-t"><b>14 days free</b><span>Your card is charged {total} on {chargeDay}.</span></span>
                 </div>
                 <div className="tm-fact">
                   <Icon as={Users} size={16} weight="regular" />

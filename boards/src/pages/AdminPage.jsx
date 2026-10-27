@@ -13,6 +13,7 @@
 //   • Discounts — create / deactivate Stripe discount codes (monthly only)
 //   • Waitlist  — pending entries with Accept now / Reject / Reschedule
 //   • Feedback  — in-app feedback submissions
+//   • Talk to us — the pricing page's Talk-to-us requests (new / handled / spam)
 //   • Errors    — first-party client-side error logs (client_errors)
 //   • API       — /api/v1 + MCP traffic: tools, routes, callers, failures
 //   • Tagging   — embeddings tagger quality audit
@@ -41,6 +42,7 @@ import { AdminApprovalsTab } from './admin/AdminApprovalsTab.jsx';
 import { AdminTemplatesTab } from './admin/AdminTemplatesTab.jsx';
 import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
 import { AdminFeedbackTab } from './admin/AdminFeedbackTab.jsx';
+import { AdminTalkTab } from './admin/AdminTalkTab.jsx';
 import { AdminErrorsTab } from './admin/AdminErrorsTab.jsx';
 import { AdminAuditTab } from './admin/AdminAuditTab.jsx';
 import { AdminApiTab } from './admin/AdminApiTab.jsx';
@@ -80,6 +82,7 @@ const TABS = [
   { id: 'templates', label: 'Templates' },
   { id: 'waitlist',  label: 'Waitlist' },
   { id: 'feedback',  label: 'Feedback' },
+  { id: 'talk',      label: 'Talk to us' },
   { id: 'errors',    label: 'Errors' },
   { id: 'audit',     label: 'Audit' },
   { id: 'api',       label: 'API' },
@@ -98,7 +101,7 @@ const PRIMARY_IDS = ['overview', 'users', 'approvals'];
 // Overflow order is triage-first, then rare/config, split by a single divider.
 // The waitlist has been switched off since 2026-06-15, so Waitlist sits with
 // Campaign among the rarely opened rather than in the pills.
-const OVERFLOW_IDS = ['discover', 'templates', 'feedback', 'errors', 'audit', 'api', 'scout', 'emails', 'discounts', 'grants', 'campaign', 'waitlist', 'tagging', 'universe'];
+const OVERFLOW_IDS = ['discover', 'templates', 'feedback', 'talk', 'errors', 'audit', 'api', 'scout', 'emails', 'discounts', 'grants', 'campaign', 'waitlist', 'tagging', 'universe'];
 const OVERFLOW_SEP_AFTER = 'grants';      // divider between triage and rare-config
 const HEAVY_IDS = new Set(['universe']);  // heaviest to mount → flagged in the menu
 
@@ -312,6 +315,7 @@ export function AdminPage() {
         {tab === 'templates' && <AdminTemplatesTab />}
         {tab === 'waitlist'  && <AdminWaitlistTab />}
         {tab === 'feedback'  && <AdminFeedbackTab />}
+        {tab === 'talk'      && <AdminTalkTab />}
         {tab === 'scout'     && <AdminScoutTab />}
         {tab === 'errors'    && <AdminErrorsTab />}
         {tab === 'audit'     && <AdminAuditTab />}
