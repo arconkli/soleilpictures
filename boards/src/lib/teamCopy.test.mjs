@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TEAM_HINT } from './teamHints.js';
-import { refusalLine, successLine, seatPriceLine, domainCheckLine, teamJoinLine, teamDomainJoinLine, teamInviteRefusalLine, teamInvitesClaimedLine } from './teamCopy.js';
+import { refusalLine, successLine, seatPriceLine, addSeatInviteLine, domainCheckLine, teamJoinLine, teamDomainJoinLine, teamInviteRefusalLine, teamInvitesClaimedLine } from './teamCopy.js';
 
 const DEFAULT = refusalLine({ code: 'nonsense' });
 
@@ -93,4 +93,17 @@ test('teamInvitesClaimedLine: none, one, many', () => {
   assert.equal(teamInvitesClaimedLine(undefined), null);
   assert.equal(teamInvitesClaimedLine(1), 'You joined a team you were invited to. Its workspaces are in your workspace menu.');
   assert.equal(teamInvitesClaimedLine(3), 'You joined 3 teams you were invited to. Their workspaces are in your workspace menu.');
+});
+
+test('the share panel prices the seats an invite to edit adds', () => {
+  const one = { ok: true, seats: 6, from_seats: 5, unit_amount: 2500, interval: 'month', amount_today: 950, proration_date: 1 };
+  assert.equal(addSeatInviteLine(one, 'lena@example.com'),
+    'Inviting lena@example.com to edit adds a seat: $25 a month, $9.50 today.');
+  const three = { ok: true, seats: 8, from_seats: 5, unit_amount: 24000, interval: 'year', amount_today: 30000, proration_date: 1 };
+  assert.equal(addSeatInviteLine(three, '3 people'),
+    'Inviting 3 people to edit adds 3 seats: $240 a year each, $300 today.');
+  const end = Date.UTC(2026, 10, 12, 12) / 1000;
+  const trial = { ok: true, seats: 4, from_seats: 3, unit_amount: 2500, interval: 'month', trialing: true, amount_today: 0, trial_end: end };
+  assert.equal(addSeatInviteLine(trial, 'lena@example.com'),
+    'Inviting lena@example.com to edit adds a seat: $25 a month, nothing until your trial ends November 12, 2026.');
 });

@@ -114,6 +114,21 @@ export function seatPriceLine(preview) {
   return `${seats} at ${unit}, ${money(preview.amount_today / 100)} today.`;
 }
 
+// The share panel's line when a team's owner or an admin invites people to
+// edit with every seat in use (the owner's pick, 2026-10-21): "Inviting
+// lena@x.co to edit adds a seat: $25 a month, $9.50 today." The amounts are
+// team-billing's seats_preview, as seatPriceLine's are.
+export function addSeatInviteLine(preview, who) {
+  const n = Math.max(1, (preview.seats | 0) - (preview.from_seats | 0));
+  const adds = n === 1 ? 'a seat' : `${n} seats`;
+  const unit = `${money(preview.unit_amount / 100)} a ${preview.interval}${n === 1 ? '' : ' each'}`;
+  if (preview.trialing) {
+    const end = preview.trial_end ? dateLabel(trialMs(preview.trial_end)) : 'soon';
+    return `Inviting ${who} to edit adds ${adds}: ${unit}, nothing until your trial ends ${end}.`;
+  }
+  return `Inviting ${who} to edit adds ${adds}: ${unit}, ${money(preview.amount_today / 100)} today.`;
+}
+
 // trial_end is Stripe's epoch seconds, or an ISO string.
 function trialMs(v) {
   if (typeof v === 'number') return v < 1e12 ? v * 1000 : v;

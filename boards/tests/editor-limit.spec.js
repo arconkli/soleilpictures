@@ -40,19 +40,36 @@ async function boot(page, rpc = {}, { previewAs = null } = {}) {
   await page.waitForLoadState('domcontentloaded');
 }
 
-async function mountPanel(page, { owner = true, members = [], peers = [] } = {}) {
-  await page.evaluate(async ({ me, ownerId, board, members, peers }) => {
-    window.__limit = { seeWho: [] };
+// team: { seats, addFails } mounts a team workspace whose seats are priced and
+// bought by fakes that record on window.__limit (team-billing needs a session).
+async function mountPanel(page, { owner = true, members = [], peers = [], team = null } = {}) {
+  await page.evaluate(async ({ me, ownerId, board, members, peers, team }) => {
+    window.__limit = { seeWho: [], previews: [], adds: [] };
     const { mountShareModal } = await import('/src/local/shareWorkspaceProbe.js');
+    const teamProps = team ? {
+      teamBilling: {
+        previewTeamSeatsCost: async (orgId, seats) => {
+          window.__limit.previews.push({ orgId, seats });
+          return { ok: true, seats, from_seats: team.seats, unit_amount: 2500, interval: 'month',
+            amount_today: 950 * (seats - team.seats), proration_date: 1700000000 };
+        },
+        addTeamSeats: async (orgId, seats, o) => {
+          window.__limit.adds.push({ orgId, seats, ...o });
+          return team.addFails ? { ok: false, error: team.addFails } : { ok: true, seats };
+        },
+        newSeatRequestId: () => 'req-1',
+      },
+    } : {};
     mountShareModal({
+      ...teamProps,
       board: { id: board, name: 'Feature film', workspace_id: 'ws-x' },
-      workspace: { id: 'ws-x', name: 'Studio', created_by: ownerId },
+      workspace: { id: 'ws-x', name: 'Studio', created_by: ownerId, ...(team ? { org_id: 'org-x' } : {}) },
       workspaceMembers: [{ user_id: ownerId, role: 'owner' }, ...members],
       wsPeers: [{ user: { id: ownerId, name: 'Alex Moreau', email: 'alex@moreau.studio' } }, ...peers],
       selfUserId: me, canManage: true, rewardTier: 'paid',
       onSeeEditors: (ws) => { window.__limit.seeWho.push(ws); },
     });
-  }, { me: ME, ownerId: owner ? ME : OWNER, board: BOARD, members, peers });
+  }, { me: ME, ownerId: owner ? ME : OWNER, board: BOARD, members, peers, team });
   const panel = page.locator('.share-modal');
   await expect(panel).toBeVisible();
   return panel;
@@ -232,4 +249,60 @@ test('Members: People who can edit lists the account, frees a place, and locks E
   await expect.poll(() => shares.length).toBe(1);
   expect(shares[0]).toEqual({ p_board_id: 'b-music', p_email: 'ben@adler.co', p_role: 'viewer' });
   await expect(page.locator('.toast-msg', { hasText: 'Ben Adler can view now. Their place is free.' })).toBeVisible();
+});
+
+const teamFull = (o = {}) => capRow({ subject: 'team', editor_limit: 5, used: 5, is_full: true, ...o });
+const answer = (route, body) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+
+test('a team admin with every seat in use adds a seat and invites, at the price shown', async ({ page }) => {
+  let capCalls = 0;
+  const shares = [];
+  await boot(page, {
+    get_editor_capacity: (route) => {
+      capCalls += 1;
+      return answer(route, capCalls === 1 ? teamFull() : teamFull({ editor_limit: 6, used: 6 }));
+    },
+    share_board: (route) => {
+      shares.push(JSON.parse(route.request().postData() || '{}'));
+      return answer(route, 'pending');
+    },
+  });
+  const panel = await mountPanel(page, { team: { seats: 5 } });
+  const note = panel.locator('.lim-note');
+  await expect(note).toContainText('All 5 of the team’s seats are in use.');
+  await expect(note).toContainText('Inviting someone to edit adds a seat.');
+  await expect(panel.locator('select[aria-label="Access level for invitees"]')).toHaveValue('editor');
+  await panel.locator('input[aria-label="Email addresses to invite"]').fill('lena@example.com');
+  await expect(note).toContainText('Inviting lena@example.com to edit adds a seat: $25 a month, $9.50 today.');
+  await panel.getByRole('button', { name: 'Add a seat and invite' }).click();
+  await expect.poll(() => shares.map((x) => [x.p_email, x.p_role])).toEqual([['lena@example.com', 'editor']]);
+  expect(await page.evaluate(() => window.__limit.previews)).toEqual([{ orgId: 'org-x', seats: 6 }]);
+  expect(await page.evaluate(() => window.__limit.adds))
+    .toEqual([{ orgId: 'org-x', seats: 6, requestId: 'req-1', prorationDate: 1700000000 }]);
+});
+
+test('seats that could not be bought say why, send nothing, and are priced again', async ({ page }) => {
+  const shares = [];
+  await boot(page, {
+    get_editor_capacity: teamFull(),
+    share_board: (route) => { shares.push(1); return answer(route, 'pending'); },
+  });
+  const panel = await mountPanel(page, { team: { seats: 5, addFails: 'stale_preview' } });
+  await panel.locator('input[aria-label="Email addresses to invite"]').fill('lena@example.com, bo@example.com');
+  await expect(panel.locator('.lim-note')).toContainText('Inviting 2 people to edit adds 2 seats: $25 a month each, $19 today.');
+  await panel.getByRole('button', { name: 'Add 2 seats and invite' }).click();
+  await expect(page.locator('.toast-msg', { hasText: 'That price is out of date. Check it and try again.' })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.__limit.previews.length)).toBe(2);
+  expect(shares).toEqual([]);
+});
+
+test('a team member with every seat in use still invites to view only', async ({ page }) => {
+  await boot(page, { get_editor_capacity: teamFull({ i_am_account_owner: false }) });
+  const panel = await mountPanel(page, { owner: false, team: { seats: 5 } });
+  await expect(panel.locator('.lim-note')).toContainText('An admin of the team can add a seat.');
+  const access = panel.locator('select[aria-label="Access level for invitees"]');
+  await expect(access).toHaveValue('viewer');
+  await panel.locator('input[aria-label="Email addresses to invite"]').fill('lena@example.com');
+  await expect(panel.getByRole('button', { name: 'Invite', exact: true })).toBeEnabled();
+  expect(await page.evaluate(() => window.__limit.previews)).toEqual([]);
 });

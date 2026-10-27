@@ -101,7 +101,7 @@ export function ownerPlan(ownerName, { start = false } = {}) {
 // hears that places are running low; anyone else hears once there are none,
 // and can ask the owner for room.
 //   → { stage, lead, body, seeWho: 'link'|'button'|null, ask: label|null, done: line|null }
-export function editorLimitNote(cap, { ownerName = null, asked = false } = {}) {
+export function editorLimitNote(cap, { ownerName = null, asked = false, canBuySeat = false } = {}) {
   const stage = editorLimitStage(cap);
   if (!stage || stage === 'room') return null;
   const { limit, taken } = cap;
@@ -110,9 +110,9 @@ export function editorLimitNote(cap, { ownerName = null, asked = false } = {}) {
     if (stage === 'full') {
       return {
         stage, lead: `All ${limit} of the team’s seats are in use.`,
-        body: cap.isAccountOwner
-          ? 'Invite people to view, or add a seat on the team’s page.'
-          : 'Invite people to view. An admin of the team can add a seat.',
+        body: !cap.isAccountOwner ? 'Invite people to view. An admin of the team can add a seat.'
+          : canBuySeat ? 'Inviting someone to edit adds a seat.'
+            : 'Invite people to view, or add a seat on the team’s page.',
         ...none,
       };
     }

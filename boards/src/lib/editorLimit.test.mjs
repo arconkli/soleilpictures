@@ -292,6 +292,10 @@ test('a full team tells its owner and admins to add a seat, and everyone else to
     stage: 'full', lead: 'All 5 of the team’s seats are in use.',
     body: 'Invite people to view. An admin of the team can add a seat.', seeWho: null, ask: null, done: null,
   });
+  // The share panel, where an owner or admin can buy the seat with the invite.
+  assert.equal(editorLimitNote(teamCap(full), { canBuySeat: true }).body, 'Inviting someone to edit adds a seat.');
+  assert.equal(editorLimitNote(teamCap({ ...full, isAccountOwner: false }), { canBuySeat: true }).body,
+    'Invite people to view. An admin of the team can add a seat.');
 });
 
 test('a team running low tells only its owner and admins', () => {
