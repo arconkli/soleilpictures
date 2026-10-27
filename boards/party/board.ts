@@ -22,10 +22,14 @@
 // A cold start loads (1) and merges (2), always: the room never assumes its own
 // copy is newer than the database.
 //
-// gc stays OFF. y-partyserver builds its document with gc on; a GC'd board_state
-// would drop deleted cards' file keys while undo, the trash and version history
-// can still bring those cards back, and the R2 sweep would then delete the
-// files. Storage counting decodes its own gc:true copy (storage-liveness).
+// gc runs through lib/roomGc.js. Plain gc on would drop deleted cards' file
+// keys from board_state while undo, the trash and version history can still
+// bring those cards back, and the R2 sweep would then delete the files; gc off
+// kept every deleted value instead, every keystroke's copy of a note's html
+// among them, until one board's state took the database down (2026-10-26). The
+// filter keeps types, everything under a deleted one and anything naming a
+// file, and lets the rest go. Storage counting decodes its own gc:true copy
+// (storage-liveness).
 //
 // One alarm per object (a Durable Object has one): every minute while anyone
 // is connected it closes sockets of accounts suspended since they connected
@@ -43,6 +47,7 @@ import { RoomLog, MAX_PENDING_UPDATES } from "./roomLog";
 import { DEFAULT_SUPABASE_URL, type Env } from "./env";
 import { FLUSH_DEBOUNCE_MS, FLUSH_MAX_WAIT_MS, bytesToB64 } from "../src/lib/boardStateSync.js";
 import { BoardRoomState, MERGE_ORIGIN } from "../src/lib/boardRoomState.js";
+import { roomGcFilter } from "../src/lib/roomGc.js";
 import { answerEmptyClose } from "../src/lib/partyClose.js";
 import { BoardBridge } from "./bridge";
 import { bindReports, reportParty } from "./report";
@@ -93,7 +98,8 @@ export class BoardParty extends YServer<Env> {
     super(ctx, env);
     bindReports(env);
     // Before anything is applied to it — see the header.
-    this.document.gc = false;
+    this.document.gc = true;
+    this.document.gcFilter = roomGcFilter;
   }
 
   private get supabaseUrl() { return this.env.SUPABASE_URL || DEFAULT_SUPABASE_URL; }
@@ -149,7 +155,7 @@ export class BoardParty extends YServer<Env> {
   }
 
   async onLoad() {
-    const doc = new Y.Doc({ gc: false });
+    const doc = new Y.Doc({ gcFilter: roomGcFilter });
     let applied = 0;
     for (const update of this.local.load()) {
       try {
