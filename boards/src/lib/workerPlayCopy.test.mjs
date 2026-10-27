@@ -447,6 +447,17 @@ test('a swept original takes its own copies and views with it, and nothing else'
   assert.equal(await forgetPlayCopies({}, [], { svcDelete }), 0);
 });
 
+test('a swept design file takes its picture with it', async () => {
+  const deletes = [];
+  const svcDelete = async (_env, table, query) => { deletes.push([table, decodeURIComponent(query)]); return true; };
+  const sketch = `${WS}/4f1c2d3e-0000-4000-8000-000000000006.sketch`;
+  assert.equal(await forgetPlayCopies({}, [sketch], { svcDelete }), 1);
+  assert.deepEqual(deletes, [
+    ['images', `storage_path=in.("${WS}/previews/4f1c2d3e-0000-4000-8000-000000000006.sketch.view.webp","${WS}/previews/4f1c2d3e-0000-4000-8000-000000000006.sketch.view_sm.webp")`],
+    ['file_views', `storage_path=in.("${sketch}")`],
+  ]);
+});
+
 test('the Worker routes copies here and ticks the queue every minute', () => {
   const w = readFileSync(resolve(SRC, 'worker.js'), 'utf8');
   const copyAt = w.indexOf("url.pathname.startsWith('/api/media/copy/')");
