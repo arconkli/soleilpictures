@@ -65,7 +65,13 @@ export const CEILINGS = {
   // the person's teams and the team's workspaces in the workspace menu, and
   // reading a landing on /team. The page, its data, and verifying a return
   // from Stripe load later (TeamPageLive, teamsApi, teamReturnRun).
-  appJs: 691_000,
+  // 2026-10-26: +0.5 KB, no new feature. CI's bundle job measured 691.2 KB on
+  // db870a75, over a ceiling set from a local build that read low: a worktree
+  // that symlinks the shared checkout's node_modules builds dompurify 3.4.16
+  // and nanoid 3.3.12, where the lockfile (and CI, and Cloudflare) has 3.4.17
+  // and 3.3.20, about 0.6 KB less. Take the figure from CI's run, or from a
+  // worktree with its own `npm ci`.
+  appJs: 691_500,
   appCss: 21_000,
 };
 
