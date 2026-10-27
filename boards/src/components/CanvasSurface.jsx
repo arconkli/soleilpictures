@@ -73,8 +73,8 @@ const QuickLook = lazyWithReload(() => import('./clusterBrowser/QuickLook.jsx'))
 // at its first open and stays mounted from then on (lib/lazyPanel.jsx).
 const SketchPadOverlay = lazyPanel(() => import('./SketchPadOverlay.jsx').then(m => ({ default: m.SketchPadOverlay })));
 const GridTemplatePanel = lazyPanel(() => import('./GridTemplatePanel.jsx').then(m => ({ default: m.GridTemplatePanel })));
-// The selection's bar in the toolbar look (lib/looks.js), a chunk today's
-// bars (on dev, the hold set to '0') never fetch.
+// The selection's bar, a chunk of its own: a desktop warms it, and a finger,
+// which gets the count instead, never fetches it.
 const SelectionBarA = lazyWithReload(() => import('./toolbar/SelectionBarA.jsx').then(m => ({ default: m.SelectionBarA })));
 const SaveTemplateDialog = lazyPanel(() => import('./SaveTemplateDialog.jsx').then(m => ({ default: m.SaveTemplateDialog })));
 
@@ -12546,8 +12546,10 @@ export function CanvasSurface({
   const tools = [
     // `keys`: what picks it from the keyboard (the shortcut handler above),
     // for aria-keyshortcuts. With W A S D movement on, A and D move instead.
-    // `tip`: its words in the toolbar look's tooltip, which shows `keys` in
-    // caps beside them (`title`, today's, says the key itself).
+    // `tip`: its words in the tooltip, which shows `keys` in caps beside them;
+    // `title`, which says the key itself, is its name down the rail in the
+    // guided tour's last step (data-tip), and the tooltip's where it has no
+    // `tip`.
     { id: 'select', title: 'Select / move (V)', tip: 'Select / move', label: 'Select tool', icon: MousePointer2, keys: 'V' },
     { id: 'pan',    title: 'Pan canvas (H or Space)', tip: 'Pan canvas, or hold Space', label: 'Pan tool', icon: Hand, keys: 'H' },
     { id: 'image',  title: 'Add image', label: 'Add image tool', icon: ImageIcon },

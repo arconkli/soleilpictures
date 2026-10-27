@@ -505,9 +505,8 @@ body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) 
 }
 
 /* ── A picked arrow's bar (components/toolbar/CanvasBarsA.jsx
-   PickedArrowBarA): over the arrow's middle, where today's popover sits (its
-   place is set inline, ArrowPopover.jsx useArrowPopover), in the bars'
-   glass. ── */
+   PickedArrowBarA): over the arrow's middle (its place is set inline,
+   hooks/useArrowPopover.js), in the bars' glass. ── */
 :root[data-tb='a'] .tl-bar.pa-a {
   position: fixed;
   z-index: 999999;
@@ -679,9 +678,8 @@ body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) 
   :root[data-tb='a'] .cnv-comments-eye::before { content: none; }
 }
 /* Where the rail hangs from the canvas's top (a phone, a portrait iPad:
-   styles.css's phone block), it starts under the toggle, which a finger's
-   size makes 18px taller than today's: the 10px a narrow window leaves
-   between the two. The toggle lines up with the rail's buttons. */
+   styles.css's phone block), it starts under the toggle, at a finger's size
+   there, 10px below it. The toggle lines up with the rail's buttons. */
 @media (hover: none) and (pointer: coarse) and (max-width: 1024px) {
   :root[data-tb='a'] .cnv-tools {
     top: calc(48px + var(--safe-top, 0px) + 20px);
@@ -697,8 +695,7 @@ body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) 
    (components/ctxMenuParts.jsx; a finger has no keys), the headers in the
    look's small caps and a submenu's caret its icon. The glass is the
    tooltip's 94%, not a menu's 88%: these open over the cluster's photos, and
-   at 88% a busy one showed through the words (which is why today's are
-   solid). ── */
+   at 88% a busy one showed through the words. ── */
 :root[data-tb='a'] .ctx-menu {
   gap: 0;
   padding: 4px;
@@ -832,8 +829,8 @@ body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) 
 }
 
 /* ── The sketch pad (SketchPadOverlay.jsx): its bars keep their place in the
-   pad's frame, and their controls are the look's: 32px (today's 44 under a
-   finger) with the look's corners, bare until the pointer is on one, the
+   pad's frame, and their controls are the look's: 32px (44 under a finger)
+   with the look's corners, bare until the pointer is on one, the
    look's icons, words with no box round them, and what's on (the tool, the
    brush, the width, the frame, Layers, the layer you draw on) the look's gold
    tint and ring rather than a gold border; a colour that's on wears the
