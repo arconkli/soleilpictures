@@ -1,24 +1,19 @@
 // A picked arrow's bar in the toolbar look (the owner's pick "A · Islands";
 // components/toolbar/CanvasBarsA.jsx PickedArrowBarA), shipped 2026-10-25
-// (lib/appHost.js toolbarLookAllowed): over the arrow's middle, as today's
-// popover sits, in the look's glass: its colour as a chip with its menu, its
-// width, its heads, its path and its dashes, what's on in the look's tint and
-// ring, the heads drawn as icons rather than — → ↔; its label; Delete, with
-// Undo. A phone's row keeps the colour, the label and Delete, and ⋯ holds the
-// rest, a row each, picked in place. Today's popover keeps nothing of the
-// look.
+// over the arrow's middle, where the popover it replaced sat, in the look's
+// glass: its colour as a chip with its menu, its width, its heads, its path
+// and its dashes, what's on in the look's tint and ring, the heads drawn as
+// icons rather than — → ↔; its label; Delete, with Undo. A phone's row keeps
+// the colour, the label and Delete, and ⋯ holds the rest, a row each, picked
+// in place.
 //
 // On the real canvas, through ?local=1.
 import { expect, test } from '@playwright/test';
 
-const look = (page, on) => page.addInitScript((v) => {
-  try { window.localStorage.setItem('soleil.dev.toolbarLook', v); } catch (_) {}
-}, on ? '1' : '0');
 const bar = (page) => page.getByRole('toolbar', { name: 'Selected arrow' });
 const line = (page) => page.locator('.arrow-g path[data-arrow-line]').first();
 
-async function board(page, on = true) {
-  await look(page, on);
+async function board(page) {
   await page.goto('/?local=1&reset=1&blank=1');
   await page.locator('.canvas-wrap').waitFor({ timeout: 30000 });
   await page.addStyleTag({ content: '.dev-banner, .twk-gear { display: none !important; }' });
@@ -50,7 +45,6 @@ test('a picked arrow\'s bar is the look\'s island over the arrow, the heads as i
   await anArrow(page);
   const b = bar(page);
   await expect(b).toBeVisible();
-  await expect(page.locator('.arrow-popover')).toHaveCount(0);
   await expect(b).toHaveClass(/tl-bar/);
   // Over the arrow's middle, clear of it.
   const r = await b.boundingBox();
@@ -229,11 +223,4 @@ test.describe('on an iPad', () => {
     await expect(line(page)).not.toHaveAttribute('d', /[CQ]/);
     await expect(more).toBeVisible();
   });
-});
-
-test('today\'s look keeps today\'s popover', async ({ page }) => {
-  await board(page, false);
-  await anArrow(page);
-  await expect(page.locator('.arrow-popover')).toBeVisible();
-  await expect(bar(page)).toHaveCount(0);
 });

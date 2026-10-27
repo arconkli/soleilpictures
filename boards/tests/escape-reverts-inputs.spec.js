@@ -16,7 +16,7 @@ test('Escape in the note size box reverts the typed size', async ({ page }) => {
   await edit.waitFor();
   await edit.click();
   await page.keyboard.type('size');
-  // The size field in either look (helpers/noteBar.js).
+  // The size field (helpers/noteBar.js).
   const size = sizeField(page);
   await size.click();
   await size.fill('72');
@@ -57,7 +57,7 @@ test('Escape in the arrow label field leaves the label alone', async ({ page }) 
   await drag(page, 380, 300, 640, 300);
   await expect(page.locator('.arrow-g')).toHaveCount(1);
   await selectArrow(page);
-  // Its bar and its label in either look (helpers/arrowBar.js).
+  // Its bar and its label (helpers/arrowBar.js).
   await expect(arrowBar(page)).toBeVisible();
   const label = arrowLabel(page);
   await label.click();

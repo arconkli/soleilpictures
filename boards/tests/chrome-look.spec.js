@@ -1,21 +1,16 @@
 // The top islands and the comments toggle in the toolbar look (the owner's
-// pick "A · Islands", the top of mockup A-select), shipped 2026-10-25
-// (lib/appHost.js): FloatingChrome's islands wear the bars' glass, with 28px
-// buttons, regular icons, hairlines between the groups and the glass tooltip
-// with the shortcut's keys; ⋯ is the look's menu (ChromeMoreA.jsx); the
-// comments toggle is a small island of its own. The islands keep their place
-// and size, which the toasts and the template tray line up to. Today's look
-// keeps today's.
+// pick "A · Islands", the top of mockup A-select), shipped 2026-10-25:
+// FloatingChrome's islands wear the bars' glass, with 28px buttons, regular
+// icons, hairlines between the groups and the glass tooltip with the
+// shortcut's keys; ⋯ is the look's menu (ChromeMoreA.jsx); the comments toggle
+// is a small island of its own. The islands keep their place and size, which
+// the toasts and the template tray line up to.
 //
 // The islands on the sidebar harness (?sidebarqa=1, App's markup for them);
 // the comments toggle on the real canvas (?local=1).
 import { expect, test } from '@playwright/test';
 
-const look = (page, on) => page.addInitScript((v) => {
-  try { window.localStorage.setItem('soleil.dev.toolbarLook', v); } catch (_) {}
-}, on ? '1' : '0');
-async function islands(page, on = true) {
-  await look(page, on);
+async function islands(page) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/?sidebarqa=1');
   await page.waitForSelector('[data-sidebarqa-ready]');
@@ -98,7 +93,6 @@ test('the keyboard on ⋯ before its menu has loaded is on ⋯ when the menu com
   let release;
   const held = new Promise((r) => { release = r; });
   await page.route(/\/src\/components\/chrome\/ChromeMoreA\.jsx/, async (route) => { await held; await route.continue(); });
-  await look(page, true);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/?sidebarqa=1');
   await page.waitForSelector('[data-sidebarqa-ready]');
@@ -117,17 +111,7 @@ test('the keyboard on ⋯ before its menu has loaded is on ⋯ when the menu com
   expect(await right(page).evaluate((el) => el.contains(document.activeElement))).toBe(true);
 });
 
-test('today\'s look keeps today\'s islands: titles, the island\'s own menu', async ({ page }) => {
-  await islands(page, false);
-  await expect(right(page).getByRole('button', { name: 'Undo', exact: true })).toHaveAttribute('title', 'Undo (⌘Z)');
-  await right(page).getByRole('button', { name: 'More', exact: true }).click();
-  await expect(page.locator('.chrome-menu')).toBeVisible();
-  await expect(page.locator('.tl-menu')).toHaveCount(0);
-  expect((await box(right(page).getByRole('button', { name: 'Undo', exact: true }))).height).toBe(30);
-});
-
 test('the comments toggle is a small island over the rail, named for what it does', async ({ page }) => {
-  await look(page, true);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/?local=1&reset=1');
   await expect(page.locator('[data-card-id="home-note"]')).toBeVisible({ timeout: 30000 });

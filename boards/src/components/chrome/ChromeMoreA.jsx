@@ -2,13 +2,13 @@ import { useLayoutEffect, useRef } from 'react';
 import { MenuButton, MenuItem, MenuSep } from '../toolbar/Menu.jsx';
 import { MoreHorizontal } from '../../lib/icons.js';
 
-// ⋯ in the top islands in the toolbar look (FloatingChrome.jsx): the look's
-// menu (components/toolbar/Menu.jsx), portaled, under the button and lined up
+// ⋯ in the top islands (FloatingChrome.jsx): the toolbar look's menu
+// (components/toolbar/Menu.jsx), portaled, under the button and lined up
 // with its right edge, with the menu's keys (↓ ↑, Home, End, a letter;
 // Escape gives the focus back to ⋯). A chunk of its own, warmed when the
 // islands mount.
 //
-// items: [{ id, label, icon?, keys?, run } | { sep: true }], as MoreMenu's.
+// items: [{ id, label, icon?, keys?, run } | { sep: true }], App's rows.
 // focus: true when the stand-in this replaces went with the keyboard on it
 // (FloatingChrome.jsx MoreStandIn), and ⋯ then takes it.
 export function ChromeMoreA({ items, focus = null }) {

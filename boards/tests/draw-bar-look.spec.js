@@ -1,18 +1,14 @@
 // The draw bar in the toolbar look (the owner's pick "A · Islands", mockup
-// A-draw), shipped 2026-10-25 (lib/appHost.js toolbarLookAllowed;
-// components/toolbar/CanvasBarsA.jsx): undo, the three modes, the four
-// brushes, the colours, the widths and Canvas, each by name, in the room the
-// rail and the zoom leave it; the eraser keeps only its sizes and the lasso
-// only what it does; a window too narrow for the row folds it a step at a
-// time, never cutting its end off; under a finger the brush, the colour and
-// the width are one chip's menu. Today's bar keeps nothing of the look.
+// A-draw), shipped 2026-10-25 (components/toolbar/CanvasBarsA.jsx): undo, the
+// three modes, the four brushes, the colours, the widths and Canvas, each by
+// name, in the room the rail and the zoom leave it; the eraser keeps only its
+// sizes and the lasso only what it does; a window too narrow for the row folds
+// it a step at a time, never cutting its end off; under a finger the brush,
+// the colour and the width are one chip's menu.
 //
 // On the real canvas, through ?local=1.
 import { expect, test } from '@playwright/test';
 
-const look = (page, on) => page.addInitScript((v) => {
-  try { window.localStorage.setItem('soleil.dev.toolbarLook', v); } catch (_) {}
-}, on ? '1' : '0');
 const bar = (page) => page.getByRole('toolbar', { name: 'Drawing' });
 const button = (page, name) => bar(page).getByRole('button', { name, exact: true });
 const names = (page) => bar(page).locator('button, input')
@@ -20,8 +16,7 @@ const names = (page) => bar(page).locator('button, input')
 const meets = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
 // The draw tool armed on the local board: its bar is up.
-async function drawing(page, { on = true, touch = false } = {}) {
-  await look(page, on);
+async function drawing(page, { touch = false } = {}) {
   await page.goto('/?local=1&reset=1&blank=1');
   await page.locator('.canvas-wrap').waitFor({ timeout: 30000 });
   // What only the dev harness draws: the tweaks gear in the corner.
@@ -167,15 +162,6 @@ test('folded, the brush and the colour are menus of their own, and work there', 
     await page.locator('.db-colour-menu').getByLabel('Color #3b82f6', { exact: true }).click();
     await expect(colour).toHaveAttribute('aria-label', 'Color: #3b82f6');
   }
-});
-
-test('today\'s draw bar keeps nothing of the look', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await drawing(page, { on: false });
-  await expect(bar(page)).not.toHaveClass(/\btob-a\b/);
-  await expect(bar(page).locator('[data-tl-tip]')).toHaveCount(0);
-  await expect(bar(page).locator('.tob-segmented')).toBeVisible();
-  await expect(bar(page).locator('.tob-canvas-btn')).toBeVisible();
 });
 
 test.describe('on a phone', () => {

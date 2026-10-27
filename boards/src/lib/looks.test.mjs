@@ -1,10 +1,10 @@
-// looks.test.mjs — the toolbar look and the doc editor's look (the owner's
-// picks of 2026-10-21) each have one switch, on everywhere since they shipped
-// (the doc look's 2026-10-24, the toolbar look's 2026-10-25), with a dev
-// opt-out for the specs that still pin today's look; main.jsx alone reads
-// the switches and marks <html>, and markup asks lib/looks.js, which reads
-// the marks. Plus the two helpers every bar in the new look uses: a
-// shortcut's keys as caps, and a control's tooltip.
+// looks.test.mjs — the toolbar look (the owner's pick of 2026-10-21, shipped
+// 2026-10-25) is the only look the bars have: main.jsx marks <html
+// data-tb="a"> without asking, and nothing asks which look the bars wear. The
+// doc editor's look (shipped 2026-10-24) keeps its switch, with a dev opt-out
+// for the specs that still pin today's editor; main.jsx alone reads it and
+// marks <html>, and markup asks lib/looks.js, which reads the mark. Plus the
+// helpers every bar uses: a shortcut's keys as caps, and a control's tooltip.
 //
 //   node --test src/lib/looks.test.mjs
 import { test } from 'node:test';
@@ -12,39 +12,44 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { keyCaps, shortcutAria, shortcutCaps, tip, tlTip, toolbarLook, docLook } from './looks.js';
+import * as looks from './looks.js';
+import { keyCaps, shortcutAria, shortcutCaps, tlTip, docLook } from './looks.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(path.join(here, '..', p), 'utf8');
 const holdBody = (name) => read('lib/appHost.js').match(new RegExp(`export function ${name}\\(\\)\\s*\\{([\\s\\S]*?)\\n\\}`))?.[1] || '';
 
-for (const [fn, flag, key] of [
-  ['toolbarLookAllowed', 'TOOLBAR_LOOK_DEV_FLAG', 'toolbarLook'],
-  ['docLookAllowed', 'DOC_LOOK_DEV_FLAG', 'docLook'],
-]) {
-  test(`${fn} is on everywhere, and on dev unless the hold says '0'`, () => {
-    const body = holdBody(fn);
-    assert.match(body, /^\s*if \(!import\.meta\.env\.DEV\) return true;\n/);
-    // A storage that throws (a private window) leaves it on as well.
-    assert.match(body, new RegExp(`localStorage\\.getItem\\(${flag}\\) !== '0'; \\} catch \\(_\\) \\{ return true; \\}`));
-    assert.doesNotMatch(body, /onPreviewHost|return false/);
-    assert.match(read('lib/appHost.js'), new RegExp(`^\\s*${key}: ${fn},$`, 'm'));
-  });
-}
+test('docLookAllowed is on everywhere, and on dev unless the hold says \'0\'', () => {
+  const body = holdBody('docLookAllowed');
+  assert.match(body, /^\s*if \(!import\.meta\.env\.DEV\) return true;\n/);
+  // A storage that throws (a private window) leaves it on as well.
+  assert.match(body, /localStorage\.getItem\(DOC_LOOK_DEV_FLAG\) !== '0'; \} catch \(_\) \{ return true; \}/);
+  assert.doesNotMatch(body, /onPreviewHost|return false/);
+  assert.match(read('lib/appHost.js'), /^\s*docLook: docLookAllowed,$/m);
+});
 
-test('main.jsx marks <html> from the switches, before anything renders', () => {
+// The toolbar look's hold stays, as every lifted hold does, so session_context
+// keeps saying which look a session had; there is no other to switch to.
+test('the toolbar look\'s hold is lifted for good', () => {
+  assert.equal(holdBody('toolbarLookAllowed').trim(), 'return true;');
+  assert.match(read('lib/appHost.js'), /^\s*toolbarLook: toolbarLookAllowed,$/m);
+  assert.doesNotMatch(read('lib/appHost.js'), /TOOLBAR_LOOK_DEV_FLAG|soleil\.dev\.toolbarLook/);
+});
+
+test('main.jsx marks <html> before anything renders: the toolbar look always, the doc look from its switch', () => {
   const main = read('main.jsx');
-  assert.match(main, /if \(toolbarLookAllowed\(\)\) document\.documentElement\.dataset\.tb = 'a';/);
+  assert.match(main, /^  document\.documentElement\.dataset\.tb = 'a';$/m);
   assert.match(main, /if \(docLookAllowed\(\)\) document\.documentElement\.dataset\.docLook = 'a';/);
+  assert.doesNotMatch(main, /toolbarLookAllowed/);
   assert.ok(main.indexOf("dataset.tb = 'a'") < main.indexOf('createRoot('), 'marked before the first render');
 });
 
-// The bars the app already has wear the toolbar look from styles/toolbarLook.css,
-// a file of its own that only the look loads: never in the entry's CSS, so a
-// session in today's look (on dev, the hold set to '0') loads none of it.
-test('main.jsx alone loads toolbarLook.css, and only under the look', () => {
+// The bars wear the toolbar look from styles/toolbarLook.css, a file of its
+// own that main.jsx fetches as it starts: never in the entry's CSS, which
+// every page waits for (the landing too, which has no bars).
+test('main.jsx alone loads toolbarLook.css, and not in the entry', () => {
   const main = read('main.jsx');
-  assert.match(main, /if \(toolbarLookAllowed\(\)\) import\('\.\/styles\/toolbarLook\.css'\)/);
+  assert.match(main, /^  import\('\.\/styles\/toolbarLook\.css'\)\.catch\(\(\) => \{\}\);$/m);
   const statics = [];
   const walk = (dir) => {
     for (const e of readdirSync(path.join(here, '..', dir), { withFileTypes: true })) {
@@ -63,9 +68,26 @@ test('only main.jsx asks the switches', () => {
   }
 });
 
-test('with no document, neither look is on', () => {
-  assert.equal(toolbarLook(), false);
+test('with no document, the doc look is off', () => {
   assert.equal(docLook(), false);
+});
+
+// The bars before the toolbar look are gone: nothing asks which look they
+// wear, and nothing can ask for the old one back.
+test('the bars have one look: nothing asks which', () => {
+  assert.equal(looks.toolbarLook, undefined);
+  assert.equal(looks.tip, undefined);
+  const askers = [];
+  const walk = (dir) => {
+    for (const e of readdirSync(path.join(here, '..', dir), { withFileTypes: true })) {
+      const rel = path.join(dir, e.name);
+      if (e.isDirectory()) walk(rel);
+      else if (/\.(jsx?|mjs)$/.test(e.name) && !/\.test\.mjs$/.test(e.name)
+        && /\btoolbarLook\(\)|soleil\.dev\.toolbarLook/.test(read(rel))) askers.push(rel);
+    }
+  };
+  walk('.');
+  assert.deepEqual(askers, []);
 });
 
 test('a shortcut as caps, a Mac\'s symbols or the words elsewhere', () => {
@@ -122,15 +144,9 @@ test('…and in aria-keyshortcuts\' words', () => {
   assert.equal(shortcutAria(''), '');
 });
 
-test('a tooltip in the new look is the host\'s, words and keys', () => {
+test('a control\'s tooltip is the host\'s, words and keys', () => {
   assert.deepEqual(tlTip('Bold', 'Mod+B'), { 'data-tl-tip': 'Bold', 'data-tl-keys': 'Mod+B' });
   assert.deepEqual(tlTip('Pen'), { 'data-tl-tip': 'Pen' });
+  assert.deepEqual(tlTip('Pen', null), { 'data-tl-tip': 'Pen' });
   assert.deepEqual(tlTip('Pen', 'p', 'right'), { 'data-tl-tip': 'Pen', 'data-tl-keys': 'p', 'data-tl-tip-side': 'right' });
-  assert.deepEqual(tip('Bold', 'Mod+B', 'Bold (⌘B)', true), { 'data-tl-tip': 'Bold', 'data-tl-keys': 'Mod+B' });
-});
-
-test('in the look before it, the control keeps the title it had', () => {
-  assert.deepEqual(tip('Bold', 'Mod+B', 'Bold (⌘B)', false), { title: 'Bold (⌘B)' });
-  assert.deepEqual(tip('Strike', null, undefined, false), { title: 'Strike' });
-  assert.deepEqual(tip('Strike', null, null, false), {});
 });

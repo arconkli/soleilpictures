@@ -20,9 +20,8 @@ test.describe('the notifications bell', () => {
     const b = bell(page);
     await expect(b).toBeVisible();
     await expect(b).toHaveAttribute('aria-label', 'Notifications, 3 unread');
-    // The browser's tooltip, or in the toolbar look its glass one (lib/looks.js tip).
-    const look = await page.evaluate(() => document.documentElement.dataset.tb === 'a');
-    await expect(b).toHaveAttribute(look ? 'data-tl-tip' : 'title', 'Notifications');
+    // Its tooltip is the glass one (lib/looks.js tlTip).
+    await expect(b).toHaveAttribute('data-tl-tip', 'Notifications');
     await expect(b).toHaveAttribute('aria-haspopup', 'dialog');
     await expect(b).toHaveAttribute('aria-expanded', 'false');
     await expect(b).toHaveClass(/has-unread/);

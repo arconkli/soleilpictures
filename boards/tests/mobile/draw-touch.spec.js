@@ -262,32 +262,20 @@ test.describe('everything fits', () => {
   });
 
   test('the board draw bar still answers what you are drawing with', async ({ page }) => {
-    // The swatch strip and thickness picker moved into a sheet; the chip is what
+    // The brush, the colour and the width are one chip's menu; the chip is what
     // keeps that honest. A picker you can reach is worth nothing if the bar can
     // no longer tell you what is selected.
     await page.getByRole('button', { name: 'Free-draw tool', exact: true }).click();
     await page.waitForTimeout(250);
-    // The toolbar look (lib/appHost.js toolbarLookAllowed): the chip opens a
-    // menu of the three, and shows the colour and the width it draws with.
-    if (await page.evaluate(() => document.documentElement.dataset.tb === 'a')) {
-      const lookChip = page.getByRole('toolbar', { name: 'Drawing' }).getByRole('button', { name: 'Brush, color and width' });
-      await expect(lookChip.locator('.db-dot')).toBeVisible();
-      await lookChip.click();
-      const menu = page.getByRole('menu', { name: 'Brush, color and width' });
-      for (const group of ['Brush', 'Color', 'Width']) {
-        await expect(menu.getByRole('group', { name: group }).getByRole('menuitemradio').first()).toBeVisible();
-      }
-      return;
-    }
-    const chip = page.locator('.tob-chip');
-    await expect(chip).toBeVisible();
+    // It shows the colour and the width it draws with, and opens a menu of the
+    // three.
+    const chip = page.getByRole('toolbar', { name: 'Drawing' }).getByRole('button', { name: 'Brush, color and width' });
+    await expect(chip.locator('.db-dot')).toBeVisible();
     await chip.click();
-    // The label reads BRUSH on screen but is "Brush" in the DOM — the strip is
-    // uppercased by CSS, so match what is actually there.
-    await expect(page.locator('.sp-sheet-label', { hasText: 'Brush' })).toBeVisible();
-    await expect(page.locator('.tob-swatches .tob-sw').first()).toBeVisible();
-    await expect(page.locator('.tob-thickness .tob-thick').first()).toBeVisible();
-    await expect(page.locator('.sp-brush').first()).toBeVisible();
+    const menu = page.getByRole('menu', { name: 'Brush, color and width' });
+    for (const group of ['Brush', 'Color', 'Width']) {
+      await expect(menu.getByRole('group', { name: group }).getByRole('menuitemradio').first()).toBeVisible();
+    }
   });
 
   test('no pad control is clipped by the row that holds it', async ({ page }) => {

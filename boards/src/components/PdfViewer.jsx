@@ -26,7 +26,7 @@ import { registerModalOpen, isTopModal } from '../lib/modalGuard.js';
 import { FileShareButton } from './fileShare/FileShareButton.jsx';
 import { Icon } from './Icon.jsx';
 import { ChevronDown, ChevronUp, DownloadSimple, Minus, Plus, X } from '../lib/icons.js';
-import { tip, toolbarLook } from '../lib/looks.js';
+import { tlTip } from '../lib/looks.js';
 import { ariaKeys } from '../lib/ariaKeys.js';
 import { reportError } from '../lib/errorReporting.js';
 
@@ -114,11 +114,9 @@ function PdfPage({ doc, pageNum, scale, base, dpr, onRef }) {
 // `shareTarget = { boardId, cardId, card, boardName }`: the full-screen viewer
 // (never the embedded one) gets a Share button before Download.
 export function PdfViewer({ src, name, onClose, embedded = false, onPageChange = null, pageRequest = null, shareTarget = null }) {
-  // In the toolbar look (lib/looks.js) the bar's glyphs are the look's icons,
-  // its tooltips the glass one with the keys, and its buttons the look's
-  // (toolbarLook.css).
-  const tbLook = toolbarLook();
-  const glyph = (as, text) => (tbLook ? <Icon as={as} size={16} weight="regular" /> : text);
+  // The bar's icons are the toolbar look's, its tooltips the glass one with
+  // the keys, and its buttons the look's (toolbarLook.css).
+  const glyph = (as) => <Icon as={as} size={16} weight="regular" />;
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [doc, setDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
@@ -343,20 +341,20 @@ export function PdfViewer({ src, name, onClose, embedded = false, onPageChange =
         <span className="pdfv-spacer" />
         {status === 'ready' && (
           <span className="pdfv-nav">
-            <button className="pdfv-btn" aria-label="Previous page" aria-keyshortcuts="ArrowUp" {...tip('Previous page', 'ArrowUp', 'Previous page')}
-                    onClick={() => scrollToPage(current - 1)} disabled={current <= 1}>{glyph(ChevronUp, '↑')}</button>
+            <button className="pdfv-btn" aria-label="Previous page" aria-keyshortcuts="ArrowUp" {...tlTip('Previous page', 'ArrowUp')}
+                    onClick={() => scrollToPage(current - 1)} disabled={current <= 1}>{glyph(ChevronUp)}</button>
             <span className="pdfv-pageind">{current} / {numPages}</span>
-            <button className="pdfv-btn" aria-label="Next page" aria-keyshortcuts="ArrowDown" {...tip('Next page', 'ArrowDown', 'Next page')}
-                    onClick={() => scrollToPage(current + 1)} disabled={current >= numPages}>{glyph(ChevronDown, '↓')}</button>
+            <button className="pdfv-btn" aria-label="Next page" aria-keyshortcuts="ArrowDown" {...tlTip('Next page', 'ArrowDown')}
+                    onClick={() => scrollToPage(current + 1)} disabled={current >= numPages}>{glyph(ChevronDown)}</button>
           </span>
         )}
         {status === 'ready' && (
           <span className="pdfv-zoom">
-            <button className="pdfv-btn" aria-label="Zoom out" aria-keyshortcuts={ariaKeys('Mod+-')} {...tip('Zoom out', 'Mod+-', 'Zoom out')}
-                    onClick={() => zoom((z) => clampZoom(z - ZOOM_STEP))}>{glyph(Minus, '−')}</button>
+            <button className="pdfv-btn" aria-label="Zoom out" aria-keyshortcuts={ariaKeys('Mod+-')} {...tlTip('Zoom out', 'Mod+-')}
+                    onClick={() => zoom((z) => clampZoom(z - ZOOM_STEP))}>{glyph(Minus)}</button>
             <span className="pdfv-zoomind">{Math.round(scale * 100)}%</span>
-            <button className="pdfv-btn" aria-label="Zoom in" aria-keyshortcuts={ariaKeys('Mod+=')} {...tip('Zoom in', 'Mod+=', 'Zoom in')}
-                    onClick={() => zoom((z) => clampZoom(z + ZOOM_STEP))}>{glyph(Plus, '+')}</button>
+            <button className="pdfv-btn" aria-label="Zoom in" aria-keyshortcuts={ariaKeys('Mod+=')} {...tlTip('Zoom in', 'Mod+=')}
+                    onClick={() => zoom((z) => clampZoom(z + ZOOM_STEP))}>{glyph(Plus)}</button>
           </span>
         )}
         {!embedded && shareTarget?.boardId && shareTarget?.cardId && (
@@ -366,19 +364,14 @@ export function PdfViewer({ src, name, onClose, embedded = false, onPageChange =
                            {...(shareTarget.api ? { api: shareTarget.api } : {})} />
         )}
         {!embedded && (
-          <button className="pdfv-btn" aria-label="Download" {...tip('Download')}
+          <button className="pdfv-btn" aria-label="Download" {...tlTip('Download')}
                   disabled={downloading} onClick={onDownload}>
-            {tbLook ? <Icon as={DownloadSimple} size={16} weight="regular" /> : (
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
-                   stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M8 2 V11 M4 8 L8 12 L12 8 M3 14 H13" />
-              </svg>
-            )}
+            {glyph(DownloadSimple)}
           </button>
         )}
         {!embedded && (
-          <button className="pdfv-btn pdfv-x" aria-label="Close" aria-keyshortcuts="Escape" {...tip('Close', 'Escape', 'Close')}
-                  onClick={(e) => { e.stopPropagation(); onClose?.(); }}>{glyph(X, '×')}</button>
+          <button className="pdfv-btn pdfv-x" aria-label="Close" aria-keyshortcuts="Escape" {...tlTip('Close', 'Escape')}
+                  onClick={(e) => { e.stopPropagation(); onClose?.(); }}>{glyph(X)}</button>
         )}
       </div>
 

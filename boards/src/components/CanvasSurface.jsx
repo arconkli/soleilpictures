@@ -98,7 +98,7 @@ import {
   Calendar as CalendarPh, X, Minus, Eye, Check, Sparkle,
 } from '../lib/icons.js';
 import { Icon, IconWeightContext } from './Icon.jsx';
-import { keyCaps, tip, tlTip, toolbarLook } from '../lib/looks.js';
+import { keyCaps, tlTip } from '../lib/looks.js';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
 import { useToolbarRoving } from '../hooks/useToolbarRoving.js';
@@ -246,7 +246,6 @@ import { importDroppedScripts, reportSkippedFiles } from '../lib/dropOutcomes.js
 import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
-import { ArrowPopover } from './ArrowPopover.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
 
 // The cluster glyph. Once the cluster nudges ship it is the folder a cluster
@@ -458,11 +457,11 @@ const DRAW_DEFAULT_COLOR = '#f5f5f6';
 // any other colour is someone's choice and paints as stored.
 const isDefaultInk = (c) => typeof c === 'string' && c.trim().toLowerCase() === DRAW_DEFAULT_COLOR;
 const THEME_INK_STYLE = { color: 'var(--ink-0)' };
+// What a stroke saved without a width draws at.
 const DRAW_DEFAULT_WIDTH = 3;
-// The toolbar look's draw bar offers 2, 4, 8 and 16 and starts on 4 (A-draw),
-// so it shows what the pen draws with from the first stroke; today's starts
-// between two of its widths.
-const DRAW_DEFAULT_WIDTH_A = 4;
+// The draw bar offers 2, 4, 8 and 16 and starts on 4 (A-draw), so it shows
+// what the pen draws with from the first stroke.
+const DRAW_START_WIDTH = 4;
 const ERASER_DEFAULT_WIDTH = 16;
 // The stroke/arrow/snap/shape SVGs are positioned at (0,0) in canvas space with
 // NO viewBox and `overflow: visible`, so their child paths render at raw board
@@ -1263,7 +1262,7 @@ export function CanvasSurface({
   const [selectedStrokes, setSelectedStrokes] = useState(() => new Set());
   const [selectedArrows, setSelectedArrows] = useState(() => new Set());
   // True while the arrow bend (midpoint curve) dot is being dragged — used to
-  // hide the ArrowPopover so it doesn't chase the cursor / cover the dot.
+  // hide the arrow's bar so it doesn't chase the cursor / cover the dot.
   const [bendDragging, setBendDragging] = useState(false);
   const [drag, setDrag] = useState(null);
   // Touch only: the card currently "lifted" by a press-and-hold (picked up,
@@ -1918,7 +1917,7 @@ export function CanvasSurface({
   const [drawOptions, setDrawOptions] = useState({
     mode: 'pen',
     color: DRAW_DEFAULT_COLOR,
-    width: toolbarLook() ? DRAW_DEFAULT_WIDTH_A : DRAW_DEFAULT_WIDTH,
+    width: DRAW_START_WIDTH,
     eraserWidth: ERASER_DEFAULT_WIDTH,
   });
   // Seed shape tool from the resolved workspace defaults. Without this,
@@ -9095,12 +9094,12 @@ export function CanvasSurface({
     ]);
   };
 
-  // The selection's bar in the toolbar look, on a desktop (components/toolbar/
-  // SelectionBarA.jsx). It shows what the card menu offers the selection, kept
-  // while the selection holds (buildMenu walks every cluster: not for each of
-  // a drag's frames), and uses that menu built afresh: ⋯ opens the menu itself
-  // over the bar, and Delete is ⌫'s.
-  const selBarOn = toolbarLook() && !isTouch;
+  // The selection's bar, on a desktop (components/toolbar/SelectionBarA.jsx;
+  // a finger gets the count). It shows what the card menu offers the
+  // selection, kept while the selection holds (buildMenu walks every cluster:
+  // not for each of a drag's frames), and uses that menu built afresh: ⋯ opens
+  // the menu itself over the bar, and Delete is ⌫'s.
+  const selBarOn = !isTouch;
   const selFirst = selBarOn && selected.size >= 2 ? selected.values().next().value : null;
   const selBarItems = useMemo(() => (selFirst && cardById[selFirst] ? buildMenu(cardById[selFirst]) : EMPTY_ITEMS),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -9118,11 +9117,10 @@ export function CanvasSurface({
     more: (r) => selBarNow.current?.more(r),
     del: () => selBarNow.current?.del(),
   }));
-  useEffect(() => { if (toolbarLook()) SelectionBarA.warm?.(); }, []);
-  // A picked arrow's bar in the toolbar look is the look's own
-  // (components/toolbar/CanvasBarsA.jsx PickedArrowBarA, in the bars' lazy
-  // chunk, fetched as an arrow is picked); today's look keeps ArrowPopover.
-  const arrowBarA = useCanvasBarsA(toolbarLook() && selectedArrows.size === 1)?.PickedArrowBarA || null;
+  useEffect(() => { if (selBarOn) SelectionBarA.warm?.(); }, [selBarOn]);
+  // A picked arrow's bar (components/toolbar/CanvasBarsA.jsx PickedArrowBarA,
+  // in the bars' lazy chunk, fetched as an arrow is picked).
+  const arrowBarA = useCanvasBarsA(selectedArrows.size === 1)?.PickedArrowBarA || null;
 
   // ── Background pointer + context ──────────────────────────────────────────
   // New-card pop-in: ids appearing after the first render get .is-new for
@@ -12768,9 +12766,6 @@ export function CanvasSurface({
     // for the tool people most want on a tablet. Put it back, on touch only.
     ...(isTouch ? [{ id: 'draw', title: 'Draw (D)', tip: 'Draw', label: 'Free-draw tool', icon: Scribble, keys: getWasdPan() ? undefined : 'D' }] : []),
   ];
-  // The toolbar look (lib/looks.js): its tooltips, regular icons and the
-  // menu's keys in caps; toolbarLook.css dresses the rest.
-  const tbLook = toolbarLook();
   // The zoom slider's place, 0..1000 on a log scale (ZOOM_MIN..ZOOM_MAX).
   const zoomPos = Math.round(1000 * Math.log(zoom / ZOOM_MIN) / Math.log(ZOOM_MAX / ZOOM_MIN));
 
@@ -14231,8 +14226,8 @@ export function CanvasSurface({
           : arrowObstacleRects.filter(r => !excludeSet.has(r.id));
         const built = buildArrowPath({ from: att.from, to: att.to, style: { straight: !!a.straight, bend: a.bend }, obstacles });
         if (!built) return null;
-        // The look's bar waits for its chunk (only the first pick does).
-        const Bar = toolbarLook() ? arrowBarA : ArrowPopover;
+        // The bar waits for its chunk (only the first pick does).
+        const Bar = arrowBarA;
         if (!Bar) return null;
         return (
           <Bar
@@ -14273,13 +14268,13 @@ export function CanvasSurface({
              railPressRef.current.scrolled = false;
              startTouchScrollGesture(e, { onEngage: () => { railPressRef.current.scrolled = true; } });
            }}>
-        <IconWeightContext.Provider value={tbLook ? 'regular' : null}>
+        <IconWeightContext.Provider value="regular">
         <div className="cnv-add-wrap">
           <div
             ref={addBtnRef}
             className={`cnv-tool ${addMenuOpen ? 'active' : ''}`}
             data-tip="Add"
-            {...(tbLook ? tlTip('Add', null, 'right') : {})}
+            {...tlTip('Add', null, 'right')}
             role="button"
             tabIndex={0}
             aria-label="Add menu"
@@ -14330,7 +14325,7 @@ export function CanvasSurface({
                       // shape"), which also breaks getByRole('menuitem') lookups.
                       aria-label={item.label}
                       aria-keyshortcuts={item.keys}
-                      {...(tbLook ? tlTip(item.tip, null, 'right') : { 'data-tip': item.keys ? `${item.tip} (${item.keys})` : item.tip })}
+                      {...tlTip(item.tip, null, 'right')}
                       onClick={() => {
                         setAddMenuOpen(false);
                         item.action();
@@ -14338,7 +14333,7 @@ export function CanvasSurface({
                     >
                       <span className="cnv-add-ico" aria-hidden="true"><Icon as={item.icon} size={16} /></span>
                       <span className="cnv-add-lbl">{item.label}</span>
-                      {tbLook && item.keys && (
+                      {item.keys && (
                         <span className="tl-keys" aria-hidden="true">{keyCaps(item.keys).map((k) => <kbd key={k}>{k}</kbd>)}</span>
                       )}
                     </button>
@@ -14382,7 +14377,7 @@ export function CanvasSurface({
           const btn = (
             <div className={`cnv-tool ${active ? 'active' : ''}${teaches ? ' cnv-tool-teach' : ''}`}
                  data-tip={teaches ? undefined : t.title}
-                 {...(tbLook && !teaches ? tlTip(t.tip || t.title, t.keys, 'right') : {})}
+                 {...(!teaches ? tlTip(t.tip || t.title, t.keys, 'right') : {})}
                  data-tour={t.id === 'board' ? 'cluster-tool' : t.id === 'image' ? 'image-tool' : undefined}
                  role="button"
                  tabIndex={0}
@@ -14444,7 +14439,7 @@ export function CanvasSurface({
         <div className="cnv-tool-sep" />
         <div className="cnv-tool"
              data-tip="Keyboard shortcuts (?)"
-             {...(tbLook ? tlTip('Keyboard shortcuts', '?', 'right') : {})}
+             {...tlTip('Keyboard shortcuts', '?', 'right')}
              role="button"
              tabIndex={0}
              aria-label="Keyboard shortcuts"
@@ -14777,12 +14772,12 @@ export function CanvasSurface({
         {/* −, + and 100% keep the view's centre where it is, like ⌘−/⌘=. A bare
             setZoom scales around the board origin (transform-origin 0 0), so
             what you were looking at slid away with every click. */}
-        {/* The toolbar look draws − and + as icons, and fills the slider's
-            track up to its knob (--zf, toolbarLook.css). */}
+        {/* − and + are icons, and the slider's track fills up to its knob
+            (--zf, toolbarLook.css). */}
         <button aria-label="Zoom out" aria-keyshortcuts={ariaKeys('Mod+-')}
-                {...tip('Zoom out', 'Mod+-', null, tbLook)}
+                {...tlTip('Zoom out', 'Mod+-')}
                 onClick={() => { markZooming(); zoomAroundCenter(1 / 1.25); }}>
-          {tbLook ? <Icon as={Minus} size={18} weight="regular" /> : '−'}
+          <Icon as={Minus} size={18} weight="regular" />
         </button>
         <input
           className="cnv-zoom-slider"
@@ -14790,7 +14785,7 @@ export function CanvasSurface({
           min="0" max="1000" step="1"
           // log scale: 0..1000 → ZOOM_MIN..ZOOM_MAX
           value={zoomPos}
-          style={tbLook ? { '--zf': `${zoomPos / 10}%` } : undefined}
+          style={{ '--zf': `${zoomPos / 10}%` }}
           onInput={(e) => {
             markZooming();
             const v = Number(e.target.value) / 1000;
@@ -14806,14 +14801,14 @@ export function CanvasSurface({
             setZoom(z);
             setPan({ x: newPanX, y: newPanY });
           }}
-          {...tip('Drag to zoom', null, 'Drag to zoom', tbLook)}
+          {...tlTip('Drag to zoom')}
           aria-label="Zoom"
           aria-valuetext={`${Math.round(zoom * 100)}%`}
         />
         {/* What it shows, then what it does: Enter on it is ⌘0. (Double-click
             fits the cluster; the keyboard has ⇧1 for that.) */}
         <button type="button" className="cnv-zoom-val"
-              {...tip('Click: 100% · Double-click: Full Cluster', 'Mod+0', 'Click: 100% · Double-click: Full Cluster', tbLook)}
+              {...tlTip('Click: 100% · Double-click: Full Cluster', 'Mod+0')}
               aria-label={`${Math.round(zoom * 100)}% — reset to 100%`}
               aria-keyshortcuts={ariaKeys('Mod+0')}
               onClick={() => { markZooming(); zoomAroundCenter(1 / zoomRef.current); }}
@@ -14821,9 +14816,9 @@ export function CanvasSurface({
           {Math.round(zoom * 100)}%
         </button>
         <button aria-label="Zoom in" aria-keyshortcuts={ariaKeys('Mod+=')}
-                {...tip('Zoom in', 'Mod+=', null, tbLook)}
+                {...tlTip('Zoom in', 'Mod+=')}
                 onClick={() => { markZooming(); zoomAroundCenter(1.25); }}>
-          {tbLook ? <Icon as={Plus} size={18} weight="regular" /> : '+'}
+          <Icon as={Plus} size={18} weight="regular" />
         </button>
       </div>
 
@@ -14834,12 +14829,12 @@ export function CanvasSurface({
           of currently-visible comments (or the archived count when
           comments are muted, so the user still feels there's
           something to bring back). */}
-      {/* The toolbar look makes it a small island of its own (toolbarLook.css),
-          its tooltip the glass one. */}
+      {/* A small island of its own (toolbarLook.css), its tooltip the glass
+          one. */}
       <button className={`cnv-comments-eye ${commentsVisible ? '' : 'is-muted'}`}
-              {...tip(commentsVisible
+              {...tlTip(commentsVisible
                 ? 'Hide all comments (right-click for archive)'
-                : 'Show all comments (right-click for archive)', null, undefined, tbLook)}
+                : 'Show all comments (right-click for archive)')}
               aria-label={`${commentsVisible ? 'Hide' : 'Show'} all comments${visibleCommentCount > 0 ? `, ${visibleCommentCount} showing` : ''}`}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={toggleCommentsVisible}
@@ -14849,7 +14844,7 @@ export function CanvasSurface({
                 const r = e.currentTarget.getBoundingClientRect();
                 setCommentArchive({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
               }}>
-        <Icon as={commentsVisible ? MessageCircle : MessageCircleOff} size={tbLook ? 16 : 14} weight={tbLook ? 'regular' : 'light'} />
+        <Icon as={commentsVisible ? MessageCircle : MessageCircleOff} size={16} weight="regular" />
         {/* Badge counts only currently-visible (open, non-archived)
             comments — resolved and hidden don't count, since they're
             archived and live in the popover instead. */}

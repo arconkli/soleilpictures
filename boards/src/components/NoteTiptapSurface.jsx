@@ -57,10 +57,9 @@ const NOTE_AUTOSIZE_MAX = 480;
 // custom-font dialog (.cfont) is one: it takes focus for its name field, and
 // reading that as an exit unmounted the bar that owns it, so the dialog
 // vanished within a frame (NOTES-04). Modal hands focus back to the note when
-// it closes. The toolbar's own popovers (swatches, fonts, size presets) are
-// portaled out of .tob, so they are named too, and so are its menus in the
-// toolbar look (.tob-menu, and its size presets' .size-combo-tl).
-const EDIT_SESSION_UI = '.tob, .tob-pop, .tob-menu, .font-pop, .size-combo-pop, .size-combo-tl, .cp-pop, .ctx-menu, .entity-picker, .cand-pop, .inline-composer, .comment-inline-pop, .cfont';
+// it closes. The toolbar's own menus (.tob-menu, and its size presets'
+// .size-combo-tl) are portaled out of .tob, so they are named too.
+const EDIT_SESSION_UI = '.tob, .tob-menu, .size-combo-tl, .cp-pop, .ctx-menu, .entity-picker, .cand-pop, .inline-composer, .comment-inline-pop, .cfont';
 const inEditSessionUi = (el) => !!el?.closest?.(EDIT_SESSION_UI);
 
 // Card height the READ-ONLY note needs when its html carries link previews.

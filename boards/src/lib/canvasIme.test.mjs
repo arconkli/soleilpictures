@@ -19,7 +19,7 @@ const FIELDS = {
   '../components/CanvasSurface.jsx': 2,        // a project's name; a grid's columns × rows
   '../components/CanvasComment.jsx': 1,
   '../components/CanvasVoteCard.jsx': 1,       // the question
-  '../components/ArrowPopover.jsx': 1,         // the label
+  '../hooks/useArrowPopover.js': 1,            // a picked arrow's label
   '../components/SizeInput.jsx': 1,
   '../components/ToolOptionsBar.jsx': 2,       // a line's angle and its width
   '../components/SketchPadOverlay.jsx': 1,     // a layer's name

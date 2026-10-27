@@ -201,15 +201,12 @@ export function filesPageLookAllowed() {
 // tint and ring on what's on, one tooltip with the shortcut's keys in caps,
 // and Phosphor icons where text glyphs stood. It was held to the preview and
 // a dev opt-in until the owner had tried it, and was lifted on 2026-10-25
-// with the docs that describe it (docs/canvas#selection), so it is on
-// everywhere. On dev, localStorage soleil.dev.toolbarLook = '0' still shows
-// today's bars, for the specs that pin them, until the release after this one
-// deletes them. main.jsx asks it once and marks <html data-tb="a">: the bars'
-// CSS keys on the mark, and markup asks lib/looks.js, never this.
-export const TOOLBAR_LOOK_DEV_FLAG = 'soleil.dev.toolbarLook';
+// with the docs that describe it (docs/canvas#selection). The bars it
+// replaced are gone, so there is nothing to switch back to: it stays
+// `return true;` for session_context's record, as every lifted hold does, and
+// main.jsx marks <html data-tb="a"> without asking (the look's CSS keys on it).
 export function toolbarLookAllowed() {
-  if (!import.meta.env.DEV) return true;
-  try { return window.localStorage.getItem(TOOLBAR_LOOK_DEV_FLAG) !== '0'; } catch (_) { return true; }
+  return true;
 }
 
 // ---------------------------------------------------------------------------

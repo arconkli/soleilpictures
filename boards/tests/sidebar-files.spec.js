@@ -761,7 +761,7 @@ test.describe('the top bar as floating islands', () => {
   test('⋯ holds what is used now and then; Escape closes it and gives focus back', async ({ page }) => {
     await open(page);
     const more = page.locator('.chrome-more-btn');
-    // The island's own menu, or in the toolbar look the look's (ChromeMoreA).
+    // The toolbar look's menu (ChromeMoreA).
     const menu = page.getByRole('menu', { name: 'More' });
     const items = menu.getByRole('menuitem');
     await more.click();
@@ -784,8 +784,7 @@ test.describe('the top bar as floating islands', () => {
     await open(page);
     const split = page.locator('.chrome-right').getByRole('button', { name: 'Split view' });
     await expect(split).toBeVisible();
-    const look = await page.evaluate(() => document.documentElement.dataset.tb === 'a');
-    await expect(split).toHaveAttribute(look ? 'data-tl-tip' : 'title', 'Pin alongside…');
+    await expect(split).toHaveAttribute('data-tl-tip', 'Pin alongside…');
     await expect(split).toHaveAttribute('aria-pressed', 'false');
     const next = await split.evaluate((el) => el.nextElementSibling?.getAttribute('aria-label'));
     expect(next).toBe('Toggle theme');
