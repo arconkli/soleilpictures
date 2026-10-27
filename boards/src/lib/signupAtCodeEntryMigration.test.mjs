@@ -31,6 +31,7 @@ import { JOURNEY_PHASE_ORDER } from './analyticsEvents.js';
 
 const FILE = CODE_ENTRY_FILE;
 const FILE_0462 = '0462_users_list_says_who_entered_the_code.sql';
+const FILE_0705 = '0705_mcp_drafts.sql';
 // Read leniently so a missing file fails every test on its own assertion
 // rather than as one unreadable module crash.
 const readMigration = (f) => (existsSync(join(MIGRATIONS_DIR, f)) ? readFileSync(join(MIGRATIONS_DIR, f), 'utf8') : '');
@@ -188,7 +189,6 @@ test('the migration exists, is one transaction, waits at most 3s for a lock, and
 
 test('a signup is one helper, reading four kinds of evidence, that only definer functions can call', () => {
   const h = one(HELPER);
-  assert.equal(latestDefinition(HELPER).file, FILE);
   assert.deepEqual(h.args, []);
   assert.equal(h.returns, 'table (entered_id uuid)');
   assert.deepEqual(h.attrs, ['language sql', 'security definer', 'set search_path = public', 'stable']);
@@ -206,6 +206,20 @@ test('a signup is one helper, reading four kinds of evidence, that only definer 
   const grants = [...src.matchAll(/grant execute on function public\._admin_entered_code\(\) to ([^;]+);/g)].map((m) => m[1]);
   assert.deepEqual(grants, ['service_role'], 'granted to service_role only');
   assert.match(src, /^comment on function public\._admin_entered_code\(\) is$/m);
+
+  // 0705 restated it to leave out the accounts nobody signs in to (an MCP
+  // draft, a service identity, a Scout shell): one line, and nothing else.
+  assert.equal(latestDefinition(HELPER).file, FILE_0705);
+  const src0705 = readMigration(FILE_0705);
+  const live = definitionsIn(src0705).filter((d) => d.name === HELPER);
+  assert.equal(live.length, 1, `${FILE_0705} defines ${HELPER} once`);
+  assert.deepEqual([live[0].args, live[0].returns, live[0].attrs], [h.args, h.returns, h.attrs], 'the same header');
+  const expected = bodyLines(h.body);
+  expected.splice(3, 0, 'and not public._synthetic_address(u.email)');
+  assert.deepEqual(bodyLines(live[0].body), expected, "0461's body with the synthetic addresses left out");
+  assert.match(src0705, /^revoke all on function public\._admin_entered_code\(\) from public, anon, authenticated;$/m);
+  const grants0705 = [...src0705.matchAll(/grant execute on function public\._admin_entered_code\(\) to ([^;]+);/g)].map((m) => m[1]);
+  assert.deepEqual(grants0705, ['service_role'], 'still granted to service_role only');
 });
 
 test("every reader that took 0149's rule asks the helper, and the proof names each one", () => {
@@ -227,8 +241,10 @@ test("every reader that took 0149's rule asks the helper, and the proof names ea
     admin_event_coverage: '0475_import_clusters_count_as_imports.sql',
     admin_first_session_compare: '0495_first_session_compare_reads_day_one_once.sql',
   };
+  // The helper itself was restated by 0705 (pinned in the test above).
   for (const name of new Set(HERE.map((d) => d.name))) {
-    assert.equal(latestDefinition(name).file, LATER[name] ?? FILE, `the live ${name} is ${LATER[name] ?? 'this one'}`);
+    const live = name === HELPER ? FILE_0705 : LATER[name];
+    assert.equal(latestDefinition(name).file, live ?? FILE, `the live ${name} is ${live ?? 'this one'}`);
   }
   for (const name of Object.keys(LATER)) {
     assert.match(latestDefinition(name).body, /public\._admin_entered_code\(\)/, `${name} in ${LATER[name]} still asks the helper`);
