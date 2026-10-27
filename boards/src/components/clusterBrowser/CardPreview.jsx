@@ -20,9 +20,9 @@ import { tileImageSrc } from '../../lib/justifiedGrid.js';
 import { ImagePlaceholder } from '../primitives.jsx';
 import { KindIcon } from '../cards.jsx';
 import { Icon } from '../Icon.jsx';
-import { iconForFile, humanSize } from '../cards/FileCard.jsx';
+import { iconForFile, humanSize, useFaces } from '../cards/FileCard.jsx';
 import { formatDuration } from '../../lib/loopMeta.js';
-import { docFamily, extOfKey } from '../../lib/fileView.js';
+import { docFamily, extOfKey, isDrawnFamily } from '../../lib/fileView.js';
 import { GridMark, DocMark, ScheduleMark, ShapeMark, NoteMark, LinkMark, AudioMark, inkOn } from './marks.jsx';
 import { GridContentPreview } from './GridContentPreview.jsx';
 
@@ -42,6 +42,7 @@ export function CardPreview({ item, size = 'row', px = null }) {
   const glyphSize = size === 'tile' ? 40 : 22;
   const displayPx = px || (size === 'tile' ? 320 : 48);
   const meta = useImageMeta(p.mode === 'r2' ? p.src : p.mode === 'file' ? p.page : null);
+  const faces = useFaces(p?.mode === 'file' && size === 'tile' && isDrawnFamily(p.family));
   // A preview that won't load falls back to the original, once.
   const [originalOnly, setOriginalOnly] = useState(false);
 
@@ -65,7 +66,17 @@ export function CardPreview({ item, size = 'row', px = null }) {
                       w={displayPx} h={displayPx} style={{ objectPosition }} />;
     }
     const GlyphIcon = iconForFile(p.ext, p.mime);
-    if (size === 'tile') return <FileFace glyph={<Icon as={GlyphIcon} size={34} weight="light" />} ext={p.ext} item={item} />;
+    if (size === 'tile') {
+      const tile = <FileFace glyph={<Icon as={GlyphIcon} size={34} weight="light" />} ext={p.ext} item={item} />;
+      // A text file's tile is its first page (FamilyFace.jsx, as on its
+      // card), its tile until the page is here.
+      if (!faces || !p.src) return tile;
+      return (
+        <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+          <faces.default family={p.family} src={p.src} ext={item?.ext || p.ext} sizeBytes={item?.sizeBytes ?? null} fallback={tile} />
+        </div>
+      );
+    }
     return (
       <div className="cbp-file">
         <Icon as={GlyphIcon} size={glyphSize} />

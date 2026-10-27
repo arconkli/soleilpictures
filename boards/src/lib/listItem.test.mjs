@@ -236,3 +236,18 @@ test("a document's item carries its file as its page, which the Files tiles and 
   ]) assert.equal(toListItem(card).preview.page, undefined, card.id);
 });
 
+
+test("a file item names its family, and the type it's called by is its family's", () => {
+  const it = (fileName, mime) => toListItem({ id: 'c', kind: 'file', fileName, mime, fileSrc: `r2:k/${fileName}` });
+  assert.equal(it('notes.md').preview.family, 'markdown');
+  assert.equal(it('notes.md').preview.src, 'r2:k/notes.md');
+  assert.equal(it('notes.md').typeLabel, 'Text');
+  assert.equal(it('app.py').typeLabel, 'Code');
+  assert.equal(it('crew.csv').typeLabel, 'Spreadsheet');
+  assert.equal(it('cues.srt').typeLabel, 'Subtitles');
+  assert.equal(it('Pitch.pptx').typeLabel, 'File');
+  assert.equal(it('README', 'text/plain').typeLabel, 'Text');
+  assert.equal(it('pack.bin').typeLabel, 'File');
+  assert.equal(it('pack.bin').preview.family, null);
+  assert.equal(matchItems([it('crew.csv')], 'spreadsheet').length, 1);
+});

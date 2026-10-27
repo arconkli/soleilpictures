@@ -18,19 +18,9 @@
   background: var(--bg-3);
 }
 
-/* Inline text/code preview. Leaves room for the bottom info strip. */
-.filec-preview {
-  margin: 0;
-  width: 100%; height: 100%;
-  padding: 10px 12px 30px;
-  overflow: hidden;
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 10.5px; line-height: 1.45;
-  color: var(--ink-1, #c8c8d0);
-  white-space: pre-wrap; word-break: break-word;
-  background: var(--bg-3);
-}
-.filec-preview.is-code { white-space: pre; word-break: normal; }
+/* A page drawn from the file (FamilyFace.jsx) is white from the start, so
+   the card doesn't flash its glyph before the page comes. */
+.filec-body.is-page { background: #fff; }
 
 /* Filename + size strip across the bottom (matches .pdfc-info). */
 .filec-info {

@@ -15127,6 +15127,48 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
+       "v": "Text, Markdown, code, logs, "
+      },
+      {
+       "t": "code",
+       "v": ".csv"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": ".tsv"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": ".srt"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": ".vtt"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A white page showing the start of the file: Markdown set as a document, a table's rows, subtitle cues, code and logs as the file has them"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
        "v": "Screenplay ("
       },
       {
@@ -15241,7 +15283,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Small text files get an inline preview on the card rather than only a download. Double-click a file card to open it full screen, with "
+     "v": "Double-click a file card to open it full screen, with "
     },
     {
      "t": "strong",

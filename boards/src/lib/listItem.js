@@ -13,7 +13,7 @@ import { computeCellRects } from './gridLayout.js';
 import { schedItems, schedLegacyRows } from './schedLayout.js';
 import { monthTitle } from './schedDates.js';
 import { formatLabel, audioMetaLine, keyOrder } from './loopMeta.js';
-import { viewKindOfKey } from './fileView.js';
+import { viewKindOfKey, fileFamily } from './fileView.js';
 
 // Cap the grid schematic: past this many cells the subdivision is unreadable at
 // thumb size and re-tiling wastes work, so we draw the raw box instead.
@@ -24,6 +24,11 @@ export const TYPE_LABELS = {
   note: 'Note', link: 'Link', doc: 'Doc', palette: 'Palette', schedule: 'Schedule',
   shape: 'Shape', grid: 'Grid', board: 'Cluster', boardlink: 'Link', shortcut: 'Shortcut',
 };
+
+// What a file the card draws is called by its family (lib/fileView.js
+// fileFamily): in a list's Type column, the search, Quick look's bar. Any
+// other file is a File.
+const FAMILY_LABELS = { markdown: 'Text', text: 'Text', code: 'Code', table: 'Spreadsheet', subtitles: 'Subtitles' };
 
 // Coarse buckets for the type filter. Several kinds collapse (board+boardlink →
 // 'cluster'); 'other' catches shape/schedule/grid/unknown.
@@ -222,7 +227,14 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
       item.name = card.title || card.fileName || 'File';
       item.ext = String(card.ext || extOf(card.fileName)).toLowerCase();
       item.sub = card.ext ? String(card.ext).toUpperCase() : (card.mime || '');
-      item.preview = { mode: 'file', ext: card.ext, mime: card.mime, kind };
+      {
+        const family = fileFamily(item.ext, card.mime);
+        item.preview = {
+          mode: 'file', ext: card.ext, mime: card.mime, kind, family,
+          src: typeof card.fileSrc === 'string' ? card.fileSrc : '',
+        };
+        item.typeLabel = FAMILY_LABELS[family] || item.typeLabel;
+      }
       // A document's first page, once it's made, is its picture (CardPreview).
       if (typeof card.fileSrc === 'string' && card.fileSrc.startsWith('r2:')
           && viewKindOfKey(card.fileSrc.slice(3)) === 'doc') item.preview.page = card.fileSrc;
