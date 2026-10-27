@@ -11,13 +11,14 @@ FROM node:22-bookworm-slim
 # exiftool lifts the camera's own JPEG out of a raw file, and LibRaw
 # (dcraw_emu) develops one that carries none big enough. LibreOffice (with no
 # GUI and no Java) prints documents to PDF and poppler-utils draws a PDF's
-# first page; the fonts stand in for the ones documents name (Liberation for
+# first page; bsdtar (libarchive-tools) lists what is inside tar, 7z, rar and the
+# like; the fonts stand in for the ones documents name (Liberation for
 # Arial, Times and Courier, Carlito for Calibri, Caladea for Cambria) and
 # cover most scripts (Noto, Noto CJK). util-linux's unshare and setpriv, in
 # the base image, run every decoder but ffmpeg with no network.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ffmpeg libvips-tools libimage-exiftool-perl libraw-bin ca-certificates \
-       libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui libreoffice-draw-nogui poppler-utils \
+       libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui libreoffice-draw-nogui poppler-utils libarchive-tools \
        fonts-liberation2 fonts-crosextra-carlito fonts-crosextra-caladea fonts-dejavu-core fonts-noto-core fonts-noto-cjk \
   && rm -rf /var/lib/apt/lists/* \
   && rm -f /usr/lib/*/vips-modules-*/vips-magick.so /usr/lib/*/vips-modules-*/vips-poppler.so \
