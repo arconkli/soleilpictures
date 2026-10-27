@@ -106,7 +106,13 @@ export const CEILINGS = {
   // its extension or a font's type) and lands it at a specimen's size; the
   // specimen itself loads later, with the page (FamilyFace.jsx, fontLoad.js).
   // Measured as CI builds: 690.03 KB before, this change 690.10.
-  appJs: 690_200,
+  // 2026-10-27: +0.1 KB for an email's attachments onto the board: the canvas
+  // tells Quick look it can take files (lib/fileActions.js), Quick look passes
+  // who may edit and how to close down to the page, and a card's strip says
+  // what its page knows (an email's attachments); the letter, the page and
+  // the email's reader all load later (FamilyFace, FileStages, mailRead).
+  // Measured as CI builds: 690.12 KB on 6eab06ea, this change 690.25.
+  appJs: 690_300,
   appCss: 21_000,
 };
 
