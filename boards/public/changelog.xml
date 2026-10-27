@@ -8,12 +8,12 @@
     <lastBuildDate>Mon, 26 Oct 2026 00:00:00 GMT</lastBuildDate>
     <atom:link href="https://clusters.soleilpictures.com/changelog.xml" rel="self" type="application/rss+xml"/>
     <item>
-      <title>Export works again</title>
+      <title>Export and profile changes work again</title>
       <link>https://clusters.soleilpictures.com/changelog#2026-10-26</link>
       <guid isPermaLink="false">clusters-changelog-2026-10-26</guid>
       <pubDate>Mon, 26 Oct 2026 00:00:00 GMT</pubDate>
-      <description>Export saves a board as a PNG image or a PDF again, on every board.</description>
-      <content:encoded><![CDATA[<h3>Export</h3><ul><li>Right-click the canvas and choose <b>Export</b> to save the whole board as a PNG or a PDF again. Since May it said &quot;Nothing to export.&quot; on every board. The PDF no longer opens a pop-up window. See <a href="https://clusters.soleilpictures.com/docs/canvas/export">export</a>.</li></ul>]]></content:encoded>
+      <description>Export saves a board as a PNG or a PDF again, and changes to your name, colour and picture save again.</description>
+      <content:encoded><![CDATA[<h3>Export</h3><ul><li>Right-click the canvas and choose <b>Export</b> to save the whole board as a PNG or a PDF again. Since May it said &quot;Nothing to export.&quot; on every board. The PDF no longer opens a pop-up window. See <a href="https://clusters.soleilpictures.com/docs/canvas/export">export</a>.</li></ul><h3>Your profile</h3><ul><li>Changes to your name, colour and picture save again. Since May they were refused.</li></ul>]]></content:encoded>
     </item>
     <item>
       <title>A new look for toolbars, and every video plays</title>

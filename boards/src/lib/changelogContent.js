@@ -55,6 +55,30 @@ export const CHANGELOG_CONTENT = {
      }
     ]
    ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Your profile",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Your profile"
+    }
+   ],
+   "id": "2026-10-26-your-profile"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Changes to your name, colour and picture save again. Since May they were refused."
+     }
+    ]
+   ]
   }
  ],
  "2026-10-25": [

@@ -11306,15 +11306,20 @@ Updated: 2026-10-26
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
 
-## 2026-10-26 — Export works again
+## 2026-10-26 — Export and profile changes work again
 
-Export saves a board as a PNG image or a PDF again, on every board.
+Export saves a board as a PNG or a PDF again, and changes to your name, colour and picture save again.
 
 ### Export
 
 - Right-click the canvas and choose **Export** to save the whole board as a
   PNG or a PDF again. Since May it said "Nothing to export." on every board.
   The PDF no longer opens a pop-up window. See [export](/docs/canvas/export).
+
+### Your profile
+
+- Changes to your name, colour and picture save again. Since May they were
+  refused.
 
 ## 2026-10-25 — A new look for toolbars, and every video plays
 

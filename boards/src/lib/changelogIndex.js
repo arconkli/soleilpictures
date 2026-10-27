@@ -13,8 +13,8 @@ export const CHANGELOG_ENTRIES = [
   {
     "date": "2026-10-26",
     "anchor": "2026-10-26",
-    "title": "Export works again",
-    "summary": "Export saves a board as a PNG image or a PDF again, on every board.",
+    "title": "Export and profile changes work again",
+    "summary": "Export saves a board as a PNG or a PDF again, and changes to your name, colour and picture save again.",
     "headings": []
   },
   {
