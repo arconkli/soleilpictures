@@ -171,6 +171,10 @@ test('encrypted and unsupported-method entries are counted, not listed', async (
   const { entries, skipped } = await readZipDirectory(zip);
   assert.deepEqual(entries.map((e) => e.path), ['ok.txt']);
   assert.deepEqual(skipped, { encrypted: 1, unsupported: 1 });
+  // A list of what a zip holds keeps them, still counted, for showing.
+  const all = await readZipDirectory(zip, { locked: true });
+  assert.deepEqual(all.entries.map((e) => [e.path, e.flags & 1, e.method]), [['secret.txt', 1, 0], ['weird.bin', 0, 12], ['ok.txt', 0, 0]]);
+  assert.deepEqual(all.skipped, { encrypted: 1, unsupported: 1 });
 });
 
 test('path sanitizing', async () => {

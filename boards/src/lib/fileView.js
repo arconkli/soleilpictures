@@ -92,9 +92,17 @@ export const DESIGN_EXTS = Object.freeze(['sketch', 'fig', 'xd', 'procreate', 'p
   'afdesign', 'afphoto', 'afpub', 'indd', 'ai', 'eps']);
 const DESIGN_SET = new Set(DESIGN_EXTS);
 
+// Archives: a zip's contact sheet of what is inside it, read by byte ranges
+// (media/src/zipJob.js), and the names inside any other archive, listed from
+// the whole file (media/src/view.js), up to ARCHIVE_LIST_MAX_BYTES.
+export const ZIP_EXTS = Object.freeze(['zip']);
+export const LISTED_EXTS = Object.freeze(['7z', 'rar', 'tar', 'tgz', 'gz', 'bz2', 'tbz', 'tbz2', 'xz', 'txz']);
+export const ARCHIVE_LIST_MAX_BYTES = 1024 * 1024 * 1024;
+
 // What the converter makes views of: a photo's ('image'), a document's first
-// page and PDF ('doc'), a design file's picture ('design').
-export const VIEW_KINDS = Object.freeze(['image', 'doc', 'design']);
+// page and PDF ('doc'), a design file's picture ('design'), an archive's
+// contact sheet or names ('archive').
+export const VIEW_KINDS = Object.freeze(['image', 'doc', 'design', 'archive']);
 export const isViewKind = (kind) => VIEW_KINDS.includes(kind);
 // The kinds that stay file cards and show their picture.
 export const CARD_VIEW_KINDS = Object.freeze(['doc', 'design']);

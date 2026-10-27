@@ -203,7 +203,7 @@ test('design files are their own view kind, drawn by no browser, and stay file c
     assert.deepEqual(fileDropSize(ext), DESIGN_DROP, ext);
   }
   assert.deepEqual(DESIGN_DROP, { w: 320, h: 240 });
-  assert.deepEqual(VIEW_KINDS, ['image', 'doc', 'design']);
+  assert.deepEqual(VIEW_KINDS, ['image', 'doc', 'design', 'archive']);
   assert.equal(isCardViewKind('design'), true);
   assert.equal(isCardViewKind('image'), false);
   const card = { kind: 'file', fileSrc: 'r2:u/w/Title card v3.sketch' };

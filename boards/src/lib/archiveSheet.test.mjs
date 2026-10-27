@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SHEET_TILES, LIST_ROWS, isJunk, cleanEntries, rootOf, levelOf, summaryOf, sheetTiles, listRows } from './archiveSheet.js';
+import { SHEET_TILES, LIST_ROWS, isJunk, cleanPath, cleanEntries, rootOf, levelOf, summaryOf, sheetTiles, listRows } from './archiveSheet.js';
 
 const f = (path, size = 100) => ({ path, dir: false, size });
 const scouts = () => [
@@ -61,4 +61,27 @@ test('levelOf lists direct children only, with each folder\'s count', () => {
   assert.deepEqual(top.folders, [{ name: 'a', path: 'a/', count: 2 }]);
   assert.deepEqual(top.files.map((x) => x.name), ['e.txt']);
   assert.equal(rootOf(e), '');
+});
+
+test('a path is cleaned once, the converter finding an entry by it', () => {
+  assert.equal(cleanPath('./Location scouts/IMG_2.jpg'), 'Location scouts/IMG_2.jpg');
+  assert.equal(cleanPath('/abs.txt'), 'abs.txt');
+  assert.equal(cleanPath('a\\b.txt'), 'a/b.txt');
+  assert.equal(cleanPath('../evil.txt'), null);
+  assert.equal(cleanPath('__MACOSX/._x.jpg'), null);
+  assert.equal(cleanPath(''), null);
+});
+
+test('a zip of twenty thousand folders is counted in one pass', () => {
+  const entries = Array.from({ length: 20_000 }, (_, i) => ({ path: `f${i}/a.jpg`, size: 1 }));
+  const t0 = Date.now();
+  const { folders } = levelOf(entries, '');
+  assert.equal(folders.length, 20_000);
+  assert.ok(folders.every((f) => f.count === 1));
+  assert.ok(Date.now() - t0 < 2_000, `${Date.now() - t0} ms`);
+});
+
+test('pictures come before the other files on the sheet, whatever their names', () => {
+  const tiles = sheetTiles([f('Call sheet.pdf'), f('b.jpg'), f('Album/'), f('a.png'), f('Album/x.jpg')].map((e) => (e.path.endsWith('/') ? { ...e, dir: true } : e)));
+  assert.deepEqual(tiles.map((t) => t.name), ['Album', 'a.png', 'b.jpg', 'Call sheet.pdf']);
 });

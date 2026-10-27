@@ -2,7 +2,7 @@
 // get a view, and what the views are called, is boards/src/lib/fileView.js,
 // shared with the Worker. No I/O here, so node can test every rule.
 
-import { RAW_EXTS, PSD_EXTS, DOC_EXTS, DESIGN_EXTS } from '../../boards/src/lib/fileView.js';
+import { RAW_EXTS, PSD_EXTS, DOC_EXTS, DESIGN_EXTS, ZIP_EXTS, LISTED_EXTS } from '../../boards/src/lib/fileView.js';
 import { DESIGN_PICTURES } from './zipPick.js';
 
 // The vips decoder each format vips reads itself must come through.
@@ -19,8 +19,9 @@ export const EXT_LOADERS = Object.freeze({
 // (raw.js); a 'psd' gives up its flattened picture (psd.js); a 'doc' is
 // printed by LibreOffice (doc.js); a 'design-zip' (a design file that is a
 // zip) gives up the picture inside it, read by byte ranges (zipJob.js), and
-// any other 'design' file the picture its own bytes hold (design.js). null:
-// none.
+// any other 'design' file the picture its own bytes hold (design.js); a zip
+// is drawn as a 'sheet' of what is inside it, also read by byte ranges, and
+// any other archive as a 'listing' of the names in it (bsdtar). null: none.
 export function decoderOf(ext) {
   const e = String(ext || '').toLowerCase();
   if (Object.hasOwn(EXT_LOADERS, e)) return 'vips';
@@ -29,6 +30,8 @@ export function decoderOf(ext) {
   if (DOC_EXTS.includes(e)) return 'doc';
   if (Object.hasOwn(DESIGN_PICTURES, e)) return 'design-zip';
   if (DESIGN_EXTS.includes(e)) return 'design';
+  if (ZIP_EXTS.includes(e)) return 'sheet';
+  if (LISTED_EXTS.includes(e)) return 'listing';
   return null;
 }
 
@@ -61,6 +64,9 @@ export function sniffLoader(head) {
   if (at(4, 0x66, 0x74, 0x79, 0x70) && HEIF_BRANDS.has(String.fromCharCode(...b.subarray(8, 12)))) return 'heifload';
   if (at(0, 0xff, 0xd8, 0xff)) return 'jpegload';
   if (at(0, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return 'pngload';
+  // WebP and GIF: only for a picture inside a zip (view.js sheetViews).
+  if (at(0, 0x52, 0x49, 0x46, 0x46) && at(8, 0x57, 0x45, 0x42, 0x50)) return 'webpload';
+  if (at(0, 0x47, 0x49, 0x46, 0x38) && (at(4, 0x37, 0x61) || at(4, 0x39, 0x61))) return 'gifload';
   return null;
 }
 
@@ -94,6 +100,39 @@ export function sniffDoc(head) {
     || at(0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1)
     || at(0x7b, 0x5c, 0x72, 0x74, 0x66)
     || at(0xff, 0x57, 0x50, 0x43);
+}
+
+// True when a file's first bytes are an archive bsdtar is asked to list: 7z,
+// RAR (4 or 5), gzip, bzip2, xz, or a POSIX tar ('ustar' at 257; `head` must
+// reach that far). libarchive reads far more (ISO images, cpio, mtree's text
+// naming other files), so nothing else reaches it, whatever its name.
+export function sniffListed(head) {
+  const b = head instanceof Uint8Array ? head : new Uint8Array(0);
+  const at = (i, ...xs) => b.length >= i + xs.length && xs.every((x, j) => b[i + j] === x);
+  return at(0, 0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c)
+    || at(0, 0x52, 0x61, 0x72, 0x21, 0x1a, 0x07)
+    || at(0, 0x1f, 0x8b)
+    || at(0, 0x42, 0x5a, 0x68)
+    || at(0, 0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00)
+    || at(257, 0x75, 0x73, 0x74, 0x61, 0x72);
+}
+
+// The name gzip kept of the one file it compressed (its header's FNAME), as
+// a plain name, or null: a .gz that holds no archive is that one file.
+export function gzipName(head) {
+  const b = head instanceof Uint8Array ? head : new Uint8Array(0);
+  if (b.length < 10 || b[0] !== 0x1f || b[1] !== 0x8b || b[2] !== 8 || !(b[3] & 0x08)) return null;
+  let i = 10;
+  if (b[3] & 0x04) {
+    if (b.length < 12) return null;
+    i += 2 + (b[10] | (b[11] << 8));
+  }
+  const end = b.indexOf(0, i);
+  if (end <= i) return null;
+  // ISO 8859-1, as gzip's format says; a path keeps only its last part.
+  const name = String.fromCharCode(...b.subarray(i, Math.min(end, i + 255))).split(/[\\/]/).pop()
+    .replace(/[\u0000-\u001f\u007f]/g, '');
+  return name || null;
 }
 
 // True when a file's first bytes are a Photoshop document's (or a .psb's).
