@@ -186,9 +186,8 @@ function PhoneLine({ boardId, showSave, canEdit, isPublic, fresh, peers }) {
   return <span className="dl-psub">{line}</span>;
 }
 
-// Messages, as the header before this had it (DocCard.jsx
-// DocCardMessagesButton): the workspace's unread as a dot, the panel's open
-// state as the button's. Nothing outside a provider (the /share viewer).
+// Messages: the workspace's unread as a dot, the panel's open state as the
+// button's. Nothing outside a provider (the /share viewer).
 function MessagesBtn() {
   const messagesUi = useMessagesUi();
   if (!messagesUi) return null;

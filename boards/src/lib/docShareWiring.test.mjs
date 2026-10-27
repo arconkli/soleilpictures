@@ -38,8 +38,9 @@ test('a doc’s two rooms come from the room get_file_share named', () => {
 test('every way in is held: the open doc’s header, the canvas menu, the list menu', () => {
   const bus = src('./fileShareBus.js');
   assert.match(bus, /return docSharesAllowed\(\) && isShareableDoc\(card\) \? 'Share doc…' : null;/);
-  const card = src('../components/DocCard.jsx');
-  assert.match(card, /\{!isPublic && canEdit && scope\?\.boardId && docSharesAllowed\(\) && isShareableDoc\(card\) && \(\s+<FileShareButton variant="doc" surface="doc" boardId=\{scope\.boardId\}/);
+  // The open doc's header is the doc look's, docked or full screen.
+  const head = src('../components/doc/DocFrameA.jsx');
+  assert.match(head, /const share = !isPublic && canEdit && scope\?\.boardId && docSharesAllowed\(\) && isShareableDoc\(card\) \? \(\s+<FileShareButton variant="doc" surface="doc" boardId=\{scope\.boardId\}/);
   const canvas = src('../components/CanvasSurface.jsx');
   assert.match(canvas, /const shareDoc = !multi && canEdit && !isPublic \? docShareLabel\(c\) : null;/);
   assert.match(canvas, /items\.push\(\{ id: 'share-doc', label: shareDoc,\s+run: \(\) => openFileShare\(\{ boardId: board\.id, cardId: c\.id, card: c, boardName: board\.name, surface: 'canvas' \}\) \}\);/);

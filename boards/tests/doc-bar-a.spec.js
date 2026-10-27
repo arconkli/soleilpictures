@@ -3,7 +3,8 @@
 // docLookAllowed): Doc ▾ | undo redo | style font size | the marks, colour and
 // clear | lists and align | link comment | + | find ⋯. It is always one row:
 // as its room narrows, groups fold into ⋯ (lib/docBarFold.js). Every control
-// runs the editor command today's bar runs. Driven in the ?docqa=1 harness.
+// runs the editor command DocToolbar does (the bar a doc shared on its own
+// still has). Driven in the ?docqa=1 harness.
 
 import { expect, test } from '@playwright/test';
 import { exportRow, setScreenplay } from './helpers/docFrame.js';
@@ -12,9 +13,6 @@ test.skip(({ isMobile }) => isMobile, 'the bar under a finger is D7');
 
 async function openDoc(page, { query = '', width = 1440, height = 900 } = {}) {
   await page.setViewportSize({ width, height });
-  await page.addInitScript(() => {
-    try { window.localStorage.setItem('soleil.dev.docLook', '1'); } catch (_) {}
-  });
   await page.goto(`/?docqa=1${query}`);
   await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
   await page.evaluate(() => window.__soleilDocTest.openCard());
@@ -690,15 +688,4 @@ test('a view-only member\'s bar is Find, the zoom and Export', async ({ page }) 
   const side = modal(page).getByRole('complementary', { name: 'Comments and find' });
   await expect(side.getByRole('textbox', { name: 'Find', exact: true })).toBeFocused();
   await expect(side.getByRole('textbox', { name: 'Replace with' })).toHaveCount(0);
-});
-
-test('with the look off, the doc keeps today\'s bar', async ({ page }) => {
-  await page.addInitScript(() => {
-    try { window.localStorage.setItem('soleil.dev.docLook', '0'); } catch (_) {}
-  });
-  await page.goto('/?docqa=1');
-  await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
-  await page.evaluate(() => window.__soleilDocTest.openCard());
-  await expect(modal(page).locator('.doc-tb')).toBeVisible();
-  await expect(modal(page).getByRole('toolbar', { name: 'Formatting', exact: true })).toHaveCount(0);
 });

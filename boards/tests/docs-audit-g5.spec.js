@@ -2,7 +2,7 @@
 // harness (window.__soleilDocTest).
 import { expect, test } from '@playwright/test';
 import {
-  bookmarkSpot, commentButton, pageListButton, setScreenplay, todaysLook, zoomIn,
+  bookmarkSpot, commentButton, pageListButton, setScreenplay, zoomIn,
 } from './helpers/docFrame.js';
 
 async function openDoc(page, query = '') {
@@ -73,29 +73,6 @@ test('DOCS-08: Undo on deleting the only page brings it back with its text', asy
   await expect(modal.locator('.ProseMirror')).toContainText('Every word of the only page.');
 });
 
-// ── DOCS-15 ───────────────────────────────────────────────────────────────
-// A print whose afterprint never fires (the app's WebView has no print at all)
-// used to hold the export menu open and busy for the 60 s safety net.
-test('DOCS-15: Print / Save as PDF closes the menu at once and leaves the other exports usable', async ({ page }) => {
-  // Today's export menu. The look's is doc-bar-a.spec.js's.
-  await todaysLook(page);
-  // Every frame, the print iframe included: print() does nothing, no afterprint.
-  await page.addInitScript(() => { window.print = () => {}; });
-  await openDoc(page);
-  await page.evaluate(() => window.__soleilDocTest.editor.commands.setContent('<p>Printable words.</p>'));
-  const trigger = page.locator('.doc-card-modal button[aria-label="Export"]');
-  await trigger.click();
-  const menu = page.locator('.doc-export-menu');
-  await menu.getByRole('menuitem', { name: 'Print / Save as PDF' }).click();
-  await expect(menu).toHaveCount(0, { timeout: 3000 });
-  await trigger.click();
-  const [download] = await Promise.all([
-    page.waitForEvent('download', { timeout: 5000 }),
-    menu.getByRole('menuitem', { name: 'Export Markdown' }).click(),
-  ]);
-  expect(download.suggestedFilename()).toMatch(/\.md$/);
-});
-
 // ── DOCS-16 ───────────────────────────────────────────────────────────────
 test('DOCS-16: a bookmark shows under the page tree, jumps there, and removes with Undo', async ({ page }) => {
   await openDoc(page);
@@ -163,27 +140,34 @@ test('DOCS-17: the resize handle and align bar sit on the image, and a drag trac
 });
 
 // ── DOCS-18 ───────────────────────────────────────────────────────────────
+// Find and Replace at a phone's width: every field and button on the screen,
+// and every word button wide enough for its words. (DOCS-15, Print closing
+// the export menu at once, is doc-bar-a.spec.js's now.)
 test('DOCS-18: find & replace fits a phone-width screen with Replace open', async ({ page }) => {
-  // Today's find bar. The look's Find is a sheet on a phone: mobile/doc-panel-sheet.spec.js.
-  await todaysLook(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await openDoc(page);
-  await page.locator('.doc-card-modal .doc-tb button[title="Find (⌘F)"]').click();
-  const bar = page.locator('.doc-find');
-  await expect(bar).toBeVisible();
-  await bar.locator('button[aria-label="Toggle replace"]').click();
-  await expect(bar.locator('input[aria-label="Replace with"]')).toBeVisible();
+  await page.evaluate(() => window.__soleilDocTest.editor.commands.setContent('<p>One night, one drive.</p>'));
+  // A phone's Find is in the side panel's sheet, under the header's ⋯.
+  await page.locator('.doc-card-modal .dl-head').getByRole('button', { name: /^More/ }).click();
+  await page.getByRole('menu', { name: 'More' }).getByRole('menuitem', { name: /^Comments/ }).click();
+  const sheet = page.getByRole('complementary', { name: 'Comments and find' });
+  await sheet.getByRole('tab', { name: 'Find' }).click();
+  await sheet.getByRole('textbox', { name: 'Find', exact: true }).fill('one');
+  await expect(sheet.getByRole('textbox', { name: 'Replace with' })).toBeVisible();
+  await expect(sheet.getByRole('button', { name: 'Replace all 2' })).toBeVisible();
   const out = await page.evaluate(() => {
     const vw = window.innerWidth;
-    return [...document.querySelectorAll('.doc-find input, .doc-find button')].map(el => {
+    return [...document.querySelectorAll('.dl-find input, .dl-find button')].map(el => {
       const r = el.getBoundingClientRect();
       return { label: el.getAttribute('aria-label') || el.textContent, l: r.left, r: r.right, w: r.width };
     }).filter(x => x.l < 0 || x.r > vw);
   });
   expect(out).toEqual([]);
   // The word buttons are wide enough for their words.
-  const one = bar.getByRole('button', { name: 'One' });
-  expect(await one.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  const clipped = await page.evaluate(() => [...document.querySelectorAll('.dl-find button')]
+    .filter((el) => el.textContent.trim() && el.scrollWidth > el.clientWidth)
+    .map((el) => el.textContent.trim()));
+  expect(clipped).toEqual([]);
 });
 
 // ── SHARE-13 ──────────────────────────────────────────────────────────────

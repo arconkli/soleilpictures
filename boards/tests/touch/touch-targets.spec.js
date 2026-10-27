@@ -14,6 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { arrowBar, pickArrowHead } from '../helpers/arrowBar.js';
+import { dockFromCard } from '../helpers/docFrame.js';
 
 const tapOn = async (page, sel) => {
   const el = page.locator(sel).first();
@@ -55,13 +56,39 @@ async function openDoc(page) {
     '<h2>Sundown Highway</h2><p>A night drive across the desert, told in three long takes.</p>'));
 }
 
-// The doc's words selected: the bubble is up (a phone in the doc look has
-// none: the row on the keyboard has its formats).
+// The doc's words selected: the bubble is up (a phone has none: the row on
+// the keyboard has its formats).
 async function selectInDoc(page) {
   await openDoc(page);
   await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().selectAll().run());
-  if (page.viewportSize().width <= 640 && await page.evaluate(() => document.documentElement.dataset.docLook === 'a')) return false;
+  if (page.viewportSize().width <= 640) return false;
   await page.locator('.doc-bubble').waitFor();
+  return true;
+}
+// One of the doc bar's menus, open from its button (`name`), or where the bar
+// has folded it into its ⋯ (a touch tablet's width, a phone's row on the
+// keyboard), from its row there (`folded`): ⋯ and the menu, both open.
+async function docBarMenu(page, name, folded = null) {
+  await openDoc(page);
+  const phone = page.viewportSize().width <= 640;
+  if (phone) {
+    await page.locator('.doc-card-modal .ProseMirror p').first().tap();
+    await page.waitForTimeout(300);
+  }
+  const bar = page.locator(phone ? '.dl-acc' : '.doc-card-modal .dl-bar');
+  if (!(await bar.count())) return false;
+  const btn = bar.getByRole('button', typeof name === 'string' ? { name, exact: true } : { name }).first();
+  if (await btn.isVisible()) {
+    await btn.tap();
+    await page.locator('.tl-menu').first().waitFor();
+    return true;
+  }
+  if (!folded) return false;
+  await bar.getByRole('button', { name: phone ? 'More formatting' : 'More', exact: true }).tap();
+  const more = page.locator('.dl-more');
+  await more.waitFor();
+  await more.getByRole('menuitem', { name: folded }).tap();
+  await expect(page.locator('.tl-menu')).toHaveCount(2);
   return true;
 }
 // A picture in the doc, tapped: its bar is up.
@@ -105,10 +132,6 @@ const CLIP = readFileSync(new URL('../fixtures/media/frames-vp9.mp4', import.met
 // `allow(width)`: this page's own ALLOW, for the screen's width.
 // Home with `drawer=0`: on a phone the harness opens the drawer over it, as
 // the menu button would.
-const DOC_LOOK = { 'soleil.dev.docLook': '1' };
-// Today's doc bars, held to today's look (the look's are the 'doc look …'
-// pages, which its dev switch would otherwise take these to).
-const TODAYS_DOC = { 'soleil.dev.docLook': '0' };
 
 // The note bar (NoteBarA), on the local board's note: one of its buttons
 // tapped and the menu it opens up.
@@ -319,87 +342,23 @@ const PAGES = [
       return true;
     }, scope: '.frv' },
 
-  // ── A doc's bars ──
-  { name: 'doc toolbar', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
-    open: async (page) => { await openDoc(page); return true; }, scope: '.doc-card-modal .doc-tb' },
-  { name: 'screenplay toolbar', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
-    open: async (page) => {
-      await openDoc(page);
-      await page.locator('.doc-card-modal .doc-tb-screenplay-toggle').tap();
-      await page.locator('.doc-paper.is-screenplay .ProseMirror').waitFor();
-      return true;
-    }, scope: '.doc-card-modal .doc-tb' },
-  { name: 'doc insert menu', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
-    open: async (page) => {
-      await openDoc(page);
-      await page.locator('.doc-card-modal .doc-tb [aria-label="Insert a block"]').tap();
-      await page.locator('.doc-insert-menu').waitFor();
-      return true;
-    }, scope: '.doc-insert-menu' },
-  { name: 'doc export menu', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
-    open: async (page) => {
-      await openDoc(page);
-      await page.locator('.doc-card-modal .doc-tb [aria-label="Export"]').tap();
-      await page.locator('.doc-export-menu').waitFor();
-      return true;
-    }, scope: '.doc-export-menu' },
-  { name: 'doc size presets', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
-    open: async (page) => {
-      await openDoc(page);
-      await page.locator('.doc-card-modal .doc-tb .size-combo-arrow').tap();
-      await page.locator('.size-combo-pop').waitFor();
-      return true;
-    }, scope: '.size-combo-pop' },
-  { name: 'doc find', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
-    open: async (page) => {
-      await openDoc(page);
-      await page.locator('.doc-card-modal .doc-tb').getByRole('button', { name: 'Find', exact: true }).tap();
-      await page.locator('.doc-find').waitFor();
-      return true;
-    }, scope: '.doc-find' },
-  // Docked beside the board: the bar's narrow form.
-  { name: 'docked doc toolbar', url: '/?docqa=1&panes=1', ready: '[data-docqa-panes-ready]', storage: TODAYS_DOC,
-    open: async (page) => {
-      const dock = page.locator('[data-docqa-card="doc-a"] .doc-card').getByRole('button', { name: 'Open beside' });
-      if (!(await dock.count())) return false;
-      await dock.dispatchEvent('click');
-      await page.locator('[data-doc-pane="split"] .doc-tb').waitFor();
-      return true;
-    }, scope: '[data-doc-pane="split"] .doc-tb' },
-  { name: 'doc colours', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
-    open: async (page) => {
-      await openDoc(page);
-      await page.locator('.doc-card-modal .doc-tb .doc-tb-colorwrap > button').first().tap();
-      await page.locator('.doc-tb-colorpop').waitFor();
-      return true;
-    }, scope: '.doc-tb-colorpop' },
-  { name: 'doc fonts', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
-    open: async (page) => {
-      await openDoc(page);
-      await page.locator('.doc-card-modal .doc-tb').getByRole('button', { name: /^Font(: .+)?$/ }).tap();
-      await page.locator('.font-pop').waitFor();
-      return true;
-    }, scope: '.font-pop' },
-  { name: 'doc selection', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
+  // ── A doc's bars (the doc look: its header, one row of tools and footer,
+  // the side panel, and on a phone the row on the keyboard) ──
+  { name: 'doc selection', url: '/?docqa=1', ready: '#root',
     open: selectInDoc, scope: '.doc-bubble' },
-  { name: 'doc image', url: '/?docqa=1', ready: '#root', storage: TODAYS_DOC,
+  { name: 'doc image', url: '/?docqa=1', ready: '#root',
     open: pickDocImage, scope: '.tt-img-tb' },
-  // ── The doc look's (shipped 2026-10-24, lib/appHost.js docLookAllowed) ──
-  { name: 'doc look selection', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
-    open: selectInDoc, scope: '.doc-bubble' },
-  { name: 'doc look image', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
-    open: pickDocImage, scope: '.tt-img-tb' },
-  { name: 'doc look', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+  { name: 'doc frame', url: '/?docqa=1', ready: '#root',
     open: async (page) => { await openDoc(page); return true; },
     scope: '.doc-card-modal :is(.dl-head, .dl-bar, .dl-foot)' },
-  { name: 'doc look, the row on the keyboard', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+  { name: 'doc, the row on the keyboard', url: '/?docqa=1', ready: '#root',
     open: async (page) => {
       await openDoc(page);
       await page.locator('.doc-card-modal .ProseMirror p').first().tap();
       await page.waitForTimeout(300);
       return (await page.locator('.dl-acc').count()) > 0;
     }, scope: '.dl-acc' },
-  { name: 'doc look more', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+  { name: 'doc more', url: '/?docqa=1', ready: '#root',
     open: async (page) => {
       await openDoc(page);
       const phone = page.locator('.dl-head').getByRole('button', { name: /^More/ });
@@ -408,7 +367,7 @@ const PAGES = [
       await page.locator('.dl-more').waitFor();
       return true;
     }, scope: '.dl-more' },
-  { name: 'doc look comments', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+  { name: 'doc comments', url: '/?docqa=1', ready: '#root',
     open: async (page) => {
       await openDoc(page);
       // A thread on "night", its card open by a tap on the words.
@@ -424,7 +383,7 @@ const PAGES = [
       await page.locator('.dl-panel .dl-th.is-on .dl-reply').waitFor();
       return true;
     }, scope: '.dl-panel' },
-  { name: 'doc look find', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+  { name: 'doc find', url: '/?docqa=1', ready: '#root',
     open: async (page) => {
       await openDoc(page);
       const phone = page.locator('.dl-head').getByRole('button', { name: /^More/ });
@@ -439,7 +398,7 @@ const PAGES = [
       await page.locator('.dl-panel .dl-fr').first().waitFor();
       return true;
     }, scope: '.dl-panel' },
-  { name: 'doc look table', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+  { name: 'doc table', url: '/?docqa=1', ready: '#root',
     open: async (page) => {
       await openDoc(page);
       await page.evaluate(() => window.__soleilDocTest.editor.commands.setContent(
@@ -448,7 +407,7 @@ const PAGES = [
       await page.locator('.dl-tbar').waitFor();
       return true;
     }, scope: '.dl-tbar' },
-  { name: 'doc look pages', url: '/?docqa=1', ready: '#root', storage: DOC_LOOK,
+  { name: 'doc pages', url: '/?docqa=1', ready: '#root',
     open: async (page) => {
       await openDoc(page);
       await page.evaluate(() => {
@@ -462,6 +421,34 @@ const PAGES = [
       await page.locator('.doc-card-modal .doc-tree-add').first().waitFor();
       return true;
     }, scope: '.doc-card-modal .doc-rail-left' },
+  // The bar's menus, each from its button or, folded, from ⋯'s row.
+  { name: 'doc insert menu', url: '/?docqa=1', ready: '#root',
+    open: (page) => docBarMenu(page, 'Insert'), scope: '.tl-menu' },
+  { name: 'doc fonts', url: '/?docqa=1', ready: '#root',
+    open: (page) => docBarMenu(page, /^Font(:|$)/, /^Font/), scope: '.tl-menu' },
+  { name: 'doc size presets', url: '/?docqa=1', ready: '#root',
+    open: (page) => docBarMenu(page, 'Preset sizes', /^Size/), scope: '.tl-menu' },
+  { name: 'doc colours', url: '/?docqa=1', ready: '#root',
+    open: (page) => docBarMenu(page, 'Colour and highlight', /^Text colour/), scope: '.tl-menu' },
+  // A screenplay's bar: its type, undo and redo, link, comment and bookmark.
+  { name: 'doc screenplay bar', url: '/?docqa=1', ready: '#root',
+    open: async (page) => {
+      if (page.viewportSize().width <= 640) return false;
+      await openDoc(page);
+      await page.evaluate(() => { const T = window.__soleilDocTest; T.setDocMode(T.ydoc, T.getScope(), 'screenplay'); });
+      await page.locator('.doc-paper.is-screenplay .ProseMirror').waitFor();
+      await page.locator('.doc-card-modal .dl-bar').waitFor();
+      return true;
+    }, scope: '.doc-card-modal .dl-bar' },
+  // Docked beside the board: the bar in the pane's width. A phone's header
+  // has no dock.
+  { name: 'docked doc bar', url: '/?docqa=1&panes=1', ready: '[data-docqa-panes-ready]',
+    open: async (page) => {
+      if (page.viewportSize().width <= 640) return false;
+      await dockFromCard(page.locator('[data-docqa-card="doc-a"] .doc-card'));
+      await page.locator('[data-doc-pane="split"] .dl-bar').waitFor();
+      return true;
+    }, scope: '[data-doc-pane="split"] .dl-bar' },
 ];
 
 // selector → why it may be smaller than a finger.

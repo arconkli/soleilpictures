@@ -9,7 +9,6 @@ import { withPerfTime } from './lib/perf.js';
 import { maybeRedirectToLatest } from './lib/stagingRedirect.js';
 import { StagingBanner } from './components/StagingBanner.jsx';
 import { bootMark } from './lib/bootMarks.js';
-import { docLook } from './lib/looks.js';
 
 // Wrap App so render.App.ms surfaces in perf.dump() without touching App.jsx.
 const App = withPerfTime(RawApp, 'App');
@@ -31,9 +30,9 @@ export default function AppShell() {
   useEffect(() => {
     const warm = () => {
       import('./components/DocSurface.jsx').catch(() => {});
-      // The doc look's frame (components/doc/DocFrameA.jsx) beside it,
-      // so the header doesn't arrive a beat after the doc.
-      if (docLook()) import('./components/doc/DocFrameA.jsx').catch(() => {});
+      // The doc's frame (components/doc/DocFrameA.jsx) beside it, so the
+      // header doesn't arrive a beat after the doc.
+      import('./components/doc/DocFrameA.jsx').catch(() => {});
     };
     if (typeof window.requestIdleCallback === 'function') {
       const h = window.requestIdleCallback(warm, { timeout: 8000 });

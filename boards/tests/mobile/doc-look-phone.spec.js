@@ -1,5 +1,5 @@
-// The doc look on a phone (mockups A-phone, A-phone2 and S-phone; held to a
-// dev opt-in, lib/appHost.js docLookAllowed): the header is Close, Pages, the
+// The doc look on a phone (mockups A-phone, A-phone2 and S-phone; shipped
+// 2026-10-24, lib/appHost.js docLookAllowed): the header is Close, Pages, the
 // title over its line, Share and ⋯, and there's no footer; the row of tools
 // rides on the keyboard while the text has the focus, its More formatting
 // holding what the row leaves out; ⋯ has Comments, Find, Messages, the doc's
@@ -14,9 +14,6 @@ test.beforeEach(({}, testInfo) => {
 });
 
 async function openDoc(page, { query = '' } = {}) {
-  await page.addInitScript(() => {
-    try { window.localStorage.setItem('soleil.dev.docLook', '1'); } catch (_) {}
-  });
   await page.goto(`/?docqa=1${query}`);
   await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
   await page.evaluate(() => window.__soleilDocTest.openCard());

@@ -8,9 +8,6 @@
 import { expect, test } from '@playwright/test';
 
 async function openDoc(page, query = '') {
-  await page.addInitScript(() => {
-    try { window.localStorage.setItem('soleil.dev.docLook', '1'); } catch (_) {}
-  });
   await page.goto(`/?docqa=1${query}`);
   await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
   await page.evaluate(() => window.__soleilDocTest.openCard());

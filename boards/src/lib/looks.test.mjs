@@ -1,10 +1,9 @@
-// looks.test.mjs — the toolbar look (the owner's pick of 2026-10-21, shipped
-// 2026-10-25) is the only look the bars have: main.jsx marks <html
-// data-tb="a"> without asking, and nothing asks which look the bars wear. The
-// doc editor's look (shipped 2026-10-24) keeps its switch, with a dev opt-out
-// for the specs that still pin today's editor; main.jsx alone reads it and
-// marks <html>, and markup asks lib/looks.js, which reads the mark. Plus the
-// helpers every bar uses: a shortcut's keys as caps, and a control's tooltip.
+// looks.test.mjs — the bars and the doc editor have one look each: the
+// toolbar look (the owner's pick of 2026-10-21, shipped 2026-10-25) and the
+// doc look (shipped 2026-10-24). main.jsx marks <html data-tb="a"
+// data-doc-look="a"> without asking, and nothing asks which look either
+// wears. Plus the helpers every bar uses: a shortcut's keys as caps, and a
+// control's tooltip.
 //
 //   node --test src/lib/looks.test.mjs
 import { test } from 'node:test';
@@ -13,35 +12,34 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as looks from './looks.js';
-import { keyCaps, shortcutAria, shortcutCaps, tlTip, docLook } from './looks.js';
+import { keyCaps, shortcutAria, shortcutCaps, tlTip } from './looks.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(path.join(here, '..', p), 'utf8');
 const holdBody = (name) => read('lib/appHost.js').match(new RegExp(`export function ${name}\\(\\)\\s*\\{([\\s\\S]*?)\\n\\}`))?.[1] || '';
 
-test('docLookAllowed is on everywhere, and on dev unless the hold says \'0\'', () => {
-  const body = holdBody('docLookAllowed');
-  assert.match(body, /^\s*if \(!import\.meta\.env\.DEV\) return true;\n/);
-  // A storage that throws (a private window) leaves it on as well.
-  assert.match(body, /localStorage\.getItem\(DOC_LOOK_DEV_FLAG\) !== '0'; \} catch \(_\) \{ return true; \}/);
-  assert.doesNotMatch(body, /onPreviewHost|return false/);
+// The holds stay, as every lifted hold does, so session_context keeps saying
+// which look a session had; there is no other to switch to.
+test('the doc look\'s hold is lifted for good', () => {
+  assert.equal(holdBody('docLookAllowed').trim(), 'return true;');
   assert.match(read('lib/appHost.js'), /^\s*docLook: docLookAllowed,$/m);
+  assert.doesNotMatch(read('lib/appHost.js'), /DOC_LOOK_DEV_FLAG|soleil\.dev\.docLook/);
 });
 
-// The toolbar look's hold stays, as every lifted hold does, so session_context
-// keeps saying which look a session had; there is no other to switch to.
 test('the toolbar look\'s hold is lifted for good', () => {
   assert.equal(holdBody('toolbarLookAllowed').trim(), 'return true;');
   assert.match(read('lib/appHost.js'), /^\s*toolbarLook: toolbarLookAllowed,$/m);
   assert.doesNotMatch(read('lib/appHost.js'), /TOOLBAR_LOOK_DEV_FLAG|soleil\.dev\.toolbarLook/);
 });
 
-test('main.jsx marks <html> before anything renders: the toolbar look always, the doc look from its switch', () => {
+test('main.jsx marks <html> with both looks before anything renders, asking nothing', () => {
   const main = read('main.jsx');
   assert.match(main, /^  document\.documentElement\.dataset\.tb = 'a';$/m);
-  assert.match(main, /if \(docLookAllowed\(\)\) document\.documentElement\.dataset\.docLook = 'a';/);
-  assert.doesNotMatch(main, /toolbarLookAllowed/);
-  assert.ok(main.indexOf("dataset.tb = 'a'") < main.indexOf('createRoot('), 'marked before the first render');
+  assert.match(main, /^  document\.documentElement\.dataset\.docLook = 'a';$/m);
+  assert.doesNotMatch(main, /toolbarLookAllowed|docLookAllowed/);
+  for (const mark of ["dataset.tb = 'a'", "dataset.docLook = 'a'"]) {
+    assert.ok(main.indexOf(mark) < main.indexOf('createRoot('), `${mark}: marked before the first render`);
+  }
 });
 
 // The bars wear the toolbar look from styles/toolbarLook.css, a file of its
@@ -68,22 +66,20 @@ test('only main.jsx asks the switches', () => {
   }
 });
 
-test('with no document, the doc look is off', () => {
-  assert.equal(docLook(), false);
-});
-
-// The bars before the toolbar look are gone: nothing asks which look they
-// wear, and nothing can ask for the old one back.
-test('the bars have one look: nothing asks which', () => {
+// The bars before the toolbar look and the doc editor before the doc look are
+// gone from the clusters: nothing asks which look they wear, and nothing can
+// ask for the old one back.
+test('the bars and the docs have one look each: nothing asks which', () => {
   assert.equal(looks.toolbarLook, undefined);
   assert.equal(looks.tip, undefined);
+  assert.equal(looks.docLook, undefined);
   const askers = [];
   const walk = (dir) => {
     for (const e of readdirSync(path.join(here, '..', dir), { withFileTypes: true })) {
       const rel = path.join(dir, e.name);
       if (e.isDirectory()) walk(rel);
       else if (/\.(jsx?|mjs)$/.test(e.name) && !/\.test\.mjs$/.test(e.name)
-        && /\btoolbarLook\(\)|soleil\.dev\.toolbarLook/.test(read(rel))) askers.push(rel);
+        && /\btoolbarLook\(\)|soleil\.dev\.toolbarLook|\bdocLook\(\)|soleil\.dev\.docLook/.test(read(rel))) askers.push(rel);
     }
   };
   walk('.');

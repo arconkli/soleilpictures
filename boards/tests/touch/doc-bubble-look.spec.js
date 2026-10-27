@@ -1,15 +1,11 @@
-// A selection's bubble in a doc on a touch device, in the doc look (lib/
-// appHost.js docLookAllowed, a dev opt-in): the look's glass and corners, its
-// bar's icons in place of today's letters, and a format that's on in the
-// look's gold tint and ring rather than a gold fill. A phone in the look has
-// no bubble (the row on the keyboard has its formats: mobile/doc-look-
-// phone.spec.js). ?docqa=1 harness (window.__soleilDocTest).
+// A selection's bubble in a doc on a touch device, in the doc look: the
+// look's glass and corners, its bar's icons, and a format that's on in the
+// look's gold tint and ring. A phone has no bubble (the row on the keyboard
+// has its formats: mobile/doc-look-phone.spec.js). ?docqa=1 harness
+// (window.__soleilDocTest).
 import { expect, test } from '@playwright/test';
 
-async function select(page, look) {
-  await page.addInitScript((on) => {
-    try { window.localStorage.setItem('soleil.dev.docLook', on ? '1' : '0'); } catch (_) {}
-  }, look);
+async function select(page) {
   await page.goto('/?docqa=1');
   await page.waitForFunction(() => !!window.__soleilDocTest, null, { timeout: 15000 });
   await page.evaluate(() => window.__soleilDocTest.openCard());
@@ -34,8 +30,8 @@ function alpha(c) {
 }
 
 test('in the doc look the bubble is the look\'s: its glass, its icons, its on', async ({ page }) => {
-  test.skip(page.viewportSize().width <= 640, 'a phone in the doc look has no bubble');
-  const bubble = await select(page, true);
+  test.skip(page.viewportSize().width <= 640, 'a phone has no bubble');
+  const bubble = await select(page);
   const css = await bubble.evaluate((el) => {
     const cs = getComputedStyle(el);
     return { radius: cs.borderRadius, bg: cs.backgroundColor };
@@ -55,13 +51,4 @@ test('in the doc look the bubble is the look\'s: its glass, its icons, its on', 
   await expect.poll(() => bold.evaluate((el) => getComputedStyle(el).backgroundColor)).toMatch(ON_TINT);
   expect(await bold.evaluate((el) => getComputedStyle(el).boxShadow)).toMatch(ON_RING);
   expect(await page.evaluate(() => window.__soleilDocTest.editor.getHTML())).toContain('<strong>');
-});
-
-test('today\'s look keeps the bubble\'s letters and its gold fill', async ({ page }) => {
-  const bubble = await select(page, false);
-  await expect(bubble.getByRole('button', { name: 'Bold', exact: true })).toHaveText('B');
-  await expect(bubble.getByRole('button', { name: 'Highlight', exact: true })).toHaveText('H');
-  const bold = bubble.getByRole('button', { name: 'Bold', exact: true });
-  await bold.click();
-  await expect.poll(() => bold.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 165, 0)');
 });

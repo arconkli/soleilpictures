@@ -3,7 +3,7 @@
 
 import { expect, test } from '@playwright/test';
 import {
-  exportRow, expectElementsLive, insertRow, pairDual, setScreenplay, setTitlePage, todaysLook,
+  exportRow, expectElementsLive, insertRow, pairDual, setScreenplay, setTitlePage,
 } from './helpers/docFrame.js';
 
 async function openDoc(page) {
@@ -42,42 +42,6 @@ test('toggling screenplay mode seeds a Scene Heading + Courier layout', async ({
   const mode = await page.evaluate(() =>
     window.__soleilDocTest.getDocMode(window.__soleilDocTest.ydoc, window.__soleilDocTest.getScope()));
   expect(mode).toBe('screenplay');
-});
-
-test('the Screenplay toggle is a labeled pill that does not overlap its toolbar neighbors', async ({ page }) => {
-  // Today's bar. The look's screenplay bar is doc-bar-a.spec.js's.
-  await todaysLook(page);
-  await openDoc(page);
-  // The toggle exists in both modes; check it in prose mode (where the `+`
-  // button and the heading <select> flank it) and again in screenplay mode.
-  const toggle = page.locator('.doc-tb-screenplay-toggle');
-  await expect(toggle).toBeVisible();
-  // It's rendered as a real-width pill (icon + word), not the 28px square.
-  await expect(toggle).toHaveClass(/doc-tb-pill/);
-
-  const rects = async () => page.evaluate(() => {
-    const tb = document.querySelector('.doc-tb');
-    const toggle = tb.querySelector('.doc-tb-screenplay-toggle');
-    const plus = tb.querySelector('button[aria-label="Insert a block"]');
-    const select = tb.querySelector('.doc-tb-select');
-    const r = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return { left: b.left, right: b.right, width: b.width }; };
-    return { toggle: r(toggle), plus: r(plus), select: r(select) };
-  });
-
-  const before = await rects();
-  // The pill is wider than a 28px icon button — proof the label has room.
-  expect(before.toggle.width).toBeGreaterThan(40);
-  // No horizontal overlap with the `+` button (left) or the <select> (right).
-  expect(before.toggle.left).toBeGreaterThanOrEqual(before.plus.right - 0.5);
-  expect(before.select.left).toBeGreaterThanOrEqual(before.toggle.right - 0.5);
-
-  // In screenplay mode the "+" is gone (the element <select> is the inserter),
-  // so just confirm the toggle still doesn't overlap that <select> to its right.
-  await enableScreenplay(page);
-  const after = await rects();
-  expect(after.plus).toBeNull();
-  expect(after.toggle.width).toBeGreaterThan(40);
-  expect(after.select.left).toBeGreaterThanOrEqual(after.toggle.right - 0.5);
 });
 
 test('Title Page toggle adds an editable on-page title page that persists', async ({ page }) => {
@@ -230,59 +194,6 @@ test('scene navigator numbering matches the gutters when numbers are locked', as
   // The rail used a naive ordinal → showed 1, 2.
   await expect.poll(async () => page.$$eval('.sp-scenenav .sp-scenenav-num',
     els => els.map(e => e.textContent))).toEqual(['1', '1A']);
-});
-
-test('the Dual button is a no-op when the caret is not inside a speech', async ({ page }) => {
-  // Today's bar. The look's Scene numbers and Pair are the side panel's: doc-panel-elements.spec.js.
-  await todaysLook(page);
-  await openDoc(page);
-  await enableScreenplay(page);
-  await page.evaluate(() => {
-    const S = window.__soleilDocTest.screenplay;
-    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
-      { element: 'character', text: 'JOHN' },
-      { element: 'dialogue', text: 'Hello.' },
-      { element: 'character', text: 'MARY' },
-      { element: 'dialogue', text: 'Hi.' },
-      { element: 'action', text: 'They stare at each other.' },
-    ]));
-    // Caret on the ACTION line after the exchange.
-    const ed = window.__soleilDocTest.editor;
-    let pos = null;
-    ed.state.doc.descendants((node, p) => { if (node.attrs?.element === 'action') pos = p + 1; });
-    ed.chain().focus().setTextSelection(pos).run();
-  });
-  await page.locator('button[title^="Dual dialogue"]').click();
-  // The two speeches above must NOT have been silently paired.
-  await expect(page.locator('.doc-paper.is-screenplay [data-dual]')).toHaveCount(0);
-});
-
-test('the Scene # pill toggles scene numbers off and on', async ({ page }) => {
-  // Today's bar. The look's Scene numbers and Pair are the side panel's: doc-panel-elements.spec.js.
-  await todaysLook(page);
-  await openDoc(page);
-  await enableScreenplay(page);
-  await page.evaluate(() => {
-    const S = window.__soleilDocTest.screenplay;
-    window.__soleilDocTest.editor.commands.setContent(S.blocksToDocJSON([
-      { element: 'scene', text: 'INT. A - DAY' },
-      { element: 'action', text: 'x' },
-      { element: 'scene', text: 'EXT. B - NIGHT' },
-    ]));
-  });
-  const pill = page.locator('.doc-tb-scenenum-toggle');
-  // On by default → pill active, gutters numbered 1, 2.
-  await expect(pill).toHaveClass(/is-active/);
-  await expect(page.locator('.doc-paper.show-scene-numbers')).toBeVisible();
-  const nums = await page.$$eval('.doc-paper.is-screenplay [data-scene-number]', els => els.map(e => e.getAttribute('data-scene-number')));
-  expect(nums).toEqual(['1', '2']);
-  // One click hides them.
-  await pill.click();
-  await expect(pill).not.toHaveClass(/is-active/);
-  await expect(page.locator('.doc-paper.show-scene-numbers')).toHaveCount(0);
-  // Click again shows them.
-  await pill.click();
-  await expect(page.locator('.doc-paper.show-scene-numbers')).toBeVisible();
 });
 
 test('scene numbers show by default at each scene heading, placed in the margin', async ({ page }) => {
@@ -982,36 +893,6 @@ test('slugline auto-detect keeps inline marks (promotes element without flatteni
   });
   expect(state.element).toBe('scene');
   expect(state.boldRuns).toEqual(['night']);   // the old full-line rewrite destroyed it
-});
-
-test('screenplay mode has no "+" insert menu (the element dropdown handles elements)', async ({ page }) => {
-  // Today's bar. The look's screenplay bar is doc-bar-a.spec.js's.
-  await todaysLook(page);
-  await openDoc(page);
-  await enableScreenplay(page);
-  // The "+" is hidden in screenplay mode — the element <select> + Tab cover
-  // every element (incl. Centered), so there's nothing for it to add.
-  await expect(page.locator('.doc-card-modal button[aria-label="Insert a block"]')).toHaveCount(0);
-  await expect(page.locator('.doc-card-modal .doc-tb-select')).toBeVisible();
-});
-
-test('the "+" insert menu holds only insert-content items, not toolbar duplicates', async ({ page }) => {
-  // Today's Insert menu. The look's is doc-bar-a.spec.js's.
-  await todaysLook(page);
-  await openDoc(page);
-  await page.locator('.doc-card-modal button[aria-label="Insert a block"]').click();
-  const menu = page.locator('.doc-insert-menu');
-  await expect(menu).toBeVisible();
-  // The five things with no other toolbar home.
-  // "Embed cluster" — the board→cluster copy rename (f1f957a).
-  for (const label of ['Image', 'Table', 'Divider', 'Code block', 'Embed cluster']) {
-    await expect(menu.locator('.doc-insert-item-title', { hasText: label })).toBeVisible();
-  }
-  // None of the things the toolbar already provides (style select / list / quote
-  // / bookmark buttons) — no "same thing twice".
-  for (const dupe of ['Heading 1', 'Paragraph', 'Bulleted list', 'Quote', 'Bookmark']) {
-    await expect(menu.locator('.doc-insert-item-title', { hasText: dupe })).toHaveCount(0);
-  }
 });
 
 test('typing "/" in a doc is literal text — the slash command menu is gone', async ({ page }) => {

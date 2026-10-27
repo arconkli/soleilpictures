@@ -3,10 +3,10 @@
 // the overlay with it, the editor re-rendered on every transaction (TipTap's
 // legacy default) and took its gutters and menus with it, and the toolbar
 // re-ran every one of its states. Each was a few milliseconds on every key,
-// more in a long doc. The toolbar still has to light what's under the caret,
-// so that's pinned here too; doc-typing-budget.spec.js times the result.
+// more in a long doc. The bar still has to light what's under the caret
+// (doc-bar-a.spec.js pins that); doc-typing-budget.spec.js times the result.
 import { expect, test } from '@playwright/test';
-import { setScreenplay, todaysLook } from './helpers/docFrame.js';
+import { setScreenplay } from './helpers/docFrame.js';
 import { countRenders, renders, resetRenders } from './helpers/renderCounter.js';
 
 async function openDoc(page, html) {
@@ -47,8 +47,9 @@ const caretAt = async (page, text, at = 1) => {
 };
 
 // What re-rendered, keeping only the doc's own chrome.
-const CHROME = ['RichDocCard', 'DocCardOverlay', 'DocSurface', 'DocPageTree', 'DocToolbar', 'DocFindReplace',
-  'DocPageEditor', 'DocEditorContextMenu', 'DocTagGutter', 'DocCandidateGutter', 'CommentGutter', 'ScreenplaySceneNav'];
+const CHROME = ['RichDocCard', 'DocCardOverlay', 'DocSurface', 'DocPageTree', 'DocHeadA', 'DocBarA', 'DocSidePanel',
+  'DocFindReplace', 'DocPageEditor', 'DocEditorContextMenu', 'DocTagGutter', 'DocCandidateGutter', 'CommentGutter',
+  'ScreenplaySceneNav'];
 const chromeRenders = async (page) => {
   const all = await renders(page);
   return Object.fromEntries(CHROME.filter((n) => all[n]).map((n) => [n, all[n]]));
@@ -86,63 +87,6 @@ test('typing a speech redraws neither the scene list nor the toolbar; renaming a
   await caretAt(page, 'NIGHT', 5);
   await page.keyboard.type(' (LATER)');
   await expect(scenes.first()).toContainText('INT. CAFE - NIGHT (LATER)');
-});
-
-test('the toolbar lights what is under the caret, and what the next key will type', async ({ page }) => {
-  // Today's bar. The look's lights are doc-bar-a.spec.js's.
-  await todaysLook(page);
-  await openDoc(page, '<h2>A heading</h2><p>Plain <strong>bold</strong> plain.</p><ul><li><p>An item</p></li></ul>');
-  const bar = page.locator('.doc-card-modal .doc-tb');
-  const bold = bar.getByRole('button', { name: 'Bold', exact: true });
-  const bullets = bar.getByRole('button', { name: 'Bulleted list', exact: true });
-  const style = bar.locator('.doc-tb-select');
-
-  await caretAt(page, 'A heading', 3);
-  await expect(style).toHaveValue('h2');
-  await expect(bold).not.toHaveClass(/is-active/);
-
-  await caretAt(page, 'bold', 2);
-  await expect(bold).toHaveClass(/is-active/);
-  await expect(style).toHaveValue('p');
-
-  await caretAt(page, ' plain.', 3);
-  await expect(bold).not.toHaveClass(/is-active/);
-  // Bold armed at a caret: no selection change, only the next key's marks.
-  await page.keyboard.press('Control+b');
-  await expect(bold).toHaveClass(/is-active/);
-  await page.keyboard.type('x');
-  await expect(bold).toHaveClass(/is-active/);
-  await page.keyboard.press('Control+b');
-  await expect(bold).not.toHaveClass(/is-active/);
-
-  await caretAt(page, 'An item', 2);
-  await expect(bullets).toHaveClass(/is-active/);
-  await expect(style).toHaveValue('');
-
-  // Link needs a selection: off at a caret (its tooltip says why), on with
-  // text selected. Its name stays Add link either way.
-  const link = bar.getByRole('button', { name: 'Add link', exact: true });
-  await expect(link).toBeDisabled();
-  await expect(link).toHaveAttribute('title', 'Select text to link');
-  await page.keyboard.press('Shift+ArrowRight');
-  await expect(link).toBeEnabled();
-});
-
-test('a screenplay\'s element picker follows the caret', async ({ page }) => {
-  // Today's element picker. The look's is the side panel's: doc-panel-elements.spec.js.
-  await todaysLook(page);
-  await openScreenplay(page, [
-    { element: 'scene', text: 'INT. CAFE - NIGHT' },
-    { element: 'character', text: 'MINSU' },
-    { element: 'dialogue', text: 'Two coffees.' },
-  ]);
-  const picker = page.locator('.doc-card-modal .doc-tb-select--sp');
-  await caretAt(page, 'MINSU', 2);
-  await expect(picker).toHaveValue('character');
-  await caretAt(page, 'Two coffees.', 2);
-  await expect(picker).toHaveValue('dialogue');
-  await caretAt(page, 'CAFE', 2);
-  await expect(picker).toHaveValue('scene');
 });
 
 test('typing on a page leaves the page breaks below it where they are', async ({ page }) => {

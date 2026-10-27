@@ -1,13 +1,7 @@
-// Which look the doc editor wears (lib/appHost.js docLookAllowed: on
-// everywhere, and on dev unless its hold says '0'), and the parts every bar in
-// the toolbar look uses. main.jsx marks <html> once, before anything renders:
-// data-tb="a" always (the toolbar look is the only one the bars have), and
-// data-doc-look="a" for the doc editor. The CSS keys on the marks and markup
-// that differs asks docLook() here, so no component asks a switch, and the
-// markup and the CSS can't disagree.
-const mark = (name) => (typeof document !== 'undefined' && document.documentElement?.dataset?.[name]) || null;
-
-export const docLook = () => mark('docLook') === 'a';
+// The parts every bar in the toolbar look uses: a shortcut's keys as caps,
+// and a control's tooltip. The bars and the doc editor have one look each, so
+// nothing asks which: main.jsx marks <html> data-tb="a" and
+// data-doc-look="a" before anything renders, and the CSS keys on the marks.
 
 // A shortcut as the keys a tooltip or a menu shows, each in its own cap:
 // "Mod+Shift+Z" is ⌘ ⇧ Z on a Mac and Ctrl Shift Z elsewhere. The spec is

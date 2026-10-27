@@ -1,47 +1,33 @@
-// The doc window's controls by what they do, in either of its looks: today's,
-// and the doc look's (lib/appHost.js docLookAllowed; on everywhere, and on dev
-// unless soleil.dev.docLook = '0'), which carries the same controls under its
-// own names and in its own places (tests/doc-look-frame.spec.js,
-// doc-bar-a.spec.js, doc-panel-*.spec.js). A spec that reaches a control
-// through these passes with the look on and off. `scope` is the page or a
-// locator.
+// The doc window's controls by what they do, in the doc look (the owner's
+// pick, shipped 2026-10-24: tests/doc-look-frame.spec.js, doc-bar-a.spec.js,
+// doc-panel-*.spec.js), where a control can sit in more than one place: the
+// bar's, ⋯'s once the bar has folded it, a phone's header. `scope` is the
+// page or a locator. (A doc shared on its own, fileShare/DocShareView.jsx,
+// keeps the editor before the look: doc-share.spec.js.)
 
 import { expect } from '@playwright/test';
 
 const pageOf = (scope) => (typeof scope.page === 'function' ? scope.page() : scope);
 
-// Holds a spec to today's look: one of today's controls whose counterpart in
-// the look has a spec of its own (named where this is called). Call it before
-// the page loads.
-export const todaysLook = (page) => page.addInitScript(() => {
-  try { window.localStorage.setItem('soleil.dev.docLook', '0'); } catch (_) {}
-});
-
-// Whether the page wears the look (main.jsx marks <html data-doc-look="a">).
-export const inDocLook = (page) => page.evaluate(() => document.documentElement.dataset.docLook === 'a');
-
-// Opens the page list as a phone's or a touch tablet's drawer: today the button
-// above the toolbar, in the look the header's pages toggle.
-export const pageListButton = (scope) =>
-  scope.getByRole('button', { name: /^(Page list|Pages and scenes|Show pages)$/ });
+// Opens the page list as a phone's or a touch tablet's drawer: the header's
+// pages toggle.
+export const pageListButton = (scope) => scope.getByRole('button', { name: 'Show pages', exact: true });
 
 // Docks the doc beside the canvas.
-export const dockButton = (scope) =>
-  scope.getByRole('button', { name: /^(Dock to side|Dock beside the canvas)$/ });
+export const dockButton = (scope) => scope.getByRole('button', { name: 'Dock beside the canvas', exact: true });
 
-// The doc's footer: under the page today, across the whole window in the look.
-export const docFooter = (scope) => scope.locator('.doc-foot, .dl-foot');
+// The doc's footer, across the whole window.
+export const docFooter = (scope) => scope.locator('.dl-foot');
 
-// The doc's row of tools: today's .doc-tb, the look's Formatting toolbar.
-export const docBar = (scope) =>
-  scope.locator('.doc-tb').or(scope.getByRole('toolbar', { name: 'Formatting', exact: true })).first();
+// The doc's row of tools.
+export const docBar = (scope) => scope.getByRole('toolbar', { name: 'Formatting', exact: true }).first();
 
-// The bar's Link and Comment: "Add link" and "Add comment" today.
-export const linkButton = (scope) => docBar(scope).getByRole('button', { name: /^(Add link|Link)$/ });
-export const commentButton = (scope) => docBar(scope).getByRole('button', { name: /^(Add comment|Comment)$/ });
+// The bar's Link and Comment.
+export const linkButton = (scope) => docBar(scope).getByRole('button', { name: 'Link', exact: true });
+export const commentButton = (scope) => docBar(scope).getByRole('button', { name: 'Comment', exact: true });
 
-// The bar's Insert: "Insert a block" today.
-export const insertButton = (scope) => docBar(scope).getByRole('button', { name: /^(Insert|Insert a block)$/ });
+// The bar's Insert.
+export const insertButton = (scope) => docBar(scope).getByRole('button', { name: 'Insert', exact: true });
 
 // Opens Insert and picks a row (`name`, a RegExp or a row's name).
 export async function insertRow(scope, name) {
@@ -49,8 +35,8 @@ export async function insertRow(scope, name) {
   await pageOf(scope).getByRole('menuitem', { name: typeof name === 'string' ? new RegExp(`^${name}`) : name }).click();
 }
 
-// Bookmarks the caret's spot: today the bar's button; in the look Insert's
-// Bookmark this spot (a screenplay's bar has the button).
+// Bookmarks the caret's spot: Insert's Bookmark this spot, or a screenplay's
+// bar's button.
 export async function bookmarkSpot(scope) {
   const button = docBar(scope).getByRole('button', { name: 'Bookmark this spot', exact: true });
   const insert = docBar(scope).getByRole('button', { name: 'Insert', exact: true });
@@ -59,14 +45,11 @@ export async function bookmarkSpot(scope) {
   await insertRow(scope, 'Bookmark this spot');
 }
 
-// Find's field: today's find bar, the look's side panel.
+// Find's field, in the side panel.
 export const findPanel = (scope) => scope.getByRole('complementary', { name: 'Comments and find' });
-export const findField = (scope) =>
-  scope.locator('.doc-find-input:not(.doc-find-input--replace)')
-    .or(findPanel(scope).getByRole('textbox', { name: 'Find', exact: true })).first();
+export const findField = (scope) => findPanel(scope).getByRole('textbox', { name: 'Find', exact: true });
 
-// Zooms in `times` times: today the bar's +, in the look the footer's zoom
-// menu (a reader's bar keeps its +).
+// Zooms in `times` times: the footer's zoom menu, or a reader's bar's +.
 export async function zoomIn(scope, times = 1) {
   const page = pageOf(scope);
   const plus = docBar(scope).getByRole('button', { name: 'Zoom in', exact: true });
@@ -79,7 +62,7 @@ export async function zoomIn(scope, times = 1) {
   }
 }
 
-// ⋯'s menu, open; in the look only (today's bar has no ⋯).
+// ⋯'s menu, open.
 async function openMore(scope) {
   const page = pageOf(scope);
   await docBar(scope).getByRole('button', { name: 'More', exact: true }).click();
@@ -99,40 +82,23 @@ async function moreRow(scope, sub, role, name) {
   return page.getByRole('menu', { name: new RegExp(`^${sub}`) }).getByRole(role, { name });
 }
 
-// Sets the layout: real pages (`paged`) or pageless. Today the bar's Pages
-// pill; in the look ⋯'s Layout.
+// Sets the layout, in ⋯'s Layout: real pages (`paged`) or pageless.
 export async function setPaged(scope, paged = true) {
-  const pill = scope.locator('.doc-tb-pages-toggle');
-  const more = docBar(scope).getByRole('button', { name: 'More', exact: true });
-  await pill.or(more).first().waitFor();
-  if (await pill.count()) {
-    if ((await pill.getAttribute('aria-pressed')) !== String(paged)) await pill.click();
-    return;
-  }
   const row = await moreRow(scope, 'Layout', 'menuitemradio', paged ? /^Pages/ : /^Pageless/);
   if ((await row.getAttribute('aria-checked')) === 'true') { await pageOf(scope).keyboard.press('Escape'); return; }
   await row.click();
 }
 
-// The layout the doc's controls say it has, real pages (`paged`) or
-// pageless: today the Pages pill's state, in the look ⋯'s Layout (put away
-// again after).
+// The layout ⋯'s Layout says the doc has, real pages (`paged`) or pageless
+// (⋯ put away again after).
 export async function expectLayoutShown(scope, paged) {
-  const pill = scope.locator('.doc-tb-pages-toggle');
-  const more = docBar(scope).getByRole('button', { name: 'More', exact: true });
-  await pill.or(more).first().waitFor();
-  if (await pill.count()) {
-    await expect(pill).toHaveAttribute('aria-pressed', String(paged));
-    return;
-  }
   const row = await moreRow(scope, 'Layout', 'menuitemradio', paged ? /^Pages/ : /^Pageless/);
   await expect(row).toHaveAttribute('aria-checked', 'true');
   await pageOf(scope).keyboard.press('Escape');
 }
 
-// An Export row, its menu open: today the bar's Export; in the look ⋯'s
-// Export (a reader's bar has Export of its own). `kind` is pdf, markdown,
-// html, fountain or fdx.
+// An Export row, its menu open: ⋯'s Export, or a reader's bar's own Export.
+// `kind` is pdf, markdown, html, fountain or fdx.
 const EXPORTS = {
   pdf: /^(Export PDF|PDF|Print \/ Save as PDF|Print or save as PDF)/,
   markdown: /^(Export )?Markdown/,
@@ -153,20 +119,14 @@ export async function exportRow(scope, kind) {
   return moreRow(scope, 'Export', 'menuitem', name);
 }
 
-// Makes the doc a screenplay (`on`), or a document again: today the bar's
-// Screenplay toggle, in the look the Doc type menu's rows (the bar's Doc
-// type; folded, ⋯'s; on a phone, the header's ⋯).
+// Makes the doc a screenplay (`on`), or a document again: the Doc type
+// menu's rows (the bar's Doc type; folded, ⋯'s; on a phone, the header's ⋯).
 export async function setScreenplay(scope, on = true) {
   const page = pageOf(scope);
-  const toggle = scope.locator('.doc-tb-screenplay-toggle');
   const docType = scope.getByRole('button', { name: 'Doc type', exact: true });
   const barMore = docBar(scope).getByRole('button', { name: 'More', exact: true });
   const headMore = scope.locator('.dl-head').getByRole('button', { name: /^More/ });
-  await toggle.or(docType).or(barMore).or(headMore).first().waitFor();
-  if (await toggle.count()) {
-    if ((await toggle.getAttribute('aria-pressed')) !== String(on)) await toggle.click();
-    return;
-  }
+  await docType.or(barMore).or(headMore).first().waitFor();
   if (await docType.count()) {
     await docType.click();
   } else {
@@ -176,7 +136,7 @@ export async function setScreenplay(scope, on = true) {
   await page.getByRole('menuitemradio', { name: on ? /^Screenplay/ : /^Document/ }).click();
 }
 
-// A screenplay's side panel on its Elements, in the look (⋯ › Elements).
+// A screenplay's side panel on its Elements (⋯ › Elements).
 async function openElements(scope) {
   const list = findPanel(scope).getByRole('listbox', { name: 'Element' });
   if (await list.count()) return;
@@ -185,50 +145,34 @@ async function openElements(scope) {
   await list.waitFor();
 }
 
-// Turns a screenplay's title page on (`on`) or off: today the bar's Title
-// Page pill, in the look the side panel's Title page.
+// Turns a screenplay's title page on (`on`) or off: the side panel's Title
+// page.
 export async function setTitlePage(scope, on = true) {
-  const pill = scope.locator('.doc-tb-titlepage-toggle');
-  const more = docBar(scope).getByRole('button', { name: 'More', exact: true });
-  await pill.or(more).first().waitFor();
-  if (await pill.count()) {
-    if ((await pill.getAttribute('aria-pressed')) !== String(on)) await pill.click();
-    return;
-  }
   await openElements(scope);
   const sw = findPanel(scope).getByRole('switch', { name: 'Title page' });
   if ((await sw.getAttribute('aria-checked')) !== String(on)) await sw.click();
 }
 
-// Pairs the caret's speech with the one above, as dual dialogue: today the
-// bar's Dual, in the look the side panel's Pair with the speech above.
+// Pairs the caret's speech with the one above, as dual dialogue: the side
+// panel's Pair with the speech above.
 export async function pairDual(scope) {
-  const dual = scope.locator('button[title^="Dual dialogue"]');
-  const more = docBar(scope).getByRole('button', { name: 'More', exact: true });
-  await dual.or(more).first().waitFor();
-  if (await dual.count()) { await dual.click(); return; }
   await openElements(scope);
   await findPanel(scope).getByRole('button', { name: 'Pair with the speech above' }).click();
 }
 
-// A screenplay's element picker knows the caret's element: today the bar's
-// select is enabled, in the look the side panel's Elements has the caret's
-// checked and none greyed.
+// A screenplay's element picker knows the caret's element: the side panel's
+// Elements has the caret's checked and none greyed.
 export async function expectElementsLive(scope) {
-  const select = scope.locator('.doc-tb-select');
-  const more = docBar(scope).getByRole('button', { name: 'More', exact: true });
-  await select.or(more).first().waitFor();
-  if (await select.count()) { await expect(select).toBeEnabled(); return; }
   await openElements(scope);
   const list = findPanel(scope).getByRole('listbox', { name: 'Element' });
   await expect(list.locator('[role="option"][aria-selected="true"]')).toHaveCount(1);
   await expect(list.locator('[role="option"][aria-disabled="true"]')).toHaveCount(0);
 }
 
-// Opens a closed doc card docked beside the canvas. Its Open beside, today and
-// in the look for a doc with words; in the look an empty doc's card offers
-// Start writing alone (mockup S-card), which opens it as it was last opened,
-// so its header docks it from there.
+// Opens a closed doc card docked beside the canvas: its Open beside, on a
+// doc with words. An empty doc's card offers Start writing alone (mockup
+// S-card), which opens it as it was last opened, so its header docks it from
+// there.
 export async function dockFromCard(card) {
   const page = pageOf(card);
   const beside = card.getByRole('button', { name: 'Open beside' });
@@ -241,9 +185,9 @@ export async function dockFromCard(card) {
   if (await full.count()) await dockButton(full).click();
 }
 
-// Opens a closed doc card over the canvas: its Open fullscreen, today and in
-// the look for a doc with words; Start writing (as it was last opened, full
-// screen for anyone who never docked) on an empty one in the look.
+// Opens a closed doc card over the canvas: its Open fullscreen, on a doc with
+// words; Start writing (as it was last opened, full screen for anyone who
+// never docked) on an empty one.
 export async function openFullFromCard(card) {
   const page = pageOf(card);
   const full = card.getByRole('button', { name: 'Open fullscreen' });

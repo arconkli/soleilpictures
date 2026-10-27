@@ -14,17 +14,15 @@ import { logClientError, installErrorWatch } from './lib/errorReporting.js';
 import { initPerfReport } from './lib/perfReport.js';
 import { lazyWithReload, isCssPreloadError, reloadedRecently } from './lib/lazyWithReload.js';
 import { installDomMutationGuard } from './lib/domMutationGuard.js';
-import { docLookAllowed } from './lib/appHost.js';
 import './styles/breakpoints.css';
 import './styles.css';
 
-// The toolbar look, the only one the bars have, and the doc editor's look (on
-// everywhere; on dev a hold set to '0' shows today's): marked on <html> once,
-// before anything renders, so the CSS and lib/looks.js agree from the first
-// frame.
+// The toolbar look and the doc editor's look, the only ones the bars and the
+// docs have: marked on <html> once, before anything renders, so the CSS has
+// them from the first frame.
 if (typeof document !== 'undefined') {
   document.documentElement.dataset.tb = 'a';
-  if (docLookAllowed()) document.documentElement.dataset.docLook = 'a';
+  document.documentElement.dataset.docLook = 'a';
   // Their one tooltip, with the shortcut's keys in caps.
   import('./components/toolbar/tipHost.js').then((m) => m.installTipHost()).catch(() => {});
   // Where the bars wear the toolbar look.

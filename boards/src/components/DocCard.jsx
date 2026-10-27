@@ -21,13 +21,7 @@ import { registerModalOpen } from '../lib/modalGuard.js';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { SurfaceErrorBoundary } from './SurfaceErrorBoundary.jsx';
 import { DocOpening } from './DocOpening.jsx';
-import { Avatar } from './primitives.jsx';
-import { useMessagesUi } from '../hooks/useOpenDm.js';
 import { EditableText } from './EditableText.jsx';
-import { FileShareButton } from './fileShare/FileShareButton.jsx';
-import { docSharesAllowed } from '../lib/appHost.js';
-import { isShareableDoc } from '../lib/fileShares.js';
-import { docLook } from '../lib/looks.js';
 import { createDocFrame } from '../lib/docFrame.js';
 import { Icon } from './Icon.jsx';
 import { CornersOut, NotePencil, PanelRight } from '../lib/icons.js';
@@ -40,9 +34,9 @@ import { CornersOut, NotePencil, PanelRight } from '../lib/icons.js';
 // AppShell idle-prefetches it for signed-in users so the skeleton is rarely
 // seen; public viewers pay the fetch only when they actually open a doc.
 const DocSurface = lazyWithReload(() => import('./DocSurface.jsx').then(m => ({ default: m.DocSurface })));
-// The doc look's header (lib/looks.js docLook()): lazy too, so today's editor
-// (on dev, the hold set to '0') never downloads the look
-// (components/doc/DocFrameA.jsx).
+// The open doc's header (components/doc/DocFrameA.jsx): lazy too, so a
+// canvas whose docs stay closed never downloads it. AppShell warms it beside
+// the editor.
 const DocHeadA = lazyWithReload(() => import('./doc/DocFrameA.jsx').then(m => ({ default: m.DocHeadA })));
 
 const DEFAULT_SIDE_RATIO = 0.5;
@@ -149,13 +143,8 @@ export function RichDocCard({
     () => (cardYMap ? { ...cardScope(cardYMap), cardId: card.id, docCardId: card.id, boardId: hostBoardId || null } : null),
     [cardYMap, card.id, hostBoardId],
   );
-  // The doc look (lib/looks.js): its closed card (mockup S-card) and how
-  // a new doc starts (S-open).
-  const look = docLook();
-  // New docs no longer auto-open their full editor — autoFocus now means
-  // "focus the title for renaming," letting the user rename + place the
-  // card on the canvas first. The full editor opens on double-click,
-  // explicit Open buttons, or peer-jump events. A card back from its
+  // A doc opens on a double-click, its card's buttons, a peer jump, or at
+  // once when it's just been added (startOpen, below). A card back from its
   // cluster's reload under it (a restore, cards moved in) opens as it was
   // before it went: the reload takes the card away, and it comes back closed
   // (lib/docResets.js; noted below).
@@ -262,11 +251,11 @@ export function RichDocCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card.id, isPublic]);
 
-  // A doc just added, in the doc look (mockup S-open), opens at once: beside
-  // the canvas (full screen on a phone; beside the docked doc, if one is),
-  // its title ready to name (DocCardOverlay). Not remembered as the layout:
-  // adding a doc isn't choosing one.
-  const startOpen = look && autoFocus && canEdit && !isPublic;
+  // A doc just added (mockup S-open) opens at once: beside the canvas (full
+  // screen on a phone; beside the docked doc, if one is), its title ready to
+  // name (DocCardOverlay). Not remembered as the layout: adding a doc isn't
+  // choosing one.
+  const startOpen = autoFocus && canEdit && !isPublic;
   useEffect(() => {
     if (!startOpen) return;
     if (onOpenBesideRef.current) { openRemembered(); return; }
@@ -374,7 +363,7 @@ export function RichDocCard({
             bottom and the title is never cut off. */}
         {(card.title || autoFocus || onUpdate) && (
           <EditableText
-            className={`doc-card-title editable${look && UNNAMED.has((card.title || '').trim()) ? ' is-unnamed' : ''}`}
+            className={`doc-card-title editable${UNNAMED.has((card.title || '').trim()) ? ' is-unnamed' : ''}`}
             value={card.title || ''}
             placeholder="Untitled doc"
             autoFocus={autoFocus && !startOpen}
@@ -398,10 +387,10 @@ export function RichDocCard({
         )}
         <DocCardSummary ydoc={ydoc} cardYMap={cardYMap} scope={scope}>
           {(summary) => {
-            // The doc look's card (mockup S-card): a doc with nothing written
-            // says Empty and offers Start writing (a finger's 40px); one with
-            // words keeps its preview, with Beside and Open in words.
-            const blank = look && !!scope?.pages && summary.empty;
+            // The card (mockup S-card): a doc with nothing written says Empty
+            // and offers Start writing (a finger's 40px); one with words keeps
+            // its preview, with Beside and Open in words.
+            const blank = !!scope?.pages && summary.empty;
             const pagesLabel = summary.pages.length > 0
               ? `${summary.pages.length} ${summary.pages.length === 1 ? 'page' : 'pages'}` : 'no pages';
             return (<>
@@ -420,7 +409,6 @@ export function RichDocCard({
               {summary.firstPageName && summary.firstPageName !== card.title && (
                 <div className="doc-card-h1">{summary.firstPageName}</div>
               )}
-              <div className="doc-card-rule" />
               {summary.firstText && (
                 <div className="doc-card-text">{summary.firstText}</div>
               )}
@@ -429,7 +417,7 @@ export function RichDocCard({
             <div className="doc-card-foot">
               <span className="doc-card-tag">DOC</span>
               <span className="doc-card-meta">{blank ? 'Empty' : pagesLabel}</span>
-              {look ? (!blank && (<>
+              {!blank && (<>
                 <button type="button" className={`doc-card-act${isDocked ? ' is-active' : ''}`}
                         title={isDocked ? 'Docked beside the canvas' : undefined}
                         aria-label="Open beside" aria-pressed={isDocked || undefined}
@@ -440,27 +428,6 @@ export function RichDocCard({
                         onClick={(e) => { e.stopPropagation(); open('full'); }}>
                   <Icon as={CornersOut} size={15} weight="regular" />Open
                 </button>
-              </>)) : (<>
-              {/* Gold marks the active state (house rule) — while this doc holds
-                  the side pane, its own button says so. */}
-              <button className={`doc-card-open${isDocked ? ' is-active' : ''}`}
-                      title={isDocked ? 'Docked beside the canvas' : 'Open beside (dock to right)'}
-                      aria-label="Open beside"
-                      aria-pressed={isDocked || undefined}
-                      onClick={(e) => { e.stopPropagation(); open('side'); }}>
-                <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                  <rect x="1.5" y="2" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.2"/>
-                  <path d="M8 2 V12" stroke="currentColor" strokeWidth="1.2"/>
-                  <rect x="8.5" y="2.5" width="3.5" height="9" fill="currentColor" opacity=".18"/>
-                </svg>
-              </button>
-              <button className="doc-card-open" title="Open fullscreen"
-                      aria-label="Open fullscreen"
-                      onClick={(e) => { e.stopPropagation(); open('full'); }}>
-                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2 5 V2 H5 M12 5 V2 H9 M2 9 V12 H5 M12 9 V12 H9" />
-                </svg>
-              </button>
               </>)}
             </div>
           </>);
@@ -577,10 +544,9 @@ export function DocCardOverlay({
   pane = null,
 }) {
   const inPane = variant === 'pane';
-  // The doc look: its header switches the page list and the side
-  // panel, which the surface owns; the frame is how the two talk.
-  const look = docLook();
-  const [frame] = useState(() => (look ? createDocFrame() : null));
+  // The header switches the page list and the side panel, which the
+  // surface owns; the frame is how the two talk.
+  const [frame] = useState(() => createDocFrame());
   // Esc closes from either mode — but never while typing: Escape inside the
   // title input / editor / a mention popover belongs to that control, and
   // closing the whole overlay mid-edit was how doc text got "lost".
@@ -627,12 +593,12 @@ export function DocCardOverlay({
   // when the doc has no title yet — reopening a named doc shouldn't hijack
   // focus away from the editor's own autofocus.
   const titleInputRef = useRef(null);
-  // In the doc look, a doc still to be named and written in (one of the
-  // default titles, nothing on its pages: mockup S-open) opens with its title
-  // selected too, as one with no title does; Enter goes on to the text.
+  // A doc still to be named and written in (one of the default titles,
+  // nothing on its pages: mockup S-open) opens with its title selected too,
+  // as one with no title does; Enter goes on to the text.
   const nameOnOpenRef = useRef(null);
   if (nameOnOpenRef.current === null) {
-    nameOnOpenRef.current = !card.title || (look && canEdit && !isPublic && UNNAMED.has(card.title.trim())
+    nameOnOpenRef.current = !card.title || (canEdit && !isPublic && UNNAMED.has(card.title.trim())
       && !!ydoc && !!scope?.pages && readDocSummary(ydoc, 0, scope).empty);
   }
   useEffect(() => {
@@ -694,7 +660,7 @@ export function DocCardOverlay({
              onPointerDown={(e) => e.stopPropagation()}
              onClick={onClose} />
       )}
-      <div className={`doc-card-modal doc-card-modal-${inPane ? 'pane' : mode}${look ? ' dl' : ''}`}
+      <div className={`doc-card-modal doc-card-modal-${inPane ? 'pane' : mode} dl`}
            // Position via inline style. IMPORTANT: declare `inset` FIRST,
            // then override individual sides — otherwise React applies them
            // in object order and `inset: auto` clobbers our explicit edges.
@@ -703,82 +669,13 @@ export function DocCardOverlay({
            // is open. Fullscreen still uses the .doc-card-modal-full inset.
            style={isSide ? { inset: 'auto', top: 42, right: 0, bottom: 0, left: 'auto', width: widthPct } : undefined}
            onPointerDown={(e) => e.stopPropagation()}>
-        {look ? (
-          <Suspense fallback={<div className="dl-head" />}>
-            <DocHeadA frame={frame} card={card} scope={scope} boards={boards}
-                      canEdit={canEdit} isPublic={isPublic} mode={mode}
-                      titleInputRef={titleInputRef} focusTitle={nameOnOpenRef.current}
-                      onUpdate={onUpdate} onSetMode={onSetMode} onClose={onClose}
-                      peersOnCard={peersOnCard} onJumpToPeer={onJumpToPeer} />
-          </Suspense>
-        ) : (
-        <div className="doc-card-modal-head">
-          <input className="doc-card-title-input"
-                 ref={titleInputRef}
-                 aria-label="Document title"
-                 value={card.title || ''}
-                 placeholder="Untitled doc"
-                 readOnly={!canEdit}
-                 onChange={(e) => { if (canEdit) onUpdate?.({ title: e.target.value }); }} />
-          {/* Peer-avatar stack — one per workspace peer currently in this
-              doc card. Click an avatar → jumpToPeer takes you to their
-              exact page + scroll. Hover shows their name. */}
-          {peersOnCard.length > 0 && (
-            <div className="doc-card-peers" title={`${peersOnCard.length} peer${peersOnCard.length === 1 ? '' : 's'} in this doc`}>
-              {peersOnCard.slice(0, 4).map(p => (
-                <button key={p.tabId || p.user?.id}
-                        className="doc-card-peer"
-                        title={`${p.user?.name || 'Someone'} — click to jump to their view`}
-                        onClick={() => onJumpToPeer?.(p.location)}>
-                  <Avatar name={p.user?.name || '?'} color={p.user?.color || '#4f8df8'} size={26} />
-                </button>
-              ))}
-              {peersOnCard.length > 4 && (
-                <span className="doc-card-peers-overflow">+{peersOnCard.length - 4}</span>
-              )}
-            </div>
-          )}
-          {/* Share this doc on its own, to read or edit together (held:
-              docSharesAllowed). Its cluster is the scope's host board. */}
-          {!isPublic && canEdit && scope?.boardId && docSharesAllowed() && isShareableDoc(card) && (
-            <FileShareButton variant="doc" surface="doc" boardId={scope.boardId} cardId={card.id}
-                             card={{ id: card.id, kind: 'doc', title: card.title || 'Untitled doc' }} />
-          )}
-          {/* Messages. Fullscreen covers the whole workspace and side mode
-              docks over exactly where the panel lives, so without this the
-              doc is a dead end for conversation — you had to close the
-              document to answer someone. The panel itself is portaled to
-              <body> above this overlay (App.jsx), so it just appears. */}
-          {!isPublic && <DocCardMessagesButton />}
-          {/* Mode toggles — hidden on public: side mode's dock layout
-              assumes the workspace topbar, and the public viewer always
-              opens fullscreen. */}
-          {isPublic ? null : mode === 'full' ? (
-            <button className="doc-card-icon" title="Dock to side (split with canvas)"
-                    aria-label="Dock to side"
-                    onClick={() => onSetMode('side')}>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <rect x="2.5" y="3" width="15" height="14" rx="1.6" stroke="currentColor" strokeWidth="1.4"/>
-                <path d="M11 3 V17" stroke="currentColor" strokeWidth="1.4"/>
-                <rect x="11.5" y="3.5" width="5.5" height="13" fill="currentColor" opacity=".18"/>
-              </svg>
-            </button>
-          ) : (
-            <button className="doc-card-icon" title="Open fullscreen"
-                    aria-label="Open fullscreen"
-                    onClick={() => onSetMode('full')}>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 7 V3 H7 M17 7 V3 H13 M3 13 V17 H7 M17 13 V17 H13" />
-              </svg>
-            </button>
-          )}
-          <button className="doc-card-close" title="Close (Esc)" aria-label="Close document" onClick={onClose}>
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-              <path d="M5 5 L13 13 M13 5 L5 13" />
-            </svg>
-          </button>
-        </div>
-        )}
+        <Suspense fallback={<div className="dl-head" />}>
+          <DocHeadA frame={frame} card={card} scope={scope} boards={boards}
+                    canEdit={canEdit} isPublic={isPublic} mode={mode}
+                    titleInputRef={titleInputRef} focusTitle={nameOnOpenRef.current}
+                    onUpdate={onUpdate} onSetMode={onSetMode} onClose={onClose}
+                    peersOnCard={peersOnCard} onJumpToPeer={onJumpToPeer} />
+        </Suspense>
         <div className="doc-card-modal-body">
           {/* A crash stays in here (SurfaceErrorBoundary): the doc puts itself
               back, its header and the way out stay, and the canvas is left alone. */}
@@ -807,7 +704,7 @@ export function DocCardOverlay({
             isPublic={isPublic}
             pane={pane}
             frame={frame}
-            onRename={look && canEdit && !isPublic && onUpdate && UNNAMED.has((card.title || 'Untitled').trim())
+            onRename={canEdit && !isPublic && onUpdate && UNNAMED.has((card.title || 'Untitled').trim())
               ? (title) => onUpdate({ title }) : null}
           />
           </Suspense>
@@ -815,29 +712,5 @@ export function DocCardOverlay({
         </div>
       </div>
     </>
-  );
-}
-
-// Messages toggle for the doc-card header. Reads the workspace-level unread
-// count straight off MessagesUiContext (it lives in App and stays subscribed
-// whether or not the panel is mounted), so the badge here is the same number
-// the sidebar shows. Renders nothing outside a provider — e.g. the /share
-// viewer, which has no inbox.
-function DocCardMessagesButton() {
-  const messagesUi = useMessagesUi();
-  if (!messagesUi) return null;
-  const { unread = 0, open = false, toggle } = messagesUi;
-  return (
-    <button className={`doc-card-icon doc-card-messages${open ? ' is-active' : ''}`}
-            title={unread > 0 ? `Messages (${unread} unread)` : 'Messages'}
-            aria-label="Messages"
-            aria-pressed={open}
-            onClick={() => toggle?.()}>
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor"
-           strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 12a2 2 0 0 1-2 2H7l-4 3V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-      </svg>
-      {unread > 0 && <span className="doc-card-messages-dot" aria-hidden="true" />}
-    </button>
   );
 }

@@ -9,9 +9,6 @@ const docCards = (page) => page.locator('.cards-layer .card.card-kind-doc');
 const win = (page) => page.locator('.doc-card-modal');
 
 test('one tap on Start writing opens an empty doc', async ({ page }) => {
-  await page.addInitScript(() => {
-    try { window.localStorage.setItem('soleil.dev.docLook', '1'); } catch (_) {}
-  });
   await page.goto('/?local=1&reset=1&blank=1&richdocs=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 30000 });
   await page.getByRole('button', { name: 'Add doc tool' }).tap();
