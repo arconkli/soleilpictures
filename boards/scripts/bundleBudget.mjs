@@ -125,7 +125,11 @@ export const CEILINGS = {
   // (lib/fileActions.js), through the bulk import; the zip's page in Quick
   // look, its reader by ranges and its pictures load later (ZipStage.jsx).
   // Measured as CI builds: 690.47 KB on bf6d43c4, this change 690.9.
-  appJs: 691_000,
+  // 2026-10-27: +0.2 KB for reading a group the API saved as a plain object
+  // (lib/yhelpers.js groupYMap, and App's rename and outline going through
+  // it; 86c9ea90): a cluster an assistant had sectioned opened to a spinner.
+  // CI measured 690.8 KB on e8c25685 and 691.0 on 2fd4ff15, a few bytes over.
+  appJs: 691_200,
   appCss: 21_000,
 };
 
