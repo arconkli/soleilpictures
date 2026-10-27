@@ -158,3 +158,30 @@ test('a design file with no picture inside goes back to a file card, if it is st
 test('the view columns carry the PDF’s number of pages', () => {
   assert.ok(VIEW_COLS.split(',').includes('page_count'));
 });
+
+test("an archive's card learns how many files it holds, and keeps its size", () => {
+  const zip = (o = {}) => ({ id: 'z', kind: 'file', fileSrc: 'r2:ws/b/Location scouts.zip', w: 360, h: 220, ...o });
+  assert.deepEqual(viewFileCardPatch(zip(), { w: 1440, h: 880 }, 0, 24), { itemCount: 24 });
+  assert.deepEqual(viewFileCardPatch(zip({ itemCount: 24 }), { w: 1440, h: 880 }, 0, 24), {});
+  // A card resized keeps its size; an empty archive counts none.
+  assert.deepEqual(viewFileCardPatch(zip({ w: 500, h: 500 }), { w: 1440, h: 880 }, 0, 0), { itemCount: 0 });
+  // No count, or a count that isn't one, writes nothing.
+  assert.deepEqual(viewFileCardPatch(zip(), { w: 1440, h: 880 }, 0, null), {});
+  assert.deepEqual(viewFileCardPatch(zip(), { w: 1440, h: 880 }), {});
+  assert.deepEqual(viewFileCardPatch(zip(), { w: 1440, h: 880 }, 0, 2.5), {});
+  assert.deepEqual(viewFileCardPatch(zip(), { w: 1440, h: 880 }, 0, -1), {});
+  const listed = { id: 's', kind: 'file', fileSrc: 'r2:ws/b/Old renders.7z', w: 240, h: 165 };
+  assert.deepEqual(viewFileCardPatch(listed, { w: 960, h: 660 }, 0, 118), { itemCount: 118 });
+  // It never turns into an image card, and a pending upload is left alone.
+  assert.deepEqual(viewFileCardPatch(zip({ pending: true }), { w: 1440, h: 880 }, 0, 24), {});
+});
+
+test('an archive that cannot be read goes back to a file card, if it is still the size it landed at', () => {
+  assert.deepEqual(noPageCardPatch({ kind: 'file', fileSrc: 'r2:ws/b/Broken.zip', w: 360, h: 220 }), { w: 240, h: 150 });
+  assert.deepEqual(noPageCardPatch({ kind: 'file', fileSrc: 'r2:ws/b/Locked.7z', w: 240, h: 165 }), { w: 240, h: 150 });
+  assert.deepEqual(noPageCardPatch({ kind: 'file', fileSrc: 'r2:ws/b/Broken.zip', w: 240, h: 150 }), {});
+});
+
+test('the app reads what the converter learnt of a file, an archive\'s count among it', () => {
+  assert.ok(VIEW_COLS.split(',').includes('probe'));
+});

@@ -172,14 +172,15 @@ function metaSize(key) {
 
 // One pass of useFileViewBackfill over `targets`, the board's image cards of
 // files that get views and have no preview yet, its file cards holding a
-// photo, and its documents' and design files' file cards (fileView.js
-// viewKeyOfCard). A finished view goes into the meta and onto every card that
-// holds its file as the board is now (`cardsNow`, `write`): an image card
-// still at the drop's 4:3 takes the photo's shape, a file card holding a photo
-// turns into its picture card, a document's card takes its page's shape while
-// it's still the size it landed at and learns its number of pages, a design
-// file's takes its picture's, and either goes back to a file card's size when
-// no picture will come. A file never asked about is asked
+// photo, and its documents', design files' and archives' file cards
+// (fileView.js viewKeyOfCard). A finished view goes into the meta and onto
+// every card that holds its file as the board is now (`cardsNow`, `write`):
+// an image card still at the drop's 4:3 takes the photo's shape, a file card
+// holding a photo turns into its picture card, a document's card takes its
+// page's shape while it's still the size it landed at and learns its number
+// of pages, a design file's takes its picture's, an archive's learns how many
+// files it holds, and any of them goes back to a file card's size when no
+// picture will come. A file never asked about is asked
 // about, `perPass` at most. `settled` and `asked` are the hook's, kept across
 // passes. True while views on this board are still to come, so the hook
 // looks again.
@@ -195,13 +196,13 @@ export async function viewPass({ targets, cardsNow, write, settled, asked, perPa
     const size = row ? viewSize(row) : metaSize(key);
     for (const c of cardsNow() || []) {
       const patch = c.kind === 'image' && c.src === ref ? (row ? viewCardPatch(c, row) : {})
-        : c.kind === 'file' && c.fileSrc === ref ? viewFileCardPatch(c, size, row?.page_count || 0)
+        : c.kind === 'file' && c.fileSrc === ref ? viewFileCardPatch(c, size, row?.page_count || 0, row?.probe?.files ?? null)
           : {};
       if (Object.keys(patch).length) write(c.id, patch);
     }
   };
-  // A document that won't get a page, or a design file with no picture: its
-  // cards go back to a file card's size.
+  // A document that won't get a page, a design file with no picture or an
+  // archive that can't be read: its cards go back to a file card's size.
   const writeNoPage = (key) => {
     const ref = `r2:${key}`;
     for (const c of cardsNow() || []) {
@@ -219,8 +220,8 @@ export async function viewPass({ targets, cardsNow, write, settled, asked, perPa
       waiting = true;
     } else if (row) {
       if (row.reason === 'has_preview' && await refreshMeta(key)) writeCards(key, null);
-      // A document or a design file that won't get a picture goes back to a
-      // file card's size.
+      // A document, a design file or an archive that won't get a picture goes
+      // back to a file card's size.
       if (row.state === 'failed' || (row.state === 'skip' && row.reason !== 'has_preview')) writeNoPage(key);
       settled.add(key);
     } else if (!asked.has(key)) {

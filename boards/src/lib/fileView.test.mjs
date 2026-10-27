@@ -4,7 +4,7 @@ import {
   viewKindOfKey, viewKeys, isViewKey, isViewPdfKey, drawsNowhere, viewKeyOfCard, turnsIntoPicture, VIEW_EDGE,
   VIEW_SM_EDGE, RAW_EXTS, PSD_EXTS, DOC_EXTS, DOC_MAX_BYTES, VIEW_MAX_BYTES, DOC_MAX_PAGES, docFamily, docDropSize,
   DOC_DROP_PAGE, DOC_DROP_SLIDE, extOfKey, fileFamily, fileDropSize, TABLE_DROP, FONT_DROP, DRAWN_FAMILIES, isDrawnFamily,
-  DESIGN_DROP, VIEW_KINDS, isCardViewKind,
+  DESIGN_DROP, VIEW_KINDS, isCardViewKind, SHEET_DROP, LIST_DROP, ZIP_EXTS, LISTED_EXTS,
 } from './fileView.js';
 import { mediaKindOfKey, isCopyKey } from './playCopy.js';
 
@@ -64,7 +64,7 @@ test('the file a card shows that gets views: an image card\'s, a file card\'s th
   assert.equal(viewKeyOfCard({ kind: 'file', fileSrc: `r2:${ws}/DSC1.ARW` }), `${ws}/DSC1.ARW`);
   assert.equal(viewKeyOfCard({ kind: 'file', fileSrc: `r2:${ws}/comp.psd` }), `${ws}/comp.psd`);
   for (const card of [
-    { kind: 'image', src: `r2:${ws}/a.jpg` }, { kind: 'file', fileSrc: `r2:${ws}/pack.zip` },
+    { kind: 'image', src: `r2:${ws}/a.jpg` }, { kind: 'file', fileSrc: `r2:${ws}/firmware.bin` },
     { kind: 'image', src: `r2:${ws}/a.heic`, pending: true }, { kind: 'file', fileSrc: 'blob:x' },
     { kind: 'file', fileSrc: `r2:${ws}/DSC1.ARW`, locked: true },
     { kind: 'file', fileSrc: `r2:${ws}/DSC1.ARW`, versions: [{ fileSrc: `r2:${ws}/old.zip`, id: 'v1' }] },
@@ -175,7 +175,7 @@ test("a file's family comes from its extension, then its type; a video's type is
   assert.equal(fileFamily('', 'message/rfc822'), 'mail');
   assert.equal(fileFamily('x', 'application/vnd.ms-outlook'), 'mail');
   assert.deepEqual(fileDropSize('eml'), DOC_DROP_PAGE);
-  assert.equal(fileFamily('zip'), null);
+  assert.equal(fileFamily('dmg'), null);
   assert.equal(fileFamily(''), null);
   assert.ok(DRAWN_FAMILIES.every(isDrawnFamily));
   assert.equal(isDrawnFamily('doc'), false);
@@ -191,7 +191,7 @@ test('a text file drops as a page, a table as a wide page, a font as a specimen,
   assert.deepEqual(FONT_DROP, { w: 320, h: 220 });
   assert.deepEqual(fileDropSize('pptx'), DOC_DROP_SLIDE);
   assert.deepEqual(fileDropSize('xlsx'), DOC_DROP_PAGE);
-  assert.equal(fileDropSize('zip'), null);
+  assert.equal(fileDropSize('dmg'), null);
   assert.equal(fileDropSize('bin', 'application/octet-stream'), null);
 });
 
@@ -209,4 +209,37 @@ test('design files are their own view kind, drawn by no browser, and stay file c
   const card = { kind: 'file', fileSrc: 'r2:u/w/Title card v3.sketch' };
   assert.equal(viewKeyOfCard(card), 'u/w/Title card v3.sketch');
   assert.equal(turnsIntoPicture(card), false);
+});
+
+test('archives are a view kind of their own, drawn by no browser, and stay file cards with a picture of what they hold', () => {
+  assert.deepEqual(ZIP_EXTS, ['zip']);
+  for (const ext of [...ZIP_EXTS, ...LISTED_EXTS, 'ZIP', '7Z']) {
+    assert.equal(viewKindOfKey(`u/w/pack.${ext}`), 'archive', ext);
+    assert.equal(drawsNowhere(`u/w/pack.${ext}`), true, ext);
+  }
+  assert.equal(viewKindOfKey('u/w/Stems and notes.tar.gz'), 'archive');
+  // A disk image isn't one: nothing on the converter reads it.
+  for (const ext of ['dmg', 'iso', 'cpio']) assert.equal(viewKindOfKey(`u/w/disk.${ext}`), null, ext);
+  assert.equal(isCardViewKind('archive'), true);
+  const card = { kind: 'file', fileSrc: 'r2:u/w/Location scouts.zip' };
+  assert.equal(viewKeyOfCard(card), 'u/w/Location scouts.zip');
+  assert.equal(turnsIntoPicture(card), false);
+});
+
+test('a zip is a family of its own and lands at its contact sheet\'s shape; every other archive at its list of names\'', () => {
+  assert.equal(fileFamily('zip', 'application/zip'), 'zip');
+  for (const [ext, type] of [['7z', 'application/x-7z-compressed'], ['rar', 'application/vnd.rar'], ['gz', 'application/gzip'],
+    ['tar', 'application/x-tar'], ['tgz', ''], ['txz', '']]) {
+    assert.equal(fileFamily(ext, type), 'listed', ext);
+    assert.deepEqual(fileDropSize(ext, type), LIST_DROP, ext);
+  }
+  assert.equal(isDrawnFamily('zip'), false);
+  assert.equal(isDrawnFamily('listed'), false);
+  assert.deepEqual(fileDropSize('zip'), SHEET_DROP);
+  assert.deepEqual(SHEET_DROP, { w: 360, h: 220 });
+  assert.deepEqual(LIST_DROP, { w: 240, h: 165 });
+  // The shapes the converter draws them at (media/src/sheet.js), so the card
+  // never changes shape when its picture comes.
+  assert.equal(SHEET_DROP.w / SHEET_DROP.h, 1440 / 880);
+  assert.equal(LIST_DROP.w / LIST_DROP.h, 960 / 660);
 });

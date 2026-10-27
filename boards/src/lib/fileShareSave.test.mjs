@@ -79,7 +79,9 @@ test('the card a copy becomes is the card the canvas makes for that upload', () 
   assert.equal(file.ext, 'zip');
   assert.equal(file.fileName, 'selects.zip');
 
-  assert.deepEqual([file.w, file.h], [240, 150]);
+  assert.deepEqual([file.w, file.h], [360, 220], 'a saved zip lands at its contact sheet’s size');
+  const bin = savedCard(ok({ kind: 'file', name: 'firmware.bin', ext: 'bin', mime: 'application/octet-stream' }), { cardId: 'file-4', srcKey: 'ws-b/f.bin' });
+  assert.deepEqual([bin.w, bin.h], [240, 150], 'any other file at a file card’s');
   const deck = savedCard(ok({ kind: 'file', name: 'Pitch.pptx', ext: 'pptx' }), { cardId: 'file-2', srcKey: 'ws-b/p.pptx' });
   assert.deepEqual([deck.w, deck.h], [400, 225], 'a saved deck lands at a slide’s size');
   const docx = savedCard(ok({ kind: 'file', name: 'Treatment.docx', ext: 'docx' }), { cardId: 'file-3', srcKey: 'ws-b/t.docx' });

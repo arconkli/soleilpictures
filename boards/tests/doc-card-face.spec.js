@@ -47,7 +47,7 @@ async function board(page, theme = 'dark') {
       pageCount: 1, x: 840, y: 300, w: 240, h: 150 });
     add({ id: 'locked', fileSrc: 'r2:qa-docs/locked.docx', fileName: 'Locked memo.docx', ext: 'docx', sizeBytes: 41_022,
       x: 60, y: 340, w: 240, h: 150 });
-    add({ id: 'zip', fileSrc: 'r2:qa-docs/selects.zip', fileName: 'selects.zip', ext: 'zip', sizeBytes: 9_000_000,
+    add({ id: 'bin', fileSrc: 'r2:qa-docs/firmware.bin', fileName: 'firmware.bin', ext: 'bin', sizeBytes: 9_000_000,
       x: 340, y: 340, w: 240, h: 150 });
   }, { pages: PAGES, theme });
   // Every page has faded in.
@@ -81,19 +81,19 @@ test('a document with no page is its glyph, and any other file keeps its card', 
   await expect(locked.locator('img')).toHaveCount(0);
   await expect(locked).not.toContainText('Preview not available');
   await expect(locked.locator('.filec-info-size')).toHaveText('40 KB');
-  const zip = card(page, 'zip');
-  await expect(zip.locator('.filec-page')).toHaveCount(0);
-  await expect(zip.locator('.filec-glyph svg')).toBeVisible();
+  const bin = card(page, 'bin');
+  await expect(bin.locator('.filec-page')).toHaveCount(0);
+  await expect(bin.locator('.filec-glyph svg')).toBeVisible();
 });
 
-test('a dropped deck lands at a slide’s shape, a dropped document at a page’s, a zip at a file card’s', async ({ page }) => {
+test('a dropped deck lands at a slide’s shape, a dropped document at a page’s, any other file at a file card’s', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/?local=1&reset=1&blank=1');
   await expect(page.locator('.canvas-wrap')).toBeVisible();
   const sizes = {};
   for (const [name, type] of [['Pitch.pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'],
     ['Treatment.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-    ['pack.zip', 'application/zip']]) {
+    ['firmware.bin', 'application/octet-stream']]) {
     await page.mouse.move(400 + Object.keys(sizes).length * 300, 420);
     const before = await page.locator('.filec').count();
     await page.evaluate(({ name, type }) => {
@@ -109,7 +109,7 @@ test('a dropped deck lands at a slide’s shape, a dropped document at a page’
   }
   expect(sizes['Pitch.pptx']).toEqual([400, 225]);
   expect(sizes['Treatment.docx']).toEqual([300, 388]);
-  expect(sizes['pack.zip']).toEqual([240, 150]);
+  expect(sizes['firmware.bin']).toEqual([240, 150]);
 });
 
 test('the light theme keeps the page white and the strip readable', async ({ page }) => {

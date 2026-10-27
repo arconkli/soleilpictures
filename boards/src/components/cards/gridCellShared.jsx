@@ -170,7 +170,7 @@ export function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoa
   if (type === 'video' && cell.src) return <CellVideo src={cell.src} />;
   if (type === 'file') {
     return <FileCard fileSrc={cell.fileSrc} fileName={cell.fileName} mime={cell.mime} sizeBytes={cell.sizeBytes} ext={cell.ext} title={cell.title} onUpdate={null}
-                     w={Math.round(rect.w)} h={Math.round(rect.h)} pageCount={cell.pageCount} />;
+                     w={Math.round(rect.w)} h={Math.round(rect.h)} pageCount={cell.pageCount} itemCount={cell.itemCount} />;
   }
   return null; // empty cell — placeholder/chooser drawn by the wrapper
 }

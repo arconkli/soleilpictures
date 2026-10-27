@@ -85,8 +85,8 @@ function primeDoc(key) {
   docsToPrime.add(key);
 }
 
-// A document's first page, or a design file's own picture, once it's made
-// (lib/fileView.js): its small view, for the row's thumb.
+// A document's first page, a design file's own picture, or what an archive
+// holds, once it's made (lib/fileView.js): its small view, for the row's thumb.
 function useViewThumb(item) {
   const ref = item.kind === 'file' ? item.meta?.fileSrc : null;
   const key = typeof ref === 'string' && ref.startsWith('r2:') && isCardViewKind(viewKindOfKey(ref.slice(3))) ? ref.slice(3) : null;
@@ -111,7 +111,7 @@ function ItemGlyph({ item }) {
     return <span className="sbf-file-thumb"><R2Image src={src} alt="" /></span>;
   }
   // The page from its top, a sheet's cells from their top left, a design
-  // file's picture from its middle.
+  // file's picture from its middle, an archive's from its top.
   if (page) {
     return (
       <span className="sbf-file-thumb">

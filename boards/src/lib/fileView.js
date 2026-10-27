@@ -25,6 +25,11 @@
 // design: the card shows it at its shape and stays a file card, as a
 // document's does.
 //
+// An archive's view is a picture of what is inside it: a zip's contact sheet
+// (its folders, then its pictures, then its other files), or the names inside
+// a .7z, .rar, .tar or compressed file. Its card stays a file card too, and
+// counts the files inside once it knows them.
+//
 // Views are named after their original, like the playable copies
 // (lib/playCopy.js), but keep its extension, so a .heic and a .tif of the same
 // name never share one:
@@ -98,6 +103,8 @@ const DESIGN_SET = new Set(DESIGN_EXTS);
 export const ZIP_EXTS = Object.freeze(['zip']);
 export const LISTED_EXTS = Object.freeze(['7z', 'rar', 'tar', 'tgz', 'gz', 'bz2', 'tbz', 'tbz2', 'xz', 'txz']);
 export const ARCHIVE_LIST_MAX_BYTES = 1024 * 1024 * 1024;
+const ZIP_SET = new Set(ZIP_EXTS);
+const LISTED_SET = new Set(LISTED_EXTS);
 
 // What the converter makes views of: a photo's ('image'), a document's first
 // page and PDF ('doc'), a design file's picture ('design'), an archive's
@@ -105,7 +112,7 @@ export const ARCHIVE_LIST_MAX_BYTES = 1024 * 1024 * 1024;
 export const VIEW_KINDS = Object.freeze(['image', 'doc', 'design', 'archive']);
 export const isViewKind = (kind) => VIEW_KINDS.includes(kind);
 // The kinds that stay file cards and show their picture.
-export const CARD_VIEW_KINDS = Object.freeze(['doc', 'design']);
+export const CARD_VIEW_KINDS = Object.freeze(['doc', 'design', 'archive']);
 export const isCardViewKind = (kind) => CARD_VIEW_KINDS.includes(kind);
 
 // A document's family, for the size its card first lands at and the glyph it
@@ -137,7 +144,9 @@ export function docDropSize(ext) {
 // it always was, and so is a font, or by a font's type; an email is one by
 // .eml or .msg, or by its type; a type of video, audio or image is never
 // text: a .ts is a camera's as often as TypeScript, and a system that knows
-// the camera's says video/mp2t.
+// the camera's says video/mp2t. A zip ('zip') and every other archive
+// ('listed') are families by their extension too, though no card draws them:
+// their picture is the converter's.
 export const CODE_EXTS = 'js jsx mjs cjs ts tsx py rb go rs c h cpp cc java kt swift sh bash zsh sql css scss html htm xml json yml yaml toml'.split(' ');
 export const FAMILY_EXTS = Object.freeze({
   markdown: ['md', 'markdown', 'mdown', 'mkd'],
@@ -158,6 +167,8 @@ export function fileFamily(ext, mime = '') {
   if (DOC_SET.has(e)) return 'doc';
   // Before the type guard: an .eps arrives as image/x-eps, an .ora as image/openraster.
   if (DESIGN_SET.has(e)) return 'design';
+  if (ZIP_SET.has(e)) return 'zip';
+  if (LISTED_SET.has(e)) return 'listed';
   if (/^font\/|^application\/(x-)?font-/.test(m)) return 'font';
   if (m === 'message/rfc822' || m === 'application/vnd.ms-outlook') return 'mail';
   if (/^(video|audio|image)\//.test(m)) return null;
@@ -173,6 +184,10 @@ export const TABLE_DROP = Object.freeze({ w: 400, h: 236 });
 export const FONT_DROP = Object.freeze({ w: 320, h: 220 });
 // A design file's card, until its picture is made (then it takes the picture's shape).
 export const DESIGN_DROP = Object.freeze({ w: 320, h: 240 });
+// An archive's card: a zip's contact sheet's shape (media/src/sheet.js draws
+// it at 1440 x 880), and a list of names' (960 x 660). The picture keeps it.
+export const SHEET_DROP = Object.freeze({ w: 360, h: 220 });
+export const LIST_DROP = Object.freeze({ w: 240, h: 165 });
 
 // The size a new file card lands at: its family's shape, so the card doesn't
 // jump when its face arrives. Null: a file card's own 240 x 150.
@@ -182,6 +197,8 @@ export function fileDropSize(ext, mime = '') {
   if (family === 'table') return TABLE_DROP;
   if (family === 'font') return FONT_DROP;
   if (family === 'design') return DESIGN_DROP;
+  if (family === 'zip') return SHEET_DROP;
+  if (family === 'listed') return LIST_DROP;
   return family ? DOC_DROP_PAGE : null;
 }
 
@@ -204,20 +221,22 @@ export function isViewPdfKey(key) {
 
 // 'image' when the converter makes views of this key's photo, 'doc' when it
 // makes a document's first page and PDF, 'design' when it takes a design
-// file's picture out of it, else null.
+// file's picture out of it, 'archive' when it draws what an archive holds,
+// else null.
 export function viewKindOfKey(key) {
   if (typeof key !== 'string' || !key || isViewKey(key) || key.includes('/previews/')) return null;
   const m = key.match(EXT_RE);
   const ext = m ? m[1].toLowerCase() : '';
   if (VIEW_EXTS.has(ext)) return 'image';
   if (DOC_SET.has(ext)) return 'doc';
-  return DESIGN_SET.has(ext) ? 'design' : null;
+  if (DESIGN_SET.has(ext)) return 'design';
+  return ZIP_SET.has(ext) || LISTED_SET.has(ext) ? 'archive' : null;
 }
 
 // Formats no browser draws at all, Safari included: raws, Photoshop documents,
-// OpenEXR, documents and design files. A picture of one never loads the original (a
-// browser would fetch the whole file, twice, only to find it can't show it)
-// and waits for its view.
+// OpenEXR, documents, design files and archives. A picture of one never loads
+// the original (a browser would fetch the whole file, twice, only to find it
+// can't show it) and waits for its view.
 const DRAWN_NOWHERE = new Set([...RAW_EXTS, ...PSD_EXTS, 'exr']);
 export function drawsNowhere(key) {
   const kind = viewKindOfKey(key);
@@ -238,7 +257,7 @@ export function turnsIntoPicture(card) {
 
 // The file a card shows that gets views, or '': an image card's photo, a
 // file card's photo that turns into a picture (turnsIntoPicture), or a file
-// card's document or design file, whose picture the card shows.
+// card's document, design file or archive, whose picture the card shows.
 export function viewKeyOfCard(card) {
   if (!card || card.pending) return '';
   const ref = card.kind === 'image' ? card.src : card.kind === 'file' ? card.fileSrc : null;

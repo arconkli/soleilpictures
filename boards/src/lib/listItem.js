@@ -28,7 +28,8 @@ export const TYPE_LABELS = {
 // What a file the card draws is called by its family (lib/fileView.js
 // fileFamily): in a list's Type column, the search, Quick look's bar. Any
 // other file is a File.
-const FAMILY_LABELS = { markdown: 'Text', text: 'Text', code: 'Code', table: 'Spreadsheet', subtitles: 'Subtitles', font: 'Font', mail: 'Email', design: 'Design file' };
+const FAMILY_LABELS = { markdown: 'Text', text: 'Text', code: 'Code', table: 'Spreadsheet', subtitles: 'Subtitles', font: 'Font', mail: 'Email', design: 'Design file',
+  zip: 'Archive', listed: 'Archive' };
 
 // Coarse buckets for the type filter. Several kinds collapse (board+boardlink →
 // 'cluster'); 'other' catches shape/schedule/grid/unknown.
@@ -235,8 +236,8 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
         };
         item.typeLabel = FAMILY_LABELS[family] || item.typeLabel;
       }
-      // A document's first page, or a design file's own picture, once it's
-      // made, is its picture (CardPreview).
+      // A document's first page, a design file's own picture, or what an
+      // archive holds, once it's made, is its picture (CardPreview).
       if (typeof card.fileSrc === 'string' && card.fileSrc.startsWith('r2:')
           && isCardViewKind(viewKindOfKey(card.fileSrc.slice(3)))) item.preview.page = card.fileSrc;
       item.sizeBytes = card.sizeBytes ?? null;
