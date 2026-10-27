@@ -14199,7 +14199,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — Left, Center, Right, Top, Middle, Bottom. Every selected card moves to that edge of the selection's own bounding box. Nothing is resized."
+     "v": " — Left, Center, Right, Top, Middle, Bottom. Every selected card moves to that edge of the selection's own bounding box. Nothing is resized, and nothing lands on top of anything else: cards that would meet on the edge line up one after another instead, in the order they were in. Left on a grid of pictures makes one column, in reading order, rather than a pile."
     }
    ]
   },

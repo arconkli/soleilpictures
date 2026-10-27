@@ -51,7 +51,6 @@ const FALLBACK_ASPECT = 4 / 3;
 
 const MARGIN = 80;
 const START_BELOW_GAP = 48;
-const FLOOR = 8;
 
 // What a card with no usable dimensions becomes. Matches the note default the
 // API already applies in normalizeIncomingCard.
@@ -269,10 +268,14 @@ export function arrange(existingCards, items, opts = {}) {
     originY = bounds ? bounds.bottom + (opts.startBelowGap ?? START_BELOW_GAP) : MARGIN;
   }
 
+  // The block lands as one piece. Each card used to be floored at 8px on its
+  // own, and a board reaching left of or above the origin (a drop is centred
+  // on the pointer, so most do) then had every row pressed onto one line and
+  // every column onto one edge: tidying a selection piled it on itself.
   const moved = placed.map((c) => ({
     ...c,
-    x: Math.max(FLOOR, Math.round(c.x + originX)),
-    y: Math.max(FLOOR, Math.round(c.y + originY)),
+    x: Math.round(c.x + originX),
+    y: Math.round(c.y + originY),
   }));
 
   const avoid = opts.avoidExisting !== false;
@@ -290,8 +293,17 @@ export function arrange(existingCards, items, opts = {}) {
 export const ALIGNMENTS = ['left', 'center-x', 'right', 'top', 'middle', 'bottom'];
 export const AXES = ['horizontal', 'vertical'];
 
-/** Line a selection up on one edge of its own bounding box. */
-export function alignCards(cards, edge) {
+/**
+ * Line a selection up on one edge of its own bounding box.
+ *
+ * On one edge, cards that stood side by side would land on top of one
+ * another, and a picture under another is a lost picture. So a line-up is a
+ * line: each card in turn, in the order they stood (reading order for a
+ * column, left to right for a row), moves along it past the ones before only
+ * when it would land on one. Left on a grid makes one column; cards already
+ * in a line keep their spacing.
+ */
+export function alignCards(cards, edge, { gap = LAYOUT_GAP } = {}) {
   const solid = withGeometry(cards);
   if (solid.length < 2 || !ALIGNMENTS.includes(edge)) return [];
   const b = blockBounds(solid);
@@ -303,15 +315,29 @@ export function alignCards(cards, edge) {
     bottom: (c) => ({ y: b.bottom - c.h }),
     middle: (c) => ({ y: b.y + (b.h - c.h) / 2 }),
   }[edge];
-  return solid
-    .map((c) => {
-      const next = move(c);
-      // No 8px floor here: this MOVES existing cards, and a card that
-      // legitimately sits at y=0 must not be dragged down by the act of
-      // aligning it — that is how distribute ended up with uneven gaps.
-      return { ...c, x: Math.round(next.x ?? c.x), y: Math.round(next.y ?? c.y) };
-    })
-    .filter((c, i) => c.x !== solid[i].x || c.y !== solid[i].y);
+  const lined = solid.map((c) => {
+    const next = move(c);
+    // No 8px floor here: this MOVES existing cards, and a card that
+    // legitimately sits at y=0 must not be dragged down by the act of
+    // aligning it — that is how distribute ended up with uneven gaps.
+    return { ...c, x: Math.round(next.x ?? c.x), y: Math.round(next.y ?? c.y) };
+  });
+  // Lined up on a left, centre or right edge the cards stand in a column, on
+  // a top, middle or bottom in a row; every pair then shares the line, so two
+  // can only meet along it.
+  const column = edge === 'left' || edge === 'center-x' || edge === 'right';
+  const along = column ? 'y' : 'x';
+  const size = column ? 'h' : 'w';
+  const order = solid.map((_, i) => i).sort((i, j) => (column
+    ? solid[i].y - solid[j].y || solid[i].x - solid[j].x
+    : solid[i].x - solid[j].x || solid[i].y - solid[j].y));
+  let end = -Infinity;
+  for (const i of order) {
+    const c = lined[i];
+    if (c[along] < end) c[along] = Math.round(end + gap);
+    end = Math.max(end, c[along] + c[size]);
+  }
+  return lined.filter((c, i) => c.x !== solid[i].x || c.y !== solid[i].y);
 }
 
 /**
