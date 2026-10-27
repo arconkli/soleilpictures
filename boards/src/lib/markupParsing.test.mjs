@@ -5,7 +5,8 @@
 // from other people. They reach the page only through sanitizeNoteHtml, and
 // they are parsed for reading or rewriting only through inertContainer
 // (lib/inertHtml.js) or a <template>. An embed becomes an iframe only through
-// safeEmbed (lib/oembed.js).
+// safeEmbed (lib/oembed.js). An email's HTML (Quick look) is shown only in a
+// frame that can run nothing and load nothing it wasn't given.
 //
 // A new assignment fails this test until it is added to REVIEWED with its
 // reason, so it gets looked at. A REVIEWED entry that no longer matches any
@@ -44,11 +45,14 @@ const REVIEWED = [
   ['components/docExtensions/screenplay/ScreenplaySuggest.js', "el.innerHTML = ''", 'clears'],
   ['lib/exportBoard.js', 'iframe.srcdoc = html', "print frame: an <img> of the board's own picture (a blob: URL), title without < or >"],
   ['components/DocExportMenu.jsx', 'iframe.srcdoc = html', 'print frame: editor.getHTML() from the doc schema'],
+  ['components/clusterBrowser/FileStages.jsx', 'srcDoc={frameDoc(page, shown)}',
+    "an email: DOMPurify'd, in a frame sandboxed with no scripts and no origin, whose policy loads only the pictures inside it (and web ones once asked)"],
 ];
 
 // Files allowed to render an <iframe>, with the guard they must contain.
 const IFRAMES = [
   ['components/cards.jsx', 'const embed = useMemo(() => safeEmbed(storedEmbed), [storedEmbed]);'],
+  ['components/clusterBrowser/FileStages.jsx', 'sandbox="allow-popups allow-popups-to-escape-sandbox"'],
 ];
 
 function sources(dir, out = []) {
@@ -93,6 +97,13 @@ test('iframes are rendered only where an embed is vetted first', () => {
     const text = FILES.find((f) => f.rel === file).lines.join('\n');
     assert.ok(text.includes(guard), `${file} must vet its embed: ${guard}`);
   }
+});
+
+test("an email's frame runs nothing, reaches nothing of the app's, and loads only what it carries until asked", () => {
+  const text = FILES.find((f) => f.rel === 'components/clusterBrowser/FileStages.jsx').lines.join('\n');
+  assert.doesNotMatch(text, /allow-scripts|allow-same-origin|allow-forms|allow-top-navigation/);
+  assert.ok(text.includes("const policy = `default-src 'none'; img-src data:${shown ? ' https: http:' : ''}; style-src 'unsafe-inline'; font-src data:`;"));
+  assert.ok(text.includes("FORBID_TAGS: ['script', 'iframe', 'frame', 'frameset', 'object', 'embed', 'form', 'input', 'button', 'select', 'textarea', 'link', 'meta', 'base'],"));
 });
 
 // Every window.open in the client, with why its address is safe. An address

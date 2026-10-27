@@ -42,6 +42,7 @@ created — you never pick "upload as image" from a menu.
 | Document (Word, PowerPoint, Excel, Keynote, Pages, Numbers, OpenDocument, RTF) | A card showing its first page, opening on all its pages |
 | Text, Markdown, code, logs, `.csv`, `.tsv`, `.srt`, `.vtt` | A white page showing the start of the file: Markdown set as a document, a table's rows, subtitle cues, code and logs as the file has them |
 | Font (`.ttf`, `.otf`, `.woff`, `.woff2`, `.ttc`) | A specimen drawn in the font: Aa, its name and style, a sample line and its alphabet |
+| Email (`.eml`, `.msg`) | A letter: its subject, who it's from and to, the date and its first lines |
 | Screenplay (`.fountain`, `.fdx`) | A new [script document](/docs/documents/screenplay), title page included — free on every plan |
 | PureRef scene (`.pur`) | Nothing yet — Clusters cannot open PureRef boards. Export the images from PureRef and drop those |
 | An unfinished download (`.crdownload`, `.part`) | Skipped, with a note to drop it again once it has finished |
@@ -68,6 +69,12 @@ A font opens as a page to try it on: type your own words and change the size,
 with the font set at five sizes and its letters and numbers below, and its
 style, format and licence as the font itself states them. A font over
 {{fact:fontFaceMax}}, or one that won't load, keeps its icon.
+
+An email opens as it was sent, with its attachments below it, to download one
+by one or put on the board together. Pictures from the web stay hidden until
+you choose **Show pictures**, and nothing in an email can run. An email over
+{{fact:mailMaxSize}} doesn't open there (download it to read it), and an
+Outlook `.msg` over {{fact:mailCardMax}} keeps its icon on the board.
 
 ## Limits
 

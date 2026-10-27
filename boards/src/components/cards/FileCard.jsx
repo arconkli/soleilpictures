@@ -120,11 +120,15 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
 
   // A text file's first page (FamilyFace.jsx): white from the start, its
   // page once its chunk and the file's first bytes are here, and its glyph
-  // when the file only says it's text. Its strip wears its family's icon.
+  // when the file only says it's text. Its strip wears its family's icon,
+  // and says what the page knows that its size doesn't (an email's
+  // attachments) once it knows it.
   const drawnFamily = !docKey && !pending && fileSrc ? fileFamily(e, mime) : null;
   const drawn = isDrawnFamily(drawnFamily);
   const faces = useFaces(drawn);
   const StripIcon = (drawn && faces?.familyGlyph(drawnFamily, e)) || GlyphIcon;
+  const [faceMeta, setFaceMeta] = useState(null);
+  const stripMeta = (drawn && faceMeta) || metaText;
   // Uploading, the spinner stands alone on the card.
   const glyph = <div className="filec-glyph">{!pending && <Icon as={GlyphIcon} size={42} />}</div>;
 
@@ -162,7 +166,8 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
                    className={`filec-page${family === 'sheet' ? ' is-sheet' : ''}`} draggable="false"
                    placeholder={docPlaceholder} />
         ) : drawn ? (
-          faces && <faces.default family={drawnFamily} src={fileSrc} ext={e} name={fileName} sizeBytes={sizeBytes} w={w} h={h} fallback={glyph} />
+          faces && <faces.default family={drawnFamily} src={fileSrc} ext={e} name={fileName} sizeBytes={sizeBytes} w={w} h={h}
+                                  fallback={glyph} onMeta={setFaceMeta} />
         ) : glyph}
         {pending && (
           <div className="ic-upload-overlay" aria-label="Uploading file">
@@ -186,7 +191,7 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
         <div className="filec-info">
           <span className="filec-info-icon"><Icon as={StripIcon} size={15} /></span>
           <span className="filec-info-name" title={label}>{label}</span>
-          {metaText && <span className="filec-info-size">{metaText}</span>}
+          {stripMeta && <span className="filec-info-size">{stripMeta}</span>}
         </div>
       </div>
       {showTitle && onUpdate && (

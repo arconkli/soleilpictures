@@ -28,7 +28,7 @@ export const TYPE_LABELS = {
 // What a file the card draws is called by its family (lib/fileView.js
 // fileFamily): in a list's Type column, the search, Quick look's bar. Any
 // other file is a File.
-const FAMILY_LABELS = { markdown: 'Text', text: 'Text', code: 'Code', table: 'Spreadsheet', subtitles: 'Subtitles', font: 'Font' };
+const FAMILY_LABELS = { markdown: 'Text', text: 'Text', code: 'Code', table: 'Spreadsheet', subtitles: 'Subtitles', font: 'Font', mail: 'Email' };
 
 // Coarse buckets for the type filter. Several kinds collapse (board+boardlink →
 // 'cluster'); 'other' catches shape/schedule/grid/unknown.

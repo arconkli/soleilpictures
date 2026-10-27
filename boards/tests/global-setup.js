@@ -32,7 +32,7 @@ const LAZY_MODULES = [
   'components/GridTemplatePanel.jsx', 'components/SaveTemplateDialog.jsx', 'components/clusterBrowser/DetailPanel.jsx',
   'components/doc/DocFrameA.jsx', 'lib/playCopyWork.js', 'lib/fileViewWork.js',
   'components/toolbar/NoteBarA.jsx', 'components/toolbar/CanvasBarsA.jsx', 'components/toolbar/SelectionBarA.jsx',
-  'components/chrome/ChromeMoreA.jsx', 'components/cards/FamilyFace.jsx', 'components/clusterBrowser/FileStages.jsx',
+  'components/chrome/ChromeMoreA.jsx', 'components/cards/FamilyFace.jsx', 'components/clusterBrowser/FileStages.jsx', 'lib/mailRead.js',
 ].map((p) => `/src/${p}`);
 
 export default async function globalSetup(config) {

@@ -15223,6 +15223,36 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
+       "v": "Email ("
+      },
+      {
+       "t": "code",
+       "v": ".eml"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": ".msg"
+      },
+      {
+       "t": "text",
+       "v": ")"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A letter: its subject, who it's from and to, the date and its first lines"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
        "v": "Screenplay ("
       },
       {
@@ -15438,6 +15468,37 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "A font opens as a page to try it on: type your own words and change the size, with the font set at five sizes and its letters and numbers below, and its style, format and licence as the font itself states them. A font over 16 MB, or one that won't load, keeps its icon."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An email opens as it was sent, with its attachments below it, to download one by one or put on the board together. Pictures from the web stay hidden until you choose "
+    },
+    {
+     "t": "strong",
+     "v": "Show pictures",
+     "children": [
+      {
+       "t": "text",
+       "v": "Show pictures"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and nothing in an email can run. An email over 50 MB doesn't open there (download it to read it), and an Outlook "
+    },
+    {
+     "t": "code",
+     "v": ".msg"
+    },
+    {
+     "t": "text",
+     "v": " over 4 MB keeps its icon on the board."
     }
    ]
   },

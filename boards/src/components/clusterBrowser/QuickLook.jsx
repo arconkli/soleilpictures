@@ -128,7 +128,7 @@ function DocStage({ item, docKey }) {
   );
 }
 
-function Stage({ item, playerRef = null, modalHandle = null, onDownload = null }) {
+function Stage({ item, playerRef = null, modalHandle = null, onDownload = null, canPut = false, onClose = null }) {
   const card = item?.card || {};
   const name = item?.name || '';
   if (item.kind === 'image' && card.src) {
@@ -162,12 +162,17 @@ function Stage({ item, playerRef = null, modalHandle = null, onDownload = null }
   }
   const docKey = item.kind === 'file' ? docKeyOf(card) : '';
   if (docKey) return <DocStage item={item} docKey={docKey} />;
-  // A file a browser can read (text, Markdown, a table, subtitles) as its
-  // page; its card until that loads, or when it isn't text after all.
+  // A file a browser can read (text, Markdown, a table, subtitles, a font,
+  // an email) as its page; its card until that loads, or when it can't be
+  // read after all. An email's attachments go on the board from there.
   const family = item.kind === 'file' ? item.preview?.family : null;
   if (isDrawnFamily(family) && item.preview?.src) {
     const fallback = <div className="ql-card"><div className="ql-card-preview"><CardPreview item={item} size="tile" px={640} /></div></div>;
-    return <Suspense fallback={fallback}><FileStages family={family} item={item} onDownload={onDownload} fallback={fallback} /></Suspense>;
+    return (
+      <Suspense fallback={fallback}>
+        <FileStages family={family} item={item} onDownload={onDownload} canPut={canPut} onClose={onClose} fallback={fallback} />
+      </Suspense>
+    );
   }
   if (item.kind === 'link') {
     // A link gets a card of its own: its picture if it has one, the site's
@@ -362,7 +367,10 @@ export default function QuickLook({
             <Icon as={ChevronLeft} size={20} weight="light" />
           </button>
         )}
-        <div className="ql-stage" key={item.id}><Stage item={item} playerRef={playerRef} modalHandle={modalRef} onDownload={canDownload ? onDownload : null} /></div>
+        <div className="ql-stage" key={item.id}>
+          <Stage item={item} playerRef={playerRef} modalHandle={modalRef} onDownload={canDownload ? onDownload : null}
+                 canPut={itemCanEdit} onClose={onClose} />
+        </div>
         {n > 1 && (
           <button type="button" className="ql-nav ql-next" onClick={() => go(1)} aria-label="Next file" title="Next (→)">
             <Icon as={ChevronRight} size={20} weight="light" />
