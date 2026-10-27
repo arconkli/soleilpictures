@@ -66,6 +66,8 @@ const TILE_W = 319;
 const TILE_H = 213;
 const ROW_PITCH = TILE_H + 48;
 const NAME_CHARS = 22;
+// A tile's size on the sheet, which its thumbnail is made at (view.js).
+export const SHEET_TILE = Object.freeze({ w: TILE_W, h: TILE_H });
 
 export function sheetSvg(tiles, thumbs = new Map()) {
   const out = [];
@@ -83,7 +85,11 @@ export function sheetSvg(tiles, thumbs = new Map()) {
     }
     const count = t.kind === 'folder' && Number.isFinite(t.count) ? String(t.count) : '';
     const room = NAME_CHARS - (count ? count.length + 2 : 0);
-    out.push(`<text x="${x}" y="${y + TILE_H + 32}" font-family="${FONT}" font-size="26" font-weight="600" fill="${INK}">${esc(ellipsize(t.name, room))}</text>`);
+    // Wide letters (CJK, W and M) run longer than the count of them says, so
+    // the name is clipped to its tile's width, short of the count.
+    const nameW = TILE_W - (count ? count.length * 15 + 12 : 0);
+    clips += `<clipPath id="n${i}"><path d="M${x} ${y + TILE_H}H${x + nameW}V${y + TILE_H + 48}H${x}Z"/></clipPath>`;
+    out.push(`<text x="${x}" y="${y + TILE_H + 32}" clip-path="url(#n${i})" font-family="${FONT}" font-size="26" font-weight="600" fill="${INK}">${esc(ellipsize(t.name, room))}</text>`);
     if (count) out.push(`<text x="${x + TILE_W}" y="${y + TILE_H + 32}" text-anchor="end" font-family="${FONT}" font-size="24" fill="${MUTED}">${count}</text>`);
   });
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${SHEET_W}" height="${SHEET_H}" viewBox="0 0 ${SHEET_W} ${SHEET_H}"><defs>${clips}</defs><path d="M0 0H${SHEET_W}V${SHEET_H}H0Z" fill="#ffffff"/>${out.join('')}</svg>`;
@@ -108,17 +114,21 @@ const LIST_PAD_Y = 40;
 
 export function listSvg(rows, more = 0) {
   const out = [];
+  let clips = '';
   rows.forEach((r, i) => {
     const y = LIST_PAD_Y + i * ROW_H;
     const mid = y + ROW_H / 2;
     out.push(glyph(iconFor(r.kind, String(r.name).split('.').pop()), LIST_PAD_X, mid - 20, 40));
     const size = r.kind === 'folder' ? '' : sizeText(r.size);
-    out.push(`<text x="${LIST_PAD_X + 64}" y="${mid + 10}" font-family="${FONT}" font-size="30" fill="${INK}">${esc(ellipsize(r.name, size ? 26 : 38))}</text>`);
+    // The name stops short of its size, however wide its letters.
+    const nameEnd = LIST_W - LIST_PAD_X - (size ? 150 : 0);
+    clips += `<clipPath id="r${i}"><path d="M${LIST_PAD_X + 64} ${y}H${nameEnd}V${y + ROW_H}H${LIST_PAD_X + 64}Z"/></clipPath>`;
+    out.push(`<text x="${LIST_PAD_X + 64}" y="${mid + 10}" clip-path="url(#r${i})" font-family="${FONT}" font-size="30" fill="${INK}">${esc(ellipsize(r.name, size ? 26 : 38))}</text>`);
     if (size) out.push(`<text x="${LIST_W - LIST_PAD_X}" y="${mid + 9}" text-anchor="end" font-family="${FONT}" font-size="26" fill="${MUTED}">${esc(size)}</text>`);
   });
   if (more > 0) {
     const y = LIST_PAD_Y + rows.length * ROW_H;
     out.push(`<text x="${LIST_PAD_X + 64}" y="${y + ROW_H / 2 + 10}" font-family="${FONT}" font-size="30" fill="${MUTED}">and ${Math.floor(more)} more</text>`);
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${LIST_W}" height="${LIST_H}" viewBox="0 0 ${LIST_W} ${LIST_H}"><path d="M0 0H${LIST_W}V${LIST_H}H0Z" fill="#ffffff"/>${out.join('')}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${LIST_W}" height="${LIST_H}" viewBox="0 0 ${LIST_W} ${LIST_H}"><defs>${clips}</defs><path d="M0 0H${LIST_W}V${LIST_H}H0Z" fill="#ffffff"/>${out.join('')}</svg>`;
 }

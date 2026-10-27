@@ -13,6 +13,11 @@ export const ZIP_CD_MAX_BYTES = 64 * 1024 * 1024;
 export const ENTRY_MAX_BYTES = 256 * 1024 * 1024;
 // Most the box fetches of one zip in rounds, in all.
 export const ZIP_FETCH_MAX_BYTES = 1024 * 1024 * 1024;
+// Most byte ranges the zip reader may ask for in one round.
+export const MAX_NEED_RANGES = 8;
+// A picture inside a zip over this, compressed or not, is a file's tile on
+// the zip's contact sheet, not a picture.
+export const SHEET_PHOTO_MAX_BYTES = 64 * 1024 * 1024;
 
 // A local header is 30 bytes and a name and extra field of up to 65535 each
 // (the central directory's lengths for them can differ from the local's), then

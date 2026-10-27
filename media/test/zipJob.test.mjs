@@ -142,3 +142,58 @@ test('a child that prints more than its cap is killed', async () => {
     /output_too_large/,
   );
 });
+
+test('a zip\'s contact sheet takes out only the pictures it shows, by byte ranges', async () => {
+  const png = tinyPng();
+  const body = await bytesOfZip([
+    { path: 'Location scouts/take 1.mov', bytes: randomBytes(20 * 1024 * 1024) },
+    { path: 'Location scouts/Dock/a.png', bytes: png },
+    { path: 'Location scouts/b.png', bytes: png },
+    { path: 'Location scouts/notes.txt', bytes: 'Dock at 06:10' },
+    { path: '__MACOSX/Location scouts/._b.png', bytes: 'litter' },
+  ]);
+  const srv = await serve(body);
+  const work = await mkdtemp(join(tmpdir(), 'zipjob-'));
+  try {
+    const { made } = await readZipInRounds({ url: srv.url, size: body.length, mode: 'sheet', ext: 'zip', work, runChild: runLocal });
+    assert.deepEqual(made.tiles.map((t) => [t.kind, t.name, t.path]), [
+      ['folder', 'Dock', '0'], ['photo', 'b.png', '1'], ['file', 'notes.txt', '2'], ['file', 'take 1.mov', '3'],
+    ]);
+    assert.equal(made.tiles[0].count, 1);
+    assert.deepEqual(made.summary, { files: 4, folders: 2, bytes: 20 * 1024 * 1024 + png.length * 2 + 13 });
+    assert.deepEqual(made.files.map((f) => f.i), [1]);
+    assert.deepEqual(await readFile(made.files[0].path), png);
+    assert.ok(srv.served.bytes < 1024 * 1024, `served ${srv.served.bytes}: never the film`);
+  } finally {
+    srv.close();
+  }
+});
+
+test('the contact sheet holds the zip reader to what it may say', async () => {
+  const body = await bytesOfZip([{ path: 'a.png', bytes: tinyPng() }]);
+  const srv = await serve(body);
+  const said = (made) => async () => Buffer.from(`${JSON.stringify({ made })}\n`);
+  const sheet = async (made) => readZipInRounds({ url: srv.url, size: body.length, mode: 'sheet', ext: 'zip',
+    work: await mkdtemp(join(tmpdir(), 'zipjob-')), runChild: said(made) });
+  const photo = { kind: 'photo', name: 'a.png', ext: 'png', size: 10 };
+  try {
+    for (const [made, why] of [
+      [{ tiles: [photo], files: [{ i: 0, file: '../t0.png' }] }, 'a file outside its folder'],
+      [{ tiles: [photo], files: [{ i: 0, file: 't0.svg' }] }, 'a file no picture is'],
+      [{ tiles: [photo], files: [{ i: 0, file: 't0.jpg' }] }, 'a file its tile is not'],
+      [{ tiles: [{ ...photo, kind: 'file' }], files: [{ i: 0, file: 't0.png' }] }, 'a file of a tile that is no picture'],
+      [{ tiles: [photo], files: [{ i: 0, file: 't0.png' }, { i: 0, file: 't0.png' }] }, 'the same file twice'],
+      [{ tiles: [{ ...photo, kind: 'script' }], files: [] }, 'a tile of no kind'],
+      [{ tiles: Array.from({ length: 13 }, () => photo), files: [] }, 'more tiles than a sheet holds'],
+      [{ tiles: [], files: [] }, 'no tiles'],
+    ]) {
+      await assert.rejects(sheet(made), (e) => e instanceof Refused && e.reason === 'error', why);
+    }
+    const { made } = await sheet({ tiles: [{ ...photo, name: 'x'.repeat(5000), path: '/etc/passwd' }], summary: { files: -1, folders: 1.5, bytes: 7 }, files: [] });
+    assert.equal(made.tiles[0].name.length, 200, 'names cut short');
+    assert.equal(made.tiles[0].path, '0', 'a tile is named by its place');
+    assert.deepEqual(made.summary, { files: 0, folders: 0, bytes: 7 }, 'whole numbers only');
+  } finally {
+    srv.close();
+  }
+});

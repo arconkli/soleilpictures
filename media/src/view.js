@@ -11,9 +11,12 @@
 // through our own finders (design.js, in a process of its own; an
 // Illustrator file's first page through poppler) or, when it is a zip, out
 // of the zip read by byte ranges (zipJob.js, its parser in a process of its
-// own), all the same unprivileged way. They write only in the job's work
-// folder, and what the root process takes back out of it, it opens with
-// openOwn (ffmpeg.js).
+// own), all the same unprivileged way. An archive is drawn here, as SVG of
+// our own (sheet.js) vips renders: a zip's contact sheet from its directory
+// and the few pictures it shows, read by byte ranges, and any other archive's
+// names as bsdtar lists them. They write only in the job's work folder, and
+// what the root process takes back out of it, it opens with openOwn
+// (ffmpeg.js).
 
 import { rm, open, writeFile } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
@@ -22,13 +25,16 @@ import { pipeline } from 'node:stream/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  VIEW_EDGE, VIEW_SM_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS, DOC_MAX_BYTES, docFamily, extOfKey,
+  VIEW_EDGE, VIEW_SM_EDGE, VIEW_MAX_BYTES, VIEW_MAX_PIXELS, DOC_MAX_BYTES, ARCHIVE_LIST_MAX_BYTES, docFamily, extOfKey,
 } from '../../boards/src/lib/fileView.js';
+import { cleanEntries, listRows, summaryOf } from '../../boards/src/lib/archiveSheet.js';
 import { run, isStopping, makeJobDir, readOwn, killStrays } from './ffmpeg.js';
 import {
-  decoderOf, sniffLoader, sniffRaw, sniffPsd, sniffDoc, SOURCE_LOADERS, thumbnailArgs, uprightDims, vipsEnv,
-  jp2kLevel, stripWebpMetadata,
+  decoderOf, sniffLoader, sniffRaw, sniffPsd, sniffDoc, sniffListed, gzipName, SOURCE_LOADERS, thumbnailArgs,
+  uprightDims, vipsEnv, jp2kLevel, stripWebpMetadata,
 } from './viewArgs.js';
+import { sheetSvg, listSvg, SHEET_TILE } from './sheet.js';
+import { parseBsdtarListing } from './listing.js';
 import { rawPicture } from './raw.js';
 import { docPages, firstPage } from './doc.js';
 import { readZipInRounds } from './zipJob.js';
@@ -46,6 +52,17 @@ const DESIGN_TIMEOUT_MS = 2 * 60_000;
 const DESIGN_MAIN = fileURLToPath(new URL('./designMain.js', import.meta.url));
 // What designMain.js may name, and the decoder each is read with.
 const DESIGN_FILES = Object.freeze({ 'picture.png': 'pngload', 'picture.jpg': 'jpegload', 'picture.tiff': 'tiffload' });
+// The decoder a picture inside a zip must be read with, by its extension
+// (archiveSheet.js PHOTO_EXTS): its bytes must say the same.
+const PHOTO_LOADERS = Object.freeze({
+  jpg: 'jpegload', jpeg: 'jpegload', png: 'pngload', webp: 'webpload', gif: 'gifload',
+  tif: 'tiffload', tiff: 'tiffload', heic: 'heifload', heif: 'heifload',
+});
+const SHEET_THUMB_TIMEOUT_MS = 60_000;
+const SHEET_THUMB_MAX_BYTES = 4 * 1024 * 1024;
+const LIST_TIMEOUT_MS = 2 * 60_000;
+// bsdtar's listing over this (some hundred thousand names) isn't drawn.
+const LIST_MAX_BYTES = 8 * 1024 * 1024;
 
 // The original, into a new file, never more than `max` bytes of it.
 async function download(url, path, max) {
@@ -191,6 +208,83 @@ async function designZipViews(url, ext, dirs) {
   return { ...views, original: null, via: 'zip', entry: made.entry };
 }
 
+// The views of an SVG we drew (sheet.js: escaped names and data: pictures,
+// nothing it could fetch), rendered by vips, then made as a picture's are.
+async function drawViews(svg, dirs) {
+  const svgPath = join(dirs.dir, 'sheet.svg');
+  await writeFile(svgPath, svg, { flag: 'wx', mode: 0o644 });
+  const png = join(dirs.work, 'sheet.png');
+  // vips counts svgload among its untrusted loaders, so the block is off for
+  // this one run: the SVG is ours, and no stranger's file ever reaches
+  // svgload (sniffLoader never names it).
+  await vips(['copy', svgPath, png], { VIPS_CONCURRENCY: '2' });
+  return { ...(await makeViews(png, dirs, { loaders: ['pngload'] })), original: null };
+}
+
+// The views of a zip: a contact sheet of what is inside it (archiveSheet.js
+// sheetTiles), read out of the zip at `url` by byte ranges, never downloaded
+// whole (zipJob.js). Each picture on it is thumbnailed here from the bytes the
+// zip reader took out, when they are the picture their name says; any other
+// is a file's tile.
+async function sheetViews(url, dirs) {
+  const size = await sourceSize(url);
+  const { made } = await readZipInRounds({ url, size, mode: 'sheet', ext: 'zip', work: dirs.work });
+  const thumbs = new Map();
+  for (const { i, path } of made.files) {
+    const tile = made.tiles[i];
+    const loader = sniffLoader(await headOf(path));
+    if (!loader || loader !== PHOTO_LOADERS[tile.ext]) continue;
+    const thumb = join(dirs.work, `thumb-${i}.png`);
+    try {
+      await run('vips', ['thumbnail', path, `${thumb}[strip]`, String(SHEET_TILE.w), '--height', String(SHEET_TILE.h),
+        '--crop', 'centre'], { timeoutMs: SHEET_THUMB_TIMEOUT_MS, env: vipsEnv(loader), isolate: true });
+      thumbs.set(tile.path, `data:image/png;base64,${(await readOwn(thumb, SHEET_THUMB_MAX_BYTES)).toString('base64')}`);
+    } catch (e) {
+      if (isStopping()) throw e;
+    }
+  }
+  const tiles = made.tiles.map((t) => (t.kind === 'photo' && !thumbs.has(t.path) ? { ...t, kind: 'file' } : t));
+  return { ...(await drawViews(sheetSvg(tiles, thumbs), dirs)), via: 'zip', archive: made.summary };
+}
+
+// The last four bytes of a file: a gzip's size of what it holds (mod 2^32).
+async function tailWord(path) {
+  const fh = await open(path, 'r');
+  try {
+    const { size } = await fh.stat();
+    if (size < 4) return null;
+    const buf = Buffer.alloc(4);
+    await fh.read(buf, 0, 4, size - 4);
+    return buf.readUInt32LE(0);
+  } finally {
+    await fh.close();
+  }
+}
+
+// The views of any other archive: the names inside it (archiveSheet.js
+// listRows), as bsdtar lists them from the downloaded file `src`, in the
+// sandbox. A .gz that holds no archive is its one file, by the name gzip kept.
+async function listingViews(src, dirs) {
+  const head = await headOf(src, 1024);
+  if (!sniffListed(head)) throw new Refused('unsupported', 'not an archive');
+  let entries;
+  try {
+    const text = await run('bsdtar', ['-tvf', src], { timeoutMs: LIST_TIMEOUT_MS, isolate: true, maxBytes: LIST_MAX_BYTES });
+    entries = cleanEntries(parseBsdtarListing(text.toString('utf8')));
+  } catch (e) {
+    if (isStopping()) throw e;
+    const message = String(e?.message || '');
+    if (message === 'output_too_large') throw new Refused('too_large', 'too many names to list');
+    if (/encrypt|passphrase|password/i.test(message)) throw new Refused('encrypted', 'locked with a password');
+    const lone = gzipName(head);
+    if (!lone) throw new Refused('unsupported', 'bsdtar could not list it');
+    entries = cleanEntries([{ path: lone, dir: false, size: await tailWord(src) }]);
+  }
+  if (!entries.length) throw new Refused('unsupported', 'nothing inside it');
+  const { rows, more } = listRows(entries);
+  return { ...(await drawViews(listSvg(rows, more), dirs)), via: 'bsdtar', archive: summaryOf(entries) };
+}
+
 // The views of a job's downloaded file `src`, by how its format is read. A
 // document's carry its PDF (`pdfPath`, `pages`), the picture they were made
 // of (doc.js docPages) and no original's size; a design file's, what its
@@ -198,6 +292,7 @@ async function designZipViews(url, ext, dirs) {
 // (the picture's isn't the design's).
 export async function viewsOf(decoder, src, dirs) {
   if (decoder === 'vips') return { ...(await makeViews(src, dirs)), via: 'vips' };
+  if (decoder === 'listing') return listingViews(src, dirs);
   const head = await headOf(src);
   const refuse = (reason, message) => new Refused(reason, message);
   if (decoder === 'design') {
@@ -249,13 +344,15 @@ export async function processView(job) {
     const decoder = decoderOf(job.ext);
     if (!decoder) throw new Refused('unsupported', `no views of .${job.ext}`);
     let made;
-    if (decoder === 'design-zip') {
+    if (decoder === 'design-zip' || decoder === 'sheet') {
       // Read by byte ranges, never downloaded: no ceiling but the rounds'
       // own (zipJob.js).
       dirs = await makeJobDir('view-');
-      made = await designZipViews(api.sourceUrl(job), job.ext.toLowerCase(), dirs);
+      made = decoder === 'sheet'
+        ? await sheetViews(api.sourceUrl(job), dirs)
+        : await designZipViews(api.sourceUrl(job), job.ext.toLowerCase(), dirs);
     } else {
-      const max = decoder === 'doc' ? DOC_MAX_BYTES : VIEW_MAX_BYTES;
+      const max = decoder === 'doc' ? DOC_MAX_BYTES : decoder === 'listing' ? ARCHIVE_LIST_MAX_BYTES : VIEW_MAX_BYTES;
       if (Number(job.sizeBytes) > max) throw new Refused('too_large');
       dirs = await makeJobDir('view-');
       // A raw, a document or a design file keeps its extension (decoderOf
@@ -294,6 +391,8 @@ export async function processView(job) {
       : {
         loader: made.loader, via: made.via, pages: made.pages ?? null,
         ...(made.picture ? { picture: made.picture } : {}), ...(made.entry ? { entry: made.entry.slice(0, 200) } : {}),
+        // An archive's count of what is inside it, which its card's strip says.
+        ...(made.archive ? { files: made.archive.files, folders: made.archive.folders, bytes: made.archive.bytes } : {}),
       };
     await api.finish(key, 'done', { probe, view: made.view, viewSm, original: made.original, pdf });
   } catch (e) {

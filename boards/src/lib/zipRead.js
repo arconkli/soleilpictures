@@ -154,8 +154,10 @@ function parseExtra(bytes, view, start, end, want) {
 
 // Parse the central-directory header at bytes[p]; the caller has already
 // checked the whole record is in the buffer. Returns null for an entry that
-// is skipped (counted into `skipped` or left out silently).
-function parseHeader(bytes, view, p, skipped) {
+// is skipped (counted into `skipped` or left out silently). With `locked`, an
+// entry that can't be opened (a password's, or squeezed some way openEntry
+// doesn't read) is kept, for a list of what is inside, and still counted.
+function parseHeader(bytes, view, p, skipped, locked = false) {
   const flags = view.getUint16(p + 8, true);
   const method = view.getUint16(p + 10, true);
   const time = view.getUint16(p + 12, true);
@@ -189,8 +191,8 @@ function parseHeader(bytes, view, p, skipped) {
 
   // A directory entry carries no data, so there is nothing to refuse.
   if (!dir) {
-    if (flags & 1) { skipped.encrypted++; return null; }
-    if (method !== 0 && method !== 8) { skipped.unsupported++; return null; }
+    if (flags & 1) { skipped.encrypted++; if (!locked) return null; }
+    else if (method !== 0 && method !== 8) { skipped.unsupported++; if (!locked) return null; }
   }
 
   const lastModified = extra.mtime ?? dosToMs(date, time);
@@ -243,7 +245,9 @@ export async function zipDirectoryBounds(blob) {
 
 // Read the central directory of `blob`. `pieceBytes` is the read granularity
 // (default 8 MB); tests lower it to exercise a header straddling two reads.
-export async function readZipDirectory(blob, { onProgress, pieceBytes = PIECE_BYTES } = {}) {
+// `locked` keeps the entries openEntry can't open (parseHeader), for showing
+// what a zip holds rather than taking it out.
+export async function readZipDirectory(blob, { onProgress, pieceBytes = PIECE_BYTES, locked = false } = {}) {
   const { cdStart, cdEnd, zip64 } = await zipDirectoryBounds(blob);
 
   const entries = [];
@@ -275,7 +279,7 @@ export async function readZipDirectory(blob, { onProgress, pieceBytes = PIECE_BY
       }
       const len = 46 + view.getUint16(p + 28, true) + view.getUint16(p + 30, true) + view.getUint16(p + 32, true);
       if (p + len > buf.length) break;
-      const entry = parseHeader(buf, view, p, skipped);
+      const entry = parseHeader(buf, view, p, skipped, locked);
       p += len;
       if (entry) {
         entries.push(entry);
