@@ -207,3 +207,25 @@ export function personFlags(p) {
   if (p?.co_creating) out.push('co-creating');
   return out;
 }
+
+// Cards a person placed in what others shared with them (0748's
+// admin_user_placements: one row per cluster in a workspace they don't own).
+//   placedIn(list, { workspaceId })  every cluster in that workspace
+//   placedIn(list, { clusterId })    that cluster and every cluster under it
+// Returns { cards, clusters, lastAt }, or null while the read is missing.
+export function placedIn(list, { workspaceId, clusterId } = {}) {
+  if (!Array.isArray(list)) return null;
+  let cards = 0;
+  let clusters = 0;
+  let lastAt = null;
+  for (const p of list) {
+    const hit = workspaceId ? p.workspace_id === workspaceId
+      : clusterId ? (p.board_id === clusterId || (Array.isArray(p.ancestors) && p.ancestors.includes(clusterId)))
+      : true;
+    if (!hit) continue;
+    cards += Number(p.placed || 0);
+    clusters += 1;
+    if (p.last_at && (!lastAt || p.last_at > lastAt)) lastAt = p.last_at;
+  }
+  return { cards, clusters, lastAt };
+}

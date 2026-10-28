@@ -1,4 +1,4 @@
-// The sharing insight (0745–0747) in the admin preview harness, against the
+// The sharing insight (0745–0748) in the admin preview harness, against the
 // invented fixtures: the Users list's Sharing filter, sort and marks, a
 // profile's Sharing, Analytics › Sharing and its handoff to Users, and Funnel's
 // line pointing at the panels that moved.
@@ -32,6 +32,24 @@ test.describe('admin sharing insight', () => {
     await expect(section.getByRole('tablist', { name: 'Sharing' })).toBeVisible();
     await expect(section.locator('.admin-sh-card').first()).toBeVisible();
     await expect(section.locator('.admin-sh-ladder').first()).toContainText('Seen');
+  });
+
+  test('a profile counts the cards they placed in what was shared with them (0748)', async ({ page }) => {
+    await openAdmin(page, { tab: 'users' });
+    const rows = page.locator('.admin-user-row');
+    await expect(rows.first()).toBeVisible({ timeout: 15000 });
+    const withTab = page.getByRole('tab', { name: /^Shared with them · [1-9]/ });
+    const n = await rows.count();
+    for (let k = 0; k < n; k++) {
+      await rows.nth(k).click();
+      await expect(page.locator('.admin-sh')).toBeVisible();
+      if (await withTab.count()) break;
+    }
+    await withTab.click();
+    // The fixture: 14 + 9 + 4 in one shared workspace; its shared cluster holds 14 + its child's 9.
+    await expect(page.locator('.admin-sh-placed-sum')).toContainText('Placed 27 cards');
+    await expect(page.locator('.admin-sh-lrow', { hasText: 'Location scout' }).locator('.admin-sh-placed')).toHaveText('placed 23 cards');
+    await expect(page.locator('.admin-sh-ws-placed.is-people').first()).toContainText('27 placed by them');
   });
 
   test('Analytics › Sharing lays out the week, the routes, who shares and the feed in words', async ({ page }) => {

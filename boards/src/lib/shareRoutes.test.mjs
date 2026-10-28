@@ -71,3 +71,17 @@ test("the filter's values are 0746's, and the sort is 'reach'", () => {
   assert.deepEqual(SHARING_FILTERS.map((f) => f.value), ['all', 'shared', 'brought', 'came', 'works_with']);
   assert.equal(REACH_SORT.value, 'reach');
 });
+
+test('placedIn: a shared workspace totals its clusters, a shared cluster its subtree', async () => {
+  const { placedIn } = await import('./shareRoutes.js');
+  const list = [
+    { board_id: 'c1', workspace_id: 'w1', ancestors: ['root1'], placed: 12, last_at: '2026-10-20T10:00:00Z' },
+    { board_id: 'c2', workspace_id: 'w1', ancestors: ['c1', 'root1'], placed: 5, last_at: '2026-10-25T10:00:00Z' },
+    { board_id: 'c9', workspace_id: 'w2', ancestors: [], placed: 3, last_at: '2026-10-01T10:00:00Z' },
+  ];
+  assert.deepEqual(placedIn(list, { workspaceId: 'w1' }), { cards: 17, clusters: 2, lastAt: '2026-10-25T10:00:00Z' });
+  assert.deepEqual(placedIn(list, { clusterId: 'c1' }), { cards: 17, clusters: 2, lastAt: '2026-10-25T10:00:00Z' });
+  assert.deepEqual(placedIn(list, { clusterId: 'c2' }), { cards: 5, clusters: 1, lastAt: '2026-10-25T10:00:00Z' });
+  assert.deepEqual(placedIn(list, { workspaceId: 'w3' }), { cards: 0, clusters: 0, lastAt: null });
+  assert.equal(placedIn(null, { workspaceId: 'w1' }), null);
+});

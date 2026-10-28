@@ -1,5 +1,6 @@
 // AdminUserSharing — one person's sharing, in the Users drawer (0745's
-// admin_user_sharing, 0746's admin_user_workspaces). Look B, "By cluster":
+// admin_user_sharing, 0746's admin_user_workspaces, 0748's
+// admin_user_placements). Look B, "By cluster":
 // what they shared, a card per cluster, workspace or file with its routes, the
 // five steps its people climbed (Seen → Co-creating) and the faces of those
 // people; what others shared with them; and everyone they reached. How they
@@ -7,13 +8,17 @@
 // link, an invitation or a workspace add never reads as "organic / direct".
 //
 // Its own read, keyed on the user, so a failure blanks this section alone.
+//
+// "Placed" is 0748's: the cards they placed in workspaces they don't own,
+// totalled per shared workspace and per shared cluster (its subtree). Cards
+// placed, not cards still there, and only from the first card_placed on.
 
 import { useCallback, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { formatCount, fmtDateTime, relativeTime } from '../../lib/adminFormat.js';
 import {
   objectSub, objectLadder, broughtInWords, withThemSub, withThemTail, titleOf, personLabel, personFlags,
-  routeLabel, plural, shortDay, ROUTE_ORDER,
+  routeLabel, plural, shortDay, ROUTE_ORDER, placedIn,
 } from '../../lib/shareRoutes.js';
 import { Icon } from '../../components/Icon.jsx';
 import { Share2, LayoutGrid, Users as UsersIcon, FileText, ArrowSquareOut } from '../../lib/icons.js';
@@ -26,16 +31,23 @@ const FACES = 5;
 
 const KIND_ICON = { cluster: LayoutGrid, workspace: UsersIcon, file: FileText };
 
-// The read both Acquisition and the Sharing section draw on. Workspaces are a
-// second, optional read: a profile without them still shows its sharing.
+const PLACED_NOTE = 'Cards they placed, not cards still there, counted since June 4, 2026.';
+
+// The read both Acquisition and the Sharing section draw on. Workspaces and
+// placements are optional reads: a profile without them still shows its sharing.
 export function useUserSharing(userId) {
   const fetchSharing = useCallback(async () => {
-    const [s, w] = await Promise.all([
+    const [s, w, p] = await Promise.all([
       supabase.rpc('admin_user_sharing', { p_user_id: userId }),
       supabase.rpc('admin_user_workspaces', { p_user_id: userId }),
+      supabase.rpc('admin_user_placements', { p_user_id: userId }),
     ]);
     if (s.error) throw s.error;
-    return { ...(s.data || {}), workspaces: w.error ? null : (w.data || []) };
+    return {
+      ...(s.data || {}), user_id: userId,
+      workspaces: w.error ? null : (w.data || []),
+      placements: p.error ? null : (p.data || []),
+    };
   }, [userId]);
   return useAdminData(fetchSharing, [userId]);
 }
@@ -180,32 +192,55 @@ function ByThem({ d, onOpenUser }) {
   );
 }
 
+// "placed 14 cards" on a shared workspace or cluster; nothing while 0748's
+// read is missing, and nothing on a file.
+function PlacedChip({ w, placements }) {
+  if (w.kind !== 'workspace' && w.kind !== 'cluster') return null;
+  const p = placedIn(placements, w.kind === 'workspace' ? { workspaceId: w.id } : { clusterId: w.id });
+  if (!p) return null;
+  const title = p.lastAt ? `${PLACED_NOTE} Last ${relativeTime(p.lastAt)}.` : PLACED_NOTE;
+  return p.cards > 0
+    ? <span className="admin-sh-out is-people admin-sh-placed" title={title}>placed {plural(p.cards, 'card')}</span>
+    : <span className="admin-sh-out admin-sh-placed" title={title}>placed nothing</span>;
+}
+
 function WithThem({ d, onOpenUser }) {
   const rows = Array.isArray(d.with_them) ? d.with_them : [];
   if (!rows.length) return <div className="admin-detail-note">Nobody has shared anything with them.</div>;
+  const all = placedIn(d.placements);
   return (
-    <ul className="admin-sh-led">
-      {rows.map((w) => (
-        <li key={`${w.kind}:${w.id}:${w.route}`} className="admin-sh-lrow">
-          <span className="admin-sh-lic"><Icon as={KIND_ICON[w.kind] || LayoutGrid} size={12} /></span>
-          <div>
-            <div className="admin-sh-ltitle">{titleOf(w)}</div>
-            <div className="admin-sh-lsub">
-              {w.by ? (
-                <>
-                  {routeLabel(w.route)} from{' '}
-                  <PersonButton person={w.by} onOpenUser={onOpenUser}>{personLabel(w.by)}</PersonButton>
-                  {withThemTail(w) && ` · ${withThemTail(w)}`}
-                </>
-              ) : withThemSub(w)}
+    <>
+      {all && (
+        <div className="t-meta admin-sh-placed-sum" title={PLACED_NOTE}>
+          {all.cards > 0
+            ? <>Placed <b>{plural(all.cards, 'card')}</b> in what others shared with them, across {plural(all.clusters, 'cluster')}{all.lastAt && `, the latest ${relativeTime(all.lastAt)}`}</>
+            : 'Hasn’t placed a card in anything shared with them'}
+        </div>
+      )}
+      <ul className="admin-sh-led">
+        {rows.map((w) => (
+          <li key={`${w.kind}:${w.id}:${w.route}`} className="admin-sh-lrow">
+            <span className="admin-sh-lic"><Icon as={KIND_ICON[w.kind] || LayoutGrid} size={12} /></span>
+            <div>
+              <div className="admin-sh-ltitle">{titleOf(w)}</div>
+              <div className="admin-sh-lsub">
+                {w.by ? (
+                  <>
+                    {routeLabel(w.route)} from{' '}
+                    <PersonButton person={w.by} onOpenUser={onOpenUser}>{personLabel(w.by)}</PersonButton>
+                    {withThemTail(w) && ` · ${withThemTail(w)}`}
+                  </>
+                ) : withThemSub(w)}
+              </div>
             </div>
-          </div>
-          <div className="admin-sh-tags">
-            {personFlags(w).map((f) => <span key={f} className="admin-sh-out is-people">{f}</span>)}
-          </div>
-        </li>
-      ))}
-    </ul>
+            <div className="admin-sh-tags">
+              <PlacedChip w={w} placements={d.placements} />
+              {personFlags(w).map((f) => <span key={f} className="admin-sh-out is-people">{f}</span>)}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -266,8 +301,9 @@ function Panel({ t }) {
   );
 }
 
-// Every workspace they're in, with what it holds (0746's admin_user_workspaces).
-function Workspaces({ list }) {
+// Every workspace they're in, with what it holds (0746's admin_user_workspaces)
+// and, in one they don't own, how many of its cards they placed (0748).
+function Workspaces({ list, placements, userId }) {
   if (!Array.isArray(list) || !list.length) return null;
   return (
     <>
@@ -280,10 +316,22 @@ function Workspaces({ list }) {
             <span className="admin-sh-ws-n"><b>{formatCount(w.cards || 0)}</b> card{w.cards === 1 ? '' : 's'}</span>
             <span className="admin-sh-ws-n">{formatCount(w.clusters || 0)} cluster{w.clusters === 1 ? '' : 's'}</span>
             <span className="admin-sh-ws-n">{plural(Number(w.members || 0), 'person', 'people')}</span>
+            <WorkspacePlaced w={w} placements={placements} userId={userId} />
           </li>
         ))}
       </ul>
     </>
+  );
+}
+
+function WorkspacePlaced({ w, placements, userId }) {
+  const p = placedIn(placements, { workspaceId: w.workspace_id });
+  const own = w.owner_id ? w.owner_id === userId : w.role === 'owner';
+  if (!p || (own && !p.cards)) return <span className="admin-sh-ws-n" />;
+  return (
+    <span className={`admin-sh-ws-n admin-sh-ws-placed${p.cards ? ' is-people' : ''}`} title={PLACED_NOTE}>
+      {p.cards ? <><b>{formatCount(p.cards)}</b> placed by them</> : 'none placed by them'}
+    </span>
   );
 }
 
@@ -321,7 +369,7 @@ export function AdminUserSharing({ q, onOpenUser }) {
           {tab === 'with' && <WithThem d={d} onOpenUser={onOpenUser} />}
           {tab === 'people' && <People d={d} onOpenUser={onOpenUser} />}
           {tab === 'by' && <Panel t={t} />}
-          <Workspaces list={d.workspaces} />
+          <Workspaces list={d.workspaces} placements={d.placements} userId={d.user_id} />
           {d.banned_left_out?.shares > 0 && (
             <div className="admin-detail-note">
               Left out: {plural(d.banned_left_out.shares, 'share')} with {plural(d.banned_left_out.accounts || 0, 'banned account')}.
