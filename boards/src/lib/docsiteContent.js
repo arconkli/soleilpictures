@@ -73218,7 +73218,23 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " reads the same. "
+     "v": " reads the same, and so does a link encoded a second time on its way (every "
+    },
+    {
+     "t": "code",
+     "v": "%"
+    },
+    {
+     "t": "text",
+     "v": " written "
+    },
+    {
+     "t": "code",
+     "v": "%25"
+    },
+    {
+     "t": "text",
+     "v": "). "
     },
     {
      "t": "code",
