@@ -16,13 +16,15 @@ import { logEventOnce, logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { editorLimitAllowed } from '../lib/appHost.js';
 
-export function JoinBoardCard({ role, boardName, href, token, onJoinClick }) {
+export function JoinBoardCard({ role, boardName, href, token, rootId = null, onJoinClick }) {
   const [closed, setClosed] = useState(false);
   const roleLabel = role === 'editor' ? 'edit' : 'view';
 
+  // root_id: the cluster the link opens, so a view and a join are credited to
+  // its sharer (the token is only the once-per-link key, never a prop).
   useEffect(() => {
-    logEventOnce(`invite-link-view-${token}`, EV.INVITE_LINK_VIEW, { role });
-  }, [token, role]);
+    logEventOnce(`invite-link-view-${token}`, EV.INVITE_LINK_VIEW, { role, root_id: rootId || null });
+  }, [token, role, rootId]);
 
   useEffect(() => {
     if (closed) return undefined;
@@ -49,7 +51,7 @@ export function JoinBoardCard({ role, boardName, href, token, onJoinClick }) {
       <a className="public-cta share-prompt-cta"
          href={href}
          onClick={() => {
-           logEventNow(EV.INVITE_LINK_JOIN_CLICK, { role });
+           logEventNow(EV.INVITE_LINK_JOIN_CLICK, { role, root_id: rootId || null });
            onJoinClick?.();
          }}>
         Join as {role === 'editor' ? 'editor' : 'viewer'}

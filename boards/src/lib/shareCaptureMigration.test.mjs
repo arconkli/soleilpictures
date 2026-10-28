@@ -234,3 +234,22 @@ test('0743: the table is closed, keyed by the new cluster, and the proof holds t
   assert.match(proof, /raise exception '0743: remix_sources holds a link token';/);
   assert.match(proof, /raise exception '0743: proven' using errcode = 'SL743';\s+exception when sqlstate 'SL743' then/);
 });
+
+// ── The events that go with them ────────────────────────────────────────────
+test('the events say which link, which cluster and which source, never a token', () => {
+  const view = read('../components/PublicBoardView.jsx');
+  assert.match(view, /link_kind: slug \? 'public' : \(r\.bundle\.join\?\.kind === 'invite' \? 'invite' : 'view'\),/);
+  assert.match(view, /link_role: r\.bundle\.join\?\.kind === 'invite' \? \(r\.bundle\.join\.role \|\| null\) : null,/);
+  assert.match(view, /<JoinBoardCard\s+role=\{joinInfo\.role\}\s+boardName=\{board\.name\}\s+rootId=\{rootId\}/);
+  const card = read('../components/JoinBoardCard.jsx');
+  assert.match(card, /EV\.INVITE_LINK_VIEW, \{ role, root_id: rootId \|\| null \}/);
+  assert.match(card, /EV\.INVITE_LINK_JOIN_CLICK, \{ role, root_id: rootId \|\| null \}/);
+  assert.match(read('../components/fileShare/FileSharePage.jsx'), /share_id: r\.share_id \|\| null,/);
+  const app = read('../App.jsx');
+  assert.match(app, /pendingRemixRef\.current = \{ boardId: b\.id, cards, kind: src\.kind, source: tpl\.source \|\| null \};/);
+  assert.match(app, /EV\.REMIX_CLONE, \{ kind: pend\.kind, n: added, source_board_id: pend\.source \|\| null \}/);
+  const events = read('./analyticsEvents.js');
+  for (const s of ["link_kind:'public'|'view'|'invite',link_role", 'risky,share_id}', '{role,root_id}', 'n,source_board_id}']) {
+    assert.ok(events.includes(s), `analyticsEvents.js documents ${s}`);
+  }
+});

@@ -76,6 +76,11 @@ function readUrlCampaignSignals(params) {
   for (const k of CLICK_ID_KEYS) { const v = params.get(k); if (v) out[k] = v.slice(0, 200); }
   const shareToken = params.get('share_token');
   if (shareToken) out.share_token = shareToken.slice(0, 40);
+  // A shared file's sign-in links (FileSharePage signInHrefFor) carry its token
+  // too: the channel files the sign-up as 'file_share' and the sharer's credit
+  // reads it from profiles.first_source (0741). No event carries it (linkTokens.js).
+  const fileToken = params.get('file_token');
+  if (fileToken) out.file_token = fileToken.slice(0, 40);
   const publicSlug = params.get('public_slug');
   if (publicSlug) out.public_slug = publicSlug.slice(0, 80);
   // Lifecycle campaign marker (?lc=<email_type>.<version>), appended by the
@@ -167,7 +172,7 @@ export function getFirstSource() {
 // last-touch only when it carries a deep-link the page cannot have inherited
 // (share/public/referral/lifecycle params, a click id) — the open-in-new-tab
 // cases those params exist for.
-const DEEP_LINK_KEYS = ['share_token', 'public_slug', 'ref', 'lc', 'fbclid', ...CLICK_ID_KEYS];
+const DEEP_LINK_KEYS = ['share_token', 'file_token', 'public_slug', 'ref', 'lc', 'fbclid', ...CLICK_ID_KEYS];
 let cachedLastSource = null;
 function getLastSource() {
   if (cachedLastSource !== null) return cachedLastSource;
@@ -226,6 +231,21 @@ export function seedShareFirstSource(token) {
   // clobber a real campaign tag (a shared link inside a paid ad keeps its ad
   // attribution and merely gains the share_token).
   if (!src.utm_source) { src.utm_source = 'share_link'; src.utm_medium = 'share_page'; }
+  try { sessionStorage.setItem(SOURCE_KEY, JSON.stringify(src)); } catch (_) {}
+  cachedSource = src;
+}
+
+// Same first-touch seeding for a file shared on its own (/f/<token>), called by
+// FileSharePage on mount, before its first logEvent. A sign-up that starts there
+// is filed under 'file_share' (0741), and the sharer's credit reads file_token
+// from profiles.first_source, as a share link's reads share_token. First-touch
+// wins; never clobbers a real campaign tag.
+export function seedFileShareFirstSource(token) {
+  if (!token || typeof window === 'undefined') return;
+  const src = { ...getFirstSource() };
+  if (src.file_token) return;
+  src.file_token = String(token).slice(0, 40);
+  if (!src.utm_source) { src.utm_source = 'file_share'; src.utm_medium = 'file_page'; }
   try { sessionStorage.setItem(SOURCE_KEY, JSON.stringify(src)); } catch (_) {}
   cachedSource = src;
 }

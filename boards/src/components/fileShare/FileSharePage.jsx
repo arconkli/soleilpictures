@@ -49,7 +49,7 @@ import { docSharesAllowed, sharedFilesAllowed } from '../../lib/appHost.js';
 import { Icon } from '../Icon.jsx';
 import { X } from '../../lib/icons.js';
 import { timeToFrame } from '../../lib/timecode.js';
-import { logEvent, logEventNow, logEventOnce } from '../../lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce, seedFileShareFirstSource } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { ClustersMark } from '../SoleilWordmark.jsx';
 import { FileComments, Avatar } from './FileComments.jsx';
@@ -218,6 +218,10 @@ export function FileSharePage({
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const overlay = variant === 'overlay';
+  // A sign-up that starts on this page is its sharer's (0741): seeded before the
+  // page's first event, as the /share viewer seeds its link. Not over the app,
+  // where whoever opened it is already signed in.
+  useEffect(() => { if (!overlay) seedFileShareFirstSource(token); }, [overlay, token]);
 
   const load = useCallback(async ({ refresh = false } = {}) => {
     const asObj = (out) => (out && typeof out === 'object' ? out : { status: 'error' });
@@ -249,6 +253,8 @@ export function FileSharePage({
       logEventOnce(`file_share_view:${token}`, EV.FILE_SHARE_VIEW, {
         status: r.status || 'error', access: r.access || null, kind: r.file?.kind || null,
         signed_in: !!r.signed_in, risky: !!r.file?.risky,
+        // Which share it was (0742), in place of the token no event may carry.
+        share_id: r.share_id || null,
       });
     }
   }, [api, token]);
