@@ -12,7 +12,11 @@ import assert from 'node:assert/strict';
 import * as Y from 'yjs';
 import { handleApiRoute } from '../worker-api.js';
 import { UNTRUSTED_NOTE } from './mcpTools.js';
+import { VIEW_URI } from './mcpServer.js';
 import { cardToYMap, bytesToB64, b64ToBytes, readCards, readGroups } from './yhelpers.js';
+import { imageSecret, verifySignedImage, SIGNED_IMAGE_PATH, SIGNED_IMAGE_TTL_S } from './signedImage.js';
+import { GROUP_OUTLINE_PAD, GROUP_LABEL_ROOM } from './layoutEngine.js';
+import { tintOf } from './boardStyle.js';
 
 const ENV = {
   SUPABASE_URL: 'https://db.test',
@@ -870,6 +874,69 @@ test('view_board over /mcp answers in words and pictures, for a read-only token'
   });
 });
 
+// ── GET /boards/:id/canvas and show_board ────────────────────────────────────
+
+test('the canvas is the board as drawn, each picture it may show at an address good for an hour', async () => {
+  const bucket = galleryBoard();
+  const before = Math.floor(Date.now() / 1000);
+  await withBucket(bucket, async () => {
+    const res = await api('GET', `/boards/${B1}/canvas`);
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    const c = res.body;
+    assert.deepEqual(c.board, { id: B1, name: 'Diner', url: `https://clusters.test/?to=b:${B1}`, card_count: 6 });
+    assert.equal(c.cards.length, 6);
+    assert.equal(c.picture_count, 3, 'two images and a poster the caller can read');
+    assert.equal(c.hidden, 0);
+    const by = Object.fromEntries(c.cards.map((x) => [x.id, x]));
+    assert.equal(by.n1.text, 'a note');
+    assert.equal(by.i3.picture, undefined, 'on the board, but not the caller\'s to read');
+    assert.equal(by.i4.picture, undefined, 'a web address is never signed');
+
+    // Each address names the rendition the caller's own row offered, and stops
+    // working when the answer says.
+    const secret = await imageSecret('svc');
+    const keyOf = async (u) => {
+      assert.ok(u.startsWith(`https://clusters.test${SIGNED_IMAGE_PATH}`), u);
+      return verifySignedImage(secret, u.slice(`https://clusters.test${SIGNED_IMAGE_PATH}`.length));
+    };
+    const a = await keyOf(by.i1.picture.url);
+    assert.equal(a.key, 'w1/a_sm.webp');
+    assert.equal((await keyOf(by.i2.picture.url)).key, 'w1/b.webp', 'a small original');
+    assert.equal((await keyOf(by.v1.picture.url)).key, 'w1/p_pv.webp');
+    assert.ok(a.expiresAt >= before + SIGNED_IMAGE_TTL_S && a.expiresAt <= before + SIGNED_IMAGE_TTL_S + 5);
+    assert.equal(c.expires_at, new Date(a.expiresAt * 1000).toISOString());
+    assert.ok(!JSON.stringify(c).includes('secret.webp'));
+  });
+  assert.deepEqual(bucket.read, [], 'signing reads no bytes');
+  assert.equal((await api('GET', `/boards/${B2}/canvas`)).status, 404, 'a board this user cannot see');
+});
+
+test('show_board over /mcp draws for the view and tells the model what is there, for a read-only token', async () => {
+  scopes = ['read'];
+  const bucket = galleryBoard();
+  await withBucket(bucket, async () => {
+    const res = await mcp('tools/call', { name: 'show_board', arguments: { board_id: B1 } });
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    const r = res.body.result;
+    assert.ok(!r.isError, JSON.stringify(r.content));
+    assert.match(r.content[0].text, /^Showing "Diner" · 6 cards · 3 pictures · https:\/\/clusters\.test\/\?to=b:/);
+    assert.equal(r.structuredContent.cards, 6);
+    assert.ok(!r.content[0].text.includes('/api/img/'), 'the model never gets the picture addresses');
+    const canvas = r._meta['clusters/canvas'];
+    assert.equal(canvas.board.id, B1);
+    assert.equal(canvas.cards.filter((x) => x.picture?.url).length, 3);
+    const tool = (await mcp('tools/list')).body.result.tools.find((t) => t.name === 'show_board');
+    assert.equal(tool._meta.ui.resourceUri, VIEW_URI);
+    const page = (await mcp('resources/read', { uri: VIEW_URI })).body.result.contents[0];
+    assert.deepEqual(page._meta.ui.csp.resourceDomains, ['https://clusters.test'], 'pictures from the origin that answered');
+    // The first address, which a host may have kept, still opens the page.
+    const first = (await mcp('resources/read', { uri: 'ui://clusters/board-v1.html' })).body.result.contents[0];
+    assert.equal(first.text, page.text);
+    assert.match(r.content[0].text, /\n\nOpen it in Clusters: https:\/\/clusters\.test\/\?to=b:[^\n]+$/);
+    assert.ok(Array.isArray(r.structuredContent.outline));
+  });
+});
+
 // ── /boards/:id/share-link, share_board and unshare_board ───────────────────
 
 const T1 = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -1192,6 +1259,222 @@ test('a group made or changed through the API is saved the way the app reads it'
     ['To watch', true, '2026-10-27T21:29:24Z'], 'the old fields kept, the new name set');
 });
 
+// A group with no colour is drawn in the app's gold, which the app keeps for
+// what is selected: one the API makes takes a named colour instead (P7).
+test('a group made with no colour takes the next named colour the board doesn\'t wear; a colour may be named', async () => {
+  putBoard(B1, [], { name: 'Films' }, [{ id: 'g-a', name: 'Canon', color: '#3F7AB5', createdAt: '2026-10-01T00:00:00Z' }]);
+  const made = await api('POST', `/boards/${B1}/groups`, { name: 'Journal' });
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  assert.equal(made.body.group.color, '#af6440', 'blue is worn, so clay');
+  const named = await api('POST', `/boards/${B1}/groups`, { name: 'Ideas', color: 'Teal' });
+  assert.equal(named.body.group.color, '#008686');
+  const own = await api('POST', `/boards/${B1}/groups`, { name: 'Gold', color: '#c8a04a' });
+  assert.equal(own.body.group.color, '#c8a04a', 'a colour given is kept');
+  const patched = await api('PATCH', `/boards/${B1}/groups/g-a`, { color: 'plum' });
+  assert.equal(patched.status, 200, JSON.stringify(patched.body));
+  assert.equal(patched.body.group.color, '#9864a4');
+});
+
+// The P7 mockups' "notes tinted": a board of sections reads apart at a glance
+// when each note wears its section's colour, lightened.
+test('sections an add makes take named colours, and their new notes the sections\' tints', async () => {
+  putBoard(B1, [], { name: 'Films' });
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    groups: [{ name: 'Canon' }, { name: 'Journal', color: 'green' }, { name: 'Ideas', color: '#c8a04a' }],
+    cards: [
+      { kind: 'note', title: 'Stalker', group: 'Canon' },
+      { kind: 'note', title: 'Heat', group: 'Canon', color: '#f3ddaa' },
+      { kind: 'note', title: 'Diary', group: 'Journal' },
+      { kind: 'note', title: 'Plain', group: 'Journal', color: null },
+      { kind: 'note', title: 'Blank', group: 'Journal', color: '' },
+      { kind: 'note', title: 'Short film', group: 'Ideas' },
+      { kind: 'note', title: 'Loose' },
+    ],
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.deepEqual(r.body.groups.map((g) => [g.name, g.color]),
+    [['Canon', '#3f7ab5'], ['Journal', '#3d8550'], ['Ideas', '#c8a04a']]);
+  assert.deepEqual(Object.fromEntries(r.body.cards.map((c) => [c.title, c.color])), {
+    Stalker: '#cae2fd', Heat: '#f3ddaa', Diary: '#c9e6ce', Plain: null, Blank: null, 'Short film': tintOf('#c8a04a'), Loose: null,
+  });
+  assert.equal(cardsOn(B1).find((c) => c.title === 'Stalker').bgColor, '#cae2fd', 'painted where the canvas paints');
+});
+
+test('on a board the pictures lead, its notes keep no colour', async () => {
+  putBoard(B1, [], { name: 'Noir' });
+  const pics = (g) => [1, 2, 3].map((i) => ({ kind: 'image', image_key: `w1/${g}${i}.webp`, w: 300, h: 200, group: g }));
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    cards: [...pics('Streets'), ...pics('Rooms'), { kind: 'note', title: 'Look', body: 'Rain.', group: 'The look' }],
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.equal(r.body.cards.find((c) => c.title === 'Look').color, null);
+  assert.deepEqual(r.body.groups.map((g) => g.color), ['#3f7ab5', '#af6440', '#3d8550'], 'its sections still take colours');
+});
+
+// An assistant added four groups' notes in one call on 2026-10-27, without
+// positions: they landed as one grid with the groups mixed in its rows, and
+// every group's outline took in other groups' cards.
+test('cards added without positions land a group at a time, each outline round its own cards only', async () => {
+  putBoard(B1, [], { name: 'Films' }, [{ id: 'g1', name: 'Canon' }, { id: 'g2', name: 'Journal' }]);
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    cards: ['g1', 'g1', 'g1', 'g2', 'g2', 'g1', null].map((group_id, i) => ({ kind: 'note', title: `n${i}`, group_id })),
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  const cards = cardsOn(B1);
+  assert.equal(cards.length, 7);
+  const hit = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  for (const g of ['g1', 'g2']) {
+    const m = cards.filter((c) => c.groupId === g);
+    const x = Math.min(...m.map((c) => c.x)); const y = Math.min(...m.map((c) => c.y));
+    const frame = {
+      x: x - GROUP_OUTLINE_PAD, y: y - GROUP_LABEL_ROOM,
+      w: Math.max(...m.map((c) => c.x + c.w)) - x + 2 * GROUP_OUTLINE_PAD,
+      h: Math.max(...m.map((c) => c.y + c.h)) - y + GROUP_LABEL_ROOM + GROUP_OUTLINE_PAD,
+    };
+    for (const c of cards.filter((o) => o.groupId !== g)) {
+      assert.equal(hit(frame, c), false, `${g}'s outline takes in ${c.title}`);
+    }
+  }
+});
+
+// The live run of 2026-10-27: sections added with no positions came out as a
+// grid that centres each card in its cell, so a tidy read the taller note of a
+// row first and the order sent was lost.
+test('new sections added without positions are laid out as a tidy lays them out, in the order sent', async () => {
+  putBoard(B1, [], { name: 'Films' });
+  const sent = [
+    ['Canon', 'In the Mood for Love', 'Wong Kar-wai, 2000\n- Corridors\n- Rain'],
+    ['Canon', 'Stalker', 'Tarkovsky, 1979\n- The Zone\n- Sepia to colour\n- Long takes\n- Water everywhere'],
+    ['Canon', 'Chungking Express', 'Pineapple.'],
+    ['Journal', 'Rewatched Heat', 'The diner scene.'],
+    ['Journal', 'Cinema on Thursday', '1. Early\n2. Row F\n3. No phone\n4. Stay for the credits'],
+    [null, 'Loose', 'A thought.'],
+  ];
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    cards: sent.map(([group, title, body]) => ({ kind: 'note', title, body, ...(group ? { group } : {}) })),
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, b64ToBytes(boards.get(B1).doc));
+  const ids = Object.fromEntries(readGroups(doc).map((g) => [g.name, g.id]));
+  const cards = cardsOn(B1);
+  const read = [...cards].sort((a, b) => (a.y - b.y) || (a.x - b.x));
+  for (const g of ['Canon', 'Journal']) {
+    assert.deepEqual(read.filter((c) => c.groupId === ids[g]).map((c) => c.title),
+      sent.filter(([s]) => s === g).map(([, t]) => t), `${g} reads in the order sent`);
+  }
+  // Already tidy: arrange_board's default would move nothing.
+  const tidy = await api('POST', `/boards/${B1}/arrange`, { dry_run: true });
+  assert.equal(tidy.status, 200, JSON.stringify(tidy.body));
+  for (const c of tidy.body.cards) {
+    const was = cards.find((x) => x.id === c.id);
+    assert.deepEqual([c.x, c.y], [was.x, was.y], `${was.title} would move`);
+  }
+  // A card for a section already there goes by that section's cards.
+  const canon = cards.filter((c) => c.groupId === ids.Canon);
+  const more = await api('POST', `/boards/${B1}/cards`, { cards: [{ kind: 'note', title: 'Heat', group: 'Canon' }] });
+  assert.equal(more.status, 201, JSON.stringify(more.body));
+  const heat = cardsOn(B1).find((c) => c.title === 'Heat');
+  const left = Math.min(...canon.map((c) => c.x));
+  const bottom = Math.max(...canon.map((c) => c.y + c.h));
+  const right = Math.max(...canon.map((c) => c.x + c.w));
+  assert.ok((heat.x === left && heat.y > bottom - 1) || heat.x >= right, `Heat at ${heat.x},${heat.y} is by Canon`);
+});
+
+// What ChatGPT had to do on 2026-10-27 to put eleven notes in four sections:
+// make each group first and copy its id onto every card. A section can now be
+// named on the card, and is made with the cards when the board has none.
+test('cards name their sections: the board\'s group of that name, else one made with them, in the order listed', async () => {
+  putBoard(B1, [], { name: 'Films' }, [{ id: 'g-canon', name: 'Canon', color: '#111111', createdAt: '2026-10-01T00:00:00Z' }]);
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    groups: [{ name: 'Journal', color: '#af6440' }, { name: 'canon' }],
+    cards: [
+      { kind: 'note', title: 'Marty Supreme', group: 'Canon' },
+      { kind: 'note', title: 'Diary, Oct 3', group: 'Journal' },
+      { kind: 'note', title: 'Heat', group: 'To Watch' },
+      { kind: 'note', title: 'Loose' },
+    ],
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.deepEqual(r.body.groups.map((g) => [g.name, g.created]),
+    [['Journal', true], ['Canon', false], ['To Watch', true]]);
+  assert.equal(r.body.groups[0].color, '#af6440');
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, b64ToBytes(boards.get(B1).doc));
+  const byName = Object.fromEntries(readGroups(doc).map((g) => [g.name, g]));
+  assert.deepEqual(Object.keys(byName).sort(), ['Canon', 'Journal', 'To Watch']);
+  assert.ok(doc.getMap('groups').get(byName.Journal.id) instanceof Y.Map, 'made the way the app reads a group');
+  const cards = cardsOn(B1);
+  const of = (t) => cards.find((c) => c.title === t);
+  assert.equal(of('Marty Supreme').groupId, 'g-canon');
+  assert.equal(of('Diary, Oct 3').groupId, byName.Journal.id);
+  assert.equal(of('Heat').groupId, byName['To Watch'].id);
+  assert.equal(of('Loose').groupId ?? null, null);
+  assert.deepEqual(r.body.cards.map((c) => c.title), ['Marty Supreme', 'Diary, Oct 3', 'Heat', 'Loose'],
+    'the answer keeps the order sent');
+  // Laid out in the order listed: Journal's block before Canon's.
+  const top = (gid) => Math.min(...cards.filter((c) => c.groupId === gid).map((c) => c.y * 10000 + c.x));
+  assert.ok(top(byName.Journal.id) < top('g-canon'), 'Journal comes first');
+
+  const again = await api('POST', `/boards/${B1}/cards`, { cards: [{ kind: 'note', title: 'Thief', group: 'to watch' }] });
+  assert.equal(again.status, 201, JSON.stringify(again.body));
+  assert.deepEqual(again.body.groups.map((g) => [g.name, g.created]), [['To Watch', false]], 'found again, not made twice');
+  assert.equal(readGroups((() => { const d = new Y.Doc(); Y.applyUpdate(d, b64ToBytes(boards.get(B1).doc)); return d; })()).length, 3);
+});
+
+test('a group_id that is not on the board is refused before anything is written', async () => {
+  putBoard(B1, [], { name: 'Films' }, [{ id: 'g1', name: 'Canon' }]);
+  const before = boards.get(B1).doc;
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    cards: [{ kind: 'note', title: 'ok', group_id: 'g1', x: 0, y: 0 }, { kind: 'note', title: 'lost', group_id: 'g-gone', x: 0, y: 300 }],
+  });
+  assert.equal(r.status, 400, JSON.stringify(r.body));
+  assert.match(r.body.error, /cards\[1\]: group_id "g-gone" is not a group on this board/);
+  assert.equal(boards.get(B1).doc, before, 'nothing written');
+  assert.equal(calls.filter((c) => c.path === 'card_index').length, 0, 'nothing indexed');
+  const both = await api('POST', `/boards/${B1}/cards`, { cards: [{ kind: 'note', group: 'Canon', group_id: 'g1' }] });
+  assert.equal(both.status, 400);
+  assert.match(both.body.error, /group .* or group_id, not both/);
+});
+
+test('a palette made through the API is the app\'s palette card', async () => {
+  putBoard(B1, [], { name: 'Tokyo noir' });
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    kind: 'palette', title: 'Tokyo noir, 1974',
+    swatches: [{ hex: '#0B1D2A', name: 'Night' }, { hex: '#C8102E', name: 'Lantern' }, '#E9C46A'],
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  const [card] = cardsOn(B1);
+  assert.equal(card.kind, 'palette');
+  assert.deepEqual(card.swatches, [
+    { name: 'Night', hex: '#0b1d2a' }, { name: 'Lantern', hex: '#c8102e' }, { name: 'Color', hex: '#e9c46a' },
+  ]);
+  assert.deepEqual(r.body.cards[0].swatches[2], { hex: '#e9c46a', name: null });
+  const bad = await api('POST', `/boards/${B1}/cards`, { cards: [{ kind: 'palette', swatches: ['navy'] }] });
+  assert.equal(bad.status, 400);
+  assert.match(bad.body.error, /^cards\[0\]: swatches\[0\] needs a hex/);
+});
+
+test('a card moves into a section by name, and out of one with an empty name', async () => {
+  putBoard(B1, [
+    { id: 'c1', kind: 'note', title: 'Heat', x: 0, y: 0, w: 280, h: 120, groupId: 'g1' },
+    { id: 'c2', kind: 'note', title: 'Thief', x: 300, y: 0, w: 280, h: 120 },
+  ], { name: 'Films' }, [{ id: 'g1', name: 'To Watch' }]);
+  const r = await api('PATCH', `/boards/${B1}/cards`, {
+    cards: [{ id: 'c2', group: 'Rewatch' }, { id: 'c1', group: '' }],
+  });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(r.body.groups.map((g) => [g.name, g.created]), [['Rewatch', true]]);
+  const cards = Object.fromEntries(cardsOn(B1).map((c) => [c.id, c]));
+  assert.equal(cards.c2.groupId, r.body.groups[0].id);
+  assert.equal(cards.c1.groupId, null);
+  const stray = await api('PATCH', `/boards/${B1}/cards`, { cards: [{ id: 'c1', group_id: 'nope' }] });
+  assert.equal(stray.status, 400, JSON.stringify(stray.body));
+  const one = await api('PATCH', `/boards/${B1}/cards/c1`, { group: 'Rewatch' });
+  assert.equal(one.status, 200, JSON.stringify(one.body));
+  assert.equal(cardsOn(B1).find((c) => c.id === 'c1').groupId, cards.c2.groupId, 'the single-card patch names one too');
+});
+
 test('read_board over /mcp says what it read in its first line, then the JSON, people\'s text marked', async () => {
   scopes = ['read'];
   putBoard(B1, [
@@ -1209,4 +1492,162 @@ test('read_board over /mcp says what it read in its first line, then the JSON, p
   // Concise: what each card says and where it belongs, not where it sits.
   assert.deepEqual(out.structuredContent.cards.map((c) => Object.keys(c)), [['id', 'kind', 'body', 'group_id'], ['id', 'kind', 'body']]);
   assert.deepEqual(out.structuredContent.groups.map((g) => g.name), ['Stills']);
+});
+
+// ── arrange: auto, order, and notes brought up to date (P7) ──────────────────
+
+// A note the API made before a note showed what it was written with: title and
+// body only (the canvas drew the body), its colour on `color` (the canvas
+// paints bgColor), 280×180 whatever it held. ChatGPT's film diary, 2026-10-27.
+const oldApiNote = (id, groupId, title, x, y) => ({
+  id, kind: 'note', groupId, x, y, w: 280, h: 180, title, color: '#F3DDAA',
+  body: '9.75 / 10\n\nOne of your highest-rated films.\n\nNOTES\n• What makes the lead performance electric?\n'
+    + '• How does the film build momentum?\n• Favorite scene / sequence:',
+});
+
+const overlapping = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+const frameOf = (cards, g) => {
+  const m = cards.filter((c) => c.groupId === g);
+  const x = Math.min(...m.map((c) => c.x)); const y = Math.min(...m.map((c) => c.y));
+  return {
+    x: x - GROUP_OUTLINE_PAD, y: y - GROUP_LABEL_ROOM,
+    w: Math.max(...m.map((c) => c.x + c.w)) - x + 2 * GROUP_OUTLINE_PAD,
+    h: Math.max(...m.map((c) => c.y + c.h)) - y + GROUP_LABEL_ROOM + GROUP_OUTLINE_PAD,
+  };
+};
+
+function filmDiary() {
+  putBoard(B1, [
+    oldApiNote('api-1', 'g1', 'MARTY SUPREME (2025)', 80, 80),
+    oldApiNote('api-2', 'g1', 'SINNERS (2025)', 380, 80),
+    oldApiNote('api-3', 'g2', 'ONE BATTLE AFTER ANOTHER', 80, 290),
+    oldApiNote('api-4', 'g2', 'WEAPONS', 388, 290),
+    { ...oldApiNote('api-5', 'g2', 'Opened in the app', 80, 500), html: '<p>Rewritten</p>', noteFragmentSeeded: true },
+    { id: 'n-app', kind: 'note', groupId: 'g1', x: 680, y: 80, w: 280, h: 180, html: '<p>Made in the app</p>' },
+  ], { name: 'Film diary' }, [{ id: 'g1', name: 'Canon' }, { id: 'g2', name: 'Journal' }]);
+}
+
+test('a tidy is auto: each section a block apart from the others, and the API\'s older notes show their title and colour at their text\'s height', async () => {
+  filmDiary();
+  const r = await api('POST', `/boards/${B1}/arrange`, {});
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.layout, 'auto');
+  assert.equal(r.body.arranged, 6);
+  assert.equal(r.body.repaired, 4, 'the four the API made and nobody opened');
+  assert.equal(r.body.sections, 2);
+  assert.ok(r.body.bounds.w > 0 && r.body.bounds.h > 0);
+
+  const cards = cardsOn(B1);
+  const by = Object.fromEntries(cards.map((c) => [c.id, c]));
+  for (const id of ['api-1', 'api-2', 'api-3', 'api-4']) {
+    assert.match(by[id].html, /^<h2>[^<]+<\/h2><p>9\.75 \/ 10<\/p>/, `${id} shows its title`);
+    assert.equal(by[id].bgColor, '#f3ddaa');
+    assert.equal(by[id].color, null);
+    assert.ok(by[id].h > 180, `${id} is as tall as its text: ${by[id].h}`);
+  }
+  assert.equal(by['api-5'].html, '<p>Rewritten</p>', 'a note opened in the app keeps its text');
+  assert.equal(by['api-5'].h, 180);
+  assert.equal(by['n-app'].html, '<p>Made in the app</p>');
+  for (let i = 0; i < cards.length; i++) {
+    for (let j = i + 1; j < cards.length; j++) assert.ok(!overlapping(cards[i], cards[j]), `${cards[i].id} on ${cards[j].id}`);
+  }
+  assert.ok(!overlapping(frameOf(cards, 'g1'), frameOf(cards, 'g2')), 'the outlines and names stay apart');
+  assert.equal(Math.min(...cards.map((c) => c.x)), 80, 'where the board was');
+  assert.equal(Math.min(...cards.map((c) => c.y)), 80);
+
+  const again = await api('POST', `/boards/${B1}/arrange`, {});
+  assert.equal(again.body.repaired, 0);
+  const after = Object.fromEntries(cardsOn(B1).map((c) => [c.id, c]));
+  for (const c of cards) assert.deepEqual([after[c.id].x, after[c.id].y, after[c.id].w, after[c.id].h], [c.x, c.y, c.w, c.h], `${c.id} moved`);
+});
+
+test('a dry run says what a tidy would bring up to date, and writes nothing', async () => {
+  filmDiary();
+  const before = cardsOn(B1);
+  const r = await api('POST', `/boards/${B1}/arrange`, { dry_run: true });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.repaired, 4);
+  assert.match(r.body.cards.find((c) => c.id === 'api-1').html, /^<h2>MARTY/);
+  assert.deepEqual(cardsOn(B1), before);
+});
+
+test('a note edited in the app while a tidy runs keeps what was written, and is only moved', async () => {
+  filmDiary();
+  const edited = new Y.Doc();
+  Y.applyUpdate(edited, b64ToBytes(boards.get(B1).doc));
+  edited.getMap('cards').get('api-1').set('html', '<p>Typed just now</p>');
+  const later = bytesToB64(Y.encodeStateAsUpdate(edited));
+  let reads = 0;
+  on('GET', 'board_state', () => {
+    reads += 1;
+    return reply([{ doc: reads === 1 ? boards.get(B1).doc : later }]);
+  });
+  const r = await api('POST', `/boards/${B1}/arrange`, {});
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.repaired, 3);
+  const note = cardsOn(B1).find((c) => c.id === 'api-1');
+  assert.equal(note.html, '<p>Typed just now</p>');
+  assert.equal(note.bgColor, undefined);
+});
+
+test('order puts cards first, the rest in reading order; anything but a list of ids is refused', async () => {
+  putBoard(B1, ['a', 'b', 'c', 'd'].map((id, i) => ({ id, kind: 'note', x: 80 + i * 300, y: 80, w: 280, h: 180 })));
+  const bad = await api('POST', `/boards/${B1}/arrange`, { order: 'd' });
+  assert.equal(bad.status, 400);
+  assert.match(bad.body.error, /order lists card ids/);
+  const r = await api('POST', `/boards/${B1}/arrange`, { order: ['d', 'nope', 'c'] });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const read = cardsOn(B1).sort((p, q) => (p.y - q.y) || (p.x - q.x)).map((c) => c.id);
+  assert.deepEqual(read, ['d', 'c', 'a', 'b']);
+  const named = await api('POST', `/boards/${B1}/arrange`, { layout: 'grid', order: ['b'] });
+  assert.equal(named.status, 200);
+  const wrong = await api('POST', `/boards/${B1}/arrange`, { layout: 'tidy' });
+  assert.equal(wrong.status, 400);
+  assert.match(wrong.body.error, /auto, justified/);
+});
+
+test('pictures are laid out at their true shape, and one added with no size takes its own', async () => {
+  const rows = [
+    { storage_path: 'w1/tall.webp', width: 1000, height: 1500 },
+    { storage_path: 'w1/wide.webp', width: 1600, height: 900 },
+  ];
+  on('GET', 'images', (c) => {
+    const keys = idFromQuery(c.query, 'storage_path') || [];
+    return reply(rows.filter((r) => keys.includes(r.storage_path)));
+  });
+  putBoard(B1, [
+    { id: 'p1', kind: 'image', src: 'r2:w1/tall.webp', x: 80, y: 80, w: 280, h: 180 },
+    { id: 'p2', kind: 'image', src: 'r2:w1/wide.webp', x: 400, y: 80, w: 280, h: 180 },
+  ]);
+  const r = await api('POST', `/boards/${B1}/arrange`, {});
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const by = Object.fromEntries(cardsOn(B1).map((c) => [c.id, c]));
+  assert.ok(Math.abs(by.p1.w / by.p1.h - 1000 / 1500) < 0.02, `${by.p1.w}×${by.p1.h}`);
+  assert.ok(Math.abs(by.p2.w / by.p2.h - 1600 / 900) < 0.02, `${by.p2.w}×${by.p2.h}`);
+
+  const add = await api('POST', `/boards/${B1}/cards`, {
+    cards: [{ kind: 'image', image_key: 'w1/tall.webp' }, { kind: 'image', image_key: 'w1/wide.webp' },
+      { kind: 'image', image_key: 'w1/wide.webp', w: 500, h: 100 }, { kind: 'image', image_key: 'w1/unknown.webp' }],
+  });
+  assert.equal(add.status, 201, JSON.stringify(add.body));
+  assert.deepEqual(add.body.cards.map((c) => [c.w, c.h]), [[280, 420], [280, 158], [500, 100], [280, 180]]);
+});
+
+test('a card write can name auto, and its sections land apart', async () => {
+  putBoard(B1, [], { name: 'Films' });
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    layout: 'auto',
+    cards: ['Canon', 'Canon', 'Journal', 'Canon', 'Journal', 'To watch'].map((group, i) => ({
+      kind: 'note', title: `n${i}`, body: 'A line.\nAnother.'.repeat(1 + (i % 3)), group,
+    })),
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  const cards = cardsOn(B1);
+  const groups = [...new Set(cards.map((c) => c.groupId))];
+  assert.equal(groups.length, 3);
+  for (let i = 0; i < groups.length; i++) {
+    for (let j = i + 1; j < groups.length; j++) {
+      assert.ok(!overlapping(frameOf(cards, groups[i]), frameOf(cards, groups[j])), 'sections apart');
+    }
+  }
 });

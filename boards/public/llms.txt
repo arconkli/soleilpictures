@@ -108,7 +108,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [Tags API](https://clusters.soleilpictures.com/docs/api/tags): List a Soleil Clusters workspace's tags over REST, see everything carrying one, and put tags on cards or take them off, by name or by id.
 - [Images API](https://clusters.soleilpictures.com/docs/api/images): Upload an image to Soleil Clusters in one POST, or files of any size with multipart. Endpoints, limits, storage quota, and listing images back.
 - [Import](https://clusters.soleilpictures.com/docs/api/import): Bring reference in from wherever it lives now — a shared drive folder, a CDN, any list of URLs — with an import you can safely run twice.
-- [Arrange](https://clusters.soleilpictures.com/docs/api/arrange): Lay cards out automatically — justified rows, colour-ordered masonry or a uniform grid — or place them by hand with z-order, rotation and groups.
+- [Arrange](https://clusters.soleilpictures.com/docs/api/arrange): Tidy a board in one call — each section its own block, every picture whole — or lay cards out as justified rows, masonry or a grid, or place them by hand.
 - [Identifiers and properties](https://clusters.soleilpictures.com/docs/api/metadata): Attach foreign IDs and structured fields to boards and cards, look objects up by them, and run the same import twice without duplicating anything.
 - [Search API](https://clusters.soleilpictures.com/docs/api/search): Search Soleil Clusters boards and cards by text over REST. Query parameters, kind and workspace filters, pagination and result shape.
 - [Export](https://clusters.soleilpictures.com/docs/api/export): Get a whole board out, either as complete JSON or as MovieLabs OMC-JSON, the ontology film studios use to describe creative material.

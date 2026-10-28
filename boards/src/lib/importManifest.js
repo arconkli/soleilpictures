@@ -92,6 +92,8 @@ export function normalizeImportItems(input) {
       url,
       title: typeof raw.title === 'string' ? raw.title.slice(0, MAX_TITLE) : null,
       caption: typeof raw.caption === 'string' ? raw.caption.slice(0, MAX_TITLE) : null,
+      // The section it goes in, by name, as a card names one (POST /cards).
+      group: typeof raw.group === 'string' && raw.group.trim() ? raw.group : null,
       props: raw.props ?? null,
       identifiers: raw.identifiers ?? null,
       // Coordinates are optional and pass straight through; anything without
@@ -164,6 +166,7 @@ export function cardSpecFor(item, { kind, stored = null, importedAt }) {
   for (const k of ['x', 'y', 'w', 'h']) {
     if (item[k] !== undefined) spec[k] = item[k];
   }
+  if (item.group) spec.group = item.group;
 
   // Only the CALLER's props ride on the card spec. Provenance is written
   // separately by provenanceProps(), because these keys live under the reserved

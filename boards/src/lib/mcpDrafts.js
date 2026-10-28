@@ -90,7 +90,7 @@ export const isDraftKey = (s) => typeof s === 'string' && /^dk_[A-Za-z0-9_-]{43}
 // sharing or publishing, no tokens or webhooks, no audit log, no comments or
 // tags, no deleting clusters. The rest ask the person to sign in.
 export const DRAFT_TOOLS = Object.freeze([
-  'search', 'fetch', 'list_boards', 'read_board', 'view_board',
+  'search', 'fetch', 'list_boards', 'read_board', 'view_board', 'show_board',
   'create_boards', 'update_boards', 'add_cards', 'import_urls', 'write_doc', 'edit_doc_page',
   'create_group', 'arrange_board', 'move_cards', 'update_cards', 'delete_cards',
 ]);
@@ -109,7 +109,7 @@ export function draftRouteAllowed(method, parts) {
   if (id === 'tree') return method === 'GET';
   if (!sub) return method === 'GET' || method === 'PATCH';
   if (sub === 'import' || sub === 'arrange' || sub === 'docs') return method === 'POST';
-  if (sub === 'export' || sub === 'gallery') return method === 'GET';
+  if (sub === 'export' || sub === 'gallery' || sub === 'canvas') return method === 'GET';
   return sub === 'groups' || sub === 'cards';
 }
 

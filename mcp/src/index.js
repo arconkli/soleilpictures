@@ -262,6 +262,8 @@ const ctx = {
   tools: TOOLS,
   api,
   uploadLocalFile,
+  // Where the inline view's pictures come from (resources/read's CSP).
+  origin: BASE,
   // Each call gets an api() bound to the tool that made it, so a retried POST
   // carries a stable idempotency key derived from the tool and its arguments.
   forTool: (tool, args) => ({

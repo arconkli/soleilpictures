@@ -18,12 +18,13 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   TOOLS, HOSTED_TOOLS, PROMPTS, SERVER_INFO, RENAMED, RENAMED_PROMPTS, TREE_MAX, PLACE_CHOICES, toolManifest, apiErrorFrom, ApiError,
-  parseFetchId, UNTRUSTED_NOTE,
+  parseFetchId, UNTRUSTED_NOTE, BOARD_VIEW, boardOutline, OUTLINE,
 } from './mcpTools.js';
 import {
   handleMcpMessage, handleMcpRequest, headerProblem, decodeHeaderValue,
-  SUPPORTED_PROTOCOL_VERSIONS, META, ERR, INSTRUCTIONS, toolResult,
+  SUPPORTED_PROTOCOL_VERSIONS, META, ERR, INSTRUCTIONS, toolResult, VIEW_URI,
 } from './mcpServer.js';
+import { MCP_APP_HTML, MCP_APP_VERSION } from './mcpAppHtml.generated.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '../../..');
@@ -114,13 +115,22 @@ test('the npm package ships the same PROTOCOL the Worker serves', () => {
   const copy = readFileSync(resolve(REPO, 'mcp/src/server.js'), 'utf8');
   const expected = source
     .replace("from './mcpTools.js'", "from './tools.js'")
-    .replace("from './mcpValidate.js'", "from './validate.js'");
+    .replace("from './mcpValidate.js'", "from './validate.js'")
+    .replace("from './mcpAppHtml.generated.js'", "from './appHtml.js'");
   assert.equal(copy.replace(STRIP_BANNER, ''), expected,
     'mcp/src/server.js is stale — run `npm run sync` in mcp/.');
   // The permitted edits must actually have applied; if an import is ever
   // renamed, the copy would silently ship a broken specifier.
   assert.match(copy, /from '\.\/tools\.js'/);
   assert.match(copy, /from '\.\/validate\.js'/);
+  assert.match(copy, /from '\.\/appHtml\.js'/);
+});
+
+test('the npm package draws the same inline view the Worker does', () => {
+  const source = readFileSync(resolve(REPO, 'boards/src/lib/mcpAppHtml.generated.js'), 'utf8');
+  const copy = readFileSync(resolve(REPO, 'mcp/src/appHtml.js'), 'utf8');
+  assert.equal(copy.replace(STRIP_BANNER, ''), source,
+    'mcp/src/appHtml.js is stale — run `npm run sync` in mcp/.');
 });
 
 test('the npm package holds calls to the same argument rules the Worker does', () => {
@@ -221,7 +231,10 @@ test('a local-only tool refuses cleanly when there is no filesystem', async () =
 
 // ── the JSON-RPC shell ───────────────────────────────────────────────────────
 
-const ctx = { api: async (path, opts) => ({ echoed: path, method: opts?.method || 'GET' }) };
+const ctx = {
+  api: async (path, opts) => ({ echoed: path, method: opts?.method || 'GET' }),
+  origin: 'https://clusters.test',
+};
 
 // A LEGACY call: no per-request _meta, exactly as a client that opened with
 // `initialize` sends. Every assertion below that does not say otherwise is
@@ -233,10 +246,11 @@ test('initialize negotiates and advertises only what is implemented', async () =
   const r = await rpc('initialize', { protocolVersion: '2025-06-18' });
   assert.ok(r.result.protocolVersion);
   assert.equal(r.result.serverInfo.name, 'soleil-clusters');
-  assert.deepEqual(Object.keys(r.result.capabilities).sort(), ['prompts', 'tools']);
-  // Advertising resources or subscriptions and never sending one is worse than
-  // not advertising: a client waits for something that is never coming.
-  assert.equal('resources' in r.result.capabilities, false);
+  // Resources are the inline view's page, which a host reads. Nothing is
+  // offered that is never sent: advertising subscriptions with no update to
+  // send would leave a client waiting for something that never comes.
+  assert.deepEqual(Object.keys(r.result.capabilities).sort(), ['prompts', 'resources', 'tools']);
+  assert.deepEqual(r.result.capabilities.resources, {});
   assert.ok(r.result.instructions);
 });
 
@@ -370,10 +384,135 @@ test('an unsupported method is method-not-found, not a hang', async () => {
   assert.equal(r.error.code, -32601);
 });
 
-test('resources answer empty rather than erroring', async () => {
-  // A client probing for resources should get a clean "none" it can branch on.
-  assert.deepEqual((await rpc('resources/list')).result, { resources: [] });
+test('the one resource is the inline view, read as one page that fetches from this origin only', async () => {
+  const list = (await rpc('resources/list')).result.resources;
+  assert.equal(list.length, 1);
+  assert.equal(list[0].uri, VIEW_URI);
+  assert.equal(list[0].mimeType, 'text/html;profile=mcp-app', 'how a host knows it is an app');
+  assert.deepEqual(list[0]._meta.ui.csp, { resourceDomains: ['https://clusters.test'] },
+    'its pictures come from the origin that answered, preview or production');
   assert.deepEqual((await rpc('resources/templates/list')).result, { resourceTemplates: [] });
+
+  const read = (await rpc('resources/read', { uri: VIEW_URI })).result;
+  assert.equal(read.contents.length, 1);
+  const [page] = read.contents;
+  assert.equal(page.uri, VIEW_URI);
+  assert.equal(page.mimeType, BOARD_VIEW.mimeType);
+  assert.equal(page.text, MCP_APP_HTML);
+  assert.match(page.text, /^<!doctype html>/);
+  assert.deepEqual(page._meta.ui, { csp: { resourceDomains: ['https://clusters.test'] }, prefersBorder: false });
+
+  // Without an origin (the stdio package always passes one) it names production.
+  const bare = await handleMcpMessage({ jsonrpc: '2.0', id: 1, method: 'resources/read', params: { uri: BOARD_VIEW.uri } },
+    { api: ctx.api });
+  assert.deepEqual(bare.body.result.contents[0]._meta.ui.csp.resourceDomains, ['https://clusters.soleilpictures.com']);
+});
+
+test('the view\'s address names its build, and an older address gets the page as it is now', async () => {
+  // A host that kept the page it read (ChatGPT keeps a template) asks for the
+  // new one when the page changes.
+  assert.equal(VIEW_URI, `ui://clusters/board-${MCP_APP_VERSION}.html`);
+  assert.match(MCP_APP_VERSION, /^[0-9a-f]{12}$/);
+  assert.notEqual(VIEW_URI, BOARD_VIEW.uri);
+  for (const uri of [BOARD_VIEW.uri, 'ui://clusters/board-0123456789ab.html']) {
+    const [page] = (await rpc('resources/read', { uri })).result.contents;
+    assert.equal(page.uri, uri, 'answered at the address asked');
+    assert.equal(page.text, MCP_APP_HTML, `${uri} gets today's page`);
+  }
+});
+
+test('an address that is not a resource says so, in each era\'s words', async () => {
+  const legacy = await rpc('resources/read', { uri: 'ui://clusters/nope.html' });
+  assert.equal(legacy.error.code, ERR.RESOURCE_NOT_FOUND);
+  assert.equal(legacy.error.code, -32002);
+  assert.deepEqual(legacy.error.data, { uri: 'ui://clusters/nope.html' });
+  for (const uri of ['ui://clusters/board-../x.html', 'ui://clusters/board-v1.html/x', 'ui://other/board-v1.html']) {
+    assert.equal((await rpc('resources/read', { uri })).error.code, ERR.RESOURCE_NOT_FOUND, uri);
+  }
+  const { body } = await modernRpc('resources/read', { uri: 'file:///etc/passwd' });
+  assert.equal(body.error.code, ERR.INVALID_PARAMS);
+  assert.equal((await rpc('resources/read', {})).error.code, ERR.RESOURCE_NOT_FOUND);
+});
+
+test('show_board names the view, and hands the view what the model never reads', async () => {
+  const listed = (await rpc('tools/list')).result.tools.find((t) => t.name === 'show_board');
+  assert.deepEqual(listed._meta, {
+    ui: { resourceUri: VIEW_URI },
+    'ui/resourceUri': VIEW_URI,
+    'openai/outputTemplate': VIEW_URI,
+  });
+  // No other tool opens the view: a host draws one for every call that names it.
+  assert.deepEqual((await rpc('tools/list')).result.tools.filter((t) => t._meta?.ui).map((t) => t.name), ['show_board']);
+
+  const canvas = {
+    board: { id: BOARD_ID, name: 'Diner', url: 'https://clusters.test/?to=b:x', card_count: 3 },
+    bounds: { x: 0, y: 0, w: 500, h: 300 },
+    cards: [
+      { id: 'i1', kind: 'image', x: 0, y: 0, w: 200, h: 150, picture: { url: 'https://clusters.test/api/img/a.b' } },
+      { id: 'n1', kind: 'note', x: 220, y: 0, w: 200, h: 100, group_id: 'g1', title: 'Neon at 2am' },
+      { id: 'n2', kind: 'note', x: 0, y: 200, w: 200, h: 100, text: 'Wet streets, long lenses' },
+    ],
+    groups: [{ id: 'g1', x: 220, y: 0, w: 200, h: 100, name: 'Streets' }, { id: 'g2', x: 0, y: 0, w: 1, h: 1 }],
+    picture_count: 1,
+    hidden: 2,
+    expires_at: '2026-10-27T12:00:00.000Z',
+  };
+  const shown = { api: async (path) => { assert.equal(path, `/boards/${BOARD_ID}/canvas`); return canvas; } };
+  const { body } = await handleMcpMessage(
+    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'show_board', arguments: { board_id: BOARD_ID } } }, shown);
+  const r = body.result;
+  assert.equal(r.isError, undefined);
+  // The view draws the whole answer; the picture addresses go nowhere else.
+  assert.deepEqual(r._meta[BOARD_VIEW.metaKey], canvas);
+  assert.ok(!r.content[0].text.includes('/api/img/'), 'no picture address in what the model reads');
+  assert.ok(!JSON.stringify(r.structuredContent).includes('/api/img/'));
+  assert.equal(r.structuredContent.untrusted, UNTRUSTED_NOTE, 'names on a board are people\'s text');
+  assert.deepEqual(r.structuredContent.board, { id: BOARD_ID, name: 'Diner', url: 'https://clusters.test/?to=b:x' });
+  assert.equal(r.structuredContent.cards, 3);
+  assert.equal(r.structuredContent.pictures, 1);
+  assert.deepEqual(r.structuredContent.groups, ['Streets']);
+  assert.equal(r.structuredContent.not_drawn, 2);
+  assert.match(r.content[0].text, /^Showing "Diner" · 3 cards · 1 picture · https:\/\/clusters\.test\/\?to=b:x/);
+  // A host that can't draw the view still has the board in words, and its link
+  // last, for the model to hand on.
+  assert.deepEqual(r.structuredContent.outline, [
+    { section: 'Streets', cards: 1, titles: ['Neon at 2am'] },
+    { cards: 2, titles: ['Wet streets, long lenses'] },
+  ]);
+  assert.match(r.content[0].text, /\n\nOpen it in Clusters: https:\/\/clusters\.test\/\?to=b:x$/);
+  const [, json] = r.content[0].text.split('\n\n');
+  assert.deepEqual(JSON.parse(json), r.structuredContent);
+});
+
+test('a board\'s outline: its sections in reading order, a few titles each, loose cards last', () => {
+  assert.deepEqual(boardOutline({}), []);
+  assert.deepEqual(boardOutline({ cards: [], groups: [] }), []);
+  const long = 'x'.repeat(OUTLINE.titleMax + 10);
+  const outline = boardOutline({
+    cards: [
+      { id: 'a', x: 0, y: 500, group_id: 'later', title: 'Last read' },
+      { id: 'b', x: 400, y: 0, group_id: 'first', title: '  Two\n words ' },
+      { id: 'c', x: 0, y: 0, title: 'Loose' },
+      { id: 'd', x: 0, y: 40, group_id: 'gone', text: 'Its section is gone' },
+      { id: 'e', x: 0, y: 80, group_id: 'unnamed' },
+      ...Array.from({ length: OUTLINE.titles + 2 }, (_, i) => ({ id: `f${i}`, x: 600, y: 10 + i, group_id: 'first', text: i ? `Card ${i}` : long })),
+    ],
+    groups: [{ id: 'first', name: 'First' }, { id: 'later', name: 'Later' }, { id: 'unnamed' }],
+  });
+  assert.deepEqual(outline.map((s) => s.section), ['First', 'Untitled section', 'Later', undefined]);
+  assert.equal(outline[0].cards, OUTLINE.titles + 3);
+  assert.equal(outline[0].titles.length, OUTLINE.titles);
+  assert.equal(outline[0].titles[0], 'Two words');
+  assert.equal(outline[0].titles[1].length, OUTLINE.titleMax);
+  assert.ok(outline[0].titles[1].endsWith('…'));
+  assert.deepEqual(outline[1], { section: 'Untitled section', cards: 1, titles: [] });
+  assert.deepEqual(outline.at(-1), { cards: 2, titles: ['Loose', 'Its section is gone'] });
+  assert.ok(!('section' in outline.at(-1)));
+  const many = boardOutline({
+    cards: Array.from({ length: OUTLINE.sections + 3 }, (_, i) => ({ id: `c${i}`, x: 0, y: i, group_id: `g${i}` })),
+    groups: Array.from({ length: OUTLINE.sections + 3 }, (_, i) => ({ id: `g${i}`, name: `S${i}` })),
+  });
+  assert.equal(many.length, OUTLINE.sections);
 });
 
 // ── 2026-07-28: the handshake is gone ────────────────────────────────────────
@@ -399,7 +538,7 @@ test('server/discover is answered — the spec says servers MUST implement it', 
   assert.equal(status, 200);
   assert.deepEqual(body.result.supportedVersions, SUPPORTED_PROTOCOL_VERSIONS);
   assert.equal(body.result.supportedVersions[0], MODERN, 'newest first: it is a preference order');
-  assert.deepEqual(Object.keys(body.result.capabilities).sort(), ['prompts', 'tools']);
+  assert.deepEqual(Object.keys(body.result.capabilities).sort(), ['prompts', 'resources', 'tools']);
   assert.equal(body.result._meta[META.serverInfo].name, 'soleil-clusters');
   assert.equal(body.result.resultType, 'complete');
   assert.ok(body.result.ttlMs > 0);
@@ -987,6 +1126,18 @@ test('a summary that fails costs its line, never the answer', () => {
     assert.equal(out.content[0].text, '{"ok":true}');
     assert.equal(out.isError, undefined);
   } finally { console.error = err; }
+});
+
+test('a closing line comes after the JSON, and one that fails costs only itself', () => {
+  const t = { name: 'x', outputSchema: { type: 'object' }, summary: () => 'Did x', afterword: (o) => `Open ${o.url}` };
+  assert.equal(toolResult(t, {}, { url: 'https://x' }).content[0].text, 'Did x\n\n{"url":"https://x"}\n\nOpen https://x');
+  const err = console.error;
+  console.error = () => {};
+  try {
+    const out = toolResult({ ...t, afterword: () => { throw new TypeError('boom'); } }, {}, { ok: true });
+    assert.equal(out.content[0].text, 'Did x\n\n{"ok":true}');
+  } finally { console.error = err; }
+  assert.equal(toolResult({ ...t, afterword: () => null }, {}, { ok: true }).content[0].text, 'Did x\n\n{"ok":true}');
 });
 
 test('every summary reads an answer missing its fields without throwing, in one line', () => {

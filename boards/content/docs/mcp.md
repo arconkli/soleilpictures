@@ -20,6 +20,8 @@ faq:
     a: Deleting is a separate grant from writing precisely so an agent can be allowed to build without being allowed to destroy, and it is never granted by default. Over OAuth, simply do not approve it; with a token, mint one without the delete scope.
   - q: Can an agent upload a video?
     a: Only the local server can, with upload_file, because the file has to be read from a disk. The hosted one handles images with upload_image.
+  - q: Can the assistant show me the board in the chat?
+    a: In ChatGPT and Claude, yes. show_board draws the cluster inside the conversation, laid out as it is on its canvas; you can pick cards and ask about them, or open it in Clusters. Elsewhere the assistant gives you the board's link.
   - q: Is it the same set of tools either way?
     a: Yes, apart from upload_file, which needs a filesystem. Both servers are built from one registry so they cannot drift apart, though the local package's 2.x releases still have the tool names from before 3.0.
 related:
@@ -215,6 +217,7 @@ quietly failing.
 |---|---|
 | `read_board` | `board_id`, `response_format?`, `full?`, `include?`, `source?`, `since?`, paging · the board with its link, fields and how much of the card allowance is used, its groups, and a page of its cards; `format?` (`json`\|`omc`) for the whole board as one document instead |
 | `view_board` | `board_id`, `limit?` (default {{fact:galleryDefaultLimit}}, up to {{fact:galleryMaxLimit}}), `cursor?`, `card_ids?` (up to {{fact:viewBoardCloseMax}}, at a larger size) — look at a board: its overall picture, then its images in reading order, each named by its card |
+| `show_board` | `board_id` — show the person the board as it is laid out: [drawn in the chat](#the-board-in-the-chat) where the host can draw it (ChatGPT, Claude). Every answer also outlines the board, its sections and a few card titles each, and ends with its link |
 | `list_comments` | `board_id`, `status?` (`open`\|`resolved`\|`all`), `limit?` (up to {{fact:commentListMax}}), `cursor?` — the board's [comment](/docs/api/comments) threads, those inside its docs and notes with the text they are on |
 | `list_tags` | `workspace_id?`, `board_id?`, `tag?` (a name or an id), `limit?` (up to {{fact:tagItemsMax}}) — a workspace's [tags](/docs/api/tags), the tags on one board, or with `tag` everything carrying it |
 | `list_audit` | `since?`, `cursor?` — recent writes and image fetches |
@@ -224,12 +227,12 @@ quietly failing.
 | Tool | Input |
 |---|---|
 | `create_boards` | `boards[]` — one, or up to {{fact:maxBoardsPerCall}}, each `{ name, workspace_id?, parent_board_id?, view?, identifiers?, props? }`; `workspace_id?`, `on_conflict?` · each board comes back with its `url`; with no `parent_board_id` it becomes a project at the top of the workspace, where **New cluster** puts one, and the answer's `placement` offers up to {{fact:mcpPlaceChoices}} of your clusters to ask where it belongs |
-| `add_cards` | `board_id`, `cards[]` — up to {{fact:maxCardsPerCall}}, `on_conflict?` |
-| `import_urls` | `board_id`, `urls[]`, `titles?`, `dry_run?` — bring reference in from the web; safe to re-run |
+| `add_cards` | `board_id`, `cards[]` — up to {{fact:maxCardsPerCall}}, each with its section by name in `group?`, `groups?` (the sections' order and colours), `on_conflict?` · a note shows its `title` as its heading and is sized to its text, a `palette` is made from `swatches`; sections and their notes take [colours of their own](/docs/api/cards#named-colours) unless given one; leave `x`, `y`, `w` and `h` out and the server places and sizes everything — see [Cards](/docs/api/cards#notes) |
+| `import_urls` | `board_id`, `urls[]`, `titles?`, `group?`, `dry_run?` — bring reference in from the web, into a section by name if given; safe to re-run |
 | `upload_image` | `board_id`, `data` (base64), `content_type`, optionally `file_name` |
 | `upload_file` | `board_id`, `path` — **local server only**; handles large files |
 | `write_doc` | `board_id`, `pages[]` — up to {{fact:docWriteMaxPages}}, each `{ title?, markdown }`; `title?`, `x?`, `y?` for a new doc, or `card_id` and `parent_page_id?` to add pages to one · a [doc](/docs/api/docs) written from Markdown |
-| `create_group` | `board_id`, `name`, `color?`, `shape?` — say a set of cards is one thing |
+| `create_group` | `board_id`, `name`, `color?`, `shape?` — say a set of cards is one thing; `add_cards` can simply name the section instead. Given no colour, a group takes a [named one](/docs/api/cards#named-colours) |
 | `add_comment` | `board_id`, `body`, and `card_id?`, `group_id?`, `x?` and `y?`, or `reply_to?`; `quote?` and `page_id?` with a doc's `card_id` — a comment in the person's name, placed beside what it is about, on words in a doc, or a reply |
 
 **Changing**
@@ -237,9 +240,9 @@ quietly failing.
 | Tool | Input |
 |---|---|
 | `update_boards` | `boards[]` — up to {{fact:mcpUpdateBoardsMax}}, each a `board_id` and any of `name`, `view`, `parent_board_id` (`null` for the top level), `identifiers`, `props` · each board is changed on its own, and the answer lists the boards updated and why any failed |
-| `update_cards` | `board_id`, `cards[]` — up to {{fact:maxCardsPerCall}}, each an `id` and any field `add_cards` takes — `group_id` (empty to ungroup), `z`, `rotation`, `section_header`, `identifiers`, `props`, and any of the eight kinds |
+| `update_cards` | `board_id`, `cards[]` — up to {{fact:maxCardsPerCall}}, each an `id` and any field `add_cards` takes — `group` by name or `group_id` (empty to ungroup), `z`, `rotation`, `section_header`, `swatches`, `identifiers`, `props`, and any kind; `groups?` · a note's new title or body is written into it, and its height follows |
 | `edit_doc_page` | `board_id`, `card_id`, `page_id`, and `markdown` with `page_hash`, or `edits[]` (up to {{fact:docWriteMaxEdits}}), or `title` · marked destructive, since a rewrite takes words away; the board goes to Version history first |
-| `arrange_board` | `board_id`, `layout?`, `card_ids?`, `dry_run?` — lay a board out |
+| `arrange_board` | `board_id`, `layout?`, `card_ids?`, `order?`, `dry_run?` — lay a board out or tidy it: `auto` unless another layout is named — columns, the pictures leading, or blocks, whichever [suits the board](/docs/api/arrange#the-layouts) — which also brings notes made earlier up to date |
 | `move_cards` | `from_board_id`, `to_board_id`, `card_ids[]` |
 | `tag_cards` | `board_id`, `card_ids[]` (up to {{fact:tagCardsMax}}), `add[]?`, `remove[]?` (tag names or ids, up to {{fact:tagNamesMax}} each) — put [tags](/docs/api/tags) on cards or take them off, as the Tag menu does; a new name makes the tag |
 | `resolve_comments` | `board_id`, `comment_ids[]` (up to {{fact:commentResolveMax}}), `resolved?` — resolve threads, or reopen them with `false`; lists any refused, with why |
@@ -256,11 +259,11 @@ quietly failing.
 
 Card `kind` is {{fact:apiCardKinds}}, defaulting to `note`.
 
-`add_cards` accepted six of those eight for as long as the other two have
-existed — **audio** and **pdf** were missing from its schema while the REST API
-took both, so an agent could not create the two kinds Soleil Scout makes from a
-text message. Both work now, and a `file_key` from `upload_file` is what any of
-**video**, **audio**, **pdf** or **file** is built from.
+`add_cards` once lacked **audio** and **pdf** while the REST API took both, so
+an agent could not create the two kinds Soleil Scout makes from a text message.
+Both work now, and a `file_key` from `upload_file` is what any of **video**,
+**audio**, **pdf** or **file** is built from. **palette** joined them so a
+moodboard's colours are a palette card rather than hex codes in a note.
 
 Every tool carries **annotations** — `readOnlyHint`, `destructiveHint`,
 `idempotentHint` — which is what a client reads when deciding whether a call
@@ -330,6 +333,35 @@ A rewrite keeps every block it didn't change, comments and all, and is refused
 if the page changed since it was read. A picture goes in only from a file
 already on the board. The [Docs API](/docs/api/docs) has the details.
 
+## The board, in the chat
+
+`show_board` opens the board inside the conversation, in hosts that draw MCP
+Apps (ChatGPT and Claude): the cluster laid out as it is on its canvas, its
+groups named, its pictures, notes, palettes and docs where they sit. Clicking a
+card picks it, as on the canvas, and **Ask about these** puts a message in the
+chat naming what was picked, with the ids the assistant needs to look closer.
+**Open in Clusters** opens the board itself, and **View all** shows it full
+screen, to zoom and pan.
+
+The view is one page, which hosts read with `resources/read` as
+`text/html;profile=mcp-app`. Its address names its build,
+`ui://clusters/board-<build>.html`, so a host that kept an older copy asks for
+the new one, and an older address, `ui://clusters/board-v1.html` included,
+opens the page as it is now. In ChatGPT the view also draws from what ChatGPT
+hands its apps directly, so the board shows even when ChatGPT's side of MCP
+Apps doesn't answer. It loads nothing but the
+board's pictures, from {{fact:siteOrigin}}, at addresses that work for
+{{fact:signedImageLife}} ([`GET /boards/:id/canvas`](/docs/api/boards)); open
+the conversation again later and it asks for fresh ones. Every word on the board
+is drawn as text, and the only links it opens are Clusters' own.
+
+The assistant is told what the board holds, never the pictures' addresses: an
+outline of its sections, in the order they read, with how many cards each holds
+and the titles of the first few, then the cards in no section. The answer ends
+with the board's link, which the assistant is told to pass on, so a chat that
+can't draw the view, or whose view fails to open, still has the board in words
+and a way into it.
+
 ## Keep links
 
 A keep link, `https://clusters.soleilpictures.com/keep/…`, opens a cluster an
@@ -376,8 +408,8 @@ you asked, then asks where the board should live and moves it there with
 **Deleting returns the cards.** `delete_cards` responds with the cards it
 removed. Those objects are the undo — pass them back to `add_cards` to restore them.
 Worth keeping in context before destructive work. Card kinds `add_cards` does
-not create (grids, palettes, cluster cards and the like) and docs
-written in the app are the exception: the response lists them in
+not create (grids, cluster cards and the like), a palette set to hide its
+labels and docs written in the app are the exception: the response lists them in
 `not_restorable`, and they come back from the board's Version history in the
 app instead.
 

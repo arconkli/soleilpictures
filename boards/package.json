@@ -9,6 +9,8 @@
     "test:docs": "node --test src/lib/docsite.test.mjs",
     "docs:build": "node scripts/gen-docs.mjs",
     "docs:check": "node scripts/gen-docs.mjs --check",
+    "mcp-app:build": "node scripts/build-mcp-app.mjs",
+    "mcp-app:check": "node scripts/build-mcp-app.mjs --check",
     "docs:accept": "node scripts/gen-docs.mjs --accept-surface",
     "og:build": "node scripts/generate-og.mjs",
     "shots": "node scripts/shootProduct.mjs",

@@ -58,7 +58,7 @@ curl "https://clusters.soleilpictures.com/api/v1/resolve?scope=source_url&value=
 
 | The source is | You get |
 |---|---|
-| An image format the API stores (`audio`, `doc`, `file`, `image`, `link`, `note`, `pdf`, `video` covers the card kinds; see [Images](/docs/api/images)) | An **image card** — the bytes are copied into your workspace |
+| An image format the API stores (`audio`, `doc`, `file`, `image`, `link`, `note`, `palette`, `pdf`, `video` covers the card kinds; see [Images](/docs/api/images)) | An **image card** — the bytes are copied into your workspace |
 | Anything else — a PDF, a web page, a video | A **link card** pointing at the original, with a `note` saying why |
 
 Only images are copied. Large media goes through the
@@ -101,6 +101,13 @@ Imported cards are arranged as **justified rows** by default — equal-height
 rows at each picture's true aspect ratio, flush on both edges. Pass `layout`
 to choose another, or re-run [`POST /boards/:id/arrange`](/docs/api/arrange)
 afterwards to try a different one.
+
+Name a section in an item's `group` and it goes in the board's group of that
+name, made with it when the board has none, as a [card's](/docs/api/cards#sections)
+does. An import into sections is placed as cards naming them are: a new section
+laid out as `auto` lays one out, under what is already there, and pictures for a
+section the board has beside that section's cards. Bringing in a moodboard a
+section at a time — streets, faces, light — is one import each.
 
 ## Positioning and metadata
 

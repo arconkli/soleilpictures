@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MIGRATIONS_DIR } from './migrationText.mjs';
 import { HOSTED_TOOLS, toolManifest } from './mcpTools.js';
-import { handleMcpMessage, INSTRUCTIONS } from './mcpServer.js';
+import { handleMcpMessage, INSTRUCTIONS, VIEW_URI, withViewUri } from './mcpServer.js';
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 import {
   draftsOpen, DRAFT_LIFETIME_DAYS, draftSecret, draftTokens, subjectHash, sha256Hex, draftEmail, isDraftKey,
@@ -118,6 +118,7 @@ const RUNS = {
   list_boards: [{}, { deleted: true }, { depth: 2 }],
   read_board: [{ board_id: BOARD }, { board_id: BOARD, format: 'omc' }],
   view_board: [{ board_id: BOARD }, { board_id: BOARD, card_ids: ['c1'] }],
+  show_board: [{ board_id: BOARD }],
   create_boards: [{ boards: [{ name: 'Tokyo noir' }] }],
   update_boards: [{ boards: [{ board_id: BOARD, name: 'Night' }, { board_id: BOARD2, parent_board_id: BOARD }] }],
   add_cards: [{ board_id: BOARD, cards: [{ kind: 'note', body: 'rain' }] }],
@@ -168,6 +169,7 @@ test('a draft is refused every other route', () => {
     ['GET', `boards/${BOARD}/comments`], ['POST', `boards/${BOARD}/comments`], ['PATCH', `boards/${BOARD}/comments/x`],
     ['GET', `boards/${BOARD}/tags`], ['POST', `boards/${BOARD}/tags`],
     ['GET', `boards/${BOARD}/import`], ['GET', `boards/${BOARD}/docs`], ['POST', `boards/${BOARD}/gallery`],
+    ['POST', `boards/${BOARD}/canvas`], ['DELETE', `boards/${BOARD}/canvas`],
     ['POST', 'boards/tree'], ['GET', 'boards/move'], ['POST', 'search'], ['PATCH', 'workspaces'],
   ];
   for (const [method, path] of refused) {
@@ -317,6 +319,19 @@ test('/mcp lists the tools its way and introduces drafts', async () => {
   assert.deepEqual(tools.map((t) => t.name), HOSTED_TOOLS.map((t) => t.name), 'the same tools, in order');
   assert.ok(tools.find((t) => t.name === 'add_cards').inputSchema.properties.draft);
   assert.deepEqual(tools.find((t) => t.name === 'share_board').securitySchemes.map((s) => s.type), ['oauth2']);
+  // Each is the registry's own listing, decorated: never the raw tool, whose
+  // private fields would leak and whose _meta (the view) and `untrusted` would not.
+  HOSTED_TOOLS.forEach((t, i) => assert.deepEqual(tools[i], withViewUri(mixedManifest(toolManifest(t))), t.name));
+  const show = tools.find((t) => t.name === 'show_board');
+  assert.equal(show._meta.ui.resourceUri, VIEW_URI);
+  assert.equal(show._meta['openai/outputTemplate'], VIEW_URI);
+  assert.equal(show._meta['ui/resourceUri'], VIEW_URI);
+  assert.ok(show.outputSchema.properties.untrusted, 'peoplesText answers declare untrusted');
+  for (const t of tools) {
+    for (const k of ['meta', 'peoplesText', 'call', 'summary', 'forModel', 'view', 'afterword', 'local']) {
+      assert.equal(k in t, false, `${t.name} lists ${k}`);
+    }
+  }
 
   const init = await handleMcpMessage({ jsonrpc: '2.0', id: 2, method: 'initialize', params: { protocolVersion: '2025-11-25' } },
     { instructions: DRAFT_INSTRUCTIONS });

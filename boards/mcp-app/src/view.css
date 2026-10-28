@@ -1,0 +1,552 @@
+/* The inline view (direction B). The host's own variables (MCP Apps' standard
+   names, set on <html> by bridge.js applyHostLook) win over the fallbacks
+   here; the board's own tokens follow the theme. Gold is the selection's and
+   focus's alone. Inside the board, --s is the drawing's scale: anything that
+   should keep its size on screen at any zoom is divided by it. */
+
+:root {
+  color-scheme: light dark;
+  --sel: #ffa500;
+  --on-sel: #1a1205;
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f5f5f4;
+  --color-text-primary: #141413;
+  --color-text-secondary: #3d3d3a;
+  --color-text-tertiary: #6b6962;
+  --color-border-primary: rgba(31, 30, 29, 0.15);
+  --color-border-secondary: rgba(31, 30, 29, 0.08);
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --ground: #f5f5f7;
+  --card: #ffffff;
+  --card-line: #d8d8dc;
+  --sk: #ebebee;
+  --label: var(--color-text-tertiary);
+  /* The host's safe area, full screen (main.js sets them from its context). */
+  --safe-top: 0px;
+  --safe-right: 0px;
+  --safe-bottom: 0px;
+  --safe-left: 0px;
+}
+
+:root[data-theme='dark'] {
+  --color-background-primary: #212121;
+  --color-background-secondary: #2a2a2a;
+  --color-text-primary: #ececec;
+  --color-text-secondary: #c5c5c5;
+  --color-text-tertiary: #a3a3a3;
+  --color-border-primary: rgba(255, 255, 255, 0.12);
+  --color-border-secondary: rgba(255, 255, 255, 0.07);
+  --ground: #0a0a0c;
+  --card: #1c1c20;
+  --card-line: #2c2c32;
+  --sk: #2a2a2e;
+  --label: #888890;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --color-background-primary: #212121;
+    --color-background-secondary: #2a2a2a;
+    --color-text-primary: #ececec;
+    --color-text-secondary: #c5c5c5;
+    --color-text-tertiary: #a3a3a3;
+    --color-border-primary: rgba(255, 255, 255, 0.12);
+    --color-border-secondary: rgba(255, 255, 255, 0.07);
+    --ground: #0a0a0c;
+    --card: #1c1c20;
+    --card-line: #2c2c32;
+    --sk: #2a2a2e;
+    --label: #888890;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: transparent;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: inherit;
+}
+
+svg { display: block; flex: none; }
+
+[hidden] { display: none !important; }
+
+/* ── The frame ─────────────────────────────────────────────────────────── */
+
+.w {
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.w-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px 12px;
+}
+
+.w-titles {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.w-title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.w-meta {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-text-tertiary);
+}
+
+.w-acts { display: flex; gap: 8px; flex: none; }
+.w-acts:empty { display: none; }
+
+.w-body {
+  position: relative;
+  padding: 0 16px;
+}
+
+.w-msg {
+  margin: 0;
+  padding: 18px 0 6px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.w-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 16px;
+}
+
+.btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+}
+
+.btn-p {
+  background: var(--color-text-primary);
+  color: var(--color-background-primary);
+  border-color: transparent;
+}
+
+.btn-t {
+  border-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.btn:hover { background: var(--color-background-secondary); }
+.btn-p:hover { background: var(--color-text-primary); opacity: 0.88; }
+
+button:focus-visible {
+  outline: 2px solid var(--sel);
+  outline-offset: 2px;
+}
+
+.selc {
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.selc i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sel);
+  display: block;
+}
+
+.skb {
+  display: block;
+  border-radius: 6px;
+  background: var(--sk);
+}
+
+.skb-t { width: 150px; height: 14px; margin: 3px 0 6px; }
+.skb-m { width: 110px; height: 10px; margin-bottom: 3px; }
+
+/* ── The board ─────────────────────────────────────────────────────────── */
+
+.b-stage {
+  --s: 1;
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--ground);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.b-stage.is-loading { height: 280px; }
+
+.b-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+
+.b-it {
+  position: absolute;
+  display: block;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.b-it:focus-visible {
+  outline: calc(2px / var(--s)) solid var(--sel);
+  outline-offset: calc(2px / var(--s));
+}
+
+.b-it.on {
+  box-shadow: 0 0 0 calc(1.5px / var(--s)) var(--ground), 0 0 0 calc(3px / var(--s)) var(--sel);
+}
+
+.b-pic {
+  border-radius: calc(2px / var(--s));
+  background: var(--sk);
+}
+
+.b-pic img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0;
+  transition: opacity 0.18s;
+  pointer-events: none;
+}
+
+.b-pic.is-in img { opacity: 1; }
+
+.b-play {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(26px / var(--s));
+  height: calc(26px / var(--s));
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+
+.b-play svg {
+  width: calc(12px / var(--s));
+  height: calc(12px / var(--s));
+}
+
+.b-tag {
+  position: absolute;
+  left: calc(4px / var(--s));
+  bottom: calc(4px / var(--s));
+  max-width: calc(100% - 8px / var(--s));
+  padding: calc(2px / var(--s)) calc(6px / var(--s));
+  border-radius: calc(4px / var(--s));
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: calc(10px / var(--s));
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A button centres what it holds; a card's text starts at its top. */
+.b-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  background: var(--card);
+  border-radius: calc(3px / var(--s));
+  box-shadow: 0 0 0 calc(1px / var(--s)) var(--card-line);
+  color: var(--color-text-secondary);
+}
+
+.b-card.on {
+  box-shadow: 0 0 0 calc(1.5px / var(--s)) var(--ground), 0 0 0 calc(3px / var(--s)) var(--sel);
+}
+
+/* Text at the board's own size, legible once the drawing is big enough;
+   below that the card reads as lines, as the mockup drew it. */
+.b-text {
+  display: block;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.b-note { padding: 12px; }
+.b-note.is-bare { background: transparent; box-shadow: none; }
+.b-note.is-bare.on {
+  box-shadow: 0 0 0 calc(1.5px / var(--s)) var(--ground), 0 0 0 calc(3px / var(--s)) var(--sel);
+}
+
+.b-stage:not(.is-legible) .b-text { visibility: hidden; }
+
+.b-stage:not(.is-legible) .b-note::after,
+.b-stage:not(.is-legible) .b-doc::after {
+  content: '';
+  position: absolute;
+  left: 12%;
+  right: 14%;
+  top: 18%;
+  bottom: 20%;
+  background: repeating-linear-gradient(
+    to bottom,
+    color-mix(in srgb, currentColor 22%, transparent) 0 calc(2px / var(--s)),
+    transparent calc(2px / var(--s)) calc(6px / var(--s))
+  );
+}
+
+.b-stage:not(.is-legible) .b-doc::after { left: 8%; right: 10%; top: 38%; bottom: 12%; }
+
+/* A card's head line keeps a size that reads: 9px on screen, or the board's
+   13px once the drawing is larger than that. */
+.b-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  max-width: 100%;
+  font-size: max(calc(9px / var(--s)), 13px);
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.b-head svg { width: 1.1em; height: 1.1em; }
+
+.b-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.b-sub {
+  display: block;
+  margin-top: 0.3em;
+  font-size: max(calc(8px / var(--s)), 12px);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.b-doc,
+.b-link,
+.b-board,
+.b-file {
+  padding: max(calc(6px / var(--s)), 10px) max(calc(7px / var(--s)), 12px);
+}
+
+.b-doc .b-text { margin-top: 8px; font-size: 13px; line-height: 1.5; }
+
+.b-pal {
+  flex-direction: row;
+  gap: max(calc(2px / var(--s)), 4px);
+  padding: max(calc(3px / var(--s)), 6px);
+}
+
+.b-sw {
+  flex: 1;
+  min-width: 0;
+  border-radius: calc(2px / var(--s));
+}
+
+.b-shape {
+  background: transparent;
+  box-shadow: inset 0 0 0 calc(1.5px / var(--s)) var(--card-line);
+}
+
+.b-group {
+  --g: transparent;
+  position: absolute;
+  border-radius: calc(8px / var(--s));
+  box-shadow: inset 0 0 0 calc(1px / var(--s)) var(--color-border-secondary);
+  pointer-events: none;
+}
+
+.b-group.is-tinted {
+  background: color-mix(in srgb, var(--g) 7%, transparent);
+  box-shadow: inset 0 0 0 calc(1px / var(--s)) color-mix(in srgb, var(--g) 35%, transparent);
+}
+
+.b-group.is-bare { background: none; box-shadow: none; }
+
+.b-label {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  padding-bottom: calc(4px / var(--s));
+  font-size: calc(11px / var(--s));
+  font-weight: 600;
+  color: var(--label);
+  white-space: nowrap;
+}
+
+/* ── Full screen ───────────────────────────────────────────────────────── */
+
+html.is-full,
+html.is-full body,
+html.is-full #root { height: 100%; }
+
+html.is-full .w {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  border-radius: 0;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+}
+
+html.is-full .w-head {
+  min-height: 68px;
+  padding: 10px 24px;
+}
+
+html.is-full .w-title { font-size: 18px; line-height: 1.3; }
+
+html.is-full .w-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 24px 24px;
+}
+
+html.is-full .b-stage {
+  flex: 1;
+  min-height: 0;
+  cursor: grab;
+  touch-action: none;
+}
+
+html.is-full .b-stage.is-panning { cursor: grabbing; }
+html.is-full .b-label { font-size: calc(13px / var(--s)); }
+html.is-full .w-foot { padding: 12px 24px; border-top: 1px solid var(--color-border-primary); }
+
+.b-zoom {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(28, 28, 32, 0.72);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 1px 1px rgba(0, 0, 0, 0.3);
+  color: #f5f5f7;
+  font-size: 12px;
+  cursor: default;
+}
+
+.b-zoom button {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+}
+
+.b-zoom button:hover { background: rgba(255, 255, 255, 0.08); }
+
+.b-pct {
+  min-width: 44px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.b-zoom .fit {
+  width: auto;
+  padding: 0 10px;
+  font-weight: 500;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 8px 8px 0;
+}
+
+.x-over {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--color-background-primary) 62%, transparent);
+}
+
+.x-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+/* ── A phone ───────────────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .w-head { padding: 12px 12px 10px; }
+  .w-body { padding: 0 12px; }
+  .w-foot { padding: 12px; }
+  .w-foot .btn { height: 44px; flex: 1; }
+  .w-foot .btn-t { flex: none; }
+  html.is-full .w-head { padding: 10px 12px; }
+  html.is-full .w-body { padding: 0 12px 12px; }
+  .b-zoom button { width: 40px; height: 40px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .b-pic img { transition: none; }
+}

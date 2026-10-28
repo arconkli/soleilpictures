@@ -9630,6 +9630,14 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
+     "v": "palette"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
      "v": "pdf"
     },
     {
@@ -9642,7 +9650,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". An API caller can set position, size, title, body, HTML, URL, image key and colour, and nothing else — interior state that belongs to the editor is not writable from outside."
+     "v": ". An API caller can set position, size, title, body, HTML, URL, image key, colour, a palette's colours and the card's group, and nothing else — interior state that belongs to the editor is not writable from outside."
     }
    ]
   }
@@ -14424,6 +14432,30 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Justified rows is the only one that resizes cards — fitting a row to a width is a resize. The rest only move things."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Cards in a "
+    },
+    {
+     "t": "link",
+     "v": "group",
+     "href": "/docs/canvas/groups",
+     "children": [
+      {
+       "t": "text",
+       "v": "group"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " stay together: each group is tidied as its own block, with room for its outline and name, so no group's outline ends up round another group's cards."
     }
    ]
   },
@@ -49221,7 +49253,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — justified, masonry, grid"
+       "v": " — auto, justified, masonry, grid"
       }
      ]
     ],
@@ -53114,6 +53146,111 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "GET /boards/:id/canvas",
+   "inline": [
+    {
+     "t": "code",
+     "v": "GET /boards/:id/canvas"
+    }
+   ],
+   "id": "get-boards-id-canvas"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The board as it is drawn: where every card sits and how big it is, what each one shows at a glance, the groups round them, and for each picture an address that works without signing in for an hour. It is what the MCP server's "
+    },
+    {
+     "t": "code",
+     "v": "show_board"
+    },
+    {
+     "t": "text",
+     "v": " hands the "
+    },
+    {
+     "t": "link",
+     "v": "inline view",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "inline view"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " that draws a board in a chat, and it serves anything else that draws a board somewhere other than Clusters."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "curl \"https://clusters.soleilpictures.com/api/v1/boards/$BOARD/canvas\" \\\n  -H \"Authorization: Bearer $TOKEN\""
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"board\": { \"id\": \"…\", \"name\": \"Tokyo noir, 1974\", \"url\": \"https://clusters.soleilpictures.com/?to=b:…\",\n             \"card_count\": 33 },\n  \"bounds\": { \"x\": 0, \"y\": 0, \"w\": 2400, \"h\": 1160 },\n  \"cards\": [\n    { \"id\": \"c-81\", \"kind\": \"image\", \"x\": 0, \"y\": 0, \"w\": 240, \"h\": 160, \"z\": 1, \"group_id\": \"g1\",\n      \"title\": \"Streets 1\",\n      \"picture\": { \"url\": \"https://clusters.soleilpictures.com/api/img/…\", \"width\": 640, \"height\": 427,\n                   \"tone\": \"#1d2b44\" } },\n    { \"id\": \"n1\", \"kind\": \"note\", \"x\": 1240, \"y\": 640, \"w\": 260, \"h\": 100,\n      \"text\": \"Sodium vapour, never daylight.\", \"color\": \"#fff3c4\" },\n    { \"id\": \"p1\", \"kind\": \"palette\", \"x\": 820, \"y\": 640, \"w\": 360, \"h\": 120,\n      \"swatches\": [{ \"hex\": \"#e8a33d\", \"name\": \"Sodium\" }] }\n  ],\n  \"groups\": [{ \"id\": \"g1\", \"x\": 0, \"y\": 0, \"w\": 760, \"h\": 540, \"name\": \"Streets\" }],\n  \"picture_count\": 26,\n  \"hidden\": 0,\n  \"expires_at\": \"2026-10-27T13:00:00.000Z\"\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Cards come in the order they stack, each with its box in board units and what reads at a glance: a title, the start of its text (up to 160 characters), a note's colours, a palette's swatches, a link's domain. Colours are plain hex. A cluster's card carries its name and its thumbnail."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A picture is an image, a video's poster frame, a link's preview or a cluster's thumbnail, at its smaller rendition (the original only when it is small), and "
+    },
+    {
+     "t": "code",
+     "v": "tone"
+    },
+    {
+     "t": "text",
+     "v": " is its average colour, to draw before it arrives. Only pictures your own read of the board can see get an address, at most 80; the rest are drawn in their tone. An address works for anyone who has it until "
+    },
+    {
+     "t": "code",
+     "v": "expires_at"
+    },
+    {
+     "t": "text",
+     "v": ", so a picture deleted meanwhile stays reachable until then; ask again for fresh ones."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The first 400 cards in reading order are drawn, and "
+    },
+    {
+     "t": "code",
+     "v": "hidden"
+    },
+    {
+     "t": "text",
+     "v": " counts the rest."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "PATCH /boards/:id",
    "inline": [
     {
@@ -55578,7 +55715,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "json",
-   "code": "{\n  \"id\": \"api-m8x2p1-7fq3ka\",\n  \"kind\": \"note\",\n  \"x\": 120, \"y\": 340, \"z\": 3,\n  \"w\": 280, \"h\": 180,\n  \"title\": \"Tone\",\n  \"body\": \"Warm, low-key, practicals only\",\n  \"url\": null,\n  \"image_key\": null,\n  \"alt\": null,\n  \"color\": null,\n  \"created_at\": \"2026-08-01T09:14:02.000Z\",\n  \"updated_at\": \"2026-08-01T09:19:55.000Z\"\n}"
+   "code": "{\n  \"id\": \"api-m8x2p1-7fq3ka\",\n  \"kind\": \"note\",\n  \"x\": 120, \"y\": 340, \"z\": 3,\n  \"w\": 280, \"h\": 83,\n  \"title\": \"Tone\",\n  \"body\": \"Warm, low-key, practicals only\",\n  \"html\": \"<h2>Tone</h2><p>Warm, low-key, practicals only</p>\",\n  \"url\": null,\n  \"image_key\": null,\n  \"alt\": null,\n  \"color\": \"#f3ddaa\",\n  \"created_at\": \"2026-08-01T09:14:02.000Z\",\n  \"updated_at\": \"2026-08-01T09:19:55.000Z\"\n}"
   },
   {
    "type": "para",
@@ -55704,6 +55841,14 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
+     "v": "palette"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
      "v": "pdf"
     },
     {
@@ -55751,7 +55896,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", "
+       "v": " as its heading, "
       },
       {
        "t": "code",
@@ -55764,6 +55909,29 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "html"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "color"
+      },
+      {
+       "t": "text",
+       "v": " as its fill — see "
+      },
+      {
+       "t": "link",
+       "v": "Notes",
+       "href": "#notes",
+       "children": [
+        {
+         "t": "text",
+         "v": "Notes"
+        }
+       ]
       }
      ]
     ],
@@ -55797,7 +55965,18 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " as the caption"
+       "v": " as the caption — see "
+      },
+      {
+       "t": "link",
+       "v": "Pictures",
+       "href": "#pictures",
+       "children": [
+        {
+         "t": "text",
+         "v": "Pictures"
+        }
+       ]
       }
      ]
     ],
@@ -55996,6 +56175,43 @@ export const DOCS_CONTENT = {
        "v": "size_bytes"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "palette"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "title"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "swatches"
+      },
+      {
+       "t": "text",
+       "v": " — see "
+      },
+      {
+       "t": "link",
+       "v": "Palettes",
+       "href": "#palettes",
+       "children": [
+        {
+         "t": "text",
+         "v": "Palettes"
+        }
+       ]
+      }
+     ]
     ]
    ]
   },
@@ -56169,7 +56385,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Grids, palettes and shapes are created in the app; you can read them here, and "
+     "v": ". Grids and shapes are created in the app; you can read them here, and "
     },
     {
      "t": "code",
@@ -56178,6 +56394,537 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " gives you their full contents."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Notes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Notes"
+    }
+   ],
+   "id": "notes"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A note shows its "
+    },
+    {
+     "t": "code",
+     "v": "html"
+    },
+    {
+     "t": "text",
+     "v": ". Send a "
+    },
+    {
+     "t": "code",
+     "v": "title"
+    },
+    {
+     "t": "text",
+     "v": " and a "
+    },
+    {
+     "t": "code",
+     "v": "body"
+    },
+    {
+     "t": "text",
+     "v": " instead and the note is written the way the app writes one: the title as its heading and the body as its text, where a line starting "
+    },
+    {
+     "t": "code",
+     "v": "- "
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "* "
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "• "
+    },
+    {
+     "t": "text",
+     "v": " is a bullet, "
+    },
+    {
+     "t": "code",
+     "v": "1. "
+    },
+    {
+     "t": "text",
+     "v": " a numbered item, "
+    },
+    {
+     "t": "code",
+     "v": "[ ] "
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "[x] "
+    },
+    {
+     "t": "text",
+     "v": " a checkbox and "
+    },
+    {
+     "t": "code",
+     "v": "#"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "##"
+    },
+    {
+     "t": "text",
+     "v": " a heading, and "
+    },
+    {
+     "t": "code",
+     "v": "**bold**"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "*italic*"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "[text](https://…)"
+    },
+    {
+     "t": "text",
+     "v": " are what they say. Everything else is text, exactly as sent. "
+    },
+    {
+     "t": "code",
+     "v": "title"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "body"
+    },
+    {
+     "t": "text",
+     "v": " are kept as you sent them: they are what search and every read return."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Send your own "
+    },
+    {
+     "t": "code",
+     "v": "html"
+    },
+    {
+     "t": "text",
+     "v": " and it is used as it is, under your "
+    },
+    {
+     "t": "code",
+     "v": "title"
+    },
+    {
+     "t": "text",
+     "v": " as a heading when it doesn't open with one."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Sized to its text.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sized to its text."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Leave "
+    },
+    {
+     "t": "code",
+     "v": "h"
+    },
+    {
+     "t": "text",
+     "v": " out and a note is as tall as its text at its width — 280px unless you give "
+    },
+    {
+     "t": "code",
+     "v": "w"
+    },
+    {
+     "t": "text",
+     "v": ", or 320px when the text needs the room — from 72 to 480px, the tallest a note grows in the app. A note whose text runs past that comes back named in "
+    },
+    {
+     "t": "code",
+     "v": "warnings"
+    },
+    {
+     "t": "text",
+     "v": ": on the board its end fades out, and long writing reads better as a "
+    },
+    {
+     "t": "link",
+     "v": "doc",
+     "href": "/docs/api/docs",
+     "children": [
+      {
+       "t": "text",
+       "v": "doc"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Colour.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Colour."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " A note's "
+    },
+    {
+     "t": "code",
+     "v": "color"
+    },
+    {
+     "t": "text",
+     "v": " is its fill, a hex colour such as "
+    },
+    {
+     "t": "code",
+     "v": "#f3ddaa"
+    },
+    {
+     "t": "text",
+     "v": " or one of the "
+    },
+    {
+     "t": "link",
+     "v": "named colours",
+     "href": "#named-colours",
+     "children": [
+      {
+       "t": "text",
+       "v": "named colours"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and its text turns dark or light to read on it. Anything else is a "
+    },
+    {
+     "t": "code",
+     "v": "400"
+    },
+    {
+     "t": "text",
+     "v": ". A note made without a "
+    },
+    {
+     "t": "code",
+     "v": "color"
+    },
+    {
+     "t": "text",
+     "v": ", in a section that has one, takes the section's colour lightened (its tint), so the sections read apart at a glance — but not on a board where pictures lead (at least half of its cards pictures, and some sections words: their colours carry it), and not on a board of one section. Send "
+    },
+    {
+     "t": "code",
+     "v": "\"color\": null"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "\"\""
+    },
+    {
+     "t": "text",
+     "v": " to keep a note plain, or to take a note's colour off with an update; over "
+    },
+    {
+     "t": "link",
+     "v": "MCP",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "MCP"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", where a null means a value wasn't given, "
+    },
+    {
+     "t": "code",
+     "v": "\"\""
+    },
+    {
+     "t": "text",
+     "v": ". Other kinds keep "
+    },
+    {
+     "t": "code",
+     "v": "color"
+    },
+    {
+     "t": "text",
+     "v": " as given."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Changing one.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Changing one."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " A new "
+    },
+    {
+     "t": "code",
+     "v": "title"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "body"
+    },
+    {
+     "t": "text",
+     "v": " on a note the API wrote is written into it the same way, and its height follows unless you send "
+    },
+    {
+     "t": "code",
+     "v": "h"
+    },
+    {
+     "t": "text",
+     "v": ". A note that has since been edited in the app keeps the text it has there, and a note resized by hand keeps its size. A note the API made before notes worked this way is brought up to date the next time its board is "
+    },
+    {
+     "t": "link",
+     "v": "arranged",
+     "href": "/docs/api/arrange",
+     "children": [
+      {
+       "t": "text",
+       "v": "arranged"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Palettes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Palettes"
+    }
+   ],
+   "id": "palettes"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A "
+    },
+    {
+     "t": "code",
+     "v": "palette"
+    },
+    {
+     "t": "text",
+     "v": " card is a row of colours, each a hex and, if you like, a name:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"kind\": \"palette\", \"title\": \"Tokyo noir, 1974\",\n  \"swatches\": [ { \"hex\": \"#0b1d2a\", \"name\": \"Night\" },\n                { \"hex\": \"#c8102e\", \"name\": \"Lantern\" }, \"#e9c46a\" ] }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Up to 12 swatches; a plain hex string is a swatch with no name. Left without "
+    },
+    {
+     "t": "code",
+     "v": "w"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "h"
+    },
+    {
+     "t": "text",
+     "v": ", the card is made wide enough for every swatch to show its name over its hex. It reads back with "
+    },
+    {
+     "t": "code",
+     "v": "swatches"
+    },
+    {
+     "t": "text",
+     "v": ", each with a "
+    },
+    {
+     "t": "code",
+     "v": "name"
+    },
+    {
+     "t": "text",
+     "v": " only where one was given."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Pictures",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pictures"
+    }
+   ],
+   "id": "pictures"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An "
+    },
+    {
+     "t": "code",
+     "v": "image"
+    },
+    {
+     "t": "text",
+     "v": " made from an "
+    },
+    {
+     "t": "code",
+     "v": "image_key"
+    },
+    {
+     "t": "text",
+     "v": " with no "
+    },
+    {
+     "t": "code",
+     "v": "w"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "h"
+    },
+    {
+     "t": "text",
+     "v": " takes the picture's own shape: 280px wide, as a note is, or 420px tall and narrower when the picture is tall, so it shows whole rather than cropped."
     }
    ]
   },
@@ -56232,7 +56979,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "one of the eight above"
+       "v": "one of the kinds above"
       }
      ]
     ],
@@ -56547,7 +57294,54 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "40 chars"
+       "v": "40 chars — on a "
+      },
+      {
+       "t": "code",
+       "v": "note"
+      },
+      {
+       "t": "text",
+       "v": ", its fill: a hex colour or a "
+      },
+      {
+       "t": "link",
+       "v": "named colour",
+       "href": "#named-colours",
+       "children": [
+        {
+         "t": "text",
+         "v": "named colour"
+        }
+       ]
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "swatches"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "array"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "a "
+      },
+      {
+       "t": "code",
+       "v": "palette"
+      },
+      {
+       "t": "text",
+       "v": "'s colours, up to 12"
       }
      ]
     ],
@@ -56642,7 +57436,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "clamped to 40–4000; default 280 × 180"
+       "v": "clamped to 40–4000; omit them and a note is sized to its text, a palette to its swatches, anything else 280 × 180"
       }
      ]
     ],
@@ -56690,6 +57484,41 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "group"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "string"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "120 chars — the "
+      },
+      {
+       "t": "link",
+       "v": "section",
+       "href": "#sections",
+       "children": [
+        {
+         "t": "text",
+         "v": "section"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " the card belongs in, by name"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "group_id"
       }
      ],
@@ -56702,18 +57531,11 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "a group from "
+       "v": "a group on this board, by id — anything else is a "
       },
       {
-       "t": "link",
-       "v": "`POST /boards/:id/groups`",
-       "href": "/docs/api/arrange",
-       "children": [
-        {
-         "t": "code",
-         "v": "POST /boards/:id/groups"
-        }
-       ]
+       "t": "code",
+       "v": "400"
       }
      ]
     ],
@@ -57317,8 +58139,366 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " are placed in free space, so a batch cannot land on top of existing content. Pass both to place one yourself."
+     "v": " are placed for you, so a batch cannot land on top of existing content. Pass both to place one yourself. On an empty board, and for groups the board doesn't have cards in yet, cards are laid out as "
+    },
+    {
+     "t": "link",
+     "v": "`auto`",
+     "href": "/docs/api/arrange#the-layouts",
+     "children": [
+      {
+       "t": "code",
+       "v": "auto"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lays them out: the groups as columns, as blocks or with the pictures leading, whichever suits them, each with room for its outline and name, in the order sent, under whatever is already there, so tidying the board afterwards moves nothing. New cards for a group that already has cards on the board go under those cards, or beside them, when there is room there. Cards in no group, added to a board that has cards, go in the free space beside them."
     }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "`warnings`.",
+     "children": [
+      {
+       "t": "code",
+       "v": "warnings"
+      },
+      {
+       "t": "text",
+       "v": "."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " A card that landed but won't look as asked — a note too long to show whole — is named in "
+    },
+    {
+     "t": "code",
+     "v": "warnings"
+    },
+    {
+     "t": "text",
+     "v": ", a list of sentences beside "
+    },
+    {
+     "t": "code",
+     "v": "cards"
+    },
+    {
+     "t": "text",
+     "v": ". The cards are saved either way."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Sections",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sections"
+    }
+   ],
+   "id": "sections"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Name a card's section in "
+    },
+    {
+     "t": "code",
+     "v": "group"
+    },
+    {
+     "t": "text",
+     "v": " and it goes in the board's group of that name, made with the cards when the board has none — there is no need to make the group first and copy its id onto every card. Names match whatever their case. An optional "
+    },
+    {
+     "t": "code",
+     "v": "groups"
+    },
+    {
+     "t": "text",
+     "v": " list, up to 50, sets the order the sections are laid out in and the outline colour of any it makes, a hex or one of the "
+    },
+    {
+     "t": "link",
+     "v": "named colours",
+     "href": "#named-colours",
+     "children": [
+      {
+       "t": "text",
+       "v": "named colours"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ":"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{ \"groups\": [ { \"name\": \"The canon\", \"color\": \"#3f7ab5\" }, { \"name\": \"To watch\" } ],\n  \"cards\": [\n    { \"kind\": \"note\", \"title\": \"Marty Supreme (2025)\", \"body\": \"9.75 / 10\", \"group\": \"The canon\" },\n    { \"kind\": \"note\", \"title\": \"Heat (1995)\", \"group\": \"To watch\" }\n  ] }"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The answer lists the sections the call named in "
+    },
+    {
+     "t": "code",
+     "v": "groups"
+    },
+    {
+     "t": "text",
+     "v": ", each with its "
+    },
+    {
+     "t": "code",
+     "v": "id"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "\"created\": true"
+    },
+    {
+     "t": "text",
+     "v": " on one it made. A section made without a colour takes the next named colour no section on the board wears yet, rather than the app's gold, which marks what is selected; a section that already exists keeps its colour. "
+    },
+    {
+     "t": "code",
+     "v": "group_id"
+    },
+    {
+     "t": "text",
+     "v": " still works and must name a group on the board; a card can't carry both. Naming a section reads the board, as leaving out coordinates does."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Named colours",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Named colours"
+    }
+   ],
+   "id": "named-colours"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "There are eight colours a section's outline or a note's fill can be given by name, in any case. A section takes the outline colour; a note takes the tint, light enough for dark text in both themes. They are also the colours a section takes when given none, in this order:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Name"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Outline"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A note's tint"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "blue"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#3f7ab5"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#cae2fd"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "clay"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#af6440"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#fbd8c9"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "green"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#3d8550"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#c9e6ce"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "plum"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#9864a4"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#efd8f5"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "teal"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#008686"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#bce7e7"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "rose"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#b25e6c"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#fdd6da"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "moss"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#6d7e2b"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#dae4c2"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "slate"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#6d7889"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#dbe0e7"
+      }
+     ]
+    ]
    ]
   },
   {
@@ -57347,6 +58527,14 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " — "
+    },
+    {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": ", "
     },
     {
      "t": "code",
@@ -57386,7 +58574,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — to arrange the whole batch as it lands instead of appending it in free space, and use "
+     "v": " — to arrange the whole batch as it lands instead of appending it in free space ("
+    },
+    {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " lays each section out as a block of its own), and use "
     },
     {
      "t": "link",
@@ -57693,7 +58889,38 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "; everything else is an ordinary partial patch."
+     "v": "; everything else is an ordinary partial patch. "
+    },
+    {
+     "t": "code",
+     "v": "group"
+    },
+    {
+     "t": "text",
+     "v": " moves a card into a "
+    },
+    {
+     "t": "link",
+     "v": "section",
+     "href": "#sections",
+     "children": [
+      {
+       "t": "text",
+       "v": "section"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " by name (an empty one takes it out), and "
+    },
+    {
+     "t": "code",
+     "v": "groups"
+    },
+    {
+     "t": "text",
+     "v": " works as it does when adding."
     }
    ]
   },
@@ -57895,7 +59122,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A partial patch — only the fields you send change. No defaults are applied, so patching "
+     "v": "A partial patch — only the fields you send change, and nothing gets a default. The one thing that follows on its own is a note's text and height, as "
+    },
+    {
+     "t": "link",
+     "v": "Notes",
+     "href": "#notes",
+     "children": [
+      {
+       "t": "text",
+       "v": "Notes"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " describes: a new "
     },
     {
      "t": "code",
@@ -57903,7 +59145,23 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " alone will not resize the card."
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "body"
+    },
+    {
+     "t": "text",
+     "v": " on a note the API wrote is written into it, and its height follows unless you send "
+    },
+    {
+     "t": "code",
+     "v": "h"
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -58095,7 +59353,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Some cards cannot come back this way: any card kind this API does not create (grids, palettes, cluster cards and the like), and docs written in the app, whose pages are stored apart from the card. A delete that removes any of them lists their ids in "
+     "v": "Some cards cannot come back this way: any card kind this API does not create (grids, cluster cards and the like), a palette set to hide its labels, and docs written in the app, whose pages are stored apart from the card. A delete that removes any of them lists their ids in "
     },
     {
      "t": "code",
@@ -62893,6 +64151,14 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
+       "v": "palette"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
        "v": "pdf"
       },
       {
@@ -63209,6 +64475,46 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Name a section in an item's "
+    },
+    {
+     "t": "code",
+     "v": "group"
+    },
+    {
+     "t": "text",
+     "v": " and it goes in the board's group of that name, made with it when the board has none, as a "
+    },
+    {
+     "t": "link",
+     "v": "card's",
+     "href": "/docs/api/cards#sections",
+     "children": [
+      {
+       "t": "text",
+       "v": "card's"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " does. An import into sections is placed as cards naming them are: a new section laid out as "
+    },
+    {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " lays one out, under what is already there, and pictures for a section the board has beside that section's cards. Bringing in a moodboard a section at a time — streets, faces, light — is one import each."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Positioning and metadata",
@@ -63342,7 +64648,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "sh",
-   "code": "curl -X POST https://clusters.soleilpictures.com/api/v1/boards/$BOARD/arrange \\\n  -H \"Authorization: Bearer undefined…\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{ \"layout\": \"justified\" }'"
+   "code": "curl -X POST https://clusters.soleilpictures.com/api/v1/boards/$BOARD/arrange \\\n  -H \"Authorization: Bearer undefined…\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{}'"
   },
   {
    "type": "para",
@@ -63424,6 +64730,14 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " · "
+    },
+    {
+     "t": "code",
      "v": "column"
     },
     {
@@ -63465,6 +64779,191 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
+     "v": "`auto`",
+     "children": [
+      {
+       "t": "code",
+       "v": "auto"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — the default. A board reads as its sections ("
+    },
+    {
+     "t": "link",
+     "v": "groups",
+     "href": "/docs/canvas/groups",
+     "children": [
+      {
+       "t": "text",
+       "v": "groups"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "), so each is laid out as a block of its own: pictures (images and videos) in rows across the block, flush on both edges and each at its true shape, under the section's palette if it has one; anything else in columns, each card at its own size, a picture at the column's width and a palette or a wide card across the top. Cards in no section make one block more. The blocks are then set out whichever of three ways suits what the board holds:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Pictures lead",
+      "children": [
+       {
+        "t": "text",
+        "v": "Pictures lead"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — when at least half of the cards are pictures and some sections hold words, as a moodboard does: the picture sections large, in two columns, each under the shorter one so a short section leaves no hole, and the other sections in a column beside them."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Columns",
+      "children": [
+       {
+        "t": "text",
+        "v": "Columns"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — the sections side by side in one row, each a column (a long one up to 4 columns wide), read left to right as lists are; taken when the board shows on a screen about as large as it would as blocks."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Blocks",
+      "children": [
+       {
+        "t": "text",
+        "v": "Blocks"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — anything else: the blocks in rows, in order, at the width that brings the whole board nearest 16:10 with its rows about as wide as each other."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Neither of the first two is taken for a board that would come out a strip, far wider than a screen is."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": null,
+   "code": "Pictures lead                        Columns              Blocks\n┌ STREETS ──┐ ┌ ROOMS ────┐ ┌ LOOK ┐  ┌ A ┐ ┌ B ┐ ┌ C ┐  ┌ A ──────┐ ┌ B ┐\n│ ▒▒▒ ▒ ▒▒▒ │ │ ▒▒ ▒▒▒ ▒▒ │ │ ░░░░ │  │ □ │ │ □ │ │ □ │  │ □ □ □   │ │ □ │\n│ ▒▒ ▒▒▒▒ ▒ │ └───────────┘ │ □    │  │ □ │ │ □ │ │ □ │  └─────────┘ └───┘\n│ ▒▒▒ ▒▒ ▒▒ │ ┌ FACES ────┐ │ □    │  │ □ │ └───┘ │ □ │  ┌ C ──────────┐\n└───────────┘ │ ▒▒ ▒▒▒ ▒▒ │ │ □    │  └───┘       └───┘  │ □ □ □ □     │\n┌ LIGHT ────┐ │ ▒▒▒ ▒▒ ▒▒ │ └──────┘                     └─────────────┘\n│ ▒▒▒ ▒▒ ▒▒ │ └───────────┘\n└───────────┘"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Cards are taken in reading order — top to bottom, each row left to right — unless "
+    },
+    {
+     "t": "code",
+     "v": "order"
+    },
+    {
+     "t": "text",
+     "v": " names the ones that come first, and a column fills in that same order. Every arrangement keeps the sections in their order, so arranging a board "
+    },
+    {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " arranged moves nothing."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Notes brought up to date.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Notes brought up to date."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Any arrange brings a note the API made before notes showed their "
+    },
+    {
+     "t": "code",
+     "v": "title"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "color"
+    },
+    {
+     "t": "text",
+     "v": " up to date: its title becomes its heading, its colour its fill, and its height its text's (see "
+    },
+    {
+     "t": "link",
+     "v": "Notes",
+     "href": "/docs/api/cards#notes",
+     "children": [
+      {
+       "t": "text",
+       "v": "Notes"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "). Only a note nobody has opened or resized in the app is touched, and one edited while the arrange runs keeps what was written there and is only moved. "
+    },
+    {
+     "t": "code",
+     "v": "repaired"
+    },
+    {
+     "t": "text",
+     "v": " counts them."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
      "v": "`justified`",
      "children": [
       {
@@ -63475,7 +64974,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — the default. Rows of equal height, each picture at its true aspect ratio, flush on "
+     "v": " — rows of equal height, each picture at its true aspect ratio, flush on "
     },
     {
      "t": "strong",
@@ -63592,6 +65091,72 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Groups stay together.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Groups stay together."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " With every layout, cards in a "
+    },
+    {
+     "t": "link",
+     "v": "group",
+     "href": "/docs/canvas/groups",
+     "children": [
+      {
+       "t": "text",
+       "v": "group"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " are laid out a group at a time, each group as its own block with room for its outline and name; with the named ones the blocks are set out side by side (in one line for "
+    },
+    {
+     "t": "code",
+     "v": "row"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "column"
+    },
+    {
+     "t": "text",
+     "v": "). Cards in no group make one block more. Arranging a board that is already arranged moves nothing: "
+    },
+    {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "justified"
+    },
+    {
+     "t": "text",
+     "v": " size each image from its own pixels, so a picture shows whole rather than cropped to the card it was given, and comes out the same size the next time."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 3,
    "text": "Knobs",
@@ -63624,6 +65189,20 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "order"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Card ids to put first, in this order; the rest follow in reading order."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "gap"
       }
      ],
@@ -63644,7 +65223,15 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "The width the block is solved against. Omit it and a roughly square block is chosen from the number of items — a canvas has no edges, so there is no container to infer one from."
+       "v": "The width the block is solved against, not "
+      },
+      {
+       "t": "code",
+       "v": "auto"
+      },
+      {
+       "t": "text",
+       "v": ". Omit it and a roughly square block is chosen from the number of items — a canvas has no edges, so there is no container to infer one from."
       }
      ]
     ],
@@ -63734,8 +65321,207 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " chooses its own widths, so it takes only "
+    },
+    {
+     "t": "code",
+     "v": "order"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "gap"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The answer:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Field"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Meaning"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "layout"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The layout used"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "arranged"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "How many cards were laid out"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "repaired"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Notes the API made earlier, brought up to date"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "sections"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "How many sections the cards laid out are in"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "bounds"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "x"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "y"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "w"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "h"
+      },
+      {
+       "t": "text",
+       "v": " of the cards laid out"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "not_found"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Ids in "
+      },
+      {
+       "t": "code",
+       "v": "card_ids"
+      },
+      {
+       "t": "text",
+       "v": " that aren't on the board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "cards"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Those cards, as they now are"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
      "t": "text",
      "v": "Two things worth knowing. "
+    },
+    {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " and "
     },
     {
      "t": "code",
@@ -63747,17 +65533,40 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "resizes",
+     "v": "resize",
      "children": [
       {
        "t": "text",
-       "v": "resizes"
+       "v": "resize"
       }
      ]
     },
     {
      "t": "text",
-     "v": " cards — fitting a row to a width is a resize, and it is the only layout that does. And a named layout arranges the "
+     "v": " pictures — fitting a row to a width is a resize — and "
+    },
+    {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " stretches a palette to its section's width; the other layouts only move cards. And a layout named on a "
+    },
+    {
+     "t": "link",
+     "v": "card write",
+     "href": "/docs/api/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "card write"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " arranges the "
     },
     {
      "t": "em",
@@ -63905,13 +65714,27 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "group"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Membership of a group, by its name — made if the board has none"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "group_id"
       }
      ],
      [
       {
        "t": "text",
-       "v": "Membership of a group"
+       "v": "Membership of a group, by its id"
       }
      ]
     ],
@@ -64089,7 +65912,30 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " on any card. "
+     "v": " on any card — or skip this step, and name the group in a card's "
+    },
+    {
+     "t": "code",
+     "v": "group"
+    },
+    {
+     "t": "text",
+     "v": ": the board's group of that name is used, or made with the cards (see "
+    },
+    {
+     "t": "link",
+     "v": "Sections",
+     "href": "/docs/api/cards#sections",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sections"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "). "
     },
     {
      "t": "code",
@@ -64113,7 +65959,30 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " (following each card). Deleting a group "
+     "v": " (following each card). "
+    },
+    {
+     "t": "code",
+     "v": "color"
+    },
+    {
+     "t": "text",
+     "v": " is the outline's colour, a hex or one of the "
+    },
+    {
+     "t": "link",
+     "v": "named colours",
+     "href": "/docs/api/cards#named-colours",
+     "children": [
+      {
+       "t": "text",
+       "v": "named colours"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; a group made without one takes the next named colour no group on the board wears yet. Deleting a group "
     },
     {
      "t": "strong",
@@ -67310,6 +69179,39 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "show_board"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "board_id"
+      },
+      {
+       "t": "text",
+       "v": " — show the person the board as it is laid out: "
+      },
+      {
+       "t": "link",
+       "v": "drawn in the chat",
+       "href": "#the-board-in-the-chat",
+       "children": [
+        {
+         "t": "text",
+         "v": "drawn in the chat"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " where the host can draw it (ChatGPT, Claude). Every answer also outlines the board, its sections and a few card titles each, and ends with its link"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "list_comments"
       }
      ],
@@ -67614,11 +69516,113 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — up to 1000, "
+       "v": " — up to 1000, each with its section by name in "
+      },
+      {
+       "t": "code",
+       "v": "group?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "groups?"
+      },
+      {
+       "t": "text",
+       "v": " (the sections' order and colours), "
       },
       {
        "t": "code",
        "v": "on_conflict?"
+      },
+      {
+       "t": "text",
+       "v": " · a note shows its "
+      },
+      {
+       "t": "code",
+       "v": "title"
+      },
+      {
+       "t": "text",
+       "v": " as its heading and is sized to its text, a "
+      },
+      {
+       "t": "code",
+       "v": "palette"
+      },
+      {
+       "t": "text",
+       "v": " is made from "
+      },
+      {
+       "t": "code",
+       "v": "swatches"
+      },
+      {
+       "t": "text",
+       "v": "; sections and their notes take "
+      },
+      {
+       "t": "link",
+       "v": "colours of their own",
+       "href": "/docs/api/cards#named-colours",
+       "children": [
+        {
+         "t": "text",
+         "v": "colours of their own"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " unless given one; leave "
+      },
+      {
+       "t": "code",
+       "v": "x"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "y"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "w"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "h"
+      },
+      {
+       "t": "text",
+       "v": " out and the server places and sizes everything — see "
+      },
+      {
+       "t": "link",
+       "v": "Cards",
+       "href": "/docs/api/cards#notes",
+       "children": [
+        {
+         "t": "text",
+         "v": "Cards"
+        }
+       ]
       }
      ]
     ],
@@ -67656,11 +69660,19 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
+       "v": "group?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
        "v": "dry_run?"
       },
       {
        "t": "text",
-       "v": " — bring reference in from the web; safe to re-run"
+       "v": " — bring reference in from the web, into a section by name if given; safe to re-run"
       }
      ]
     ],
@@ -67869,7 +69881,26 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — say a set of cards is one thing"
+       "v": " — say a set of cards is one thing; "
+      },
+      {
+       "t": "code",
+       "v": "add_cards"
+      },
+      {
+       "t": "text",
+       "v": " can simply name the section instead. Given no colour, a group takes a "
+      },
+      {
+       "t": "link",
+       "v": "named one",
+       "href": "/docs/api/cards#named-colours",
+       "children": [
+        {
+         "t": "text",
+         "v": "named one"
+        }
+       ]
       }
      ]
     ],
@@ -68113,6 +70144,14 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
+       "v": "group"
+      },
+      {
+       "t": "text",
+       "v": " by name or "
+      },
+      {
+       "t": "code",
        "v": "group_id"
       },
       {
@@ -68145,6 +70184,14 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
+       "v": "swatches"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
        "v": "identifiers"
       },
       {
@@ -68157,7 +70204,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", and any of the eight kinds"
+       "v": ", and any kind; "
+      },
+      {
+       "t": "code",
+       "v": "groups?"
+      },
+      {
+       "t": "text",
+       "v": " · a note's new title or body is written into it, and its height follows"
       }
      ]
     ],
@@ -68261,11 +70316,42 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
+       "v": "order?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
        "v": "dry_run?"
       },
       {
        "t": "text",
-       "v": " — lay a board out"
+       "v": " — lay a board out or tidy it: "
+      },
+      {
+       "t": "code",
+       "v": "auto"
+      },
+      {
+       "t": "text",
+       "v": " unless another layout is named — columns, the pictures leading, or blocks, whichever "
+      },
+      {
+       "t": "link",
+       "v": "suits the board",
+       "href": "/docs/api/arrange#the-layouts",
+       "children": [
+        {
+         "t": "text",
+         "v": "suits the board"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " — which also brings notes made earlier up to date"
       }
      ]
     ],
@@ -68624,6 +70710,14 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
+     "v": "palette"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
      "v": "pdf"
     },
     {
@@ -68657,7 +70751,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " accepted six of those eight for as long as the other two have existed — "
+     "v": " once lacked "
     },
     {
      "t": "strong",
@@ -68685,7 +70779,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " were missing from its schema while the REST API took both, so an agent could not create the two kinds Soleil Scout makes from a text message. Both work now, and a "
+     "v": " while the REST API took both, so an agent could not create the two kinds Soleil Scout makes from a text message. Both work now, and a "
     },
     {
      "t": "code",
@@ -68757,7 +70851,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " is built from."
+     "v": " is built from. "
+    },
+    {
+     "t": "strong",
+     "v": "palette",
+     "children": [
+      {
+       "t": "text",
+       "v": "palette"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " joined them so a moodboard's colours are a palette card rather than hex codes in a note."
     }
    ]
   },
@@ -69581,6 +71689,138 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "The board, in the chat",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The board, in the chat"
+    }
+   ],
+   "id": "the-board-in-the-chat"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "show_board"
+    },
+    {
+     "t": "text",
+     "v": " opens the board inside the conversation, in hosts that draw MCP Apps (ChatGPT and Claude): the cluster laid out as it is on its canvas, its groups named, its pictures, notes, palettes and docs where they sit. Clicking a card picks it, as on the canvas, and "
+    },
+    {
+     "t": "strong",
+     "v": "Ask about these",
+     "children": [
+      {
+       "t": "text",
+       "v": "Ask about these"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " puts a message in the chat naming what was picked, with the ids the assistant needs to look closer. "
+    },
+    {
+     "t": "strong",
+     "v": "Open in Clusters",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open in Clusters"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " opens the board itself, and "
+    },
+    {
+     "t": "strong",
+     "v": "View all",
+     "children": [
+      {
+       "t": "text",
+       "v": "View all"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " shows it full screen, to zoom and pan."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The view is one page, which hosts read with "
+    },
+    {
+     "t": "code",
+     "v": "resources/read"
+    },
+    {
+     "t": "text",
+     "v": " as "
+    },
+    {
+     "t": "code",
+     "v": "text/html;profile=mcp-app"
+    },
+    {
+     "t": "text",
+     "v": ". Its address names its build, "
+    },
+    {
+     "t": "code",
+     "v": "ui://clusters/board-<build>.html"
+    },
+    {
+     "t": "text",
+     "v": ", so a host that kept an older copy asks for the new one, and an older address, "
+    },
+    {
+     "t": "code",
+     "v": "ui://clusters/board-v1.html"
+    },
+    {
+     "t": "text",
+     "v": " included, opens the page as it is now. In ChatGPT the view also draws from what ChatGPT hands its apps directly, so the board shows even when ChatGPT's side of MCP Apps doesn't answer. It loads nothing but the board's pictures, from https://clusters.soleilpictures.com, at addresses that work for an hour ("
+    },
+    {
+     "t": "link",
+     "v": "`GET /boards/:id/canvas`",
+     "href": "/docs/api/boards",
+     "children": [
+      {
+       "t": "code",
+       "v": "GET /boards/:id/canvas"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "); open the conversation again later and it asks for fresh ones. Every word on the board is drawn as text, and the only links it opens are Clusters' own."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The assistant is told what the board holds, never the pictures' addresses: an outline of its sections, in the order they read, with how many cards each holds and the titles of the first few, then the cards in no section. The answer ends with the board's link, which the assistant is told to pass on, so a chat that can't draw the view, or whose view fails to open, still has the board in words and a way into it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Keep links",
    "inline": [
     {
@@ -69861,7 +72101,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " does not create (grids, palettes, cluster cards and the like) and docs written in the app are the exception: the response lists them in "
+     "v": " does not create (grids, cluster cards and the like), a palette set to hide its labels and docs written in the app are the exception: the response lists them in "
     },
     {
      "t": "code",

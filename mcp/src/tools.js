@@ -52,6 +52,47 @@ const schema = (properties, required = []) => ({
 // and its failure mode is a hard tool error rather than a degraded response.
 const looseObject = (properties) => ({ type: 'object', properties, additionalProperties: true });
 
+// The inline view: a page a host draws in the chat (an MCP App) from what
+// show_board answers. Hosts read it (resources/read) at an address naming its
+// build (mcpServer.js VIEW_URI), so a copy a host kept is never older than the
+// answer it draws; `uri`, its first address, is still answered. The MIME type
+// is how they know it is one, and `metaKey` is the answer's _meta entry the
+// view draws from, which the model never reads.
+export const BOARD_VIEW = Object.freeze({
+  uri: 'ui://clusters/board-v1.html',
+  mimeType: 'text/html;profile=mcp-app',
+  metaKey: 'clusters/canvas',
+});
+
+// What a board holds, in words, for a chat that can't draw it (P7): its
+// sections in reading order, each with how many cards it has and the first few
+// cards' titles, then the cards in no section (no `section`). From the board as
+// drawn (GET /boards/:id/canvas).
+export const OUTLINE = Object.freeze({ sections: 12, titles: 5, titleMax: 60 });
+
+export function boardOutline(canvas) {
+  const cards = [...(canvas?.cards || [])].sort((a, b) => ((a.y ?? 0) - (b.y ?? 0)) || ((a.x ?? 0) - (b.x ?? 0)));
+  const names = new Map((canvas?.groups || []).map((g) => [g.id, g.name || 'Untitled section']));
+  const parts = new Map();
+  for (const c of cards) {
+    const key = c.group_id && names.has(c.group_id) ? c.group_id : '';
+    if (!parts.has(key)) parts.set(key, []);
+    parts.get(key).push(c);
+  }
+  const clipped = (s) => {
+    const t = String(s ?? '').replace(/\s+/g, ' ').trim();
+    return t.length > OUTLINE.titleMax ? `${t.slice(0, OUTLINE.titleMax - 1)}…` : t;
+  };
+  const entry = (list) => ({
+    cards: list.length,
+    titles: list.map((c) => clipped(c.title || c.text)).filter(Boolean).slice(0, OUTLINE.titles),
+  });
+  const out = [...parts].filter(([key]) => key).slice(0, OUTLINE.sections)
+    .map(([key, list]) => ({ section: names.get(key), ...entry(list) }));
+  if (parts.has('')) out.push(entry(parts.get('')));
+  return out;
+}
+
 const IDENTIFIER = {
   type: 'array',
   description: 'Foreign identifiers from another system, e.g. [{"scope":"shotgrid","value":"Shot:12345"}]',
@@ -345,7 +386,41 @@ async function placeNewBoards(out, api, { ask }) {
 
 // The kinds of card the API makes (worker-api.js CARD_KINDS; a test holds the
 // two equal). add_cards and update_cards both take them.
-const CARD_KINDS = ['note', 'image', 'link', 'doc', 'video', 'audio', 'pdf', 'file'];
+const CARD_KINDS = ['note', 'image', 'link', 'doc', 'video', 'audio', 'pdf', 'file', 'palette'];
+
+// The colours a section or a note may be given by name: lib/boardStyle.js's
+// SECTION_COLOURS, which this file can't import (a test holds them equal).
+export const COLOUR_NAMES = 'blue, clay, green, plum, teal, rose, moss, slate';
+
+// What add_cards and update_cards say about the fields that make a card look
+// right, written once. The two numbers are lib/apiCards.js's (PALETTE.maxSwatches,
+// SECTIONS.maxPerCall; a test holds them equal): this file can't import it.
+const CARD_LOOK = {
+  color: str(`A note’s fill: a hex colour like "#f3ddaa" or a colour by name (${COLOUR_NAMES}), its ink following; `
+    + 'left out, a note in a section takes the section’s colour, lightened; "" for none. On other kinds, a colour for the card'),
+  group: str('The section this card belongs in, by name: the board’s group of that name, made if there is none'),
+  swatches: {
+    type: 'array',
+    description: 'For kind=palette: its colours, in order',
+    minItems: 1,
+    maxItems: 12,
+    items: schema({
+      hex: str('A hex colour, e.g. "#1d3557"'),
+      name: str('What the colour is called, e.g. "Navy"'),
+    }, ['hex']),
+  },
+};
+const SECTIONS_LIST = {
+  type: 'array',
+  description: 'The sections the cards name (group), in the order they should come, each with an optional '
+    + 'outline colour for a section the board doesn’t have yet',
+  maxItems: 50,
+  items: schema({
+    name: str('The section'),
+    color: str(`Its outline colour: a hex like "#3f7ab5" or a name (${COLOUR_NAMES}); left out, the next of `
+      + 'those the board doesn’t wear'),
+  }, ['name']),
+};
 
 // update_boards: each board changed on its own, so one refusal names its board
 // and leaves the rest done. A move goes through POST /boards/move, one call per
@@ -425,6 +500,12 @@ export const UNTRUSTED_NOTE = 'What people wrote (names, card text, captions, co
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const named = (s, n = 80) => `"${clip(s || 'Untitled', n)}"`;
 const at = (url) => (url ? ` · ${url}` : '');
+// " in 4 sections (2 new)", for a write that named its sections.
+const sectionsSaid = (groups) => {
+  if (!groups?.length) return '';
+  const made = groups.filter((g) => g.created).length;
+  return ` in ${plural(groups.length, 'section')}${made ? ` (${made} new)` : ''}`;
+};
 const more = (o) => {
   if (!o?.has_more) return '';
   if (o.next_cursor) return `; more with cursor "${o.next_cursor}"`;
@@ -810,6 +891,54 @@ export const TOOLS = [
     },
   },
   {
+    name: 'show_board',
+    title: 'Show a board',
+    description: 'Shows the person a board as it is laid out on the canvas, in the chat itself where the app '
+      + 'can draw it (ChatGPT, Claude): pictures, notes, palettes and docs where they sit, with the groups '
+      + 'named. They can pick pictures and ask you about them, or open it in Clusters. Call it '
+      + 'once a moodboard is made or changed, or when they ask to see a board. It also answers with an outline '
+      + 'of the board (its sections and what is in them) and its link: give the person the link too, since '
+      + 'some chats can\'t draw the board. view_board is for you to look at the pictures; read_board to read '
+      + 'the text.',
+    annotations: READS,
+    peoplesText: true,
+    inputSchema: schema({ board_id: uuid('The board to show') }, ['board_id']),
+    outputSchema: looseObject({
+      board: looseObject({ id: { type: 'string' }, name: { type: 'string' }, url: { type: 'string' } }),
+      cards: { type: 'number' },
+      pictures: { type: 'number' },
+      groups: { type: 'array', items: { type: 'string' } },
+      outline: {
+        type: 'array',
+        description: 'Each section with its card count and first titles; the last entry, with no section, is the cards in none',
+        items: looseObject({
+          section: { type: 'string' },
+          cards: { type: 'number' },
+          titles: { type: 'array', items: { type: 'string' } },
+        }),
+      },
+    }),
+    // Hosts that draw apps read the first; the flat key and ChatGPT's own
+    // name for it say the same to hosts that read only those.
+    meta: { ui: { resourceUri: BOARD_VIEW.uri }, 'ui/resourceUri': BOARD_VIEW.uri, 'openai/outputTemplate': BOARD_VIEW.uri },
+    call: (a, { api }) => api(`/boards/${a.board_id}/canvas`),
+    // The model is told what the board holds; where everything sits, and the
+    // pictures' addresses, go to the view alone (BOARD_VIEW.metaKey).
+    forModel: (o) => ({
+      board: { id: o.board?.id, name: o.board?.name, url: o.board?.url },
+      cards: o.board?.card_count ?? 0,
+      pictures: o.picture_count ?? 0,
+      groups: (o.groups || []).map((g) => g.name).filter(Boolean),
+      outline: boardOutline(o),
+      ...(o.hidden ? { not_drawn: o.hidden } : {}),
+    }),
+    view: (o) => ({ [BOARD_VIEW.metaKey]: o }),
+    // The answer ends with the way in, for a chat that can't draw the view.
+    afterword: (o) => (o.board?.url ? `Open it in Clusters: ${o.board.url}` : null),
+    summary: (o) => `Showing ${named(o.board?.name)} · ${plural(o.cards ?? 0, 'card')}`
+      + `${o.pictures ? ` · ${plural(o.pictures, 'picture')}` : ''}${at(o.board?.url)}`,
+  },
+  {
     name: 'list_comments',
     title: 'List comments',
     description: 'Lists the comment threads on a board, liveliest first: the ones on the canvas (on a '
@@ -975,10 +1104,16 @@ export const TOOLS = [
   {
     name: 'add_cards',
     title: 'Add cards to a board',
-    description: 'ADDS cards to a board. Existing cards are never touched, and new cards are '
-      + 'positioned in free space so they cannot cover anything already there. Give x and y only '
-      + 'if you specifically want to place a card yourself. For an image card, call upload_image '
-      + 'first and pass the image_key it returns.',
+    description: 'ADDS cards to a board. Existing cards are never touched. Leave x, y, w and h out: each '
+      + 'card is sized to what it holds and each section is laid out as arrange_board lays one out, in the '
+      + 'order sent, clear of what is already there. A note shows its title as its heading and its body as '
+      + 'text, where "- " bullets, "1. " lists, "[ ] " checkboxes, **bold** and *italic* show as such: '
+      + 'one idea per note in a few lines; long writing goes in write_doc. Put cards in sections by '
+      + 'naming one in group (the board\'s group of that name, made if there is none), and list them in '
+      + 'groups to set their order and colours. kind=palette with swatches makes a colour palette; '
+      + 'color on a note is its fill, a hex or a colour by name; a section given no colour takes a named one, '
+      + 'and its notes take it lightened. For an image card, call upload_image first and pass the '
+      + 'image_key it returns.',
     annotations: WRITES,
     inputSchema: schema({
       board_id: uuid('The board'),
@@ -1002,29 +1137,43 @@ export const TOOLS = [
           file_name: str('The file’s own name. For kind=image and video it is what the Files view shows and what Download names the file; for kind=file, its name'),
           mime: str('For kind=file'),
           alt: str('Alt text, for kind=image'),
-          color: str('A colour for the card'),
-          x: num('Left position'), y: num('Top position'),
-          w: num('Width'), h: num('Height'),
+          color: CARD_LOOK.color,
+          swatches: CARD_LOOK.swatches,
+          x: num('Left position; leave out to have the card placed'), y: num('Top position'),
+          w: num('Width; leave out and the card is sized to what it holds'),
+          h: num('Height; leave out and a note is as tall as its text'),
           z: num('Stacking order — higher is in front'),
           rotation: num('Degrees'),
-          group_id: str('Put this card in a group, from create_group'),
+          group: CARD_LOOK.group,
+          group_id: str('Put this card in a group by its id; group, by name, is simpler'),
           section_header: bool('Render as a full-width heading; also becomes an <h2> if the board is published'),
           identifiers: IDENTIFIER,
           props: PROPS,
         }),
       },
+      groups: SECTIONS_LIST,
       layout: str('Arrange the whole batch this way instead of appending in free space',
-        { enum: ['justified', 'masonry', 'grid', 'row', 'column'] }),
+        { enum: ['auto', 'justified', 'masonry', 'grid', 'row', 'column'] }),
     }, ['board_id', 'cards']),
     outputSchema: looseObject({
       board_id: { type: 'string' },
       cards: { type: 'array', items: looseObject({ id: { type: 'string' } }) },
+      groups: { type: 'array', items: looseObject({ id: { type: 'string' }, name: { type: 'string' } }) },
+      warnings: { type: 'array', items: { type: 'string' } },
       live: { type: 'boolean' },
     }),
-    call: (a, { api }) => api(`/boards/${a.board_id}/cards`,
-      { method: 'POST', body: { cards: a.cards, on_conflict: a.on_conflict, ...(a.layout ? { layout: a.layout } : {}) } }),
+    call: (a, { api }) => api(`/boards/${a.board_id}/cards`, {
+      method: 'POST',
+      body: {
+        cards: a.cards,
+        on_conflict: a.on_conflict,
+        ...(a.groups ? { groups: a.groups } : {}),
+        ...(a.layout ? { layout: a.layout } : {}),
+      },
+    }),
     summary: (o) => `Added ${plural(o.created ?? o.cards?.length ?? 0, 'card')}${o.updated ? `, updated ${o.updated}` : ''}`
-      + `${o.live === false ? '; a board already open shows them after a reload' : ''}`,
+      + `${sectionsSaid(o.groups)}${o.live === false ? '; a board already open shows them after a reload' : ''}`
+      + `${o.warnings?.length ? `; ${plural(o.warnings.length, 'warning')} below` : ''}`,
   },
   {
     name: 'import_urls',
@@ -1050,8 +1199,10 @@ export const TOOLS = [
           + 'from each filename.',
         items: { type: 'string' },
       },
-      layout: str('How to arrange what lands. Default justified.',
-        { enum: ['justified', 'masonry', 'grid', 'row', 'column'] }),
+      group: str('The section they all go in, by name: the board’s group of that name, made if there is none. '
+        + 'Import a moodboard’s pictures a section at a time'),
+      layout: str('How to arrange what lands. Default justified; with a group, placed as add_cards places a section.',
+        { enum: ['auto', 'justified', 'masonry', 'grid', 'row', 'column'] }),
       dry_run: bool('Check the list without fetching or creating anything'),
     }, ['board_id', 'urls']),
     outputSchema: looseObject({
@@ -1066,6 +1217,7 @@ export const TOOLS = [
         items: (a.urls || []).map((u, i) => ({
           url: u,
           ...(a.titles?.[i] ? { title: a.titles[i] } : {}),
+          ...(a.group ? { group: a.group } : {}),
         })),
         ...(a.layout ? { layout: a.layout } : {}),
         ...(a.dry_run ? { dry_run: true } : {}),
@@ -1166,15 +1318,17 @@ export const TOOLS = [
   {
     name: 'create_group',
     title: 'Group a set of cards together',
-    description: 'CREATES a named group and returns its id. Pass that id as group_id when adding '
-      + 'or updating cards to put them in it. A group draws a labelled outline round its cards '
-      + 'and makes them move as one — it is how you say a set of references is one idea rather '
-      + 'than several.',
+    description: 'CREATES a named group and returns its id. add_cards and update_cards can simply name '
+      + 'the section in group instead, which makes it when the board has none by that name: use this '
+      + 'for a group before its cards exist, or for its shape. A group draws a labelled outline round '
+      + 'its cards and makes them move as one — it is how you say a set of references is one idea '
+      + 'rather than several.',
     annotations: WRITES,
     inputSchema: schema({
       board_id: uuid('The board'),
       name: str('What this set of cards is'),
-      color: str('Outline colour, e.g. "#c8a04a"'),
+      color: str(`Outline colour: a hex like "#3f7ab5" or a name (${COLOUR_NAMES}); left out, the next of those `
+        + 'the board doesn’t wear'),
       shape: str('box draws one rectangle round everything, hug follows each card', { enum: ['box', 'hug'] }),
     }, ['board_id', 'name']),
     outputSchema: looseObject({
@@ -1264,7 +1418,9 @@ export const TOOLS = [
     name: 'update_cards',
     title: 'Change cards',
     description: 'CHANGES cards on one board, one or many in a call: each entry is a card\'s id and the fields to '
-      + 'set, and anything left out keeps its value. Collaborators see the batch land at once. kind must be a real '
+      + 'set, and anything left out keeps its value. Collaborators see the batch land at once. A note\'s new title '
+      + 'or body shows as add_cards writes one, and its height follows the text unless you give h. group moves a '
+      + 'card into a section by name, made if the board has none. kind must be a real '
       + 'kind; an unknown one is refused rather than turning the card into a note. props are merged (null removes '
       + 'a key); identifiers replace the card\'s set. Cards that are not on the board come back in not_found. A '
       + 'doc\'s pages change with edit_doc_page.',
@@ -1293,28 +1449,34 @@ export const TOOLS = [
           file_name: str('The file’s own name — what the Files view shows and what Download names the file'),
           mime: str('For kind=file'),
           alt: str('Alt text'),
-          color: str('A colour for the card'),
+          color: CARD_LOOK.color,
+          swatches: CARD_LOOK.swatches,
           x: num('Left position'), y: num('Top position'),
-          w: num('Width'), h: num('Height'),
+          w: num('Width'), h: num('Height; leave out and a note follows its text'),
           z: num('Stacking order — higher is in front'),
           rotation: num('Degrees'),
-          group_id: str('Put this card in a group, from create_group; an empty string takes it out'),
+          group: CARD_LOOK.group,
+          group_id: str('Put this card in a group by its id; an empty string takes it out'),
           section_header: bool('Render as a full-width heading; also becomes an <h2> if the board is published'),
           identifiers: IDENTIFIER,
           props: PROPS,
         }, ['id']),
       },
+      groups: SECTIONS_LIST,
     }, ['board_id', 'cards']),
     outputSchema: looseObject({
       board_id: { type: 'string' },
       cards: { type: 'array' },
       updated: { type: 'number' },
       not_found: { type: 'array', items: { type: 'string' } },
+      groups: { type: 'array', items: looseObject({ id: { type: 'string' }, name: { type: 'string' } }) },
+      warnings: { type: 'array', items: { type: 'string' } },
     }),
     call: (a, { api }) => api(`/boards/${a.board_id}/cards`,
-      { method: 'PATCH', body: { cards: a.cards } }),
-    summary: (o) => `Changed ${plural(o.updated ?? o.cards?.length ?? 0, 'card')}`
-      + `${o.not_found?.length ? `; not on the board: ${o.not_found.slice(0, 5).join(', ')}${o.not_found.length > 5 ? '…' : ''}` : ''}`,
+      { method: 'PATCH', body: { cards: a.cards, ...(a.groups ? { groups: a.groups } : {}) } }),
+    summary: (o) => `Changed ${plural(o.updated ?? o.cards?.length ?? 0, 'card')}${sectionsSaid(o.groups)}`
+      + `${o.not_found?.length ? `; not on the board: ${o.not_found.slice(0, 5).join(', ')}${o.not_found.length > 5 ? '…' : ''}` : ''}`
+      + `${o.warnings?.length ? `; ${plural(o.warnings.length, 'warning')} below` : ''}`,
   },
   {
     name: 'edit_doc_page',
@@ -1365,19 +1527,28 @@ export const TOOLS = [
   {
     name: 'arrange_board',
     title: 'Lay a board out',
-    description: 'ARRANGES cards spatially. "justified" fits rows flush on both edges with each '
-      + 'picture at its true aspect ratio — the right answer for photographs, and the default. '
-      + '"masonry" is colour-ordered columns, "grid" uniform cells (best for mixed kinds), '
-      + '"row" and "column" single lines. Omit card_ids to arrange the whole board. The block '
-      + 'stays where it already was and is kept clear of cards it is not moving. Use dry_run to '
-      + 'see where things would land, and to compare two layouts, before moving anyone’s board.',
+    description: 'ARRANGES cards that are already on a board, and is how to tidy one. The default, "auto", '
+      + 'lays each section (group) out as its own block, notes in columns at their own size and pictures in '
+      + 'rows, every picture whole, and sets the sections out in order whichever way suits the board: side by '
+      + 'side as columns, the pictures leading with the words beside them, or in rows near the shape of a '
+      + 'screen; it also brings notes the API made earlier up to date (their title shown, their colour painted, '
+      + 'sized to their text). order lists card ids that come first; otherwise cards keep their reading order. '
+      + '"justified" fits rows of pictures flush on both edges, "masonry" is colour-ordered columns, "grid" '
+      + 'uniform cells, "row" and "column" single lines. Omit card_ids to arrange the whole board. The block '
+      + 'stays where it already was and is kept clear of cards it is not moving. Use dry_run to see where '
+      + 'things would land, and to compare two layouts, before moving anyone’s board.',
     annotations: EDITS,
     inputSchema: schema({
       board_id: uuid('The board'),
-      layout: str('Default justified', { enum: ['justified', 'masonry', 'grid', 'row', 'column'] }),
+      layout: str('Default auto', { enum: ['auto', 'justified', 'masonry', 'grid', 'row', 'column'] }),
       card_ids: { type: 'array', description: 'Omit to arrange everything', items: { type: 'string' } },
+      order: {
+        type: 'array',
+        description: 'Card ids to put first, in this order; the rest follow in reading order',
+        items: { type: 'string' },
+      },
       gap: num('Space between cards, default 24'),
-      width: num('Block width to solve against; defaults to a roughly square block'),
+      width: num('Block width to solve against (not auto); defaults to a roughly square block'),
       row_height: num('Target row height, justified only'),
       columns: num('Column cap, grid and masonry only'),
       dry_run: bool('Compute the layout and change nothing'),
@@ -1385,6 +1556,9 @@ export const TOOLS = [
     outputSchema: looseObject({
       layout: { type: 'string' },
       arranged: num('How many cards moved'),
+      repaired: num('Notes the API made earlier, brought up to date'),
+      sections: num('Sections among the cards arranged'),
+      bounds: looseObject({ x: num('Left'), y: num('Top'), w: num('Width'), h: num('Height') }),
       cards: { type: 'array', items: looseObject({}) },
     }),
     call: (a, { api }) => api(`/boards/${a.board_id}/arrange`, {
@@ -1392,6 +1566,7 @@ export const TOOLS = [
       body: {
         ...(a.layout ? { layout: a.layout } : {}),
         ...(a.card_ids ? { card_ids: a.card_ids } : {}),
+        ...(a.order ? { order: a.order } : {}),
         ...(Number.isFinite(a.gap) ? { gap: a.gap } : {}),
         ...(Number.isFinite(a.width) ? { width: a.width } : {}),
         ...(Number.isFinite(a.row_height) ? { row_height: a.row_height } : {}),
@@ -1400,7 +1575,11 @@ export const TOOLS = [
       },
     }),
     summary: (o, a) => `${a.dry_run ? 'Would arrange' : 'Arranged'} ${plural(o.arranged ?? o.cards?.length ?? 0, 'card')}`
-      + ` (${o.layout || a.layout || 'justified'})${a.dry_run ? '; nothing moved' : ''}`,
+      + (o.sections ? ` in ${plural(o.sections, 'section')}` : '')
+      + ` (${o.layout || a.layout || 'auto'})`
+      + (o.bounds ? `, ${Math.round(o.bounds.w)}×${Math.round(o.bounds.h)}` : '')
+      + (o.repaired ? `; ${plural(o.repaired, 'note')} ${a.dry_run ? 'would be brought' : 'brought'} up to date` : '')
+      + (a.dry_run ? '; nothing moved' : ''),
   },
   {
     name: 'move_cards',
@@ -1679,15 +1858,18 @@ export const PROMPTS = [
       + `1. create_boards: one board named for the brief${a.workspace_id ? `, in workspace ${a.workspace_id}` : ''}, `
       + 'inside the cluster I named if I named one.\n'
       + '2. If you can search the web, find 12 to 24 strong reference pictures for it (film stills, photographs, '
-      + 'paintings; each a direct link to the image) and bring them in with import_urls. If you can\'t, add notes '
-      + 'saying what pictures to look for.\n'
-      + '3. add_cards: notes for the palette (five or six colours, each named with its hex), the light, textures '
-      + 'and period details, and a few references to look at (films, photographers, painters).\n'
+      + 'paintings; each a direct link to the image), sort them into a few sections (streets, faces, light…) and '
+      + 'bring each section in with import_urls, its name in group. If you can\'t, add notes saying what pictures '
+      + 'to look for.\n'
+      + '3. add_cards, each card\'s section named in group: a palette card (kind palette, five or six swatches, '
+      + 'each a hex with a name), notes on the light, textures and period details, one idea each in a short title '
+      + 'and a few lines, and a few references to look at (films, photographers, painters). Leave x, y, w and h '
+      + 'out.\n'
       + '4. write_doc: a one-page treatment, about 200 words: the feeling, what we see, what we hear, what to avoid.\n'
       + '5. arrange_board, then view_board to look at the result, and replace anything off the brief.\n'
-      + '6. Answer with the board\'s link and two lines on where it landed. Don\'t share it unless I ask. If '
-      + 'create_boards answered with placement, end by asking me where the board should go, and move it there '
-      + 'with update_boards once I say.',
+      + '6. show_board to show it to me, then answer with the board\'s link and two lines on where it landed. '
+      + 'Don\'t share it unless I ask. If create_boards answered with placement, end by asking me where the board '
+      + 'should go, and move it there with update_boards once I say.',
   },
   {
     name: 'review_board',
@@ -1709,7 +1891,7 @@ export const PROMPTS = [
     render: (a) => `Read board ${a.board_id} with read_board (and view_board where the picture matters). `
       + 'Propose a grouping: groups on this board, or boards inside it, each with a name and the cards that go '
       + 'there. Do NOT create or move anything yet; show me the plan first. Flag anything that fits nowhere '
-      + 'rather than forcing it into a group. Once I agree: create_group and update_cards for groups, or '
+      + 'rather than forcing it into a group. Once I agree: update_cards with each card\'s group named, then arrange_board, or '
       + 'create_boards and move_cards for boards.',
   },
   {
@@ -1750,7 +1932,7 @@ export const RENAMED_PROMPTS = { describe_board: 'review_board' };
 export const SERVER_INFO = {
   name: 'soleil-clusters',
   title: 'Soleil Clusters',
-  version: '3.0.0',
+  version: '3.1.0',
   websiteUrl: 'https://clusters.soleilpictures.com/docs/mcp',
   icons: [
     { src: 'https://clusters.soleilpictures.com/icons/icon-512.png', mimeType: 'image/png', sizes: ['512x512'] },
@@ -1772,6 +1954,7 @@ export const toolManifest = (t) => ({
       : t.outputSchema,
   } : {}),
   annotations: t.annotations,
+  ...(t.meta ? { _meta: t.meta } : {}),
 });
 
 // ── Failures ─────────────────────────────────────────────────────────────────

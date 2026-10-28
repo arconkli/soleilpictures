@@ -881,6 +881,16 @@ export function openapiDocument(origin) {
           ],
         }),
       },
+      '/boards/{id}/canvas': {
+        get: op('boardCanvas', 'A board as it is drawn, for drawing it somewhere else', {
+          description: 'Where every card sits and how big it is, what each one shows at a glance (a '
+            + 'title, the start of its text, a note\'s colours, a palette\'s swatches), the groups '
+            + 'round them, and for each picture an address that works without signing in until '
+            + 'expires_at, an hour on. The first cards in reading order are drawn; hidden counts '
+            + 'the rest.',
+          parameters: [boardIdParam],
+        }),
+      },
       '/boards/{id}/cards/{cardId}/doc': {
         get: op('readDoc', 'A doc card\'s pages as Markdown', {
           description: 'Every page in page-list order, each with its Markdown, length and hash. '

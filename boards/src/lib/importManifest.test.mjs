@@ -165,6 +165,23 @@ test('explicit coordinates survive; absent ones are left for layout', () => {
   assert.equal('y' in spec2, false);
 });
 
+test('an item named into a section carries the name to the card route, which makes the section', () => {
+  const [item, loose] = normalizeImportItems([
+    { url: url('a'), group: 'Streets' },
+    { url: url('b'), group: '  ' },
+  ]);
+  assert.equal(item.group, 'Streets');
+  assert.equal(loose.group, null, 'a blank name is no section');
+  const spec = cardSpecFor(item, {
+    kind: 'image', importedAt: AT, stored: { imageKey: 'ws/a.jpg', width: 900, height: 600 },
+  });
+  // POST /cards reads a section's name off each card it is sent (sectionsFor),
+  // as it does add_cards'.
+  assert.equal(spec.group, 'Streets');
+  assert.doesNotThrow(() => normalizeIncomingCard(spec));
+  assert.equal('group' in cardSpecFor(loose, { kind: 'link', importedAt: AT }), false);
+});
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 test('a title can be read out of almost any url', () => {

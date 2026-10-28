@@ -129,7 +129,12 @@ export const CEILINGS = {
   // (lib/yhelpers.js groupYMap, and App's rename and outline going through
   // it; 86c9ea90): a cluster an assistant had sectioned opened to a spinner.
   // CI measured 690.8 KB on e8c25685 and 691.0 on 2fd4ff15, a few bytes over.
-  appJs: 691_200,
+  // 2026-10-27: +0.3 KB for grouped layouts (lib/layoutEngine.js, in
+  // CanvasSurface's closure): Tidy up lays each group's cards out together, a
+  // block per group with room for its outline and name. A local build with
+  // CI's environment measured 690.77 KB on d0d315df and 691.07 with it (CI
+  // reads about 0.25 KB above this machine's shared node_modules).
+  appJs: 691_500,
   appCss: 21_000,
 };
 

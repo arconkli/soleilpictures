@@ -1,8 +1,8 @@
 # Cards API
 
-> Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
+> Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. An unknown kind is rejected rather than silently coerced. A note shows its title as its heading and is made as tall as its text, and a card names its section by name.
 
-_Source: https://clusters.soleilpictures.com/docs/api/cards · Updated 2026-10-25_
+_Source: https://clusters.soleilpictures.com/docs/api/cards · Updated 2026-10-27_
 
 ## The card object
 
@@ -11,13 +11,14 @@ _Source: https://clusters.soleilpictures.com/docs/api/cards · Updated 2026-10-2
   "id": "api-m8x2p1-7fq3ka",
   "kind": "note",
   "x": 120, "y": 340, "z": 3,
-  "w": 280, "h": 180,
+  "w": 280, "h": 83,
   "title": "Tone",
   "body": "Warm, low-key, practicals only",
+  "html": "<h2>Tone</h2><p>Warm, low-key, practicals only</p>",
   "url": null,
   "image_key": null,
   "alt": null,
-  "color": null,
+  "color": "#f3ddaa",
   "created_at": "2026-08-01T09:14:02.000Z",
   "updated_at": "2026-08-01T09:19:55.000Z"
 }
@@ -35,18 +36,19 @@ should not be able to write arbitrary internals into everyone's board.
 
 ## Kinds
 
-The API accepts `audio`, `doc`, `file`, `image`, `link`, `note`, `pdf`, `video`.
+The API accepts `audio`, `doc`, `file`, `image`, `link`, `note`, `palette`, `pdf`, `video`.
 
 | Kind | Carries |
 |---|---|
-| `note` | `title`, `body`, `html` |
-| `image` | `image_key`, `alt`, `body` as the caption |
+| `note` | `title` as its heading, `body`, `html`, `color` as its fill — see [Notes](#notes) |
+| `image` | `image_key`, `alt`, `body` as the caption — see [Pictures](#pictures) |
 | `link` | `url`, `title`, `body` |
 | `doc` | `title`, `body`, `html` |
 | `video` | `file_key`, optional `poster_key` |
 | `audio` | `file_key`, `title`, `body` as a transcript |
 | `pdf` | `file_key`, `file_name`, optional `image_key` for the page-1 still |
 | `file` | `file_key`, `file_name`, `mime`, `ext`, `size_bytes` |
+| `palette` | `title`, `swatches` — see [Palettes](#palettes) |
 
 `video` and `file` exist because [multipart upload](/docs/api/images) accepts
 ProRes, MXF, DPX and camera raw — so without them you could upload a two-terabyte
@@ -67,14 +69,74 @@ coerced — silently turning an unknown kind into a note produced boards full of
 notes that were meant to be links.
 
 This is still narrower than [what the canvas supports](/docs/canvas/cards).
-Grids, palettes and shapes are created in the app; you can read them
+Grids and shapes are created in the app; you can read them
 here, and `?include=raw` gives you their full contents.
+
+## Notes
+
+A note shows its `html`. Send a `title` and a `body` instead and the note is
+written the way the app writes one: the title as its heading and the body as
+its text, where a line starting `- `, `* ` or `• ` is a bullet, `1. ` a
+numbered item, `[ ] ` or `[x] ` a checkbox and `#` or `##` a heading, and
+`**bold**`, `*italic*` and `[text](https://…)` are what they say. Everything
+else is text, exactly as sent. `title` and `body` are kept as you sent them:
+they are what search and every read return.
+
+Send your own `html` and it is used as it is, under your `title` as a heading
+when it doesn't open with one.
+
+**Sized to its text.** Leave `h` out and a note is as tall as its text at its
+width — 280px unless you give `w`, or 320px
+when the text needs the room — from 72 to
+480px, the tallest a note grows in the app. A note whose text
+runs past that comes back named in `warnings`: on the board its end fades out,
+and long writing reads better as a [doc](/docs/api/docs).
+
+**Colour.** A note's `color` is its fill, a hex colour such as `#f3ddaa` or one
+of the [named colours](#named-colours), and its text turns dark or light to read
+on it. Anything else is a `400`. A note made without a `color`, in a section
+that has one, takes the section's colour lightened (its tint), so the sections
+read apart at a glance — but not on a board where pictures lead (at least
+half of its cards pictures, and some sections words: their
+colours carry it), and not on a board of one section. Send `"color": null` or
+`""` to keep a note plain, or to take a note's colour off with an update; over
+[MCP](/docs/mcp), where a null means a value wasn't given, `""`. Other kinds keep
+`color` as given.
+
+**Changing one.** A new `title` or `body` on a note the API wrote is written
+into it the same way, and its height follows unless you send `h`. A note that
+has since been edited in the app keeps the text it has there, and a note
+resized by hand keeps its size. A note the API made before notes worked this
+way is brought up to date the next time its board is
+[arranged](/docs/api/arrange).
+
+## Palettes
+
+A `palette` card is a row of colours, each a hex and, if you like, a name:
+
+```json
+{ "kind": "palette", "title": "Tokyo noir, 1974",
+  "swatches": [ { "hex": "#0b1d2a", "name": "Night" },
+                { "hex": "#c8102e", "name": "Lantern" }, "#e9c46a" ] }
+```
+
+Up to 12 swatches; a plain hex string is a swatch with
+no name. Left without `w` and `h`, the card is made wide enough for every swatch
+to show its name over its hex. It reads back with `swatches`, each with a `name`
+only where one was given.
+
+## Pictures
+
+An `image` made from an `image_key` with no `w` and `h` takes the picture's own
+shape: 280px wide, as a note is, or 420px
+tall and narrower when the picture is tall, so it shows whole rather than
+cropped.
 
 ## Writable fields
 
 | Field | Type | Limit |
 |---|---|---|
-| `kind` | string | one of the eight above |
+| `kind` | string | one of the kinds above |
 | `title` | string | 300 chars |
 | `body` | string | 20000 chars |
 | `html` | string | 40000 chars |
@@ -87,13 +149,15 @@ here, and `?include=raw` gives you their full contents.
 | `ext` | string | 20 chars |
 | `size_bytes` | number | rounded |
 | `alt` | string | 300 chars — image description |
-| `color` | string | 40 chars |
+| `color` | string | 40 chars — on a `note`, its fill: a hex colour or a [named colour](#named-colours) |
+| `swatches` | array | a `palette`'s colours, up to 12 |
 | `props`, `identifiers` | see [Identifiers and properties](/docs/api/metadata) | |
 | `x`, `y` | number | rounded; omit for auto-placement |
-| `w`, `h` | number | clamped to 40–4000; default 280 × 180 |
+| `w`, `h` | number | clamped to 40–4000; omit them and a note is sized to its text, a palette to its swatches, anything else 280 × 180 |
 | `z` | number | stacking; higher is in front, fractional is fine |
 | `rotation` | number | degrees, wrapped to −180…180 |
-| `group_id` | string | a group from [`POST /boards/:id/groups`](/docs/api/arrange) |
+| `group` | string | 120 chars — the [section](#sections) the card belongs in, by name |
+| `group_id` | string | a group on this board, by id — anything else is a `400` |
 | `section_header` | boolean | render as a full-width heading |
 | `sub` | string | 300 chars — the line under a section heading |
 
@@ -173,13 +237,68 @@ Either shape works:
 
 Up to **1000** cards per call; more gets `400`.
 
-**Auto-placement.** Cards without `x`/`y` are placed in free space, so a batch
-cannot land on top of existing content. Pass both to place one yourself.
+**Auto-placement.** Cards without `x`/`y` are placed for you, so a batch cannot
+land on top of existing content. Pass both to place one yourself. On an empty
+board, and for groups the board doesn't have cards in yet, cards are laid out as
+[`auto`](/docs/api/arrange#the-layouts) lays them out: the groups as columns, as
+blocks or with the pictures leading, whichever suits them, each with room for its
+outline and name, in the order sent, under whatever is already
+there, so tidying the board afterwards moves nothing. New cards for a group that
+already has cards on the board go under those cards, or beside them, when there
+is room there. Cards in no group, added to a board that has cards, go in the
+free space beside them.
+
+**`warnings`.** A card that landed but won't look as asked — a note too long to
+show whole — is named in `warnings`, a list of sentences beside `cards`. The
+cards are saved either way.
+
+### Sections
+
+Name a card's section in `group` and it goes in the board's group of that name,
+made with the cards when the board has none — there is no need to make the group
+first and copy its id onto every card. Names match whatever their case. An
+optional `groups` list, up to 50, sets the order the
+sections are laid out in and the outline colour of any it makes, a hex or one of
+the [named colours](#named-colours):
+
+```json
+{ "groups": [ { "name": "The canon", "color": "#3f7ab5" }, { "name": "To watch" } ],
+  "cards": [
+    { "kind": "note", "title": "Marty Supreme (2025)", "body": "9.75 / 10", "group": "The canon" },
+    { "kind": "note", "title": "Heat (1995)", "group": "To watch" }
+  ] }
+```
+
+The answer lists the sections the call named in `groups`, each with its `id` and
+`"created": true` on one it made. A section made without a colour takes the next
+named colour no section on the board wears yet, rather than the app's gold,
+which marks what is selected; a section that already exists keeps its colour.
+`group_id` still works and must name a group on the board; a card can't carry
+both. Naming a section reads the board, as leaving out coordinates does.
+
+### Named colours
+
+There are eight colours a section's outline or a note's
+fill can be given by name, in any case. A section takes the outline colour; a
+note takes the tint, light enough for dark text in both themes. They are also
+the colours a section takes when given none, in this order:
+
+| Name | Outline | A note's tint |
+|---|---|---|
+| `blue` | `#3f7ab5` | `#cae2fd` |
+| `clay` | `#af6440` | `#fbd8c9` |
+| `green` | `#3d8550` | `#c9e6ce` |
+| `plum` | `#9864a4` | `#efd8f5` |
+| `teal` | `#008686` | `#bce7e7` |
+| `rose` | `#b25e6c` | `#fdd6da` |
+| `moss` | `#6d7e2b` | `#dae4c2` |
+| `slate` | `#6d7889` | `#dbe0e7` |
 
 ### Laying cards out
 
-Pass `layout` — `justified`, `masonry`, `grid`, `row` or `column` — to arrange
-the whole batch as it lands instead of appending it in free space, and use
+Pass `layout` — `auto`, `justified`, `masonry`, `grid`, `row` or `column` — to
+arrange the whole batch as it lands instead of appending it in free space
+(`auto` lays each section out as a block of its own), and use
 [`POST /boards/:id/arrange`](/docs/api/arrange) to lay out cards that already
 exist. A named layout arranges everything you sent, including cards that
 carried their own `x` and `y`.
@@ -238,7 +357,9 @@ you are upserting.
 ```
 
 Up to 1000 per call. Each entry needs an `id`; everything
-else is an ordinary partial patch.
+else is an ordinary partial patch. `group` moves a card into a
+[section](#sections) by name (an empty one takes it out), and `groups` works as
+it does when adding.
 
 The board is opened **once** for the whole batch, which is the difference
 between a five-hundred-card update taking a second and taking a minute — patching
@@ -279,8 +400,10 @@ pages already in it.
 
 ## `PATCH /boards/:id/cards/:cardId`
 
-A partial patch — only the fields you send change. No defaults are applied, so
-patching `title` alone will not resize the card.
+A partial patch — only the fields you send change, and nothing gets a default.
+The one thing that follows on its own is a note's text and height, as
+[Notes](#notes) describes: a new `title` or `body` on a note the API wrote is
+written into it, and its height follows unless you send `h`.
 
 ```sh
 curl -X PATCH "$SOLEIL_API/boards/$BOARD/cards/$CARD" \
@@ -320,8 +443,8 @@ with a new id, and its identifiers and properties are not restored with it, so
 send those again in the same `POST` if you use them.
 
 Some cards cannot come back this way: any card kind this API does not create
-(grids, palettes, cluster cards and the like), and docs written in
-the app, whose pages are stored apart from the card. A delete that removes any of them lists their ids in
+(grids, cluster cards and the like), a palette set to hide its labels, and docs
+written in the app, whose pages are stored apart from the card. A delete that removes any of them lists their ids in
 `not_restorable`, with a `recover` sentence. They are not lost: every delete
 saves the board to its Version history first, and they can be restored from
 there in the app.

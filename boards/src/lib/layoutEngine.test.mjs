@@ -8,10 +8,12 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   arrange, rearrange, relativeLayout, justifiedRows, naturalWidth, isLayout, layoutDrop,
   alignCards, distributeCards, ALIGNMENTS, AXES,
   LAYOUTS, DEFAULT_LAYOUT, LAYOUT_GAP, TARGET_ROW_HEIGHT,
+  relativeLayoutByGroup, placeGrouped, GROUP_OUTLINE_PAD, GROUP_LABEL_ROOM,
 } from './layoutEngine.js';
 
 // A deliberately awkward corpus: portrait, panorama, square, tall, and one with
@@ -511,4 +513,117 @@ test('distributing cards that already overlap does not stack them', () => {
   const out = distributeCards(crowded, 'horizontal');
   const xs = crowded.map((r) => (out.find((c) => c.id === r.id) || r).x);
   assert.equal(new Set(xs).size, 3, 'three cards collapsed onto the same x');
+});
+
+// ── Groups ───────────────────────────────────────────────────────────────────
+//
+// A group is drawn as one outline round all its cards, with its name above. The
+// failure being pinned: an assistant added four groups' notes in one call, the
+// layout set them out as one grid, and every outline took in other groups'
+// cards. (The cards themselves never overlapped, which is why the overlap
+// checks above never saw it.)
+
+// The film board as the assistant sent it: 5 + 1 + 3 + 2 notes.
+const FILM = ['canon', 'canon', 'canon', 'canon', 'canon', 'rewatch', 'journal', 'journal', 'journal', 'watch', 'watch']
+  .map((groupId, i) => ({ id: `n${i}`, kind: 'note', groupId, w: 280, h: 180 }));
+
+// The rectangle a group's outline and name take, as the canvas draws them.
+function frameOf(cards, group) {
+  const m = cards.filter((c) => c.groupId === group);
+  const x = Math.min(...m.map((c) => c.x));
+  const y = Math.min(...m.map((c) => c.y));
+  const r = Math.max(...m.map((c) => c.x + c.w));
+  const b = Math.max(...m.map((c) => c.y + c.h));
+  return {
+    x: x - GROUP_OUTLINE_PAD, y: y - GROUP_LABEL_ROOM,
+    w: r - x + 2 * GROUP_OUTLINE_PAD, h: b - y + GROUP_LABEL_ROOM + GROUP_OUTLINE_PAD,
+  };
+}
+
+function assertGroupsApart(cards, label = '') {
+  assertNoOverlap(cards, label);
+  const groups = [...new Set(cards.map((c) => c.groupId).filter(Boolean))];
+  for (const g of groups) {
+    const f = frameOf(cards, g);
+    for (const c of cards) {
+      if (c.groupId === g) continue;
+      assert.equal(overlaps(f, rect(c)), false, `${label}: ${g}'s outline takes in ${c.id} (${c.groupId || 'no group'})`);
+    }
+    for (const h of groups) {
+      if (h <= g) continue;
+      assert.equal(overlaps(f, frameOf(cards, h)), false, `${label}: ${g}'s and ${h}'s outlines overlap`);
+    }
+  }
+}
+
+test('cards added in groups land a group at a time, no outline taking in another group', () => {
+  const out = placeGrouped([], FILM);
+  assert.deepEqual(out.map((c) => c.id), FILM.map((c) => c.id), 'order changed');
+  assertGroupsApart(out, 'placeGrouped');
+  // Below what is already on the board, as an ungrouped batch goes.
+  const existing = [{ id: 'old', x: 80, y: 80, w: 600, h: 400 }];
+  const below = placeGrouped(existing, FILM);
+  assertGroupsApart([...existing, ...below], 'below a board');
+  for (const c of below) assert.ok(c.y - GROUP_LABEL_ROOM >= 480, `${c.id}'s group name sits on the card above`);
+});
+
+test('every layout keeps each group together, and tidying a tidy board moves nothing', () => {
+  // The board as the old placement left it: one grid, the groups interleaved.
+  const messy = FILM.map((c, i) => ({ ...c, x: 80 + (i % 4) * 304, y: 80 + Math.floor(i / 4) * 204 }));
+  for (const layout of LAYOUTS) {
+    const once = rearrange(messy, messy.map((c) => c.id), { layout });
+    assertGroupsApart(once, layout);
+    const tidy = messy.map((c) => once.find((o) => o.id === c.id));
+    const twice = rearrange(tidy, tidy.map((c) => c.id), { layout });
+    for (const c of twice) {
+      const was = tidy.find((t) => t.id === c.id);
+      assert.deepEqual([c.x, c.y], [was.x, was.y], `${layout}: a second tidy moved ${c.id}`);
+      // justified re-solves sizes from rounded ones, so a pixel can come and go.
+      assert.ok(Math.abs(c.w - was.w) <= 1 && Math.abs(c.h - was.h) <= 1, `${layout}: a second tidy resized ${c.id}`);
+    }
+  }
+});
+
+test('without groups the layouts are what they were', () => {
+  for (const layout of LAYOUTS) {
+    assert.deepEqual(relativeLayoutByGroup(MIXED, { layout }), relativeLayout(MIXED, { layout }), layout);
+  }
+});
+
+test('a grid keeps one gap: the first column and row are not pressed into the next', () => {
+  const out = relativeLayout(FILM.slice(0, 9).map(({ groupId, ...c }) => c), { layout: 'grid' });
+  const xs = [...new Set(out.map((c) => c.x))].sort((a, b) => a - b);
+  const ys = [...new Set(out.map((c) => c.y))].sort((a, b) => a - b);
+  assert.deepEqual(xs, [0, 304, 608]);
+  assert.deepEqual(ys, [0, 204, 408]);
+});
+
+test('a group\'s new cards land under its cards, else beside them, else below the board', () => {
+  const g = (id, x, y, groupId) => ({ id, x, y, w: 280, h: 180, groupId });
+  const two = [g('a', 80, 80, 'G'), g('b', 384, 80, 'G')];
+  const add = [{ id: 'new', kind: 'note', groupId: 'G', w: 280, h: 180 }];
+
+  // Room underneath: the new card goes under the group's cards.
+  const under = placeGrouped([...two, g('far', 2000, 80, 'H'), g('far2', 2304, 80, 'H')], add);
+  assert.deepEqual([under[0].x, under[0].y], [80, 284]);
+
+  // Another group's card right under it: beside, to the right.
+  const blocked = [...two, g('h1', 80, 340, 'H'), g('h2', 384, 340, 'H')];
+  const beside = placeGrouped(blocked, add);
+  assert.deepEqual([beside[0].x, beside[0].y], [688, 80]);
+  assertGroupsApart([...blocked, ...beside], 'beside');
+
+  // Hemmed in on both sides: below everything, never stretching the outline over others.
+  const hemmed = [...blocked, g('i1', 700, 80, 'I'), g('i2', 1004, 80, 'I')];
+  const below = placeGrouped(hemmed, add);
+  assert.ok(below[0].y >= 520 + 64, `landed at ${below[0].y}, inside the board`);
+});
+
+test('the outline and name room match what the canvas draws', () => {
+  const src = fs.readFileSync(new URL('../components/CanvasSurface.jsx', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('const groupOutlineEls'), src.indexOf('const groupOutlineEls') + 3000);
+  const pad = Number(body.match(/const PAD = (\d+);/)?.[1]);
+  const above = Number(body.match(/const labelTop\s*=\s*minY - PAD - (\d+);/)?.[1]);
+  assert.equal(pad, GROUP_OUTLINE_PAD, 'the outline pad moved');
+  assert.equal(pad + above, GROUP_LABEL_ROOM, 'the name moved');
 });

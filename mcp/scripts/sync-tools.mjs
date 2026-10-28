@@ -25,13 +25,16 @@ const FILES = [
   { from: 'boards/src/lib/mcpTools.js', to: 'src/tools.js' },
   { from: 'boards/src/lib/mcpServer.js', to: 'src/server.js' },
   { from: 'boards/src/lib/mcpValidate.js', to: 'src/validate.js' },
+  // The inline view's page, which resources/read hands a host that draws it.
+  { from: 'boards/src/lib/mcpAppHtml.generated.js', to: 'src/appHtml.js' },
 ];
 
 // The only edit: inside this package the siblings drop their `mcp` prefix.
 // Asserted by a test, so a rename cannot silently break the copy.
 const renameImports = (source) => source
   .replace("from './mcpTools.js'", "from './tools.js'")
-  .replace("from './mcpValidate.js'", "from './validate.js'");
+  .replace("from './mcpValidate.js'", "from './validate.js'")
+  .replace("from './mcpAppHtml.generated.js'", "from './appHtml.js'");
 
 for (const { from, to } of FILES) {
   const banner = `// GENERATED — do not edit. Source: ${from}\n`
