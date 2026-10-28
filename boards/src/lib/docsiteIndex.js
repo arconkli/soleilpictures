@@ -2041,7 +2041,7 @@ export const DOCS_PAGES = [
     "answer": "Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.",
     "section": "organize",
     "order": 2,
-    "updated": "2026-10-25",
+    "updated": "2026-10-27",
     "navLabel": "Search",
     "headings": [
       {

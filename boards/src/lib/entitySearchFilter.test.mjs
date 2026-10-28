@@ -4,12 +4,12 @@ import { entitySearchFilter, entitySearchRank } from './entitySearchFilter.js';
 
 test('search looks at the title, the text and an uploaded file\'s own name', () => {
   assert.equal(entitySearchFilter('diner'),
-    'title.ilike.%diner%,body.ilike.%diner%,meta->>fileName.ilike.%diner%');
+    'title.ilike.%diner%,body.ilike.%diner%,meta->>fileName.ilike.%diner%,seen.ilike.%diner%');
 });
 
 test('PostgREST syntax in a query is searched for, never parsed', () => {
   assert.equal(entitySearchFilter('Act II (rev), "final" 100%'),
-    'title.ilike.%Act II rev final 100%,body.ilike.%Act II rev final 100%,meta->>fileName.ilike.%Act II rev final 100%');
+    'title.ilike.%Act II rev final 100%,body.ilike.%Act II rev final 100%,meta->>fileName.ilike.%Act II rev final 100%,seen.ilike.%Act II rev final 100%');
   assert.equal(entitySearchFilter(' ( ) , % '), null, 'nothing left to search for');
   assert.equal(entitySearchFilter(''), null);
 });
