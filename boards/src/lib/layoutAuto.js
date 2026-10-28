@@ -549,10 +549,12 @@ export const autoLayout = (items, opts = {}) => autoPlan(items, opts).cards;
 /**
  * `auto` on the board, as layoutEngine's `arrange` places a named layout: at
  * `origin` when given, else under everything on the board, and pushed clear of
- * what is there.
+ * what is there. `opts.onArrangement` hears which arrangement it took.
  */
 export function arrangeAuto(existingCards, items, opts = {}) {
-  const placed = autoLayout(items, opts);
+  const plan = autoPlan(items, opts);
+  opts.onArrangement?.(plan.arrangement);
+  const placed = plan.cards;
   if (!placed.length) return [];
   const solid = withGeometry(existingCards);
   const at = opts.origin;
@@ -585,6 +587,8 @@ export function rearrangeAuto(allCards, cardIds, opts = {}) {
   if (!moving.length) return [];
   const staying = all.filter((c) => !ids.has(String(c.id)));
   const anchor = blockBounds(moving);
+  // Whichever reading is laid out last is the one returned, so onArrangement
+  // last hears the arrangement the cards came back in.
   const lay = (read) => arrangeAuto(staying, inOrder(read, opts.order), {
     ...opts,
     origin: { x: anchor.x, y: anchor.y },

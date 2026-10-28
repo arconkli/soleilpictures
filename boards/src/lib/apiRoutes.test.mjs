@@ -1689,6 +1689,7 @@ test('a tidy is auto: each section a block apart from the others, and the API\'s
   const r = await api('POST', `/boards/${B1}/arrange`, {});
   assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.equal(r.body.layout, 'auto');
+  assert.ok(['columns', 'blocks'].includes(r.body.arrangement), `says how: ${r.body.arrangement}`);
   assert.equal(r.body.arranged, 6);
   assert.equal(r.body.repaired, 4, 'the four the API made and nobody opened');
   assert.equal(r.body.sections, 2);
@@ -1758,6 +1759,7 @@ test('order puts cards first, the rest in reading order; anything but a list of 
   assert.deepEqual(read, ['d', 'c', 'a', 'b']);
   const named = await api('POST', `/boards/${B1}/arrange`, { layout: 'grid', order: ['b'] });
   assert.equal(named.status, 200);
+  assert.equal('arrangement' in named.body, false, 'only auto chooses one');
   const wrong = await api('POST', `/boards/${B1}/arrange`, { layout: 'tidy' });
   assert.equal(wrong.status, 400);
   assert.match(wrong.body.error, /auto, justified/);

@@ -3659,13 +3659,17 @@ async function dispatch(url, request, env, ctx) {
       ...(Number.isFinite(body.row_height) ? { rowHeight: body.row_height } : {}),
       ...(Number.isFinite(body.columns) ? { columns: body.columns } : {}),
     };
+    // Which of auto's arrangements the board got (lib/layoutAuto.js
+    // ARRANGEMENTS), so a caller can say how it was laid out.
+    let arrangement = null;
     const placed = (layout === AUTO_LAYOUT
-      ? rearrangeAuto(all, targetIds, { ...knobs, order })
+      ? rearrangeAuto(all, targetIds, { ...knobs, order, onArrangement: (a) => { arrangement = a; } })
       : rearrange(cardsInOrder(all, order), targetIds, knobs)
     ).map(({ aspect: _shape, ...c }) => c);
 
     const box = blockBounds(placed);
     const told = {
+      ...(arrangement ? { arrangement } : {}),
       sections: new Set(placed.map((c) => c.groupId).filter(Boolean)).size,
       ...(box ? { bounds: { x: box.x, y: box.y, w: box.w, h: box.h } } : {}),
     };
