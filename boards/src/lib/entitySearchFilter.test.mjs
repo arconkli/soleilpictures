@@ -30,3 +30,13 @@ test('the words inside documents are searched by page text and page title', asyn
     'page_text.ilike.%rain on the glass%,page_title.ilike.%rain on the glass%');
   assert.equal(docPageSearchFilter('(,)'), null);
 });
+
+test('a picture found only by what is in it says so; one found by its own words does not', async () => {
+  const { foundOnlyInPicture } = await import('./entitySearchFilter.js');
+  const photo = { kind: 'image', title: '', body: '', meta: { fileName: 'DSC_0412.jpg', src: 'r2:w/x.jpg' } };
+  assert.equal(foundOnlyInPicture(photo, 'neon'), true);
+  assert.equal(foundOnlyInPicture(photo, 'dsc_0412'), false, 'its file name holds the word');
+  assert.equal(foundOnlyInPicture({ ...photo, title: 'Neon signs' }, 'neon'), false, 'its caption holds it');
+  assert.equal(foundOnlyInPicture({ kind: 'note', title: '', body: '' }, 'neon'), false, 'only pictures are described');
+  assert.equal(foundOnlyInPicture(photo, '  '), false);
+});

@@ -141,7 +141,14 @@ export const CEILINGS = {
   // that names it was renamed too, and AppShell and CanvasSurface import the
   // entry by that name: CI read 691.5 KB, OVER, on f1aa939f and on main
   // 35d96f08. The next change that adds app code still needs its own raise.
-  appJs: 691_800,
+  // 2026-10-28: +0.6 KB for pictures put to work: a picture's description
+  // read to screen readers on its card (lib/imageSeen.js, in CanvasSurface's
+  // closure with the cards), a suggestion from a picture heard live
+  // (useTagSuggestions' realtime channel) and named on its chip, and the
+  // canvas lightbox's import of More like this, whose strip and styles load
+  // later (MoreLikeThis.jsx). A local build with CI's environment measured
+  // 691.23 KB on c9865b42 and 691.91 with it, so CI's 691.5 becomes ~692.2.
+  appJs: 692_400,
   appCss: 21_000,
 };
 

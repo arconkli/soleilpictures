@@ -22,6 +22,17 @@ export function entitySearchFilter(query) {
   return `title.ilike.%${safe}%,body.ilike.%${safe}%,meta->>fileName.ilike.%${safe}%,seen.ilike.%${safe}%`;
 }
 
+// A picture found only by what is in it: none of the words a person can see
+// on it (its title, its text, its file name) holds the query, so the match was
+// `seen`. ⌘K says "In the picture" there, never the AI's words (owner,
+// 2026-10-28: the descriptions are for finding, not for reading).
+export function foundOnlyInPicture(row, query) {
+  if (row?.kind !== 'image') return false;
+  const q = cleanSearchTerm(query).toLowerCase();
+  if (!q) return false;
+  return ![row.title, row.body, row.meta?.fileName].some((v) => String(v || '').toLowerCase().includes(q));
+}
+
 // The words INSIDE documents: doc_page_index, one row per page (docText).
 export function docPageSearchFilter(query) {
   const safe = cleanSearchTerm(query);

@@ -92,6 +92,10 @@ Three ways in, depending on how much room you need:
 - **Edit popover** — a compact panel beside the image with the essentials.
 - **Full screen editor** — everything, with the image large.
 - **Lightbox** — click an image to fill the screen; click again for 1:1 and drag to pan.
+  Under it, **More like this** shows the pictures in your workspace that look
+  most like it, matched by what is in them, and a click opens one there. It
+  appears only when something is close, and not in a workspace whose
+  [AI suggestions](/docs/account/data-and-privacy#pictures-and-ai) are off.
 
 Adjustments are stored as settings on the card. The uploaded file is never
 touched, so **Reset** returns you to the original exactly, and a collaborator

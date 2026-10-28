@@ -33,7 +33,8 @@ related:
 - **Pictures** — by what is in them. Each picture is
   [described by an AI model](/docs/account/data-and-privacy#pictures-and-ai) a
   few minutes after it lands, so `red car` or `night exterior` finds the photo
-  even when nobody named or captioned it. Not in a workspace whose AI
+  even when nobody named or captioned it. A picture found this way shows a
+  small preview and says *In the picture*. Not in a workspace whose AI
   suggestions are off
 - **Tags** — by name. Type `#` and a tag's name, as in `#diner`, to list
   everything carrying it instead: cards, groups, clusters and document pages,

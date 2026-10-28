@@ -1,0 +1,51 @@
+/* More like this (MoreLikeThis.jsx): a strip of thumbnails under a picture,
+   in Quick look and the canvas's viewer. Both are dark rooms in both themes,
+   so the strip's colours are its own, the islands' glass. Lazy with the
+   component. */
+.mlt {
+  flex: none; box-sizing: border-box; min-width: 0;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 12px 14px 14px;
+  border: 1px solid #212126; border-radius: 12px;
+  background: color-mix(in oklab, #111114 86%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+  color: #f5f5f7; cursor: default;
+  animation: mlt-in .18s ease-out;
+}
+@keyframes mlt-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .mlt { animation: none; } }
+.mlt-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.mlt-title { font: 600 10.5px/1 var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: rgba(245, 245, 247, .62); }
+.mlt-scope { font: 400 12px/1 var(--font-sans); color: rgba(245, 245, 247, .5); white-space: nowrap; }
+/* One row; more than fits scrolls sideways, the next one showing at the edge. */
+.mlt-row {
+  list-style: none; margin: 0; padding: 2px; display: flex; gap: 12px;
+  overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+}
+.mlt-row::-webkit-scrollbar { display: none; }
+.mlt-row > li { flex: none; }
+.mlt-th {
+  display: block; width: 116px; height: 78px; padding: 0; border: 0; border-radius: 7px;
+  overflow: hidden; background: #1c1c20; cursor: pointer;
+  transition: box-shadow .12s ease;
+}
+.mlt-th .cbp-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mlt-th:hover { box-shadow: 0 0 0 2px rgba(255, 255, 255, .85); }
+.mlt-th:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+
+/* Quick look: under the stage, as wide as the stage (not under the arrows). */
+.ql-more { margin: 0 52px; }
+.ql-main.is-single .ql-more { margin: 0; }
+/* The canvas's viewer: under the picture and its caption. */
+.lightbox-more { margin-top: 14px; width: min(100%, 980px); }
+
+@media (max-width: 720px) {
+  /* Clear of a phone's home bar: the strip is the screen's bottom edge. */
+  .ql-more, .ql-main.is-single .ql-more { margin: 0 0 env(safe-area-inset-bottom, 0px); }
+  .mlt { padding: 12px 0 14px 14px; }
+  .mlt-head { padding-right: 14px; }
+  .mlt-row { gap: 10px; }
+  .mlt-th { width: 104px; height: 72px; }
+  .lightbox-more { margin-top: 10px; }
+}

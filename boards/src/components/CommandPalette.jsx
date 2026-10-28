@@ -7,6 +7,9 @@ import {
   Palette, Calendar, Link as LinkIcon, User, Tag as TagIcon, ChevronRight,
 } from '../lib/icons.js';
 import { searchEntities, searchDocPages } from '../lib/entitySearch.js';
+import { foundOnlyInPicture } from '../lib/entitySearchFilter.js';
+import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
+import { R2Image } from './R2Image.jsx';
 import { supabase } from '../lib/supabase.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { useListboxNav } from '../hooks/useListboxNav.js';
@@ -41,6 +44,21 @@ const KIND_ICON = {
 
 // Section caps keep the DOM small even on big workspaces.
 const CAP = { localBoards: 8, asyncBoards: 8, cards: 8, tags: 6, docs: 6, docPages: 6, recent: 5 };
+
+// A picture found only by what's in it shows itself: its small stored size at
+// 32px, once its sizes are known, and the kind's icon until then (an original
+// is megabytes for a thumbnail).
+function PictureThumb({ src }) {
+  const key = src.slice(3);
+  const [, bump] = useState(0);
+  useEffect(() => subscribeMeta(key, () => bump((n) => n + 1)), [key]);
+  const meta = getMeta(key);
+  const small = meta?.previewSmKey || meta?.previewKey || null;
+  if (!small) return <span className="cmdk-row-icon"><Icon as={ImageIcon} size={16} /></span>;
+  return <span className="cmdk-row-pic"><R2Image src={`r2:${small}`} alt="" w={32} h={32} draggable="false" /></span>;
+}
+
+const isStoredPicture = (r) => typeof r?.meta?.src === 'string' && r.meta.src.startsWith('r2:');
 
 // Map an entity_search row to a navigation ref the app's navigate() understands.
 // Copied from EntityPicker.jsx so the two stay in lockstep.
@@ -99,14 +117,14 @@ function EmptySearchHelp({ q, emptyHelp, onClose }) {
   return (
     <div className="cmdk-empty-help">
       {short ? (
-        <p>Keep typing — a word finds cluster, group and tag names, notes, docs, captions and file names.</p>
+        <p>Keep typing — a word finds cluster, group and tag names, notes, docs, captions, file names and what’s in pictures.</p>
       ) : (
         <>
           <p>
-            Search sees cluster, group and tag names, notes, docs, captions and file names.
+            Search sees cluster, group and tag names, notes, docs, captions, file names and what’s in pictures.
             {emptyHelp.hasImages
-              ? ' A pasted image has none of those until you caption it — hover an image and choose Caption.'
-              : ' Images are found by their caption or file name.'}
+              ? ' A picture is found by what’s in it a few minutes after it lands, unless the workspace’s AI suggestions are off. To find one by your own words, hover it and choose Caption.'
+              : ' Pictures are found by their caption, their file name or what’s in them.'}
           </p>
           {emptyHelp.onBrowseList && (
             <button type="button" className="cmdk-empty-btn" onClick={browse}>Browse this cluster in Files</button>
@@ -203,6 +221,9 @@ export function CommandPalette({
       setAsyncRows(rows || []);
       setPageHits(pages || []);
       setLoading(false);
+      // The small sizes of the pictures found by what's in them (PictureThumb).
+      const picKeys = (rows || []).filter((r) => isStoredPicture(r) && foundOnlyInPicture(r, q)).map((r) => r.meta.src.slice(3));
+      if (picKeys.length) primeImageMeta(picKeys).catch(() => {});
       // Intent signal: one "ran a search" event per open once results settle.
       //
       // has_results alone couldn't distinguish a one-character typo from a real
@@ -398,12 +419,19 @@ export function CommandPalette({
 
     if (asyncGroups.cards.length) out.push({
       id: 'cards', label: 'Cards & notes',
-      items: asyncGroups.cards.map(r => ({
-        key: r.id, kind: r.kind, icon: KIND_ICON[r.kind] || FileText,
-        // A photo usually has no title; its file's own name is the one people type.
-        title: r.title || r.meta?.fileName || 'Untitled', sub: r.body || null,
-        activate: () => { close(); onNavigateRef?.(rowToTarget(r)); },
-      })),
+      items: asyncGroups.cards.map(r => {
+        // Found only by what's in the picture (0595's `seen`): the picture and
+        // "In the picture" say why, never the AI's words (owner, 2026-10-28).
+        const inPicture = isStoredPicture(r) && foundOnlyInPicture(r, q);
+        return {
+          key: r.id, kind: r.kind, icon: KIND_ICON[r.kind] || FileText,
+          // A photo usually has no title; its file's own name is the one people type.
+          title: r.title || r.meta?.fileName || 'Untitled',
+          sub: inPicture ? ['In the picture', boards?.[r.board_id]?.name].filter(Boolean).join(' · ') : (r.body || null),
+          picture: inPicture ? r.meta.src : null,
+          activate: () => { close(); onNavigateRef?.(rowToTarget(r)); },
+        };
+      }),
     });
 
     if (asyncGroups.tags.length) out.push({
@@ -564,13 +592,15 @@ export function CommandPalette({
                   >
                     {item.kind === 'tag' ? (
                       <span className="cmdk-tag-dot" aria-hidden="true" style={{ '--tag-c': item.accent }} />
+                    ) : item.picture ? (
+                      <PictureThumb src={item.picture} />
                     ) : (
                       <span className="cmdk-row-icon"><Icon as={item.icon || LayoutGrid} size={16} /></span>
                     )}
                     <span className="cmdk-row-text">
                       <span className="cmdk-row-name">{highlightMatch(item.title, q)}</span>
                       {item.sub ? (
-                        <span className="cmdk-row-sub">{highlightMatch(item.sub, q)}</span>
+                        <span className="cmdk-row-sub">{item.picture ? item.sub : highlightMatch(item.sub, q)}</span>
                       ) : null}
                     </span>
                     {item.kind === 'command' ? (

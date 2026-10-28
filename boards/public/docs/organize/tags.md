@@ -88,8 +88,9 @@ get suggestions (see below).
 - **Pictures are suggested, never tagged.** Each picture added to a cluster is
   [described by an AI model](/docs/account/data-and-privacy#pictures-and-ai).
   When the description names one of your tags, or means something close to
-  it, the picture gets that tag as a suggestion, a few minutes after it lands.
-  A picture is never tagged on its own.
+  it, the picture gets that tag as a suggestion, a few minutes after it lands,
+  without a reload; hover the chip and it says it came from the picture. A
+  picture is never tagged on its own.
 
 The AI reads up to 2,000,000 characters per account a day,
 counting the instructions sent along with your text, more than a normal day's

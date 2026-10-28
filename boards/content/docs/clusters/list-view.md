@@ -299,6 +299,12 @@ A bar floats along the top: the file's name and where it is among the files
 (*Image · 3 of 30*), then **Show on board** (or **Show in cluster**, for a file
 you're browsing in another cluster), **Download** and **Info**.
 
+Under a picture, **More like this** shows the pictures in your workspace that
+look most like it, matched by what is in them rather than by name. Click one
+to open it in place; `←` / `→` carry on through the files. The strip appears
+only when something is close, and not in a workspace whose
+[AI suggestions](/docs/account/data-and-privacy#pictures-and-ai) are off.
+
 On an audio row in the List layout, `Space` still auditions it in place, so a
 pack plays through with `↓` and `Space`.
 

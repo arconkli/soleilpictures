@@ -13,12 +13,15 @@
 //     read, never the lease or the status; no client writes;
 //   * the lease: claim skips locked rows, finish and release need the token;
 //   * vision never applies anything: no write to card_index or entity_links;
-//   * turning the AI switch off deletes the descriptions.
+//   * turning the AI switch off deletes the descriptions;
+//   * 0597: a published cluster's picture takes its description as alt only
+//     after a person's alt and the card's own, only a finished one, and only
+//     of an image filed on (or referenced by) the card's own board.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MIGRATIONS_DIR } from './migrationText.mjs';
+import { MIGRATIONS_DIR, latestDefinition } from './migrationText.mjs';
 import { PROMPT_VERSION } from './vision.js';
 
 const sql = readFileSync(join(MIGRATIONS_DIR, '0593_image_vision.sql'), 'utf8');
@@ -203,4 +206,36 @@ test('0596 hands out only finished descriptions and never likens a picture to it
   assert.doesNotMatch(sql96, /d\.(status|lease_token|tokens_in)/, 'only the columns a reader may select');
   assert.match(sql96, /\(ci\.meta->>'src'\) is distinct from me\.src/);
   assert.match(sql96, /limit least\(greatest\(coalesce\(p_limit, 12\), 1\), 48\)/);
+});
+
+// ── 0597: a published cluster's pictures carry their descriptions as alt ───
+test('0597 is the latest word on both public reads, and keeps them definer reads for anon', () => {
+  for (const name of ['get_public_board_page', 'get_public_board_content']) {
+    const def = latestDefinition(name);
+    assert.equal(def?.file, '0597_public_pictures_alt.sql', `${name}: no later migration restates it`);
+    assert.match(def.body, /security definer\s+set search_path = public/, name);
+    assert.match(def.body, /_resolve_published_board\(p_slug\)/, `${name}: still only a published cluster`);
+  }
+  const sql97 = readFileSync(join(MIGRATIONS_DIR, '0597_public_pictures_alt.sql'), 'utf8');
+  assert.doesNotMatch(sql97, /grant[^;]*image_descriptions/i, 'the table itself stays closed');
+  assert.match(sql97, /has_table_privilege\('anon', 'public\.image_descriptions', 'select'\)/);
+  assert.match(sql97, /has_function_privilege\('anon', 'public\.get_public_board_page\(text\)', 'execute'\)/);
+});
+
+test('0597 takes a person\'s alt, then the card\'s, then the finished description, then the older model\'s', () => {
+  const content = latestDefinition('get_public_board_content').body.replace(/--[^\n]*/g, '');
+  assert.match(content, /coalesce\(case when ca\.source = 'user' then nullif\(ca\.alt, ''\) end,\s+nullif\(p\.meta->>'alt', ''\), nullif\(d\.description, ''\), nullif\(ca\.alt, ''\)\)/);
+  assert.match(content, /left join image_descriptions d on d\.image_id = img\.id and d\.status = 'done'/);
+  const page = latestDefinition('get_public_board_page').body.replace(/--[^\n]*/g, '');
+  assert.match(page, /coalesce\(case when ca\.source = 'user' then nullif\(ca\.alt, ''\) end,\s+nullif\(p\.meta->>'alt', ''\), \(\s+select nullif\(d\.description, ''\)/);
+  assert.match(page, /join image_descriptions d on d\.image_id = img\.id and d\.status = 'done'/);
+  assert.match(page, /limit 1\), nullif\(ca\.alt, ''\)\)\)/);
+});
+
+test('0597 never publishes the description of a file the card only names', () => {
+  // card_index is client-written: meta.src can name any key. The description
+  // is the one of an image filed on, or referenced by, the card's own board.
+  const scoped = /img\.deleted_at is null\s+and \(img\.board_id = p\.board_id or img\.referenced_in_board_ids @> array\[p\.board_id\]\)/;
+  assert.match(latestDefinition('get_public_board_content').body, scoped);
+  assert.match(latestDefinition('get_public_board_page').body, scoped);
 });
