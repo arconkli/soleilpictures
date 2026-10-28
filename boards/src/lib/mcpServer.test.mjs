@@ -766,7 +766,7 @@ test('the tool receives its arguments as checked, not as sent', async () => {
     jsonrpc: '2.0', id: 1, method: 'tools/call',
     params: { name: 'read_board', arguments: { board_id: BOARD_ID, limit: '25', source: null } },
   }, watch);
-  assert.equal(seen, `/boards/${BOARD_ID}/cards?include=groups&limit=25`);
+  assert.equal(seen, `/boards/${BOARD_ID}/cards?include=groups%2Cseen&limit=25`);
 });
 
 test('an API refusal reaches the model with its code and advice, on either transport', async () => {
@@ -928,7 +928,7 @@ test('read_board answers with the board, its capacity and groups beside the card
     };
   };
   const out = await tool('read_board').call({ board_id: BOARD_ID, include: 'props' }, { api });
-  assert.deepEqual(seen, [`/boards/${BOARD_ID}?include=props,identifiers`, `/boards/${BOARD_ID}/cards?include=props%2Cgroups`]);
+  assert.deepEqual(seen, [`/boards/${BOARD_ID}?include=props,identifiers`, `/boards/${BOARD_ID}/cards?include=props%2Cgroups%2Cseen`]);
   assert.deepEqual([out.board.name, out.url, out.capacity, out.groups], ['Diner', 'https://x/?to=b:1', null, [{ id: 'g-1' }]]);
   // Concise by default: what the card says, shortened, without its geometry,
   // its dates or its empty fields.
@@ -941,6 +941,26 @@ test('read_board answers with the board, its capacity and groups beside the card
   seen.length = 0;
   await tool('read_board').call({ board_id: BOARD_ID, source: 'index' }, { api });
   assert.equal(seen[1], `/boards/${BOARD_ID}/cards?source=index`);
+});
+
+test('read_board and fetch say what is in a described picture', async () => {
+  const seen = [];
+  const pic = { id: 'p-1', kind: 'image', title: null, body: null, image_key: 'u/a.jpg', x: 0, y: 0,
+    in_picture: 'A red car under a streetlight. Keywords: car, night.' };
+  const api = async (p) => {
+    seen.push(p);
+    if (p.startsWith(`/boards/${BOARD_ID}/cards/`)) return { card: pic, url: 'https://x/?to=c:p' };
+    if (p.startsWith(`/boards/${BOARD_ID}/cards`)) return { board_id: BOARD_ID, source: 'live', cards: [pic], total: 1 };
+    return { board: { id: BOARD_ID, name: 'Locations' }, url: 'https://x/?to=b:1' };
+  };
+  const read = await tool('read_board').call({ board_id: BOARD_ID }, { api });
+  assert.equal(read.cards[0].in_picture, pic.in_picture, 'concise keeps it');
+  const board = await tool('fetch').call({ id: `board:${BOARD_ID}` }, { api });
+  assert.ok(seen.includes(`/boards/${BOARD_ID}/cards?limit=500&include=seen`));
+  assert.match(board.text, /image \(card p-1\): .*In the picture, as a vision model saw it: A red car/);
+  const card = await tool('fetch').call({ id: `card:${BOARD_ID}:p-1` }, { api });
+  assert.ok(seen.includes(`/boards/${BOARD_ID}/cards/p-1?include=seen`));
+  assert.match(card.text, /\n\nIn the picture, as a vision model saw it: A red car under a streetlight\. Keywords: car, night\.$/);
 });
 
 test('read_board with format is the whole board as one document, and takes nothing else', async () => {
