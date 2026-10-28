@@ -3,7 +3,9 @@
 // pictures (newest first, a few per owner), pays for each call from the
 // owner's budget, sends a small copy of the picture and writes back what the
 // model saw; then it embeds the image cards that show those pictures
-// (lib/serverEmbed.js). lib/vision.js holds the prompt and reads the answer.
+// (lib/serverEmbed.js) and asks for tag suggestions (0594: existing tags
+// only, suggested and never applied). lib/vision.js holds the prompt and
+// reads the answer.
 //
 // What the model says is a picture's private metadata: logs, errors and
 // alerts carry ids and counts only, never a description.
@@ -86,6 +88,25 @@ async function pool(items, size, fn) {
 
 const ready = (env) => !!(env?.AI && env?.IMAGES && env?.SUPABASE_URL && env?.SUPABASE_SERVICE_ROLE_KEY);
 
+// Tag suggestions for image cards whose description or embedding just
+// changed: SQL only, nothing when the workspace has no tags. Returns how many.
+async function suggestTags(env, cards) {
+  let made = 0;
+  const seen = new Set();
+  for (const c of cards) {
+    const key = `${c.board_id}:${c.card_id}`;
+    if (!c.board_id || !c.card_id || seen.has(key)) continue;
+    seen.add(key);
+    try {
+      made += Number(await rpc(env, '_suggest_tags_for_card', { p_board: c.board_id, p_card: c.card_id })) || 0;
+    } catch (e) {
+      await jobFailed(env, 'image_describe', e, 'suggest');
+      break;
+    }
+  }
+  return made;
+}
+
 // One run of the job. Returns counts (logged by the caller's watch).
 export async function runImageDescribe(env, { limit = 12, concurrency = 4, perOwner = 4 } = {}) {
   if (!ready(env)) return { skipped: 'unconfigured' };
@@ -135,6 +156,8 @@ export async function runImageDescribe(env, { limit = 12, concurrency = 4, perOw
     } catch (e) {
       await jobFailed(env, 'image_describe', e, 'embed');
     }
+    // A word match needs no embedding, so every described card is asked.
+    stats.suggested = await suggestTags(env, toEmbed);
   }
   if (stats.claimed) console.log('[vision]', JSON.stringify(stats));
   return stats;
@@ -151,6 +174,7 @@ export async function runImageEmbedLane(env, { limit = 40 } = {}) {
     description: describedText(r), content_hash: r.content_hash, owner_id: r.owner_id,
   })));
   const { current, ...counts } = res;
+  counts.suggested = await suggestTags(env, current.filter((c) => c.entity_kind === 'card'));
   console.log('[vision] embed lane', JSON.stringify({ due: rows.length, ...counts }));
   return { due: rows.length, ...counts };
 }

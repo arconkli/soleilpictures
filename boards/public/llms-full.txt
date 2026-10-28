@@ -2925,15 +2925,16 @@ The type shows on a tag's hover card and its page, the sidebar groups tags by it
 
 Automatic tagging
 
-Automatic tagging works from text — card titles, notes, documents, and the names of groups and clusters. It never looks at what an image shows, and it only uses tags you have already made, so a workspace with no tags gets none.
+Automatic tagging works from text — card titles, notes, documents, and the names of groups and clusters — and only uses tags you have already made, so a workspace with no tags gets none. Pictures are read too, but they only ever get suggestions (see below).
 
 An exact name match is applied, marked auto. Make a Diner tag, and a note that mentions the diner picks it up, as does a group called "Diner stills". Creating a tag applies it straight away to what already says its name.
 In documents, clear mentions are underlined, marked auto: the AI underlines words that clearly refer to one of your tags, even when they are not its exact name.
 Anything looser is only suggested. The AI compares what a card says with your tags, and the closest suggestion shows on the card as a hollow chip with a sparkle: ✓ keeps it, × means never suggest it there. The rest wait on the tag's page, under Manage.
+Pictures are suggested, never tagged. Each picture added to a cluster is described by an AI model. When the description names one of your tags, or means something close to it, the picture gets that tag as a suggestion, a few minutes after it lands. A picture is never tagged on its own.
 
 The AI reads up to 2,000,000 characters per account a day, counting the instructions sent along with your text, more than a normal day's work needs. Past that, it pauses until the next day.
 
-The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then no card or document text goes to a model: there are no suggestions or underlines, and exact-name matches and the tags you add work as before.
+The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then Clusters sends no card or document text and no picture to a model: there are no suggestions or underlines, the workspace's picture descriptions are deleted, and exact-name matches and the tags you add work as before. An AI app you connect yourself, through the API or MCP, still reads what you ask it to.
 
 Nothing applied automatically is hidden. Open the tag, press Manage and filter to Auto to see everything it picked up on its own. Right-click any item (on a phone, press and hold it) for Confirm tag or Remove tag — removing also keeps that tag off that item for good, so it is never applied there again. In a document, removing a tag keeps it off that page.
 
@@ -2959,13 +2960,13 @@ Q: Do tags move things?
 A: No. A tag is not a location. The same card can carry several tags and stays exactly where it is.
 
 Q: Does Clusters tag things without asking?
-A: Where a tag's exact name appears in a card, a group or a cluster's name, the tag is applied and marked auto. In documents, the AI also underlines words that clearly refer to one of your tags, marked auto. Anything looser is only suggested. Remove an automatic tag and it stays off that item for good.
+A: Where a tag's exact name appears in a card, a group or a cluster's name, the tag is applied and marked auto. In documents, the AI also underlines words that clearly refer to one of your tags, marked auto. Anything looser is only suggested, and so is everything from pictures. Remove an automatic tag and it stays off that item for good.
 
 Q: What is an entity type?
 A: A tag can be typed as a character, setting, organization, topic or thing. The type shows on the tag's hover card and its page, and the sidebar groups tags by it.
 
 Q: Can I turn the AI off?
-A: Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then no text goes to a model. Tags you add, and exact-name matches, still work.
+A: Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then Clusters sends no text or picture to a model, and picture descriptions are deleted. Tags you add, and exact-name matches, still work. An AI app you connect yourself still reads what you ask it to.
 
 
 ========================================================================
@@ -4572,6 +4573,16 @@ Where files live
 In private object storage, served back through signed URLs that expire. There is no public bucket and nothing is reachable by guessing a path.
 
 Uploads go from your browser straight to storage. A file referenced by a board is protected from cleanup for as long as the board references it.
+
+Pictures and AI
+
+When a picture is added to a cluster, Clusters asks an AI model what is in it: a short description, a few search words, and labels such as the kind of picture, the shot, the light and the main colours. People are never named.
+
+This runs on Cloudflare Workers AI, the provider that already stores your files. A small copy of the picture goes to Google's Gemma 4 model (or Meta's Llama 3.2 Vision when Gemma fails), and the answer comes back to Clusters. Cloudflare doesn't keep the picture after answering and doesn't use it to train models (Cloudflare's policy).
+
+The description is stored beside the picture, and only people who can see the picture can read it. An app you connect through the API or MCP reads them as you would. A description is never written into the cluster itself, never shown on public pages, and never sent with errors or usage events.
+
+The owner or a co-owner can turn this off with AI suggestions in Settings → Workspace. Off, Clusters sends no picture or text to a model, and the workspace's picture descriptions are deleted. An AI app you connect yourself, through the API or MCP, still reads what you ask it to.
 
 Retention
 

@@ -148,9 +148,10 @@ export function WorkspaceGeneralTab({
       <SettingsCategory title="AI" desc="What may go to an AI model">
         {canManage ? (
           <Toggle label="AI suggestions"
-                  desc={'Suggests tags from what people write here, and underlines likely ones in docs. '
-                    + 'The text goes to Cloudflare Workers AI. Off, nothing is sent; tags you add, '
-                    + 'and tags whose exact name appears in the text, still work.'}
+                  desc={'Suggests tags from what people write here, underlines likely ones in docs, '
+                    + 'and describes the pictures people add. The text and a small copy of each picture go '
+                    + 'to Cloudflare Workers AI. Off, Clusters sends nothing and picture descriptions are deleted; '
+                    + 'tags you add, and tags whose exact name appears in the text, still work.'}
                   value={aiOn !== false}
                   onChange={changeAi} />
         ) : (

@@ -22,6 +22,7 @@ import { handleTagsRoute } from './worker-tags.js';
 import { handleClustersRoute } from './worker-clusters.js';
 import { handleTeamRoute, runTeamDomainRecheck } from './worker-team.js';
 import { runDraftReap } from './worker-drafts.js';
+import { runImageDescribe, runImageEmbedLane } from './worker-vision.js';
 import { handleSeoRoute, INDEXNOW_KEY, getTier, runIndexNowForBuild } from './worker-seo.js';
 import { handleAiRoute } from './worker-ai.js';
 import { handleMediaRoute } from './worker-media.js';
@@ -1147,6 +1148,12 @@ const worker = {
       // lost wake or a machine that stopped mid-job costs a minute, not a copy.
       // One indexed count when the queue is empty.
       ctx.waitUntil(watch('play_copies', tickPlayCopies(env)));
+      // Pictures described by a vision model (worker-vision.js, 0593): every
+      // other minute a few, newest first, then the image cards whose embedding
+      // is missing or stale. A couple of reads when nothing waits.
+      if (new Date(event.scheduledTime).getUTCMinutes() % 2 === 0) {
+        ctx.waitUntil(watch('image_describe', runImageDescribe(env).then(() => runImageEmbedLane(env))));
+      }
     } else if (which === '15 * * * *') {
       ctx.waitUntil(watch('compaction', runCompactionJob1(env)));
       // IndexNow (0480): the first tick on a build production has not pinged

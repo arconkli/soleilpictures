@@ -11,11 +11,11 @@ faq:
   - q: Do tags move things?
     a: No. A tag is not a location. The same card can carry several tags and stays exactly where it is.
   - q: Does Clusters tag things without asking?
-    a: Where a tag's exact name appears in a card, a group or a cluster's name, the tag is applied and marked auto. In documents, the AI also underlines words that clearly refer to one of your tags, marked auto. Anything looser is only suggested. Remove an automatic tag and it stays off that item for good.
+    a: Where a tag's exact name appears in a card, a group or a cluster's name, the tag is applied and marked auto. In documents, the AI also underlines words that clearly refer to one of your tags, marked auto. Anything looser is only suggested, and so is everything from pictures. Remove an automatic tag and it stays off that item for good.
   - q: What is an entity type?
     a: A tag can be typed as a character, setting, organization, topic or thing. The type shows on the tag's hover card and its page, and the sidebar groups tags by it.
   - q: Can I turn the AI off?
-    a: Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then no text goes to a model. Tags you add, and exact-name matches, still work.
+    a: Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then Clusters sends no text or picture to a model, and picture descriptions are deleted. Tags you add, and exact-name matches, still work. An AI app you connect yourself still reads what you ask it to.
 related:
   - /docs/organize/links-and-mentions
   - /docs/documents/comments-and-tags
@@ -88,8 +88,9 @@ it, and it drives the hover previews and backlinks in
 ## Automatic tagging
 
 Automatic tagging works from **text** — card titles, notes, documents, and the
-names of groups and clusters. It never looks at what an image shows, and it
-only uses tags you have already made, so a workspace with no tags gets none.
+names of groups and clusters — and only uses tags you have already made, so a
+workspace with no tags gets none. Pictures are read too, but they only ever
+get suggestions (see below).
 
 - **An exact name match is applied**, marked *auto*. Make a Diner tag, and a
   note that mentions the diner picks it up, as does a group called "Diner
@@ -102,15 +103,22 @@ only uses tags you have already made, so a workspace with no tags gets none.
   your tags, and the closest suggestion shows on the card as a hollow chip with
   a sparkle: ✓ keeps it, × means never suggest it there. The rest wait on the
   tag's page, under **Manage**.
+- **Pictures are suggested, never tagged.** Each picture added to a cluster is
+  [described by an AI model](/docs/account/data-and-privacy#pictures-and-ai).
+  When the description names one of your tags, or means something close to
+  it, the picture gets that tag as a suggestion, a few minutes after it lands.
+  A picture is never tagged on its own.
 
 The AI reads up to {{fact:embedCharsPerDay}} characters per account a day,
 counting the instructions sent along with your text, more than a normal day's
 work needs. Past that, it pauses until the next day.
 
 The owner or a co-owner can turn **AI suggestions** off in **Settings →
-Workspace**. Then no card or document text goes to a model: there are no
-suggestions or underlines, and exact-name matches and the tags you add work as
-before.
+Workspace**. Then Clusters sends no card or document text and no picture to a
+model: there are no suggestions or underlines, the workspace's
+[picture descriptions](/docs/account/data-and-privacy#pictures-and-ai) are
+deleted, and exact-name matches and the tags you add work as before. An AI app
+you connect yourself, through the API or MCP, still reads what you ask it to.
 
 Nothing applied automatically is hidden. Open the tag, press **Manage** and
 filter to **Auto** to see everything it picked up on its own. Right-click any

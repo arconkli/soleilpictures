@@ -52,6 +52,7 @@ function fakeWorld({ claim = [], budget = () => true, finishCards = [], spaces =
     if (path === 'rpc/_image_describe_finish') return reply(body.p_status === 'done' ? finishCards : []);
     if (path === 'rpc/_image_describe_release') return reply(null, 204);
     if (path === 'rpc/_image_card_embed_due') return reply(claim);
+    if (path === 'rpc/_suggest_tags_for_card') return reply(1);
     if (path === 'workspaces') return reply(spaces || [{ id: 'ws1', created_by: 'owner1', ai_tagger_enabled: true }]);
     if (path === 'card_embeddings' && (init.method || 'GET') === 'GET') return reply(stored);
     if (path === 'card_embeddings') return reply(null, 204);
@@ -95,6 +96,11 @@ test('a claimed picture is paid for, described from its 640px copy, finished and
     assert.equal(up.entity_kind, 'card');
     const embedBudget = calls(w.log, 'rpc/_ai_budget_take').find((e) => e[3].p_kind === 'embed')[3];
     assert.deepEqual(embedBudget, { p_owner: 'owner1', p_kind: 'embed', p_units: text.length });
+    const upAt = w.log.findIndex((e) => e[2] === 'card_embeddings' && e[1] === 'POST');
+    const suggestAt = w.log.findIndex((e) => e[2] === 'rpc/_suggest_tags_for_card');
+    assert.ok(upAt >= 0 && suggestAt > upAt, 'suggestions are asked for once the card carries the description');
+    assert.deepEqual(w.log[suggestAt][3], { p_board: 'b1', p_card: 'c1' });
+    assert.equal(stats.suggested, 1);
   } finally { w.restore(); }
 });
 
@@ -189,7 +195,7 @@ test('the embed lane re-embeds a described card whose embedding is stale', async
   });
   try {
     const res = await runImageEmbedLane(w.env);
-    assert.deepEqual([res.due, res.embedded], [1, 1]);
+    assert.deepEqual([res.due, res.embedded, res.suggested], [1, 1, 1]);
     const up = calls(w.log, 'card_embeddings').find((e) => e[1] === 'POST')[3][0];
     assert.equal(up.content_hash, embedHash(embedTextForCard({ title: 'Lighthouse', body: '' }, `${SECRET} lighthouse`)));
   } finally { w.restore(); }
