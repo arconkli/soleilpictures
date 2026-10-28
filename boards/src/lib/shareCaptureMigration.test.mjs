@@ -20,6 +20,10 @@
 // 'ok' answers: the share's id, which the /f/ page can log in place of the
 // token. The Party worker hands the answer to the page minus its storage keys,
 // so the id arrives with no worker change.
+//
+// 0743 records where each remix came from in remix_sources, from one insert
+// added to prepare_remix (0168's) in a block of its own: the link by its key,
+// never its token, and the remix never fails on the bookkeeping.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -33,6 +37,8 @@ const FILE_0740 = '0740_workspace_member_adds.sql';
 const FILE_0741 = '0741_channel_credits_file_shares.sql';
 const FILE_0607 = '0607_file_shares_follow_their_sharer.sql';
 const FILE_0742 = '0742_file_share_says_its_id.sql';
+const FILE_0168 = '0168_prepare_remix_clone.sql';
+const FILE_0743 = '0743_remix_sources.sql';
 const sqlOf = (file) => readFileSync(join(MIGRATIONS_DIR, file), 'utf8');
 const sql0740 = sqlOf(FILE_0740);
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
@@ -185,4 +191,46 @@ test("the Party worker's bundle hands the page the share's id, and never its key
   assert.equal(out.keys, undefined);
   assert.equal(out.urls.src, 'https://signed.example/src');
   assert.deepEqual(await fileShareResponse({ status: 'sign_in', share_id: 'x' }, async () => '', null), { status: 'sign_in' });
+});
+
+// ── 0743: where a remix came from ───────────────────────────────────────────
+const SNAPSHOT_READ = '  select doc into v_snapshot from public.board_state where board_id = v_src;\n';
+
+test("0743's prepare_remix is 0168's with one guarded insert before the snapshot read, and it is the one that runs", () => {
+  const before = definedIn('prepare_remix', FILE_0168);
+  const now = definedIn('prepare_remix', FILE_0743);
+  assert.ok(before && now, 'defined in both files');
+  assert.equal(before.split(SNAPSHOT_READ).length, 2, "0168's snapshot read is there exactly once");
+  const at = now.indexOf('  -- Where the remix came from (0743)');
+  assert.ok(at > 0, 'the insert is there');
+  const added = now.slice(at, now.indexOf(SNAPSHOT_READ));
+  assert.equal(now, before.replace(SNAPSHOT_READ, added + SNAPSHOT_READ), 'nothing else changed');
+  assert.match(added, /^  -- Where the remix came from[\s\S]*\n  begin\n    insert into public\.remix_sources[\s\S]*on conflict \(dest_board_id\) do nothing;\n  exception when others then\n    raise warning 'prepare_remix: remix_sources: % \(%\)', sqlerrm, sqlstate;\n  end;\n\n$/);
+  assert.equal(latestDefinition('prepare_remix').file, FILE_0743);
+});
+
+test('0743 keeps a link by its key, never its token', () => {
+  const now = definedIn('prepare_remix', FILE_0743);
+  const insert = now.slice(now.indexOf('insert into public.remix_sources'), now.indexOf('on conflict (dest_board_id)'));
+  assert.match(insert, /case when p_token is not null then left\(md5\(p_token::text\), 12\) end,/);
+  const bare = insert.replace(/left\(md5\(p_token::text\), 12\)/, '').replace(/p_token is (not )?null/g, '').replace(/l\.token = p_token/, '');
+  assert.doesNotMatch(bare, /p_token|l\.token/, 'the token is never a value written');
+});
+
+test('0743: the table is closed, keyed by the new cluster, and the proof holds the grants to what they were', () => {
+  const sql = sqlOf(FILE_0743);
+  assert.match(sql, /dest_board_id +uuid primary key references public\.boards\(id\) on delete cascade,/);
+  assert.match(sql, /source_board_id +uuid references public\.boards\(id\) on delete set null,/);
+  assert.match(sql, /source_kind +text not null check \(source_kind in \('token', 'slug'\)\),/);
+  for (const col of ['shared_by', 'source_owner', 'remixed_by']) {
+    assert.match(sql, new RegExp(`${col} +uuid references auth\\.users\\(id\\) on delete set null`), col);
+  }
+  assert.ok(sql.includes('alter table public.remix_sources enable row level security;'));
+  assert.ok(sql.includes('revoke all on table public.remix_sources from public, anon, authenticated;'));
+  assert.doesNotMatch(sql, /create policy|grant [^;]* to (anon|authenticated)/i);
+  const proof = sql.slice(sql.lastIndexOf('do $proof$'));
+  assert.match(sql, /create temp table _0743_remix_acl on commit drop as\s+select p\.proacl::text as acl from pg_proc p where p\.oid = 'public\.prepare_remix\(uuid, text, uuid\)'::regprocedure;/);
+  assert.match(proof, /is distinct from \(select a\.acl from _0743_remix_acl a\) then\s+raise exception '0743: prepare_remix''s grants changed';/);
+  assert.match(proof, /raise exception '0743: remix_sources holds a link token';/);
+  assert.match(proof, /raise exception '0743: proven' using errcode = 'SL743';\s+exception when sqlstate 'SL743' then/);
 });
