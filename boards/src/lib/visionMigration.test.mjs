@@ -182,3 +182,25 @@ test('0595 reads only what a signed-in reader may select from image_descriptions
 test('the search filter looks in seen', () => {
   assert.match(entitySearchFilter('red car'), /,seen\.ilike\.%red car%$/);
 });
+
+// ── 0596: what a described picture shows, read by the people who can see it ─
+const sql96 = readFileSync(join(MIGRATIONS_DIR, '0596_picture_reads.sql'), 'utf8').replace(/--[^\n]*/g, '');
+
+test('0596 reads run as the reader, never as their definer, and are closed to anon', () => {
+  for (const [name, args] of [['image_seen_for_board', '(uuid)'], ['similar_pictures', '(uuid, text, integer)']]) {
+    const head = sql96.slice(sql96.indexOf(`function public.${name}(`), sql96.indexOf('as $$', sql96.indexOf(`function public.${name}(`)));
+    assert.match(head, /security invoker/, name);
+    assert.doesNotMatch(head, /security definer/, name);
+    assert.match(head, /set search_path = public/, name);
+    assert.ok(sql96.includes(`revoke execute on function public.${name}${args} from public, anon;`), name);
+    assert.ok(sql96.includes(`grant execute on function public.${name}${args} to authenticated, service_role;`), name);
+  }
+  assert.match(sql96, /prosecdef\) then\s+raise exception '0596: a picture read runs as its definer/);
+});
+
+test('0596 hands out only finished descriptions and never likens a picture to itself', () => {
+  assert.match(sql96, /and d\.description is not null/);
+  assert.doesNotMatch(sql96, /d\.(status|lease_token|tokens_in)/, 'only the columns a reader may select');
+  assert.match(sql96, /\(ci\.meta->>'src'\) is distinct from me\.src/);
+  assert.match(sql96, /limit least\(greatest\(coalesce\(p_limit, 12\), 1\), 48\)/);
+});
