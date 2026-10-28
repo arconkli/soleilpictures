@@ -645,7 +645,7 @@ export const FACTS = {
   // How `auto` chooses (lib/layoutAuto.js), and the colours a section or a note
   // takes when given none (lib/boardStyle.js).
   autoLeadShare: AUTO.leadShare === 0.5 ? 'half' : `${Math.round(AUTO.leadShare * 100)}%`,
-  autoLeadPerRow: ['one', 'two', 'three', 'four'][AUTO.leadPerRow - 1] ?? String(AUTO.leadPerRow),
+  autoLeadColumns: ['one', 'two', 'three', 'four'][AUTO.leadColumns - 1] ?? String(AUTO.leadColumns),
   autoColumnsWide: String(AUTO.columnsWide),
   sectionColourCount: ['six', 'seven', 'eight', 'nine', 'ten'][SECTION_COLOURS.length - 6] ?? String(SECTION_COLOURS.length),
   sectionColourTable: ['| Name | Outline | A note\'s tint |', '|---|---|---|',

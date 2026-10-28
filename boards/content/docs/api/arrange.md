@@ -60,8 +60,9 @@ holds:
 
 - **Pictures lead** — when at least {{fact:autoLeadShare}} of the cards are
   pictures and some sections hold words, as a moodboard does: the picture
-  sections large, {{fact:autoLeadPerRow}} to a row, and the other sections in a
-  column beside them.
+  sections large, in {{fact:autoLeadColumns}} columns, each under the shorter
+  one so a short section leaves no hole, and the other sections in a column
+  beside them.
 - **Columns** — the sections side by side in one row, each a column (a long one
   up to {{fact:autoColumnsWide}} columns wide), read left to right as lists are;
   taken when the board shows on a screen about as large as it would as blocks.
@@ -76,11 +77,12 @@ wider than a screen is.
 Pictures lead                        Columns              Blocks
 ┌ STREETS ──┐ ┌ ROOMS ────┐ ┌ LOOK ┐  ┌ A ┐ ┌ B ┐ ┌ C ┐  ┌ A ──────┐ ┌ B ┐
 │ ▒▒▒ ▒ ▒▒▒ │ │ ▒▒ ▒▒▒ ▒▒ │ │ ░░░░ │  │ □ │ │ □ │ │ □ │  │ □ □ □   │ │ □ │
-│ ▒▒ ▒▒▒▒ ▒ │ │ ▒▒▒▒ ▒▒▒▒ │ │ □    │  │ □ │ │ □ │ │ □ │  └─────────┘ └───┘
-└───────────┘ └───────────┘ │ □    │  │ □ │ └───┘ │ □ │  ┌ C ──────────┐
-┌ FACES ────┐ ┌ LIGHT ────┐ │ □    │  └───┘       └───┘  │ □ □ □ □     │
-│ ▒▒ ▒▒▒ ▒▒ │ │ ▒▒▒ ▒▒ ▒▒ │ └──────┘                     └─────────────┘
-└───────────┘ └───────────┘
+│ ▒▒ ▒▒▒▒ ▒ │ └───────────┘ │ □    │  │ □ │ │ □ │ │ □ │  └─────────┘ └───┘
+│ ▒▒▒ ▒▒ ▒▒ │ ┌ FACES ────┐ │ □    │  │ □ │ └───┘ │ □ │  ┌ C ──────────┐
+└───────────┘ │ ▒▒ ▒▒▒ ▒▒ │ │ □    │  └───┘       └───┘  │ □ □ □ □     │
+┌ LIGHT ────┐ │ ▒▒▒ ▒▒ ▒▒ │ └──────┘                     └─────────────┘
+│ ▒▒▒ ▒▒ ▒▒ │ └───────────┘
+└───────────┘
 ```
 
 Cards are taken in reading order — top to bottom, each row left to right —

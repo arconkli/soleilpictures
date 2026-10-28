@@ -397,7 +397,7 @@ export const COLOUR_NAMES = 'blue, clay, green, plum, teal, rose, moss, slate';
 // SECTIONS.maxPerCall; a test holds them equal): this file can't import it.
 const CARD_LOOK = {
   color: str(`A note’s fill: a hex colour like "#f3ddaa" or a colour by name (${COLOUR_NAMES}), its ink following; `
-    + 'left out, a note in a section takes the section’s colour, lightened. On other kinds, a colour for the card'),
+    + 'left out, a note in a section takes the section’s colour, lightened; "" for none. On other kinds, a colour for the card'),
   group: str('The section this card belongs in, by name: the board’s group of that name, made if there is none'),
   swatches: {
     type: 'array',

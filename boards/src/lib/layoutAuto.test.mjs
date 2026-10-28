@@ -119,7 +119,7 @@ test('a few sections of notes are columns: one row of them, read left to right',
   }
 });
 
-test('a moodboard lets its pictures lead: picture sections two to a row, the words beside them', () => {
+test('a moodboard lets its pictures lead: picture sections in two columns, the words beside them', () => {
   const aspects = [1.5, 0.75, 1, 1.78, 0.67, 1.33];
   const board = [
     ...['streets', 'rooms', 'faces', 'light'].flatMap((g) => aspects.map((a, i) => pic(`${g}-${i}`, g, a))),
@@ -139,6 +139,34 @@ test('a moodboard lets its pictures lead: picture sections two to a row, the wor
   const w = Math.max(...cards.map((c) => c.x + c.w));
   const h = Math.max(...cards.map((c) => c.y + c.h));
   assert.ok(w / h > 1 && w / h < 2.6, `${w}×${h}`);
+});
+
+test('a short picture section leaves no hole: the next one goes under it, and a tidy reads it back', () => {
+  // A live run on preview (10-27) brought a moodboard in a section at a time:
+  // three pictures, two, three. Set two to a row, the short section left a
+  // hole under it and the third section sat alone, half the board empty.
+  const board = [
+    ...[0.67, 1.5, 1.5].map((a, i) => pic(`streets-${i}`, 'streets', a)),
+    ...[1.5, 0.75].map((a, i) => pic(`alleys-${i}`, 'alleys', a)),
+    ...[1.5, 1.5, 1.5].map((a, i) => pic(`neon-${i}`, 'neon', a)),
+    palette('pal', 'look', 5),
+    note('look-0', 'look', 163), note('look-1', 'look', 128),
+  ];
+  const { arrangement, cards } = autoPlan(board);
+  assert.equal(arrangement, 'pictures');
+  assertNoOverlaps(cards);
+  const [streets, alleys, neon, look] = ['streets', 'alleys', 'neon', 'look'].map((g) => reach(cards, g));
+  assert.equal(streets.y, alleys.y);
+  assert.ok(alleys.b < streets.b, 'the second section is the shorter');
+  assert.equal(neon.x, alleys.x, 'the third goes under the shorter');
+  assert.ok(neon.y > alleys.b && neon.y < streets.b, 'beside the first, not under both');
+  assert.ok(look.x > Math.max(streets.r, neon.r), 'the words beside them');
+  const first = arrangeAuto([], board);
+  const again = new Map(rearrangeAuto(first, first.map((c) => c.id)).map((c) => [c.id, c]));
+  for (const c of first) {
+    const b = again.get(c.id);
+    assert.deepEqual([b.x, b.y, b.w, b.h], [c.x, c.y, c.w, c.h], `${c.id} moved`);
+  }
 });
 
 test('many sections, or a few that would make a strip side by side, are blocks', () => {

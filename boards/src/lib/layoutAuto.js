@@ -21,8 +21,8 @@
 //
 //   · pictures lead (C): at least half the cards are pictures, some sections
 //     are pictures alone and others hold words, as a moodboard does: the
-//     picture sections large, two to a row, and the other sections in a column
-//     beside them
+//     picture sections large, in two columns, each under the shorter one, and
+//     the other sections in a column beside them
 //   · columns (A): one row of the sections, each a column (a long one two or
 //     more wide), read left to right as lists are; taken whenever the board
 //     shows on a screen about as large as it would as blocks
@@ -59,7 +59,7 @@ export const AUTO = Object.freeze({
   down: 64, // between two rows of sections, outline to outline: the names sit in it
   rowHeight: 210, // what a row of pictures aims at
   leadShare: 0.5, // the pictures lead from this share of the cards
-  leadPerRow: 2, // picture sections to a row when they lead
+  leadColumns: 2, // the columns the picture sections make when they lead
   leadRowHeight: 240, // what a row of pictures aims at when they lead
   shape: '16:10', // what the whole board aims at
   maxColumns: 12, // the most columns a section takes
@@ -419,21 +419,36 @@ function columns(sections, blockOf, o) {
   return { name: 'columns', at: best.at, W: best.W, H: best.H };
 }
 
-// C · Pictures lead: the picture sections leadPerRow to a row, all two or three
-// columns wide, their rows aiming at leadRowHeight; the other sections stacked
-// in a column beside them, one to three columns wide; whichever widths show
-// the board largest. null without both kinds.
+// Blocks in `count` columns from (x0, 0), outline to outline: each under the
+// shortest column (the leftmost of equals), `down` under the block above it,
+// the columns as far apart as the widest block needs. A block is never set
+// higher than the one before it, so the blocks read back, top then left, in
+// the order they were set out. Takes and returns them as inRows does.
+function inColumns(items, count, o, x0 = 0) {
+  const step = Math.max(...items.map((p) => p.block.w)) + 2 * PAD + o.across;
+  const bottoms = new Array(Math.max(1, Math.min(count, items.length))).fill(0);
+  return items.map((p) => {
+    let j = 0;
+    for (let m = 1; m < bottoms.length; m++) if (bottoms[m] < bottoms[j]) j = m;
+    const y = bottoms[j];
+    bottoms[j] += p.block.h + 2 * PAD + o.down;
+    return { ...p, x: x0 + j * step, y };
+  });
+}
+
+// C · Pictures lead: the picture sections in leadColumns columns, each under
+// the shorter (inColumns: sections of different heights leave no hole beside
+// the short one), all two or three columns wide, their rows aiming at
+// leadRowHeight; the other sections stacked in a column beside them, one to
+// three columns wide; whichever widths show the board largest. null without
+// both kinds.
 function picturesLead(sections, blockOf, o) {
   const pictures = sections.map((_, si) => si).filter((si) => sections[si].pictures);
   const words = sections.map((_, si) => si).filter((si) => !sections[si].pictures);
   if (!pictures.length || !words.length) return null;
   let best = null;
   for (const k of LEAD_COLUMNS) {
-    const rows = [];
-    for (let i = 0; i < pictures.length; i += o.leadPerRow) {
-      rows.push(pictures.slice(i, i + o.leadPerRow).map((si) => ({ si, block: blockOf(si, k, o.leadRowHeight) })));
-    }
-    const left = inRows(rows, o);
+    const left = inColumns(pictures.map((si) => ({ si, block: blockOf(si, k, o.leadRowHeight) })), o.leadColumns, o);
     const from = extent(left).W + o.across;
     for (let n = 1; n <= o.besideWide; n++) {
       const at = [...left, ...inRows(words.map((si) => [{ si, block: blockOf(si, n) }]), o, from)];

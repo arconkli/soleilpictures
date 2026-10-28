@@ -5705,7 +5705,7 @@ Send your own html and it is used as it is, under your title as a heading when i
 
 Sized to its text. Leave h out and a note is as tall as its text at its width — 280px unless you give w, or 320px when the text needs the room — from 72 to 480px, the tallest a note grows in the app. A note whose text runs past that comes back named in warnings: on the board its end fades out, and long writing reads better as a doc.
 
-Colour. A note's color is its fill, a hex colour such as #f3ddaa or one of the named colours, and its text turns dark or light to read on it. Anything else is a 400. A note made without a color, in a section that has one, takes the section's colour lightened (its tint), so the sections read apart at a glance — but not on a board where pictures lead (at least half of its cards pictures, and some sections words: their colours carry it), and not on a board of one section. Send "color": null to keep a note plain. Other kinds keep color as given.
+Colour. A note's color is its fill, a hex colour such as #f3ddaa or one of the named colours, and its text turns dark or light to read on it. Anything else is a 400. A note made without a color, in a section that has one, takes the section's colour lightened (its tint), so the sections read apart at a glance — but not on a board where pictures lead (at least half of its cards pictures, and some sections words: their colours carry it), and not on a board of one section. Send "color": null or "" to keep a note plain, or to take a note's colour off with an update; over MCP, where a null means a value wasn't given, "". Other kinds keep color as given.
 
 Changing one. A new title or body on a note the API wrote is written into it the same way, and its height follows unless you send h. A note that has since been edited in the app keeps the text it has there, and a note resized by hand keeps its size. A note the API made before notes worked this way is brought up to date the next time its board is arranged.
 
@@ -6658,7 +6658,7 @@ auto · column · grid · justified · masonry · row
 
 auto — the default. A board reads as its sections (groups), so each is laid out as a block of its own: pictures (images and videos) in rows across the block, flush on both edges and each at its true shape, under the section's palette if it has one; anything else in columns, each card at its own size, a picture at the column's width and a palette or a wide card across the top. Cards in no section make one block more. The blocks are then set out whichever of three ways suits what the board holds:
 
-Pictures lead — when at least half of the cards are pictures and some sections hold words, as a moodboard does: the picture sections large, two to a row, and the other sections in a column beside them.
+Pictures lead — when at least half of the cards are pictures and some sections hold words, as a moodboard does: the picture sections large, in two columns, each under the shorter one so a short section leaves no hole, and the other sections in a column beside them.
 Columns — the sections side by side in one row, each a column (a long one up to 4 columns wide), read left to right as lists are; taken when the board shows on a screen about as large as it would as blocks.
 Blocks — anything else: the blocks in rows, in order, at the width that brings the whole board nearest 16:10 with its rows about as wide as each other.
 
@@ -6667,11 +6667,12 @@ Neither of the first two is taken for a board that would come out a strip, far w
 Pictures lead                        Columns              Blocks
 ┌ STREETS ──┐ ┌ ROOMS ────┐ ┌ LOOK ┐  ┌ A ┐ ┌ B ┐ ┌ C ┐  ┌ A ──────┐ ┌ B ┐
 │ ▒▒▒ ▒ ▒▒▒ │ │ ▒▒ ▒▒▒ ▒▒ │ │ ░░░░ │  │ □ │ │ □ │ │ □ │  │ □ □ □   │ │ □ │
-│ ▒▒ ▒▒▒▒ ▒ │ │ ▒▒▒▒ ▒▒▒▒ │ │ □    │  │ □ │ │ □ │ │ □ │  └─────────┘ └───┘
-└───────────┘ └───────────┘ │ □    │  │ □ │ └───┘ │ □ │  ┌ C ──────────┐
-┌ FACES ────┐ ┌ LIGHT ────┐ │ □    │  └───┘       └───┘  │ □ □ □ □     │
-│ ▒▒ ▒▒▒ ▒▒ │ │ ▒▒▒ ▒▒ ▒▒ │ └──────┘                     └─────────────┘
-└───────────┘ └───────────┘
+│ ▒▒ ▒▒▒▒ ▒ │ └───────────┘ │ □    │  │ □ │ │ □ │ │ □ │  └─────────┘ └───┘
+│ ▒▒▒ ▒▒ ▒▒ │ ┌ FACES ────┐ │ □    │  │ □ │ └───┘ │ □ │  ┌ C ──────────┐
+└───────────┘ │ ▒▒ ▒▒▒ ▒▒ │ │ □    │  └───┘       └───┘  │ □ □ □ □     │
+┌ LIGHT ────┐ │ ▒▒▒ ▒▒ ▒▒ │ └──────┘                     └─────────────┘
+│ ▒▒▒ ▒▒ ▒▒ │ └───────────┘
+└───────────┘
 
 Cards are taken in reading order — top to bottom, each row left to right — unless order names the ones that come first, and a column fills in that same order. Every arrangement keeps the sections in their order, so arranging a board auto arranged moves nothing.
 

@@ -56699,7 +56699,38 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " to keep a note plain. Other kinds keep "
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "\"\""
+    },
+    {
+     "t": "text",
+     "v": " to keep a note plain, or to take a note's colour off with an update; over "
+    },
+    {
+     "t": "link",
+     "v": "MCP",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "MCP"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", where a null means a value wasn't given, "
+    },
+    {
+     "t": "code",
+     "v": "\"\""
+    },
+    {
+     "t": "text",
+     "v": ". Other kinds keep "
     },
     {
      "t": "code",
@@ -64794,7 +64825,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — when at least half of the cards are pictures and some sections hold words, as a moodboard does: the picture sections large, two to a row, and the other sections in a column beside them."
+      "v": " — when at least half of the cards are pictures and some sections hold words, as a moodboard does: the picture sections large, in two columns, each under the shorter one so a short section leaves no hole, and the other sections in a column beside them."
      }
     ],
     [
@@ -64843,7 +64874,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": null,
-   "code": "Pictures lead                        Columns              Blocks\n┌ STREETS ──┐ ┌ ROOMS ────┐ ┌ LOOK ┐  ┌ A ┐ ┌ B ┐ ┌ C ┐  ┌ A ──────┐ ┌ B ┐\n│ ▒▒▒ ▒ ▒▒▒ │ │ ▒▒ ▒▒▒ ▒▒ │ │ ░░░░ │  │ □ │ │ □ │ │ □ │  │ □ □ □   │ │ □ │\n│ ▒▒ ▒▒▒▒ ▒ │ │ ▒▒▒▒ ▒▒▒▒ │ │ □    │  │ □ │ │ □ │ │ □ │  └─────────┘ └───┘\n└───────────┘ └───────────┘ │ □    │  │ □ │ └───┘ │ □ │  ┌ C ──────────┐\n┌ FACES ────┐ ┌ LIGHT ────┐ │ □    │  └───┘       └───┘  │ □ □ □ □     │\n│ ▒▒ ▒▒▒ ▒▒ │ │ ▒▒▒ ▒▒ ▒▒ │ └──────┘                     └─────────────┘\n└───────────┘ └───────────┘"
+   "code": "Pictures lead                        Columns              Blocks\n┌ STREETS ──┐ ┌ ROOMS ────┐ ┌ LOOK ┐  ┌ A ┐ ┌ B ┐ ┌ C ┐  ┌ A ──────┐ ┌ B ┐\n│ ▒▒▒ ▒ ▒▒▒ │ │ ▒▒ ▒▒▒ ▒▒ │ │ ░░░░ │  │ □ │ │ □ │ │ □ │  │ □ □ □   │ │ □ │\n│ ▒▒ ▒▒▒▒ ▒ │ └───────────┘ │ □    │  │ □ │ │ □ │ │ □ │  └─────────┘ └───┘\n│ ▒▒▒ ▒▒ ▒▒ │ ┌ FACES ────┐ │ □    │  │ □ │ └───┘ │ □ │  ┌ C ──────────┐\n└───────────┘ │ ▒▒ ▒▒▒ ▒▒ │ │ □    │  └───┘       └───┘  │ □ □ □ □     │\n┌ LIGHT ────┐ │ ▒▒▒ ▒▒ ▒▒ │ └──────┘                     └─────────────┘\n│ ▒▒▒ ▒▒ ▒▒ │ └───────────┘\n└───────────┘"
   },
   {
    "type": "para",

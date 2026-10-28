@@ -98,8 +98,10 @@ on it. Anything else is a `400`. A note made without a `color`, in a section
 that has one, takes the section's colour lightened (its tint), so the sections
 read apart at a glance — but not on a board where pictures lead (at least
 half of its cards pictures, and some sections words: their
-colours carry it), and not on a board of one section. Send `"color": null` to
-keep a note plain. Other kinds keep `color` as given.
+colours carry it), and not on a board of one section. Send `"color": null` or
+`""` to keep a note plain, or to take a note's colour off with an update; over
+[MCP](/docs/mcp), where a null means a value wasn't given, `""`. Other kinds keep
+`color` as given.
 
 **Changing one.** A new `title` or `body` on a note the API wrote is written
 into it the same way, and its height follows unless you send `h`. A note that

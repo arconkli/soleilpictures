@@ -1286,6 +1286,7 @@ test('sections an add makes take named colours, and their new notes the sections
       { kind: 'note', title: 'Heat', group: 'Canon', color: '#f3ddaa' },
       { kind: 'note', title: 'Diary', group: 'Journal' },
       { kind: 'note', title: 'Plain', group: 'Journal', color: null },
+      { kind: 'note', title: 'Blank', group: 'Journal', color: '' },
       { kind: 'note', title: 'Short film', group: 'Ideas' },
       { kind: 'note', title: 'Loose' },
     ],
@@ -1294,7 +1295,7 @@ test('sections an add makes take named colours, and their new notes the sections
   assert.deepEqual(r.body.groups.map((g) => [g.name, g.color]),
     [['Canon', '#3f7ab5'], ['Journal', '#3d8550'], ['Ideas', '#c8a04a']]);
   assert.deepEqual(Object.fromEntries(r.body.cards.map((c) => [c.title, c.color])), {
-    Stalker: '#cae2fd', Heat: '#f3ddaa', Diary: '#c9e6ce', Plain: null, 'Short film': tintOf('#c8a04a'), Loose: null,
+    Stalker: '#cae2fd', Heat: '#f3ddaa', Diary: '#c9e6ce', Plain: null, Blank: null, 'Short film': tintOf('#c8a04a'), Loose: null,
   });
   assert.equal(cardsOn(B1).find((c) => c.title === 'Stalker').bgColor, '#cae2fd', 'painted where the canvas paints');
 });

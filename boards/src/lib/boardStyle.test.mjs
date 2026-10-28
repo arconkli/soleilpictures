@@ -105,3 +105,17 @@ test('the tools and the instructions name the colours the API takes by name', as
   assert.equal(COLOUR_NAMES, SECTION_COLOURS.map((c) => c.name).join(', '));
   for (const c of SECTION_COLOURS) assert.match(INSTRUCTIONS, new RegExp(`\\b${c.name}\\b`), c.name);
 });
+
+test('over MCP a null colour means "not given", so "" is how a note is kept plain', async () => {
+  const { TOOLS } = await import('./mcpTools.js');
+  const { checkArgs } = await import('./mcpValidate.js');
+  const add = TOOLS.find((t) => t.name === 'add_cards');
+  const { args, problems } = checkArgs(add.inputSchema, {
+    board_id: '00000000-0000-4000-8000-000000000001',
+    cards: [{ kind: 'note', title: 'a', color: null }, { kind: 'note', title: 'b', color: '' }],
+  });
+  assert.deepEqual(problems, []);
+  assert.equal('color' in args.cards[0], false, 'ChatGPT sends null for every field it leaves out');
+  assert.equal(args.cards[1].color, '', 'kept, and the card route reads it as no colour');
+  assert.match(add.inputSchema.properties.cards.items.properties.color.description, /"" for none/);
+});
