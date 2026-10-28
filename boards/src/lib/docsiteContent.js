@@ -68769,7 +68769,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " where the host can draw it (ChatGPT, Claude), and answered with its link and what is on it everywhere else"
+       "v": " where the host can draw it (ChatGPT, Claude). Every answer also outlines the board, its sections and a few card titles each, and ends with its link"
       }
      ]
     ],
@@ -71274,15 +71274,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The view is one page, "
-    },
-    {
-     "t": "code",
-     "v": "ui://clusters/board-v1.html"
-    },
-    {
-     "t": "text",
-     "v": ", which hosts read with "
+     "v": "The view is one page, which hosts read with "
     },
     {
      "t": "code",
@@ -71298,7 +71290,23 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". It loads nothing but the board's pictures, from https://clusters.soleilpictures.com, at addresses that work for an hour ("
+     "v": ". Its address names its build, "
+    },
+    {
+     "t": "code",
+     "v": "ui://clusters/board-<build>.html"
+    },
+    {
+     "t": "text",
+     "v": ", so a host that kept an older copy asks for the new one, and an older address, "
+    },
+    {
+     "t": "code",
+     "v": "ui://clusters/board-v1.html"
+    },
+    {
+     "t": "text",
+     "v": " included, opens the page as it is now. In ChatGPT the view also draws from what ChatGPT hands its apps directly, so the board shows even when ChatGPT's side of MCP Apps doesn't answer. It loads nothing but the board's pictures, from https://clusters.soleilpictures.com, at addresses that work for an hour ("
     },
     {
      "t": "link",
@@ -71313,7 +71321,16 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "); open the conversation again later and it asks for fresh ones. Every word on the board is drawn as text, and the only links it opens are Clusters' own. The assistant is told what the board holds, never the pictures' addresses, and where a host can't draw the view the answer is the board's link and a line on what is on it."
+     "v": "); open the conversation again later and it asks for fresh ones. Every word on the board is drawn as text, and the only links it opens are Clusters' own."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The assistant is told what the board holds, never the pictures' addresses: an outline of its sections, in the order they read, with how many cards each holds and the titles of the first few, then the cards in no section. The answer ends with the board's link, which the assistant is told to pass on, so a chat that can't draw the view, or whose view fails to open, still has the board in words and a way into it."
     }
    ]
   },

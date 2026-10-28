@@ -21,6 +21,9 @@ const LEGIBLE_PX = 8;
 const NOTE_PX = 14;
 // Fresh picture addresses: a few per view, and not in a burst.
 const REFRESH = { max: 4, gapMs: 15_000 };
+// How long the host has to answer the view's hello before the view draws
+// without it.
+const NO_ANSWER_MS = 2500;
 
 // Phosphor, regular weight, as the app's icons.
 const ICON = {
@@ -129,6 +132,8 @@ const state = {
 };
 
 const byId = new Map(); // card id -> its node
+// Whether the host answered the view's hello (bridge.connect).
+let connected = false;
 const boardId = () => state.canvas?.board?.id || state.summary?.board?.id || state.args?.board_id || null;
 const draftKey = () => state.draft?.key || (typeof state.args?.draft === 'string' ? state.args.draft : null);
 const isFull = () => state.mode === 'fullscreen';
@@ -545,7 +550,10 @@ doc.addEventListener('keydown', (e) => {
 
 function openLink(url) {
   const safe = safeUrl(url);
-  if (safe) bridge.request('ui/open-link', { url: safe }).catch(() => {});
+  if (!safe) return;
+  const o = openai();
+  if (!connected && typeof o?.openExternal === 'function') o.openExternal({ href: safe, redirectUrl: false });
+  else bridge.request('ui/open-link', { url: safe }).catch(() => {});
 }
 
 // The board's own action: open it, or keep it when it is a draft (its link
@@ -583,10 +591,13 @@ function renderFoot() {
     const count = el('span', 'selc');
     count.append(el('i'), doc.createTextNode(`${picked} selected`));
     foot.appendChild(count);
-    if (state.caps.message) {
+    const o = openai();
+    const viaOpenAI = !connected && typeof o?.sendFollowUpMessage === 'function';
+    if (state.caps.message || viaOpenAI) {
       foot.appendChild(button('Ask about these', () => {
         const text = askText(state.canvas.board, pickedCards());
-        bridge.request('ui/message', { role: 'user', content: [{ type: 'text', text }] }).catch(() => {});
+        if (viaOpenAI) o.sendFollowUpMessage({ prompt: text });
+        else bridge.request('ui/message', { role: 'user', content: [{ type: 'text', text }] }).catch(() => {});
       }, { cls: 'btn btn-p', iconD: ICON.ask }));
     }
     foot.appendChild(button('Clear', clearPicked, { cls: 'btn btn-t' }));
@@ -674,6 +685,47 @@ function onResult(result) {
 }
 
 let remeasure = () => {};
+let watching = false;
+
+// The frame follows the page inline (full screen, the host sizes it). Told
+// over the bridge, and to ChatGPT's own globals while the bridge is silent.
+function watchFrame() {
+  if (watching) return;
+  watching = true;
+  remeasure = watchSize(window, doc, (size) => {
+    if (isFull()) return;
+    bridge.notify('ui/notifications/size-changed', size);
+    if (!connected) openai()?.notifyIntrinsicHeight?.(size.height);
+  });
+}
+
+// ── ChatGPT's own globals ────────────────────────────────────────────────────
+//
+// ChatGPT draws MCP Apps, and also hands a view the answer as window.openai
+// (its Apps SDK): toolInput, toolOutput (what the model got) and
+// toolResponseMetadata (the answer's _meta, or the whole answer with its _meta
+// inside). When the bridge's hello goes unanswered, the board is drawn from
+// there, and drawn again when ChatGPT says they changed.
+const openai = () => (window.openai && typeof window.openai === 'object' ? window.openai : null);
+
+function metaOf(m) {
+  if (!m || typeof m !== 'object') return {};
+  for (const r of [m, m.mcp_tool_result?._meta, m.call_tool_result?._meta, m._meta]) {
+    if (r && typeof r === 'object' && r[CANVAS_KEY]) return r;
+  }
+  return m;
+}
+
+function fromOpenAI() {
+  const o = openai();
+  if (!o) return;
+  if (o.toolInput && typeof o.toolInput === 'object' && !boardId()) state.args = o.toolInput;
+  if (!connected && (o.theme === 'dark' || o.theme === 'light')) applyHostLook(doc, { theme: o.theme });
+  if (state.canvas) return;
+  const meta = metaOf(o.toolResponseMetadata);
+  const output = o.toolOutput && typeof o.toolOutput === 'object' ? o.toolOutput : null;
+  if (meta[CANVAS_KEY] || (output && state.phase === 'loading')) onResult({ structuredContent: output, _meta: meta });
+}
 
 function setMode(mode, ask = false) {
   if (ask) {
@@ -727,14 +779,25 @@ new ResizeObserver(() => {
   if (isFull() || stage.clientWidth !== lastStageW) layoutStage();
 }).observe(stage);
 
+window.addEventListener('openai:set_globals', fromOpenAI);
+
 render();
+fromOpenAI();
+// A host that never answers still gets a page that fits its frame, drawn from
+// whatever has arrived.
+const late = setTimeout(() => {
+  fromOpenAI();
+  watchFrame();
+  render();
+}, NO_ANSWER_MS);
 bridge.connect().then((init) => {
+  connected = true;
+  clearTimeout(late);
   state.caps = init.hostCapabilities || {};
   onContext(init.hostContext || {});
-  // Full screen, the host sizes the frame; inline, the frame follows the page.
-  remeasure = watchSize(window, doc, (size) => {
-    if (!isFull()) bridge.notify('ui/notifications/size-changed', size);
-  });
+  watchFrame();
 }).catch(() => {
   // No host answered: a page opened on its own shows what it can.
+  fromOpenAI();
+  watchFrame();
 });

@@ -18,13 +18,13 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   TOOLS, HOSTED_TOOLS, PROMPTS, SERVER_INFO, RENAMED, RENAMED_PROMPTS, TREE_MAX, PLACE_CHOICES, toolManifest, apiErrorFrom, ApiError,
-  parseFetchId, UNTRUSTED_NOTE, BOARD_VIEW,
+  parseFetchId, UNTRUSTED_NOTE, BOARD_VIEW, boardOutline, OUTLINE,
 } from './mcpTools.js';
 import {
   handleMcpMessage, handleMcpRequest, headerProblem, decodeHeaderValue,
-  SUPPORTED_PROTOCOL_VERSIONS, META, ERR, INSTRUCTIONS, toolResult,
+  SUPPORTED_PROTOCOL_VERSIONS, META, ERR, INSTRUCTIONS, toolResult, VIEW_URI,
 } from './mcpServer.js';
-import { MCP_APP_HTML } from './mcpAppHtml.generated.js';
+import { MCP_APP_HTML, MCP_APP_VERSION } from './mcpAppHtml.generated.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '../../..');
@@ -387,16 +387,16 @@ test('an unsupported method is method-not-found, not a hang', async () => {
 test('the one resource is the inline view, read as one page that fetches from this origin only', async () => {
   const list = (await rpc('resources/list')).result.resources;
   assert.equal(list.length, 1);
-  assert.equal(list[0].uri, BOARD_VIEW.uri);
+  assert.equal(list[0].uri, VIEW_URI);
   assert.equal(list[0].mimeType, 'text/html;profile=mcp-app', 'how a host knows it is an app');
   assert.deepEqual(list[0]._meta.ui.csp, { resourceDomains: ['https://clusters.test'] },
     'its pictures come from the origin that answered, preview or production');
   assert.deepEqual((await rpc('resources/templates/list')).result, { resourceTemplates: [] });
 
-  const read = (await rpc('resources/read', { uri: BOARD_VIEW.uri })).result;
+  const read = (await rpc('resources/read', { uri: VIEW_URI })).result;
   assert.equal(read.contents.length, 1);
   const [page] = read.contents;
-  assert.equal(page.uri, BOARD_VIEW.uri);
+  assert.equal(page.uri, VIEW_URI);
   assert.equal(page.mimeType, BOARD_VIEW.mimeType);
   assert.equal(page.text, MCP_APP_HTML);
   assert.match(page.text, /^<!doctype html>/);
@@ -408,11 +408,27 @@ test('the one resource is the inline view, read as one page that fetches from th
   assert.deepEqual(bare.body.result.contents[0]._meta.ui.csp.resourceDomains, ['https://clusters.soleilpictures.com']);
 });
 
+test('the view\'s address names its build, and an older address gets the page as it is now', async () => {
+  // A host that kept the page it read (ChatGPT keeps a template) asks for the
+  // new one when the page changes.
+  assert.equal(VIEW_URI, `ui://clusters/board-${MCP_APP_VERSION}.html`);
+  assert.match(MCP_APP_VERSION, /^[0-9a-f]{12}$/);
+  assert.notEqual(VIEW_URI, BOARD_VIEW.uri);
+  for (const uri of [BOARD_VIEW.uri, 'ui://clusters/board-0123456789ab.html']) {
+    const [page] = (await rpc('resources/read', { uri })).result.contents;
+    assert.equal(page.uri, uri, 'answered at the address asked');
+    assert.equal(page.text, MCP_APP_HTML, `${uri} gets today's page`);
+  }
+});
+
 test('an address that is not a resource says so, in each era\'s words', async () => {
-  const legacy = await rpc('resources/read', { uri: 'ui://clusters/board-v0.html' });
+  const legacy = await rpc('resources/read', { uri: 'ui://clusters/nope.html' });
   assert.equal(legacy.error.code, ERR.RESOURCE_NOT_FOUND);
   assert.equal(legacy.error.code, -32002);
-  assert.deepEqual(legacy.error.data, { uri: 'ui://clusters/board-v0.html' });
+  assert.deepEqual(legacy.error.data, { uri: 'ui://clusters/nope.html' });
+  for (const uri of ['ui://clusters/board-../x.html', 'ui://clusters/board-v1.html/x', 'ui://other/board-v1.html']) {
+    assert.equal((await rpc('resources/read', { uri })).error.code, ERR.RESOURCE_NOT_FOUND, uri);
+  }
   const { body } = await modernRpc('resources/read', { uri: 'file:///etc/passwd' });
   assert.equal(body.error.code, ERR.INVALID_PARAMS);
   assert.equal((await rpc('resources/read', {})).error.code, ERR.RESOURCE_NOT_FOUND);
@@ -421,9 +437,9 @@ test('an address that is not a resource says so, in each era\'s words', async ()
 test('show_board names the view, and hands the view what the model never reads', async () => {
   const listed = (await rpc('tools/list')).result.tools.find((t) => t.name === 'show_board');
   assert.deepEqual(listed._meta, {
-    ui: { resourceUri: BOARD_VIEW.uri },
-    'ui/resourceUri': BOARD_VIEW.uri,
-    'openai/outputTemplate': BOARD_VIEW.uri,
+    ui: { resourceUri: VIEW_URI },
+    'ui/resourceUri': VIEW_URI,
+    'openai/outputTemplate': VIEW_URI,
   });
   // No other tool opens the view: a host draws one for every call that names it.
   assert.deepEqual((await rpc('tools/list')).result.tools.filter((t) => t._meta?.ui).map((t) => t.name), ['show_board']);
@@ -431,8 +447,12 @@ test('show_board names the view, and hands the view what the model never reads',
   const canvas = {
     board: { id: BOARD_ID, name: 'Diner', url: 'https://clusters.test/?to=b:x', card_count: 3 },
     bounds: { x: 0, y: 0, w: 500, h: 300 },
-    cards: [{ id: 'i1', kind: 'image', x: 0, y: 0, w: 200, h: 150, picture: { url: 'https://clusters.test/api/img/a.b' } }],
-    groups: [{ id: 'g1', x: 0, y: 0, w: 200, h: 150, name: 'Streets' }, { id: 'g2', x: 0, y: 0, w: 1, h: 1 }],
+    cards: [
+      { id: 'i1', kind: 'image', x: 0, y: 0, w: 200, h: 150, picture: { url: 'https://clusters.test/api/img/a.b' } },
+      { id: 'n1', kind: 'note', x: 220, y: 0, w: 200, h: 100, group_id: 'g1', title: 'Neon at 2am' },
+      { id: 'n2', kind: 'note', x: 0, y: 200, w: 200, h: 100, text: 'Wet streets, long lenses' },
+    ],
+    groups: [{ id: 'g1', x: 220, y: 0, w: 200, h: 100, name: 'Streets' }, { id: 'g2', x: 0, y: 0, w: 1, h: 1 }],
     picture_count: 1,
     hidden: 2,
     expires_at: '2026-10-27T12:00:00.000Z',
@@ -453,6 +473,46 @@ test('show_board names the view, and hands the view what the model never reads',
   assert.deepEqual(r.structuredContent.groups, ['Streets']);
   assert.equal(r.structuredContent.not_drawn, 2);
   assert.match(r.content[0].text, /^Showing "Diner" · 3 cards · 1 picture · https:\/\/clusters\.test\/\?to=b:x/);
+  // A host that can't draw the view still has the board in words, and its link
+  // last, for the model to hand on.
+  assert.deepEqual(r.structuredContent.outline, [
+    { section: 'Streets', cards: 1, titles: ['Neon at 2am'] },
+    { cards: 2, titles: ['Wet streets, long lenses'] },
+  ]);
+  assert.match(r.content[0].text, /\n\nOpen it in Clusters: https:\/\/clusters\.test\/\?to=b:x$/);
+  const [, json] = r.content[0].text.split('\n\n');
+  assert.deepEqual(JSON.parse(json), r.structuredContent);
+});
+
+test('a board\'s outline: its sections in reading order, a few titles each, loose cards last', () => {
+  assert.deepEqual(boardOutline({}), []);
+  assert.deepEqual(boardOutline({ cards: [], groups: [] }), []);
+  const long = 'x'.repeat(OUTLINE.titleMax + 10);
+  const outline = boardOutline({
+    cards: [
+      { id: 'a', x: 0, y: 500, group_id: 'later', title: 'Last read' },
+      { id: 'b', x: 400, y: 0, group_id: 'first', title: '  Two\n words ' },
+      { id: 'c', x: 0, y: 0, title: 'Loose' },
+      { id: 'd', x: 0, y: 40, group_id: 'gone', text: 'Its section is gone' },
+      { id: 'e', x: 0, y: 80, group_id: 'unnamed' },
+      ...Array.from({ length: OUTLINE.titles + 2 }, (_, i) => ({ id: `f${i}`, x: 600, y: 10 + i, group_id: 'first', text: i ? `Card ${i}` : long })),
+    ],
+    groups: [{ id: 'first', name: 'First' }, { id: 'later', name: 'Later' }, { id: 'unnamed' }],
+  });
+  assert.deepEqual(outline.map((s) => s.section), ['First', 'Untitled section', 'Later', undefined]);
+  assert.equal(outline[0].cards, OUTLINE.titles + 3);
+  assert.equal(outline[0].titles.length, OUTLINE.titles);
+  assert.equal(outline[0].titles[0], 'Two words');
+  assert.equal(outline[0].titles[1].length, OUTLINE.titleMax);
+  assert.ok(outline[0].titles[1].endsWith('…'));
+  assert.deepEqual(outline[1], { section: 'Untitled section', cards: 1, titles: [] });
+  assert.deepEqual(outline.at(-1), { cards: 2, titles: ['Loose', 'Its section is gone'] });
+  assert.ok(!('section' in outline.at(-1)));
+  const many = boardOutline({
+    cards: Array.from({ length: OUTLINE.sections + 3 }, (_, i) => ({ id: `c${i}`, x: 0, y: i, group_id: `g${i}` })),
+    groups: Array.from({ length: OUTLINE.sections + 3 }, (_, i) => ({ id: `g${i}`, name: `S${i}` })),
+  });
+  assert.equal(many.length, OUTLINE.sections);
 });
 
 // ── 2026-07-28: the handshake is gone ────────────────────────────────────────
@@ -1066,6 +1126,18 @@ test('a summary that fails costs its line, never the answer', () => {
     assert.equal(out.content[0].text, '{"ok":true}');
     assert.equal(out.isError, undefined);
   } finally { console.error = err; }
+});
+
+test('a closing line comes after the JSON, and one that fails costs only itself', () => {
+  const t = { name: 'x', outputSchema: { type: 'object' }, summary: () => 'Did x', afterword: (o) => `Open ${o.url}` };
+  assert.equal(toolResult(t, {}, { url: 'https://x' }).content[0].text, 'Did x\n\n{"url":"https://x"}\n\nOpen https://x');
+  const err = console.error;
+  console.error = () => {};
+  try {
+    const out = toolResult({ ...t, afterword: () => { throw new TypeError('boom'); } }, {}, { ok: true });
+    assert.equal(out.content[0].text, 'Did x\n\n{"ok":true}');
+  } finally { console.error = err; }
+  assert.equal(toolResult({ ...t, afterword: () => null }, {}, { ok: true }).content[0].text, 'Did x\n\n{"ok":true}');
 });
 
 test('every summary reads an answer missing its fields without throwing, in one line', () => {

@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import * as Y from 'yjs';
 import { handleApiRoute } from '../worker-api.js';
 import { UNTRUSTED_NOTE } from './mcpTools.js';
+import { VIEW_URI } from './mcpServer.js';
 import { cardToYMap, bytesToB64, b64ToBytes, readCards, readGroups } from './yhelpers.js';
 import { imageSecret, verifySignedImage, SIGNED_IMAGE_PATH, SIGNED_IMAGE_TTL_S } from './signedImage.js';
 import { GROUP_OUTLINE_PAD, GROUP_LABEL_ROOM } from './layoutEngine.js';
@@ -924,9 +925,14 @@ test('show_board over /mcp draws for the view and tells the model what is there,
     assert.equal(canvas.board.id, B1);
     assert.equal(canvas.cards.filter((x) => x.picture?.url).length, 3);
     const tool = (await mcp('tools/list')).body.result.tools.find((t) => t.name === 'show_board');
-    assert.equal(tool._meta.ui.resourceUri, 'ui://clusters/board-v1.html');
-    const page = (await mcp('resources/read', { uri: 'ui://clusters/board-v1.html' })).body.result.contents[0];
+    assert.equal(tool._meta.ui.resourceUri, VIEW_URI);
+    const page = (await mcp('resources/read', { uri: VIEW_URI })).body.result.contents[0];
     assert.deepEqual(page._meta.ui.csp.resourceDomains, ['https://clusters.test'], 'pictures from the origin that answered');
+    // The first address, which a host may have kept, still opens the page.
+    const first = (await mcp('resources/read', { uri: 'ui://clusters/board-v1.html' })).body.result.contents[0];
+    assert.equal(first.text, page.text);
+    assert.match(r.content[0].text, /\n\nOpen it in Clusters: https:\/\/clusters\.test\/\?to=b:[^\n]+$/);
+    assert.ok(Array.isArray(r.structuredContent.outline));
   });
 });
 

@@ -53,16 +53,45 @@ const schema = (properties, required = []) => ({
 const looseObject = (properties) => ({ type: 'object', properties, additionalProperties: true });
 
 // The inline view: a page a host draws in the chat (an MCP App) from what
-// show_board answers. `uri` is where hosts read it (resources/read), the MIME
-// type is how they know it is one, and `metaKey` is the answer's _meta entry
-// the view draws from, which the model never reads. A change the old page
-// can't draw gets a new uri (board-v2), so a host's cached copy never
-// misreads a new answer.
+// show_board answers. Hosts read it (resources/read) at an address naming its
+// build (mcpServer.js VIEW_URI), so a copy a host kept is never older than the
+// answer it draws; `uri`, its first address, is still answered. The MIME type
+// is how they know it is one, and `metaKey` is the answer's _meta entry the
+// view draws from, which the model never reads.
 export const BOARD_VIEW = Object.freeze({
   uri: 'ui://clusters/board-v1.html',
   mimeType: 'text/html;profile=mcp-app',
   metaKey: 'clusters/canvas',
 });
+
+// What a board holds, in words, for a chat that can't draw it (P7): its
+// sections in reading order, each with how many cards it has and the first few
+// cards' titles, then the cards in no section (no `section`). From the board as
+// drawn (GET /boards/:id/canvas).
+export const OUTLINE = Object.freeze({ sections: 12, titles: 5, titleMax: 60 });
+
+export function boardOutline(canvas) {
+  const cards = [...(canvas?.cards || [])].sort((a, b) => ((a.y ?? 0) - (b.y ?? 0)) || ((a.x ?? 0) - (b.x ?? 0)));
+  const names = new Map((canvas?.groups || []).map((g) => [g.id, g.name || 'Untitled section']));
+  const parts = new Map();
+  for (const c of cards) {
+    const key = c.group_id && names.has(c.group_id) ? c.group_id : '';
+    if (!parts.has(key)) parts.set(key, []);
+    parts.get(key).push(c);
+  }
+  const clipped = (s) => {
+    const t = String(s ?? '').replace(/\s+/g, ' ').trim();
+    return t.length > OUTLINE.titleMax ? `${t.slice(0, OUTLINE.titleMax - 1)}…` : t;
+  };
+  const entry = (list) => ({
+    cards: list.length,
+    titles: list.map((c) => clipped(c.title || c.text)).filter(Boolean).slice(0, OUTLINE.titles),
+  });
+  const out = [...parts].filter(([key]) => key).slice(0, OUTLINE.sections)
+    .map(([key, list]) => ({ section: names.get(key), ...entry(list) }));
+  if (parts.has('')) out.push(entry(parts.get('')));
+  return out;
+}
 
 const IDENTIFIER = {
   type: 'array',
@@ -861,9 +890,10 @@ export const TOOLS = [
     description: 'Shows the person a board as it is laid out on the canvas, in the chat itself where the app '
       + 'can draw it (ChatGPT, Claude): pictures, notes, palettes and docs where they sit, with the groups '
       + 'named. They can pick pictures and ask you about them, or open it in Clusters. Call it '
-      + 'once a moodboard is made or changed, or when they ask to see a board. Where nothing can be drawn it '
-      + 'answers with the board\'s link and what is on it. view_board is for you to look at the pictures; '
-      + 'read_board to read the text.',
+      + 'once a moodboard is made or changed, or when they ask to see a board. It also answers with an outline '
+      + 'of the board (its sections and what is in them) and its link: give the person the link too, since '
+      + 'some chats can\'t draw the board. view_board is for you to look at the pictures; read_board to read '
+      + 'the text.',
     annotations: READS,
     peoplesText: true,
     inputSchema: schema({ board_id: uuid('The board to show') }, ['board_id']),
@@ -872,6 +902,15 @@ export const TOOLS = [
       cards: { type: 'number' },
       pictures: { type: 'number' },
       groups: { type: 'array', items: { type: 'string' } },
+      outline: {
+        type: 'array',
+        description: 'Each section with its card count and first titles; the last entry, with no section, is the cards in none',
+        items: looseObject({
+          section: { type: 'string' },
+          cards: { type: 'number' },
+          titles: { type: 'array', items: { type: 'string' } },
+        }),
+      },
     }),
     // Hosts that draw apps read the first; the flat key and ChatGPT's own
     // name for it say the same to hosts that read only those.
@@ -884,9 +923,12 @@ export const TOOLS = [
       cards: o.board?.card_count ?? 0,
       pictures: o.picture_count ?? 0,
       groups: (o.groups || []).map((g) => g.name).filter(Boolean),
+      outline: boardOutline(o),
       ...(o.hidden ? { not_drawn: o.hidden } : {}),
     }),
     view: (o) => ({ [BOARD_VIEW.metaKey]: o }),
+    // The answer ends with the way in, for a chat that can't draw the view.
+    afterword: (o) => (o.board?.url ? `Open it in Clusters: ${o.board.url}` : null),
     summary: (o) => `Showing ${named(o.board?.name)} · ${plural(o.cards ?? 0, 'card')}`
       + `${o.pictures ? ` · ${plural(o.pictures, 'picture')}` : ''}${at(o.board?.url)}`,
   },

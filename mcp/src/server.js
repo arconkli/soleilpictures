@@ -34,7 +34,7 @@ import {
   describeApiError, BOARD_VIEW,
 } from './tools.js';
 import { checkArgs, argsProblemText } from './validate.js';
-import { MCP_APP_HTML } from './appHtml.js';
+import { MCP_APP_HTML, MCP_APP_VERSION } from './appHtml.js';
 
 // Newest first: this is the list handed to a client in an
 // UnsupportedProtocolVersionError, and it is the order it should prefer.
@@ -102,7 +102,8 @@ export const INSTRUCTIONS =
   + 'writing goes in write_doc. Name each card\'s section in group, and leave x, y, w and h out: every card is '
   + 'sized to what it holds and placed a section at a time. Colours go in a palette card (kind palette, '
   + 'swatches); a note\'s color is its fill, a hex. To tidy a board, call arrange_board with no layout; its '
-  + 'order puts cards first.\n\n'
+  + 'order puts cards first. After show_board, give the person the board\'s link too: some chats can\'t draw '
+  + 'it.\n\n'
   + 'Put a new board where the person says (parent_board_id; search finds the cluster). If they didn\'t say, '
   + 'create_boards makes it a project and answers with placement: finish the work, then ask where it belongs '
   + 'and move it with update_boards. '
@@ -121,8 +122,24 @@ const CAPABILITIES = { tools: {}, prompts: {}, resources: {} };
 const viewResourceMeta = (origin) => ({
   ui: { csp: { resourceDomains: [origin] }, prefersBorder: false },
 });
+// Its address names its build, so a host that kept an older page (ChatGPT
+// keeps a template it has read) asks for this one. An older address, the
+// first one (BOARD_VIEW.uri) included, is answered with the page as it is now.
+export const VIEW_URI = `ui://clusters/board-${MCP_APP_VERSION}.html`;
+const isViewUri = (uri) => typeof uri === 'string' && /^ui:\/\/clusters\/board-[a-z0-9]{1,40}\.html$/.test(uri);
+
+// A tool that opens the view, listed with the view's address as it is now.
+export function withViewUri(listed) {
+  const meta = listed?._meta;
+  if (!meta || meta['ui/resourceUri'] !== BOARD_VIEW.uri) return listed;
+  return {
+    ...listed,
+    _meta: { ...meta, ui: { ...meta.ui, resourceUri: VIEW_URI }, 'ui/resourceUri': VIEW_URI, 'openai/outputTemplate': VIEW_URI },
+  };
+}
+
 const viewResource = (origin) => ({
-  uri: BOARD_VIEW.uri,
+  uri: VIEW_URI,
   name: 'board-view',
   title: 'A board, as drawn',
   description: 'The view show_board opens in the chat: a board laid out as it is on its canvas.',
@@ -278,8 +295,9 @@ function internalFailure(id, e) {
   return err(id, ERR.INTERNAL, `internal error (ref ${ref})`);
 }
 
-// What a call answers: one text block, the tool's summary line and then the
-// JSON, and the same JSON as structuredContent when the tool declares it. An
+// What a call answers: one text block, the tool's summary line, the JSON and,
+// when the tool has one, a closing line (show_board's link), and the same JSON
+// as structuredContent when the tool declares it. An
 // answer quoting people's text begins with the notice saying how to read it
 // (INJ-6, UNTRUSTED_NOTE). search and fetch have no summary, so their text
 // stays the bare JSON ChatGPT parses.
@@ -302,10 +320,17 @@ export function toolResult(tool, args, out) {
   } catch (e) {
     console.error('[mcp] summary failed', tool.name, e);
   }
+  let after = null;
+  try {
+    after = tool.afterword && data && typeof data === 'object' ? tool.afterword(data, args) : null;
+  } catch (e) {
+    console.error('[mcp] afterword failed', tool.name, e);
+  }
   // Compact: indentation is a quarter of the tokens and tells a model nothing.
   const json = JSON.stringify(data);
+  const text = line ? `${clipLine(line)}\n\n${json}` : json;
   return {
-    content: [{ type: 'text', text: line ? `${clipLine(line)}\n\n${json}` : json }],
+    content: [{ type: 'text', text: after ? `${text}\n\n${clipLine(after)}` : text }],
     ...(tool.outputSchema && data && typeof data === 'object' ? { structuredContent: data } : {}),
     ...(tool.view && out && typeof out === 'object' ? { _meta: tool.view(out) } : {}),
   };
@@ -443,7 +468,7 @@ export async function handleMcpMessage(msg, ctx) {
       // Deterministic order: the registry is a fixed array and is served in
       // its own order, which is what lets a client cache the list and keeps
       // an LLM's prompt cache warm across calls.
-      return ok(id, cacheable({ tools: tools.map((t) => manifest(t)) }, modern, LIST_TTL_MS), modern);
+      return ok(id, cacheable({ tools: tools.map((t) => withViewUri(manifest(t))) }, modern, LIST_TTL_MS), modern);
 
     case 'tools/call': {
       const name = params?.name;
@@ -509,7 +534,7 @@ export async function handleMcpMessage(msg, ctx) {
       return ok(id, cacheable({ resourceTemplates: [] }, modern, LIST_TTL_MS), modern);
     case 'resources/read': {
       const uri = params?.uri;
-      if (uri !== BOARD_VIEW.uri) {
+      if (!isViewUri(uri)) {
         return err(id, modern ? ERR.INVALID_PARAMS : ERR.RESOURCE_NOT_FOUND,
           `no resource at ${typeof uri === 'string' ? uri.slice(0, 200) : 'that address'}`,
           { uri: typeof uri === 'string' ? uri.slice(0, 200) : null });
@@ -517,7 +542,7 @@ export async function handleMcpMessage(msg, ctx) {
       const origin = ctx?.origin || DEFAULT_ORIGIN;
       return ok(id, {
         contents: [{
-          uri: BOARD_VIEW.uri, mimeType: BOARD_VIEW.mimeType, text: MCP_APP_HTML, _meta: viewResourceMeta(origin),
+          uri, mimeType: BOARD_VIEW.mimeType, text: MCP_APP_HTML, _meta: viewResourceMeta(origin),
         }],
       }, modern);
     }

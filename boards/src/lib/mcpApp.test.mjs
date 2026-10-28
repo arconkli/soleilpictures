@@ -59,11 +59,15 @@ test('people\'s words go in as text, and nothing is fetched, stored or evaluated
       assert.doesNotMatch(code, banned, `${f} uses ${banned}`);
     }
   }
-  // Every link it opens is checked against Clusters' origins first.
+  // Every link it opens is checked against Clusters' origins first, over the
+  // bridge or through ChatGPT's own openExternal.
   const main = readFileSync(join(SRC, 'main.js'), 'utf8');
-  const opens = [...main.matchAll(/'ui\/open-link'/g)].length;
-  assert.equal(opens, 1, 'one place opens links');
-  assert.match(main, /const safe = safeUrl\(url\);\s*if \(safe\) bridge\.request\('ui\/open-link', \{ url: safe \}\)/);
+  assert.equal([...main.matchAll(/'ui\/open-link'/g)].length, 1, 'one place opens links');
+  assert.equal([...main.matchAll(/openExternal\(/g)].length, 1, 'and one through ChatGPT');
+  const openLink = main.match(/function openLink\(url\) \{[\s\S]*?\n\}/)?.[0] || '';
+  assert.match(openLink, /^function openLink\(url\) \{\s*const safe = safeUrl\(url\);\s*if \(!safe\) return;/);
+  assert.match(openLink, /'ui\/open-link', \{ url: safe \}/);
+  assert.match(openLink, /openExternal\(\{ href: safe, redirectUrl: false \}\)/);
 });
 
 test('the view reads the answer where the server writes it', () => {

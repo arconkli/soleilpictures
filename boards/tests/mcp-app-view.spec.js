@@ -25,12 +25,12 @@ function answer(canvas) {
 }
 
 // Frames the view and hands it `result` once it has said hello.
-async function open(page, { result, refresh = null, caps = CAPS, context = CONTEXT, width = 720 } = {}) {
+async function open(page, { result, refresh = null, caps = CAPS, context = CONTEXT, width = 720, chatgpt = null } = {}) {
   await page.route(`${PICTURES}/**`, (r) => r.fulfill({
     contentType: 'image/svg+xml', body: pictureSvg(new URL(r.request().url()).pathname),
   }));
   await page.setContent('<!doctype html><html style="color-scheme:light"><body style="background:#faf9f5"></body></html>');
-  await page.evaluate(installHost, { html: MCP_APP_HTML, caps, context, args: { board_id: BOARD }, result, refresh, width });
+  await page.evaluate(installHost, { html: MCP_APP_HTML, caps, context, args: { board_id: BOARD }, result, refresh, width, chatgpt });
   return page.frameLocator('#view');
 }
 
@@ -40,6 +40,11 @@ const sent = (page, method) => page.evaluate(
   method,
 );
 const lastSent = async (page, method) => (await sent(page, method)).at(-1);
+// What the view called on ChatGPT's window.openai, by name.
+const calledOpenAI = (page, name) => page.evaluate(
+  (n) => window.__host.log.filter((x) => x.from === 'view' && x.openai === n).map((x) => x.arg ?? null),
+  name,
+);
 const loadedPictures = (view) => view.locator('img').evaluateAll(
   (imgs) => imgs.filter((i) => i.complete && i.naturalWidth > 0).length,
 );
@@ -212,6 +217,71 @@ test('without _meta or the tool, it shows what the model got and a way in', asyn
   await view.getByRole('button', { name: 'Open in Clusters' }).click();
   await expect.poll(() => sent(page, 'ui/open-link')).toEqual([{ url: `${ORIGIN}/?to=b:${BOARD}` }]);
   expect(await sent(page, 'tools/call')).toEqual([]);
+});
+
+// ── ChatGPT, when its side of MCP Apps doesn't answer ───────────────────────
+//
+// ChatGPT draws MCP Apps and also hands an app the answer as window.openai.
+// When the hello goes unanswered (the view's 2.5s wait), the board comes from
+// there, and links, sizes and questions go through ChatGPT's own calls.
+
+test('in ChatGPT, a host that never answers still gets the board, from window.openai', async ({ page }) => {
+  const res = answer(await boardCanvas());
+  const view = await open(page, {
+    chatgpt: {
+      silent: true,
+      globals: {
+        toolInput: { board_id: BOARD }, toolOutput: res.structuredContent, theme: 'dark',
+        // ChatGPT's own wrapping of the answer, its _meta kept inside.
+        toolResponseMetadata: { status: 'success', mcp_tool_result: { _meta: res._meta } },
+      },
+    },
+  });
+  await expect(view.locator('.w-title')).toHaveText('Tokyo noir, 1974');
+  await expect(view.locator('.b-it')).toHaveCount(33);
+  await expect(view.locator('html')).toHaveAttribute('data-theme', 'dark');
+  // Once the wait is over, the frame is told its height through ChatGPT.
+  await expect.poll(() => calledOpenAI(page, 'notifyIntrinsicHeight'), { timeout: 6000 }).not.toEqual([]);
+  const tall = (await calledOpenAI(page, 'notifyIntrinsicHeight')).at(-1);
+  expect(tall).toBeGreaterThan(200);
+  await expect.poll(() => page.locator('#view').evaluate((f) => f.getBoundingClientRect().height)).toBe(tall);
+
+  await view.getByRole('button', { name: 'Open in Clusters' }).click();
+  await expect.poll(() => calledOpenAI(page, 'openExternal')).toEqual([{ href: `${ORIGIN}/?to=b:${BOARD}`, redirectUrl: false }]);
+  await view.locator('[data-id="i2"]').click();
+  await view.getByRole('button', { name: 'Ask about these' }).click();
+  await expect.poll(() => calledOpenAI(page, 'sendFollowUpMessage')).toHaveLength(1);
+  const [ask] = await calledOpenAI(page, 'sendFollowUpMessage');
+  expect(ask.prompt).toBe(`About this on “Tokyo noir, 1974”: “Streets 2” (picture). (board ${BOARD}; cards i2)`);
+  expect(await sent(page, 'ui/open-link')).toEqual([]);
+  expect(await sent(page, 'ui/message')).toEqual([]);
+});
+
+test('in ChatGPT, an answer that arrives after the page is drawn when ChatGPT says so', async ({ page }) => {
+  const res = answer(await boardCanvas());
+  const view = await open(page, { chatgpt: { silent: true, globals: { toolInput: { board_id: BOARD }, toolOutput: null } } });
+  await expect(view.locator('.b-it')).toHaveCount(0);
+  await page.evaluate((g) => window.__host.setGlobals(g), { toolOutput: res.structuredContent, toolResponseMetadata: res._meta });
+  await expect(view.locator('.b-it')).toHaveCount(33);
+  // With what the model got and nothing for the view, it still names the board and its way in.
+  const bare = await open(page, {
+    chatgpt: { silent: true, globals: { toolInput: { board_id: BOARD }, toolOutput: res.structuredContent, toolResponseMetadata: {} } },
+  });
+  await expect(bare.locator('.w-title')).toHaveText('Tokyo noir, 1974', { timeout: 6000 });
+  await expect(bare.locator('.w-msg')).toHaveText('Open it in Clusters to see it.');
+});
+
+test('a host that answers is spoken to over MCP Apps, even with window.openai there', async ({ page }) => {
+  const res = answer(await boardCanvas());
+  const view = await open(page, {
+    result: res,
+    chatgpt: { globals: { toolInput: { board_id: BOARD }, toolOutput: res.structuredContent, toolResponseMetadata: res._meta } },
+  });
+  await expect(view.locator('.b-it')).toHaveCount(33);
+  await view.getByRole('button', { name: 'Open in Clusters' }).click();
+  await expect.poll(() => sent(page, 'ui/open-link')).toEqual([{ url: `${ORIGIN}/?to=b:${BOARD}` }]);
+  expect(await calledOpenAI(page, 'openExternal')).toEqual([]);
+  expect(await calledOpenAI(page, 'notifyIntrinsicHeight')).toEqual([]);
 });
 
 test('says what went wrong, a stop, and an empty board', async ({ page }) => {

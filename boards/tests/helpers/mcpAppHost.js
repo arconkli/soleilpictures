@@ -102,7 +102,12 @@ export function pictureSvg(path) {
 
 // The host, run in the page by page.evaluate: frames the view, answers it,
 // and keeps every message both ways in window.__host.log.
-export function installHost({ html, caps, context, args, result, refresh = null, width = 720 }) {
+// `chatgpt` frames it as ChatGPT also does, with its Apps SDK globals in the
+// page as window.openai ({ globals }), and, with `silent`, a host that never
+// answers the view's hello. What the view calls on window.openai is logged as
+// { from: 'view', openai: name, arg }; host.setGlobals(g) changes the globals
+// and says so (openai:set_globals), as ChatGPT does when an answer arrives.
+export function installHost({ html, caps, context, args, result, refresh = null, width = 720, chatgpt = null }) {
   const frame = document.createElement('iframe');
   frame.id = 'view';
   frame.setAttribute('sandbox', 'allow-scripts');
@@ -118,12 +123,18 @@ export function installHost({ html, caps, context, args, result, refresh = null,
   const reply = (id, res) => post({ jsonrpc: '2.0', id, result: res });
   host.post = post;
   host.notify = (method, params) => post({ jsonrpc: '2.0', method, params });
+  host.setGlobals = (globals) => frame.contentWindow.postMessage({ openaiGlobals: globals }, '*');
   window.addEventListener('message', (e) => {
     if (e.source !== frame.contentWindow) return;
     const m = e.data;
     host.log.push({ from: 'view', ...m });
+    if (m.openai) {
+      if (m.openai === 'notifyIntrinsicHeight' && host.mode === 'inline') frame.style.height = `${m.arg}px`;
+      return;
+    }
     switch (m.method) {
       case 'ui/initialize':
+        if (chatgpt?.silent) break;
         reply(m.id, {
           protocolVersion: '2026-01-26',
           hostInfo: { name: 'Test host', version: '1.0.0' },
@@ -159,5 +170,23 @@ export function installHost({ html, caps, context, args, result, refresh = null,
         if (m.id !== undefined && m.method) reply(m.id, {});
     }
   });
+  if (chatgpt) {
+    const globals = JSON.stringify(chatgpt.globals || {}).replace(/</g, '\\u003c');
+    const sdk = `<script>(() => {
+      const tell = (openai, arg) => parent.postMessage({ openai, arg }, '*');
+      window.openai = Object.assign(${globals}, {
+        notifyIntrinsicHeight: (h) => tell('notifyIntrinsicHeight', h),
+        openExternal: (o) => tell('openExternal', o),
+        sendFollowUpMessage: (o) => tell('sendFollowUpMessage', o),
+      });
+      addEventListener('message', (e) => {
+        if (e.source !== parent || !e.data || !e.data.openaiGlobals) return;
+        Object.assign(window.openai, e.data.openaiGlobals);
+        dispatchEvent(new CustomEvent('openai:set_globals', { detail: { globals: e.data.openaiGlobals } }));
+      });
+    })();</script>`;
+    frame.srcdoc = html.replace('<head>', `<head>${sdk}`);
+    return;
+  }
   frame.srcdoc = html;
 }
