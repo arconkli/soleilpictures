@@ -777,7 +777,7 @@ If you drag in more files than your remaining allowance — or a folder, which c
 
 Cards through the API
 
-The REST API exposes a deliberately narrower card model than the canvas: audio, doc, file, image, link, note, pdf, video. An API caller can set position, size, title, body, HTML, URL, image key and colour, and nothing else — interior state that belongs to the editor is not writable from outside.
+The REST API exposes a deliberately narrower card model than the canvas: audio, doc, file, image, link, note, palette, pdf, video. An API caller can set position, size, title, body, HTML, URL, image key, colour, a palette's colours and the card's group, and nothing else — interior state that belongs to the editor is not writable from outside.
 
 ## Frequently asked questions
 
@@ -5648,7 +5648,7 @@ A: Yes. Nothing about tokens has changed. OAuth is for applications that other p
 URL: https://clusters.soleilpictures.com/docs/api/cards
 Updated: 2026-10-27
 
-Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.
+Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. An unknown kind is rejected rather than silently coerced. A note shows its title as its heading and is made as tall as its text, and a card names its section by name.
 
 The card object
 
@@ -5656,13 +5656,14 @@ The card object
   "id": "api-m8x2p1-7fq3ka",
   "kind": "note",
   "x": 120, "y": 340, "z": 3,
-  "w": 280, "h": 180,
+  "w": 280, "h": 83,
   "title": "Tone",
   "body": "Warm, low-key, practicals only",
+  "html": "<h2>Tone</h2><p>Warm, low-key, practicals only</p>",
   "url": null,
   "image_key": null,
   "alt": null,
-  "color": null,
+  "color": "#f3ddaa",
   "created_at": "2026-08-01T09:14:02.000Z",
   "updated_at": "2026-08-01T09:19:55.000Z"
 }
@@ -5673,10 +5674,10 @@ Interior state the editor owns — grid layouts, adjustment settings, collaborat
 
 Kinds
 
-The API accepts audio, doc, file, image, link, note, pdf, video.
+The API accepts audio, doc, file, image, link, note, palette, pdf, video.
 
 Kind | Carries
-note | title, body, html
+note | title as its heading, body, html, color as its fill — see Notes
 image | image_key, alt, body as the caption
 link | url, title, body
 doc | title, body, html
@@ -5684,6 +5685,7 @@ video | file_key, optional poster_key
 audio | file_key, title, body as a transcript
 pdf | file_key, file_name, optional image_key for the page-1 still
 file | file_key, file_name, mime, ext, size_bytes
+palette | title, swatches — see Palettes
 
 video and file exist because multipart upload accepts ProRes, MXF, DPX and camera raw — so without them you could upload a two-terabyte camera master and then have no way to put it on a board. An upload you cannot place is not an upload.
 
@@ -5693,12 +5695,34 @@ An audio card's body is its transcript where one exists, which is what makes a s
 
 An unrecognised kind gets a 400 naming the valid ones. It is not coerced — silently turning an unknown kind into a note produced boards full of notes that were meant to be links.
 
-This is still narrower than what the canvas supports. Grids, palettes and shapes are created in the app; you can read them here, and ?include=raw gives you their full contents.
+This is still narrower than what the canvas supports. Grids and shapes are created in the app; you can read them here, and ?include=raw gives you their full contents.
+
+Notes
+
+A note shows its html. Send a title and a body instead and the note is written the way the app writes one: the title as its heading and the body as its text, where a line starting - , *  or •  is a bullet, 1.  a numbered item, [ ]  or [x]  a checkbox and # or ## a heading, and **bold**, *italic* and [text](https://…) are what they say. Everything else is text, exactly as sent. title and body are kept as you sent them: they are what search and every read return.
+
+Send your own html and it is used as it is, under your title as a heading when it doesn't open with one.
+
+Sized to its text. Leave h out and a note is as tall as its text at its width — 280px unless you give w, or 320px when the text needs the room — from 72 to 480px, the tallest a note grows in the app. A note whose text runs past that comes back named in warnings: on the board its end fades out, and long writing reads better as a doc.
+
+Colour. A note's color is its fill, a hex colour such as #f3ddaa, and its text turns dark or light to read on it. Anything that isn't a hex is a 400. Other kinds keep color as given.
+
+Changing one. A new title or body on a note the API wrote is written into it the same way, and its height follows unless you send h. A note that has since been edited in the app keeps the text it has there, and a note resized by hand keeps its size.
+
+Palettes
+
+A palette card is a row of colours, each a hex and, if you like, a name:
+
+{ "kind": "palette", "title": "Tokyo noir, 1974",
+  "swatches": [ { "hex": "#0b1d2a", "name": "Night" },
+                { "hex": "#c8102e", "name": "Lantern" }, "#e9c46a" ] }
+
+Up to 12 swatches; a plain hex string is a swatch with no name. Left without w and h, the card is made wide enough for every swatch to show its name over its hex. It reads back with swatches, each with a name only where one was given.
 
 Writable fields
 
 Field | Type | Limit
-kind | string | one of the eight above
+kind | string | one of the kinds above
 title | string | 300 chars
 body | string | 20000 chars
 html | string | 40000 chars
@@ -5711,13 +5735,15 @@ mime | string | 200 chars
 ext | string | 20 chars
 size_bytes | number | rounded
 alt | string | 300 chars — image description
-color | string | 40 chars
+color | string | 40 chars — on a note, a hex colour, its fill
+swatches | array | a palette's colours, up to 12
 props, identifiers | see Identifiers and properties | 
 x, y | number | rounded; omit for auto-placement
-w, h | number | clamped to 40–4000; default 280 × 180
+w, h | number | clamped to 40–4000; omit them and a note is sized to its text, a palette to its swatches, anything else 280 × 180
 z | number | stacking; higher is in front, fractional is fine
 rotation | number | degrees, wrapped to −180…180
-group_id | string | a group from POST /boards/:id/groups
+group | string | 120 chars — the section the card belongs in, by name
+group_id | string | a group on this board, by id — anything else is a 400
 section_header | boolean | render as a full-width heading
 sub | string | 300 chars — the line under a section heading
 
@@ -5771,7 +5797,21 @@ Either shape works:
 
 Up to 1000 cards per call; more gets 400.
 
-Auto-placement. Cards without x/y are placed in free space, so a batch cannot land on top of existing content. Pass both to place one yourself. Cards with a group_id land a group at a time: each group's cards together, with room for the group's outline and name, so no group's outline takes in another group's cards. New cards for a group that already has cards on the board go under those cards, or beside them, when there is room there.
+Auto-placement. Cards without x/y are placed in free space, so a batch cannot land on top of existing content. Pass both to place one yourself. Cards in a group land a group at a time: each group's cards together, with room for the group's outline and name, so no group's outline takes in another group's cards. New cards for a group that already has cards on the board go under those cards, or beside them, when there is room there.
+
+warnings. A card that landed but won't look as asked — a note too long to show whole — is named in warnings, a list of sentences beside cards. The cards are saved either way.
+
+Sections
+
+Name a card's section in group and it goes in the board's group of that name, made with the cards when the board has none — there is no need to make the group first and copy its id onto every card. Names match whatever their case. An optional groups list, up to 50, sets the order the sections are laid out in and the outline colour of any it makes:
+
+{ "groups": [ { "name": "The canon", "color": "#3f7ab5" }, { "name": "To watch" } ],
+  "cards": [
+    { "kind": "note", "title": "Marty Supreme (2025)", "body": "9.75 / 10", "group": "The canon" },
+    { "kind": "note", "title": "Heat (1995)", "group": "To watch" }
+  ] }
+
+The answer lists the sections the call named in groups, each with its id and "created": true on one it made. A section that already exists keeps its colour. group_id still works and must name a group on the board; a card can't carry both. Naming a section reads the board, as leaving out coordinates does.
 
 Laying cards out
 
@@ -5813,7 +5853,7 @@ PATCH /boards/:id/cards — many at once
   { "id": "api-m8x2p1-9wq2lb", "props": { "status": "final" } }
 ] }
 
-Up to 1000 per call. Each entry needs an id; everything else is an ordinary partial patch.
+Up to 1000 per call. Each entry needs an id; everything else is an ordinary partial patch. group moves a card into a section by name (an empty one takes it out), and groups works as it does when adding.
 
 The board is opened once for the whole batch, which is the difference between a five-hundred-card update taking a second and taking a minute — patching one at a time opens, syncs, commits and closes each time.
 
@@ -5840,7 +5880,7 @@ A doc card's pages are read and written as Markdown on routes of their own: see 
 
 PATCH /boards/:id/cards/:cardId
 
-A partial patch — only the fields you send change. No defaults are applied, so patching title alone will not resize the card.
+A partial patch — only the fields you send change, and nothing gets a default. The one thing that follows on its own is a note's text and height, as Notes describes: a new title or body on a note the API wrote is written into it, and its height follows unless you send h.
 
 curl -X PATCH "$SOLEIL_API/boards/$BOARD/cards/$CARD" \
   -H "Authorization: Bearer $SOLEIL_TOKEN" -H "Content-Type: application/json" \
@@ -5866,7 +5906,7 @@ Requires the delete scope — see Authentication.
 
 The response body is the undo. There is no undo toast on an HTTP call, so the card comes back — POST it to the cards endpoint to restore it. It returns with a new id, and its identifiers and properties are not restored with it, so send those again in the same POST if you use them.
 
-Some cards cannot come back this way: any card kind this API does not create (grids, palettes, cluster cards and the like), and docs written in the app, whose pages are stored apart from the card. A delete that removes any of them lists their ids in not_restorable, with a recover sentence. They are not lost: every delete saves the board to its Version history first, and they can be restored from there in the app.
+Some cards cannot come back this way: any card kind this API does not create (grids, cluster cards and the like), a palette set to hide its labels, and docs written in the app, whose pages are stored apart from the card. A delete that removes any of them lists their ids in not_restorable, with a recover sentence. They are not lost: every delete saves the board to its Version history first, and they can be restored from there in the app.
 
 const { card } = await soleil(`/boards/${board}/cards/${id}`, { method: "DELETE" });
 // …later, if that turns out to have been wrong:
@@ -5890,6 +5930,12 @@ A: Upload the bytes to /uploads first, then create a card with kind image and th
 
 Q: What does live false mean in the response?
 A: The cards are saved, but a canvas someone already has open will not show them until it reloads. It is not a failure.
+
+Q: How do I put cards in sections?
+A: Name the section on each card in group. The card goes in the board's group of that name, which is made with the cards when the board has none, and an optional groups list sets the sections' order and colours.
+
+Q: Why leave out w and h?
+A: A note left without them is made as tall as its text, and a palette wide enough to name every colour. A note given a height keeps it, and its text fades out where the card ends.
 
 
 ========================================================================
@@ -6520,7 +6566,7 @@ curl "https://clusters.soleilpictures.com/api/v1/resolve?scope=source_url&value=
 What each source becomes
 
 The source is | You get
-An image format the API stores (audio, doc, file, image, link, note, pdf, video covers the card kinds; see Images) | An image card — the bytes are copied into your workspace
+An image format the API stores (audio, doc, file, image, link, note, palette, pdf, video covers the card kinds; see Images) | An image card — the bytes are copied into your workspace
 Anything else — a PDF, a web page, a video | A link card pointing at the original, with a note saying why
 
 Only images are copied. Large media goes through the multipart upload endpoints, which stream from the client rather than pulling gigabytes through the API — a link card is the honest answer here rather than a silent half-import.
@@ -6573,7 +6619,7 @@ A: Yes. Pass dry_run to validate every URL without fetching or creating anything
 URL: https://clusters.soleilpictures.com/docs/api/arrange
 Updated: 2026-10-27
 
-POST /boards/:id/arrange lays out cards that already exist, and any card write accepts a layout to arrange what it adds. The default, justified, fits rows flush on both edges at each picture's true aspect ratio. For placing things yourself, cards carry x, y, w, h, z, rotation, a group_id, and a section_header flag.
+POST /boards/:id/arrange lays out cards that already exist, and any card write accepts a layout to arrange what it adds. The default, justified, fits rows flush on both edges at each picture's true aspect ratio. For placing things yourself, cards carry x, y, w, h, z, rotation, a group (by name or by group_id), and a section_header flag.
 
 Placing cards is half of an API that works. The other half is that what lands looks composed rather than spilled.
 
@@ -6628,7 +6674,8 @@ x, y | Position, in canvas units
 w, h | Size
 z | Stacking. Higher is in front; fractional values are fine
 rotation | Degrees
-group_id | Membership of a group
+group | Membership of a group, by its name — made if the board has none
+group_id | Membership of a group, by its id
 section_header | Render as a full-width heading
 
 z was readable but not writable until now — you could see which of two overlapping cards was on top and had no way to swap them.
@@ -6650,7 +6697,7 @@ POST /boards/:id/groups | Create one
 PATCH /boards/:id/groups/:groupId | Rename or restyle it
 DELETE /boards/:id/groups/:groupId | Ungroup — removes the group, never its cards
 
-Pass the returned id as group_id on any card. shape is box (one rectangle round everything) or hug (following each card). Deleting a group ungroups; it never deletes the cards — there is no undo on an HTTP call, and a group holding forty cards must not be a way to lose forty cards.
+Pass the returned id as group_id on any card — or skip this step, and name the group in a card's group: the board's group of that name is used, or made with the cards (see Sections). shape is box (one rectangle round everything) or hug (following each card). Deleting a group ungroups; it never deletes the cards — there is no undo on an HTTP call, and a group holding forty cards must not be a way to lose forty cards.
 
 Section headings
 
@@ -6668,7 +6715,7 @@ Q: Will arranging move my cards somewhere else on the canvas?
 A: No. The block is re-anchored on its own current top-left, and pushed clear of any cards it is not moving, so tidying part of a board cannot bury the rest.
 
 Q: How do I say that a set of cards belongs together?
-A: Create a group with POST /boards/:id/groups and pass its id as group_id on each card. A group draws a labelled outline round its cards and moves them as one.
+A: Name the section in group on each card, and the board's group of that name is used, or made with the cards. A group draws a labelled outline round its cards and moves them as one.
 
 
 ========================================================================
@@ -7092,19 +7139,19 @@ Writing
 
 Tool | Input
 create_boards | boards[] — one, or up to 500, each { name, workspace_id?, parent_board_id?, view?, identifiers?, props? }; workspace_id?, on_conflict? · each board comes back with its url; with no parent_board_id it becomes a project at the top of the workspace, where New cluster puts one, and the answer's placement offers up to 12 of your clusters to ask where it belongs
-add_cards | board_id, cards[] — up to 1000, on_conflict?
+add_cards | board_id, cards[] — up to 1000, each with its section by name in group?, groups? (the sections' order and colours), on_conflict? · a note shows its title as its heading and is sized to its text, a palette is made from swatches; leave x, y, w and h out and the server places and sizes everything — see Cards
 import_urls | board_id, urls[], titles?, dry_run? — bring reference in from the web; safe to re-run
 upload_image | board_id, data (base64), content_type, optionally file_name
 upload_file | board_id, path — local server only; handles large files
 write_doc | board_id, pages[] — up to 50, each { title?, markdown }; title?, x?, y? for a new doc, or card_id and parent_page_id? to add pages to one · a doc written from Markdown
-create_group | board_id, name, color?, shape? — say a set of cards is one thing
+create_group | board_id, name, color?, shape? — say a set of cards is one thing; add_cards can simply name the section instead
 add_comment | board_id, body, and card_id?, group_id?, x? and y?, or reply_to?; quote? and page_id? with a doc's card_id — a comment in the person's name, placed beside what it is about, on words in a doc, or a reply
 
 Changing
 
 Tool | Input
 update_boards | boards[] — up to 100, each a board_id and any of name, view, parent_board_id (null for the top level), identifiers, props · each board is changed on its own, and the answer lists the boards updated and why any failed
-update_cards | board_id, cards[] — up to 1000, each an id and any field add_cards takes — group_id (empty to ungroup), z, rotation, section_header, identifiers, props, and any of the eight kinds
+update_cards | board_id, cards[] — up to 1000, each an id and any field add_cards takes — group by name or group_id (empty to ungroup), z, rotation, section_header, swatches, identifiers, props, and any kind; groups? · a note's new title or body is written into it, and its height follows
 edit_doc_page | board_id, card_id, page_id, and markdown with page_hash, or edits[] (up to 50), or title · marked destructive, since a rewrite takes words away; the board goes to Version history first
 arrange_board | board_id, layout?, card_ids?, dry_run? — lay a board out
 move_cards | from_board_id, to_board_id, card_ids[]
@@ -7120,9 +7167,9 @@ Tool | Input
 delete_cards | board_id, card_ids[] — one, or up to 1000
 delete_board | board_id
 
-Card kind is audio, doc, file, image, link, note, pdf, video, defaulting to note.
+Card kind is audio, doc, file, image, link, note, palette, pdf, video, defaulting to note.
 
-add_cards accepted six of those eight for as long as the other two have existed — audio and pdf were missing from its schema while the REST API took both, so an agent could not create the two kinds Soleil Scout makes from a text message. Both work now, and a file_key from upload_file is what any of video, audio, pdf or file is built from.
+add_cards once lacked audio and pdf while the REST API took both, so an agent could not create the two kinds Soleil Scout makes from a text message. Both work now, and a file_key from upload_file is what any of video, audio, pdf or file is built from. palette joined them so a moodboard's colours are a palette card rather than hex codes in a note.
 
 Every tool carries annotations — readOnlyHint, destructiveHint, idempotentHint — which is what a client reads when deciding whether a call needs confirming. They are structured, so unlike a warning in a description they actually participate in that decision.
 
@@ -7197,7 +7244,7 @@ What people wrote is marked as data. An answer that quotes people's text — car
 
 A new board goes where you say, or you're asked. Name the cluster it belongs in and create_boards puts it there. Say nothing and it becomes a project at the top of your workspace, as New cluster makes one, and the answer carries placement: up to 12 of your clusters, projects first, the ones you worked in most recently first. The assistant finishes what you asked, then asks where the board should live and moves it there with update_boards. Leave it where it is by saying so.
 
-Deleting returns the cards. delete_cards responds with the cards it removed. Those objects are the undo — pass them back to add_cards to restore them. Worth keeping in context before destructive work. Card kinds add_cards does not create (grids, palettes, cluster cards and the like) and docs written in the app are the exception: the response lists them in not_restorable, and they come back from the board's Version history in the app instead.
+Deleting returns the cards. delete_cards responds with the cards it removed. Those objects are the undo — pass them back to add_cards to restore them. Worth keeping in context before destructive work. Card kinds add_cards does not create (grids, cluster cards and the like), a palette set to hide its labels and docs written in the app are the exception: the response lists them in not_restorable, and they come back from the board's Version history in the app instead.
 
 Deleting a board is destructive and confirmable. delete_board removes a whole board; the tool description says to confirm with the user first, and restore_board exists because that is not always heeded.
 

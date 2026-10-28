@@ -11,6 +11,7 @@
 
 import { htmlToText } from './cardIndexRow.js';
 import { pickRendition, readingOrder } from './gallery.js';
+import { noteHtmlLead } from './noteCompose.js';
 
 export const CANVAS = {
   // Cards drawn, in reading order; past it the rest are counted in `hidden`.
@@ -114,8 +115,20 @@ export function planCanvas(cards, groups = []) {
   return { placed: placed.length, drawn, keys: [...keys], boardIds: [...boardIds], groups: groups || [] };
 }
 
+// A note shows its html, which opens with its title as a heading when the API
+// wrote it (lib/noteCompose.js) and often when a person did: that heading is
+// the card's title here, and the text is what follows it, so neither is shown
+// twice.
+function noteLead(c) {
+  return typeof c.html === 'string' && c.html ? noteHtmlLead(c.html) : { title: null, rest: null };
+}
+
 function textFor(c, kind) {
-  if (kind === 'note') return clip(c.html ? htmlToText(c.html) : (c.body ?? c.text), CANVAS.textMax);
+  if (kind === 'note') {
+    const lead = noteLead(c);
+    if (lead.title) return clip(htmlToText(lead.rest), CANVAS.textMax);
+    return clip(c.html ? htmlToText(c.html) : (c.body ?? c.text), CANVAS.textMax);
+  }
   if (kind === 'image' || kind === 'video') return clip(c.caption ?? c.body, CANVAS.textMax);
   if (kind === 'doc') return clip(docLines(c.lines), CANVAS.textMax);
   if (kind === 'boardlink') return clip(c.note, CANVAS.textMax);
@@ -128,6 +141,7 @@ function titleFor(c, kind, boardName) {
   if (kind === 'pdf' || kind === 'audio' || kind === 'file') {
     return clip(c.title || c.fileName || c.name, CANVAS.titleMax);
   }
+  if (kind === 'note') return clip(noteLead(c).title || c.title, CANVAS.titleMax);
   return clip(c.title, CANVAS.titleMax);
 }
 

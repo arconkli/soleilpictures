@@ -1278,6 +1278,100 @@ test('cards added without positions land a group at a time, each outline round i
   }
 });
 
+// What ChatGPT had to do on 2026-10-27 to put eleven notes in four sections:
+// make each group first and copy its id onto every card. A section can now be
+// named on the card, and is made with the cards when the board has none.
+test('cards name their sections: the board\'s group of that name, else one made with them, in the order listed', async () => {
+  putBoard(B1, [], { name: 'Films' }, [{ id: 'g-canon', name: 'Canon', color: '#111111', createdAt: '2026-10-01T00:00:00Z' }]);
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    groups: [{ name: 'Journal', color: '#af6440' }, { name: 'canon' }],
+    cards: [
+      { kind: 'note', title: 'Marty Supreme', group: 'Canon' },
+      { kind: 'note', title: 'Diary, Oct 3', group: 'Journal' },
+      { kind: 'note', title: 'Heat', group: 'To Watch' },
+      { kind: 'note', title: 'Loose' },
+    ],
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.deepEqual(r.body.groups.map((g) => [g.name, g.created]),
+    [['Journal', true], ['Canon', false], ['To Watch', true]]);
+  assert.equal(r.body.groups[0].color, '#af6440');
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, b64ToBytes(boards.get(B1).doc));
+  const byName = Object.fromEntries(readGroups(doc).map((g) => [g.name, g]));
+  assert.deepEqual(Object.keys(byName).sort(), ['Canon', 'Journal', 'To Watch']);
+  assert.ok(doc.getMap('groups').get(byName.Journal.id) instanceof Y.Map, 'made the way the app reads a group');
+  const cards = cardsOn(B1);
+  const of = (t) => cards.find((c) => c.title === t);
+  assert.equal(of('Marty Supreme').groupId, 'g-canon');
+  assert.equal(of('Diary, Oct 3').groupId, byName.Journal.id);
+  assert.equal(of('Heat').groupId, byName['To Watch'].id);
+  assert.equal(of('Loose').groupId ?? null, null);
+  assert.deepEqual(r.body.cards.map((c) => c.title), ['Marty Supreme', 'Diary, Oct 3', 'Heat', 'Loose'],
+    'the answer keeps the order sent');
+  // Laid out in the order listed: Journal's block before Canon's.
+  const top = (gid) => Math.min(...cards.filter((c) => c.groupId === gid).map((c) => c.y * 10000 + c.x));
+  assert.ok(top(byName.Journal.id) < top('g-canon'), 'Journal comes first');
+
+  const again = await api('POST', `/boards/${B1}/cards`, { cards: [{ kind: 'note', title: 'Thief', group: 'to watch' }] });
+  assert.equal(again.status, 201, JSON.stringify(again.body));
+  assert.deepEqual(again.body.groups.map((g) => [g.name, g.created]), [['To Watch', false]], 'found again, not made twice');
+  assert.equal(readGroups((() => { const d = new Y.Doc(); Y.applyUpdate(d, b64ToBytes(boards.get(B1).doc)); return d; })()).length, 3);
+});
+
+test('a group_id that is not on the board is refused before anything is written', async () => {
+  putBoard(B1, [], { name: 'Films' }, [{ id: 'g1', name: 'Canon' }]);
+  const before = boards.get(B1).doc;
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    cards: [{ kind: 'note', title: 'ok', group_id: 'g1', x: 0, y: 0 }, { kind: 'note', title: 'lost', group_id: 'g-gone', x: 0, y: 300 }],
+  });
+  assert.equal(r.status, 400, JSON.stringify(r.body));
+  assert.match(r.body.error, /cards\[1\]: group_id "g-gone" is not a group on this board/);
+  assert.equal(boards.get(B1).doc, before, 'nothing written');
+  assert.equal(calls.filter((c) => c.path === 'card_index').length, 0, 'nothing indexed');
+  const both = await api('POST', `/boards/${B1}/cards`, { cards: [{ kind: 'note', group: 'Canon', group_id: 'g1' }] });
+  assert.equal(both.status, 400);
+  assert.match(both.body.error, /group .* or group_id, not both/);
+});
+
+test('a palette made through the API is the app\'s palette card', async () => {
+  putBoard(B1, [], { name: 'Tokyo noir' });
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    kind: 'palette', title: 'Tokyo noir, 1974',
+    swatches: [{ hex: '#0B1D2A', name: 'Night' }, { hex: '#C8102E', name: 'Lantern' }, '#E9C46A'],
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  const [card] = cardsOn(B1);
+  assert.equal(card.kind, 'palette');
+  assert.deepEqual(card.swatches, [
+    { name: 'Night', hex: '#0b1d2a' }, { name: 'Lantern', hex: '#c8102e' }, { name: 'Color', hex: '#e9c46a' },
+  ]);
+  assert.deepEqual(r.body.cards[0].swatches[2], { hex: '#e9c46a', name: null });
+  const bad = await api('POST', `/boards/${B1}/cards`, { cards: [{ kind: 'palette', swatches: ['navy'] }] });
+  assert.equal(bad.status, 400);
+  assert.match(bad.body.error, /^cards\[0\]: swatches\[0\] needs a hex/);
+});
+
+test('a card moves into a section by name, and out of one with an empty name', async () => {
+  putBoard(B1, [
+    { id: 'c1', kind: 'note', title: 'Heat', x: 0, y: 0, w: 280, h: 120, groupId: 'g1' },
+    { id: 'c2', kind: 'note', title: 'Thief', x: 300, y: 0, w: 280, h: 120 },
+  ], { name: 'Films' }, [{ id: 'g1', name: 'To Watch' }]);
+  const r = await api('PATCH', `/boards/${B1}/cards`, {
+    cards: [{ id: 'c2', group: 'Rewatch' }, { id: 'c1', group: '' }],
+  });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(r.body.groups.map((g) => [g.name, g.created]), [['Rewatch', true]]);
+  const cards = Object.fromEntries(cardsOn(B1).map((c) => [c.id, c]));
+  assert.equal(cards.c2.groupId, r.body.groups[0].id);
+  assert.equal(cards.c1.groupId, null);
+  const stray = await api('PATCH', `/boards/${B1}/cards`, { cards: [{ id: 'c1', group_id: 'nope' }] });
+  assert.equal(stray.status, 400, JSON.stringify(stray.body));
+  const one = await api('PATCH', `/boards/${B1}/cards/c1`, { group: 'Rewatch' });
+  assert.equal(one.status, 200, JSON.stringify(one.body));
+  assert.equal(cardsOn(B1).find((c) => c.id === 'c1').groupId, cards.c2.groupId, 'the single-card patch names one too');
+});
+
 test('read_board over /mcp says what it read in its first line, then the JSON, people\'s text marked', async () => {
   scopes = ['read'];
   putBoard(B1, [

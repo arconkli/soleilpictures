@@ -357,7 +357,35 @@ async function placeNewBoards(out, api, { ask }) {
 
 // The kinds of card the API makes (worker-api.js CARD_KINDS; a test holds the
 // two equal). add_cards and update_cards both take them.
-const CARD_KINDS = ['note', 'image', 'link', 'doc', 'video', 'audio', 'pdf', 'file'];
+const CARD_KINDS = ['note', 'image', 'link', 'doc', 'video', 'audio', 'pdf', 'file', 'palette'];
+
+// What add_cards and update_cards say about the fields that make a card look
+// right, written once. The two numbers are lib/apiCards.js's (PALETTE.maxSwatches,
+// SECTIONS.maxPerCall; a test holds them equal): this file can't import it.
+const CARD_LOOK = {
+  color: str('A note’s fill, a hex colour like "#f3ddaa" (its ink follows); on other kinds, a colour for the card'),
+  group: str('The section this card belongs in, by name: the board’s group of that name, made if there is none'),
+  swatches: {
+    type: 'array',
+    description: 'For kind=palette: its colours, in order',
+    minItems: 1,
+    maxItems: 12,
+    items: schema({
+      hex: str('A hex colour, e.g. "#1d3557"'),
+      name: str('What the colour is called, e.g. "Navy"'),
+    }, ['hex']),
+  },
+};
+const SECTIONS_LIST = {
+  type: 'array',
+  description: 'The sections the cards name (group), in the order they should come, each with an optional '
+    + 'outline colour for a section the board doesn’t have yet',
+  maxItems: 50,
+  items: schema({
+    name: str('The section'),
+    color: str('Its outline colour, e.g. "#3f7ab5"'),
+  }, ['name']),
+};
 
 // update_boards: each board changed on its own, so one refusal names its board
 // and leaves the rest done. A move goes through POST /boards/move, one call per
@@ -437,6 +465,12 @@ export const UNTRUSTED_NOTE = 'What people wrote (names, card text, captions, co
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const named = (s, n = 80) => `"${clip(s || 'Untitled', n)}"`;
 const at = (url) => (url ? ` · ${url}` : '');
+// " in 4 sections (2 new)", for a write that named its sections.
+const sectionsSaid = (groups) => {
+  if (!groups?.length) return '';
+  const made = groups.filter((g) => g.created).length;
+  return ` in ${plural(groups.length, 'section')}${made ? ` (${made} new)` : ''}`;
+};
 const more = (o) => {
   if (!o?.has_more) return '';
   if (o.next_cursor) return `; more with cursor "${o.next_cursor}"`;
@@ -1022,11 +1056,15 @@ export const TOOLS = [
   {
     name: 'add_cards',
     title: 'Add cards to a board',
-    description: 'ADDS cards to a board. Existing cards are never touched, and new cards are '
-      + 'positioned in free space so they cannot cover anything already there; cards given a '
-      + 'group_id land a group at a time, each group together under its name. Give x and y only '
-      + 'if you specifically want to place a card yourself. For an image card, call upload_image '
-      + 'first and pass the image_key it returns.',
+    description: 'ADDS cards to a board. Existing cards are never touched. Leave x, y, w and h out: each '
+      + 'card is sized to what it holds and the batch is placed in free space, a section at a time, so '
+      + 'nothing covers what is already there. A note shows its title as its heading and its body as '
+      + 'text, where "- " bullets, "1. " lists, "[ ] " checkboxes, **bold** and *italic* show as such: '
+      + 'one idea per note in a few lines; long writing goes in write_doc. Put cards in sections by '
+      + 'naming one in group (the board\'s group of that name, made if there is none), and list them in '
+      + 'groups to set their order and colours. kind=palette with swatches makes a colour palette; '
+      + 'color on a note is its fill, a hex. For an image card, call upload_image first and pass the '
+      + 'image_key it returns.',
     annotations: WRITES,
     inputSchema: schema({
       board_id: uuid('The board'),
@@ -1050,29 +1088,43 @@ export const TOOLS = [
           file_name: str('The file’s own name. For kind=image and video it is what the Files view shows and what Download names the file; for kind=file, its name'),
           mime: str('For kind=file'),
           alt: str('Alt text, for kind=image'),
-          color: str('A colour for the card'),
-          x: num('Left position'), y: num('Top position'),
-          w: num('Width'), h: num('Height'),
+          color: CARD_LOOK.color,
+          swatches: CARD_LOOK.swatches,
+          x: num('Left position; leave out to have the card placed'), y: num('Top position'),
+          w: num('Width; leave out and the card is sized to what it holds'),
+          h: num('Height; leave out and a note is as tall as its text'),
           z: num('Stacking order — higher is in front'),
           rotation: num('Degrees'),
-          group_id: str('Put this card in a group, from create_group'),
+          group: CARD_LOOK.group,
+          group_id: str('Put this card in a group by its id; group, by name, is simpler'),
           section_header: bool('Render as a full-width heading; also becomes an <h2> if the board is published'),
           identifiers: IDENTIFIER,
           props: PROPS,
         }),
       },
+      groups: SECTIONS_LIST,
       layout: str('Arrange the whole batch this way instead of appending in free space',
         { enum: ['justified', 'masonry', 'grid', 'row', 'column'] }),
     }, ['board_id', 'cards']),
     outputSchema: looseObject({
       board_id: { type: 'string' },
       cards: { type: 'array', items: looseObject({ id: { type: 'string' } }) },
+      groups: { type: 'array', items: looseObject({ id: { type: 'string' }, name: { type: 'string' } }) },
+      warnings: { type: 'array', items: { type: 'string' } },
       live: { type: 'boolean' },
     }),
-    call: (a, { api }) => api(`/boards/${a.board_id}/cards`,
-      { method: 'POST', body: { cards: a.cards, on_conflict: a.on_conflict, ...(a.layout ? { layout: a.layout } : {}) } }),
+    call: (a, { api }) => api(`/boards/${a.board_id}/cards`, {
+      method: 'POST',
+      body: {
+        cards: a.cards,
+        on_conflict: a.on_conflict,
+        ...(a.groups ? { groups: a.groups } : {}),
+        ...(a.layout ? { layout: a.layout } : {}),
+      },
+    }),
     summary: (o) => `Added ${plural(o.created ?? o.cards?.length ?? 0, 'card')}${o.updated ? `, updated ${o.updated}` : ''}`
-      + `${o.live === false ? '; a board already open shows them after a reload' : ''}`,
+      + `${sectionsSaid(o.groups)}${o.live === false ? '; a board already open shows them after a reload' : ''}`
+      + `${o.warnings?.length ? `; ${plural(o.warnings.length, 'warning')} below` : ''}`,
   },
   {
     name: 'import_urls',
@@ -1214,10 +1266,11 @@ export const TOOLS = [
   {
     name: 'create_group',
     title: 'Group a set of cards together',
-    description: 'CREATES a named group and returns its id. Pass that id as group_id when adding '
-      + 'or updating cards to put them in it. A group draws a labelled outline round its cards '
-      + 'and makes them move as one — it is how you say a set of references is one idea rather '
-      + 'than several.',
+    description: 'CREATES a named group and returns its id. add_cards and update_cards can simply name '
+      + 'the section in group instead, which makes it when the board has none by that name: use this '
+      + 'for a group before its cards exist, or for its shape. A group draws a labelled outline round '
+      + 'its cards and makes them move as one — it is how you say a set of references is one idea '
+      + 'rather than several.',
     annotations: WRITES,
     inputSchema: schema({
       board_id: uuid('The board'),
@@ -1312,7 +1365,9 @@ export const TOOLS = [
     name: 'update_cards',
     title: 'Change cards',
     description: 'CHANGES cards on one board, one or many in a call: each entry is a card\'s id and the fields to '
-      + 'set, and anything left out keeps its value. Collaborators see the batch land at once. kind must be a real '
+      + 'set, and anything left out keeps its value. Collaborators see the batch land at once. A note\'s new title '
+      + 'or body shows as add_cards writes one, and its height follows the text unless you give h. group moves a '
+      + 'card into a section by name, made if the board has none. kind must be a real '
       + 'kind; an unknown one is refused rather than turning the card into a note. props are merged (null removes '
       + 'a key); identifiers replace the card\'s set. Cards that are not on the board come back in not_found. A '
       + 'doc\'s pages change with edit_doc_page.',
@@ -1341,28 +1396,34 @@ export const TOOLS = [
           file_name: str('The file’s own name — what the Files view shows and what Download names the file'),
           mime: str('For kind=file'),
           alt: str('Alt text'),
-          color: str('A colour for the card'),
+          color: CARD_LOOK.color,
+          swatches: CARD_LOOK.swatches,
           x: num('Left position'), y: num('Top position'),
-          w: num('Width'), h: num('Height'),
+          w: num('Width'), h: num('Height; leave out and a note follows its text'),
           z: num('Stacking order — higher is in front'),
           rotation: num('Degrees'),
-          group_id: str('Put this card in a group, from create_group; an empty string takes it out'),
+          group: CARD_LOOK.group,
+          group_id: str('Put this card in a group by its id; an empty string takes it out'),
           section_header: bool('Render as a full-width heading; also becomes an <h2> if the board is published'),
           identifiers: IDENTIFIER,
           props: PROPS,
         }, ['id']),
       },
+      groups: SECTIONS_LIST,
     }, ['board_id', 'cards']),
     outputSchema: looseObject({
       board_id: { type: 'string' },
       cards: { type: 'array' },
       updated: { type: 'number' },
       not_found: { type: 'array', items: { type: 'string' } },
+      groups: { type: 'array', items: looseObject({ id: { type: 'string' }, name: { type: 'string' } }) },
+      warnings: { type: 'array', items: { type: 'string' } },
     }),
     call: (a, { api }) => api(`/boards/${a.board_id}/cards`,
-      { method: 'PATCH', body: { cards: a.cards } }),
-    summary: (o) => `Changed ${plural(o.updated ?? o.cards?.length ?? 0, 'card')}`
-      + `${o.not_found?.length ? `; not on the board: ${o.not_found.slice(0, 5).join(', ')}${o.not_found.length > 5 ? '…' : ''}` : ''}`,
+      { method: 'PATCH', body: { cards: a.cards, ...(a.groups ? { groups: a.groups } : {}) } }),
+    summary: (o) => `Changed ${plural(o.updated ?? o.cards?.length ?? 0, 'card')}${sectionsSaid(o.groups)}`
+      + `${o.not_found?.length ? `; not on the board: ${o.not_found.slice(0, 5).join(', ')}${o.not_found.length > 5 ? '…' : ''}` : ''}`
+      + `${o.warnings?.length ? `; ${plural(o.warnings.length, 'warning')} below` : ''}`,
   },
   {
     name: 'edit_doc_page',
@@ -1730,8 +1791,10 @@ export const PROMPTS = [
       + '2. If you can search the web, find 12 to 24 strong reference pictures for it (film stills, photographs, '
       + 'paintings; each a direct link to the image) and bring them in with import_urls. If you can\'t, add notes '
       + 'saying what pictures to look for.\n'
-      + '3. add_cards: notes for the palette (five or six colours, each named with its hex), the light, textures '
-      + 'and period details, and a few references to look at (films, photographers, painters).\n'
+      + '3. add_cards, each card\'s section named in group: a palette card (kind palette, five or six swatches, '
+      + 'each a hex with a name), notes on the light, textures and period details, one idea each in a short title '
+      + 'and a few lines, and a few references to look at (films, photographers, painters). Leave x, y, w and h '
+      + 'out.\n'
       + '4. write_doc: a one-page treatment, about 200 words: the feeling, what we see, what we hear, what to avoid.\n'
       + '5. arrange_board, then view_board to look at the result, and replace anything off the brief.\n'
       + '6. show_board to show it to me, then answer with the board\'s link and two lines on where it landed. '
@@ -1758,7 +1821,7 @@ export const PROMPTS = [
     render: (a) => `Read board ${a.board_id} with read_board (and view_board where the picture matters). `
       + 'Propose a grouping: groups on this board, or boards inside it, each with a name and the cards that go '
       + 'there. Do NOT create or move anything yet; show me the plan first. Flag anything that fits nowhere '
-      + 'rather than forcing it into a group. Once I agree: create_group and update_cards for groups, or '
+      + 'rather than forcing it into a group. Once I agree: update_cards with each card\'s group named, or '
       + 'create_boards and move_cards for boards.',
   },
   {

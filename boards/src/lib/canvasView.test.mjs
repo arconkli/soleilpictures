@@ -141,6 +141,22 @@ test('what a card shows at a glance, clipped, with colours only as plain hex', a
   assert.equal(by.f1.title, 'Sides.pdf');
 });
 
+// The API writes a note's title as the heading of its html (noteCompose), and
+// the view would then show it twice: once as the card's title, once as the
+// start of its text.
+test('a note that opens with a heading is titled by it, and its text is what follows', async () => {
+  const { out } = await answer([
+    { id: 'n1', kind: 'note', x: 0, y: 0, title: 'MARTY SUPREME (2025)',
+      html: '<h2>MARTY SUPREME (2025)</h2><p>9.75 / 10</p><p></p><p>One of your highest-rated films.</p>' },
+    { id: 'n2', kind: 'note', x: 300, y: 0, html: '<h1>Shot list</h1><ul><li><p>Wide</p></li></ul>' },
+    { id: 'n3', kind: 'note', x: 600, y: 0, title: 'Kept', html: '<p>No heading here</p>' },
+  ]);
+  const [a, b, c] = out.cards;
+  assert.deepEqual([a.title, a.text], ['MARTY SUPREME (2025)', '9.75 / 10 One of your highest-rated films.']);
+  assert.deepEqual([b.title, b.text], ['Shot list', 'Wide']);
+  assert.deepEqual([c.title, c.text], ['Kept', 'No heading here']);
+});
+
 test('cards come in their stacking order, groups round their members, and the board\'s extent', async () => {
   const { out } = await answer([
     { id: 'top', kind: 'note', z: 5, x: 0, y: 0, w: 100, h: 100, groupId: 'g1' },

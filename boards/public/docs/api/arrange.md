@@ -1,6 +1,6 @@
 # Arrange
 
-> POST /boards/:id/arrange lays out cards that already exist, and any card write accepts a layout to arrange what it adds. The default, justified, fits rows flush on both edges at each picture's true aspect ratio. For placing things yourself, cards carry x, y, w, h, z, rotation, a group_id, and a section_header flag.
+> POST /boards/:id/arrange lays out cards that already exist, and any card write accepts a layout to arrange what it adds. The default, justified, fits rows flush on both edges at each picture's true aspect ratio. For placing things yourself, cards carry x, y, w, h, z, rotation, a group (by name or by group_id), and a section_header flag.
 
 _Source: https://clusters.soleilpictures.com/docs/api/arrange · Updated 2026-10-27_
 
@@ -86,7 +86,8 @@ Every card carries the full geometry:
 | `w`, `h` | Size |
 | `z` | Stacking. Higher is in front; fractional values are fine |
 | `rotation` | Degrees |
-| `group_id` | Membership of a group |
+| `group` | Membership of a group, by its name — made if the board has none |
+| `group_id` | Membership of a group, by its id |
 | `section_header` | Render as a full-width heading |
 
 `z` was readable but not writable until now — you could see which of two
@@ -113,7 +114,9 @@ The full set:
 | `PATCH /boards/:id/groups/:groupId` | Rename or restyle it |
 | `DELETE /boards/:id/groups/:groupId` | Ungroup — removes the group, never its cards |
 
-Pass the returned `id` as `group_id` on any card. `shape` is `box` (one
+Pass the returned `id` as `group_id` on any card — or skip this step, and name
+the group in a card's `group`: the board's group of that name is used, or made
+with the cards (see [Sections](/docs/api/cards#sections)). `shape` is `box` (one
 rectangle round everything) or `hug` (following each card). Deleting a group
 **ungroups**; it never deletes the cards — there is no undo on an HTTP call, and
 a group holding forty cards must not be a way to lose forty cards.

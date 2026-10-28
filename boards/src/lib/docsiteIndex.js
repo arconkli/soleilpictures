@@ -3493,7 +3493,7 @@ export const DOCS_PAGES = [
     "title": "Cards API — Soleil Clusters",
     "metaDescription": "Add, read, update, move and delete Soleil Clusters cards over REST. Field reference, size limits, auto-placement and the delete-is-the-undo pattern.",
     "h1": "Cards API",
-    "answer": "Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. Eight card kinds are accepted and an unknown kind is rejected rather than silently coerced. Bulk PATCH and DELETE take a batch in one call.",
+    "answer": "Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. An unknown kind is rejected rather than silently coerced. A note shows its title as its heading and is made as tall as its text, and a card names its section by name.",
     "section": "developers",
     "order": 4,
     "updated": "2026-10-27",
@@ -3506,6 +3506,14 @@ export const DOCS_PAGES = [
       {
         "id": "kinds",
         "text": "Kinds"
+      },
+      {
+        "id": "notes",
+        "text": "Notes"
+      },
+      {
+        "id": "palettes",
+        "text": "Palettes"
       },
       {
         "id": "writable-fields",
@@ -3578,6 +3586,14 @@ export const DOCS_PAGES = [
       {
         "q": "What does live false mean in the response?",
         "a": "The cards are saved, but a canvas someone already has open will not show them until it reloads. It is not a failure."
+      },
+      {
+        "q": "How do I put cards in sections?",
+        "a": "Name the section on each card in group. The card goes in the board's group of that name, which is made with the cards when the board has none, and an optional groups list sets the sections' order and colours."
+      },
+      {
+        "q": "Why leave out w and h?",
+        "a": "A note left without them is made as tall as its text, and a palette wide enough to name every colour. A note given a height keeps it, and its text fades out where the card ends."
       }
     ]
   },
@@ -3906,7 +3922,7 @@ export const DOCS_PAGES = [
     "title": "Arranging a Board — Soleil Clusters API",
     "metaDescription": "Lay cards out automatically — justified rows, colour-ordered masonry or a uniform grid — or place them by hand with z-order, rotation and groups.",
     "h1": "Arrange",
-    "answer": "POST /boards/:id/arrange lays out cards that already exist, and any card write accepts a layout to arrange what it adds. The default, justified, fits rows flush on both edges at each picture's true aspect ratio. For placing things yourself, cards carry x, y, w, h, z, rotation, a group_id, and a section_header flag.",
+    "answer": "POST /boards/:id/arrange lays out cards that already exist, and any card write accepts a layout to arrange what it adds. The default, justified, fits rows flush on both edges at each picture's true aspect ratio. For placing things yourself, cards carry x, y, w, h, z, rotation, a group (by name or by group_id), and a section_header flag.",
     "section": "developers",
     "order": 7,
     "updated": "2026-10-27",
@@ -3941,7 +3957,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "How do I say that a set of cards belongs together?",
-        "a": "Create a group with POST /boards/:id/groups and pass its id as group_id on each card. A group draws a labelled outline round its cards and moves them as one."
+        "a": "Name the section in group on each card, and the board's group of that name is used, or made with the cards. A group draws a labelled outline round its cards and moves them as one."
       }
     ]
   },

@@ -45,6 +45,7 @@ import {
   addCardsToBoard, moveCardsBetweenBoards, readBoardCards, readBoardCardsChecked,
   updateCardOnBoard, updateCardsOnBoard, deleteCardsFromBoard,
   readBoardGroups, readBoardCardsAndGroups, writeBoardGroups, withBoardCards, editCardLive, editBoardLive,
+  groupsOf,
 } from './lib/scoutBoard.js';
 import { DOC_READ, readDocPages } from './lib/docMarkdown.js';
 import {
@@ -62,7 +63,14 @@ import {
 import { arrangeExisting } from './lib/scoutCards.js';
 import { PARTY_HOST } from './lib/partyHost.js';
 import { partyFetch } from './lib/partyFetch.js';
-import { bytesToB64, readCards } from './lib/yhelpers.js';
+import { bytesToB64, readCards, upsertGroup } from './lib/yhelpers.js';
+import { composeNoteHtml } from './lib/noteCompose.js';
+import { fitNoteSize, NOTE_FIT } from './lib/noteFit.js';
+import { noteSourceHtml, htmlHasText } from './lib/noteBody.js';
+import {
+  readNoteColor, readSwatches, paletteSize, publicSwatches, readSections, resolveSections,
+  sectionName, sectionKey,
+} from './lib/apiCards.js';
 import { imageDimensions, extensionFor } from './lib/imageDims.js';
 import { meaningfulFileName } from './lib/fileIngest.js';
 import { reserveUploadSpace } from './lib/uploadReserve.js';
@@ -143,9 +151,9 @@ const EXTRA_TYPES = {
 // have no way to put a card for it on a board. An upload you cannot place is
 // not an upload.
 //
-// The app has more kinds still (palette, schedule, grid, board) and each of
-// those carries structured interior state the wire format does not describe —
-// they stay readable but not creatable, rather than creatable and broken.
+// The app has more kinds still (schedule, grid, board) and each of those
+// carries structured interior state the wire format does not describe — they
+// stay readable but not creatable, rather than creatable and broken.
 // `?include=raw` is how you get at their interiors.
 //
 // `audio` and `pdf` joined them for the same reason, found while giving Soleil
@@ -154,7 +162,11 @@ const EXTRA_TYPES = {
 // refused two card kinds the product itself produces. A kind you can make by
 // dropping a file and cannot make through the API is a hole with no workaround,
 // which is the same test `video` and `file` were admitted under.
-const CARD_KINDS = ['note', 'image', 'link', 'doc', 'video', 'audio', 'pdf', 'file'];
+//
+// `palette` joined last (2026-10-27): its interior is only its swatches, which
+// the wire now describes ([{hex, name}], lib/apiCards.js), and without it an
+// assistant making a moodboard wrote its colours into a note as hex codes.
+const CARD_KINDS = ['note', 'image', 'link', 'doc', 'video', 'audio', 'pdf', 'file', 'palette'];
 
 // Which Y.Doc field holds the bytes, per kind. Images, video and audio all use
 // `src`; files use `fileSrc`; a PDF uses `pdfSrc` and keeps `src` for its
@@ -253,7 +265,9 @@ export function publicCard(c) {
     url: c.url ?? c.link ?? null,
     image_key: keyFromSrc(c.src),
     alt: c.alt ?? null,
-    color: c.color ?? null,
+    // A note's colour is its fill, `bgColor`, the field the canvas paints; the
+    // API wrote `color` until 2026-10-27, which a note never showed.
+    color: (kind === 'note' ? (c.bgColor ?? c.color) : c.color) ?? null,
     created_at: c.createdAt ?? null,
     updated_at: c.updatedAt ?? null,
   };
@@ -284,20 +298,23 @@ export function publicCard(c) {
     out.section_header = true;
     if (c.sub) out.sub = c.sub;
   }
+  if (kind === 'palette') out.swatches = publicSwatches(c.swatches);
   return out;
 }
 
 // Whether POSTing a deleted card's wire form back re-creates it.
 //
 // The delete responses promise "the response body is the undo", and for most
-// cards it is. Not for a grid, palette or schedule — those kinds are readable
-// but not creatable here, so the POST is a 400 — and not for a multi-page doc,
-// whose pages live in docPages, which the wire form does not carry. Those are
-// named in the response instead of being returned as if they could come back
-// (2026-10-11 audit, API-09). They can: the delete checkpoints the board into
-// Version history first (deleteCardsFromBoard).
+// cards it is. Not for a grid or schedule — those kinds are readable but not
+// creatable here, so the POST is a 400 — not for a multi-page doc, whose pages
+// live in docPages, which the wire form does not carry, and not for a palette
+// set to hide its labels, a choice the wire form doesn't carry either. Those
+// are named in the response instead of being returned as if they could come
+// back (2026-10-11 audit, API-09). They can: the delete checkpoints the board
+// into Version history first (deleteCardsFromBoard).
 const restorableByPost = (c) => CARD_KINDS.includes(c.kind || 'note')
-  && !(c.kind === 'doc' && c.docPages != null);
+  && !(c.kind === 'doc' && c.docPages != null)
+  && !(c.kind === 'palette' && (c.hideHex || c.hideLabels || c.chipsOnly));
 
 function notRestorable(removed) {
   const stuck = removed.filter((c) => !restorableByPost(c)).map((c) => String(c.id));
@@ -356,8 +373,13 @@ function refuseScheduleFields(body) {
 //
 // `existingKind` matters on a patch: the text field a value lands in depends on
 // what kind of card it is, and a patch that does not mention `kind` is still a
-// patch to a card that has one.
-export function normalizeIncomingCard(input, { partial = false, existingKind = null } = {}) {
+// patch to a card that has one. `before` is the card as it stands, on a patch:
+// a note's text and height follow its title and body only where the API wrote
+// them (apiOwnsNoteHtml). `warn(message)` hears what landed but won't look as
+// asked.
+export function normalizeIncomingCard(input, {
+  partial = false, existingKind = null, before = null, warn = null,
+} = {}) {
   const c = input || {};
 
   // An unrecognised kind is REFUSED, not coerced. Coercion is right for an
@@ -412,7 +434,31 @@ export function normalizeIncomingCard(input, { partial = false, existingKind = n
   if ('mime' in c) out.mime = str(c.mime, 200);
   if ('ext' in c) out.ext = str(c.ext, 20);
   if (Number.isFinite(c.size_bytes)) out.sizeBytes = Math.max(0, Math.round(c.size_bytes));
-  if ('color' in c) out.color = str(c.color, 40);
+  // A note's colour is its fill (bgColor), which the canvas paints and picks
+  // the note's ink for from the hex, so it must be one. `color` is cleared with
+  // it: the field this wrote until 2026-10-27, which a note never showed.
+  if ('color' in c) {
+    if (kind === 'note') {
+      const read = readNoteColor(c.color);
+      if (read.problem) throw fail(400, 'bad_request', read.problem);
+      out.bgColor = read.color;
+      out.color = null;
+    } else {
+      out.color = str(c.color, 40);
+    }
+  }
+  // A palette is its swatches: one made, or a card turned into one, needs them.
+  if (kind === 'palette' && ('swatches' in c || !partial || existingKind !== 'palette')) {
+    const read = readSwatches(c.swatches);
+    if (read.problem) throw fail(400, 'bad_request', read.problem);
+    out.swatches = read.swatches;
+    if (!partial) {
+      const size = paletteSize(read.swatches.length);
+      if (!Number.isFinite(c.w)) out.w = size.w;
+      if (!Number.isFinite(c.h)) out.h = size.h;
+      if (!('title' in c)) out.title = 'Palette';
+    }
+  }
   if (Number.isFinite(c.x)) out.x = Math.round(c.x);
   if (Number.isFinite(c.y)) out.y = Math.round(c.y);
   if (Number.isFinite(c.w)) out.w = clampSize(c.w);
@@ -447,7 +493,65 @@ export function normalizeIncomingCard(input, { partial = false, existingKind = n
     out.span = c.section_header === true ? 'full' : null;
   }
   if ('sub' in c) out.sub = str(c.sub, 300);
+  if (kind === 'note') noteShowsItsText(c, out, { partial, before, warn });
   return out;
+}
+
+// What the canvas shows of a note is its html, never its title, and a note is
+// as tall as its card: a note the API made from a title and a body showed the
+// body alone, under a fade, at 280×180. So a note given a title or a body
+// (and no html of its own) is written as the app writes one, the title as its
+// heading and the body's lists and emphasis as lists and emphasis
+// (lib/noteCompose.js), and a note given no height is made as tall as its
+// text (lib/noteFit.js; no taller than a note grows in the app). `title` and
+// `body` are kept as given: search and every read use them.
+function noteShowsItsText(c, out, { partial, before, warn }) {
+  const titleGiven = 'title' in c;
+  const bodyGiven = 'body' in c;
+  if (!partial) {
+    if ('html' in c) {
+      // The caller's own html, under the title it named when it doesn't open
+      // with a heading of its own.
+      if (out.title && htmlHasText(out.html) && !/^\s*<h[1-3][\s>]/i.test(out.html)) {
+        out.html = composeNoteHtml({ title: out.title }) + out.html;
+      }
+    } else if (out.title || out.body) {
+      out.html = composeNoteHtml({ title: out.title, body: out.body });
+    }
+  } else if ((titleGiven || bodyGiven) && !('html' in c) && before && apiOwnsNoteHtml(before)) {
+    out.html = composeNoteHtml({
+      title: titleGiven ? out.title : before.title,
+      body: bodyGiven ? out.body : (before.body ?? null),
+    });
+  }
+
+  // Height follows the text unless the caller set one, or someone sized the
+  // note by hand in the app.
+  if (Number.isFinite(c.h)) return;
+  if (partial && (!before || before.manuallyResized)) return;
+  if (partial && !('html' in out) && !bodyGiven && !Number.isFinite(c.w)) return;
+  const html = 'html' in out ? out.html : before?.html;
+  const body = bodyGiven ? out.body : before?.body;
+  const text = noteSourceHtml(html, body);
+  if (!htmlHasText(text)) return;
+  const width = Number.isFinite(c.w) ? out.w : (partial ? before?.w : undefined);
+  const fit = fitNoteSize({ html: text, w: Number.isFinite(width) ? width : undefined });
+  if (!partial || Number.isFinite(c.w)) out.w = fit.w;
+  out.h = fit.h;
+  if (fit.overflow) {
+    warn?.(`its text runs past the tallest a note grows (${NOTE_FIT.maxH}px) and the end fades out; `
+      + 'long writing reads better as a doc (POST /boards/:id/docs, or write_doc)');
+  }
+}
+
+// Whether a note's html is still the one the API composed from its title and
+// body: then a new title or body may be written into it. Not once the note has
+// been opened in the app's editor (its text then lives in the note's own
+// fragment, and html only mirrors it), and not when someone else wrote it.
+function apiOwnsNoteHtml(before) {
+  if (before.noteFragmentSeeded) return false;
+  if (!htmlHasText(before.html)) return true;
+  return before.html === composeNoteHtml({ title: before.title, body: before.body ?? null });
 }
 
 // Place whatever is missing coordinates, around what is already on the board.
@@ -457,17 +561,24 @@ export function normalizeIncomingCard(input, { partial = false, existingKind = n
 // undefined geometry — and one NaN card poisons boundsOfCards() for the whole
 // board, scattering everything the user already had. Dropping it is the only
 // safe answer; the response reports what actually landed.
-function layoutCards(built, existing, layoutOpts = null) {
+//
+// `order` is the group ids of the sections an add named, in the order named:
+// they are laid out in that order (each section's cards in their own order),
+// and the cards come back in the order given whatever the layout saw.
+function layoutCards(built, existing, layoutOpts = null, { order = null } = {}) {
+  const rank = order?.length ? new Map(order.map((gid, i) => [String(gid), i])) : null;
+  const inOrder = (list) => (!rank ? list : [...list].sort((a, b) => sectionRank(a, rank) - sectionRank(b, rank)));
   // A NAMED layout arranges the whole batch, including cards that arrived with
   // coordinates: "lay these out as justified rows" and "put this one at x=40"
   // are contradictory instructions, and the one the caller typed on purpose
   // should win. Without a name, behaviour is exactly what it has always been —
   // place only what is missing coordinates.
   if (layoutOpts) {
-    return arrange(existing, built, layoutOpts)
-      .filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+    const laid = new Map(arrange(existing, inOrder(built), layoutOpts).map((c) => [c.id, c]));
+    return built.map((c) => laid.get(c.id))
+      .filter((c) => c && Number.isFinite(c.x) && Number.isFinite(c.y));
   }
-  const needsLayout = built.filter((c) => !Number.isFinite(c.x) || !Number.isFinite(c.y));
+  const needsLayout = inOrder(built.filter((c) => !Number.isFinite(c.x) || !Number.isFinite(c.y)));
   // Grouped cards land a group at a time, by their group's other cards when
   // there is room, so no group's outline takes in another group's cards.
   const placed = !needsLayout.length ? []
@@ -478,6 +589,75 @@ function layoutCards(built, existing, layoutOpts = null) {
     .map((c) => byId.get(c.id) || c)
     .filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
 }
+
+// Where a card's section comes in `order`: a section named in the call by its
+// place there, any other group after those, no group last.
+function sectionRank(c, rank) {
+  if (!c.groupId) return rank.size + 1;
+  return rank.get(String(c.groupId)) ?? rank.size;
+}
+
+// The sections one card write names, by name on a card (`group`) or in the
+// body's `groups` list, and the group ids it gives (`group_id`), checked on the
+// board they land on. Returns null when the write names no group at all, which
+// keeps a positioned batch on the fast path. Otherwise:
+//   prepare(doc) — for addCardsToBoard / updateCardsOnBoard: resolves each name
+//     to the board's group of that name or a new one (made in the same
+//     transaction as the cards), and refuses a group_id the board doesn't have.
+//   assign(card, i, prepared) — the group the i-th card goes in, set on it.
+//   created — the groups made, once a prepare has run (an upsert opens the
+//     board twice: the second open finds what the first made).
+function sectionsFor(incoming, built, body, { userId, partial = false }) {
+  const read = readSections(body?.groups, incoming);
+  if (read.problem) throw fail(400, 'bad_request', read.problem);
+  incoming.forEach((c, i) => {
+    if (sectionName(c?.group) && c?.group_id) {
+      throw fail(400, 'bad_request', `cards[${i}]: send group (a section's name) or group_id, not both`);
+    }
+  });
+  const named = read.wanted.length > 0;
+  const refs = built.some((c) => c?.groupId);
+  if (!named && !refs) return null;
+  const created = [];
+  const sections = [];
+  const prepare = (doc) => {
+    const existing = groupsOf(doc);
+    const plan = resolveSections(existing, read.wanted, { userId });
+    const known = new Set([...existing.map((g) => String(g.id)), ...plan.created.map((g) => g.id)]);
+    built.forEach((c, i) => {
+      if (!c?.groupId || known.has(String(c.groupId))) return;
+      throw fail(400, 'bad_request', `cards[${i}]: group_id ${JSON.stringify(String(c.groupId).slice(0, 100))} `
+        + 'is not a group on this board: name the section with group instead (it is made if the board has none '
+        + 'by that name), or read the board\'s groups');
+    });
+    for (const g of plan.created) if (!created.some((x) => x.id === g.id)) created.push(g);
+    sections.length = 0;
+    for (const gid of plan.order) {
+      const g = existing.find((x) => String(x.id) === gid) || plan.created.find((x) => x.id === gid);
+      if (g) sections.push({ ...g, created: plan.created.some((x) => x.id === gid) || created.some((x) => x.id === gid) });
+    }
+    return {
+      idByKey: plan.idByKey,
+      order: plan.order,
+      write: plan.created.length ? (d) => {
+        const groups = d.getMap('groups');
+        for (const g of plan.created) upsertGroup(groups, g.id, g);
+      } : null,
+    };
+  };
+  const assign = (card, i, prepared) => {
+    const name = sectionName(incoming[i]?.group);
+    if (name && prepared) card.groupId = prepared.idByKey.get(sectionKey(name)) ?? null;
+    else if (partial && incoming[i] && 'group' in incoming[i] && !name && !('group_id' in incoming[i])) {
+      card.groupId = null;
+    }
+    return card;
+  };
+  return { prepare, assign, created, sections, named };
+}
+
+// The sections a write named, on the wire: each with whether this call made it.
+const publicSections = (plan) => plan.sections.map((g) => ({ ...publicGroup(g), created: g.created === true }));
 
 // The layout knobs, read off a request body. Returns null when no layout was
 // named, which is what keeps the previous implicit behaviour intact.
@@ -4539,7 +4719,19 @@ async function dispatch(url, request, env, ctx) {
     }
     // Normalized BEFORE the board is opened so a bad `kind` is a clean 400
     // rather than a rejection halfway through a Y.Doc transaction.
-    const built = incoming.map((c) => normalizeIncomingCard(c));
+    const batch = Array.isArray(body.cards);
+    const warnings = [];
+    const built = incoming.map((c, i) => {
+      try {
+        return normalizeIncomingCard(c, { warn: (m) => warnings.push(`cards[${i}]: ${m}`) });
+      } catch (e) {
+        if (batch) e.message = `cards[${i}]: ${e.message}`;
+        throw e;
+      }
+    });
+    // Sections named by name, made with their cards, and group ids checked on
+    // the board (sectionsFor). null when no card names a group.
+    const plan = sectionsFor(incoming, built, body, { userId: auth.userId });
     const metas = incoming.map((c, i) => {
       try {
         return metaFromBody(c);
@@ -4587,10 +4779,16 @@ async function dispatch(url, request, env, ctx) {
       if (updateIdx.length) {
         const out = await updateCardsOnBoard(env, {
           boardId: id, workspaceId: board.workspace_id, userId: auth.userId, accessToken: token,
+          ...(plan ? { prepare: plan.prepare } : {}),
           patches: updateIdx.map((i) => ({
             cardId: resolvedHits[i].existing.object_id,
-            patch: (before) => normalizeIncomingCard(incoming[i],
-              { partial: true, existingKind: before?.kind }),
+            patch: (before, prepared) => {
+              const fields = normalizeIncomingCard(incoming[i], {
+                partial: true, existingKind: before?.kind, before,
+                warn: (m) => warnings.push(`cards[${i}]: ${m}`),
+              });
+              return plan ? plan.assign(fields, i, prepared) : fields;
+            },
           })),
         });
         const gone = [];
@@ -4610,11 +4808,16 @@ async function dispatch(url, request, env, ctx) {
       let createdCards = [];
       if (createIdx.length) {
         const fresh = createIdx.map((i) => built[i]);
-        const positionedFresh = !upsertLayout && fresh.every((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+        const positionedFresh = !upsertLayout && !plan
+          && fresh.every((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
         const res = await addCardsToBoard(env, {
           boardId: id, workspaceId: board.workspace_id, userId: auth.userId, accessToken: token,
           ...(positionedFresh ? { appendCards: fresh } : {}),
-          buildCards: async (existing) => layoutCards(fresh, existing, upsertLayout),
+          ...(plan ? { prepare: plan.prepare } : {}),
+          buildCards: async (existing, prepared) => layoutCards(
+            plan ? createIdx.map((i) => plan.assign(built[i], i, prepared)) : fresh,
+            existing, upsertLayout, { order: prepared?.order },
+          ),
         });
         createdCards = res.cards;
       }
@@ -4640,6 +4843,8 @@ async function dispatch(url, request, env, ctx) {
         cards: finalCards.map(publicCard),
         created: createIdx.length,
         updated: updatedById.size,
+        ...(plan?.named ? { groups: publicSections(plan) } : {}),
+        ...(warnings.length ? { warnings } : {}),
         live: true,
       }, 201);
     }
@@ -4655,8 +4860,10 @@ async function dispatch(url, request, env, ctx) {
     // fast path. An assistant adding one note does not, and should not have to.
     // A named layout has to read the board to arrange around what is there, so
     // it gives up the O(batch) fast path. That is the caller's explicit choice.
+    // Naming a group reads the board too: its name has to be looked up, or a
+    // group_id checked, on the board it lands on.
     const layoutOpts = layoutOptionsFrom(body);
-    const positioned = !layoutOpts && built.every((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+    const positioned = !layoutOpts && !plan && built.every((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
 
     const result = await addCardsToBoard(env, {
       boardId: id,
@@ -4664,10 +4871,14 @@ async function dispatch(url, request, env, ctx) {
       userId: auth.userId,
       accessToken: token,
       ...(positioned ? { appendCards: built } : {}),
+      ...(plan ? { prepare: plan.prepare } : {}),
       // Positioned by the same helper Scout uses, so cards arriving from an API
       // call cannot land on top of what is already there. A caller that supplied
       // explicit x/y keeps them.
-      buildCards: async (existing) => layoutCards(built, existing, layoutOpts),
+      buildCards: async (existing, prepared) => layoutCards(
+        plan ? built.map((c, i) => plan.assign(c, i, prepared)) : built,
+        existing, layoutOpts, { order: prepared?.order },
+      ),
     });
 
     // Metadata is keyed on the card id the server assigned, so it can only be
@@ -4699,6 +4910,10 @@ async function dispatch(url, request, env, ctx) {
     return json({
       board_id: id,
       cards: result.cards.map(publicCard),
+      // The sections the add named, each with its id and whether it was made.
+      ...(plan?.named ? { groups: publicSections(plan) } : {}),
+      // What landed but won't look as asked (a note too long to show whole).
+      ...(warnings.length ? { warnings } : {}),
       // Honest about what happened: false means the cards are durable but an
       // already-open canvas will not show them until it reloads.
       live: result.live,
@@ -4732,11 +4947,28 @@ async function dispatch(url, request, env, ctx) {
       }
     });
 
+    // A section by name, or a group_id checked on the board (sectionsFor).
+    const warnings = [];
+    const refs = incoming.map((c) => ({ groupId: c?.group_id ? str(c.group_id, 100) : null }));
+    const plan = sectionsFor(incoming, refs, body, { userId: auth.userId, partial: true });
     const out = await updateCardsOnBoard(env, {
       boardId: id, workspaceId: board.workspace_id, userId: auth.userId, accessToken: token,
+      ...(plan ? { prepare: plan.prepare } : {}),
       patches: incoming.map((c, i) => ({
         cardId: ids[i],
-        patch: (before) => normalizeIncomingCard(c, { partial: true, existingKind: before?.kind }),
+        patch: (before, prepared) => {
+          let fields;
+          try {
+            fields = normalizeIncomingCard(c, {
+              partial: true, existingKind: before?.kind, before,
+              warn: (m) => warnings.push(`cards[${i}]: ${m}`),
+            });
+          } catch (e) {
+            e.message = `cards[${i}]: ${e.message}`;
+            throw e;
+          }
+          return plan ? plan.assign(fields, i, prepared) : fields;
+        },
       })),
     });
 
@@ -4756,6 +4988,8 @@ async function dispatch(url, request, env, ctx) {
       cards: out.filter(Boolean).map(publicCard),
       updated: out.filter(Boolean).length,
       not_found: missing,
+      ...(plan?.named ? { groups: publicSections(plan) } : {}),
+      ...(warnings.length ? { warnings } : {}),
     });
   }
 
@@ -4871,17 +5105,26 @@ async function dispatch(url, request, env, ctx) {
   // PATCH /boards/:id/cards/:cardId
   if (method === 'PATCH') {
     trace.route = '/boards/:id/cards/:cardId';
+    const warnings = [];
+    const plan = sectionsFor([body], [{ groupId: body?.group_id ? str(body.group_id, 100) : null }], {},
+      { userId: auth.userId, partial: true });
     const updated = await updateCardOnBoard(env, {
       boardId: id,
       workspaceId: board.workspace_id,
       userId: auth.userId,
       accessToken: token,
       cardId: subId,
+      ...(plan ? { prepare: plan.prepare } : {}),
       // A function, not an object: which text field a value lands in depends on
       // the kind of card being patched, and that is only known once the card has
       // been read. Passing an object here is what sent an image caption to
       // `body`, where nothing displays it.
-      patch: (before) => normalizeIncomingCard(body, { partial: true, existingKind: before?.kind }),
+      patch: (before, prepared) => {
+        const fields = normalizeIncomingCard(body, {
+          partial: true, existingKind: before?.kind, before, warn: (m) => warnings.push(m),
+        });
+        return plan ? plan.assign(fields, 0, prepared) : fields;
+      },
     });
     if (!updated) throw fail(404, 'not_found', 'card not found');
 
@@ -4892,7 +5135,10 @@ async function dispatch(url, request, env, ctx) {
     });
 
     const include = parseInclude(url, ['props', 'identifiers', 'raw']);
-    return json({ card: (await decorateCards(env, token, id, [updated], include))[0] });
+    return json({
+      card: (await decorateCards(env, token, id, [updated], include))[0],
+      ...(warnings.length ? { warnings } : {}),
+    });
   }
 
   // DELETE /boards/:id/cards/:cardId

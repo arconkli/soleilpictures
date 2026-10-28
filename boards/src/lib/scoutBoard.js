@@ -391,12 +391,16 @@ function stampForAppend(cards, userId, startZ = 0) {
 // afterInsert(doc, cardYMap, card): fills a card's own nested content (a doc's
 // pages) in the same transaction as its insert, as the app's addCard does, so
 // the card and what it holds arrive as one. Read-modify-write path only.
+// prepare(doc, existing): runs on the synced board before buildCards, which is
+// handed what it returns; that value's write(doc), if any, runs inside the
+// insert's transaction (the sections an add names, made with their cards). A
+// throw from it leaves before anything is written. Read-modify-write path only.
 export async function addCardsToBoard(env, {
   boardId, workspaceId, userId, accessToken, buildCards, appendCards,
-  requireLive = false, skipExisting = false, afterInsert = null,
+  requireLive = false, skipExisting = false, afterInsert = null, prepare = null,
 }) {
   // The O(batch) path, when the caller has already decided where the cards go.
-  if (appendCards?.length && !afterInsert) {
+  if (appendCards?.length && !afterInsert && !prepare) {
     const stamped = stampForAppend(appendCards, userId);
     const fast = await appendViaRoom(env, { boardId, workspaceId, accessToken, stamped });
     if (fast) return fast;
@@ -434,7 +438,8 @@ export async function addCardsToBoard(env, {
     if (requireLive && !live) throw roomUnavailable('the cluster could not be reached; nothing was added');
     const existing = readCards(doc);
     const cardsMap = doc.getMap('cards');
-    let fresh = (await buildCards(existing)) || [];
+    const prepared = prepare ? prepare(doc, existing) : null;
+    let fresh = (await buildCards(existing, prepared)) || [];
     const already = skipExisting ? fresh.filter((c) => c.id && cardsMap.has(String(c.id))).map((c) => String(c.id)) : [];
     if (already.length) fresh = fresh.filter((c) => !already.includes(String(c.id)));
     if (!fresh.length) return { cards: [], existing: already, live, cardCount: existing.length };
@@ -480,6 +485,7 @@ export async function addCardsToBoard(env, {
     const before = Y.encodeStateVector(doc);
     try {
       doc.transact(() => {
+        prepared?.write?.(doc);
         for (const c of stamped) {
           cardsMap.set(c.id, cardToYMap(c));
           afterInsert?.(doc, cardsMap.get(c.id), c);
@@ -971,8 +977,10 @@ function writeCard(cards, card, fields) {
 // with a null wherever the card did not exist.
 // requireLive (the sidebar's routes): refuse before writing unless the room is
 // live, and write board_state and card_index only once it confirms the change.
+// prepare(doc): as addCardsToBoard's — each patch function is handed what it
+// returns as its second argument, and its write(doc) joins the transaction.
 export async function updateCardsOnBoard(env, {
-  boardId, workspaceId, userId, accessToken, patches, requireLive = false,
+  boardId, workspaceId, userId, accessToken, patches, requireLive = false, prepare = null,
 }) {
   if (!patches?.length) return [];
   const board = await openBoard(env, boardId, accessToken);
@@ -981,12 +989,13 @@ export async function updateCardsOnBoard(env, {
     const cards = board.doc.getMap('cards');
     const byId = new Map(readCards(board.doc).map((c) => [String(c.id), c]));
     const stamp = new Date().toISOString();
+    const prepared = prepare ? prepare(board.doc) : null;
 
     const fieldsById = new Map();
     const resolved = patches.map(({ cardId, patch }) => {
       const before = byId.get(String(cardId));
       if (!before) return null;
-      const p = typeof patch === 'function' ? (patch(before) || {}) : (patch || {});
+      const p = typeof patch === 'function' ? (patch(before, prepared) || {}) : (patch || {});
       // id can never be patched: it is the key in the Y.Map and in card_index,
       // so changing it here would orphan the index row rather than rename it.
       const { id: _ignored, ...safe } = p;
@@ -1003,6 +1012,7 @@ export async function updateCardsOnBoard(env, {
     // written onto each card's existing Y.Map (writeCardFields), never a
     // rebuilt one, so a doc or grid card keeps its live nested content.
     const live = await commitDoc(env, boardId, board, () => {
+      prepared?.write?.(board.doc);
       for (const c of changed) writeCard(cards, c, fieldsById.get(String(c.id)));
     }, { confirm: requireLive });
     if (requireLive && !live) throw roomUnavailable('the cluster did not take the change; nothing was changed');
@@ -1095,7 +1105,7 @@ export async function editBoardLive(env, { boardId, accessToken, prepare = null,
 }
 
 export async function updateCardOnBoard(env, {
-  boardId, workspaceId, userId, accessToken, cardId, patch,
+  boardId, workspaceId, userId, accessToken, cardId, patch, prepare = null,
 }) {
   const board = await openBoard(env, boardId, accessToken);
   try {
@@ -1109,7 +1119,9 @@ export async function updateCardOnBoard(env, {
     // "the text" has to be told the kind before that can be turned into a field.
     // Computing it here means one board open rather than a read followed by a
     // write, and no window in between for the card to change kind.
-    const resolved = typeof patch === 'function' ? (patch(before) || {}) : (patch || {});
+    // prepare(doc): as updateCardsOnBoard's.
+    const prepared = prepare ? prepare(board.doc) : null;
+    const resolved = typeof patch === 'function' ? (patch(before, prepared) || {}) : (patch || {});
 
     // id can never be patched: it is the key in the Y.Map and in card_index, so
     // changing it here would orphan the index row rather than rename anything.
@@ -1117,7 +1129,10 @@ export async function updateCardOnBoard(env, {
     const fields = { ...safe, updatedAt: new Date().toISOString(), updatedBy: userId || null };
     const updated = { ...before, ...fields, id: before.id };
 
-    await commitDoc(env, boardId, board, () => { writeCard(cards, updated, fields); });
+    await commitDoc(env, boardId, board, () => {
+      prepared?.write?.(board.doc);
+      writeCard(cards, updated, fields);
+    });
 
     // card_index is a projection of the card, so rebuild the row from the
     // updated card rather than patching columns by hand — that way a new field
@@ -1228,7 +1243,7 @@ export async function withBoardCards(env, boardId, accessToken, use) {
 // forty cards and not express that they were one thing.
 
 // A board's groups, oldest first, from its open doc.
-function groupsOf(doc) {
+export function groupsOf(doc) {
   const out = [];
   doc.getMap('groups').forEach((v, id) => {
     const g = v && typeof v.toJSON === 'function' ? v.toJSON() : v;

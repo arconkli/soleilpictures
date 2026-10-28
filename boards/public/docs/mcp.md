@@ -200,12 +200,12 @@ quietly failing.
 | Tool | Input |
 |---|---|
 | `create_boards` | `boards[]` — one, or up to 500, each `{ name, workspace_id?, parent_board_id?, view?, identifiers?, props? }`; `workspace_id?`, `on_conflict?` · each board comes back with its `url`; with no `parent_board_id` it becomes a project at the top of the workspace, where **New cluster** puts one, and the answer's `placement` offers up to 12 of your clusters to ask where it belongs |
-| `add_cards` | `board_id`, `cards[]` — up to 1000, `on_conflict?` |
+| `add_cards` | `board_id`, `cards[]` — up to 1000, each with its section by name in `group?`, `groups?` (the sections' order and colours), `on_conflict?` · a note shows its `title` as its heading and is sized to its text, a `palette` is made from `swatches`; leave `x`, `y`, `w` and `h` out and the server places and sizes everything — see [Cards](/docs/api/cards#notes) |
 | `import_urls` | `board_id`, `urls[]`, `titles?`, `dry_run?` — bring reference in from the web; safe to re-run |
 | `upload_image` | `board_id`, `data` (base64), `content_type`, optionally `file_name` |
 | `upload_file` | `board_id`, `path` — **local server only**; handles large files |
 | `write_doc` | `board_id`, `pages[]` — up to 50, each `{ title?, markdown }`; `title?`, `x?`, `y?` for a new doc, or `card_id` and `parent_page_id?` to add pages to one · a [doc](/docs/api/docs) written from Markdown |
-| `create_group` | `board_id`, `name`, `color?`, `shape?` — say a set of cards is one thing |
+| `create_group` | `board_id`, `name`, `color?`, `shape?` — say a set of cards is one thing; `add_cards` can simply name the section instead |
 | `add_comment` | `board_id`, `body`, and `card_id?`, `group_id?`, `x?` and `y?`, or `reply_to?`; `quote?` and `page_id?` with a doc's `card_id` — a comment in the person's name, placed beside what it is about, on words in a doc, or a reply |
 
 **Changing**
@@ -213,7 +213,7 @@ quietly failing.
 | Tool | Input |
 |---|---|
 | `update_boards` | `boards[]` — up to 100, each a `board_id` and any of `name`, `view`, `parent_board_id` (`null` for the top level), `identifiers`, `props` · each board is changed on its own, and the answer lists the boards updated and why any failed |
-| `update_cards` | `board_id`, `cards[]` — up to 1000, each an `id` and any field `add_cards` takes — `group_id` (empty to ungroup), `z`, `rotation`, `section_header`, `identifiers`, `props`, and any of the eight kinds |
+| `update_cards` | `board_id`, `cards[]` — up to 1000, each an `id` and any field `add_cards` takes — `group` by name or `group_id` (empty to ungroup), `z`, `rotation`, `section_header`, `swatches`, `identifiers`, `props`, and any kind; `groups?` · a note's new title or body is written into it, and its height follows |
 | `edit_doc_page` | `board_id`, `card_id`, `page_id`, and `markdown` with `page_hash`, or `edits[]` (up to 50), or `title` · marked destructive, since a rewrite takes words away; the board goes to Version history first |
 | `arrange_board` | `board_id`, `layout?`, `card_ids?`, `dry_run?` — lay a board out |
 | `move_cards` | `from_board_id`, `to_board_id`, `card_ids[]` |
@@ -230,13 +230,13 @@ quietly failing.
 | `delete_cards` | `board_id`, `card_ids[]` — one, or up to 1000 |
 | `delete_board` | `board_id` |
 
-Card `kind` is `audio`, `doc`, `file`, `image`, `link`, `note`, `pdf`, `video`, defaulting to `note`.
+Card `kind` is `audio`, `doc`, `file`, `image`, `link`, `note`, `palette`, `pdf`, `video`, defaulting to `note`.
 
-`add_cards` accepted six of those eight for as long as the other two have
-existed — **audio** and **pdf** were missing from its schema while the REST API
-took both, so an agent could not create the two kinds Soleil Scout makes from a
-text message. Both work now, and a `file_key` from `upload_file` is what any of
-**video**, **audio**, **pdf** or **file** is built from.
+`add_cards` once lacked **audio** and **pdf** while the REST API took both, so
+an agent could not create the two kinds Soleil Scout makes from a text message.
+Both work now, and a `file_key` from `upload_file` is what any of **video**,
+**audio**, **pdf** or **file** is built from. **palette** joined them so a
+moodboard's colours are a palette card rather than hex codes in a note.
 
 Every tool carries **annotations** — `readOnlyHint`, `destructiveHint`,
 `idempotentHint` — which is what a client reads when deciding whether a call
@@ -371,8 +371,8 @@ you asked, then asks where the board should live and moves it there with
 **Deleting returns the cards.** `delete_cards` responds with the cards it
 removed. Those objects are the undo — pass them back to `add_cards` to restore them.
 Worth keeping in context before destructive work. Card kinds `add_cards` does
-not create (grids, palettes, cluster cards and the like) and docs
-written in the app are the exception: the response lists them in
+not create (grids, cluster cards and the like), a palette set to hide its
+labels and docs written in the app are the exception: the response lists them in
 `not_restorable`, and they come back from the board's Version history in the
 app instead.
 

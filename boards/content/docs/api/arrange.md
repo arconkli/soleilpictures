@@ -6,7 +6,7 @@ navLabel: Arrange
 section: developers
 order: 7
 updated: 2026-10-27
-answer: POST /boards/:id/arrange lays out cards that already exist, and any card write accepts a layout to arrange what it adds. The default, justified, fits rows flush on both edges at each picture's true aspect ratio. For placing things yourself, cards carry x, y, w, h, z, rotation, a group_id, and a section_header flag.
+answer: POST /boards/:id/arrange lays out cards that already exist, and any card write accepts a layout to arrange what it adds. The default, justified, fits rows flush on both edges at each picture's true aspect ratio. For placing things yourself, cards carry x, y, w, h, z, rotation, a group (by name or by group_id), and a section_header flag.
 faq:
   - q: How do I make a dump of images look like a moodboard?
     a: Pass layout when you import or add them, or call POST /boards/:id/arrange afterwards. The default, justified, gives rows of equal height flush on both edges, with every picture at its real aspect ratio.
@@ -15,7 +15,7 @@ faq:
   - q: Will arranging move my cards somewhere else on the canvas?
     a: No. The block is re-anchored on its own current top-left, and pushed clear of any cards it is not moving, so tidying part of a board cannot bury the rest.
   - q: How do I say that a set of cards belongs together?
-    a: Create a group with POST /boards/:id/groups and pass its id as group_id on each card. A group draws a labelled outline round its cards and moves them as one.
+    a: Name the section in group on each card, and the board's group of that name is used, or made with the cards. A group draws a labelled outline round its cards and moves them as one.
 related:
   - /docs/api/cards
   - /docs/api/import
@@ -104,7 +104,8 @@ Every card carries the full geometry:
 | `w`, `h` | Size |
 | `z` | Stacking. Higher is in front; fractional values are fine |
 | `rotation` | Degrees |
-| `group_id` | Membership of a group |
+| `group` | Membership of a group, by its name — made if the board has none |
+| `group_id` | Membership of a group, by its id |
 | `section_header` | Render as a full-width heading |
 
 `z` was readable but not writable until now — you could see which of two
@@ -131,7 +132,9 @@ The full set:
 | `PATCH /boards/:id/groups/:groupId` | Rename or restyle it |
 | `DELETE /boards/:id/groups/:groupId` | Ungroup — removes the group, never its cards |
 
-Pass the returned `id` as `group_id` on any card. `shape` is `box` (one
+Pass the returned `id` as `group_id` on any card — or skip this step, and name
+the group in a card's `group`: the board's group of that name is used, or made
+with the cards (see [Sections](/docs/api/cards#sections)). `shape` is `box` (one
 rectangle round everything) or `hug` (following each card). Deleting a group
 **ungroups**; it never deletes the cards — there is no undo on an HTTP call, and
 a group holding forty cards must not be a way to lose forty cards.

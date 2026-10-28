@@ -162,5 +162,6 @@ you every card you still have room for; the rest stay on your disk.
 
 The [REST API](/docs/api/cards) exposes a deliberately narrower card model than
 the canvas: {{fact:apiCardKinds}}. An API caller can set position, size, title,
-body, HTML, URL, image key and colour, and nothing else — interior state that
-belongs to the editor is not writable from outside.
+body, HTML, URL, image key, colour, a palette's colours and the card's group,
+and nothing else — interior state that belongs to the editor is not writable
+from outside.
