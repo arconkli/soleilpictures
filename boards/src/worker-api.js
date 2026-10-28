@@ -1041,8 +1041,11 @@ const pictureFrom = (images) => (src) => {
 // saves a board, and a doc written here may wait a long time for that. Written
 // as the user, row for row as the app writes it (lib/boardsApi.js
 // syncDocPageIndex): a page with no words has no row. Best-effort: the doc is
-// already written, and the app's next save writes the same rows.
-async function indexDocPages(env, token, workspaceId, cardId, pages) {
+// already written, and the app's next save writes the same rows. The pages
+// written are then embedded off the response path (embedCards, gated on the
+// workspace's AI switch) from those same rows, as the browser embeds a page
+// from its doc_page_index row (aiWarmup.js), so the hashes agree.
+async function indexDocPages(env, token, workspaceId, cardId, pages, { ctx, boardId } = {}) {
   const rows = [];
   const empty = [];
   for (const p of pages) {
@@ -1060,6 +1063,12 @@ async function indexDocPages(env, token, workspaceId, cardId, pages) {
   try {
     if (rows.length) {
       await userInsert(env, token, 'doc_page_index', rows, { returning: 'minimal', onConflict: 'doc_card_id,page_id' });
+      if (ctx?.waitUntil) {
+        ctx.waitUntil(embedCards(env, rows.map((r) => ({
+          entity_kind: 'doc-page', page_id: r.page_id, doc_card_id: cardId, board_id: boardId || null,
+          workspace_id: workspaceId, page_title: r.page_title, page_text: r.page_text, content_hash: null,
+        }))).catch((e) => console.warn('[api-embed] pages failed', rows.length, e?.message || e)));
+      }
     }
     if (empty.length) {
       await userDelete(env, token, 'doc_page_index',
@@ -4134,7 +4143,7 @@ async function dispatch(url, request, env, ctx) {
     }));
     const placed = result.cards[0];
     if (!placed) throw fail(409, 'conflict', 'the doc could not be placed on that board; nothing was added');
-    await indexDocPages(env, token, target.workspace_id, String(placed.id), made);
+    await indexDocPages(env, token, target.workspace_id, String(placed.id), made, { ctx, boardId: id });
     return json({
       board_id: id,
       card: publicCard(placed),
@@ -4877,7 +4886,7 @@ async function dispatch(url, request, env, ctx) {
         }),
       }));
       if (out.missing) throw fail(404, 'not_found', 'card not found');
-      await indexDocPages(env, token, board.workspace_id, subId, out.result);
+      await indexDocPages(env, token, board.workspace_id, subId, out.result, { ctx, boardId: id });
       return json({ board_id: id, card_id: subId, url: docUrl, pages: out.result.map(publicDocPage) }, 201);
     }
 
@@ -4928,7 +4937,7 @@ async function dispatch(url, request, env, ctx) {
     }));
     if (out.missing) throw fail(404, 'not_found', 'card not found');
     if (out.unchanged) return json({ board_id: id, card_id: subId, url: docUrl, ...same, changed: false });
-    await indexDocPages(env, token, board.workspace_id, subId, [out.result.page]);
+    await indexDocPages(env, token, board.workspace_id, subId, [out.result.page], { ctx, boardId: id });
     return json({
       board_id: id,
       card_id: subId,

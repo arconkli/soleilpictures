@@ -186,6 +186,41 @@ test('POST /docs: a doc card whose pages are in the room, whole, reading back as
   assert.match(index.body[0].page_text, /night-shift detective/);
 });
 
+test('the pages a doc is written with are embedded from their index rows, with AI on and only then', async () => {
+  for (const ai of [true, false]) {
+    room(B1);
+    writes = [];
+    const texts = [];
+    const pending = [];
+    const inner = globalThis.fetch;
+    globalThis.fetch = async (input, init = {}) => {
+      const path = new URL(typeof input === 'string' ? input : input.url).pathname.replace(/^\/rest\/v1\//, '');
+      if (path === 'workspaces') return reply([{ id: 'w1', created_by: 'u1', ai_tagger_enabled: ai }]);
+      if (path === 'rpc/_ai_budget_take') return reply(true);
+      return inner(input, init);
+    };
+    const env = { ...ENV, AI: { run: async (_m, { text }) => { texts.push(...text); return { data: text.map(() => new Array(1024).fill(0.5)) }; } } };
+    const url = new URL(`https://clusters.test/api/v1/boards/${B1}/docs`);
+    const res = await handleApiRoute(url, new Request(url, {
+      method: 'POST', headers: { authorization: 'Bearer sk_live_test', 'content-type': 'application/json' },
+      body: JSON.stringify(TREATMENT),
+    }), env, { waitUntil: (p) => pending.push(p) });
+    assert.equal(res.status, 201);
+    await Promise.all(pending);
+    globalThis.fetch = inner;
+    const [index] = wrote('doc_page_index');
+    const stored = wrote('card_embeddings').flatMap((w) => w.body);
+    if (!ai) {
+      assert.deepEqual([texts, stored], [[], []], 'AI off: nothing embedded');
+      continue;
+    }
+    assert.deepEqual(texts, index.body.map((r) => `${r.page_title}\n${r.page_text}`), 'title, then text, as the browser embeds a page');
+    assert.deepEqual(stored.map((r) => [r.entity_kind, r.card_id, r.board_id, r.workspace_id]),
+      index.body.map((r) => ['doc-page', r.page_id, B1, 'w1']));
+    assert.ok(stored.every((r) => r.doc_card_id === index.body[0].doc_card_id));
+  }
+});
+
 test('POST /docs: a card title from its one page, and the first page from the card', async () => {
   room(B1);
   const one = await api('POST', `/boards/${B1}/docs`, { pages: [{ title: 'Shot list', markdown: '1. Wide' }] });
