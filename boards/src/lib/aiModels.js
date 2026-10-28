@@ -19,12 +19,13 @@
 // where it is called, or when an entry is called nowhere.
 
 import { parseJsonLoose, responseText } from '../worker-llm.js';
+import { visionRequest } from './vision.js';
 
 export const AI_MODELS = [
   {
     id: '@cf/baai/bge-m3', kind: 'embedding', dims: 1024,
-    uses: 'tag embeddings (/api/tags/embed); the pgvector columns are vector(1024) since 0418',
-    files: ['boards/src/worker-tags.js'],
+    uses: 'tag embeddings (/api/tags/embed) and the server\'s card embeddings; the pgvector columns are vector(1024) since 0418',
+    files: ['boards/src/lib/serverEmbed.js', 'boards/src/worker-tags.js'],
   },
   {
     id: '@cf/meta/llama-3.1-8b-instruct-fp8', kind: 'chat',
@@ -40,6 +41,21 @@ export const AI_MODELS = [
     id: '@cf/meta/llama-3.3-70b-instruct-fp8-fast', kind: 'chat',
     uses: 'admin SEO drafts (/api/seo/draft)',
     files: ['boards/src/worker-seo.js'],
+  },
+  {
+    // A picture beside the messages (`image: 'top'`), with a system message:
+    // a lone user message is refused (3030).
+    id: '@cf/meta/llama-3.2-11b-vision-instruct', kind: 'vision-chat', image: 'top',
+    uses: 'picture descriptions, when Gemma 4 fails',
+    files: ['boards/src/worker-vision.js'],
+  },
+  {
+    // The picture inside the message, OpenAI-style; it ignores one beside the
+    // messages, reasons away its whole answer unless told not to, and answers
+    // in the OpenAI shape (responseText reads choices[0]).
+    id: '@cf/google/gemma-4-26b-a4b-it', kind: 'vision-chat', image: 'part', noThinking: true,
+    uses: 'picture descriptions (worker-vision.js, 0593)',
+    files: ['boards/src/worker-vision.js'],
   },
   {
     id: '@cf/llava-hf/llava-1.5-7b-hf', kind: 'vision',
@@ -64,6 +80,7 @@ export const TASK_OF_KIND = {
   chat: 'Text Generation',
   embedding: 'Text Embeddings',
   vision: 'Image-to-Text',
+  'vision-chat': 'Text Generation',
   speech: 'Automatic Speech Recognition',
 };
 export const WATCHED_TASKS = [...new Set(AI_MODELS.map((m) => TASK_OF_KIND[m.kind]))];
@@ -236,6 +253,8 @@ export function priceText(model) {
 
 // An 8×8 PNG: llava refuses an image under 2×2.
 const CANARY_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR42mM4scAGK2IYWhIAKi9pAQY0dnkAAAAASUVORK5CYII=';
+// A 16×16 one for the chat models that see: gemma-4 refuses under 10px.
+const CANARY_PNG_16 = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGO4ucSRJMQwqmFUw/DVAACzFb4QPVOfAwAAAABJRU5ErkJggg==';
 
 // Half a second of 16 kHz mono silence as a WAV. Whisper tends to hear
 // "Thank you." in it, so only the shape of the answer is checked.
@@ -268,6 +287,10 @@ export function canaryRequest(model) {
       return { text: ['canary'] };
     case 'vision':
       return { image: [...atob(CANARY_PNG)].map((c) => c.charCodeAt(0)), prompt: 'Describe this image in a few words.', max_tokens: 16 };
+    case 'vision-chat':
+      // Production's own request (lib/vision.js), asked for a few words.
+      return visionRequest(model.image, `data:image/png;base64,${CANARY_PNG_16}`,
+        { prompt: 'Describe this picture in a few words.', noThinking: !!model.noThinking, maxTokens: 16 });
     case 'speech': {
       const wav = silentWav();
       return { audio: model.audio === 'base64' ? base64Of(wav) : [...wav] };
@@ -293,6 +316,8 @@ export function canaryProblem(model, out) {
     }
     case 'vision':
       return typeof out?.description === 'string' ? null : 'answered with no description';
+    case 'vision-chat':
+      return responseText(out).trim() ? null : 'answered with no text';
     case 'speech':
       return typeof (out?.text ?? out?.transcription_info?.text) === 'string' ? null : 'answered with no text';
     default:

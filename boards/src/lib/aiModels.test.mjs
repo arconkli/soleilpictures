@@ -56,6 +56,7 @@ test('the list says how to test each model, and the canaries read answers the wa
     assert.ok(m.uses && m.files.length, `${m.id}: say what it runs and where`);
     if (m.kind === 'embedding') assert.ok(m.dims > 0, `${m.id}: dims`);
     if (m.kind === 'speech') assert.ok(['base64', 'bytes'].includes(m.audio), `${m.id}: audio form`);
+    if (m.kind === 'vision-chat') assert.ok(['top', 'part'].includes(m.image), `${m.id}: how it takes a picture`);
     assert.doesNotThrow(() => canaryRequest(m));
   }
   const chat = byId('@cf/meta/llama-3.2-3b-instruct');
@@ -243,6 +244,10 @@ function answers(overrides = {}) {
       case 'chat': return { response: { ok: true } };
       case 'embedding': return { data: [new Array(m.dims).fill(0.03)], shape: [1, m.dims] };
       case 'vision': return { description: ' A small red square.' };
+      // Llama answers { response }, gemma-4 in the OpenAI shape.
+      case 'vision-chat': return m.image === 'part'
+        ? { choices: [{ index: 0, message: { role: 'assistant', content: 'A small orange square.' } }] }
+        : { response: 'A small orange square.' };
       case 'speech': return m.audio === 'base64' ? { text: 'Thank you.', transcription_info: { language: 'en' } } : { text: '', vtt: 'WEBVTT' };
       default: throw new Error(`5007: No such model ${id}`);
     }
