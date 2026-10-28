@@ -160,6 +160,16 @@ export function AdminPage() {
     } catch { /* ignore */ }
   }, []);
 
+  // Another tab asks to go somewhere (adminNav's openAdminUser).
+  useEffect(() => {
+    const onNav = (e) => {
+      const to = e?.detail?.tab;
+      if (to && TAB_IDS.includes(to)) selectTab(to);
+    };
+    window.addEventListener('admin:navigate', onNav);
+    return () => window.removeEventListener('admin:navigate', onNav);
+  }, [selectTab]);
+
   // Rewrite a retired ?tab= deep link to the tab that absorbed it, once on
   // mount, so the URL in the address bar matches what is actually rendered.
   // The sub-view is left alone — AdminAnalyticsTab has its own alias table and

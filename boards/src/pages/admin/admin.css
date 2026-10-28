@@ -7214,3 +7214,136 @@ button.universe-legend-row:hover .universe-legend-label { color: var(--ink-0); }
   .universe-dir-switch,
   .universe-dir-knob { transition: none; }
 }
+
+/* ── Sharing insight (0745–0746): a profile's Sharing, look B "By cluster",
+   the Users row's marks and the workspaces with their cards. People who came
+   in are the green category colour; gold stays for selection. ── */
+.admin-user-row.has-ws {
+  grid-template-areas:
+    "avatar identity meta"
+    "avatar badges   meta"
+    "avatar ws       meta";
+}
+.admin-user-badges { flex-wrap: wrap; }
+.admin-sh-mark {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 7px 1px 6px; border-radius: 999px;
+  border: 1px solid var(--line-2); background: var(--bg-3);
+  font: 600 10px/1.5 var(--font-sans); color: var(--ink-1); white-space: nowrap;
+}
+.admin-sh-mark svg { color: var(--ink-2); }
+.admin-sh-mark.is-quiet { color: var(--ink-3); background: transparent; border-style: dashed; }
+.admin-sh-mark.is-came { color: rgb(150,200,255); border-color: rgba(90,160,255,.30); background: transparent; }
+[data-theme='light'] .admin-sh-mark.is-came { color: #2f5fb8; border-color: rgba(47,95,184,.30); }
+.admin-user-ws { grid-area: ws; display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
+.admin-user-ws-item {
+  display: inline-flex; align-items: center; gap: 4px; min-width: 0;
+  font: 500 10.5px/1.3 var(--font-sans); color: var(--ink-3); white-space: nowrap;
+}
+.admin-user-ws-item svg { flex: 0 0 auto; }
+.admin-user-ws-name { overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+.admin-user-ws-item b { color: var(--ink-1); font-weight: 600; font-variant-numeric: tabular-nums; }
+.admin-user-ws-more { font: 500 10.5px/1.3 var(--font-sans); color: var(--ink-3); }
+
+.admin-ws-cards { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.admin-ws-card {
+  display: inline-flex; align-items: center; gap: 5px; max-width: 100%;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--bg-3);
+  font: 500 11px/1.5 var(--font-sans); color: var(--ink-2); white-space: nowrap;
+}
+.admin-ws-name { overflow: hidden; text-overflow: ellipsis; max-width: 160px; color: var(--ink-1); }
+.admin-ws-card b { color: var(--ink-0); font-weight: 700; font-variant-numeric: tabular-nums; }
+.admin-ws-unit, .admin-ws-more { color: var(--ink-3); font: 500 11px/1.5 var(--font-sans); }
+
+.admin-sh { display: flex; flex-direction: column; gap: 10px; }
+.admin-sh-linkbtn {
+  all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px;
+}
+.admin-sh-linkbtn:hover { text-decoration-color: currentColor; }
+.admin-sh-linkbtn:focus-visible { outline: none; box-shadow: var(--shadow-glow); border-radius: 4px; }
+.admin-sh-by { display: inline-flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.admin-sh-by .admin-user-avatar, .admin-sh-face .admin-user-avatar, .admin-sh-prow .admin-user-avatar { box-shadow: none; font-size: 9px; }
+.admin-sh-prow .admin-user-avatar { font-size: 11px; }
+.admin-sh-seg {
+  display: inline-flex; align-self: flex-start; flex-wrap: wrap;
+  background: var(--bg-3); border: 1px solid var(--line-2); border-radius: 6px; padding: 2px; gap: 1px;
+}
+.admin-sh-seg button {
+  all: unset; cursor: pointer; padding: 6px 11px; border-radius: 4px; white-space: nowrap;
+  font: 600 11.5px/1 var(--font-sans); color: var(--ink-2);
+}
+.admin-sh-seg button.is-on { background: var(--bg-1); color: var(--ink-0); box-shadow: 0 1px 0 rgba(0,0,0,.2); }
+.admin-sh-seg button:focus-visible { box-shadow: var(--shadow-glow); }
+.admin-sh-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 1180px) { .admin-sh-cards { grid-template-columns: minmax(0, 1fr); } }
+.admin-sh-card {
+  display: flex; flex-direction: column; gap: 10px; min-width: 0;
+  padding: 12px 14px 13px; border: 1px solid var(--line-2); border-radius: var(--radius-md); background: var(--bg-1);
+}
+.admin-sh-card-head { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start; }
+.admin-sh-lic {
+  width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  background: var(--bg-3); border: 1px solid var(--line-2); color: var(--ink-2);
+}
+.admin-sh-card-title { font: 600 13.5px/1.3 var(--font-sans); color: var(--ink-0); overflow-wrap: anywhere; }
+.admin-sh-card-sub { font: 500 11.5px/1.4 var(--font-sans); color: var(--ink-3); margin-top: 1px; }
+.admin-sh-ladder {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px;
+  border-radius: 6px; overflow: hidden; background: var(--line-1); border: 1px solid var(--line-1);
+}
+.admin-sh-step { display: flex; flex-direction: column; gap: 5px; padding: 8px 8px 7px; background: var(--adm-surface); min-width: 0; }
+.admin-sh-step-n { font: 600 16px/1 var(--font-sans); color: var(--ink-0); font-variant-numeric: tabular-nums; }
+.admin-sh-step-l { font: 600 8.5px/1.2 var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.admin-sh-step.is-zero .admin-sh-step-n { color: var(--ink-4); font-weight: 500; }
+.admin-sh-step.is-people .admin-sh-step-n { color: var(--adm-cat-2); }
+.admin-sh-faces { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.admin-sh-face {
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px 2px 2px; border-radius: 999px;
+  background: var(--bg-3); border: 1px solid var(--line-2); font: 500 11px/1 var(--font-sans); color: var(--ink-1); white-space: nowrap;
+}
+.admin-sh-face.is-wait { border-style: dashed; color: var(--ink-3); padding-left: 8px; }
+.admin-sh-linkbtn .admin-sh-face { text-decoration: none; }
+.admin-sh-cnote { font: 500 11.5px/1.4 var(--font-sans); color: var(--ink-3); }
+.admin-sh-rest {
+  grid-column: 1 / -1; padding: 10px 14px; border: 1px dashed var(--line-2); border-radius: var(--radius-md);
+  font: 500 12px/1.55 var(--font-sans); color: var(--ink-3);
+}
+.admin-sh-rest b { color: var(--ink-1); font-weight: 600; }
+.admin-sh-led { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.admin-sh-lrow, .admin-sh-prow {
+  display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 2px 12px; align-items: start;
+  padding: 10px 0; border-top: 1px solid var(--line-1);
+}
+.admin-sh-prow { grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 2px 10px; }
+.admin-sh-lrow:first-child, .admin-sh-prow:first-child { border-top: 0; padding-top: 4px; }
+.admin-sh-ltitle, .admin-sh-pwho { font: 600 13px/1.35 var(--font-sans); color: var(--ink-0); }
+.admin-sh-lsub, .admin-sh-phow { font: 500 12px/1.4 var(--font-sans); color: var(--ink-3); margin-top: 1px; }
+.admin-sh-tags { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.admin-sh-out {
+  display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  font: 600 10.5px/1.5 var(--font-sans); color: var(--ink-2); background: var(--bg-3); border: 1px solid var(--line-2);
+}
+.admin-sh-out.is-people {
+  color: var(--adm-cat-2); border-color: transparent;
+  background: color-mix(in srgb, var(--adm-cat-2) 12%, transparent);
+}
+.admin-sh-wait {
+  font: 500 12px/1.45 var(--font-sans); color: var(--ink-3);
+  padding: 8px 10px; border: 1px dashed var(--line-2); border-radius: var(--radius-md);
+}
+.admin-sh-hint { display: inline-flex; align-items: center; gap: 5px; }
+.admin-sh-ws { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.admin-sh-ws li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto auto; gap: 12px; align-items: baseline;
+  padding: 6px 0; border-top: 1px solid var(--line-1); font: 500 12.5px/1.4 var(--font-sans); color: var(--ink-2);
+}
+.admin-sh-ws li:first-child { border-top: 0; }
+.admin-sh-ws-name { color: var(--ink-0); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-sh-ws-role { color: var(--ink-3); font-size: 11px; text-transform: capitalize; }
+.admin-sh-ws-n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.admin-sh-ws-n b { color: var(--ink-0); font-weight: 600; }
+@media (max-width: 600px) {
+  .admin-sh-ws li { grid-template-columns: minmax(0, 1fr) auto; }
+  .admin-sh-ws-role, .admin-sh-ws-n:nth-of-type(n+4) { display: none; }
+}

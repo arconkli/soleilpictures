@@ -12,7 +12,7 @@
 //     detailEpoch). Every mutation refreshes BOTH so the row and the open
 //     profile stay consistent. Below 900px the detail becomes a slide-in drawer.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { useAuth } from '../../auth/AuthGate.jsx';
 import { useFeedback } from '../../components/AppFeedback.jsx';
@@ -21,6 +21,7 @@ import { formatMoney } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
 import { AdminUserList } from './AdminUserList.jsx';
 import { AdminUserDetail } from './AdminUserDetail.jsx';
+import { takePendingUser } from './adminNav.js';
 
 const PAGE_SIZE = 50;
 
@@ -48,12 +49,16 @@ export function AdminUsersTab() {
   const [verification, setVerification] = useState('verified'); // 'verified' · 'unverified' · 'all'
   const [activity, setActivity] = useState('active');  // 'active' = made something (0460), so dead signups are hidden by default
   const [sourceFilter, setSourceFilter] = useState(''); // '' = all acquisition channels
+  const [sharing, setSharing] = useState('all');         // 0746: 'all' · 'shared' · 'brought' · 'came' · 'works_with'
   const [channels, setChannels] = useState([]);          // [{channel, n}] for the source dropdown
   const [sort, setSort]        = useState('recent');
   const [page, setPage]        = useState(0);          // 0-indexed
   const [busyId, setBusyId]    = useState(null);
 
   const [selectedUserId, setSelectedUserId] = useState(null);
+  // A person asked for by name (a face on a profile, a top sharer) is held
+  // selected while the list re-reads with every filter open to find them.
+  const [pendingId, setPendingId] = useState(null);
   const [detailEpoch, setDetailEpoch] = useState(0);
   const bumpDetailEpoch = () => setDetailEpoch((e) => e + 1);
 
@@ -66,7 +71,7 @@ export function AdminUsersTab() {
   }, [query]);
 
   // Reset page when filters / sort change
-  useEffect(() => { setPage(0); }, [debounced, tierFilter, contacted, verification, activity, sourceFilter, sort]);
+  useEffect(() => { setPage(0); }, [debounced, tierFilter, contacted, verification, activity, sourceFilter, sharing, sort]);
 
   // Channel options for the source filter — distinct channels present (with
   // counts) via the same normalizer the list uses, so the dropdown values match
@@ -82,20 +87,21 @@ export function AdminUsersTab() {
     return () => { alive = false; };
   }, [verification, activity]);
 
-  // ── List query (#1) ──
+  // ── List query (#1) ── (key: which inputs a list was read with)
+  const listKey = JSON.stringify([page, debounced, tierFilter, contacted, verification, activity, sourceFilter, sharing, sort]);
   const { data, loading, error, refreshing, lastUpdated, refresh } = useAdminData(async () => {
     const q = debounced || null;
     const t = tierFilter || null;
     const c = contacted || null;
     const o = sourceFilter || null;
     const [listRes, countRes] = await Promise.all([
-      supabase.rpc('admin_list_users', { p_limit: PAGE_SIZE, p_offset: page * PAGE_SIZE, p_query: q, p_tier: t, p_sort: sort, p_status: null, p_source: o, p_contacted: c, p_verification: verification, p_activity: activity }),
-      supabase.rpc('admin_user_count', { p_query: q, p_tier: t, p_status: null, p_source: o, p_contacted: c, p_verification: verification, p_activity: activity }),
+      supabase.rpc('admin_list_users', { p_limit: PAGE_SIZE, p_offset: page * PAGE_SIZE, p_query: q, p_tier: t, p_sort: sort, p_status: null, p_source: o, p_contacted: c, p_verification: verification, p_activity: activity, p_sharing: sharing }),
+      supabase.rpc('admin_user_count', { p_query: q, p_tier: t, p_status: null, p_source: o, p_contacted: c, p_verification: verification, p_activity: activity, p_sharing: sharing }),
     ]);
     if (listRes.error)  throw listRes.error;
     if (countRes.error) throw countRes.error;
-    return { rows: listRes.data || [], total: Number(countRes.data) || 0 };
-  }, [page, debounced, tierFilter, contacted, verification, activity, sourceFilter, sort]);
+    return { rows: listRes.data || [], total: Number(countRes.data) || 0, key: listKey };
+  }, [page, debounced, tierFilter, contacted, verification, activity, sourceFilter, sharing, sort]);
 
   const rows  = data?.rows || [];
   const total = data?.total || 0;
@@ -131,10 +137,32 @@ export function AdminUsersTab() {
 
   const selectedRow = rows.find((r) => r.user_id === selectedUserId) || null;
 
-  // Drop a selection that's no longer in the list (deleted, or paged/filtered away).
+  // Drop a selection that's no longer in the list (deleted, or paged/filtered
+  // away), unless it is a person asked for whose list hasn't come back yet.
   useEffect(() => {
+    if (pendingId) {
+      if (rows.some((r) => r.user_id === pendingId) || (data?.key === listKey && debounced === query.trim())) setPendingId(null);
+      return;
+    }
     if (selectedUserId && !rows.some((r) => r.user_id === selectedUserId)) setSelectedUserId(null);
-  }, [rows, selectedUserId]);
+  }, [rows, selectedUserId, pendingId, data, listKey, debounced, query]);
+
+  // Open one person: search their address with every filter open, so no
+  // filter can hide them, and select them.
+  const openUser = useCallback((person) => {
+    if (!person?.user_id) return;
+    setQueryRaw(person.email || '');
+    setTierFilter(''); setContacted(''); setVerification('all'); setActivity('all');
+    setSourceFilter(''); setSharing('all');
+    setPendingId(person.user_id);
+    setSelectedUserId(person.user_id);
+  }, []);
+  useEffect(() => {
+    const take = () => { const p = takePendingUser(); if (p) openUser(p); };
+    take();
+    window.addEventListener('admin:open-user', take);
+    return () => window.removeEventListener('admin:open-user', take);
+  }, [openUser]);
 
   // Escape closes the mobile drawer.
   useEffect(() => {
@@ -308,7 +336,7 @@ export function AdminUsersTab() {
     }
   };
 
-  const isFiltered = !!(debounced || tierFilter || contacted || sourceFilter || verification !== 'verified' || activity !== 'active');
+  const isFiltered = !!(debounced || tierFilter || contacted || sourceFilter || sharing !== 'all' || verification !== 'verified' || activity !== 'active');
 
   return (
     <div className="admin-section admin-section-users">
@@ -344,6 +372,8 @@ export function AdminUsersTab() {
           sourceFilter={sourceFilter}
           onSourceFilterChange={setSourceFilter}
           sourceOptions={channels}
+          sharing={sharing}
+          onSharingChange={setSharing}
           sort={sort}
           onSortChange={setSort}
           onPrevPage={() => setPage((p) => Math.max(0, p - 1))}
@@ -373,6 +403,7 @@ export function AdminUsersTab() {
           onLogOutreach={onLogOutreach}
           onDeleteOutreach={onDeleteOutreach}
           shareSignups={sharesData?.shares || []}
+          onOpenUser={openUser}
           isOpen={isNarrow && !!selectedUserId}
           onClose={() => setSelectedUserId(null)}
         />

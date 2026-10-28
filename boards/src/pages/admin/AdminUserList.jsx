@@ -8,7 +8,8 @@
 
 import { useEffect, useRef } from 'react';
 import { Icon } from '../../components/Icon.jsx';
-import { ArrowsClockwise, User as UsersIcon } from '../../lib/icons.js';
+import { ArrowsClockwise, User as UsersIcon, Users as PeopleIcon, Share2, LayoutGrid } from '../../lib/icons.js';
+import { SHARING_FILTERS, REACH_SORT, plural } from '../../lib/shareRoutes.js';
 import { relativeTime, formatBytes, formatCount } from '../../lib/adminFormat.js';
 import { countryName, countryFlag } from '../../lib/countries.js';
 import { AdminAsync, AdminSkeleton } from './AdminStates.jsx';
@@ -25,6 +26,8 @@ const SORTS = [
   { value: 'cards',  label: 'Most cards' },
   { value: 'spend',  label: 'Top spend' },
   { value: 'name',   label: 'Name A–Z' },
+  // 0746: accounts that got in or signed up through them, people not views.
+  REACH_SORT,
 ];
 const CONTACTED = [
   { value: '',    label: 'Contacted: all' },
@@ -72,7 +75,7 @@ function UserListRow({ row, selected, isSelf, onSelect }) {
       id={`admin-user-${row.user_id}`}
       role="option"
       aria-selected={selected}
-      className={`admin-user-row ${selected ? 'is-selected' : ''}`}
+      className={`admin-user-row ${selected ? 'is-selected' : ''}${row.workspace_cards?.length ? ' has-ws' : ''}`}
       onClick={() => onSelect(row.user_id)}
     >
       <Avatar email={row.email} name={row.display_name} color={row.color} />
@@ -94,7 +97,34 @@ function UserListRow({ row, selected, isSelf, onSelect }) {
         {row.banned && <span className="admin-badge-banned" title="Account suspended">banned</span>}
         {neverGotIn && <span className="admin-badge-ghost" title="Asked for a sign-in code and never entered it">never got in</span>}
         {ghost && <span className="admin-badge-ghost" title="Signed up but never joined the waitlist">ghost</span>}
+        {row.reach_n > 0 && (
+          <span className="admin-sh-mark" title={`${plural(row.reach_n, 'person', 'people')} got in or signed up through what they shared${row.brought_n > 0 ? ` · ${row.brought_n} new account${row.brought_n === 1 ? '' : 's'}` : ''} · shared ${plural(row.shared_n || 0, 'time')}`}>
+            <Icon as={PeopleIcon} size={11} />{plural(row.reach_n, 'person', 'people')}
+          </span>
+        )}
+        {!row.reach_n && row.shared_n > 0 && (
+          <span className="admin-sh-mark is-quiet" title={`Shared ${plural(row.shared_n, 'time')}, nobody in through it yet`}>
+            <Icon as={Share2} size={11} />shared
+          </span>
+        )}
+        {row.brought_by_email && (
+          <span className="admin-sh-mark is-came" title={`Brought in by ${row.brought_by_email}`}>
+            via {row.brought_by_email.split('@')[0]}
+          </span>
+        )}
       </div>
+      {Array.isArray(row.workspace_cards) && row.workspace_cards.length > 0 && (
+        <div className="admin-user-ws" title={row.workspace_cards.map((w) => `${w.name || 'Untitled workspace'} (${w.role || 'member'}): ${formatCount(w.cards || 0)} cards`).join('\n')}>
+          {row.workspace_cards.slice(0, 2).map((w) => (
+            <span key={w.workspace_id} className="admin-user-ws-item">
+              <Icon as={LayoutGrid} size={10} />
+              <span className="admin-user-ws-name">{w.name || 'Untitled'}</span>
+              <b>{formatCount(w.cards || 0)}</b>
+            </span>
+          ))}
+          {row.workspaces_n > 2 && <span className="admin-user-ws-more">+{row.workspaces_n - 2}</span>}
+        </div>
+      )}
       <div className="admin-user-meta">
         {/* Flag only — the row is already dense, and the name is one hover away. */}
         {row.country && (
@@ -133,6 +163,7 @@ export function AdminUserList({
   verification, onVerificationChange,
   activity, onActivityChange,
   sourceFilter, onSourceFilterChange, sourceOptions = [],
+  sharing = 'all', onSharingChange,
   sort, onSortChange,
   onPrevPage, onNextPage, onRefresh,
   selectedUserId, onSelect, currentUserId, isFiltered,
@@ -212,6 +243,17 @@ export function AdminUserList({
               </option>
             ))}
           </select>
+          {onSharingChange && (
+            <select
+              className="auth-input admin-filter-select"
+              value={sharing}
+              onChange={(e) => onSharingChange(e.target.value)}
+              aria-label="Filter by sharing"
+              title="Shared something: made a link, an invitation or a share. Brought people in: someone signed up through them. Came through a share: they signed up through someone's. Works with others: shares a workspace or cluster with another account."
+            >
+              {SHARING_FILTERS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+            </select>
+          )}
           <select
             className="auth-input admin-filter-select"
             value={contacted}
