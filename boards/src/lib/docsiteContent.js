@@ -32340,6 +32340,53 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
+      "v": "Pictures",
+      "children": [
+       {
+        "t": "text",
+        "v": "Pictures"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — by what is in them. Each picture is "
+     },
+     {
+      "t": "link",
+      "v": "described by an AI model",
+      "href": "/docs/account/data-and-privacy#pictures-and-ai",
+      "children": [
+       {
+        "t": "text",
+        "v": "described by an AI model"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " a few minutes after it lands, so "
+     },
+     {
+      "t": "code",
+      "v": "red car"
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "code",
+      "v": "night exterior"
+     },
+     {
+      "t": "text",
+      "v": " finds the photo even when nobody named or captioned it. Not in a workspace whose AI suggestions are off"
+     }
+    ],
+    [
+     {
+      "t": "strong",
       "v": "Tags",
       "children": [
        {

@@ -156,3 +156,29 @@ test('0594 closes its function to clients, and switching AI off also clears open
   assert.match(off, /delete from public\.tag_suggestions\s+where workspace_id = new\.id and origin in \('vision', 'vision-embed'\) and dismissed_at is null/);
   assert.match(sql94, /check \(origin in \('embed', 'vision', 'vision-embed'\)\)/);
 });
+
+// ── 0595: search finds a picture by what is in it ──────────────────────────
+import { entitySearchFilter } from './entitySearchFilter.js';
+
+const sql95 = readFileSync(join(MIGRATIONS_DIR, '0595_search_sees_pictures.sql'), 'utf8').replace(/--[^\n]*/g, '');
+
+test('0595 restates every branch of entity_search, adds seen last, and stays security invoker', () => {
+  assert.match(sql95, /create or replace view public\.entity_search with \(security_invoker = on\) as/);
+  assert.equal((sql95.match(/UNION ALL/g) || []).length, 4, 'boards, cards, groups, people, tags');
+  assert.equal((sql95.match(/NULL::text AS seen/g) || []).length, 4);
+  assert.match(sql95, /\) AS seen\s+FROM card_index ci\s+WHERE NOT EXISTS/);
+  for (const branch of ['FROM boards b', 'FROM card_index ci', 'FROM group_index gi', 'FROM workspace_user_directory()', 'FROM tags t']) {
+    assert.ok(sql95.includes(branch), branch);
+  }
+});
+
+test('0595 reads only what a signed-in reader may select from image_descriptions', () => {
+  const lookup = sql95.slice(sql95.indexOf('(SELECT CASE WHEN d.description'), sql95.indexOf(') AS seen'));
+  assert.match(lookup, /FROM images i JOIN image_descriptions d ON d\.image_id = i\.id/);
+  assert.doesNotMatch(sql95, /d\.(status|lease_token|lease_until|tokens_in|tokens_out|error_code)/, 'a security-invoker view may not touch an ungranted column');
+  assert.match(lookup, /i\.storage_path = substr\(ci\.meta ->> 'src', 4\) AND i\.deleted_at IS NULL/);
+});
+
+test('the search filter looks in seen', () => {
+  assert.match(entitySearchFilter('red car'), /,seen\.ilike\.%red car%$/);
+});

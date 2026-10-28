@@ -2,9 +2,11 @@
 //
 // Pure, so it tests under node (entitySearch.js imports the Supabase client).
 //
-// Three columns, not two: an image's or a video's own file name lives in
+// Four columns: an image's or a video's own file name lives in
 // card_index.meta.fileName (cardIndexRow.js says why it is never the title),
-// so a search for diner_ext_dusk_04 has to look there to find the photo.
+// so a search for diner_ext_dusk_04 has to look there to find the photo; and
+// `seen` is what is in a described picture (0595: its description, keywords
+// and labels), so "red car" or "night exterior" finds it too.
 //
 // The query is cleaned of the characters that are SYNTAX in a PostgREST logic
 // tree — `,` separates conditions, `(` `)` group them, `"` quotes a value, and
@@ -17,7 +19,7 @@ export function cleanSearchTerm(query) {
 export function entitySearchFilter(query) {
   const safe = cleanSearchTerm(query);
   if (!safe) return null;
-  return `title.ilike.%${safe}%,body.ilike.%${safe}%,meta->>fileName.ilike.%${safe}%`;
+  return `title.ilike.%${safe}%,body.ilike.%${safe}%,meta->>fileName.ilike.%${safe}%,seen.ilike.%${safe}%`;
 }
 
 // The words INSIDE documents: doc_page_index, one row per page (docText).
