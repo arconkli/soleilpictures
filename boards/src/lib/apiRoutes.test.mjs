@@ -10,7 +10,7 @@
 import test, { beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import * as Y from 'yjs';
-import { handleApiRoute } from '../worker-api.js';
+import { handleApiRoute, handleMcpEndpoint } from '../worker-api.js';
 import { UNTRUSTED_NOTE } from './mcpTools.js';
 import { VIEW_URI } from './mcpServer.js';
 import { cardToYMap, bytesToB64, b64ToBytes, readCards, readGroups } from './yhelpers.js';
@@ -1335,6 +1335,44 @@ test('cards the API writes are embedded for search by meaning, pictures left to 
   const changed = await writeWithAi('PATCH', `/boards/${B1}/cards/${id}`, { body: 'A cabbie burns the reel.' });
   assert.equal(changed.status, 200);
   assert.deepEqual(changed.stored.map((r) => r.card_id), [id]);
+});
+
+// A Worker's ExecutionContext throws "Illegal invocation" when waitUntil is
+// called off its own object, so the MCP door has to hand it on bound.
+class StrictContext {
+  #pending = [];
+  waitUntil(p) {
+    if (!(this instanceof StrictContext)) throw new TypeError('Illegal invocation');
+    this.#pending.push(p);
+  }
+  settle() { return Promise.all(this.#pending); }
+}
+
+test('add_cards in a draft over /mcp embeds what it wrote, on a real Worker context', async () => {
+  putBoard(B1, [], { name: 'Diner' });
+  on('POST', 'rpc/mcp_draft_resolve', () => reply([{
+    state: 'live', draft_id: '11111111-2222-4333-8444-555555555555', user_id: 'u1', workspace_id: 'w1',
+    expires_at: '2026-11-26T00:00:00+00:00', req_count: 1, req_limit: 300,
+  }]));
+  on('POST', 'rpc/api_session_begin', () => reply([{ access_token: 'jwt-u1' }]));
+  on('GET', 'workspaces', () => reply([{ id: 'w1', created_by: 'u1', ai_tagger_enabled: true }]));
+  on('POST', 'rpc/_ai_budget_take', () => reply(true));
+  const env = { ...ENV, AI: { run: async (_m, { text }) => ({ data: text.map(() => new Array(1024).fill(0.5)) }) } };
+  const ctx = new StrictContext();
+  const url = new URL('https://main-soleil-boards.arconkli.workers.dev/mcp'); // drafts are open on preview
+  const res = await handleMcpEndpoint(url, new Request(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'user-agent': 'Claude-User/1.0' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: {
+      name: 'add_cards',
+      arguments: { draft: `dk_${'a'.repeat(43)}`, board_id: B1, cards: [{ kind: 'note', title: 'Logline', body: 'A reel of film.' }] },
+    } }),
+  }), env, ctx);
+  const body = await res.json();
+  assert.ok(body.result && body.result.isError !== true, JSON.stringify(body).slice(0, 400));
+  await ctx.settle();
+  const stored = calls.filter((c) => c.method === 'POST' && c.path === 'card_embeddings').flatMap((c) => c.body);
+  assert.equal(stored.length, 1);
 });
 
 test('with AI features off, nothing the API writes is embedded', async () => {

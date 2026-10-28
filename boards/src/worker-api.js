@@ -1652,7 +1652,11 @@ async function internalCall(baseUrl, env, ctx, { auth, token }, path, opts = {})
   const trace = { route: target.pathname.replace(/^\/api\/v1/, '') || '/', target: null };
   let res;
   try {
-    res = await dispatch(target, req, env, { auth, token, trace, waitUntil: ctx?.waitUntil || null });
+    // Bound, as handleApiRoute binds it: a Worker's ExecutionContext refuses
+    // waitUntil called off its own object ("Illegal invocation").
+    res = await dispatch(target, req, env, {
+      auth, token, trace, waitUntil: ctx?.waitUntil ? (p) => ctx.waitUntil(p) : null,
+    });
   } catch (e) {
     // dispatch THROWS its refusals and lets a database failure through raw;
     // handleApiRoute curates both on the way out of a REST call, and this is
