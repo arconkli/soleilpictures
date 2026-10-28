@@ -37,6 +37,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../../lib/supabase.js';
 import { useAdminData } from '../useAdminData.js';
 import { formatCount } from '../../../lib/adminFormat.js';
+import { eventSentence } from '../../../lib/shareSentences.js';
 import { VAR } from './palette.js';
 import { Rolling } from './Rolling.jsx';
 
@@ -114,10 +115,17 @@ export function EventConsole({ pulse, activeNow, minutes = 60, excludeInternal =
       todo.forEach((id) => pending.current.add(id));
       let data = null;
       let error = null;
+      // admin_event_words (0747) is admin_events_by_id with each row's facts,
+      // so a sharing event reads as a sentence; before 0747, the plain one.
       try {
-        ({ data, error } = await supabase.rpc('admin_events_by_id', {
+        ({ data, error } = await supabase.rpc('admin_event_words', {
           p_ids: todo, p_exclude_internal: excludeInternal,
         }));
+        if (error?.code === 'PGRST202') {
+          ({ data, error } = await supabase.rpc('admin_events_by_id', {
+            p_ids: todo, p_exclude_internal: excludeInternal,
+          }));
+        }
       } catch (e) { error = e; }
       if (myGen !== gen.current) return;
       todo.forEach((id) => pending.current.delete(id));
@@ -155,7 +163,7 @@ export function EventConsole({ pulse, activeNow, minutes = 60, excludeInternal =
           if (!resolved.has(raw.id)) continue;      // still resolving
           const v = resolved.get(raw.id);
           if (!v) { seen.add(raw.id); continue; }    // internal: left out
-          r = { ...raw, email: v.email };
+          r = { ...raw, email: v.email, actor_name: v.actor_name, facts: v.facts };
         }
       }
       seen.add(raw.id);
@@ -221,7 +229,7 @@ export function EventConsole({ pulse, activeNow, minutes = 60, excludeInternal =
             <div className={`adm-console-row${pushed ? ' is-pushed' : ''}`} key={r.id}>
               <span className="adm-console-t">{clock(r.occurred_at)}</span>
               <span className="adm-console-dot" style={{ background: fam.color }} />
-              <span className="adm-console-ev" title={r.event}>{r.event}</span>
+              <span className="adm-console-ev" title={r.event}>{eventSentence(r) ?? r.event}</span>
               <span className="adm-console-who" title={r.email || r.user_id || 'signed out'}>{who(r)}</span>
             </div>
           );

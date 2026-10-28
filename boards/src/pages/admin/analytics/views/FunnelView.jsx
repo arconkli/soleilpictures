@@ -26,8 +26,6 @@ import { BarRows } from '../../viz/BarRows.jsx';
 import { Detail } from '../../viz/Detail.jsx';
 import { RateCell } from '../../SmallN.jsx';
 import { LeaksSummary } from '../widgets/LeaksSummary.jsx';
-import { AdminReferralsSection } from '../widgets/AdminReferralsSection.jsx';
-import { AdminMultiplayerSection } from '../widgets/AdminMultiplayerSection.jsx';
 import { GeoBreakdown } from '../widgets/GeoBreakdown.jsx';
 import { DeviceBreakdown } from '../widgets/DeviceBreakdown.jsx';
 
@@ -193,16 +191,19 @@ function DetailSections({ days, f }) {
   );
 }
 
+const goToSharing = (e) => {
+  e.preventDefault();
+  window.dispatchEvent(new CustomEvent('admin:analytics-view', { detail: 'sharing' }));
+};
+
 function LazyPaths({ days, f }) {
   const q = useAdminData(async () => {
-    const [fb, rf, mp] = await Promise.allSettled([
+    const [fb] = await Promise.allSettled([
       supabase.rpc('admin_fb_funnel', { p_days: days, p_exclude_internal: f.excludeInternal }),
-      supabase.rpc('admin_referral_stats', { p_days: days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
-      supabase.rpc('admin_multiplayer_stats', { p_days: days, p_exclude_internal: f.excludeInternal }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
-    return { fbSteps: val(fb) || [], referrals: val(rf), multiplayer: val(mp) };
-  }, [days, f.excludeInternal, f.verifiedOnly]);
+    return { fbSteps: val(fb) || [] };
+  }, [days, f.excludeInternal]);
 
   return (
     <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="chart" />}>
@@ -214,8 +215,10 @@ function LazyPaths({ days, f }) {
         branches={['demo', 'buy']}
         forkLabel="Forks at the offer →"
       />
-      <AdminMultiplayerSection data={q.data?.multiplayer} days={days} />
-      <AdminReferralsSection data={q.data?.referrals} days={days} />
+      <div className="admin-detail-note">
+        Clusters with two people and referrals moved to{' '}
+        <a href="?tab=overview&view=sharing" onClick={goToSharing}>Sharing →</a>
+      </div>
     </AdminAsync>
   );
 }
