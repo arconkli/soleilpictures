@@ -175,4 +175,12 @@ export const FEATURE_EVENTS = Object.freeze({
     outcome: [EV.KEEP_KEPT],
     failure: [EV.KEEP_FAILED],
   },
+  // A board an AI without the Clusters app wrote into a /make link (or as
+  // text), shown and then kept. No hold: the promote is the gate.
+  makeLink: {
+    exposure: [EV.MAKE_PAGE_VIEW],
+    action: [EV.MAKE_CODE_SENT],
+    outcome: [EV.MAKE_KEPT],
+    failure: [EV.MAKE_FAILED],
+  },
 });

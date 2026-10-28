@@ -1,0 +1,55 @@
+/* makePage.css — /make (MakePage.jsx): a board an AI wrote, shown before it is
+   kept. The page wears the keep page's look (keepPage.css, loaded beside this);
+   here are only what that page has no need of: the box to paste into, the
+   workspace picker and the plans button. Gold stays the CTA's and focus's. */
+
+/* ── Paste what the AI wrote ── */
+.keep-state.make-paste { width: min(560px, 100%); }
+.make-paste-text {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 190px;
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  font: 400 13px/1.55 var(--font-mono);
+  color: var(--ink-0);
+  text-align: left;
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+.make-paste-text::placeholder { color: var(--ink-3); }
+.make-paste-text:focus { border-color: var(--soleil); }
+.make-paste .keep-island-error { text-align: left; }
+.make-paste-foot {
+  margin: 12px 0 0;
+  font: 400 13px/1.45 var(--font-sans);
+  color: var(--ink-3);
+}
+
+/* ── The island's extras ── */
+.make-select {
+  width: 200px;
+  padding-right: 12px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+/* The list a select opens is drawn by the system: give it the page's ground,
+   so its light text never sits on a white sheet. */
+.make-select option { background: #15130f; color: var(--ink-0); }
+.make-plans {
+  display: inline-flex; align-items: center; justify-content: center;
+  box-sizing: border-box;
+  min-height: 44px;
+  text-decoration: none;
+}
+.make-plans:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+
+@media (max-width: 640px) {
+  .make-paste-text { min-height: 160px; font-size: 14px; }
+  .make-plans { flex: 1 1 auto; }
+}

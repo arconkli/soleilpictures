@@ -2,11 +2,13 @@
 
 > Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.
 
-_Source: https://clusters.soleilpictures.com/docs/mcp · Updated 2026-10-27_
+_Source: https://clusters.soleilpictures.com/docs/mcp · Updated 2026-10-28_
 
 The MCP server puts Soleil Clusters in reach of Claude and any other
 Model Context Protocol client, so an assistant can read and build boards
-directly.
+directly. An AI without it can still make you a board: it writes the board
+into a [make-it link](/docs/make-link), which shows the board before anyone
+signs in.
 
 If you are weighing up whether that is useful rather than how to wire it up,
 the [AI mood board maker](/tools/ai-mood-board-maker) page covers what an

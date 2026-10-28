@@ -222,6 +222,7 @@ test("index.html's guard and urlCarriesLinkToken answer every case alike", () =>
   const carries = [
     [`/share/${TOK}`, ''], [`/f/${TOK}`, ''], [`/t/${TOK}`, `?b=${BOARD}`], [`/SHARE/${TOK.toUpperCase()}`, ''],
     ['/resume', `?rt=${'a'.repeat(64)}&w=${BOARD}`], ['/resume/', ''],
+    ['/make', ''], ['/make/', ''], ['/MAKE', ''],
     ['/', `?utm_source=share_link&utm_medium=remix&utm_campaign=${TOK}&remix=t_${TOK}`],
     ['/', `?utm_source=file_share&utm_medium=cta&utm_campaign=${TOK}`],
     ...TOKEN_PARAMS.map((k) => ['/', `?${k}=${TOK}`]),
@@ -232,6 +233,7 @@ test("index.html's guard and urlCarriesLinkToken answer every case alike", () =>
     ['/', `?b=${BOARD}&w=${BOARD}`], ['/', '?rejoin=1&reinvite=2'], ['/', '?ref=ABC123'],
     ['/', `?msclkid=${'ab'.repeat(16)}`], ['/pricing', '?lc=winback.v2'], ['/c/some-board', ''],
     ['/docs/getting-started', ''], ['/sharepoint', ''], ['/f', ''], ['/resume-tips', ''],
+    ['/maker', ''], ['/make/it', ''], ['/docs/make-link', ''],
   ];
   for (const [p, q] of carries) {
     assert.equal(urlCarriesLinkToken({ pathname: p, search: q }), true, `${p}${q}`);

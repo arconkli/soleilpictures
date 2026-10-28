@@ -173,9 +173,14 @@ test('isBlockedHost refuses an empty host', () => {
 
 test('the importer fetches through fetchFollowingSafely, never redirect:follow', () => {
   const api = readFileSync(resolve(SRC, 'worker-api.js'), 'utf8');
+  // The import route fetches each item with importItem, as keeping a /make
+  // link does each picture (worker-make.js).
   const route = api.slice(api.indexOf("if (sub === 'import' && method === 'POST')"));
+  assert.match(route.slice(0, route.indexOf('const usable = fetched.filter')),
+    /importItem\(env, token, auth\.userId, board, item\)/);
+  const fn = api.slice(api.indexOf('async function importItem('));
   // Comment lines out: the rationale above the call quotes the old option.
-  const body = route.slice(0, route.indexOf('const usable = fetched.filter'))
+  const body = fn.slice(0, fn.indexOf('\n}\n'))
     .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n');
   assert.match(body, /fetchFollowingSafely\(item\.url/, 'the import must re-check every hop');
   assert.doesNotMatch(body, /redirect:\s*'follow'/);

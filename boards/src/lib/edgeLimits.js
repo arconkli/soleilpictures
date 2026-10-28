@@ -41,6 +41,10 @@ export const EDGE_LIMITS = {
   // Pictures fetched by a signed address (/api/img/), per address. A board
   // opening asks for every picture on it at once, and a video for its parts.
   SIGNED_IMAGE: { limit: 600, period: 60 },
+  // Boards kept from a /make link, per address (worker-make.js). Each fetches
+  // and stores up to its link's pictures, so it is the costliest request a
+  // signed-in person can send in one go.
+  MAKE_KEEP: { limit: 10, period: 60 },
 };
 
 // makeEdgeLimiter(name) → async (env, key) → { ok: true } | { ok: false, retryAfter }

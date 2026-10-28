@@ -60,6 +60,7 @@ const ResumePage      = lazyWithReload(() => import('./pages/ResumePage.jsx').th
 const TemplateSharePage = lazyWithReload(() => import('./pages/TemplateSharePage.jsx').then(m => ({ default: m.TemplateSharePage })));
 const FileSharePage = lazyWithReload(() => import('./components/fileShare/FileSharePage.jsx').then(m => ({ default: m.FileSharePage })));
 const KeepPage = lazyWithReload(() => import('./pages/KeepPage.jsx').then(m => ({ default: m.KeepPage })));
+const MakePage = lazyWithReload(() => import('./pages/MakePage.jsx').then(m => ({ default: m.MakePage })));
 
 // First-party error logging: capture uncaught errors + unhandled promise
 // rejections into our own client_errors table (see lib/errorReporting.js).
@@ -206,6 +207,11 @@ const templateShareMatch = window.location.pathname.match(/^\/t\/([0-9a-f-]{36})
 // the same shape.
 const keepMatch = window.location.pathname.match(/^\/keep\/([0-9a-f-]{36})\/?$/i);
 
+// /make = a board an AI without the Clusters app wrote into the link's fragment,
+// or as text to paste (pages/MakePage.jsx), shown before anyone signs in and
+// kept with POST /api/make/keep. MAKE_PATH_RE in worker.js matches the same.
+const makeMatch = /^\/make\/?$/i.test(window.location.pathname);
+
 // /c/<slug> = admin-curated public marketing board (migration 0136); /explore =
 // the public board index. Both bypass auth and render the public viewer chunk,
 // just like /share. The Worker has already injected per-page SEO meta +
@@ -313,7 +319,7 @@ const showPublicPricing = !!pricingMatch && !hasCachedSession();
 // are in the entry chunk, so nothing suspends on the way to it.
 const darkPublicRoute = !!(scoutMatch || seoLandingMatch || seoListicleMatch || docsMatch
   || changelogMatch || pricingMatch || talkToUsMatch || exploreMatch || publicBoardMatch || shareMatch
-  || fileShareMatch || resumeMatch || keepMatch);
+  || fileShareMatch || resumeMatch || keepMatch || makeMatch);
 
 // Platform-wide time-in-app counter. Visibility-aware; runs even
 // pre-auth so landing-page time also counts.
@@ -597,6 +603,8 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
               <TemplateSharePage token={templateShareMatch[1]} />
             ) : keepMatch ? (
               <KeepPage token={keepMatch[1].toLowerCase()} />
+            ) : makeMatch ? (
+              <MakePage />
             ) : oauthConsentMatch ? (
               <AuthGate>
                 <OAuthConsentPage />

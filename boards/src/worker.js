@@ -31,6 +31,7 @@ import { mediaKindOfKey } from './lib/playCopy.js';
 import { viewKindOfKey } from './lib/fileView.js';
 import { handleApiRoute, handleMcpEndpoint } from './worker-api.js';
 import { handleKeepBundle, handleSignedImage } from './worker-keep.js';
+import { handleMakeKeep } from './worker-make.js';
 import { runWebhooks } from './lib/webhooks.js';
 import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME, PRICING_PAGE } from './lib/billingCopy.js';
 import { buildPricingCrawlableHtml, buildPricingJsonLd } from './lib/pricingCrawlable.js';
@@ -456,6 +457,9 @@ const TEMPLATE_SHARE_PATH_RE = /^\/t\/([0-9a-f-]{36})\/?$/i;
 // /keep/<uuid> — a draft's keep page (worker-keep.js). Kept in lockstep with
 // keepMatch in main.jsx.
 const KEEP_PATH_RE = /^\/keep\/([0-9a-f-]{36})\/?$/i;
+// /make — a board an AI wrote into the link (MakePage.jsx, worker-make.js).
+// Kept in lockstep with makeMatch in main.jsx.
+const MAKE_PATH_RE = /^\/make\/?$/i;
 
 // /templates/g/<slug> — a PUBLISHED community template's page. The /g/ segment
 // keeps it out of the flat namespace our own items occupy, so a published slug
@@ -778,6 +782,8 @@ const worker = {
       // A draft's keep page reads the draft, and its pictures, through these
       // (worker-keep.js; held with drafts).
       if (url.pathname === '/api/keep/bundle') return await handleKeepBundle(url, request, env, ctx);
+      // Keeping a board an AI wrote into a /make link (worker-make.js).
+      if (url.pathname === '/api/make/keep') return await handleMakeKeep(url, request, env, ctx);
       if (url.pathname.startsWith('/api/img/')) return await handleSignedImage(url, request, env);
       const resetMatch = url.pathname.match(/^\/api\/board\/([\w-]+)\/reset$/);
       if (resetMatch) return await handleBoardReset(resetMatch[1], request, ctx, env);
@@ -1112,6 +1118,18 @@ const worker = {
       }, `${SITE_ORIGIN}/`));
       out.headers.set('x-robots-tag', 'noindex');
       out.headers.set('referrer-policy', 'strict-origin');
+      return out;
+    }
+
+    // /make: the board rides in the address's fragment, which never reaches
+    // us, so every visit gets the same unfurl, and none is indexed (each link
+    // is someone's own board, and the bare page is a paste box).
+    if (isPageReq && MAKE_PATH_RE.test(url.pathname) && contentType.includes('text/html')) {
+      const out = withRevalidate(injectRouteMeta(res, {
+        title: 'Make a cluster — Soleil Clusters',
+        description: 'A board an AI wrote, shown before you keep it. Keeping it in Clusters is free.',
+      }, `${SITE_ORIGIN}/docs/make-link`));
+      out.headers.set('x-robots-tag', 'noindex');
       return out;
     }
 

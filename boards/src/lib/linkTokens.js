@@ -66,14 +66,15 @@ export const TOKEN_PARAMS = Object.freeze(['share_token', 'file_token', 'join', 
 
 // True when an address carries a token — a link's own page (/share/, /f/, /t/, /keep/),
 // the resume page, a token param above, or a token as the campaign (the link
-// pages' sign-up links set it). Meta's pixel reports the full address of the
+// pages' sign-up links set it) — or /make, whose fragment is the board an AI
+// wrote (MakePage.jsx), and the pixel reports an address's fragment too. Meta's pixel reports the full address of the
 // page it runs on and the page before it, so it is not loaded when either one
 // carries a token (index.html inlines this test) and fires no page view here.
 export function urlCarriesLinkToken(loc) {
   try {
     const path = String(loc?.pathname || '');
     const search = String(loc?.search || '');
-    return /^\/(?:share|f|t|keep)\/[0-9a-f]{8}-|^\/resume\/?$/i.test(path)
+    return /^\/(?:share|f|t|keep)\/[0-9a-f]{8}-|^\/(?:resume|make)\/?$/i.test(path)
       || /[?&](?:share_token|file_token|join|wsjoin|invite|remix|shared|rt)=/i.test(search)
       || /[?&]utm_campaign=[^&#]*[0-9a-f]{8}-[0-9a-f]{4}-/i.test(search);
   } catch (_) {

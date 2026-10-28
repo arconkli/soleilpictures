@@ -508,6 +508,7 @@
       "fileShareMatch = PATH.match(/^\\/f\\/([0-9a-f-]{36})\\/?$/i)",
       "keepMatch = PATH.match(/^\\/keep\\/([0-9a-f-]{36})\\/?$/i)",
       "legalMatch = PATH.match(/^\\/legal\\/(privacy|terms|cookies)\\/?$/i)",
+      "makeMatch = /^\\/make\\/?$/i.test(PATH)",
       "oauthConsentMatch = /^\\/oauth\\/authorize\\/?$/i.test(PATH)",
       "pricingMatch = PATH.match(/^\\/pricing\\/?$/i)",
       "publicBoardMatch = PATH.match(/^\\/c\\/([a-z0-9][a-z0-9-]{0,79})\\/?$/)",
