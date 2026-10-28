@@ -1756,9 +1756,27 @@ function userSharingFixture(userId) {
     with_them: u.workspace_cards.slice(1).map((w, k) => ({ kind: 'workspace', id: w.workspace_id, title: w.name, deleted: false,
       route: k === 0 ? 'email_invite' : 'workspace_add', at: tsISO(1440 * (40 + k)), state: 'member', recorded: k === 0,
       by: k === 0 ? { user_id: other(3).user_id, email: other(3).email, name: null } : null,
-      got_in: true, signed_up: false, made_something: true, co_creating: k === 0 })),
+      got_in: true, signed_up: false, made_something: true, co_creating: k === 0 })).concat(u.workspace_cards.length > 1 ? [{
+      kind: 'cluster', id: `c-${i}-shared`, title: 'Location scout', deleted: false, route: 'edit_link', at: tsISO(1440 * 12),
+      state: 'live', recorded: true, by: { user_id: other(4).user_id, email: other(4).email, name: null },
+      got_in: true, signed_up: false, made_something: false, co_creating: false }] : []),
     banned_left_out: { accounts: 0, shares: 0 },
   };
+}
+
+// admin_user_placements (0748): cards they placed in workspaces they don't own,
+// a row per cluster; the shared cluster's child counts toward it.
+function userPlacementsFixture(userId) {
+  const i = Math.max(0, listUsers.findIndex((u) => u.user_id === userId));
+  const u = listUsers[i] || listUsers[0];
+  const theirs = u.workspace_cards.slice(1);
+  if (!theirs.length) return [];
+  const ws = theirs[0].workspace_id;
+  return [
+    { board_id: `c-${i}-shared`, workspace_id: ws, title: 'Location scout', deleted: false, ancestors: [`r-${i}`], placed: 14, last_at: tsISO(1440 * 3) },
+    { board_id: `c-${i}-sub`, workspace_id: ws, title: 'Day two', deleted: false, ancestors: [`c-${i}-shared`, `r-${i}`], placed: 9, last_at: tsISO(1440 * 2) },
+    { board_id: `c-${i}-other`, workspace_id: ws, title: 'Old moodboard', deleted: true, ancestors: [`r-${i}`], placed: 4, last_at: tsISO(1440 * 30) },
+  ];
 }
 
 function userWorkspacesFixture(userId) {
@@ -1870,6 +1888,7 @@ function rpcResult(name, params) {
   if (name === 'admin_user_detail') return userDetailFixture(params?.p_user_id);
   if (name === 'admin_user_sharing') return userSharingFixture(params?.p_user_id);
   if (name === 'admin_user_workspaces') return userWorkspacesFixture(params?.p_user_id);
+  if (name === 'admin_user_placements') return userPlacementsFixture(params?.p_user_id);
   if (name === 'admin_sharing_overview') return sharingOverviewFixture(params?.p_days);
   if (name === 'admin_sharing_recent') return sharingRecentFixture(params?.p_limit, params?.p_before);
   // 0746: the list honours its Sharing filter and the reach sort, so the
