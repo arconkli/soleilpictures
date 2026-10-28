@@ -1225,6 +1225,41 @@ test('a card found by search says which board it is on, by name', async () => {
   assert.equal(asked.query.get('id'), `in.("${B1}")`, 'one select for the page\'s boards');
 });
 
+test('search finds a picture by what is in it, once, through the view held to pictures', async () => {
+  putBoard(B1, [], { name: 'Locations' });
+  on('GET', 'card_index', () => reply([
+    { board_id: B1, card_id: 'c1', kind: 'image', title: 'Red car', body: null, workspace_id: 'w1', updated_at: 't' },
+  ]));
+  on('GET', 'entity_search', () => reply([
+    { board_id: B1, card_id: 'c1', title: 'Red car', seen: 'A red car', workspace_id: 'w1', updated_at: 't' },
+    { board_id: B1, card_id: 'c2', title: null, seen: `A red car at night ${'z'.repeat(400)}`, workspace_id: 'w1', updated_at: 't' },
+  ]));
+  const r = await api('GET', '/search?q=red%20car&kind=card');
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(r.body.cards.items.map((c) => c.card_id), ['c1']);
+  assert.deepEqual(r.body.pictures.items.map((p) => [p.card_id, p.kind, p.board_name]), [['c2', 'image', 'Locations']],
+    'a picture its own words found is a card hit, not a second one');
+  assert.equal(r.body.pictures.items[0].in_picture.length, 300);
+  assert.equal(r.body.pictures.items[0].url, `https://clusters.test/?to=c:${B1}:c2`);
+  const asked = calls.find((c) => c.path === 'entity_search');
+  assert.equal(asked.query.get('kind'), 'eq.image', 'never the directory rows the view also holds');
+  assert.equal(asked.query.get('seen'), 'ilike."%red car%"');
+
+  const boardsOnly = await api('GET', '/search?q=red%20car&kind=board');
+  assert.deepEqual(boardsOnly.body.pictures.items, []);
+});
+
+test('search still finds words when pictures cannot be searched', async () => {
+  on('GET', 'card_index', () => reply([
+    { board_id: B1, card_id: 'c1', kind: 'note', title: 'Neon', body: null, workspace_id: 'w1', updated_at: 't' },
+  ]));
+  on('GET', 'entity_search', () => reply({ code: '42P01', message: 'relation does not exist' }, 404));
+  const r = await api('GET', '/search?q=neon');
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(r.body.cards.items.map((c) => c.card_id), ['c1']);
+  assert.deepEqual(r.body.pictures.items, []);
+});
+
 test('a card list with include=groups carries the board\'s groups, read in the same open', async () => {
   putBoard(B1, [{ id: 'c1', kind: 'note', x: 0, y: 0, groupId: 'g1' }], { name: 'Diner' },
     [{ id: 'g1', name: 'Stills', color: '#c8a04a', shape: 'hug', width: 900, createdAt: '2026-10-01T00:00:00Z' }]);

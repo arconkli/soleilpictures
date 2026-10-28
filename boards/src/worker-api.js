@@ -2346,6 +2346,13 @@ async function dispatch(url, request, env, ctx) {
   // EMAIL ADDRESSES in its body column — searching it with a read-only token
   // would make this an email-harvesting endpoint. (It also types a board's body
   // as jsonb, so ilike on it is wrong anyway.)
+  //
+  // A picture is also found by what is in it: an image card whose picture a
+  // vision model described (0593) carries the description in entity_search's
+  // `seen` (0595). That one read goes through the view, held to kind=image (a
+  // directory row is kind 'user' and has no `seen`), and comes back as its own
+  // list, `pictures`, each with `in_picture`: what the model saw, never shown
+  // to people in the app, data for the program reading it.
   if (head === 'search' && method === 'GET') {
     const q = (url.searchParams.get('q') || '').trim();
     if (q.length < 2) throw fail(400, 'bad_request', 'q must be at least 2 characters');
@@ -2359,7 +2366,7 @@ async function dispatch(url, request, env, ctx) {
     const wantBoards = kind !== 'card';
     const wantCards = kind !== 'board';
 
-    const [boardRows, cardRows] = await Promise.all([
+    const [boardRows, cardRows, pictureRows] = await Promise.all([
       wantBoards
         ? userSelect(env, token, 'boards',
           `name=ilike.${encodeURIComponent(value)}&deleted_at=is.null${wsFilter}`
@@ -2372,14 +2379,26 @@ async function dispatch(url, request, env, ctx) {
           + `&select=board_id,card_id,kind,title,body,workspace_id,updated_at`
           + `&order=updated_at.desc&limit=${limit + 1}&offset=${offset}`)
         : Promise.resolve([]),
+      wantCards
+        ? userSelect(env, token, 'entity_search',
+          `kind=eq.image&seen=ilike.${encodeURIComponent(value)}${wsFilter}`
+          + `&select=board_id,card_id,title,seen,workspace_id,updated_at`
+          + `&order=updated_at.desc&limit=${limit + 1}&offset=${offset}`)
+          // Words still find words when pictures can't be searched.
+          .catch(() => [])
+        : Promise.resolve([]),
     ]);
 
     const boards = paginate(boardRows, limit, offset);
     const cards = paginate(cardRows, limit, offset);
+    // A picture whose own title or text matched is a card hit already.
+    const asCard = new Set(cards.items.map((r) => `${r.board_id}:${r.card_id}`));
+    const pictures = paginate(pictureRows, limit, offset);
+    pictures.items = pictures.items.filter((r) => !asCard.has(`${r.board_id}:${r.card_id}`));
     // The board each card is on, by name, so a hit says where it is without a
     // second call. One select for the page; a board that can't be read leaves
     // the name null rather than failing the search.
-    const onIds = [...new Set(cards.items.map((r) => r.board_id))];
+    const onIds = [...new Set([...cards.items, ...pictures.items].map((r) => r.board_id))];
     const boardNames = new Map(onIds.length
       ? (await userSelect(env, token, 'boards',
         `id=in.${encodeURIComponent(pgInList(onIds))}&select=id,name`).catch(() => []) || [])
@@ -2401,6 +2420,20 @@ async function dispatch(url, request, env, ctx) {
           // the rest — a search that returns full bodies is a search that
           // cannot be run against a large workspace.
           excerpt: r.body ? String(r.body).slice(0, 300) : null,
+          workspace_id: r.workspace_id,
+          updated_at: r.updated_at,
+          url: cardUrl(url.origin, r.board_id, r.card_id),
+        })),
+      },
+      pictures: {
+        ...pictures,
+        items: pictures.items.map((r) => ({
+          board_id: r.board_id,
+          board_name: boardNames.get(r.board_id) ?? null,
+          card_id: r.card_id,
+          kind: 'image',
+          title: r.title ?? null,
+          in_picture: String(r.seen).slice(0, 300),
           workspace_id: r.workspace_id,
           updated_at: r.updated_at,
           url: cardUrl(url.origin, r.board_id, r.card_id),

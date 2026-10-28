@@ -1,6 +1,6 @@
 {
   "name": "soleil-clusters-mcp",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "MCP server for Soleil Clusters \u2014 read and write visual boards from an AI assistant.",
   "type": "module",
   "license": "MIT",

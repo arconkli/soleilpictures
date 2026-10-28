@@ -863,6 +863,25 @@ test('search answers in the shape ChatGPT asks for, boards first, each id one th
   for (const r of out.results) assert.ok(parseFetchId(r.id), `fetch reads ${r.id}`);
 });
 
+test('search returns a picture found by what is in it, with what the model saw', async () => {
+  const api = async () => ({
+    query: 'red car',
+    boards: { items: [], limit: 20, offset: 0, has_more: false },
+    cards: { items: [], limit: 20, offset: 0, has_more: false },
+    pictures: {
+      items: [{ board_id: BOARD_ID, board_name: 'Locations', card_id: 'p-1', kind: 'image', title: null,
+        in_picture: `A red car under a streetlight ${'y'.repeat(300)}`, url: 'https://x/?to=c:p' }],
+      limit: 20, offset: 0, has_more: true,
+    },
+  });
+  const out = await tool('search').call({ query: 'red car' }, { api });
+  assert.deepEqual(out.results.map((r) => [r.id, r.kind, r.card_kind, r.title, r.board_name]),
+    [[`card:${BOARD_ID}:p-1`, 'card', 'image', 'Picture', 'Locations']]);
+  assert.match(out.results[0].in_picture, /^A red car under a streetlight y+…$/);
+  assert.equal(out.results[0].in_picture.length, 201);
+  assert.deepEqual([out.has_more, out.next_offset], [true, 20]);
+});
+
 test('list_boards reads one level, a whole hierarchy, or the deleted boards', async () => {
   const seen = [];
   const api = async (p) => { seen.push(p); return p === '/workspaces' ? { workspaces: [{ id: 'w-1' }] } : { boards: [] }; };

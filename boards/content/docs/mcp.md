@@ -208,7 +208,7 @@ quietly failing.
 | Tool | Input |
 |---|---|
 | `whoami` | — · the account, its scopes, rate limit, whether it is a service account, and the workspaces it can see |
-| `search` | `query` (min 2 chars), `kind?` (`board`\|`card`), `workspace_id?`, `limit?` (default {{fact:mcpSearchDefault}} of each kind, up to {{fact:mcpSearchMax}}), `offset?` · boards and cards by their words, boards first, each result `{ id, title, url }` with, for a card, an excerpt and the name of its board — the shape ChatGPT asks of a search tool; each `id` is one `fetch` reads |
+| `search` | `query` (min 2 chars), `kind?` (`board`\|`card`), `workspace_id?`, `limit?` (default {{fact:mcpSearchDefault}} of each kind, up to {{fact:mcpSearchMax}}), `offset?` · boards and cards by their words, and pictures by what is in them, boards first, each result `{ id, title, url }` with, for a card, an excerpt (for a picture found by what is in it, `in_picture`) and the name of its board — the shape ChatGPT asks of a search tool; each `id` is one `fetch` reads |
 | `fetch` | `id` — `board:<board id>`, `card:<board id>:<card id>`, `doc:<board id>:<card id>` (`:<page id>` for one page), or a link from the app · one board, card or doc as text to read, `{ id, title, text, url, metadata }`, up to {{fact:fetchMaxChars}} characters; a doc's `metadata.pages` carry each page's `hash` |
 | `list_boards` | `workspace_id?`, `parent?` (`"root"` for top level), `since?`, `cursor?`, paging, `response_format?` · one level at a time, each board with its link; with `depth?` (up to 20) a whole hierarchy in one call, at most {{fact:mcpTreeMax}} boards; with `deleted?` the boards that can still be restored |
 | `resolve_identifier` | `scope`, `value` — find something by an id from another system |
