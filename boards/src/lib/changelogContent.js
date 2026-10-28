@@ -952,6 +952,83 @@ export const CHANGELOG_CONTENT = {
       "t": "text",
       "v": ", now opens in the menu's place, with ‹ to go back."
      }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A document's footer says "
+     },
+     {
+      "t": "strong",
+      "v": "Saved",
+      "children": [
+       {
+        "t": "text",
+        "v": "Saved"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " only once the cluster confirms it holds every change you made. While a change is on its way it says "
+     },
+     {
+      "t": "strong",
+      "v": "Saving…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Saving…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". When the cluster can't be reached it says "
+     },
+     {
+      "t": "strong",
+      "v": "Reconnecting",
+      "children": [
+       {
+        "t": "text",
+        "v": "Reconnecting"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "strong",
+      "v": "Offline",
+      "children": [
+       {
+        "t": "text",
+        "v": "Offline"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and your changes wait on this device until it's back. See "
+     },
+     {
+      "t": "link",
+      "v": "documents",
+      "href": "/docs/documents#saving",
+      "children": [
+       {
+        "t": "text",
+        "v": "documents"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
     ]
    ]
   }

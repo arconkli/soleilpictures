@@ -11687,6 +11687,11 @@ Team is a new plan for more than 10 people who edit, at $25 a seat a month, and 
 - On a phone, a choice in a document's menus that has more under it, such as
   **Font**, **Text colour** or **Export**, now opens in the menu's place, with
   ‹ to go back.
+- A document's footer says **Saved** only once the cluster confirms it holds
+  every change you made. While a change is on its way it says **Saving…**.
+  When the cluster can't be reached it says **Reconnecting** or **Offline**,
+  and your changes wait on this device until it's back. See
+  [documents](/docs/documents#saving).
 
 ## 2026-10-26 — Export and profile changes work again
 
