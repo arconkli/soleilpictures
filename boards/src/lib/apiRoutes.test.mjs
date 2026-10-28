@@ -1260,6 +1260,46 @@ test('search still finds words when pictures cannot be searched', async () => {
   assert.deepEqual(r.body.pictures.items, []);
 });
 
+test('include=seen carries what is in each described picture, read as the caller', async () => {
+  putBoard(B1, [
+    { id: 'p1', kind: 'image', src: 'r2:u/a.jpg', x: 0, y: 0 },
+    { id: 'p2', kind: 'image', src: 'r2:u/b.jpg', x: 300, y: 0 },
+    { id: 'n1', kind: 'note', body: 'Neon', x: 0, y: 300 },
+  ], { name: 'Locations' });
+  let asked = null;
+  on('POST', 'rpc/image_seen_for_board', (c) => {
+    asked = c.body;
+    return reply([
+      { card_id: 'p1', description: 'A red car under a streetlight.', keywords: ['car', 'night'],
+        attrs: { shot_type: 'wide', lighting: 'sodium', palette: ['red', 'black'], era: '1970s' } },
+      { card_id: 'n1', description: 'never a note', keywords: [], attrs: {} },
+    ]);
+  });
+  const r = await api('GET', `/boards/${B1}/cards?include=seen`);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.deepEqual(asked, { p_board: B1 });
+  const by = Object.fromEntries(r.body.cards.map((c) => [c.id, c]));
+  assert.equal(by.p1.in_picture,
+    'A red car under a streetlight. Keywords: car, night. Looks: wide, sodium, red, black, 1970s.');
+  assert.equal('in_picture' in by.p2, false, 'a picture not described yet has none');
+  assert.equal('in_picture' in by.n1, false, 'only pictures');
+
+  const one = await api('GET', `/boards/${B1}/cards/p1?include=seen`);
+  assert.equal(one.status, 200, JSON.stringify(one.body));
+  assert.match(one.body.card.in_picture, /^A red car/);
+
+  const plain = await api('GET', `/boards/${B1}/cards`);
+  assert.equal(plain.body.cards.some((c) => 'in_picture' in c), false, 'only when asked for');
+});
+
+test('a card list with include=seen still answers when the pictures cannot be read', async () => {
+  putBoard(B1, [{ id: 'p1', kind: 'image', src: 'r2:u/a.jpg', x: 0, y: 0 }], { name: 'Locations' });
+  on('POST', 'rpc/image_seen_for_board', () => reply({ code: '42883', message: 'function does not exist' }, 404));
+  const r = await api('GET', `/boards/${B1}/cards?include=seen`);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal('in_picture' in r.body.cards[0], false);
+});
+
 test('a card list with include=groups carries the board\'s groups, read in the same open', async () => {
   putBoard(B1, [{ id: 'c1', kind: 'note', x: 0, y: 0, groupId: 'g1' }], { name: 'Diner' },
     [{ id: 'g1', name: 'Stills', color: '#c8a04a', shape: 'hug', width: 900, createdAt: '2026-10-01T00:00:00Z' }]);

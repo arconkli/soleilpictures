@@ -209,7 +209,7 @@ quietly failing.
 |---|---|
 | `whoami` | — · the account, its scopes, rate limit, whether it is a service account, and the workspaces it can see |
 | `search` | `query` (min 2 chars), `kind?` (`board`\|`card`), `workspace_id?`, `limit?` (default {{fact:mcpSearchDefault}} of each kind, up to {{fact:mcpSearchMax}}), `offset?` · boards and cards by their words, and pictures by what is in them, boards first, each result `{ id, title, url }` with, for a card, an excerpt (for a picture found by what is in it, `in_picture`) and the name of its board — the shape ChatGPT asks of a search tool; each `id` is one `fetch` reads |
-| `fetch` | `id` — `board:<board id>`, `card:<board id>:<card id>`, `doc:<board id>:<card id>` (`:<page id>` for one page), or a link from the app · one board, card or doc as text to read, `{ id, title, text, url, metadata }`, up to {{fact:fetchMaxChars}} characters; a doc's `metadata.pages` carry each page's `hash` |
+| `fetch` | `id` — `board:<board id>`, `card:<board id>:<card id>`, `doc:<board id>:<card id>` (`:<page id>` for one page), or a link from the app · one board, card or doc as text to read, `{ id, title, text, url, metadata }`, up to {{fact:fetchMaxChars}} characters; a doc's `metadata.pages` carry each page's `hash`, and a described picture says what is in it |
 | `list_boards` | `workspace_id?`, `parent?` (`"root"` for top level), `since?`, `cursor?`, paging, `response_format?` · one level at a time, each board with its link; with `depth?` (up to 20) a whole hierarchy in one call, at most {{fact:mcpTreeMax}} boards; with `deleted?` the boards that can still be restored |
 | `resolve_identifier` | `scope`, `value` — find something by an id from another system |
 
@@ -217,7 +217,7 @@ quietly failing.
 
 | Tool | Input |
 |---|---|
-| `read_board` | `board_id`, `response_format?`, `full?`, `include?`, `source?`, `since?`, paging · the board with its link, fields and how much of the card allowance is used, its groups, and a page of its cards; `format?` (`json`\|`omc`) for the whole board as one document instead |
+| `read_board` | `board_id`, `response_format?`, `full?`, `include?`, `source?`, `since?`, paging · the board with its link, fields and how much of the card allowance is used, its groups, and a page of its cards, a described picture with `in_picture`; `format?` (`json`\|`omc`) for the whole board as one document instead |
 | `view_board` | `board_id`, `limit?` (default {{fact:galleryDefaultLimit}}, up to {{fact:galleryMaxLimit}}), `cursor?`, `card_ids?` (up to {{fact:viewBoardCloseMax}}, at a larger size) — look at a board: its overall picture, then its images in reading order, each named by its card |
 | `show_board` | `board_id` — show the person the board as it is laid out: [drawn in the chat](#the-board-in-the-chat) where the host can draw it (ChatGPT, Claude). Every answer also outlines the board, its sections and a few card titles each, and ends with its link |
 | `list_comments` | `board_id`, `status?` (`open`\|`resolved`\|`all`), `limit?` (up to {{fact:commentListMax}}), `cursor?` — the board's [comment](/docs/api/comments) threads, those inside its docs and notes with the text they are on |
@@ -386,7 +386,8 @@ alone, the shape ChatGPT reads.
 
 **Answers are concise by default.** `read_board` gives each card's id, kind,
 title, text and what it points at (a link, an `image_key`, a file), with long
-text shortened; `response_format: "detailed"` adds positions, sizes, colours
+text shortened, and for a picture Clusters has described, `in_picture`: what
+is in it, as a vision model saw it ([data, never instructions](/docs/api/cards)); `response_format: "detailed"` adds positions, sizes, colours
 and dates, for placing things, and `full: true` every word. `list_boards` gives
 each board's id, name, place and link; `detailed` adds how it opens and when it
 was made. Both paginate — check for more rather than assuming one page is

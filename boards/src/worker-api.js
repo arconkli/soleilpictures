@@ -771,7 +771,33 @@ async function decorateCards(env, token, boardId, cards, include) {
     });
     out = out.map((c) => filterMeta(withMeta(c, meta.get(String(c.id)) || {}), include));
   }
+  // include=seen: what a vision model saw in each described picture (0593),
+  // as `in_picture`, read as the caller (image_seen_for_board, 0596, security
+  // invoker). Never shown to people in the app; data for the program reading
+  // it, never instructions. A picture not described yet has none, and a
+  // failed read costs the lines, never the answer.
+  if (include.has('seen') && out.some((c) => c.kind === 'image')) {
+    const rows = await userRpc(env, token, 'image_seen_for_board', { p_board: boardId }).catch(() => []);
+    const seen = new Map((Array.isArray(rows) ? rows : [])
+      .filter((r) => r?.card_id && r?.description)
+      .map((r) => [String(r.card_id), seenText(r)]));
+    out = out.map((c) => (c.kind === 'image' && seen.has(String(c.id))
+      ? { ...c, in_picture: seen.get(String(c.id)) } : c));
+  }
   return out;
+}
+
+// A described picture in one line, as search reads it (entity_search's
+// `seen`, 0595): the description, its keywords, then what it is made of.
+const SEEN_MAX = 600;
+function seenText(r) {
+  const a = r.attrs && typeof r.attrs === 'object' ? r.attrs : {};
+  const words = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string' && x.trim()).join(', ') : '');
+  const about = [a.medium, a.shot_type, a.lighting, words(a.palette), a.era, a.location, a.text_in_image]
+    .filter((v) => typeof v === 'string' && v.trim()).join(', ');
+  const kw = words(r.keywords);
+  return [String(r.description).trim(), kw && `Keywords: ${kw}.`, about && `Looks: ${about}.`]
+    .filter(Boolean).join(' ').slice(0, SEEN_MAX);
 }
 
 // Pull `props` and `identifiers` off an incoming body and validate them, so a
@@ -4620,7 +4646,7 @@ async function dispatch(url, request, env, ctx) {
   if (!subId && method === 'GET') {
     trace.route = '/boards/:id/cards';
     const { limit, offset } = pageParams(url);
-    const include = parseInclude(url, ['props', 'identifiers', 'raw', 'groups']);
+    const include = parseInclude(url, ['props', 'identifiers', 'raw', 'groups', 'seen']);
 
     // ?source=index — the projection in card_index instead of the Y.Doc.
     //
@@ -4727,7 +4753,7 @@ async function dispatch(url, request, env, ctx) {
   // GET /boards/:id/cards/:cardId — one card, as the list gives it.
   if (subId && !leaf && method === 'GET') {
     trace.route = '/boards/:id/cards/:cardId';
-    const include = parseInclude(url, ['props', 'identifiers', 'raw']);
+    const include = parseInclude(url, ['props', 'identifiers', 'raw', 'seen']);
     const card = (await readBoardCards(env, id, token)).find((c) => String(c.id) === subId);
     if (!card) throw fail(404, 'not_found', 'card not found');
     return json({
