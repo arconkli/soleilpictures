@@ -134,7 +134,14 @@ export const CEILINGS = {
   // block per group with room for its outline and name. A local build with
   // CI's environment measured 690.77 KB on d0d315df and 691.07 with it (CI
   // reads about 0.25 KB above this machine's shared node_modules).
-  appJs: 691_500,
+  // 2026-10-28: +0.3 KB of room for chunk names, not code. appJs sat at its
+  // ceiling to the byte (CI: 691.5 KB, ok, on f209e1fe), and the 10-28
+  // changelog entry, which adds nothing to the app (its text loads with the
+  // lazy ChangelogPage), renamed ChangelogPage's chunk, so the entry chunk
+  // that names it was renamed too, and AppShell and CanvasSurface import the
+  // entry by that name: CI read 691.5 KB, OVER, on f1aa939f and on main
+  // 35d96f08. The next change that adds app code still needs its own raise.
+  appJs: 691_800,
   appCss: 21_000,
 };
 
