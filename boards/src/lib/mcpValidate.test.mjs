@@ -95,7 +95,7 @@ test('an enum value in the wrong case is the value it means; a wrong one lists t
   assert.deepEqual(fixed.problems, []);
   assert.equal(fixed.args.layout, 'masonry');
   const wrong = checkArgs(tool('arrange_board'), { board_id: ID, layout: 'spiral' });
-  assert.match(wrong.problems[0], /^layout must be one of justified, masonry, grid, row, column \(got "spiral"\)$/);
+  assert.match(wrong.problems[0], /^layout must be one of auto, justified, masonry, grid, row, column \(got "spiral"\)$/);
 });
 
 test('a problem inside a list names its place in it', () => {

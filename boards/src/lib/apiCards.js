@@ -12,6 +12,9 @@
 
 import { CANVAS } from './canvasView.js';
 import { hasCustomName } from './paletteLayout.js';
+import { composeNoteHtml } from './noteCompose.js';
+import { fitNoteSize, NOTE_FIT } from './noteFit.js';
+import { htmlHasText, noteSourceHtml } from './noteBody.js';
 
 export const PALETTE = Object.freeze({
   // Swatches on one palette card through the API: as many as the inline view
@@ -24,6 +27,14 @@ export const PALETTE = Object.freeze({
   h: 150,
   minW: 300,
   perSwatch: 72,
+});
+
+// A picture added by its key with no size: a note's width at the picture's own
+// shape, so it sits among notes as one of them and shows whole, and no taller
+// than maxH (a tall picture narrows instead).
+export const PICTURE = Object.freeze({
+  w: NOTE_FIT.width,
+  maxH: 420,
 });
 
 export const SECTIONS = Object.freeze({
@@ -158,4 +169,64 @@ export function resolveSections(existing, wanted, { userId = null, now = new Dat
     order.push(idByKey.get(key));
   }
   return { idByKey, created, order };
+}
+
+// A picture's size on the board from its own pixels (PICTURE). null when they
+// aren't a size.
+export function pictureSize(width, height) {
+  const aspect = Number(width) / Number(height);
+  if (!Number.isFinite(aspect) || aspect <= 0) return null;
+  let w = PICTURE.w;
+  let h = Math.round(w / aspect);
+  if (h > PICTURE.maxH) {
+    h = PICTURE.maxH;
+    w = Math.max(1, Math.round(h * aspect));
+  }
+  return { w, h: Math.max(1, h) };
+}
+
+const LEADS_WITH_HEADING = /^\s*<h[1-3][\s>]/i;
+// Html with something to show: text, or a picture.
+const htmlShows = (html) => htmlHasText(html) || /<img\b/i.test(String(html || ''));
+
+// The html a note the API writes shows: its own html, under the title it names
+// when that html doesn't open with a heading of its own; else its title and
+// body composed (noteCompose). The html as given when there is nothing to show.
+export function noteHtmlFor({ title, body, html }) {
+  if (htmlShows(html)) {
+    return title && !LEADS_WITH_HEADING.test(html) ? composeNoteHtml({ title }) + html : html;
+  }
+  if (title || body) return composeNoteHtml({ title, body: body ?? null });
+  return html;
+}
+
+// The height every note the API made had before notes were fitted to their
+// text (P7 step 2a).
+const OLD_NOTE_H = 180;
+
+// A note the API wrote, as the API writes one now: its title and body in the
+// html the canvas draws, a hex colour on the fill the canvas paints, and tall
+// enough for its text. Only a note nobody has touched in the app: the API's own
+// (an `api-` id), never opened in the note editor, never sized by hand. Its
+// height changes only when its text doesn't fit, or when it is still the height
+// every API note used to get. The fields to write, or null when it is current.
+export function noteRepair(c) {
+  if (c?.kind !== 'note' || !String(c.id ?? '').startsWith('api-')) return null;
+  if (c.noteFragmentSeeded || c.manuallyResized) return null;
+  const fix = {};
+  const html = noteHtmlFor({ title: c.title, body: c.body, html: c.html });
+  if (typeof html === 'string' && html !== c.html) fix.html = html;
+  if (!c.bgColor) {
+    const hex = hexColour(c.color);
+    if (hex) {
+      fix.bgColor = hex;
+      fix.color = null;
+    }
+  }
+  const text = noteSourceHtml(fix.html ?? c.html, c.body);
+  if (htmlHasText(text) && Number.isFinite(c.w) && c.w > 0) {
+    const { h } = fitNoteSize({ html: text, w: c.w });
+    if (h !== c.h && (c.h === OLD_NOTE_H || h > c.h)) fix.h = h;
+  }
+  return Object.keys(fix).length ? fix : null;
 }

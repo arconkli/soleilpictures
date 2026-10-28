@@ -3123,7 +3123,7 @@ export const DOCS_PAGES = [
     "answer": "The Soleil Clusters REST API lives at /api/v1 and is authenticated with a personal access token sent as a bearer token. A token acts as you — every call runs under exactly the permissions your account has in the app. Responses are JSON, errors carry both a machine-readable code and a human sentence, list endpoints paginate, and a full OpenAPI description is published at /api/v1/openapi.json.",
     "section": "developers",
     "order": 0,
-    "updated": "2026-10-25",
+    "updated": "2026-10-27",
     "navLabel": "API overview",
     "headings": [
       {
@@ -3514,6 +3514,10 @@ export const DOCS_PAGES = [
       {
         "id": "palettes",
         "text": "Palettes"
+      },
+      {
+        "id": "pictures",
+        "text": "Pictures"
       },
       {
         "id": "writable-fields",
@@ -3920,9 +3924,9 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/api/arrange",
     "title": "Arranging a Board — Soleil Clusters API",
-    "metaDescription": "Lay cards out automatically — justified rows, colour-ordered masonry or a uniform grid — or place them by hand with z-order, rotation and groups.",
+    "metaDescription": "Tidy a board in one call — each section its own block, every picture whole — or lay cards out as justified rows, masonry or a grid, or place them by hand.",
     "h1": "Arrange",
-    "answer": "POST /boards/:id/arrange lays out cards that already exist, and any card write accepts a layout to arrange what it adds. The default, justified, fits rows flush on both edges at each picture's true aspect ratio. For placing things yourself, cards carry x, y, w, h, z, rotation, a group (by name or by group_id), and a section_header flag.",
+    "answer": "POST /boards/:id/arrange lays out cards that already exist and is how to tidy a board. The default, auto, lays each section out as its own block, notes in columns at their own size and pictures in rows at their true shape, sets the sections out near a screen's shape, and brings notes the API made earlier up to date. justified, masonry, grid, row and column are there by name; by hand, cards carry x, y, w, h, z, rotation and a group.",
     "section": "developers",
     "order": 7,
     "updated": "2026-10-27",
@@ -3944,8 +3948,16 @@ export const DOCS_PAGES = [
     ],
     "faq": [
       {
+        "q": "How do I tidy a board an assistant made?",
+        "a": "Call POST /boards/:id/arrange with nothing else, or arrange_board over MCP. auto lays each section out as a block of its own and sets the sections out in order, and the notes the API made earlier get their title shown, their colour painted and their height fitted to their text."
+      },
+      {
+        "q": "Can I choose what comes first?",
+        "a": "Yes. Pass order, a list of card ids. Those cards come first, in that order, and the rest follow in reading order, top to bottom and left to right."
+      },
+      {
         "q": "How do I make a dump of images look like a moodboard?",
-        "a": "Pass layout when you import or add them, or call POST /boards/:id/arrange afterwards. The default, justified, gives rows of equal height flush on both edges, with every picture at its real aspect ratio."
+        "a": "Pass layout when you import or add them, or call POST /boards/:id/arrange afterwards. auto and justified both give rows of pictures flush on both edges, every picture at its real aspect ratio; auto keeps each section to a block of its own."
       },
       {
         "q": "Can I see where things would land before moving anything?",

@@ -5,9 +5,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  PALETTE, SECTIONS, hexColour, readNoteColor, readSwatches, paletteSize, publicSwatches,
-  readSections, resolveSections, sectionName,
+  PALETTE, SECTIONS, PICTURE, hexColour, readNoteColor, readSwatches, paletteSize, publicSwatches,
+  readSections, resolveSections, sectionName, noteRepair, pictureSize,
 } from './apiCards.js';
+import { API_LAYOUTS } from './layoutAuto.js';
 import { normalizeIncomingCard, publicCard } from '../worker-api.js';
 import { composeNoteHtml } from './noteCompose.js';
 import { NOTE_FIT, noteContentHeight } from './noteFit.js';
@@ -182,4 +183,49 @@ test('add_cards and update_cards take as many swatches and sections as the API d
     assert.equal(t.cards.items.properties.swatches.maxItems, PALETTE.maxSwatches, name);
     assert.equal(t.groups.maxItems, SECTIONS.maxPerCall, name);
   }
+});
+
+test('arrange_board takes the layouts the API does, auto first', () => {
+  const t = TOOLS.find((x) => x.name === 'arrange_board').inputSchema.properties;
+  assert.deepEqual(t.layout.enum, API_LAYOUTS);
+  for (const name of ['add_cards', 'import_urls']) {
+    assert.deepEqual(TOOLS.find((x) => x.name === name).inputSchema.properties.layout.enum, API_LAYOUTS, name);
+  }
+});
+
+test('a picture with no size is a note\'s width at its own shape, a tall one narrowed', () => {
+  assert.deepEqual(pictureSize(1600, 900), { w: PICTURE.w, h: Math.round(PICTURE.w * 900 / 1600) });
+  assert.deepEqual(pictureSize(1000, 1500), { w: PICTURE.w, h: PICTURE.maxH });
+  assert.deepEqual(pictureSize(1000, 3000), { w: Math.round(PICTURE.maxH / 3), h: PICTURE.maxH });
+  assert.equal(pictureSize(0, 100), null);
+  assert.equal(pictureSize(undefined, undefined), null);
+});
+
+// A note as the API made one before notes showed their title and colour.
+const older = (over = {}) => ({
+  id: 'api-1', kind: 'note', x: 0, y: 0, w: 280, h: 180, title: MARTY.title, body: MARTY.body, color: '#F3DDAA', ...over,
+});
+
+test('a note the API made earlier is brought up to date: its title shown, its colour painted, its height its text\'s', () => {
+  const fix = noteRepair(older());
+  assert.equal(fix.html, composeNoteHtml({ title: MARTY.title, body: MARTY.body }));
+  assert.equal(fix.bgColor, '#f3ddaa');
+  assert.equal(fix.color, null);
+  assert.ok(fix.h > 180);
+  assert.equal(noteRepair({ ...older(), ...fix }), null, 'and then it is current');
+  const titled = noteRepair(older({ html: '<p>Cooke S4</p>', body: null, color: null }));
+  assert.equal(titled.html, '<h2>MARTY SUPREME (2025)</h2><p>Cooke S4</p>');
+  const short = noteRepair(older({ body: 'Two lines.' }));
+  assert.ok(short.h < 180, 'a short note at the old height shrinks to its text');
+  assert.equal(noteRepair(older({ body: 'Two lines.', h: 300, color: null, html: composeNoteHtml({ title: MARTY.title, body: 'Two lines.' }) })), null,
+    'one given room on purpose keeps it');
+});
+
+test('a note opened, sized by hand or made in the app is never rewritten by a tidy', () => {
+  assert.equal(noteRepair(older({ noteFragmentSeeded: true })), null);
+  assert.equal(noteRepair(older({ manuallyResized: true })), null);
+  assert.equal(noteRepair(older({ id: 'n-1' })), null);
+  assert.equal(noteRepair({ ...older(), kind: 'image' }), null);
+  const odd = noteRepair(older({ color: 'yellow' }));
+  assert.equal('bgColor' in odd, false, 'a colour that is not a hex is left as it is');
 });

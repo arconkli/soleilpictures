@@ -157,11 +157,12 @@ export function mcpProtocol() {
 // the docs would otherwise be a silent break for every integration that had
 // written it down.
 export function layoutAlgorithms() {
-  const file = 'boards/src/lib/layoutEngine.js';
+  // The API's list (layoutAuto.js): auto, then the layouts the canvas shares.
+  const file = 'boards/src/lib/layoutAuto.js';
   let src;
   try { src = read(file); } catch { return []; }
-  const m = src.match(/export const LAYOUTS = \[([^\]]+)\]/);
-  if (!m) throw new Error(`publicSurface: LAYOUTS not found in ${file}`);
+  const m = src.match(/export const API_LAYOUTS = \[([^\]]+)\]/);
+  if (!m) throw new Error(`publicSurface: API_LAYOUTS not found in ${file}`);
   const found = [...m[1].matchAll(/'([a-z]+)'/g)].map((x) => x[1]);
   return expect(found, 3, 'layout algorithms', file).sort();
 }

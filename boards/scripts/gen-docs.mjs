@@ -81,8 +81,9 @@ import { WEB_IMAGE } from '../src/lib/webImageSave.js';
 import { EDGE_LIMITS } from '../src/lib/edgeLimits.js';
 import { GALLERY } from '../src/lib/gallery.js';
 import { CANVAS } from '../src/lib/canvasView.js';
-import { PALETTE, SECTIONS } from '../src/lib/apiCards.js';
+import { PALETTE, SECTIONS, PICTURE } from '../src/lib/apiCards.js';
 import { NOTE_FIT } from '../src/lib/noteFit.js';
+import { AUTO } from '../src/lib/layoutAuto.js';
 import { SIGNED_IMAGE_TTL_S } from '../src/lib/signedImage.js';
 import { VERIFIED_HOSTS } from '../src/lib/oauthTrust.js';
 import { DRAFT_LIFETIME_DAYS } from '../src/lib/mcpDrafts.js';
@@ -627,19 +628,22 @@ export const FACTS = {
   galleryInlineTotal: `${GALLERY.inlineTotalMaxBytes / MB} MB`,
   galleryOriginalMax: `${GALLERY.originalMaxBytes / 1024} KB`,
   viewBoardCloseMax: String(MCP_TOOLS.find((t) => t.name === 'view_board').inputSchema.properties.card_ids.maxItems),
-  // The board as drawn (lib/canvasView.js, GET /boards/:id/canvas and the
-  // inline view): the cards drawn, the pictures given an address, the text each
-  // card carries, and how long an address works (lib/signedImage.js).
-  // What the API makes of a note, a palette and a section (lib/noteFit.js,
-  // lib/apiCards.js): a note's widths and the height it may grow to, and the
-  // swatches and sections one write may carry.
+  // What the API makes of a note, a palette, a picture and a section
+  // (lib/noteFit.js, lib/apiCards.js): a note's widths and the height it may
+  // grow to, a picture's height cap, the swatches and sections one write may
+  // carry, and the shape `auto` aims a board at (lib/layoutAuto.js).
   noteWidth: String(NOTE_FIT.width),
   noteWideWidth: String(NOTE_FIT.wideWidth),
   noteMinHeight: String(NOTE_FIT.minH),
   noteMaxHeight: String(NOTE_FIT.maxH),
+  pictureMaxHeight: String(PICTURE.maxH),
   paletteSwatchesMax: String(PALETTE.maxSwatches),
   sectionNameMax: String(SECTIONS.maxName),
   sectionsPerCall: String(SECTIONS.maxPerCall),
+  autoShape: AUTO.shape,
+  // The board as drawn (lib/canvasView.js, GET /boards/:id/canvas and the
+  // inline view): the cards drawn, the pictures given an address, the text each
+  // card carries, and how long an address works (lib/signedImage.js).
   canvasMaxCards: String(CANVAS.maxCards),
   canvasMaxPictures: String(CANVAS.maxPictures),
   canvasTextMax: String(CANVAS.textMax),

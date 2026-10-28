@@ -41,7 +41,7 @@ The API accepts `audio`, `doc`, `file`, `image`, `link`, `note`, `palette`, `pdf
 | Kind | Carries |
 |---|---|
 | `note` | `title` as its heading, `body`, `html`, `color` as its fill — see [Notes](#notes) |
-| `image` | `image_key`, `alt`, `body` as the caption |
+| `image` | `image_key`, `alt`, `body` as the caption — see [Pictures](#pictures) |
 | `link` | `url`, `title`, `body` |
 | `doc` | `title`, `body`, `html` |
 | `video` | `file_key`, optional `poster_key` |
@@ -99,7 +99,9 @@ its text turns dark or light to read on it. Anything that isn't a hex is a
 **Changing one.** A new `title` or `body` on a note the API wrote is written
 into it the same way, and its height follows unless you send `h`. A note that
 has since been edited in the app keeps the text it has there, and a note
-resized by hand keeps its size.
+resized by hand keeps its size. A note the API made before notes worked this
+way is brought up to date the next time its board is
+[arranged](/docs/api/arrange).
 
 ## Palettes
 
@@ -115,6 +117,13 @@ Up to 12 swatches; a plain hex string is a swatch with
 no name. Left without `w` and `h`, the card is made wide enough for every swatch
 to show its name over its hex. It reads back with `swatches`, each with a `name`
 only where one was given.
+
+## Pictures
+
+An `image` made from an `image_key` with no `w` and `h` takes the picture's own
+shape: 280px wide, as a note is, or 420px
+tall and narrower when the picture is tall, so it shows whole rather than
+cropped.
 
 ## Writable fields
 
@@ -255,8 +264,9 @@ carry both. Naming a section reads the board, as leaving out coordinates does.
 
 ### Laying cards out
 
-Pass `layout` — `justified`, `masonry`, `grid`, `row` or `column` — to arrange
-the whole batch as it lands instead of appending it in free space, and use
+Pass `layout` — `auto`, `justified`, `masonry`, `grid`, `row` or `column` — to
+arrange the whole batch as it lands instead of appending it in free space
+(`auto` lays each section out as a block of its own), and use
 [`POST /boards/:id/arrange`](/docs/api/arrange) to lay out cards that already
 exist. A named layout arranges everything you sent, including cards that
 carried their own `x` and `y`.

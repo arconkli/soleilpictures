@@ -49253,7 +49253,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — justified, masonry, grid"
+       "v": " — auto, justified, masonry, grid"
       }
      ]
     ],
@@ -55965,7 +55965,18 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " as the caption"
+       "v": " as the caption — see "
+      },
+      {
+       "t": "link",
+       "v": "Pictures",
+       "href": "#pictures",
+       "children": [
+        {
+         "t": "text",
+         "v": "Pictures"
+        }
+       ]
       }
      ]
     ],
@@ -56708,7 +56719,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". A note that has since been edited in the app keeps the text it has there, and a note resized by hand keeps its size."
+     "v": ". A note that has since been edited in the app keeps the text it has there, and a note resized by hand keeps its size. A note the API made before notes worked this way is brought up to date the next time its board is "
+    },
+    {
+     "t": "link",
+     "v": "arranged",
+     "href": "/docs/api/arrange",
+     "children": [
+      {
+       "t": "text",
+       "v": "arranged"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -56784,6 +56810,59 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " only where one was given."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Pictures",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pictures"
+    }
+   ],
+   "id": "pictures"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An "
+    },
+    {
+     "t": "code",
+     "v": "image"
+    },
+    {
+     "t": "text",
+     "v": " made from an "
+    },
+    {
+     "t": "code",
+     "v": "image_key"
+    },
+    {
+     "t": "text",
+     "v": " with no "
+    },
+    {
+     "t": "code",
+     "v": "w"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "h"
+    },
+    {
+     "t": "text",
+     "v": " takes the picture's own shape: 280px wide, as a note is, or 420px tall and narrower when the picture is tall, so it shows whole rather than cropped."
     }
    ]
   },
@@ -58142,6 +58221,14 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
      "v": "justified"
     },
     {
@@ -58178,7 +58265,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — to arrange the whole batch as it lands instead of appending it in free space, and use "
+     "v": " — to arrange the whole batch as it lands instead of appending it in free space ("
+    },
+    {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " lays each section out as a block of its own), and use "
     },
     {
      "t": "link",
@@ -64204,7 +64299,7 @@ export const DOCS_CONTENT = {
   {
    "type": "code",
    "lang": "sh",
-   "code": "curl -X POST https://clusters.soleilpictures.com/api/v1/boards/$BOARD/arrange \\\n  -H \"Authorization: Bearer undefined…\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{ \"layout\": \"justified\" }'"
+   "code": "curl -X POST https://clusters.soleilpictures.com/api/v1/boards/$BOARD/arrange \\\n  -H \"Authorization: Bearer undefined…\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{}'"
   },
   {
    "type": "para",
@@ -64286,6 +64381,14 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " · "
+    },
+    {
+     "t": "code",
      "v": "column"
     },
     {
@@ -64327,6 +64430,128 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
+     "v": "`auto`",
+     "children": [
+      {
+       "t": "code",
+       "v": "auto"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — the default. A board reads as its sections ("
+    },
+    {
+     "t": "link",
+     "v": "groups",
+     "href": "/docs/canvas/groups",
+     "children": [
+      {
+       "t": "text",
+       "v": "groups"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "), so each is laid out as a block of its own: pictures (images and videos) in rows across the block, flush on both edges and each at its true shape, under the section's palette if it has one; anything else in columns, each card at its own size, a picture at the column's width and a palette or a wide card across the top. The blocks are then set out in rows, in order, at the width that brings the whole board nearest 16:10 with its rows about as wide as each other. Cards in no section make one block more."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": null,
+   "code": "┌ CANON ──────────┐  ┌ JOURNAL ─────────────────┐\n│ ┌─────┐ ┌─────┐ │  │ ┌─────┐ ┌─────┐ ┌─────┐  │\n│ │     │ │     │ │  │ │     │ │     │ │     │  │\n│ └─────┘ │     │ │  │ └─────┘ └─────┘ └─────┘  │\n│ ┌─────┐ └─────┘ │  └──────────────────────────┘\n│ └─────┘         │\n└─────────────────┘"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Cards are taken in reading order — top to bottom, each row left to right — unless "
+    },
+    {
+     "t": "code",
+     "v": "order"
+    },
+    {
+     "t": "text",
+     "v": " names the ones that come first, and a column fills in that same order, so arranging a board "
+    },
+    {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " arranged moves nothing."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Notes brought up to date.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Notes brought up to date."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Any arrange brings a note the API made before notes showed their "
+    },
+    {
+     "t": "code",
+     "v": "title"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "color"
+    },
+    {
+     "t": "text",
+     "v": " up to date: its title becomes its heading, its colour its fill, and its height its text's (see "
+    },
+    {
+     "t": "link",
+     "v": "Notes",
+     "href": "/docs/api/cards#notes",
+     "children": [
+      {
+       "t": "text",
+       "v": "Notes"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "). Only a note nobody has opened or resized in the app is touched, and one edited while the arrange runs keeps what was written there and is only moved. "
+    },
+    {
+     "t": "code",
+     "v": "repaired"
+    },
+    {
+     "t": "text",
+     "v": " counts them."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
      "v": "`justified`",
      "children": [
       {
@@ -64337,7 +64562,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — the default. Rows of equal height, each picture at its true aspect ratio, flush on "
+     "v": " — rows of equal height, each picture at its true aspect ratio, flush on "
     },
     {
      "t": "strong",
@@ -64468,7 +64693,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " Cards in a "
+     "v": " With every layout, cards in a "
     },
     {
      "t": "link",
@@ -64483,7 +64708,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " are laid out a group at a time, each group as its own block with room for its outline and name, and the blocks are set out side by side (in one line for "
+     "v": " are laid out a group at a time, each group as its own block with room for its outline and name; with the named ones the blocks are set out side by side (in one line for "
     },
     {
      "t": "code",
@@ -64499,7 +64724,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "). Cards in no group make one block more. Arranging a board that is already arranged moves nothing, except that "
+     "v": "). Cards in no group make one block more. Arranging a board that is already arranged moves nothing: "
+    },
+    {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " and "
     },
     {
      "t": "code",
@@ -64507,7 +64740,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " can re-balance its rows: it works from the sizes it set the time before, so a row can end a card sooner or later."
+     "v": " size each image from its own pixels, so a picture shows whole rather than cropped to the card it was given, and comes out the same size the next time."
     }
    ]
   },
@@ -64544,6 +64777,20 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "order"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Card ids to put first, in this order; the rest follow in reading order."
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "gap"
       }
      ],
@@ -64564,7 +64811,15 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "The width the block is solved against. Omit it and a roughly square block is chosen from the number of items — a canvas has no edges, so there is no container to infer one from."
+       "v": "The width the block is solved against, not "
+      },
+      {
+       "t": "code",
+       "v": "auto"
+      },
+      {
+       "t": "text",
+       "v": ". Omit it and a roughly square block is chosen from the number of items — a canvas has no edges, so there is no container to infer one from."
       }
      ]
     ],
@@ -64654,8 +64909,207 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " chooses its own widths, so it takes only "
+    },
+    {
+     "t": "code",
+     "v": "order"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "gap"
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The answer:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Field"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Meaning"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "layout"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The layout used"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "arranged"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "How many cards were laid out"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "repaired"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Notes the API made earlier, brought up to date"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "sections"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "How many sections the cards laid out are in"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "bounds"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "x"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "y"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "w"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "h"
+      },
+      {
+       "t": "text",
+       "v": " of the cards laid out"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "not_found"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Ids in "
+      },
+      {
+       "t": "code",
+       "v": "card_ids"
+      },
+      {
+       "t": "text",
+       "v": " that aren't on the board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "cards"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Those cards, as they now are"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
      "t": "text",
      "v": "Two things worth knowing. "
+    },
+    {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " and "
     },
     {
      "t": "code",
@@ -64667,17 +65121,40 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "resizes",
+     "v": "resize",
      "children": [
       {
        "t": "text",
-       "v": "resizes"
+       "v": "resize"
       }
      ]
     },
     {
      "t": "text",
-     "v": " cards — fitting a row to a width is a resize, and it is the only layout that does. And a named layout arranges the "
+     "v": " pictures — fitting a row to a width is a resize — and "
+    },
+    {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " stretches a palette to its section's width; the other layouts only move cards. And a layout named on a "
+    },
+    {
+     "t": "link",
+     "v": "card write",
+     "href": "/docs/api/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "card write"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " arranges the "
     },
     {
      "t": "em",
@@ -69370,11 +69847,27 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
+       "v": "order?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
        "v": "dry_run?"
       },
       {
        "t": "text",
-       "v": " — lay a board out"
+       "v": " — lay a board out or tidy it: "
+      },
+      {
+       "t": "code",
+       "v": "auto"
+      },
+      {
+       "t": "text",
+       "v": " unless another layout is named, which also brings notes made earlier up to date"
       }
      ]
     ],

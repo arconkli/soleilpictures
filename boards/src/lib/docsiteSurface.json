@@ -74,7 +74,7 @@
   "mcpTools": [
     {
       "name": "add_cards",
-      "schema": "9070787494ce"
+      "schema": "608935524163"
     },
     {
       "name": "add_comment",
@@ -82,7 +82,7 @@
     },
     {
       "name": "arrange_board",
-      "schema": "0c0ed0233403"
+      "schema": "18a2ede5d304"
     },
     {
       "name": "create_boards",
@@ -110,7 +110,7 @@
     },
     {
       "name": "import_urls",
-      "schema": "1de170ca654e"
+      "schema": "60abbf02b62d"
     },
     {
       "name": "list_audit",
@@ -257,6 +257,7 @@
     "route /oauth/token"
   ],
   "layoutAlgorithms": [
+    "auto",
     "column",
     "grid",
     "justified",

@@ -69,8 +69,12 @@ import { fitNoteSize, NOTE_FIT } from './lib/noteFit.js';
 import { noteSourceHtml, htmlHasText } from './lib/noteBody.js';
 import {
   readNoteColor, readSwatches, paletteSize, publicSwatches, readSections, resolveSections,
-  sectionName, sectionKey,
+  sectionName, sectionKey, noteHtmlFor, noteRepair, pictureSize,
 } from './lib/apiCards.js';
+import {
+  AUTO_LAYOUT, API_LAYOUTS, arrangeAuto, rearrangeAuto, inOrder as cardsInOrder,
+} from './lib/layoutAuto.js';
+import { blockBounds } from './lib/moodboard.js';
 import { imageDimensions, extensionFor } from './lib/imageDims.js';
 import { meaningfulFileName } from './lib/fileIngest.js';
 import { reserveUploadSpace } from './lib/uploadReserve.js';
@@ -97,7 +101,7 @@ import {
 } from './lib/mcpDrafts.js';
 import { makeEdgeLimiter } from './lib/edgeLimits.js';
 import {
-  arrange, rearrange, placeGrouped, LAYOUTS, DEFAULT_LAYOUT, isLayout,
+  arrange, rearrange, placeGrouped, DEFAULT_LAYOUT,
 } from './lib/layoutEngine.js';
 import {
   normalizeImportItems, cardSpecFor, kindForContentType, noteFor, mapWithConcurrency,
@@ -509,15 +513,10 @@ function noteShowsItsText(c, out, { partial, before, warn }) {
   const titleGiven = 'title' in c;
   const bodyGiven = 'body' in c;
   if (!partial) {
-    if ('html' in c) {
-      // The caller's own html, under the title it named when it doesn't open
-      // with a heading of its own.
-      if (out.title && htmlHasText(out.html) && !/^\s*<h[1-3][\s>]/i.test(out.html)) {
-        out.html = composeNoteHtml({ title: out.title }) + out.html;
-      }
-    } else if (out.title || out.body) {
-      out.html = composeNoteHtml({ title: out.title, body: out.body });
-    }
+    // The caller's own html, under the title it named when it doesn't open
+    // with a heading of its own; else its title and body, composed.
+    const html = noteHtmlFor({ title: out.title, body: out.body, html: out.html });
+    if (typeof html === 'string') out.html = html;
   } else if ((titleGiven || bodyGiven) && !('html' in c) && before && apiOwnsNoteHtml(before)) {
     out.html = composeNoteHtml({
       title: titleGiven ? out.title : before.title,
@@ -574,7 +573,8 @@ function layoutCards(built, existing, layoutOpts = null, { order = null } = {}) 
   // should win. Without a name, behaviour is exactly what it has always been —
   // place only what is missing coordinates.
   if (layoutOpts) {
-    const laid = new Map(arrange(existing, inOrder(built), layoutOpts).map((c) => [c.id, c]));
+    const lay = layoutOpts.layout === AUTO_LAYOUT ? arrangeAuto : arrange;
+    const laid = new Map(lay(existing, inOrder(built), layoutOpts).map((c) => [c.id, c]));
     return built.map((c) => laid.get(c.id))
       .filter((c) => c && Number.isFinite(c.x) && Number.isFinite(c.y));
   }
@@ -659,14 +659,55 @@ function sectionsFor(incoming, built, body, { userId, partial = false }) {
 // The sections a write named, on the wire: each with whether this call made it.
 const publicSections = (plan) => plan.sections.map((g) => ({ ...publicGroup(g), created: g.created === true }));
 
+// A layout the API takes by name: auto, or one the canvas shares.
+const isApiLayout = (name) => API_LAYOUTS.includes(name);
+const layoutRefusal = (v) => `layout must be one of ${API_LAYOUTS.join(', ')} — got ${JSON.stringify(String(v).slice(0, 40))}`;
+
+// What comes first, by card id: arrange's `order`. null when not given.
+function orderFrom(v) {
+  if (v == null) return null;
+  if (!Array.isArray(v) || v.some((id) => typeof id !== 'string' || !id)) {
+    throw fail(400, 'bad_request', 'order lists card ids, first to last: ["api-…", "api-…"]');
+  }
+  if (v.length > MAX_CARDS_PER_CALL) throw fail(400, 'bad_request', `at most ${MAX_CARDS_PER_CALL} ids in order`);
+  return v.map((id) => id.slice(0, 200));
+}
+
+// Pixel sizes of pictures by their storage key, read as the user: a picture
+// they can't read stays unknown. A hundred keys a read, so the address stays
+// short. Map(key → { width, height }).
+async function imageDims(env, token, keys) {
+  const unique = [...new Set(keys.filter(Boolean))];
+  const chunks = [];
+  for (let i = 0; i < unique.length; i += 100) chunks.push(unique.slice(i, i + 100));
+  const reads = await Promise.all(chunks.map((part) => userSelect(env, token, 'images',
+    `storage_path=in.${encodeURIComponent(pgInList(part))}&deleted_at=is.null&select=storage_path,width,height`)));
+  const dims = new Map();
+  for (const r of reads.flat()) {
+    if (r?.width > 0 && r?.height > 0) dims.set(r.storage_path, { width: r.width, height: r.height });
+  }
+  return dims;
+}
+
+// An image card added by its image_key with no w or h: sized to the picture's
+// own shape (pictureSize) rather than a 280×180 that crops it.
+async function sizePictures(env, token, incoming, built) {
+  const keys = built.map((c, i) => (c?.kind === 'image' && !Number.isFinite(incoming[i]?.w)
+    && !Number.isFinite(incoming[i]?.h) ? keyFromSrc(c.src) : null));
+  if (!keys.some(Boolean)) return;
+  const dims = await imageDims(env, token, keys);
+  keys.forEach((key, i) => {
+    const d = key ? dims.get(key) : null;
+    const size = d ? pictureSize(d.width, d.height) : null;
+    if (size) Object.assign(built[i], size);
+  });
+}
+
 // The layout knobs, read off a request body. Returns null when no layout was
 // named, which is what keeps the previous implicit behaviour intact.
 function layoutOptionsFrom(body) {
   if (!body || body.layout == null) return null;
-  if (!isLayout(body.layout)) {
-    throw fail(400, 'bad_request',
-      `layout must be one of ${LAYOUTS.join(', ')} — got ${JSON.stringify(String(body.layout).slice(0, 40))}`);
-  }
+  if (!isApiLayout(body.layout)) throw fail(400, 'bad_request', layoutRefusal(body.layout));
   return {
     layout: body.layout,
     ...(Number.isFinite(body.gap) ? { gap: body.gap } : {}),
@@ -3363,9 +3404,7 @@ async function dispatch(url, request, env, ctx) {
       // Justified by default: an import is almost always photographs, and the
       // uniform-grid fallback leaves a hole around every portrait frame.
       const importLayout = body.layout === null ? null : (body.layout || DEFAULT_LAYOUT);
-      if (importLayout !== null && !isLayout(importLayout)) {
-        throw fail(400, 'bad_request', `layout must be one of ${LAYOUTS.join(', ')}`);
-      }
+      if (importLayout !== null && !isApiLayout(importLayout)) throw fail(400, 'bad_request', layoutRefusal(importLayout));
       const res = await internalCall(url, env, ctx, { auth, token }, `/boards/${id}/cards`, {
         method: 'POST',
         body: {
@@ -3427,7 +3466,8 @@ async function dispatch(url, request, env, ctx) {
   //
   // Layout used to be a side effect: omit x and y on a write and the batch got
   // packed. There was no way to ASK for one, and no way to tidy a board that
-  // was already a mess. This is that operation, by name.
+  // was already a mess. This is that operation, by name; `auto` unless another
+  // is named (lib/layoutAuto.js).
   //
   // The block is re-anchored on its own current top-left rather than migrating
   // to the bottom of the board, and is pushed clear of the cards it is NOT
@@ -3438,28 +3478,62 @@ async function dispatch(url, request, env, ctx) {
     if (!board) throw fail(404, 'not_found', 'board not found');
     await requireBoardWrite(env, token, id);
 
-    const layout = body.layout || DEFAULT_LAYOUT;
-    if (!isLayout(layout)) {
-      throw fail(400, 'bad_request', `layout must be one of ${LAYOUTS.join(', ')} — got ${JSON.stringify(String(body.layout).slice(0, 40))}`);
-    }
+    const layout = body.layout || AUTO_LAYOUT;
+    if (!isApiLayout(layout)) throw fail(400, 'bad_request', layoutRefusal(body.layout));
+    const order = orderFrom(body.order);
 
-    const all = await readBoardCards(env, id, token);
+    const read = await readBoardCards(env, id, token);
     const requested = Array.isArray(body.card_ids) ? body.card_ids.map(String).filter(Boolean) : null;
-    const targetIds = requested ?? all.map((c) => String(c.id));
+    const targetIds = requested ?? read.map((c) => String(c.id));
     if (!targetIds.length) throw fail(400, 'bad_request', 'there is nothing on this board to arrange');
     if (targetIds.length > MAX_CARDS_PER_CALL) {
       throw fail(400, 'bad_request', `at most ${MAX_CARDS_PER_CALL} cards per arrange — got ${targetIds.length}`);
     }
-    const known = new Set(all.map((c) => String(c.id)));
+    const known = new Set(read.map((c) => String(c.id)));
     const notFound = targetIds.filter((c) => !known.has(c));
+    const target = new Set(targetIds);
 
-    const placed = rearrange(all, targetIds, {
+    // Notes the API wrote before a note showed what it was written with are
+    // brought up to date first (noteRepair), so each is laid out at the size its
+    // text needs; and pictures are laid out at their true shape, from their
+    // images rows, where the layout sizes them (auto and justified).
+    const repairs = new Map();
+    const shapes = layout === AUTO_LAYOUT || layout === 'justified'
+      ? await imageDims(env, token, read.filter((c) => target.has(String(c.id)) && c.kind === 'image')
+        .map((c) => keyFromSrc(c.src)))
+      : new Map();
+    const all = read.map((c) => {
+      if (!target.has(String(c.id))) return c;
+      const fix = noteRepair(c);
+      if (fix) repairs.set(String(c.id), { fix, html: c.html ?? null });
+      const d = c.kind === 'image' ? shapes.get(keyFromSrc(c.src)) : null;
+      const aspect = d ? d.width / d.height : null;
+      if (!fix && !aspect) return c;
+      const out = { ...c, ...fix };
+      if (aspect) {
+        out.aspect = aspect;
+        if (Number.isFinite(out.w) && out.w > 0) out.h = Math.max(1, Math.round(out.w / aspect));
+      }
+      return out;
+    });
+
+    const knobs = {
       layout,
       ...(Number.isFinite(body.gap) ? { gap: body.gap } : {}),
       ...(Number.isFinite(body.width) ? { width: body.width } : {}),
       ...(Number.isFinite(body.row_height) ? { rowHeight: body.row_height } : {}),
       ...(Number.isFinite(body.columns) ? { columns: body.columns } : {}),
-    });
+    };
+    const placed = (layout === AUTO_LAYOUT
+      ? rearrangeAuto(all, targetIds, { ...knobs, order })
+      : rearrange(cardsInOrder(all, order), targetIds, knobs)
+    ).map(({ aspect: _shape, ...c }) => c);
+
+    const box = blockBounds(placed);
+    const told = {
+      sections: new Set(placed.map((c) => c.groupId).filter(Boolean)).size,
+      ...(box ? { bounds: { x: box.x, y: box.y, w: box.w, h: box.h } } : {}),
+    };
 
     // A dry run computes the whole layout and writes nothing, so an agent can
     // look at where things would land — and compare two layouts — before
@@ -3470,23 +3544,41 @@ async function dispatch(url, request, env, ctx) {
         layout,
         dry_run: true,
         arranged: placed.length,
+        repaired: placed.filter((c) => repairs.has(String(c.id))).length,
+        ...told,
         not_found: notFound,
         cards: placed.map(publicCard),
       });
     }
 
+    // A note brought up to date only while it is as it was read: one opened,
+    // edited or sized by hand in the meantime keeps its text and is only moved.
+    const repaired = new Set();
     const updated = await updateCardsOnBoard(env, {
       boardId: id, workspaceId: board.workspace_id, userId: auth.userId, accessToken: token,
-      patches: placed.map((c) => ({
-        cardId: c.id,
-        patch: { x: c.x, y: c.y, w: c.w, h: c.h },
-      })),
+      patches: placed.map((c) => {
+        const geometry = { x: c.x, y: c.y, w: c.w, h: c.h };
+        const was = repairs.get(String(c.id));
+        if (!was) return { cardId: c.id, patch: geometry };
+        return {
+          cardId: c.id,
+          patch: (before) => {
+            if (before.noteFragmentSeeded || before.manuallyResized || (before.html ?? null) !== was.html) {
+              return { x: c.x, y: c.y };
+            }
+            repaired.add(String(c.id));
+            return { ...was.fix, ...geometry };
+          },
+        };
+      }),
     });
 
     return json({
       board_id: id,
       layout,
       arranged: updated.filter(Boolean).length,
+      repaired: repaired.size,
+      ...told,
       not_found: notFound,
       cards: updated.filter(Boolean).map(publicCard),
     });
@@ -4729,6 +4821,7 @@ async function dispatch(url, request, env, ctx) {
         throw e;
       }
     });
+    await sizePictures(env, token, incoming, built);
     // Sections named by name, made with their cards, and group ids checked on
     // the board (sectionsFor). null when no card names a group.
     const plan = sectionsFor(incoming, built, body, { userId: auth.userId });

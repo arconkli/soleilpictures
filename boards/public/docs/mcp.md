@@ -215,7 +215,7 @@ quietly failing.
 | `update_boards` | `boards[]` — up to 100, each a `board_id` and any of `name`, `view`, `parent_board_id` (`null` for the top level), `identifiers`, `props` · each board is changed on its own, and the answer lists the boards updated and why any failed |
 | `update_cards` | `board_id`, `cards[]` — up to 1000, each an `id` and any field `add_cards` takes — `group` by name or `group_id` (empty to ungroup), `z`, `rotation`, `section_header`, `swatches`, `identifiers`, `props`, and any kind; `groups?` · a note's new title or body is written into it, and its height follows |
 | `edit_doc_page` | `board_id`, `card_id`, `page_id`, and `markdown` with `page_hash`, or `edits[]` (up to 50), or `title` · marked destructive, since a rewrite takes words away; the board goes to Version history first |
-| `arrange_board` | `board_id`, `layout?`, `card_ids?`, `dry_run?` — lay a board out |
+| `arrange_board` | `board_id`, `layout?`, `card_ids?`, `order?`, `dry_run?` — lay a board out or tidy it: `auto` unless another layout is named, which also brings notes made earlier up to date |
 | `move_cards` | `from_board_id`, `to_board_id`, `card_ids[]` |
 | `tag_cards` | `board_id`, `card_ids[]` (up to 200), `add[]?`, `remove[]?` (tag names or ids, up to 10 each) — put [tags](/docs/api/tags) on cards or take them off, as the Tag menu does; a new name makes the tag |
 | `resolve_comments` | `board_id`, `comment_ids[]` (up to 50), `resolved?` — resolve threads, or reopen them with `false`; lists any refused, with why |

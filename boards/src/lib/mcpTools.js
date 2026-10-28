@@ -1101,7 +1101,7 @@ export const TOOLS = [
       },
       groups: SECTIONS_LIST,
       layout: str('Arrange the whole batch this way instead of appending in free space',
-        { enum: ['justified', 'masonry', 'grid', 'row', 'column'] }),
+        { enum: ['auto', 'justified', 'masonry', 'grid', 'row', 'column'] }),
     }, ['board_id', 'cards']),
     outputSchema: looseObject({
       board_id: { type: 'string' },
@@ -1148,7 +1148,7 @@ export const TOOLS = [
         items: { type: 'string' },
       },
       layout: str('How to arrange what lands. Default justified.',
-        { enum: ['justified', 'masonry', 'grid', 'row', 'column'] }),
+        { enum: ['auto', 'justified', 'masonry', 'grid', 'row', 'column'] }),
       dry_run: bool('Check the list without fetching or creating anything'),
     }, ['board_id', 'urls']),
     outputSchema: looseObject({
@@ -1471,20 +1471,27 @@ export const TOOLS = [
   {
     name: 'arrange_board',
     title: 'Lay a board out',
-    description: 'ARRANGES cards spatially. "justified" fits rows flush on both edges with each '
-      + 'picture at its true aspect ratio — the right answer for photographs, and the default. '
-      + '"masonry" is colour-ordered columns, "grid" uniform cells (best for mixed kinds), '
-      + '"row" and "column" single lines. Cards in a group stay together, one block per group. '
-      + 'Omit card_ids to arrange the whole board. The block '
-      + 'stays where it already was and is kept clear of cards it is not moving. Use dry_run to '
-      + 'see where things would land, and to compare two layouts, before moving anyone’s board.',
+    description: 'ARRANGES cards that are already on a board, and is how to tidy one. The default, "auto", '
+      + 'lays each section (group) out as its own block, notes in columns at their own size and pictures in '
+      + 'rows, every picture whole, and sets the sections out in order near the shape of a screen; it also '
+      + 'brings notes the API made earlier up to date (their title shown, their colour painted, sized to their '
+      + 'text). order lists card ids that come first; otherwise cards keep their reading order. '
+      + '"justified" fits rows of pictures flush on both edges, "masonry" is colour-ordered columns, "grid" '
+      + 'uniform cells, "row" and "column" single lines. Omit card_ids to arrange the whole board. The block '
+      + 'stays where it already was and is kept clear of cards it is not moving. Use dry_run to see where '
+      + 'things would land, and to compare two layouts, before moving anyone’s board.',
     annotations: EDITS,
     inputSchema: schema({
       board_id: uuid('The board'),
-      layout: str('Default justified', { enum: ['justified', 'masonry', 'grid', 'row', 'column'] }),
+      layout: str('Default auto', { enum: ['auto', 'justified', 'masonry', 'grid', 'row', 'column'] }),
       card_ids: { type: 'array', description: 'Omit to arrange everything', items: { type: 'string' } },
+      order: {
+        type: 'array',
+        description: 'Card ids to put first, in this order; the rest follow in reading order',
+        items: { type: 'string' },
+      },
       gap: num('Space between cards, default 24'),
-      width: num('Block width to solve against; defaults to a roughly square block'),
+      width: num('Block width to solve against (not auto); defaults to a roughly square block'),
       row_height: num('Target row height, justified only'),
       columns: num('Column cap, grid and masonry only'),
       dry_run: bool('Compute the layout and change nothing'),
@@ -1492,6 +1499,9 @@ export const TOOLS = [
     outputSchema: looseObject({
       layout: { type: 'string' },
       arranged: num('How many cards moved'),
+      repaired: num('Notes the API made earlier, brought up to date'),
+      sections: num('Sections among the cards arranged'),
+      bounds: looseObject({ x: num('Left'), y: num('Top'), w: num('Width'), h: num('Height') }),
       cards: { type: 'array', items: looseObject({}) },
     }),
     call: (a, { api }) => api(`/boards/${a.board_id}/arrange`, {
@@ -1499,6 +1509,7 @@ export const TOOLS = [
       body: {
         ...(a.layout ? { layout: a.layout } : {}),
         ...(a.card_ids ? { card_ids: a.card_ids } : {}),
+        ...(a.order ? { order: a.order } : {}),
         ...(Number.isFinite(a.gap) ? { gap: a.gap } : {}),
         ...(Number.isFinite(a.width) ? { width: a.width } : {}),
         ...(Number.isFinite(a.row_height) ? { row_height: a.row_height } : {}),
@@ -1507,7 +1518,11 @@ export const TOOLS = [
       },
     }),
     summary: (o, a) => `${a.dry_run ? 'Would arrange' : 'Arranged'} ${plural(o.arranged ?? o.cards?.length ?? 0, 'card')}`
-      + ` (${o.layout || a.layout || 'justified'})${a.dry_run ? '; nothing moved' : ''}`,
+      + (o.sections ? ` in ${plural(o.sections, 'section')}` : '')
+      + ` (${o.layout || a.layout || 'auto'})`
+      + (o.bounds ? `, ${Math.round(o.bounds.w)}×${Math.round(o.bounds.h)}` : '')
+      + (o.repaired ? `; ${plural(o.repaired, 'note')} ${a.dry_run ? 'would be brought' : 'brought'} up to date` : '')
+      + (a.dry_run ? '; nothing moved' : ''),
   },
   {
     name: 'move_cards',
@@ -1818,7 +1833,7 @@ export const PROMPTS = [
     render: (a) => `Read board ${a.board_id} with read_board (and view_board where the picture matters). `
       + 'Propose a grouping: groups on this board, or boards inside it, each with a name and the cards that go '
       + 'there. Do NOT create or move anything yet; show me the plan first. Flag anything that fits nowhere '
-      + 'rather than forcing it into a group. Once I agree: update_cards with each card\'s group named, or '
+      + 'rather than forcing it into a group. Once I agree: update_cards with each card\'s group named, then arrange_board, or '
       + 'create_boards and move_cards for boards.',
   },
   {

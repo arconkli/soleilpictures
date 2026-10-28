@@ -1390,3 +1390,161 @@ test('read_board over /mcp says what it read in its first line, then the JSON, p
   assert.deepEqual(out.structuredContent.cards.map((c) => Object.keys(c)), [['id', 'kind', 'body', 'group_id'], ['id', 'kind', 'body']]);
   assert.deepEqual(out.structuredContent.groups.map((g) => g.name), ['Stills']);
 });
+
+// ── arrange: auto, order, and notes brought up to date (P7) ──────────────────
+
+// A note the API made before a note showed what it was written with: title and
+// body only (the canvas drew the body), its colour on `color` (the canvas
+// paints bgColor), 280×180 whatever it held. ChatGPT's film diary, 2026-10-27.
+const oldApiNote = (id, groupId, title, x, y) => ({
+  id, kind: 'note', groupId, x, y, w: 280, h: 180, title, color: '#F3DDAA',
+  body: '9.75 / 10\n\nOne of your highest-rated films.\n\nNOTES\n• What makes the lead performance electric?\n'
+    + '• How does the film build momentum?\n• Favorite scene / sequence:',
+});
+
+const overlapping = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+const frameOf = (cards, g) => {
+  const m = cards.filter((c) => c.groupId === g);
+  const x = Math.min(...m.map((c) => c.x)); const y = Math.min(...m.map((c) => c.y));
+  return {
+    x: x - GROUP_OUTLINE_PAD, y: y - GROUP_LABEL_ROOM,
+    w: Math.max(...m.map((c) => c.x + c.w)) - x + 2 * GROUP_OUTLINE_PAD,
+    h: Math.max(...m.map((c) => c.y + c.h)) - y + GROUP_LABEL_ROOM + GROUP_OUTLINE_PAD,
+  };
+};
+
+function filmDiary() {
+  putBoard(B1, [
+    oldApiNote('api-1', 'g1', 'MARTY SUPREME (2025)', 80, 80),
+    oldApiNote('api-2', 'g1', 'SINNERS (2025)', 380, 80),
+    oldApiNote('api-3', 'g2', 'ONE BATTLE AFTER ANOTHER', 80, 290),
+    oldApiNote('api-4', 'g2', 'WEAPONS', 388, 290),
+    { ...oldApiNote('api-5', 'g2', 'Opened in the app', 80, 500), html: '<p>Rewritten</p>', noteFragmentSeeded: true },
+    { id: 'n-app', kind: 'note', groupId: 'g1', x: 680, y: 80, w: 280, h: 180, html: '<p>Made in the app</p>' },
+  ], { name: 'Film diary' }, [{ id: 'g1', name: 'Canon' }, { id: 'g2', name: 'Journal' }]);
+}
+
+test('a tidy is auto: each section a block apart from the others, and the API\'s older notes show their title and colour at their text\'s height', async () => {
+  filmDiary();
+  const r = await api('POST', `/boards/${B1}/arrange`, {});
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.layout, 'auto');
+  assert.equal(r.body.arranged, 6);
+  assert.equal(r.body.repaired, 4, 'the four the API made and nobody opened');
+  assert.equal(r.body.sections, 2);
+  assert.ok(r.body.bounds.w > 0 && r.body.bounds.h > 0);
+
+  const cards = cardsOn(B1);
+  const by = Object.fromEntries(cards.map((c) => [c.id, c]));
+  for (const id of ['api-1', 'api-2', 'api-3', 'api-4']) {
+    assert.match(by[id].html, /^<h2>[^<]+<\/h2><p>9\.75 \/ 10<\/p>/, `${id} shows its title`);
+    assert.equal(by[id].bgColor, '#f3ddaa');
+    assert.equal(by[id].color, null);
+    assert.ok(by[id].h > 180, `${id} is as tall as its text: ${by[id].h}`);
+  }
+  assert.equal(by['api-5'].html, '<p>Rewritten</p>', 'a note opened in the app keeps its text');
+  assert.equal(by['api-5'].h, 180);
+  assert.equal(by['n-app'].html, '<p>Made in the app</p>');
+  for (let i = 0; i < cards.length; i++) {
+    for (let j = i + 1; j < cards.length; j++) assert.ok(!overlapping(cards[i], cards[j]), `${cards[i].id} on ${cards[j].id}`);
+  }
+  assert.ok(!overlapping(frameOf(cards, 'g1'), frameOf(cards, 'g2')), 'the outlines and names stay apart');
+  assert.equal(Math.min(...cards.map((c) => c.x)), 80, 'where the board was');
+  assert.equal(Math.min(...cards.map((c) => c.y)), 80);
+
+  const again = await api('POST', `/boards/${B1}/arrange`, {});
+  assert.equal(again.body.repaired, 0);
+  const after = Object.fromEntries(cardsOn(B1).map((c) => [c.id, c]));
+  for (const c of cards) assert.deepEqual([after[c.id].x, after[c.id].y, after[c.id].w, after[c.id].h], [c.x, c.y, c.w, c.h], `${c.id} moved`);
+});
+
+test('a dry run says what a tidy would bring up to date, and writes nothing', async () => {
+  filmDiary();
+  const before = cardsOn(B1);
+  const r = await api('POST', `/boards/${B1}/arrange`, { dry_run: true });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.repaired, 4);
+  assert.match(r.body.cards.find((c) => c.id === 'api-1').html, /^<h2>MARTY/);
+  assert.deepEqual(cardsOn(B1), before);
+});
+
+test('a note edited in the app while a tidy runs keeps what was written, and is only moved', async () => {
+  filmDiary();
+  const edited = new Y.Doc();
+  Y.applyUpdate(edited, b64ToBytes(boards.get(B1).doc));
+  edited.getMap('cards').get('api-1').set('html', '<p>Typed just now</p>');
+  const later = bytesToB64(Y.encodeStateAsUpdate(edited));
+  let reads = 0;
+  on('GET', 'board_state', () => {
+    reads += 1;
+    return reply([{ doc: reads === 1 ? boards.get(B1).doc : later }]);
+  });
+  const r = await api('POST', `/boards/${B1}/arrange`, {});
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.repaired, 3);
+  const note = cardsOn(B1).find((c) => c.id === 'api-1');
+  assert.equal(note.html, '<p>Typed just now</p>');
+  assert.equal(note.bgColor, undefined);
+});
+
+test('order puts cards first, the rest in reading order; anything but a list of ids is refused', async () => {
+  putBoard(B1, ['a', 'b', 'c', 'd'].map((id, i) => ({ id, kind: 'note', x: 80 + i * 300, y: 80, w: 280, h: 180 })));
+  const bad = await api('POST', `/boards/${B1}/arrange`, { order: 'd' });
+  assert.equal(bad.status, 400);
+  assert.match(bad.body.error, /order lists card ids/);
+  const r = await api('POST', `/boards/${B1}/arrange`, { order: ['d', 'nope', 'c'] });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const read = cardsOn(B1).sort((p, q) => (p.y - q.y) || (p.x - q.x)).map((c) => c.id);
+  assert.deepEqual(read, ['d', 'c', 'a', 'b']);
+  const named = await api('POST', `/boards/${B1}/arrange`, { layout: 'grid', order: ['b'] });
+  assert.equal(named.status, 200);
+  const wrong = await api('POST', `/boards/${B1}/arrange`, { layout: 'tidy' });
+  assert.equal(wrong.status, 400);
+  assert.match(wrong.body.error, /auto, justified/);
+});
+
+test('pictures are laid out at their true shape, and one added with no size takes its own', async () => {
+  const rows = [
+    { storage_path: 'w1/tall.webp', width: 1000, height: 1500 },
+    { storage_path: 'w1/wide.webp', width: 1600, height: 900 },
+  ];
+  on('GET', 'images', (c) => {
+    const keys = idFromQuery(c.query, 'storage_path') || [];
+    return reply(rows.filter((r) => keys.includes(r.storage_path)));
+  });
+  putBoard(B1, [
+    { id: 'p1', kind: 'image', src: 'r2:w1/tall.webp', x: 80, y: 80, w: 280, h: 180 },
+    { id: 'p2', kind: 'image', src: 'r2:w1/wide.webp', x: 400, y: 80, w: 280, h: 180 },
+  ]);
+  const r = await api('POST', `/boards/${B1}/arrange`, {});
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const by = Object.fromEntries(cardsOn(B1).map((c) => [c.id, c]));
+  assert.ok(Math.abs(by.p1.w / by.p1.h - 1000 / 1500) < 0.02, `${by.p1.w}×${by.p1.h}`);
+  assert.ok(Math.abs(by.p2.w / by.p2.h - 1600 / 900) < 0.02, `${by.p2.w}×${by.p2.h}`);
+
+  const add = await api('POST', `/boards/${B1}/cards`, {
+    cards: [{ kind: 'image', image_key: 'w1/tall.webp' }, { kind: 'image', image_key: 'w1/wide.webp' },
+      { kind: 'image', image_key: 'w1/wide.webp', w: 500, h: 100 }, { kind: 'image', image_key: 'w1/unknown.webp' }],
+  });
+  assert.equal(add.status, 201, JSON.stringify(add.body));
+  assert.deepEqual(add.body.cards.map((c) => [c.w, c.h]), [[280, 420], [280, 158], [500, 100], [280, 180]]);
+});
+
+test('a card write can name auto, and its sections land apart', async () => {
+  putBoard(B1, [], { name: 'Films' });
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    layout: 'auto',
+    cards: ['Canon', 'Canon', 'Journal', 'Canon', 'Journal', 'To watch'].map((group, i) => ({
+      kind: 'note', title: `n${i}`, body: 'A line.\nAnother.'.repeat(1 + (i % 3)), group,
+    })),
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  const cards = cardsOn(B1);
+  const groups = [...new Set(cards.map((c) => c.groupId))];
+  assert.equal(groups.length, 3);
+  for (let i = 0; i < groups.length; i++) {
+    for (let j = i + 1; j < groups.length; j++) {
+      assert.ok(!overlapping(frameOf(cards, groups[i]), frameOf(cards, groups[j])), 'sections apart');
+    }
+  }
+});
