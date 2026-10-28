@@ -305,3 +305,40 @@ test("0746: marks credit only recorded sharers and leave banned rows out; worksp
     strip(sql0745.match(/create or replace function public\.admin_user_sharing\(p_user_id uuid\)[\s\S]*?\$fn\$;|create or replace function public\.admin_user_sharing\(p_user_id uuid\)[\s\S]*?\$function\$;/)?.[0] ?? ''),
     "admin_user_sharing is 0745's but for that one line");
 });
+
+// 0747: the live feed in words. A new read beside the two the console already
+// calls, so production's admin is untouched.
+const FILE_0747 = '0747_live_feed_words.sql';
+const sql0747 = readFileSync(join(MIGRATIONS_DIR, FILE_0747), 'utf8');
+const proof0747 = sql0747.slice(sql0747.indexOf('do $proof$'));
+
+test('0747: the words read is an admin definer, signed-in only, its helper closed, and the feed reads are left alone', () => {
+  assert.match(sql0747, /^begin;$/m);
+  assert.ok(sql0747.trimEnd().endsWith('commit;'));
+  const words = latestDefinition('admin_event_words');
+  assert.equal(words.file, FILE_0747);
+  assert.match(words.body, /security definer/);
+  assert.match(words.body, /perform public\._require_admin\(\);/);
+  assert.match(words.body, /cardinality\(p_ids\) > 200/);
+  assert.match(sql0747, /revoke execute on function public\._admin_event_facts\(text, jsonb, uuid\) from public, anon, authenticated;/);
+  assert.match(sql0747, /revoke execute on function public\.admin_event_words\(uuid\[\], boolean\) from public, anon;/);
+  assert.doesNotMatch(sql0747, /function public\.admin_recent_events|function public\.admin_events_by_id/,
+    'the two reads production calls are not touched');
+  assert.match(proof0747, /a non-admin read the feed/);
+});
+
+test("0747: the internal rule is admin_events_by_id's word for word, and the proof compares their rows", () => {
+  const rule = (b) => b.match(/and \(not p_exclude_internal[\s\S]*?\)\)\)\)/)[0].replace(/\s+/g, ' ');
+  assert.equal(rule(latestDefinition('admin_event_words').body), rule(latestDefinition('admin_events_by_id').body));
+  assert.match(proof0747, /the internal rule differs from admin_events_by_id''s/);
+});
+
+test('0747: the facts copy only listed props, never a token or a device, and only for sharing events', () => {
+  const facts = latestDefinition('_admin_event_facts').body;
+  const keys = facts.match(/foreach v_key in array array\[([\s\S]*?)\] loop/)[1].match(/'[^']+'/g).map((k) => k.slice(1, -1));
+  for (const k of keys) assert.doesNotMatch(k, /token|session|device|email/, `${k} is safe to copy`);
+  assert.doesNotMatch(facts.replace(/--.*$/gm, ''), /'token'|session_id|device_id/);
+  assert.match(facts, /return '\{\}'::jsonb;/, 'every other event carries nothing');
+  assert.match(proof0747, /a token or a device left in the facts/);
+  assert.match(proof0747, /a bad id or an unlisted key got through/);
+});
