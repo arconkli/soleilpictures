@@ -235,9 +235,11 @@ test("every reader that took 0149's rule asks the helper, and the proof names ea
   // 0462 moved one more column of admin_list_users onto the helper; 0472 gave
   // admin_event_coverage four more rows, and 0475 counted an import's start
   // toward first_cluster; 0495 made admin_first_session_compare read each
-  // signup day once. Each later body still asks the helper.
+  // signup day once; 0746 gave the Users list and its count a Sharing filter.
+  // Each later body still asks the helper.
   const LATER = {
-    admin_list_users: FILE_0462,
+    admin_list_users: '0746_users_list_sharing.sql',
+    admin_user_count: '0746_users_list_sharing.sql',
     admin_event_coverage: '0475_import_clusters_count_as_imports.sql',
     admin_first_session_compare: '0495_first_session_compare_reads_day_one_once.sql',
   };
@@ -440,7 +442,10 @@ test("0462: the Users list's email_confirmed is the helper's verdict, and nothin
   assert.equal(bodyText(d.body), bodyText(codeEntrySwap(prev.body, { confirmedAlone: true })), 'only email_confirmed moved');
   assert.match(d.body, /\(u\.id in \(select ec\.entered_id from public\._admin_entered_code\(\) ec\)\) as email_confirmed,/);
   assert.doesNotMatch(d.body, /email_confirmed_at/, 'the raw stamp is read nowhere in it');
-  assert.equal(latestDefinition('admin_list_users').file, FILE_0462);
+  // 0746 restated it with a Sharing filter; the column is still the helper's.
+  const later = latestDefinition('admin_list_users');
+  assert.equal(later.file, '0746_users_list_sharing.sql');
+  assert.match(later.body, /\(u\.id in \(select ec\.entered_id from public\._admin_entered_code\(\) ec\)\) as email_confirmed,/);
 
   const proof462 = src462.match(/do \$proof\$[\s\S]*?\$proof\$;/)?.[0] ?? '';
   assert.match(proof462, /'public\.admin_list_users\(integer,integer,text,text,text,text,text,text,text,text\)'/);
