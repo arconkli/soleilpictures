@@ -65895,6 +65895,44 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "arrangement"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "auto"
+      },
+      {
+       "t": "text",
+       "v": " only: how it set the sections out, "
+      },
+      {
+       "t": "code",
+       "v": "pictures"
+      },
+      {
+       "t": "text",
+       "v": " (pictures lead), "
+      },
+      {
+       "t": "code",
+       "v": "columns"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "blocks"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "arranged"
       }
      ],

@@ -1194,6 +1194,9 @@ test('every summary reads an answer missing its fields without throwing, in one 
 
 test('summaries say what happened, with the link and the way on', () => {
   const say = (name, o, a = {}) => tool(name).summary(o, a);
+  assert.equal(say('arrange_board', { layout: 'auto', arrangement: 'pictures', arranged: 9, sections: 3, bounds: { w: 2400.4, h: 1500 } }),
+    'Arranged 9 cards in 3 sections (auto: pictures leading), 2400×1500');
+  assert.equal(say('arrange_board', { layout: 'grid', arranged: 2 }), 'Arranged 2 cards (grid)');
   assert.equal(say('read_board', {
     board: { name: 'Diner' }, url: 'https://x/?to=b:1', cards: [{}, {}], total: 42, offset: 0,
     has_more: true, next_offset: 2, groups: [],

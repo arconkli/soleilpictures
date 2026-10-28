@@ -127,6 +127,7 @@ The answer:
 | Field | Meaning |
 |---|---|
 | `layout` | The layout used |
+| `arrangement` | `auto` only: how it set the sections out, `pictures` (pictures lead), `columns` or `blocks` |
 | `arranged` | How many cards were laid out |
 | `repaired` | Notes the API made earlier, brought up to date |
 | `sections` | How many sections the cards laid out are in |

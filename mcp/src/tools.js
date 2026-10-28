@@ -511,6 +511,8 @@ export const UNTRUSTED_NOTE = 'What people wrote (names, card text, captions, co
 // the person and the way on when there is more (mcpServer.js puts it above the
 // JSON). search and fetch have none: ChatGPT reads their text as JSON.
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+// auto's arrangements (lib/layoutAuto.js ARRANGEMENTS), as arrange_board says them.
+const ARRANGED_AS = { pictures: 'pictures leading', columns: 'sections as columns', blocks: 'sections in blocks' };
 const named = (s, n = 80) => `"${clip(s || 'Untitled', n)}"`;
 const at = (url) => (url ? ` · ${url}` : '');
 // " in 4 sections (2 new)", for a write that named its sections.
@@ -1572,6 +1574,7 @@ export const TOOLS = [
     }, ['board_id']),
     outputSchema: looseObject({
       layout: { type: 'string' },
+      arrangement: str('auto only: how the sections were set out', { enum: ['columns', 'blocks', 'pictures'] }),
       arranged: num('How many cards moved'),
       repaired: num('Notes the API made earlier, brought up to date'),
       sections: num('Sections among the cards arranged'),
@@ -1593,7 +1596,7 @@ export const TOOLS = [
     }),
     summary: (o, a) => `${a.dry_run ? 'Would arrange' : 'Arranged'} ${plural(o.arranged ?? o.cards?.length ?? 0, 'card')}`
       + (o.sections ? ` in ${plural(o.sections, 'section')}` : '')
-      + ` (${o.layout || a.layout || 'auto'})`
+      + ` (${o.layout || a.layout || 'auto'}${ARRANGED_AS[o.arrangement] ? `: ${ARRANGED_AS[o.arrangement]}` : ''})`
       + (o.bounds ? `, ${Math.round(o.bounds.w)}×${Math.round(o.bounds.h)}` : '')
       + (o.repaired ? `; ${plural(o.repaired, 'note')} ${a.dry_run ? 'would be brought' : 'brought'} up to date` : '')
       + (a.dry_run ? '; nothing moved' : ''),
