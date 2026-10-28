@@ -1,20 +1,20 @@
-// What a doc's footer reports: the current page's word and character counts,
-// and an HONEST save state, for the doc look's footer
-// (components/doc/DocFrameA.jsx).
-//
-// The save state is driven by yboard's real persistence lifecycle (the
-// `soleil-board-save-state` event: saving → saved / error) rather than a fixed
-// timer — so it no longer claims "Saved" when a write actually failed, and
-// peer edits don't flip your own indicator.
+// What a doc's footer and a phone's title line report: the current page's word
+// and character counts, and a save state that claims only what is proven
+// (lib/docSaveStatus.js): Saved once the cluster's room says it holds every
+// change made here, or a whole-board save did; and, when the room can't be
+// reached, whether the changes are kept on this device.
 
 import { useEffect, useState } from 'react';
 import { docCounts } from '../lib/docCounts.js';
+import { acquireSaveTracker, saveLine } from '../lib/docSaveStatus.js';
 
-export function useDocStatus({ editor, boardId = null }) {
+const NOTHING = Object.freeze({ mode: 'none', pending: false, savedAt: null });
+
+// `doc`: the cluster's Y.Doc. `room`: its live room, once attached (DocSurface
+// passes it then). `boardId`: the board whose saves these are, or null, when
+// none count (another board's never do).
+export function useDocStatus({ editor, boardId = null, doc = null, room = null }) {
   const [counts, setCounts] = useState({ words: 0, chars: 0 });
-  const [savedAt, setSavedAt] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState(false);
 
   // Word/char count for current page. Counted once typing pauses: the full
   // textContent + split per keystroke was a whole-document pass on every
@@ -34,19 +34,18 @@ export function useDocStatus({ editor, boardId = null }) {
     return () => { clearTimeout(timer); editor.off('update', tick); };
   }, [editor]);
 
-  // Save indicator driven by yboard's actual save lifecycle.
+  // The doc's save tracker, shared with any other line that shows it. The
+  // room joins it when it attaches, so what's unsaved carries over.
+  const [tracker, setTracker] = useState(null);
+  const [snap, setSnap] = useState(NOTHING);
   useEffect(() => {
-    const onState = (e) => {
-      const d = e.detail || {};
-      // Match this board (when known); if boardId is unknown, accept any.
-      if (boardId && d.boardId && d.boardId !== boardId) return;
-      if (d.state === 'saving') { setSaving(true); setSaveError(false); }
-      else if (d.state === 'saved') { setSaving(false); setSaveError(false); setSavedAt(d.ts || Date.now()); }
-      else if (d.state === 'error') { setSaving(false); setSaveError(true); }
-    };
-    window.addEventListener('soleil-board-save-state', onState);
-    return () => window.removeEventListener('soleil-board-save-state', onState);
-  }, [boardId]);
+    const { tracker: t, release } = acquireSaveTracker(doc, { boardId });
+    setTracker(t);
+    setSnap(t.get());
+    const off = t.subscribe(() => setSnap(t.get()));
+    return () => { off(); release(); };
+  }, [doc, boardId]);
+  useEffect(() => { tracker?.setRoom(room); }, [tracker, room]);
 
   // Force a re-render every 30s so the "saved Xs ago" label stays fresh.
   const [, force] = useState(0);
@@ -55,8 +54,6 @@ export function useDocStatus({ editor, boardId = null }) {
     return () => clearInterval(t);
   }, []);
 
-  // Honest offline state: edits keep applying locally (Yjs), but the
-  // snapshot can't persist remotely — say so instead of "Saved Xs ago".
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
   useEffect(() => {
     const on = () => setOnline(true);
@@ -69,17 +66,7 @@ export function useDocStatus({ editor, boardId = null }) {
     };
   }, []);
 
-  const savedLabel = (() => {
-    if (!online) return 'Offline — changes will sync when you reconnect';
-    if (saveError) return "Couldn't save — retrying";
-    if (saving) return 'Saving…';
-    if (!savedAt) return 'All changes saved';
-    const ago = Math.max(0, Math.floor((Date.now() - savedAt) / 1000));
-    if (ago < 5) return 'Saved just now';
-    if (ago < 60) return `Saved ${ago}s ago`;
-    if (ago < 3600) return `Saved ${Math.floor(ago / 60)}m ago`;
-    return `Saved ${Math.floor(ago / 3600)}h ago`;
-  })();
-
-  return { words: counts.words, chars: counts.chars, online, saving, saveError, savedAt, savedLabel };
+  // yboard.js marks the doc when its last local draft didn't take.
+  const status = saveLine(snap, { online, kept: doc?._soleilKept !== false });
+  return { words: counts.words, chars: counts.chars, online, status, savedAt: snap.savedAt };
 }

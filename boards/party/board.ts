@@ -49,6 +49,7 @@ import { FLUSH_DEBOUNCE_MS, FLUSH_MAX_WAIT_MS, bytesToB64 } from "../src/lib/boa
 import { BoardRoomState, MERGE_ORIGIN } from "../src/lib/boardRoomState.js";
 import { roomGcFilter } from "../src/lib/roomGc.js";
 import { answerEmptyClose } from "../src/lib/partyClose.js";
+import { ROOM_ANSWERS, answerAck } from "../src/lib/roomAck.js";
 import { BoardBridge } from "./bridge";
 import { bindReports, reportParty } from "./report";
 
@@ -90,6 +91,9 @@ export class BoardParty extends YServer<Env> {
   private resetting = false;
   private opLogWired = false;
   private localHeldContent = false;
+  // The local copy failed to take an update, and no compaction has caught up
+  // since: until one does, this room can't say a change is stored (onCustomMessage).
+  private unlogged = false;
   // When each socket last sent anything. Keyed by the connection OBJECT:
   // connection.id is stable across a tab's reconnects.
   private lastHeard = new WeakMap<Connection, number>();
@@ -132,6 +136,7 @@ export class BoardParty extends YServer<Env> {
       try {
         if (!this.local.append(update) || this.local.pending > MAX_PENDING_UPDATES) this.compactLocal();
       } catch (e) {
+        this.unlogged = true;
         console.error(`[board ${this.name}] local log append failed`, e);
         this.problem("local log append", e);
       }
@@ -184,7 +189,9 @@ export class BoardParty extends YServer<Env> {
     if (this.resetting) return;
     try {
       this.local.compact(Y.encodeStateAsUpdate(this.document));
+      this.unlogged = false;
     } catch (e) {
+      this.unlogged = true;
       console.error(`[board ${this.name}] local compaction failed`, e);
       this.problem("local compaction", e);
     }
@@ -207,6 +214,9 @@ export class BoardParty extends YServer<Env> {
       canWrite: h.get("x-can-write") === "1",
     }));
     super.onConnect(conn, ctx);
+    // This room answers a doc's save line (onCustomMessage): said ahead of its
+    // sync reply, so a device that syncs without it knows not to wait for one.
+    this.sendCustomMessage(conn, ROOM_ANSWERS);
 
     // The op log (and the mass-delete detector it feeds) is wired once per
     // object, on the first connection, which is where the workspace id comes
@@ -232,6 +242,16 @@ export class BoardParty extends YServer<Env> {
   onMessage(conn: Connection, message: string | ArrayBuffer | ArrayBufferView) {
     this.lastHeard.set(conn, Date.now());
     super.onMessage(conn, message);
+  }
+
+  // A doc's save line asking whether this room has stored its changes
+  // (lib/roomAck.js: every update is in the local copy before anything later
+  // leaves this object). Nothing else is spoken this way, so anything else
+  // gets no answer, as does any question while the answer would prove nothing.
+  onCustomMessage(conn: Connection, message: string) {
+    if (this.resetting || this.unlogged) return;
+    const reply = answerAck(this.document, message, { canWrite: !this.isReadOnly(conn) });
+    if (reply) this.sendCustomMessage(conn, reply);
   }
 
   // A close with no status code gets its answer (lib/partyClose.js).

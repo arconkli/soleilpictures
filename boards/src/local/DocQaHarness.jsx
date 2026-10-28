@@ -29,6 +29,7 @@ import { setDocImageUploader } from '../components/docExtensions/ImageUpload.js'
 import { announceBoardReload, markLocalReset } from '../lib/docResets.js';
 import { useOrphanedDocResets } from '../hooks/useOrphanedDocResets.js';
 import { DocPanesQa } from './DocPanesQa.jsx';
+import { createQaRoom } from './docQaRoom.js';
 
 const CARD_ID = 'docqa-card';
 const HOST_BOARD = 'docqa-board';
@@ -50,6 +51,24 @@ const UPLOADS = new URLSearchParams(window.location.search).get('uploads') === '
 // ?docqa=1&cluster=Feature%20film: the doc sits on a cluster with that name, as
 // a doc card on a canvas does (the doc look's header shows it, Cluster › Title).
 const CLUSTER = new URLSearchParams(window.location.search).get('cluster');
+// ?docqa=1&room=1 puts the doc's cluster on a live room (docQaRoom.js) that
+// answers the save line's questions as the board room does; a spec drives it
+// through window.__soleilDocTest.room, ends access with endAccess(), and says
+// whether this device's draft took with draftTook() (yboard.js marks the doc).
+// One per doc, made on first sight, so StrictMode's double render can't make
+// a second. docs-status.spec walks the save line with it.
+const ROOM = new URLSearchParams(window.location.search).get('room') === '1';
+const qaRooms = new WeakMap();
+function qaRoomFor(ydoc) {
+  let r = qaRooms.get(ydoc);
+  if (!r) {
+    r = createQaRoom(ydoc);
+    qaRooms.set(ydoc, r);
+    ydoc._soleilRoom = r.room;
+    r.controls.live();
+  }
+  return r;
+}
 const uploadStub = UPLOADS ? (() => {
   const calls = [];
   let pending = null;
@@ -118,8 +137,10 @@ function OneDocQa() {
   // ?docqa=1&presence=1 gives the card a real Awareness so DocPresence mounts;
   // specs add simulated peers through the bridge's setPeer().
   const [awareness] = useState(() => (
-    new URLSearchParams(window.location.search).get('presence') === '1'
+    new URLSearchParams(window.location.search).get('presence') === '1' || ROOM
       ? new awarenessProtocol.Awareness(ydoc) : null));
+  // The room attaches with the awareness, as in the app (lib/yPartyKit.js).
+  const qaRoom = ROOM ? qaRoomFor(ydoc) : null;
   // Card title lives in React state so onUpdate flows (exercises the
   // card-title → primary-page-title sync) and the preview re-renders.
   const [title, setTitle] = useState('');
@@ -158,6 +179,11 @@ function OneDocQa() {
       getScope: () => scope,
       awareness,
       uploads: uploadStub,
+      room: qaRoom?.controls || null,
+      endAccess: () => window.dispatchEvent(new CustomEvent('soleil-board-access-ended', {
+        detail: { boardId: HOST_BOARD, code: 4401 },
+      })),
+      draftTook: (ok) => { ydoc._soleilKept = !!ok; },
       // Publish a simulated peer's awareness state (null removes it). Each
       // name gets its own Y.Doc, so its own clientID, like another tab.
       setPeer: (name, state) => {
@@ -207,7 +233,7 @@ function OneDocQa() {
       } : {}),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ydoc, cardYMap, scope, awareness]);
+  }, [ydoc, cardYMap, scope, awareness, qaRoom]);
 
   // The doc header's Messages button reads MessagesUiContext, which normally
   // comes from App. Provide a stub so the button (and its unread badge) is
@@ -239,7 +265,7 @@ function OneDocQa() {
             ydoc={ydoc}
             cardYMap={cardYMap}
             workspaceId={UPLOADS ? 'docqa-workspace' : null}
-            hostBoardId={UPLOADS || RELOAD || CLUSTER ? HOST_BOARD : null}
+            hostBoardId={UPLOADS || RELOAD || CLUSTER || ROOM ? HOST_BOARD : null}
             userId={STUB_USER.id}
             currentUser={STUB_USER}
             getAwareness={() => awareness}
