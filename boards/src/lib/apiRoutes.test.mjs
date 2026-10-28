@@ -16,6 +16,7 @@ import { VIEW_URI } from './mcpServer.js';
 import { cardToYMap, bytesToB64, b64ToBytes, readCards, readGroups } from './yhelpers.js';
 import { imageSecret, verifySignedImage, SIGNED_IMAGE_PATH, SIGNED_IMAGE_TTL_S } from './signedImage.js';
 import { GROUP_OUTLINE_PAD, GROUP_LABEL_ROOM } from './layoutEngine.js';
+import { tintOf } from './boardStyle.js';
 
 const ENV = {
   SUPABASE_URL: 'https://db.test',
@@ -1256,6 +1257,57 @@ test('a group made or changed through the API is saved the way the app reads it'
   assert.equal(read[made.body.group.id].name, 'Favorites');
   assert.deepEqual([read['g-old'].name, read['g-old'].outline, read['g-old'].createdAt],
     ['To watch', true, '2026-10-27T21:29:24Z'], 'the old fields kept, the new name set');
+});
+
+// A group with no colour is drawn in the app's gold, which the app keeps for
+// what is selected: one the API makes takes a named colour instead (P7).
+test('a group made with no colour takes the next named colour the board doesn\'t wear; a colour may be named', async () => {
+  putBoard(B1, [], { name: 'Films' }, [{ id: 'g-a', name: 'Canon', color: '#3F7AB5', createdAt: '2026-10-01T00:00:00Z' }]);
+  const made = await api('POST', `/boards/${B1}/groups`, { name: 'Journal' });
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  assert.equal(made.body.group.color, '#af6440', 'blue is worn, so clay');
+  const named = await api('POST', `/boards/${B1}/groups`, { name: 'Ideas', color: 'Teal' });
+  assert.equal(named.body.group.color, '#008686');
+  const own = await api('POST', `/boards/${B1}/groups`, { name: 'Gold', color: '#c8a04a' });
+  assert.equal(own.body.group.color, '#c8a04a', 'a colour given is kept');
+  const patched = await api('PATCH', `/boards/${B1}/groups/g-a`, { color: 'plum' });
+  assert.equal(patched.status, 200, JSON.stringify(patched.body));
+  assert.equal(patched.body.group.color, '#9864a4');
+});
+
+// The P7 mockups' "notes tinted": a board of sections reads apart at a glance
+// when each note wears its section's colour, lightened.
+test('sections an add makes take named colours, and their new notes the sections\' tints', async () => {
+  putBoard(B1, [], { name: 'Films' });
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    groups: [{ name: 'Canon' }, { name: 'Journal', color: 'green' }, { name: 'Ideas', color: '#c8a04a' }],
+    cards: [
+      { kind: 'note', title: 'Stalker', group: 'Canon' },
+      { kind: 'note', title: 'Heat', group: 'Canon', color: '#f3ddaa' },
+      { kind: 'note', title: 'Diary', group: 'Journal' },
+      { kind: 'note', title: 'Plain', group: 'Journal', color: null },
+      { kind: 'note', title: 'Short film', group: 'Ideas' },
+      { kind: 'note', title: 'Loose' },
+    ],
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.deepEqual(r.body.groups.map((g) => [g.name, g.color]),
+    [['Canon', '#3f7ab5'], ['Journal', '#3d8550'], ['Ideas', '#c8a04a']]);
+  assert.deepEqual(Object.fromEntries(r.body.cards.map((c) => [c.title, c.color])), {
+    Stalker: '#cae2fd', Heat: '#f3ddaa', Diary: '#c9e6ce', Plain: null, 'Short film': tintOf('#c8a04a'), Loose: null,
+  });
+  assert.equal(cardsOn(B1).find((c) => c.title === 'Stalker').bgColor, '#cae2fd', 'painted where the canvas paints');
+});
+
+test('on a board the pictures lead, its notes keep no colour', async () => {
+  putBoard(B1, [], { name: 'Noir' });
+  const pics = (g) => [1, 2, 3].map((i) => ({ kind: 'image', image_key: `w1/${g}${i}.webp`, w: 300, h: 200, group: g }));
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    cards: [...pics('Streets'), ...pics('Rooms'), { kind: 'note', title: 'Look', body: 'Rain.', group: 'The look' }],
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.equal(r.body.cards.find((c) => c.title === 'Look').color, null);
+  assert.deepEqual(r.body.groups.map((g) => g.color), ['#3f7ab5', '#af6440', '#3d8550'], 'its sections still take colours');
 });
 
 // An assistant added four groups' notes in one call on 2026-10-27, without

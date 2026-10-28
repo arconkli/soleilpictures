@@ -90,7 +90,7 @@
     },
     {
       "name": "create_group",
-      "schema": "640de2eed15c"
+      "schema": "23797a67c375"
     },
     {
       "name": "delete_board",
@@ -110,7 +110,7 @@
     },
     {
       "name": "import_urls",
-      "schema": "60abbf02b62d"
+      "schema": "788d457017c5"
     },
     {
       "name": "list_audit",

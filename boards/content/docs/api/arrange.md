@@ -54,24 +54,39 @@ second call.
 pictures (images and videos) in rows across the block, flush on both edges and
 each at its true shape, under the section's palette if it has one; anything
 else in columns, each card at its own size, a picture at the column's width and
-a palette or a wide card across the top. The blocks are then set out in rows,
-in order, at the width that brings the whole board nearest {{fact:autoShape}}
-with its rows about as wide as each other. Cards in no section make one block
-more.
+a palette or a wide card across the top. Cards in no section make one block
+more. The blocks are then set out whichever of three ways suits what the board
+holds:
+
+- **Pictures lead** — when at least {{fact:autoLeadShare}} of the cards are
+  pictures and some sections hold words, as a moodboard does: the picture
+  sections large, {{fact:autoLeadPerRow}} to a row, and the other sections in a
+  column beside them.
+- **Columns** — the sections side by side in one row, each a column (a long one
+  up to {{fact:autoColumnsWide}} columns wide), read left to right as lists are;
+  taken when the board shows on a screen about as large as it would as blocks.
+- **Blocks** — anything else: the blocks in rows, in order, at the width that
+  brings the whole board nearest {{fact:autoShape}} with its rows about as wide
+  as each other.
+
+Neither of the first two is taken for a board that would come out a strip, far
+wider than a screen is.
 
 ```
-┌ CANON ──────────┐  ┌ JOURNAL ─────────────────┐
-│ ┌─────┐ ┌─────┐ │  │ ┌─────┐ ┌─────┐ ┌─────┐  │
-│ │     │ │     │ │  │ │     │ │     │ │     │  │
-│ └─────┘ │     │ │  │ └─────┘ └─────┘ └─────┘  │
-│ ┌─────┐ └─────┘ │  └──────────────────────────┘
-│ └─────┘         │
-└─────────────────┘
+Pictures lead                        Columns              Blocks
+┌ STREETS ──┐ ┌ ROOMS ────┐ ┌ LOOK ┐  ┌ A ┐ ┌ B ┐ ┌ C ┐  ┌ A ──────┐ ┌ B ┐
+│ ▒▒▒ ▒ ▒▒▒ │ │ ▒▒ ▒▒▒ ▒▒ │ │ ░░░░ │  │ □ │ │ □ │ │ □ │  │ □ □ □   │ │ □ │
+│ ▒▒ ▒▒▒▒ ▒ │ │ ▒▒▒▒ ▒▒▒▒ │ │ □    │  │ □ │ │ □ │ │ □ │  └─────────┘ └───┘
+└───────────┘ └───────────┘ │ □    │  │ □ │ └───┘ │ □ │  ┌ C ──────────┐
+┌ FACES ────┐ ┌ LIGHT ────┐ │ □    │  └───┘       └───┘  │ □ □ □ □     │
+│ ▒▒ ▒▒▒ ▒▒ │ │ ▒▒▒ ▒▒ ▒▒ │ └──────┘                     └─────────────┘
+└───────────┘ └───────────┘
 ```
 
 Cards are taken in reading order — top to bottom, each row left to right —
 unless `order` names the ones that come first, and a column fills in that same
-order, so arranging a board `auto` arranged moves nothing.
+order. Every arrangement keeps the sections in their order, so arranging a
+board `auto` arranged moves nothing.
 
 **Notes brought up to date.** Any arrange brings a note the API made before
 notes showed their `title` and `color` up to date: its title becomes its
@@ -187,8 +202,10 @@ The full set:
 Pass the returned `id` as `group_id` on any card — or skip this step, and name
 the group in a card's `group`: the board's group of that name is used, or made
 with the cards (see [Sections](/docs/api/cards#sections)). `shape` is `box` (one
-rectangle round everything) or `hug` (following each card). Deleting a group
-**ungroups**; it never deletes the cards — there is no undo on an HTTP call, and
+rectangle round everything) or `hug` (following each card). `color` is the
+outline's colour, a hex or one of the [named colours](/docs/api/cards#named-colours);
+a group made without one takes the next named colour no group on the board wears
+yet. Deleting a group **ungroups**; it never deletes the cards — there is no undo on an HTTP call, and
 a group holding forty cards must not be a way to lose forty cards.
 
 ### Section headings

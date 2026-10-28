@@ -388,11 +388,16 @@ async function placeNewBoards(out, api, { ask }) {
 // two equal). add_cards and update_cards both take them.
 const CARD_KINDS = ['note', 'image', 'link', 'doc', 'video', 'audio', 'pdf', 'file', 'palette'];
 
+// The colours a section or a note may be given by name: lib/boardStyle.js's
+// SECTION_COLOURS, which this file can't import (a test holds them equal).
+export const COLOUR_NAMES = 'blue, clay, green, plum, teal, rose, moss, slate';
+
 // What add_cards and update_cards say about the fields that make a card look
 // right, written once. The two numbers are lib/apiCards.js's (PALETTE.maxSwatches,
 // SECTIONS.maxPerCall; a test holds them equal): this file can't import it.
 const CARD_LOOK = {
-  color: str('A note’s fill, a hex colour like "#f3ddaa" (its ink follows); on other kinds, a colour for the card'),
+  color: str(`A note’s fill: a hex colour like "#f3ddaa" or a colour by name (${COLOUR_NAMES}), its ink following; `
+    + 'left out, a note in a section takes the section’s colour, lightened. On other kinds, a colour for the card'),
   group: str('The section this card belongs in, by name: the board’s group of that name, made if there is none'),
   swatches: {
     type: 'array',
@@ -412,7 +417,8 @@ const SECTIONS_LIST = {
   maxItems: 50,
   items: schema({
     name: str('The section'),
-    color: str('Its outline colour, e.g. "#3f7ab5"'),
+    color: str(`Its outline colour: a hex like "#3f7ab5" or a name (${COLOUR_NAMES}); left out, the next of `
+      + 'those the board doesn’t wear'),
   }, ['name']),
 };
 
@@ -1105,7 +1111,8 @@ export const TOOLS = [
       + 'one idea per note in a few lines; long writing goes in write_doc. Put cards in sections by '
       + 'naming one in group (the board\'s group of that name, made if there is none), and list them in '
       + 'groups to set their order and colours. kind=palette with swatches makes a colour palette; '
-      + 'color on a note is its fill, a hex. For an image card, call upload_image first and pass the '
+      + 'color on a note is its fill, a hex or a colour by name; a section given no colour takes a named one, '
+      + 'and its notes take it lightened. For an image card, call upload_image first and pass the '
       + 'image_key it returns.',
     annotations: WRITES,
     inputSchema: schema({
@@ -1192,7 +1199,9 @@ export const TOOLS = [
           + 'from each filename.',
         items: { type: 'string' },
       },
-      layout: str('How to arrange what lands. Default justified.',
+      group: str('The section they all go in, by name: the board’s group of that name, made if there is none. '
+        + 'Import a moodboard’s pictures a section at a time'),
+      layout: str('How to arrange what lands. Default justified; with a group, placed as add_cards places a section.',
         { enum: ['auto', 'justified', 'masonry', 'grid', 'row', 'column'] }),
       dry_run: bool('Check the list without fetching or creating anything'),
     }, ['board_id', 'urls']),
@@ -1208,6 +1217,7 @@ export const TOOLS = [
         items: (a.urls || []).map((u, i) => ({
           url: u,
           ...(a.titles?.[i] ? { title: a.titles[i] } : {}),
+          ...(a.group ? { group: a.group } : {}),
         })),
         ...(a.layout ? { layout: a.layout } : {}),
         ...(a.dry_run ? { dry_run: true } : {}),
@@ -1317,7 +1327,8 @@ export const TOOLS = [
     inputSchema: schema({
       board_id: uuid('The board'),
       name: str('What this set of cards is'),
-      color: str('Outline colour, e.g. "#c8a04a"'),
+      color: str(`Outline colour: a hex like "#3f7ab5" or a name (${COLOUR_NAMES}); left out, the next of those `
+        + 'the board doesn’t wear'),
       shape: str('box draws one rectangle round everything, hug follows each card', { enum: ['box', 'hug'] }),
     }, ['board_id', 'name']),
     outputSchema: looseObject({
@@ -1518,9 +1529,10 @@ export const TOOLS = [
     title: 'Lay a board out',
     description: 'ARRANGES cards that are already on a board, and is how to tidy one. The default, "auto", '
       + 'lays each section (group) out as its own block, notes in columns at their own size and pictures in '
-      + 'rows, every picture whole, and sets the sections out in order near the shape of a screen; it also '
-      + 'brings notes the API made earlier up to date (their title shown, their colour painted, sized to their '
-      + 'text). order lists card ids that come first; otherwise cards keep their reading order. '
+      + 'rows, every picture whole, and sets the sections out in order whichever way suits the board: side by '
+      + 'side as columns, the pictures leading with the words beside them, or in rows near the shape of a '
+      + 'screen; it also brings notes the API made earlier up to date (their title shown, their colour painted, '
+      + 'sized to their text). order lists card ids that come first; otherwise cards keep their reading order. '
       + '"justified" fits rows of pictures flush on both edges, "masonry" is colour-ordered columns, "grid" '
       + 'uniform cells, "row" and "column" single lines. Omit card_ids to arrange the whole board. The block '
       + 'stays where it already was and is kept clear of cards it is not moving. Use dry_run to see where '
@@ -1846,8 +1858,9 @@ export const PROMPTS = [
       + `1. create_boards: one board named for the brief${a.workspace_id ? `, in workspace ${a.workspace_id}` : ''}, `
       + 'inside the cluster I named if I named one.\n'
       + '2. If you can search the web, find 12 to 24 strong reference pictures for it (film stills, photographs, '
-      + 'paintings; each a direct link to the image) and bring them in with import_urls. If you can\'t, add notes '
-      + 'saying what pictures to look for.\n'
+      + 'paintings; each a direct link to the image), sort them into a few sections (streets, faces, light…) and '
+      + 'bring each section in with import_urls, its name in group. If you can\'t, add notes saying what pictures '
+      + 'to look for.\n'
       + '3. add_cards, each card\'s section named in group: a palette card (kind palette, five or six swatches, '
       + 'each a hex with a name), notes on the light, textures and period details, one idea each in a short title '
       + 'and a few lines, and a few references to look at (films, photographers, painters). Leave x, y, w and h '

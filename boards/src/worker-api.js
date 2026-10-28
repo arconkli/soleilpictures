@@ -75,6 +75,7 @@ import {
   AUTO_LAYOUT, API_LAYOUTS, arrangeAuto, rearrangeAuto, inOrder as cardsInOrder,
 } from './lib/layoutAuto.js';
 import { blockBounds } from './lib/moodboard.js';
+import { nextSectionColours, sectionColour, tintNewNotes } from './lib/boardStyle.js';
 import { imageDimensions, extensionFor } from './lib/imageDims.js';
 import { meaningfulFileName } from './lib/fileIngest.js';
 import { reserveUploadSpace } from './lib/uploadReserve.js';
@@ -649,6 +650,9 @@ function sectionsFor(incoming, built, body, { userId, partial = false }) {
     return {
       idByKey: plan.idByKey,
       order: plan.order,
+      // Every group's colour, those made here included: a new note takes its
+      // section's tint (tintNewNotes).
+      colours: new Map([...existing, ...plan.created].map((g) => [String(g.id), g.color ?? null])),
       write: plan.created.length ? (d) => {
         const groups = d.getMap('groups');
         for (const g of plan.created) upsertGroup(groups, g.id, g);
@@ -3412,8 +3416,12 @@ async function dispatch(url, request, env, ctx) {
         kind: r.kind, stored: r.stored, importedAt,
       }));
       // Justified by default: an import is almost always photographs, and the
-      // uniform-grid fallback leaves a hole around every portrait frame.
-      const importLayout = body.layout === null ? null : (body.layout || DEFAULT_LAYOUT);
+      // uniform-grid fallback leaves a hole around every portrait frame. An
+      // import into sections is placed as an add naming them is: a new section
+      // laid out as `auto` lays one out, under what is there, and pictures for
+      // a section the board has beside its cards.
+      const sectioned = usable.some((r) => r.item.group);
+      const importLayout = body.layout === null ? null : (body.layout || (sectioned ? null : DEFAULT_LAYOUT));
       if (importLayout !== null && !isApiLayout(importLayout)) throw fail(400, 'bad_request', layoutRefusal(importLayout));
       const res = await internalCall(url, env, ctx, { auth, token }, `/boards/${id}/cards`, {
         method: 'POST',
@@ -3613,16 +3621,19 @@ async function dispatch(url, request, env, ctx) {
       const group = {
         id: crypto.randomUUID(),
         name,
-        color: str(body.color, 40) || null,
+        color: typeof body.color === 'string' ? sectionColour(body.color) : null,
         shape: body.shape === 'hug' ? 'hug' : 'box',
         outline: body.outline !== false,
         kind: null,
         createdAt: new Date().toISOString(),
         createdBy: auth.userId,
       };
+      // A group given no colour takes the next named one the board's groups
+      // don't wear yet (lib/boardStyle.js), as a section an add names does.
       const out = await writeBoardGroups(env, {
         boardId: id, accessToken: token, workspaceId: board.workspace_id,
-        userId: auth.userId, upserts: [group],
+        userId: auth.userId,
+        upserts: (now) => [group.color ? group : { ...group, color: nextSectionColours(now.map((g) => g.color), 1)[0] }],
       });
       return json({
         board_id: id,
@@ -3637,7 +3648,7 @@ async function dispatch(url, request, env, ctx) {
       if (!existing) throw fail(404, 'not_found', 'group not found');
       const patch = { id: subId };
       if ('name' in body) patch.name = str(body.name, 120);
-      if ('color' in body) patch.color = str(body.color, 40) || null;
+      if ('color' in body) patch.color = typeof body.color === 'string' ? sectionColour(body.color) : null;
       if ('shape' in body) patch.shape = body.shape === 'hug' ? 'hug' : 'box';
       if ('outline' in body) patch.outline = body.outline !== false;
       const out = await writeBoardGroups(env, {
@@ -4918,7 +4929,8 @@ async function dispatch(url, request, env, ctx) {
           ...(positionedFresh ? { appendCards: fresh } : {}),
           ...(plan ? { prepare: plan.prepare } : {}),
           buildCards: async (existing, prepared) => layoutCards(
-            plan ? createIdx.map((i) => plan.assign(built[i], i, prepared)) : fresh,
+            plan ? tintNewNotes(createIdx.map((i) => plan.assign(built[i], i, prepared)), existing, prepared?.colours)
+              : fresh,
             existing, upsertLayout, { order: prepared?.order },
           ),
         });
@@ -4977,9 +4989,11 @@ async function dispatch(url, request, env, ctx) {
       ...(plan ? { prepare: plan.prepare } : {}),
       // Positioned by the same helper Scout uses, so cards arriving from an API
       // call cannot land on top of what is already there. A caller that supplied
-      // explicit x/y keeps them.
+      // explicit x/y keeps them. A note sent with no colour, in a section with
+      // one, takes the section's tint when the board tints its notes
+      // (lib/boardStyle.js).
       buildCards: async (existing, prepared) => layoutCards(
-        plan ? built.map((c, i) => plan.assign(c, i, prepared)) : built,
+        plan ? tintNewNotes(built.map((c, i) => plan.assign(c, i, prepared)), existing, prepared?.colours) : built,
         existing, layoutOpts, { order: prepared?.order },
       ),
     });

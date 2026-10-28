@@ -15,15 +15,30 @@
 //     at its own size; a picture takes the column's width, and a palette or a
 //     card wider than a column spans the top
 //
-// and the blocks are set out in rows, in order, at the width that brings the
-// whole board nearest a 16:10 screen with its rows about as wide as each
-// other ("B · Blocks" in the P7 mockups). Cards in no section make one block
-// more, with no outline.
+// and the blocks are set out one of three ways, whichever suits what the board
+// holds (the P7 mockups' A, B and C; the owner, shown all three: "it should do
+// whatever makes the most sense for the task at hand"):
+//
+//   · pictures lead (C): at least half the cards are pictures, some sections
+//     are pictures alone and others hold words, as a moodboard does: the
+//     picture sections large, two to a row, and the other sections in a column
+//     beside them
+//   · columns (A): one row of the sections, each a column (a long one two or
+//     more wide), read left to right as lists are; taken whenever the board
+//     shows on a screen about as large as it would as blocks
+//   · blocks (B): anything else: the blocks in rows, in order, at the width
+//     that brings the board nearest the aim with its rows about as wide as
+//     each other
+//
+// The aim is a 16:10 screen, and neither of the first two is ever taken for a
+// board that comes out a strip. Cards in no section make one block more, with
+// no outline.
 //
 // The order is the caller's (`order`), else reading order: by top edge, then
 // left edge, the sections in the order their first cards come. A column is
-// filled in that same order (the shortest column, the leftmost of equals), so
-// laying out a board this laid out moves nothing.
+// filled in that same order (the shortest column, the leftmost of equals), and
+// every arrangement keeps the sections' order, so laying out a board this laid
+// out moves nothing.
 
 import { GROUP_OUTLINE_PAD, LAYOUT_GAP } from './layoutEngine.js';
 import { boundsOfCards } from './canvasGeom.js';
@@ -43,9 +58,17 @@ export const AUTO = Object.freeze({
   across: 40, // between two sections' outlines, side by side
   down: 64, // between two rows of sections, outline to outline: the names sit in it
   rowHeight: 210, // what a row of pictures aims at
+  leadShare: 0.5, // the pictures lead from this share of the cards
+  leadPerRow: 2, // picture sections to a row when they lead
+  leadRowHeight: 240, // what a row of pictures aims at when they lead
   shape: '16:10', // what the whole board aims at
   maxColumns: 12, // the most columns a section takes
+  columnsWide: 4, // the widest a section grows when the sections are columns
+  besideWide: 3, // the widest a section beside the pictures grows
 });
+
+// The three ways the blocks are set out, as the answer and the docs name them.
+export const ARRANGEMENTS = Object.freeze(['columns', 'blocks', 'pictures']);
 
 const [SHAPE_W, SHAPE_H] = AUTO.shape.split(':').map(Number);
 const ASPECT = SHAPE_W / SHAPE_H;
@@ -65,8 +88,26 @@ const ROW_MAX = 2;
 // The search: every combination of section widths up to this many, else one
 // section at a time.
 const EXHAUSTIVE = 64;
+// Columns: the heights a section is kept under, tried in turn.
+const COLUMN_SCAN = { from: 300, to: 3000, step: 20 };
+// Columns are taken while the board shows on a screen at least 1/ROOM as large
+// as it would as blocks: side by side the sections read as lists, in order,
+// and that is worth a little screen.
+const ROOM = 1.2;
+// A board more than this far from the aim's shape, either way, is a strip:
+// columns and pictures leading are never taken for one.
+const STRIP = 1.5;
+// How many columns the picture sections are when the pictures lead.
+const LEAD_COLUMNS = [2, 3];
 
 const isPicture = (c) => c?.kind === 'image' || c?.kind === 'video';
+// A card that spans the top of its section rather than taking a column.
+const spansTop = (c, column = AUTO.column) => c.kind === 'palette' || (!isPicture(c) && c.w > column * SPAN_AT);
+// A section of pictures: a palette over them at most.
+const allPictures = (cards) => {
+  const rest = cards.filter((c) => !spansTop(c));
+  return rest.length > 0 && rest.every(isPicture);
+};
 // How wide a card needs its section to be. A palette is stretched to its
 // section's width, so it is measured by its swatches, not by the width the last
 // layout gave it.
@@ -169,10 +210,9 @@ function pictureRows(aspects, width, rowHeight) {
 // { w, h, at: [{ x, y, w, h }] }, `at` in the order of `cards`.
 function sectionBlock(cards, k, o) {
   const at = new Array(cards.length);
-  const spanning = (c) => c.kind === 'palette' || (!isPicture(c) && c.w > o.column * SPAN_AT);
   const spans = [];
   const rest = [];
-  cards.forEach((c, i) => (spanning(c) ? spans : rest).push(i));
+  cards.forEach((c, i) => (spansTop(c, o.column) ? spans : rest).push(i));
 
   const colW = Math.max(o.column, ...rest.filter((i) => !isPicture(cards[i])).map((i) => cards[i].w));
   const pictures = rest.length > 0 && rest.every((i) => isPicture(cards[i]));
@@ -274,13 +314,49 @@ function columnChoices(n, lone, o) {
   return [4, 5, 6];
 }
 
-function bestLayout(sections, o) {
+// Each section's block at each width tried, made once.
+function blockCache(sections, o) {
   const cache = new Map();
-  const blockOf = (si, k) => {
-    const key = `${si}:${k}`;
-    if (!cache.has(key)) cache.set(key, sectionBlock(sections[si].cards, k, o));
+  return (si, k, rowHeight = o.rowHeight) => {
+    const key = `${si}:${k}:${rowHeight}`;
+    if (!cache.has(key)) {
+      cache.set(key, sectionBlock(sections[si].cards, k, rowHeight === o.rowHeight ? o : { ...o, rowHeight }));
+    }
     return cache.get(key);
   };
+}
+
+// Blocks in rows from (x0, 0), outline to outline: a row's blocks top-aligned
+// `across` apart, the rows `down` apart. Takes rows of { si, block } and
+// returns them placed, [{ si, block, x, y }].
+function inRows(rows, o, x0 = 0) {
+  const at = [];
+  let y = 0;
+  for (const row of rows) {
+    let x = x0;
+    for (const p of row) {
+      at.push({ ...p, x, y });
+      x += p.block.w + 2 * PAD + o.across;
+    }
+    y += Math.max(...row.map((p) => p.block.h)) + 2 * PAD + o.down;
+  }
+  return at;
+}
+
+// How far placed blocks reach, outlines included: { W, H }.
+const extent = (at) => ({
+  W: Math.max(...at.map((p) => p.x + p.block.w + 2 * PAD)),
+  H: Math.max(...at.map((p) => p.y + p.block.h + 2 * PAD)),
+});
+
+// How large a board shows on a screen of the aim's shape: the height of the
+// smallest such screen it fits, so the lower, the larger it shows.
+const fitted = ({ W, H }) => Math.max(W / ASPECT, H);
+const inShape = ({ W, H }) => Math.abs(Math.log(W / H / ASPECT)) <= Math.log(STRIP);
+
+// B · Blocks: every section at a width it may take, the combination whose rows
+// pack nearest the aim.
+function blocks(sections, blockOf, o) {
   const lone = sections.length === 1;
   const choices = sections.map((s) => columnChoices(s.cards.length, lone, o));
   const evaluate = (ks) => packRows(ks.map((k, si) => blockOf(si, k)), o);
@@ -316,50 +392,144 @@ function bestLayout(sections, o) {
       if (best.pack.score >= from - 1e-9) break;
     }
   }
-  return { ...best, blockOf };
+  const at = inRows(best.pack.rows.map((row) => row.map((si) => ({ si, block: blockOf(si, best.ks[si]) }))), o);
+  return { name: 'blocks', at, ...extent(at) };
 }
 
-/**
- * `auto`, relative to (0, 0): the cards' top-left there, as layoutEngine's
- * layouts leave theirs, and the group names above it. Takes the cards in the
- * order given and returns them in that order, each with its x, y, w and h:
- * pictures are sized to their row or column (their `aspect`, when given, is
- * their true shape), a palette to its section's width; everything else keeps
- * its size.
- */
-export function autoLayout(items, opts = {}) {
-  const o = { ...AUTO, ...(Number.isFinite(opts.gap) ? { gap: Math.max(0, opts.gap) } : {}) };
-  const list = (items || []).filter(Boolean).map((c) => (
-    Number.isFinite(c.w) && c.w > 0 && Number.isFinite(c.h) && c.h > 0
-      ? c : { ...c, w: DEFAULT_W, h: DEFAULT_H }));
-  if (!list.length) return [];
+// A · Columns: the sections side by side in one row, each as many columns wide
+// (up to columnsWide) as keeps it under a height, at the height at which the
+// board shows largest.
+function columns(sections, blockOf, o) {
+  let best = null;
+  const seen = new Set();
+  for (let tall = COLUMN_SCAN.from; tall <= COLUMN_SCAN.to; tall += COLUMN_SCAN.step) {
+    const ks = sections.map((_, si) => {
+      let k = 1;
+      while (k < o.columnsWide && blockOf(si, k).h > tall) k++;
+      return k;
+    });
+    const key = ks.join(',');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const at = inRows([ks.map((k, si) => ({ si, block: blockOf(si, k) }))], o);
+    const size = extent(at);
+    const score = fitted(size);
+    if (!best || score < best.score - 1e-9) best = { at, ...size, score };
+  }
+  return { name: 'columns', at: best.at, W: best.W, H: best.H };
+}
 
+// C · Pictures lead: the picture sections leadPerRow to a row, all two or three
+// columns wide, their rows aiming at leadRowHeight; the other sections stacked
+// in a column beside them, one to three columns wide; whichever widths show
+// the board largest. null without both kinds.
+function picturesLead(sections, blockOf, o) {
+  const pictures = sections.map((_, si) => si).filter((si) => sections[si].pictures);
+  const words = sections.map((_, si) => si).filter((si) => !sections[si].pictures);
+  if (!pictures.length || !words.length) return null;
+  let best = null;
+  for (const k of LEAD_COLUMNS) {
+    const rows = [];
+    for (let i = 0; i < pictures.length; i += o.leadPerRow) {
+      rows.push(pictures.slice(i, i + o.leadPerRow).map((si) => ({ si, block: blockOf(si, k, o.leadRowHeight) })));
+    }
+    const left = inRows(rows, o);
+    const from = extent(left).W + o.across;
+    for (let n = 1; n <= o.besideWide; n++) {
+      const at = [...left, ...inRows(words.map((si) => [{ si, block: blockOf(si, n) }]), o, from)];
+      const size = extent(at);
+      const score = fitted(size);
+      if (!best || score < best.score - 1e-9) best = { at, ...size, score };
+    }
+  }
+  return { name: 'pictures', at: best.at, W: best.W, H: best.H };
+}
+
+// The sections of a batch, in the order their first cards come: each with the
+// indices of its cards, the cards, and whether it is pictures alone.
+function sectionsOf(list) {
   const parts = new Map();
   list.forEach((c, i) => {
     const key = sectionOf(c);
     if (!parts.has(key)) parts.set(key, []);
     parts.get(key).push(i);
   });
-  const sections = [...parts.values()].map((idx) => ({ idx, cards: idx.map((i) => list[i]) }));
-  const { ks, pack, blockOf } = bestLayout(sections, o);
+  return [...parts.values()].map((idx) => {
+    const cards = idx.map((i) => list[i]);
+    return { idx, cards, pictures: allPictures(cards) };
+  });
+}
 
+// Whether the pictures lead: at least leadShare of the cards are pictures,
+// and some sections are pictures alone while others hold words.
+function picturesLeadIn(sections) {
+  const all = sections.flatMap((s) => s.cards);
+  const pictures = all.filter(isPicture).length;
+  return pictures >= AUTO.leadShare * all.length
+    && sections.some((s) => s.pictures) && sections.some((s) => !s.pictures);
+}
+
+/**
+ * Whether `auto` lets a board's pictures lead (its notes then stay as they
+ * are; lib/boardStyle.js). The cards, each with its groupId and kind.
+ */
+export function leadsWithPictures(cards) {
+  return picturesLeadIn(sectionsOf((cards || []).filter(Boolean)));
+}
+
+// Which arrangement, by what the board holds (the header): pictures leading
+// when they do, else columns when they show the board about as large as blocks
+// would, else blocks; never a strip. `forced` names one (tests); one that
+// can't be made is blocks.
+//
+// Pictures leading is decided by the cards alone, not against blocks: it
+// reads the sections in another order (a picture section, the one beside it,
+// then the words), and blocks set out in that order may come out differently,
+// so a comparison could undo itself on the next tidy. Columns and blocks both
+// read back in the order they were laid out in.
+function arrangementOf(sections, o, forced = null) {
+  const blockOf = blockCache(sections, o);
+  const c = (forced ? forced === 'pictures' : picturesLeadIn(sections)) ? picturesLead(sections, blockOf, o) : null;
+  if (c && (forced || inShape(c))) return c;
+  const a = (forced ? forced === 'columns' : sections.length > 1) ? columns(sections, blockOf, o) : null;
+  if (a && forced) return a;
+  const b = blocks(sections, blockOf, o);
+  if (a && inShape(a) && fitted(a) <= fitted(b) * ROOM) return a;
+  return b;
+}
+
+/**
+ * `auto`, relative to (0, 0), and which arrangement it took:
+ * { arrangement, cards }. The cards' top-left is there, as layoutEngine's
+ * layouts leave theirs, and the group names above it. Takes the cards in the
+ * order given and returns them in that order, each with its x, y, w and h:
+ * pictures are sized to their row or column (their `aspect`, when given, is
+ * their true shape), a palette to its section's width; everything else keeps
+ * its size. `opts.arrangement` names one of ARRANGEMENTS rather than letting
+ * the board's cards choose.
+ */
+export function autoPlan(items, opts = {}) {
+  const o = { ...AUTO, ...(Number.isFinite(opts.gap) ? { gap: Math.max(0, opts.gap) } : {}) };
+  const list = (items || []).filter(Boolean).map((c) => (
+    Number.isFinite(c.w) && c.w > 0 && Number.isFinite(c.h) && c.h > 0
+      ? c : { ...c, w: DEFAULT_W, h: DEFAULT_H }));
+  if (!list.length) return { arrangement: null, cards: [] };
+
+  const sections = sectionsOf(list);
+  const plan = arrangementOf(sections, o, ARRANGEMENTS.includes(opts.arrangement) ? opts.arrangement : null);
   const out = new Array(list.length);
-  let y = 0;
-  for (const row of pack.rows) {
-    let x = 0;
-    for (const si of row) {
-      const b = blockOf(si, ks[si]);
-      b.at.forEach((p, n) => {
-        out[sections[si].idx[n]] = { ...sections[si].cards[n], x: x + PAD + p.x, y: y + PAD + p.y, w: p.w, h: p.h };
-      });
-      x += b.w + 2 * PAD + o.across;
-    }
-    y += Math.max(...row.map((si) => blockOf(si, ks[si]).h)) + 2 * PAD + o.down;
+  for (const { si, block, x, y } of plan.at) {
+    block.at.forEach((p, n) => {
+      out[sections[si].idx[n]] = { ...sections[si].cards[n], x: x + PAD + p.x, y: y + PAD + p.y, w: p.w, h: p.h };
+    });
   }
   const minX = Math.min(...out.map((c) => c.x));
   const minY = Math.min(...out.map((c) => c.y));
-  return out.map((c) => ({ ...c, x: c.x - minX, y: c.y - minY }));
+  return { arrangement: plan.name, cards: out.map((c) => ({ ...c, x: c.x - minX, y: c.y - minY })) };
 }
+
+/** `auto`'s cards alone (autoPlan). */
+export const autoLayout = (items, opts = {}) => autoPlan(items, opts).cards;
 
 /**
  * `auto` on the board, as layoutEngine's `arrange` places a named layout: at

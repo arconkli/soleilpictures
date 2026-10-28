@@ -15,6 +15,7 @@ import { hasCustomName } from './paletteLayout.js';
 import { composeNoteHtml } from './noteCompose.js';
 import { fitNoteSize, NOTE_FIT } from './noteFit.js';
 import { htmlHasText, noteSourceHtml } from './noteBody.js';
+import { SECTION_COLOURS, namedColour, nextSectionColours, sectionColour } from './boardStyle.js';
 
 export const PALETTE = Object.freeze({
   // Swatches on one palette card through the API: as many as the inline view
@@ -57,13 +58,19 @@ export function hexColour(v) {
 
 // A note's fill. The canvas picks the note's ink from the fill's hex
 // (readableInk's 0.6 cut), so a word like "yellow" would paint with ink chosen
-// for black: refused, with what to send. null or '' takes the colour off.
+// for black: refused, with what to send. A named colour ("blue") is its tint
+// (lib/boardStyle.js). null or '' takes the colour off.
 //   { color } | { problem }
 export function readNoteColor(v) {
   if (v == null || v === '') return { color: null };
   const hex = hexColour(v);
-  return hex ? { color: hex }
-    : { problem: `a note's color is a hex colour like "#f3ddaa" — got ${JSON.stringify(String(v).slice(0, 40))}` };
+  if (hex) return { color: hex };
+  const named = namedColour(v);
+  if (named) return { color: named.tint };
+  return {
+    problem: `a note's color is a hex colour like "#f3ddaa" or one of ${SECTION_COLOURS.map((c) => c.name).join(', ')}`
+      + ` — got ${JSON.stringify(String(v).slice(0, 40))}`,
+  };
 }
 
 // A palette's colours as the app stores them, [{ name, hex }], from
@@ -124,7 +131,7 @@ export function readSections(groups, cards) {
       if (!name) return { problem: `groups[${i}] needs a name` };
       if (seen.has(sectionKey(name))) continue;
       seen.add(sectionKey(name));
-      const color = g && typeof g === 'object' && g.color != null ? String(g.color).slice(0, 40) || null : null;
+      const color = g && typeof g === 'object' ? sectionColour(g.color) : null;
       wanted.push({ name, color });
     }
   }
@@ -140,7 +147,9 @@ export function readSections(groups, cards) {
 // Which group each wanted section is on a board holding `existing` groups
 // (oldest first, as groupsOf reads them): the oldest one already carrying that
 // name, else a new group, made the way POST /boards/:id/groups makes one. A
-// section that already exists keeps its colour; `color` only colours a new one.
+// section that already exists keeps its colour; `color` only colours a new one,
+// and a new one given none takes the next named colour the board's sections
+// don't wear yet (boardStyle).
 //   { idByKey: Map(sectionKey → id), created: [group record], order: [id] }
 export function resolveSections(existing, wanted, { userId = null, now = new Date().toISOString(), newId } = {}) {
   const idByKey = new Map();
@@ -148,6 +157,9 @@ export function resolveSections(existing, wanted, { userId = null, now = new Dat
     const name = sectionName(g?.name);
     if (name && !idByKey.has(sectionKey(name))) idByKey.set(sectionKey(name), String(g.id));
   }
+  const fresh = (wanted || []).filter((w) => !idByKey.has(sectionKey(w.name)));
+  const worn = [...(existing || []).map((g) => g?.color), ...fresh.map((w) => w.color)];
+  const spare = nextSectionColours(worn, fresh.filter((w) => !w.color).length);
   const created = [];
   const order = [];
   for (const { name, color } of wanted || []) {
@@ -156,7 +168,7 @@ export function resolveSections(existing, wanted, { userId = null, now = new Dat
       const group = {
         id: newId ? newId() : crypto.randomUUID(),
         name,
-        color: color || null,
+        color: color || spare.shift() || null,
         shape: 'box',
         outline: true,
         kind: null,
@@ -217,9 +229,9 @@ export function noteRepair(c) {
   const html = noteHtmlFor({ title: c.title, body: c.body, html: c.html });
   if (typeof html === 'string' && html !== c.html) fix.html = html;
   if (!c.bgColor) {
-    const hex = hexColour(c.color);
-    if (hex) {
-      fix.bgColor = hex;
+    const { color } = readNoteColor(c.color);
+    if (color) {
+      fix.bgColor = color;
       fix.color = null;
     }
   }

@@ -56660,7 +56660,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", and its text turns dark or light to read on it. Anything that isn't a hex is a "
+     "v": " or one of the "
+    },
+    {
+     "t": "link",
+     "v": "named colours",
+     "href": "#named-colours",
+     "children": [
+      {
+       "t": "text",
+       "v": "named colours"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and its text turns dark or light to read on it. Anything else is a "
     },
     {
      "t": "code",
@@ -56668,7 +56683,23 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Other kinds keep "
+     "v": ". A note made without a "
+    },
+    {
+     "t": "code",
+     "v": "color"
+    },
+    {
+     "t": "text",
+     "v": ", in a section that has one, takes the section's colour lightened (its tint), so the sections read apart at a glance — but not on a board where pictures lead (at least half of its cards pictures, and some sections words: their colours carry it), and not on a board of one section. Send "
+    },
+    {
+     "t": "code",
+     "v": "\"color\": null"
+    },
+    {
+     "t": "text",
+     "v": " to keep a note plain. Other kinds keep "
     },
     {
      "t": "code",
@@ -57240,7 +57271,18 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", a hex colour, its fill"
+       "v": ", its fill: a hex colour or a "
+      },
+      {
+       "t": "link",
+       "v": "named colour",
+       "href": "#named-colours",
+       "children": [
+        {
+         "t": "text",
+         "v": "named colour"
+        }
+       ]
       }
      ]
     ],
@@ -58081,7 +58123,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " lays them out: each group a block of its own with room for its outline and name, in the order sent, under whatever is already there, so tidying the board afterwards moves nothing. New cards for a group that already has cards on the board go under those cards, or beside them, when there is room there. Cards in no group, added to a board that has cards, go in the free space beside them."
+     "v": " lays them out: the groups as columns, as blocks or with the pictures leading, whichever suits them, each with room for its outline and name, in the order sent, under whatever is already there, so tidying the board afterwards moves nothing. New cards for a group that already has cards on the board go under those cards, or beside them, when there is room there. Cards in no group, added to a board that has cards, go in the free space beside them."
     }
    ]
   },
@@ -58157,7 +58199,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " list, up to 50, sets the order the sections are laid out in and the outline colour of any it makes:"
+     "v": " list, up to 50, sets the order the sections are laid out in and the outline colour of any it makes, a hex or one of the "
+    },
+    {
+     "t": "link",
+     "v": "named colours",
+     "href": "#named-colours",
+     "children": [
+      {
+       "t": "text",
+       "v": "named colours"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ":"
     }
    ]
   },
@@ -58195,7 +58252,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " on one it made. A section that already exists keeps its colour. "
+     "v": " on one it made. A section made without a colour takes the next named colour no section on the board wears yet, rather than the app's gold, which marks what is selected; a section that already exists keeps its colour. "
     },
     {
      "t": "code",
@@ -58205,6 +58262,212 @@ export const DOCS_CONTENT = {
      "t": "text",
      "v": " still works and must name a group on the board; a card can't carry both. Naming a section reads the board, as leaving out coordinates does."
     }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Named colours",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Named colours"
+    }
+   ],
+   "id": "named-colours"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "There are eight colours a section's outline or a note's fill can be given by name, in any case. A section takes the outline colour; a note takes the tint, light enough for dark text in both themes. They are also the colours a section takes when given none, in this order:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Name"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Outline"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A note's tint"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "blue"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#3f7ab5"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#cae2fd"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "clay"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#af6440"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#fbd8c9"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "green"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#3d8550"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#c9e6ce"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "plum"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#9864a4"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#efd8f5"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "teal"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#008686"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#bce7e7"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "rose"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#b25e6c"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#fdd6da"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "moss"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#6d7e2b"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#dae4c2"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "slate"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#6d7889"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "#dbe0e7"
+      }
+     ]
+    ]
    ]
   },
   {
@@ -64181,6 +64444,46 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Name a section in an item's "
+    },
+    {
+     "t": "code",
+     "v": "group"
+    },
+    {
+     "t": "text",
+     "v": " and it goes in the board's group of that name, made with it when the board has none, as a "
+    },
+    {
+     "t": "link",
+     "v": "card's",
+     "href": "/docs/api/cards#sections",
+     "children": [
+      {
+       "t": "text",
+       "v": "card's"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " does. An import into sections is placed as cards naming them are: a new section laid out as "
+    },
+    {
+     "t": "code",
+     "v": "auto"
+    },
+    {
+     "t": "text",
+     "v": " lays one out, under what is already there, and pictures for a section the board has beside that section's cards. Bringing in a moodboard a section at a time — streets, faces, light — is one import each."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Positioning and metadata",
@@ -64470,14 +64773,77 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "), so each is laid out as a block of its own: pictures (images and videos) in rows across the block, flush on both edges and each at its true shape, under the section's palette if it has one; anything else in columns, each card at its own size, a picture at the column's width and a palette or a wide card across the top. The blocks are then set out in rows, in order, at the width that brings the whole board nearest 16:10 with its rows about as wide as each other. Cards in no section make one block more."
+     "v": "), so each is laid out as a block of its own: pictures (images and videos) in rows across the block, flush on both edges and each at its true shape, under the section's palette if it has one; anything else in columns, each card at its own size, a picture at the column's width and a palette or a wide card across the top. Cards in no section make one block more. The blocks are then set out whichever of three ways suits what the board holds:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Pictures lead",
+      "children": [
+       {
+        "t": "text",
+        "v": "Pictures lead"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — when at least half of the cards are pictures and some sections hold words, as a moodboard does: the picture sections large, two to a row, and the other sections in a column beside them."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Columns",
+      "children": [
+       {
+        "t": "text",
+        "v": "Columns"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — the sections side by side in one row, each a column (a long one up to 4 columns wide), read left to right as lists are; taken when the board shows on a screen about as large as it would as blocks."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Blocks",
+      "children": [
+       {
+        "t": "text",
+        "v": "Blocks"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — anything else: the blocks in rows, in order, at the width that brings the whole board nearest 16:10 with its rows about as wide as each other."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Neither of the first two is taken for a board that would come out a strip, far wider than a screen is."
     }
    ]
   },
   {
    "type": "code",
    "lang": null,
-   "code": "┌ CANON ──────────┐  ┌ JOURNAL ─────────────────┐\n│ ┌─────┐ ┌─────┐ │  │ ┌─────┐ ┌─────┐ ┌─────┐  │\n│ │     │ │     │ │  │ │     │ │     │ │     │  │\n│ └─────┘ │     │ │  │ └─────┘ └─────┘ └─────┘  │\n│ ┌─────┐ └─────┘ │  └──────────────────────────┘\n│ └─────┘         │\n└─────────────────┘"
+   "code": "Pictures lead                        Columns              Blocks\n┌ STREETS ──┐ ┌ ROOMS ────┐ ┌ LOOK ┐  ┌ A ┐ ┌ B ┐ ┌ C ┐  ┌ A ──────┐ ┌ B ┐\n│ ▒▒▒ ▒ ▒▒▒ │ │ ▒▒ ▒▒▒ ▒▒ │ │ ░░░░ │  │ □ │ │ □ │ │ □ │  │ □ □ □   │ │ □ │\n│ ▒▒ ▒▒▒▒ ▒ │ │ ▒▒▒▒ ▒▒▒▒ │ │ □    │  │ □ │ │ □ │ │ □ │  └─────────┘ └───┘\n└───────────┘ └───────────┘ │ □    │  │ □ │ └───┘ │ □ │  ┌ C ──────────┐\n┌ FACES ────┐ ┌ LIGHT ────┐ │ □    │  └───┘       └───┘  │ □ □ □ □     │\n│ ▒▒ ▒▒▒ ▒▒ │ │ ▒▒▒ ▒▒ ▒▒ │ └──────┘                     └─────────────┘\n└───────────┘ └───────────┘"
   },
   {
    "type": "para",
@@ -64492,7 +64858,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " names the ones that come first, and a column fills in that same order, so arranging a board "
+     "v": " names the ones that come first, and a column fills in that same order. Every arrangement keeps the sections in their order, so arranging a board "
     },
     {
      "t": "code",
@@ -65562,7 +65928,30 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " (following each card). Deleting a group "
+     "v": " (following each card). "
+    },
+    {
+     "t": "code",
+     "v": "color"
+    },
+    {
+     "t": "text",
+     "v": " is the outline's colour, a hex or one of the "
+    },
+    {
+     "t": "link",
+     "v": "named colours",
+     "href": "/docs/api/cards#named-colours",
+     "children": [
+      {
+       "t": "text",
+       "v": "named colours"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; a group made without one takes the next named colour no group on the board wears yet. Deleting a group "
     },
     {
      "t": "strong",
@@ -69144,7 +69533,22 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": "; leave "
+       "v": "; sections and their notes take "
+      },
+      {
+       "t": "link",
+       "v": "colours of their own",
+       "href": "/docs/api/cards#named-colours",
+       "children": [
+        {
+         "t": "text",
+         "v": "colours of their own"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " unless given one; leave "
       },
       {
        "t": "code",
@@ -69225,11 +69629,19 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "code",
+       "v": "group?"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
        "v": "dry_run?"
       },
       {
        "t": "text",
-       "v": " — bring reference in from the web; safe to re-run"
+       "v": " — bring reference in from the web, into a section by name if given; safe to re-run"
       }
      ]
     ],
@@ -69446,7 +69858,18 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " can simply name the section instead"
+       "v": " can simply name the section instead. Given no colour, a group takes a "
+      },
+      {
+       "t": "link",
+       "v": "named one",
+       "href": "/docs/api/cards#named-colours",
+       "children": [
+        {
+         "t": "text",
+         "v": "named one"
+        }
+       ]
       }
      ]
     ],
@@ -69882,7 +70305,22 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " unless another layout is named, which also brings notes made earlier up to date"
+       "v": " unless another layout is named — columns, the pictures leading, or blocks, whichever "
+      },
+      {
+       "t": "link",
+       "v": "suits the board",
+       "href": "/docs/api/arrange#the-layouts",
+       "children": [
+        {
+         "t": "text",
+         "v": "suits the board"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " — which also brings notes made earlier up to date"
       }
      ]
     ],

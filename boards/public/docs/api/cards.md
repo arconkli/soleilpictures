@@ -92,9 +92,14 @@ when the text needs the room — from 72 to
 runs past that comes back named in `warnings`: on the board its end fades out,
 and long writing reads better as a [doc](/docs/api/docs).
 
-**Colour.** A note's `color` is its fill, a hex colour such as `#f3ddaa`, and
-its text turns dark or light to read on it. Anything that isn't a hex is a
-`400`. Other kinds keep `color` as given.
+**Colour.** A note's `color` is its fill, a hex colour such as `#f3ddaa` or one
+of the [named colours](#named-colours), and its text turns dark or light to read
+on it. Anything else is a `400`. A note made without a `color`, in a section
+that has one, takes the section's colour lightened (its tint), so the sections
+read apart at a glance — but not on a board where pictures lead (at least
+half of its cards pictures, and some sections words: their
+colours carry it), and not on a board of one section. Send `"color": null` to
+keep a note plain. Other kinds keep `color` as given.
 
 **Changing one.** A new `title` or `body` on a note the API wrote is written
 into it the same way, and its height follows unless you send `h`. A note that
@@ -142,7 +147,7 @@ cropped.
 | `ext` | string | 20 chars |
 | `size_bytes` | number | rounded |
 | `alt` | string | 300 chars — image description |
-| `color` | string | 40 chars — on a `note`, a hex colour, its fill |
+| `color` | string | 40 chars — on a `note`, its fill: a hex colour or a [named colour](#named-colours) |
 | `swatches` | array | a `palette`'s colours, up to 12 |
 | `props`, `identifiers` | see [Identifiers and properties](/docs/api/metadata) | |
 | `x`, `y` | number | rounded; omit for auto-placement |
@@ -233,8 +238,9 @@ Up to **1000** cards per call; more gets `400`.
 **Auto-placement.** Cards without `x`/`y` are placed for you, so a batch cannot
 land on top of existing content. Pass both to place one yourself. On an empty
 board, and for groups the board doesn't have cards in yet, cards are laid out as
-[`auto`](/docs/api/arrange#the-layouts) lays them out: each group a block of its own
-with room for its outline and name, in the order sent, under whatever is already
+[`auto`](/docs/api/arrange#the-layouts) lays them out: the groups as columns, as
+blocks or with the pictures leading, whichever suits them, each with room for its
+outline and name, in the order sent, under whatever is already
 there, so tidying the board afterwards moves nothing. New cards for a group that
 already has cards on the board go under those cards, or beside them, when there
 is room there. Cards in no group, added to a board that has cards, go in the
@@ -250,7 +256,8 @@ Name a card's section in `group` and it goes in the board's group of that name,
 made with the cards when the board has none — there is no need to make the group
 first and copy its id onto every card. Names match whatever their case. An
 optional `groups` list, up to 50, sets the order the
-sections are laid out in and the outline colour of any it makes:
+sections are laid out in and the outline colour of any it makes, a hex or one of
+the [named colours](#named-colours):
 
 ```json
 { "groups": [ { "name": "The canon", "color": "#3f7ab5" }, { "name": "To watch" } ],
@@ -261,9 +268,29 @@ sections are laid out in and the outline colour of any it makes:
 ```
 
 The answer lists the sections the call named in `groups`, each with its `id` and
-`"created": true` on one it made. A section that already exists keeps its
-colour. `group_id` still works and must name a group on the board; a card can't
-carry both. Naming a section reads the board, as leaving out coordinates does.
+`"created": true` on one it made. A section made without a colour takes the next
+named colour no section on the board wears yet, rather than the app's gold,
+which marks what is selected; a section that already exists keeps its colour.
+`group_id` still works and must name a group on the board; a card can't carry
+both. Naming a section reads the board, as leaving out coordinates does.
+
+### Named colours
+
+There are eight colours a section's outline or a note's
+fill can be given by name, in any case. A section takes the outline colour; a
+note takes the tint, light enough for dark text in both themes. They are also
+the colours a section takes when given none, in this order:
+
+| Name | Outline | A note's tint |
+|---|---|---|
+| `blue` | `#3f7ab5` | `#cae2fd` |
+| `clay` | `#af6440` | `#fbd8c9` |
+| `green` | `#3d8550` | `#c9e6ce` |
+| `plum` | `#9864a4` | `#efd8f5` |
+| `teal` | `#008686` | `#bce7e7` |
+| `rose` | `#b25e6c` | `#fdd6da` |
+| `moss` | `#6d7e2b` | `#dae4c2` |
+| `slate` | `#6d7889` | `#dbe0e7` |
 
 ### Laying cards out
 

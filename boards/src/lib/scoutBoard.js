@@ -1277,7 +1277,9 @@ export async function readBoardCardsAndGroups(env, boardId, accessToken = null) 
 /**
  * Create, patch or remove groups in one board open.
  *
- * `upserts` are whole group records; `removeIds` are ungrouped rather than
+ * `upserts` are whole group records, or a function of the board's groups
+ * (groupsOf) that returns them, for a record that depends on what is there
+ * (a new group's colour); `removeIds` are ungrouped rather than
  * deleted — the cards pointing at a removed group have their `groupId` cleared
  * in the same transaction, because a card left pointing at a group that no
  * longer exists renders as an untitled outline nobody can select or name.
@@ -1287,6 +1289,7 @@ export async function writeBoardGroups(env, {
 }) {
   const board = await openBoard(env, boardId, accessToken);
   try {
+    if (typeof upserts === 'function') upserts = upserts(groupsOf(board.doc));
     const groups = board.doc.getMap('groups');
     const cards = board.doc.getMap('cards');
     const gone = new Set(removeIds.map(String));

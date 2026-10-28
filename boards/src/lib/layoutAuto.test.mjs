@@ -4,7 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  AUTO, API_LAYOUTS, autoLayout, arrangeAuto, rearrangeAuto, readingOrder, rowOrder, inOrder,
+  AUTO, API_LAYOUTS, ARRANGEMENTS, autoLayout, autoPlan, arrangeAuto, rearrangeAuto, readingOrder, rowOrder, inOrder,
+  leadsWithPictures,
 } from './layoutAuto.js';
 import { LAYOUTS, GROUP_OUTLINE_PAD, GROUP_LABEL_ROOM, placeGrouped } from './layoutEngine.js';
 import { paletteSize } from './apiCards.js';
@@ -90,6 +91,72 @@ test('the whole board comes out near a screen\'s shape, not a strip', () => {
   const bw = Math.max(...board.map((c) => c.x + c.w));
   const bh = Math.max(...board.map((c) => c.y + c.h));
   assert.ok(bw / bh > 1 && bw / bh < 2.6, `${bw}×${bh}`);
+});
+
+// Where a section's cards reach: { x, y, r, b }.
+function reach(cards, groupId) {
+  const m = cards.filter((c) => c.groupId === groupId);
+  return {
+    x: Math.min(...m.map((c) => c.x)), y: Math.min(...m.map((c) => c.y)),
+    r: Math.max(...m.map((c) => c.x + c.w)), b: Math.max(...m.map((c) => c.y + c.h)),
+  };
+}
+
+test('a few sections of notes are columns: one row of them, read left to right', () => {
+  const lists = [
+    ...[150, 120, 180, 140].map((h, i) => note(`pro-${i}`, 'pros', h)),
+    ...[130, 160, 120, 170].map((h, i) => note(`con-${i}`, 'cons', h)),
+    ...[110, 150].map((h, i) => note(`maybe-${i}`, 'maybe', h)),
+  ];
+  const { arrangement, cards } = autoPlan(lists);
+  assert.equal(arrangement, 'columns');
+  assertNoOverlaps(cards);
+  const at = ['pros', 'cons', 'maybe'].map((g) => reach(cards, g));
+  assert.equal(new Set(at.map((b) => b.y)).size, 1, 'every section starts at the same height');
+  for (let i = 1; i < at.length; i++) assert.ok(at[i].x > at[i - 1].r, 'in the order sent, left to right');
+  for (const g of ['pros', 'cons', 'maybe']) {
+    assert.equal(new Set(cards.filter((c) => c.groupId === g).map((c) => c.x)).size, 1, `${g} is one column`);
+  }
+});
+
+test('a moodboard lets its pictures lead: picture sections two to a row, the words beside them', () => {
+  const aspects = [1.5, 0.75, 1, 1.78, 0.67, 1.33];
+  const board = [
+    ...['streets', 'rooms', 'faces', 'light'].flatMap((g) => aspects.map((a, i) => pic(`${g}-${i}`, g, a))),
+    palette('pal', 'look', 5),
+    ...[120, 140, 110, 160].map((h, i) => note(`look-${i}`, 'look', h)),
+  ];
+  const { arrangement, cards } = autoPlan(board);
+  assert.equal(arrangement, 'pictures');
+  assertNoOverlaps(cards);
+  const [streets, rooms, faces, light, look] = ['streets', 'rooms', 'faces', 'light', 'look'].map((g) => reach(cards, g));
+  assert.equal(streets.y, rooms.y, 'two to a row');
+  assert.equal(faces.y, light.y);
+  assert.ok(streets.x < rooms.x && faces.x < light.x, 'in order');
+  assert.ok(faces.y > Math.max(streets.b, rooms.b), 'the next two under them');
+  for (const p of [streets, rooms, faces, light]) assert.ok(look.x > p.r, 'the words beside every picture section');
+  assert.equal(look.y, streets.y, 'level with the first row');
+  const w = Math.max(...cards.map((c) => c.x + c.w));
+  const h = Math.max(...cards.map((c) => c.y + c.h));
+  assert.ok(w / h > 1 && w / h < 2.6, `${w}×${h}`);
+});
+
+test('many sections, or a few that would make a strip side by side, are blocks', () => {
+  const many = Array.from({ length: 12 }, (_, g) => [0, 1, 2].map((i) => note(`t${g}-${i}`, `t${g}`, 100))).flat();
+  assert.equal(autoPlan(many).arrangement, 'blocks');
+  const days = Array.from({ length: 5 }, (_, g) => [0, 1, 2].map((i) => note(`d${g}-${i}`, `day${g}`, 90))).flat();
+  assert.equal(autoPlan(days).arrangement, 'blocks', 'five short lists side by side are a strip');
+  assert.equal(autoPlan([note('a', null), note('b', null), note('c', null)]).arrangement, 'blocks', 'cards in no section');
+});
+
+test('the pictures lead when at least half the cards are pictures and some sections hold words', () => {
+  const pics = (g, n) => Array.from({ length: n }, (_, i) => pic(`${g}${i}`, g, 1.5));
+  const notes = (g, n) => Array.from({ length: n }, (_, i) => note(`${g}n${i}`, g));
+  assert.equal(leadsWithPictures([...pics('a', 4), ...notes('b', 4)]), true);
+  assert.equal(leadsWithPictures([...pics('a', 3), ...notes('b', 4)]), false, 'more words than pictures');
+  assert.equal(leadsWithPictures([...pics('a', 4), ...pics('b', 4)]), false, 'no words to set beside them');
+  assert.equal(leadsWithPictures([...pics('a', 3), ...notes('a', 1)]), false, 'pictures and words in one section');
+  assert.equal(leadsWithPictures([...pics('a', 4), palette('p', 'a'), ...notes('b', 2)]), true, 'a palette over pictures');
 });
 
 test('a section of pictures is rows across it, every picture whole and the rows flush', () => {
@@ -179,8 +246,11 @@ function randomBoard(seed) {
 }
 
 test('laying out a board laid out this way moves nothing', () => {
+  const seen = new Set();
   for (let seed = 1; seed <= 150; seed++) {
-    const first = arrangeAuto([], randomBoard(seed));
+    const board = randomBoard(seed);
+    seen.add(autoPlan(board).arrangement);
+    const first = arrangeAuto([], board);
     assertNoOverlaps(first);
     const again = rearrangeAuto(first, first.map((c) => c.id));
     const was = new Map(first.map((c) => [c.id, c]));
@@ -189,6 +259,7 @@ test('laying out a board laid out this way moves nothing', () => {
       assert.deepEqual([c.x, c.y, c.w, c.h], [b.x, b.y, b.w, b.h], `seed ${seed}: ${c.id} moved`);
     }
   }
+  assert.deepEqual([...seen].sort(), [...ARRANGEMENTS].sort(), 'boards of every arrangement were laid out again');
 });
 
 test('a tidy stays where the cards were, clear of what it isn\'t moving; a new batch goes under the board', () => {

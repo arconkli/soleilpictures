@@ -200,12 +200,12 @@ quietly failing.
 | Tool | Input |
 |---|---|
 | `create_boards` | `boards[]` — one, or up to 500, each `{ name, workspace_id?, parent_board_id?, view?, identifiers?, props? }`; `workspace_id?`, `on_conflict?` · each board comes back with its `url`; with no `parent_board_id` it becomes a project at the top of the workspace, where **New cluster** puts one, and the answer's `placement` offers up to 12 of your clusters to ask where it belongs |
-| `add_cards` | `board_id`, `cards[]` — up to 1000, each with its section by name in `group?`, `groups?` (the sections' order and colours), `on_conflict?` · a note shows its `title` as its heading and is sized to its text, a `palette` is made from `swatches`; leave `x`, `y`, `w` and `h` out and the server places and sizes everything — see [Cards](/docs/api/cards#notes) |
-| `import_urls` | `board_id`, `urls[]`, `titles?`, `dry_run?` — bring reference in from the web; safe to re-run |
+| `add_cards` | `board_id`, `cards[]` — up to 1000, each with its section by name in `group?`, `groups?` (the sections' order and colours), `on_conflict?` · a note shows its `title` as its heading and is sized to its text, a `palette` is made from `swatches`; sections and their notes take [colours of their own](/docs/api/cards#named-colours) unless given one; leave `x`, `y`, `w` and `h` out and the server places and sizes everything — see [Cards](/docs/api/cards#notes) |
+| `import_urls` | `board_id`, `urls[]`, `titles?`, `group?`, `dry_run?` — bring reference in from the web, into a section by name if given; safe to re-run |
 | `upload_image` | `board_id`, `data` (base64), `content_type`, optionally `file_name` |
 | `upload_file` | `board_id`, `path` — **local server only**; handles large files |
 | `write_doc` | `board_id`, `pages[]` — up to 50, each `{ title?, markdown }`; `title?`, `x?`, `y?` for a new doc, or `card_id` and `parent_page_id?` to add pages to one · a [doc](/docs/api/docs) written from Markdown |
-| `create_group` | `board_id`, `name`, `color?`, `shape?` — say a set of cards is one thing; `add_cards` can simply name the section instead |
+| `create_group` | `board_id`, `name`, `color?`, `shape?` — say a set of cards is one thing; `add_cards` can simply name the section instead. Given no colour, a group takes a [named one](/docs/api/cards#named-colours) |
 | `add_comment` | `board_id`, `body`, and `card_id?`, `group_id?`, `x?` and `y?`, or `reply_to?`; `quote?` and `page_id?` with a doc's `card_id` — a comment in the person's name, placed beside what it is about, on words in a doc, or a reply |
 
 **Changing**
@@ -215,7 +215,7 @@ quietly failing.
 | `update_boards` | `boards[]` — up to 100, each a `board_id` and any of `name`, `view`, `parent_board_id` (`null` for the top level), `identifiers`, `props` · each board is changed on its own, and the answer lists the boards updated and why any failed |
 | `update_cards` | `board_id`, `cards[]` — up to 1000, each an `id` and any field `add_cards` takes — `group` by name or `group_id` (empty to ungroup), `z`, `rotation`, `section_header`, `swatches`, `identifiers`, `props`, and any kind; `groups?` · a note's new title or body is written into it, and its height follows |
 | `edit_doc_page` | `board_id`, `card_id`, `page_id`, and `markdown` with `page_hash`, or `edits[]` (up to 50), or `title` · marked destructive, since a rewrite takes words away; the board goes to Version history first |
-| `arrange_board` | `board_id`, `layout?`, `card_ids?`, `order?`, `dry_run?` — lay a board out or tidy it: `auto` unless another layout is named, which also brings notes made earlier up to date |
+| `arrange_board` | `board_id`, `layout?`, `card_ids?`, `order?`, `dry_run?` — lay a board out or tidy it: `auto` unless another layout is named — columns, the pictures leading, or blocks, whichever [suits the board](/docs/api/arrange#the-layouts) — which also brings notes made earlier up to date |
 | `move_cards` | `from_board_id`, `to_board_id`, `card_ids[]` |
 | `tag_cards` | `board_id`, `card_ids[]` (up to 200), `add[]?`, `remove[]?` (tag names or ids, up to 10 each) — put [tags](/docs/api/tags) on cards or take them off, as the Tag menu does; a new name makes the tag |
 | `resolve_comments` | `board_id`, `comment_ids[]` (up to 50), `resolved?` — resolve threads, or reopen them with `false`; lists any refused, with why |

@@ -84,6 +84,7 @@ import { CANVAS } from '../src/lib/canvasView.js';
 import { PALETTE, SECTIONS, PICTURE } from '../src/lib/apiCards.js';
 import { NOTE_FIT } from '../src/lib/noteFit.js';
 import { AUTO } from '../src/lib/layoutAuto.js';
+import { SECTION_COLOURS } from '../src/lib/boardStyle.js';
 import { SIGNED_IMAGE_TTL_S } from '../src/lib/signedImage.js';
 import { VERIFIED_HOSTS } from '../src/lib/oauthTrust.js';
 import { DRAFT_LIFETIME_DAYS } from '../src/lib/mcpDrafts.js';
@@ -641,6 +642,14 @@ export const FACTS = {
   sectionNameMax: String(SECTIONS.maxName),
   sectionsPerCall: String(SECTIONS.maxPerCall),
   autoShape: AUTO.shape,
+  // How `auto` chooses (lib/layoutAuto.js), and the colours a section or a note
+  // takes when given none (lib/boardStyle.js).
+  autoLeadShare: AUTO.leadShare === 0.5 ? 'half' : `${Math.round(AUTO.leadShare * 100)}%`,
+  autoLeadPerRow: ['one', 'two', 'three', 'four'][AUTO.leadPerRow - 1] ?? String(AUTO.leadPerRow),
+  autoColumnsWide: String(AUTO.columnsWide),
+  sectionColourCount: ['six', 'seven', 'eight', 'nine', 'ten'][SECTION_COLOURS.length - 6] ?? String(SECTION_COLOURS.length),
+  sectionColourTable: ['| Name | Outline | A note\'s tint |', '|---|---|---|',
+    ...SECTION_COLOURS.map((c) => `| \`${c.name}\` | \`${c.tone}\` | \`${c.tint}\` |`)].join('\n'),
   // The board as drawn (lib/canvasView.js, GET /boards/:id/canvas and the
   // inline view): the cards drawn, the pictures given an address, the text each
   // card carries, and how long an address works (lib/signedImage.js).

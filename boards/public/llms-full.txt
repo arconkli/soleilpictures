@@ -5705,7 +5705,7 @@ Send your own html and it is used as it is, under your title as a heading when i
 
 Sized to its text. Leave h out and a note is as tall as its text at its width — 280px unless you give w, or 320px when the text needs the room — from 72 to 480px, the tallest a note grows in the app. A note whose text runs past that comes back named in warnings: on the board its end fades out, and long writing reads better as a doc.
 
-Colour. A note's color is its fill, a hex colour such as #f3ddaa, and its text turns dark or light to read on it. Anything that isn't a hex is a 400. Other kinds keep color as given.
+Colour. A note's color is its fill, a hex colour such as #f3ddaa or one of the named colours, and its text turns dark or light to read on it. Anything else is a 400. A note made without a color, in a section that has one, takes the section's colour lightened (its tint), so the sections read apart at a glance — but not on a board where pictures lead (at least half of its cards pictures, and some sections words: their colours carry it), and not on a board of one section. Send "color": null to keep a note plain. Other kinds keep color as given.
 
 Changing one. A new title or body on a note the API wrote is written into it the same way, and its height follows unless you send h. A note that has since been edited in the app keeps the text it has there, and a note resized by hand keeps its size. A note the API made before notes worked this way is brought up to date the next time its board is arranged.
 
@@ -5739,7 +5739,7 @@ mime | string | 200 chars
 ext | string | 20 chars
 size_bytes | number | rounded
 alt | string | 300 chars — image description
-color | string | 40 chars — on a note, a hex colour, its fill
+color | string | 40 chars — on a note, its fill: a hex colour or a named colour
 swatches | array | a palette's colours, up to 12
 props, identifiers | see Identifiers and properties | 
 x, y | number | rounded; omit for auto-placement
@@ -5801,13 +5801,13 @@ Either shape works:
 
 Up to 1000 cards per call; more gets 400.
 
-Auto-placement. Cards without x/y are placed for you, so a batch cannot land on top of existing content. Pass both to place one yourself. On an empty board, and for groups the board doesn't have cards in yet, cards are laid out as auto lays them out: each group a block of its own with room for its outline and name, in the order sent, under whatever is already there, so tidying the board afterwards moves nothing. New cards for a group that already has cards on the board go under those cards, or beside them, when there is room there. Cards in no group, added to a board that has cards, go in the free space beside them.
+Auto-placement. Cards without x/y are placed for you, so a batch cannot land on top of existing content. Pass both to place one yourself. On an empty board, and for groups the board doesn't have cards in yet, cards are laid out as auto lays them out: the groups as columns, as blocks or with the pictures leading, whichever suits them, each with room for its outline and name, in the order sent, under whatever is already there, so tidying the board afterwards moves nothing. New cards for a group that already has cards on the board go under those cards, or beside them, when there is room there. Cards in no group, added to a board that has cards, go in the free space beside them.
 
 warnings. A card that landed but won't look as asked — a note too long to show whole — is named in warnings, a list of sentences beside cards. The cards are saved either way.
 
 Sections
 
-Name a card's section in group and it goes in the board's group of that name, made with the cards when the board has none — there is no need to make the group first and copy its id onto every card. Names match whatever their case. An optional groups list, up to 50, sets the order the sections are laid out in and the outline colour of any it makes:
+Name a card's section in group and it goes in the board's group of that name, made with the cards when the board has none — there is no need to make the group first and copy its id onto every card. Names match whatever their case. An optional groups list, up to 50, sets the order the sections are laid out in and the outline colour of any it makes, a hex or one of the named colours:
 
 { "groups": [ { "name": "The canon", "color": "#3f7ab5" }, { "name": "To watch" } ],
   "cards": [
@@ -5815,7 +5815,21 @@ Name a card's section in group and it goes in the board's group of that name, ma
     { "kind": "note", "title": "Heat (1995)", "group": "To watch" }
   ] }
 
-The answer lists the sections the call named in groups, each with its id and "created": true on one it made. A section that already exists keeps its colour. group_id still works and must name a group on the board; a card can't carry both. Naming a section reads the board, as leaving out coordinates does.
+The answer lists the sections the call named in groups, each with its id and "created": true on one it made. A section made without a colour takes the next named colour no section on the board wears yet, rather than the app's gold, which marks what is selected; a section that already exists keeps its colour. group_id still works and must name a group on the board; a card can't carry both. Naming a section reads the board, as leaving out coordinates does.
+
+Named colours
+
+There are eight colours a section's outline or a note's fill can be given by name, in any case. A section takes the outline colour; a note takes the tint, light enough for dark text in both themes. They are also the colours a section takes when given none, in this order:
+
+Name | Outline | A note's tint
+blue | #3f7ab5 | #cae2fd
+clay | #af6440 | #fbd8c9
+green | #3d8550 | #c9e6ce
+plum | #9864a4 | #efd8f5
+teal | #008686 | #bce7e7
+rose | #b25e6c | #fdd6da
+moss | #6d7e2b | #dae4c2
+slate | #6d7889 | #dbe0e7
 
 Laying cards out
 
@@ -6597,6 +6611,8 @@ How it is laid out
 
 Imported cards are arranged as justified rows by default — equal-height rows at each picture's true aspect ratio, flush on both edges. Pass layout to choose another, or re-run POST /boards/:id/arrange afterwards to try a different one.
 
+Name a section in an item's group and it goes in the board's group of that name, made with it when the board has none, as a card's does. An import into sections is placed as cards naming them are: a new section laid out as auto lays one out, under what is already there, and pictures for a section the board has beside that section's cards. Bringing in a moodboard a section at a time — streets, faces, light — is one import each.
+
 Positioning and metadata
 
 Items accept the same x, y, w, h as cards, and the same props and identifiers as metadata. Anything without coordinates is arranged around what is already on the board.
@@ -6640,17 +6656,24 @@ The layouts
 
 auto · column · grid · justified · masonry · row
 
-auto — the default. A board reads as its sections (groups), so each is laid out as a block of its own: pictures (images and videos) in rows across the block, flush on both edges and each at its true shape, under the section's palette if it has one; anything else in columns, each card at its own size, a picture at the column's width and a palette or a wide card across the top. The blocks are then set out in rows, in order, at the width that brings the whole board nearest 16:10 with its rows about as wide as each other. Cards in no section make one block more.
+auto — the default. A board reads as its sections (groups), so each is laid out as a block of its own: pictures (images and videos) in rows across the block, flush on both edges and each at its true shape, under the section's palette if it has one; anything else in columns, each card at its own size, a picture at the column's width and a palette or a wide card across the top. Cards in no section make one block more. The blocks are then set out whichever of three ways suits what the board holds:
 
-┌ CANON ──────────┐  ┌ JOURNAL ─────────────────┐
-│ ┌─────┐ ┌─────┐ │  │ ┌─────┐ ┌─────┐ ┌─────┐  │
-│ │     │ │     │ │  │ │     │ │     │ │     │  │
-│ └─────┘ │     │ │  │ └─────┘ └─────┘ └─────┘  │
-│ ┌─────┐ └─────┘ │  └──────────────────────────┘
-│ └─────┘         │
-└─────────────────┘
+Pictures lead — when at least half of the cards are pictures and some sections hold words, as a moodboard does: the picture sections large, two to a row, and the other sections in a column beside them.
+Columns — the sections side by side in one row, each a column (a long one up to 4 columns wide), read left to right as lists are; taken when the board shows on a screen about as large as it would as blocks.
+Blocks — anything else: the blocks in rows, in order, at the width that brings the whole board nearest 16:10 with its rows about as wide as each other.
 
-Cards are taken in reading order — top to bottom, each row left to right — unless order names the ones that come first, and a column fills in that same order, so arranging a board auto arranged moves nothing.
+Neither of the first two is taken for a board that would come out a strip, far wider than a screen is.
+
+Pictures lead                        Columns              Blocks
+┌ STREETS ──┐ ┌ ROOMS ────┐ ┌ LOOK ┐  ┌ A ┐ ┌ B ┐ ┌ C ┐  ┌ A ──────┐ ┌ B ┐
+│ ▒▒▒ ▒ ▒▒▒ │ │ ▒▒ ▒▒▒ ▒▒ │ │ ░░░░ │  │ □ │ │ □ │ │ □ │  │ □ □ □   │ │ □ │
+│ ▒▒ ▒▒▒▒ ▒ │ │ ▒▒▒▒ ▒▒▒▒ │ │ □    │  │ □ │ │ □ │ │ □ │  └─────────┘ └───┘
+└───────────┘ └───────────┘ │ □    │  │ □ │ └───┘ │ □ │  ┌ C ──────────┐
+┌ FACES ────┐ ┌ LIGHT ────┐ │ □    │  └───┘       └───┘  │ □ □ □ □     │
+│ ▒▒ ▒▒▒ ▒▒ │ │ ▒▒▒ ▒▒ ▒▒ │ └──────┘                     └─────────────┘
+└───────────┘ └───────────┘
+
+Cards are taken in reading order — top to bottom, each row left to right — unless order names the ones that come first, and a column fills in that same order. Every arrangement keeps the sections in their order, so arranging a board auto arranged moves nothing.
 
 Notes brought up to date. Any arrange brings a note the API made before notes showed their title and color up to date: its title becomes its heading, its colour its fill, and its height its text's (see Notes). Only a note nobody has opened or resized in the app is touched, and one edited while the arrange runs keeps what was written there and is only moved. repaired counts them.
 
@@ -6729,7 +6752,7 @@ POST /boards/:id/groups | Create one
 PATCH /boards/:id/groups/:groupId | Rename or restyle it
 DELETE /boards/:id/groups/:groupId | Ungroup — removes the group, never its cards
 
-Pass the returned id as group_id on any card — or skip this step, and name the group in a card's group: the board's group of that name is used, or made with the cards (see Sections). shape is box (one rectangle round everything) or hug (following each card). Deleting a group ungroups; it never deletes the cards — there is no undo on an HTTP call, and a group holding forty cards must not be a way to lose forty cards.
+Pass the returned id as group_id on any card — or skip this step, and name the group in a card's group: the board's group of that name is used, or made with the cards (see Sections). shape is box (one rectangle round everything) or hug (following each card). color is the outline's colour, a hex or one of the named colours; a group made without one takes the next named colour no group on the board wears yet. Deleting a group ungroups; it never deletes the cards — there is no undo on an HTTP call, and a group holding forty cards must not be a way to lose forty cards.
 
 Section headings
 
@@ -7177,12 +7200,12 @@ Writing
 
 Tool | Input
 create_boards | boards[] — one, or up to 500, each { name, workspace_id?, parent_board_id?, view?, identifiers?, props? }; workspace_id?, on_conflict? · each board comes back with its url; with no parent_board_id it becomes a project at the top of the workspace, where New cluster puts one, and the answer's placement offers up to 12 of your clusters to ask where it belongs
-add_cards | board_id, cards[] — up to 1000, each with its section by name in group?, groups? (the sections' order and colours), on_conflict? · a note shows its title as its heading and is sized to its text, a palette is made from swatches; leave x, y, w and h out and the server places and sizes everything — see Cards
-import_urls | board_id, urls[], titles?, dry_run? — bring reference in from the web; safe to re-run
+add_cards | board_id, cards[] — up to 1000, each with its section by name in group?, groups? (the sections' order and colours), on_conflict? · a note shows its title as its heading and is sized to its text, a palette is made from swatches; sections and their notes take colours of their own unless given one; leave x, y, w and h out and the server places and sizes everything — see Cards
+import_urls | board_id, urls[], titles?, group?, dry_run? — bring reference in from the web, into a section by name if given; safe to re-run
 upload_image | board_id, data (base64), content_type, optionally file_name
 upload_file | board_id, path — local server only; handles large files
 write_doc | board_id, pages[] — up to 50, each { title?, markdown }; title?, x?, y? for a new doc, or card_id and parent_page_id? to add pages to one · a doc written from Markdown
-create_group | board_id, name, color?, shape? — say a set of cards is one thing; add_cards can simply name the section instead
+create_group | board_id, name, color?, shape? — say a set of cards is one thing; add_cards can simply name the section instead. Given no colour, a group takes a named one
 add_comment | board_id, body, and card_id?, group_id?, x? and y?, or reply_to?; quote? and page_id? with a doc's card_id — a comment in the person's name, placed beside what it is about, on words in a doc, or a reply
 
 Changing
@@ -7191,7 +7214,7 @@ Tool | Input
 update_boards | boards[] — up to 100, each a board_id and any of name, view, parent_board_id (null for the top level), identifiers, props · each board is changed on its own, and the answer lists the boards updated and why any failed
 update_cards | board_id, cards[] — up to 1000, each an id and any field add_cards takes — group by name or group_id (empty to ungroup), z, rotation, section_header, swatches, identifiers, props, and any kind; groups? · a note's new title or body is written into it, and its height follows
 edit_doc_page | board_id, card_id, page_id, and markdown with page_hash, or edits[] (up to 50), or title · marked destructive, since a rewrite takes words away; the board goes to Version history first
-arrange_board | board_id, layout?, card_ids?, order?, dry_run? — lay a board out or tidy it: auto unless another layout is named, which also brings notes made earlier up to date
+arrange_board | board_id, layout?, card_ids?, order?, dry_run? — lay a board out or tidy it: auto unless another layout is named — columns, the pictures leading, or blocks, whichever suits the board — which also brings notes made earlier up to date
 move_cards | from_board_id, to_board_id, card_ids[]
 tag_cards | board_id, card_ids[] (up to 200), add[]?, remove[]? (tag names or ids, up to 10 each) — put tags on cards or take them off, as the Tag menu does; a new name makes the tag
 resolve_comments | board_id, comment_ids[] (up to 50), resolved? — resolve threads, or reopen them with false; lists any refused, with why

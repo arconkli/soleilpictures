@@ -34,7 +34,8 @@ test('a note\'s colour is a hex or nothing, and says what to send when it is not
   assert.deepEqual(readNoteColor('#F3DDAA'), { color: '#f3ddaa' });
   assert.deepEqual(readNoteColor(null), { color: null });
   assert.deepEqual(readNoteColor(''), { color: null });
-  assert.match(readNoteColor('yellow').problem, /hex colour like "#f3ddaa".*yellow/);
+  assert.match(readNoteColor('yellow').problem, /hex colour like "#f3ddaa" or one of blue, clay, .*yellow/);
+  assert.deepEqual(readNoteColor('Blue'), { color: '#cae2fd' }, 'a named colour is its tint');
 });
 
 test('swatches come as objects or plain hexes, named or not, and only a palette\'s worth', () => {
@@ -62,6 +63,7 @@ test('the sections a write names: the list first, in its order, then any a card 
   assert.deepEqual(read.wanted, [
     { name: 'Canon', color: '#3f7ab5' }, { name: 'Journal', color: null }, { name: 'To Watch', color: null },
   ]);
+  assert.equal(readSections([{ name: 'Ideas', color: 'Teal' }], []).wanted[0].color, '#008686', 'a named colour is its tone');
   assert.match(readSections('Canon', []).problem, /groups lists sections/);
   assert.match(readSections([{ color: '#fff' }], []).problem, /groups\[0\] needs a name/);
   assert.match(readSections(Array.from({ length: SECTIONS.maxPerCall + 1 }, (_, i) => `s${i}`), []).problem,
@@ -82,6 +84,10 @@ test('a section is the board\'s oldest group of that name, else a new group made
     id: 'new-1', name: 'Journal', color: '#af6440', shape: 'box', outline: true, kind: null,
     createdAt: '2026-10-27T00:00:00Z', createdBy: 'u1',
   }]);
+  const plain = resolveSections([{ id: 'g1', name: 'Canon', color: '#3f7ab5' }],
+    [{ name: 'Journal', color: null }, { name: 'Ideas', color: '#af6440' }, { name: 'Watch', color: null }]);
+  assert.deepEqual(plain.created.map((g) => g.color), ['#3d8550', '#af6440', '#9864a4'],
+    'a new section given no colour takes the next named one the board doesn\'t wear');
 });
 
 test('a note made from a title and a body shows both, as tall as its text, in its colour', () => {
