@@ -5,7 +5,10 @@
 // keeps the rest.
 //
 // Refreshes when this tab tags or untags something (TAG_LINKS_CHANGED) or
-// writes a suggestion (TAG_SUGGESTIONS_CHANGED, from useAiTagger).
+// writes a suggestion (TAG_SUGGESTIONS_CHANGED, from useAiTagger), and when
+// the server writes one: a picture's suggestions arrive a few minutes after
+// it lands (the describe job, 0594), so the cluster hears tag_suggestions
+// inserts for itself and reloads a second later.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
@@ -17,7 +20,9 @@ export function announceTagSuggestionsChanged() {
   try { document.dispatchEvent(new CustomEvent(TAG_SUGGESTIONS_CHANGED)); } catch (_) {}
 }
 
-// → Map<cardId, [{ tagId, distance }]>, closest first.
+// → Map<cardId, [{ tagId, distance, origin }]>, closest first. `origin` is
+// 'embed' (from the card's words) or 'vision' / 'vision-embed' (from what is
+// in its picture), for the chip's tooltip.
 export function useTagSuggestions({ boardId, enabled }) {
   const [byCard, setByCard] = useState(() => new Map());
   const reqRef = useRef(0);
@@ -26,7 +31,7 @@ export function useTagSuggestions({ boardId, enabled }) {
     const req = ++reqRef.current;
     if (!supabase || !boardId || !enabled) { setByCard(new Map()); return; }
     const { data, error } = await supabase.from('tag_suggestions')
-      .select('tag_id, source_id, distance')
+      .select('tag_id, source_id, distance, origin')
       .eq('board_id', boardId)
       .eq('source_kind', 'card')
       .is('dismissed_at', null)
@@ -37,7 +42,7 @@ export function useTagSuggestions({ boardId, enabled }) {
     const m = new Map();
     for (const r of data || []) {
       if (!m.has(r.source_id)) m.set(r.source_id, []);
-      m.get(r.source_id).push({ tagId: r.tag_id, distance: r.distance });
+      m.get(r.source_id).push({ tagId: r.tag_id, distance: r.distance, origin: r.origin || 'embed' });
     }
     setByCard(m);
   }, [boardId, enabled]);
@@ -52,6 +57,19 @@ export function useTagSuggestions({ boardId, enabled }) {
       document.removeEventListener(TAG_SUGGESTIONS_CHANGED, reload);
     };
   }, [load]);
+
+  useEffect(() => {
+    if (!supabase || !boardId || !enabled) return undefined;
+    let t = null;
+    // Per mount: a channel name reused before its removal lands refuses new
+    // callbacks (useVoteCards.js says the same).
+    const sfx = Math.random().toString(36).slice(2, 9);
+    const chan = supabase.channel(`tag-suggestions:${boardId}:${sfx}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tag_suggestions', filter: `board_id=eq.${boardId}` },
+        () => { clearTimeout(t); t = setTimeout(() => load(), 1000); })
+      .subscribe();
+    return () => { clearTimeout(t); try { supabase.removeChannel(chan); } catch (_) {} };
+  }, [boardId, enabled, load]);
 
   return { byCard, reload: load };
 }

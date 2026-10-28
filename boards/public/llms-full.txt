@@ -840,7 +840,7 @@ Three ways in, depending on how much room you need:
 
 Edit popover — a compact panel beside the image with the essentials.
 Full screen editor — everything, with the image large.
-Lightbox — click an image to fill the screen; click again for 1:1 and drag to pan.
+Lightbox — click an image to fill the screen; click again for 1:1 and drag to pan. Under it, More like this shows the pictures in your workspace that look most like it, matched by what is in them, and a click opens one there. It appears only when something is close, and not in a workspace whose AI suggestions are off.
 
 Adjustments are stored as settings on the card. The uploaded file is never touched, so Reset returns you to the original exactly, and a collaborator who downloads the image gets to choose whether your edits come with it.
 
@@ -2252,6 +2252,8 @@ Double-click a file, or highlight it and press Space, to see it big without leav
 
 A bar floats along the top: the file's name and where it is among the files (Image · 3 of 30), then Show on board (or Show in cluster, for a file you're browsing in another cluster), Download and Info.
 
+Under a picture, More like this shows the pictures in your workspace that look most like it, matched by what is in them rather than by name. Click one to open it in place; ← / → carry on through the files. The strip appears only when something is close, and not in a workspace whose AI suggestions are off.
+
 On an audio row in the List layout, Space still auditions it in place, so a pack plays through with ↓ and Space.
 
 Info
@@ -2930,7 +2932,7 @@ Automatic tagging works from text — card titles, notes, documents, and the nam
 An exact name match is applied, marked auto. Make a Diner tag, and a note that mentions the diner picks it up, as does a group called "Diner stills". Creating a tag applies it straight away to what already says its name.
 In documents, clear mentions are underlined, marked auto: the AI underlines words that clearly refer to one of your tags, even when they are not its exact name.
 Anything looser is only suggested. The AI compares what a card says with your tags, and the closest suggestion shows on the card as a hollow chip with a sparkle: ✓ keeps it, × means never suggest it there. The rest wait on the tag's page, under Manage.
-Pictures are suggested, never tagged. Each picture added to a cluster is described by an AI model. When the description names one of your tags, or means something close to it, the picture gets that tag as a suggestion, a few minutes after it lands. A picture is never tagged on its own.
+Pictures are suggested, never tagged. Each picture added to a cluster is described by an AI model. When the description names one of your tags, or means something close to it, the picture gets that tag as a suggestion, a few minutes after it lands, without a reload; hover the chip and it says it came from the picture. A picture is never tagged on its own.
 
 The AI reads up to 2,000,000 characters per account a day, counting the instructions sent along with your text, more than a normal day's work needs. Past that, it pauses until the next day.
 
@@ -3050,7 +3052,7 @@ Recents — what you have had open
 Clusters — by name
 Cards and notes — by title, and by the first 500 characters of their text
 Files — by the name the file was uploaded with, so a photo nobody captioned is found as diner_ext_dusk_04.jpg (photos and videos uploaded since names were kept; audio, PDFs and attachments always had theirs)
-Pictures — by what is in them. Each picture is described by an AI model a few minutes after it lands, so red car or night exterior finds the photo even when nobody named or captioned it. Not in a workspace whose AI suggestions are off
+Pictures — by what is in them. Each picture is described by an AI model a few minutes after it lands, so red car or night exterior finds the photo even when nobody named or captioned it. A picture found this way shows a small preview and says In the picture. Not in a workspace whose AI suggestions are off
 Tags — by name. Type # and a tag's name, as in #diner, to list everything carrying it instead: cards, groups, clusters and document pages, each opened in place
 Docs — by title, and by the words on every page: a match shows the line it came from, under Inside docs, and opens the document at that page
 
@@ -3790,6 +3792,7 @@ A clean URL | A permanent, readable address rather than a token
 Indexable | Search engines may index it — unlike a plain share link
 Listed | Appears in the directory with a thumbnail
 Link previews | Unfurls with its own name and a thumbnail of its contents
+Alt text | Each picture carries alt text: yours if you wrote some, otherwise a short AI description of what is in it, unless the workspace's AI suggestions are off
 
 The board renders in a real canvas — visitors pan, zoom and open images at full size — with no account required. A cluster you have set to Files opens in Files here too, which is what you want for anything that is a collection rather than an arrangement: a sample pack, a stills selects, a reference library. Visitors get the search, the sorting and the audition-through, and can download what is on it.
 
@@ -4581,7 +4584,7 @@ When a picture is added to a cluster, Clusters asks an AI model what is in it: a
 
 This runs on Cloudflare Workers AI, the provider that already stores your files. A small copy of the picture goes to Google's Gemma 4 model (or Meta's Llama 3.2 Vision when Gemma fails), and the answer comes back to Clusters. Cloudflare doesn't keep the picture after answering and doesn't use it to train models (Cloudflare's policy).
 
-The description is stored beside the picture, and only people who can see the picture can read it. An app you connect through the API or MCP reads them as you would. A description is never written into the cluster itself, never shown on public pages, and never sent with errors or usage events.
+The description is stored beside the picture, and Clusters doesn't show it on screen: it suggests tags, finds the picture in search and in More like this, and screen readers read it. Only people who can see the picture can reach it, and an app you connect through the API or MCP reads them as you would. On a published cluster a picture's description is its alt text, the words search engines and screen readers read, unless someone wrote alt text for it, so anyone can read it there; a browser also shows alt text when a picture fails to load. A description is never written into the cluster itself and never sent with errors or usage events.
 
 The owner or a co-owner can turn this off with AI suggestions in Settings → Workspace. Off, Clusters sends no picture or text to a model, and the workspace's picture descriptions are deleted. An AI app you connect yourself, through the API or MCP, still reads what you ask it to.
 

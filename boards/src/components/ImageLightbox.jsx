@@ -8,7 +8,7 @@
 // touch-action:none ate scrolls and pinches, and a focused button here was not
 // an "editable target", so Backspace deleted the selected card behind it.
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useGesture } from '@use-gesture/react';
 import { R2Image } from './R2Image.jsx';
@@ -17,6 +17,11 @@ import { buildFilterRef, buildTransform } from '../lib/imageAdjust.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
 import { useOptionalFeedback } from './AppFeedback.jsx';
 import { FileShareButton } from './fileShare/FileShareButton.jsx';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
+
+// More like this under the picture (MoreLikeThis.jsx, shared with Quick
+// look), lazy: only when the host hands `more`.
+const MoreLikeThis = lazyWithReload(() => import('./MoreLikeThis.jsx'));
 
 // A portal still BUBBLES through the React tree: without this a press, drag or
 // double-click on the viewer reached the card that opened it (a grid cell's
@@ -147,7 +152,10 @@ export function ImageZoomStage({ src, alt = '', adjust, cardId, onModeChange = n
 // `shareTarget` — { boardId, cardId, card, boardName } when the viewer may
 // share this file on its own: a Share button sits beside Download. The host
 // decides (it holds the gates); without it nothing changes.
-export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downloadName = null, shareTarget = null }) {
+// `more` — { boardId, boards, onOpen(item) } when the host can open a similar
+// picture in place (the canvas, signed in): More like this sits under the
+// picture. Without it nothing changes.
+export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downloadName = null, shareTarget = null, more = null }) {
   const [mode, setMode] = useState('fit');
   const [downloading, setDownloading] = useState(false);
   const feedback = useOptionalFeedback();
@@ -200,6 +208,11 @@ export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downlo
       )}
       <ImageZoomStage src={src} alt={alt || title || ''} adjust={adjust} cardId={cardId} onModeChange={setMode} />
       {title && <div className="lightbox-cap">{title}</div>}
+      {more?.boardId && cardId && (
+        <Suspense fallback={null}>
+          <MoreLikeThis boardId={more.boardId} cardId={cardId} boards={more.boards} onOpen={more.onOpen} className="lightbox-more" />
+        </Suspense>
+      )}
     </div>
   );
 

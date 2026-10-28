@@ -10171,7 +10171,36 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — click an image to fill the screen; click again for 1:1 and drag to pan."
+      "v": " — click an image to fill the screen; click again for 1:1 and drag to pan. Under it, "
+     },
+     {
+      "t": "strong",
+      "v": "More like this",
+      "children": [
+       {
+        "t": "text",
+        "v": "More like this"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " shows the pictures in your workspace that look most like it, matched by what is in them, and a click opens one there. It appears only when something is close, and not in a workspace whose "
+     },
+     {
+      "t": "link",
+      "v": "AI suggestions",
+      "href": "/docs/account/data-and-privacy#pictures-and-ai",
+      "children": [
+       {
+        "t": "text",
+        "v": "AI suggestions"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " are off."
      }
     ]
    ]
@@ -24671,6 +24700,60 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "Under a picture, "
+    },
+    {
+     "t": "strong",
+     "v": "More like this",
+     "children": [
+      {
+       "t": "text",
+       "v": "More like this"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " shows the pictures in your workspace that look most like it, matched by what is in them rather than by name. Click one to open it in place; "
+    },
+    {
+     "t": "code",
+     "v": "←"
+    },
+    {
+     "t": "text",
+     "v": " / "
+    },
+    {
+     "t": "code",
+     "v": "→"
+    },
+    {
+     "t": "text",
+     "v": " carry on through the files. The strip appears only when something is close, and not in a workspace whose "
+    },
+    {
+     "t": "link",
+     "v": "AI suggestions",
+     "href": "/docs/account/data-and-privacy#pictures-and-ai",
+     "children": [
+      {
+       "t": "text",
+       "v": "AI suggestions"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " are off."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "On an audio row in the List layout, "
     },
     {
@@ -31349,7 +31432,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ". When the description names one of your tags, or means something close to it, the picture gets that tag as a suggestion, a few minutes after it lands. A picture is never tagged on its own."
+      "v": ". When the description names one of your tags, or means something close to it, the picture gets that tag as a suggestion, a few minutes after it lands, without a reload; hover the chip and it says it came from the picture. A picture is never tagged on its own."
      }
     ]
    ]
@@ -32381,7 +32464,21 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " finds the photo even when nobody named or captioned it. Not in a workspace whose AI suggestions are off"
+      "v": " finds the photo even when nobody named or captioned it. A picture found this way shows a small preview and says "
+     },
+     {
+      "t": "em",
+      "v": "In the picture",
+      "children": [
+       {
+        "t": "text",
+        "v": "In the picture"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". Not in a workspace whose AI suggestions are off"
      }
     ],
     [
@@ -40393,6 +40490,41 @@ export const DOCS_CONTENT = {
        "v": "Unfurls with its own name and a thumbnail of its contents"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Alt text",
+       "children": [
+        {
+         "t": "text",
+         "v": "Alt text"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Each picture carries alt text: yours if you wrote some, otherwise a short "
+      },
+      {
+       "t": "link",
+       "v": "AI description",
+       "href": "/docs/account/data-and-privacy#pictures-and-ai",
+       "children": [
+        {
+         "t": "text",
+         "v": "AI description"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " of what is in it, unless the workspace's AI suggestions are off"
+      }
+     ]
     ]
    ]
   },
@@ -47325,7 +47457,36 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The description is stored beside the picture, and only people who can see the picture can read it. An app you connect through the API or MCP reads them as you would. A description is never written into the cluster itself, never shown on public pages, and never sent with errors or usage events."
+     "v": "The description is stored beside the picture, and Clusters doesn't show it on screen: it suggests tags, finds the picture in search and in "
+    },
+    {
+     "t": "strong",
+     "v": "More like this",
+     "children": [
+      {
+       "t": "text",
+       "v": "More like this"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and screen readers read it. Only people who can see the picture can reach it, and an app you connect through the API or MCP reads them as you would. On a "
+    },
+    {
+     "t": "link",
+     "v": "published cluster",
+     "href": "/docs/publish/explore",
+     "children": [
+      {
+       "t": "text",
+       "v": "published cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " a picture's description is its alt text, the words search engines and screen readers read, unless someone wrote alt text for it, so anyone can read it there; a browser also shows alt text when a picture fails to load. A description is never written into the cluster itself and never sent with errors or usage events."
     }
    ]
   },

@@ -38,6 +38,7 @@ again later, and it goes back through review.
 | **Indexable** | Search engines may index it — unlike a plain [share link](/docs/collaborate/sharing) |
 | **Listed** | Appears in the directory with a thumbnail |
 | **Link previews** | Unfurls with its own name and a thumbnail of its contents |
+| **Alt text** | Each picture carries alt text: yours if you wrote some, otherwise a short [AI description](/docs/account/data-and-privacy#pictures-and-ai) of what is in it, unless the workspace's AI suggestions are off |
 
 The board renders in a real canvas — visitors pan, zoom and open images at full
 size — with no account required. A cluster you have set to

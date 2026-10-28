@@ -4,6 +4,7 @@ import { memo, Suspense, useEffect, useId, useMemo, useRef, useState } from 'rea
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { ImagePlaceholder, Avatar, COVER_TINTS } from './primitives.jsx';
 import { R2Image } from './R2Image.jsx';
+import { useImageSeen } from '../lib/imageSeen.js';
 import { Spinner } from './Spinner.jsx';
 import { resolveSrc } from '../lib/r2.js';
 import { knownCopy } from '../lib/playCopy.js';
@@ -697,6 +698,9 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
 
   const showTitle = !!title || editingTitle;
   const showCaption = !!caption || editingCaption;
+  // What's in the picture, read to a screen reader after its name; never on
+  // screen and never its alt (lib/imageSeen.js).
+  const seen = useImageSeen(boardId, cardId);
 
   return (
     <div className={`ic${editing ? ' is-editing' : ''}`}>
@@ -706,6 +710,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
                      style={imgStyle}
                      progressive backfillEnabled={backfillEnabled} boardId={boardId} cardId={cardId} />
           : <ImagePlaceholder label={label} tone={tone} aspect={aspect} />}
+        {src && seen && <span className="sr-only">{seen}</span>}
         {pending && (
           <div className="ic-upload-overlay" aria-label="Uploading image">
             <Spinner size={22} tone="on-dark" label="Uploading image" />

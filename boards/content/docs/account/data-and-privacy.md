@@ -53,10 +53,16 @@ Llama 3.2 Vision when Gemma fails), and the answer comes back to Clusters.
 Cloudflare doesn't keep the picture after answering and doesn't use it to
 train models ([Cloudflare's policy](https://developers.cloudflare.com/workers-ai/platform/data-usage/)).
 
-The description is stored beside the picture, and only people who can see the
-picture can read it. An app you connect through the API or MCP reads them as
-you would. A description is never written into the cluster itself, never
-shown on public pages, and never sent with errors or usage events.
+The description is stored beside the picture, and Clusters doesn't show it on
+screen: it suggests tags, finds the picture in search and in **More like
+this**, and screen readers read it. Only people who can see the picture can
+reach it, and an app you connect through the API or MCP reads them as you
+would. On a [published cluster](/docs/publish/explore) a picture's
+description is its alt text, the words search engines and screen readers
+read, unless someone wrote alt text for it, so anyone can read it there; a
+browser also shows alt text when a picture fails to load. A description is
+never written into the cluster itself and never sent with errors or usage
+events.
 
 The owner or a co-owner can turn this off with **AI suggestions** in
 **Settings → Workspace**. Off, Clusters sends no picture or text to a model,

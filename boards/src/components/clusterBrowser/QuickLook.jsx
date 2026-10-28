@@ -40,6 +40,9 @@ import './filesPage.css';
 
 const FileStages = lazyWithReload(() => import('./FileStages.jsx'));
 const ZipStage = lazyWithReload(() => import('./ZipStage.jsx'));
+// More like this under a picture (MoreLikeThis.jsx, shared with the canvas's
+// viewer), lazy as well.
+const MoreLikeThis = lazyWithReload(() => import('../MoreLikeThis.jsx'));
 
 // A signed URL for a stored file (r2:…), or the URL itself.
 function useResolved(src) {
@@ -241,8 +244,14 @@ export default function QuickLook({
   const look = useFilesLook();
   const sb = look === 'sb';
   const rootRef = useRef(null);
-  const item = items[index] || null;
+  // A picture opened from More like this that isn't in the walk: shown in
+  // the walk's place until the walk moves (← →, or the host's index), which
+  // goes back to the walk.
+  const [detour, setDetour] = useState(null);
+  const walkItem = items[index] || null;
+  const item = detour || walkItem;
   const n = items.length;
+  useEffect(() => { setDetour(null); }, [walkItem?.boardId, walkItem?.id]);
   const itemCanEdit = item ? (canEditItem ? !!canEditItem(item) : canEdit) : false;
 
   // Kept: the film player in here takes its keys only while Quick look is the
@@ -263,7 +272,12 @@ export default function QuickLook({
     return () => { try { prev?.focus?.({ preventScroll: true }); } catch (_) {} };
   }, []);
 
-  const go = (d) => { if (n) onIndex((index + d + n) % n); };
+  const go = (d) => { if (detour) setDetour(null); if (n) onIndex((index + d + n) % n); };
+  // One already in the walk is stepped to, so "3 of 12" stays true.
+  const openSimilar = (it) => {
+    const i = items.findIndex((x) => x.id === it.id && (x.boardId || null) === (it.boardId || null));
+    if (i >= 0) { setDetour(null); onIndex(i); } else setDetour(it);
+  };
 
   // Capture phase: while Quick look is the top-most surface its keys come
   // first. Capture also means it hears keys meant for a layer opened OVER it
@@ -321,6 +335,9 @@ export default function QuickLook({
 
   if (!item) return null;
   const canDownload = !!onDownload && !item.pending && DOWNLOADABLE.has(item.kind);
+  // Signed-in, a stored picture: the read is closed to anon.
+  const moreOn = !isPublicSurface() && item.kind === 'image' && !item.pending && !!item.boardId
+    && typeof item.card?.src === 'string' && item.card.src.startsWith('r2:');
 
   // The bar's actions and Close. In the files sidebar's look they float as
   // one island, Close after a hairline; production lays them in the bar.
@@ -379,27 +396,38 @@ export default function QuickLook({
       <div className="ql-bar">
         <div className="ql-title">
           <span className="ql-name" title={item.name}>{item.name}</span>
-          <span className="ql-meta">{item.typeLabel}{n > 1 ? ` · ${index + 1} of ${n}` : ''}</span>
+          <span className="ql-meta">{item.typeLabel}{n > 1 && !detour ? ` · ${index + 1} of ${n}` : ''}</span>
         </div>
         {sb ? (
           <div className="ql-acts">{acts}<span className="ql-acts-sep" aria-hidden="true" />{close}</div>
         ) : <>{acts}{close}</>}
       </div>
       <div className="ql-body" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-        {n > 1 && (
-          <button type="button" className="ql-nav ql-prev" onClick={() => go(-1)} aria-label="Previous file" title="Previous (←)">
-            <Icon as={ChevronLeft} size={20} weight="light" />
-          </button>
-        )}
-        <div className="ql-stage" key={item.id}>
-          <Stage item={item} playerRef={playerRef} modalHandle={modalRef} onDownload={canDownload ? onDownload : null}
-                 canPut={itemCanEdit} onClose={onClose} />
+        {/* The stage and its arrows as a row, More like this under them;
+            Info stays beside both. */}
+        <div className={`ql-main${n > 1 ? '' : ' is-single'}`} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+          <div className="ql-row" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+            {n > 1 && (
+              <button type="button" className="ql-nav ql-prev" onClick={() => go(-1)} aria-label="Previous file" title="Previous (←)">
+                <Icon as={ChevronLeft} size={20} weight="light" />
+              </button>
+            )}
+            <div className="ql-stage" key={`${item.boardId || ''}:${item.id}`}>
+              <Stage item={item} playerRef={playerRef} modalHandle={modalRef} onDownload={canDownload ? onDownload : null}
+                     canPut={itemCanEdit} onClose={onClose} />
+            </div>
+            {n > 1 && (
+              <button type="button" className="ql-nav ql-next" onClick={() => go(1)} aria-label="Next file" title="Next (→)">
+                <Icon as={ChevronRight} size={20} weight="light" />
+              </button>
+            )}
+          </div>
+          {moreOn && (
+            <Suspense fallback={null}>
+              <MoreLikeThis boardId={item.boardId} cardId={item.id} boards={boards} onOpen={openSimilar} className="ql-more" />
+            </Suspense>
+          )}
         </div>
-        {n > 1 && (
-          <button type="button" className="ql-nav ql-next" onClick={() => go(1)} aria-label="Next file" title="Next (→)">
-            <Icon as={ChevronRight} size={20} weight="light" />
-          </button>
-        )}
         {infoOpen && (
           <DetailPanel inline target={{ type: 'card', item }} boards={boards} canEdit={itemCanEdit}
                        onClose={onToggleInfo} onReveal={onShowOnBoard ? () => onShowOnBoard(item) : null}

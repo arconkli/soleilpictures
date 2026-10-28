@@ -214,6 +214,7 @@ import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlac
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
 import { useTagSuggestions, acceptCardSuggestion, dismissCardSuggestion } from '../hooks/useTagSuggestions.js';
+import { primeImageSeen } from '../lib/imageSeen.js';
 import { resolveTagColor } from '../lib/tagColor.js';
 import { useWorkspacePalettes } from '../hooks/useWorkspacePalettes.js';
 import { embedTextForLiveCard } from '../lib/embedText.js';
@@ -3508,6 +3509,16 @@ export function CanvasSurface({
   // commit would route against a stale cards snapshot that doesn't
   // yet contain the brand-new art canvas.
   const cardsRef = useRef(cards);
+  // A picture opened from More like this, in the viewer's strip: the card
+  // itself when it's on this board (its adjustments, its share), otherwise
+  // the picture by its stored key, on the cluster it's on.
+  const openSimilarPicture = useCallback((it) => {
+    const own = it?.boardId === board?.id ? (cardsRef.current || []).find(x => x.id === it.id) : null;
+    if (own) { openImageLightbox(own); return; }
+    const c = it?.card;
+    if (!c?.src) return;
+    setLightbox({ src: c.src, title: c.title || c.fileName || '', alt: c.title || '', adjust: null, cardId: it.id, downloadName: c.fileName || null, boardId: it.boardId });
+  }, [board?.id, openImageLightbox]);
   const selectedRef = useRef(selected);
   useEffect(() => { cardsRef.current = cards; }, [cards]);
   useEffect(() => { selectedRef.current = selected; }, [selected]);
@@ -10500,6 +10511,8 @@ export function CanvasSurface({
   // Suggested tags, on the card they were suggested for: the closest one
   // shows as a hollow chip; ✓ keeps it, × never suggests it there again.
   const tagSuggest = useTagSuggestions({ boardId: board?.id, enabled: !!canEdit && !isPublic });
+  // What each described picture shows, for screen readers only (lib/imageSeen.js).
+  useEffect(() => { if (!isPublic && board?.id) primeImageSeen(board.id); }, [isPublic, board?.id]);
   const acceptSuggestion = async (cardId, tag) => {
     try {
       await tagCard({ workspaceId, boardId: board.id, cardId, tagId: tag.id });
@@ -11611,7 +11624,7 @@ export function CanvasSurface({
         {suggTag && (
           <span className="card-tag-chip is-suggested"
                 style={{ '--tag-c': resolveTagColor(suggTag) }}
-                title={`Suggested from the text: ${suggTag.name}. ✓ keeps it, × never suggests it here.`}
+                title={`Suggested from ${String(cardSugg.origin || '').startsWith('vision') ? 'the picture' : 'the text'}: ${suggTag.name}. ✓ keeps it, × never suggests it here.`}
                 onPointerDown={(e) => e.stopPropagation()}>
             <Icon as={Sparkle} size={9} className="card-tag-chip-sparkle" />
             <span className="card-tag-chip-name">{suggTag.name}</span>
@@ -15204,6 +15217,8 @@ export function CanvasSurface({
         return (
           <ImageLightbox src={lightbox.src} title={lightbox.title} alt={lightbox.alt} adjust={lightbox.adjust} cardId={lightbox.cardId}
                          downloadName={lightbox.downloadName || null} shareTarget={shareTarget}
+                         more={!isPublic && lightbox.cardId
+                           ? { boardId: lightbox.boardId || shareBoardId, boards, onOpen: openSimilarPicture } : null}
                          onClose={() => setLightbox(null)} />
         );
       })()}
