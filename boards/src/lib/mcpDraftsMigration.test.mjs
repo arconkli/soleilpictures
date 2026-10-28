@@ -83,10 +83,14 @@ for (const [fn, [file, after, added]] of Object.entries(ADDS)) {
   });
 }
 
-test('0708 makes these three functions, and they are the ones that run', () => {
+// 0741 restates the channel with a shared file's arm added after the share
+// link's; shareCaptureMigration.test.mjs holds it to 0708's plus that arm.
+const RESTATED_AFTER_0708 = { derive_acquisition_channel: '0741_channel_credits_file_shares.sql' };
+
+test('0708 makes these three functions, and they are the ones that run (or a later restatement)', () => {
   const made = madeIn(src0708);
   assert.deepEqual(made, ['admin_mcp_drafts', 'derive_acquisition_channel', 'mcp_draft_keep_view']);
-  for (const fn of made) assert.equal(latestDefinition(fn).file, FILE_0708, fn);
+  for (const fn of made) assert.equal(latestDefinition(fn).file, RESTATED_AFTER_0708[fn] || FILE_0708, fn);
   assert.match(src0708, /alter table public\.mcp_drafts add column if not exists first_viewed_at timestamptz;/);
 });
 

@@ -10,14 +10,25 @@
 // A later restatement that changes either would file those members under
 // 'other', so both are pinned here. The trigger's behaviour was proven on the
 // live database by its own proof block; this holds the file to what was proven.
+//
+// 0741 restates derive_acquisition_channel (0708's v5) with one arm added: a
+// first touch from a shared file is 'file_share'. Its body must be 0708's with
+// only that arm added, its proof must keep 0708's asserts word for word, and
+// the arm must read what the file page actually sends.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MIGRATIONS_DIR, latestDefinition } from './migrationText.mjs';
+import { MIGRATIONS_DIR, definitionsOf, latestDefinition } from './migrationText.mjs';
+import { LINK_TOKEN_KEYS } from './linkTokens.js';
 
+const FILE_0708 = '0708_mcp_drafts_measured.sql';
 const FILE_0740 = '0740_workspace_member_adds.sql';
-const sql0740 = readFileSync(join(MIGRATIONS_DIR, FILE_0740), 'utf8');
+const FILE_0741 = '0741_channel_credits_file_shares.sql';
+const sqlOf = (file) => readFileSync(join(MIGRATIONS_DIR, file), 'utf8');
+const sql0740 = sqlOf(FILE_0740);
+const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
+const definedIn = (fn, file) => definitionsOf(fn).find((d) => d.file === file)?.body ?? null;
 const JOINED_VIA = ['system', 'service', 'workspace_link', 'direct_add', 'email_invite', 'other'];
 
 test('0740: the table is closed to every client and follows its workspace and its people', () => {
@@ -88,4 +99,47 @@ test("0740's proof checks the gates and exercises three joins, undone by its own
     assert.ok(proof.includes(`v_via is distinct from '${via}'`), `the proof checks a ${via}`);
   }
   assert.match(proof, /raise exception '0740: proven' using errcode = 'SL740';\s+exception when sqlstate 'SL740' then/);
+});
+
+// ── 0741: the channel learns shared files ───────────────────────────────────
+const SHARE_ARM = "  if nullif(fs->>'share_token','') is not null or utm_s = 'share_link'   then return 'share_link';   end if;\n";
+const FILE_ARM =
+  "  -- A shared file (0741): its page, or its sign-in links (file_token, utm_source=file_share).\n" +
+  "  if nullif(fs->>'file_token','') is not null or utm_s = 'file_share' or lp like '/f/%' then return 'file_share'; end if;\n";
+
+test("0741's channel is 0708's with one arm added, right after the share link's, and it is the one that runs", () => {
+  const before = definedIn('derive_acquisition_channel', FILE_0708);
+  const now = definedIn('derive_acquisition_channel', FILE_0741);
+  assert.ok(before && now, 'defined in both files');
+  assert.equal(before.split(SHARE_ARM).length, 2, "0708's share link arm is there exactly once");
+  assert.equal(now, before.replace(SHARE_ARM, SHARE_ARM + FILE_ARM));
+  assert.equal(latestDefinition('derive_acquisition_channel').file, FILE_0741);
+});
+
+test("0741's proof keeps 0708's asserts word for word and proves the new arm", () => {
+  const sql0708 = sqlOf(FILE_0708);
+  const sql0741 = sqlOf(FILE_0741);
+  const from = sql0708.indexOf('  -- The channel: a keep page is its own');
+  const kept = sql0708.slice(from, sql0708.indexOf('end $proof$;', from));
+  assert.ok(from > 0 && kept.includes("'mcp_draft', 'keep page'"));
+  assert.ok(sql0741.includes(kept), "0708's asserts, unchanged");
+  for (const [bag, want] of [
+    ['{"file_token":"x"}', 'file_share'],
+    ['{"landing_path":"/f/0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"}', 'file_share'],
+    ['{"utm_source":"file_share","utm_medium":"cta"}', 'file_share'],
+    ['{"share_token":"x","file_token":"y"}', 'share_link'],
+    ['{"landing_path":"/f/x","gclid":"x"}', 'google_ads'],
+    ['{"landing_path":"/features"}', 'direct'],
+  ]) {
+    assert.ok(sql0741.includes(`derive_acquisition_channel('${bag}'::jsonb) = '${want}'`), `${bag} → ${want}`);
+  }
+  assert.match(sql0741, /provolatile from pg_proc p\s+where p\.oid = 'public\.derive_acquisition_channel\(jsonb\)'::regprocedure\) <> 'i'/);
+});
+
+test('the arm reads what the file page sends, no event carries the token, and the admin names the channel', () => {
+  const page = read('../components/fileShare/FileSharePage.jsx');
+  assert.match(page, /return `\/\?back=file&file_token=\$\{t\}&utm_source=file_share&utm_medium=\$\{medium\}&utm_campaign=\$\{t\}`;/);
+  assert.match(page, /href=\{`\/\?utm_source=file_share&utm_medium=cta&utm_campaign=\$\{encodeURIComponent\(token\)\}`\}/);
+  assert.ok(LINK_TOKEN_KEYS.includes('file_token'), 'buildRow drops file_token from every event');
+  assert.match(read('../pages/admin/AdminUserDetailParts.jsx'), /\bfile_share: +\{ variant: 'share', +display: 'Shared file', +dot: true \}/);
 });
