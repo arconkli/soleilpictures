@@ -13,7 +13,8 @@
 //     and palettes carry the colour there, and the words stay quiet beside
 //     them), and not on a board of one section (nothing to tell apart)
 //   · a colour may be given by name: "blue" is the named blue, as a section's
-//     outline or as a note's tint
+//     outline or as a note's tint, and a plain word ("red") the named colour
+//     nearest it
 //
 // The tones and tints were drawn for both canvases in the P7 mockups: every
 // tone about 4.2:1 on the dark canvas and on the light one, every tint
@@ -48,11 +49,33 @@ function hex(v) {
   return m ? `#${[...m[1]].map((ch) => ch + ch).join('')}`.toLowerCase() : null;
 }
 
-/** The named colour called `v` ("Blue", " teal "), or null. */
+// The plain colour words an assistant reaches for instead of a name, each the
+// named colour nearest it: by hue (OKLCH), then by eye where two sit close
+// (red is rose, brown is clay). Gold is moss, never the app's gold. CSS would
+// draw "red" as a pure red outline, and a note can't take a word at all.
+export const COLOUR_WORDS = Object.freeze({
+  blue: Object.freeze(['navy', 'sky', 'azure', 'cobalt']),
+  clay: Object.freeze(['orange', 'amber', 'brown', 'rust', 'terracotta', 'copper', 'coral', 'peach', 'tan']),
+  green: Object.freeze(['lime', 'emerald', 'forest', 'mint', 'jade']),
+  plum: Object.freeze(['purple', 'violet', 'indigo', 'lavender', 'lilac', 'mauve', 'magenta', 'fuchsia']),
+  teal: Object.freeze(['cyan', 'aqua', 'turquoise']),
+  rose: Object.freeze(['red', 'crimson', 'scarlet', 'maroon', 'burgundy', 'pink']),
+  moss: Object.freeze(['yellow', 'gold', 'mustard', 'olive', 'khaki', 'sage']),
+  slate: Object.freeze(['grey', 'gray', 'silver', 'charcoal']),
+});
+
+const BY_WORD = new Map(SECTION_COLOURS.flatMap((c) => [
+  [c.name, c], ...(COLOUR_WORDS[c.name] || []).map((w) => [w, c]),
+]));
+
+/**
+ * The named colour called `v` ("Blue", " teal "), or that a plain colour word
+ * means ("red", "dark red"), or null.
+ */
 export function namedColour(v) {
   if (typeof v !== 'string') return null;
-  const name = v.trim().toLowerCase();
-  return SECTION_COLOURS.find((c) => c.name === name) || null;
+  const word = v.trim().toLowerCase().replace(/^(?:light|dark|pale|deep|bright)[\s-]+(?=\S)/, '');
+  return BY_WORD.get(word) || null;
 }
 
 /**

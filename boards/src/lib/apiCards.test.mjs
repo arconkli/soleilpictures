@@ -34,8 +34,9 @@ test('a note\'s colour is a hex or nothing, and says what to send when it is not
   assert.deepEqual(readNoteColor('#F3DDAA'), { color: '#f3ddaa' });
   assert.deepEqual(readNoteColor(null), { color: null });
   assert.deepEqual(readNoteColor(''), { color: null });
-  assert.match(readNoteColor('yellow').problem, /hex colour like "#f3ddaa" or one of blue, clay, .*yellow/);
+  assert.match(readNoteColor('sunset').problem, /hex colour like "#f3ddaa" or one of blue, clay, .*sunset/);
   assert.deepEqual(readNoteColor('Blue'), { color: '#cae2fd' }, 'a named colour is its tint');
+  assert.deepEqual(readNoteColor('yellow'), { color: '#dae4c2' }, 'a plain word is the nearest named tint (moss)');
 });
 
 test('swatches come as objects or plain hexes, named or not, and only a palette\'s worth', () => {
@@ -132,7 +133,7 @@ test('a note\'s own html is kept, under the title it names when it has no headin
 });
 
 test('a note\'s colour must be a hex, and other kinds keep theirs as given', () => {
-  assert.throws(() => normalizeIncomingCard({ kind: 'note', title: 'x', color: 'yellow' }),
+  assert.throws(() => normalizeIncomingCard({ kind: 'note', title: 'x', color: 'sunset' }),
     (e) => e.status === 400 && e.code === 'bad_request' && /hex colour/.test(e.message));
   assert.equal(normalizeIncomingCard({ kind: 'link', url: 'https://a.test', color: 'teal' }).color, 'teal');
 });
@@ -232,6 +233,6 @@ test('a note opened, sized by hand or made in the app is never rewritten by a ti
   assert.equal(noteRepair(older({ manuallyResized: true })), null);
   assert.equal(noteRepair(older({ id: 'n-1' })), null);
   assert.equal(noteRepair({ ...older(), kind: 'image' }), null);
-  const odd = noteRepair(older({ color: 'yellow' }));
+  const odd = noteRepair(older({ color: 'sunset' }));
   assert.equal('bgColor' in odd, false, 'a colour that is not a hex is left as it is');
 });

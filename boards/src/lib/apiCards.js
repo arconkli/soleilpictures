@@ -57,8 +57,9 @@ export function hexColour(v) {
 }
 
 // A note's fill. The canvas picks the note's ink from the fill's hex
-// (readableInk's 0.6 cut), so a word like "yellow" would paint with ink chosen
-// for black: refused, with what to send. A named colour ("blue") is its tint
+// (readableInk's 0.6 cut), so a CSS word like "rebeccapurple" would paint with
+// ink chosen for black: refused, with what to send. A named colour ("blue"), or
+// a plain word that means one ("yellow" is moss), is its tint
 // (lib/boardStyle.js). null or '' takes the colour off.
 //   { color } | { problem }
 export function readNoteColor(v) {

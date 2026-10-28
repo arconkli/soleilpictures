@@ -68,8 +68,9 @@ written.
 - `title=` names the board, and the cluster it becomes.
 - `section=Name` starts a section, and every card after it goes in it until the
   next. `section=Name|colour` gives it a colour: one of the
-  [named colours](/docs/api/cards) or a `#hex`. Leave it out and Clusters picks
-  one, as it does over the API. A section named again carries on where it was.
+  [named colours](/docs/api/cards), a plain colour word (`red` is `rose`), or a
+  `#hex`. Leave it out and Clusters picks one, as it does over the API. A
+  section named again carries on where it was.
 - `pic=address` is a picture, and `pic=address|caption` one with a caption.
 - `note=Title|Body` is a note, and `note=Body` one with no title. `\n` in the
   body starts a new line, and a line starting `- ` is a bullet.
@@ -78,7 +79,8 @@ written.
 - `end=N` says how many cards came before it. It makes nothing: it is how the
   page tells a link a chat cut short from a whole one.
 
-A `|` inside a value is written `%7C`. `name` and `board` also name the board,
+A `|` inside a value is written `%7C`. A link a chat shows with each `&`
+written `&amp;` reads the same. `name` and `board` also name the board,
 `group` is a section, `img`, `image`, `picture` and `photo` are pictures,
 `text` is a note, and `colors` or `colours` a palette.
 
@@ -108,7 +110,8 @@ A night-shift cabbie finds a reel of film in his back seat.
 ```
 
 - `#` names the board. `##` starts a section, with an optional colour in
-  brackets: `## Look (blue)` or `## Look {#3f7ab5}`.
+  brackets: `## Look (blue)` or `## Look {#3f7ab5}`. Brackets that hold no
+  colour stay in the name, as in `## Act One (1974)`.
 - `###`, or a line in bold, titles a note, and the lines under it are its body.
   A paragraph under no title is a note of its own.
 - `![caption](address)` is a picture, and so is a picture's address alone on

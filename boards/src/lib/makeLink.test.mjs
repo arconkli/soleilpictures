@@ -123,6 +123,29 @@ test('a section named again carries on; an empty section= ends sections', () => 
   assert.deepEqual(parseMakeFragment('section=Look%20(blue)&note=x').sections.map((s) => [s.name, s.color]), [['Look', '#3f7ab5']]);
 });
 
+test('a section\'s colour: a name, a plain colour word or a #hex; anything else is no colour', () => {
+  const colours = (frag) => parseMakeFragment(frag).sections.map((s) => [s.name, s.color]);
+  // An AI asked for "section=Name|blue" wrote red: the named colour nearest it.
+  assert.deepEqual(colours('section=Look|red&note=x&section=Sound|Dark%20Purple&note=y'),
+    [['Look', '#b25e6c'], ['Sound', '#9864a4']]);
+  assert.deepEqual(colours('section=Look|%23C8A04A&note=x'), [['Look', '#c8a04a']]);
+  assert.deepEqual(colours('section=Look|draft&note=x&section=Story|1974&note=y'), [['Look', null], ['Story', null]]);
+  // In text, brackets that aren't a colour stay in the name.
+  const text = parseMakeText('# Board\n\n## Act One (1974)\nA note\n\n## Look (red)\nAnother\n\n## Draft {abc}\nA third');
+  assert.deepEqual(text.sections.map((s) => [s.name, s.color]),
+    [['Act One (1974)', null], ['Look', '#b25e6c'], ['Draft {abc}', null]]);
+});
+
+test('a link a chat wrote as HTML, each & an &amp;, reads as the link', () => {
+  const b = parseMakeFragment('title=Noir&amp;section=Look|blue&amp;pic=https://example.com/a.jpg?w=1&amp;h=2|Street&amp;note=x&amp;end=2');
+  assert.equal(b.title, 'Noir');
+  assert.deepEqual(items(b), [
+    { kind: 'picture', url: 'https://example.com/a.jpg?w=1&h=2', caption: 'Street' },
+    { kind: 'note', title: null, body: 'x' },
+  ]);
+  assert.equal(b.cut, null);
+});
+
 test('limits: cards, pictures, sections, sizes', () => {
   const notes = Array.from({ length: MAKE.maxCards + 5 }, (_, i) => `note=n${i}`).join('&');
   const b = parseMakeFragment(notes);

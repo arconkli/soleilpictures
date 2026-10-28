@@ -3500,7 +3500,7 @@ export const DOCS_PAGES = [
     "answer": "Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. An unknown kind is rejected rather than silently coerced. A note shows its title as its heading and is made as tall as its text, and a card names its section by name.",
     "section": "developers",
     "order": 4,
-    "updated": "2026-10-27",
+    "updated": "2026-10-28",
     "navLabel": "Cards",
     "headings": [
       {
