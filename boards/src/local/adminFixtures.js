@@ -94,6 +94,17 @@ const listUsers = NAMES.map((name, i) => {
     acquisition_source: CHANNELS[i % CHANNELS.length],
     outreach_count: contacted ? 1 + (i % 2) : 0,
     last_reached_out_at: contacted ? tsISO((i % 4) * 1440 + 60) : null,
+    // 0746: sharing marks and the workspaces with their cards (invented).
+    shared_n: i % 3 === 0 ? 2 + (i % 7) : i % 3 === 1 ? 1 : 0,
+    brought_n: i % 6 === 0 ? 1 + (i % 4) : 0,
+    reach_n: i % 3 === 0 ? (i % 6 === 0 ? 3 + (i % 5) : 1) : 0,
+    brought_by_email: i % 4 === 1 ? `${NAMES[(i + 5) % NAMES.length]}@studio.co` : null,
+    workspaces_n: 1 + (i % 4),
+    workspace_cards: [
+      { workspace_id: `w-${i}-0`, name: `${name[0].toUpperCase()}${name.slice(1)}'s Studio`, role: 'owner', cards: Math.max(0, wave(i, 70, 60)) },
+      ...(i % 4 >= 1 ? [{ workspace_id: `w-${i}-1`, name: ['Feature film', 'Lookbook', 'Pitch room'][i % 3], role: 'editor', cards: 30 + (i * 7) % 90 }] : []),
+      ...(i % 4 >= 2 ? [{ workspace_id: `w-${i}-2`, name: 'Moodboards', role: 'viewer', cards: 12 + (i * 3) % 40 }] : []),
+    ],
   };
 });
 
@@ -1685,6 +1696,68 @@ RPCS.admin_recent_emails = [
 // A few RPCs return different things for different arguments, and the
 // difference is the reason the panel exists — so the shim has to honour it or
 // the harness renders a view that cannot show what it is for.
+// admin_user_sharing(p_user_id): one person's sharing, built from their list
+// row so the profile agrees with the row's marks. Invented titles and people.
+function userSharingFixture(userId) {
+  const i = Math.max(0, listUsers.findIndex((u) => u.user_id === userId));
+  const u = listUsers[i] || listUsers[0];
+  const other = (k) => listUsers[(i + k) % listUsers.length];
+  const person = (k, extra = {}) => ({ user_id: other(k).user_id, email: other(k).email, name: null,
+    at: tsISO(1440 * (k + 2)), got_in: true, signed_up: k % 2 === 0, made_something: k % 3 !== 2, co_creating: k === 1, ...extra });
+  const objects = u.shared_n > 0 ? [
+    { kind: 'cluster', id: `b-${i}-1`, title: 'Pitch deck', deleted: false, first_at: tsISO(1440 * 12), last_at: tsISO(1440 * 9),
+      last_outcome_at: tsISO(1440 * 3), shares: 2, copies: 5, seen: 14, seen_view_link: 11, seen_edit_link: 3,
+      signed_up: u.brought_n, made_something: Math.min(u.brought_n, 2), got_in: u.reach_n, co_creating: u.reach_n > 1 ? 1 : 0, waiting: 0,
+      routes: { view_link: { shares: 1, copies: 3, live: true }, edit_link: { shares: 1, copies: 2, live: true } },
+      people: Array.from({ length: u.reach_n }, (_, k) => person(k + 1)) },
+    { kind: 'workspace', id: `w-${i}-0`, title: u.workspace_cards[0]?.name || 'Studio', deleted: false,
+      first_at: tsISO(1440 * 20), last_at: tsISO(1440 * 20), shares: 2, copies: 0, seen: 0,
+      signed_up: 0, made_something: 0, got_in: 0, co_creating: 0, waiting: 1,
+      routes: { email_invite: { shares: 2, copies: 0, live: true } }, people: [] },
+    ...Array.from({ length: Math.max(0, u.shared_n - 2) }, (_, k) => ({
+      kind: 'cluster', id: `b-${i}-v${k}`, title: ['Location scout', 'Wardrobe', 'Storyboard', 'Colour notes', 'Casting', ''][k % 6],
+      deleted: k === 3, first_at: tsISO(1440 * (30 + k)), last_at: tsISO(1440 * (30 + k)), shares: 1, copies: 1, seen: k % 3,
+      signed_up: 0, made_something: 0, got_in: 0, co_creating: 0, waiting: 0,
+      routes: { view_link: { shares: 1, copies: 1, live: k !== 3 } }, people: [] })),
+  ] : [];
+  const people = objects.flatMap((o) => (o.people || []).map((p) => ({ ...p, first_at: p.at,
+    via: [{ at: p.at, fact: p.signed_up ? 'new_account' : 'joined', route: 'edit_link', title: o.title, deleted: false, object_id: o.id, object_kind: o.kind }] })));
+  const by = u.brought_by_email ? listUsers.find((x) => x.email === u.brought_by_email) : null;
+  return {
+    user_id: u.user_id,
+    brought_in: u.brought_by_email ? {
+      route: i % 8 === 1 ? 'view_link' : 'email_invite', at: u.created_at, evidence: i % 8 === 1 ? 'first_touch' : 'claimed_invite',
+      state: i % 8 === 1 ? 'deleted' : 'claimed', link_key: null,
+      by: { user_id: by?.user_id || null, email: u.brought_by_email, name: null },
+      via: { kind: 'cluster', id: `b-x-${i}`, title: 'Lookbook', deleted: false }, same_share_brought: 1 + (i % 3), other_routes: [],
+    } : (i % 5 === 2 ? {
+      route: 'workspace_add', at: u.created_at, evidence: 'not_recorded', state: 'member', link_key: null, by: null,
+      via: { kind: 'workspace', id: `w-x-${i}`, title: 'Feature film', deleted: false }, same_share_brought: 1, other_routes: [],
+    } : null),
+    totals: {
+      objects: objects.length, clusters: objects.filter((o) => o.kind === 'cluster').length, workspaces: objects.filter((o) => o.kind === 'workspace').length, files: 0,
+      shares: objects.reduce((n, o) => n + o.shares, 0), devices: objects.reduce((n, o) => n + o.seen, 0),
+      got_in: u.reach_n, signed_up: u.brought_n, made_something: Math.min(u.brought_n, 2), co_creating: u.reach_n > 1 ? 1 : 0,
+      panel_opens: u.shared_n * 3, copies: objects.reduce((n, o) => n + o.copies, 0), last_copy_at: objects.length ? tsISO(1440 * 9) : null,
+      shares_by_route: {}, copies_by_route: objects.length ? { view_link: 3 + Math.max(0, u.shared_n - 2), edit_link: 2 } : {}, opens_by_surface: {},
+    },
+    objects, objects_more: 0, people,
+    waiting: objects.length ? [{ email: 'n•••@example.com', at: tsISO(1440 * 20), object_kind: 'workspace', object_id: `w-${i}-0`, title: objects[1].title }] : [],
+    waiting_n: objects.length ? 1 : 0,
+    with_them: u.workspace_cards.slice(1).map((w, k) => ({ kind: 'workspace', id: w.workspace_id, title: w.name, deleted: false,
+      route: k === 0 ? 'email_invite' : 'workspace_add', at: tsISO(1440 * (40 + k)), state: 'member', recorded: k === 0,
+      by: k === 0 ? { user_id: other(3).user_id, email: other(3).email, name: null } : null,
+      got_in: true, signed_up: false, made_something: true, co_creating: k === 0 })),
+    banned_left_out: { accounts: 0, shares: 0 },
+  };
+}
+
+function userWorkspacesFixture(userId) {
+  const u = listUsers.find((x) => x.user_id === userId) || listUsers[0];
+  return u.workspace_cards.map((w, k) => ({ ...w, joined_at: tsISO(1440 * (60 - k * 10)), owner_id: k === 0 ? u.user_id : 'u-0',
+    clusters: 2 + (w.cards % 9), members: 1 + k * 2 }));
+}
+
 function rpcResult(name, params) {
   // ?mrr=0 forces the pre-revenue state.
   //
@@ -1715,6 +1788,22 @@ function rpcResult(name, params) {
     return rows.slice(Math.max(0, rows.length - want)).map((r) => ({ ...r, mrr_cents: 0, paid_users: 0 }));
   }
   if (name === 'admin_user_detail') return userDetailFixture(params?.p_user_id);
+  if (name === 'admin_user_sharing') return userSharingFixture(params?.p_user_id);
+  if (name === 'admin_user_workspaces') return userWorkspacesFixture(params?.p_user_id);
+  // 0746: the list honours its Sharing filter and the reach sort, so the
+  // harness can show what picking one does.
+  if (name === 'admin_list_users' || name === 'admin_user_count') {
+    const f = params?.p_sharing || 'all';
+    const q = String(params?.p_query || '').toLowerCase();
+    let rows = listUsers.filter((u) => (f === 'all')
+      || (f === 'shared' && u.shared_n > 0) || (f === 'brought' && u.brought_n > 0)
+      || (f === 'came' && u.brought_by_email) || (f === 'works_with' && u.workspaces_n > 1));
+    if (q) rows = rows.filter((u) => u.email.includes(q));
+    if (name === 'admin_user_count') return f === 'all' && !q ? RPCS.admin_user_count : rows.length;
+    if (params?.p_sort === 'reach') rows = [...rows].sort((a, b) => b.reach_n - a.reach_n || b.shared_n - a.shared_n);
+    if (params?.p_sort === 'cards') rows = [...rows].sort((a, b) => b.card_count - a.card_count);
+    return rows.map((r) => ({ ...r }));
+  }
   if (name === 'admin_money_path') return moneyPathFixture(zeroRevenue());
   if (name === 'admin_money_people') return moneyPeopleFixture(zeroRevenue());
   // Without a split day the read has no before and after, so neither does this.

@@ -28,6 +28,7 @@ import { Avatar, SourceBadge, PresenceDot, LastWorked, DetailSection, Timeline }
 import { OutreachSection } from './AdminOutreachSection.jsx';
 import { AdminUserJourneys } from './AdminUserJourneys.jsx';
 import { AdminUserProblems } from './AdminUserProblems.jsx';
+import { AdminUserSharing, BroughtIn, WorkspaceCards, useUserSharing } from './AdminUserSharing.jsx';
 
 const TIERS = ['admin', 'paid', 'demo', 'waitlist'];
 
@@ -60,7 +61,7 @@ const ACQ_ID_KEYS = new Set([
   'rdt_cid', 'li_fat_id', 'epik', 'sccid', 'share_token',
 ]);
 
-function AcquisitionSection({ acq }) {
+function AcquisitionSection({ acq, broughtIn, onOpenUser }) {
   if (!acq) return null;
   // Resolved share provenance (board + sharer + reach) when they came via a share.
   const share = acq.share && typeof acq.share === 'object' ? acq.share : null;
@@ -94,7 +95,11 @@ function AcquisitionSection({ acq }) {
           <Row key={k} label={k}><span className={ACQ_ID_KEYS.has(k) ? 'is-muted' : ''} style={{ overflowWrap: 'anywhere' }}>{v}</span></Row>
         ))}
       </dl>
-      {share && (
+      {/* 0745's brought_in covers every route (an invitation, a workspace
+          add, a file, a referral) and keeps a deleted link's credit; the old
+          view-link block shows only while it hasn't answered. */}
+      <BroughtIn bi={broughtIn} onOpenUser={onOpenUser} />
+      {share && !broughtIn && (
         <>
           <div className="admin-detail-subhead">Came from a share</div>
           <dl className="admin-detail-kv">
@@ -122,7 +127,7 @@ function AcquisitionSection({ acq }) {
           </dl>
         </>
       )}
-      {meaningful.length === 0 && !share && <div className="admin-detail-note">No campaign or referrer captured — organic / direct.</div>}
+      {meaningful.length === 0 && !share && !broughtIn && <div className="admin-detail-note">No campaign or referrer captured — organic / direct.</div>}
       {lt && (
         <>
           <div className="admin-detail-subhead">Latest click</div>
@@ -399,12 +404,24 @@ function GrantsSection({ grants }) {
   );
 }
 
+// Acquisition and Sharing read one admin_user_sharing between them: how they
+// were brought in sits in Acquisition, what they shared right after it.
+function AcquisitionAndSharing({ userId, acq, onOpenUser }) {
+  const q = useUserSharing(userId);
+  return (
+    <>
+      <AcquisitionSection acq={acq} broughtIn={q.data?.brought_in || null} onOpenUser={onOpenUser} />
+      <AdminUserSharing q={q} onOpenUser={onOpenUser} />
+    </>
+  );
+}
+
 export function AdminUserDetail({
   detail, api, loading, error, onRetry, refreshing,
   selectedRow, currentUserId, busyId,
   onChangeTier, onBan, onUnban, onResync, onDelete,
   onLogOutreach, onDeleteOutreach,
-  shareSignups,
+  shareSignups, onOpenUser,
   isOpen, onClose,
 }) {
   // Nothing selected → show the shares roll-up (if any) so the idle right pane
@@ -479,6 +496,7 @@ export function AdminUserDetail({
           <div className="admin-detail-idtext">
             <h3 className="admin-detail-name">{name}</h3>
             <div className="admin-detail-email"><CopyableText value={row.email} /></div>
+            <WorkspaceCards list={row.workspace_cards} more={Math.max(0, (row.workspaces_n || 0) - (row.workspace_cards?.length || 0))} />
           </div>
           <button type="button" className="admin-detail-close" onClick={onClose} aria-label="Close">×</button>
         </div>
@@ -538,7 +556,7 @@ export function AdminUserDetail({
             onLogOutreach={onLogOutreach}
             onDeleteOutreach={onDeleteOutreach}
           />
-          <AcquisitionSection acq={detail?.acquisition} />
+          <AcquisitionAndSharing key={`s:${row.user_id}`} userId={row.user_id} acq={detail?.acquisition} onOpenUser={onOpenUser} />
           <DetailSection title="Activation" icon={Sparkle}>
             <Timeline activation={detail?.activation} />
           </DetailSection>
