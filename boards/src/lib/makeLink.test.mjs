@@ -146,6 +146,21 @@ test('a link a chat wrote as HTML, each & an &amp;, reads as the link', () => {
   assert.equal(b.cut, null);
 });
 
+test('a link encoded a second time on its way reads as it was written', () => {
+  const link = 'title=Tokyo%20noir&section=Look|blue&pic=https:%2F%2Fpicsum.photos%2Fid%2F1011%2F1200%2F800|Lake%20at%20dusk'
+    + '&palette=Night|%23101820%20Ink,%23f2aa4c%20Sodium&section=Story|red&note=Logline|A%20cab%2C%2050%25%20rain.%0A-%20Neon&end=3';
+  const want = parseMakeFragment(link);
+  assert.equal(want.count, 3);
+  assert.equal(want.cut, null);
+  for (const twice of [encodeURI(link), `https://x.test/make#${encodeURI(link)}`, encodeURIComponent(link)]) {
+    const b = parseMakeFragment(twice);
+    assert.deepEqual(b.sections, want.sections);
+    assert.equal(b.title, 'Tokyo noir');
+    assert.deepEqual(b.problems, []);
+  }
+  assert.equal(items(want)[2].body, 'A cab, 50% rain.\n- Neon');
+});
+
 test('limits: cards, pictures, sections, sizes', () => {
   const notes = Array.from({ length: MAKE.maxCards + 5 }, (_, i) => `note=n${i}`).join('&');
   const b = parseMakeFragment(notes);

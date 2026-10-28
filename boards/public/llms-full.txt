@@ -7424,7 +7424,7 @@ note=Title|Body is a note, and note=Body one with no title. \n in the body start
 palette=Title|#101820 Ink,#f2aa4c Sodium is a palette: colours with their names, separated by commas.
 end=N says how many cards came before it. It makes nothing: it is how the page tells a link a chat cut short from a whole one.
 
-A | inside a value is written %7C. A link a chat shows with each & written &amp; reads the same. name and board also name the board, group is a section, img, image, picture and photo are pictures, text is a note, and colors or colours a palette.
+A | inside a value is written %7C. A link a chat shows with each & written &amp; reads the same, and so does a link encoded a second time on its way (every % written %25). name and board also name the board, group is a section, img, image, picture and photo are pictures, text is a note, and colors or colours a palette.
 
 https://clusters.soleilpictures.com/make#title=Tokyo%20noir%2C%201974&section=Look|blue&pic=https%3A%2F%2Fimages.example.com%2Fstreet.jpg|Wet%20street&palette=Night|%23101820%20Ink%2C%23f2aa4c%20Sodium&section=Story&note=Logline|A%20night-shift%20cabbie%20finds%20a%20reel%20of%20film.&end=4
 

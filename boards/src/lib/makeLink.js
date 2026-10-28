@@ -294,6 +294,9 @@ export function parseMakeFragment(input) {
   // A chat that shows the link as HTML writes each & as &amp;. A value's own &
   // is %26, so a bare &amp; is only ever that.
   s = s.slice(0, MAKE.maxSource).replace(/&amp;/gi, '&');
+  // A link encoded a second time on its way (a chat or an app that encodes the
+  // address it shows: every % a %25, every | a %7C) is read as it was written.
+  if (/%25[0-9a-f]{2}/i.test(s) && !s.includes('|')) s = lenientDecode(s);
   const r = reader();
   for (const { key, raw } of fragmentPairs(s)) {
     if (PICTURE_KEYS.has(key)) {

@@ -100,7 +100,8 @@ written.
   page tells a link a chat cut short from a whole one.
 
 A `|` inside a value is written `%7C`. A link a chat shows with each `&`
-written `&amp;` reads the same. `name` and `board` also name the board,
+written `&amp;` reads the same, and so does a link encoded a second time on
+its way (every `%` written `%25`). `name` and `board` also name the board,
 `group` is a section, `img`, `image`, `picture` and `photo` are pictures,
 `text` is a note, and `colors` or `colours` a palette.
 
