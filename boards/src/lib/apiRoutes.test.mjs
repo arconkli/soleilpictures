@@ -1300,6 +1300,50 @@ test('a card list with include=seen still answers when the pictures cannot be re
   assert.equal('in_picture' in r.body.cards[0], false);
 });
 
+// Cards the API writes are embedded off the response path, through the one
+// server embedder, from the card_index projection; with AI off, never.
+async function writeWithAi(method, path, body, aiOn = true) {
+  const texts = [];
+  const pending = [];
+  on('GET', 'workspaces', () => reply([{ id: 'w1', created_by: 'u1', ai_tagger_enabled: aiOn }]));
+  on('POST', 'rpc/_ai_budget_take', () => reply(true));
+  const env = { ...ENV, AI: { run: async (_m, { text }) => { texts.push(...text); return { data: text.map(() => new Array(1024).fill(0.5)) }; } } };
+  const url = new URL(`https://clusters.test/api/v1${path}`);
+  const res = await handleApiRoute(url, new Request(url, {
+    method, headers: { authorization: 'Bearer sk_live_test', 'content-type': 'application/json' }, body: JSON.stringify(body),
+  }), env, { waitUntil: (p) => pending.push(p) });
+  await Promise.all(pending);
+  const stored = calls.filter((c) => c.method === 'POST' && c.path === 'card_embeddings').flatMap((c) => c.body);
+  return { status: res.status, texts, stored };
+}
+
+test('cards the API writes are embedded for search by meaning, pictures left to the describe job', async () => {
+  putBoard(B1, [], { name: 'Diner' });
+  const made = await writeWithAi('POST', `/boards/${B1}/cards`, { cards: [
+    { kind: 'note', title: 'Logline', body: 'A cabbie finds a reel of film.', x: 0, y: 0 },
+    { kind: 'link', url: 'https://example.com/neon', title: 'Neon reference', x: 400, y: 0 },
+  ] });
+  assert.equal(made.status, 201);
+  assert.equal(made.texts.length, 2);
+  assert.ok(made.texts.some((t) => t.startsWith('Logline') && t.includes('A cabbie finds a reel of film.')));
+  assert.deepEqual(made.stored.map((r) => [r.entity_kind, r.workspace_id, r.board_id]),
+    [['card', 'w1', B1], ['card', 'w1', B1]]);
+  assert.ok(made.stored.every((r) => /^[0-9a-f]+$/.test(r.content_hash)));
+
+  const id = cardsOn(B1).find((c) => c.kind === 'note').id;
+  calls = [];
+  const changed = await writeWithAi('PATCH', `/boards/${B1}/cards/${id}`, { body: 'A cabbie burns the reel.' });
+  assert.equal(changed.status, 200);
+  assert.deepEqual(changed.stored.map((r) => r.card_id), [id]);
+});
+
+test('with AI features off, nothing the API writes is embedded', async () => {
+  putBoard(B1, [], { name: 'Diner' });
+  const r = await writeWithAi('POST', `/boards/${B1}/cards`, { cards: [{ kind: 'note', body: 'Neon', x: 0, y: 0 }] }, false);
+  assert.equal(r.status, 201);
+  assert.deepEqual([r.texts, r.stored], [[], []]);
+});
+
 test('a card list with include=groups carries the board\'s groups, read in the same open', async () => {
   putBoard(B1, [{ id: 'c1', kind: 'note', x: 0, y: 0, groupId: 'g1' }], { name: 'Diner' },
     [{ id: 'g1', name: 'Stills', color: '#c8a04a', shape: 'hug', width: 900, createdAt: '2026-10-01T00:00:00Z' }]);

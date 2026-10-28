@@ -81,6 +81,9 @@ import { meaningfulFileName } from './lib/fileIngest.js';
 import { reserveUploadSpace } from './lib/uploadReserve.js';
 import { fetchFollowingSafely, publicHttpsUrlProblem, UnsafeFetchError } from './lib/safeUrl.js';
 import { openapiDocument } from './lib/apiOpenapi.js';
+import { embedCards } from './lib/serverEmbed.js';
+import { clientEmbedsKind } from './lib/embedText.js';
+import { buildCardIndexRow } from './lib/cardIndexRow.js';
 import { boardToOmc } from './lib/omcExport.js';
 import {
   GALLERY, boardPictures, pickRendition, encodeCursor, decodeCursor, boardUrl, cardUrl,
@@ -785,6 +788,30 @@ async function decorateCards(env, token, boardId, cards, include) {
       ? { ...c, in_picture: seen.get(String(c.id)) } : c));
   }
   return out;
+}
+
+// What the API writes can be found by meaning before anyone opens the board:
+// the cards it made or changed are embedded through the server's one embedder
+// (lib/serverEmbed.js), off the response path, from the same card_index
+// projection the browser embeds from (embedText.js), so the hashes agree and
+// neither writer re-embeds over the other. embedCards reads each card's
+// workspace switch itself: with AI off, nothing is embedded, and every model
+// call is paid from the owner's budget first. Pictures and videos are left to
+// the describe job, which embeds them with what they show.
+function embedAfterWrite(env, ctx, workspaceId, boardId, cards) {
+  if (!ctx?.waitUntil || !workspaceId) return;
+  const items = [];
+  for (const c of cards || []) {
+    if (!c?.id || !clientEmbedsKind(c.kind || 'note')) continue;
+    const row = buildCardIndexRow({ workspaceId, boardId, cardId: c.id, get: (k) => c[k] });
+    if (row) {
+      items.push({ workspace_id: workspaceId, board_id: boardId, card_id: String(c.id),
+        title: row.title, body: row.body, description: null, content_hash: null });
+    }
+  }
+  if (!items.length) return;
+  ctx.waitUntil(embedCards(env, items)
+    .catch((e) => console.warn('[api-embed] failed', items.length, e?.message || e)));
 }
 
 // A described picture in one line, as search reads it (entity_search's
@@ -5027,6 +5054,7 @@ async function dispatch(url, request, env, ctx) {
       // caller can pair its input with what happened to it.
       const createdById = new Map(createdCards.map((c, n) => [createIdx[n], c]));
       const finalCards = incoming.map((_, i) => createdById.get(i) || updatedById.get(i)).filter(Boolean);
+      embedAfterWrite(env, ctx, board.workspace_id, id, finalCards);
 
       await saveMetaBulk(env, token, {
         workspaceId: board.workspace_id, boardId: id, objectType: 'card',
@@ -5083,6 +5111,8 @@ async function dispatch(url, request, env, ctx) {
         existing, layoutOpts, { order: prepared?.order },
       ),
     });
+
+    embedAfterWrite(env, ctx, board.workspace_id, id, result.cards);
 
     // Metadata is keyed on the card id the server assigned, so it can only be
     // written once the cards exist.
@@ -5174,6 +5204,8 @@ async function dispatch(url, request, env, ctx) {
         },
       })),
     });
+
+    embedAfterWrite(env, ctx, board.workspace_id, id, out.filter(Boolean));
 
     await saveMetaBulk(env, token, {
       workspaceId: board.workspace_id, boardId: id, objectType: 'card', userId: auth.userId,
@@ -5330,6 +5362,7 @@ async function dispatch(url, request, env, ctx) {
       },
     });
     if (!updated) throw fail(404, 'not_found', 'card not found');
+    embedAfterWrite(env, ctx, board.workspace_id, id, [updated]);
 
     const meta = metaFromBody(body);
     await saveMeta(env, token, {
