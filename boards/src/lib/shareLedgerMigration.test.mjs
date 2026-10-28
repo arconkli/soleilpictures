@@ -174,9 +174,11 @@ const HELPERS_0745 = {
   _admin_share_object_names: 'public._admin_share_object_names(text[], uuid[])',
   _admin_share_people: 'public._admin_share_people(uuid[])',
 };
+// 0746 restated admin_user_sharing with one line changed (its own test pins it).
+const LATER_0745 = { admin_user_sharing: '0746_users_list_sharing.sql' };
 const bodyOf0745 = (fn) => {
   const def = latestDefinition(fn);
-  assert.equal(def?.file, FILE_0745, `${fn} is 0745's`);
+  assert.equal(def?.file, LATER_0745[fn] ?? FILE_0745, `${fn} is ${LATER_0745[fn] ?? "0745's"}`);
   return def.body;
 };
 
@@ -233,4 +235,73 @@ test('0745: no token and no device leaves: devices are counted, never listed, an
     }
   }
   assert.equal((proof0745.match(/~\* '"token"'/g) || []).length, 3, 'the proof looks in all three');
+});
+
+// 0746: the Users list and its count take a Sharing filter and a reach sort,
+// and each row carries what the person shared and the cards in each workspace.
+const FILE_0746 = '0746_users_list_sharing.sql';
+const sql0746 = readFileSync(join(MIGRATIONS_DIR, FILE_0746), 'utf8');
+const proof0746 = sql0746.slice(sql0746.indexOf('do $proof$'));
+const LIST_0746 = 'public.admin_list_users(integer,integer,text,text,text,text,text,text,text,text,text)';
+const COUNT_0746 = 'public.admin_user_count(text,text,text,text,text,text,text,text)';
+
+test('0746: the old list and count are renamed and closed, the marks helper too, and the proof says so', () => {
+  assert.match(sql0746, /^begin;$/m);
+  assert.match(sql0746, /^set local lock_timeout = '3s';$/m);
+  assert.ok(sql0746.trimEnd().endsWith('commit;'));
+  assert.match(sql0746, /^notify pgrst, 'reload schema';$/m);
+  assert.match(sql0746, /alter function public\.admin_list_users\(integer, integer, text, text, text, text, text, text, text, text\) rename to admin_list_users_0462;/);
+  assert.match(sql0746, /alter function public\.admin_user_count\(text, text, text, text, text, text, text\) rename to admin_user_count_0461;/);
+  assert.match(sql0746, /revoke execute on function public\.admin_list_users_0462\([^)]*\) from public, anon, authenticated;/);
+  assert.match(sql0746, /revoke execute on function public\.admin_user_count_0461\([^)]*\) from public, anon, authenticated;/);
+  assert.match(sql0746, /revoke execute on function public\._admin_user_sharing_marks\(\) from public, anon, authenticated;/);
+  for (const fn of ['public._admin_user_sharing_marks()', 'public.admin_list_users_0462(', 'public.admin_user_count_0461(']) {
+    assert.ok(proof0746.includes(`'${fn}`), `the proof checks ${fn} is closed`);
+  }
+  assert.match(proof0746, /an old list or count is still callable by its name/);
+});
+
+test('0746: the new reads are admin definers, signed-in only, and service_role keeps the list', () => {
+  for (const sig of [LIST_0746, COUNT_0746, 'public.admin_user_workspaces(uuid)', 'public.admin_user_sharing(uuid)']) {
+    assert.ok(proof0746.includes(`'${sig}'`), `the proof names ${sig}`);
+  }
+  for (const fn of ['admin_list_users', 'admin_user_count', 'admin_user_workspaces']) {
+    const d = latestDefinition(fn);
+    assert.equal(d.file, FILE_0746, `the live ${fn} is 0746's`);
+    assert.match(d.body, /security definer/);
+    assert.match(d.body, /perform public\._require_admin\(\);/);
+  }
+  assert.match(sql0746, /grant execute on function public\.admin_list_users\(integer, integer, text, text, text, text, text, text, text, text, text\) to authenticated, service_role;/);
+  assert.match(sql0746, /revoke execute on function public\.admin_user_workspaces\(uuid\) from public, anon;/);
+  assert.match(proof0746, /service_role lost the list/);
+});
+
+test('0746: the filter is off by default, and with it off the list and count are 0462 and 0461 to the row', () => {
+  for (const fn of ['admin_list_users', 'admin_user_count']) {
+    const body = latestDefinition(fn).body;
+    assert.match(body, /p_sharing text default 'all'/, `${fn} takes p_sharing, defaulting to all`);
+    for (const v of ['shared', 'brought', 'came', 'works_with']) assert.match(body, new RegExp(`when '${v}'\\s+then`), `${fn} filters ${v}`);
+    assert.match(body, /from public\._admin_user_sharing_marks\(\)/, `${fn} reads the one helper`);
+  }
+  assert.match(latestDefinition('admin_list_users').body, /case when v_k = 'reach'\s+then base\.reach_n end desc nulls last/);
+  assert.match(proof0746, /the list moved with the filter off/);
+  assert.match(proof0746, /the count moved with the filter off/);
+  assert.match(proof0746, /Most people reached is out of order/);
+});
+
+test("0746: marks credit only recorded sharers and leave banned rows out; workspace cards are live boards' and agree with the owner's", () => {
+  const marks = sql0746.match(/create or replace function public\._admin_user_sharing_marks\(\)[\s\S]*?\$\$;/)[0];
+  assert.match(marks, /_admin_share_ledger\(null, false, false, null\)/, 'no views: the list counts people, never devices');
+  assert.match(marks, /where not r\.banned and r\.sharer_id is not null and r\.sharer_recorded/);
+  assert.match(marks, /\(l\.fact = 'copied' and l\.route = 'workspace_link'\)/, 'a workspace link counts once copied');
+  assert.doesNotMatch(marks, /token|device_id/);
+  const list = latestDefinition('admin_list_users').body;
+  assert.match(list, /coalesce\(sum\(ci\.weight\), 0\)::int as cards\s+from public\.boards b left join public\.card_index ci on ci\.board_id = b\.id\s+where b\.deleted_at is null/);
+  assert.match(proof0746, /a workspace''s cards disagree with its owner''s/);
+  assert.match(sql0746, /mine as materialized \(select \* from l where l\.sharer_id = p_user_id and l\.sharer_recorded\)/,
+    "the profile credits the same recorded sharers the list does");
+  const strip = (b) => b.replace(/--.*$/gm, '').replace(/\s+/g, ' ');
+  assert.equal(strip(latestDefinition('admin_user_sharing').body).replace(' and l.sharer_recorded)', ')'),
+    strip(sql0745.match(/create or replace function public\.admin_user_sharing\(p_user_id uuid\)[\s\S]*?\$fn\$;|create or replace function public\.admin_user_sharing\(p_user_id uuid\)[\s\S]*?\$function\$;/)?.[0] ?? ''),
+    "admin_user_sharing is 0745's but for that one line");
 });

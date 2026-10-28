@@ -195,9 +195,13 @@ test('"made something" has one definition, and every Users figure reads it', () 
     'where b.created_by is not null and b.deleted_at is null and b.parent_board_id is not null;',
   ], 'placed a card ever, holds cards, or made a cluster that is not a Studio');
 
+  // 0746 restated the Users list and its count with a Sharing filter beside
+  // this one; the predicate below is still 0460's, word for word.
+  const SHARING_FILE = '0746_users_list_sharing.sql';
+  const LIVE_IN = { admin_list_users: SHARING_FILE, admin_user_count: SHARING_FILE };
   for (const fn of ['admin_list_users', 'admin_user_count', 'admin_acquisition_channels']) {
     const body = defOf(fn).body;
-    assert.equal(defOf(fn).file, FILE, `the live ${fn} is this one`);
+    assert.equal(defOf(fn).file, LIVE_IN[fn] ?? FILE, `the live ${fn} is ${LIVE_IN[fn] ?? 'this one'}`);
     assert.match(body, /when 'active'\s+then [a-z_.]+ in\s+\(select m\.user_id from public\._admin_made_something\(\) m\)/,
       `${fn}: 'active' is made something`);
     assert.match(body, /when 'inactive' then [a-z_.]+ not in \(select m\.user_id from public\._admin_made_something\(\) m\)/,
