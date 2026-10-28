@@ -13,6 +13,14 @@
 // person flagged rather than silently dropped, the evidence in the header's
 // order, a device only where views are counted, and no token wherever a key is
 // made.
+//
+// 0745 reads the ledger three ways for the admin: one person's sharing
+// (admin_user_sharing), Analytics › Sharing (admin_sharing_overview) and the
+// feed (admin_sharing_recent). Its proof read all three as an admin on the
+// live database, turned a non-admin away, and checked the routes add up to the
+// shares; this holds the file to that: admin-only definers, the helpers under
+// them closed, banned rows left out and counted, a workspace link a share only
+// once copied, and neither a token nor a device in what they hand back.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -151,4 +159,78 @@ test("0744's proof checks the ledger against three totals counted straight from 
     "'0744: % claimed invitations, the ledger says %'",
     "'0744: % sign-ups through a cluster link, the ledger says %'",
   ]) assert.ok(proof0744.includes(`raise exception ${msg}`), msg);
+});
+
+const FILE_0745 = '0745_admin_sharing_reads.sql';
+const sql0745 = readFileSync(join(MIGRATIONS_DIR, FILE_0745), 'utf8');
+const proof0745 = sql0745.slice(sql0745.indexOf('do $proof$'));
+const READS_0745 = {
+  admin_user_sharing: ['public.admin_user_sharing(uuid)', 'public.admin_user_sharing(uuid)'],
+  admin_sharing_overview: ['public.admin_sharing_overview(int, boolean)', 'public.admin_sharing_overview(integer, boolean)'],
+  admin_sharing_recent: ['public.admin_sharing_recent(int, timestamptz, boolean)',
+                         'public.admin_sharing_recent(integer, timestamp with time zone, boolean)'],
+};
+const HELPERS_0745 = {
+  _admin_share_object_names: 'public._admin_share_object_names(text[], uuid[])',
+  _admin_share_people: 'public._admin_share_people(uuid[])',
+};
+const bodyOf0745 = (fn) => {
+  const def = latestDefinition(fn);
+  assert.equal(def?.file, FILE_0745, `${fn} is 0745's`);
+  return def.body;
+};
+
+test("0745: the three reads ask for an admin, run as definers on public, and only signed-in callers reach them", () => {
+  for (const [fn, [sig, proofSig]] of Object.entries(READS_0745)) {
+    const body = bodyOf0745(fn);
+    assert.match(body, /security definer\s+set search_path = 'public'/, `${fn} is a definer on public`);
+    assert.ok(body.includes('perform public._require_admin();'), `${fn} asks for an admin`);
+    assert.ok(sql0745.includes(`revoke execute on function ${sig} from public, anon;`), `${fn} is revoked from anon`);
+    assert.ok(sql0745.includes(`grant execute on function ${sig} to authenticated;`), `${fn} is granted to the signed in`);
+    assert.ok(proof0745.includes(`'${proofSig}'`), `the proof checks ${fn}`);
+  }
+  assert.match(proof0745, /exception when insufficient_privilege then null;/, 'the proof turns a non-admin away');
+});
+
+test('0745: the helpers under the reads are closed to every client', () => {
+  for (const [fn, sig] of Object.entries(HELPERS_0745)) {
+    assert.match(bodyOf0745(fn), /security definer/);
+    assert.ok(sql0745.includes(`revoke execute on function ${sig} from public, anon, authenticated;`), `${fn} is closed`);
+    assert.ok(proof0745.includes(`'${sig}'`), `the proof checks ${fn}`);
+  }
+  assert.doesNotMatch(sql0745, /grant\s+execute\s+on\s+function\s+public\._admin_share[^;]*to/i);
+});
+
+test('0745: every read leaves banned rows out and counts them, and plans each call for its own arguments', () => {
+  for (const fn of Object.keys(READS_0745)) {
+    const body = bodyOf0745(fn);
+    assert.match(body, /_admin_share_ledger\(/, `${fn} reads the ledger`);
+    assert.match(body, /not r\.banned/, `${fn} leaves banned rows out`);
+    assert.match(body, /set plan_cache_mode = 'force_custom_plan'/, `${fn} plans per call`);
+  }
+  for (const fn of ['admin_user_sharing', 'admin_sharing_overview']) {
+    assert.match(bodyOf0745(fn), /'banned_left_out', \(/, `${fn} says how many it left out`);
+  }
+});
+
+test('0745: a workspace link is a share only once someone copied it', () => {
+  for (const fn of ['admin_user_sharing', 'admin_sharing_recent']) {
+    assert.ok(bodyOf0745(fn).includes("not (r.fact = 'shared' and r.route = 'workspace_link')"), `${fn} drops the setup step's links`);
+  }
+  assert.ok(bodyOf0745('admin_sharing_overview').includes(
+    "(r.fact = 'shared' and r.route <> 'workspace_link')\n             or (r.fact = 'copied' and r.route = 'workspace_link') as is_share"));
+  assert.match(proof0745, /a workspace link nobody copied/);
+});
+
+test('0745: no token and no device leaves: devices are counted, never listed, and the proof looks', () => {
+  for (const fn of Object.keys(READS_0745)) {
+    const body = bodyOf0745(fn);
+    assert.doesNotMatch(body, /'token'/, `${fn} names no token`);
+    assert.doesNotMatch(body, /'device_id'/, `${fn} hands out no device`);
+    for (const m of body.matchAll(/device_id/g)) {
+      const before = body.slice(Math.max(0, m.index - 30), m.index);
+      assert.match(before, /count\(distinct [a-z]\.$/, `${fn} only counts devices`);
+    }
+  }
+  assert.equal((proof0745.match(/~\* '"token"'/g) || []).length, 3, 'the proof looks in all three');
 });
