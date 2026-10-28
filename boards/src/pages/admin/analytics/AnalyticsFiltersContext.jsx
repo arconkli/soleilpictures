@@ -48,6 +48,8 @@ export const POLL_MS = {
   // count moves a few times a day.
   money: 300_000,
   system: 180_000,
+  // The sharing ledger reads every share route since the window opened.
+  sharing: 180_000,
   shell: 60_000,
 };
 

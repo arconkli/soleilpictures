@@ -258,6 +258,13 @@ export function AdminPreviewHarness() {
   const [tab, setTab] = useState(initialTab);
   const [light, setLight] = useState(false);
 
+  // AdminPage's handoff between tabs (adminNav.js: a sharer's row opens Users).
+  useEffect(() => {
+    const go = (e) => { const id = e.detail?.tab; if (TABS.some((x) => x.id === id)) setTab(id); };
+    window.addEventListener('admin:navigate', go);
+    return () => window.removeEventListener('admin:navigate', go);
+  }, []);
+
   const toggleTheme = () => {
     setLight((v) => {
       const next = !v;

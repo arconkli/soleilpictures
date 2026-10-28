@@ -229,13 +229,12 @@ test.describe('Analytics › Overview', () => {
 
 test.describe('Analytics › Funnel', () => {
   // The money reads moved to Money on 2026-10-20 and are pinned there
-  // (admin-money.spec.js).
+  // (admin-money.spec.js); Referrals moved to Sharing on 2026-10-28.
   test('the referral reads follow the code-entry toggle, and what banned accounts did is named', async ({ page }) => {
     await openAdmin(page, { view: 'funnel' });
-    const paths = page.getByRole('button', { name: /Other paths into the product/ });
-    await expect(paths).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('button', { name: /Other paths into the product/ })).toBeVisible({ timeout: 20000 });
     await recordRpc(page, ['admin_referral_stats']);
-    await paths.click();
+    await page.getByRole('tab', { name: /^sharing$/i }).click();
 
     // 0490 leaves out what a banned account did and the panel says how much,
     // so a figure never drops without a word.

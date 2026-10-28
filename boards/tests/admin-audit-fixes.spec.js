@@ -267,7 +267,9 @@ test.describe('admin live console (ADMIN-13)', () => {
         return ch;
       };
     });
-    await patchRpc(page, { admin_events_by_id: { error: null, data: [
+    // admin_event_words (0747) is the console's lookup: admin_events_by_id's
+    // rows with each one's facts.
+    await patchRpc(page, { admin_event_words: { error: null, data: [
       { id: '00000000-0000-4000-8000-0000000000e1', event: 'qa_external_evt', occurred_at: new Date().toISOString(),
         user_id: '00000000-0000-4000-8000-0000000000a1', email: 'outside@example.com', path: '/' },
     ] } });
@@ -287,7 +289,7 @@ test.describe('admin live console (ADMIN-13)', () => {
     await expect(ext.locator('.adm-console-who')).toHaveText('outside');
     await expect(page.locator('.adm-console-row', { hasText: 'qa_internal_evt' })).toHaveCount(0);
 
-    const call = await page.evaluate(() => window.__patchedRpc.find(([n]) => n === 'admin_events_by_id')?.[1]);
+    const call = await page.evaluate(() => window.__patchedRpc.find(([n]) => n === 'admin_event_words')?.[1]);
     expect(call.p_exclude_internal).toBe(true);
     expect(call.p_ids).toHaveLength(2);
   });

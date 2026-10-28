@@ -689,6 +689,13 @@ RPCS.admin_retention_cohort_matrix = (() => {
   return out;
 })();
 
+// Invented facts for the sharing events the console words (0747).
+const SHARE_FACTS = {
+  share_open: { board_id: 'b-1', board_title: 'Pitch deck' },
+  share_link_copied: { board_id: 'b-1', board_title: 'Pitch deck', kind: 'view' },
+  share_view: { board_id: 'b-2', board_title: 'Location scout', owner_name: 'Maya', link_kind: 'invite' },
+};
+
 // admin_recent_events(id, event, occurred_at, user_id, email, path).
 // One row per family so the console's colour key is actually exercised; the
 // mix is weighted the way production is (lp_/ps_ traces dominate).
@@ -697,7 +704,7 @@ RPCS.admin_recent_events = (() => {
     'lp_trace', 'ps_trace', 'card_placed', 'ps_heartbeat', 'card_create_intent',
     'lp_view', 'app_open', 'board_open', 'lp_dwell', 'onboarding_step',
     'ps_signup', 'up_suppressed', 'empty_board_shown', 'experiment_enrolled',
-    'note_edit', 'share_open', 'lp_cta_click', 'app_trace', 'grid_apply',
+    'note_edit', 'share_open', 'lp_cta_click', 'app_trace', 'grid_apply', 'share_link_copied', 'share_view',
     'landing_field_engage', 'doc_edit', 'ps_tier_resolved', 'card_placed', 'board_open',
     'lp_section', 'seo_landing_view',
   ];
@@ -708,6 +715,8 @@ RPCS.admin_recent_events = (() => {
     user_id: i % 4 === 0 ? null : `u-${i % 18}`,
     email: i % 4 === 0 ? null : `${NAMES[i % NAMES.length]}${i % 18}@studio.co`,
     path: i % 3 === 0 ? '/' : '/app',
+    // 0747: a sharing event carries the facts the console words it with.
+    ...(SHARE_FACTS[event] ? { actor_name: NAMES[i % NAMES.length], facts: SHARE_FACTS[event] } : {}),
   }));
 })();
 
@@ -1758,6 +1767,77 @@ function userWorkspacesFixture(userId) {
     clusters: 2 + (w.cards % 9), members: 1 + k * 2 }));
 }
 
+// admin_sharing_overview / admin_sharing_recent (0745): invented numbers, one
+// of every route the ledger files, so Analytics › Sharing is judged full.
+function sharingOverviewFixture(days = 90) {
+  const nWeeks = Math.max(2, Math.ceil(Number(days || 90) / 7));
+  const weekly = Array.from({ length: nWeeks }, (_, i) => {
+    const k = i + 3;
+    return {
+      week: new Date(Date.UTC(2026, 9, 26) - (nWeeks - 1 - i) * 7 * 86400000).toISOString().slice(0, 10),
+      shares: 20 + ((k * 7) % 17), sharers: 8 + (k % 6), opened: 30 + ((k * 5) % 13), copied: 14 + (k % 9),
+      seen: 60 + ((k * 11) % 40), signed_up: 2 + (k % 4), made_something: 1 + (k % 3), got_in: 5 + (k % 5), co_creating: k % 3,
+    };
+  });
+  const sum = (key) => weekly.reduce((a, w) => a + w[key], 0);
+  const route = (r, shared, sharers, seen, su, ms, gi, cc, copies = 0) =>
+    ({ route: r, shared, sharers, made: shared, copies, seen, signed_up: su, made_something: ms, got_in: gi, co_creating: cc });
+  const routes = [
+    route('view_link', 84, 31, 412, 19, 11, 0, 3, 140),
+    route('edit_link', 52, 22, 96, 12, 8, 38, 14, 77),
+    route('email_invite', 66, 18, 0, 21, 13, 34, 12),
+    route('direct_share', 23, 9, 0, 0, 0, 23, 6),
+    route('workspace_link', 14, 7, 40, 6, 4, 11, 5, 14),
+    route('workspace_add', 17, 6, 0, 3, 2, 17, 7),
+    route('file_share', 29, 12, 88, 2, 1, 5, 0, 25),
+    route('explore', 9, 9, 230, 7, 3, 0, 0),
+    route('referral_link', 11, 8, 54, 4, 2, 0, 0, 19),
+  ];
+  const people = listUsers.slice(0, 9);
+  const top_sharers = people.map((u, i) => {
+    const shared = 40 - i * 4;
+    const got_in = 12 - i, signed_up = Math.max(0, 6 - i);
+    return { user_id: u.user_id, email: u.email, name: u.name || null, shared, links: Math.ceil(shared / 3), invited: Math.ceil(shared / 4),
+      copies: shared * 2, seen: 90 - i * 9, got_in, signed_up, made_something: Math.max(0, signed_up - 1), co_creating: Math.max(0, 4 - i),
+      reach: got_in + signed_up };
+  });
+  return {
+    window: { days: Number(days || 90), from: weekly[0].week, to: '2026-10-28' },
+    weekly,
+    totals: { shares: sum('shares'), sharers: 74, panel_opens: sum('opened'), panel_openers: 92, copies: sum('copied'),
+      seen: sum('seen'), got_in: sum('got_in'), signed_up: sum('signed_up'), made_something: sum('made_something'),
+      co_creating: sum('co_creating'), setup_links: 120 },
+    routes,
+    top_sharers,
+    banned_left_out: { accounts: 2, shares: 37 },
+  };
+}
+
+function sharingRecentFixture(limit = 30, before = null) {
+  const people = listUsers.slice(0, 8).map((u) => ({ user_id: u.user_id, email: u.email, name: u.name || null }));
+  const titles = ['Pitch deck', 'Moodboard — Act II', 'Location scout', '', 'Casting shortlist', 'Treatment notes'];
+  const facts = [
+    ['copied', 'view_link'], ['viewed', 'view_link'], ['shared', 'email_invite'], ['joined', 'email_invite'],
+    ['new_account', 'edit_link'], ['made_something', 'edit_link'], ['co_created', 'edit_link'], ['shared', 'workspace_add'],
+    ['shared', 'file_share'], ['opened_panel', null], ['shared', 'explore'], ['remixed', 'explore'],
+  ];
+  const start = before ? Date.parse(before) : Date.parse('2026-10-28T15:40:00Z');
+  const rows = Array.from({ length: Math.min(60, Number(limit) || 30) }, (_, i) => {
+    const [fact, route] = facts[i % facts.length];
+    const by = people[i % people.length];
+    const to = people[(i + 3) % people.length];
+    const kind = route === 'file_share' ? 'file' : route === 'workspace_add' ? 'workspace' : 'cluster';
+    return {
+      at: new Date(start - (i + 1) * 47 * 60000).toISOString(), fact, route,
+      evidence: 'recorded', state: 'live', link_key: null, recorded: !(route === 'workspace_add' && i % 2),
+      object: { kind, id: `o-${i % 6}`, title: kind === 'workspace' ? 'Studio' : titles[i % titles.length], deleted: i % 11 === 10 },
+      sharer: route === 'workspace_add' && i % 2 ? null : by,
+      recipient: fact === 'viewed' || fact === 'copied' || fact === 'opened_panel' ? null : to,
+    };
+  });
+  return { rows, next_before: before ? null : rows[rows.length - 1].at };
+}
+
 function rpcResult(name, params) {
   // ?mrr=0 forces the pre-revenue state.
   //
@@ -1790,6 +1870,8 @@ function rpcResult(name, params) {
   if (name === 'admin_user_detail') return userDetailFixture(params?.p_user_id);
   if (name === 'admin_user_sharing') return userSharingFixture(params?.p_user_id);
   if (name === 'admin_user_workspaces') return userWorkspacesFixture(params?.p_user_id);
+  if (name === 'admin_sharing_overview') return sharingOverviewFixture(params?.p_days);
+  if (name === 'admin_sharing_recent') return sharingRecentFixture(params?.p_limit, params?.p_before);
   // 0746: the list honours its Sharing filter and the reach sort, so the
   // harness can show what picking one does.
   if (name === 'admin_list_users' || name === 'admin_user_count') {
@@ -1823,6 +1905,11 @@ function rpcResult(name, params) {
     return { success_views: 2, activated: 1, stalled: 0, verify_retry: 1, missing_session: 0, verify_failed: 0, support_clicks: 0 };
   }
   // admin_events_by_id(p_ids, …): the rows __adminLive played, with emails.
+  if (name === 'admin_event_words') {
+    return (Array.isArray(params?.p_ids) ? params.p_ids : [])
+      .map((id) => LIVE_ROWS.get(id)).filter(Boolean)
+      .map((r) => ({ ...r, actor_name: null, facts: SHARE_FACTS[r.event] || {} }));
+  }
   if (name === 'admin_events_by_id') {
     return (Array.isArray(params?.p_ids) ? params.p_ids : [])
       .map((id) => LIVE_ROWS.get(id)).filter(Boolean).map((r) => ({ ...r }));

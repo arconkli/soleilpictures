@@ -17,6 +17,7 @@ import { AnalyticsFiltersProvider, useAnalyticsFilters, POLL_MS } from './analyt
 import { SegmentSelect } from './analytics/widgets/SegmentSelect.jsx';
 import { OverviewView } from './analytics/views/OverviewView.jsx';
 import { FunnelView } from './analytics/views/FunnelView.jsx';
+import { SharingView } from './analytics/views/SharingView.jsx';
 import { RetentionView } from './analytics/views/RetentionView.jsx';
 import { MoneyView } from './analytics/views/MoneyView.jsx';
 import { SystemView } from './analytics/views/SystemView.jsx';
@@ -32,6 +33,7 @@ import { md } from '../../lib/moneyView.js';
 const VIEWS = [
   { id: 'overview',  label: 'Overview' },
   { id: 'funnel',    label: 'Funnel' },
+  { id: 'sharing',   label: 'Sharing' },
   { id: 'retention', label: 'Retention' },
   { id: 'money',     label: 'Money' },
   { id: 'system',    label: 'System' },
@@ -218,6 +220,13 @@ export function AdminAnalyticsTab() {
     } catch { /* ignore */ }
   };
 
+  // Another view's link to this one ("moved to Sharing →").
+  useEffect(() => {
+    const go = (e) => { const v = resolveView(e.detail); if (v) selectView(v); };
+    window.addEventListener('admin:analytics-view', go);
+    return () => window.removeEventListener('admin:analytics-view', go);
+  }, []);
+
   const onKey = (e, idx) => {
     let next = null;
     if (e.key === 'ArrowRight') next = (idx + 1) % VIEWS.length;
@@ -257,6 +266,7 @@ export function AdminAnalyticsTab() {
             only the mounted view runs its RPCs. */}
         {view === 'overview'  && <OverviewView  key="overview" />}
         {view === 'funnel'    && <FunnelView    key="funnel" />}
+        {view === 'sharing'   && <SharingView   key="sharing" />}
         {view === 'retention' && <RetentionView key="retention" />}
         {view === 'money'     && <MoneyView     key="money" />}
         {view === 'system'    && <SystemView    key="system" />}
