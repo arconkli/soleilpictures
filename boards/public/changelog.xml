@@ -5,8 +5,16 @@
     <link>https://clusters.soleilpictures.com/changelog</link>
     <description>Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly.</description>
     <language>en</language>
-    <lastBuildDate>Tue, 27 Oct 2026 00:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Wed, 28 Oct 2026 00:00:00 GMT</lastBuildDate>
     <atom:link href="https://clusters.soleilpictures.com/changelog.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>The board, in the chat</title>
+      <link>https://clusters.soleilpictures.com/changelog#2026-10-28</link>
+      <guid isPermaLink="false">clusters-changelog-2026-10-28</guid>
+      <pubDate>Wed, 28 Oct 2026 00:00:00 GMT</pubDate>
+      <description>ChatGPT and Claude can show a cluster inside the conversation, drawn as it is on its canvas. Clusters an assistant makes are laid out to suit them, and Tidy up keeps each group together.</description>
+      <content:encoded><![CDATA[<h3>The board, in the chat</h3><ul><li>With the Clusters connector, ChatGPT and Claude can show a cluster inside the conversation, drawn as it is on its canvas: its pictures, notes, palettes and documents where they sit, and its sections named. Click cards to pick them and <b>Ask about these</b>, or <b>Open in Clusters</b>. See <a href="https://clusters.soleilpictures.com/docs/mcp#the-board-in-the-chat">MCP</a>.</li><li>When a chat can&#39;t draw the cluster, the assistant&#39;s answer still outlines it, its sections with the first few card titles in each, and gives you its link.</li></ul><h3>Clusters an assistant makes</h3><ul><li>A note an assistant writes shows its title as its heading and keeps its formatting (lists, bold, links and headings), in the colour it asked for and as tall as its text. Colours arrive as a palette card, and naming a card&#39;s section is enough to make the section. See <a href="https://clusters.soleilpictures.com/docs/api/cards">cards</a>.</li><li>An assistant&#39;s cards land a section at a time, in the order it sent them. Arranging a cluster lays each section out as a block of its own, then sets the blocks out in columns, in rows, or with the pictures leading, whichever suits it. See <a href="https://clusters.soleilpictures.com/docs/api/arrange">arrange</a>.</li><li>A section made without a colour takes one of the eight <a href="https://clusters.soleilpictures.com/docs/api/cards#named-colours">named colours</a>, and its new notes take that colour, lightened, except where pictures lead.</li><li>Pictures an assistant brings in by link can go straight into a section.</li></ul><h3>Tidy up</h3><ul><li><b>Tidy up</b> keeps each group together: each group is laid out as a block of its own, with room for its outline and name, so no group&#39;s outline ends up round another group&#39;s cards. The gaps in a tidied grid are even now. See <a href="https://clusters.soleilpictures.com/docs/canvas/snapping-and-alignment">snapping and alignment</a>.</li></ul>]]></content:encoded>
+    </item>
     <item>
       <title>Team, for more than 10 people who edit</title>
       <link>https://clusters.soleilpictures.com/changelog#2026-10-27</link>

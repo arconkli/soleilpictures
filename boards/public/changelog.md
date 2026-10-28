@@ -4,6 +4,43 @@
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
 
+## 2026-10-28 — The board, in the chat
+
+ChatGPT and Claude can show a cluster inside the conversation, drawn as it is on its canvas. Clusters an assistant makes are laid out to suit them, and Tidy up keeps each group together.
+
+### The board, in the chat
+
+- With the Clusters connector, ChatGPT and Claude can show a cluster inside
+  the conversation, drawn as it is on its canvas: its pictures, notes,
+  palettes and documents where they sit, and its sections named. Click cards
+  to pick them and **Ask about these**, or **Open in Clusters**. See
+  [MCP](/docs/mcp#the-board-in-the-chat).
+- When a chat can't draw the cluster, the assistant's answer still outlines
+  it, its sections with the first few card titles in each, and gives you its
+  link.
+
+### Clusters an assistant makes
+
+- A note an assistant writes shows its title as its heading and keeps its
+  formatting (lists, bold, links and headings), in the colour it asked for and
+  as tall as its text. Colours arrive as a palette card, and naming a card's
+  section is enough to make the section. See [cards](/docs/api/cards).
+- An assistant's cards land a section at a time, in the order it sent them.
+  Arranging a cluster lays each section out as a block of its own, then sets
+  the blocks out in columns, in rows, or with the pictures leading, whichever
+  suits it. See [arrange](/docs/api/arrange).
+- A section made without a colour takes one of the
+  eight [named colours](/docs/api/cards#named-colours),
+  and its new notes take that colour, lightened, except where pictures lead.
+- Pictures an assistant brings in by link can go straight into a section.
+
+### Tidy up
+
+- **Tidy up** keeps each group together: each group is laid out as a block of
+  its own, with room for its outline and name, so no group's outline ends up
+  round another group's cards. The gaps in a tidied grid are even now. See
+  [snapping and alignment](/docs/canvas/snapping-and-alignment).
+
 ## 2026-10-27 — Team, for more than 10 people who edit
 
 Team is a new plan for more than 10 people who edit, at $25 a seat a month, and Free and Creator include up to 10. Documents show their first page, and raw and Photoshop files are pictures.

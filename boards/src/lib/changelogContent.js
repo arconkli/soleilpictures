@@ -2,6 +2,217 @@
 // Edit the markdown, then run: npm run docs:build
 
 export const CHANGELOG_CONTENT = {
+ "2026-10-28": [
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "The board, in the chat",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The board, in the chat"
+    }
+   ],
+   "id": "2026-10-28-the-board-in-the-chat"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "With the Clusters connector, ChatGPT and Claude can show a cluster inside the conversation, drawn as it is on its canvas: its pictures, notes, palettes and documents where they sit, and its sections named. Click cards to pick them and "
+     },
+     {
+      "t": "strong",
+      "v": "Ask about these",
+      "children": [
+       {
+        "t": "text",
+        "v": "Ask about these"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or "
+     },
+     {
+      "t": "strong",
+      "v": "Open in Clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "Open in Clusters"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". See "
+     },
+     {
+      "t": "link",
+      "v": "MCP",
+      "href": "/docs/mcp#the-board-in-the-chat",
+      "children": [
+       {
+        "t": "text",
+        "v": "MCP"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "When a chat can't draw the cluster, the assistant's answer still outlines it, its sections with the first few card titles in each, and gives you its link."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Clusters an assistant makes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Clusters an assistant makes"
+    }
+   ],
+   "id": "2026-10-28-clusters-an-assistant-makes"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "A note an assistant writes shows its title as its heading and keeps its formatting (lists, bold, links and headings), in the colour it asked for and as tall as its text. Colours arrive as a palette card, and naming a card's section is enough to make the section. See "
+     },
+     {
+      "t": "link",
+      "v": "cards",
+      "href": "/docs/api/cards",
+      "children": [
+       {
+        "t": "text",
+        "v": "cards"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "An assistant's cards land a section at a time, in the order it sent them. Arranging a cluster lays each section out as a block of its own, then sets the blocks out in columns, in rows, or with the pictures leading, whichever suits it. See "
+     },
+     {
+      "t": "link",
+      "v": "arrange",
+      "href": "/docs/api/arrange",
+      "children": [
+       {
+        "t": "text",
+        "v": "arrange"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A section made without a colour takes one of the eight "
+     },
+     {
+      "t": "link",
+      "v": "named colours",
+      "href": "/docs/api/cards#named-colours",
+      "children": [
+       {
+        "t": "text",
+        "v": "named colours"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and its new notes take that colour, lightened, except where pictures lead."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Pictures an assistant brings in by link can go straight into a section."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Tidy up",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Tidy up"
+    }
+   ],
+   "id": "2026-10-28-tidy-up"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Tidy up",
+      "children": [
+       {
+        "t": "text",
+        "v": "Tidy up"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " keeps each group together: each group is laid out as a block of its own, with room for its outline and name, so no group's outline ends up round another group's cards. The gaps in a tidied grid are even now. See "
+     },
+     {
+      "t": "link",
+      "v": "snapping and alignment",
+      "href": "/docs/canvas/snapping-and-alignment",
+      "children": [
+       {
+        "t": "text",
+        "v": "snapping and alignment"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  }
+ ],
  "2026-10-27": [
   {
    "type": "heading",

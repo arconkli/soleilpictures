@@ -11,6 +11,13 @@ export const CHANGELOG_META = {
 
 export const CHANGELOG_ENTRIES = [
   {
+    "date": "2026-10-28",
+    "anchor": "2026-10-28",
+    "title": "The board, in the chat",
+    "summary": "ChatGPT and Claude can show a cluster inside the conversation, drawn as it is on its canvas. Clusters an assistant makes are laid out to suit them, and Tidy up keeps each group together.",
+    "headings": []
+  },
+  {
     "date": "2026-10-27",
     "anchor": "2026-10-27",
     "title": "Team, for more than 10 people who edit",
