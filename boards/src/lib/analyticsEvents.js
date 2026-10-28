@@ -393,7 +393,7 @@ export const EV = Object.freeze({
   FILE_DOWNLOAD:           'file_download',               // a single asset was downloaded {kind:'image',adjusted,is_public} — is_public marks a download taken by an anonymous visitor on /share or /c, which is currently unrestricted
 
   // ── Public share viewer (/share/<token>, anonymous) ──
-  SHARE_VIEW:              'share_view',                  // public viewer mounted {board_id,root_id,include_subboards,valid} (never the link's token — linkTokens.js)
+  SHARE_VIEW:              'share_view',                  // public viewer mounted {board_id,root_id,include_subboards,valid,link_kind:'public'|'view'|'invite',link_role} (never the link's token — linkTokens.js); link_kind/link_role from the sharing insight's capture fix on
   SHARE_SUBBOARD_OPEN:     'share_subboard_open',         // navigated into a sub-board {board_id,from_board_id,depth,cached}
   SHARE_CTA_CLICK:         'share_cta_click',             // signup CTA clicked {surface:'topbar'|'prompt'|'invalid_page'|'badge'|'signin'|'remix'} (must-land)
   FILE_SHARE_OPEN:         'file_share_open',             // the owner's Share file dialog opened {kind,surface:'canvas'|'list'|'player'|'quicklook'}
@@ -403,7 +403,7 @@ export const EV = Object.freeze({
   FILE_SHARE_PERSON_SET:   'file_share_person_set',       // one person's access on a file share changed {role:'view'|'comment'|'edit'|null,undo,kind} — null = removed; undo: Remove's Undo put them back. With the adds, every confirmed write the Share dialog makes has its row, so FILE_SHARE_FAIL has a denominator
   FILE_SHARE_FAIL:         'file_share_fail',             // the Share dialog's read or a write failed, and it showed the error {action:'load'|'access'|'add'|'role'|'remove'|'undo_remove'|'link'|'clipboard',code,kind} — code: the server's error code (42501 = not allowed), null when there was none (a network failure; the clipboard). Never the message, which can carry an address
   SHARE_RETURN_LANDED:     'share_return_landed',         // {} — a sign-up/sign-in that began on a /share page was sent back to that page once a session existed, instead of to the root of an empty workspace. Before this, no share-token signup ever first-opened the board they came for
-  FILE_SHARE_VIEW:         'file_share_view',             // the /f/<token> page loaded a state {status:'ok'|'gone'|'sign_in'|'no_access'|'error',access,kind,signed_in,risky} — once per load
+  FILE_SHARE_VIEW:         'file_share_view',             // the /f/<token> page loaded a state {status:'ok'|'gone'|'sign_in'|'no_access'|'error',access,kind,signed_in,risky,share_id} — once per load; share_id (0742) names the share, in place of its token
   FILE_SHARE_DOWNLOAD:     'file_share_download',         // Download clicked on /f/<token> {kind,access}
   FILE_SHARE_SIGNIN_CLICK: 'file_share_signin_click',     // a sign-in link on /f/<token> {surface:'gate'|'comments'|'switch_account'} (must-land)
   FILE_SHARE_CTA_CLICK:    'file_share_cta_click',        // the signed-out "Try Clusters free" footer on /f/<token> {surface:'footer'} (must-land)
@@ -451,8 +451,8 @@ export const EV = Object.freeze({
 
   // ── Invite links ("anyone with this link joins as editor/viewer", 0189) ──
   INVITE_LINK_CREATED:     'invite_link_created',         // link minted/reused in ShareModal {role,expiry,board_id,surface} (must-land)
-  INVITE_LINK_VIEW:        'invite_link_view',            // join confirm card rendered on /share {role} (once per token/session)
-  INVITE_LINK_JOIN_CLICK:  'invite_link_join_click',      // "Join as …" clicked {role} (must-land)
+  INVITE_LINK_VIEW:        'invite_link_view',            // join confirm card rendered on /share {role,root_id} (once per token/session); root_id: the cluster the link opens
+  INVITE_LINK_JOIN_CLICK:  'invite_link_join_click',      // "Join as …" clicked {role,root_id} (must-land)
   INVITE_LINK_CLAIMED:     'invite_link_claimed',         // SERVER: claim_collab_link granted access {board_id,role,status}
   INVITE_LINK_CLAIM_FAILED:'invite_link_claim_failed',    // claim_collab_link raised after signup/click {reason}
   // Client-side outcome for EVERY claim, not just the granting one. The server
@@ -510,7 +510,7 @@ export const EV = Object.freeze({
   EDITOR_LIMIT_NOTICE_OPEN:'editor_limit_notice_open',    // an editors.limit_reached notice opened Members {via:'toast'|'bell'}
 
   // ── Remix ("Make a copy" — clone a public board into your workspace, 0168) ──
-  REMIX_CLONE:             'remix_clone',                 // a shared/public board was cloned into the user's workspace {kind:'token'|'slug',n}
+  REMIX_CLONE:             'remix_clone',                 // a shared/public board was cloned into the user's workspace {kind:'token'|'slug',n,source_board_id}; the link behind it is in remix_sources (0743)
   REMIX_FAILED:            'remix_failed',                // remix consume failed {kind,stage,reason}
 
   // ── Public marketing boards (/c/<slug> + /explore, migration 0136) ──

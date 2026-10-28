@@ -8204,7 +8204,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // Hand the cards to the live-seed effect, then open the board. The effect
         // fires once the new board's doc is mounted + empty and adds the cards
         // through the live mutators (no save/reset race).
-        pendingRemixRef.current = { boardId: b.id, cards, kind: src.kind };
+        pendingRemixRef.current = { boardId: b.id, cards, kind: src.kind, source: tpl.source || null };
         setRemixPendingTick((t) => t + 1);
         try { await refreshBoards(); } catch (_) {}
         setStack([b.id]);
@@ -8239,7 +8239,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         try { logEvent(EV.REMIX_FAILED, { kind: pend.kind, stage: 'seed', reason: 'demo_cap_full' }); } catch (_) {}
         feedback.toast({ type: 'info', message: 'Your copy is ready, but the demo is full — upgrade to add these cards.' });
       } else {
-        try { logEvent(EV.REMIX_CLONE, { kind: pend.kind, n: added }); } catch (_) {}
+        try { logEvent(EV.REMIX_CLONE, { kind: pend.kind, n: added, source_board_id: pend.source || null }); } catch (_) {}
         feedback.toast(added < requested
           ? { type: 'success', message: `Copied ${added} of ${requested} cards — upgrade for the rest.` }
           : { type: 'success', message: 'Copied to your workspace — make it your own.' });

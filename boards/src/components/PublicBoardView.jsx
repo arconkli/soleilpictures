@@ -409,6 +409,11 @@ export function PublicBoardView({ token, slug }) {
           root_id: root || null,
           include_subboards: !!r.bundle.include_subboards,
           valid: true,
+          // Which kind of link it was, never its token: the public page, a
+          // view link, or an invite link (get_share_bundle's join) and the
+          // role it hands on.
+          link_kind: slug ? 'public' : (r.bundle.join?.kind === 'invite' ? 'invite' : 'view'),
+          link_role: r.bundle.join?.kind === 'invite' ? (r.bundle.join.role || null) : null,
         });
       } catch (e) {
         console.error('[share] bundle fetch failed', e);
@@ -977,6 +982,7 @@ export function PublicBoardView({ token, slug }) {
         <JoinBoardCard
           role={joinInfo.role}
           boardName={board.name}
+          rootId={rootId}
           token={token}
           href={`${ctaHref(ctx, 'join')}&join=${encodeURIComponent(token)}`}
           onJoinClick={() => { ctaClickedRef.current = true; }}

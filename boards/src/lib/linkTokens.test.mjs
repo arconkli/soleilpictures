@@ -150,6 +150,25 @@ test("the token's one home is the profile: the stamp sends it unredacted", () =>
   assert.doesNotMatch(sql, /\bupdate\s+public\.profiles\b/i, '0474 must leave profiles.first_source alone');
 });
 
+test("a shared file's token goes where a share link's does: into first touch for the stamp, never onto an event", () => {
+  const src = read('./analytics.js');
+  assert.match(src, /src\.file_token = String\(token\)\.slice\(0, 40\);/, 'the file page seeds the token for the stamp');
+  assert.match(src, /if \(!src\.utm_source\) \{ src\.utm_source = 'file_share'; src\.utm_medium = 'file_page'; \}/);
+  assert.match(src, /const fileToken = params\.get\('file_token'\);\s+if \(fileToken\) out\.file_token = fileToken\.slice\(0, 40\);/,
+    'and its sign-in links carry it');
+  assert.match(src, /const DEEP_LINK_KEYS = \[[^\]]*'file_token'/);
+  const page = read('../components/fileShare/FileSharePage.jsx');
+  assert.match(page, /useEffect\(\(\) => \{ if \(!overlay\) seedFileShareFirstSource\(token\); \}, \[overlay, token\]\);/);
+  assert.ok(page.indexOf('seedFileShareFirstSource(token);') < page.indexOf('useEffect(() => { load(); }, [load]);'),
+    "seeded before the page's first event");
+  // The bag the stamp sends keeps it; the row an event becomes does not, and
+  // the share's id rides through.
+  const bag = { file_token: TOK, utm_source: 'file_share', utm_medium: 'file_page', landing_path: `/f/${TOK}` };
+  assert.equal(firstSourcePayload(bag, 'prod').file_token, TOK, "the sharer's credit reads it from profiles.first_source");
+  assert.deepEqual(redactLinkTokens({ ...bag, lt_file_token: TOK, share_id: BOARD }),
+    { utm_source: 'file_share', utm_medium: 'file_page', landing_path: '/f/:token', share_id: BOARD });
+});
+
 test("a keep link's token stays out of first touch as well: it credits no one", () => {
   assert.equal(redactKeepLink(`/keep/${TOK}`), '/keep/:token');
   assert.equal(redactKeepLink(`/KEEP/${TOK.toUpperCase()}/`), '/KEEP/:token/');
