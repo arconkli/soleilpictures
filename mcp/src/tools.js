@@ -1099,8 +1099,8 @@ export const TOOLS = [
     name: 'add_cards',
     title: 'Add cards to a board',
     description: 'ADDS cards to a board. Existing cards are never touched. Leave x, y, w and h out: each '
-      + 'card is sized to what it holds and the batch is placed in free space, a section at a time, so '
-      + 'nothing covers what is already there. A note shows its title as its heading and its body as '
+      + 'card is sized to what it holds and each section is laid out as arrange_board lays one out, in the '
+      + 'order sent, clear of what is already there. A note shows its title as its heading and its body as '
       + 'text, where "- " bullets, "1. " lists, "[ ] " checkboxes, **bold** and *italic* show as such: '
       + 'one idea per note in a few lines; long writing goes in write_doc. Put cards in sections by '
       + 'naming one in group (the board\'s group of that name, made if there is none), and list them in '

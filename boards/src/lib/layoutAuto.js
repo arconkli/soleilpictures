@@ -86,6 +86,35 @@ export function readingOrder(cards) {
   return [...(cards || [])].sort((a, b) => (at(a.y) - at(b.y)) || (at(a.x) - at(b.x)));
 }
 
+// Row by row, as a person reads a board: cards centred on one line are one
+// row, read left to right whatever their heights; otherwise top, then left.
+// The canvas grid centres each card in its cell, so a short note sits lower
+// than the tall one beside it, and top-then-left reads the tall one first.
+export function rowOrder(cards) {
+  const at = (v) => (Number.isFinite(v) ? v : 0);
+  const list = (cards || []).map((c, i) => ({ c, i, top: at(c.y), mid: at(c.y) + at(c.h) / 2 }));
+  // A line: centres within a pixel of its first card's (positions are whole
+  // pixels, so a centred card's centre is off by half a pixel at most).
+  const byMid = [...list].sort((a, b) => a.mid - b.mid);
+  for (let start = 0; start < byMid.length;) {
+    let end = start + 1;
+    while (end < byMid.length && byMid[end].mid - byMid[start].mid <= 1) end++;
+    const line = byMid.slice(start, end);
+    const top = Math.min(...line.map((p) => p.top));
+    for (const p of line) p.row = top;
+    start = end;
+  }
+  return list.sort((a, b) => (a.row - b.row) || (at(a.c.x) - at(b.c.x)) || (a.i - b.i)).map((p) => p.c);
+}
+
+const sameBoxes = (laid, was) => {
+  const by = new Map(was.map((c) => [String(c.id), c]));
+  return laid.length === was.length && laid.every((c) => {
+    const b = by.get(String(c.id));
+    return b && b.x === c.x && b.y === c.y && b.w === c.w && b.h === c.h;
+  });
+};
+
 // The cards `order` names (ids) first, in its order; the rest after them, in
 // the order they came.
 export function inOrder(cards, order) {
@@ -360,7 +389,9 @@ export function arrangeAuto(existingCards, items, opts = {}) {
 /**
  * Lay out cards already on the board where they are, as layoutEngine's
  * `rearrange` does: from the top-left of the cards being moved, clear of the
- * rest. They are taken in `order`, then reading order.
+ * rest. They are taken in `order`, then as they read: a board laid out this
+ * way reads top then left in the order it was laid out in, so tidying it again
+ * moves nothing; any other is read row by row (rowOrder).
  */
 export function rearrangeAuto(allCards, cardIds, opts = {}) {
   const ids = new Set((cardIds || []).map(String));
@@ -369,8 +400,13 @@ export function rearrangeAuto(allCards, cardIds, opts = {}) {
   if (!moving.length) return [];
   const staying = all.filter((c) => !ids.has(String(c.id)));
   const anchor = blockBounds(moving);
-  return arrangeAuto(staying, inOrder(readingOrder(moving), opts.order), {
+  const lay = (read) => arrangeAuto(staying, inOrder(read, opts.order), {
     ...opts,
     origin: { x: anchor.x, y: anchor.y },
   });
+  const topThenLeft = readingOrder(moving);
+  const rows = rowOrder(moving);
+  const kept = lay(topThenLeft);
+  if (rows.every((c, i) => c === topThenLeft[i]) || sameBoxes(kept, moving)) return kept;
+  return lay(rows);
 }

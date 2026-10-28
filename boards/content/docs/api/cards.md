@@ -251,12 +251,15 @@ Either shape works:
 
 Up to **{{fact:maxCardsPerCall}}** cards per call; more gets `400`.
 
-**Auto-placement.** Cards without `x`/`y` are placed in free space, so a batch
-cannot land on top of existing content. Pass both to place one yourself. Cards
-in a group land a group at a time: each group's cards together, with
-room for the group's outline and name, so no group's outline takes in another
-group's cards. New cards for a group that already has cards on the board go
-under those cards, or beside them, when there is room there.
+**Auto-placement.** Cards without `x`/`y` are placed for you, so a batch cannot
+land on top of existing content. Pass both to place one yourself. On an empty
+board, and for groups the board doesn't have cards in yet, cards are laid out as
+[`auto`](/docs/api/arrange#the-layouts) lays them out: each group a block of its own
+with room for its outline and name, in the order sent, under whatever is already
+there, so tidying the board afterwards moves nothing. New cards for a group that
+already has cards on the board go under those cards, or beside them, when there
+is room there. Cards in no group, added to a board that has cards, go in the
+free space beside them.
 
 **`warnings`.** A card that landed but won't look as asked — a note too long to
 show whole — is named in `warnings`, a list of sentences beside `cards`. The

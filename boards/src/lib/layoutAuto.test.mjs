@@ -4,9 +4,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  AUTO, API_LAYOUTS, autoLayout, arrangeAuto, rearrangeAuto, readingOrder, inOrder,
+  AUTO, API_LAYOUTS, autoLayout, arrangeAuto, rearrangeAuto, readingOrder, rowOrder, inOrder,
 } from './layoutAuto.js';
-import { LAYOUTS, GROUP_OUTLINE_PAD, GROUP_LABEL_ROOM } from './layoutEngine.js';
+import { LAYOUTS, GROUP_OUTLINE_PAD, GROUP_LABEL_ROOM, placeGrouped } from './layoutEngine.js';
 import { paletteSize } from './apiCards.js';
 
 const note = (id, groupId, h = 180, w = 280) => ({ id, kind: 'note', groupId, w, h });
@@ -127,6 +127,33 @@ test('cards come in the order named, then in reading order', () => {
   const cards = [{ id: 'a', x: 0, y: 300 }, { id: 'b', x: 400, y: 0 }, { id: 'c', x: 0, y: 0 }];
   assert.deepEqual(readingOrder(cards).map((c) => c.id), ['c', 'b', 'a']);
   assert.deepEqual(inOrder(readingOrder(cards), ['a', 'nope']).map((c) => c.id), ['a', 'c', 'b']);
+});
+
+test('a row of cards centred on one line reads left to right, whatever their heights', () => {
+  // The canvas grid centres each card in its cell: the short note sits lower.
+  const cards = [
+    { id: 'tall', x: 384, y: 80, w: 280, h: 189 }, { id: 'short', x: 80, y: 92, w: 280, h: 166 },
+    { id: 'below', x: 80, y: 322, w: 280, h: 131 }, { id: 'side', x: 384, y: 300, w: 280, h: 40 },
+  ];
+  assert.deepEqual(readingOrder(cards).map((c) => c.id), ['tall', 'short', 'side', 'below']);
+  assert.deepEqual(rowOrder(cards).map((c) => c.id), ['short', 'tall', 'side', 'below']);
+  assert.deepEqual(rowOrder([]), []);
+});
+
+test('sections added without positions are tidied in the order they were sent', () => {
+  // As add_cards places them (layoutEngine.placeGrouped: a grid per section,
+  // each card centred in its cell), then arrange_board's default.
+  const sent = DIARY.map((c) => ({ ...c }));
+  const placed = placeGrouped([], sent);
+  const tidied = rearrangeAuto(placed, placed.map((c) => c.id));
+  const read = readingOrder(tidied);
+  for (const g of ['canon', 'journal', 'watch', 'ideas']) {
+    assert.deepEqual(read.filter((c) => c.groupId === g).map((c) => c.id), sent.filter((c) => c.groupId === g).map((c) => c.id),
+      `${g} keeps the order it was sent in`);
+  }
+  const again = rearrangeAuto(tidied, tidied.map((c) => c.id));
+  const was = new Map(tidied.map((c) => [c.id, c]));
+  for (const c of again) assert.deepEqual([c.x, c.y], [was.get(c.id).x, was.get(c.id).y], `${c.id} moved on a second tidy`);
 });
 
 // A board of mixed sections, from a seed.

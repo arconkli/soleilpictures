@@ -579,11 +579,21 @@ function layoutCards(built, existing, layoutOpts = null, { order = null } = {}) 
       .filter((c) => c && Number.isFinite(c.x) && Number.isFinite(c.y));
   }
   const needsLayout = inOrder(built.filter((c) => !Number.isFinite(c.x) || !Number.isFinite(c.y)));
-  // Grouped cards land a group at a time, by their group's other cards when
-  // there is room, so no group's outline takes in another group's cards.
-  const placed = !needsLayout.length ? []
-    : needsLayout.some((c) => c.groupId) ? placeGrouped(existing, needsLayout)
-      : arrangeExisting({ existingCards: existing, cards: needsLayout });
+  // A card for a section already on the board goes by that section's cards
+  // when there is room (placeGrouped), so no outline takes in another
+  // section's cards. A new section, and the cards on an empty board, are laid
+  // out as `auto` lays them out, under what is there. A few loose cards for a
+  // board that has cards go in the free space beside them.
+  const sectionsHere = new Set(existing.filter((c) => c.groupId).map((c) => String(c.groupId)));
+  const joining = needsLayout.filter((c) => c.groupId && sectionsHere.has(String(c.groupId)));
+  const rest = needsLayout.filter((c) => !joining.includes(c));
+  const placed = joining.length ? placeGrouped(existing, joining) : [];
+  if (rest.length) {
+    const around = [...existing, ...placed];
+    placed.push(...(!existing.length || rest.some((c) => c.groupId)
+      ? arrangeAuto(around, rest)
+      : arrangeExisting({ existingCards: around, cards: rest })));
+  }
   const byId = new Map(placed.map((c) => [c.id, c]));
   return built
     .map((c) => byId.get(c.id) || c)

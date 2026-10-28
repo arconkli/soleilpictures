@@ -1284,6 +1284,50 @@ test('cards added without positions land a group at a time, each outline round i
   }
 });
 
+// The live run of 2026-10-27: sections added with no positions came out as a
+// grid that centres each card in its cell, so a tidy read the taller note of a
+// row first and the order sent was lost.
+test('new sections added without positions are laid out as a tidy lays them out, in the order sent', async () => {
+  putBoard(B1, [], { name: 'Films' });
+  const sent = [
+    ['Canon', 'In the Mood for Love', 'Wong Kar-wai, 2000\n- Corridors\n- Rain'],
+    ['Canon', 'Stalker', 'Tarkovsky, 1979\n- The Zone\n- Sepia to colour\n- Long takes\n- Water everywhere'],
+    ['Canon', 'Chungking Express', 'Pineapple.'],
+    ['Journal', 'Rewatched Heat', 'The diner scene.'],
+    ['Journal', 'Cinema on Thursday', '1. Early\n2. Row F\n3. No phone\n4. Stay for the credits'],
+    [null, 'Loose', 'A thought.'],
+  ];
+  const r = await api('POST', `/boards/${B1}/cards`, {
+    cards: sent.map(([group, title, body]) => ({ kind: 'note', title, body, ...(group ? { group } : {}) })),
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, b64ToBytes(boards.get(B1).doc));
+  const ids = Object.fromEntries(readGroups(doc).map((g) => [g.name, g.id]));
+  const cards = cardsOn(B1);
+  const read = [...cards].sort((a, b) => (a.y - b.y) || (a.x - b.x));
+  for (const g of ['Canon', 'Journal']) {
+    assert.deepEqual(read.filter((c) => c.groupId === ids[g]).map((c) => c.title),
+      sent.filter(([s]) => s === g).map(([, t]) => t), `${g} reads in the order sent`);
+  }
+  // Already tidy: arrange_board's default would move nothing.
+  const tidy = await api('POST', `/boards/${B1}/arrange`, { dry_run: true });
+  assert.equal(tidy.status, 200, JSON.stringify(tidy.body));
+  for (const c of tidy.body.cards) {
+    const was = cards.find((x) => x.id === c.id);
+    assert.deepEqual([c.x, c.y], [was.x, was.y], `${was.title} would move`);
+  }
+  // A card for a section already there goes by that section's cards.
+  const canon = cards.filter((c) => c.groupId === ids.Canon);
+  const more = await api('POST', `/boards/${B1}/cards`, { cards: [{ kind: 'note', title: 'Heat', group: 'Canon' }] });
+  assert.equal(more.status, 201, JSON.stringify(more.body));
+  const heat = cardsOn(B1).find((c) => c.title === 'Heat');
+  const left = Math.min(...canon.map((c) => c.x));
+  const bottom = Math.max(...canon.map((c) => c.y + c.h));
+  const right = Math.max(...canon.map((c) => c.x + c.w));
+  assert.ok((heat.x === left && heat.y > bottom - 1) || heat.x >= right, `Heat at ${heat.x},${heat.y} is by Canon`);
+});
+
 // What ChatGPT had to do on 2026-10-27 to put eleven notes in four sections:
 // make each group first and copy its id onto every card. A section can now be
 // named on the card, and is made with the cards when the board has none.
