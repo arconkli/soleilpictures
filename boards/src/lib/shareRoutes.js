@@ -42,8 +42,8 @@ export const LADDER = [
 export const RECORDED_FROM = {
   workspace_add: '2026-10-28',
   remix: '2026-10-28',
-  file_share_signup: null,
-  link_kind: null,
+  file_share_signup: '2026-10-28',
+  link_kind: '2026-10-28',
 };
 
 // The Users list's Sharing filter and its sort (0746's p_sharing / 'reach').
