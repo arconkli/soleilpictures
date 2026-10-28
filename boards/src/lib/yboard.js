@@ -262,13 +262,17 @@ function readLocalDraft(boardId) {
   }
 }
 
+// The doc is marked with whether its last draft took: a doc's save line says
+// unsaved changes are kept on this device only while it did (docSaveStatus.js).
 function saveLocalDraft(boardId, ydoc, version) {
   if (typeof localStorage === 'undefined') return version;
+  ydoc._soleilKept = false;
   try {
     localStorage.setItem(draftKey(boardId), JSON.stringify({
       doc: bytesToB64(Y.encodeStateAsUpdate(ydoc)),
       version,
     }));
+    ydoc._soleilKept = true;
   } catch (_) {}
   return version;
 }
@@ -398,9 +402,9 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   let draftDirtySince = 0;   // when the oldest not-yet-drafted local edit landed; 0 = draft current
   let localSeq = 0;          // bumps per local edit; lets a save tell whether it covered them all
 
-  // Broadcast the real persistence lifecycle so UI (the doc's footer) can show
-  // an honest saving → saved / error state instead of a fixed timer that lies
-  // on failure and flickers on peer edits.
+  // Broadcast the real persistence lifecycle (saving → saved / sent / error)
+  // for the doc's save line (lib/docSaveStatus.js), instead of a fixed timer
+  // that lies on failure and flickers on peer edits.
   const emitSaveState = (state) => {
     if (typeof window === 'undefined') return;
     try {
@@ -467,7 +471,10 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
             clearTimeout(draftTimer); draftTimer = null; draftDirtySince = 0;
           }
         }
-        if (pendingLocal) { pendingLocal = false; emitSaveState('saved'); }
+        // 'saved' only once board_state holds every local edit; one made while
+        // this write was on its way waits for the next write. 'sent': this one
+        // wasn't due, so only the room can say (the doc's save line asks it).
+        if (pendingLocal && localSeq === seqAtSave) { pendingLocal = false; emitSaveState(wrote === false ? 'sent' : 'saved'); }
         // Round 16: refresh the localStorage preview cache for this
         // board. Pre-Round-16 this ran inline here, blocking the main
         // thread for 100-300ms (readCards + JSON.stringify + setItem),

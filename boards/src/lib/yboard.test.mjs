@@ -75,7 +75,10 @@ const lsStore = new Map();
 const lsWrites = [];   // keys, in write order
 globalThis.localStorage = {
   getItem: (k) => (lsStore.has(k) ? lsStore.get(k) : null),
-  setItem: (k, v) => { lsWrites.push(k); lsStore.set(String(k), String(v)); },
+  setItem: (k, v) => {
+    if (env?.lsFull) throw new Error('QuotaExceededError');
+    lsWrites.push(k); lsStore.set(String(k), String(v));
+  },
   removeItem: (k) => { lsStore.delete(k); },
 };
 globalThis.window = new EventTarget();
@@ -102,6 +105,8 @@ function resetEnv() {
     rpcDown: false,           // can_write_board errors
     realtime: [],             // { boardId, destroyed }
     restoreWatchers: [],
+    saveGate: null,           // a promise a board_state write waits on (still on its way)
+    lsFull: false,            // localStorage refuses every write (over its quota)
   };
 }
 const impl = {
@@ -114,6 +119,7 @@ const impl = {
     saveBoardSnapshot: async (id, doc, { stateWrite = 'always' } = {}) => {
       const due = stateWrite === 'always' || env.backstopDue;
       const bytes = enc(doc);   // encoded synchronously, like the real one
+      if (env.saveGate) await env.saveGate;
       env.saves.push({ boardId: id, stateWrite, wrote: due });
       if (due) env.server.set(id, bytes);
       return due;
@@ -683,4 +689,63 @@ test('with nothing on this device, the first paint is the server snapshot', asyn
   assert.equal(host.current.ready, true);
   assert.equal(host.current.paintSource, 'server');
   host.unmount();
+});
+
+// ── the doc's save line (lib/docSaveStatus.js) ──────────────────────────────
+test('the save line hears "saved" only when board_state holds every edit made here', async () => {
+  const boardId = newBoardId();
+  seedServer(boardId, ['a']);
+  const h = loadYBoard(boardId, { userId: 'u1' });
+  await h.ready;
+  await advance(50);
+  const heard = [];
+  const onState = (e) => { if (e.detail?.boardId === boardId) heard.push(e.detail.state); };
+  window.addEventListener('soleil-board-save-state', onState);
+  try {
+    // A backstop that wasn't due wrote nothing: 'sent', never 'saved'.
+    env.backstopDue = false;
+    addCard(h.ydoc, 'x');
+    await advance(1000);
+    assert.deepEqual(heard, ['saving', 'sent']);
+
+    heard.length = 0;
+    env.backstopDue = true;
+    addCard(h.ydoc, 'y');
+    await advance(1000);
+    assert.deepEqual(heard, ['saving', 'saved']);
+
+    // An edit made while a write is on its way: that write didn't hold it, so
+    // it says nothing, and the next one, which does, says 'saved'.
+    heard.length = 0;
+    let land;
+    env.saveGate = new Promise((r) => { land = r; });
+    addCard(h.ydoc, 'z1');
+    await advance(400);
+    addCard(h.ydoc, 'z2');
+    land(); env.saveGate = null;
+    await advance(1000);
+    assert.deepEqual(heard, ['saving', 'saving', 'saved']);
+    assert.ok(cardsOf(serverDoc(boardId)).includes('z2'));
+  } finally {
+    window.removeEventListener('soleil-board-save-state', onState);
+    h.destroy();
+  }
+});
+
+test('the doc is marked when this device could not keep a draft of it, and again once it can', async () => {
+  const boardId = newBoardId();
+  seedServer(boardId, ['a']);
+  env.backstopDue = false;
+  const h = loadYBoard(boardId, { userId: 'u1' });
+  await h.ready;
+  await advance(50);
+  env.lsFull = true;
+  addCard(h.ydoc, 'x');
+  await advance(3000);
+  assert.equal(h.ydoc._soleilKept, false);
+  env.lsFull = false;
+  addCard(h.ydoc, 'y');
+  await advance(3000);
+  assert.equal(h.ydoc._soleilKept, true);
+  h.destroy();
 });

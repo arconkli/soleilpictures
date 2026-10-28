@@ -27133,7 +27133,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", the dock and full screen switch, and close. The footer runs along the bottom: whether your changes are saved, the word count (in a screenplay, the page you're on, of how many, and the scenes), and the zoom."
+     "v": ", the dock and full screen switch, and close. The footer runs along the bottom: whether your changes are saved (see "
+    },
+    {
+     "t": "link",
+     "v": "Saving",
+     "href": "#saving",
+     "children": [
+      {
+       "t": "text",
+       "v": "Saving"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "), the word count (in a screenplay, the page you're on, of how many, and the scenes), and the zoom."
     }
    ]
   },
@@ -28388,6 +28403,180 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " while you have a document open, or someone moves cards into it, the cluster reloads, and the document reopens where you were and says what happened. If that took anything off the page you had open (a restore to before you wrote it, or your last few words before they were saved), it offers you the page as you had it, to copy and paste back what you want to keep."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Saving",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Saving"
+    }
+   ],
+   "id": "saving"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "There is nothing to save by hand: each change goes to the cluster as you make it. The footer says where your changes are, and only what the cluster has confirmed:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Saving…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Saving…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": a change is on its way."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Saved",
+      "children": [
+       {
+        "t": "text",
+        "v": "Saved"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": the cluster has told this device it holds every change you made."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Reconnecting",
+      "children": [
+       {
+        "t": "text",
+        "v": "Reconnecting"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "strong",
+      "v": "Offline",
+      "children": [
+       {
+        "t": "text",
+        "v": "Offline"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": the cluster can't be reached. Your changes are kept on this device and go up when it is back. If this device couldn't keep a copy (its storage is full), the footer says "
+     },
+     {
+      "t": "strong",
+      "v": "keep this tab open",
+      "children": [
+       {
+        "t": "text",
+        "v": "keep this tab open"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " instead, because the open tab is then the only place they are."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Couldn't save",
+      "children": [
+       {
+        "t": "text",
+        "v": "Couldn't save"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": the cluster couldn't be reached and a save failed. Your changes are kept on this device, as above."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "View only — changes aren't saved",
+      "children": [
+       {
+        "t": "text",
+        "v": "View only — changes aren't saved"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": the cluster is treating you as a viewer, for example because your access changed while the document was open, so it isn't keeping what you type."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Can't save — access ended",
+      "children": [
+       {
+        "t": "text",
+        "v": "Can't save — access ended"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": you no longer have access to the cluster."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone, the line under the title says the same in a word. Someone who can only view the document sees no save state: the header says "
+    },
+    {
+     "t": "strong",
+     "v": "View only",
+     "children": [
+      {
+       "t": "text",
+       "v": "View only"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },

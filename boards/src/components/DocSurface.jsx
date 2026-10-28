@@ -254,6 +254,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // Reset awareness when the board changes — getAwareness will return the
   // new board's awareness once attach completes; the effect above re-runs.
   useEffect(() => { setAwareness(null); }, [board.id]);
+  // The cluster's live room, attached with the awareness: the save line asks
+  // it whether a change is stored (lib/docSaveStatus.js).
+  const liveRoom = (awareness && ydoc?._soleilRoom) || null;
   const [activePageId, setActivePageIdState] = useState(() => loadActivePage(board.id));
   const setActivePageId = (id) => {
     setActivePageIdState(id);
@@ -662,7 +665,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     };
     frame.publish({
       railOpen: drawerRail ? mobileRailOpen : railOpen, panelOpen, panelTab: panel.tab, openComments,
-      moreOpen: more.open, showSave: !guestMode,
+      moreOpen: more.open, showSave: !guestMode, doc: ydoc, liveRoom,
     });
   });
   useEffect(() => () => frame?.reset(), [frame]);
@@ -1539,7 +1542,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       {!isPhone && (
         <Suspense fallback={null}>
           <DocFootA editor={editorRef.current} boardId={scope?.boardId || (scope ? null : board.id)}
-                    showSave={!guestMode} screenplay={docMode === 'screenplay'}
+                    doc={ydoc} room={liveRoom} showSave={!guestMode && canEdit} screenplay={docMode === 'screenplay'}
                     zoom={effectiveZoom} fitMode={fitMode} fitEligible={fitEligible}
                     onZoom={(z) => setZoom(z)}
                     onZoomIn={() => setZoom((z) => z + ZOOM_STEP)}

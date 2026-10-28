@@ -198,6 +198,9 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   const wiredSockets = new WeakSet();
   const onTextFrame = (e) => {
     if (typeof e.data !== 'string') return;
+    // A room that answers a doc's save line says so first (lib/roomAck.js);
+    // the socket keeps it for a line that opens later (lib/docSaveStatus.js).
+    if (e.data === '__YPS:{"t":"acks"}') { e.target._acks = true; return; }
     let msg;
     try { msg = JSON.parse(e.data); } catch (_) { return; }
     if (!msg || msg.type !== 'soleil-board-reset') return;
@@ -312,6 +315,8 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     window.addEventListener('soleil-board-reset', onBoardReset);
   }
 
+  // A doc's save line asks this room whether a change is stored.
+  ydoc._soleilRoom = provider;
   return {
     awareness,
     // Resolves true once this doc has finished the Yjs handshake with the room
@@ -343,6 +348,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     },
     destroy() {
       destroyed = true;
+      if (ydoc._soleilRoom === provider) ydoc._soleilRoom = null;
       clearInterval(keepalive);
       clearTimeout(stuckTimer);
       parking.dispose();

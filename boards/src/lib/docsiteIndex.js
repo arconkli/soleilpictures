@@ -1689,6 +1689,10 @@ export const DOCS_PAGES = [
         "text": "Working together"
       },
       {
+        "id": "saving",
+        "text": "Saving"
+      },
+      {
         "id": "undo",
         "text": "Undo"
       },

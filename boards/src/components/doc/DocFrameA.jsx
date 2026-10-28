@@ -107,7 +107,8 @@ export function DocHeadA({
           <div className="dl-ptitle">
             {title}
             {/* A guest who can only read is told so, as on a computer. */}
-            <PhoneLine boardId={scope?.boardId || (scope ? null : card.id)} showSave={!guestMode && f.showSave !== false}
+            <PhoneLine boardId={scope?.boardId || (scope ? null : card.id)} doc={f.doc} room={f.liveRoom}
+                       showSave={!guestMode && f.showSave !== false}
                        canEdit={canEdit} isPublic={isPublic && !guestMode} fresh={focusTitle} peers={peersOnCard} />
           </div>
           {children}
@@ -178,8 +179,8 @@ export function DocHeadA({
 // The line under a phone's title: "New doc" for one just added, until it
 // first saves; then how it's saving, and who else is in it ("Saved · Maya is
 // here"). A reader's says so instead of saving.
-function PhoneLine({ boardId, showSave, canEdit, isPublic, fresh, peers }) {
-  const { online, saving, saveError, savedAt } = useDocStatus({ editor: null, boardId });
+function PhoneLine({ boardId, doc, room, showSave, canEdit, isPublic, fresh, peers }) {
+  const { status, savedAt } = useDocStatus({ editor: null, boardId, doc, room });
   const names = [...new Set(peers.map((p) => (p.user?.name || '').trim().split(/\s+/)[0]).filter(Boolean))];
   const here = names.length === 0 ? null
     : names.length === 1 ? `${names[0]} is here`
@@ -188,10 +189,7 @@ function PhoneLine({ boardId, showSave, canEdit, isPublic, fresh, peers }) {
   let state = null;
   if (isPublic) state = null;
   else if (!canEdit) state = 'View only';
-  else if (showSave) {
-    state = !online ? 'Offline' : saveError ? "Couldn't save" : saving ? 'Saving…'
-      : fresh && !savedAt ? 'New doc' : 'Saved';
-  }
+  else if (showSave) state = fresh && status.state === 'saved' && !savedAt ? 'New doc' : status.short;
   const line = [state, here].filter(Boolean).join(' · ');
   if (!line) return null;
   return <span className="dl-psub">{line}</span>;
@@ -366,20 +364,30 @@ function useScriptCounts(editor, on) {
   return counts;
 }
 
+// How the footer shows each save state (lib/docSaveStatus.js saveLine).
+const SAVE_LOOK = {
+  saved: [CloudCheck, ''],
+  saving: [CloudArrowUp, ' is-saving'],
+  reconnecting: [CloudSlash, ' is-offline'],
+  offline: [CloudSlash, ' is-offline'],
+  error: [CloudWarning, ' is-error'],
+  viewonly: [CloudWarning, ' is-error'],
+  ended: [CloudWarning, ' is-error'],
+};
+
 export function DocFootA({
-  editor, boardId = null, showSave = true, screenplay = false,
+  editor, boardId = null, doc = null, room = null, showSave = true, screenplay = false,
   zoom = 1, fitMode = false, fitEligible = false, onZoom, onZoomIn, onZoomOut, onZoomReset,
 }) {
-  const { words, online, saving, saveError, savedLabel } = useDocStatus({ editor, boardId });
+  const { words, status } = useDocStatus({ editor, boardId, doc, room });
   const script = useScriptCounts(editor, screenplay);
-  const cloud = !online ? CloudSlash : saveError ? CloudWarning : saving ? CloudArrowUp : CloudCheck;
-  const tone = !online ? ' is-offline' : saveError ? ' is-error' : saving ? ' is-saving' : '';
+  const [cloud, tone] = SAVE_LOOK[status.state];
   const pct = Math.round(zoom * 100);
   return (
     <IconWeightContext.Provider value="regular">
       <div className="dl-foot">
         {showSave && (
-          <span className={`dl-foot-status${tone}`}><Icon as={cloud} size={15} />{savedLabel}</span>
+          <span className={`dl-foot-status${tone}`}><Icon as={cloud} size={15} />{status.text}</span>
         )}
         <span className="dl-sp" />
         <span className="dl-foot-words">

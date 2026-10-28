@@ -79,8 +79,8 @@ The header runs across the top: the page list's button, where the document is
 and its title (click the title to rename it), the faces of whoever else is in
 it (click one to go to where they are), **Share**, **Comments**, **Messages**,
 the dock and full screen switch, and close. The footer runs along the bottom:
-whether your changes are saved, the word count (in a screenplay, the page
-you're on, of how many, and the scenes), and the zoom.
+whether your changes are saved (see [Saving](#saving)), the word count (in a
+screenplay, the page you're on, of how many, and the scenes), and the zoom.
 
 **Pages** on the left — a hierarchical tree. Documents are genuinely
 multi-page, and pages nest. A page holds as much as you write: set to real
@@ -232,6 +232,28 @@ reloads, and the document reopens where you were and says what happened. If
 that took anything off the page you had open (a restore to before you wrote
 it, or your last few words before they were saved), it offers you the page as
 you had it, to copy and paste back what you want to keep.
+
+## Saving
+
+There is nothing to save by hand: each change goes to the cluster as you make
+it. The footer says where your changes are, and only what the cluster has
+confirmed:
+
+- **Saving…**: a change is on its way.
+- **Saved**: the cluster has told this device it holds every change you made.
+- **Reconnecting** or **Offline**: the cluster can't be reached. Your changes
+  are kept on this device and go up when it is back. If this device couldn't
+  keep a copy (its storage is full), the footer says **keep this tab open**
+  instead, because the open tab is then the only place they are.
+- **Couldn't save**: the cluster couldn't be reached and a save failed. Your
+  changes are kept on this device, as above.
+- **View only — changes aren't saved**: the cluster is treating you as a
+  viewer, for example because your access changed while the document was
+  open, so it isn't keeping what you type.
+- **Can't save — access ended**: you no longer have access to the cluster.
+
+On a phone, the line under the title says the same in a word. Someone who can
+only view the document sees no save state: the header says **View only**.
 
 ## Undo
 
