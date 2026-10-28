@@ -41,6 +41,28 @@ There is no public bucket and nothing is reachable by guessing a path.
 Uploads go from your browser straight to storage. A file referenced by a board
 is protected from cleanup for as long as the board references it.
 
+## Pictures and AI
+
+When a picture is added to a cluster, Clusters asks an AI model what is in it:
+a short description, a few search words, and labels such as the kind of
+picture, the shot, the light and the main colours. People are never named.
+
+This runs on Cloudflare Workers AI, the provider that already stores your
+files. A small copy of the picture goes to Google's Gemma 4 model (or Meta's
+Llama 3.2 Vision when Gemma fails), and the answer comes back to Clusters.
+Cloudflare doesn't keep the picture after answering and doesn't use it to
+train models ([Cloudflare's policy](https://developers.cloudflare.com/workers-ai/platform/data-usage/)).
+
+The description is stored beside the picture, and only people who can see the
+picture can read it. An app you connect through the API or MCP reads them as
+you would. A description is never written into the cluster itself, never
+shown on public pages, and never sent with errors or usage events.
+
+The owner or a co-owner can turn this off with **AI suggestions** in
+**Settings → Workspace**. Off, Clusters sends no picture or text to a model,
+and the workspace's picture descriptions are deleted. An AI app you connect
+yourself, through the API or MCP, still reads what you ask it to.
+
 ## Retention
 
 | Thing | Kept |

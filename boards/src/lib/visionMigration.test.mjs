@@ -107,3 +107,52 @@ test('pictures in workspaces with AI off are never claimed, and switching it off
   assert.match(off, /delete from public\.card_embeddings/);
   assert.match(code, /after update of ai_tagger_enabled on public\.workspaces/);
 });
+
+// ── 0594: pictures suggest the tags they show ──────────────────────────────
+import { SUGGEST_DIST } from './clusterMath.js';
+
+const sql94 = readFileSync(join(MIGRATIONS_DIR, '0594_vision_suggestions.sql'), 'utf8').replace(/--[^\n]*/g, '');
+const body94 = (name) => {
+  const at = sql94.indexOf(`function public.${name}(`);
+  assert.ok(at >= 0, `${name} is defined in 0594`);
+  const open = sql94.indexOf('$$', at);
+  return sql94.slice(open + 2, sql94.indexOf('$$', open + 2));
+};
+
+test('0594 suggests only: tag_suggestions, never entity_links, three a card, tombstones kept', () => {
+  const b = body94('_suggest_tags_for_card');
+  assert.doesNotMatch(b, /insert into public\.entity_links/);
+  assert.match(b, /insert into public\.tag_suggestions/);
+  assert.match(b, /on conflict \(tag_id, source_kind, source_id\) do nothing/);
+  assert.match(b, /limit 3/);
+  assert.match(b, /not exists \(select 1 from public\.autotag_ignored/);
+  assert.match(b, /el\.link_kind = 'applied' and el\.target_kind = 'tag'/);
+  assert.match(b, /ai_tagger_enabled is not false/);
+  assert.match(b, /_tag_is_spreadable\(t\.slug, t\.status\)/);
+  assert.equal(Number(b.match(/c_band constant double precision := ([\d.]+)/)[1]), SUGGEST_DIST, 'the band is the client\'s');
+});
+
+test('0594 matches whole words on both sides, so "golden hour" and plurals match and "carpet" does not', () => {
+  const b = body94('_suggest_tags_for_card');
+  assert.match(b, /regexp_replace\(lower\(coalesce\(d\.description, ''\) \|\| ' ' \|\| array_to_string\(d\.keywords, ' '\)\), '\[\^a-z0-9\]\+', '-', 'g'\)/);
+  assert.match(b, /'-' \|\| regexp_replace\(lower\(t\.slug\), '\[\^a-z0-9\]\+', '-', 'g'\) \|\| '\(s\|es\)\?-'/);
+  // The same rule in JS, to read what it means.
+  const words = (s) => `-${s.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-`;
+  const hit = (text, slug) => new RegExp(`-${slug.toLowerCase().replace(/[^a-z0-9]+/g, '-')}(s|es)?-`).test(words(text));
+  assert.ok(hit('Two cars at golden hour', 'car'));
+  assert.ok(hit('Two cars at golden hour', 'golden hour'));
+  assert.ok(hit('Two cars at golden hour', 'golden-hour'));
+  assert.ok(!hit('A carpet of leaves', 'car'));
+  assert.ok(!hit('A carpet of leaves', 'pet'));
+});
+
+test('0594 closes its function to clients, and switching AI off also clears open vision suggestions', () => {
+  assert.ok(sql94.includes('revoke execute on function public._suggest_tags_for_card(uuid, text) from public, anon, authenticated;'));
+  assert.ok(sql94.includes('grant execute on function public._suggest_tags_for_card(uuid, text) to service_role;'));
+  assert.match(sql94, /do \$proof\$[\s\S]*_suggest_tags_for_card\(uuid,text\)[\s\S]*end \$proof\$;/);
+  const off = body94('_tg_workspaces_ai_off_cleanup');
+  assert.match(off, /delete from public\.image_descriptions where workspace_id = new\.id/, '0593\'s deletes stay');
+  assert.match(off, /delete from public\.card_embeddings/);
+  assert.match(off, /delete from public\.tag_suggestions\s+where workspace_id = new\.id and origin in \('vision', 'vision-embed'\) and dismissed_at is null/);
+  assert.match(sql94, /check \(origin in \('embed', 'vision', 'vision-embed'\)\)/);
+});

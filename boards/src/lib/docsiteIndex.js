@@ -1965,7 +1965,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Does Clusters tag things without asking?",
-        "a": "Where a tag's exact name appears in a card, a group or a cluster's name, the tag is applied and marked auto. In documents, the AI also underlines words that clearly refer to one of your tags, marked auto. Anything looser is only suggested. Remove an automatic tag and it stays off that item for good."
+        "a": "Where a tag's exact name appears in a card, a group or a cluster's name, the tag is applied and marked auto. In documents, the AI also underlines words that clearly refer to one of your tags, marked auto. Anything looser is only suggested, and so is everything from pictures. Remove an automatic tag and it stays off that item for good."
       },
       {
         "q": "What is an entity type?",
@@ -1973,7 +1973,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can I turn the AI off?",
-        "a": "Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then no text goes to a model. Tags you add, and exact-name matches, still work."
+        "a": "Yes. The owner or a co-owner can turn AI suggestions off in Settings → Workspace. Then Clusters sends no text or picture to a model, and picture descriptions are deleted. Tags you add, and exact-name matches, still work. An AI app you connect yourself still reads what you ask it to."
       }
     ]
   },
@@ -3053,6 +3053,10 @@ export const DOCS_PAGES = [
       {
         "id": "where-files-live",
         "text": "Where files live"
+      },
+      {
+        "id": "pictures-and-ai",
+        "text": "Pictures and AI"
       },
       {
         "id": "retention",

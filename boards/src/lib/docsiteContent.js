@@ -31223,7 +31223,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — card titles, notes, documents, and the names of groups and clusters. It never looks at what an image shows, and it only uses tags you have already made, so a workspace with no tags gets none."
+     "v": " — card titles, notes, documents, and the names of groups and clusters — and only uses tags you have already made, so a workspace with no tags gets none. Pictures are read too, but they only ever get suggestions (see below)."
     }
    ]
   },
@@ -31320,6 +31320,37 @@ export const DOCS_CONTENT = {
       "t": "text",
       "v": "."
      }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Pictures are suggested, never tagged.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Pictures are suggested, never tagged."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Each picture added to a cluster is "
+     },
+     {
+      "t": "link",
+      "v": "described by an AI model",
+      "href": "/docs/account/data-and-privacy#pictures-and-ai",
+      "children": [
+       {
+        "t": "text",
+        "v": "described by an AI model"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". When the description names one of your tags, or means something close to it, the picture gets that tag as a suggestion, a few minutes after it lands. A picture is never tagged on its own."
+     }
     ]
    ]
   },
@@ -31365,7 +31396,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Then no card or document text goes to a model: there are no suggestions or underlines, and exact-name matches and the tags you add work as before."
+     "v": ". Then Clusters sends no card or document text and no picture to a model: there are no suggestions or underlines, the workspace's "
+    },
+    {
+     "t": "link",
+     "v": "picture descriptions",
+     "href": "/docs/account/data-and-privacy#pictures-and-ai",
+     "children": [
+      {
+       "t": "text",
+       "v": "picture descriptions"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " are deleted, and exact-name matches and the tags you add work as before. An AI app you connect yourself, through the API or MCP, still reads what you ask it to."
     }
    ]
   },
@@ -47179,6 +47225,97 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Uploads go from your browser straight to storage. A file referenced by a board is protected from cleanup for as long as the board references it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Pictures and AI",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pictures and AI"
+    }
+   ],
+   "id": "pictures-and-ai"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When a picture is added to a cluster, Clusters asks an AI model what is in it: a short description, a few search words, and labels such as the kind of picture, the shot, the light and the main colours. People are never named."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "This runs on Cloudflare Workers AI, the provider that already stores your files. A small copy of the picture goes to Google's Gemma 4 model (or Meta's Llama 3.2 Vision when Gemma fails), and the answer comes back to Clusters. Cloudflare doesn't keep the picture after answering and doesn't use it to train models ("
+    },
+    {
+     "t": "link",
+     "v": "Cloudflare's policy",
+     "href": "https://developers.cloudflare.com/workers-ai/platform/data-usage/",
+     "children": [
+      {
+       "t": "text",
+       "v": "Cloudflare's policy"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ")."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The description is stored beside the picture, and only people who can see the picture can read it. An app you connect through the API or MCP reads them as you would. A description is never written into the cluster itself, never shown on public pages, and never sent with errors or usage events."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The owner or a co-owner can turn this off with "
+    },
+    {
+     "t": "strong",
+     "v": "AI suggestions",
+     "children": [
+      {
+       "t": "text",
+       "v": "AI suggestions"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Off, Clusters sends no picture or text to a model, and the workspace's picture descriptions are deleted. An AI app you connect yourself, through the API or MCP, still reads what you ask it to."
     }
    ]
   },
