@@ -58657,7 +58657,55 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "There are eight colours a section's outline or a note's fill can be given by name, in any case. A section takes the outline colour; a note takes the tint, light enough for dark text in both themes. They are also the colours a section takes when given none, in this order:"
+     "v": "There are eight colours a section's outline or a note's fill can be given by name, in any case. A section takes the outline colour; a note takes the tint, light enough for dark text in both themes. They are also the colours a section takes when given none, in this order. A plain colour word is the named colour nearest it, with or without "
+    },
+    {
+     "t": "code",
+     "v": "light"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "dark"
+    },
+    {
+     "t": "text",
+     "v": " before it, so "
+    },
+    {
+     "t": "code",
+     "v": "red"
+    },
+    {
+     "t": "text",
+     "v": " is "
+    },
+    {
+     "t": "code",
+     "v": "rose"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "yellow"
+    },
+    {
+     "t": "text",
+     "v": " is "
+    },
+    {
+     "t": "code",
+     "v": "moss"
+    },
+    {
+     "t": "text",
+     "v": ":"
     }
    ]
   },
@@ -58681,6 +58729,12 @@ export const DOCS_CONTENT = {
       "t": "text",
       "v": "A note's tint"
      }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Words for it"
+     }
     ]
    ],
    "rows": [
@@ -58702,6 +58756,12 @@ export const DOCS_CONTENT = {
        "t": "code",
        "v": "#cae2fd"
       }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "navy, sky, azure, cobalt"
+      }
      ]
     ],
     [
@@ -58721,6 +58781,12 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "#fbd8c9"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "orange, amber, brown, rust, terracotta, copper, coral, peach, tan"
       }
      ]
     ],
@@ -58742,6 +58808,12 @@ export const DOCS_CONTENT = {
        "t": "code",
        "v": "#c9e6ce"
       }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "lime, emerald, forest, mint, jade"
+      }
      ]
     ],
     [
@@ -58761,6 +58833,12 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "#efd8f5"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "purple, violet, indigo, lavender, lilac, mauve, magenta, fuchsia"
       }
      ]
     ],
@@ -58782,6 +58860,12 @@ export const DOCS_CONTENT = {
        "t": "code",
        "v": "#bce7e7"
       }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "cyan, aqua, turquoise"
+      }
      ]
     ],
     [
@@ -58801,6 +58885,12 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "#fdd6da"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "red, crimson, scarlet, maroon, burgundy, pink"
       }
      ]
     ],
@@ -58822,6 +58912,12 @@ export const DOCS_CONTENT = {
        "t": "code",
        "v": "#dae4c2"
       }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "yellow, gold, mustard, olive, khaki, sage"
+      }
      ]
     ],
     [
@@ -58841,6 +58937,12 @@ export const DOCS_CONTENT = {
       {
        "t": "code",
        "v": "#dbe0e7"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "grey, gray, silver, charcoal"
       }
      ]
     ]
@@ -72978,7 +73080,23 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " or a "
+      "v": ", a plain colour word ("
+     },
+     {
+      "t": "code",
+      "v": "red"
+     },
+     {
+      "t": "text",
+      "v": " is "
+     },
+     {
+      "t": "code",
+      "v": "rose"
+     },
+     {
+      "t": "text",
+      "v": "), or a "
      },
      {
       "t": "code",
@@ -73084,7 +73202,23 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". "
+     "v": ". A link a chat shows with each "
+    },
+    {
+     "t": "code",
+     "v": "&"
+    },
+    {
+     "t": "text",
+     "v": " written "
+    },
+    {
+     "t": "code",
+     "v": "&amp;"
+    },
+    {
+     "t": "text",
+     "v": " reads the same. "
     },
     {
      "t": "code",
@@ -73239,6 +73373,14 @@ export const DOCS_CONTENT = {
      {
       "t": "code",
       "v": "## Look {#3f7ab5}"
+     },
+     {
+      "t": "text",
+      "v": ". Brackets that hold no colour stay in the name, as in "
+     },
+     {
+      "t": "code",
+      "v": "## Act One (1974)"
      },
      {
       "t": "text",

@@ -27,7 +27,7 @@
 // again when it is kept, so what is kept is what was shown.
 import { publicHttpsUrlProblem } from './safeUrl.js';
 import { sectionName, sectionKey, hexColour, PALETTE } from './apiCards.js';
-import { sectionColour } from './boardStyle.js';
+import { namedColour } from './boardStyle.js';
 
 export const MAKE = Object.freeze({
   // Cards one link makes, and pictures among them: each picture is fetched
@@ -140,7 +140,7 @@ function reader() {
       current = [...board.sections].reverse().find((s) => s.name) || current;
       return;
     }
-    current = { name: n, color: n ? sectionColour(color) : null, items: [] };
+    current = { name: n, color: n ? makeColour(color) : null, items: [] };
     board.sections.push(current);
   };
   const add = (item) => {
@@ -278,7 +278,7 @@ function sectionParts(raw) {
   const [a, b] = valueParts(raw);
   if (a != null) return [a, b];
   const m = b.match(SECTION_COLOUR);
-  return m && sectionColour(m[2]) ? [m[1], m[2]] : [b, null];
+  return m && makeColour(m[2]) ? [m[1], m[2]] : [b, null];
 }
 
 /**
@@ -291,7 +291,9 @@ export function parseMakeFragment(input) {
   let s = String(input ?? '').trim();
   const at = s.indexOf('#');
   if (/^https?:\/\//i.test(s) || at === 0) s = at >= 0 ? s.slice(at + 1) : '';
-  s = s.slice(0, MAKE.maxSource);
+  // A chat that shows the link as HTML writes each & as &amp;. A value's own &
+  // is %26, so a bare &amp; is only ever that.
+  s = s.slice(0, MAKE.maxSource).replace(/&amp;/gi, '&');
   const r = reader();
   for (const { key, raw } of fragmentPairs(s)) {
     if (PICTURE_KEYS.has(key)) {
@@ -332,6 +334,16 @@ const BOLD_LINE = /^(?:\*\*|__)([^*_].*?)(?:\*\*|__):?$/;
 const HEADING = /^(#{1,3})\s+(.*?)\s*#*\s*$/;
 // "## Look (blue)", "## Look {#3f7ab5}": a section's colour after its name.
 const SECTION_COLOUR = /^(.*?)\s*[({]\s*(#?[0-9a-f]{3,6}|[a-z]+)\s*[)}]\s*$/i;
+
+// A section's colour: a named colour, a plain colour word ("red" is rose,
+// lib/boardStyle.js) or a #hex. Anything else stays part of the name, so
+// "Act One (1974)" is a section called that, never one coloured "1974".
+function makeColour(v) {
+  const named = namedColour(v);
+  if (named) return named.tone;
+  const s = String(v ?? '').trim();
+  return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(s) ? s.toLowerCase() : null;
+}
 
 function isPictureAddress(raw) {
   try {
@@ -379,7 +391,7 @@ export function parseMakeText(input) {
         else r.section(words, null);
       } else if (level === 2) {
         const m = words.match(SECTION_COLOUR);
-        if (m && sectionColour(m[2])) r.section(m[1], m[2]);
+        if (m && makeColour(m[2])) r.section(m[1], m[2]);
         else r.section(words, null);
       } else {
         note = { title: words, lines: [] };

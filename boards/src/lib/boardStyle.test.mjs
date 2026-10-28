@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  SECTION_COLOURS, namedColour, sectionColour, nextSectionColours, tintOf, tintsNotes, tintNewNotes,
+  SECTION_COLOURS, COLOUR_WORDS, namedColour, sectionColour, nextSectionColours, tintOf, tintsNotes, tintNewNotes,
 } from './boardStyle.js';
 import { readableInk } from './paletteLayout.js';
 
@@ -37,11 +37,38 @@ test('eight named colours, each readable on both canvases, none the app\'s gold'
 
 test('a colour is named by its name, in any case', () => {
   assert.equal(namedColour(' Teal ').tone, '#008686');
-  assert.equal(namedColour('gold'), null);
+  assert.equal(namedColour('vermilion'), null);
   assert.equal(sectionColour('BLUE'), '#3f7ab5');
   assert.equal(sectionColour('#c8a04a'), '#c8a04a', 'anything else as given');
+  assert.equal(sectionColour('rebeccapurple'), 'rebeccapurple');
   assert.equal(sectionColour(''), null);
   assert.equal(sectionColour(null), null);
+});
+
+test('a plain colour word is the named colour nearest it, gold never the app\'s gold', () => {
+  const name = (w) => namedColour(w)?.name ?? null;
+  assert.equal(name('red'), 'rose');
+  assert.equal(name('Dark Red'), 'rose');
+  assert.equal(name('light-blue'), 'blue');
+  assert.equal(name('orange'), 'clay');
+  assert.equal(name('brown'), 'clay');
+  assert.equal(name('yellow'), 'moss');
+  assert.equal(name('gold'), 'moss');
+  assert.equal(name('purple'), 'plum');
+  assert.equal(name('cyan'), 'teal');
+  assert.equal(name('navy'), 'blue');
+  assert.equal(name('gray'), 'slate');
+  assert.equal(name('dark'), null, 'a shade alone is no colour');
+  assert.equal(sectionColour('red'), '#b25e6c');
+  assert.equal(tintOf('yellow'), '#dae4c2');
+  // Every word belongs to a named colour, once, and none is a name itself.
+  const names = new Set(SECTION_COLOURS.map((c) => c.name));
+  const words = Object.entries(COLOUR_WORDS).flatMap(([n, list]) => {
+    assert.ok(names.has(n), n);
+    return list;
+  });
+  assert.equal(new Set(words).size, words.length);
+  for (const w of words) assert.equal(names.has(w), false, w);
 });
 
 test('new sections take the named colours in order, passing over ones the board wears', () => {

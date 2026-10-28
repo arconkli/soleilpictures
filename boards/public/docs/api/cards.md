@@ -2,7 +2,7 @@
 
 > Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. An unknown kind is rejected rather than silently coerced. A note shows its title as its heading and is made as tall as its text, and a card names its section by name.
 
-_Source: https://clusters.soleilpictures.com/docs/api/cards · Updated 2026-10-27_
+_Source: https://clusters.soleilpictures.com/docs/api/cards · Updated 2026-10-28_
 
 ## The card object
 
@@ -281,18 +281,20 @@ both. Naming a section reads the board, as leaving out coordinates does.
 There are eight colours a section's outline or a note's
 fill can be given by name, in any case. A section takes the outline colour; a
 note takes the tint, light enough for dark text in both themes. They are also
-the colours a section takes when given none, in this order:
+the colours a section takes when given none, in this order. A plain colour word
+is the named colour nearest it, with or without `light` or `dark` before it, so
+`red` is `rose` and `yellow` is `moss`:
 
-| Name | Outline | A note's tint |
-|---|---|---|
-| `blue` | `#3f7ab5` | `#cae2fd` |
-| `clay` | `#af6440` | `#fbd8c9` |
-| `green` | `#3d8550` | `#c9e6ce` |
-| `plum` | `#9864a4` | `#efd8f5` |
-| `teal` | `#008686` | `#bce7e7` |
-| `rose` | `#b25e6c` | `#fdd6da` |
-| `moss` | `#6d7e2b` | `#dae4c2` |
-| `slate` | `#6d7889` | `#dbe0e7` |
+| Name | Outline | A note's tint | Words for it |
+|---|---|---|---|
+| `blue` | `#3f7ab5` | `#cae2fd` | navy, sky, azure, cobalt |
+| `clay` | `#af6440` | `#fbd8c9` | orange, amber, brown, rust, terracotta, copper, coral, peach, tan |
+| `green` | `#3d8550` | `#c9e6ce` | lime, emerald, forest, mint, jade |
+| `plum` | `#9864a4` | `#efd8f5` | purple, violet, indigo, lavender, lilac, mauve, magenta, fuchsia |
+| `teal` | `#008686` | `#bce7e7` | cyan, aqua, turquoise |
+| `rose` | `#b25e6c` | `#fdd6da` | red, crimson, scarlet, maroon, burgundy, pink |
+| `moss` | `#6d7e2b` | `#dae4c2` | yellow, gold, mustard, olive, khaki, sage |
+| `slate` | `#6d7889` | `#dbe0e7` | grey, gray, silver, charcoal |
 
 ### Laying cards out
 

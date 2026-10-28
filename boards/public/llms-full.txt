@@ -5661,7 +5661,7 @@ A: Yes. Nothing about tokens has changed. OAuth is for applications that other p
 ========================================================================
 # Cards API
 URL: https://clusters.soleilpictures.com/docs/api/cards
-Updated: 2026-10-27
+Updated: 2026-10-28
 
 Read a board's cards with GET /boards/:id/cards, add up to 1000 at a time with POST, change one with PATCH, move a set with the move endpoint, and remove one with DELETE — which returns the whole card it deleted, so the response body is your undo. An unknown kind is rejected rather than silently coerced. A note shows its title as its heading and is made as tall as its text, and a card names its section by name.
 
@@ -5834,17 +5834,17 @@ The answer lists the sections the call named in groups, each with its id and "cr
 
 Named colours
 
-There are eight colours a section's outline or a note's fill can be given by name, in any case. A section takes the outline colour; a note takes the tint, light enough for dark text in both themes. They are also the colours a section takes when given none, in this order:
+There are eight colours a section's outline or a note's fill can be given by name, in any case. A section takes the outline colour; a note takes the tint, light enough for dark text in both themes. They are also the colours a section takes when given none, in this order. A plain colour word is the named colour nearest it, with or without light or dark before it, so red is rose and yellow is moss:
 
-Name | Outline | A note's tint
-blue | #3f7ab5 | #cae2fd
-clay | #af6440 | #fbd8c9
-green | #3d8550 | #c9e6ce
-plum | #9864a4 | #efd8f5
-teal | #008686 | #bce7e7
-rose | #b25e6c | #fdd6da
-moss | #6d7e2b | #dae4c2
-slate | #6d7889 | #dbe0e7
+Name | Outline | A note's tint | Words for it
+blue | #3f7ab5 | #cae2fd | navy, sky, azure, cobalt
+clay | #af6440 | #fbd8c9 | orange, amber, brown, rust, terracotta, copper, coral, peach, tan
+green | #3d8550 | #c9e6ce | lime, emerald, forest, mint, jade
+plum | #9864a4 | #efd8f5 | purple, violet, indigo, lavender, lilac, mauve, magenta, fuchsia
+teal | #008686 | #bce7e7 | cyan, aqua, turquoise
+rose | #b25e6c | #fdd6da | red, crimson, scarlet, maroon, burgundy, pink
+moss | #6d7e2b | #dae4c2 | yellow, gold, mustard, olive, khaki, sage
+slate | #6d7889 | #dbe0e7 | grey, gray, silver, charcoal
 
 Laying cards out
 
@@ -7418,13 +7418,13 @@ The link
 https://clusters.soleilpictures.com/make# followed by key=value pairs joined by &, as in a query string. Each value is percent-encoded. Cards come in the order they are written.
 
 title= names the board, and the cluster it becomes.
-section=Name starts a section, and every card after it goes in it until the next. section=Name|colour gives it a colour: one of the named colours or a #hex. Leave it out and Clusters picks one, as it does over the API. A section named again carries on where it was.
+section=Name starts a section, and every card after it goes in it until the next. section=Name|colour gives it a colour: one of the named colours, a plain colour word (red is rose), or a #hex. Leave it out and Clusters picks one, as it does over the API. A section named again carries on where it was.
 pic=address is a picture, and pic=address|caption one with a caption.
 note=Title|Body is a note, and note=Body one with no title. \n in the body starts a new line, and a line starting -  is a bullet.
 palette=Title|#101820 Ink,#f2aa4c Sodium is a palette: colours with their names, separated by commas.
 end=N says how many cards came before it. It makes nothing: it is how the page tells a link a chat cut short from a whole one.
 
-A | inside a value is written %7C. name and board also name the board, group is a section, img, image, picture and photo are pictures, text is a note, and colors or colours a palette.
+A | inside a value is written %7C. A link a chat shows with each & written &amp; reads the same. name and board also name the board, group is a section, img, image, picture and photo are pictures, text is a note, and colors or colours a palette.
 
 https://clusters.soleilpictures.com/make#title=Tokyo%20noir%2C%201974&section=Look|blue&pic=https%3A%2F%2Fimages.example.com%2Fstreet.jpg|Wet%20street&palette=Night|%23101820%20Ink%2C%23f2aa4c%20Sodium&section=Story&note=Logline|A%20night-shift%20cabbie%20finds%20a%20reel%20of%20film.&end=4
 
@@ -7446,7 +7446,7 @@ A night-shift cabbie finds a reel of film in his back seat.
 - Rain, neon, long lenses
 - Quiet, then sudden
 
-# names the board. ## starts a section, with an optional colour in brackets: ## Look (blue) or ## Look {#3f7ab5}.
+# names the board. ## starts a section, with an optional colour in brackets: ## Look (blue) or ## Look {#3f7ab5}. Brackets that hold no colour stay in the name, as in ## Act One (1974).
 ###, or a line in bold, titles a note, and the lines under it are its body. A paragraph under no title is a note of its own.
 ![caption](address) is a picture, and so is a picture's address alone on its line.
 Palette: and its colours, or a line of two or more #hex colours, is a palette.
