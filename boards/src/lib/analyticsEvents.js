@@ -576,6 +576,14 @@ export const EV = Object.freeze({
   KEEP_KEPT:               'keep_kept',                   // keep_mcp_draft kept it {host,via:'code'|'signed_in',beside_own}
   KEEP_FAILED:             'keep_failed',                 // a step failed {step:'load'|'send'|'code'|'keep',reason} — reason is keepFailReason() (an auth code, http_<status>, 'network' or 'error'), or keepFailure()'s word at 'keep'
 
+  // ── /make (pages/MakePage.jsx): a board an AI without the Clusters app wrote
+  //    into a link, or as text to paste, shown before it is kept. Counts only:
+  //    never the link, its text, a picture's address or the email. ──
+  MAKE_PAGE_VIEW:          'make_page_view',              // a board shown, from a link or pasted text, or the paste box opened (from 'none') {from:'link'|'text'|'none',cards,pictures,left_out,cut} — left_out: pictures that didn't load or whose address we'd never fetch; cut: the chat cut the link short
+  MAKE_CODE_SENT:          'make_code_sent',              // the island's sign-in code sent {resend}
+  MAKE_KEPT:               'make_kept',                   // POST /api/make/keep made the board {via:'code'|'signed_in',cards,left_out,fit} — left_out: pictures that couldn't be copied in
+  MAKE_FAILED:             'make_failed',                 // a step failed {step:'send'|'code'|'keep',reason} — keepFailReason() at send/code; the route's code, http_<status> or 'network' at keep
+
   // ── Tags (the ambient hover-to-explore rework — see project_tags_rework).
   //    Zero tag events existed before; this is how we finally measure whether
   //    tagging pays off. ──

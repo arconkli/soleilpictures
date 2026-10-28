@@ -172,3 +172,11 @@ namespace_id = "7006"
   [ratelimits.simple]
   limit = 600
   period = 60
+
+[[ratelimits]]
+name = "MAKE_KEEP"
+namespace_id = "7007"
+
+  [ratelimits.simple]
+  limit = 10
+  period = 60

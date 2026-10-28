@@ -1638,6 +1638,136 @@ async function internalCall(baseUrl, env, ctx, { auth, token }, path, opts = {})
   return text ? JSON.parse(text) : null;
 }
 
+// One import item fetched and, when it is a picture, stored: by hand through
+// every redirect, under the owner's byte ceiling, its space reserved before
+// it is written, and its images row made. POST /boards/:id/import runs it on
+// every item; keeping a /make link (worker-make.js) on every picture.
+async function importItem(env, token, userId, board, item) {
+  try {
+    // Redirects are followed BY HAND, every hop re-checked against the same
+    // rule normalizeImportItems ran on the submitted URL. With
+    // redirect:'follow' (until 2026-10-02) that check guarded only the first
+    // hop, so any allowed public URL could 302 the importer to an address
+    // the manifest itself would have refused.
+    const { res } = await fetchFollowingSafely(item.url, {
+      signal: AbortSignal.timeout(IMPORT_TIMEOUT_MS),
+      // No credentials of ours ever ride along, and a generic agent because
+      // some CDNs refuse an empty one outright.
+      headers: { accept: 'image/*,*/*;q=0.8', 'user-agent': 'SoleilClusters-Import/1.0' },
+    }, { check: (u) => publicHttpsUrlProblem(u.href) });
+    if (!res.ok) {
+      return { item, ok: false, error: `the source answered ${res.status}`, code: 'source_unavailable' };
+    }
+
+    const contentType = (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    const ext = extensionFor(contentType);
+    const kind = kindForContentType(contentType, { storable: Boolean(ext) });
+
+    if (kind !== 'image') {
+      // Not stored, and the response says why. A silent link card is how
+      // somebody ends up believing their PDF is in the archive.
+      return { item, ok: true, kind, note: noteFor(kind, contentType) };
+    }
+
+    // Declared length first, so an oversized source is abandoned before it
+    // is pulled into a 128MB isolate rather than after.
+    const declared = Number(res.headers.get('content-length'));
+    if (Number.isFinite(declared) && declared > MAX_UPLOAD_BYTES) {
+      return {
+        item, ok: false, code: 'payload_too_large',
+        error: `that source is ${Math.round(declared / 1048576)}MB — the limit is `
+          + `${Math.floor(MAX_UPLOAD_BYTES / (1024 * 1024))}MB through the API`,
+      };
+    }
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (!bytes.length) return { item, ok: false, error: 'the source was empty', code: 'source_unavailable' };
+    if (bytes.length > MAX_UPLOAD_BYTES) {
+      return {
+        item, ok: false, code: 'payload_too_large',
+        error: `that source is ${Math.round(bytes.length / 1048576)}MB — the limit is `
+          + `${Math.floor(MAX_UPLOAD_BYTES / (1024 * 1024))}MB through the API`,
+      };
+    }
+
+    // The same owner-pays byte ceiling the browser upload path runs. Asked
+    // per item so a big import stops at the cap instead of blowing past it.
+    const verdictRows = await userRpc(env, token, 'authorize_image_upload',
+      { p_board_id: board.id, p_bytes: bytes.length }).catch(() => null);
+    const verdict = Array.isArray(verdictRows) ? verdictRows[0] : verdictRows;
+    if (verdict && verdict.allow !== true && verdict.reason === 'over_quota') {
+      return {
+        item, ok: false, code: 'limit_reached',
+        error: 'that would go past the storage included with this account',
+      };
+    }
+
+    // Workspace-prefixed key, derived from the board and never from input —
+    // the prefix is what scopes storage to a workspace (0218).
+    const key = `${board.workspace_id}/${crypto.randomUUID()}.${ext}`;
+    // Reserved before it is written (0610): a big import stops at the cap
+    // even when its items race each other for the last of the space.
+    const held = await reserveUploadSpace((fn, params) => userRpc(env, token, fn, params),
+      { key, bytes: bytes.length, boardId: board.id });
+    if (held === 'full') {
+      return { item, ok: false, code: 'limit_reached', error: 'that would go past the storage included with this account' };
+    }
+    if (held !== 'reserved') {
+      return { item, ok: false, code: 'storage_unavailable', error: 'image storage is not available right now' };
+    }
+    await env.IMAGES.put(key, bytes, { httpMetadata: { contentType } });
+    const dims = imageDimensions(bytes);
+
+    // The images row is LOAD-BEARING: it authorizes reads and keeps the R2
+    // orphan sweep from reclaiming the object. An import that skipped it
+    // would quietly evaporate in 30 days, which is the exact failure this
+    // whole feature exists to stop.
+    await userInsert(env, token, 'images', [{
+      workspace_id: board.workspace_id,
+      board_id: board.id,
+      storage_path: key,
+      width: dims?.width ?? null,
+      height: dims?.height ?? null,
+      size_bytes: bytes.length,
+      uploaded_by: userId,
+    }], { returning: 'minimal' });
+
+    return {
+      item, ok: true, kind, imageKey: key,
+      stored: { imageKey: key, width: dims?.width, height: dims?.height },
+    };
+  } catch (e) {
+    if (e instanceof UnsafeFetchError) {
+      return { item, ok: false, code: 'source_refused', error: `that source ${e.message}` };
+    }
+    const timedOut = e?.name === 'TimeoutError' || /timed? ?out/i.test(e?.message || '');
+    return {
+      item, ok: false, code: timedOut ? 'source_timeout' : 'source_unavailable',
+      error: timedOut ? `the source did not answer within ${IMPORT_TIMEOUT_MS / 1000}s`
+        : `could not fetch that source: ${e?.message || 'unknown error'}`,
+    };
+  }
+}
+
+// The API as a person signed in to the app, from inside the Worker: keeping a
+// /make link (worker-make.js) makes its board through these same routes, so
+// the card cap, sections, webhooks and RLS are what any caller meets. The
+// person's own session is the token; there is no API token, so nothing is
+// logged against one.
+export function callApiAs(origin, env, ctx, { userId, token }, path, opts = {}) {
+  const auth = { ok: true, userId, scopes: ['read', 'write', 'delete'], tokenId: null };
+  return internalCall(new URL(origin), env, ctx, { auth, token }, path, opts);
+}
+
+// One picture by its address, stored on `board` ({ id, workspace_id }) as an
+// import stores it (importItem), as the person whose session `token` is.
+//   { ok: true, imageKey, width, height } | { ok: false, code, error }
+export async function storePictureFrom(env, { userId, token }, board, url) {
+  const r = await importItem(env, token, userId, board, { url });
+  if (!r.ok) return { ok: false, code: r.code || 'source_unavailable', error: r.error || null };
+  if (r.kind !== 'image') return { ok: false, code: 'not_a_picture', error: 'that address is not a picture' };
+  return { ok: true, imageKey: r.imageKey, width: r.stored?.width ?? null, height: r.stored?.height ?? null };
+}
+
 async function dispatch(url, request, env, ctx) {
   const { auth, token, trace } = ctx;
   const parts = url.pathname.replace(/^\/api\/v1\/?/, '').replace(/\/$/, '').split('/').filter(Boolean);
@@ -3296,111 +3426,8 @@ async function dispatch(url, request, env, ctx) {
 
     // Fetch and store. Bounded concurrency: a hundred sockets at once is how a
     // Worker runs out of subrequests halfway through somebody's migration.
-    const fetched = await mapWithConcurrency(items, IMPORT_CONCURRENCY, async (item) => {
-      try {
-        // Redirects are followed BY HAND, every hop re-checked against the same
-        // rule normalizeImportItems ran on the submitted URL. With
-        // redirect:'follow' (until 2026-10-02) that check guarded only the first
-        // hop, so any allowed public URL could 302 the importer to an address
-        // the manifest itself would have refused.
-        const { res } = await fetchFollowingSafely(item.url, {
-          signal: AbortSignal.timeout(IMPORT_TIMEOUT_MS),
-          // No credentials of ours ever ride along, and a generic agent because
-          // some CDNs refuse an empty one outright.
-          headers: { accept: 'image/*,*/*;q=0.8', 'user-agent': 'SoleilClusters-Import/1.0' },
-        }, { check: (u) => publicHttpsUrlProblem(u.href) });
-        if (!res.ok) {
-          return { item, ok: false, error: `the source answered ${res.status}`, code: 'source_unavailable' };
-        }
-
-        const contentType = (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
-        const ext = extensionFor(contentType);
-        const kind = kindForContentType(contentType, { storable: Boolean(ext) });
-
-        if (kind !== 'image') {
-          // Not stored, and the response says why. A silent link card is how
-          // somebody ends up believing their PDF is in the archive.
-          return { item, ok: true, kind, note: noteFor(kind, contentType) };
-        }
-
-        // Declared length first, so an oversized source is abandoned before it
-        // is pulled into a 128MB isolate rather than after.
-        const declared = Number(res.headers.get('content-length'));
-        if (Number.isFinite(declared) && declared > MAX_UPLOAD_BYTES) {
-          return {
-            item, ok: false, code: 'payload_too_large',
-            error: `that source is ${Math.round(declared / 1048576)}MB — the limit is `
-              + `${Math.floor(MAX_UPLOAD_BYTES / (1024 * 1024))}MB through the API`,
-          };
-        }
-        const bytes = new Uint8Array(await res.arrayBuffer());
-        if (!bytes.length) return { item, ok: false, error: 'the source was empty', code: 'source_unavailable' };
-        if (bytes.length > MAX_UPLOAD_BYTES) {
-          return {
-            item, ok: false, code: 'payload_too_large',
-            error: `that source is ${Math.round(bytes.length / 1048576)}MB — the limit is `
-              + `${Math.floor(MAX_UPLOAD_BYTES / (1024 * 1024))}MB through the API`,
-          };
-        }
-
-        // The same owner-pays byte ceiling the browser upload path runs. Asked
-        // per item so a big import stops at the cap instead of blowing past it.
-        const verdictRows = await userRpc(env, token, 'authorize_image_upload',
-          { p_board_id: id, p_bytes: bytes.length }).catch(() => null);
-        const verdict = Array.isArray(verdictRows) ? verdictRows[0] : verdictRows;
-        if (verdict && verdict.allow !== true && verdict.reason === 'over_quota') {
-          return {
-            item, ok: false, code: 'limit_reached',
-            error: 'that would go past the storage included with this account',
-          };
-        }
-
-        // Workspace-prefixed key, derived from the board and never from input —
-        // the prefix is what scopes storage to a workspace (0218).
-        const key = `${board.workspace_id}/${crypto.randomUUID()}.${ext}`;
-        // Reserved before it is written (0610): a big import stops at the cap
-        // even when its items race each other for the last of the space.
-        const held = await reserveUploadSpace((fn, params) => userRpc(env, token, fn, params),
-          { key, bytes: bytes.length, boardId: id });
-        if (held === 'full') {
-          return { item, ok: false, code: 'limit_reached', error: 'that would go past the storage included with this account' };
-        }
-        if (held !== 'reserved') {
-          return { item, ok: false, code: 'storage_unavailable', error: 'image storage is not available right now' };
-        }
-        await env.IMAGES.put(key, bytes, { httpMetadata: { contentType } });
-        const dims = imageDimensions(bytes);
-
-        // The images row is LOAD-BEARING: it authorizes reads and keeps the R2
-        // orphan sweep from reclaiming the object. An import that skipped it
-        // would quietly evaporate in 30 days, which is the exact failure this
-        // whole feature exists to stop.
-        await userInsert(env, token, 'images', [{
-          workspace_id: board.workspace_id,
-          board_id: id,
-          storage_path: key,
-          width: dims?.width ?? null,
-          height: dims?.height ?? null,
-          size_bytes: bytes.length,
-          uploaded_by: auth.userId,
-        }], { returning: 'minimal' });
-
-        return {
-          item, ok: true, kind, imageKey: key,
-          stored: { imageKey: key, width: dims?.width, height: dims?.height },
-        };
-      } catch (e) {
-        if (e instanceof UnsafeFetchError) {
-          return { item, ok: false, code: 'source_refused', error: `that source ${e.message}` };
-        }
-        const timedOut = e?.name === 'TimeoutError' || /timed? ?out/i.test(e?.message || '');
-        return {
-          item, ok: false, code: timedOut ? 'source_timeout' : 'source_unavailable',
-          error: timedOut ? `the source did not answer within ${IMPORT_TIMEOUT_MS / 1000}s`
-            : `could not fetch that source: ${e?.message || 'unknown error'}`,
-        };
-      }
-    });
+    const fetched = await mapWithConcurrency(items, IMPORT_CONCURRENCY,
+      (item) => importItem(env, token, auth.userId, board, item));
 
     const usable = fetched.filter((r) => r.ok);
     let cards = [];

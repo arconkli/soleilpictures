@@ -68049,7 +68049,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The MCP server puts Soleil Clusters in reach of Claude and any other Model Context Protocol client, so an assistant can read and build boards directly."
+     "v": "The MCP server puts Soleil Clusters in reach of Claude and any other Model Context Protocol client, so an assistant can read and build boards directly. An AI without it can still make you a board: it writes the board into a "
+    },
+    {
+     "t": "link",
+     "v": "make-it link",
+     "href": "/docs/make-link",
+     "children": [
+      {
+       "t": "text",
+       "v": "make-it link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which shows the board before anyone signs in."
     }
    ]
   },
@@ -72694,6 +72709,676 @@ export const DOCS_CONTENT = {
         "v": "/docs/api/cards.md"
        }
       ]
+     }
+    ]
+   ]
+  }
+ ],
+ "/docs/make-link": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An AI that can't reach Clusters can still hand you a board. It writes the board into a link, or as text, and "
+    },
+    {
+     "t": "code",
+     "v": "https://clusters.soleilpictures.com/make"
+    },
+    {
+     "t": "text",
+     "v": " shows it straight away: sections in their colours, notes sized to their words, pictures at their own shape, laid out as Clusters lays out a board an AI makes over the "
+    },
+    {
+     "t": "link",
+     "v": "API",
+     "href": "/docs/api/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "API"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". You keep it with your email, and it becomes a cluster in your account."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Use the app first",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Use the app first"
+    }
+   ],
+   "id": "use-the-app-first"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If your AI has the Clusters app (ChatGPT or Claude with Clusters added, or any "
+    },
+    {
+     "t": "link",
+     "v": "MCP client",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "MCP client"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "), it builds the board in your account and shows it in the chat. That is always the better way: the board is real from the start, the AI can keep working on it, and it can add documents and arrange what is there."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The make-it link is for every other AI, and for a chat where the app isn't added yet."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "How it works",
+   "inline": [
+    {
+     "t": "text",
+     "v": "How it works"
+    }
+   ],
+   "id": "how-it-works"
+  },
+  {
+   "type": "list",
+   "ordered": true,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Ask the AI for a board \"for Clusters\" (the prompt below says how)."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "It answers with a link to "
+     },
+     {
+      "t": "code",
+      "v": "https://clusters.soleilpictures.com/make#…"
+     },
+     {
+      "t": "text",
+      "v": ", or with the board as text."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Open the link, or paste the text at "
+     },
+     {
+      "t": "code",
+      "v": "https://clusters.soleilpictures.com/make"
+     },
+     {
+      "t": "text",
+      "v": ". The board shows at once."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "To keep it, enter your email and the 6-digit code we send. It becomes a cluster of its own in your workspace, and its pictures are copied in. Someone already signed in keeps it with one button, and picks the workspace when they can add clusters to more than one."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Nothing is saved until you keep it. The board is in the link's fragment, the part after "
+    },
+    {
+     "t": "code",
+     "v": "#"
+    },
+    {
+     "t": "text",
+     "v": ", which a browser never sends to a server: the page reads it in your browser, and Clusters sees it only when you keep it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Ask your AI for one",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Ask your AI for one"
+    }
+   ],
+   "id": "ask-your-ai-for-one"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Paste this into any AI, with your idea in place of the brackets:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "text",
+   "code": "Make me a board for Soleil Clusters about [your idea].\n\nGive it to me as one link, built like this:\nhttps://clusters.soleilpictures.com/make#title=NAME&section=SECTION&pic=PICTURE_ADDRESS|CAPTION&note=TITLE|BODY&palette=TITLE|#HEX Name,#HEX Name&end=N\n\n- Start each section with section=Name, or section=Name|blue for its colour.\n- pic= is the https address of a real picture on the web.\n- note= is Title|Body. Write \\n for a new line in the body.\n- Percent-encode every value (a space is %20), leave each | as it is,\n  and finish with end= the number of cards before it.\n- Up to 60 cards, 40 of them pictures.\n\nIf the link would be too long for this chat, write the board as text instead:\n# Board name, ## Section, ### Note title and its lines under it,\n![caption](picture address), and Palette: #hex Name, #hex Name."
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "The link",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The link"
+    }
+   ],
+   "id": "the-link"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "https://clusters.soleilpictures.com/make#"
+    },
+    {
+     "t": "text",
+     "v": " followed by "
+    },
+    {
+     "t": "code",
+     "v": "key=value"
+    },
+    {
+     "t": "text",
+     "v": " pairs joined by "
+    },
+    {
+     "t": "code",
+     "v": "&"
+    },
+    {
+     "t": "text",
+     "v": ", as in a query string. Each value is percent-encoded. Cards come in the order they are written."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "code",
+      "v": "title="
+     },
+     {
+      "t": "text",
+      "v": " names the board, and the cluster it becomes."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "section=Name"
+     },
+     {
+      "t": "text",
+      "v": " starts a section, and every card after it goes in it until the next. "
+     },
+     {
+      "t": "code",
+      "v": "section=Name|colour"
+     },
+     {
+      "t": "text",
+      "v": " gives it a colour: one of the "
+     },
+     {
+      "t": "link",
+      "v": "named colours",
+      "href": "/docs/api/cards",
+      "children": [
+       {
+        "t": "text",
+        "v": "named colours"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " or a "
+     },
+     {
+      "t": "code",
+      "v": "#hex"
+     },
+     {
+      "t": "text",
+      "v": ". Leave it out and Clusters picks one, as it does over the API. A section named again carries on where it was."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "pic=address"
+     },
+     {
+      "t": "text",
+      "v": " is a picture, and "
+     },
+     {
+      "t": "code",
+      "v": "pic=address|caption"
+     },
+     {
+      "t": "text",
+      "v": " one with a caption."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "note=Title|Body"
+     },
+     {
+      "t": "text",
+      "v": " is a note, and "
+     },
+     {
+      "t": "code",
+      "v": "note=Body"
+     },
+     {
+      "t": "text",
+      "v": " one with no title. "
+     },
+     {
+      "t": "code",
+      "v": "\\n"
+     },
+     {
+      "t": "text",
+      "v": " in the body starts a new line, and a line starting "
+     },
+     {
+      "t": "code",
+      "v": "- "
+     },
+     {
+      "t": "text",
+      "v": " is a bullet."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "palette=Title|#101820 Ink,#f2aa4c Sodium"
+     },
+     {
+      "t": "text",
+      "v": " is a palette: colours with their names, separated by commas."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "end=N"
+     },
+     {
+      "t": "text",
+      "v": " says how many cards came before it. It makes nothing: it is how the page tells a link a chat cut short from a whole one."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A "
+    },
+    {
+     "t": "code",
+     "v": "|"
+    },
+    {
+     "t": "text",
+     "v": " inside a value is written "
+    },
+    {
+     "t": "code",
+     "v": "%7C"
+    },
+    {
+     "t": "text",
+     "v": ". "
+    },
+    {
+     "t": "code",
+     "v": "name"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "board"
+    },
+    {
+     "t": "text",
+     "v": " also name the board, "
+    },
+    {
+     "t": "code",
+     "v": "group"
+    },
+    {
+     "t": "text",
+     "v": " is a section, "
+    },
+    {
+     "t": "code",
+     "v": "img"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "image"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "picture"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "photo"
+    },
+    {
+     "t": "text",
+     "v": " are pictures, "
+    },
+    {
+     "t": "code",
+     "v": "text"
+    },
+    {
+     "t": "text",
+     "v": " is a note, and "
+    },
+    {
+     "t": "code",
+     "v": "colors"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "colours"
+    },
+    {
+     "t": "text",
+     "v": " a palette."
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "text",
+   "code": "https://clusters.soleilpictures.com/make#title=Tokyo%20noir%2C%201974&section=Look|blue&pic=https%3A%2F%2Fimages.example.com%2Fstreet.jpg|Wet%20street&palette=Night|%23101820%20Ink%2C%23f2aa4c%20Sodium&section=Story&note=Logline|A%20night-shift%20cabbie%20finds%20a%20reel%20of%20film.&end=4"
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "The board as text",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The board as text"
+    }
+   ],
+   "id": "the-board-as-text"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When a link would be too long, the AI can write the board as text, and you paste it at "
+    },
+    {
+     "t": "code",
+     "v": "https://clusters.soleilpictures.com/make"
+    },
+    {
+     "t": "text",
+     "v": ":"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "markdown",
+   "code": "# Tokyo noir, 1974\n\n## Look (blue)\n![Wet street at night](https://images.example.com/street.jpg)\nPalette: #101820 Ink, #f2aa4c Sodium, #c0392b Tail light\n\n## Story\n### Logline\nA night-shift cabbie finds a reel of film in his back seat.\n\n### Tone\n- Rain, neon, long lenses\n- Quiet, then sudden"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "code",
+      "v": "#"
+     },
+     {
+      "t": "text",
+      "v": " names the board. "
+     },
+     {
+      "t": "code",
+      "v": "##"
+     },
+     {
+      "t": "text",
+      "v": " starts a section, with an optional colour in brackets: "
+     },
+     {
+      "t": "code",
+      "v": "## Look (blue)"
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "code",
+      "v": "## Look {#3f7ab5}"
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "###"
+     },
+     {
+      "t": "text",
+      "v": ", or a line in bold, titles a note, and the lines under it are its body. A paragraph under no title is a note of its own."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "![caption](address)"
+     },
+     {
+      "t": "text",
+      "v": " is a picture, and so is a picture's address alone on its line."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "Palette:"
+     },
+     {
+      "t": "text",
+      "v": " and its colours, or a line of two or more "
+     },
+     {
+      "t": "code",
+      "v": "#hex"
+     },
+     {
+      "t": "text",
+      "v": " colours, is a palette."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "When there are headings, lines before the first are left out (an AI's \"Here is your board:\")."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A link pasted into the box is read as a link."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Limits",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Limits"
+    }
+   ],
+   "id": "limits"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "One board holds up to 60 cards, 40 of them pictures, in up to 12 sections. Past those the rest is left out, and the page says how much."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The first 24,000 characters of a link or text are read."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A board's name is up to 120 characters, a note's body 1,500 and a picture's caption 200; longer ones are shortened."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A picture's address must be "
+     },
+     {
+      "t": "code",
+      "v": "https"
+     },
+     {
+      "t": "text",
+      "v": " on a public site. One that doesn't load in your browser is left out, and the board is laid out without it; keeping the board never fetches it."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A link the AI writes inside a note keeps its words and loses its address, so nothing on the page is a link someone else wrote."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Keeping a board needs room for its cards in your plan. A new account is free up to 50 cards and 5GB; with less room than the board needs, you can keep its first cards or see the "
+     },
+     {
+      "t": "link",
+      "v": "plans",
+      "href": "/docs/account/plans",
+      "children": [
+       {
+        "t": "text",
+        "v": "plans"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "One address can keep 10 boards a minute."
      }
     ]
    ]

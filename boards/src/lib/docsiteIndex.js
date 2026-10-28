@@ -4133,7 +4133,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.",
     "section": "developers",
     "order": 10,
-    "updated": "2026-10-27",
+    "updated": "2026-10-28",
     "navLabel": "MCP",
     "headings": [
       {
@@ -4223,6 +4223,70 @@ export const DOCS_PAGES = [
       {
         "q": "Is it the same set of tools either way?",
         "a": "Yes, apart from upload_file, which needs a filesystem. Both servers are built from one registry so they cannot drift apart, though the local package's 2.x releases still have the tool names from before 3.0."
+      }
+    ]
+  },
+  {
+    "path": "/docs/make-link",
+    "title": "Make-it Link — A Board From Any AI — Soleil Clusters",
+    "metaDescription": "Any AI can write a Soleil Clusters board into a link or as text. Open it to see the board at once, and keep it free with your email.",
+    "h1": "The make-it link",
+    "answer": "An AI without the Clusters app can make you a board. It writes the board into a link to https://clusters.soleilpictures.com/make, or as text you paste there, and the page shows the board at once. Enter your email and the code we send, and it becomes a cluster in your account, its pictures copied in. The board rides in the part of the link after the #, which a browser never sends to a server, so nothing reaches Clusters until you keep it. An AI with the app should use it.",
+    "section": "developers",
+    "order": 10.5,
+    "updated": "2026-10-28",
+    "navLabel": "Make-it link",
+    "headings": [
+      {
+        "id": "use-the-app-first",
+        "text": "Use the app first"
+      },
+      {
+        "id": "how-it-works",
+        "text": "How it works"
+      },
+      {
+        "id": "ask-your-ai-for-one",
+        "text": "Ask your AI for one"
+      },
+      {
+        "id": "the-link",
+        "text": "The link"
+      },
+      {
+        "id": "the-board-as-text",
+        "text": "The board as text"
+      },
+      {
+        "id": "limits",
+        "text": "Limits"
+      }
+    ],
+    "related": [
+      "/docs/mcp",
+      "/docs/api/cards",
+      "/docs/account/plans"
+    ],
+    "faq": [
+      {
+        "q": "Should my AI use this or the Clusters app?",
+        "a": "The app, whenever it has it. ChatGPT and Claude with Clusters added, or any MCP client, build the board in your account and show it in the chat. The link is for every other AI, and for a chat where the app isn't added yet."
+      },
+      {
+        "q": "Does Clusters see the board before I keep it?",
+        "a": "No. The board is in the part of the link after the #, which a browser never sends to a server. The page reads it in your browser, and it reaches us only when you keep it."
+      },
+      {
+        "q": "What happens to the pictures?",
+        "a": "The page shows them from the sites they are on. When you keep the board, each is copied into your account, so the board keeps them even if the site takes them down. A picture that doesn't load is left out, and the board is laid out without it."
+      },
+      {
+        "q": "The link was cut short. What now?",
+        "a": "Some chats shorten a long link. The page says how many cards came through and keeps those, or you can ask the AI for the board as text and paste it at https://clusters.soleilpictures.com/make instead."
+      },
+      {
+        "q": "Is keeping it free?",
+        "a": "Yes. A new account is free up to 50 cards and 5GB. When a board has more cards than your plan has room for, you can keep the first ones that fit."
       }
     ]
   },

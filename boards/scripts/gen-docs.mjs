@@ -88,6 +88,7 @@ import { SECTION_COLOURS } from '../src/lib/boardStyle.js';
 import { SIGNED_IMAGE_TTL_S } from '../src/lib/signedImage.js';
 import { VERIFIED_HOSTS } from '../src/lib/oauthTrust.js';
 import { DRAFT_LIFETIME_DAYS } from '../src/lib/mcpDrafts.js';
+import { MAKE } from '../src/lib/makeLink.js';
 import { DOC_READ } from '../src/lib/docMarkdown.js';
 import { DOC_WRITE } from '../src/lib/docWrite.js';
 import { COMMENTS } from '../src/lib/apiComments.js';
@@ -713,6 +714,16 @@ export const FACTS = {
   importSourceScope: SOURCE_SCOPE,
   layoutAlgorithms: layoutAlgorithmList().map((l) => `\`${l}\``).join(' · '),
   maxCardsPerArrange: String(api.maxCardsPerCall ?? 1000),
+  // A board written into a /make link (lib/makeLink.js), and how many such
+  // boards one address may keep a minute (worker-make.js).
+  makeMaxCards: String(MAKE.maxCards),
+  makeMaxPictures: String(MAKE.maxPictures),
+  makeMaxSections: String(MAKE.maxSections),
+  makeMaxSource: MAKE.maxSource.toLocaleString('en-US'),
+  makeMaxTitle: String(MAKE.maxTitle),
+  makeMaxNoteBody: MAKE.maxNoteBody.toLocaleString('en-US'),
+  makeMaxCaption: String(MAKE.maxCaption),
+  makeKeepPerMinute: perMinute('MAKE_KEEP'),
   siteOrigin: SITE_ORIGIN,
 };
 
