@@ -36,6 +36,9 @@ const GATED = {
   // ...and the describe job only ever gets pictures and cards the database
   // hands out for workspaces with AI on (0593; visionMigration.test.mjs).
   'worker-vision.js': null,
+  // The API's writes go through that embedder, each card under its own
+  // board's workspace, the key the embedder's switch reads.
+  'worker-api.js': /items\.push\(\{ workspace_id: workspaceId, board_id: boardId,/,
 };
 
 test('every caller of a model client is behind the workspace AI switch', () => {
