@@ -32,10 +32,16 @@ export function parseJsonArrayLoose(text) {
 // A text model's answer as text, from env.AI.run's result or the REST API's
 // `result`. An answer that is all JSON arrives as an object (llama-3.2-3b and
 // llama-3.3-70b, 2026-10-19). String() of it is "[object Object]", so every
-// cluster name came back "malformed json from model" until this.
+// cluster name came back "malformed json from model" until this. Newer models
+// (gemma-4, 2026-10-27) answer in the OpenAI shape instead: choices[0].message.
 export function responseText(out) {
   const r = out?.response;
-  if (r == null) return '';
+  if (r == null) {
+    const c = out?.choices?.[0]?.message?.content;
+    if (typeof c === 'string') return c;
+    if (Array.isArray(c)) return c.map((p) => (typeof p?.text === 'string' ? p.text : '')).join('');
+    return '';
+  }
   return typeof r === 'string' ? r : JSON.stringify(r);
 }
 

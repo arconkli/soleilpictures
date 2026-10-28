@@ -31,6 +31,11 @@ const GATED = {
   'lib/aiParagraphCascade.js': null,                                        // only from DocPageEditor's gated effect
   'components/DocPageEditor.jsx': /aiCallsAllowedRef\.current = aiEnabled === true && docWritable;/,
   'hooks/useCandidateNames.js': /if \(!\(await readWorkspaceAiEnabled\(wsId\)\)\) return;/,
+  // The Worker's own embedder reads each card's workspace switch itself...
+  'lib/serverEmbed.js': /if \(!w \|\| w\.ai_tagger_enabled === false\) \{ stats\.skipped\+\+; return false; \}/,
+  // ...and the describe job only ever gets pictures and cards the database
+  // hands out for workspaces with AI on (0593; visionMigration.test.mjs).
+  'worker-vision.js': null,
 };
 
 test('every caller of a model client is behind the workspace AI switch', () => {
