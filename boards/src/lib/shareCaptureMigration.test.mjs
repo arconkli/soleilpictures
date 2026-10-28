@@ -15,16 +15,24 @@
 // first touch from a shared file is 'file_share'. Its body must be 0708's with
 // only that arm added, its proof must keep 0708's asserts word for word, and
 // the arm must read what the file page actually sends.
+//
+// 0742 restates get_file_share (0607's) with one key added to each of its two
+// 'ok' answers: the share's id, which the /f/ page can log in place of the
+// token. The Party worker hands the answer to the page minus its storage keys,
+// so the id arrives with no worker change.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MIGRATIONS_DIR, definitionsOf, latestDefinition } from './migrationText.mjs';
 import { LINK_TOKEN_KEYS } from './linkTokens.js';
+import { fileShareResponse } from './fileShareBundle.js';
 
 const FILE_0708 = '0708_mcp_drafts_measured.sql';
 const FILE_0740 = '0740_workspace_member_adds.sql';
 const FILE_0741 = '0741_channel_credits_file_shares.sql';
+const FILE_0607 = '0607_file_shares_follow_their_sharer.sql';
+const FILE_0742 = '0742_file_share_says_its_id.sql';
 const sqlOf = (file) => readFileSync(join(MIGRATIONS_DIR, file), 'utf8');
 const sql0740 = sqlOf(FILE_0740);
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
@@ -142,4 +150,39 @@ test('the arm reads what the file page sends, no event carries the token, and th
   assert.match(page, /href=\{`\/\?utm_source=file_share&utm_medium=cta&utm_campaign=\$\{encodeURIComponent\(token\)\}`\}/);
   assert.ok(LINK_TOKEN_KEYS.includes('file_token'), 'buildRow drops file_token from every event');
   assert.match(read('../pages/admin/AdminUserDetailParts.jsx'), /\bfile_share: +\{ variant: 'share', +display: 'Shared file', +dot: true \}/);
+});
+
+// ── 0742: a shared file's answer names its share ────────────────────────────
+const DOC_OK = "    return jsonb_build_object(\n      'status', 'ok',\n";
+const FILE_OK = "  return jsonb_build_object(\n    'status', 'ok',\n";
+
+test("0742's get_file_share is 0607's with the share's id in both 'ok' answers, and it is the one that runs", () => {
+  const before = definedIn('get_file_share', FILE_0607);
+  const now = definedIn('get_file_share', FILE_0742);
+  assert.ok(before && now, 'defined in both files');
+  for (const anchor of [DOC_OK, FILE_OK]) assert.equal(before.split(anchor).length, 2, 'each answer opens once');
+  assert.equal(now, before
+    .replace(DOC_OK, DOC_OK + "      'share_id', v_r->>'share_id',\n")
+    .replace(FILE_OK, FILE_OK + "    'share_id', v_r->>'share_id',\n"));
+  assert.equal(latestDefinition('get_file_share').file, FILE_0742);
+  assert.doesNotMatch(now, /'keys'|v_file->'src'|v_file->'poster'/, 'still no storage keys');
+});
+
+test("0742's proof checks the page's grants, the keys, and both answers", () => {
+  const proof = sqlOf(FILE_0742).slice(sqlOf(FILE_0742).lastIndexOf('do $proof$'));
+  assert.match(proof, /has_function_privilege\('anon', 'public\.get_file_share\(uuid\)', 'execute'\)/);
+  assert.match(proof, /has_function_privilege\('authenticated', 'public\.get_file_share\(uuid\)', 'execute'\)/);
+  assert.match(proof, /raise exception '0742: get_file_share answers storage keys';/);
+  assert.match(proof, /string_to_array\(v_def, '''share_id'', v_r->>''share_id'','\), 1\) <> 3/);
+});
+
+test("the Party worker's bundle hands the page the share's id, and never its keys", async () => {
+  const out = await fileShareResponse(
+    { status: 'ok', share_id: 'share-1', access: 'view', allow_download: false,
+      file: { kind: 'image', name: 'a.png' }, keys: { src: 'r2:__fs/t/src' } },
+    async () => 'https://signed.example/src', null);
+  assert.equal(out.share_id, 'share-1');
+  assert.equal(out.keys, undefined);
+  assert.equal(out.urls.src, 'https://signed.example/src');
+  assert.deepEqual(await fileShareResponse({ status: 'sign_in', share_id: 'x' }, async () => '', null), { status: 'sign_in' });
 });
