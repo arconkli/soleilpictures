@@ -193,8 +193,131 @@ function noteImg(src: string, alt: string, href: string): string {
   return `<p style="margin:4px 0 18px;"><a href="${escapeHtml(href)}" style="text-decoration:none;"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" width="440" style="width:100%; max-width:440px; height:auto; display:block; border-radius:10px; border:1px solid #e7e4df;"></a></p>`;
 }
 
+// ── What the person added (migration 0790) ──────────────────────────────────
+// lifecycle-email-cron sends counts of what is on the board and up to four
+// small tiles, each a signed /api/email-card URL. All of it is untrusted here:
+// kinds are a closed list, urls must be that exact origin and path shape, and
+// anything else is dropped (a tile with no url becomes a text tile).
+const EMAIL_CARD_PREFIX = "https://clusters.soleilpictures.com/api/email-card/";
+const EMAIL_CARD_URL = /^https:\/\/clusters\.soleilpictures\.com\/api\/email-card\/[0-9a-f-]{36}\/[A-Za-z0-9_-]{1,80}\?s=[0-9a-f]{32}$/;
+
+interface AddedItem { kind: string; label?: string; w?: number; h?: number; url?: string }
+interface Added { counts: Record<string, number>; items: AddedItem[] }
+
+// Count order: biggest first, ties in this order.
+const ADDED_KINDS = ["image", "video", "note", "link", "doc", "pdf", "file", "audio"];
+const ADDED_NOUN: Record<string, [string, string]> = {
+  image: ["a photo", "photos"],
+  video: ["a video", "videos"],
+  note:  ["a note", "notes"],
+  link:  ["a link", "links"],
+  doc:   ["a doc", "docs"],
+  pdf:   ["a PDF", "PDFs"],
+  file:  ["a file", "files"],
+  audio: ["an audio file", "audio files"],
+};
+const ADDED_KIND_WORD: Record<string, string> = {
+  image: "photo", video: "video", note: "note", link: "link",
+  doc: "doc", pdf: "PDF", file: "file", audio: "audio",
+};
+
+function intIn(v: unknown, max: number): number | undefined {
+  return typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= max ? v : undefined;
+}
+
+function addedOf(v: unknown): Added | undefined {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return undefined;
+  const o = v as Record<string, unknown>;
+  const counts: Record<string, number> = {};
+  if (o.counts && typeof o.counts === "object" && !Array.isArray(o.counts)) {
+    const c = o.counts as Record<string, unknown>;
+    for (const k of ADDED_KINDS) {
+      if (!Object.prototype.hasOwnProperty.call(c, k)) continue;
+      const n = intIn(c[k], 999999);
+      if (n !== undefined) counts[k] = n;
+    }
+  }
+  const items: AddedItem[] = [];
+  if (Array.isArray(o.items)) {
+    for (const raw of o.items.slice(0, 4)) {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+      const r = raw as Record<string, unknown>;
+      if (typeof r.kind !== "string" || !ADDED_KINDS.includes(r.kind)) continue;
+      const item: AddedItem = { kind: r.kind };
+      if (typeof r.url === "string" && r.url.startsWith(EMAIL_CARD_PREFIX) && EMAIL_CARD_URL.test(r.url)) item.url = r.url;
+      if (typeof r.label === "string" && r.label.trim()) {
+        const label = safeLabel(r.label, 40);
+        if (label) item.label = label;
+      }
+      const w = intIn(r.w, 20000);
+      const h = intIn(r.h, 20000);
+      if (w !== undefined) item.w = w;
+      if (h !== undefined) item.h = h;
+      items.push(item);
+    }
+  }
+  return { counts, items };
+}
+
+function addedTotal(a?: Added): number {
+  return a ? Object.values(a.counts).reduce((s, n) => s + n, 0) : 0;
+}
+
+// "38 photos, 4 notes and a PDF"
+function countsPhrase(counts: Record<string, number>): string {
+  const parts = ADDED_KINDS
+    .filter((k) => counts[k] > 0)
+    .sort((a, b) => counts[b] - counts[a])   // stable: ties keep ADDED_KINDS order
+    .map((k) => counts[k] === 1 ? ADDED_NOUN[k][0] : `${counts[k]} ${ADDED_NOUN[k][1]}`);
+  if (parts.length <= 1) return parts[0] ?? "";
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
+// A row of up to four tiles. Pictures keep their shape (never stretched);
+// everything without a picture is a small text tile. Fluid on phones: each
+// cell is 25% of the row and the image fills it up to its natural size.
+function noteStrip(items: AddedItem[], href: string): string {
+  if (!items.length) return "";
+  const cells = items.map((it, i) => {
+    const kindWord = escapeHtml(ADDED_KIND_WORD[it.kind] ?? "file");
+    let tile: string;
+    if (it.url) {
+      let W = 100;
+      let H = 0;
+      if (it.w && it.h) {
+        if (it.h / it.w > 1.3) { H = 130; W = Math.round(130 * it.w / it.h); }
+        else { W = 100; H = Math.max(1, Math.round(100 * it.h / it.w)); }
+      }
+      tile = `<img src="${escapeHtml(it.url)}" alt="${kindWord}" width="${W}"${H ? ` height="${H}"` : ""} style="display:block; width:100%; max-width:${W}px; height:auto; border-radius:8px; border:1px solid #e7e4df;">`;
+    } else {
+      tile = `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="width:100%;"><tr><td valign="top" height="100" style="height:100px; padding:10px; background:#f3f1ed; border:1px solid #e7e4df; border-radius:8px; word-break:break-word;">` +
+        `<div style="font:600 11px/1.3 ${NOTE_FONT}; color:#8a8780; margin:0 0 6px;">${kindWord}</div>` +
+        (it.label ? `<div style="font:400 13px/1.35 ${NOTE_FONT}; color:#1a1a1a;">${escapeHtml(it.label)}</div>` : "") +
+        `</td></tr></table>`;
+    }
+    const pad = i === items.length - 1 ? "0" : "0 8px 0 0";
+    return `<td width="25%" valign="top" style="padding:${pad};"><a href="${escapeHtml(href)}" style="text-decoration:none;">${tile}</a></td>`;
+  }).join("");
+  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="width:100%; max-width:424px; margin:4px 0 18px;"><tr>${cells}</tr></table>`;
+}
+
+// ── Single-note lifecycle types (migration 0790) ────────────────────────────
+// activate_nudge_1, welcome_board and board_waiting are one note each. The
+// auto-created root is called "Studio" and a fresh one "Untitled cluster";
+// 'you started "Studio"' reads like we named it for them, so both fall back
+// to no-name copy.
+function ownBoardName(n?: string): string | null {
+  const t = (n || "").trim();
+  return t && !/^untitled/i.test(t) && !/^studio$/i.test(t) ? t : null;
+}
+
 // ── Factorial copy testing (migration 0219) ─────────────────────────────────
-// The four high-volume lifecycle types vary TWO factors independently: the
+// Since 0790 only the paused activate_nudge_2 and nudge_dormant_early still
+// render through renderFactorial; activate_nudge_1, welcome_board and
+// board_waiting are one note each (half of activate_nudge_1 and board_waiting
+// are held back for six weeks to learn if the note brings anyone back).
+//
+// The paused types vary TWO factors independently: the
 // SUBJECT arm (subject line + preheader — everything visible before the open)
 // and the BODY arm (body copy + CTA label — everything visible after it). The
 // cron picks one of each and logs the pair as "<subject>.<body>"; the optimizer
@@ -211,18 +334,21 @@ function noteImg(src: string, alt: string, href: string): string {
 // the comparison between bodies. Keep the preheader with the SUBJECT arm for
 // exactly this reason — it's part of the inbox impression, not the body.
 type NoteBlock =
-  | { k: "p";    t: string }
+  | { k: "p";    t: string; text?: string }   // `text`, when set, is the plaintext part
   | { k: "img" }
+  | { k: "strip" }
   | { k: "btn";  label: string };
 
 // Everything the arms render against. `img` is pre-rendered by the caller (only
 // the types that embed the user's own thumbnail ever set it) and is "" when
-// there's no thumbnail, so an { k: "img" } block simply drops out.
+// there's no thumbnail, so an { k: "img" } block simply drops out. `strip` is
+// the pre-rendered row of added-item tiles, with the same rule.
 interface CopyCtx {
   url: string;
   unsub: string;
   name: string | null;
   img: string;
+  strip?: string;
 }
 
 interface FactorialSpec {
@@ -240,8 +366,9 @@ function composeNote(blocks: NoteBlock[], c: CopyCtx, preheader: string): { html
   const html: string[] = [];
   const text: string[] = [];
   for (const b of blocks) {
-    if (b.k === "p") { html.push(noteP(b.t)); text.push(b.t); }
+    if (b.k === "p") { html.push(noteP(b.t)); text.push(b.text ?? b.t); }
     else if (b.k === "img") { if (c.img) html.push(c.img); }   // no plaintext equivalent
+    else if (b.k === "strip") { if (c.strip) html.push(c.strip); }
     else { html.push(noteBtn(b.label, c.url)); text.push(`${b.label}: ${c.url}`); }
   }
   return {
@@ -836,14 +963,16 @@ function scheduleUpdateTpl(d: ScheduleUpdateData): RenderedEmail {
 }
 
 // ── Lifecycle emails (founder-voice plain notes; see migration 0173) ────────
-// The bandit (0174) picks which copy a recipient gets. The four high-volume
-// types below are factorial as of 0219 — subject and body vary independently
-// (see renderFactorial). reengage_1 / board_waiting / whats_new stay flat A/B:
-// at 26, 22 and 0 lifetime sends they can't fill five arms, let alone fifteen.
+// Since 0790, activate_nudge_1, welcome_board and board_waiting are one note
+// each (half of activate_nudge_1 and board_waiting are held back for six weeks
+// to learn if the note brings anyone back). renderFactorial remains for the
+// paused activate_nudge_2 and nudge_dormant_early. reengage_1 / whats_new stay
+// flat A/B: too few sends to fill five arms.
 interface ActivateNudgeData {
   workspaceId?: string;
   boardId?: string;     // the user's most recent cluster (nullable — see 0183)
   boardName?: string;   // pre-sanitized in renderTemplate
+  added?: Added;        // activate_nudge_1 only; parsed by addedOf
   unsubscribeToken: string;
   // Single-use /resume token (migration 0235), minted per send by
   // lifecycle-email-cron. Optional: minting is best-effort, and without it the
@@ -863,85 +992,39 @@ function openCta(c: CopyCtx): string {
   return c.name ? `open "${c.name}"` : "open clusters";
 }
 
-const activateNudge1Spec: FactorialSpec = {
-  s0: "s1", b0: "b1",
-  subjects: {
-    // The incumbent.
-    s1: () => ({
-      subject: "your cluster is one photo away",
-      preheader: "drop a few photos in — camera roll, screenshots, references — we arrange them.",
-    }),
-    // Possessive + concrete noun + a plain statement of fact — the shape that
-    // beat a vague fragment 51% to 18% on nudge_dormant_early. Tests whether
-    // that shape carries to the activation stage.
-    s2: (c) => ({
-      subject: c.name ? `"${c.name}" is empty` : "your board is empty",
-      preheader: "it takes about a minute to fix that.",
-    }),
-    // A specific number instead of a possession. Previously the 'B' arm here.
-    s3: () => ({
-      subject: "3 photos is all it takes",
-      preheader: "drop three photos onto a board and it becomes something you can use and share.",
-    }),
-    // Question, no possession — assumes the blocker is not knowing where to begin.
-    s4: () => ({
-      subject: "stuck on where to start?",
-      preheader: "most people just dump their camera roll in. it works.",
-    }),
-    // Sells the outcome rather than the action.
-    s5: () => ({
-      subject: "watch your photos arrange themselves",
-      preheader: "drop a pile in — clusters lays them out for you.",
-    }),
-  },
-  bodies: {
-    // Incumbent body.
-    b1: (c) => [
-      { k: "p", t: "hey, quick note from the clusters team." },
-      { k: "p", t: c.name
-        ? `you made "${c.name}" — it's just sitting empty. the fastest way to see what clusters can do: open it and drop in a few photos. camera roll, screenshots, references — we arrange them for you.`
-        : "you're in, but your canvas is still empty. drop a few photos on it — camera roll, screenshots, references — and clusters arranges them for you." },
-      { k: "p", t: "give it a minute?" },
-      { k: "btn", label: openCta(c) },
-      { k: "p", t: SIGNOFF },
-    ],
-    // Brevity arm: three short lines, no preamble, no sign-off. If this wins,
-    // length is the lever and it's the cheapest one we have.
-    b2: (c) => [
-      { k: "p", t: "hey — quick one." },
-      { k: "p", t: c.name ? `"${c.name}" is still empty.` : "your board is still empty." },
-      { k: "p", t: "drop a few photos in and clusters arranges them for you. that's the whole thing." },
-      { k: "btn", label: openCta(c) },
-    ],
-    // Procedural arm: an exact recipe with a number, rather than a pitch.
-    b3: (c) => [
-      { k: "p", t: "hey, the clusters team here." },
-      { k: "p", t: "the 60-second version of clusters: drop three photos onto a board — camera roll, screenshots, references — and it becomes something you can actually use and share." },
-      { k: "p", t: c.name ? `"${c.name}" is ready when you are.` : "your board is ready when you are." },
-      { k: "btn", label: "add 3 photos" },
-      { k: "p", t: SIGNOFF },
-    ],
-    // How-to arm (0368, product-education pass). The people who come back are
-    // the ones who pasted or dragged from the window they were already working
-    // in; the ones who went looking for photos in a file picker mostly did not.
-    // So this one names the ways in that need no picker, and nothing else.
-    b4: (c) => [
-      { k: "p", t: "hey, the clusters team here." },
-      { k: "p", t: "the fastest way in isn't the file picker. copy an image anywhere on the web and paste it onto your board (⌘V), or drag one straight out of another window. a whole folder works too — drop it on the canvas and it files itself into clusters." },
-      { k: "p", t: c.name ? `"${c.name}" is open and waiting.` : "your board is open and waiting." },
-      { k: "btn", label: "paste something in" },
-      { k: "p", t: SIGNOFF },
-    ],
-  },
-};
-
+// One note, two wordings (0790): what they've put on the board so far when
+// there is anything, the plain "first picture" nudge when there is not. `added`
+// absent (the lookup failed) takes the empty wording, as the old copy did.
 function activateNudge1(d: ActivateNudgeData): RenderedEmail {
-  return renderFactorial(activateNudge1Spec, d.variant, {
-    url: deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, utm("activate_nudge_1")),
-    unsub: unsubUrl(d.unsubscribeToken),
-    name: namedBoard(d),
-    img: "",
-  });
+  const url = deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, utm("activate_nudge_1"));
+  const name = ownBoardName(d.boardName);
+  const cta = name ? `open "${name}"` : "open clusters";
+  const total = addedTotal(d.added);
+  const strip = total > 0 && d.added ? noteStrip(d.added.items, url) : "";
+  const c: CopyCtx = { url, unsub: unsubUrl(d.unsubscribeToken), name, img: "", strip };
+  if (total > 0 && d.added) {
+    const phrase = countsPhrase(d.added.counts);
+    const lead = name ? `here's what you've put on "${name}" so far` : "here's what you've put on your board so far";
+    const { html, text } = composeNote([
+      { k: "p", t: "hey, the clusters team here." },
+      { k: "p", t: strip ? `${lead}:` : `${lead}: ${phrase}.`, text: `${lead}: ${phrase}.` },
+      { k: "strip" },
+      { k: "p", t: "it's all saved. boards really click at about ten things — paste an image from any tab (⌘V), or drop a whole folder on the canvas and it files itself." },
+      { k: "btn", label: cta },
+      { k: "p", t: SIGNOFF },
+    ], c, (total === 1 ? "the thing you added is saved." : `the ${total} things you added are saved.`) + " a few more and it starts to take shape.");
+    return { subject: name ? `here's "${name}" so far` : "here's your board so far", html, text };
+  }
+  const { html, text } = composeNote([
+    { k: "p", t: "hey, the clusters team here." },
+    { k: "p", t: name
+      ? `you made "${name}" — it's open and waiting for its first picture.`
+      : "your board is open and waiting for its first picture." },
+    { k: "p", t: "the quickest way in: copy an image anywhere on the web and paste it onto the board (⌘V), or drop a whole folder on the canvas and it files itself into clusters." },
+    { k: "btn", label: cta },
+    { k: "p", t: SIGNOFF },
+  ], c, "paste an image from any tab, or drop a folder. it arranges itself.");
+  return { subject: name ? `"${name}" is ready for its first picture` : "your board is ready for its first picture", html, text };
 }
 
 const activateNudge2Spec: FactorialSpec = {
@@ -1109,6 +1192,7 @@ interface WelcomeBoardData {
   boardId?: string;
   boardName?: string;   // pre-sanitized in renderTemplate
   thumbUrl?: string;    // signed /api/email-thumb URL (cron-computed)
+  added?: Added;        // board_waiting only; parsed by addedOf
   unsubscribeToken: string;
   // Single-use /resume token (migration 0235), minted per send by
   // lifecycle-email-cron. Optional: minting is best-effort, and without it the
@@ -1117,115 +1201,38 @@ interface WelcomeBoardData {
   variant?: string;
 }
 
-// Besides "Untitled cluster", the auto-created root is always called "Studio"
-// — the eligibility RPC can feature it when it's the only populated board,
-// and 'you started "Studio"' reads like we named it for them. Fall back to
-// no-name copy for both.
+// The auto-created root is always called "Studio" (see ownBoardName).
 function namedWelcomeBoard(d: WelcomeBoardData): string | null {
-  const n = (d.boardName || "").trim();
-  return n && !/^untitled/i.test(n) && !/^studio$/i.test(n) ? n : null;
+  return ownBoardName(d.boardName);
 }
 
 // A lot of new users sign up on a phone and never see the full app; a quiet,
 // device-neutral nudge to open it on a computer (the cron has no device signal,
-// so this rides every welcome_board body except the brevity arm).
+// so it rides every welcome_board).
 const DESK_TIP = "one tip: open it on your computer when you can — the full studio, a bigger canvas, every tool.";
 
-const welcomeBoardSpec: FactorialSpec = {
-  s0: "s1", b0: "b1",
-  subjects: {
-    // The incumbent.
-    s1: (c) => ({
-      subject: c.name ? `"${c.name}" is off to a good start` : "your board is off to a good start",
-      preheader: "it's saved and waiting whenever you want to keep going.",
-    }),
-    // Previously the 'B' arm — credits them rather than the board.
-    s2: () => ({
-      subject: "look what you made",
-      preheader: "one day in, and your board is already taking shape.",
-    }),
-    // Possessive + concrete noun, and it sets up the thumbnail waiting inside.
-    s3: () => ({
-      subject: "here's your board",
-      preheader: "a picture of it, one day in.",
-    }),
-    // Utility question that leads with the desktop tip — the one piece of
-    // advice in this email that changes what they can actually do.
-    s4: () => ({
-      subject: "want to see this on a big screen?",
-      preheader: "the full studio is on desktop — bigger canvas, every tool.",
-    }),
-    // Names the next action instead of describing the current state.
-    s5: () => ({
-      subject: "add three more photos",
-      preheader: "it's saved and waiting — a few more and it really takes shape.",
-    }),
-  },
-  bodies: {
-    // Incumbent body.
-    b1: (c) => [
-      { k: "p", t: "hey, the clusters team here." },
-      { k: "p", t: c.name
-        ? (c.img ? `you started "${c.name}" yesterday — here's how it's looking already.`
-                 : `you started "${c.name}" yesterday — it's already taking shape.`)
-        : (c.img ? "you started a board yesterday — here's how it's looking already."
-                 : "you started a board yesterday — it's already taking shape.") },
-      { k: "img" },
-      { k: "p", t: "it's saved and waiting whenever you want to keep going — drop in more photos, notes, or files and they arrange themselves." },
-      { k: "p", t: DESK_TIP },
-      { k: "btn", label: "pick up where you left off" },
-      { k: "p", t: SIGNOFF },
-    ],
-    // Brevity arm — the picture does the work, so this one drops the desk tip
-    // and the sign-off and lets the thumbnail sit right under one line.
-    b2: (c) => [
-      { k: "p", t: c.img
-        ? "hey — one day in, and your board already looks like this:"
-        : "hey — one day in, and your board is already taking shape." },
-      { k: "img" },
-      { k: "p", t: c.name
-        ? `"${c.name}" is saved and waiting. add a few more photos and watch it take shape.`
-        : "it's saved and waiting. add a few more photos and watch it take shape." },
-      { k: "btn", label: "keep building" },
-    ],
-    // Next-step arm: one specific instruction rather than an open invitation.
-    b3: (c) => [
-      { k: "p", t: "hey, the clusters team here." },
-      { k: "p", t: c.img ? "here's your board as of yesterday:" : "your board's up and running as of yesterday." },
-      { k: "img" },
-      { k: "p", t: "the single best next move: open your camera roll and drag in ten photos at once. clusters lays them out, and that's usually the moment it clicks." },
-      { k: "p", t: DESK_TIP },
-      { k: "btn", label: "add ten photos" },
-      { k: "p", t: SIGNOFF },
-    ],
-    // How-to arm (0368, product-education pass): what a day-one board can take
-    // from wherever the material already is, and the one thing most people
-    // never find — that a cluster is also a drive. Teaches, graded like the
-    // rest on click-or-return; telling people about features ahead of time was
-    // null everywhere else, so this is the test of whether it is null here too.
-    b4: (c) => [
-      { k: "p", t: "hey, the clusters team here." },
-      { k: "p", t: c.img ? "here's your board as of yesterday:" : "your board's up and running as of yesterday." },
-      { k: "img" },
-      { k: "p", t: "three ways to bring more in, from wherever it already is: paste an image from any tab (⌘V on the canvas), drag one straight out of another window, or drop a whole folder and it files itself into clusters." },
-      { k: "p", t: "and the thing most people miss: a cluster is also a drive. flip it to list and every file you've added is right there to browse, rename and download." },
-      { k: "btn", label: "bring something in" },
-      { k: "p", t: SIGNOFF },
-    ],
-  },
-};
-
+// One note since 0790 (the old subject "look what you made" and body b1).
 function welcomeBoard(d: WelcomeBoardData): RenderedEmail {
   const url = deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, utm("welcome_board"));
   const name = namedWelcomeBoard(d);
-  return renderFactorial(welcomeBoardSpec, d.variant, {
-    url,
-    unsub: unsubUrl(d.unsubscribeToken),
-    name,
-    img: d.thumbUrl && d.thumbUrl.startsWith(EMAIL_THUMB_PREFIX)
-      ? noteImg(d.thumbUrl, name ? `Your board "${name}"` : "Your board", url)
-      : "",
-  });
+  const img = d.thumbUrl && d.thumbUrl.startsWith(EMAIL_THUMB_PREFIX)
+    ? noteImg(d.thumbUrl, name ? `Your board "${name}"` : "Your board", url)
+    : "";
+  const c: CopyCtx = { url, unsub: unsubUrl(d.unsubscribeToken), name, img };
+  const { html, text } = composeNote([
+    { k: "p", t: "hey, the clusters team here." },
+    { k: "p", t: name
+      ? (img ? `you started "${name}" yesterday — here's how it's looking already.`
+             : `you started "${name}" yesterday — it's already taking shape.`)
+      : (img ? "you started a board yesterday — here's how it's looking already."
+             : "you started a board yesterday — it's already taking shape.") },
+    { k: "img" },
+    { k: "p", t: "it's saved and waiting whenever you want to keep going — drop in more photos, notes, or files and they arrange themselves." },
+    { k: "p", t: DESK_TIP },
+    { k: "btn", label: "pick up where you left off" },
+    { k: "p", t: SIGNOFF },
+  ], c, "one day in, and your board is already taking shape.");
+  return { subject: "look what you made", html, text };
 }
 
 // ── board_waiting (migration 0194) ──────────────────────────────────────────
@@ -1234,77 +1241,37 @@ function welcomeBoard(d: WelcomeBoardData): RenderedEmail {
 // as "it's still here" rather than "look what you made". Sits above reengage_1
 // in the cron priority (reengage_1 is the text fallback for dormant users whose
 // board has no stored thumbnail). Reuses WelcomeBoardData — identical shape.
+// One note since 0790 (half held back for six weeks); when the cron sends what
+// they added, a line and a row of small tiles say it.
 function boardWaiting(d: WelcomeBoardData): RenderedEmail {
   const url = deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, utm("board_waiting"));
-  const unsub = unsubUrl(d.unsubscribeToken);
-  const name = namedWelcomeBoard(d);
+  const name = ownBoardName(d.boardName);
   const img = d.thumbUrl && d.thumbUrl.startsWith(EMAIL_THUMB_PREFIX)
     ? noteImg(d.thumbUrl, name ? `Your board "${name}"` : "Your board", url)
     : "";
-  const cta = name ? `open "${name}"` : "open my board";
-  if (d.variant === "B") {
-    const line = name
-      ? `"${name}" is still here — right where you left it.`
-      : "your board is still here — right where you left it.";
-    return {
-      subject: name ? `remember "${name}"?` : "remember your board?",
-      html: renderPlainNote({
-        preheader: "it's all still there, right where you left it.",
-        bodyHtml:
-          noteP("hey, the clusters team here.") +
-          noteP("popping back in with a picture — it's the fastest way to say it:") +
-          img +
-          noteP(line) +
-          noteP("if references or ideas have been piling up since, this is the easy place to put them.") +
-          noteBtn(cta, url) +
-          noteP("talk soon, the clusters team"),
-        unsubscribeUrl: unsub,
-      }),
-      text:
-`hey, the clusters team here.
-
-popping back in with a picture — it's the fastest way to say it:
-
-${line}
-
-if references or ideas have been piling up since, this is the easy place to put them.
-
-${cta}: ${url}
-
-talk soon, the clusters team
-
-Unsubscribe: ${unsub}`,
-    };
-  }
+  const total = addedTotal(d.added);
+  const phrase = d.added ? countsPhrase(d.added.counts) : "";
+  const strip = total > 0 && d.added ? noteStrip(d.added.items, url) : "";
   const opener = name
     ? (img ? `remember "${name}"? here's how you left it:` : `remember "${name}"? it's still sitting in your workspace.`)
     : (img ? "remember this? here's how you left it:" : "your board's still sitting in your workspace.");
-  return {
-    subject: name ? `"${name}" is still taking shape` : "your board is still taking shape",
-    html: renderPlainNote({
-      preheader: "it's saved and waiting whenever you want to pick it back up.",
-      bodyHtml:
-        noteP("hey, the clusters team here.") +
-        noteP(opener) +
-        img +
-        noteP("it's all saved, exactly how you left it. no pressure — but if a few new things have piled up since, this is a good moment to drop them in.") +
-        noteBtn(cta, url) +
-        noteP("talk soon, the clusters team"),
-      unsubscribeUrl: unsub,
-    }),
-    text:
-`hey, the clusters team here.
-
-${opener}
-
-it's all saved, exactly how you left it. no pressure — but if a few new things have piled up since, this is a good moment to drop them in.
-
-${cta}: ${url}
-
-talk soon, the clusters team
-
-Unsubscribe: ${unsub}`,
-  };
+  const c: CopyCtx = { url, unsub: unsubUrl(d.unsubscribeToken), name, img, strip };
+  const blocks: NoteBlock[] = [
+    { k: "p", t: "hey, the clusters team here." },
+    { k: "p", t: opener },
+    { k: "img" },
+  ];
+  if (total > 0) {
+    blocks.push({ k: "p", t: `you'd added ${phrase}.` + (strip ? " the last few:" : ""), text: `you'd added ${phrase}.` });
+    blocks.push({ k: "strip" });
+  }
+  blocks.push(
+    { k: "p", t: "it's all saved, exactly how you left it. if a few new things have piled up since, this is a good moment to drop them in." },
+    { k: "btn", label: name ? `open "${name}"` : "open my board" },
+    { k: "p", t: SIGNOFF },
+  );
+  const { html, text } = composeNote(blocks, c, "it's saved and waiting whenever you want to pick it back up.");
+  return { subject: name ? `"${name}" is still taking shape` : "your board is still taking shape", html, text };
 }
 
 // ── nudge_dormant_early (migration 0194) ────────────────────────────────────
@@ -1917,6 +1884,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
         resumeToken:      resumeTokenOf(data.resumeToken),
         variant:          data.variant != null ? String(data.variant) : undefined,
+        added:            addedOf(data.added),
       };
       return name === "activate_nudge_1" ? activateNudge1(nudgeData) : activateNudge2(nudgeData);
     }
@@ -1953,6 +1921,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
         resumeToken:      resumeTokenOf(data.resumeToken),
         variant:          data.variant != null ? String(data.variant) : undefined,
+        added:            addedOf(data.added),
       });
     }
     case "whats_new": {

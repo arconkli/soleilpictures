@@ -7,6 +7,7 @@
 // gate, re-fires once per published edition), board_waiting (picture win-back),
 // reengage_1 (text win-back), nudge_dormant_early (never-activated gap-filler),
 // activate_nudge_1/2. Invoked hourly by pg_cron (job 'lifecycle-email-hourly').
+// activate_nudge_1 and board_waiting also carry what the person added (0790).
 //
 // Per email type: query the eligibility RPC, then for each recipient
 //   1. CLAIM via lifecycle_claim_send (atomic cap lock + consent re-check).
@@ -75,15 +76,87 @@ async function emailThumbSecret(): Promise<string> {
   return secret;
 }
 
-async function emailThumbUrl(boardId: string, thumbUpdatedAt?: string | null): Promise<string> {
-  const enc = new TextEncoder();
+async function emailHmacKey(): Promise<CryptoKey> {
   const secret = await emailThumbSecret();
-  const keyBytes = await crypto.subtle.digest("SHA-256", enc.encode(`${secret}:email-thumb-v1`));
-  const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const mac = await crypto.subtle.sign("HMAC", key, enc.encode(`email-thumb:${boardId}`));
-  const sig = [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+  const keyBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${secret}:email-thumb-v1`));
+  return await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+}
+
+async function emailSig(message: string): Promise<string> {
+  const key = await emailHmacKey();
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
+  return [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+}
+
+async function emailThumbUrl(boardId: string, thumbUpdatedAt?: string | null): Promise<string> {
+  const sig = await emailSig(`email-thumb:${boardId}`);
   const v = thumbUpdatedAt ? (Date.parse(thumbUpdatedAt) || 0) : 0;
   return `${SITE_ORIGIN}/api/email-thumb/${boardId}?v=${v}&s=${sig}`;
+}
+
+// Signed picture URL for one card (activate_nudge_1 and board_waiting show
+// small pictures of what was added), served by the Worker's /api/email-card
+// route. Same key as emailThumbUrl; the message names board AND card.
+// Derivation MIRRORS worker.js emailCardSig — keep in lockstep.
+async function emailCardUrl(boardId: string, cardId: string): Promise<string> {
+  const sig = await emailSig(`email-card:${boardId}:${cardId}`);
+  return `${SITE_ORIGIN}/api/email-card/${boardId}/${encodeURIComponent(cardId)}?s=${sig}`;
+}
+
+// What is on the board an email is about (0790's _lifecycle_email_added):
+// counts by kind and up to four things, each picture with a signed URL.
+// Best-effort like the thumbnails: any failure returns undefined and the
+// note goes without its pictures, never without being sent.
+interface AddedItem { kind: string; label?: string; w?: number; h?: number; url?: string }
+interface AddedPayload {
+  boardId: string; workspaceId?: string; boardName?: string;
+  counts: Record<string, number>; items: AddedItem[];
+}
+
+async function addedFor(
+  admin: ReturnType<typeof createClient>, userId: string, boardId: string | null, anyBoard: boolean,
+): Promise<AddedPayload | undefined> {
+  try {
+    const { data, error } = await admin.rpc("_lifecycle_email_added", {
+      p_user_id: userId, p_board_id: boardId, p_any_board: anyBoard,
+    });
+    if (error) { console.warn(`_lifecycle_email_added failed for ${userId}`, error.message); return undefined; }
+    // deno-lint-ignore no-explicit-any
+    const v: any = data;
+    if (!v || typeof v !== "object" || Array.isArray(v) || !v.board_id) return undefined;
+    const bid = String(v.board_id);
+
+    const counts: Record<string, number> = {};
+    if (v.counts && typeof v.counts === "object") {
+      for (const [k, n] of Object.entries(v.counts)) {
+        if (Number.isInteger(n) && (n as number) > 0) counts[k] = n as number;
+      }
+    }
+
+    const items: AddedItem[] = [];
+    for (const it of Array.isArray(v.items) ? v.items : []) {
+      if (!it || typeof it !== "object") continue;
+      const item: AddedItem = { kind: String(it.kind ?? "") };
+      if (typeof it.label === "string" && it.label) item.label = it.label;
+      if (Number.isInteger(it.w) && it.w > 0) item.w = it.w;
+      if (Number.isInteger(it.h) && it.h > 0) item.h = it.h;
+      if (it.pic === true && typeof it.card_id === "string" && /^[A-Za-z0-9_-]{1,80}$/.test(it.card_id)) {
+        try { item.url = await emailCardUrl(bid, it.card_id); }
+        catch (e) { console.warn("emailCardUrl failed", e); }
+      }
+      items.push(item);
+    }
+
+    return {
+      boardId: bid,
+      workspaceId: v.workspace_id ? String(v.workspace_id) : undefined,
+      boardName: typeof v.board_name === "string" && v.board_name ? v.board_name : undefined,
+      counts, items,
+    };
+  } catch (e) {
+    console.warn(`addedFor threw for ${userId}`, e);
+    return undefined;
+  }
 }
 
 // whats_new's copy lives in app_config 'lifecycle_whats_new' (migration 0211)
@@ -223,7 +296,10 @@ Deno.serve(async (req) => {
 
   // Test hook: POST { testTo, testType?, workspaceId?, boardId?, boardName? }
   // sends ONE email to a chosen address, bypassing eligibility/claim/log — for
-  // previewing render + From + deliverability before a real batch.
+  // previewing render + From + deliverability before a real batch. testUserId
+  // also mints a real resume token and, for activate_nudge_1 / board_waiting,
+  // fills the added strip from that user's board; `added` ({ counts, items })
+  // overrides it, to preview a hand-made strip.
   // deno-lint-ignore no-explicit-any
   const reqBody: any = await req.json().catch(() => ({}));
   if (reqBody && reqBody.testTo) {
@@ -265,12 +341,41 @@ Deno.serve(async (req) => {
       if (mint.error) return json({ error: `mint failed: ${mint.error.message}` }, 500);
       if (typeof mint.data === "string") testResumeToken = mint.data;
     }
-    const r = await sendOne(type, String(reqBody.testTo), {
-      firstName: "there",
+    // activate_nudge_1 / board_waiting previews show what the test user added,
+    // read the way the batch reads it; a hand-made `added` object wins.
+    let previewAdded: { counts: Record<string, number>; items: AddedItem[] } | undefined;
+    let previewBoard = {
       workspaceId: reqBody.workspaceId ? String(reqBody.workspaceId) : undefined,
       boardId: reqBody.boardId ? String(reqBody.boardId) : undefined,
       boardName: reqBody.boardName ? String(reqBody.boardName) : undefined,
+    };
+    if (reqBody.added && typeof reqBody.added === "object") {
+      previewAdded = reqBody.added;
+    } else if (reqBody.testUserId && (type === "activate_nudge_1" || type === "board_waiting")) {
+      const addedDb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+      const anyBoard = type === "activate_nudge_1";
+      if (anyBoard || reqBody.boardId) {
+        const a = await addedFor(addedDb, String(reqBody.testUserId),
+          reqBody.boardId ? String(reqBody.boardId) : null, anyBoard);
+        if (a) {
+          previewAdded = { counts: a.counts, items: a.items };
+          if (anyBoard) {
+            previewBoard = {
+              workspaceId: a.workspaceId ?? previewBoard.workspaceId,
+              boardId: a.boardId,
+              boardName: a.boardName ?? previewBoard.boardName,
+            };
+          }
+        }
+      }
+    }
+    const r = await sendOne(type, String(reqBody.testTo), {
+      firstName: "there",
+      workspaceId: previewBoard.workspaceId,
+      boardId: previewBoard.boardId,
+      boardName: previewBoard.boardName,
       thumbUrl,
+      added: previewAdded,
       resumeToken: testResumeToken,
       imageUrl: newsPreview?.imageUrl,
       items: newsPreview?.items,
@@ -452,7 +557,11 @@ Deno.serve(async (req) => {
           row.thumb_updated_at ? String(row.thumb_updated_at) : null);
       }
     } catch (e) { console.warn("emailThumbUrl failed", e); }
-    return { workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name, thumbUrl };
+    const added = row.board_id ? await addedFor(admin, String(row.user_id), String(row.board_id), false) : undefined;
+    return {
+      workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name, thumbUrl,
+      added: added ? { counts: added.counts, items: added.items } : undefined,
+    };
   });
   await runType("reengage_1", "lifecycle_due_reengage_1", (row) => ({
     workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name,
@@ -463,9 +572,18 @@ Deno.serve(async (req) => {
   await runType("activate_nudge_2", "lifecycle_due_activate_nudge_2", (row) => ({
     workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name,
   }));
-  await runType("activate_nudge_1", "lifecycle_due_activate_nudge_1", (row) => ({
-    workspaceId: row.workspace_id, boardId: row.board_id, boardName: row.board_name,
-  }));
+  await runType("activate_nudge_1", "lifecycle_due_activate_nudge_1", async (row) => {
+    const added = await addedFor(admin, String(row.user_id), row.board_id ? String(row.board_id) : null, true);
+    // The board the note is about is the one holding their newest card, which
+    // can differ from the row's board.
+    const useAdded = !!added?.boardId;
+    return {
+      workspaceId: useAdded ? (added!.workspaceId ?? row.workspace_id) : row.workspace_id,
+      boardId: useAdded ? added!.boardId : row.board_id,
+      boardName: useAdded ? (added!.boardName ?? row.board_name) : row.board_name,
+      added: added ? { counts: added.counts, items: added.items } : undefined,
+    };
+  });
 
   return json({ ok: true, totalSent, summary }, 200);
 });
