@@ -54,6 +54,7 @@ import { FeedbackButton } from '../components/FeedbackButton.jsx';
 import { AdminPhoneGate } from './admin/AdminPhoneGate.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { adminPublicBoardSubmissionCounts } from '../lib/boardsApi.js';
+import { supabase } from '../lib/supabase.js';
 
 // The Universe is three.js, bloom and a physics worker: over a megabyte that
 // every other tab downloaded and compiled too, though only this one draws it.
@@ -64,6 +65,10 @@ const AdminUniverseTab = lazyWithReload(() => loadUniverseTab().then((m) => ({ d
 // A failed prefetch is not an error: opening the tab tries again, and that
 // path owns the stale-deploy reload.
 const prefetchUniverseTab = () => { loadUniverseTab().catch(() => {}); };
+
+// Boards carries its own stylesheet and the image-heavy grid, and only its tab
+// draws them, so it loads when the tab opens too.
+const AdminBoardsTab = lazyWithReload(() => import('./admin/AdminBoardsTab.jsx').then((m) => ({ default: m.AdminBoardsTab })));
 
 // Overview and Analytics were two tabs showing the same numbers: both led with
 // total users, signups and MRR, and neither was authoritative. They are one tab
@@ -79,6 +84,7 @@ const TABS = [
   { id: 'campaign',  label: 'Campaign' },
   { id: 'discover',  label: 'Discover' },
   { id: 'approvals', label: 'Approvals' },
+  { id: 'boards',    label: 'Boards' },
   { id: 'templates', label: 'Templates' },
   { id: 'waitlist',  label: 'Waitlist' },
   { id: 'feedback',  label: 'Feedback' },
@@ -97,7 +103,7 @@ const STORAGE_KEY = 'admin.tab';
 // The header shows only the daily/frequent sections as pills; the rarely-touched
 // long tail folds into a single "More" overflow so the bar isn't 11 items wide.
 // PRIMARY_IDS is the one knob — reorder/trim it and the overflow recomputes.
-const PRIMARY_IDS = ['overview', 'users', 'approvals'];
+const PRIMARY_IDS = ['overview', 'users', 'approvals', 'boards'];
 // Overflow order is triage-first, then rare/config, split by a single divider.
 // The waitlist has been switched off since 2026-06-15, so Waitlist sits with
 // Campaign among the rarely opened rather than in the pills.
@@ -144,6 +150,9 @@ export function AdminPage() {
   // an operator notices submissions without opening the tab. Seeded once when
   // tier resolves; the Approvals tab keeps it fresh after each review.
   const [pendingApprovals, setPendingApprovals] = useState(0);
+  // Boards the engine made that wait for the owner's OK: the same badge on the
+  // Boards pill. Seeded with the Approvals one; the tab keeps it live.
+  const [pendingBoards, setPendingBoards] = useState(0);
   const { isPhone } = useBreakpoint();
   const tabRefs = useRef([]);
   const moreTriggerRef = useRef(null);
@@ -197,6 +206,19 @@ export function AdminPage() {
     return () => { cancelled = true; };
   }, [tier]);
 
+  useEffect(() => {
+    if (tier !== 'admin') return undefined;
+    let cancelled = false;
+    const seed = async () => {
+      try {
+        const { data, error: err } = await supabase.rpc('showcase_waiting');
+        if (!err && !cancelled) setPendingBoards(Number(data) || 0);
+      } catch { /* the badge is a convenience */ }
+    };
+    seed();
+    return () => { cancelled = true; };
+  }, [tier]);
+
   // Roving focus spans the VISIBLE controls only — the primary pills plus the
   // More trigger at index PRIMARY_TABS.length. Selection follows focus for the
   // real tabs; arrowing onto the More trigger just moves focus (Enter/↓ opens
@@ -233,7 +255,9 @@ export function AdminPage() {
   // Admin is desktop-only on phone. The dashboard's tables, analytics
   // grids, and GPU-instanced Universe graph aren't worth shrinking to
   // 375px — better to redirect than serve a broken experience.
-  if (isPhone) return <AdminPhoneGate />;
+  // The one exception is Boards: finding a shot to post is a phone job, and
+  // its grid folds to two columns. It still passes the admin check below.
+  if (isPhone && tab !== 'boards') return <AdminPhoneGate onBoards={() => selectTab('boards')} />;
 
   if (loading) return <Splash />;
 
@@ -268,6 +292,25 @@ export function AdminPage() {
     ? PRIMARY_TABS.length
     : (activePrimaryIdx >= 0 ? activePrimaryIdx : 0);
 
+  // A phone only ever gets here on Boards: a slim header, no tab bar.
+  if (isPhone) {
+    return (
+      <div className="admin-screen">
+        <header className="admin-header admin-header-phone">
+          <SoleilWordmark size="block" />
+          <div className="admin-header-right">
+            <button className="auth-link" onClick={() => { window.location.assign('/'); }}>← App</button>
+          </div>
+        </header>
+        <main className="admin-body">
+          <Suspense fallback={null}>
+            <AdminBoardsTab onWaitingChange={setPendingBoards} />
+          </Suspense>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="admin-screen">
       <header className="admin-header">
@@ -285,6 +328,9 @@ export function AdminPage() {
               {t.label}
               {t.id === 'approvals' && pendingApprovals > 0 && (
                 <span className="admin-tab-badge" aria-label={`${pendingApprovals} pending`}>{pendingApprovals}</span>
+              )}
+              {t.id === 'boards' && pendingBoards > 0 && (
+                <span className="admin-tab-badge" aria-label={`${pendingBoards} waiting`}>{pendingBoards}</span>
               )}
             </button>
           ))}
@@ -312,6 +358,11 @@ export function AdminPage() {
         {tab === 'universe'  && (
           <Suspense fallback={<div className="universe-tab" />}>
             <AdminUniverseTab />
+          </Suspense>
+        )}
+        {tab === 'boards' && (
+          <Suspense fallback={null}>
+            <AdminBoardsTab onWaitingChange={setPendingBoards} />
           </Suspense>
         )}
         {tab === 'overview'  && <AdminAnalyticsTab />}

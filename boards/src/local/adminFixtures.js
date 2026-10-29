@@ -1929,8 +1929,114 @@ function testsReadFixture() {
   };
 }
 
+// ── Boards tab (showcase_library / showcase_decide / showcase_waiting) ──────
+// A realistic library: the engine's OK'd boards over four clusters, three
+// waiting for the owner, one skipped, one trashed. Pictures are existing files
+// under public/ standing in for the engine's shots. Decisions live in a module
+// Map so OK / Skip / Undo move a board between the waiting panel and the grid
+// for as long as the page is open.
+const BOARDS_NOW = Date.now();
+const boardsAgo = (h) => new Date(BOARDS_NOW - h * 3600000).toISOString();
+const showcaseDecisions = new Map(); // board_id -> { status, decided_by_person, decided_at }
+
+function showcaseShots(slug, art, darkArt, kinds = {}) {
+  const L = `/landing/${art}.webp`;
+  const D = `/og/${darkArt}.png`;
+  const cards = ['c1', 'c2', 'l1'].map((c, i) => ({
+    kind: 'card', label: `Close-up ${i + 1}`, file: `card-${i + 1}.png`,
+    w: 640, h: 420, bytes: 180000 + i * 20000,
+    url: `/landing/v2/${kinds.cards || 'film-noir-look-book'}/${c}.webp`,
+  }));
+  return [
+    { kind: 'desk-light', label: 'App, desktop', file: 'desk-light.png', w: 2880, h: 1800, bytes: 1900000, url: L },
+    { kind: 'desk-dark', label: 'App, desktop (dark)', file: 'desk-dark.png', w: 2880, h: 1800, bytes: 1800000, url: D },
+    { kind: 'wide', label: 'Wide 16:9', file: 'wide.png', w: 1920, h: 1080, bytes: 1100000, url: L },
+    { kind: 'board-light', label: 'Board only', file: 'board-light.png', w: 3840, h: 2160, bytes: 2400000, url: `/landing/${kinds.board || art}.webp` },
+    { kind: 'board-dark', label: 'Board only (dark)', file: 'board-dark.png', w: 3840, h: 2160, bytes: 2300000, url: D },
+    { kind: 'phone', label: 'Phone 9:16', file: 'phone.png', w: 1179, h: 2556, bytes: 900000, url: `/og/${darkArt}.png` },
+    { kind: 'portrait', label: 'Portrait 4:5', file: 'portrait.png', w: 1080, h: 1350, bytes: 700000, url: L },
+    { kind: 'square', label: 'Square 1:1', file: 'square.png', w: 1080, h: 1080, bytes: 650000, url: L },
+    ...cards,
+    { kind: 'zip', label: 'All shots', file: 'all.zip', bytes: 14200000, url: `/sample.pdf?slug=${slug}` },
+  ];
+}
+
+function showcaseBoard(i, o) {
+  const credits = Array.from({ length: Math.min(o.photos, 6) }, (_, k) => ({
+    id: `${o.slug}-c${k}`, source: k % 3 === 0 ? 'Unsplash' : 'Pexels',
+    name: ['Mara Lindqvist', 'Tomas Reyes', 'Ines Okafor', 'Jun Park', 'Alba Rossi', 'Dev Anand'][k],
+    link: `https://example.com/photo/${o.slug}-${k}`, page: `https://example.com/p/${k}`,
+  }));
+  return {
+    board_id: `00000000-0000-4000-8000-0000000000${String(10 + i)}`,
+    workspace_id: '00000000-0000-4000-8000-000000000001',
+    cluster: o.cluster, slug: o.slug, title: o.title, story: o.story || '',
+    subject: o.subject || o.cluster.toLowerCase(), page_path: o.page || null,
+    status: o.status || 'ok', placed_on: o.page ? [o.page] : [],
+    score: { grade: 5, summary: 'Reads as a real working board.', fixes: [], tries: o.tries || 1, rejected: o.rejected || 0, cards: o.cards, photos: o.photos },
+    credits, made_at: boardsAgo(o.hoursAgo), decided_at: o.status === 'new' ? null : boardsAgo(o.hoursAgo - 1),
+    decided_by_person: o.byPerson !== false && o.status !== 'new', trashed: !!o.trashed, live: !!o.live,
+    shots: showcaseShots(o.slug, o.art, o.dark, { cards: o.cardsDir, board: o.boardArt }),
+  };
+}
+
+const SHOWCASE_BOARDS = [
+  { title: 'Afterglow: night exteriors look book', slug: 'afterglow-night-exteriors', cluster: 'Film', cards: 24, photos: 24, page: '/tools/cinematography-lookbook', live: true, hoursAgo: 3, art: 'film-noir-look-book', dark: 'tools-cinematography-lookbook', rejected: 3, tries: 2 },
+  { title: 'Afterglow: the full night board', slug: 'afterglow-full-night', cluster: 'Film', cards: 40, photos: 31, page: '/tools/directors-treatment', hoursAgo: 4, art: 'short-film-shot-list', dark: 'tools-directors-treatment' },
+  { title: 'Wet neon: a music video look book', slug: 'wet-neon-music-video', cluster: 'Film', cards: 28, photos: 22, page: '/vs/storyflow', hoursAgo: 28, art: 'neon-noir-look-book', dark: 'vs-storyflow', cardsDir: 'neon-noir-look-book' },
+  { title: 'Afterglow: clean canvas (no app around it)', slug: 'afterglow-clean-canvas', cluster: 'Film', cards: 24, photos: 24, hoursAgo: 5, art: 'screenplay-beat-sheet', dark: 'tools-storyboard-maker', byPerson: false },
+  { title: 'Quiet oak: a Japandi living room', slug: 'quiet-oak-japandi', cluster: 'Interiors', cards: 29, photos: 25, page: '/tools/free-mood-board-maker', hoursAgo: 30, art: 'japandi-living-room', dark: 'tools-free-mood-board-maker', cardsDir: 'japandi-living-room' },
+  { title: 'Dark hallways: a hotel lobby study', slug: 'dark-hallways-lobby', cluster: 'Interiors', cards: 21, photos: 17, hoursAgo: 52, art: 'clusters-logo', dark: 'tools-reference-board-maker', byPerson: false },
+  { title: 'Sage and terracotta: a vineyard wedding', slug: 'sage-terracotta-wedding', cluster: 'Weddings', cards: 26, photos: 20, page: '/best/mood-board-apps', hoursAgo: 76, art: 'sage-terracotta-wedding', dark: 'best-mood-board-apps', cardsDir: 'sage-terracotta-wedding' },
+  { title: 'Period tailoring: a costume sketch board', slug: 'period-tailoring-costume', cluster: 'Costume', cards: 22, photos: 18, page: '/tools/costume-design-mood-board', hoursAgo: 100, art: 'world-cup-2026-moodboard', dark: 'tools-costume-design-mood-board', byPerson: false },
+  // Waiting for the owner's OK
+  { title: 'Olive grove: a vineyard wedding board', slug: 'olive-grove-wedding', cluster: 'Weddings', cards: 26, photos: 18, page: '/tools/free-mood-board-maker', status: 'new', hoursAgo: 2, art: 'sage-terracotta-wedding', dark: 'tools-mood-board-maker', cardsDir: 'sage-terracotta-wedding' },
+  { title: 'Route 9 diner: locations scout', slug: 'route-9-diner-scout', cluster: 'Film', cards: 30, photos: 16, page: '/tools/production-design-mood-board', status: 'new', hoursAgo: 2, art: 'film-noir-look-book', dark: 'tools-production-design-mood-board' },
+  { title: 'Afterglow: social frame, light', slug: 'afterglow-social-frame', cluster: 'Film', cards: 3, photos: 6, status: 'new', hoursAgo: 3, art: 'neon-noir-look-book', dark: 'tools-look-book-maker', cardsDir: 'neon-noir-look-book' },
+  // Skipped, trashed
+  { title: 'Harbour at dusk: a blurry first try', slug: 'harbour-dusk-first-try', cluster: 'Film', cards: 12, photos: 9, status: 'skipped', hoursAgo: 120, art: 'clusters-logo', dark: 'tools-shot-list-maker' },
+  { title: 'Test board (deleted)', slug: 'test-board-deleted', cluster: 'Film', cards: 5, photos: 3, trashed: true, hoursAgo: 150, art: 'clusters-logo', dark: 'default' },
+].map((o, i) => showcaseBoard(i, o));
+
+function showcaseRow(b) {
+  const d = showcaseDecisions.get(b.board_id);
+  return d ? { ...b, status: d.status, decided_by_person: d.decided_by_person, decided_at: d.decided_at } : b;
+}
+
+function showcaseLibraryFixture() {
+  const d = new Date();
+  d.setHours(6, 4, 0, 0);
+  const finished = d.getTime() < BOARDS_NOW ? d : new Date(BOARDS_NOW - 3600000);
+  return {
+    boards: SHOWCASE_BOARDS.map(showcaseRow),
+    ok_by_person: 4,
+    last_run: {
+      id: 41, started_at: new Date(finished.getTime() - 600000).toISOString(), finished_at: finished.toISOString(),
+      kind: 'scheduled', ok: true, made: 3, dropped: 1, note: null,
+    },
+  };
+}
+
+function showcaseDecideFixture(params) {
+  const b = SHOWCASE_BOARDS.find((x) => x.board_id === params?.p_board_id);
+  if (!b) return null;
+  showcaseDecisions.set(b.board_id, {
+    status: params.p_status,
+    decided_by_person: params.p_status !== 'new',
+    decided_at: params.p_status === 'new' ? null : new Date().toISOString(),
+  });
+  return showcaseRow(b);
+}
+
+function showcaseWaitingFixture() {
+  return SHOWCASE_BOARDS.map(showcaseRow).filter((b) => b.status === 'new' && !b.trashed).length;
+}
+
 function rpcResult(name, params) {
   if (name === 'admin_tests_read') return testsReadFixture();
+  if (name === 'showcase_library') return showcaseLibraryFixture();
+  if (name === 'showcase_decide') return showcaseDecideFixture(params);
+  if (name === 'showcase_waiting') return showcaseWaitingFixture();
   // ?mrr=0 forces the pre-revenue state.
   //
   // The fixtures are deliberately rich so the UI is judged against a populated
