@@ -71,17 +71,25 @@ function cardHtml({ h1, subhead }) {
 const DISPLAY = "brandon-grotesque, Futura, 'Avenir Next', 'Segoe UI', sans-serif";
 const webp = (rel) => `data:image/webp;base64,${readFileSync(resolve(ROOT, 'public', rel.replace(/^\//, ''))).toString('base64')}`;
 
-// cards: [{ slug, role, cx, cy, rot, maxW }] in the mark's 2048-unit box.
+const jpeg = (file) => `data:image/jpeg;base64,${readFileSync(resolve(HERE, 'og-art', file)).toString('base64')}`;
+const SHADOW = 'drop-shadow(0 14px 22px rgba(0,0,0,.55)) drop-shadow(0 2px 4px rgba(0,0,0,.4))';
+
+// cards: [{ slug, role, cx, cy, rot, maxW }] in the mark's 2048-unit box, or
+// { art, cx, cy, rot, maxW }: a picture of our own from scripts/og-art, drawn
+// as an image card on the board (a thin white frame, rounded corners).
 function stageHtml({ eyebrow, h1, subhead, cards }) {
   const [mx, my, m] = OG_STAGE.mark;
   const s = m / 2048;
   const [rx, ry] = MARK_MID;
   const glow = m * 1.9;
-  const placed = cards.map(({ slug, role, cx, cy, rot, maxW }) => {
+  const placed = cards.map(({ slug, role, art, cx, cy, rot, maxW }) => {
+    if (art) {
+      return `<div style="position:absolute;left:${(mx + cx * s).toFixed(1)}px;top:${(my + cy * s).toFixed(1)}px;width:${(maxW * s).toFixed(1)}px;padding:4px;box-sizing:border-box;background:#fff;border-radius:9px;transform:translate(-50%,-50%) rotate(${rot}deg);filter:${SHADOW};z-index:3"><img src="${jpeg(art)}" style="display:block;width:100%;border-radius:6px" /></div>`;
+    }
     const size = STAGE_CARDS[slug]?.[role];
     if (!size) return '';
     const w = Math.min(size.w * OG_STAGE.k, maxW) * s;
-    return `<img src="${webp(`${STAGE_DIR}/${slug}/${role}.webp`)}" style="position:absolute;left:${(mx + cx * s).toFixed(1)}px;top:${(my + cy * s).toFixed(1)}px;width:${w.toFixed(1)}px;transform:translate(-50%,-50%) rotate(${rot}deg);filter:drop-shadow(0 14px 22px rgba(0,0,0,.55)) drop-shadow(0 2px 4px rgba(0,0,0,.4));z-index:3" />`;
+    return `<img src="${webp(`${STAGE_DIR}/${slug}/${role}.webp`)}" style="position:absolute;left:${(mx + cx * s).toFixed(1)}px;top:${(my + cy * s).toFixed(1)}px;width:${w.toFixed(1)}px;transform:translate(-50%,-50%) rotate(${rot}deg);filter:${SHADOW};z-index:3" />`;
   }).join('');
   return `<!doctype html><html><head><link rel="stylesheet" href="https://use.typekit.net/qtd2rwk.css" /></head>
 <body style="margin:0;width:1200px;height:630px;overflow:hidden;">
@@ -128,14 +136,16 @@ const searchCard = (s) => {
 };
 
 // The homepage's card (index.html's og:image, so also every page the Worker
-// doesn't give its own): film and creative work from three real boards, kept
-// vivid (the camera at sunset, a split-tone portrait, a cinema audience, a
-// script's colour palette).
+// doesn't give its own): Soleil Pictures' own work, the posters for YAHWEH,
+// Lost Time and Deep Dive (soleilpictures.com/projects) and a costume sketch
+// from our own Yahweh board, pinned to the board (owner 10-29: "images from
+// OUR boards and pictures from soleil pictures"). Only work Soleil made: the
+// boards' other pictures are other films' stills and real people.
 const HOME_CARDS = [
-  { slug: 'screenplay-beat-sheet', role: 'l2', cx: 1720, cy: 1140, rot: 6, maxW: 440 },
-  { slug: 'short-film-shot-list', role: 'l2', cx: 960, cy: 860, rot: -5, maxW: 590 },
-  { slug: 'neon-noir-look-book', role: 'c2', cx: 1420, cy: 760, rot: 5, maxW: 510 },
-  { slug: 'screenplay-beat-sheet', role: 'pal', cx: 1130, cy: 1500, rot: -2, maxW: 880 },
+  { art: 'yahweh-costume.jpg', cx: 1250, cy: 1500, rot: -3, maxW: 600 },
+  { art: 'deep-dive.jpg', cx: 1690, cy: 1180, rot: 7, maxW: 430 },
+  { art: 'yahweh.jpg', cx: 1370, cy: 770, rot: 4, maxW: 470 },
+  { art: 'lost-time.jpg', cx: 880, cy: 960, rot: -6, maxW: 520 },
 ];
 
 const cards = [
