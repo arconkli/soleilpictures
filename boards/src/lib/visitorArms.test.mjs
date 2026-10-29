@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readVisitorArms, visitorArmProps, VISITOR_ARMS_KEY } from './visitorArms.js';
+import { readVisitorArms, visitorArmProps, VISITOR_ARMS_KEY, isBoxPreview } from './visitorArms.js';
 import { assignVisitorArm, enrollVisitor, hasStoredSession } from './visitorEnroll.js';
 import { EXPERIMENTS, assignArm, getActiveExperiments } from './experiments.js';
 
@@ -105,4 +105,13 @@ test('junk in storage, unknown keys and user-id experiments never ride events', 
   const broken = memoryStorage({ [VISITOR_ARMS_KEY]: '{not json' });
   assert.deepEqual(visitorArmProps(broken), {});
   assert.deepEqual(visitorArmProps(memoryStorage({ [VISITOR_ARMS_KEY]: '"B"' })), {});
+});
+
+test('the preview link: only ?preview=signupbox, and never without a page', () => {
+  assert.equal(isBoxPreview('?preview=signupbox'), true);
+  assert.equal(isBoxPreview('?utm_source=x&preview=signupbox'), true);
+  assert.equal(isBoxPreview('?preview=signupbox2'), false);
+  assert.equal(isBoxPreview('?preview=1'), false);
+  assert.equal(isBoxPreview(''), false);
+  assert.equal(isBoxPreview(), false, 'under node there is no window: false, not a throw');
 });

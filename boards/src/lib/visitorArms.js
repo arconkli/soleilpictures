@@ -34,6 +34,14 @@ export function readVisitorArms(storage) {
   return out;
 }
 
+// The owner's own look at the box: ?preview=signupbox shows arm B to anyone,
+// signed in or not, without enrolling the device (useSignupBoxArm), and
+// analytics.js marks that page's events synthetic, so the 0230 divert keeps a
+// preview out of the read. Takes the query string; the page's by default.
+export function isBoxPreview(search) {
+  try { return new URLSearchParams(search ?? window.location.search).get('preview') === 'signupbox'; } catch (_) { return false; }
+}
+
 // What rides this device's signed-out events: { exp_<key>: arm }.
 export function visitorArmProps(storage) {
   const m = readVisitorArms(storage), out = {};

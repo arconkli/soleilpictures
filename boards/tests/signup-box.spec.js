@@ -117,6 +117,33 @@ test.describe('crawler-visible text', () => {
   });
 });
 
+test.describe('the preview link (?preview=signupbox, production too)', () => {
+  for (const signedIn of [false, true]) {
+    test(`shows the box ${signedIn ? 'signed in' : 'signed out'}, enrols nobody, and its events are marked synthetic`, async ({ page }) => {
+      const calls = await stubAuth(page);
+      if (signedIn) {
+        await page.addInitScript((s) => { localStorage.setItem('sb-example-auth-token', JSON.stringify(s)); }, sessionFor(ADDRESS));
+      }
+      await page.goto(`${COMPARE}?preview=signupbox`);
+      await expect(page.locator('[data-signup-box]')).toHaveCount(2);
+      await expect(page.locator('.seo-hero-cta .seo-cta-primary')).toHaveCount(0);
+      expect(await page.evaluate(() => localStorage.getItem('soleil_visitor_arms'))).toBeNull();
+      await expect.poll(() => pathOf(calls, '/rest/v1/analytics_events').length, { timeout: 15000 }).toBeGreaterThan(0);
+      const rows = pathOf(calls, '/rest/v1/analytics_events').flatMap((c) => (Array.isArray(c.body) ? c.body : [c.body]));
+      expect(rows.some((r) => r?.event === 'lp_view')).toBe(true);
+      for (const r of rows) expect(r?.props?.synthetic).toBe(true);
+    });
+  }
+
+  test('without it, a page view is not marked', async ({ page }) => {
+    const calls = await stubAuth(page);
+    await page.goto(COMPARE);
+    await expect.poll(() => pathOf(calls, '/rest/v1/analytics_events').length, { timeout: 15000 }).toBeGreaterThan(0);
+    const rows = pathOf(calls, '/rest/v1/analytics_events').flatMap((c) => (Array.isArray(c.body) ? c.body : [c.body]));
+    expect(rows.some((r) => r?.props?.synthetic === true)).toBe(false);
+  });
+});
+
 test.describe('sign-up flow on /vs/pureref', () => {
   test('send, both boxes show the code step, verify, land on /', async ({ page }) => {
     const calls = await stubAuth(page);

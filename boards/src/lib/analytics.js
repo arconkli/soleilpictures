@@ -29,7 +29,7 @@ import { frameStatsSince } from './frameStats.js';
 import { BUILD_SHA } from './buildInfo.js';
 import { eventEnv, envMarks, firstSourcePayload } from './eventEnv.js';
 import { createArmCache } from './armCache.js';
-import { visitorArmProps } from './visitorArms.js';
+import { visitorArmProps, isBoxPreview } from './visitorArms.js';
 import { readSessionContext, contextDue, CTX_SENT_KEY } from './sessionContext.js';
 import { featureFlags, onProdHost, onPreviewHost } from './appHost.js';
 import { parseEdgeContext } from './edgeContext.js';
@@ -635,7 +635,8 @@ function buildRow(name, props) {
   // the dwell timers as a signed-in admin. Those are the exact rows the
   // monetization read grades on, and a handful of preview exposures against a
   // funnel whose CTA count is zero would not be noise, it would be the finding.
-  if (isAnyQaMode() || isCaptureActive() || isGalleryActive()) merged.synthetic = true;
+  // So does the sign-up box's preview link (visitorArms.js isBoxPreview).
+  if (isAnyQaMode() || isCaptureActive() || isGalleryActive() || isBoxPreview()) merged.synthetic = true;
   // Forced over caller props: whether a row is kept is not a call site's choice.
   if (ENV_MARKS) Object.assign(merged, ENV_MARKS);
   // Ambient context: where they are, what they're paying, which build. Merged
