@@ -214,6 +214,7 @@ import { CTA, nearCapSentence, newProjectSentence, PLAN_NAME, CREATOR_TRIAL_DAYS
 import { STORAGE_ADDON_OPEN_EVENT, storageAddonAction } from './lib/storageAddon.js';
 import { StorageAddonSheet } from './components/StorageAddonSheet.jsx';
 import { creatorTrialEligibility, trialAwaitingServer } from './lib/creatorTrial.js';
+import { trialEarlyOn } from './lib/trialEarly.js';
 import { notePendingImport, readCheckoutReturn, clearCheckoutReturn } from './lib/checkoutReturn.js';
 import { importDroppedScripts, reportSkippedFiles } from './lib/dropOutcomes.js';
 import { ImportCapDialog } from './components/ImportCapDialog.jsx';
@@ -6347,12 +6348,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   trialOfferRef.current = creatorTrialEligibility({
     tier: myTier.tier, cards: myTier.serverCardCount,
     cardLimit: myTier.effectiveCardLimit, trialStartedAt: myTier.creatorTrialStartedAt,
+    early: trialEarlyOn(user?.id),
   }).eligible;
   // The trial decision at a wall: the server's count, plus the count the wall stopped.
   const wallTrialRef = useRef(null);
   wallTrialRef.current = (wallCards) => creatorTrialEligibility({
     tier: myTier.tier, cards: myTier.serverCardCount,
     cardLimit: myTier.effectiveCardLimit, trialStartedAt: myTier.creatorTrialStartedAt, wallCards,
+    early: trialEarlyOn(user?.id),
   }).eligible;
   // Same idea, one beat earlier: the limit we last showed the approaching-cap
   // warning for. Keyed on the limit so raising the cap re-arms the warning.
@@ -6375,6 +6378,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       cards: myTier.serverCardCount,
       cardLimit: limit,
       trialStartedAt: myTier.creatorTrialStartedAt,
+      early: trialEarlyOn(user?.id),
     }).eligible;
     // A bulk drop crosses 80% while the server still counts the board as it
     // was before the drop, so the toast went out PRICED to people the server
@@ -6384,6 +6388,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (trialAwaitingServer({
       tier: myTier.tier, cards: count, serverCards: myTier.serverCardCount,
       cardLimit: limit, trialStartedAt: myTier.creatorTrialStartedAt,
+      early: trialEarlyOn(user?.id),
     })) return;
     nearCapWarnedAtRef.current = limit;
     markNearCapWarned(user?.id, limit);
@@ -6432,6 +6437,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (trialAwaitingServer({
       tier: myTier.tier, cards: count, serverCards: myTier.serverCardCount,
       cardLimit: limit, trialStartedAt: myTier.creatorTrialStartedAt,
+      early: trialEarlyOn(user?.id),
     })) return;
     // This one fires on arrival, on the same beat as every other load-time
     // upsell, so it is ambient and must queue with them. The add-path toast is
@@ -6571,7 +6577,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (!projectOfferDue({ count, limit })) return;
       const trial = {
         tier: myTier.tier, cards: myTier.serverCardCount, cardLimit: limit,
-        trialStartedAt: myTier.creatorTrialStartedAt,
+        trialStartedAt: myTier.creatorTrialStartedAt, early: trialEarlyOn(user?.id),
       };
       if (!creatorTrialEligibility(trial).eligible) return;
       if (trialAwaitingServer({ ...trial, cards: count, serverCards: myTier.serverCardCount })) return;
@@ -6977,12 +6983,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         targetName: b?.name || null,
         trialOffer: own && creatorTrialEligibility({
           tier: mt.tier, cards: mt.serverCardCount, cardLimit: mt.effectiveCardLimit, trialStartedAt: mt.creatorTrialStartedAt,
+          early: trialEarlyOn(user?.id),
         }).eligible,
         // The card-limit stop: a person past their free card limit is owed the
         // trial whatever the server has counted so far.
         trialAtWall: own && creatorTrialEligibility({
           tier: mt.tier, cards: mt.serverCardCount, cardLimit: mt.effectiveCardLimit, trialStartedAt: mt.creatorTrialStartedAt,
           wallCards: (Number(mt.effectiveCardLimit) || 0) + 1,
+          early: trialEarlyOn(user?.id),
         }).eligible,
         addon: own && paid && !trialing && !STORAGE_ADDON_HELD,
         interval: 'month',
@@ -7919,6 +7927,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       try { expCfg = (await supabase.rpc('get_experiment_config')).data; } catch (_) {}
       const enrolled = {};
       for (const key of getActiveExperiments()) {
+        // trial_early is stamped by UpgradeChip (lib/trialEarly.js), and a drawn arm here could disagree with the edge's.
+        if (key === 'trial_early') continue;
         // instant_entry is decided + stamped in TierRouter (deterministically, BEFORE
         // App mounts — see experiments.js). Stamping it here too would double-log the
         // enrollment and could disagree with TierRouter's render decision, so the seed
@@ -12034,6 +12044,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           trialOffer={importAsk.limitKind === 'storage' ? creatorTrialEligibility({
             tier: myTier.tier, cards: myTier.serverCardCount,
             cardLimit: myTier.effectiveCardLimit, trialStartedAt: myTier.creatorTrialStartedAt,
+            early: trialEarlyOn(user?.id),
           }).eligible : Boolean(wallTrialRef.current(importWallCards(importAsk)))}
           onTakePartial={() => answerImportAsk('partial', importAsk.take)}
           onUpgrade={() => answerImportAsk('upgrade', 0)}

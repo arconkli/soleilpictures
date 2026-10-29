@@ -94,6 +94,17 @@ export const EXPERIMENTS = {
       { id: 'B', weight: 50 },  // the setup steps and the one re-ask
     ],
   },
+  // Test 3 of the conversion testing map (owner picks 2026-10-28: money tests
+  // touch only the trial — price, wall and cap untouched; trial from card one).
+  // Arm B is offered the Creator trial from its first card (creatorTrial.js
+  // `early`); A is today. Registry-only, NEVER in app_config.experiments (the
+  // nightly optimizer must not move a money test's weights; the seed loop skips
+  // it). The edge decides the same arm from the same hash
+  // (supabase/functions/_shared/trialEarly.mjs TRIAL_EARLY_ON): flip both
+  // together, trialEarly.test.mjs holds them equal. Stamped once per demo
+  // account by UpgradeChip via lib/trialEarly.js. Switch-on after the
+  // wall-trial read (around 2026-11-19).
+  trial_early: { enabled: false, arms: [{ id: 'A', weight: 50 }, { id: 'B', weight: 50 }] },
   // PAUSED — its empty-board surface is subsumed by the showcase, and we run one
   // clean lever at current volume (the showcase's own clear-and-start affordance
   // is the "try it yourself" CTA). Flip enabled:true + re-enable its config row

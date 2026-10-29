@@ -38,6 +38,7 @@ import { trackViewContent } from '../lib/metaPixel.js';
 import { markPriceSeen } from '../lib/upsellLatches.js';
 import { stampUpgradePrompt } from '../lib/upgradePrompts.js';
 import { creatorTrialEligibility } from '../lib/creatorTrial.js';
+import { trialEarlyOn } from '../lib/trialEarly.js';
 import { OFFER_DISMISSED } from '../lib/offerEvents.js';
 import { useBfcacheRestore } from '../auth/useBfcacheRestore.js';
 
@@ -80,6 +81,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     storageUsed: storage.loading || storage.error ? null : storage.used,
     storageQuota: storage.loading || storage.error ? null : storage.quota,
     wallCards: header === 'cap-hit' ? wallCards : null,
+    early: trialEarlyOn(user?.id),
   });
   const trialOffer = !trialRefused && trialDecision.eligible;
   // Re-read the server's count the moment the offer opens. It used to be as

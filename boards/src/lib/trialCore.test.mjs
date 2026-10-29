@@ -57,6 +57,19 @@ const CASES = [
   [{ tier: 'demo', cards: 0, cardLimit: 50, wallCards: 68, storageUsed: 4.5e9, storageQuota: 5e9 }, true, 'near_storage'],
   [{ tier: 'demo', cards: 0, cardLimit: 50, wallCards: 68, trialStartedAt: '2026-09-01T00:00:00Z' }, false, 'already_trialed'],
   [{ tier: 'paid', cards: 0, cardLimit: 50, wallCards: 68 }, false, 'not_demo'],
+  // The trial_early test's arm B (owner, 2026-10-28): the trial from the first
+  // server-counted card. Only a real boolean true counts, and every other
+  // route keeps its own reason ahead of 'early'.
+  [{ tier: 'demo', cards: 1, cardLimit: 50, early: true }, true, 'early'],
+  [{ tier: 'demo', cards: 0, cardLimit: 50, early: true }, false, 'too_early'],
+  [{ tier: 'demo', cards: 5, cardLimit: 50, early: false }, false, 'too_early'],
+  [{ tier: 'demo', cards: 5, cardLimit: 50, early: 'true' }, false, 'too_early'],
+  [{ tier: 'demo', cards: 5, cardLimit: 50, early: 1 }, false, 'too_early'],
+  [{ tier: 'demo', cards: 13, cardLimit: 50, early: true }, true, 'body_of_work'],
+  [{ tier: 'demo', cards: 0, cardLimit: 50, wallCards: 68, early: true }, true, 'at_wall'],
+  [{ tier: 'demo', cards: 5, cardLimit: 50, early: true, trialStartedAt: '2026-09-01T00:00:00Z' }, false, 'already_trialed'],
+  [{ tier: 'paid', cards: 5, cardLimit: 50, early: true }, false, 'not_demo'],
+  [{ tier: 'demo', cards: NaN, cardLimit: 50, early: true }, false, 'cards_unknown'],
   [undefined, false, 'not_demo'],
   [null, false, 'not_demo'],
 ];
