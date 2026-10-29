@@ -1,7 +1,7 @@
-// AdminAnalyticsTab — the merged Analytics tab. Hosts five question-shaped
-// sub-tabs (Overview / Funnel / Retention / Money / System) using the same
-// pattern as AdminUniverseTab (localStorage + ?view= + key-prop remount),
-// generalized to five views with arrow-key nav. The shell owns the shared,
+// AdminAnalyticsTab — the merged Analytics tab. Hosts seven question-shaped
+// sub-tabs (Overview / Funnel / Sharing / Retention / Money / Tests / System)
+// using the same pattern as AdminUniverseTab (localStorage + ?view= + key-prop
+// remount), generalized to every view with arrow-key nav. The shell owns the shared,
 // persistent toolbar (time range + funnel segment filters + internal-traffic
 // toggle) above the keyed view content, so it never remounts on a sub-tab
 // switch; each view registers its own refresh/freshness with the context so the
@@ -21,9 +21,15 @@ import { SharingView } from './analytics/views/SharingView.jsx';
 import { RetentionView } from './analytics/views/RetentionView.jsx';
 import { MoneyView } from './analytics/views/MoneyView.jsx';
 import { SystemView } from './analytics/views/SystemView.jsx';
+import { TestsView } from './analytics/views/TestsView.jsx';
 import { md } from '../../lib/moneyView.js';
 
-// Five views, each answering one question.
+// Seven views, each answering one question.
+//
+// Tests came on 2026-10-29: every test, how its test side compares to the
+// default, and whether it is really running. It reads its own fixed population
+// (the team, service and banned accounts left out), so the range control and
+// the two population toggles are hidden on it.
 //
 // Money came back on 2026-10-20. It had no view while no subscription had ever
 // existed, because a screen of structural zeros reads as a measurement rather
@@ -36,6 +42,7 @@ const VIEWS = [
   { id: 'sharing',   label: 'Sharing' },
   { id: 'retention', label: 'Retention' },
   { id: 'money',     label: 'Money' },
+  { id: 'tests',     label: 'Tests' },
   { id: 'system',    label: 'System' },
 ];
 const VIEW_IDS = VIEWS.map((v) => v.id);
@@ -122,6 +129,7 @@ function DeckStatus({ view }) {
   const cadence = POLL_MS[view] ?? POLL_MS.shell;
   const overview = view === 'overview';
   const money = view === 'money';
+  if (view === 'tests') return <TestsStatus f={f} cadence={cadence} />;
   // What Overview registered about its own calendar. Read on Overview only: for the
   // render after a switch the previous view's runtime is still the registered one.
   const st = overview ? f.runtime.status : null;
@@ -157,6 +165,28 @@ function DeckStatus({ view }) {
   // toggles above move only the counts of people.
   if (money) items.push(['MONEY', 'from Stripe, all accounts']);
 
+  return <StatusStrip items={items} />;
+}
+
+// Tests has no window and no toggle: each test counts from its own start, with
+// the team, service and banned accounts always left out. What it can state is
+// how many tests are running and how many need a look. Read once the view has
+// registered them: for the render after a switch the previous view's runtime is
+// still the registered one, and its status carries neither.
+function TestsStatus({ f, cadence }) {
+  const st = f.runtime.status;
+  const items = [
+    ['MODE', 'TESTS'],
+    ['RUNNING', st?.running != null ? String(st.running) : '…'],
+    ['NEEDS A LOOK', st?.looks != null ? String(st.looks) : '…'],
+    ['INTERNAL', 'left out'],
+    ['READ', 'as assigned, whatever they did next'],
+    ['SYNC', `${Math.round(cadence / 1000)}s`],
+  ];
+  return <StatusStrip items={items} />;
+}
+
+function StatusStrip({ items }) {
   return (
     <div className="adm-status" role="note" aria-label="Current measurement conditions">
       {items.map(([k, v]) => (
@@ -176,7 +206,9 @@ function AnalyticsToolbar({ view }) {
   // Overview is a fixed seven-day window by definition — its own heading says so —
   // and Money counts from the first price shown. A range selector that silently
   // does nothing is worse than no selector.
-  const showRange = view !== 'overview' && view !== 'money';
+  // Tests counts each test from its own start, always without the team.
+  const showRange = view !== 'overview' && view !== 'money' && view !== 'tests';
+  const showPopulation = view !== 'tests';
   const opts = (dim) => f.segments.filter((s) => s.dim === dim);
   const onRefresh = () => { f.runtime.refresh?.(); f.refreshShell?.(); };
   return (
@@ -197,8 +229,12 @@ function AnalyticsToolbar({ view }) {
           <SegmentSelect label="Creative" value={f.content}  onChange={f.setContent}  options={opts('content')} />
         </>
       )}
-      <InternalToggle />
-      <VerifiedToggle />
+      {showPopulation && (
+        <>
+          <InternalToggle />
+          <VerifiedToggle />
+        </>
+      )}
     </AdminToolbar>
   );
 }
@@ -269,6 +305,7 @@ export function AdminAnalyticsTab() {
         {view === 'sharing'   && <SharingView   key="sharing" />}
         {view === 'retention' && <RetentionView key="retention" />}
         {view === 'money'     && <MoneyView     key="money" />}
+        {view === 'tests'     && <TestsView     key="tests" />}
         {view === 'system'    && <SystemView    key="system" />}
       </div>
     </AnalyticsFiltersProvider>

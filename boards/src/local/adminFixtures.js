@@ -1856,7 +1856,81 @@ function sharingRecentFixture(limit = 30, before = null) {
   return { rows, next_before: before ? null : rows[rows.length - 1].at };
 }
 
+// admin_tests_read (0810), invented. Read as of 2026-11-20, so one test is past
+// its verdict date and the rest are mid-run, and every state the view draws is on
+// screen: a clear gap, an even one, too few to read, a measure nobody is old
+// enough for yet, a switched-off test, an idle rotation, and one test that needs
+// a look (the sign-up box putting nobody in), which opens by itself.
+function testsReadFixture() {
+  const now = '2026-11-20T12:00:00Z';
+  const at = (h) => new Date(Date.parse(now) - h * 3_600_000).toISOString();
+  const s = (n, k) => ({ n, k });
+  const m = (a, b, due, next = null) => ({ A: a, B: b, due, next });
+  return {
+    now,
+    tests: {
+      workspace_setup: {
+        in: { A: 214, B: 209 }, eligible: 448,
+        recent: { eligible: 31, assigned: 29 },
+        last: { A: at(1), B: at(2) }, mismatched: 0,
+        measures: {
+          back_7d: m(s(182, 38), s(178, 51), 423, at(-20)),
+          joined_7d: m(s(182, 9), s(178, 14), 423, at(-20)),
+          card_1d: m(s(205, 141), s(201, 139), 423, at(-6)),
+          board_1d: m(s(205, 188), s(201, 181), 423, at(-6)),
+        },
+      },
+      first_board_more: {
+        in: { A: 96, B: 101 }, eligible: 207,
+        recent: { eligible: 30, assigned: 30 },
+        last: { A: at(1), B: at(1) }, mismatched: 0,
+        signals: { shown: { last: at(5), due: 1 } },
+        measures: {
+          ten_1d: m(s(90, 21), s(94, 33), 197, at(-9)),
+          back_7d: m(s(68, 14), s(71, 17), 197, at(-9)),
+          card_1d: m(s(90, 62), s(94, 64), 197, at(-9)),
+          deleted_half_7d: m(s(44, 3), s(47, 4), 92, at(-30)),
+        },
+      },
+      signup_box: {
+        in: { A: 0, B: 0 }, eligible: 61,
+        recent: { eligible: 22, assigned: 0 },
+        last: { A: null, B: null }, mismatched: 0,
+        signals: { box_sent: { last: null, due: 0 } },
+        measures: {},
+      },
+      email_holdout: {
+        start: '2026-10-29T01:38:00Z', holdout_pct: 50,
+        in: { A: 58, B: 61 },
+        parts: [{ label: 'Day-one nudge', A: 41, B: 44 }, { label: 'board waiting', A: 17, B: 17 }],
+        last_run: at(3), mismatched: 0,
+        measures: {
+          nudge_made_72h: m(s(38, 7), s(41, 11), 85, at(-30)),
+          waiting_made_72h: m(s(15, 4), s(16, 4), 34, at(-50)),
+          nudge_open_7d: m(s(29, 9), s(33, 13), 85, at(-30)),
+          waiting_open_7d: m(s(12, 5), s(13, 6), 34, at(-50)),
+        },
+      },
+      share_ask: {
+        start: '2026-10-29T05:15:00Z',
+        in: { A: 412, B: 131 }, shown: 104,
+        signals: { ask_at_10: { last: at(4), due: 1 } },
+        measures: {
+          shown_1d: { A: s(412, 29), B: s(128, 104), due: 131, next: at(-12) },
+          tips: { A: s(1310, 402), B: s(388, 117), due: 388, next: null },
+        },
+      },
+      trial_early: { stamped_off: 0 },
+      whats_new: {
+        in: { A: 110, B: 99 }, last_run: '2026-10-02T15:00:00Z', idle: true,
+        measures: { back_1d: m(s(110, 12), s(99, 13), 209) },
+      },
+    },
+  };
+}
+
 function rpcResult(name, params) {
+  if (name === 'admin_tests_read') return testsReadFixture();
   // ?mrr=0 forces the pre-revenue state.
   //
   // The fixtures are deliberately rich so the UI is judged against a populated

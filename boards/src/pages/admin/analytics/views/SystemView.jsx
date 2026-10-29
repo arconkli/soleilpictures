@@ -23,8 +23,6 @@ import { Detail } from '../../viz/Detail.jsx';
 import { Deck, Well, Plate } from '../../viz/Well.jsx';
 import { BarRows } from '../../viz/BarRows.jsx';
 import { VAR } from '../../viz/palette.js';
-import { ActivationByExperiment } from '../widgets/ActivationByExperiment.jsx';
-import { getActiveExperiments } from '../../../../lib/experiments.js';
 import { useAnalyticsFilters, useRegisterViewRuntime, POLL_MS } from '../AnalyticsFiltersContext.jsx';
 
 const num = (x) => (x == null || Number.isNaN(Number(x)) ? 0 : Number(x));
@@ -218,8 +216,6 @@ export function SystemView() {
 
   useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
 
-  const experiments = getActiveExperiments();
-
   return (
     <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
       <div className="adm-view">
@@ -245,41 +241,17 @@ export function SystemView() {
         <Detail id="sys.storage" label="Storage footprint">
           <AdminStorageSection />
         </Detail>
-        {experiments.length > 0 && (
-          <Detail id="sys.experiments" label="Onboarding experiments">
-            <LazyExperiments days={f.days} f={f} keys={experiments} />
-          </Detail>
-        )}
+        <div className="admin-detail-note">
+          The onboarding experiments moved to{' '}
+          <a href="?tab=overview&view=tests" onClick={goToTests}>Tests →</a>
+        </div>
       </div>
     </AdminAsync>
   );
 }
 
-/**
- * Experiment arms.
- *
- * Moved out of the retention view and demoted: the bandit optimises on
- * activation and shifts traffic nightly on its own, so this is a readout, not a
- * decision surface. Retention-by-arm was dropped entirely — it never had the
- * sample size to say anything, and it cost one RPC per active experiment on
- * every mount of the busiest view on the dashboard.
- */
-function LazyExperiments({ days, f, keys }) {
-  const q = useAdminData(async () => {
-    const settled = await Promise.allSettled([
-      ...keys.map((k) => supabase.rpc('admin_activation_by_experiment', { p_key: k, p_days: days, p_exclude_internal: f.excludeInternal })),
-      supabase.rpc('admin_get_experiment_state'),
-    ]);
-    const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
-    const state = val(settled[keys.length]) || {};
-    return { arms: keys.map((k, i) => ({ key: k, rows: val(settled[i]) || [], state: state?.[k] || null })) };
-  }, [days, f.excludeInternal, keys.join(',')]);
-
-  return (
-    <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh} skeleton={<AdminSkeleton variant="table" />}>
-      {(q.data?.arms || []).map((e) => (
-        <ActivationByExperiment key={e.key} expKey={e.key} rows={e.rows} state={e.state} />
-      ))}
-    </AdminAsync>
-  );
-}
+// The onboarding scoreboards live on Tests since 2026-10-29.
+const goToTests = (e) => {
+  e.preventDefault();
+  window.dispatchEvent(new CustomEvent('admin:analytics-view', { detail: 'tests' }));
+};
