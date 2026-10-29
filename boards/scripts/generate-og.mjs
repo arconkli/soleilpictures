@@ -76,16 +76,17 @@ const SHADOW = 'drop-shadow(0 14px 22px rgba(0,0,0,.55)) drop-shadow(0 2px 4px r
 
 // cards: [{ slug, role, cx, cy, rot, maxW }] in the mark's 2048-unit box, or
 // { art, cx, cy, rot, maxW }: a picture of our own from scripts/og-art, drawn
-// as an image card on the board (a thin white frame, rounded corners).
+// as an image card on the board (a thin white frame, rounded corners), or
+// { html, … }: a card drawn from markup (a palette, a script page).
 function stageHtml({ eyebrow, h1, subhead, cards }) {
   const [mx, my, m] = OG_STAGE.mark;
   const s = m / 2048;
   const [rx, ry] = MARK_MID;
   const glow = m * 1.9;
-  const placed = cards.map(({ slug, role, art, cx, cy, rot, maxW }) => {
-    if (art) {
-      return `<div style="position:absolute;left:${(mx + cx * s).toFixed(1)}px;top:${(my + cy * s).toFixed(1)}px;width:${(maxW * s).toFixed(1)}px;padding:4px;box-sizing:border-box;background:#fff;border-radius:9px;transform:translate(-50%,-50%) rotate(${rot}deg);filter:${SHADOW};z-index:3"><img src="${jpeg(art)}" style="display:block;width:100%;border-radius:6px" /></div>`;
-    }
+  const placed = cards.map(({ slug, role, art, html, cx, cy, rot, maxW }) => {
+    const frame = (inner, pad) => `<div style="position:absolute;left:${(mx + cx * s).toFixed(1)}px;top:${(my + cy * s).toFixed(1)}px;width:${(maxW * s).toFixed(1)}px;padding:${pad}px;box-sizing:border-box;background:#fff;border-radius:9px;overflow:hidden;transform:translate(-50%,-50%) rotate(${rot}deg);filter:${SHADOW};z-index:3">${inner}</div>`;
+    if (art) return frame(`<img src="${jpeg(art)}" style="display:block;width:100%;border-radius:6px" />`, 4);
+    if (html) return frame(html, 0);
     const size = STAGE_CARDS[slug]?.[role];
     if (!size) return '';
     const w = Math.min(size.w * OG_STAGE.k, maxW) * s;
@@ -139,9 +140,38 @@ const searchCard = (s) => {
 // doesn't give its own): Soleil Pictures' own work, the posters for YAHWEH,
 // Lost Time and Deep Dive (soleilpictures.com/projects) and a costume sketch
 // from our own Yahweh board, pinned to the board (owner 10-29: "images from
-// OUR boards and pictures from soleil pictures"). Only work Soleil made: the
-// boards' other pictures are other films' stills and real people.
+// OUR boards and pictures from soleil pictures"), with the Yahweh board's
+// palette and the first lines of the Lost Time script beside them ("add like a
+// color pallete … maybe a note or part of a script"). Only work Soleil made:
+// the boards' other pictures are other films' stills and real people.
+const lum = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const paletteHtml = (title, hexes) => `<div style="font:700 8.5px/1 -apple-system,'Segoe UI',sans-serif;color:#1d1d1f;padding:6px 8px 5px">${esc(title)}</div><div style="display:flex;height:50px">${hexes.map((h) => `<div style="flex:1;background:${h};display:flex;align-items:center;justify-content:center;font:600 5.6px/1 -apple-system,'Segoe UI',sans-serif;letter-spacing:.02em;color:${lum(h) > 0.55 ? '#2a2622' : '#fbf7ef'}">${h.toUpperCase()}</div>`).join('')}</div>`;
+const SCREEN = "'Courier Prime','Courier New',Courier,monospace";
+const scriptHtml = (lines) => `<div style="padding:13px 13px 12px 16px;font:6px/1.32 ${SCREEN};color:#161616;background:#fffdf8">${lines.map(([kind, t]) => {
+  if (kind === 'h') return `<div style="text-align:right;margin-bottom:6px">${esc(t)}</div>`;
+  if (kind === 'slug') return `<div style="font-weight:700;margin-bottom:5px">${esc(t)}</div>`;
+  if (kind === 'who') return `<div style="margin:5px 0 0 38%">${esc(t)}</div>`;
+  if (kind === 'say') return `<div style="margin:0 14% 5px 22%">${esc(t)}</div>`;
+  return `<div style="margin-bottom:5px">${esc(t)}</div>`;
+}).join('')}</div>`;
 const HOME_CARDS = [
+  {
+    html: scriptHtml([
+      ['h', '1.'],
+      ['slug', 'INT. BASEMENT - 1883'],
+      ['act', 'We open on Neal Brown in his basement laboratory working. He has a white afro and beard, round glasses and a three piece suit.'],
+      ['act', 'Neal is in a deep corner far from the stairs, working meticulously on a strange, fridge-like machine.'],
+      ['act', 'He’s focused working when suddenly footsteps above make him stop.'],
+      ['who', 'NEAL'],
+      ['say', 'The floorboards... make haste, almost complete'],
+      ['act', 'A loud CRASH is heard as the basement’s entrance is blown open.'],
+    ]),
+    cx: 395, cy: 690, rot: -5, maxW: 540,
+  },
+  { html: paletteHtml('Yahweh', ['#ffffff', '#ffd158', '#552a21', '#a93535']), cx: 610, cy: 1590, rot: 3, maxW: 600 },
   { art: 'yahweh-costume.jpg', cx: 1250, cy: 1500, rot: -3, maxW: 600 },
   { art: 'deep-dive.jpg', cx: 1690, cy: 1180, rot: 7, maxW: 430 },
   { art: 'yahweh.jpg', cx: 1370, cy: 770, rot: 4, maxW: 470 },
