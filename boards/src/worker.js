@@ -17,6 +17,9 @@
 // /api/email-thumb/*  — serves a board's stored R2 thumbnail to email clients
 //                       (the welcome email embeds the recipient's own board).
 //                       Gated by an HMAC in the URL, no user auth.
+// /api/email-card/*   — serves one card's stored picture to email clients (the
+//                       lifecycle notes show small pictures of what was added).
+//                       Gated by an HMAC over board + card in the URL, no user auth.
 
 import { handleTagsRoute } from './worker-tags.js';
 import { handleClustersRoute } from './worker-clusters.js';
@@ -793,6 +796,8 @@ const worker = {
       if (fileThumbMatch) return await handleFileThumb(env, fileThumbMatch[1], request);
       const emailThumbMatch = url.pathname.match(/^\/api\/email-thumb\/([0-9a-f-]{36})$/i);
       if (emailThumbMatch) return await handleEmailThumb(env, emailThumbMatch[1], url.searchParams, request);
+      const emailCardMatch = url.pathname.match(/^\/api\/email-card\/([0-9a-f-]{36})\/([A-Za-z0-9_-]{1,80})$/i);
+      if (emailCardMatch) return await handleEmailCard(env, emailCardMatch[1], emailCardMatch[2], url.searchParams, request);
       if (url.pathname === '/api/admin/backfill-image-sizes') return await handleBackfillImageSizes(request, env);
       // Public marketing boards (migration 0136). Dynamic sitemap + indexable
       // og:image + crawlable per-card images, all keyed by slug. Intercepted
@@ -2947,6 +2952,24 @@ async function emailThumbSig(env, boardId) {
   return [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
 }
 
+// Signature for /api/email-card URLs: the same secret and key derivation as
+// emailThumbSig, over a different message. The "email-card:" prefix is what
+// keeps a thumb signature from ever passing as a card one (and the reverse).
+// lifecycle-email-cron carries the mirror (emailCardUrl) — keep the two in
+// lockstep.
+async function emailCardSig(env, boardId, cardId) {
+  const enc = new TextEncoder();
+  const secret = await emailThumbSecret(env);
+  const keyBytes = await crypto.subtle.digest(
+    'SHA-256', enc.encode(`${secret}:email-thumb-v1`),
+  );
+  const key = await crypto.subtle.importKey(
+    'raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+  );
+  const mac = await crypto.subtle.sign('HMAC', key, enc.encode(`email-card:${boardId}:${cardId}`));
+  return [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+}
+
 // Serves a board's stored thumbnail to EMAIL CLIENTS (the welcome email embeds
 // the recipient's own board). Email <img> fetches arrive unauthenticated and
 // possibly weeks after send, so the gate is a permanent board-scoped HMAC in
@@ -2998,6 +3021,66 @@ async function handleEmailThumb(env, boardId, searchParams, request) {
     'content-type': 'image/webp',
     // 1h cache like share-thumb: the v= param busts on re-render, and a short
     // TTL bounds how long a just-deleted board's thumb keeps serving bytes.
+    'cache-control': 'public, max-age=3600',
+    'etag': obj.httpEtag,
+    'x-robots-tag': 'noindex',
+  };
+  if (request.headers.get('if-none-match') === obj.httpEtag) {
+    return new Response(null, { status: 304, headers });
+  }
+  return new Response(obj.body, { status: 200, headers });
+}
+
+// Largest stored picture /api/email-card will serve (matches the RPC's 1.5 MB cap on originals).
+const EMAIL_CARD_MAX_BYTES = 1_500_000;
+
+// Serves ONE card's stored picture to EMAIL CLIENTS (the lifecycle notes show
+// small pictures of what the person added). Same shape as handleEmailThumb —
+// permanent HMAC over board + card in the URL, signature checked before any
+// lookup — with the board-row read swapped for the _lifecycle_email_card_pic
+// RPC, which picks the card's servable picture (null when the board is
+// deleted, the card is gone or a starter, or nothing servable exists).
+async function handleEmailCard(env, boardId, cardId, searchParams, request) {
+  const fallback = (why) =>
+    new Response(null, {
+      status: 302,
+      headers: { location: `${SITE_ORIGIN}/clusters-logo-dark.png`, 'cache-control': 'no-store', 'x-miss': why },
+    });
+
+  let expected = '';
+  try { expected = await emailCardSig(env, boardId, cardId); } catch { return fallback('sig-compute'); }
+  if (!expected || searchParams.get('s') !== expected) return fallback('sig');
+
+  let pic = null;
+  try {
+    pic = await serviceRpc(env, '_lifecycle_email_card_pic', { p_board_id: boardId, p_card_id: cardId }, 5000);
+  } catch {
+    return fallback('pic-fetch');
+  }
+  if (!pic || !pic.key) return fallback('card-gone');
+
+  const key = String(pic.key).replace(/^r2:/, '');
+  const ext = (key.match(/\.([A-Za-z0-9]+)$/) || [])[1]?.toLowerCase() || '';
+  const contentType =
+    ext === 'webp' ? 'image/webp'
+    : (ext === 'jpg' || ext === 'jpeg' || ext === 'jpe' || ext === 'jfif') ? 'image/jpeg'
+    : ext === 'png' ? 'image/png'
+    : ext === 'gif' ? 'image/gif'
+    : '';
+  if (!contentType) return fallback('type');
+  if (!env.IMAGES) return fallback('no-bucket');
+
+  const obj = await env.IMAGES.get(key);
+  if (!obj) return fallback('r2-miss');
+  if (obj.size > EMAIL_CARD_MAX_BYTES) {
+    try { obj.body?.cancel?.(); } catch {}
+    return fallback('too-big');
+  }
+
+  const headers = {
+    'content-type': contentType,
+    'x-content-type-options': 'nosniff',
+    // 1h cache like email-thumb: bounds how long a just-deleted card keeps serving bytes.
     'cache-control': 'public, max-age=3600',
     'etag': obj.httpEtag,
     'x-robots-tag': 'noindex',
