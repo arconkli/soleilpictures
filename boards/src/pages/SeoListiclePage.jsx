@@ -21,6 +21,8 @@ import { useSignupBoxArm } from '../hooks/useSignupBoxArm.js';
 import { SignupBox } from '../components/public/SignupBox.jsx';
 import { SunStageFigure } from '../components/public/SunStage.jsx';
 import { stageMode, hasStage } from '../lib/landingStage.js';
+import { UsedBy } from '../components/public/UsedBy.jsx';
+import { showsUsedBy } from '../lib/usedBy.js';
 import './seoLanding.css';
 import './seoListicle.css';
 
@@ -216,6 +218,7 @@ export function SeoListiclePage({ path }) {
               {cta.sub && <span>{cta.sub}</span>}
               <span>Built by a film studio, for real productions.</span>
             </div>
+            {showsUsedBy(spec) && <UsedBy />}
           </header>
 
           {/* A real board right under the button: the one thing the pages that

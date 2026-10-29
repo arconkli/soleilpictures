@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/best/storyboard-software · Publish
 
 Most filmmakers do not need a drawing program. They need their frames to sit next to the shot list, the script, and the people who have notes.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 **Disclosure:** Soleil Clusters is our app — we are Soleil Pictures, a working film studio, and we built it for our own productions. We rank it first for exactly one job: storyboards that stay attached to the shot list, the script and the crew. It is not a drawing program, and we did not give it the highest score on this page — Toon Boom Storyboard Pro earned that. If you draw your boards frame by frame, buy Toon Boom and skip us.
 
 ## The Two Storyboards

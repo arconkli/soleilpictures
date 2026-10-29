@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/vs/milanote · Updated 2026-10-02_
 
 Milanote is a lovely place to think. Clusters is where a team pulls a whole production together — live, on one canvas.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Where Clusters is different
 
 Both tools are beautiful, board-based, and made for creative work. Clusters leans harder into real-time team production: a live multiplayer canvas with cursors and presence, comments pinned to the exact card they are about, a relationship graph that connects a whole project, and a 1TB drive on Creator. If you are organizing a shoot or a campaign with a team, that is the difference.

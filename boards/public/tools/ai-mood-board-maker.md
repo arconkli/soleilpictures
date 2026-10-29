@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/tools/ai-mood-board-maker · Update
 
 Point Claude at your clusters and ask. It builds the board, brings in the references, and lays them out.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## It arranges your references. It does not invent them.
 
 Most tools that answer to "AI mood board" generate the images. This one does not, and that is the point. A reference board is an argument about a real look — a lens, a film stock, a colourist’s hand, a frame somebody actually shot. Fill it with pictures that never existed and you have a board nobody can match on the day. Bring your own references and the assistant does the tedious half: collecting, arranging, labelling, keeping it tidy as it grows.

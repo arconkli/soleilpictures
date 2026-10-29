@@ -16,6 +16,7 @@
 import { listicleToc, listicleTrustChips, formatRating } from './seoListicles.js';
 import { SEO_LISTICLE_INDEX } from './seoListicleIndex.js';
 import { getLandingSpec } from './seoLanding.js';
+import { showsUsedBy, usedByHtml } from './usedBy.js';
 
 // Related-spoke label: landing h1, listicle h1 (via the light index), or path —
 // the SAME chain SeoListiclePage.jsx uses. Until 2026-09-18 this file rendered
@@ -54,6 +55,8 @@ export function buildListicleCrawlableHtml(spec) {
   // The same derived credibility chips the React hero renders as pills.
   parts.push(`<p style="color:#8a8a92;font-size:.85rem;margin:0 0 1.4em;">${
     listicleTrustChips(spec).map(escapeHtml).join(' · ')}</p>`);
+  // "Used by" — the same list the React hero shows under its CTA (lib/usedBy).
+  if (showsUsedBy(spec)) parts.push(usedByHtml());
 
   // ── Quick answer (the AI-liftable block) + disclosure ──
   parts.push(`<section id="answer"><h2 style="${H2}">${escapeHtml(spec.answerHeading)}</h2>`);

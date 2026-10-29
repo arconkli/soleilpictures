@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/tools/mood-board-maker · Updated 2
 
 Pull your references, colors, and notes onto one infinite canvas — then share the whole board with a single link.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Everything in one place, not fifteen tabs
 
 A mood board is only useful when everything lives together. Clusters lets you drop images, screenshots, links, PDFs, video, and color palettes onto the same canvas, arrange them freely, and pull relationships between them with arrows. Tag anything — a card, a group, a whole board — and the tag gathers it from every board in the workspace, so a growing project stays findable.

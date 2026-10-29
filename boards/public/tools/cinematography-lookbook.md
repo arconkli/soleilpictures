@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/tools/cinematography-lookbook · Up
 
 Collect the frames, light and lensing you are after, check them in black and white, and keep the director, gaffer and colourist on the same board.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Frames, light and lens on one board
 
 A lookbook is an argument about how the film will look, made with other people’s pictures. In Clusters each look gets a cluster, and inside it the frames that define it sit beside the notes that make it repeatable — lens, height, source, diffusion. Reference clips play on the board as video cards, so movement and camera behaviour live in the same place as the stills.

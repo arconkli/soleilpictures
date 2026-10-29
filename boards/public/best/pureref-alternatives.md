@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/best/pureref-alternatives · Publis
 
 PureRef is alive, excellent, and still shipping. This list is for the day your reference wall has to leave one machine.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 **Disclosure:** Soleil Clusters is our app — we are Soleil Pictures, a working film studio, and we built it for our own productions. We rank it first for exactly one job: reference boards a whole team works on together. For a private, offline wall on one machine, PureRef itself is still the better tool, and we say so plainly at the bottom of this page.
 
 ## Which one do you need?

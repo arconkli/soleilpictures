@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/tools/production-design-mood-board 
 
 A cluster per set, with references, palettes, plans and notes in one place — built by the whole art department, live.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## A board per set, not one wall for the whole film
 
 Production design is many decisions per set, made by several people at once. One giant wall turns into a scroll, and a deck is out of date by Thursday. In Clusters the project is a cluster and each set is a cluster inside it, so the diner’s references, palette and notes live together and the motel room’s never get in the way. Live thumbnails show what is inside each one at a glance.

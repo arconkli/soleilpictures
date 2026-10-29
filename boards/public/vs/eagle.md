@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/vs/eagle · Updated 2026-10-20_
 
 Eagle is the best private library for one person’s references. Clusters is the shared room a team builds in — live, in the browser, on any machine.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Eagle is a library. Clusters is a room.
 
 Eagle is a digital asset manager: a fast library on your own disk of everything you have ever saved, organised by tags, smart folders and colour, and searchable by an image or a description with its AI Search plugin, offline. For one person’s collection it is excellent, and a one-time price makes it easy to own. Clusters starts where a collection becomes a project other people work on: a canvas in the browser where a team arranges the references for this production, writes beside them and decides — together, at the same time.

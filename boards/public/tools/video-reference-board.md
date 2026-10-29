@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/tools/video-reference-board · Upda
 
 Clips, GIFs and stills on one canvas in the browser: step to the exact frame, loop the move you are studying, and share the whole wall with one link.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Motion reference, beside the stills
 
 A reference wall for animation, VFX, fight choreography or camera movement is half moving pictures. In Clusters a clip is a card like any other: it sits next to the stills it belongs with, plays where it is, and shows its poster frame and length at rest. Hover it to step a frame back or forward, scrub along its bottom edge, read the timecode and mute it — the controls stay a usable size at any zoom. GIFs keep moving on the board too.
