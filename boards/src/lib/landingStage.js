@@ -1,6 +1,6 @@
 // The search pages' sun stage: which page gets which picture, and where each
-// of a board's cut-out cards sits around the Clusters mark. Rendered by
-// components/public/SunStage.jsx; the cut-outs are public/landing/v2/<slug>/
+// of a board's cut-out cards sits, with the logo's orbits and suns around
+// them (lib/sunArt.js). Rendered by components/public/SunStage.jsx; the cut-outs are public/landing/v2/<slug>/
 // <role>.webp, made by scripts/shootStageCards.mjs (sizes in
 // landingStageCards.js). Pure, so node tests pin it.
 //
@@ -10,10 +10,11 @@
 //   'behind' — the pages whose first-time visitors sign up most often. Their
 //              hero is left exactly as it was: same words, same buttons, same
 //              browser frame around the same shot of a real board, loaded
-//              first. Only behind it: the suns rise past the frame's edge and
-//              three of the board's own cards spill over it, lazily loaded.
+//              first. Only behind it: the orbits circle the frame with suns
+//              on them, and three of the board's own cards spill over its
+//              edges, lazily loaded.
 //   'full'   — every other page. The browser frame becomes the stage itself:
-//              the mark holding the board's cards. On the ranked lists this is
+//              the board's cards inside the orbits. On the ranked lists this is
 //              new up top, because the one thing the best pages do that the
 //              weak ones don't is show a real board right under the button.
 //
@@ -57,14 +58,11 @@ export function stageMode(path) {
 // scales the pointer drift; `over` lifts a card above the suns.
 //
 // FULL — the box is the stage itself (desktop 1120×600, phone 358×300; the
-// two aspect ratios are in components/public/sunStage.css); the mark sits as
-// [left %, top %, width %], its empty top edge allowed above the box so the
-// board sits close under the button. Pictures sit under the suns, the palette
-// over them, the rest drift outside the ring so the band reads as a board,
-// not a logo.
+// two aspect ratios are in components/public/sunStage.css, the art's boxes in
+// lib/sunArt.js). The pictures sit inside the thick ring, the palette over
+// them, the rest out among the orbits so the band reads as a board.
 export const FULL_LAYOUT = {
   box: { desk: [1120, 600], phone: [358, 300] },
-  mark: { desk: [21.43, -3.33, 57.14], phone: [1.68, -9.33, 95] },
   cards: [
     ['p1',   [12.2, 23.7, 13.1, -7], null,                  1.6, false],
     ['note', [9.7, 71.1, 16.7, 4],   null,                  1.2, false],
@@ -76,14 +74,11 @@ export const FULL_LAYOUT = {
   ],
 };
 
-// BEHIND — the box is today's browser frame. The mark sits right of the
-// frame's middle so its suns clear the frame's right edge and its ring's top
-// peeks over; the frame hides the rest. Sized so nothing reaches past the
-// frame's own bottom margin into the words below. [left %, centre-y offset
-// in % of the frame's WIDTH, width % of the frame's width]. On phones the one
-// card sits at the top-right corner, clear of the address.
+// BEHIND — the box is today's browser frame. The orbits (lib/sunArt.js
+// 'behind') circle it, sized so nothing reaches past the frame's own bottom
+// margin into the words below. On phones the one card sits at the top-right
+// corner, clear of the address.
 export const BEHIND_LAYOUT = {
-  mark: { desk: [20, -6, 92], phone: [-3.4, 2.5, 118.75] },
   cards: [
     ['p1',  [-1.8, 47, 14.3, -6], null,              1.4, false],
     ['l1',  [101.5, 15, 20.8, 5], [90, -6, 26, 6],   1.3, false],
@@ -118,14 +113,15 @@ export function ogStageSlug(spec) {
   return spec && !spec.storefront && stageMode(spec.path) && hasStage(slug) ? slug : null;
 }
 
-// The link-preview stage: the mark at OG_STAGE.mark = [left px, top px, size
-// px] on the 1200×630 card, and the cards in the mark's own 2048-unit box,
-// [role, centre x, centre y, rotateDeg], all lifted over the suns so the
-// photos read at a chat bubble's size. A card's width is its own width on the
+// The link-preview stage: the cards in a 2048-unit square placed at
+// OG_STAGE.box = [left px, top px, size px] on the 1200×630 card (the square
+// the Clusters mark filled before the orbits; the homepage's preview still
+// draws the mark there), [role, centre x, centre y, rotateDeg], all over the
+// art so the photos read at a chat bubble's size. A card's width is its own width on the
 // page times OG_STAGE.k, capped at maxW (a wide landscape would crowd the
 // ring otherwise).
 export const OG_STAGE = {
-  mark: [610, 16, 600],
+  box: [610, 16, 600],
   k: 3.1,
   cards: [
     ['l1',  1730, 1110, 7,  430],

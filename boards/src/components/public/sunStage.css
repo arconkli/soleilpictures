@@ -1,8 +1,9 @@
-/* The search pages' sun stage (SunStage.jsx). Every position comes in as a
-   custom property from lib/landingStage.js: --x/--y/--w/--r a card (desktop),
-   --px/--py/--pw/--pr the same on phones; --ml/--mt/--mw the mark, --gx/--gy/
-   --gw its glow (and --p… on phones). Widths are in cqw of the stage box, so
-   the whole picture scales as one. Phones are under 640px. */
+/* The search pages' sun stage (SunStage.jsx). Every card position comes in as
+   a custom property from lib/landingStage.js: --x/--y/--w/--r a card
+   (desktop), --px/--py/--pw/--pr the same on phones. Widths are in cqw of the
+   stage box, so the whole picture scales as one. The art (lib/sunArt.js) is
+   one SVG for desktop and one for phones, always behind the cards. Phones are
+   under 640px. */
 
 .sun-full,
 .sun-behind {
@@ -10,34 +11,18 @@
   container-type: inline-size;
 }
 
-/* ── The mark and its glow ─────────────────────────────────────────────── */
-.sun-glow {
+/* ── The art: the logo's ring opened into orbits, its suns on them ─────── */
+.sun-art {
   position: absolute;
-  left: var(--gx);
-  top: var(--gy);
-  width: var(--gw);
-  aspect-ratio: 1;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(255, 160, 40, 0.2), rgba(255, 140, 20, 0.06) 55%, transparent);
-  pointer-events: none;
-}
-.sun-mark {
-  position: absolute;
-  left: var(--ml);
-  top: var(--mt);
-  width: var(--mw);
-  height: auto;
-  aspect-ratio: 1;
   overflow: visible;
-  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.55));
   pointer-events: none;
 }
-.sun-mark circle,
-.sun-mark path {
+.sun-art.is-phone { display: none; }
+.sun-art .arc {
   transform-box: fill-box;
   transform-origin: center;
 }
+.sun-art .orb { filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.45)); }
 
 /* ── Cards ─────────────────────────────────────────────────────────────── */
 .sun-card {
@@ -63,12 +48,16 @@
   aspect-ratio: 1120 / 600;
   isolation: isolate;
 }
-.sun-full .sun-glow { z-index: 0; }
+.sun-full .sun-art {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
 .sun-full .sun-card { z-index: 2; }
-.sun-full .sun-mark { z-index: 3; }
 .sun-full .sun-card.is-over { z-index: 4; }
 
-/* ── BEHIND: today's frame, suns behind it, three cards over its edges ── */
+/* ── BEHIND: today's frame, the orbits behind it, three cards over its edges */
 .sun-behind {
   margin: 0 0 clamp(56px, 9vh, 100px);
 }
@@ -79,13 +68,35 @@
 }
 .sun-deco {
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
   z-index: 0;
   pointer-events: none;
 }
+/* The orbits and the side cards reach past the frame's sides. Both layers are
+   a band as wide as the window (less a scrollbar's width) that cuts them off
+   sideways only, so the page never pans sideways on a phone or a tablet; up
+   and down they spill freely. The frame is centred in the window, so the band
+   is too, and SunStage.jsx places the cards from its middle in cqw (of the
+   frame), so they sit where they would on the frame itself. */
+.sun-behind > .sun-deco,
+.sun-behind > .sun-cards {
+  left: 50%;
+  width: calc(100vw - 20px);
+  transform: translateX(-50%);
+  overflow-x: clip;
+}
+/* Centred on the frame; its width (in cqw of the frame) is set inline. */
+.sun-deco .sun-art {
+  left: 50%;
+  top: 50%;
+  height: auto;
+  transform: translate(-50%, -50%);
+}
 .sun-cards {
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
   z-index: 2;
   pointer-events: none;
 }
@@ -93,8 +104,8 @@
 /* ── Phones ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .sun-full { aspect-ratio: 358 / 300; }
-  .sun-glow { left: var(--pgx); top: var(--pgy); width: var(--pgw); }
-  .sun-mark { left: var(--pml); top: var(--pmt); width: var(--pmw); }
+  .sun-art.is-desk { display: none; }
+  .sun-art.is-phone { display: block; }
   .sun-card {
     left: var(--px);
     top: var(--py);
@@ -107,30 +118,31 @@
 
 /* ── Motion: set going by script only (SunStage.jsx), never without it ── */
 @media (prefers-reduced-motion: no-preference) {
-  .sun-wait .sun-mark circle { opacity: 0; transform: scale(0.86); }
-  .sun-wait .sun-mark path { opacity: 0; }
+  .sun-wait .sun-art .arc,
+  .sun-wait .sun-art .orb,
+  .sun-wait .sun-art .glow,
   .sun-wait .sun-card { opacity: 0; }
 
-  .sun-in .sun-mark circle { animation: sunRise 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
-  .sun-in .sun-mark .cream { animation-delay: 0.08s; }
-  .sun-in .sun-mark .ring path { animation: sunDash 0.5s ease-out backwards; }
-  .sun-in .sun-mark .ring path:nth-child(1) { animation-delay: 0.25s; }
-  .sun-in .sun-mark .ring path:nth-child(2) { animation-delay: 0.31s; }
-  .sun-in .sun-mark .ring path:nth-child(3) { animation-delay: 0.37s; }
-  .sun-in .sun-mark .ring path:nth-child(4) { animation-delay: 0.43s; }
-  .sun-in .sun-mark .ring path:nth-child(5) { animation-delay: 0.49s; }
-  .sun-in .sun-mark .ring path:nth-child(6) { animation-delay: 0.55s; }
-  .sun-in .sun-mark .ring path:nth-child(7) { animation-delay: 0.61s; }
-  .sun-in .sun-mark .ring path:nth-child(8) { animation-delay: 0.67s; }
-  .sun-in .sun-mark .ring path:nth-child(9) { animation-delay: 0.73s; }
+  /* The rings turn in, the thick one first. */
+  .sun-in .sun-art .arc {
+    animation: sunArcIn 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+    animation-delay: calc(0.25s + var(--i) * 0.12s);
+  }
+  /* Each sun fades in as its glide (SMIL, begun by script) sets off. */
+  .sun-in .sun-art .orb {
+    animation: sunFade 0.5s ease-out backwards;
+    animation-delay: var(--d);
+  }
+  .sun-in .sun-art .glow {
+    animation: sunFade 1.2s ease-out backwards, sunBreathe 7s ease-in-out 1.2s infinite alternate;
+  }
   .sun-in .sun-card {
     animation: sunCardIn 0.9s cubic-bezier(0.2, 0.9, 0.25, 1.15) backwards;
     animation-delay: calc(0.45s + var(--i) * 0.11s);
   }
-  .sun-in .sun-glow { animation: sunBreathe 7s ease-in-out infinite alternate; }
 }
-@keyframes sunRise { from { opacity: 0; transform: scale(0.86); } }
-@keyframes sunDash { from { opacity: 0; } }
+@keyframes sunArcIn { from { opacity: 0; transform: rotate(-14deg) scale(0.96); } }
+@keyframes sunFade { from { opacity: 0; } }
 @keyframes sunCardIn { from { opacity: 0; translate: 0 26px; scale: 0.96; } }
 @keyframes sunBreathe { from { opacity: 0.78; } to { opacity: 1; } }
 
@@ -144,6 +156,12 @@
   display: block;
   width: min(1120px, 100vw - 32px);
   margin-inline: calc((100% - min(1120px, 100vw - 32px)) / 2);
+}
+/* Once the stage nearly fills the window, its edge cards would reach a few
+   pixels past it and let a tablet pan sideways: cut them at the stage's
+   sides (it sits 16px in from the window's). */
+@media (max-width: 1160px) {
+  .seo-stage-link { overflow-x: clip; }
 }
 .seo-stage-cap {
   display: flex;

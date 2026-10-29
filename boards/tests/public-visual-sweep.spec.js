@@ -222,7 +222,8 @@ for (const path of ['/vs/pureref', '/pricing']) {
 }
 
 // The other search pages show their board on the sun stage instead of the
-// frame: the mark, the board's own cards, and the link to the live board.
+// frame: the orbits (one SVG shows: desktop or phone), the board's own cards,
+// and the link to the live board.
 test('/vs/milanote shows its board on the sun stage, without React prop warnings', async ({ page }) => {
   await routeAnalytics(page, []);
   const warnings = [];
@@ -230,7 +231,8 @@ test('/vs/milanote shows its board on the sun stage, without React prop warnings
   await page.goto('/vs/milanote');
   const stage = page.locator('#live-example.seo-stage');
   await stage.scrollIntoViewIfNeeded();
-  await expect(stage.locator('.sun-full .sun-mark')).toBeVisible();
+  await expect(stage.locator('.sun-full .sun-art:visible')).toHaveCount(1);
+  await expect(stage.locator('.sun-full .sun-art .orb').first()).toBeAttached();
   await expect(stage.locator('.sun-card img').first()).toBeVisible();
   await expect(page.locator('.seo-frame-shot')).toHaveCount(0);
   expect(await stage.locator('.seo-stage-pill').getAttribute('href')).toMatch(/^\/c\/[a-z0-9-]+$/);

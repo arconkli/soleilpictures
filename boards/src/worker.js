@@ -1885,9 +1885,10 @@ function injectLanding(res, spec, extra = null) {
   // ?v= busts scraper/CDN caches of the immutable OG asset when a page's copy
   // (and thus its card) is refreshed. Keep the query OUT of landingOgPath —
   // generate-og.mjs derives output filenames from it. A card drawn in the sun
-  // look (lib/landingStage.js ogStageSlug) carries a `-c` on its version, so a
-  // reshare after the redraw fetches the new picture.
-  const ogV = [spec.updated, ogStageSlug(spec) && 'c'].filter(Boolean).join('-');
+  // look (lib/landingStage.js ogStageSlug) carries a letter on its version
+  // (`-d` since the orbits replaced the mark, 2026-10-29), so a reshare after
+  // a redraw fetches the new picture.
+  const ogV = [spec.updated, ogStageSlug(spec) && 'd'].filter(Boolean).join('-');
   const og = `${SITE_ORIGIN}${landingOgPath(spec)}${ogV ? `?v=${ogV}` : ''}`;
   const rw = new HTMLRewriter()
     .on('title',                            new SetText(spec.title))
