@@ -161,7 +161,13 @@ export const CEILINGS = {
   // props; the rules and the toast load later (BoardMoreNudge.jsx, ~8 KB,
   // fetched only by accounts from 2026-10-29 on). A local build measured
   // 692.3 KB on 71faeb80 and 692.8 with it.
-  appJs: 693_000,
+  // 2026-10-29: +0.3 KB for the share ask at ten cards (b7ab128f): App's own
+  // effect that records each cluster's count when it first loads and asks
+  // only about one that just crossed ten, and upsellSlot's PAST_THE_VISIT.
+  // A clean npm ci build with CI's environment measured 692,901 B on
+  // production e6108312 and 693,078 with the change (CI read 693.1, OVER, on
+  // main b7ab128f).
+  appJs: 693_300,
   appCss: 21_000,
 };
 
