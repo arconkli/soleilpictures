@@ -167,15 +167,16 @@ const HOME_CARDS = [
       ['act', 'He’s focused working when suddenly footsteps above make him stop.'],
       ['who', 'NEAL'],
       ['say', 'The floorboards... make haste, almost complete'],
-      ['act', 'A loud CRASH is heard as the basement’s entrance is blown open.'],
     ]),
-    cx: 395, cy: 690, rot: -5, maxW: 540,
+    cx: 427, cy: 1395, rot: 4, maxW: 512,
   },
-  { html: paletteHtml('Yahweh', ['#ffffff', '#ffd158', '#552a21', '#a93535']), cx: 610, cy: 1590, rot: 3, maxW: 600 },
-  { art: 'yahweh-costume.jpg', cx: 1250, cy: 1500, rot: -3, maxW: 600 },
-  { art: 'deep-dive.jpg', cx: 1690, cy: 1180, rot: 7, maxW: 430 },
-  { art: 'yahweh.jpg', cx: 1370, cy: 770, rot: 4, maxW: 470 },
-  { art: 'lost-time.jpg', cx: 880, cy: 960, rot: -6, maxW: 520 },
+  // Two loose rows around Lost Time, the brightest, in the middle; the palette
+  // pinned across its foot. Later cards sit on top.
+  { art: 'yahweh.jpg', cx: 461, cy: 662, rot: -7, maxW: 495 },
+  { art: 'deep-dive.jpg', cx: 1587, cy: 679, rot: 6, maxW: 461 },
+  { art: 'yahweh-costume.jpg', cx: 1570, cy: 1447, rot: -4, maxW: 580 },
+  { art: 'lost-time.jpg', cx: 1007, cy: 969, rot: -3, maxW: 597 },
+  { html: paletteHtml('Yahweh', ['#ffffff', '#ffd158', '#552a21', '#a93535']), cx: 1007, cy: 1495, rot: -2, maxW: 649 },
 ];
 
 const cards = [
