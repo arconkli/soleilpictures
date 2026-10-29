@@ -3,17 +3,24 @@
 // / video / file). The layout math lives in lib/gridLayout.js (pure); this
 // component renders the computed cell rects in LOCAL coordinates inside the card
 // box (no per-cell .card chrome). When editable it adds: draggable divider
-// handles (the shared-edge constraint), an empty-cell content chooser + file
-// drop, in-place rich-text editing, and per-cell split/merge controls. Read-only
-// when canEdit is false (view-only / public).
+// grips (the shared-edge constraint), an empty-box content chooser + file drop
+// (several files fill the empty boxes in reading order), corner tools on a
+// filled box (full screen, the ··· menu, the ⠿ grip that moves / swaps it),
+// and in-place rich-text editing. Read-only when canEdit is false (view-only /
+// public).
+//
+// Spacing: a grid is flush (the contact-sheet look) unless its card carries a
+// `gridGap` (right-click → Spacing). With a gap the frame pads by the gap, the
+// boxes sit apart by it and round their corners — the gallery look.
 //
 // Reactivity note: a cell's content lives in the card's nested gridCells Y.Map,
 // which readCards hashes to 'Y|' — so the card object identity does NOT change on
 // a cell edit. Like RichDocCard, GridCard self-observes its own gridCells so cell
-// edits re-render. Layout / templateId / seqId arrive as plain props.
+// edits re-render. Layout / templateId / seqId / gridGap arrive as plain props.
 
-import { useRef, useState } from 'react';
-import { computeCellRects, collectDividers, resizeDivider, dividerSnapTargets, GRID_TUNING } from '../../lib/gridLayout.js';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { computeCellRects, collectDividers, resizeDivider, dividerSnapTargets, planCellFill, GRID_TUNING } from '../../lib/gridLayout.js';
 import { readGridModel, effectiveCellStyle, readGridHints } from '../../lib/gridState.js';
 import { isCellFilled } from '../../lib/gridCount.js';
 import { getCanvasScale } from '../../lib/canvasScale.js';
@@ -21,7 +28,7 @@ import { RichNoteEditor } from '../RichNoteEditor.jsx';
 import { Spinner } from '../Spinner.jsx';
 import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { Icon } from '../Icon.jsx';
-import { Columns2 as Columns, Plus, Trash2 as Trash, X, TextT, Image as ImageIcon, Link, ArrowsClockwise, MoreHorizontal, Edit as Pencil, Maximize2, Download } from '../../lib/icons.js';
+import { Plus, TextT, Image as ImageIcon, Link, MoreHorizontal, Maximize2 } from '../../lib/icons.js';
 import { GridCellMenu } from './GridCellMenu.jsx';
 import { GridCellPhotoPopover } from './GridCellPhotoPopover.jsx';
 import { ImageEditModal } from '../ImageEditModal.jsx';
@@ -34,42 +41,62 @@ import { PerCardFilter } from '../ImageAdjustFilters.jsx';
 import { useCardCellsVersion, cellTextStyle, CellContent } from './gridCellShared.jsx';
 import './gridCard.css';
 
+// The move grip's six dots, drawn here rather than as a Phosphor icon: the
+// grip sits on every filled box, so its icon would join the app's first
+// download in all six weights for one shape.
+const GripDots = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+    <circle cx="5" cy="3" r="1.25" /><circle cx="9" cy="3" r="1.25" />
+    <circle cx="5" cy="7" r="1.25" /><circle cx="9" cy="7" r="1.25" />
+    <circle cx="5" cy="11" r="1.25" /><circle cx="9" cy="11" r="1.25" />
+  </svg>
+);
+
 const stop = (e) => e.stopPropagation();
 // Same as `stop`, but first lets a one-finger drag scroll the clipped editor
 // body. Everything inside `.canvas-wrap { touch-action: none }` needs this —
 // see lib/touchScroll.js.
 const stopWithTouchScroll = (e) => { startTouchScrollGesture(e); e.stopPropagation(); };
 
-// Split control: a vertical line (split into columns = a 'row' of two cells) or
-// a horizontal line (split into rows = a 'col'). Real icons (Columns, rotated).
-// MODULE scope, not inside GridCard's render: an inline component gets a new
-// function identity every render, so React REMOUNTS its buttons — and because
-// any pointerdown in a cell triggers focusCell (a re-render), the pressed
-// button was detached between pointerdown and pointerup and the click never
-// fired (the "split buttons don't work" bug).
-const SplitButtons = ({ gridActions, cardId, cellId }) => (
-  <>
-    <button type="button" className="is-icon" title="Add a vertical line (split into columns)"
-      onPointerDown={stop} onClick={(e) => { e.stopPropagation(); gridActions.splitCell(cardId, cellId, 'row'); }}>
-      <span className="gridc-ico"><Icon as={Columns} size={15} /></span>
-    </button>
-    <button type="button" className="is-icon" title="Add a horizontal line (split into rows)"
-      onPointerDown={stop} onClick={(e) => { e.stopPropagation(); gridActions.splitCell(cardId, cellId, 'col'); }}>
-      <span className="gridc-ico gridc-rot90"><Icon as={Columns} size={15} /></span>
-    </button>
-  </>
-);
+// The right-click Spacing choices (card field `gridGap`, LOCAL px). Missing or
+// 0 = flush. Exported so the canvas menu and the docs read the same values.
+export const GRID_SPACING = Object.freeze([
+  { id: 'none', label: 'None', gap: 0 },
+  { id: 'small', label: 'Small', gap: 4 },
+  { id: 'medium', label: 'Medium', gap: 8 },
+  { id: 'large', label: 'Large', gap: 14 },
+]);
+export const gridGapOf = (card) => Math.max(0, Math.min(24, Math.round(Number(card && card.gridGap)) || 0));
 
-export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqFormat, isSelected = false, canEdit = false, gridActions = null, getAwareness = null, boardId = null, annotationsVisible = true, focusedCellId = null, dropCellId = null, cellUploads = null, boards = null, onOpenBoard = null }) {
+// Box tool sizes (LOCAL px — the tools scale with the cell, so fit is
+// zoom-independent). An empty box at least LABELLED_W × LABELLED_H names its
+// choosers ("Text", "Image", "Link"); one at least PILL_MIN_W × PILL_MIN_H gets
+// the icon row; smaller boxes get one compact trigger that opens the portaled
+// menu. A filled box needs FILLED_MIN_W × FILLED_MIN_H for its corner tools.
+const LABELLED_W = 220, LABELLED_H = 108;
+const DROP_LINE_H = 140;          // tall enough to add "or drop a file here"
+const FILLED_MIN_W = 100, FILLED_MIN_H = 40;
+const FULLSCREEN_MIN_W = 130;     // room for ⤢ beside ···
+const GRIP_MIN_SEG = 36;          // a line segment this long shows its grip
+
+// Files in a drag, counted while it's still over the box (the File objects
+// themselves only arrive on drop, but their entries are listed meanwhile).
+const draggedFileCount = (dt) => {
+  if (!dt) return 0;
+  if (dt.items && dt.items.length) { let n = 0; for (const it of dt.items) if (it.kind === 'file') n += 1; return n; }
+  return dt.files ? dt.files.length : 0;
+};
+
+export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqFormat, isSelected = false, canEdit = false, gridActions = null, getAwareness = null, boardId = null, annotationsVisible = true, focusedCellId = null, dropCellId = null, dropCount = 1, cellUploads = null, boards = null, onOpenBoard = null }) {
   // gridMeta as well as gridCells: cell hints live there, so a template applied
   // to this grid must repaint it.
   useCardCellsVersion(cardYMap, ['gridCells', 'gridMeta']);
   const [preview, setPreview] = useState(null);        // { layout } during a divider drag
   const [dragId, setDragId] = useState(null);          // id of the divider being dragged
   const [editingCellId, setEditingCellId] = useState(null);
-  const [dragOverCell, setDragOverCell] = useState(null);
-  const [swapCellId, setSwapCellId] = useState(null);   // a filled cell showing the "Replace" type chooser
-  const [menu, setMenu] = useState(null);               // { cellId, anchorRect, mode } — pop-out menu for a too-small cell
+  const [dragOver, setDragOver] = useState(null);      // { cellId, count } — a file drag over a box
+  const [moveDrag, setMoveDrag] = useState(null);      // { fromId, overId, x, y } — a box dragged by its grip
+  const [menu, setMenu] = useState(null);               // { cellId, anchorRect, mode } — the box's ··· / + menu
   const [photoEdit, setPhotoEdit] = useState(null);     // { cellId, anchorRect } — image cell's photo/fit editor
   const [photoFullModal, setPhotoFullModal] = useState(null); // { cellId } — full-screen ImageEditModal
   const [lightbox, setLightbox] = useState(null);       // { cellId } — full-screen ImageLightbox viewer
@@ -77,6 +104,19 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   const [compareCellId, setCompareCellId] = useState(null); // cell showing its unadjusted source (hold-to-compare)
   const feedback = useOptionalFeedback();
   const downloadingRef = useRef(false);                 // a cell download in flight
+  const rootRef = useRef(null);
+  const enterRef = useRef(null);                        // latest Enter-key handler (see the effect below)
+
+  // The keyboard lives in the canvas (it owns selection and box focus); Enter on
+  // a focused box arrives here as a DOM event so this card can open its own
+  // editor or menu. Registered once; the handler reads the latest render.
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return undefined;
+    const on = (e) => enterRef.current?.(e.detail && e.detail.cellId);
+    el.addEventListener('gridc-enter', on);
+    return () => el.removeEventListener('gridc-enter', on);
+  }, []);
 
   const model = readGridModel(card, ydoc, templates);
   // Cell labels carried in from the template this grid was made from. They are
@@ -120,12 +160,12 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
       downloadingRef.current = false;
     }
   };
-  const clearCell = (cellId) => withUndo('Cell cleared', () => gridActions.clearCellContent(card.id, cellId));
+  const clearCell = (cellId) => withUndo('Box cleared', () => gridActions.clearCellContent(card.id, cellId));
   // Removing a line deletes the right / bottom side's cells. Content moves
   // into an empty neighbour; what can't is counted, and only then is there a
   // toast — a line between two empty cells costs nothing.
   const removeLine = (d) => withUndo(
-    (res) => (res?.dropped ? (res.dropped === 1 ? 'Removed a filled cell' : `Removed ${res.dropped} filled cells`) : null),
+    (res) => (res?.dropped ? (res.dropped === 1 ? 'Removed a filled box' : `Removed ${res.dropped} filled boxes`) : null),
     () => gridActions.removeDivider?.(card.id, d.path, d.childIndex),
   );
   // Open / close the image cell's photo + fit editor (portaled popover below).
@@ -133,6 +173,12 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
   const closePhotoEdit = () => { setPhotoEdit(null); setRepositionOn(false); setCompareCellId(null); };
   const openFullEditor = (cellId) => { closePhotoEdit(); setPhotoFullModal({ cellId }); };
   const openLightbox = (cellId) => { setMenu(null); closePhotoEdit(); setLightbox({ cellId }); };
+  const cellElOf = (cellId) => rootRef.current?.querySelector?.(`.gridc-cell[data-cell-id="${CSS.escape(cellId)}"]`) || null;
+  const openMenu = (cellId, anchorEl, mode) => {
+    const el = anchorEl || cellElOf(cellId);
+    if (!el) return;
+    setMenu({ cellId, anchorRect: el.getBoundingClientRect(), mode });
+  };
   // Drag-to-reposition (object-position pan) an image cell. Screen-space ratio
   // (dx / cell width) is zoom-invariant, so no getCanvasScale needed. Dragging the
   // image right reveals its left → object-position x decreases.
@@ -151,11 +197,36 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
   };
-  const box = { x: 0, y: 0, w, h };
+
+  // Spacing: the frame pads by gap/2 and every box insets by gap/2, so boxes sit
+  // a full gap apart and a full gap off the frame. Rects still tile the inner
+  // box exactly (computeCellRects stays a pure tiling), so the divider maths and
+  // the hit zones are unchanged — the seams simply fall in the middle of a gap.
+  const gap = gridGapOf(card);
+  const gutter = gap || GRID_TUNING.GUTTER_PX || 0;
+  const box = gap ? { x: gap / 2, y: gap / 2, w: Math.max(0, w - gap), h: Math.max(0, h - gap) } : { x: 0, y: 0, w, h };
   const rects = computeCellRects(layout, box);
   const dividers = collectDividers(layout, box);
-  const gutter = GRID_TUNING.GUTTER_PX || 0;
-  const canMerge = rects.length > 1;
+  const isEmptyRec = (c) => !c || !c.type || c.type === 'empty' || (c.type === 'image' && !c.src);
+
+  // Several things dropped at once fill the empty boxes in reading order from
+  // the box under the pointer (lib/gridLayout.js planCellFill); the numbers show
+  // where each one will land before it's let go. A file drag counts its own
+  // entries; a drag of canvas cards arrives as dropCellId + dropCount.
+  const fillTarget = dragOver ? { cellId: dragOver.cellId, count: dragOver.count } : (dropCellId ? { cellId: dropCellId, count: dropCount || 1 } : null);
+  const fillIds = (fillTarget && fillTarget.count > 1) ? planCellFill(rects, model.cells, fillTarget.cellId, fillTarget.count) : null;
+  const fillIndex = fillIds ? new Map(fillIds.map((id, i) => [id, i + 1])) : null;
+  const fillExtra = fillIds ? Math.max(0, fillTarget.count - fillIds.length) : 0;
+
+  // Enter on the focused box (from the canvas keyboard): a text box starts
+  // editing, anything else opens its menu — the chooser on an empty box.
+  enterRef.current = (cellId) => {
+    if (!editable || !cellId) return;
+    const c = model.cells[cellId];
+    const type = (c && c.type) || 'empty';
+    if (type === 'text') { enterTextEdit(cellId); return; }
+    openMenu(cellId, null, isEmptyRec(c) ? 'empty' : 'filled');
+  };
 
   const onDividerDown = (e, d) => {
     if (!editable) return;
@@ -191,11 +262,61 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
     window.addEventListener('pointerup', up);
   };
 
+  // Move / swap: drag a filled box by its ⠿ grip onto another box of this grid.
+  // Onto an empty box it moves; onto a filled one the two trade places — one
+  // undo step either way (gridActions.swapCells). Esc or a release outside the
+  // grid puts it back. The ghost is portaled so the canvas transform and the
+  // grid's clip can't hold it.
+  const onGripDown = (e, fromId) => {
+    if (!editable || !gridActions.swapCells || (e.button != null && e.button > 0)) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const sx = e.clientX, sy = e.clientY;
+    let started = false, overId = null;
+    const hit = (ev) => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      const cellEl = el && el.closest ? el.closest('.gridc-cell') : null;
+      const gridEl = cellEl ? cellEl.closest('[data-grid-id]') : null;
+      if (!gridEl || gridEl.getAttribute('data-grid-id') !== card.id) return null;
+      const id = cellEl.getAttribute('data-cell-id');
+      return id === fromId ? null : id;
+    };
+    const move = (ev) => {
+      if (!started && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return;
+      started = true;
+      overId = hit(ev);
+      setMoveDrag({ fromId, overId, x: ev.clientX, y: ev.clientY });
+    };
+    const end = (commit, ev) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
+      window.removeEventListener('keydown', key, true);
+      setMoveDrag(null);
+      if (commit && started) {
+        const target = ev ? hit(ev) : overId;
+        if (target) gridActions.swapCells(card.id, fromId, target);
+      }
+    };
+    const up = (ev) => end(true, ev);
+    const cancel = () => end(false);
+    const key = (ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); ev.preventDefault(); end(false); } };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel);
+    window.addEventListener('keydown', key, true);
+  };
+
   const linked = !!model.templateId;
+  const dragging = !!moveDrag;
+  const movingCell = moveDrag ? model.cells[moveDrag.fromId] : null;
 
   return (
     <>
-    <div className={`gridc${repositionOn ? ' is-repositioning' : ''}`} data-grid-id={card.id}>
+    <div ref={rootRef}
+         className={`gridc${repositionOn ? ' is-repositioning' : ''}${gap ? ' is-spaced' : ''}${dragging ? ' is-moving' : ''}`}
+         style={gap ? { '--gridc-gap': `${gap}px` } : undefined}
+         data-grid-id={card.id}>
       {linked && (
         // Purely informational (pointer-events:none in CSS) so it never swallows a
         // selection click or unlinks by accident — unlink via right-click → Unlink.
@@ -208,50 +329,73 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
       {rects.map((r) => {
         const cell = model.cells[r.id];
         const type = (cell && cell.type) || 'empty';
-        const empty = type === 'empty' || (type === 'image' && !cell.src);
+        const empty = isEmptyRec(cell);
         const isEditingText = editable && type === 'text' && editingCellId === r.id;
         // Effective text style = family (shared) style + this cell's override.
         const effStyle = effectiveCellStyle(model.familyTextStyle, cell);
         const tstyle = cellTextStyle(effStyle);
         // Painted-cell surface (drives the readable-ink remap + editor tone).
         const cellBg = (effStyle?.bg && effStyle.bg !== 'transparent') ? effStyle.bg : null;
-        // Show the Text/Image/Link chooser when the cell is empty OR the user hit
-        // "Replace" on a filled cell to swap its type in place.
-        const showChooser = empty || swapCellId === r.id;
-        // Too small (LOCAL px) to host the inline pill without overflowing the
-        // .gridc clip → swap the pill for a compact trigger that opens the
-        // portaled full-size menu. Local, not screen: the pill scales with the
-        // cell, so fit is zoom-independent.
+        // Tool tiers by the box's LOCAL size (see the constants above). Too
+        // small for the inline tools → one compact trigger that opens the
+        // portaled full-size menu, never clipped by .gridc.
         const cellW = Math.max(0, r.w - gutter), cellH = Math.max(0, r.h - gutter);
-        const compact = cellW < GRID_TUNING.PILL_MIN_W || cellH < GRID_TUNING.PILL_MIN_H;
+        const compact = empty
+          ? (cellW < GRID_TUNING.PILL_MIN_W || cellH < GRID_TUNING.PILL_MIN_H)
+          : (cellW < FILLED_MIN_W || cellH < FILLED_MIN_H);
+        const labelled = empty && cellW >= LABELLED_W && cellH >= LABELLED_H;
         const isImage = type === 'image' && !!cell.src;   // gets the "Edit photo" affordance
+        const uploading = cellUploads && cellUploads[r.id] !== undefined;
+        const hint = hints && hints[r.id];
+        const order = fillIndex ? fillIndex.get(r.id) : null;
+        const singleDrop = !fillIndex && ((dragOver && dragOver.cellId === r.id) || dropCellId === r.id);
+        const isLifted = moveDrag && moveDrag.fromId === r.id;
+        const isMoveTarget = moveDrag && moveDrag.overId === r.id;
+        const cls = ['gridc-cell', empty ? 'is-empty' : '', `gridc-cell-${type}`,
+          (singleDrop || order) ? 'is-drop' : '', focusedCellId === r.id ? 'is-focused' : '',
+          isLifted ? 'is-lifted' : '', isMoveTarget ? 'is-move-target' : ''].filter(Boolean).join(' ');
+        const textChoice = (e) => { e.stopPropagation(); gridActions.setCellContent(card.id, r.id, { type: 'text', html: '' }); enterTextEdit(r.id); };
+        const imageChoice = (e) => { e.stopPropagation(); gridActions.pickImageForCell(card.id, r.id); };
+        const linkChoice = (e) => { e.stopPropagation(); gridActions.addLinkToCell(card.id, r.id); };
+        const moreBtn = (
+          <button type="button" className="gridc-sq" title="Box options" aria-label="Box options"
+            onPointerDown={stop}
+            onClick={(e) => { e.stopPropagation(); openMenu(r.id, e.currentTarget, empty ? 'empty' : 'filled'); }}>
+            <span className="gridc-ico"><Icon as={MoreHorizontal} size={16} /></span>
+          </button>
+        );
         return (
           <div
             key={r.id}
-            className={`gridc-cell${empty ? ' is-empty' : ''} gridc-cell-${type}${(dragOverCell === r.id || dropCellId === r.id) ? ' is-drop' : ''}${focusedCellId === r.id ? ' is-focused' : ''}`}
+            className={cls}
             data-cell-id={r.id}
-            style={{ left: r.x + gutter / 2, top: r.y + gutter / 2, width: Math.max(0, r.w - gutter), height: Math.max(0, r.h - gutter) }}
+            style={{ left: r.x + gutter / 2, top: r.y + gutter / 2, width: cellW, height: cellH }}
             onPointerDownCapture={editable && gridActions.focusCell ? () => gridActions.focusCell(card.id, r.id) : undefined}
             onDoubleClick={editable && !isEditingText ? (e) => {
               e.stopPropagation();
               // Double-tap an EMPTY cell → it instantly becomes a note (unless an
               // upload is in flight). A text cell → edit. Other filled types →
               // no-op (never destroy content on a double-tap; use Replace/Clear).
-              const uploading = cellUploads && cellUploads[r.id] !== undefined;
               if (empty && !uploading) { gridActions.setCellContent(card.id, r.id, { type: 'text', html: '' }); enterTextEdit(r.id); }
               else if (type === 'text') enterTextEdit(r.id);
             } : undefined}
-            onPointerLeave={editable ? () => setSwapCellId((s) => (s === r.id ? null : s)) : undefined}
-            onDragOver={editable ? (e) => { e.preventDefault(); setDragOverCell(r.id); } : undefined}
-            onDragLeave={editable ? () => setDragOverCell((p) => (p === r.id ? null : p)) : undefined}
+            onDragOver={editable ? (e) => {
+              e.preventDefault();
+              const count = Math.max(1, draggedFileCount(e.dataTransfer));
+              setDragOver((p) => (p && p.cellId === r.id && p.count === count ? p : { cellId: r.id, count }));
+            } : undefined}
+            onDragLeave={editable ? () => setDragOver((p) => (p && p.cellId === r.id ? null : p)) : undefined}
             onDrop={editable ? (e) => {
               const files = e.dataTransfer?.files;
-              if (files && files.length) { e.preventDefault(); e.stopPropagation(); setDragOverCell(null); gridActions.fillCellFromFiles(card.id, r.id, files); }
-              else setDragOverCell(null);
+              setDragOver(null);
+              if (!files || !files.length) return;
+              e.preventDefault(); e.stopPropagation();
+              if (files.length > 1 && gridActions.fillCellsFromFiles) gridActions.fillCellsFromFiles(card.id, r.id, files, e.clientX, e.clientY);
+              else gridActions.fillCellFromFiles(card.id, r.id, files);
             } : undefined}
           >
-            {/* Content sits in a clipping body so the hover toolbar (a sibling)
-                can overflow a small cell instead of being cut off. */}
+            {/* Content sits in a clipping body so the box tools (siblings) can
+                overflow a small cell instead of being cut off. */}
             <div className="gridc-cell-body">
               {isEditingText ? (
                 <div className="gc-text-edit" style={tstyle} onPointerDown={stopWithTouchScroll}>
@@ -273,13 +417,21 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
               )}
             </div>
 
+            {/* What an empty box says at rest. A template's label names what the
+                box is FOR ("WIDE SHOT"); a bare box shows one faint +, and only
+                where it can be filled. aria-hidden: guidance about an empty
+                region, not content a screen reader should announce. */}
+            {empty && !isEditingText && !order && (hint
+              ? <div className="gridc-hint" aria-hidden="true">{hint}</div>
+              : (editable && !uploading && <div className="gridc-plus" aria-hidden="true"><Icon as={Plus} size={15} /></div>))}
+
             {editable && isImage && repositionOn && photoEdit?.cellId === r.id && (
               // Reposition mode: a drag layer over the image → pan object-position.
               <div className="gridc-reposition" title="Drag to reposition"
                 onPointerDown={(e) => onRepositionDown(e, r.id, e.currentTarget.parentElement)} />
             )}
 
-            {cellUploads && cellUploads[r.id] !== undefined && (
+            {uploading && (
               // In-cell upload feedback (paste / drop / Image-picker) — spinner +
               // optional percentage so the user sees the upload is in flight.
               <div className="gridc-cell-uploading" aria-label="Uploading">
@@ -288,127 +440,116 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
               </div>
             )}
 
-            {editable && !isEditingText && (
-              // Wrapper is pointer-events:none (CSS) so the cell bg still selects
-              // the card; only the pill / trigger is interactive.
+            {editable && !isEditingText && !dragging && !uploading && (
+              // Wrapper covers the box but is pointer-events:none (CSS) so the
+              // cell bg still selects the card; only the tools are interactive.
               <div className="gridc-celltools">
                 {compact ? (
-                  // Too small for the inline pill → a single trigger opens the
-                  // portaled full-size menu (every option, never clipped).
                   <button type="button" className="gridc-pill-mini"
-                    title={empty ? 'Add content' : 'Cell options'} aria-label={empty ? 'Add content' : 'Cell options'}
+                    title={empty ? 'Add content' : 'Box options'} aria-label={empty ? 'Add content' : 'Box options'}
                     onPointerDown={stop}
-                    onClick={(e) => { e.stopPropagation(); setMenu({ cellId: r.id, anchorRect: e.currentTarget.getBoundingClientRect(), mode: empty ? 'empty' : 'filled' }); }}>
+                    onClick={(e) => { e.stopPropagation(); openMenu(r.id, e.currentTarget, empty ? 'empty' : 'filled'); }}>
                     <span className="gridc-ico"><Icon as={empty ? Plus : MoreHorizontal} size={16} /></span>
                   </button>
+                ) : empty ? (
+                  <>
+                    {/* The chooser, by name when there's room. Accessible names
+                        stay "Text" / "Image" / "Link" at every size. */}
+                    <div className={`gridc-chooser${labelled ? ' is-labelled' : ''}`}>
+                      <div className="gridc-pill" onPointerDown={stop}>
+                        <button type="button" className={labelled ? undefined : 'is-icon'} title="Text" aria-label="Text" onClick={textChoice}>
+                          <span className="gridc-ico"><Icon as={TextT} size={15} /></span>{labelled && <span className="gridc-lbl">Text</span>}
+                        </button>
+                        <button type="button" className={labelled ? undefined : 'is-icon'} title="Image" aria-label="Image" onClick={imageChoice}>
+                          <span className="gridc-ico"><Icon as={ImageIcon} size={15} /></span>{labelled && <span className="gridc-lbl">Image</span>}
+                        </button>
+                        <button type="button" className={labelled ? undefined : 'is-icon'} title="Link" aria-label="Link" onClick={linkChoice}>
+                          <span className="gridc-ico"><Icon as={Link} size={15} /></span>{labelled && <span className="gridc-lbl">Link</span>}
+                        </button>
+                        {!labelled && <><span className="gridc-pill-sep" />{moreBtn}</>}
+                      </div>
+                      {labelled && cellH >= DROP_LINE_H && <div className="gridc-drop-line" aria-hidden="true">or drop a file here</div>}
+                    </div>
+                    {labelled && <div className="gridc-corner gridc-corner-tr">{moreBtn}</div>}
+                  </>
                 ) : (
-                <div className="gridc-pill" onPointerDown={stop}>
-                  {showChooser ? (
-                    <>
-                      {/* Icon-only choosers; accessible name (title + aria-label) kept as
-                          "Text"/"Image"/"Link" so tooltips read and tests still resolve them.
-                          Also the in-place "Replace" swap for a filled cell (keeps the cell,
-                          its size/position and text style — see setGridCell REPLACE branch). */}
-                      <button type="button" className="is-icon" title="Text" aria-label="Text"
-                        onClick={(e) => { e.stopPropagation(); gridActions.setCellContent(card.id, r.id, { type: 'text', html: '' }); enterTextEdit(r.id); setSwapCellId(null); }}>
-                        <span className="gridc-ico"><Icon as={TextT} size={15} /></span>
-                      </button>
-                      <button type="button" className="is-icon" title="Image" aria-label="Image"
-                        onClick={(e) => { e.stopPropagation(); gridActions.pickImageForCell(card.id, r.id); setSwapCellId(null); }}>
-                        <span className="gridc-ico"><Icon as={ImageIcon} size={15} /></span>
-                      </button>
-                      <button type="button" className="is-icon" title="Link" aria-label="Link"
-                        onClick={(e) => { e.stopPropagation(); gridActions.addLinkToCell(card.id, r.id); setSwapCellId(null); }}>
-                        <span className="gridc-ico"><Icon as={Link} size={15} /></span>
-                      </button>
-                      <span className="gridc-pill-sep" />
-                    </>
-                  ) : (
-                    <>
-                      {/* Filled cell at rest → "Edit photo" (image cells only) +
-                          a single "Replace" swap that reveals the chooser above so
-                          you can switch this cell's content type. */}
-                      {isImage && (
-                        <button type="button" className="is-icon" title="Edit photo" aria-label="Edit photo"
-                          onClick={(e) => { e.stopPropagation(); openPhotoEdit(r.id, (e.currentTarget.closest('.gridc-cell') || e.currentTarget).getBoundingClientRect()); }}>
-                          <span className="gridc-ico"><Icon as={Pencil} size={15} /></span>
-                        </button>
-                      )}
-                      {isImage && (
-                        <button type="button" className="is-icon" title="Open full screen" aria-label="Open full screen"
+                  <>
+                    <div className="gridc-corner gridc-corner-tr">
+                      {isImage && cellW >= FULLSCREEN_MIN_W && (
+                        <button type="button" className="gridc-sq" title="Open full screen" aria-label="Open full screen"
+                          onPointerDown={stop}
                           onClick={(e) => { e.stopPropagation(); openLightbox(r.id); }}>
-                          <span className="gridc-ico"><Icon as={Maximize2} size={15} /></span>
+                          <span className="gridc-ico"><Icon as={Maximize2} size={14} /></span>
                         </button>
                       )}
-                      <button type="button" className="is-icon" title="Replace" aria-label="Replace"
-                        onClick={(e) => { e.stopPropagation(); setSwapCellId(r.id); }}>
-                        <span className="gridc-ico"><Icon as={ArrowsClockwise} size={15} /></span>
-                      </button>
-                      <span className="gridc-pill-sep" />
-                    </>
-                  )}
-                  <SplitButtons gridActions={gridActions} cardId={card.id} cellId={r.id} />
-                </div>
+                      {moreBtn}
+                    </div>
+                    {gridActions.swapCells && (
+                      <div className="gridc-corner gridc-corner-tl">
+                        <button type="button" className="gridc-sq gridc-grip" title="Drag to move or swap" aria-label="Drag to move or swap"
+                          onPointerDown={(e) => onGripDown(e, r.id)} onClick={stop}>
+                          <span className="gridc-ico"><GripDots /></span>
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
 
-            {/* The ghost label. Sits under the chooser rather than replacing
-                it: an empty cell still offers Text/Image/Link on hover, and the
-                label only says what the box is FOR. aria-hidden because it is
-                guidance about an empty region, not content a screen reader
-                should announce as present. */}
-            {/* A template names what each cell is for; a bare grid used to say
-                nothing, and most grids placed were left with every cell empty.
-                The default line is the one gesture that fills a cell. */}
-            {empty && !isEditingText && ((hints && hints[r.id]) || editable) && (
-              <div className="gridc-hint" aria-hidden="true">{(hints && hints[r.id]) || 'Drop an image here'}</div>
+            {isLifted && <div className="gridc-lifted-ring" aria-hidden="true" />}
+            {isMoveTarget && (
+              <div className="gridc-move-chip" aria-hidden="true">
+                {empty ? 'Move here' : 'Swap'}
+              </div>
             )}
-            {editable && !isEditingText && !empty && !compact && (
-              // Corner Clear only on normal cells; on compact cells Clear lives
-              // in the pop-out menu (avoids a cramped/overlapping corner button).
-              <button
-                type="button"
-                className="gridc-cell-x"
-                title="Clear cell"
-                onPointerDown={stop}
-                onClick={(e) => { e.stopPropagation(); clearCell(r.id); setSwapCellId(null); }}
-              ><span className="gridc-ico"><Icon as={Trash} size={13} /></span></button>
-            )}
+            {order && <div className="gridc-order" aria-hidden="true">{order}</div>}
           </div>
         );
       })}
       {dividers.map((d) => {
         const grab = editable && isSelected;   // resize after select (standard, avoids mis-grabs)
-        const remove = (e) => { e.stopPropagation(); removeLine(d); };
+        const seg = d.axis === 'x' ? d.h : d.w;
         return (
           <div
             key={d.id}
             className={`gridc-divider gridc-divider-${d.axis}${grab ? ' is-grabbable' : ''}${dragId === d.id ? ' is-dragging' : ''}`}
             style={{ left: d.x, top: d.y, width: d.w, height: d.h }}
             onPointerDown={grab ? (e) => onDividerDown(e, d) : undefined}
-            onDoubleClick={grab ? remove : undefined}
+            onDoubleClick={grab ? (e) => { e.stopPropagation(); removeLine(d); } : undefined}
             title={grab ? 'Drag to resize · double-click to remove this line' : undefined}
           >
-            {grab && (
-              <button type="button" className="gridc-divider-rm" title="Remove this line"
-                onPointerDown={stop} onClick={remove}>
-                <span className="gridc-ico"><Icon as={X} size={11} /></span>
-              </button>
-            )}
+            {grab && seg >= GRIP_MIN_SEG && <span className="gridc-divider-grip" aria-hidden="true" />}
           </div>
         );
       })}
+      {fillExtra > 0 && (
+        <div className="gridc-fill-note" aria-hidden="true">
+          {fillExtra === 1 ? '1 more goes beside the grid' : `${fillExtra} more go beside the grid`}
+        </div>
+      )}
     </div>
+    {moveDrag && moveDrag.overId !== undefined && typeof document !== 'undefined' && createPortal(
+      // The box in hand, following the pointer. Not interactive, so the hit
+      // test underneath it sees the boxes.
+      <div className="gridc-move-ghost" style={{ left: moveDrag.x + 14, top: moveDrag.y + 10 }} aria-hidden="true">
+        {movingCell && movingCell.type === 'image' && movingCell.src
+          ? <img src={movingCell.src} alt="" draggable={false} />
+          : <span className="gridc-move-ghost-txt">{movingCell && movingCell.type === 'text'
+            ? (String(movingCell.html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || 'Text')
+            : (movingCell && (movingCell.title || movingCell.fileName || movingCell.name)) || 'Box'}</span>}
+      </div>,
+      document.body,
+    )}
     {menu && (
-      // Pop-out full-size menu for a too-small cell. Portaled to <body>, so it
-      // escapes .gridc { overflow:hidden } and stays comfortable at any zoom.
-      // Every option reuses the SAME gridActions handlers as the inline pill.
+      // The box's ··· menu (and the + menu of a box too small for its chooser).
+      // Portaled to <body>, so it escapes .gridc { overflow:hidden } and stays
+      // comfortable at any zoom. Every option reuses the same gridActions handlers.
       <GridCellMenu
         anchorRect={menu.anchorRect}
         mode={menu.mode}
         isImage={!!(model.cells[menu.cellId] && model.cells[menu.cellId].type === 'image' && model.cells[menu.cellId].src)}
-        onEditPhoto={() => openPhotoEdit(menu.cellId, menu.anchorRect)}
+        onEditPhoto={() => openPhotoEdit(menu.cellId, (cellElOf(menu.cellId) || { getBoundingClientRect: () => menu.anchorRect }).getBoundingClientRect())}
         onOpenFullScreen={() => openLightbox(menu.cellId)}
         onDownload={() => { const c = model.cells[menu.cellId]; if (c && c.src) downloadCell(c); }}
         onText={() => { gridActions.setCellContent(card.id, menu.cellId, { type: 'text', html: '' }); enterTextEdit(menu.cellId); }}

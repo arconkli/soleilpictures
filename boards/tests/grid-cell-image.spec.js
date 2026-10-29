@@ -24,7 +24,8 @@ test.describe('grid cell image controls', () => {
   async function openEditor(page) {
     const cell = imgCell(page);
     await cell.hover();
-    await cell.getByRole('button', { name: 'Edit photo' }).click();
+    await cell.getByRole('button', { name: 'Box options' }).click();
+    await page.locator('.gridc-cell-menu').getByRole('button', { name: 'Edit photo' }).click();
     const pop = page.locator('.gridc-photo-pop');
     await expect(pop).toBeVisible();
     return pop;

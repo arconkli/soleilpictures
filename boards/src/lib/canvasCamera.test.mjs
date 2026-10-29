@@ -42,7 +42,7 @@ test('copied cards paste at a live, in-view position', () => {
 // CANVAS-A-07: a Finder drop, a pasted screenshot or the phone's + on an empty
 // cluster let the first-card auto-fit zoom-frame what was just placed.
 test('drops, picks and pastes settle the view before they place anything', () => {
-  const ingest = between('const ingestFiles = useCallback(async (fileList, cx, cy, source = \'drop\') => {', 'const blockedForUpgrade = [];');
+  const ingest = between('const ingestFiles = useCallback(async (fileList, cx, cy, source = \'drop\', opts = null) => {', 'const blockedForUpgrade = [];');
   assert.match(ingest, /markViewSettled\(\);/);
   assert.match(between('const notePasteCreate = (clamped) => {', '};'), /markViewSettled\(\);/);
   assert.match(between('const pasteCopiedCards = () => {', 'doPaste(pos);'), /markViewSettled\(\);/);

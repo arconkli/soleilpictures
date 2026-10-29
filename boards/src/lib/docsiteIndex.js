@@ -241,7 +241,7 @@ export const DOCS_PAGES = [
     "answer": "Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.",
     "section": "start",
     "order": 3,
-    "updated": "2026-10-24",
+    "updated": "2026-10-29",
     "navLabel": "Keyboard shortcuts",
     "headings": [
       {
@@ -259,6 +259,10 @@ export const DOCS_PAGES = [
       {
         "id": "edit",
         "text": "Edit"
+      },
+      {
+        "id": "grids",
+        "text": "Grids"
       },
       {
         "id": "view",
@@ -808,7 +812,7 @@ export const DOCS_PAGES = [
     "answer": "A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. The grid tool places a storyboard layout that you cut into any shape — drag the dividers to resize, split and merge cells — or Generate matrix builds an empty grid of any size. Cells have a reading order, so a storyboard reads in sequence.",
     "section": "canvas",
     "order": 7,
-    "updated": "2026-10-20",
+    "updated": "2026-10-29",
     "navLabel": "Grids",
     "headings": [
       {
@@ -818,6 +822,14 @@ export const DOCS_PAGES = [
       {
         "id": "building-a-layout",
         "text": "Building a layout"
+      },
+      {
+        "id": "spacing",
+        "text": "Spacing"
+      },
+      {
+        "id": "keyboard",
+        "text": "Keyboard"
       },
       {
         "id": "how-grids-count-toward-your-card-limit",

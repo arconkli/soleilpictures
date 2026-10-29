@@ -188,8 +188,18 @@ export const CEILINGS = {
   // hook for the save-a-passkey offer. A local build with CI's environment
   // measured 693,360 B on production f3a66607 + 1821d772 + e329670a. Main
   // carries its own, higher ceiling for the grid refinements.
-  appJs: 693_500,
-  appCss: 21_000,
+  // 2026-10-29: +4.2 KB of JS and +0.6 KB of CSS for the grid refinements:
+  // the Boxes bar and Even out under a selected grid, filling several boxes
+  // from one drop in reading order (lib/gridLayout.js planCellFill), moving
+  // and swapping a box by its grip, the arrow / Enter / Delete / Esc box keys
+  // (lib/gridLayout.js neighborCell), Spacing, and the quieter box tools and
+  // their menu. All of it draws on the canvas itself, in CanvasSurface's
+  // closure with the grid card; the grip is drawn inline and Even out has no
+  // icon, so no new icon joins vendor-icons. A local build with CI's
+  // environment measured appJs 693,098 B and appCss 20,901 B on 33f1a69d,
+  // and 697,170 B and 21,478 B with the change.
+  appJs: 697_500,
+  appCss: 21_600,
 };
 
 // Chunks that must never be in the app's critical closure. Matched against the

@@ -146,15 +146,14 @@ test.describe('grids — local interaction', () => {
   async function makeMatrix(page, cols, rows) {
     const grid = page.locator('.card-kind-grid').first();
     await grid.click({ position: { x: 60, y: 8 } }); // select
-    const ctl = page.locator('.grid-matrix-ctl');
-    await expect(ctl).toBeVisible();
-    await ctl.locator('input').nth(0).fill(String(cols));
-    await ctl.locator('input').nth(1).fill(String(rows));
-    await ctl.getByRole('button', { name: 'Make grid' }).click();
+    await grid.dispatchEvent('contextmenu');
+    await page.locator('.ctx-menu').getByText('Generate matrix…', { exact: true }).click();
+    await page.locator('.modal input, .modal textarea, [role="dialog"] input').first().fill(`${cols} x ${rows}`);
+    await page.getByRole('button', { name: 'Generate', exact: true }).click();
     await expect(page.locator('.card-kind-grid')).toHaveCount(cols * rows);
   }
 
-  test('the inline control makes a flush, connected matrix', async ({ page }) => {
+  test('Generate matrix makes a flush, connected matrix', async ({ page }) => {
     await addGrid(page);
     await makeMatrix(page, 4, 3); // 12 grids
     const boxes = await page.locator('.card-kind-grid').evaluateAll((els) => els.map((e) => {
@@ -285,8 +284,9 @@ test.describe('grids — local interaction', () => {
 
     // The choice is remembered for this grid: selecting ANOTHER (still-empty) box
     // in the same grid pre-selects "This box" so per-box edits stay one click.
+    // By its corner: an empty box's centre holds its Text / Image / Link chooser.
     const sibling = page.locator('.gridc-cell.is-empty').first();
-    await sibling.click();
+    await sibling.click({ position: { x: 8, y: 8 } });
     await expect(scopeGroup(page).getByRole('button', { name: 'This box' }))
       .toHaveAttribute('aria-pressed', 'true');
 
@@ -337,18 +337,20 @@ test.describe('grids — local interaction', () => {
       .evaluate((el) => el.style.background)).toBe('');
   });
 
-  test('split buttons respond to REAL pointer clicks (fresh unfocused cell)', async ({ page }) => {
+  test('split items in the box menu respond to REAL pointer clicks (fresh unfocused cell)', async ({ page }) => {
     await addGrid(page);
     // No prior focus on the cell: the first press used to trigger a focus
     // re-render that remounted the inline pill mid-click and ate the event.
     const cell = page.locator('.gridc-cell').nth(1);
     await cell.hover();
-    await cell.getByTitle('Add a vertical line (split into columns)').click();
+    await cell.getByRole('button', { name: 'Box options' }).click();
+    await page.locator('.gridc-cell-menu').getByTitle('Add a vertical line (split into columns)').click();
     await expect(page.locator('.gridc-cell')).toHaveCount(4);
     // And again on another fresh cell, splitting into rows.
     const top = page.locator('.gridc-cell').first();
     await top.hover();
-    await top.getByTitle('Add a horizontal line (split into rows)').click();
+    await top.getByRole('button', { name: 'Box options' }).click();
+    await page.locator('.gridc-cell-menu').getByTitle('Add a horizontal line (split into rows)').click();
     await expect(page.locator('.gridc-cell')).toHaveCount(5);
   });
 
@@ -519,18 +521,20 @@ test.describe('grids — local interaction', () => {
     const cell = grid.locator('.gridc-cell-text').first();
     await expect(cell.locator('.gc-text')).toContainText('caption');
 
-    // At rest a filled cell shows "Replace", NOT the chooser.
+    // At rest a filled box shows "Box options", NOT the chooser.
     await cell.hover();
-    await expect(cell.getByRole('button', { name: 'Replace' })).toBeVisible();
+    await expect(cell.getByRole('button', { name: 'Box options' })).toBeVisible();
     await expect(cell.getByRole('button', { name: 'Text', exact: true })).toHaveCount(0);
-    // Click Replace → the Text/Image/Link chooser appears on this filled cell.
+    // Box options → Replace… swaps the menu to the Text/Image/Link chooser.
     // Not Playwright clicks: their scroll into view scrolls the canvas, which
     // puts itself back before the next frame (canvas-stays-put.spec), but the
     // press and the release land in the same frame, one either side of it.
-    await cell.getByRole('button', { name: 'Replace' }).dispatchEvent('click');
-    await expect(cell.getByRole('button', { name: 'Image', exact: true })).toBeVisible();
+    await cell.getByRole('button', { name: 'Box options' }).dispatchEvent('click');
+    const menu = page.locator('.gridc-cell-menu');
+    await menu.getByRole('button', { name: 'Replace' }).dispatchEvent('click');
+    await expect(menu.getByRole('button', { name: 'Image', exact: true })).toBeVisible();
     // Swap to a Link → fill the in-app URL dialog → same cell becomes a link.
-    await cell.getByRole('button', { name: 'Link', exact: true }).dispatchEvent('click');
+    await menu.getByRole('button', { name: 'Link', exact: true }).dispatchEvent('click');
     const dlg = page.getByRole('dialog');
     await dlg.getByRole('textbox').first().fill('https://example.com');
     await dlg.getByRole('button', { name: 'Add' }).click();
@@ -538,17 +542,16 @@ test.describe('grids — local interaction', () => {
   });
 
   // Split a 180px bottom cell into columns → two ~90px cells (below
-  // GRID_TUNING.PILL_MIN_W=172) → those cells swap the inline pill for a compact
+  // GRID_TUNING.PILL_MIN_W=140) → those cells swap the inline pill for a compact
   // trigger that opens a portaled full-size menu with every option.
   async function makeCompactCell(page) {
     // Split the 180×150 bottom-left cell into columns → two ~90px cells (below
-    // GRID_TUNING.PILL_MIN_W=172). Real hover + click on the pill button — this
-    // used to need a programmatic el.click() workaround, which was actually
-    // masking a bug: the first press re-rendered the cell (focusCell) and the
-    // inline pill (an inline component back then) remounted mid-click.
+    // GRID_TUNING.PILL_MIN_W=140). The 180×150 box shows the icon pill with an
+    // inline Box options button; real hover + click on it, then the menu's split.
     const cell = page.locator('.gridc-cell').nth(1);
     await cell.hover();
-    await cell.getByTitle('Add a vertical line (split into columns)').click();
+    await cell.getByRole('button', { name: 'Box options' }).click();
+    await page.locator('.gridc-cell-menu').getByRole('button', { name: 'Split into columns' }).click();
     const mini = page.locator('.gridc-cell .gridc-pill-mini').first();
     await expect(mini).toBeVisible();
     return mini;
@@ -593,5 +596,178 @@ test.describe('grids — local interaction', () => {
     await expect(page.locator('.gridc-cell-menu')).toBeVisible();
     await page.mouse.click(24, 24); // far from the menu
     await expect(page.locator('.gridc-cell-menu')).toHaveCount(0);
+  });
+});
+
+// Boxes, spacing, swap and keys — the redesigned box tools (corner Box options
+// menu, Apply / Even out bar, Spacing submenu, grip swap, box keyboard).
+test.describe('grids — boxes, spacing, swap, keys', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/?local=1&reset=1&blank=1');
+    await page.waitForSelector('.canvas-wrap');
+  });
+
+  const gridOf = (page) => page.locator('.card-kind-grid').first();
+  const boxAt = (page, n) => gridOf(page).locator('.gridc-cell').nth(n);
+  const selectGrid = async (page) => {
+    await gridOf(page).click({ position: { x: 180, y: 8 } });
+    await expect(gridOf(page)).toHaveClass(/is-selected/);
+  };
+
+  // Add a grid and let the card's entrance pop finish: Playwright's
+  // scroll-into-view on a cell mid-animation can scroll the overflow:hidden
+  // .canvas-wrap, and every hit test after that lands on the wrong box.
+  async function addSettledGrid(page) {
+    await addGrid(page);
+    await gridOf(page).evaluate((el) =>
+      Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished.catch(() => {}))));
+  }
+
+  // Type into box n (0 = top, 1 = bottom-left, 2 = bottom-right) via the chooser.
+  async function typeInto(page, n, text) {
+    const cell = boxAt(page, n);
+    // Hover a fixed corner: the centre can sit under a neighbour's divider.
+    await cell.hover({ position: { x: 20, y: 20 } });
+    await cell.getByRole('button', { name: 'Text', exact: true }).click();
+    const editor = page.locator('.gridc-cell [contenteditable="true"]').first();
+    await editor.waitFor({ state: 'visible' });
+    await editor.click();
+    await page.keyboard.type(text);
+    await editor.evaluate((el) => el.blur());
+    await page.locator('.canvas-wrap').click({ position: { x: 60, y: 60 } });
+    await expect(boxAt(page, n).locator('.gc-text')).toContainText(text);
+  }
+
+  test('Apply cuts the grid into C × R boxes and keeps its content', async ({ page }) => {
+    await addSettledGrid(page);
+    await typeInto(page, 0, 'Keep me');
+    await selectGrid(page);
+    const ctl = page.locator('.grid-matrix-ctl');
+    await expect(ctl).toBeVisible();
+    await ctl.getByLabel('Columns').fill('3');
+    await ctl.getByLabel('Rows').fill('2');
+    await ctl.getByRole('button', { name: 'Apply', exact: true }).click();
+    await expect(page.locator('.card-kind-grid')).toHaveCount(1);
+    await expect(page.locator('.gridc-cell')).toHaveCount(6);
+    await expect(page.locator('.gridc-cell .gc-text').filter({ hasText: 'Keep me' })).toHaveCount(1);
+  });
+
+  test('Apply asks before boxes with content would be lost', async ({ page }) => {
+    await addSettledGrid(page);
+    await typeInto(page, 0, 'One');
+    await typeInto(page, 1, 'Two');
+    await typeInto(page, 2, 'Three');
+    await selectGrid(page);
+    const ctl = page.locator('.grid-matrix-ctl');
+    await ctl.getByLabel('Columns').fill('1');
+    await ctl.getByLabel('Rows').fill('1');
+    await ctl.getByRole('button', { name: 'Apply', exact: true }).click();
+    const dlg = page.getByRole('dialog');
+    await expect(dlg).toContainText('Cut into 1 box?');
+    await dlg.getByRole('button', { name: 'Cut into boxes' }).click();
+    await expect(page.locator('.gridc-cell')).toHaveCount(1);
+  });
+
+  test('Even out makes every box the same size', async ({ page }) => {
+    await addSettledGrid(page);
+    await selectGrid(page);
+    const divider = page.locator('.gridc-divider-x.is-grabbable').first();
+    await expect(divider).toBeVisible();
+    const bottomLeft = page.locator('.gridc-cell').nth(1);
+    const bottomRight = page.locator('.gridc-cell').nth(2);
+    const beforeBox = await bottomLeft.boundingBox();
+    const db = await divider.boundingBox();
+    await page.mouse.move(db.x + db.width / 2, db.y + db.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(db.x - 70, db.y + db.height / 2, { steps: 6 });
+    await page.mouse.up();
+    expect((await bottomLeft.boundingBox()).width).toBeLessThan(beforeBox.width - 30);
+
+    await page.locator('.grid-matrix-ctl').getByRole('button', { name: 'Even out', exact: true }).click();
+    await expect.poll(async () => {
+      const l = await bottomLeft.boundingBox();
+      const r = await bottomRight.boundingBox();
+      return Math.abs(l.width - r.width) < 2;
+    }).toBe(true);
+  });
+
+  test('Spacing sets the gap between boxes from the right-click menu', async ({ page }) => {
+    await addSettledGrid(page);
+    const gridc = gridOf(page).locator('.gridc').first();
+    const openSpacing = async () => {
+      await gridOf(page).dispatchEvent('contextmenu');
+      const menu = page.locator('.ctx-menu').first();
+      await expect(menu).toBeVisible();
+      await menu.locator('.ctx-submenu-wrap', { hasText: 'Spacing' }).hover();
+    };
+    await openSpacing();
+    await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Large', exact: true }).click();
+    await expect(gridc).toHaveClass(/is-spaced/);
+    await expect(gridc).toHaveAttribute('style', /--gridc-gap: 14px/);
+
+    await openSpacing();
+    await expect(page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Large ✓' })).toBeVisible();
+    await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'None', exact: true }).click();
+    await expect(gridc).not.toHaveClass(/is-spaced/);
+  });
+
+  test('Dragging a box by its grip swaps it with another', async ({ page }) => {
+    await addSettledGrid(page);
+    await typeInto(page, 1, 'A');
+    await typeInto(page, 2, 'B');
+    await selectGrid(page);
+    const one = boxAt(page, 1);
+    const two = boxAt(page, 2);
+    await one.hover({ position: { x: 20, y: 20 } });
+    const grip = one.getByRole('button', { name: 'Drag to move or swap' });
+    await expect(grip).toBeVisible();
+    const gb = await grip.boundingBox();
+    const tb = await two.boundingBox();
+    const sx = gb.x + gb.width / 2, sy = gb.y + gb.height / 2;
+    const tx = tb.x + tb.width / 2, ty = tb.y + tb.height / 2;
+    await page.mouse.move(sx, sy);
+    await page.mouse.down();
+    for (let i = 1; i <= 8; i++) await page.mouse.move(sx + (tx - sx) * i / 8, sy + (ty - sy) * i / 8);
+    await page.mouse.up();
+    await expect(boxAt(page, 1).locator('.gc-text')).toHaveText('B');
+    await expect(boxAt(page, 2).locator('.gc-text')).toHaveText('A');
+
+    // One undo step puts them back.
+    await page.locator('.canvas-wrap').click({ position: { x: 60, y: 60 } });
+    await page.keyboard.press('Control+z');
+    await expect(boxAt(page, 1).locator('.gc-text')).toHaveText('A');
+  });
+
+  test('Box keys: arrows move, Delete clears, Escape lets go', async ({ page }) => {
+    await addSettledGrid(page);
+    await typeInto(page, 1, 'X');
+    await gridOf(page).click({ position: { x: 180, y: 8 } });
+    await expect(boxAt(page, 0)).toHaveClass(/is-focused/);
+    await page.keyboard.press('ArrowDown');
+    await expect(boxAt(page, 1)).toHaveClass(/is-focused/);
+    await page.keyboard.press('ArrowRight');
+    await expect(boxAt(page, 2)).toHaveClass(/is-focused/);
+    await page.keyboard.press('ArrowLeft');
+    await expect(boxAt(page, 1)).toHaveClass(/is-focused/);
+
+    await page.keyboard.press('Backspace');
+    await expect(page.locator('.toast-msg', { hasText: 'Box cleared' })).toBeVisible();
+    await expect(boxAt(page, 1)).toHaveClass(/is-empty/);
+    await expect(page.locator('.card-kind-grid')).toHaveCount(1);
+
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.gridc-cell.is-focused')).toHaveCount(0);
+    await expect(gridOf(page)).toHaveClass(/is-selected/);
+    await page.keyboard.press('Escape');
+    await expect(gridOf(page)).not.toHaveClass(/is-selected/);
+  });
+
+  test('Enter on an empty box opens its menu', async ({ page }) => {
+    await addSettledGrid(page);
+    await gridOf(page).click({ position: { x: 180, y: 8 } });
+    await expect(boxAt(page, 0)).toHaveClass(/is-focused/);
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.gridc-cell-menu')).toBeVisible();
   });
 });

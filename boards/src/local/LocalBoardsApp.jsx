@@ -18,7 +18,7 @@ import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs } f
 import { filesCountOf, isViewSwitchKey, overlayOpen } from '../lib/viewSwitch.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
 import { scheduleCreationAllowed, clusterNudgesAllowed } from '../lib/appHost.js';
-import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells, carryRemovedCells } from '../lib/gridLayout.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells, carryRemovedCells, evenOut } from '../lib/gridLayout.js';
 import { hintsToCellMap } from '../lib/gridLayoutLibrary.js';
 import { CURATED_TEMPLATES } from '../lib/gridTemplateIndex.js';
 import { layoutById } from '../lib/templateLayouts.js';
@@ -1227,6 +1227,37 @@ export function LocalBoardsApp({ user, signOut }) {
     }));
     return { dropped, affected: members.length };
   };
+  // Twins of App.setGridSpacing / evenGridLayout / swapGridCells.
+  const setGridSpacing = (gridId, gap) => {
+    const card = findLocalGrid(gridId); if (!card) return;
+    const g = Math.max(0, Math.min(24, Math.round(Number(gap)) || 0));
+    const all = boardState[currentId]?.cards || [];
+    const ids = new Set((card.templateId
+      ? all.filter(c => c.kind === 'grid' && c.templateId === card.templateId)
+      : [card]).map(c => c.id));
+    updateBoardState(state => ({
+      ...state,
+      cards: state.cards.map((c) => {
+        if (!ids.has(c.id)) return c;
+        if (g > 0) return { ...c, gridGap: g };
+        const { gridGap, ...rest } = c;
+        return rest;
+      }),
+    }));
+  };
+  const evenGridLayout = (gridId) => {
+    const card = findLocalGrid(gridId); const cur = localGridLayout(card); if (!cur) return;
+    localGridLayoutEdit(gridId, l => evenOut(l));
+  };
+  const swapGridCells = (gridId, a, b) => {
+    if (a === b) return false;
+    const card = findLocalGrid(gridId); if (!card) return false;
+    mapGridCard(gridId, (c) => {
+      const cells = c.cells || {};
+      return { ...c, cells: { ...cells, [a]: cells[b] || { type: 'empty' }, [b]: cells[a] || { type: 'empty' } } };
+    });
+    return true;
+  };
   const setGridCellContent = (gridId, cellId, patch) =>
     mapGridCard(gridId, c => {
       const prev = c.cells?.[cellId] || {};
@@ -1511,6 +1542,7 @@ export function LocalBoardsApp({ user, signOut }) {
     const carry = stampCarry(card.cells, card.hints);
     addCard({
       id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: carry.cells,
+      ...(typeof card.gridGap === 'number' && card.gridGap > 0 ? { gridGap: card.gridGap } : {}),
       ...(carry.hints ? { hints: carry.hints } : {}),
       x: Math.max(8, nx), y: Math.max(8, ny), w, h,
     });
@@ -1528,6 +1560,7 @@ export function LocalBoardsApp({ user, signOut }) {
       if (r === 0 && c === 0) continue;
       newCards.push({
         id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: { ...carry.cells },
+        ...(typeof card.gridGap === 'number' && card.gridGap > 0 ? { gridGap: card.gridGap } : {}),
         ...(carry.hints ? { hints: { ...carry.hints } } : {}),
         x: Math.max(8, x0 + c * (w + gx)), y: Math.max(8, y0 + r * (h + gy)), w, h,
       });
@@ -1747,7 +1780,7 @@ export function LocalBoardsApp({ user, signOut }) {
     addSchedule,
     addDocCard,
     addGrid,
-    resizeGridDivider, splitGridCell, mergeGridCell, applyGridLayout, setGridCellContent, clearGridCellContent, removeGridCellRecord,
+    resizeGridDivider, splitGridCell, mergeGridCell, applyGridLayout, setGridSpacing, evenGridLayout, swapGridCells, setGridCellContent, clearGridCellContent, removeGridCellRecord,
     setSchedSlotExpand, graftScheduleIntoSlot, moveSchedItem, moveSchedSlot,
     applyRundownPlan,
     setGridTextStyle, pinCellStyle, unpinCellStyle,

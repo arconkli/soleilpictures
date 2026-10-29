@@ -30,34 +30,42 @@
 }
 .gridc-cell-body { position: absolute; inset: 0; overflow: hidden; display: flex; }
 
-/* Empty cell: a calm slot. A whisper-faint + at rest hints it's fillable; the cell
-   lifts gently on hover, then the + yields to the content chooser. */
+/* Empty box: a calm slot. One faint + (.gridc-plus, editable grids only) says
+   it can be filled; a template's label (.gridc-hint) takes its place when the
+   grid came with one. The box lifts gently on hover and the + yields to the
+   chooser. */
 .gridc-cell.is-empty {
   background: var(--bg-1, #111114);
   transition: background var(--dur-fast, 120ms) var(--ease, ease);
 }
 .gridc-cell.is-empty:hover { background: var(--bg-hov, #1a1a1e); }
-.gridc-cell.is-empty::after {
-  content: '+';
+.gridc-plus {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 17px;
-  font-weight: 300;
   color: var(--ink-4, #3a3a40);
-  opacity: 0.55;
   pointer-events: none;
-  transition: color var(--dur-fast, 120ms) var(--ease, ease), opacity var(--dur-fast, 120ms) var(--ease, ease);
+  transition: opacity var(--dur-fast, 120ms) var(--ease, ease);
 }
-.gridc-cell.is-empty:hover::after { opacity: 0; }
-/* File drag-over: a clean gold inset ring (selection-grade affordance). */
+.gridc-cell:hover .gridc-plus { opacity: 0; }
+/* Drop target (a file or a card over it, or a numbered box in a multi-drop):
+   a clean gold inset ring — an active state, so gold is right here. */
 .gridc-cell.is-drop { box-shadow: inset 0 0 0 2px var(--soleil, #ffa500); background: var(--bg-hov, #1a1a1e); }
-/* Focused cell — the paste/drop target (click a cell to focus it). A soft gold
-   inset ring so you can see where a paste/drop will land. */
-.gridc-cell.is-focused { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--soleil, #ffa500) 70%, transparent); }
-.gridc-cell.is-focused.is-drop { box-shadow: inset 0 0 0 2px var(--soleil, #ffa500); }
+/* Focused box — where a paste, a drop, the arrow keys and Delete act. One soft
+   ring set 3px inside the box, so it never doubles up against the grid's own
+   selection ring at the edge. */
+.gridc-cell.is-focused::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--soleil, #ffa500) 80%, transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+.gridc-cell.is-focused.is-drop::before { display: none; }
 
 /* ── cell content ─────────────────────────────────────────────────────────── */
 .gridc-cell img.gc-img,
@@ -129,20 +137,22 @@
 .gridc-cell .gc-board-meta { display: flex; align-items: center; gap: 7px; padding: 6px 9px; background: var(--bg-2, #16161a); border-top: 1px solid var(--line-1, #212126); }
 .gridc-cell .gc-board-badge { font: 700 8.5px/1 var(--font-sans, sans-serif); letter-spacing: 0.12em; color: var(--ink-2, #888890); flex: none; }
 .gridc-cell .gc-board-name { font-size: 12px; color: var(--ink-0, #f5f5f7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gridc-cell .gc-board:hover:not(.is-missing) .gc-board-name { color: var(--soleil, #ffa500); }
+.gridc-cell .gc-board:hover:not(.is-missing) .gc-board-name { color: var(--ink-0, #f5f5f7); text-decoration: underline; text-underline-offset: 2px; }
 .gridc-cell .gc-board.is-missing { cursor: default; opacity: 0.55; }
 .gridc-cell .gc-board.is-missing .gc-board-badge { color: var(--ink-error, #e08b8b); }
 
 /* ── dividers ─────────────────────────────────────────────────────────────── */
 /* The element is a wide TRANSPARENT hit zone; ::after draws a crisp 1px line on
    the seam. Quiet hairline at rest → a whisper brighter when the Grid is selected
-   (so adjustable seams are discoverable) → gold + soft glow on hover / drag. */
-.gridc-divider { position: absolute; pointer-events: none; }
+   (so adjustable seams are discoverable), each with a small pill grip at its
+   middle → brighter and 2px under the pointer → solid while dragged. Neutral ink
+   throughout: a line isn't a selection. Double-click a line to remove it. */
+.gridc-divider { position: absolute; pointer-events: none; z-index: 1; }
 .gridc-divider::after {
   content: '';
   position: absolute;
   background: var(--line-2, #2c2c32);
-  transition: background var(--dur-fast, 120ms) var(--ease, ease), box-shadow var(--dur-fast, 120ms) var(--ease, ease),
+  transition: background var(--dur-fast, 120ms) var(--ease, ease),
     width var(--dur-quick, 80ms) var(--ease, ease), height var(--dur-quick, 80ms) var(--ease, ease);
 }
 .gridc-divider-x::after { left: 50%; top: 0; bottom: 0; width: 1px; transform: translateX(-50%); }
@@ -151,39 +161,29 @@
 .gridc-divider.is-grabbable::after { background: var(--line-3, #3a3a40); }
 .gridc-divider-x.is-grabbable { cursor: col-resize; }
 .gridc-divider-y.is-grabbable { cursor: row-resize; }
-.gridc-divider.is-grabbable:hover::after,
-.gridc-divider.is-dragging::after { background: var(--soleil, #ffa500); box-shadow: 0 0 10px var(--soleil-soft, rgba(255,165,0,.14)); }
+.gridc-divider.is-grabbable:hover::after { background: var(--ink-3, #5a5a60); }
+.gridc-divider.is-dragging::after { background: var(--ink-1, #d0d0d4); }
 .gridc-divider-x.is-grabbable:hover::after, .gridc-divider-x.is-dragging::after { width: 2px; }
 .gridc-divider-y.is-grabbable:hover::after, .gridc-divider-y.is-dragging::after { height: 2px; }
 
-/* Remove-this-line button — a small frosted disc parked at the START of the seam
-   (the centre stays free for dragging); scale + fade in on the divider's hover. */
-.gridc-divider-rm {
+/* The grip — a 6×22 pill at the segment's middle, there only while the grid is
+   selected. Solid while the line is being dragged. */
+.gridc-divider-grip {
   position: absolute;
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: rgba(16, 16, 20, 0.82);
-  -webkit-backdrop-filter: blur(8px) saturate(1.05);
-  backdrop-filter: blur(8px) saturate(1.05);
-  box-shadow: var(--shadow-1, 0 2px 6px rgba(0,0,0,.25));
-  color: var(--ink-1, #d0d0d4);
-  cursor: pointer;
-  opacity: 0;
-  transform: scale(0.85);
-  transition: opacity var(--dur-fast, 120ms) var(--ease, ease), transform var(--dur-fast, 120ms) var(--ease, ease),
-    color var(--dur-quick, 80ms) var(--ease, ease), border-color var(--dur-quick, 80ms) var(--ease, ease);
-  z-index: 5;
+  left: 50%;
+  top: 50%;
+  border-radius: 99px;
+  background: var(--bg-3, #1c1c20);
+  border: 1px solid var(--line-3, #3a3a40);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition: background var(--dur-fast, 120ms) var(--ease, ease), border-color var(--dur-fast, 120ms) var(--ease, ease);
 }
-.gridc-divider-x .gridc-divider-rm { left: 50%; top: 9px; transform: translateX(-50%) scale(0.85); }
-.gridc-divider-y .gridc-divider-rm { top: 50%; left: 9px; transform: translateY(-50%) scale(0.85); }
-.gridc-divider:hover .gridc-divider-rm { opacity: 1; transform: translateX(-50%) scale(1); }
-.gridc-divider-y:hover .gridc-divider-rm { transform: translateY(-50%) scale(1); }
-.gridc-divider-rm:hover { color: var(--soleil, #ffa500); border-color: color-mix(in srgb, var(--soleil, #ffa500) 55%, transparent); }
+.gridc-divider-x .gridc-divider-grip { width: 6px; height: 22px; }
+.gridc-divider-y .gridc-divider-grip { width: 22px; height: 6px; }
+.gridc-divider.is-grabbable:hover .gridc-divider-grip { border-color: var(--ink-3, #5a5a60); }
+.gridc-divider.is-dragging .gridc-divider-grip { background: var(--ink-0, #f5f5f7); border-color: var(--ink-0, #f5f5f7); }
 
 /* ── floating controls (revealed on hover) ────────────────────────────────── */
 /* Premium frosted pill — matches .ctx-menu / .surface-frosted: heavy blur, hairline
@@ -220,46 +220,96 @@
 .gridc-pill button.is-icon { width: 28px; padding: 0; }
 .gridc-pill-sep { width: 1px; align-self: stretch; margin: 4px 2px; background: var(--line-2, #2c2c32); }
 
-/* Per-cell hover toolbar — bottom-centre. Empty cell → content choosers (Text /
-   Image / Link, icon-only); any cell → split-into-columns / split-into-rows. The
-   wrapper is click-through so the cell bg still selects the card; only the pill is live. */
+/* Box tools, revealed on hover. The wrapper covers the box but is
+   click-through, so the cell bg still selects the card; only the tools are live.
+   Empty box → the chooser in the middle (by name when there's room, with "or
+   drop a file here" under it), and ··· in the corner. Filled box → ⤢ and ··· top
+   right, the ⠿ grip top left (drag to move or swap). */
 .gridc-celltools {
   position: absolute;
-  left: 50%;
-  bottom: 7px;
-  transform: translateX(-50%);
-  max-width: calc(100% - 8px);
+  inset: 0;
   opacity: 0;
   transition: opacity var(--dur-fast, 120ms) var(--ease, ease);
   pointer-events: none;
   z-index: 3;
 }
 .gridc-cell:hover .gridc-celltools { opacity: 1; }
-.gridc-celltools > .gridc-pill { pointer-events: auto; max-width: 100%; flex-wrap: nowrap; }
+.gridc-chooser {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: calc(100% - 8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.gridc-chooser > .gridc-pill { pointer-events: auto; max-width: 100%; flex-wrap: nowrap; }
+.gridc-chooser.is-labelled .gridc-pill button { gap: 6px; padding: 0 9px 0 8px; }
+.gridc-lbl { white-space: nowrap; }
+.gridc-drop-line {
+  font-size: 11px;
+  color: var(--ink-3, #5a5a60);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.gridc-corner {
+  position: absolute;
+  top: 6px;
+  display: flex;
+  gap: 4px;
+}
+.gridc-corner-tr { right: 6px; }
+.gridc-corner-tl { left: 6px; }
+/* A small frosted square — the corner tools. Neutral at rest and on hover. */
+.gridc-sq {
+  pointer-events: auto;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(16, 16, 20, 0.78);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+  backdrop-filter: blur(10px) saturate(1.05);
+  box-shadow: var(--shadow-1, 0 2px 6px rgba(0,0,0,.25));
+  color: var(--ink-1, #d0d0d4);
+  cursor: pointer;
+  transition: background var(--dur-fast, 120ms) var(--ease, ease), color var(--dur-fast, 120ms) var(--ease, ease);
+}
+.gridc-sq:hover { background: var(--bg-act, #212126); color: var(--ink-0, #f5f5f7); }
+.gridc-pill .gridc-sq { width: 28px; height: 28px; border: 0; box-shadow: none; background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; color: var(--ink-2, #888890); border-radius: var(--radius, 4px); }
+.gridc-pill .gridc-sq:hover { background: var(--bg-act, #212126); color: var(--ink-0, #f5f5f7); }
+.gridc-grip { cursor: grab; touch-action: none; }
+.gridc-grip:active { cursor: grabbing; }
 /* Touch has no hover to reveal these first, and an opacity:0 control still
    takes a tap: tapping a filled cell's corner to select the grid cleared the
-   cell, and a tap near the bottom split it. On a hover:none screen the pill,
-   the compact trigger and Clear are click-through until they're SHOWN — on
-   the focused cell of a selected grid, so a first tap selects and the next
-   one acts. Not :hover, which a tap sets in the same gesture. Desktop keeps
-   hover-to-reveal: there the pointer crosses the cell (and shows the tools)
-   before it can press one, and a compact trigger overflowing a tiny cell
-   must stay reachable from outside it. Scoped to .gridc-cell: the schedule
-   card reuses .gridc-pill-mini in its own slot tools. */
+   cell, and a tap near the bottom split it. On a hover:none screen the tools
+   are click-through until they're SHOWN — on the focused cell of a selected
+   grid, so a first tap selects and the next one acts. Not :hover, which a tap
+   sets in the same gesture. Desktop keeps hover-to-reveal: there the pointer
+   crosses the cell (and shows the tools) before it can press one, and a
+   compact trigger overflowing a tiny cell must stay reachable from outside it.
+   Scoped to .gridc-cell: the schedule card reuses .gridc-pill-mini in its own
+   slot tools. */
 @media (hover: none) {
-  .gridc-celltools > .gridc-pill,
+  .gridc-chooser > .gridc-pill,
   .gridc-cell .gridc-pill-mini,
-  .gridc-cell .gridc-cell-x { pointer-events: none; }
+  .gridc-cell .gridc-sq { pointer-events: none; }
   .card.is-selected .gridc-cell.is-focused .gridc-celltools { opacity: 1; }
-  .card.is-selected .gridc-cell.is-focused .gridc-cell-x { opacity: 1; transform: scale(1); }
-  .card.is-selected .gridc-cell.is-focused .gridc-celltools > .gridc-pill,
+  .card.is-selected .gridc-cell.is-focused .gridc-chooser > .gridc-pill,
   .card.is-selected .gridc-cell.is-focused .gridc-pill-mini,
-  .card.is-selected .gridc-cell.is-focused .gridc-cell-x { pointer-events: auto; }
+  .card.is-selected .gridc-cell.is-focused .gridc-sq { pointer-events: auto; }
 }
 
 /* Compact trigger — shown INSTEAD of the pill on cells too small to host it
    (see GRID_TUNING.PILL_MIN_W/H). A single frosted button; clicking it opens the
    portaled full-size menu (.gridc-cell-menu). Fits any cell down to MIN_CELL_PX. */
+.gridc-cell .gridc-pill-mini { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
 .gridc-pill-mini {
   pointer-events: auto;
   display: inline-flex;
@@ -327,6 +377,9 @@
 .gridc-cell-menu .gcm-item .gridc-ico { color: var(--ink-2, #888890); flex: none; }
 .gridc-cell-menu .gcm-item:hover .gridc-ico { color: var(--ink-0, #f5f5f7); }
 .gridc-cell-menu .gcm-label { flex: 1 1 auto; }
+.gridc-cell-menu .gcm-key { font-size: 11px; color: var(--ink-3, #5a5a60); }
+.gridc-cell-menu .gcm-item.is-danger { color: var(--ink-error, #e08b8b); }
+.gridc-cell-menu .gcm-item.is-danger .gridc-ico { color: currentColor; }
 
 /* Reposition mode: a drag layer over an image cell → pan object-position. The
    gold ring signals the active reposition state (active/selection accent). */
@@ -346,16 +399,15 @@
    the "Linked" badge and the "+" edge overlay so they don't flicker over the
    grid. The gold reposition ring + canvas alignment guides stay. */
 .card.card-kind-grid.is-dragging .gridc-celltools,
-.card.card-kind-grid.is-dragging .gridc-cell-x,
 .card.card-kind-grid.is-dragging .gridc-linked-badge,
 .card.card-kind-grid.is-dragging .gridc-edges {
   opacity: 0 !important;
   pointer-events: none !important;
 }
 .gridc.is-repositioning .gridc-celltools,
-.gridc.is-repositioning .gridc-cell-x,
-.gridc.is-repositioning .gridc-celltools > .gridc-pill,
-.gridc.is-repositioning .gridc-pill-mini {
+.gridc.is-repositioning .gridc-chooser > .gridc-pill,
+.gridc.is-repositioning .gridc-pill-mini,
+.gridc.is-repositioning .gridc-sq {
   opacity: 0 !important;
   pointer-events: none !important;
 }
@@ -396,33 +448,6 @@
 .gridc-photo-pop .gcp-zoom-slider { flex: 1 1 auto; accent-color: var(--soleil, #ffa500); cursor: pointer; }
 .gridc-photo-pop .gcp-zoom-val { font-size: 11px; min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
 .gridc-photo-pop .gcp-sep { height: 1px; margin: 12px 14px 0; background: var(--line-2, #2c2c32); }
-
-/* Tiny clear (remove content) — top-right corner on hover; frosted to match. */
-.gridc-cell-x {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  width: 22px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius, 4px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(16, 16, 20, 0.78);
-  -webkit-backdrop-filter: blur(10px) saturate(1.05);
-  backdrop-filter: blur(10px) saturate(1.05);
-  box-shadow: var(--shadow-1, 0 2px 6px rgba(0,0,0,.25));
-  color: var(--ink-2, #888890);
-  cursor: pointer;
-  opacity: 0;
-  transform: scale(0.9);
-  transition: opacity var(--dur-fast, 120ms) var(--ease, ease), transform var(--dur-fast, 120ms) var(--ease, ease),
-    color var(--dur-quick, 80ms) var(--ease, ease), border-color var(--dur-quick, 80ms) var(--ease, ease);
-  z-index: 3;
-}
-.gridc-cell:hover .gridc-cell-x { opacity: 1; transform: scale(1); }
-.gridc-cell-x:hover { color: var(--ink-0, #f5f5f7); border-color: rgba(255, 255, 255, 0.12); }
 
 /* Icon helpers. */
 .gridc-ico { display: inline-flex; align-items: center; justify-content: center; }
@@ -506,7 +531,7 @@
     color var(--dur-quick, 80ms) var(--ease, ease), border-color var(--dur-quick, 80ms) var(--ease, ease);
 }
 .card-kind-grid:hover .gridc-add { opacity: 1; pointer-events: auto; }
-.gridc-add:hover { color: var(--soleil, #ffa500); border-color: color-mix(in srgb, var(--soleil, #ffa500) 55%, transparent); }
+.gridc-add:hover { color: var(--ink-0, #f5f5f7); border-color: rgba(255, 255, 255, 0.16); }
 .gridc-add-top { top: -11px; left: 50%; transform: translateX(-50%) scale(0.86); }
 .gridc-add-bottom { bottom: -11px; left: 50%; transform: translateX(-50%) scale(0.86); }
 .gridc-add-left { left: -11px; top: 50%; transform: translateY(-50%) scale(0.86); }
@@ -579,13 +604,32 @@
   transition: background var(--dur-fast, 120ms) var(--ease, ease), border-color var(--dur-fast, 120ms) var(--ease, ease),
     color var(--dur-fast, 120ms) var(--ease, ease);
 }
-.grid-matrix-ctl button:hover { border-color: color-mix(in srgb, var(--soleil, #ffa500) 55%, transparent); color: var(--soleil, #ffa500); background: var(--bg-4, #26262a); }
+.grid-matrix-ctl button:hover { border-color: var(--line-3, #3a3a40); color: var(--ink-0, #f5f5f7); background: var(--bg-4, #26262a); }
+/* The grid bar: "Boxes" C × R Apply | Even out. The label and the divider are
+   quiet ink; Even out is a borderless ghost button so Apply reads as the one
+   primary action. */
+.grid-matrix-ctl .gm-lbl { color: var(--ink-2, #888890); font-size: 12px; padding: 0 3px 0 4px; }
+.grid-matrix-ctl .gm-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--line-2, #2c2c32); }
+.grid-matrix-ctl .gm-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px 0 7px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-2, #888890);
+}
+.grid-matrix-ctl .gm-ghost:hover { border-color: transparent; background: var(--bg-act, #212126); color: var(--ink-0, #f5f5f7); }
+[data-theme='light'] .grid-matrix-ctl .gm-ghost:hover { background: rgba(10, 9, 8, 0.06); }
 
 /* ── light theme — warm-cream frosted surfaces (mirror .surface-frosted) ────── */
 [data-theme='light'] .gridc-pill,
 [data-theme='light'] .gridc-pill-mini,
-[data-theme='light'] .gridc-cell-x,
-[data-theme='light'] .gridc-divider-rm,
+[data-theme='light'] .gridc-sq,
+[data-theme='light'] .gridc-move-chip,
+[data-theme='light'] .gridc-order,
+[data-theme='light'] .gridc-fill-note,
+[data-theme='light'] .gridc-move-ghost,
 [data-theme='light'] .gridc-linked-badge,
 [data-theme='light'] .gridc-add,
 [data-theme='light'] .grid-matrix-ctl {
@@ -618,3 +662,72 @@
 /* Out of the way the moment the chooser is up — the label has done its job by
    the time somebody is picking what to put in the box. */
 .gridc-cell:hover .gridc-hint { opacity: .25; }
+
+/* ── spacing (right-click → Spacing) ──────────────────────────────────────── */
+/* A grid with a gap: boxes sit apart on the frame and round their corners —
+   the gallery look. The empty boxes read as wells (bg-1 on the bg-2 frame); the
+   hairlines give way to the gaps themselves, and the grips sit in them while
+   the grid is selected. */
+.gridc.is-spaced .gridc-cell,
+.gridc.is-spaced .gridc-cell-body { border-radius: 6px; }
+.gridc.is-spaced .gridc-cell.is-focused::before { border-radius: 4px; }
+.gridc.is-spaced .gridc-divider::after { background: transparent; }
+.gridc.is-spaced .gridc-divider.is-grabbable:hover::after { background: color-mix(in srgb, var(--ink-3, #5a5a60) 60%, transparent); }
+.gridc.is-spaced .gridc-divider.is-dragging::after { background: var(--ink-2, #888890); }
+
+/* ── move / swap (drag a box by its ⠿ grip) ───────────────────────────────── */
+.gridc-cell.is-lifted .gridc-cell-body { opacity: 0.32; }
+.gridc-lifted-ring {
+  position: absolute;
+  inset: 3px;
+  border-radius: 4px;
+  border: 1.5px dashed var(--line-3, #3a3a40);
+  pointer-events: none;
+  z-index: 2;
+}
+.gridc-cell.is-move-target { box-shadow: inset 0 0 0 2px var(--soleil, #ffa500); }
+.gridc-move-chip,
+.gridc-order,
+.gridc-fill-note {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--ink-0, #f5f5f7);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(16, 16, 20, 0.78);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  backdrop-filter: blur(12px) saturate(1.05);
+  box-shadow: var(--shadow-2, 0 6px 20px rgba(0,0,0,.35));
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 4;
+}
+.gridc-move-chip { left: 50%; top: 50%; transform: translate(-50%, -50%); height: 24px; padding: 0 10px; border-radius: 99px; font-size: 12px; }
+/* Multi-drop: where each of several things will land, numbered in order. */
+.gridc-order { left: 50%; top: 50%; transform: translate(-50%, -50%); width: 26px; height: 26px; border-radius: 50%; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.gridc-fill-note { left: 50%; bottom: 10px; transform: translateX(-50%); height: 24px; padding: 0 10px; border-radius: 99px; font-size: 11.5px; color: var(--ink-1, #d0d0d4); z-index: 5; }
+/* The box in hand, portaled to <body> and following the pointer. */
+.gridc-move-ghost {
+  position: fixed;
+  z-index: 2147483600;
+  width: 104px;
+  height: 74px;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-2.5deg);
+  background: rgba(16, 16, 20, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+.gridc-move-ghost img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gridc-move-ghost-txt { padding: 8px; font-size: 11px; line-height: 1.35; color: var(--ink-1, #d0d0d4); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.gridc.is-moving .gridc-cell { cursor: grabbing; }
+@media (prefers-reduced-motion: reduce) {
+  .gridc-move-ghost { transform: none; }
+}

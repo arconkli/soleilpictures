@@ -82,5 +82,5 @@ test('the picker-cancel hint and the grid cell default are wired at the source',
   expect(canvas).toContain("canShowHint('paste') && claimHint('paste')");
   expect(canvas).toMatch(/pasteHintUp\s*\?\s*\(isPhone/);
   const grid = readFileSync(new URL('../src/components/cards/GridCard.jsx', import.meta.url), 'utf8');
-  expect(grid).toContain("'Drop an image here'");
+  expect(grid).toContain('or drop a file here');
 });

@@ -106,7 +106,8 @@ import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
 import { useToolbarRoving } from '../hooks/useToolbarRoving.js';
 import { ariaKeys } from '../lib/ariaKeys.js';
 import { Sheet } from './shell/Sheet.jsx';
-import { sanitizeLayout } from '../lib/gridLayout.js';
+import { sanitizeLayout, computeCellRects, planCellFill, neighborCell, evenTree, rehomeCells, readingOrder, BOXES_MAX } from '../lib/gridLayout.js';
+import { GRID_SPACING, gridGapOf } from './cards/GridCard.jsx';
 import { mergeSections, rowsFromRecords, bodyFromGrid, sanitizeHints, sanitizeSize, SOURCES } from '../lib/gridLayoutLibrary.js';
 import { layoutById } from '../lib/templateLayouts.js';
 import { TemplateAddedPrompt } from './TemplateAddedPrompt.jsx';
@@ -605,33 +606,54 @@ function GuideLabel({ cx, cy, text, zoom }) {
 // Card kinds that can become grid-cell content when dragged onto a cell (see
 // routeCardIntoCell). Anything else keeps dragging/repositioning normally.
 const CELL_DROP_KINDS = new Set(['image', 'note', 'textlink', 'link', 'board', 'boardlink', 'video', 'file', 'pdf', 'grid', 'schedule']);
+// The kinds a MULTI-card drag pours into a grid's boxes together — content
+// that is consumed into a box. Boards, grids and schedules stay single-card.
+const MULTI_CELL_KINDS = new Set(['image', 'note', 'textlink', 'link', 'video', 'file', 'pdf']);
 
-// Inline "make a grid" control shown below a selected Grid: type cols × rows and
-// it replicates the Grid into a flush, connected matrix (the effortless path to a
-// massive grid). Module-level so its input state survives canvas re-renders.
-function GridMatrixControl({ onGenerate }) {
-  const [cols, setCols] = useState('5');
-  const [rows, setRows] = useState('5');
-  const submit = () => {
-    const c = Math.max(1, Math.min(50, parseInt(cols, 10) || 1));
-    const r = Math.max(1, Math.min(50, parseInt(rows, 10) || 1));
-    if (c * r <= 1) return;
-    onGenerate(c, r);
-  };
+// The grid bar, just below a selected Grid: [Boxes C × R  Apply] | [Even out].
+// Apply cuts THIS grid into C × R even boxes, keeping its content in reading
+// order (applyGridLayout); Even out makes every box in the current shape the
+// same size. Linked copies of a grid live under right-click → Generate matrix….
+// Module-level so its input state survives canvas re-renders; it starts from
+// the grid's own shape when that is already an even lattice.
+function GridBoxesControl({ initialCols = 3, initialRows = 2, onApply, onEvenOut }) {
+  const [cols, setCols] = useState(String(initialCols));
+  const [rows, setRows] = useState(String(initialRows));
+  const clampN = (v) => Math.max(1, Math.min(BOXES_MAX, parseInt(v, 10) || 1));
+  const submit = () => onApply(clampN(cols), clampN(rows));
   const onKey = (e) => {
     if (isComposingKey(e)) return;
     if (e.key === 'Enter') { e.preventDefault(); submit(); }
   };
   return (
     <div className="grid-matrix-ctl" onPointerDown={(e) => e.stopPropagation()}>
-      <input type="number" min="1" max="50" value={cols} aria-label="Columns"
+      <span className="gm-lbl">Boxes</span>
+      <input type="number" min="1" max={BOXES_MAX} value={cols} aria-label="Columns"
         onChange={(e) => setCols(e.target.value)} onKeyDown={onKey} />
       <span className="gm-x">×</span>
-      <input type="number" min="1" max="50" value={rows} aria-label="Rows"
+      <input type="number" min="1" max={BOXES_MAX} value={rows} aria-label="Rows"
         onChange={(e) => setRows(e.target.value)} onKeyDown={onKey} />
-      <button type="button" onClick={submit}>Make grid</button>
+      <button type="button" className="gm-apply" onClick={submit}>Apply</button>
+      <span className="gm-sep" aria-hidden="true" />
+      <button type="button" className="gm-ghost" onClick={onEvenOut} title="Make every box the same size">
+        Even out
+      </button>
     </div>
   );
+}
+
+// The C × R a layout already is, when it's an even lattice of rows (a 'col' of
+// equal 'row's, a single 'row' or 'col', or one leaf) — else null.
+function latticeOf(tree) {
+  if (!tree) return null;
+  if (tree.type === 'leaf') return { cols: 1, rows: 1 };
+  const kids = tree.children || [];
+  if (kids.every((k) => k.type === 'leaf')) return tree.type === 'row' ? { cols: kids.length, rows: 1 } : { cols: 1, rows: kids.length };
+  if (tree.type === 'col' && kids.every((k) => k.type === 'row' && (k.children || []).every((g) => g.type === 'leaf'))) {
+    const n = (kids[0].children || []).length;
+    if (kids.every((k) => k.children.length === n)) return { cols: n, rows: kids.length };
+  }
+  return null;
 }
 
 export function CanvasSurface({
@@ -4779,7 +4801,7 @@ export function CanvasSurface({
   // pre-check only hard-blocks the unambiguous case (you own this workspace and
   // you're not paid); shared workspaces attempt optimistically and let the
   // server's 402/403 decide.
-  const ingestFiles = useCallback(async (fileList, cx, cy, source = 'drop') => {
+  const ingestFiles = useCallback(async (fileList, cx, cy, source = 'drop', opts = null) => {
     const files = Array.from(fileList || []);
     if (!files.length) return;
     // Dropped, picked or pasted files are the user's own placement: an empty
@@ -4911,13 +4933,16 @@ export function CanvasSurface({
       // spot any more, and the part of it that fit is already where it was
       // dropped, so the block goes in the free space nearest that point
       // instead of on top of anything — the planPutOnBoard rule.
-      if (source === 'held' && rects.length) {
+      // Files a multi-drop on a grid had no box for (opts.beside, the grid's
+      // right edge) go the same way: the free space nearest that spot.
+      const beside = opts && opts.beside && Number.isFinite(opts.beside.x) && Number.isFinite(opts.beside.y) ? opts.beside : null;
+      if ((source === 'held' || beside) && rects.length) {
         const left = Math.min(...rects.map((r) => r.x));
         const top = Math.min(...rects.map((r) => r.y));
         const w = Math.max(...rects.map((r) => r.x + r.w)) - left;
         const h = Math.max(...rects.map((r) => r.y + r.h)) - top;
         const solid = withGeometry(cardsRef.current);
-        const spot = nearestFreeSpot(solid, { x: left, y: top }, w, h) || besideContent(solid);
+        const spot = nearestFreeSpot(solid, beside || { x: left, y: top }, w, h) || besideContent(solid);
         rects = rects.map((r) => ({ ...r, x: r.x + spot.x - left, y: r.y + spot.y - top }));
       }
 
@@ -6288,6 +6313,10 @@ export function CanvasSurface({
       ownsWorkspace, isPaidPlan, onRequestUpgrade, onRequestStorageUpgrade, hasSplit, paneId, markViewSettled, placeDropRect]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  // A selected grid's box keys (arrows, Enter, Delete, Esc) — assigned each
+  // render further down, beside gridActions, so it always reads live state.
+  // Returns true when it handled the key.
+  const boxKeyRef = useRef(null);
   useEffect(() => {
     const onKey = (e) => {
       // A dialog is open (Trash, Version history, Settings, a confirm, the
@@ -6404,6 +6433,11 @@ export function CanvasSurface({
         }
       }
 
+      // A selected grid with a box picked: the arrows walk the boxes, Enter
+      // opens one, Delete clears a filled one (an empty one falls through and
+      // removes the grid, as before).
+      if (!cmd && !e.altKey && e.key !== 'Escape' && boxKeyRef.current?.(e)) return;
+
       if (e.key === 'Delete' || e.key === 'Backspace') {
         // Already consumed: an open comment thread deletes ITSELF on Delete
         // (CanvasComment's document listener runs before this window one).
@@ -6437,6 +6471,8 @@ export function CanvasSurface({
         if (touchSelecting) { setTouchSelecting(false); return; }
         if (arrowFrom || activeStroke || activeFreeArrow) { setArrowFrom(null); setActiveStroke(null); setActiveFreeArrow(null); return; }
         if (selectedTool !== 'select') { setSelectedTool('select'); return; }
+        // A picked box lets go first; the grid stays selected.
+        if (boxKeyRef.current?.(e)) return;
         if (selected.size || selectedStrokes.size || selectedArrows.size) {
           setSelected(new Set()); setSelectedStrokes(new Set()); setSelectedArrows(new Set());
           return;
@@ -7512,7 +7548,13 @@ export function CanvasSurface({
       // A card still uploading can't go into a cell (routeCardIntoCell), so it
       // never lights one up either.
       const soloCellable = CELL_DROP_KINDS.has(soloKind) && !isStillUploading(cardById[dragIds[0]]);
-      const wantHitTest = (dropCandidateIds.length > 0 || soloCellable || rulesDrag)
+      // Several content cards (photos, notes, links, files) can pour into a
+      // grid together: they fill boxes in order, the rest go beside it.
+      const multiCellable = dragIds.length > 1 && dragIds.every((id) => {
+        const dc = cardById[id];
+        return dc && MULTI_CELL_KINDS.has(dc.kind) && !isStillUploading(dc);
+      });
+      const wantHitTest = (dropCandidateIds.length > 0 || soloCellable || multiCellable || rulesDrag)
         && (Math.abs(dx) + Math.abs(dy) > 4);
       if (wantHitTest && (nowT - lastHitTestT) > DROP_HITTEST_MS) {
         lastHitTestT = nowT;
@@ -7567,17 +7609,20 @@ export function CanvasSurface({
         updateBoardDropTarget(nextDropTarget, nextDropTarget ? { x: ev.clientX, y: ev.clientY } : null);
         // Grid-cell drop target: reuse the same stack for a [data-cell-id] in a
         // grid that ISN'T part of the dragged set. A board drop wins over a cell
-        // drop. Only a SINGLE card of a cell-fillable kind highlights a cell, so
-        // a multi-select drag never shows a misleading affordance.
+        // drop. A single card of a cell-fillable kind highlights a cell; a
+        // multi-select of content cards highlights a GRID's boxes, numbered in
+        // the order they'll fill (count) — never a schedule's slots, which
+        // append one item at a time.
         let nextCell = null;
-        if (!nextDropTarget && soloCellable && !outsideEl) {
+        if (!nextDropTarget && (soloCellable || multiCellable) && !outsideEl) {
           for (const el of stack) {
             const cellEl = el?.closest?.('[data-cell-id]');
             if (!cellEl) continue;
             const gridEl = cellEl.closest('[data-grid-id]');
             const gid = gridEl?.getAttribute?.('data-grid-id');
             if (!gid || dragIds.includes(gid)) continue; // not into the dragged grid itself
-            nextCell = { gridId: gid, cellId: cellEl.getAttribute('data-cell-id') };
+            if (!soloCellable && cardById[gid]?.kind !== 'grid') break;
+            nextCell = { gridId: gid, cellId: cellEl.getAttribute('data-cell-id'), count: soloCellable ? 1 : dragIds.length };
             break;
           }
         }
@@ -7821,6 +7866,39 @@ export function CanvasSurface({
         if (moved.length === 1 && routeCardIntoCell(moved[0], cellTarget.gridId, cellTarget.cellId)) {
           setDrag(null);
           return;
+        }
+        // Several cards onto a grid box: they fill that box and the empty boxes
+        // after it, taken in their own reading order on the canvas (the order
+        // the numbered boxes showed). Whatever has no box goes beside the grid.
+        // One gesture, one undo step.
+        const tg = cardById[cellTarget.gridId];
+        if (moved.length > 1 && tg?.kind === 'grid' && moved.every((m) => MULTI_CELL_KINDS.has(m.kind))) {
+          const tl = sanitizeLayout(readGridModel(tg, ydoc, gridTemplates).layout);
+          if (tl) {
+            const plan = planCellFill(computeCellRects(tl, { x: 0, y: 0, w: tg.w || 360, h: tg.h || 300 }),
+              readGridModel(tg, ydoc, gridTemplates).cells, cellTarget.cellId, moved.length);
+            const byId = Object.fromEntries(moved.map((m) => [m.id, m]));
+            const ordered = readingOrder(moved.map((m) => ({ id: m.id, x: m.x || 0, y: m.y || 0, w: m.w || 0, h: m.h || 0 }))).map((id) => byId[id]);
+            mutators.breakUndo?.();
+            const consumed = new Set();
+            plan.forEach((cellId, i) => { if (ordered[i] && routeCardIntoCell(ordered[i], tg.id, cellId)) consumed.add(ordered[i].id); });
+            const rest = ordered.filter((m) => !consumed.has(m.id));
+            if (consumed.size && rest.length) {
+              // The rest keep their arrangement as one block, moved to the free
+              // space nearest the grid's right edge.
+              const block = rest.map((m) => ({ id: m.id, x: m.x || 0, y: m.y || 0, w: m.w || 0, h: m.h || 0 }));
+              const left = Math.min(...block.map((r) => r.x)), top = Math.min(...block.map((r) => r.y));
+              const bw = Math.max(...block.map((r) => r.x + r.w)) - left, bh = Math.max(...block.map((r) => r.y + r.h)) - top;
+              const solid = withGeometry(cardsRef.current.filter((x) => !dragIds.includes(x.id)));
+              const spot = nearestFreeSpot(solid, { x: Math.round((tg.x || 0) + (tg.w || 0) + 24), y: Math.round(tg.y || 0) }, bw, bh) || besideContent(solid);
+              mutators.updateCards?.(block.map((r) => ({ id: r.id, patch: { x: Math.round(r.x - left + spot.x), y: Math.round(r.y - top + spot.y) } })));
+            }
+            mutators.breakUndo?.();
+            if (consumed.size) {
+              setDrag(null);
+              return;
+            }
+          }
         }
       }
       // ── Same-canvas drop onto a board card (move INTO that board) ──
@@ -8728,6 +8806,13 @@ export function CanvasSurface({
         ]});
       } else if (c.kind === 'grid') {
         const linked = !!c.templateId;
+        // Spacing: flush (the default contact-sheet look) or the gallery look —
+        // boxes apart on the frame with rounded corners. A linked family
+        // changes together (setGridSpacing writes every member).
+        const gapNow = gridGapOf(c);
+        items.push({ id: 'grid-spacing', label: 'Spacing', submenu: GRID_SPACING.map((s) => ({
+          id: 'gsp-' + s.id, label: `${s.label}${gapNow === s.gap ? ' ✓' : ''}`, run: () => mutators.setGridSpacing?.(c.id, s.gap),
+        })) });
         // Opens the Templates panel with this grid as the target. Selecting it
         // first is what makes the panel apply rather than place — the same rule
         // the panel's header states, reached from the card instead of the rail.
@@ -8757,7 +8842,12 @@ export function CanvasSurface({
           if (!v) return;
           const mt = String(v).match(/(\d+)\s*[x×,]\s*(\d+)/i);
           if (!mt) { feedback.toast({ type: 'error', code: 'matrix_size_invalid', message: 'Enter dimensions like 6 x 3.' }); return; }
-          mutators.bulkGenerateGrids?.(c.id, parseInt(mt[1], 10), parseInt(mt[2], 10));
+          const mc = parseInt(mt[1], 10), mr = parseInt(mt[2], 10);
+          if (mc * mr > 200) {
+            const ok = await feedback.confirm?.({ title: 'Make a big matrix', message: `This creates ${mc * mr} grids — it may take a moment. Continue?`, confirmLabel: 'Generate' });
+            if (!ok) return;
+          }
+          mutators.bulkGenerateGrids?.(c.id, mc, mr);
         }});
         if (c.seqId) {
           const seq = gridSequences[c.seqId];
@@ -10999,14 +11089,28 @@ export function CanvasSurface({
   }, [cards, gridSequences]);
   const gridSeqFormatFor = (c) => (c?.seqId && gridSequences[c.seqId]?.format) || null;
 
-  // Bulk-generate from the inline control, confirming for very large matrices.
-  const makeGridMatrix = async (gridId, cols, rows) => {
-    const n = cols * rows;
-    if (n > 200) {
-      const ok = await feedback.confirm?.({ title: 'Make a big grid', message: `This creates ${n} grids — it may take a moment. Continue?`, confirmLabel: 'Make grid' });
-      if (!ok) return;
+  // The grid bar's Apply: cut this grid into cols × rows even boxes. Content is
+  // kept in reading order (applyGridLayout re-homes it, family-wide); when that
+  // would leave filled boxes with nowhere to go, ask first — and the change is
+  // still one ⌘Z step either way.
+  const applyGridBoxes = async (gridId, cols, rows) => {
+    const c = cardByIdRef.current[gridId];
+    if (!c) return;
+    const model = readGridModel(c, ydoc, gridTemplates);
+    const next = evenTree(cols, rows);
+    const cur = sanitizeLayout(model.layout);
+    if (cur) {
+      const { dropped } = rehomeCells(cur, next, model.cells, { x: 0, y: 0, w: c.w || 360, h: c.h || 300 });
+      if (dropped > 0) {
+        const ok = await feedback.confirm?.({
+          title: `Cut into ${cols * rows} ${cols * rows === 1 ? 'box' : 'boxes'}?`,
+          message: dropped === 1 ? 'One filled box won’t fit and will be removed. You can undo this.' : `${dropped} filled boxes won’t fit and will be removed. You can undo this.`,
+          confirmLabel: 'Cut into boxes',
+        });
+        if (!ok) return;
+      }
     }
-    mutators.bulkGenerateGrids?.(gridId, cols, rows);
+    mutators.applyGridLayout?.(gridId, next, null);
   };
 
   // Editing actions GridCard calls — thin forwards to the grid mutators plus the
@@ -11266,6 +11370,28 @@ export function CanvasSurface({
       input.click();
     },
     fillCellFromFiles,
+    // Several files dropped on one box: the box dropped on first, then the
+    // empty boxes after it in reading order (lib/gridLayout.js planCellFill),
+    // and whatever has no box goes beside the grid as ordinary cards — the
+    // owner's "fill, rest beside".
+    fillCellsFromFiles: async (gridId, cellId, files) => {
+      const list = Array.from(files || []);
+      if (!list.length) return;
+      const c = cardByIdRef.current[gridId];
+      const layout = c && c.kind === 'grid' ? sanitizeLayout(readGridModel(c, ydoc, gridTemplates).layout) : null;
+      if (list.length === 1 || !layout) { await fillCellFromFiles(gridId, cellId, list); return; }
+      const cells = readGridModel(c, ydoc, gridTemplates).cells;
+      const plan = planCellFill(computeCellRects(layout, { x: 0, y: 0, w: c.w || 360, h: c.h || 300 }), cells, cellId, list.length);
+      const extra = list.slice(plan.length);
+      if (extra.length) {
+        ingestFiles(extra, (c.x || 0) + (c.w || 0) + 24, c.y || 0, 'drop',
+          { beside: { x: Math.round((c.x || 0) + (c.w || 0) + 24), y: Math.round(c.y || 0) } });
+      }
+      await Promise.all(plan.map((id, i) => fillCellFromFiles(gridId, id, [list[i]])));
+    },
+    // Drag a filled box by its grip onto another box: they trade places (an
+    // empty target means a move). One undo step, family-wide for linked grids.
+    swapCells: (gridId, fromId, toId) => mutators.swapGridCells?.(gridId, fromId, toId),
     addLinkToCell: async (gridId, cellId) => {
       cellId = resolveCellWriteKey(gridId, cellId);
       if (!guardCellFill(gridId, cellId)) return;   // demo cap: a link counts as a card
@@ -11284,7 +11410,59 @@ export function CanvasSurface({
         if (Object.keys(np).length) mutators.setGridCellContent?.(gridId, cellId, np);
       });
     },
-  }), [mutators, workspaceId, board?.id, userId, feedback, focusCell, pasteIntoCell, fillCellFromFiles, guardCellFill, resolveCellWriteKey]);
+  }), [mutators, workspaceId, board?.id, userId, feedback, focusCell, pasteIntoCell, fillCellFromFiles, guardCellFill, resolveCellWriteKey, ingestFiles, ydoc, gridTemplates]);
+
+  // The box keys of ONE selected grid (the keyboard effect calls this; see
+  // boxKeyRef). ←→↑↓ move the picked box to its neighbour (the first box when
+  // none is picked yet); Enter opens it — a text box starts editing, any other
+  // opens its menu (GridCard's 'gridc-enter'); Delete/Backspace clears a filled
+  // box with Undo; Esc lets go of the box. Anything else returns false.
+  boxKeyRef.current = (e) => {
+    const k = e.key;
+    const dir = k === 'ArrowLeft' ? 'left' : k === 'ArrowRight' ? 'right' : k === 'ArrowUp' ? 'up' : k === 'ArrowDown' ? 'down' : null;
+    if (!dir && k !== 'Enter' && k !== 'Delete' && k !== 'Backspace' && k !== 'Escape') return false;
+    if (e.metaKey || e.ctrlKey || e.altKey || selectedTool !== 'select') return false;
+    const sel = selectedRef.current;
+    if (!sel || sel.size !== 1) return false;
+    const gid = [...sel][0];
+    const g = cardByIdRef.current[gid];
+    if (!g || g.kind !== 'grid') return false;
+    const fc = focusedCellRef.current;
+    const cellId = fc && fc.gridId === gid ? fc.cellId : null;
+    if (k === 'Escape') {
+      if (!cellId) return false;
+      e.preventDefault();
+      focusCell(null, null);
+      return true;
+    }
+    const layout = sanitizeLayout(readGridModel(g, ydoc, gridTemplates).layout);
+    if (!layout) return false;
+    if (dir) {
+      e.preventDefault();
+      const rects = computeCellRects(layout, { x: 0, y: 0, w: g.w || 360, h: g.h || 300 });
+      const next = cellId ? neighborCell(rects, cellId, dir) : readingOrder(rects)[0];
+      if (next) focusCell(gid, next);
+      return true;
+    }
+    if (!cellId) return false;
+    if (k === 'Enter') {
+      if (!canEdit) return false;
+      e.preventDefault();
+      const esc = (window.CSS && CSS.escape) ? CSS.escape(gid) : gid;
+      const el = (wrapRef.current || document).querySelector(`.gridc[data-grid-id="${esc}"]`);
+      el?.dispatchEvent(new CustomEvent('gridc-enter', { detail: { cellId } }));
+      return true;
+    }
+    // Delete / Backspace. Consumed already (a comment thread deleting itself)
+    // or an empty box → not ours; the grid-level delete decides.
+    if (e.defaultPrevented) return false;
+    const rec = readGridModel(g, ydoc, null).cells[cellId];
+    if (!rec || !rec.type || rec.type === 'empty') return false;
+    e.preventDefault();
+    if (!canEdit) { showEditBlockedToast(); return true; }
+    gridActions.withUndoToast('Box cleared', () => mutators.clearGridCellContent?.(gid, cellId));
+    return true;
+  };
 
   const renderCard = (c) => {
     const inDrag = drag && drag.ids.includes(c.id);
@@ -11555,6 +11733,7 @@ export function CanvasSurface({
                         annotationsVisible={commentsVisible}
                         focusedCellId={focusedCell?.gridId === c.id ? focusedCell.cellId : null}
                         dropCellId={cellDropTarget?.gridId === c.id ? cellDropTarget.cellId : null}
+                        dropCount={cellDropTarget?.gridId === c.id ? (cellDropTarget.count || 1) : 1}
                         cellUploads={gridUploads}
                         boards={boards} onOpenBoard={onOpenBoard}
                         gridActions={gridActions} getAwareness={getAwareness} boardId={board.id} />;
@@ -11672,7 +11851,10 @@ export function CanvasSurface({
         )}
         {canEdit && selectedTool === 'select' && isSelected && c.kind === 'grid'
           && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
-          <GridMatrixControl onGenerate={(cols, rows) => makeGridMatrix(c.id, cols, rows)} />
+          <GridBoxesControl key={c.id}
+            {...(() => { const l = latticeOf(readGridModel(c, ydoc, gridTemplates).layout); return l ? { initialCols: l.cols, initialRows: l.rows } : {}; })()}
+            onApply={(cols, rows) => applyGridBoxes(c.id, cols, rows)}
+            onEvenOut={() => mutators.evenGridLayout?.(c.id)} />
         )}
       </div>
     );

@@ -1,11 +1,11 @@
-// Full-size pop-out menu for a grid cell that is too small to host the inline
-// hover pill. Portaled to document.body (cards live in a transformed canvas
-// layer, so a position:fixed descendant would otherwise re-anchor to the
-// transform) and placed flush BESIDE the cell (right → left → below → above) so
-// it never covers the tiny cell. It escapes the .gridc { overflow:hidden } clip
-// and stays a comfortable size at any cell size or zoom. Every option reuses the
-// exact same gridActions.* handlers as the inline pill (passed in as callbacks),
-// so both the Yjs and local shells work with no extra wiring.
+// A grid box's menu: the ··· in a box's corner (Edit photo, Replace…, Download,
+// the splits, Clear box) and the + of a box too small for its chooser.
+// Portaled to document.body (cards live in a transformed canvas layer, so a
+// position:fixed descendant would otherwise re-anchor to the transform) and
+// placed flush BESIDE its anchor (right → left → below → above). It escapes the
+// .gridc { overflow:hidden } clip and stays a comfortable size at any cell size
+// or zoom. Every option reuses the exact same gridActions.* handlers (passed in
+// as callbacks), so both the Yjs and local shells work with no extra wiring.
 
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -114,10 +114,7 @@ export function GridCellMenu({ anchorRect, mode = 'empty', isImage = false,
           )}
           <button type="button" className="gcm-item" title="Replace" aria-label="Replace"
                   onClick={(e) => { e.stopPropagation(); setShowChooser(true); }}>
-            <span className="gridc-ico"><Icon as={ArrowsClockwise} size={16} /></span><span className="gcm-label">Replace</span>
-          </button>
-          <button type="button" className="gcm-item" title="Clear" aria-label="Clear" onClick={run(onClear)}>
-            <span className="gridc-ico"><Icon as={Trash} size={16} /></span><span className="gcm-label">Clear</span>
+            <span className="gridc-ico"><Icon as={ArrowsClockwise} size={16} /></span><span className="gcm-label">Replace…</span>
           </button>
         </div>
       )}
@@ -128,10 +125,22 @@ export function GridCellMenu({ anchorRect, mode = 'empty', isImage = false,
           <div className="gcm-sep" />
           <div className="gcm-group">
             <button type="button" className="gcm-item" title="Add a vertical line (split into columns)" aria-label="Split into columns" onClick={run(onSplitRow)}>
-              <span className="gridc-ico"><Icon as={Columns} size={16} /></span><span className="gcm-label">Split columns</span>
+              <span className="gridc-ico"><Icon as={Columns} size={16} /></span><span className="gcm-label">Split into columns</span>
             </button>
             <button type="button" className="gcm-item" title="Add a horizontal line (split into rows)" aria-label="Split into rows" onClick={run(onSplitCol)}>
-              <span className="gridc-ico gridc-rot90"><Icon as={Columns} size={16} /></span><span className="gcm-label">Split rows</span>
+              <span className="gridc-ico gridc-rot90"><Icon as={Columns} size={16} /></span><span className="gcm-label">Split into rows</span>
+            </button>
+          </div>
+        </>
+      ) : null}
+      {!showChooser && onClear ? (
+        // Last and set apart: the one choice here that takes something away.
+        // ⌫ is the same clear from the keyboard on a focused box (with Undo).
+        <>
+          <div className="gcm-sep" />
+          <div className="gcm-group">
+            <button type="button" className="gcm-item is-danger" title="Clear box" aria-label="Clear box" onClick={run(onClear)}>
+              <span className="gridc-ico"><Icon as={Trash} size={16} /></span><span className="gcm-label">Clear box</span><span className="gcm-key" aria-hidden="true">⌫</span>
             </button>
           </div>
         </>

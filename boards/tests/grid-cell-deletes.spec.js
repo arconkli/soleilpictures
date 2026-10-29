@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 // removing a line never silently takes an image or text with it.
 //   CARDS-05 — removing a line moves the removed side's content into an empty
 //              neighbour; when both sides hold content it names the loss.
-//   CARDS-10 — Clear on a filled cell shows the Undo toast.
+//   CARDS-10 — Clear box in the box menu shows the Undo toast.
 //   CARDS-18 — a double-clicked cell left without a word goes back to empty.
 
 async function addGrid(page) {
@@ -54,10 +54,7 @@ async function typeInto(page, n, text) {
 async function removeBottomLine(page) {
   await select(page);
   const line = grid(page).locator('.gridc-divider-x.is-grabbable').first();
-  // The line is a few px wide between two cells and its 18px remove disc
-  // overlaps the cell bodies, so a real click on the disc is a coin flip
-  // against the cell above it. A double-click on the line runs the same
-  // remove path.
+  // Double-clicking the line removes it (there is no remove disc any more).
   await line.dblclick({ force: true });
   await expect(grid(page).locator('.gridc-cell')).toHaveCount(2);
 }
@@ -84,18 +81,19 @@ test.describe('grid cell deletes', () => {
     await select(page);
     await typeInto(page, 2, 'Right');
     await removeBottomLine(page);
-    await expect(page.locator('.toast-msg', { hasText: 'Removed a filled cell' })).toBeVisible();
+    await expect(page.locator('.toast-msg', { hasText: 'Removed a filled box' })).toBeVisible();
     await expect(page.locator('.toast').getByRole('button', { name: 'Undo' })).toBeVisible();
   });
 
-  test('Clear on a filled cell shows the Undo toast', async ({ page }) => {
+  test('Clear box on a filled cell shows the Undo toast', async ({ page }) => {
     await select(page);
     await typeInto(page, 1, 'Gone soon');
     await select(page);
     const cell = cellAt(page, 1);
     await cell.hover({ position: { x: 20, y: 20 } });
-    await cell.locator('.gridc-cell-x').click();
-    await expect(page.locator('.toast-msg', { hasText: 'Cell cleared' })).toBeVisible();
+    await cell.getByRole('button', { name: 'Box options' }).click();
+    await page.locator('.gridc-cell-menu').getByRole('button', { name: 'Clear box' }).click();
+    await expect(page.locator('.toast-msg', { hasText: 'Box cleared' })).toBeVisible();
     await expect(cellAt(page, 1)).toHaveClass(/is-empty/);
   });
 
