@@ -7,10 +7,15 @@
 // devices that saw one of its pages. 'A' — today's page — for everyone not in
 // the test: crawlers, signed-in people, before the start date.
 //
+// ?preview=signupbox (production too) shows B to anyone, signed in included,
+// without enrolling; analytics.js marks those events synthetic, so the read
+// never sees them (visitorArms.js isBoxPreview).
+//
 // Dev only: ?sbox=A or ?sbox=B forces an arm without enrolling. Behind the
 // literal import.meta.env.DEV guard, so production builds drop it.
 import { useMemo } from 'react';
 import { getDeviceId } from '../lib/analytics.js';
+import { isBoxPreview } from '../lib/visitorArms.js';
 import { getDeviceInfo } from '../lib/device.js';
 import { enrollVisitor } from '../lib/visitorEnroll.js';
 
@@ -27,6 +32,7 @@ function enrollVisitorArm(key) {
 export function useSignupBoxArm(eligible = true) {
   return useMemo(() => {
     if (!eligible) return 'A';
+    if (isBoxPreview()) return 'B';
     if (import.meta.env.DEV) {
       try {
         const forced = new URLSearchParams(window.location.search).get('sbox');
