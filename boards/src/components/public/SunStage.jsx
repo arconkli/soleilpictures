@@ -1,26 +1,29 @@
-// The search pages' picture of a real board in the new look: the Clusters
-// mark, big, holding that board's own cards (cut out of its live /c/ page).
-// Which page gets which treatment, and where every card sits, is in
-// lib/landingStage.js; this only draws it.
+// The search pages' picture of a real board in the new look: that board's own
+// cards (cut out of its live /c/ page) with the logo's feel around them, the
+// mark's dashed ring opened into orbits and its suns gliding along them
+// (lib/sunArt.js). Which page gets which treatment, and where every card sits,
+// is in lib/landingStage.js; this only draws it.
 //
 //   <SunStage mode="full" slug=… imgAlt=… />    the stage is the picture
 //   <SunStage mode="behind" slug=…>{frame}</SunStage>
 //                                               today's browser frame, kept
-//                                               as it is, with the suns and
-//                                               three cards behind and around it
+//                                               as it is, with the orbits
+//                                               behind it and three cards
+//                                               over its edges
 //
-// Motion is CSS: the suns rise, the ring's dashes arrive, the cards settle in
-// once the stage scrolls into view, and on a mouse they drift a little with
-// the pointer. Nothing moves under prefers-reduced-motion, and without script
-// (a crawler, a failed chunk) everything simply sits in its final place: the
-// hidden "before" state is only ever set by script, right before it animates.
+// The art always sits behind the cards: the cards are the real board.
+// Motion: once the stage scrolls into view the rings turn in, the suns glide
+// along their orbits into place (SMIL, started here and only here) and the
+// cards settle; on a mouse the cards drift a little with the pointer. Nothing
+// moves under prefers-reduced-motion, and without script (a crawler, a failed
+// chunk) everything simply sits in its final place: the hidden "before" state
+// is only ever set by script, right before it animates.
 
-import { useLayoutEffect, useRef, useState } from 'react';
-import { sunMarkSvg, MARK_MID } from '../../lib/sunMark.js';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ORBIT_ART, orbitArtSvg, orbitArtWidth } from '../../lib/sunArt.js';
 import { FULL_LAYOUT, BEHIND_LAYOUT, stageCards } from '../../lib/landingStage.js';
 import './sunStage.css';
 
-const MX = MARK_MID[0] / 2048, MY = MARK_MID[1] / 2048;
 const pct = (n) => `${n}%`;
 
 function reducedMotion() {
@@ -28,39 +31,29 @@ function reducedMotion() {
 }
 
 // The cards' inline custom properties: desktop always, phone when it has one.
-function cardStyle(c, i) {
+// Behind a frame the cards' layer is wider than the frame (sunStage.css), so
+// across they are placed from its middle in cqw, which are the frame's.
+function cardStyle(c, i, behind) {
+  const across = (x) => (behind ? `calc(50% + ${(x - 50).toFixed(2)}cqw)` : pct(x));
   const [x, y, w, r] = c.desk;
-  const s = { '--x': pct(x), '--y': pct(y), '--w': `${w}cqw`, '--r': `${r}deg`, '--i': i };
+  const s = { '--x': across(x), '--y': pct(y), '--w': `${w}cqw`, '--r': `${r}deg`, '--i': i };
   if (c.phone) {
     const [px, py, pw, pr] = c.phone;
-    Object.assign(s, { '--px': pct(px), '--py': pct(py), '--pw': `${pw}cqw`, '--pr': `${pr}deg` });
+    Object.assign(s, { '--px': across(px), '--py': pct(py), '--pw': `${pw}cqw`, '--pr': `${pr}deg` });
   }
   return s;
 }
 
-// Where the mark goes. FULL: [left %, top %, width %] of the stage box.
-// BEHIND: [left %, centre-y offset (cqw), width %] around the frame's middle.
-function markPlace(mode, [l, t, w]) {
-  const cx = l + MX * w;                        // the ring's middle, % of width
-  return {
-    ml: pct(l),
-    mw: `${w}cqw`,
-    mt: mode === 'full' ? pct(t) : `calc(50% + ${(t - MY * w).toFixed(2)}cqw)`,
-    // The glow is centred on the ring's middle.
-    gx: pct(cx.toFixed(2)),
-    gy: mode === 'full' ? `calc(${t}% + ${(MY * w).toFixed(2)}cqw)` : `calc(50% + ${t}cqw)`,
-    gw: `${(w * (mode === 'full' ? 1.9 : 1.3)).toFixed(1)}cqw`,
-  };
-}
-
-// Every name spelled out, so the stylesheet token check can see them set.
-function markStyle(mode, m) {
-  const d = markPlace(mode, m.desk);
-  const p = markPlace(mode, m.phone);
-  return {
-    '--ml': d.ml, '--mt': d.mt, '--mw': d.mw, '--gx': d.gx, '--gy': d.gy, '--gw': d.gw,
-    '--pml': p.ml, '--pmt': p.mt, '--pmw': p.mw, '--pgx': p.gx, '--pgy': p.gy, '--pgw': p.gw,
-  };
+// One piece of art: desktop (`is-desk`) or phone (`is-phone`), the stylesheet
+// shows one. Behind a frame it is centred on the frame and sized against it.
+function Art({ kind, cls }) {
+  const [w, h] = ORBIT_ART[kind].box;
+  const style = kind.startsWith('behind') ? { width: `${orbitArtWidth(kind)}cqw` } : undefined;
+  return (
+    <svg className={`sun-art ${cls}`} viewBox={`0 0 ${w} ${h}`} style={style}
+         aria-hidden="true" focusable="false"
+         dangerouslySetInnerHTML={{ __html: orbitArtSvg(kind, { id: `oa${kind}` }) }} />
+  );
 }
 
 export function SunStage({ mode, slug, imgAlt = '', children = null }) {
@@ -68,7 +61,7 @@ export function SunStage({ mode, slug, imgAlt = '', children = null }) {
   const cards = stageCards(slug, layout);
   const rootRef = useRef(null);
   // 'still' = drawn in its final place (no script yet, or no motion wanted);
-  // 'wait' = hidden, about to rise; 'in' = rising / risen.
+  // 'wait' = hidden, about to arrive; 'in' = arriving / arrived.
   const [phase, setPhase] = useState('still');
 
   useLayoutEffect(() => {
@@ -109,18 +102,23 @@ export function SunStage({ mode, slug, imgAlt = '', children = null }) {
     };
   }, []);
 
-  const mark = (
-    <>
-      <span className="sun-glow" aria-hidden="true" />
-      <svg className="sun-mark" viewBox="0 0 2048 2048" aria-hidden="true" focusable="false"
-           dangerouslySetInnerHTML={{ __html: sunMarkSvg({ id: `sun${mode}` }) }} />
-    </>
-  );
+  // The suns' glides start with the rest of the motion. They hold still for
+  // their delay while the stylesheet fades them in over the same time.
+  useEffect(() => {
+    if (phase !== 'in') return;
+    for (const a of rootRef.current?.querySelectorAll('animateMotion') || []) {
+      try { a.beginElement(); } catch { /* no SMIL: the sun is already in place */ }
+    }
+  }, [phase]);
+
+  const art = mode === 'behind'
+    ? <><Art kind="behind" cls="is-desk" /><Art kind="behindPhone" cls="is-phone" /></>
+    : <><Art kind="full" cls="is-desk" /><Art kind="phone" cls="is-phone" /></>;
   const cardEls = cards.map((c, i) => (
     <div key={c.role} className={`sun-card${c.over ? ' is-over' : ''}${c.phone ? '' : ' is-desk'}`}
-         style={cardStyle(c, i)} data-depth={c.depth}>
-      {/* The first picture under the suns carries the board's name for image
-          search; the rest are decoration. */}
+         style={cardStyle(c, i, mode === 'behind')} data-depth={c.depth}>
+      {/* The first picture carries the board's name for image search; the
+          rest are decoration. */}
       <img src={c.src} width={c.w} height={c.h} loading="lazy" decoding="async"
            alt={mode === 'full' && c.role === 'c1' ? imgAlt : ''} />
     </div>
@@ -129,16 +127,16 @@ export function SunStage({ mode, slug, imgAlt = '', children = null }) {
 
   if (mode === 'behind') {
     return (
-      <div ref={rootRef} className={cls} style={markStyle('behind', layout.mark)}>
-        <div className="sun-deco" aria-hidden="true">{mark}</div>
+      <div ref={rootRef} className={cls}>
+        <div className="sun-deco" aria-hidden="true">{art}</div>
         {children}
         <div className="sun-cards" aria-hidden="true">{cardEls}</div>
       </div>
     );
   }
   return (
-    <div ref={rootRef} className={cls} style={markStyle('full', layout.mark)}>
-      {mark}
+    <div ref={rootRef} className={cls}>
+      {art}
       {cardEls}
     </div>
   );

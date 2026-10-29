@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Generate 1200×630 Open Graph cards for the SEO landing pages + the site
 // default, into public/og/. Each card: dark brand background with a soft gold
-// glow, the sun mark, the page H1 in large display type, the subhead, and the
+// glow, the sun art (the search pages) or the mark (home), the page H1 in large display type, the subhead, and the
 // domain footer. Rendered with Playwright (HTML → screenshot), compressed with
 // sharp. Re-run whenever a page's h1/subhead changes.
 //
@@ -24,6 +24,7 @@ import { TEMPLATE_CATEGORIES } from '../src/lib/templateCards.js';
 import { OG_STAGE, STAGE_DIR, ogStageSlug } from '../src/lib/landingStage.js';
 import { STAGE_CARDS } from '../src/lib/landingStageCards.js';
 import { sunMarkSvg, MARK_MID } from '../src/lib/sunMark.js';
+import { ORBIT_ART, orbitArtSvg } from '../src/lib/sunArt.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -64,8 +65,10 @@ function cardHtml({ h1, subhead }) {
 
 // ── The sun look (2026-10-29) ────────────────────────────────────────────────
 // The search pages that show a real board in the sun stage get the same look
-// in their link preview: the words on the left, the Clusters mark on the right
-// holding cards cut from the page's own board (public/landing/v2, made by
+// in their link preview: the words on the left, on the right cards cut from
+// the page's own board inside the logo's orbits and suns (lib/sunArt.js 'og'),
+// the logo's feel rather than the logo (owner, 2026-10-29). The homepage's
+// card keeps the Clusters mark itself (`mark: true`; owner OK'd it 10-29) (public/landing/v2, made by
 // scripts/shootStageCards.mjs). Which pages, and where the cards sit, come from
 // lib/landingStage.js, which worker.js versions the og:image URL from too.
 const DISPLAY = "brandon-grotesque, Futura, 'Avenir Next', 'Segoe UI', sans-serif";
@@ -74,12 +77,12 @@ const webp = (rel) => `data:image/webp;base64,${readFileSync(resolve(ROOT, 'publ
 const jpeg = (file) => `data:image/jpeg;base64,${readFileSync(resolve(HERE, 'og-art', file)).toString('base64')}`;
 const SHADOW = 'drop-shadow(0 14px 22px rgba(0,0,0,.55)) drop-shadow(0 2px 4px rgba(0,0,0,.4))';
 
-// cards: [{ slug, role, cx, cy, rot, maxW }] in the mark's 2048-unit box, or
+// cards: [{ slug, role, cx, cy, rot, maxW }] in OG_STAGE.box's 2048-unit square, or
 // { art, cx, cy, rot, maxW }: a picture of our own from scripts/og-art, drawn
 // as an image card on the board (a thin white frame, rounded corners), or
 // { html, … }: a card drawn from markup (a palette, a script page).
-function stageHtml({ eyebrow, h1, subhead, cards }) {
-  const [mx, my, m] = OG_STAGE.mark;
+function stageHtml({ eyebrow, h1, subhead, cards, mark = false }) {
+  const [mx, my, m] = OG_STAGE.box;
   const s = m / 2048;
   const [rx, ry] = MARK_MID;
   const glow = m * 1.9;
@@ -95,8 +98,9 @@ function stageHtml({ eyebrow, h1, subhead, cards }) {
   return `<!doctype html><html><head><link rel="stylesheet" href="https://use.typekit.net/qtd2rwk.css" /></head>
 <body style="margin:0;width:1200px;height:630px;overflow:hidden;">
   <div style="position:relative;width:1200px;height:630px;overflow:hidden;background:radial-gradient(ellipse 62% 70% at 70% 50%,#1d130a,#0a0809 74%);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#f5f5f7;">
-    <div style="position:absolute;left:${mx + rx * s - glow / 2}px;top:${my + ry * s - glow / 2}px;width:${glow}px;height:${glow}px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,160,40,.20),rgba(255,140,20,.06) 55%,transparent);"></div>
-    <svg viewBox="0 0 2048 2048" width="${m}" height="${m}" style="position:absolute;left:${mx}px;top:${my}px;z-index:2;filter:drop-shadow(0 14px 30px rgba(0,0,0,.55));">${sunMarkSvg({ id: 'og' })}</svg>
+    ${mark ? `<div style="position:absolute;left:${mx + rx * s - glow / 2}px;top:${my + ry * s - glow / 2}px;width:${glow}px;height:${glow}px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,160,40,.20),rgba(255,140,20,.06) 55%,transparent);"></div>
+    <svg viewBox="0 0 2048 2048" width="${m}" height="${m}" style="position:absolute;left:${mx}px;top:${my}px;z-index:2;filter:drop-shadow(0 14px 30px rgba(0,0,0,.55));">${sunMarkSvg({ id: 'og' })}</svg>`
+    : `<svg viewBox="0 0 ${ORBIT_ART.og.box.join(' ')}" width="1200" height="630" style="position:absolute;left:0;top:0;z-index:2;overflow:visible;"><style>.orb{filter:drop-shadow(0 8px 16px rgba(0,0,0,.45))}</style>${orbitArtSvg('og', { id: 'og', motion: false })}</svg>`}
     ${placed}
     <div id="tx" style="position:absolute;left:72px;top:40px;bottom:110px;width:540px;display:flex;flex-direction:column;justify-content:center;z-index:5;">
       ${eyebrow ? `<div style="font:700 14px/1 ${DISPLAY};letter-spacing:.22em;text-transform:uppercase;color:#ffa500;margin:0 0 20px;">${esc(eyebrow)}</div>` : ''}
@@ -189,6 +193,7 @@ const cards = [
       h1: 'Your references, clustered.',
       subhead: 'Pictures, video, script pages and any file, on one canvas you can share.',
       cards: HOME_CARDS,
+      mark: true,
     }),
   },
   // Documentation: ONE card per section, not per page. Fifty near-identical
