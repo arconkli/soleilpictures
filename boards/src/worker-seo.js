@@ -18,8 +18,9 @@
 //
 //   POST /api/seo/indexnow  { slug } | { paths: [...] } | { all: true }
 //     Tell IndexNow (Bing/Yandex) a public URL changed. Admin-only like the
-//     others, but it needs neither Workers AI nor the service-role key and its
-//     body is not a board_id — see handleSeoRoute for why that mattered.
+//     others, but it needs no Workers AI and its body is not a board_id — see
+//     handleSeoRoute for why that mattered. The request itself is sent by the
+//     database (_indexnow_send, 0800): IndexNow answers 429 to Worker egress.
 
 import { SEO_LANDING_LISTED } from './lib/seoLanding.js';
 import { SEO_LISTICLE_INDEX } from './lib/seoListicleIndex.js';
@@ -92,6 +93,20 @@ async function sbUpsert(env, table, rows, onConflict) {
   });
   if (!res.ok) throw new Error(`sbUpsert ${table} ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
 }
+async function sbRpc(env, fn, args) {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(args || {}),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) throw new Error(`sbRpc ${fn} ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
+  return res.json();
+}
 async function sbInsert(env, table, row) {
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}`, {
     method: 'POST',
@@ -157,8 +172,7 @@ export async function handleSeoRoute(url, request, env) {
   let body = {};
   try { body = await request.json(); } catch (_) {}
 
-  // IndexNow first. It needs neither Workers AI nor the service-role key, and
-  // its body is { slug } / { paths } — never a board_id. It sat BELOW the
+  // IndexNow first. It needs no Workers AI, and its body is { slug } / { paths } — never a board_id. It sat BELOW the
   // draft/alt preconditions from the day it shipped, so every ping the admin
   // client ever sent was answered 400 'valid board_id required' and swallowed
   // by the best-effort caller: the route had never once reached its handler.
@@ -221,29 +235,24 @@ export function resolveIndexNowUrls(body) {
   return out;
 }
 
-// One POST to IndexNow → its HTTP status. Throws on a network failure or a
-// timeout; the caller decides what a non-2xx means.
-async function submitIndexNow(urlList) {
-  const res = await fetch('https://api.indexnow.org/indexnow', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json; charset=utf-8' },
-    body: JSON.stringify({
-      host: 'clusters.soleilpictures.com',
-      key: INDEXNOW_KEY,
-      keyLocation: `${SITE_ORIGIN}/${INDEXNOW_KEY}.txt`,
-      urlList,
-    }),
-    signal: AbortSignal.timeout(8_000),
-  });
-  return res.status;
+// The database sends the POST, not the Worker: api.indexnow.org answered 429
+// to every request from Cloudflare Worker egress (40 of 40 build pings, the
+// first included), while the identical body from anywhere else got 200. So
+// _indexnow_send (0800, service-role only, fixed host/key, our origin only)
+// queues it through pg_net and returns the request id; the answer lands a few
+// seconds later and _indexnow_settle copies it onto the indexnow_pings row.
+// Throws when the RPC fails.
+async function sendIndexNow(env, urlList) {
+  return Number(await sbRpc(env, '_indexnow_send', { p_urls: urlList }));
 }
 
 async function handleIndexNow(env, body) {
   const urlList = resolveIndexNowUrls(body);
   if (!urlList.length) return json({ error: 'a valid slug, known public paths, or all:true required' }, 400);
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) return json({ error: 'SUPABASE_SERVICE_ROLE_KEY not set on the Worker' }, 500);
   try {
-    const status = await submitIndexNow(urlList);
-    return json({ submitted: urlList, count: urlList.length, status, note: 'Bing/Yandex only — Google ignores IndexNow.' });
+    const requestId = await sendIndexNow(env, urlList);
+    return json({ submitted: urlList, count: urlList.length, queued: true, request_id: requestId, note: 'Bing/Yandex only — Google ignores IndexNow.' });
   } catch (e) {
     return json({ submitted: urlList, count: urlList.length, error: String(e?.message || e).slice(0, 120) });
   }
@@ -265,7 +274,12 @@ async function handleIndexNow(env, body) {
 //
 // Crons run only on the deployed Worker, never on a preview version, so this
 // cannot announce a build production is not serving.
-const INDEXNOW_OK = new Set([200, 202]);   // 202: received, key check pending
+//
+// The ping goes out through the database (sendIndexNow above), so a row is
+// written with ok = null and its pg_net request id; the next tick settles it
+// first (_indexnow_settle: ok = 200/202, or false after 2h with no answer) and
+// waits while one is still pending. lastmods is stored on every sent row; the
+// baseline query only ever reads ok rows, so a refused ping is never a baseline.
 const INDEXNOW_ATTEMPTS = 3;               // per build, an hour apart
 const INDEXNOW_MAX_URLS = 10_000;          // the protocol's per-request ceiling
 
@@ -289,8 +303,9 @@ export async function runIndexNowForBuild(env, build, getEntries) {
   const sha = String(build?.sha || '');
   if (!/^[0-9a-f]{7,40}$/.test(sha)) return;   // an unstamped build ('dev', 'unknown')
   try {
+    await sbRpc(env, '_indexnow_settle', {});
     const mine = await sbGet(env, `indexnow_pings?build_sha=eq.${sha}&select=ok`);
-    if (mine.some((r) => r.ok) || mine.length >= INDEXNOW_ATTEMPTS) return;
+    if (mine.some((r) => r.ok !== false) || mine.length >= INDEXNOW_ATTEMPTS) return;   // landed, waiting, or out of tries
     const [base] = await sbGet(env, 'indexnow_pings?ok=is.true&select=lastmods&order=pinged_at.desc&limit=1');
     const { lastmods, changed } = indexNowDiff(base?.lastmods ?? null, await getEntries());
     // build_date is a date column: anything else would fail the insert, and a
@@ -301,17 +316,18 @@ export async function runIndexNowForBuild(env, build, getEntries) {
       row.ok = true;
     } else {
       try {
-        row.status = await submitIndexNow(changed);
-        row.ok = INDEXNOW_OK.has(row.status);
+        row.request_id = await sendIndexNow(env, changed);
+        row.ok = null;   // sent; the next tick's settle records IndexNow's answer
       } catch (e) {
         row.ok = false;
         row.error = String(e?.message || e).slice(0, 300);
       }
     }
-    // Only a ping that landed becomes the next build's baseline.
-    if (row.ok) row.lastmods = lastmods;
+    // Only a ping that landed becomes the next build's baseline (that query
+    // filters ok = true), so storing the map on a pending row is safe.
+    if (row.ok !== false) row.lastmods = lastmods;
     await sbInsert(env, 'indexnow_pings', row);
-    console.log(`[indexnow] build ${sha}: ${changed.length} URL(s), ${row.ok ? 'ok' : 'failed'} ${row.status ?? row.error ?? ''}`);
+    console.log(`[indexnow] build ${sha}: ${changed.length} URL(s), ${row.ok === null ? `sent (request ${row.request_id})` : row.ok ? 'ok' : `failed ${row.error ?? ''}`}`);
   } catch (e) {
     console.error('[indexnow] build ping failed:', e?.message || e);
     await jobFailed(env, 'indexnow', e);

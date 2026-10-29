@@ -38,15 +38,16 @@ export function AdminSeoSection() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   // IndexNow: Bing/Yandex (and therefore ChatGPT search, which reads Bing's
-  // index). One click submits every registry page; the result line shows what
-  // Bing answered so a silent 4xx can never again pass as coverage.
+  // index). One click submits every registry page. The database sends it
+  // (0800: IndexNow refuses the Worker), so the line says it was sent; Bing's
+  // answer lands on its own and a refusal raises the IndexNow-failing alert.
   const [indexNow, setIndexNow] = useState({ busy: false, msg: null, err: null });
   const submitIndexNow = useCallback(async () => {
     setIndexNow({ busy: true, msg: null, err: null });
     try {
       const r = await pingIndexNowAll();
       setIndexNow({ busy: false, err: r?.error || null,
-        msg: r?.error ? null : `${r.count} URLs submitted · IndexNow ${r.status}` });
+        msg: r?.error ? null : `${r.count} URLs sent to IndexNow` });
     } catch (e) {
       setIndexNow({ busy: false, msg: null, err: e?.message || String(e) });
     }

@@ -770,8 +770,8 @@ export async function pingIndexNow(slug) {
 }
 
 // Submit the public marketing/docs pages to IndexNow (admin). Unlike
-// pingIndexNow this one reports: the Discover tab shows the count and the
-// status Bing returned. { all: true } lets the Worker enumerate the registries
+// pingIndexNow this one reports: the Discover tab shows how many URLs went out
+// (the database sends them, 0800, so Bing's answer arrives later). { all: true } lets the Worker enumerate the registries
 // so the admin chunk never imports them.
 export async function pingIndexNowAll() {
   const { data } = await supabase.auth.getSession();
@@ -784,7 +784,7 @@ export async function pingIndexNowAll() {
   });
   const out = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(out?.error || `indexnow ${res.status}`);
-  return out; // { submitted, count, status } or { submitted, count, error }
+  return out; // { submitted, count, queued, request_id } or { submitted, count, error }
 }
 
 // ── Self-serve "Publish to Explore" + admin approve-queue (migration 0169) ──
