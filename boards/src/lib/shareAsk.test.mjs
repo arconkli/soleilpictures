@@ -15,7 +15,7 @@ function assert(cond, msg) {
   if (!cond) { console.error(`FAIL: ${msg}`); failed++; } else { passed++; }
 }
 
-const ask = (over) => shouldAskToShare({ genuineCards: 10, canEdit: true, ...over });
+const ask = (over) => shouldAskToShare({ genuineCards: 12, canEdit: true, justReached: true, ...over });
 
 // --- the threshold, expressed relative to the constant --------------------
 assert(ask({ genuineCards: SHARE_ASK_MIN_CARDS }), 'at the floor, we ask');
@@ -23,10 +23,17 @@ assert(!ask({ genuineCards: SHARE_ASK_MIN_CARDS - 1 }), 'one short of the floor,
 assert(ask({ genuineCards: SHARE_ASK_MIN_CARDS + 50 }), 'well past the floor, still ask');
 assert(!ask({ genuineCards: 0 }), 'an empty cluster is never worth showing');
 
-// The dock and the ask must hand off, not compete: the dock owns [1, MAX) and
-// this picks up exactly where it stops. If someone moves one, this fails.
-assert(SHARE_ASK_MIN_CARDS === DEPTH_DOCK_MAX,
-  'the share ask begins exactly where the depth dock stops caring');
+// Ten cards (owner, 2026-10-29). The dock owns [1, MAX); the ask waits past it,
+// so the two never compete for the same card.
+assert(SHARE_ASK_MIN_CARDS === 10, 'the ask comes at ten cards');
+assert(SHARE_ASK_MIN_CARDS >= DEPTH_DOCK_MAX, 'the ask never starts inside the depth dock\'s band');
+assert(!ask({ genuineCards: 6 }), 'six cards, the old line, is no longer asked about');
+
+// --- only a cluster that just reached the line ------------------------------
+assert(!ask({ justReached: false }), 'a cluster that was already big when opened is not asked about');
+assert(!ask({ justReached: undefined }), 'missing means no');
+assert(!ask({ justReached: 'yes' }), 'only a real true counts');
+assert(!ask({ justReached: true, genuineCards: SHARE_ASK_MIN_CARDS - 1 }), 'just reached still needs the line');
 
 // --- the three suppressions ------------------------------------------------
 assert(!ask({ canEdit: false }), 'a viewer cannot mint a link, so never ask them');
@@ -61,7 +68,8 @@ assert(!ask({ lastAskedAt: NOW - 30 * DAY, now: NOW, genuineCards: SHARE_ASK_MIN
 // --- junk never throws into a render path ---------------------------------
 for (const bad of [null, undefined, {}, { canEdit: true }, { genuineCards: NaN, canEdit: true },
                    { genuineCards: 'lots', canEdit: true }, { genuineCards: 10 },
-                   { genuineCards: 10, canEdit: true, min: NaN }]) {
+                   { genuineCards: 12, canEdit: true },
+                   { genuineCards: 10, canEdit: true, justReached: true, min: NaN }]) {
   assert(shouldAskToShare(bad) === false, `junk input is silent: ${JSON.stringify(bad)}`);
 }
 

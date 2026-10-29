@@ -225,7 +225,7 @@ import { HeldUploadsBar } from './components/HeldUploadsBar.jsx';
 import { claimUpsellSlot } from './lib/upsellSlot.js';
 import { publishOwnWork } from './lib/ownWork.js';
 import { recordSeen, takeReturn } from './lib/returnVisit.js';
-import { shouldAskToShare } from './lib/shareAsk.js';
+import { shouldAskToShare, SHARE_ASK_MIN_CARDS } from './lib/shareAsk.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode, setTitlePage, writeScriptBody } from './lib/docState.js';
 import { STARTER_DOCS, isStarterKind, starterDocSpot, writeStarterDoc, starterDocsTouched, isPristineStarter } from './lib/starterDocs.js';
@@ -8433,19 +8433,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       window.dispatchEvent(new CustomEvent('soleil:first-value'));
     }
 
-    // The pride beat: a cluster with enough in it to be worth showing someone.
-    // Fires later than both nudges above (6 cards vs 3 and 2), and is dispatched
-    // rather than called because the handler needs quickCopyShareLink, which is
-    // defined ~250 lines below this effect — naming it in a dep array here is a
-    // TDZ error at render. Decoupling through a window event is what
-    // collab-nudge / first-value / card-index-capped all already do.
-    // Tier-agnostic on purpose: showing your work is not a demo-only act, and a
-    // paid user's shared cluster recruits just as well.
-    if (!tourActive) {
-      window.dispatchEvent(new CustomEvent('soleil:share-ask', {
-        detail: { boardId: currentId, cards: genuine.length },
-      }));
-    }
+    // The pride beat (the share ask) is dispatched from its own effect below,
+    // not from here: this effect returns early once this browser has stamped
+    // the first card, activation, first value and the 10-card momentum, so
+    // from the card after the 10th it never ran again, and an ask blocked on
+    // that card (a tip had the visit) never got another chance.
 
     // Close the coachmark when a genuine card lands while it's showing (UI only;
     // the analytics above no longer depends on it). NOT while the arm-B guided
@@ -8456,6 +8448,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (onboardingUiActive && !tourActive) dismissOnboarding('placed');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, yb.cards, currentId, onboardingUiActive, tourActive]);
+
+  // The pride beat: a cluster that has JUST reached SHARE_ASK_MIN_CARDS (10)
+  // in front of them. Dispatched rather than called because the handler needs
+  // quickCopyShareLink, which is defined further down this component — naming
+  // it in a dep array here is a TDZ error at render. Decoupling through a
+  // window event is what collab-nudge / first-value / card-index-capped do.
+  // Tier-agnostic on purpose: showing your work is not a demo-only act.
+  //
+  // "Just reached" (owner, 2026-10-29): each cluster's genuine count is
+  // remembered the first time it is open and loaded on this page. One that
+  // opened below the line and has since reached it is asked about, on every
+  // card change until the handler shows the ask (so a blocked ask retries on
+  // the next card); one that opened already past the line never is. Its own
+  // effect so it keeps running after the onboarding stamps above are all set.
+  const shareAskBaseRef = useRef(new Map());
+  useEffect(() => {
+    if (!user?.id || !yb.ready || yb.boardId !== currentId) return;
+    const n = genuineCards(yb.cards).length;
+    const base = shareAskBaseRef.current;
+    if (!base.has(currentId)) { base.set(currentId, n); return; }
+    if (tourActive || base.get(currentId) >= SHARE_ASK_MIN_CARDS || n < SHARE_ASK_MIN_CARDS) return;
+    window.dispatchEvent(new CustomEvent('soleil:share-ask', {
+      detail: { boardId: currentId, cards: n, justReached: true },
+    }));
+  }, [user?.id, yb.ready, yb.boardId, yb.cards, currentId, tourActive]);
 
   // ── First-card friction signal ────────────────────────────────────────────
   // Detect when a brand-new user is STRUGGLING to place a first card and passively
@@ -8879,6 +8896,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const onAsk = (e) => {
       const boardId = e?.detail?.boardId;
       const cards = Number(e?.detail?.cards) || 0;
+      const justReached = e?.detail?.justReached === true;
       if (!boardId || boardId !== currentBoard.id) return;
 
       const key = `soleil.shareask.${boardId}`;
@@ -8890,6 +8908,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       if (!shouldAskToShare({
         genuineCards: cards,
+        justReached,
         canEdit: canEditCurrent,
         alreadyShared: sharedBoardIds.has(boardId),
         dismissed: already,
@@ -8902,14 +8921,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       try { localStorage.setItem(key, '1'); } catch (_) {}
       try { localStorage.setItem(lastKey, String(Date.now())); } catch (_) {}
-      try { logEvent(EV.SHARE_ASK_SHOWN, { board_id: boardId, cards }); } catch (_) {}
+      try { logEvent(EV.SHARE_ASK_SHOWN, { board_id: boardId, cards, at: SHARE_ASK_MIN_CARDS }); } catch (_) {}
       feedback.toast({
         message: 'This cluster is looking good — send it to someone?',
         ttl: 9000,
         action: {
           label: 'Copy link',
           onClick: () => {
-            try { logEventNow(EV.SHARE_ASK_TAKEN, { board_id: boardId, cards }); } catch (_) {}
+            try { logEventNow(EV.SHARE_ASK_TAKEN, { board_id: boardId, cards, at: SHARE_ASK_MIN_CARDS }); } catch (_) {}
             quickCopyShareLinkRef.current?.();
           },
         },

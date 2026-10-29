@@ -185,7 +185,7 @@ assertEq(claimUpsellSlot('power-reveal', W, 'v1'), false,
   'a different ambient kind waits for the next visit, even after the window');
 assertEq(claimUpsellSlot('invite-nudge', W + 60_000, 'v1'), false, 'and so does every other one');
 assert(claimUpsellSlot('power-reveal', W + 120_000, 'v2'), 'the next visit gets its own ask');
-assertEq(claimUpsellSlot('share-ask', W + 240_000, 'v2'), false, 'which is then that visit\'s only one');
+assertEq(claimUpsellSlot('invite-nudge', W + 240_000, 'v2'), false, 'which is then that visit\'s only one');
 
 __resetUpsellSlot();
 assert(claimUpsellSlot('mix-prompt', T, 'v1'), 'the mix prompt owns the visit');
@@ -255,7 +255,7 @@ assert(claimUpsellSlot('share-ask', T + 3 * UPSELL_STACK_WINDOW_MS, ''), 'an emp
 // Callers pass no visit: the module reads the live app session itself.
 __resetUpsellSlot();
 assert(claimUpsellSlot('invite-nudge', T), 'a default-visit claim shows');
-assertEq(claimUpsellSlot('share-ask', W), false, 'and the default visit is one visit');
+assertEq(claimUpsellSlot('power-reveal', W), false, 'and the default visit is one visit');
 
 // The day-one resume greeting holds the minute without spending the visit.
 __resetUpsellSlot();
@@ -281,6 +281,28 @@ assertEq(claimUpsellSlot('whats-new', T + 5_000, 'v3'), false, 'so the hint wait
 __resetUpsellSlot();
 assert(claimUpsellSlot('whats-new', T, 'v3'), 'shown');
 assert(claimUpsellSlot('cap-hit', T + 1_000, 'v3'), 'and the wall still always shows');
+
+// The ten-card share ask may come after a tip in the same visit (owner's pick
+// #35, 2026-10-29). Only the share ask; it still spends the visit, still waits
+// out the minute and never lands on the wall.
+__resetUpsellSlot();
+assert(claimUpsellSlot('power-reveal', T, 'v4'), 'a feature tip owns the visit');
+assertEq(claimUpsellSlot('share-ask', T + 5_000, 'v4'), false, 'the share ask still waits out the minute');
+assert(claimUpsellSlot('share-ask', W, 'v4'), 'then comes, though the tip had the visit');
+assertEq(claimUpsellSlot('power-reveal', W + UPSELL_STACK_WINDOW_MS + 1, 'v4'), false,
+  'and owns the visit after it: no second tip');
+assertEq(claimUpsellSlot('mix-prompt', W + 3 * UPSELL_STACK_WINDOW_MS, 'v4'), false, 'nor any other ambient ask');
+__resetUpsellSlot();
+assert(claimUpsellSlot('mix-prompt', T, 'v5'), 'the mix prompt owns the visit');
+assert(claimUpsellSlot('share-ask', W, 'v5'), 'the share ask comes after it too');
+__resetUpsellSlot();
+assert(claimUpsellSlot('share-ask', T, 'v6'), 'the share ask owns a visit');
+assertEq(claimUpsellSlot('power-reveal', W, 'v6'), false, 'nothing else gets past it: the exception is the share ask\'s alone');
+assertEq(claimUpsellSlot('invite-nudge', W, 'v6'), false, 'not the invite nudge either');
+__resetUpsellSlot();
+assert(claimUpsellSlot('power-reveal', T, 'v7'), 'a tip');
+assert(claimUpsellSlot('cap-hit', W, 'v7'), 'then the wall');
+assertEq(claimUpsellSlot('share-ask', W + 5_000, 'v7'), false, 'the share ask never lands on the wall');
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

@@ -20,11 +20,13 @@
 // noticed.
 
 // A cluster worth showing has more in it than a cluster worth prompting about.
-// Deliberately equal to DEPTH_DOCK_MAX so the two hand off cleanly rather than
-// competing: the dock runs the [1, 6) band ("add a few more"), and this picks up
-// exactly where the dock stops caring. Kept as its own constant rather than an
-// import so moving one does not silently move the other.
-export const SHARE_ASK_MIN_CARDS = 6;
+// Ten since 2026-10-29 (owner's pick, the testing map's sharing item): ten
+// cards is where people start coming back, so it is the moment worth asking at.
+// It used to equal DEPTH_DOCK_MAX (6) so the two handed off at one card; the
+// dock still runs the [1, 6) band and the ask now waits until 10, so the two
+// still never compete. Kept as its own constant rather than an import so moving
+// one does not silently move the other.
+export const SHARE_ASK_MIN_CARDS = 10;
 
 // At most one ask a week per account (owner, 2026-10-27). The per-cluster
 // stamp alone stopped being a limit once clusters went free: a busy account
@@ -33,10 +35,16 @@ export const SHARE_ASK_MIN_CARDS = 6;
 // per-cluster stamp and passes it in as `lastAskedAt`.
 export const SHARE_ASK_GAP_MS = 7 * 24 * 60 * 60 * 1000;
 
-// Offer iff the cluster has enough in it to be worth showing, the viewer can
+// Offer iff the cluster has JUST reached enough to be worth showing, the viewer can
 // actually produce a link, they haven't already shared this board, they
 // haven't waved the ask away for it, and the account hasn't been asked in the
 // last week.
+//
+// `justReached` says the cluster crossed the line in front of them, on this
+// page: App remembers each cluster's count when it first opened and passes true
+// only for one that opened below the line and has since reached it. A cluster
+// that was already big when opened is not asked about; the moment it grew is
+// the one the ask is for. Missing means no.
 //
 // `alreadyShared` is the honest half of this: once a board has a live link the
 // user has already done the thing, and asking again is nagging rather than
@@ -46,6 +54,7 @@ export function shouldAskToShare(opts) {
   // caller sits on a render/effect path where a throw would take the board out.
   const {
     genuineCards,
+    justReached = false,
     canEdit = false,
     alreadyShared = false,
     dismissed = false,
@@ -54,6 +63,7 @@ export function shouldAskToShare(opts) {
     now = Date.now(),
   } = opts || {};
 
+  if (justReached !== true) return false;
   if (!canEdit || alreadyShared || dismissed) return false;
   if (askedWithinGap(lastAskedAt, now)) return false;
 
