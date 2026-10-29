@@ -2808,6 +2808,149 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Grids",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Grids"
+    }
+   ],
+   "id": "grids"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With one "
+    },
+    {
+     "t": "link",
+     "v": "grid",
+     "href": "/docs/canvas/grids",
+     "children": [
+      {
+       "t": "text",
+       "v": "grid"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " selected and a box in it clicked:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Key"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Action"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "←"
+      },
+      {
+       "t": "text",
+       "v": " "
+      },
+      {
+       "t": "code",
+       "v": "→"
+      },
+      {
+       "t": "text",
+       "v": " "
+      },
+      {
+       "t": "code",
+       "v": "↑"
+      },
+      {
+       "t": "text",
+       "v": " "
+      },
+      {
+       "t": "code",
+       "v": "↓"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Move between the boxes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Enter"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Open the box — a text box starts editing, any other box opens its menu"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌫"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "Del"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Clear the box, with undo — on an empty box it deletes the grid"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Esc"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Let go of the box and keep the grid selected"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "View",
    "inline": [
     {
@@ -12910,7 +13053,91 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Drop a file directly into a cell to fill it. Each cell has its own menu for replacing, clearing, or — for images — the full set of "
+     "v": "An empty box rests as a faint "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Point at it and it offers "
+    },
+    {
+     "t": "strong",
+     "v": "Text",
+     "children": [
+      {
+       "t": "text",
+       "v": "Text"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Image",
+     "children": [
+      {
+       "t": "text",
+       "v": "Image"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — or drop a file straight onto it. A filled box keeps its tools out of the way until you point at it: "
+    },
+    {
+     "t": "strong",
+     "v": "···",
+     "children": [
+      {
+       "t": "text",
+       "v": "···"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (Box options) in the corner holds Replace, Download, the splits, "
+    },
+    {
+     "t": "strong",
+     "v": "Clear box",
+     "children": [
+      {
+       "t": "text",
+       "v": "Clear box"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and — for images — the full set of "
     },
     {
      "t": "link",
@@ -12925,7 +13152,49 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ". Clearing a box shows an Undo, like every delete."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Filling several boxes at once",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Filling several boxes at once"
+    }
+   ],
+   "id": "filling-several-boxes-at-once"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Drop several files on a box, or drag several cards onto one, and they fill that box and then the empty boxes after it, in reading order. While you drag, each box shows the number it will get. Anything left over, once the empty boxes run out, lands as ordinary cards beside the grid."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Moving a box",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Moving a box"
+    }
+   ],
+   "id": "moving-a-box"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A filled box has a grip in its top-left corner. Drag it onto another box and the two swap places; drag it onto an empty box and it moves there. One Undo puts it back."
     }
    ]
   },
@@ -12967,39 +13236,53 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " to resize the cells either side of it."
+      "v": " to resize the boxes either side of it. Selected, each divider shows a small grip at its middle."
      }
     ],
     [
      {
       "t": "strong",
-      "v": "Split a cell",
+      "v": "Split a box",
       "children": [
        {
         "t": "text",
-        "v": "Split a cell"
+        "v": "Split a box"
        }
       ]
      },
      {
       "t": "text",
-      "v": " to divide it further, horizontally or vertically."
+      "v": " to divide it further, into columns or rows, from its "
+     },
+     {
+      "t": "strong",
+      "v": "···",
+      "children": [
+       {
+        "t": "text",
+        "v": "···"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " menu."
      }
     ],
     [
      {
       "t": "strong",
-      "v": "Merge",
+      "v": "Double-click a divider",
       "children": [
        {
         "t": "text",
-        "v": "Merge"
+        "v": "Double-click a divider"
        }
       ]
      },
      {
       "t": "text",
-      "v": " adjacent cells back together."
+      "v": " to remove it and merge the boxes back together."
      }
     ]
    ]
@@ -13010,6 +13293,57 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Everything reflows around what you changed."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Select a grid and a bar sits under it. "
+    },
+    {
+     "t": "strong",
+     "v": "Boxes",
+     "children": [
+      {
+       "t": "text",
+       "v": "Boxes"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " cuts the grid into an even set of columns and rows: type the numbers and press "
+    },
+    {
+     "t": "strong",
+     "v": "Apply",
+     "children": [
+      {
+       "t": "text",
+       "v": "Apply"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". What is already in the grid stays, in reading order, and if some filled boxes would have nowhere to go you are asked first. "
+    },
+    {
+     "t": "strong",
+     "v": "Even out",
+     "children": [
+      {
+       "t": "text",
+       "v": "Even out"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " makes every box in the current shape the same size, without moving anything out of its box."
     }
    ]
   },
@@ -13028,7 +13362,164 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " builds an empty N×M grid at whatever size you name — the fast path to a contact sheet."
+     "v": ", in a grid's right-click menu, builds linked copies of the grid at whatever size you name — the fast path to a contact sheet."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Spacing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Spacing"
+    }
+   ],
+   "id": "spacing"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A grid is a single sheet by default: boxes meet along hairline dividers. For a gallery look, right-click the grid and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Spacing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Spacing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — None, Small, Medium or Large. Spaced boxes get a gap and soft corners; dividers still drag the same way. Linked grids share their spacing."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Keyboard",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Keyboard"
+    }
+   ],
+   "id": "keyboard"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Select a grid and click a box, then:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Arrow keys",
+      "children": [
+       {
+        "t": "text",
+        "v": "Arrow keys"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " move between boxes."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Enter",
+      "children": [
+       {
+        "t": "text",
+        "v": "Enter"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " opens the box: a text box starts editing, any other box opens its menu."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Delete",
+      "children": [
+       {
+        "t": "text",
+        "v": "Delete"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "strong",
+      "v": "Backspace",
+      "children": [
+       {
+        "t": "text",
+        "v": "Backspace"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " clears the box, with Undo. On an empty box it deletes the grid, as it always has."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Esc",
+      "children": [
+       {
+        "t": "text",
+        "v": "Esc"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " lets go of the box and leaves the grid selected; press it again to deselect."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "All of these are in the shortcuts list ("
+    },
+    {
+     "t": "code",
+     "v": "?"
+    },
+    {
+     "t": "text",
+     "v": ") under Grids."
     }
    ]
   },

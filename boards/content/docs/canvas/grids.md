@@ -5,7 +5,7 @@ h1: Grids
 navLabel: Grids
 section: canvas
 order: 7
-updated: 2026-10-20
+updated: 2026-10-29
 answer: A grid is a card divided into cells, and every cell holds any kind of content — an image, text, a link, a video, a file, even another cluster. The grid tool places a storyboard layout that you cut into any shape — drag the dividers to resize, split and merge cells — or Generate matrix builds an empty grid of any size. Cells have a reading order, so a storyboard reads in sequence.
 faq:
   - q: What can go in a grid cell?
@@ -32,23 +32,68 @@ Not just images. A cell takes an image, a piece of text, a link, a video, a
 file, or a nested cluster. A storyboard panel can be the frame in one cell and
 the action line in the cell beneath it.
 
-Drop a file directly into a cell to fill it. Each cell has its own menu for
-replacing, clearing, or — for images — the full set of
-[photo controls](/docs/canvas/images).
+An empty box rests as a faint **+**. Point at it and it offers **Text**,
+**Image** and **Link** — or drop a file straight onto it. A filled box keeps
+its tools out of the way until you point at it: **···** (Box options) in the
+corner holds Replace, Download, the splits, **Clear box** and — for images —
+the full set of [photo controls](/docs/canvas/images). Clearing a box shows an
+Undo, like every delete.
+
+### Filling several boxes at once
+
+Drop several files on a box, or drag several cards onto one, and they fill
+that box and then the empty boxes after it, in reading order. While you drag,
+each box shows the number it will get. Anything left over, once the empty boxes
+run out, lands as ordinary cards beside the grid.
+
+### Moving a box
+
+A filled box has a grip in its top-left corner. Drag it onto another box and
+the two swap places; drag it onto an empty box and it moves there. One Undo
+puts it back.
 
 ## Building a layout
 
 Grids are not fixed rows and columns. The structure is a tree of splits, which
 is why an asymmetric storyboard layout is as easy as a regular one.
 
-- **Drag a divider** to resize the cells either side of it.
-- **Split a cell** to divide it further, horizontally or vertically.
-- **Merge** adjacent cells back together.
+- **Drag a divider** to resize the boxes either side of it. Selected, each
+  divider shows a small grip at its middle.
+- **Split a box** to divide it further, into columns or rows, from its **···**
+  menu.
+- **Double-click a divider** to remove it and merge the boxes back together.
 
 Everything reflows around what you changed.
 
-**Generate matrix** builds an empty N×M grid at whatever size you name — the
-fast path to a contact sheet.
+Select a grid and a bar sits under it. **Boxes** cuts the grid into an even
+set of columns and rows: type the numbers and press **Apply**. What is already
+in the grid stays, in reading order, and if some filled boxes would have
+nowhere to go you are asked first. **Even out** makes every box in the current
+shape the same size, without moving anything out of its box.
+
+**Generate matrix**, in a grid's right-click menu, builds linked copies of the
+grid at whatever size you name — the fast path to a contact sheet.
+
+## Spacing
+
+A grid is a single sheet by default: boxes meet along hairline dividers. For a
+gallery look, right-click the grid and choose **Spacing** — None, Small, Medium
+or Large. Spaced boxes get a gap and soft corners; dividers still drag the
+same way. Linked grids share their spacing.
+
+## Keyboard
+
+Select a grid and click a box, then:
+
+- **Arrow keys** move between boxes.
+- **Enter** opens the box: a text box starts editing, any other box opens its
+  menu.
+- **Delete** or **Backspace** clears the box, with Undo. On an empty box it
+  deletes the grid, as it always has.
+- **Esc** lets go of the box and leaves the grid selected; press it again to
+  deselect.
+
+All of these are in the shortcuts list (`?`) under Grids.
 
 ## How grids count toward your card limit
 

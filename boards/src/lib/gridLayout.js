@@ -37,12 +37,12 @@ export const GRID_TUNING = Object.freeze({
   SNAP_PX: 6,            // divider-drag snap radius (÷zoom): lock onto aligned
                         //   lines + the equal-split (see dividerSnapTargets)
   // Below either dimension (LOCAL px), a cell is too small to host the inline
-  // hover pill (~163px of choosers + splits) without overflowing/clipping — the
-  // renderer swaps it for a compact trigger that opens a portaled full-size menu.
-  // Kept just under the default storyboard grid's smallest cell (180×150) so
-  // normal cells stay inline. Local, not screen: the pill scales WITH the cell,
-  // so fit is zoom-independent.
-  PILL_MIN_W: 172,       // min cell width to keep the inline pill
+  // hover pill (~125px: three icon choosers + ···) without overflowing/clipping —
+  // the renderer swaps it for a compact + that opens a portaled full-size menu.
+  // Splits live in the ··· menu now, so the pill is narrower than it was and
+  // stays inline in smaller boxes. Local, not screen: the pill scales WITH the
+  // cell, so fit is zoom-independent.
+  PILL_MIN_W: 140,       // min cell width to keep the inline pill
   PILL_MIN_H: 46,        // min cell height to keep the inline pill
 });
 
@@ -580,4 +580,94 @@ export function rehomeCells(oldLayout, newLayout, cells, box = { x: 0, y: 0, w: 
     else if (isCellFilled(rec)) dropped += 1;
   });
   return { mapped, dropped };
+}
+
+// ── even boxes / even out ──────────────────────────────────────────────────
+//
+// The grid bar under a selected grid cuts it into C × R boxes (applyGridLayout
+// with evenTree, which re-homes content in reading order) and evens out the
+// current shape (evenOut via the family-aware layout write). Pure.
+
+export const BOXES_MAX = 12;   // per side, for the grid bar's Boxes control
+
+// An even C × R tree. Leaves are minted in reading order (row-major), so the
+// rehome that follows fills boxes left-to-right, top-to-bottom.
+export function evenTree(cols, rows, mkId = defaultMkId) {
+  const clamp = (v) => Math.max(1, Math.min(BOXES_MAX, Math.round(Number(v)) || 1));
+  const c = clamp(cols), r = clamp(rows);
+  if (c === 1 && r === 1) return leaf(mkId(), 1);
+  if (r === 1) return { type: 'row', children: Array.from({ length: c }, () => leaf(mkId(), 1 / c)) };
+  if (c === 1) return { type: 'col', children: Array.from({ length: r }, () => leaf(mkId(), 1 / r)) };
+  return {
+    type: 'col',
+    children: Array.from({ length: r }, () => ({
+      type: 'row', frac: 1 / r, children: Array.from({ length: c }, () => leaf(mkId(), 1 / c)),
+    })),
+  };
+}
+
+// Every split's children share their box equally. Same shape, same leaf ids —
+// so content stays exactly where it is; only the lines move.
+export function evenOut(tree) {
+  if (!tree) return null;
+  const walk = (n, frac) => {
+    if (n.type === 'leaf') return { ...n, frac };
+    const kids = n.children || [];
+    const share = kids.length ? 1 / kids.length : 1;
+    return { ...n, frac, children: kids.map((k) => walk(k, share)) };
+  };
+  return walk(tree, tree.frac);
+}
+
+// ── multi-file fill / arrow-key moves ───────────────────────────────────────
+
+const isEmptyCell = (rec) => !rec || rec.type === 'empty' || (rec.type === 'image' && !rec.src);
+
+// Which boxes a multi-file drop fills, at most n ids. The box dropped on comes
+// first even when filled (a drop onto a filled box replaces it, like a single
+// drop does today); then the EMPTY boxes after it in reading order, then the
+// empty ones before it. An unknown startId counts only empties, from the top.
+export function planCellFill(rects, cells, startId, n) {
+  const max = Math.floor(Number(n));
+  if (!(max >= 1)) return [];
+  const order = readingOrder(rects || []);
+  const at = order.indexOf(startId);
+  const src = cells || {};
+  const out = [];
+  if (at >= 0) out.push(order[at]);
+  for (let k = at >= 0 ? 1 : 0; k < order.length && out.length < max; k += 1) {
+    const id = order[((at >= 0 ? at : 0) + k) % order.length];
+    if (isEmptyCell(src[id])) out.push(id);
+  }
+  return out.slice(0, max);
+}
+
+// Arrow-key navigation: the nearest box wholly on that side of fromId that
+// overlaps it on the other axis. Ties on the gap go to the larger overlap, then
+// to the closer centres. Null at the edge (no wrap).
+export function neighborCell(rects, fromId, dir) {
+  const from = (rects || []).find((r) => r.id === fromId);
+  if (!from) return null;
+  if (dir !== 'left' && dir !== 'right' && dir !== 'up' && dir !== 'down') return null;
+  const horiz = dir === 'left' || dir === 'right';
+  const TOL = 0.5;
+  let best = null;
+  for (const r of rects) {
+    if (r.id === fromId) continue;
+    let gap;
+    if (dir === 'right') { if (r.x < from.x + from.w - TOL) continue; gap = r.x - (from.x + from.w); }
+    else if (dir === 'left') { if (r.x + r.w > from.x + TOL) continue; gap = from.x - (r.x + r.w); }
+    else if (dir === 'down') { if (r.y < from.y + from.h - TOL) continue; gap = r.y - (from.y + from.h); }
+    else { if (r.y + r.h > from.y + TOL) continue; gap = from.y - (r.y + r.h); }
+    const a0 = horiz ? from.y : from.x, a1 = a0 + (horiz ? from.h : from.w);
+    const b0 = horiz ? r.y : r.x, b1 = b0 + (horiz ? r.h : r.w);
+    const overlap = Math.min(a1, b1) - Math.max(a0, b0);
+    if (overlap <= TOL) continue;
+    const dist = Math.abs((a0 + a1) / 2 - (b0 + b1) / 2);
+    const cand = { id: r.id, gap, overlap, dist };
+    if (!best || cand.gap < best.gap - TOL) { best = cand; continue; }
+    if (cand.gap <= best.gap + TOL
+      && (cand.overlap > best.overlap || (cand.overlap === best.overlap && cand.dist < best.dist))) best = cand;
+  }
+  return best ? best.id : null;
 }

@@ -5,7 +5,7 @@ h1: Keyboard shortcuts
 navLabel: Keyboard shortcuts
 section: start
 order: 3
-updated: 2026-10-24
+updated: 2026-10-29
 answer: Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 faq:
   - q: How do I see shortcuts without leaving what I am doing?
@@ -85,6 +85,17 @@ In the [sidebar](/docs/clusters/sidebar): its cluster tree and its Files.
 > **Note:** Undo is per-session and per-board. It undoes your own edits, not a
 > collaborator's — in a shared board, undo that could revert someone else's work
 > would be worse than no undo at all.
+
+## Grids
+
+With one [grid](/docs/canvas/grids) selected and a box in it clicked:
+
+| Key | Action |
+|---|---|
+| `←` `→` `↑` `↓` | Move between the boxes |
+| `Enter` | Open the box — a text box starts editing, any other box opens its menu |
+| `⌫` or `Del` | Clear the box, with undo — on an empty box it deletes the grid |
+| `Esc` | Let go of the box and keep the grid selected |
 
 ## View
 

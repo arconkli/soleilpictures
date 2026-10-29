@@ -69,6 +69,16 @@ const SECTIONS = [
     ],
   },
   {
+    // A selected grid's boxes (CanvasSurface boxKeyRef).
+    title: 'Grids',
+    rows: [
+      [['←', '→', '↑', '↓'], 'Move between the boxes of the selected grid'],
+      [['Enter'], 'Open the box: type in a text box, or its menu'],
+      [['⌫', 'Del'], 'Clear the box (Undo brings it back)'],
+      [['Esc'], 'Let go of the box, keeping the grid selected'],
+    ],
+  },
+  {
     title: 'View',
     rows: [
       [['F'], 'Open or close the full Files page'],

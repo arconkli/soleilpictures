@@ -18638,14 +18638,14 @@ body[data-capture-clean='1'] .cnv-quick-add,
    product shot should show the work rather than the tooling around it. On a
    touch device several of these have no hover state to hide behind, so they sit
    in every phone shot: resize corners, an image card's edit/download/expand
-   row, a palette's per-swatch delete and add, a grid cell's clear button. */
+   row, a palette's per-swatch delete and add, a grid box's corner tools. */
 body[data-capture-clean='1'] .card-resize,
 body[data-capture-clean='1'] .ic-act,
 body[data-capture-clean='1'] .ic-add-caption,
 body[data-capture-clean='1'] .pc-cell-x,
 body[data-capture-clean='1'] .pc-add,
 body[data-capture-clean='1'] .pc-eye-float,
-body[data-capture-clean='1'] .gridc-cell-x,
+body[data-capture-clean='1'] .gridc-celltools,
 body[data-capture-clean='1'] .lc-open {
   display: none !important;
 }

@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
 
-// A grid cell's tools (Clear, the split / Replace pill) are opacity:0 until the
-// cell is hovered. An invisible control used to still take a tap, and a touch
-// screen has no hover to reveal it first: tapping a filled cell's corner to
-// select the grid cleared the cell (CARDS-03). On a hover:none screen the
+// A grid box's tools (the corner "Box options" button, the drag grip, the empty-box chooser pill) are
+// opacity:0 until the box is hovered. An invisible control used to still take a
+// tap, and a touch screen has no hover to reveal it first: tapping a filled
+// box's corner to select the grid cleared the box (CARDS-03). On a hover:none screen the
 // hidden tools are click-through until they're shown on the focused cell of a
 // selected grid. Desktop keeps hover-to-reveal.
 
 test.describe('hidden grid cell tools', () => {
-  test('on touch, Clear and the pill take no taps until their cell is focused in a selected grid', async ({ browser, baseURL }) => {
+  test('on touch, Box options and the grip take no taps until their cell is focused in a selected grid', async ({ browser, baseURL }) => {
     const ctx = await browser.newContext({ baseURL, viewport: { width: 1180, height: 820 }, hasTouch: true, isMobile: true });
     const page = await ctx.newPage();
     try {
@@ -16,16 +16,17 @@ test.describe('hidden grid cell tools', () => {
       expect(await page.evaluate(() => matchMedia('(hover: none)').matches)).toBe(true);
       await page.locator('[data-card-id="home-grid"] .gridc-cell-image .gc-img').first().waitFor({ state: 'attached' });
       const cell = page.locator('[data-card-id="home-grid"] .gridc-cell-image').first();
-      const clear = cell.locator('.gridc-cell-x');
-      const pill = cell.locator('.gridc-celltools > .gridc-pill, .gridc-pill-mini').first();
+      const clear = cell.getByRole('button', { name: 'Box options' });
+      // A filled box has no chooser pill: its second tool is the drag grip.
+      const pill = cell.locator('.gridc-grip, .gridc-pill-mini').first();
       await expect(clear).toHaveCount(1);
 
       const pe = (loc) => loc.evaluate((el) => getComputedStyle(el).pointerEvents);
       expect(await pe(clear)).toBe('none');
       expect(await pe(pill)).toBe('none');
 
-      // A tap in the middle of the cell selects the grid and focuses the
-      // cell — and clears nothing. Now the tools show there, and are live.
+      // A tap in the middle of the box selects the grid and focuses the
+      // box — and opens nothing. Now the tools show there, and are live.
       await cell.tap();
       await expect(page.locator('[data-card-id="home-grid"]')).toHaveClass(/is-selected/);
       await expect(cell).toHaveClass(/is-focused/);
@@ -45,6 +46,6 @@ test.describe('hidden grid cell tools', () => {
     expect(await page.evaluate(() => matchMedia('(hover: none)').matches)).toBe(false);
     const cell = page.locator('[data-card-id="home-grid"] .gridc-cell-image').first();
     await cell.locator('.gc-img').waitFor({ state: 'visible' });
-    expect(await cell.locator('.gridc-cell-x').evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('auto');
+    expect(await cell.getByRole('button', { name: 'Box options' }).evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('auto');
   });
 });

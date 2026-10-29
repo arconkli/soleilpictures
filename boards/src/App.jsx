@@ -236,7 +236,7 @@ import { hintsToCellMap, bodyFromGrid, rowFromRecord, SOURCES } from './lib/grid
 // Generated projection of the kind:'template' seoLanding specs — the preset id
 // and labels only, never the prose. See gen-docs.mjs step 4d.
 import { CURATED_TEMPLATES } from './lib/gridTemplateIndex.js';
-import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells, carryRemovedCells } from './lib/gridLayout.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells, carryRemovedCells, evenOut } from './lib/gridLayout.js';
 import { layoutById } from './lib/templateLayouts.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
@@ -4076,6 +4076,49 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }, 'local');
       return { dropped, affected: members.length };
     };
+    // Right-click "Spacing": the gap between a Grid's boxes. A card field, so a
+    // linked family has to be written together (same member search as
+    // applyGridLayout) or one copy would drift from the rest. 0 deletes the
+    // field: missing means 0, which keeps untouched grids clean.
+    const setGridSpacing = (gridId, gap) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const g = Math.max(0, Math.min(24, Math.round(Number(gap)) || 0));
+      const templateId = cy.get('templateId') || null;
+      const members = [];
+      if (templateId) {
+        m.forEach((ym, id) => {
+          if (ym.get && ym.get('kind') === 'grid' && ym.get('templateId') === templateId) members.push(id);
+        });
+      }
+      if (!members.length) members.push(gridId);
+      breakUndo();
+      ydoc.transact(() => {
+        members.forEach((id) => {
+          const mem = m.get(id); if (!mem) return;
+          if (g > 0) mem.set('gridGap', g); else mem.delete('gridGap');
+        });
+      }, 'local');
+    };
+    // "Even out": equal-size every box in the layout. Family-aware via
+    // writeGridLayout (a linked grid's layout is the shared template record).
+    const evenGridLayout = (gridId) => {
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
+      const layout = gridLayoutOf(cy); if (!layout) return;
+      breakUndo();
+      writeGridLayout(cy, gridId, evenOut(layout));
+    };
+    // Move/swap two boxes in one Grid. The whole record travels, `style` and
+    // all; a missing record reads as empty. One transaction = one ⌘Z step.
+    const swapGridCells = (gridId, a, b) => {
+      if (a === b) return false;
+      const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return false;
+      const cm = cy.get('gridCells'); if (!cm) return false;
+      const read = (k) => { const v = cm.get(k); return v ? (v.toJSON ? v.toJSON() : v) : { type: 'empty' }; };
+      const ra = read(a), rb = read(b);
+      breakUndo();
+      ydoc.transact(() => { cm.set(a, rb); cm.set(b, ra); }, 'local');
+      return true;
+    };
     const setGridCellContent = (gridId, cellId, patch) => {
       const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
       setGridCell(ydoc, cy, cellId, patch);
@@ -4395,9 +4438,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       return { tplId, seqId, carry: stampCarryOf(cy) };
     };
-    const placeLinkedGrid = (m, tplId, seqId, carry, x, y, w, h) => {
+    const placeLinkedGrid = (m, tplId, seqId, carry, x, y, w, h, gap = 0) => {
       const id = `grid-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-      const neighbor = stampCreate({ z: nextZ(), id, kind: 'grid', templateId: tplId, seqId, x: Math.max(8, x), y: Math.max(8, y), w, h });
+      const neighbor = stampCreate({ z: nextZ(), id, kind: 'grid', templateId: tplId, seqId, x: Math.max(8, x), y: Math.max(8, y), w, h,
+        ...(typeof gap === 'number' && gap > 0 ? { gridGap: gap } : {}) });
       m.set(id, cardToYMap(neighbor));
       const nym = m.get(id);
       initCardGridStore(ydoc, nym);
@@ -4453,7 +4497,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       breakUndo();
       ydoc.transact(() => {
         const { tplId, seqId, carry } = ensureTemplateAndSequence(cy);
-        const newId = placeLinkedGrid(m, tplId, seqId, carry, nx, ny, w, h);
+        const newId = placeLinkedGrid(m, tplId, seqId, carry, nx, ny, w, h, cy.get('gridGap'));
         ensureGridGroup(m, cy, [gridId, newId]);
       }, 'local');
     };
@@ -4473,7 +4517,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         for (let r = 0; r < R; r++) {
           for (let c = 0; c < C; c++) {
             if (r === 0 && c === 0) continue; // source occupies the first cell
-            newIds.push(placeLinkedGrid(m, tplId, seqId, carry, x0 + c * (w + gx), y0 + r * (h + gy), w, h));
+            newIds.push(placeLinkedGrid(m, tplId, seqId, carry, x0 + c * (w + gx), y0 + r * (h + gy), w, h, cy.get('gridGap')));
           }
         }
         ensureGridGroup(m, cy, [gridId, ...newIds]);
@@ -4499,7 +4543,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       addArrow, addFreeArrow, deleteArrows, updateArrow,
       addNote, addTextLink, addImageAt, addPdfAt, ingestFilesArranged, updateCardSilent, updateCardMeta, addNewBoard, addNewProject, addPalette,
       addDocCard, addScriptCard, addStarterDoc, addGrid,
-      resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, applyGridLayout, setGridCellContent, clearGridCellContent, removeGridCellRecord,
+      resizeGridDivider, splitGridCell, mergeGridCell, removeGridDivider, applyGridLayout, setGridSpacing, evenGridLayout, swapGridCells, setGridCellContent, clearGridCellContent, removeGridCellRecord,
       setSchedSlotExpand, graftScheduleIntoSlot, moveSchedItem, moveSchedSlot,
       applyRundownPlan,
       setGridTextStyle, pinCellStyle, unpinCellStyle, guardWeightedAdd, preflightImport,
