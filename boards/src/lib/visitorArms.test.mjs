@@ -19,14 +19,14 @@ function memoryStorage(seed = {}) {
   };
 }
 
-const START = Date.parse('2026-11-11T00:00:00Z');
+const START = Date.parse('2026-10-29T00:00:00Z');
 const AFTER = START + 3600_000;
 
-test('the sign-up box test is pinned: a 50/50 visitor test from 11 Nov', () => {
+test('the sign-up box test is pinned: a 50/50 visitor test from 29 Oct', () => {
   const e = EXPERIMENTS.signup_box;
   assert.equal(e.enabled, true);
   assert.equal(e.audience, 'visitor');
-  assert.equal(e.startsAt, '2026-11-11T00:00:00Z');
+  assert.equal(e.startsAt, '2026-10-29T00:00:00Z');
   assert.deepEqual(e.arms, [{ id: 'A', weight: 50 }, { id: 'B', weight: 50 }]);
 });
 

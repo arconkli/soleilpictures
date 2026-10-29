@@ -586,7 +586,7 @@ export const EV = Object.freeze({
   MAKE_FAILED:             'make_failed',                 // a step failed {step:'send'|'code'|'keep',reason} — keepFailReason() at send/code; the route's code, http_<status> or 'network' at keep
 
   // ── The sign-up box on the public search pages (components/public/SignupBox.jsx),
-  //    arm B of the visitor test signup_box (experiments.js, from 2026-11-11):
+  //    arm B of the visitor test signup_box (experiments.js, from 2026-10-29):
   //    the email and code typed where the hero and closing buttons were. Every
   //    event of an enrolled device carries exp_signup_box, the box's and
   //    lp_view's alike. Counts only: never the email. ──

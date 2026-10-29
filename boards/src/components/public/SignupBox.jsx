@@ -1,5 +1,5 @@
 // SignupBox — sign up right on a public search page: arm B of the visitor test
-// signup_box (lib/experiments.js, from 2026-11-11; look A, one line, picked
+// signup_box (lib/experiments.js, from 2026-10-29; look A, one line, picked
 // 2026-10-28). It stands where the hero's and the closing band's gold button
 // stand in arm A: an email field beside the same button, then the 6-digit code
 // in the same spot, then the app. Arm A's button hops to the home page's form
