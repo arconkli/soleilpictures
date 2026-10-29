@@ -240,7 +240,8 @@ import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLin
 import { layoutById } from './lib/templateLayouts.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
-import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed, clusterNudgesAllowed, bulkImportAllowed, workspaceSetupAllowed, filesPageLookAllowed, teamsAllowed } from './lib/appHost.js';
+import { scheduleCreationAllowed, templateStoreAllowed, sidebarFilesAllowed, fileSharesAllowed, sharedFilesAllowed, clusterNudgesAllowed, bulkImportAllowed, workspaceSetupAllowed, filesPageLookAllowed, teamsAllowed, onPreviewHost } from './lib/appHost.js';
+import { boardMoreMayRun } from './lib/boardMoreEpoch.js';
 import { FilesLookContext } from './components/clusterBrowser/filesLook.js';
 import { getSetupOutcome } from './lib/setupGate.js';
 import { workToFirstBoardKind } from './lib/workspaceSetup.js';
@@ -314,6 +315,9 @@ const Spotlight = lazyWithReload(() => import('./components/capture/Spotlight.js
 // and where a link joiner landed. Mounted only where the setup runs
 // (appHost.js workspaceSetupAllowed), so nobody else downloads it.
 const SetupInWorkspace = lazyWithReload(() => import('./components/setup/SetupInWorkspace.jsx'));
+// The first-board test (experiments.js first_board_more): fetched only for an
+// account new enough for it, or a QA tab (lib/boardMoreEpoch.js).
+const BoardMoreNudge = lazyWithReload(() => import('./components/BoardMoreNudge.jsx'));
 const WhatsNewHint = lazyWithReload(() => import('./components/whatsNew/WhatsNewHint.jsx'));
 // Files, docked beside the board or as the whole view. It starts shut, so most
 // opens never render it, and one that does paints the board while it arrives.
@@ -7763,6 +7767,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // The owner's first name is looked up once; the copy waits for the answer
   // rather than gain a name a moment after it paints.
   const setupHere = workspaceSetupAllowed();
+  // Whether the first-board test could reach this account (lib/boardMoreEpoch.js):
+  // made from its epoch on, or a QA tab (?more=A|B, dev and preview only).
+  const boardMoreHere = useMemo(() => {
+    if (!user?.id) return false;
+    let storage = null;
+    try { storage = window.sessionStorage; } catch (_) { /* none */ }
+    return boardMoreMayRun({
+      createdAt: user.created_at, search: window.location.search, storage,
+      qaAllowed: import.meta.env.DEV || onPreviewHost(),
+    });
+  }, [user?.id, user?.created_at]);
   const wsCardTotal = useMemo(() => Object.values(ownedBoards || {})
     .reduce((n, b) => n + (b && !b.deleted_at ? (Number(b.card_count) || 0) : 0), 0), [ownedBoards]);
   const joinPanel = setupHere && boardsReady && !!workspace?.created_by && workspace.created_by !== user.id && wsCardTotal === 0;
@@ -7934,8 +7949,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // enrollment and could disagree with TierRouter's render decision, so the seed
         // loop leaves it alone.
         // workspace_setup is the same: TierRouter decides and stamps it before
-        // App mounts (lib/setupGate.js).
-        if (key === 'instant_entry' || key === 'workspace_setup') continue;
+        // App mounts (lib/setupGate.js). first_board_more decides and stamps
+        // its own, for accounts from its epoch on (components/BoardMoreNudge).
+        if (key === 'instant_entry' || key === 'workspace_setup' || key === 'first_board_more') continue;
         // Hardened: a throw here (bad weights, a thenable without .catch, a
         // throwing logEvent) must NEVER escape and abort the rest of the seed —
         // that blanked the board for every new user. See the .then(undefined,…)
@@ -12149,6 +12165,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             currentBoardId={currentId} rootBoardId={rootBoard.id}
             boardsReady={boardsReady}
             loadPhotos={loadClusterPhotos}
+          />
+        </Suspense>
+      )}
+
+      {/* The first-board test's third-card toast (experiments.js
+          first_board_more, lib/boardMore.js): stamps both arms, logs the
+          moment in both, shows only in B. Waits for the tour, dialogs, offers
+          and other hints on its own, and spends no visit's ask. */}
+      {boardMoreHere && (
+        <Suspense fallback={null}>
+          <BoardMoreNudge
+            user={user} tierLoaded={!myTier.loading} onboarding={myTier.onboarding}
+            settings={mySettings} settingsLoaded={mySettingsLoaded}
+            boardId={currentSurface === 'board' ? currentId : null}
+            boardReady={!!yb.ready} cards={yb.cards}
+            canEdit={canEditCurrent}
+            uploading={Object.keys(sidebarUploads || {}).length > 0}
+            tourActive={tourActive}
+            phone={mobileShell}
+            canFolder={bulkImportAllowed() && !mobileShell && !isTouch}
+            feedback={feedback}
+            onFolder={uploadFolderFromSidebar}
+            onPhotos={(files) => mainMutators.ingestFilesArranged?.(files)}
+            onNote={(at) => mainMutators.addNote?.(at)}
           />
         </Suspense>
       )}

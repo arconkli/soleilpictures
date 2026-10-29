@@ -68,6 +68,15 @@ export const FEATURE_EVENTS = Object.freeze({
     outcome: [EV.SETUP_DONE, EV.WORKSPACE_LINK_CLAIM_RESULT, EV.JOINER_LANDED],
     failure: [EV.SETUP_ERROR],
   },
+  // The first-board test's third-card toast (experiments.js first_board_more):
+  // 'eligible' in both arms is the read's denominator, B's 'view' its exposure;
+  // what they did next is their cards (card_placed, by actor) and imports.
+  firstBoardMore: {
+    exposure: [EV.BOARD_MORE_NUDGE],
+    action: [EV.BOARD_MORE_NUDGE, EV.FOLDER_IMPORT],
+    outcome: [EV.CARD_PLACED, EV.FOLDER_IMPORT],
+    failure: [],
+  },
   // The painted canvas ground and the wheel glide: how the canvas draws and feels.
   boardGround: {
     exposure: [EV.SESSION_CONTEXT],

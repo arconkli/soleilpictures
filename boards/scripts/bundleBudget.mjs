@@ -148,7 +148,13 @@ export const CEILINGS = {
   // canvas lightbox's import of More like this, whose strip and styles load
   // later (MoreLikeThis.jsx). A local build with CI's environment measured
   // 691.23 KB on c9865b42 and 691.91 with it, so CI's 691.5 becomes ~692.2.
-  appJs: 692_400,
+  // 2026-10-28: +0.6 KB for the first-board test (experiments.js
+  // first_board_more): App's check of whether an account is new enough for
+  // it (lib/boardMoreEpoch.js), the lazy BoardMoreNudge's mount and its
+  // props; the rules and the toast load later (BoardMoreNudge.jsx, ~8 KB,
+  // fetched only by accounts from 2026-11-06 on). A local build measured
+  // 692.3 KB on 71faeb80 and 692.8 with it.
+  appJs: 693_000,
   appCss: 21_000,
 };
 
@@ -167,6 +173,8 @@ export const LAZY_IN_APP = [
   // App.jsx
   'ListSurface', 'MessagesPanel', 'SettingsPanel', 'ShareModal', 'CommandPalette', 'TagDetailView',
   'TrashModal', 'VersionHistoryModal', 'WorkspaceRecoveryModal', 'EntityBacklinksPanel', 'importStart', 'TeamPage', 'TeamPageLive', 'NewWorkspaceDialog',
+  // App.jsx: the first-board test, for accounts from its epoch on
+  'BoardMoreNudge',
   // TierRouter.jsx: one route's page each
   'PricingPage', 'TeamPlanCard', 'TeamDomainNote', 'TeamSetup', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
   // the canvas: cards.jsx, CanvasSurface.jsx, info/InfoHost.jsx

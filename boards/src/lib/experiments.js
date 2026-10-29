@@ -105,6 +105,24 @@ export const EXPERIMENTS = {
   // account by UpgradeChip via lib/trialEarly.js. Switch-on after the
   // wall-trial read (around 2026-11-19).
   trial_early: { enabled: false, arms: [{ id: 'A', weight: 50 }, { id: 'B', weight: 50 }] },
+  // first_board_more — retention test 1 of the testing map (owner, 2026-10-28).
+  // Arm B, a moment after a third card lands on a board in someone's first
+  // week, gets one toast asking for a whole folder or a note beside the
+  // pictures; arm A is today's board. Accounts made from 2026-11-06 07:00Z
+  // (lib/boardMoreEpoch.js) are stamped both arms at their first App load
+  // (lib/boardMore.js, components/BoardMoreNudge.jsx), so the App seed loop
+  // leaves it alone. Registry only, like workspace_setup: never in
+  // app_config.experiments, where the nightly optimizer would move a weight
+  // that has to stay 50/50. Its coin (uid:first_board_more) crosses
+  // workspace_setup's evenly. Read: ~/soleil-research/queries/
+  // first_board_more_read.sql. enabled:false switches it off.
+  first_board_more: {
+    enabled: true,
+    arms: [
+      { id: 'A', weight: 50 },  // control — today's first board
+      { id: 'B', weight: 50 },  // the third-card toast: a folder, or a note
+    ],
+  },
   // PAUSED — its empty-board surface is subsumed by the showcase, and we run one
   // clean lever at current volume (the showcase's own clear-and-start affordance
   // is the "try it yourself" CTA). Flip enabled:true + re-enable its config row
