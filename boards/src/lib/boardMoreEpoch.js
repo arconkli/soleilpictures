@@ -3,11 +3,11 @@
 // components/BoardMoreNudge.jsx) is fetched only for those who could. A module
 // goes whole into one chunk, so this stays a leaf.
 
-// The test starts here: accounts made from this instant on (2026-10-29 07:00Z;
+// The test starts here: accounts made from this instant on (2026-10-29 04:30Z;
 // moved up from 11-06 on the owner's "start ASAP", the setup test's coin being
 // independent of this one). The saved read starts at the same
 // instant.
-export const BOARD_MORE_EPOCH = '2026-10-29T07:00:00Z';
+export const BOARD_MORE_EPOCH = '2026-10-29T04:30:00Z';
 export const BOARD_MORE_OVERRIDE_PARAM = 'more';
 export const BOARD_MORE_OVERRIDE_KEY = 'soleil.more.override';
 
