@@ -62,7 +62,14 @@ export const CEILINGS = {
   // in plain text, shown on the email step of the signed-out homepage, so it
   // renders with the box rather than loading later. A CI-style build read
   // 166.6 KB with it (OVER by about 0.1 KB on main 499d494b).
-  entryJs: 167_000,
+  // 2026-10-29: +0.5 KB for passkeys on the sign-in box: the "Use a passkey"
+  // line and its key, the email field's passkey suggestions, the check that
+  // passkeys can work here at all (lib/passkeyGate.js) and the seven passkey
+  // event names. Everything else (the WebAuthn steps, the words for each
+  // failure) is lib/passkeys.js, fetched only where passkeys can work. A
+  // CI-style build read 166.4 KB on e7b2d981 before it and 167.2 KB with it;
+  // 167.4 KB on main with the "Used by" line.
+  entryJs: 167_500,
   entryCss: 96_000,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
@@ -193,6 +200,8 @@ export const LAZY_IN_APP = [
   'TrashModal', 'VersionHistoryModal', 'WorkspaceRecoveryModal', 'EntityBacklinksPanel', 'importStart', 'TeamPage', 'TeamPageLive', 'NewWorkspaceDialog',
   // App.jsx: the first-board test, for accounts from its epoch on
   'BoardMoreNudge',
+  // App.jsx: the save-a-passkey offer after a code sign-in (lib/passkeyOffer.js)
+  'passkeyOffer',
   // TierRouter.jsx: one route's page each
   'PricingPage', 'TeamPlanCard', 'TeamDomainNote', 'TeamSetup', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
   // the canvas: cards.jsx, CanvasSurface.jsx, info/InfoHost.jsx

@@ -594,6 +594,17 @@ export const EV = Object.freeze({
   SIGNUP_BOX_VERIFY:       'signup_box_verify',           // the code was entered and accepted, just before the app opens {pos}
   SIGNUP_BOX_FAILED:       'signup_box_failed',           // a step failed {pos,step:'send'|'code',reason} — reason is keepFailReason() (an auth code, http_<status>, 'network' or 'error'), or 'no_tld' when the address was refused before sending
 
+  // ── Passkeys (lib/passkeys.js, 2026-10-29): signing in with a saved passkey
+  //    from the sign-in box, and saving one (the corner offer after a code
+  //    sign-in, or Settings › Profile). Counts only. ──
+  PASSKEY_SIGNIN:          'passkey_signin',              // signed in with a passkey {via:'autofill'|'link'}
+  PASSKEY_SIGNIN_FAILED:   'passkey_signin_failed',       // a passkey sign-in didn't finish {via,reason} — reason is passkeyFailReason(): a server code, the browser's error name or 'cancelled'
+  PASSKEY_OFFER_SEEN:      'passkey_offer_seen',          // the "Skip the code next time?" note showed after a code sign-in
+  PASSKEY_OFFER_DISMISSED: 'passkey_offer_dismissed',     // Not now / × on that note (never asked again on this device)
+  PASSKEY_SAVED:           'passkey_saved',               // a passkey was saved {via:'offer'|'settings'}
+  PASSKEY_SAVE_FAILED:     'passkey_save_failed',         // saving one didn't finish {via,reason}
+  PASSKEY_REMOVED:         'passkey_removed',             // a passkey was removed in Settings (after its undo ran out)
+
   // ── Tags (the ambient hover-to-explore rework — see project_tags_rework).
   //    Zero tag events existed before; this is how we finally measure whether
   //    tagging pays off. ──

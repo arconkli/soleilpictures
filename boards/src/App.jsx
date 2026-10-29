@@ -190,6 +190,7 @@ import { useNotifications } from './hooks/useNotifications.js';
 const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx').then(m => ({ default: m.LocalBoardsApp })));
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
+import { passkeyOfferDue, PASSKEY_OFFER_KEY } from './lib/passkeyGate.js';
 import { trackRegistration } from './lib/metaPixel.js';
 import { holdReload } from './lib/buildWatch.js';
 import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, syncCardIndex, getProfilesByIds } from './lib/boardsApi.js';
@@ -768,6 +769,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   }, [boards]);
   useIdlePrefetch(idlePrefetchList);
   const feedback = useFeedback();
+  // "Skip the code next time?" — right after a code sign-in, once per device,
+  // never on an account's first day (lib/passkeyOffer.js, lazy). A few seconds
+  // in, so the board has opened first.
+  useEffect(() => {
+    if (altSessionId) return undefined;
+    let due = false;
+    try {
+      due = passkeyOfferDue({
+        otpAt: localStorage.getItem('soleil_ps_otp_at'),
+        createdAt: user.created_at,
+        offered: !!localStorage.getItem(PASSKEY_OFFER_KEY),
+        hostname: window.location.hostname,
+      });
+    } catch (_) { due = false; }
+    if (!due) return undefined;
+    const t = setTimeout(() => {
+      import('./lib/passkeyOffer.js').then((m) => m.offerPasskey({ feedback })).catch(() => {});
+    }, 3000);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.id]);
   const sessionKey = `${SESSION_PREFIX}${user.id}.${workspace.id}`;
   const [initialSession] = useState(() => readSession(sessionKey));
   // Arrived here by Home's workspace switcher (lib/homeAfterSwitch): open on

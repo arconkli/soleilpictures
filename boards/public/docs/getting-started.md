@@ -2,7 +2,7 @@
 
 > Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and up to 10 people who edit.
 
-_Source: https://clusters.soleilpictures.com/docs/getting-started · Updated 2026-10-21_
+_Source: https://clusters.soleilpictures.com/docs/getting-started · Updated 2026-10-29_
 
 From an empty account to a board you would show someone, in about five minutes.
 
@@ -10,6 +10,11 @@ From an empty account to a board you would show someone, in about five minutes.
 
 Go to [clusters.soleilpictures.com](https://clusters.soleilpictures.com/) and enter your email
 address. You will get a one-time code — there is no password.
+
+Once you're in, you can save a **passkey** so the next sign-in skips the code:
+your browser offers it as soon as you tap the email box, or press
+**Use a passkey** under it. Save one from the note that appears after a code
+sign-in, or any time in **Settings › Profile › Passkeys**.
 
 Some new accounts start with a short setup before the canvas; others go
 straight to their first cluster.

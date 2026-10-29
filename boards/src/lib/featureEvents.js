@@ -201,4 +201,12 @@ export const FEATURE_EVENTS = Object.freeze({
     outcome: [EV.SIGNUP_BOX_VERIFY],
     failure: [EV.SIGNUP_BOX_FAILED],
   },
+  // Passkeys: the email field's suggestions and the quiet link on the
+  // sign-in box (seen by everyone who sees the box), and saving one.
+  passkeySignIn: {
+    exposure: [EV.LANDING_VIEW, EV.PASSKEY_OFFER_SEEN],
+    action: [EV.PASSKEY_SAVED, EV.PASSKEY_OFFER_DISMISSED],
+    outcome: [EV.PASSKEY_SIGNIN, EV.PASSKEY_SAVED],
+    failure: [EV.PASSKEY_SIGNIN_FAILED, EV.PASSKEY_SAVE_FAILED],
+  },
 });

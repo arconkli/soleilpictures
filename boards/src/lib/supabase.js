@@ -86,6 +86,9 @@ export let supabase = (url && publicKey)
         detectSessionInUrl: false,
         // Round 22: see createSerialLock comment above.
         lock: createSerialLock(),
+        // Passkeys (2026-10-29): Supabase's native WebAuthn, still opt-in in
+        // auth-js. lib/passkeys.js drives it; the project has it switched on.
+        experimental: { passkey: true },
         ...(altSessionId ? { storage: makeNamespacedStorage(altSessionId), storageKey: `sb-auth-as-${altSessionId}` } : {}),
       },
       realtime: {

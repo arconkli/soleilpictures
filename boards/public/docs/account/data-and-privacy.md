@@ -2,7 +2,7 @@
 
 > Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 
-_Source: https://clusters.soleilpictures.com/docs/account/data-and-privacy · Updated 2026-10-25_
+_Source: https://clusters.soleilpictures.com/docs/account/data-and-privacy · Updated 2026-10-29_
 
 ## Who can see a board
 
@@ -107,6 +107,11 @@ workspace, sees your name but not your email address.
 
 Sign-in is a one-time emailed code. There is no password to be reused or
 leaked.
+
+A passkey, if you save one, stays on your device or in its password manager:
+only a public key reaches us, and signing in with it needs your face,
+fingerprint or device PIN. You can see and remove your passkeys in
+**Settings › Profile**; removing one stops it working at once.
 
 [API tokens](/docs/api/authentication) are stored only as a hash — the value is
 shown once and cannot be recovered. A token acts as you, reaching exactly what
