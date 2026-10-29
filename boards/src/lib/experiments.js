@@ -123,6 +123,25 @@ export const EXPERIMENTS = {
       { id: 'B', weight: 50 },  // the third-card toast: a folder, or a note
     ],
   },
+  // The sign-up box on the public search pages (/vs, /tools, /use-cases, /best),
+  // for SIGNED-OUT visitors, so the coin is per DEVICE, never per account:
+  // visitorEnroll.js's assignVisitorArm() hashes the device id, assignArm()
+  // returns null for it, and getActiveExperiments() leaves it out, so no seed
+  // loop or user-id path ever enrolls anyone in it. Enrollment and eligibility
+  // are in visitorEnroll.js (loaded only by the pages that run it), the arm on
+  // events and the stamp onto the account a visitor creates in visitorArms.js
+  // and analytics.js. It turns itself on at startsAt. Registry only: never in
+  // app_config.experiments, where the nightly optimizer would move the weights
+  // of a test read at 50/50.
+  signup_box: {
+    enabled: true,
+    audience: 'visitor',
+    startsAt: '2026-11-11T00:00:00Z',
+    arms: [
+      { id: 'A', weight: 50 },  // control — today's gold button to the home form
+      { id: 'B', weight: 50 },  // the email box in place of the hero and closing buttons
+    ],
+  },
   // PAUSED — its empty-board surface is subsumed by the showcase, and we run one
   // clean lever at current volume (the showcase's own clear-and-start affordance
   // is the "try it yourself" CTA). Flip enabled:true + re-enable its config row
@@ -184,22 +203,27 @@ function cyrb53(str, seed = 0) {
   return 4294967296 * (2097151 & h2) + (h1 >>> 0); // 0 .. 2^53-1
 }
 
-// Stable per (user, experiment); returns the arm id, or null if the experiment is
-// unknown/disabled or no user id is available.
-export function assignArm(key, userId) {
-  const exp = EXPERIMENTS[key];
-  if (!exp || !exp.enabled || !userId) return null;
-  const arms = exp.arms || [];
+// The weighted coin both kinds of experiment flip; seed is `${id}:${key}`.
+export function pickArm(arms, seed) {
   const total = arms.reduce((s, a) => s + (a.weight || 0), 0);
   if (total <= 0) return null;
-  const r = (cyrb53(`${userId}:${key}`) / 9007199254740992) * total; // /2^53 → [0,total)
+  const r = (cyrb53(seed) / 9007199254740992) * total; // /2^53 → [0,total)
   let acc = 0;
   for (const a of arms) { acc += a.weight || 0; if (r < acc) return a.id; }
   return arms[arms.length - 1].id;
 }
 
+// Stable per (user, experiment); returns the arm id, or null if the experiment is
+// unknown/disabled, is for signed-out visitors, or no user id is available.
+export function assignArm(key, userId) {
+  const exp = EXPERIMENTS[key];
+  if (!exp || !exp.enabled || exp.audience === 'visitor' || !userId) return null;
+  return pickArm(exp.arms || [], `${userId}:${key}`);
+}
+
+// The user-id experiments: what App's seed loop and getAssignedArms walk.
 export function getActiveExperiments() {
-  return Object.keys(EXPERIMENTS).filter((k) => EXPERIMENTS[k]?.enabled);
+  return Object.keys(EXPERIMENTS).filter((k) => EXPERIMENTS[k]?.enabled && EXPERIMENTS[k].audience !== 'visitor');
 }
 
 // { exp_<key>: arm } for every active experiment the user is enrolled in — the

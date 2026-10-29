@@ -50,7 +50,14 @@ export const CEILINGS = {
   // analyticsEvents.js) and the Talk to us page's route fit under it: CI's
   // build read 165.7 KB on 2026-10-27. The page itself loads only on
   // /pricing/talk-to-us.
-  entryJs: 166_000,
+  // 2026-10-28: +0.5 KB for the sign-up box test (experiments.js signup_box,
+  // a visitor test): the device's arm on its signed-out events
+  // (lib/visitorArms.js), the stamp of that arm onto the account it creates
+  // (analytics.js), the registry entry and its three event names. Enrolling,
+  // the coin and the box itself load only on the search pages that run it
+  // (lib/visitorEnroll.js, components/public/SignupBox.jsx). A CI-style build
+  // read 165.9 KB before it, 166.3 KB with it.
+  entryJs: 166_500,
   entryCss: 96_000,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only

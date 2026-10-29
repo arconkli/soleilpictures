@@ -585,6 +585,15 @@ export const EV = Object.freeze({
   MAKE_KEPT:               'make_kept',                   // POST /api/make/keep made the board {via:'code'|'signed_in',cards,left_out,fit} — left_out: pictures that couldn't be copied in
   MAKE_FAILED:             'make_failed',                 // a step failed {step:'send'|'code'|'keep',reason} — keepFailReason() at send/code; the route's code, http_<status> or 'network' at keep
 
+  // ── The sign-up box on the public search pages (components/public/SignupBox.jsx),
+  //    arm B of the visitor test signup_box (experiments.js, from 2026-11-11):
+  //    the email and code typed where the hero and closing buttons were. Every
+  //    event of an enrolled device carries exp_signup_box, the box's and
+  //    lp_view's alike. Counts only: never the email. ──
+  SIGNUP_BOX_SEND:         'signup_box_send',             // the box sent a sign-in code {pos:'hero'|'closing',resend} — the first send also logs lp_cta_click {pos,intent:'signup'}, so the landing scorecard counts a press in both arms
+  SIGNUP_BOX_VERIFY:       'signup_box_verify',           // the code was entered and accepted, just before the app opens {pos}
+  SIGNUP_BOX_FAILED:       'signup_box_failed',           // a step failed {pos,step:'send'|'code',reason} — reason is keepFailReason() (an auth code, http_<status>, 'network' or 'error'), or 'no_tld' when the address was refused before sending
+
   // ── Tags (the ambient hover-to-explore rework — see project_tags_rework).
   //    Zero tag events existed before; this is how we finally measure whether
   //    tagging pays off. ──

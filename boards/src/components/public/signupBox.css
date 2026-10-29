@@ -1,0 +1,124 @@
+/* The sign-up box on the public search pages (SignupBox.jsx), look A: one
+   line, the field beside the page's own gold button. `sgb-`, because `sb-` is
+   the sidebar's. Gold stays the button's colour, as it is for arm A's button,
+   and the field's focus ring. */
+
+.sgb-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+/* In the hero it takes the whole row; the page's own links wrap below it. */
+.seo-hero-cta > .sgb-box { flex-basis: 100%; }
+.seo-hero-cta:has(> .sgb-box) { row-gap: 14px; }
+
+.sgb-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  max-width: 470px;
+  justify-content: center;
+  margin: 0;
+}
+.sgb-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 52px;
+  padding: 0 16px;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  color: var(--ink-0);
+  /* 16px or more, or a phone zooms the page when the field takes focus. */
+  font: 500 16px/1.4 var(--font-sans);
+  outline: none;
+  transition: border-color var(--dur-fast, 120ms) var(--ease), box-shadow var(--dur-fast, 120ms) var(--ease);
+}
+.sgb-input::placeholder { color: var(--ink-3); }
+.sgb-input:focus {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--soleil), 0 0 24px rgba(255, 165, 0, 0.18);
+}
+.sgb-input[aria-invalid='true'] { border-color: var(--danger, #e5484d); }
+.sgb-input.is-code {
+  max-width: 200px;
+  text-align: center;
+  letter-spacing: 0.42em;
+  font: 600 20px/1 var(--font-sans);
+}
+.sgb-input:disabled { opacity: 0.7; }
+
+.sgb-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 24px;
+  background: var(--soleil);
+  color: var(--bg-0);
+  font: 700 1rem/1 var(--font-sans);
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(255, 165, 0, 0.18);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform var(--dur-fast, 120ms) var(--ease), box-shadow var(--dur-fast, 120ms) var(--ease), opacity var(--dur-fast, 120ms) var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.sgb-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(255, 165, 0, 0.28); }
+.sgb-btn:focus-visible { outline: 2px solid var(--ink-0); outline-offset: 2px; }
+.sgb-btn:disabled { opacity: 0.75; cursor: default; }
+
+.sgb-fine {
+  margin: 0;
+  font: 500 0.85rem/1.4 var(--font-sans);
+  color: var(--ink-2);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.sgb-fine b { color: var(--ink-1); font-weight: 600; }
+.sgb-sent { font-size: 0.95rem; }
+.sgb-addr { color: var(--ink-1); }
+.sgb-error {
+  margin: 0;
+  max-width: 470px;
+  font: 500 0.85rem/1.4 var(--font-sans);
+  color: var(--ink-error, #ff8a80);
+  text-align: center;
+}
+.sgb-link {
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line-3);
+  color: var(--ink-1);
+  font: inherit;
+  cursor: pointer;
+}
+.sgb-link:hover:not(:disabled) { color: var(--ink-0); border-color: var(--ink-2); }
+.sgb-link:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; border-radius: 2px; }
+.sgb-link:disabled { opacity: 0.6; cursor: default; }
+.sgb-captcha:empty { display: none; }
+
+.sgb-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Phone: the field over a full-width button. */
+@media (max-width: 560px) {
+  .sgb-row { flex-direction: column; align-items: stretch; }
+  .sgb-input { flex: none; width: 100%; }
+  .sgb-input.is-code { max-width: none; }
+  .sgb-btn { width: 100%; }
+}
