@@ -163,20 +163,21 @@ const HOME_CARDS = [
       ['h', '1.'],
       ['slug', 'INT. BASEMENT - 1883'],
       ['act', 'We open on Neal Brown in his basement laboratory working. He has a white afro and beard, round glasses and a three piece suit.'],
-      ['act', 'Neal is in a deep corner far from the stairs, working meticulously on a strange, fridge-like machine.'],
       ['act', 'He’s focused working when suddenly footsteps above make him stop.'],
       ['who', 'NEAL'],
       ['say', 'The floorboards... make haste, almost complete'],
     ]),
-    cx: 427, cy: 1395, rot: 4, maxW: 512,
+    cx: 660, cy: 1460, rot: 3, maxW: 420,
   },
-  // Two loose rows around Lost Time, the brightest, in the middle; the palette
-  // pinned across its foot. Later cards sit on top.
-  { art: 'yahweh.jpg', cx: 461, cy: 662, rot: -7, maxW: 495 },
-  { art: 'deep-dive.jpg', cx: 1587, cy: 679, rot: 6, maxW: 461 },
-  { art: 'yahweh-costume.jpg', cx: 1570, cy: 1447, rot: -4, maxW: 580 },
-  { art: 'lost-time.jpg', cx: 1007, cy: 969, rot: -3, maxW: 597 },
-  { html: paletteHtml('Yahweh', ['#ffffff', '#ffd158', '#552a21', '#a93535']), cx: 1007, cy: 1495, rot: -2, maxW: 649 },
+  // A tight pile inside the ring so the three suns still read as the logo
+  // (owner 10-29: "it covers the logo too much"): Lost Time, the brightest, in
+  // the middle and a little higher, YAHWEH and Deep Dive over its edges with
+  // their titles clear, the palette in the ring's lower gap. Later cards sit on top.
+  { art: 'lost-time.jpg', cx: 1110, cy: 760, rot: -2, maxW: 460 },
+  { art: 'yahweh.jpg', cx: 790, cy: 880, rot: -6, maxW: 380 },
+  { art: 'deep-dive.jpg', cx: 1450, cy: 870, rot: 6, maxW: 360 },
+  { art: 'yahweh-costume.jpg', cx: 1470, cy: 1330, rot: -4, maxW: 400 },
+  { html: paletteHtml('Yahweh', ['#ffffff', '#ffd158', '#552a21', '#a93535']), cx: 1085, cy: 1420, rot: -2, maxW: 400 },
 ];
 
 const cards = [
