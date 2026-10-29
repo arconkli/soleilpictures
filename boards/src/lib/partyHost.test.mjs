@@ -59,7 +59,9 @@ test('the Worker proxies, CSP and early bundle fetches use the shared host', () 
   const worker = read('boards/src/worker.js');
   assert.match(worker, /import \{ PARTY_HOST \} from '\.\/lib\/partyHost\.js';/);
   assert.match(worker, /connect-src 'self' [^`]*https:\/\/\$\{PARTY_HOST\} wss:\/\/\$\{PARTY_HOST\}/);
-  assert.equal((worker.match(/'https:\/\/\$\{PARTY_HOST\}\/parties\/upload\/share\/(share|public)-bundle'/g) || []).length, 2);
+  assert.equal((worker.match(/'https:\/\/\$\{PARTY_HOST\}\/parties\/upload\/share\/share-bundle'/g) || []).length, 1);
+  // A /c/ page asks this Worker (publicBundleRoute.test.mjs), which asks the party.
+  assert.match(worker, /partyFetch\(env, `https:\/\/\$\{PARTY_HOST\}\/parties\/upload\/share\/public-bundle`/);
   assert.match(worker, /const target = `https:\/\/\$\{PARTY_HOST\}\/parties\/main\/\$\{encodeURIComponent\(boardId\)\}\/reset`;/);
   // Until PartyKit deletes it, the old room is reset too.
   assert.match(worker, /if \(Date\.now\(\) < Date\.parse\(OLD_PARTY_GONE_AFTER\)\) \{[\s\S]*?https:\/\/\$\{OLD_PARTY_HOST\}\/parties\/main\//);

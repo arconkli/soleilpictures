@@ -68,6 +68,7 @@ import { EV } from '../lib/analyticsEvents.js';
 import { qaShareNoPrefetch } from '../lib/localMode.js';
 import { placedOf } from '../lib/placement.js';
 import { bundleFailureKind, bundleHttpError } from '../lib/shareLoadError.js';
+import { publicBundlePath } from '../lib/publicBundleRoute.js';
 import { PARTY_HOST as PARTYKIT_HOST, PARTY_PROTOCOL as PARTYKIT_PROTOCOL } from '../lib/partyHost.js';
 
 
@@ -132,6 +133,32 @@ function remixHref(ctx) {
   const base = ctaHref(ctx, 'remix');
   const param = encodeRemixParam(ctx.slug ? { kind: 'slug', value: ctx.slug } : { kind: 'token', value: ctx.token });
   return param ? `${base}&remix=${encodeURIComponent(param)}` : base;
+}
+
+// A /c/ page's board. Our own Worker first, by a same-origin GET: a crawler's
+// renderer refuses the cross-origin POST to the party's host, and a page that
+// can't load its board reads to Google as an empty one (lib/publicBundleRoute.js).
+// The direct POST is kept for builds no Worker serves (vite dev, the local
+// harness: no x-soleil-bundle on what comes back) and for a GET the route
+// itself never answered. An answer the route did give stands: its 404 is the
+// party's "no such public board", and anything else not ok gets the Retry.
+async function fetchPublicBundle(slug, boardId) {
+  try {
+    const res = await fetch(publicBundlePath(slug, boardId), { headers: { Accept: 'application/json' } });
+    if (res.headers.get('x-soleil-bundle')) {
+      if (!res.ok) throw bundleHttpError(res);
+      return res;
+    }
+  } catch (e) {
+    if (e && e.status) throw e;
+  }
+  const res = await fetch(`${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/share/public-bundle`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug, boardId: boardId || undefined }),
+  });
+  if (!res.ok) throw bundleHttpError(res);
+  return res;
 }
 
 // Renders both /share/<token> (token mode) and /c/<slug> (admin-curated public
@@ -288,15 +315,7 @@ export function PublicBoardView({ token, slug }) {
         try { res = await early.promise; } catch (_) { res = null; }
         if (res && !res.ok) res = null;
       }
-      if (!res) {
-        const url = `${PARTYKIT_PROTOCOL}://${PARTYKIT_HOST}/parties/upload/share/public-bundle`;
-        res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug, boardId: boardId || undefined }),
-        });
-        if (!res.ok) throw bundleHttpError(res);
-      }
+      if (!res) res = await fetchPublicBundle(slug, boardId);
     } else {
       const early = typeof window !== 'undefined' ? window.__shareBundle : null;
       if (early && early.token === token && (early.boardId || null) === (boardId || null)) {
@@ -709,6 +728,50 @@ export function PublicBoardView({ token, slug }) {
   // "Interactive" affordance over the hero — gone after the first gesture.
   const [heroTouched, setHeroTouched] = useState(false);
 
+  // A /c/ page whose board is still on its way, or didn't come: the article
+  // still stands under a hero-sized placeholder. The Worker injected its model
+  // (no fetch), so the page keeps every word the server sent. A page that
+  // swapped its article for "Loading…" or "Couldn't load this board" is what
+  // Google filed as a Soft 404 when its renderer couldn't reach the board.
+  if ((status === 'loading' || status === 'error') && pageModel) {
+    const failed = status === 'error';
+    return (
+      <div className="public-shell public-dark public-shell-doc" style={{ background: 'var(--bg-0)' }}>
+        <PublicTopbar hrefFor={(sfc) => ctaHref(ctx, sfc)} signedIn={signedIn} center={<div className="public-topbar-spacer" />} onCta={onCta}
+          remixUrl={pageModel.isTemplate ? remixHref(ctx) : null}
+          remixLabel={pageModel.isTemplate ? 'Use this template' : 'Make a copy'} />
+        <div className="public-canvas-host" aria-busy={!failed}>
+          {failed ? (
+            <div className="public-empty" role="alert">
+              <SoleilMark size={42} color="var(--soleil)" glow />
+              <div className="public-empty-title">Couldn’t load the live board</div>
+              <div className="public-empty-sub">
+                The connection dropped or the server didn’t answer in time. Nothing is wrong with the page — try again in a moment.
+              </div>
+              <div className="public-empty-actions">
+                <button type="button" className="btn-secondary" style={{ minHeight: 40 }}
+                        onClick={() => { setStatus('loading'); setLoadAttempt(n => n + 1); }}>
+                  Retry
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="public-loading">
+              <SoleilMark size={42} color="var(--soleil)" glow />
+              <div>Loading board…</div>
+            </div>
+          )}
+        </div>
+        <PublicArticle
+          model={pageModel}
+          boardId={null}
+          remixUrl={remixHref(ctx)}
+          tryHref={ctaHref(ctx, 'article')}
+          onCta={onCta}
+        />
+      </div>
+    );
+  }
   if (status === 'loading') {
     return (
       <div className="public-shell">

@@ -112,6 +112,7 @@ const RELOAD_BY = '2026-10-21T00:00:00Z';
 import { PARTY_HOST } from './lib/partyHost.js';
 import { OLD_PARTY_HOST, OLD_PARTY_GONE_AFTER } from './lib/partyDefaults.js';
 import { partyFetch } from './lib/partyFetch.js';
+import { PUBLIC_BUNDLE_PATH, publicBundleQuery } from './lib/publicBundleRoute.js';
 import { edgeContext, edgeContextMeta } from './lib/edgeContext.js';
 import { isOurFailure } from './lib/serverErrors.js';
 import {
@@ -495,18 +496,21 @@ window.__shareBundle={token:m[1],boardId:boardId,promise:fetch(
 }catch(_){}})()<\/script>`;
 
 // Early public-bundle fetch for /c/<slug> marketing pages — the slug-keyed
-// analog of SHARE_EARLY_FETCH. Overlaps the bundle POST with JS download so
+// analog of SHARE_EARLY_FETCH. Overlaps the bundle request with JS download so
 // PublicBoardView can consume window.__publicBundle instead of re-fetching.
-// SAFETY: fully static — slug/?b are read from `location` in-browser, never
-// interpolated here. Only PARTY_HOST (build constant) is templated.
+// A same-origin GET to this Worker, never the party's host: a crawler's
+// renderer refuses the cross-origin POST (lib/publicBundleRoute.js), and a /c/
+// page without its board reads to Google as an empty page.
+// SAFETY: fully static — slug/?b are read from `location` in-browser and only
+// sent once they match their patterns, never interpolated here. Only
+// PUBLIC_BUNDLE_PATH (a constant) is templated.
 const PUBLIC_EARLY_FETCH = `<script>(function(){try{
 var m=location.pathname.match(/^\\/c\\/([a-z0-9][a-z0-9-]{0,79})\\/?$/);if(!m)return;
 var b=new URLSearchParams(location.search).get('b');
 var boardId=(b&&/^[0-9a-f-]{36}$/i.test(b))?b:null;
-var body={slug:m[1]};if(boardId)body.boardId=boardId;
 window.__publicBundle={slug:m[1],boardId:boardId,promise:fetch(
-'https://${PARTY_HOST}/parties/upload/share/public-bundle',
-{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})};
+'${PUBLIC_BUNDLE_PATH}?slug='+m[1]+(boardId?'&b='+boardId:''),
+{headers:{'Accept':'application/json'}})};
 }catch(_){}})()<\/script>`;
 
 function injectShareMeta(res, meta, token) {
@@ -829,6 +833,9 @@ const worker = {
       if (pubThumbMatch) return await handlePublicThumb(env, pubThumbMatch[1], url.searchParams, request);
       const pubImgMatch = url.pathname.match(/^\/api\/public-img\/([a-z0-9][a-z0-9-]{0,79})$/);
       if (pubImgMatch) return await handlePublicImg(env, pubImgMatch[1], url.searchParams, request);
+      // A /c/<slug> page's canvas, at our own address (lib/publicBundleRoute.js:
+      // Google's renderer won't make the cross-origin POST to the party).
+      if (url.pathname === PUBLIC_BUNDLE_PATH) return await handlePublicBundle(env, url, request);
       // Admin-only preview of a still-pending board's images (Approvals tab).
       const admPrevMatch = url.pathname.match(/^\/api\/admin\/preview-img\/([0-9a-f-]{36})$/i);
       if (admPrevMatch) return await handleAdminPreviewImg(env, admPrevMatch[1], url.searchParams, request);
@@ -3098,6 +3105,38 @@ async function handleEmailCard(env, boardId, cardId, searchParams, request) {
 // avoids CORS entirely since the call is same-origin from the client's
 // perspective and worker-to-party is server-to-server — by the PARTY service
 // binding, since a workers.dev URL is refused from the preview (lib/partyFetch.js).
+// GET /api/public-bundle?slug=<slug>[&b=<board id>] — the /c/ page's board,
+// asked of the party server to server (the PARTY binding, lib/partyFetch.js).
+// The party's answer passes through as it is: its 404 is "no such public
+// board", and anything else not ok is an outage the page offers a Retry for
+// (lib/shareLoadError.js). A minute of caching: the presigned image URLs in it
+// live for days, and a crawler re-rendering a page asks again within seconds.
+async function handlePublicBundle(env, url, request) {
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return new Response('Method not allowed', { status: 405, headers: { allow: 'GET, HEAD' } });
+  }
+  // x-soleil-bundle marks an answer as this route's, so the page can tell it
+  // from a host with no Worker in front (vite's own 404) and fall back there.
+  const own = { 'x-robots-tag': 'noindex', 'x-soleil-bundle': '1' };
+  const q = publicBundleQuery(url.searchParams);
+  if (!q) return new Response('Missing slug', { status: 400, headers: { ...own, 'cache-control': 'no-store' } });
+  const res = await partyFetch(env, `https://${PARTY_HOST}/parties/upload/share/public-bundle`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(q),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const body = await res.text();
+  return new Response(request.method === 'HEAD' ? null : body, {
+    status: res.status,
+    headers: {
+      ...own,
+      'content-type': res.headers.get('content-type') || 'text/plain; charset=utf-8',
+      'cache-control': res.ok ? 'public, max-age=60' : 'no-store',
+    },
+  });
+}
+
 async function handleBoardReset(boardId, request, ctx, env) {
   if (request.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
