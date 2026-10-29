@@ -57,7 +57,12 @@ export const CEILINGS = {
   // the coin and the box itself load only on the search pages that run it
   // (lib/visitorEnroll.js, components/public/SignupBox.jsx). A CI-style build
   // read 165.9 KB before it, 166.3 KB with it.
-  entryJs: 166_500,
+  // 2026-10-29: +0.5 KB for the "Used by" line under the sign-in box
+  // (components/public/UsedBy.jsx, lib/usedBy.js and its CSS): four names
+  // in plain text, shown on the email step of the signed-out homepage, so it
+  // renders with the box rather than loading later. A CI-style build read
+  // 166.6 KB with it (OVER by about 0.1 KB on main 499d494b).
+  entryJs: 167_000,
   entryCss: 96_000,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
