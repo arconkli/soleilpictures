@@ -50,6 +50,9 @@ export const POLL_MS = {
   system: 180_000,
   // The sharing ledger reads every share route since the window opened.
   sharing: 180_000,
+  // The tests read (0810) is one call of ~0.3s; a test's numbers move as
+  // people sign up, which is minutes apart, and a check going wrong is hours.
+  tests: 180_000,
   shell: 60_000,
 };
 
@@ -67,7 +70,8 @@ export function useAnalyticsFilters() {
 //
 // `status` is what the view knows about its own calendar, for the status strip:
 // { weeks, partialDays } (complete weeks read, and days of this UTC week so far)
-// on Overview, { since } (the UTC day its window starts) on Money.
+// on Overview, { since } (the UTC day its window starts) on Money, and
+// { running, looks } (tests running, and tests whose checks need a look) on Tests.
 // The effect is keyed on those values, never on the object. A caller that
 // builds the object inline hands over a new one every render, and registering it
 // re-renders the provider, which re-renders the caller, without end.
@@ -81,12 +85,15 @@ export function useRegisterViewRuntime({ refresh, lastUpdated, refreshing, statu
   const weeks = status?.weeks ?? null;
   const partialDays = status?.partialDays ?? null;
   const since = status?.since ?? null;
+  const running = status?.running ?? null;
+  const looks = status?.looks ?? null;
   useEffect(() => {
+    const none = weeks == null && partialDays == null && since == null && running == null && looks == null;
     registerRuntime({
       refresh, lastUpdated, refreshing, stream,
-      status: weeks == null && partialDays == null && since == null ? null : { weeks, partialDays, since },
+      status: none ? null : { weeks, partialDays, since, running, looks },
     });
-  }, [registerRuntime, refresh, lastUpdated, refreshing, stream, weeks, partialDays, since]);
+  }, [registerRuntime, refresh, lastUpdated, refreshing, stream, weeks, partialDays, since, running, looks]);
 }
 
 function getParam(name) {
