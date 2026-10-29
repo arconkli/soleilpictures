@@ -44,9 +44,33 @@
 .sb-stage { position: sticky; top: 0; height: 100vh; width: 100vw; overflow: hidden; }
 
 /* layer 0 — atmosphere (fades out as the live board takes over) */
-.sb-grid { position: absolute; inset: -10%; z-index: 0; opacity: 0;
-  background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.13) 1.3px, transparent 1.6px);
-  background-size: 24px 24px; }
+.sb-grid { position: absolute; inset: 0; z-index: 0;
+  /* The app's own board ground (lib/canvasGround.js at zoom 1, dark values —
+     the scene is always dark): a dot every 20px, a brighter stacked dot every
+     80px and 320px, and faint 1px lines every 80px. CSS, so it costs no JS. */
+  background-color: #0a0a0c;
+  background-image:
+    radial-gradient(circle at 160px 160px, rgba(245,245,247,.05) 1.44px, transparent 1.9px),
+    radial-gradient(circle at 40px 40px, rgba(245,245,247,.05) 1.2px, transparent 1.7px),
+    radial-gradient(circle at 10px 10px, rgba(245,245,247,.05) 1px, transparent 1.5px),
+    linear-gradient(to right, rgba(245,245,247,.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(245,245,247,.025) 1px, transparent 1px);
+  background-size: 320px 320px, 80px 80px, 20px 20px, 80px 80px, 80px 80px;
+  background-position: calc(50% - 160px) calc(50% - 160px), calc(50% - 40px) calc(50% - 40px), calc(50% - 10px) calc(50% - 10px), 50% 50%, 50% 50%; }
+
+/* the search pages' warmth behind the box: a soft glow + one faint dotted
+   orbit with two suns drawn the logo's way (lib/sunArt.js: orange disc, a
+   deeper shade, a cream disc). Centred like .sb-box-wrap; JS eases it back as
+   the board fills in. The orbit turns in once on load, then sits still. A CSS
+   image, not markup, so it stays out of the sign-in page's script. */
+.sb-halo { position: absolute; top: 0; left: 0; right: 0; height: var(--sb-vvh, 100%); z-index: 1; pointer-events: none;
+  display: grid; place-items: center; overflow: hidden; }
+.sb-halo > * { grid-area: 1 / 1; }
+.sb-glow { width: 900px; height: 620px; max-width: 140vw; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255,160,40,.16), rgba(255,140,20,.05) 55%, transparent); }
+.sb-orbit { width: 760px; height: 500px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 760 500'%3E%3Cellipse cx='380' cy='250' rx='360' ry='220' transform='rotate(-7 380 250)' fill='none' stroke='%23fffaf0' stroke-opacity='.28' stroke-width='2' stroke-dasharray='2 10' stroke-linecap='round'/%3E%3CclipPath id='c0'%3E%3Ccircle cx='35.1' cy='216.5' r='15'/%3E%3C/clipPath%3E%3Ccircle cx='35.1' cy='216.5' r='15' fill='%23ffa500'/%3E%3Ccircle cx='37.9' cy='211.7' r='9.0' fill='%23ef7300' clip-path='url(%23c0)'/%3E%3Ccircle cx='41.5' cy='205.5' r='11.9' fill='%23fffaf0'/%3E%3CclipPath id='c1'%3E%3Ccircle cx='692.5' cy='118.0' r='10'/%3E%3C/clipPath%3E%3Ccircle cx='692.5' cy='118.0' r='10' fill='%23ffa500'/%3E%3Ccircle cx='694.4' cy='114.8' r='6.0' fill='%23ef7300' clip-path='url(%23c1)'/%3E%3Ccircle cx='696.8' cy='110.6' r='7.9' fill='%23fffaf0'/%3E%3C/svg%3E") center / contain no-repeat;
+  animation: sb-orbit-in 2.2s cubic-bezier(.16,.84,.3,1) both; }
+@keyframes sb-orbit-in { from { opacity: 0; transform: rotate(-18deg) scale(.94); } to { opacity: 1; transform: none; } }
 .sb-grain { position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background-image: url('/grain.gif'); background-size: 320px 240px; opacity: .03; }
 
@@ -159,9 +183,6 @@
 .sb-chrome-sep { width: 1px; height: 16px; background: var(--line-1); margin: 0 4px; }
 .sb-chrome-crumb { font: 500 12px/1 var(--font-sans); color: var(--ink-2); white-space: nowrap; }
 .sb-chrome-crumb.sb-here { color: var(--ink-0); overflow: hidden; text-overflow: ellipsis; }
-.sb-chrome-pill { position: absolute; left: 50%; transform: translateX(-50%); display: inline-flex; background: var(--bg-3); border: 1px solid var(--line-2); border-radius: 999px; padding: 2px; }
-.sb-chrome-pill span { padding: 4px 13px; border-radius: 999px; font: 500 12px/1 var(--font-sans); color: var(--ink-2); }
-.sb-chrome-pill span.sb-on { background: var(--bg-4); color: var(--ink-0); }
 .sb-chrome-presence { display: flex; }
 .sb-av { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
   font: 600 10px/1 var(--font-sans); color: #fff; box-shadow: 0 0 0 2px var(--bg-1); margin-left: -6px; }
@@ -180,7 +201,11 @@
 /* the email/code forms keep the app's .auth-* controls; the frost makes the
    primary button read as the gold CTA from the approved design */
 .sb-frost .auth-form { gap: 12px; max-width: none; }
-.sb-frost .auth-btn { background: var(--soleil); color: var(--bg-0); }
+.sb-frost .auth-btn { background: #ffa500; color: #1a1205; }
+/* Disabled (no email typed yet) is the button's resting look on arrival: the
+   app-wide half opacity turned the bright orange of the search pages into a
+   dim brown. Still visibly waiting, just not muddy. */
+.sb-frost .auth-btn:disabled { opacity: .92; }
 .sb-frost .auth-btn:hover:not(:disabled) { box-shadow: var(--shadow-2); transform: translateY(-1px); }
 /* The app-wide focus ring is a faint gold glow, which disappears on a gold
    fill: a keyboard user tabbing to Continue / Sign in saw the button exactly
@@ -273,9 +298,8 @@
     -webkit-backdrop-filter: blur(9px) saturate(1.05);
     background: rgba(18, 16, 13, .9);
   }
-  /* the faux topbar overflows on phones — drop the centered pill + the leading
-     crumbs, keep logo · Clusters · <project, truncated> | avatars so nothing overlaps */
-  .sb-chrome-pill { display: none; }
+  /* the faux topbar overflows on phones — drop the leading crumbs, keep
+     logo · Clusters · <project, truncated> | avatars so nothing overlaps */
   .sb-chrome-sep { display: none; }
   .sb-chrome-crumb:not(.sb-here) { display: none; }
   /* footer: the © + email won't both fit a phone row, so stack the legal
@@ -286,6 +310,9 @@
   .sb-foot-left { justify-content: center; gap: 3px 9px; }
   .sb-foot-copy { display: none; }
   .sb-trust { font-size: 11px; }
+  /* the box is a narrow column on a phone: a tall orbit around it */
+  .sb-orbit { width: 430px; height: 470px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 430 470'%3E%3Cellipse cx='215' cy='235' rx='170' ry='214' transform='rotate(-7 215 235)' fill='none' stroke='%23fffaf0' stroke-opacity='.28' stroke-width='2' stroke-dasharray='2 10' stroke-linecap='round'/%3E%3CclipPath id='c0'%3E%3Ccircle cx='283.9' cy='434.8' r='7'/%3E%3C/clipPath%3E%3Ccircle cx='283.9' cy='434.8' r='7' fill='%23ffa500'/%3E%3Ccircle cx='285.2' cy='432.6' r='4.2' fill='%23ef7300' clip-path='url(%23c0)'/%3E%3Ccircle cx='286.9' cy='429.6' r='5.5' fill='%23fffaf0'/%3E%3C/svg%3E"); }
+  .sb-glow { width: 520px; height: 560px; }
 }
 
 /* Touch: the "explore a live board" payoff is shown from the first frame
@@ -308,4 +335,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .sb-chev { animation: none; }
+  .sb-orbit { animation: none; }
 }

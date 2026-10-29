@@ -165,7 +165,7 @@ export function SignInBackdrop({ children, exploreHref }) {
   const cardsRef   = useRef(null);
   const cursorsRef = useRef(null);
   const linksRef   = useRef(null);
-  const gridRef    = useRef(null);
+  const haloRef    = useRef(null);
   const chromeRef  = useRef(null);
   const hintRef    = useRef(null);
   const boxRef     = useRef(null);
@@ -192,7 +192,7 @@ export function SignInBackdrop({ children, exploreHref }) {
     const cardsEl = cardsRef.current;
     const cursorsEl = cursorsRef.current;
     const linksSvg = linksRef.current;
-    const grid = gridRef.current;
+    const halo = haloRef.current;
     const hint = hintRef.current;
     const chrome = chromeRef.current;
     if (!scrollEl || !cardsEl) return;
@@ -344,14 +344,22 @@ export function SignInBackdrop({ children, exploreHref }) {
       });
     }
 
+    // The scene follows the scroll a beat behind instead of jumping with each
+    // wheel notch: the drawn progress glides toward the real one (frame-rate
+    // independent). Reduced motion and __sbForceP snap straight to it.
+    let pShown = 0, lastFrame = 0;
     function render(now) {
       const t = (now || 0) * 0.001;
       const forced = window.__sbForceP;
-      const p = (forced != null) ? forced : clamp((scrollEl.scrollTop) / maxScroll, 0, 1);
+      const pRaw = (forced != null) ? forced : clamp((scrollEl.scrollTop) / maxScroll, 0, 1);
       // Landing engagement (scroll depth thresholds + dwell max_depth) rides
       // the shared lp tracker — the legacy landing_scroll/landing_dwell names
-      // keep firing from there with identical shapes.
-      if (forced == null) lpRef.current.tracker.reportProgress(p);
+      // keep firing from there with identical shapes. Always the REAL progress.
+      if (forced == null) lpRef.current.tracker.reportProgress(pRaw);
+      const dtF = now && lastFrame ? clamp((now - lastFrame) / 1000, 0, 0.1) : 0;
+      if (now) lastFrame = now;
+      pShown = (!dtF || forced != null || reduce) ? pRaw : pShown + (pRaw - pShown) * (1 - Math.exp(-dtF * 9));
+      const p = pShown;
       const { sx, sy } = spread();
       const cxv = cx(), cyv = cy();
       const br = boxRef.current ? boxRef.current.getBoundingClientRect() : null;
@@ -385,9 +393,10 @@ export function SignInBackdrop({ children, exploreHref }) {
         noteExploreBot = exEl ? exEl.getBoundingClientRect().bottom : (br.bottom + 44);
       }
 
-      // atmosphere: the Clusters canvas grid is faintly there from the FIRST frame
-      // (reads as the app immediately) and eases up to full as you scroll in.
-      grid.style.opacity = clamp(0.30 + p / 0.28, 0, 1);
+      // atmosphere: the ground is the app's own board ground from the first
+      // frame (CSS). The warm glow + orbit belong to the sign-in moment, so they
+      // fade out as the board fills in.
+      if (halo) halo.style.opacity = 1 - clamp(p / 0.3, 0, 1);
       chrome.style.opacity = clamp((p - 0.74) / 0.16, 0, 1);
       // keep the scroll cue visible through the first nudge so it can't be missed
       hint.style.opacity = 1 - clamp(p / 0.10, 0, 1);
@@ -413,7 +422,8 @@ export function SignInBackdrop({ children, exploreHref }) {
         let v = e * (1 - o);
         const wob = reduce ? 0 : Math.sin(t * 0.6 + c.phase) * 5 * v;
         let ox, oy, rot = c.r;
-        let sc = 0.7 + 0.3 * e - 0.16 * o + (s._grab ? 0.05 : 0);
+        // Cards grow in from 86% (was 70%): a settle, not a pop.
+        let sc = 0.86 + 0.14 * e - 0.16 * o + (s._grab ? 0.05 : 0);
         if (coarse && c.kind === 'note' && br) {
           // mobile: notes are the pitch — stack them tight to the box but ALWAYS
           // inside the safe band (below the topbar, above the footer, clear of the
@@ -579,8 +589,14 @@ export function SignInBackdrop({ children, exploreHref }) {
         <div className="sb-runway" ref={runwayRef}>
           {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events */}
           <div className="sb-stage" ref={stageRef} onClick={onDecorClick}>
-            <div className="sb-grid" ref={gridRef} aria-hidden="true" />
+            <div className="sb-grid" aria-hidden="true" />
             <div className="sb-grain" aria-hidden="true" />
+            {/* the search pages' warmth: a soft glow and one faint dotted orbit
+                with two suns drawn the logo's way, behind the box */}
+            <div className="sb-halo" ref={haloRef} aria-hidden="true">
+              <div className="sb-glow" />
+              <div className="sb-orbit" />
+            </div>
             <svg className="sb-links" ref={linksRef} aria-hidden="true" />
             <div className="sb-cards" ref={cardsRef} aria-hidden="true" />
             <div className="sb-cursors" ref={cursorsRef} aria-hidden="true" />
@@ -594,7 +610,6 @@ export function SignInBackdrop({ children, exploreHref }) {
                 <span className="sb-chrome-crumb">›</span>
                 <span className="sb-chrome-crumb sb-here">Lost Time · writers room</span>
               </div>
-              <div className="sb-chrome-pill"><span className="sb-on">Board</span><span>Files</span></div>
               <div className="sb-chrome-presence">
                 <span className="sb-av" style={{ background:'#ffa500' }}>A</span>
                 <span className="sb-av" style={{ background:'#6b9088' }}>T</span>
