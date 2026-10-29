@@ -7409,3 +7409,7 @@ button.adm-sh-tt-row:focus-visible { outline: none; box-shadow: var(--shadow-glo
 .adm-sh-feed-tag { font: 500 10.5px/1.3 var(--font-sans); color: var(--ink-3); white-space: nowrap; }
 @media (max-width: 640px) { .adm-sh-feed-tag { display: none; } .adm-sh-feed-row { grid-template-columns: 40px minmax(0, 1fr); } }
 .adm-sh-older { margin-top: 10px; }
+
+/* The phone gate offers Boards, the one tab with a phone layout. */
+.welcome-screen .admin-phone-boards { display: block; margin: 14px auto 0; }
+.admin-header-phone { padding: 12px 16px; }

@@ -20,6 +20,9 @@
 // /api/email-card/*   — serves one card's stored picture to email clients (the
 //                       lifecycle notes show small pictures of what was added).
 //                       Gated by an HMAC over board + card in the URL, no user auth.
+// /api/showcase-shot/* — serves the boards engine's shots to the admin's Boards
+//                       tab (worker-showcase.js). Gated by an HMAC in the URL
+//                       (showcase_library, 0820), showcase/ prefix only.
 
 import { handleTagsRoute } from './worker-tags.js';
 import { handleClustersRoute } from './worker-clusters.js';
@@ -35,6 +38,7 @@ import { viewKindOfKey } from './lib/fileView.js';
 import { handleApiRoute, handleMcpEndpoint } from './worker-api.js';
 import { handleKeepBundle, handleSignedImage } from './worker-keep.js';
 import { handleMakeKeep } from './worker-make.js';
+import { handleShowcaseShot } from './worker-showcase.js';
 import { runWebhooks } from './lib/webhooks.js';
 import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME, PRICING_PAGE } from './lib/billingCopy.js';
 import { buildPricingCrawlableHtml, buildPricingJsonLd } from './lib/pricingCrawlable.js';
@@ -804,6 +808,9 @@ const worker = {
       if (emailThumbMatch) return await handleEmailThumb(env, emailThumbMatch[1], url.searchParams, request);
       const emailCardMatch = url.pathname.match(/^\/api\/email-card\/([0-9a-f-]{36})\/([A-Za-z0-9_-]{1,80})$/i);
       if (emailCardMatch) return await handleEmailCard(env, emailCardMatch[1], emailCardMatch[2], url.searchParams, request);
+      if (url.pathname.startsWith('/api/showcase-shot/')) {
+        return await handleShowcaseShot(url, request, env, { secret: () => emailThumbSecret(env) });
+      }
       if (url.pathname === '/api/admin/backfill-image-sizes') return await handleBackfillImageSizes(request, env);
       // Public marketing boards (migration 0136). Dynamic sitemap + indexable
       // og:image + crawlable per-card images, all keyed by slug. Intercepted

@@ -33,6 +33,7 @@ import { AdminApiTab } from '../pages/admin/AdminApiTab.jsx';
 import { AdminTaggingTab } from '../pages/admin/AdminTaggingTab.jsx';
 import { AdminDiscoverTab } from '../pages/admin/AdminDiscoverTab.jsx';
 import { AdminEmailsTab } from '../pages/admin/AdminEmailsTab.jsx';
+import { AdminBoardsTab } from '../pages/admin/AdminBoardsTab.jsx';
 import { FeedbackProvider } from '../components/AppFeedback.jsx';
 
 // Install the fixture shim before any tab mounts + fetches.
@@ -230,6 +231,17 @@ function DiscoverQaTab() {
   );
 }
 
+// The REAL Boards tab. It raises toasts (OK / Undo / Link copied), so it gets a
+// provider here; AdminPage gets one from the app shell. onWaitingChange feeds
+// the pill's badge, the way AdminPage's does.
+function BoardsQaTab({ onWaitingChange }) {
+  return (
+    <FeedbackProvider>
+      <AdminBoardsTab onWaitingChange={onWaitingChange} />
+    </FeedbackProvider>
+  );
+}
+
 const TABS = [
   // One dashboard tab now — its four views live behind ?view= inside it.
   { id: 'overview',  label: 'Analytics', Component: AdminAnalyticsTab },
@@ -242,6 +254,7 @@ const TABS = [
   { id: 'tagging',   label: 'Tagging',   Component: AdminTaggingTab },
   { id: 'emails',    label: 'Emails',    Component: AdminEmailsTab },
   { id: 'discover',  label: 'Discover',  Component: DiscoverQaTab },
+  { id: 'boards',    label: 'Boards',    Component: BoardsQaTab },
   { id: 'universe',  label: 'Universe',  Component: UniverseQaTab },
   { id: 'command',   label: 'Command',   Component: CommandCenterQaTab },
 ];
@@ -257,6 +270,19 @@ function initialTab() {
 export function AdminPreviewHarness() {
   const [tab, setTab] = useState(initialTab);
   const [light, setLight] = useState(false);
+  const [pendingBoards, setPendingBoards] = useState(0);
+
+  // Seed the Boards badge the way AdminPage does, before its tab is opened.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('showcase_waiting');
+        if (!error && !cancelled) setPendingBoards(Number(data) || 0);
+      } catch (_) { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // AdminPage's handoff between tabs (adminNav.js: a sharer's row opens Users).
   useEffect(() => {
@@ -299,6 +325,9 @@ export function AdminPreviewHarness() {
               onClick={() => setTab(t.id)}
             >
               {t.label}
+              {t.id === 'boards' && pendingBoards > 0 && (
+                <span className="admin-tab-badge" aria-label={`${pendingBoards} waiting`}>{pendingBoards}</span>
+              )}
             </button>
           ))}
         </div>
@@ -309,7 +338,7 @@ export function AdminPreviewHarness() {
       </header>
 
       <main className={`admin-body ${tab === 'universe' || tab === 'command' ? 'admin-body-flush' : ''}`}>
-        {Component ? <Component /> : null}
+        {Component ? <Component onWaitingChange={setPendingBoards} /> : null}
       </main>
     </div>
   );
