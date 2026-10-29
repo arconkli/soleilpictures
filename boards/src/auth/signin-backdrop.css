@@ -192,6 +192,16 @@
 .sb-frost .auth-btn.auth-btn-secondary { background: transparent; color: rgba(245,245,247,.92); border: 1px solid rgba(255,255,255,.2); }
 .sb-frost .auth-btn.auth-btn-secondary:hover { border-color: rgba(255,255,255,.36); }
 .sb-cap { font: 400 11.5px/1.4 var(--font-sans); color: var(--ink-3); text-align: center; }
+/* "Use a passkey" (lib/passkeys.js): a quiet line under the caption, never a
+   second button. Light ink, since the frost is dark in both themes; never gold,
+   which stays with the one primary control. */
+.sb-frost .pk-link { align-self: center; display: inline-flex; align-items: center; gap: 6px; margin-top: -4px;
+  padding: 6px 10px; border: 0; border-radius: 6px; background: transparent; cursor: pointer;
+  font: 500 12.5px/1 var(--font-sans); color: rgba(245,245,247,.56); transition: color .15s ease; }
+.sb-frost .pk-link svg { width: 13px; height: 13px; flex: none; }
+.sb-frost .pk-link:hover:not(:disabled) { color: rgba(245,245,247,.92); }
+.sb-frost .pk-link:focus-visible { outline: 2px solid var(--ink-0); outline-offset: 1px; }
+.sb-frost .pk-link:disabled { opacity: .5; cursor: default; }
 
 /* ?wsjoin= — "Join Lost Time / Nora invited you", above the frost. Its own
    dark plate, like the frost, so it reads on the moving board in both themes;

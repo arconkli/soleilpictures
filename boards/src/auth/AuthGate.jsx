@@ -42,6 +42,7 @@ import { getFbCookies } from '../lib/metaPixel.js';
 import { suggestEmail, emailProblem } from '../lib/emailTypo.js';
 import { savePendingCode, readPendingCode, clearPendingCode, resendWait } from '../lib/pendingCode.js';
 import { captchaEnabled, captchaToken } from './turnstile.js';
+import { passkeysMayWork } from '../lib/passkeyGate.js';
 import { mailboxFor, isConsumerAddress } from '../lib/mailboxLink.js';
 import { lpCtaClick } from '../hooks/useLandingEngagement.js';
 import { SoleilMark } from '../components/primitives.jsx';
@@ -870,6 +871,59 @@ function SignIn({ warmApp = null }) {
   const emailEngagedRef = useRef(false);   // fire landing_field_engage once per field
   const codeEngagedRef  = useRef(false);
   const autoSubmitRef   = useRef(null);   // 6th-digit auto-submit debounce
+  // Passkeys (lib/passkeys.js): `link` shows "Use a passkey", `autofill` lets
+  // the email field offer saved passkeys. Both stay off until the browser says.
+  // lib/passkeys.js loads only where passkeys could work (passkeyGate.js):
+  // the entry script stays clear of it.
+  const [passkey, setPasskey] = useState({ link: false, autofill: false, mod: null });
+  const [passkeyRound, setPasskeyRound] = useState(0);   // the link's sheet stops the autofill wait; this restarts it
+  useEffect(() => {
+    if (!passkeysMayWork()) return undefined;
+    let live = true;
+    import('../lib/passkeys.js')
+      .then((mod) => mod.passkeySupport().then((s) => { if (live) setPasskey({ ...s, mod }); }))
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+  const passkeyFailed = (via, err) => {
+    signingInByForm = false;
+    setBusy(false);
+    const { passkeyFailReason, passkeyErrorWords } = passkey.mod;
+    try { logEvent(EV.PASSKEY_SIGNIN_FAILED, { via, reason: passkeyFailReason(err) }); } catch (_) {}
+    const words = passkeyErrorWords(err);
+    if (words) setError(words);
+  };
+  // The email field's suggestions wait only while the email step shows; a
+  // code on its way, or the app opening, aborts the wait. Not while a
+  // captcha guards sign-in: each wait would spend a token.
+  const passkeyAutofill = passkey.autofill && stage === 'email' && !captchaEnabled();
+  useEffect(() => {
+    if (!passkeyAutofill) return undefined;
+    return passkey.mod.startPasskeyAutofill({
+      onPicked: () => { signingInByForm = true; setError(null); setBusy(true); },
+      onDone: ({ error: err }) => {
+        if (err) passkeyFailed('autofill', err);
+        else try { logEventNow(EV.PASSKEY_SIGNIN, { via: 'autofill' }); } catch (_) {}
+      },
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [passkeyAutofill, passkeyRound]);
+  const signInByPasskey = async () => {
+    if (busy || sending) return;
+    setError(null);
+    setBusy(true);
+    signingInByForm = true;
+    try {
+      const challenge = captchaEnabled() ? await captchaToken(captchaRef.current) : '';
+      const { error: err } = await passkey.mod.signInWithPasskeyNow({ captchaToken: challenge || undefined });
+      if (err) { passkeyFailed('link', err); setPasskeyRound((n) => n + 1); return; }
+      try { logEventNow(EV.PASSKEY_SIGNIN, { via: 'link' }); } catch (_) {}
+      // onAuthStateChange has SIGNED_IN; AuthGate re-renders to children.
+    } catch (e) {
+      passkeyFailed('link', e);
+      setPasskeyRound((n) => n + 1);
+    }
+  };
 
   // Tick down the resend cooldown (Supabase rate-limits OTP requests at ~60s).
   // Read off the wall clock, never decremented per tick: a phone suspends the
@@ -1239,7 +1293,7 @@ function SignIn({ warmApp = null }) {
               className="auth-input"
               type="email"
               inputMode="email"
-              autoComplete="email"
+              autoComplete={passkeyAutofill ? 'email webauthn' : 'email'}
               autoCapitalize="off"
               autoCorrect="off"
               spellCheck={false}
@@ -1263,6 +1317,15 @@ function SignIn({ warmApp = null }) {
             </button>
             {error && <div className="auth-error t-meta">{error}</div>}
             <div className="sb-cap">Sign in or sign up — we'll email a 6-digit code.</div>
+            {passkey.link && (
+              <button type="button" className="pk-link" onClick={signInByPasskey} disabled={busy || sending}>
+                <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="5.5" cy="10.5" r="3" />
+                  <path d="M7.6 8.4 13.5 2.5M11.5 4.5l1.6 1.6M9.9 6.1l1.2 1.2" />
+                </svg>
+                Use a passkey
+              </button>
+            )}
           </form>
         ) : (
           <form className="auth-form" onSubmit={verifyCode}>

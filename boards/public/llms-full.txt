@@ -79,7 +79,7 @@ A: The changelog at /changelog lists every user-visible change, newest first, on
 ========================================================================
 # Getting started
 URL: https://clusters.soleilpictures.com/docs/getting-started
-Updated: 2026-10-21
+Updated: 2026-10-29
 
 Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and up to 10 people who edit.
 
@@ -88,6 +88,8 @@ From an empty account to a board you would show someone, in about five minutes.
 1. Sign in
 
 Go to clusters.soleilpictures.com and enter your email address. You will get a one-time code — there is no password.
+
+Once you're in, you can save a passkey so the next sign-in skips the code: your browser offers it as soon as you tap the email box, or press Use a passkey under it. Save one from the note that appears after a code sign-in, or any time in Settings › Profile › Passkeys.
 
 Some new accounts start with a short setup before the canvas; others go straight to their first cluster.
 
@@ -4018,7 +4020,7 @@ A: iMessage is the confirmed transport. SMS and RCS are not confirmed yet, and n
 ========================================================================
 # Settings
 URL: https://clusters.soleilpictures.com/docs/account/settings
-Updated: 2026-10-20
+Updated: 2026-10-29
 
 Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 
@@ -4035,6 +4037,8 @@ Personal. Nobody else in the workspace sees these, and they follow your account 
 Profile
 
 Profile picture, display name, email, and your presence colour — the colour your cursor and selection halos appear in to everyone else.
+
+Passkeys lists the passkeys you can sign in with instead of an emailed code, with when each was added and last used. Add a passkey saves one on the device you're using; Remove takes one away, with a moment to undo.
 
 Deleting your account lives at the foot of this tab. It is the one thing in Settings with no undo — see Data and privacy.
 
@@ -4594,7 +4598,7 @@ A: Nothing that matters is removed, but dense surfaces like long documents are m
 ========================================================================
 # Data and privacy
 URL: https://clusters.soleilpictures.com/docs/account/data-and-privacy
-Updated: 2026-10-25
+Updated: 2026-10-29
 
 Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 
@@ -4660,6 +4664,8 @@ Accounts and access
 People you share a workspace with see your name, your colour and your picture — nothing else from your account: not your settings, your plan, or where you signed up from. In Messages, someone who shares only a cluster with you, not a workspace, sees your name but not your email address.
 
 Sign-in is a one-time emailed code. There is no password to be reused or leaked.
+
+A passkey, if you save one, stays on your device or in its password manager: only a public key reaches us, and signing in with it needs your face, fingerprint or device PIN. You can see and remove your passkeys in Settings › Profile; removing one stops it working at once.
 
 API tokens are stored only as a hash — the value is shown once and cannot be recovered. A token acts as you, reaching exactly what your account reaches under the same access rules the app uses, and can be revoked at any time with immediate effect.
 

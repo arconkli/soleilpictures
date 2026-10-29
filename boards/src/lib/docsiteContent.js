@@ -742,6 +742,57 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "Once you're in, you can save a "
+    },
+    {
+     "t": "strong",
+     "v": "passkey",
+     "children": [
+      {
+       "t": "text",
+       "v": "passkey"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " so the next sign-in skips the code: your browser offers it as soon as you tap the email box, or press "
+    },
+    {
+     "t": "strong",
+     "v": "Use a passkey",
+     "children": [
+      {
+       "t": "text",
+       "v": "Use a passkey"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " under it. Save one from the note that appears after a code sign-in, or any time in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings › Profile › Passkeys",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings › Profile › Passkeys"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "Some new accounts start with a short setup before the canvas; others go straight to their first cluster."
     }
    ]
@@ -42709,6 +42760,53 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
+     "v": "Passkeys",
+     "children": [
+      {
+       "t": "text",
+       "v": "Passkeys"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lists the passkeys you can sign in with instead of an emailed code, with when each was added and last used. "
+    },
+    {
+     "t": "strong",
+     "v": "Add a passkey",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add a passkey"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " saves one on the device you're using; "
+    },
+    {
+     "t": "strong",
+     "v": "Remove",
+     "children": [
+      {
+       "t": "text",
+       "v": "Remove"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " takes one away, with a moment to undo."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
      "v": "Deleting your account",
      "children": [
       {
@@ -48476,6 +48574,29 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Sign-in is a one-time emailed code. There is no password to be reused or leaked."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A passkey, if you save one, stays on your device or in its password manager: only a public key reaches us, and signing in with it needs your face, fingerprint or device PIN. You can see and remove your passkeys in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings › Profile",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings › Profile"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; removing one stops it working at once."
     }
    ]
   },

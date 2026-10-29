@@ -5,7 +5,7 @@ h1: Settings
 navLabel: Settings
 section: account
 order: 0
-updated: 2026-10-20
+updated: 2026-10-29
 answer: Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 faq:
   - q: Are settings per device?
@@ -44,6 +44,10 @@ between devices.
 Profile picture, display name, email, and your
 **[presence colour](/docs/collaborate/presence)** — the colour your cursor and
 selection halos appear in to everyone else.
+
+**Passkeys** lists the passkeys you can sign in with instead of an emailed
+code, with when each was added and last used. **Add a passkey** saves one on
+the device you're using; **Remove** takes one away, with a moment to undo.
 
 **Deleting your account** lives at the foot of this tab. It is the one thing in
 Settings with no undo — see
