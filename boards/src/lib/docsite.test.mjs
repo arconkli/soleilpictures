@@ -565,6 +565,8 @@ test('OG: every page that advertises an og:image has one on disk', () => {
     ...TEMPLATE_CATEGORIES.map((c) => ({ what: `template category "${c.id}"`, file: `/og/template-${c.id}.png` })),
     { what: '/changelog', file: '/og/changelog.png' },
     { what: 'the default card', file: '/og/default.png' },
+    // index.html's og:image: the homepage and every route the Worker leaves alone.
+    { what: 'the homepage card', file: '/og/home-v2.png' },
   ];
   // Same anti-no-op floor as the surface extractors: a registry that failed to
   // load would make this test vacuously green.

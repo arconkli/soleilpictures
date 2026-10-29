@@ -10,6 +10,9 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+  /* Never sideways: the sun stage (SunStage.jsx) is wider than the reading
+     column on purpose, and its suns may run past the window's edge. */
+  overflow-x: hidden;
   scroll-behavior: smooth;
 }
 @media (prefers-reduced-motion: reduce) { .seo-scroll { scroll-behavior: auto; } }

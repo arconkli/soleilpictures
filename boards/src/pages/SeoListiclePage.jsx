@@ -19,6 +19,8 @@ import { EV } from '../lib/analyticsEvents.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import { useSignupBoxArm } from '../hooks/useSignupBoxArm.js';
 import { SignupBox } from '../components/public/SignupBox.jsx';
+import { SunStageFigure } from '../components/public/SunStage.jsx';
+import { stageMode, hasStage } from '../lib/landingStage.js';
 import './seoLanding.css';
 import './seoListicle.css';
 
@@ -215,6 +217,15 @@ export function SeoListiclePage({ path }) {
               <span>Built by a film studio, for real productions.</span>
             </div>
           </header>
+
+          {/* A real board right under the button: the one thing the pages that
+              sign people up best do and the ranked lists didn't (lib/
+              landingStage.js). No section ref: lp_section indices are page
+              ordinals, and this must not renumber the sections below it. */}
+          {heroShot && stageMode(spec.path) === 'full' && hasStage(heroShot) && (
+            <SunStageFigure slug={heroShot} title={humanize(heroShot)}
+                            onOpen={() => lp.exampleClick(heroShot, 'hero-stage')} />
+          )}
 
           {/* Quick answer — the extractable block — plus the disclosure box
               and the ranked pick cards (top three carded, the rest compact). */}

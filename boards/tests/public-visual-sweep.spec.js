@@ -206,7 +206,9 @@ test.describe('/pricing layout', () => {
   });
 });
 
-for (const path of ['/vs/milanote', '/pricing']) {
+// /vs/pureref keeps today's browser-frame hero (lib/landingStage.js KEPT_CLOSE),
+// so its screenshot is still the page's first picture and loads first.
+for (const path of ['/vs/pureref', '/pricing']) {
   test(`${path} loads without React prop warnings and keeps the hero image's high priority`, async ({ page }) => {
     await routeAnalytics(page, []);
     const warnings = [];
@@ -218,6 +220,23 @@ for (const path of ['/vs/milanote', '/pricing']) {
     expect(warnings).toEqual([]);
   });
 }
+
+// The other search pages show their board on the sun stage instead of the
+// frame: the mark, the board's own cards, and the link to the live board.
+test('/vs/milanote shows its board on the sun stage, without React prop warnings', async ({ page }) => {
+  await routeAnalytics(page, []);
+  const warnings = [];
+  page.on('console', (m) => { if (/does not recognize the/.test(m.text())) warnings.push(m.text()); });
+  await page.goto('/vs/milanote');
+  const stage = page.locator('#live-example.seo-stage');
+  await stage.scrollIntoViewIfNeeded();
+  await expect(stage.locator('.sun-full .sun-mark')).toBeVisible();
+  await expect(stage.locator('.sun-card img').first()).toBeVisible();
+  await expect(page.locator('.seo-frame-shot')).toHaveCount(0);
+  expect(await stage.locator('.seo-stage-pill').getAttribute('href')).toMatch(/^\/c\/[a-z0-9-]+$/);
+  expect(await stage.locator('.sun-card img[alt]:not([alt=""])').count()).toBe(1);
+  expect(warnings).toEqual([]);
+});
 
 test.describe('/templates on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 } });

@@ -20,6 +20,8 @@ import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import { useSignupBoxArm } from '../hooks/useSignupBoxArm.js';
 import { SignupBox } from '../components/public/SignupBox.jsx';
 import { hasPlanBlock, planBlockModel } from '../lib/planBlock.js';
+import { SunStage, SunStageFigure } from '../components/public/SunStage.jsx';
+import { stageMode, hasStage } from '../lib/landingStage.js';
 import './seoLanding.css';
 
 // The template store branches off this component rather than getting its own
@@ -47,6 +49,12 @@ const humanize = (slug) => String(slug || '')
 // shift history gracefully instead of orphaning it.
 const sectionId = (i, heading) => `s${i}-` + String(heading || '')
   .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24);
+
+// The kept-close pages' frame goes inside the suns; a page without a stage
+// renders the frame exactly as it always has.
+function wrapStage(mode, slug, frame) {
+  return mode === 'behind' ? <SunStage mode="behind" slug={slug}>{frame}</SunStage> : frame;
+}
 
 // Renders a feature section, slipping ONE quiet CTA strip in after the second
 // section — a single mid-read ask between the value copy and the how-to.
@@ -184,6 +192,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
   // note on docsLinks in worker.js's related nav.
   const docsLinks = spec.docsLinks || [];
   const hero = examples[0] || null;
+  const heroStage = hero && !spec.storefront && hasStage(hero.slug) ? stageMode(spec.path) : null;
   const nSec = (spec.sections || []).length;   // lp_section idx base for the tail sections
 
   return (
@@ -254,7 +263,15 @@ export function SeoLandingPage({ spec: specProp, path }) {
           {/* The product, full width: a real published board inside a minimal
               browser frame. The static shot ships with the app (public/landing/)
               so it renders instantly; clicking opens the live board. */}
-          {hero && (
+          {/* The sun stage (lib/landingStage.js): the pages that sign people
+              up best keep this frame exactly, with the suns behind it; the
+              rest show the board as the stage itself. Same id, same section
+              ref, same click either way. */}
+          {hero && heroStage === 'full' && (
+            <SunStageFigure slug={hero.slug} title={hero.title} id="live-example"
+                            figRef={lp.sectionRef('frame', 1)} onOpen={() => lp.exampleClick(hero.slug, 'frame')} />
+          )}
+          {hero && heroStage !== 'full' && wrapStage(heroStage, hero.slug,
             <figure className="seo-frame" id="live-example" ref={lp.sectionRef('frame', 1)}>
               <div className="seo-frame-bar" aria-hidden="true">
                 <span className="seo-frame-dots"><i /><i /><i /></span>
