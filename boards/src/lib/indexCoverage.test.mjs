@@ -67,8 +67,9 @@ const SHA = 'c6915e8';
 const ENTRIES = [e('/', '2026-10-02'), e('/vs/pureref', '2026-10-20')];
 
 // mine: this build's earlier rows. base: the newest ok row's map, or null.
-// indexnow: an HTTP status, or an Error to throw.
-async function ping({ mine = [], base = null, indexnow = 200, build = { sha: SHA, date: '2026-10-20' }, env = ENV } = {}) {
+// send: the pg_net request id _indexnow_send returns, or { fail: status } for
+// the RPC itself failing. The Worker never calls api.indexnow.org (0800).
+async function ping({ mine = [], base = null, send = 3504, build = { sha: SHA, date: '2026-10-20' }, env = ENV } = {}) {
   const calls = [];
   const real = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
@@ -76,10 +77,9 @@ async function ping({ mine = [], base = null, indexnow = 200, build = { sha: SHA
     const call = { url: u, method: init.method || 'GET', body: init.body ? JSON.parse(init.body) : null };
     calls.push(call);
     const ok = (body, status = 200) => new Response(body == null ? null : JSON.stringify(body), { status });
-    if (u.startsWith('https://api.indexnow.org/')) {
-      if (indexnow instanceof Error) throw indexnow;
-      return new Response(null, { status: indexnow });
-    }
+    if (u.startsWith('https://api.indexnow.org/')) throw new Error('the Worker must not call IndexNow itself');
+    if (u === `${ENV.SUPABASE_URL}/rest/v1/rpc/_indexnow_settle`) return ok(0);
+    if (u === `${ENV.SUPABASE_URL}/rest/v1/rpc/_indexnow_send`) return send?.fail ? ok({ message: 'boom' }, send.fail) : ok(send);
     if (u === `${ENV.SUPABASE_URL}/rest/v1/indexnow_pings` && call.method === 'POST') return ok(null, 201);
     if (u.includes('/rest/v1/indexnow_pings?build_sha=eq.')) return ok(mine);
     if (u.includes('/rest/v1/indexnow_pings?ok=is.true')) return ok(base ? [{ lastmods: base }] : []);
@@ -92,7 +92,7 @@ async function ping({ mine = [], base = null, indexnow = 200, build = { sha: SHA
   }
   return {
     calls,
-    submitted: calls.find((c) => c.url.startsWith('https://api.indexnow.org/'))?.body ?? null,
+    submitted: calls.find((c) => c.url.endsWith('/rpc/_indexnow_send'))?.body ?? null,
     row: calls.find((c) => c.method === 'POST' && c.url.endsWith('/rest/v1/indexnow_pings'))?.body ?? null,
   };
 }
@@ -104,43 +104,34 @@ test('an unstamped build, or a Worker without the service key, never pings', asy
   assert.equal((await ping({ env: { SUPABASE_URL: ENV.SUPABASE_URL } })).calls.length, 0);
 });
 
-test('the first build pings the whole sitemap and stores the map it announced', async () => {
-  const { submitted, row } = await ping();
-  assert.deepEqual(submitted.urlList, ENTRIES.map((x) => x.loc));
-  assert.equal(submitted.host, 'clusters.soleilpictures.com');
-  assert.match(submitted.keyLocation, /^https:\/\/clusters\.soleilpictures\.com\/[0-9a-f]{32}\.txt$/);
+test('the first build sends the whole sitemap through the database and stores the map it announced', async () => {
+  const { calls, submitted, row } = await ping();
+  assert.ok(calls[0].url.endsWith('/rpc/_indexnow_settle'), 'earlier pings are settled first');
+  assert.deepEqual(submitted, { p_urls: ENTRIES.map((x) => x.loc) });
   assert.equal(row.build_sha, SHA);
   assert.equal(row.build_date, '2026-10-20');
-  assert.equal(row.ok, true);
-  assert.equal(row.status, 200);
+  assert.equal(row.ok, null, 'pending until _indexnow_settle reads the answer');
+  assert.equal(row.request_id, 3504);
   assert.equal(row.sent, 2);
   assert.deepEqual(row.lastmods, { [`${ORIGIN}/`]: '2026-10-02', [`${ORIGIN}/vs/pureref`]: '2026-10-20' });
 });
 
 test('a later build pings only what moved since the last successful ping', async () => {
   const { submitted, row } = await ping({ base: { [`${ORIGIN}/`]: '2026-10-02', [`${ORIGIN}/vs/pureref`]: '2026-10-18' } });
-  assert.deepEqual(submitted.urlList, [`${ORIGIN}/vs/pureref`]);
+  assert.deepEqual(submitted.p_urls, [`${ORIGIN}/vs/pureref`]);
   assert.equal(row.sent, 1);
   assert.deepEqual(Object.keys(row.lastmods), ENTRIES.map((x) => x.loc), 'the stored map is the whole sitemap');
 });
 
-test('202 is a success: IndexNow received the list and has yet to check the key', async () => {
-  assert.equal((await ping({ indexnow: 202 })).row.ok, true);
-});
-
-test('a refused or failed ping is recorded without a map, so the next build still diffs against the last good one', async () => {
-  const refused = await ping({ indexnow: 403 });
-  assert.equal(refused.row.ok, false);
-  assert.equal(refused.row.status, 403);
-  assert.equal(refused.row.lastmods, undefined);
-  const down = await ping({ indexnow: new Error('network down') });
+test('a send the database refuses is recorded as failed without a map, so the next build still diffs against the last good one', async () => {
+  const down = await ping({ send: { fail: 500 } });
   assert.equal(down.row.ok, false);
-  assert.match(down.row.error, /network down/);
+  assert.match(down.row.error, /_indexnow_send 500/);
   assert.equal(down.row.lastmods, undefined);
 });
 
-test('a build that already landed, or has used its three attempts, is left alone', async () => {
-  for (const mine of [[{ ok: true }], [{ ok: false }, { ok: false }, { ok: false }]]) {
+test('a build that already landed, is still waiting on an answer, or has used its three attempts, is left alone', async () => {
+  for (const mine of [[{ ok: true }], [{ ok: false }, { ok: null }], [{ ok: false }, { ok: false }, { ok: false }]]) {
     const { submitted, row } = await ping({ mine });
     assert.equal(submitted, null);
     assert.equal(row, null);
