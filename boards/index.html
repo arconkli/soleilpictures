@@ -60,9 +60,17 @@
   <meta name="twitter:image" content="https://clusters.soleilpictures.com/og/home-v2.png" />
   <meta name="twitter:image:alt" content="Soleil Clusters — creative workspace and moodboard for production teams" />
 
-  <!-- Structured data: WebSite + SoftwareApplication, linked to the existing
-       Soleil Pictures Organization on the root domain so Google connects the
-       two entities and Clusters inherits brand authority.
+  <!-- Structured data: WebSite + SoftwareApplication + the Soleil Clusters
+       Organization (#organization), whose parentOrganization is Soleil Pictures
+       (https://soleilpictures.com/#organization, declared on soleilpictures.com,
+       which names Clusters back as its subOrganization). People search the
+       brand "Soleil Clusters", so that is the entity this site describes; the
+       studio is its parent, not its name. Until 10-29 this node was named
+       "Soleil Pictures" while carrying the Clusters logo and Clusters' social
+       profiles: two disagreeing descriptions of one org, and no entity for the
+       brand people search. sameAs lists only profiles the owner has confirmed;
+       the description is shared word for word with soleilpictures.com and the
+       Wikidata draft. Pinned by src/lib/brandJsonLd.test.mjs.
 
        The #app node deliberately carries NO "offers". This file is static, so
        any price here would be a hand-typed literal — the thing CLAUDE.md
@@ -99,24 +107,32 @@
         ],
         "image": "https://clusters.soleilpictures.com/clusters-logo-dark.png",
         "description": "Soleil Clusters is a creative workspace and moodboard tool for film, photo, design, and brand teams — organize references, projects, and ideas in one place.",
-        "publisher": { "@id": "https://clusters.soleilpictures.com/#organization" }
+        "publisher": { "@id": "https://clusters.soleilpictures.com/#organization" },
+        "brand": { "@id": "https://clusters.soleilpictures.com/#organization" }
       },
       {
         "@type": "Organization",
         "@id": "https://clusters.soleilpictures.com/#organization",
-        "name": "Soleil Pictures",
-        "url": "https://soleilpictures.com/",
+        "name": "Soleil Clusters",
+        "alternateName": "Clusters",
+        "url": "https://clusters.soleilpictures.com/",
         "logo": {
           "@type": "ImageObject",
           "url": "https://clusters.soleilpictures.com/clusters-logo-dark.png",
           "width": 2048,
           "height": 2048
         },
-        "description": "Soleil Pictures is a creative studio and the maker of Soleil Clusters — a creative workspace and moodboard tool for film, photo, design, and brand teams.",
+        "description": "Soleil Clusters is a creative workspace and moodboard tool for film, photo, design, and brand teams — organize references, projects, and ideas in one place.",
         "sameAs": [
           "https://www.instagram.com/soleilclusters",
           "https://x.com/soleilclusters"
-        ]
+        ],
+        "parentOrganization": {
+          "@type": "Organization",
+          "@id": "https://soleilpictures.com/#organization",
+          "name": "Soleil Pictures",
+          "url": "https://soleilpictures.com/"
+        }
       }
     ]
   }
