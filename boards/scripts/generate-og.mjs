@@ -128,12 +128,14 @@ const searchCard = (s) => {
 };
 
 // The homepage's card (index.html's og:image, so also every page the Worker
-// doesn't give its own): bright photos from three different real boards.
+// doesn't give its own): film and creative work from three real boards, kept
+// vivid (the camera at sunset, a split-tone portrait, a cinema audience, a
+// script's colour palette).
 const HOME_CARDS = [
-  { slug: 'world-cup-2026-moodboard', role: 'c1', cx: 1730, cy: 1110, rot: 7, maxW: 430 },
-  { slug: 'japandi-living-room', role: 'c1', cx: 960, cy: 860, rot: -5, maxW: 590 },
-  { slug: 'sage-terracotta-wedding', role: 'c2', cx: 1420, cy: 760, rot: 5, maxW: 510 },
-  { slug: 'sage-terracotta-wedding', role: 'pal', cx: 1150, cy: 1450, rot: -2, maxW: 880 },
+  { slug: 'screenplay-beat-sheet', role: 'l2', cx: 1720, cy: 1140, rot: 6, maxW: 440 },
+  { slug: 'short-film-shot-list', role: 'l2', cx: 960, cy: 860, rot: -5, maxW: 590 },
+  { slug: 'neon-noir-look-book', role: 'c2', cx: 1420, cy: 760, rot: 5, maxW: 510 },
+  { slug: 'screenplay-beat-sheet', role: 'pal', cx: 1130, cy: 1500, rot: -2, maxW: 880 },
 ];
 
 const cards = [
