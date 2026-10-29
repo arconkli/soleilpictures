@@ -25,7 +25,8 @@
 // SetupInWorkspace.jsx): they only claim and release, so nothing else pops up
 // beside them; their once-only records are their own. whats_new is the same
 // shape for the accounts from before the files sidebar (lib/whatsNew.js).
-export const HINT_KINDS = Object.freeze(['paste', 'name_cluster', 'studio_bar', 'second_idea', 'setup_tips', 'invite_reask', 'whats_new']);
+// board_more is the first-board test's third-card toast (lib/boardMore.js).
+export const HINT_KINDS = Object.freeze(['paste', 'name_cluster', 'studio_bar', 'second_idea', 'setup_tips', 'invite_reask', 'whats_new', 'board_more']);
 
 // A new cluster that still carries its default name a minute later is one
 // nobody will find again. A minute, not ten seconds: people often place the

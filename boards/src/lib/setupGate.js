@@ -78,10 +78,12 @@ const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 // result. The mark that stops a second stamp is written only once the server
 // has the arm, and the enrollment is logged then, once.
 //   rpc: () => the set_experiment_arm call (a thenable resolving { error })
+//   markPrefix: the device mark's key, before the user id; another test that
+//     stamps the same way (lib/boardMore.js) passes its own
 //   → 'already' | 'stamped' | 'failed'
-export async function stampSetupArm({ uid, arm, rpc, storage, log, wait = sleep, tries = STAMP_TRIES } = {}) {
+export async function stampSetupArm({ uid, arm, rpc, storage, log, wait = sleep, tries = STAMP_TRIES, markPrefix = STAMP_MARK_PREFIX } = {}) {
   if (!uid || !arm || typeof rpc !== 'function') return 'failed';
-  const mark = `${STAMP_MARK_PREFIX}${uid}`;
+  const mark = `${markPrefix}${uid}`;
   try { if (storage?.getItem(mark) === arm) return 'already'; } catch (_) { /* stamp anyway */ }
   for (let n = 1; n <= tries; n += 1) {
     let ok = false;

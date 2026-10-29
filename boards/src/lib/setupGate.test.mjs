@@ -136,3 +136,15 @@ test('the stamp works without storage, and refuses to run without an account or 
   assert.equal(await stampSetupArm({ uid: 'me', arm: null, rpc, wait: noWait }), 'failed');
   assert.equal(calls.length, 2);
 });
+
+test('another test stamping the same way keeps its own mark, and leaves the setup\'s alone', async () => {
+  const s = mem();
+  const { rpc, calls } = server({ error: null });
+  const prefix = 'soleil.board_more.enrolled.';
+  assert.equal(await stampSetupArm({ uid: 'me', arm: 'A', rpc, storage: s, wait: noWait, markPrefix: prefix }), 'stamped');
+  assert.equal(s.getItem(`${prefix}me`), 'A');
+  assert.equal(s.getItem(`${STAMP_MARK_PREFIX}me`), null, 'the setup is still stamped on its own');
+  assert.equal(await stampSetupArm({ uid: 'me', arm: 'A', rpc, storage: s, wait: noWait, markPrefix: prefix }), 'already');
+  assert.equal(await stampSetupArm({ uid: 'me', arm: 'B', rpc, storage: s, wait: noWait }), 'stamped');
+  assert.equal(calls.length, 2);
+});
