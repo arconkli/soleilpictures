@@ -136,7 +136,7 @@ export const EXPERIMENTS = {
   signup_box: {
     enabled: true,
     audience: 'visitor',
-    startsAt: '2026-11-11T00:00:00Z',
+    startsAt: '2026-10-29T00:00:00Z',
     arms: [
       { id: 'A', weight: 50 },  // control — today's gold button to the home form
       { id: 'B', weight: 50 },  // the email box in place of the hero and closing buttons
