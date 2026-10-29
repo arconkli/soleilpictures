@@ -57,3 +57,21 @@ test('the Worker declares the binding, and both of its party calls use it', () =
   assert.match(mpu, /await partyFetch\(env, `https:\/\/\$\{host\}\/parties\/upload\//);
   assert.doesNotMatch(mpu, /await fetch\(/);
 });
+
+test('the headless Yjs peer opens its socket through the binding too', async () => {
+  // A plain `new WebSocket(wss://…workers.dev)` from the preview is refused
+  // (1042), so every write that needs the live room answered room_unavailable.
+  const { connectPeer } = await import('./scoutBoard.js');
+  let accepted = false;
+  const socket = { accept() { accepted = true; } };
+  const calls = [];
+  const env = { PARTY: { fetch: async (url, init) => { calls.push({ url, init }); return { status: 101, webSocket: socket }; } } };
+  const ws = await connectPeer(env, 'b 1', 'tok');
+  assert.equal(ws, socket);
+  assert.equal(accepted, true);
+  assert.equal(calls[0].url, `https://${DEFAULT_PARTY_HOST}/parties/main/b%201?access_token=tok`);
+  assert.equal(calls[0].init.headers.Upgrade, 'websocket');
+
+  const refused = { PARTY: { fetch: async () => ({ status: 404, webSocket: null }) } };
+  await assert.rejects(connectPeer(refused, 'b', 't'), /party refused the socket \(404\)/);
+});
