@@ -192,4 +192,13 @@ export const FEATURE_EVENTS = Object.freeze({
     outcome: [EV.MAKE_KEPT],
     failure: [EV.MAKE_FAILED],
   },
+  // The sign-up box on the public search pages, arm B of the visitor test
+  // signup_box (experiments.js). No hold: the test's startsAt is the gate, and
+  // lp_view carries exp_signup_box for both arms.
+  signupBox: {
+    exposure: [EV.LP_VIEW],
+    action: [EV.SIGNUP_BOX_SEND],
+    outcome: [EV.SIGNUP_BOX_VERIFY],
+    failure: [EV.SIGNUP_BOX_FAILED],
+  },
 });

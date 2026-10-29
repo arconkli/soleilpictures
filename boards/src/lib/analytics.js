@@ -29,6 +29,7 @@ import { frameStatsSince } from './frameStats.js';
 import { BUILD_SHA } from './buildInfo.js';
 import { eventEnv, envMarks, firstSourcePayload } from './eventEnv.js';
 import { createArmCache } from './armCache.js';
+import { visitorArmProps } from './visitorArms.js';
 import { readSessionContext, contextDue, CTX_SENT_KEY } from './sessionContext.js';
 import { featureFlags, onProdHost, onPreviewHost } from './appHost.js';
 import { parseEdgeContext } from './edgeContext.js';
@@ -309,10 +310,39 @@ async function stampFirstSourceIfNeeded() {
 // account has its own map: enrollments (App's seed effect, the setup gate) merge
 // into it, and the server's stamp, read once a page load, is the truth for it,
 // so the event-level cohort matches the stamped one the readouts use. Signed out
-// there are no arms. See armCache.js.
+// there are no arms, except a visitor experiment's (experiments.js audience
+// 'visitor'): those are per device, and ride the device's signed-out events.
+// See armCache.js and visitorArms.js.
 const armCache = createArmCache(() => (typeof localStorage === 'undefined' ? null : localStorage));
+// (The enrolling is visitorEnroll.js, in the pages that run the test.)
+function visitorArms() {
+  try { return visitorArmProps(localStorage); } catch (_) { return {}; }
+}
 function getExperiments() {
-  return armCache.arms(cachedUserId);
+  return cachedUserId ? armCache.arms(cachedUserId) : visitorArms();
+}
+
+// A visitor arm follows the device into the account it creates: a NEW account
+// (made in the last two hours, which covers a code's hour of life) signing in on
+// an enrolled device gets the device's arms stamped onto it (set_experiment_arm,
+// first touch wins) and merged into its event arms, so the account's events and
+// the server's per-arm reads see the same cohort. An older account signing in is
+// never stamped: the test did not bring it in.
+const NEW_ACCOUNT_MS = 2 * 60 * 60 * 1000;
+const visitorStampedFor = new Set();
+function stampVisitorArms(user) {
+  const uid = user?.id;
+  if (!uid || !supabase || visitorStampedFor.has(uid)) return;
+  visitorStampedFor.add(uid);
+  const created = Date.parse(user.created_at || '');
+  if (!Number.isFinite(created) || Date.now() - created > NEW_ACCOUNT_MS) return;
+  const arms = visitorArms();
+  const keys = Object.keys(arms);
+  if (!keys.length) return;
+  armCache.enroll(arms, uid);
+  for (const k of keys) {
+    supabase.rpc('set_experiment_arm', { p_key: k.slice(4), p_arm: arms[k] }).then(undefined, () => {});
+  }
 }
 // An enrollment, { exp_<key>: arm }, merged into that account's arms. Made
 // before this module has heard who is signed in, it asks the auth client, so it
@@ -364,6 +394,9 @@ function getSessionId() {
     return id;
   } catch (_) { return null; }
 }
+// The device id, for a visitor experiment's coin and anything else that has to
+// follow a device rather than an account.
+export function getDeviceId() { return getSessionId(); }
 
 let cachedUserId = null;
 let cachedAccessToken = null;   // kept fresh for the keepalive-fetch beacon's Bearer header
@@ -406,7 +439,7 @@ if (supabase) {
         try { flushBeacon(); } catch (_) {}
         try { noteAuthChange(); } catch (_) {}
       }
-      if (session?.user?.id) { stampFirstSourceIfNeeded(); primeEnrolledExperiments(session.user.id); }
+      if (session?.user?.id) { stampFirstSourceIfNeeded(); stampVisitorArms(session.user); primeEnrolledExperiments(session.user.id); }
     });
   } catch (_) {}
 }

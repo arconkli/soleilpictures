@@ -109,7 +109,10 @@ test('broken storage never throws, and memory still works', () => {
 test('analytics.js keeps the arms per account and reads the stamp for the account that signed in', () => {
   const src = readFileSync(new URL('./analytics.js', import.meta.url), 'utf8');
   assert.match(src, /const armCache = createArmCache\(/);
-  assert.match(src, /function getExperiments\(\) \{\s*return armCache\.arms\(cachedUserId\);/);
+  // Signed in, the account's own arms; signed out, only the device's visitor
+  // arms (visitorArms.js), never an account's.
+  assert.match(src, /function getExperiments\(\) \{\s*return cachedUserId \? armCache\.arms\(cachedUserId\) : visitorArms\(\);/);
+  assert.match(src, /function visitorArms\(\) \{\s*try \{ return visitorArmProps\(localStorage\); \}/);
   assert.match(src, /export function setEnrolledExperiments\(map, uid = cachedUserId\) \{\s*if \(uid\) \{ armCache\.enroll\(map, uid\); return; \}/);
   assert.match(src, /getSession\(\)\.then\(\(\{ data \}\) => armCache\.enroll\(map, data\?\.session\?\.user\?\.id\)/,
     'an enrollment made before the auth callback lands on the session\'s account, never on none');

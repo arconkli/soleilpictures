@@ -17,6 +17,8 @@ import { templateStoreAllowed } from '../lib/appHost.js';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
+import { useSignupBoxArm } from '../hooks/useSignupBoxArm.js';
+import { SignupBox } from '../components/public/SignupBox.jsx';
 import { hasPlanBlock, planBlockModel } from '../lib/planBlock.js';
 import './seoLanding.css';
 
@@ -137,6 +139,10 @@ export function SeoLandingPage({ spec: specProp, path }) {
     page: spec?.path, pageKind: spec?.kind, starter: spec?.starter || null,
     getScrollEl: () => scrollRef.current,
   });
+  // The visitor test signup_box: arm B puts the email box where the hero's and
+  // the closing band's gold buttons are (components/public/SignupBox.jsx).
+  // Decided in render, so lp_view carries the arm. The store front has neither.
+  const sbox = useSignupBoxArm(!!spec && !spec.storefront);
 
   // Live board titles + thumb cache-busters for the example cards. Loaded
   // lazily (dynamic import keeps the supabase client out of this chunk's
@@ -213,7 +219,9 @@ export function SeoLandingPage({ spec: specProp, path }) {
             {!spec.storefront && (
               <>
                 <div className="seo-hero-cta">
-                  <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('hero', cta.href || '/')}>{cta.label || 'Start free'}</a>
+                  {sbox === 'B'
+                    ? <SignupBox pos="hero" label={cta.label || 'Start free'} onFirstPress={lp.ctaProps('hero', cta.href || '/', { via: 'box' }).onClick} />
+                    : <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('hero', cta.href || '/')}>{cta.label || 'Start free'}</a>}
                   {hero && <a className="seo-cta-secondary" href="#live-example" {...lp.ctaProps('hero_secondary', '#live-example', { intent: 'nav' })}>See a real board ↓</a>}
                   {/* The in-page answer to "what does it cost". The topbar link
                       is hidden on phones, so this is the phone's only path. */}
@@ -384,8 +392,10 @@ export function SeoLandingPage({ spec: specProp, path }) {
               <h2 className="seo-cta-headline">
                 {spec.kind === 'compare' ? 'See it for yourself' : 'Your next board is 30 seconds away'}
               </h2>
-              <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('closing', cta.href || '/')}>{cta.label || 'Start free'}</a>
-              {cta.sub && <span className="seo-cta-sub2">{cta.sub}</span>}
+              {sbox === 'B'
+                ? <SignupBox pos="closing" label={cta.label || 'Start free'} onFirstPress={lp.ctaProps('closing', cta.href || '/', { via: 'box' }).onClick} />
+                : <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('closing', cta.href || '/')}>{cta.label || 'Start free'}</a>}
+              {cta.sub && sbox !== 'B' && <span className="seo-cta-sub2">{cta.sub}</span>}
             </section>
           )}
 

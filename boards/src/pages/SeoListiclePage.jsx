@@ -17,6 +17,8 @@ import { NotFoundPage } from './NotFoundPage.jsx';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
+import { useSignupBoxArm } from '../hooks/useSignupBoxArm.js';
+import { SignupBox } from '../components/public/SignupBox.jsx';
 import './seoLanding.css';
 import './seoListicle.css';
 
@@ -79,6 +81,10 @@ export function SeoListiclePage({ path }) {
     page: spec?.path, pageKind: spec?.kind,
     getScrollEl: () => scrollRef.current,
   });
+  // The visitor test signup_box: arm B puts the email box where the hero's and
+  // the closing band's gold buttons are (components/public/SignupBox.jsx).
+  // Decided in render, so lp_view carries the arm.
+  const sbox = useSignupBoxArm(!!spec);
 
   // Live board titles + thumb cache-busters for the template strip (same lazy
   // load as SeoLandingPage — keeps the supabase client off the critical path).
@@ -199,7 +205,9 @@ export function SeoListiclePage({ path }) {
               {trustChips.map((t) => <li key={t}>{t}</li>)}
             </ul>
             <div className="seo-hero-cta">
-              <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('hero', cta.href || '/')}>{cta.label || 'Start free'}</a>
+              {sbox === 'B'
+                ? <SignupBox pos="hero" label={cta.label || 'Start free'} onFirstPress={lp.ctaProps('hero', cta.href || '/', { via: 'box' }).onClick} />
+                : <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('hero', cta.href || '/')}>{cta.label || 'Start free'}</a>}
               <a className="seo-cta-secondary" href="#picks" {...lp.ctaProps('hero_secondary', '#picks', { intent: 'nav' })}>Skip to the rankings ↓</a>
             </div>
             <div className="seo-trust">
@@ -575,8 +583,10 @@ export function SeoListiclePage({ path }) {
           {/* Closing CTA */}
           <section className="seo-cta-band" ref={lp.sectionRef('closing', tailBase + 6)}>
             <h2 className="seo-cta-headline">Judge it on a real board</h2>
-            <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('closing', cta.href || '/')}>{cta.label || 'Start free'}</a>
-            {cta.sub && <span className="seo-cta-sub2">{cta.sub}</span>}
+            {sbox === 'B'
+              ? <SignupBox pos="closing" label={cta.label || 'Start free'} onFirstPress={lp.ctaProps('closing', cta.href || '/', { via: 'box' }).onClick} />
+              : <a className="seo-cta-primary" href={cta.href || '/'} {...lp.ctaProps('closing', cta.href || '/')}>{cta.label || 'Start free'}</a>}
+            {cta.sub && sbox !== 'B' && <span className="seo-cta-sub2">{cta.sub}</span>}
           </section>
 
           {/* Author box + internal-linking footer */}
