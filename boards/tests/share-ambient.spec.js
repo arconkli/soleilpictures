@@ -110,6 +110,21 @@ test.describe('the ask to show the work', () => {
     expect(s.indexOf("'soleil:first-value'")).toBeLessThan(s.indexOf("'soleil:share-ask'"));
   });
 
+  test('asks only about a cluster that just reached ten, and keeps retrying', () => {
+    // Its own effect: the onboarding effect returns early once its stamps are
+    // set, which after the 10th card stopped every later dispatch.
+    const s = app();
+    const at = s.indexOf("window.dispatchEvent(new CustomEvent('soleil:share-ask'");
+    expect(at).toBeGreaterThan(-1);
+    const eff = s.slice(s.lastIndexOf('useEffect(() => {', at), at);
+    expect(eff).toMatch(/shareAskBaseRef\.current/);
+    expect(eff).toMatch(/if \(!base\.has\(currentId\)\) \{ base\.set\(currentId, n\); return; \}/);
+    expect(eff).toMatch(/base\.get\(currentId\) >= SHARE_ASK_MIN_CARDS/);
+    expect(eff).not.toMatch(/fcDone|momDone/);
+    expect(s.slice(at, at + 200)).toMatch(/justReached: true/);
+    expect(s).toMatch(/SHARE_ASK_SHOWN, \{ board_id: boardId, cards, at: SHARE_ASK_MIN_CARDS \}/);
+  });
+
   test('claims the shared slot, so it can never land on top of the wall', () => {
     const s = app();
     expect(s).toMatch(/claimUpsellSlot\('share-ask'\)/);

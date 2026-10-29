@@ -123,6 +123,16 @@ const FOLLOWS = Object.freeze({
 // budget nor spends it; the window above still keeps it off any other surface.
 const AMBIENT = new Set(['invite-nudge', 'share-ask', 'mix-prompt', 'power-reveal']);
 
+// The share ask is the one ambient kind that may take a visit another ambient
+// ask already had (owner's pick #35, 2026-10-29). Since that day it comes only
+// when a cluster has JUST reached ten cards (lib/shareAsk.js), and that moment
+// mostly landed in the same visit as a feature tip: the tip owned the visit, the
+// ask waited for a next visit that often never came, and about half the people
+// reaching ten were never asked. It still spends the visit (nothing ambient
+// follows it), still waits out the minute, never lands on the wall, and comes at
+// most once a week per account. Only 'share-ask': no other kind gets this.
+const PAST_THE_VISIT = new Set(['share-ask']);
+
 let visitAsk = { visit: null, kind: null };
 
 // The live app session id, or null. A missing id never refuses anything: as
@@ -193,7 +203,7 @@ export function claimUpsellSlot(kind, now = Date.now(), visit = currentVisit()) 
 
   // One ambient ask per visit, and it belongs to whichever showed first.
   const ambient = AMBIENT.has(kind);
-  if (ambient && visit && visitAsk.visit === visit && visitAsk.kind !== kind) return false;
+  if (ambient && visit && visitAsk.visit === visit && visitAsk.kind !== kind && !PAST_THE_VISIT.has(kind)) return false;
 
   if (upsellSlotBusy(t)) {
     const may = FOLLOWS[kind];
