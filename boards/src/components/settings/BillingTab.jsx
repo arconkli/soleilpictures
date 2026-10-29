@@ -9,6 +9,7 @@ import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { planLabel, formatPeriodEnd, grantCopy, statusLabel, PRICING, CTA, STORAGE_ADDON_HELD, STORAGE_ADDON_BLOCK_LABEL, STORAGE_ADDON_MAX_BLOCKS } from '../../lib/billingCopy.js';
 import { creatorTrialEligibility } from '../../lib/creatorTrial.js';
+import { trialEarlyOn } from '../../lib/trialEarly.js';
 import { startPortal, warmPortal } from '../../lib/checkout.js';
 import { checkoutErrorMessage } from '../../lib/checkoutErrors.js';
 import { useFeedback } from '../AppFeedback.jsx';
@@ -29,6 +30,7 @@ export function BillingTab({ user }) {
   // owed it. Decided on the server's count, like every other trial surface.
   const trialOffer = creatorTrialEligibility({
     tier, cards: serverCardCount, cardLimit: effectiveCardLimit, trialStartedAt: creatorTrialStartedAt,
+    early: trialEarlyOn(user?.id),
   }).eligible;
   const [sub, setSub] = useState(null);
   const [busy, setBusy] = useState(false);

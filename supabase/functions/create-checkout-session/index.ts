@@ -22,6 +22,7 @@ import Stripe from "npm:stripe@17.7.0";
 import { clientIpFromHeaders, emitCapi, gpcFrom } from "../_shared/meta-capi.ts";
 import { decideCheckoutRoute, filterLiveSubscriptions, pickReusableCustomer, promoCodesAllowedForPlan } from "../_shared/activateCore.mjs";
 import { CREATOR_TRIAL_DAYS, creatorTrialEligibility, customerHasTrialed } from "../_shared/trialCore.mjs";
+import { trialEarlyArm } from "../_shared/trialEarly.mjs";
 import { failedWith, reported } from "../_shared/reportError.ts";
 import { claimsMatch, earlyOr, settle, tokenClaims } from "../_shared/earlyReads.mjs";
 
@@ -92,6 +93,9 @@ Deno.serve(reported("create-checkout-session", async (req) => {
 
     const email  = u.data.user.email.toLowerCase().trim();
     const userId = u.data.user.id;
+    // The trial_early arm, decided here from the JWT user id and never from the
+    // request body (null while the test is off).
+    const earlyArm = trialEarlyArm(userId);
 
     let plan: string;
     let fbp = "", fbc = "", icEventId = "";
@@ -269,6 +273,7 @@ Deno.serve(reported("create-checkout-session", async (req) => {
         storageUsed: s.error ? null : (srow?.used ?? null),
         storageQuota: s.error ? null : (srow?.quota ?? null),
         wallCards,
+        early: earlyArm === "B",
       });
       if (t.error || !elig.eligible || everTrialed) {
         return json({
@@ -342,6 +347,8 @@ Deno.serve(reported("create-checkout-session", async (req) => {
         ...(surface  ? { surface: surface.slice(0, 60) } : {}),
         ...(header   ? { header:  header.slice(0, 60) }  : {}),
         ...(via      ? { via:     via.slice(0, 60) }     : {}),
+        // Which arm of the trial_early test this checkout came from (null while off).
+        ...(earlyArm ? { exp_trial_early: earlyArm } : {}),
       },
       subscription_data: {
         metadata: { supabase_user_id: userId, plan, ...(trial ? { trial: "1" } : {}) },

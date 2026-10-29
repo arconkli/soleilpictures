@@ -21,6 +21,9 @@
 //     a public offer. Premium professional tools all run trials (Final Draft,
 //     FL Studio, the DAWs, Adobe); what protects a premium position is who is
 //     offered it and where.
+//   • the trial_early test (owner, 2026-10-28): its arm B is also offered the
+//     trial from the first server-counted card, via `early`. The caller
+//     decides it from the arm (supabase/functions/_shared/trialEarly.mjs).
 
 export const CREATOR_TRIAL_DAYS = 14;
 // Mirrors upsellEligibility.THRESHOLDS.investedMin — the chip and the trial
@@ -28,13 +31,13 @@ export const CREATOR_TRIAL_DAYS = 14;
 export const TRIAL_MIN_CARDS = 13;
 export const TRIAL_CAP_FRAC = 0.8;
 
-// creatorTrialEligibility({ tier, cards, cardLimit, trialStartedAt, storageUsed?, storageQuota?, wallCards? })
+// creatorTrialEligibility({ tier, cards, cardLimit, trialStartedAt, storageUsed?, storageQuota?, wallCards?, early? })
 //   -> { eligible: boolean, reason: string }
 // reason: 'not_demo' | 'already_trialed' | 'cards_unknown' | 'too_early'
-//         | 'body_of_work' | 'near_cap' | 'near_storage' | 'at_wall'
+//         | 'body_of_work' | 'near_cap' | 'near_storage' | 'at_wall' | 'early'
 // Fails CLOSED on junk: an unknown tier or count is not eligible.
 export function creatorTrialEligibility(opts) {
-  const { tier, cards, cardLimit, trialStartedAt, storageUsed, storageQuota, wallCards } = opts || {};
+  const { tier, cards, cardLimit, trialStartedAt, storageUsed, storageQuota, wallCards, early } = opts || {};
   if (tier !== 'demo') return { eligible: false, reason: 'not_demo' };
   if (trialStartedAt) return { eligible: false, reason: 'already_trialed' };
   const n = Number(cards);
@@ -56,8 +59,13 @@ export function creatorTrialEligibility(opts) {
   // before anything uploaded. That is acceptable: the trial still needs a card
   // and is once per account.
   const byWall = Number.isFinite(cap) && cap > 0 && Number.isInteger(wallCards) && wallCards > cap;
-  if (!byCount && !byCap && !byStorage && !byWall) return { eligible: false, reason: 'too_early' };
-  return { eligible: true, reason: byCount ? 'body_of_work' : byCap ? 'near_cap' : byStorage ? 'near_storage' : 'at_wall' };
+  // The trial_early test's arm B (owner, 2026-10-28): any demo account that
+  // never trialed and has at least one server-counted card; only a real
+  // boolean true counts; decided by the caller from the arm (the edge, from
+  // the JWT user id).
+  const byEarly = early === true && n >= 1;
+  if (!byCount && !byCap && !byStorage && !byWall && !byEarly) return { eligible: false, reason: 'too_early' };
+  return { eligible: true, reason: byCount ? 'body_of_work' : byCap ? 'near_cap' : byStorage ? 'near_storage' : byWall ? 'at_wall' : 'early' };
 }
 
 // Has this Stripe customer ever held a subscription with a trial? A second

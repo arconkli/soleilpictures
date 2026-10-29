@@ -16,7 +16,8 @@ import { useMyTier } from '../hooks/useMyTier.js';
 import { PricingModal } from './PricingModal.jsx';
 import { FirstValueUpgradeBanner } from './FirstValueUpgradeBanner.jsx';
 import { stampUpgradePrompt, readUpgradePrompts } from '../lib/upgradePrompts.js';
-import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
+import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments } from '../lib/analytics.js';
+import { supabase } from '../lib/supabase.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { qaForceFirstValue, qaForceCapWall, qaForceImportAsk } from '../lib/localMode.js';
 import { ImportCapDialog } from './ImportCapDialog.jsx';
@@ -24,6 +25,7 @@ import { DEMO_CARD_LIMIT, rejectedNoun } from '../lib/demoCardCap.js';
 import { COPY_REV, PRICE_FROM_LABEL, TRIAL_FROM_LABEL, FREE_STORAGE_LABEL, storageAmountLabel } from '../lib/billingCopy.js';
 import { useStorageUsage } from '../hooks/useStorageUsage.js';
 import { creatorTrialEligibility, trialAwaitingServer } from '../lib/creatorTrial.js';
+import { trialEarlyArm, stampTrialEarlyArm, TRIAL_EARLY_KEY } from '../lib/trialEarly.js';
 import { evaluateUpsell, atCapWall, ELIGIBILITY_REV } from '../lib/upsellEligibility.js';
 import { claimUpsellSlot } from '../lib/upsellSlot.js';
 import { markPriceSeen } from '../lib/upsellLatches.js';
@@ -50,6 +52,8 @@ export function UpgradeChip() {
   const { user } = useAuth();
   const { tier, demoCardCount, serverCardCount, effectiveCardLimit, creatorTrialStartedAt } =
     useMyTier({ userId: user?.id });
+  const earlyArm = trialEarlyArm(user?.id);
+  const trialEarly = earlyArm === 'B';
   const cardLimit = effectiveCardLimit || DEMO_CARD_LIMIT;
   // Days since signup — the one retention signal available without a server
   // round-trip, and enough (with cap fraction) to qualify everyone the richer
@@ -79,6 +83,7 @@ export function UpgradeChip() {
     tier, cards: serverCardCount, cardLimit, trialStartedAt: creatorTrialStartedAt,
     storageUsed: storageKnown ? storage.used : null,
     storageQuota: storageKnown ? storage.quota : null,
+    early: trialEarly,
   });
   const trialOffer = trialDecision.eligible;
   // The canvas already qualifies and the server hasn't caught up yet. Nothing
@@ -87,6 +92,7 @@ export function UpgradeChip() {
   // server is about to invite.
   const trialPending = trialAwaitingServer({
     tier, cards: demoCardCount, serverCards: serverCardCount, cardLimit, trialStartedAt: creatorTrialStartedAt,
+    early: trialEarly,
   });
   const capWallQa = qaForceCapWall();             // dev-only render seam, 0 in prod
   const importAskQa = qaForceImportAsk();         // dev-only render seam, null in prod
@@ -106,6 +112,26 @@ export function UpgradeChip() {
   // When the banner first stood down to wait for the server's count, or 0.
   const fvPendingSinceRef = useRef(0);
   const fvBackstopRef = useRef(null);
+
+  // Test 3 trial_early: stamp both arms once per demo account. The arm rides
+  // every event as exp_trial_early, and the server's record
+  // (profiles.settings.experiments via set_experiment_arm) is what the read
+  // groups by. Nothing happens while the test is off: the arm is null.
+  const earlyStampRef = useRef(null);
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid || !earlyArm || tier !== 'demo' || earlyStampRef.current === uid) return;
+    earlyStampRef.current = uid;
+    setEnrolledExperiments({ exp_trial_early: earlyArm }, uid);
+    if (!supabase) return;
+    let storage = null;
+    try { storage = window.localStorage; } catch (_) { /* stamp without the mark */ }
+    stampTrialEarlyArm({
+      uid, arm: earlyArm, storage,
+      rpc: () => supabase.rpc('set_experiment_arm', { p_key: TRIAL_EARLY_KEY, p_arm: earlyArm }),
+      log: () => logEvent(EV.EXPERIMENT_ENROLLED, { key: TRIAL_EARLY_KEY, arm: earlyArm }),
+    });
+  }, [user?.id, earlyArm, tier]);
 
   // Read the once-flag for demo users (no migration: profiles.settings is jsonb).
   // Writes never reuse what this read returned: stampUpgradePrompt re-reads and
@@ -489,7 +515,7 @@ export function UpgradeChip() {
           canUpgrade={importAskQa.own}
           trialOffer={importAskQa.own && creatorTrialEligibility({
             tier, cards: serverCardCount, cardLimit, trialStartedAt: creatorTrialStartedAt,
-            wallCards: importAskQa.count + importAskQa.n,
+            wallCards: importAskQa.count + importAskQa.n, early: trialEarly,
           }).eligible}
           onTakePartial={() => {}}
           onUpgrade={() => {}}

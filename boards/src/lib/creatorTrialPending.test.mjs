@@ -35,3 +35,9 @@ test('junk inputs answer false rather than throwing', () => {
   assert.equal(trialAwaitingServer({ ...base, cards: 20, serverCards: undefined }), false);
   assert.equal(trialAwaitingServer(null), false);
 });
+
+test('trial_early arm B is waiting from the first card, arm A is not', () => {
+  assert.equal(trialAwaitingServer({ ...base, early: true, cards: 1, serverCards: 0 }), true);
+  assert.equal(trialAwaitingServer({ ...base, early: true, cards: 3, serverCards: 1 }), false, 'server already eligible');
+  assert.equal(trialAwaitingServer({ ...base, early: false, cards: 1, serverCards: 0 }), false);
+});

@@ -14,7 +14,7 @@ export const TRIAL_MIN_CARDS = THRESHOLDS.investedMin;
 export const TRIAL_CAP_FRAC = 0.8;
 
 export function creatorTrialEligibility(opts) {
-  const { tier, cards, cardLimit, trialStartedAt, storageUsed, storageQuota, wallCards } = opts || {};
+  const { tier, cards, cardLimit, trialStartedAt, storageUsed, storageQuota, wallCards, early } = opts || {};
   if (tier !== 'demo') return { eligible: false, reason: 'not_demo' };
   if (trialStartedAt) return { eligible: false, reason: 'already_trialed' };
   const n = Number(cards);
@@ -36,8 +36,13 @@ export function creatorTrialEligibility(opts) {
   // before anything uploaded. That is acceptable: the trial still needs a card
   // and is once per account.
   const byWall = Number.isFinite(cap) && cap > 0 && Number.isInteger(wallCards) && wallCards > cap;
-  if (!byCount && !byCap && !byStorage && !byWall) return { eligible: false, reason: 'too_early' };
-  return { eligible: true, reason: byCount ? 'body_of_work' : byCap ? 'near_cap' : byStorage ? 'near_storage' : 'at_wall' };
+  // The trial_early test's arm B (owner, 2026-10-28): any demo account that
+  // never trialed and has at least one server-counted card; only a real
+  // boolean true counts; decided by the caller from the arm (the edge, from
+  // the JWT user id).
+  const byEarly = early === true && n >= 1;
+  if (!byCount && !byCap && !byStorage && !byWall && !byEarly) return { eligible: false, reason: 'too_early' };
+  return { eligible: true, reason: byCount ? 'body_of_work' : byCap ? 'near_cap' : byStorage ? 'near_storage' : byWall ? 'at_wall' : 'early' };
 }
 
 // Is the trial decision still waiting on the server?
@@ -58,10 +63,10 @@ export function creatorTrialEligibility(opts) {
 // the priced variant (and the banner's one-shot) while this is true; useMyTier
 // refetches as soon as the sync lands, so the wait is seconds, not a session.
 export function trialAwaitingServer(opts) {
-  const { tier, cards, serverCards, cardLimit, trialStartedAt } = opts || {};
+  const { tier, cards, serverCards, cardLimit, trialStartedAt, early } = opts || {};
   const local = Number(cards);
   const server = Number(serverCards);
   if (!Number.isFinite(local) || !Number.isFinite(server) || local <= server) return false;
-  if (!creatorTrialEligibility({ tier, cards: local, cardLimit, trialStartedAt }).eligible) return false;
-  return !creatorTrialEligibility({ tier, cards: server, cardLimit, trialStartedAt }).eligible;
+  if (!creatorTrialEligibility({ tier, cards: local, cardLimit, trialStartedAt, early }).eligible) return false;
+  return !creatorTrialEligibility({ tier, cards: server, cardLimit, trialStartedAt, early }).eligible;
 }
