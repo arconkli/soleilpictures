@@ -54,6 +54,7 @@ import { runAiModelDigest, runAiModelWatch } from './worker-aiwatch.js';
 // registry shared with the React component so the crawlable server-rendered
 // text can't drift from what the app renders (anti-cloaking).
 import { getLandingSpec, SEO_LANDING_LISTED, landingOgPath, EXPLORE_INTRO, matchToolPath } from './lib/seoLanding.js';
+import { ogStageSlug } from './lib/landingStage.js';
 // Named imports only, so esbuild tree-shakes the rest of the layout engine out
 // of the Worker: a curated template page states its cell count, and that number
 // is DERIVED from the preset rather than typed into the spec beside it.
@@ -1883,8 +1884,11 @@ function injectLanding(res, spec, extra = null) {
   const canonical = `${SITE_ORIGIN}${spec.path}`;
   // ?v= busts scraper/CDN caches of the immutable OG asset when a page's copy
   // (and thus its card) is refreshed. Keep the query OUT of landingOgPath —
-  // generate-og.mjs derives output filenames from it.
-  const og = `${SITE_ORIGIN}${landingOgPath(spec)}${spec.updated ? `?v=${spec.updated}` : ''}`;
+  // generate-og.mjs derives output filenames from it. A card drawn in the sun
+  // look (lib/landingStage.js ogStageSlug) carries a `-c` on its version, so a
+  // reshare after the redraw fetches the new picture.
+  const ogV = [spec.updated, ogStageSlug(spec) && 'c'].filter(Boolean).join('-');
+  const og = `${SITE_ORIGIN}${landingOgPath(spec)}${ogV ? `?v=${ogV}` : ''}`;
   const rw = new HTMLRewriter()
     .on('title',                            new SetText(spec.title))
     .on('meta[name="description"]',         new SetContent(spec.metaDescription))

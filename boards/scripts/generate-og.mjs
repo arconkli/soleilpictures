@@ -5,7 +5,8 @@
 // domain footer. Rendered with Playwright (HTML → screenshot), compressed with
 // sharp. Re-run whenever a page's h1/subhead changes.
 //
-//   node scripts/generate-og.mjs
+//   node scripts/generate-og.mjs                 every card
+//   node scripts/generate-og.mjs home-v2.png ...  just these files
 //
 // NOTE: scrapers cache og:images by URL — if a card changes meaningfully,
 // bump a ?v= on the injected URL (worker.js injectLanding) or rename.
@@ -20,6 +21,9 @@ import { SEO_LANDING_PAGES, landingOgPath } from '../src/lib/seoLanding.js';
 import { SEO_LISTICLE_PAGES } from '../src/lib/seoListicles.js';
 import { DOCS_SECTIONS } from '../src/lib/docsiteIndex.js';
 import { TEMPLATE_CATEGORIES } from '../src/lib/templateCards.js';
+import { OG_STAGE, STAGE_DIR, ogStageSlug } from '../src/lib/landingStage.js';
+import { STAGE_CARDS } from '../src/lib/landingStageCards.js';
+import { sunMarkSvg, MARK_MID } from '../src/lib/sunMark.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
@@ -58,9 +62,91 @@ function cardHtml({ h1, subhead }) {
 </body></html>`;
 }
 
+// ── The sun look (2026-10-29) ────────────────────────────────────────────────
+// The search pages that show a real board in the sun stage get the same look
+// in their link preview: the words on the left, the Clusters mark on the right
+// holding cards cut from the page's own board (public/landing/v2, made by
+// scripts/shootStageCards.mjs). Which pages, and where the cards sit, come from
+// lib/landingStage.js, which worker.js versions the og:image URL from too.
+const DISPLAY = "brandon-grotesque, Futura, 'Avenir Next', 'Segoe UI', sans-serif";
+const webp = (rel) => `data:image/webp;base64,${readFileSync(resolve(ROOT, 'public', rel.replace(/^\//, ''))).toString('base64')}`;
+
+// cards: [{ slug, role, cx, cy, rot, maxW }] in the mark's 2048-unit box.
+function stageHtml({ eyebrow, h1, subhead, cards }) {
+  const [mx, my, m] = OG_STAGE.mark;
+  const s = m / 2048;
+  const [rx, ry] = MARK_MID;
+  const glow = m * 1.9;
+  const placed = cards.map(({ slug, role, cx, cy, rot, maxW }) => {
+    const size = STAGE_CARDS[slug]?.[role];
+    if (!size) return '';
+    const w = Math.min(size.w * OG_STAGE.k, maxW) * s;
+    return `<img src="${webp(`${STAGE_DIR}/${slug}/${role}.webp`)}" style="position:absolute;left:${(mx + cx * s).toFixed(1)}px;top:${(my + cy * s).toFixed(1)}px;width:${w.toFixed(1)}px;transform:translate(-50%,-50%) rotate(${rot}deg);filter:drop-shadow(0 14px 22px rgba(0,0,0,.55)) drop-shadow(0 2px 4px rgba(0,0,0,.4));z-index:3" />`;
+  }).join('');
+  return `<!doctype html><html><head><link rel="stylesheet" href="https://use.typekit.net/qtd2rwk.css" /></head>
+<body style="margin:0;width:1200px;height:630px;overflow:hidden;">
+  <div style="position:relative;width:1200px;height:630px;overflow:hidden;background:radial-gradient(ellipse 62% 70% at 70% 50%,#1d130a,#0a0809 74%);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#f5f5f7;">
+    <div style="position:absolute;left:${mx + rx * s - glow / 2}px;top:${my + ry * s - glow / 2}px;width:${glow}px;height:${glow}px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,160,40,.20),rgba(255,140,20,.06) 55%,transparent);"></div>
+    <svg viewBox="0 0 2048 2048" width="${m}" height="${m}" style="position:absolute;left:${mx}px;top:${my}px;z-index:2;filter:drop-shadow(0 14px 30px rgba(0,0,0,.55));">${sunMarkSvg({ id: 'og' })}</svg>
+    ${placed}
+    <div id="tx" style="position:absolute;left:72px;top:40px;bottom:110px;width:540px;display:flex;flex-direction:column;justify-content:center;z-index:5;">
+      ${eyebrow ? `<div style="font:700 14px/1 ${DISPLAY};letter-spacing:.22em;text-transform:uppercase;color:#ffa500;margin:0 0 20px;">${esc(eyebrow)}</div>` : ''}
+      <div id="h1" style="font:700 62px/1.02 ${DISPLAY};letter-spacing:.005em;text-wrap:balance;">${esc(h1)}</div>
+      ${subhead ? `<div style="font-size:22px;line-height:1.4;color:#d3ccc0;margin-top:22px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">${esc(subhead)}</div>` : ''}
+    </div>
+    <div style="position:absolute;left:72px;bottom:48px;display:flex;align-items:center;gap:12px;z-index:5;">
+      <img src="${LOGO}" width="32" height="32" style="display:block;" />
+      <span style="font:700 21px/1 ${DISPLAY};letter-spacing:.18em;">CLUSTERS</span>
+      <span style="font-size:16px;color:#bdb6aa;margin-left:12px;">clusters.soleilpictures.com</span>
+    </div>
+  </div>
+</body></html>`;
+}
+
+// Shrink the headline until the words fit their column (long ranked-list
+// titles run to three lines at full size).
+async function fitHeadline(page) {
+  await page.evaluate(() => {
+    const tx = document.getElementById('tx');
+    const h1 = document.getElementById('h1');
+    if (!tx || !h1) return;
+    let px = 62;
+    while (px > 40 && (tx.scrollHeight > tx.clientHeight || h1.getBoundingClientRect().height > px * 1.02 * 3 + 2)) {
+      px -= 2;
+      h1.style.fontSize = `${px}px`;
+    }
+  });
+}
+
+const stageCardsFor = (slug) => OG_STAGE.cards.map(([role, cx, cy, rot, maxW]) => ({ slug, role, cx, cy, rot, maxW }));
+const searchCard = (s) => {
+  const file = landingOgPath(s).slice(4);
+  const slug = ogStageSlug(s);
+  return slug
+    ? { file, html: stageHtml({ eyebrow: s.eyebrow, h1: s.h1, subhead: s.subhead, cards: stageCardsFor(slug) }) }
+    : { file, h1: s.h1, subhead: s.subhead };
+};
+
+// The homepage's card (index.html's og:image, so also every page the Worker
+// doesn't give its own): bright photos from three different real boards.
+const HOME_CARDS = [
+  { slug: 'world-cup-2026-moodboard', role: 'c1', cx: 1730, cy: 1110, rot: 7, maxW: 430 },
+  { slug: 'japandi-living-room', role: 'c1', cx: 960, cy: 860, rot: -5, maxW: 590 },
+  { slug: 'sage-terracotta-wedding', role: 'c2', cx: 1420, cy: 760, rot: 5, maxW: 510 },
+  { slug: 'sage-terracotta-wedding', role: 'pal', cx: 1150, cy: 1450, rot: -2, maxW: 880 },
+];
+
 const cards = [
-  ...SEO_LANDING_PAGES.map((s) => ({ file: landingOgPath(s).slice(4), h1: s.h1, subhead: s.subhead })),
-  ...SEO_LISTICLE_PAGES.map((s) => ({ file: landingOgPath(s).slice(4), h1: s.h1, subhead: s.subhead })),
+  ...SEO_LANDING_PAGES.map(searchCard),
+  ...SEO_LISTICLE_PAGES.map(searchCard),
+  {
+    file: 'home-v2.png',
+    html: stageHtml({
+      h1: 'Your references, clustered.',
+      subhead: 'Pictures, video, script pages and any file, on one canvas you can share.',
+      cards: HOME_CARDS,
+    }),
+  },
   // Documentation: ONE card per section, not per page. Fifty near-identical
   // cards would be churn in public/og/ for a difference nobody can see in a
   // link preview, and the section is the useful unit of "what is this about".
@@ -95,10 +181,18 @@ const cards = [
   },
 ];
 
+const only = process.argv.slice(2);
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
+// The display face's kit only serves our own site.
+await page.setExtraHTTPHeaders({ Referer: 'https://clusters.soleilpictures.com/' });
 for (const c of cards) {
-  await page.setContent(cardHtml(c), { waitUntil: 'networkidle' });
+  if (only.length && !only.includes(c.file)) continue;
+  await page.setContent(c.html || cardHtml(c), { waitUntil: 'networkidle' });
+  if (c.html) {
+    await page.evaluate(() => document.fonts.ready);
+    await fitHeadline(page);
+  }
   const shot = await page.screenshot({ type: 'png' });
   const optimized = await sharp(shot).png({ palette: true, compressionLevel: 9, quality: 90 }).toBuffer();
   writeFileSync(resolve(OUT, c.file), optimized);

@@ -1,0 +1,194 @@
+/* The search pages' sun stage (SunStage.jsx). Every position comes in as a
+   custom property from lib/landingStage.js: --x/--y/--w/--r a card (desktop),
+   --px/--py/--pw/--pr the same on phones; --ml/--mt/--mw the mark, --gx/--gy/
+   --gw its glow (and --p… on phones). Widths are in cqw of the stage box, so
+   the whole picture scales as one. Phones are under 640px. */
+
+.sun-full,
+.sun-behind {
+  position: relative;
+  container-type: inline-size;
+}
+
+/* ── The mark and its glow ─────────────────────────────────────────────── */
+.sun-glow {
+  position: absolute;
+  left: var(--gx);
+  top: var(--gy);
+  width: var(--gw);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 160, 40, 0.2), rgba(255, 140, 20, 0.06) 55%, transparent);
+  pointer-events: none;
+}
+.sun-mark {
+  position: absolute;
+  left: var(--ml);
+  top: var(--mt);
+  width: var(--mw);
+  height: auto;
+  aspect-ratio: 1;
+  overflow: visible;
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+}
+.sun-mark circle,
+.sun-mark path {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* ── Cards ─────────────────────────────────────────────────────────────── */
+.sun-card {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--w);
+  transform: translate(-50%, -50%) rotate(var(--r)) translate(var(--dx, 0px), var(--dy, 0px));
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  border-radius: min(calc(var(--w) * 0.05), 10px);
+  overflow: hidden;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+.sun-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ── FULL: the stage is the picture ───────────────────────────────────── */
+.sun-full {
+  aspect-ratio: 1120 / 600;
+  isolation: isolate;
+}
+.sun-full .sun-glow { z-index: 0; }
+.sun-full .sun-card { z-index: 2; }
+.sun-full .sun-mark { z-index: 3; }
+.sun-full .sun-card.is-over { z-index: 4; }
+
+/* ── BEHIND: today's frame, suns behind it, three cards over its edges ── */
+.sun-behind {
+  margin: 0 0 clamp(56px, 9vh, 100px);
+}
+.sun-behind > .seo-frame {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 0;
+}
+.sun-deco {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.sun-cards {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ── Phones ────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .sun-full { aspect-ratio: 358 / 300; }
+  .sun-glow { left: var(--pgx); top: var(--pgy); width: var(--pgw); }
+  .sun-mark { left: var(--pml); top: var(--pmt); width: var(--pmw); }
+  .sun-card {
+    left: var(--px);
+    top: var(--py);
+    width: var(--pw);
+    border-radius: min(calc(var(--pw) * 0.05), 8px);
+    transform: translate(-50%, -50%) rotate(var(--pr)) translate(var(--dx, 0px), var(--dy, 0px));
+  }
+  .sun-card.is-desk { display: none; }
+}
+
+/* ── Motion: set going by script only (SunStage.jsx), never without it ── */
+@media (prefers-reduced-motion: no-preference) {
+  .sun-wait .sun-mark circle { opacity: 0; transform: scale(0.86); }
+  .sun-wait .sun-mark path { opacity: 0; }
+  .sun-wait .sun-card { opacity: 0; }
+
+  .sun-in .sun-mark circle { animation: sunRise 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+  .sun-in .sun-mark .cream { animation-delay: 0.08s; }
+  .sun-in .sun-mark .ring path { animation: sunDash 0.5s ease-out backwards; }
+  .sun-in .sun-mark .ring path:nth-child(1) { animation-delay: 0.25s; }
+  .sun-in .sun-mark .ring path:nth-child(2) { animation-delay: 0.31s; }
+  .sun-in .sun-mark .ring path:nth-child(3) { animation-delay: 0.37s; }
+  .sun-in .sun-mark .ring path:nth-child(4) { animation-delay: 0.43s; }
+  .sun-in .sun-mark .ring path:nth-child(5) { animation-delay: 0.49s; }
+  .sun-in .sun-mark .ring path:nth-child(6) { animation-delay: 0.55s; }
+  .sun-in .sun-mark .ring path:nth-child(7) { animation-delay: 0.61s; }
+  .sun-in .sun-mark .ring path:nth-child(8) { animation-delay: 0.67s; }
+  .sun-in .sun-mark .ring path:nth-child(9) { animation-delay: 0.73s; }
+  .sun-in .sun-card {
+    animation: sunCardIn 0.9s cubic-bezier(0.2, 0.9, 0.25, 1.15) backwards;
+    animation-delay: calc(0.45s + var(--i) * 0.11s);
+  }
+  .sun-in .sun-glow { animation: sunBreathe 7s ease-in-out infinite alternate; }
+}
+@keyframes sunRise { from { opacity: 0; transform: scale(0.86); } }
+@keyframes sunDash { from { opacity: 0; } }
+@keyframes sunCardIn { from { opacity: 0; translate: 0 26px; scale: 0.96; } }
+@keyframes sunBreathe { from { opacity: 0.78; } to { opacity: 1; } }
+
+/* ── The figure on a search page (SunStageFigure) ─────────────────────── */
+.seo-stage {
+  margin: 0 0 clamp(56px, 9vh, 100px);
+  scroll-margin-top: 72px;
+}
+/* Wider than the reading column, as wide as the window allows. */
+.seo-stage-link {
+  display: block;
+  width: min(1120px, 100vw - 32px);
+  margin-inline: calc((100% - min(1120px, 100vw - 32px)) / 2);
+}
+.seo-stage-cap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: clamp(8px, 2vw, 20px);
+  text-align: center;
+}
+.seo-stage-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 7px 8px 7px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--bg-1);
+  color: var(--ink-1);
+  text-decoration: none;
+  font: 500 12.5px/1 var(--font-mono, ui-monospace, monospace);
+}
+.seo-stage-url { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seo-stage-open {
+  flex: none;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  color: var(--ink-0);
+  font: 700 12.5px/1 var(--font-sans);
+}
+.seo-stage-pill:hover .seo-stage-open,
+.seo-stage-pill:focus-visible .seo-stage-open,
+.seo-stage-link:hover + .seo-stage-cap .seo-stage-open {
+  background: var(--soleil);
+  color: var(--bg-0);
+}
+.seo-stage-pill:focus-visible { outline: 2px solid var(--soleil); outline-offset: 3px; }
+.seo-stage-note {
+  max-width: 520px;
+  font: 500 0.85rem/1.45 var(--font-sans);
+  color: var(--ink-2);
+}
+.seo-stage-note b { color: var(--ink-0); font-weight: 600; }
+@media (max-width: 640px) {
+  .seo-stage-pill { font-size: 11px; }
+  .seo-stage-open { font-size: 11.5px; }
+}
