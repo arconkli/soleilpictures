@@ -26,6 +26,7 @@ import { bytesToB64, b64ToBytes, cardToYMap, readCards, writeCardFields, upsertG
 import { buildCardIndexRows, stampCard } from '../../scripts/lib/cardEncode.mjs';
 import { scoutSelect, scoutInsert, scoutRpc, scoutPatch, scoutDelete } from './scoutDb.js';
 import { PARTY_HOST } from './partyHost.js';
+import { DEFAULT_PARTY_HOST } from './partyDefaults.js';
 import { unlinkGridForCopy, gridLinkOf } from './gridState.js';
 
 const MESSAGE_SYNC = 0;
@@ -56,12 +57,26 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // service (Node 22+ ships a global WebSocket). Resolves only once the socket is
 // actually open — the caller starts the Yjs handshake immediately and would
 // otherwise race the connection.
-async function connectPeer(env, boardId, accessToken) {
+//
+// The one exception is the Worker reaching our own party Worker: Cloudflare
+// refuses a workers.dev Worker opening another on the same account (1042, the
+// trap partyFetch.js describes), so on the preview every write that needs the
+// live room — write_doc, doc comments, moves — answered room_unavailable. There
+// the PARTY binding carries the upgrade and the accepted socket is used as is.
+export async function connectPeer(env, boardId, accessToken) {
   const host = env.PARTY_HOST || PARTY_HOST;
-  const url = `wss://${host}/parties/main/${encodeURIComponent(boardId)}`
+  const path = `/parties/main/${encodeURIComponent(boardId)}`
     + `?access_token=${encodeURIComponent(accessToken)}`;
 
-  const ws = new WebSocket(url);
+  if (host === DEFAULT_PARTY_HOST && typeof env?.PARTY?.fetch === 'function') {
+    const res = await env.PARTY.fetch(`https://${host}${path}`, { headers: { Upgrade: 'websocket' } });
+    const ws = res.webSocket;
+    if (res.status !== 101 || !ws) throw new Error(`party refused the socket (${res.status})`);
+    ws.accept();
+    return ws;
+  }
+
+  const ws = new WebSocket(`wss://${host}${path}`);
   ws.binaryType = 'arraybuffer';
   await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('partykit connect timeout')), CONNECT_TIMEOUT_MS);
