@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/use-cases · Updated 2026-10-02_
 
 One canvas for the whole creative process — from first reference to final shot list. Here is where to start.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Tools for every stage
 
 Clusters is a single visual workspace, but people reach for it at different moments. Whatever you are making, it starts the same way: drop your references on a canvas and pull them together.

@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/vs/miro · Updated 2026-10-20_
 
 Miro is a whiteboard for everything. Clusters is a canvas built specifically for visual, reference-driven creative work.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Purpose-built beats general-purpose
 
 Miro is a powerful general whiteboard for diagrams, workshops, and sticky-note sessions. Clusters is tuned for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, and a relationship graph that connects a mood board to a storyboard to a shot list. For film, photo, and design teams, the whole tool is pointed at your workflow instead of everyone’s.

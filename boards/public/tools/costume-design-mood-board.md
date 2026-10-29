@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/tools/costume-design-mood-board · 
 
 A board per character, the looks laid out scene by scene, and the fabric, colour and fitting photos beside them — shared live with the director.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## A board per character, a look per scene
 
 Costume is a story told across scenes, so one mood board for the whole film flattens it. In Clusters each character gets a cluster, and inside it a grid lays the changes out in order — a frame per scene or change for the look, with the scene and what changes in the box beneath it, and the fabric swatches beside the grid. When scenes move, the grid is still the order of the story, and everyone is looking at the same one.

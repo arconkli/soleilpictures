@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Upda
 
 Drop reference onto an infinite canvas in your browser. The same board follows you to every machine, and one link shows your art director exactly what you’re looking at.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Reference boards and mood boards are different tools
 
 A mood board is made to be shown — it argues for a direction in a pitch or a client deck. A reference board is made to be used: it’s the sheet of images an artist keeps open beside the canvas while actually painting, modeling, lighting, or grading. Concept artists collect anatomy and costume studies. Illustrators pin lighting setups and hand poses. 3D artists gather material close-ups. Film crews pull frames from other movies to hold a look steady across a shoot. The job is fast visual recall at working speed — glance, zoom into a detail, glance back — and a reference board maker is judged on how little it interrupts that loop.

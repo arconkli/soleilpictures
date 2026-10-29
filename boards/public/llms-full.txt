@@ -8081,6 +8081,8 @@ _Source: https://clusters.soleilpictures.com/tools/mood-board-maker · Updated 2
 
 Pull your references, colors, and notes onto one infinite canvas — then share the whole board with a single link.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Everything in one place, not fifteen tabs
 
 A mood board is only useful when everything lives together. Clusters lets you drop images, screenshots, links, PDFs, video, and color palettes onto the same canvas, arrange them freely, and pull relationships between them with arrows. Tag anything — a card, a group, a whole board — and the tag gathers it from every board in the workspace, so a growing project stays findable.
@@ -8148,6 +8150,8 @@ Updated: 2026-08-10
 _Source: https://clusters.soleilpictures.com/tools/ai-mood-board-maker · Updated 2026-08-10_
 
 Point Claude at your clusters and ask. It builds the board, brings in the references, and lays them out.
+
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
 
 ## It arranges your references. It does not invent them.
 
@@ -8228,6 +8232,8 @@ _Source: https://clusters.soleilpictures.com/tools/storyboard-maker · Updated 2
 
 Lay your shots out in a grid, drop in frames and reference, and keep the shot list right beside them.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## A grid built for sequences
 
 Clusters' grid cards give you a clean, modular storyboard layout: split any cell, drop an image or sketch into each frame, and write the action in the box beneath it. Stamp the next shot from the + on the grid's edge and every shot shares the layout; a SHOT [#] box numbers each one by where it sits, so the storyboard reads top to bottom the way your crew will shoot it.
@@ -8287,6 +8293,8 @@ Updated: 2026-10-20
 _Source: https://clusters.soleilpictures.com/tools/shot-list-maker · Updated 2026-10-20_
 
 Keep your shots, reference frames, and notes on one board — visual and organized, not buried in a spreadsheet.
+
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
 
 ## A shot list with pictures, not just rows
 
@@ -8372,6 +8380,8 @@ _Source: https://clusters.soleilpictures.com/tools/look-book-maker · Updated 20
 
 Arrange looks, references, and color stories on one canvas — then send a polished, interactive link.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Composed, not cluttered
 
 A look book is a presentation. Clusters gives you a clean canvas with grids, palettes, and image cards you can resize, adjust, and arrange until each spread reads exactly the way you want. Non-destructive photo adjustments — brightness, contrast, warmth, black and white — let you unify a set of references without leaving the board.
@@ -8431,6 +8441,8 @@ Updated: 2026-10-20
 _Source: https://clusters.soleilpictures.com/tools/free-mood-board-maker · Updated 2026-10-20_
 
 Runs in your browser. Drop images, notes, and palettes on an infinite canvas and share with a link — no download.
+
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
 
 ## Free, and actually usable
 
@@ -8495,6 +8507,8 @@ Updated: 2026-10-20
 _Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-10-20_
 
 Drop reference onto an infinite canvas in your browser. The same board follows you to every machine, and one link shows your art director exactly what you’re looking at.
+
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
 
 ## Reference boards and mood boards are different tools
 
@@ -8592,6 +8606,8 @@ _Source: https://clusters.soleilpictures.com/tools/video-reference-board · Upda
 
 Clips, GIFs and stills on one canvas in the browser: step to the exact frame, loop the move you are studying, and share the whole wall with one link.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Motion reference, beside the stills
 
 A reference wall for animation, VFX, fight choreography or camera movement is half moving pictures. In Clusters a clip is a card like any other: it sits next to the stills it belongs with, plays where it is, and shows its poster frame and length at rest. Hover it to step a frame back or forward, scrub along its bottom edge, read the timecode and mute it — the controls stay a usable size at any zoom. GIFs keep moving on the board too.
@@ -8675,6 +8691,8 @@ Updated: 2026-10-20
 _Source: https://clusters.soleilpictures.com/tools/shared-reference-board · Updated 2026-10-20_
 
 One live wall of reference for a concept, VFX, game or 3D team — added to by everyone, opened from one link, with notes pinned to the image they are about.
+
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
 
 ## Why a reference wall stops working at team size
 
@@ -8776,6 +8794,8 @@ _Source: https://clusters.soleilpictures.com/tools/directors-treatment · Update
 
 Develop the look with your team on a live board, write the treatment as a document with the images inline, and send it as a PDF.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## What a treatment has to do
 
 A treatment wins or loses the job before anything is shot. For a commercial it answers a brief the agency already holds; for a music video it sells a world to an artist; for a short or a feature it shows financiers and heads of department the film you can see. Whatever the format, the reader should finish knowing what it will look and feel like — which is why the strongest treatments are mostly images, held together by a few confident paragraphs.
@@ -8875,6 +8895,8 @@ _Source: https://clusters.soleilpictures.com/tools/production-design-mood-board 
 
 A cluster per set, with references, palettes, plans and notes in one place — built by the whole art department, live.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## A board per set, not one wall for the whole film
 
 Production design is many decisions per set, made by several people at once. One giant wall turns into a scroll, and a deck is out of date by Thursday. In Clusters the project is a cluster and each set is a cluster inside it, so the diner’s references, palette and notes live together and the motel room’s never get in the way. Live thumbnails show what is inside each one at a glance.
@@ -8967,6 +8989,8 @@ _Source: https://clusters.soleilpictures.com/tools/costume-design-mood-board · 
 
 A board per character, the looks laid out scene by scene, and the fabric, colour and fitting photos beside them — shared live with the director.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## A board per character, a look per scene
 
 Costume is a story told across scenes, so one mood board for the whole film flattens it. In Clusters each character gets a cluster, and inside it a grid lays the changes out in order — a frame per scene or change for the look, with the scene and what changes in the box beneath it, and the fabric swatches beside the grid. When scenes move, the grid is still the order of the story, and everyone is looking at the same one.
@@ -9054,6 +9078,8 @@ Updated: 2026-10-02
 _Source: https://clusters.soleilpictures.com/tools/cinematography-lookbook · Updated 2026-10-02_
 
 Collect the frames, light and lensing you are after, check them in black and white, and keep the director, gaffer and colourist on the same board.
+
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
 
 ## Frames, light and lens on one board
 
@@ -9146,6 +9172,8 @@ Updated: 2026-10-02
 _Source: https://clusters.soleilpictures.com/vs/milanote · Updated 2026-10-02_
 
 Milanote is a lovely place to think. Clusters is where a team pulls a whole production together — live, on one canvas.
+
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
 
 ## Where Clusters is different
 
@@ -9270,6 +9298,8 @@ Updated: 2026-10-01
 _Source: https://clusters.soleilpictures.com/vs/storyflow · Updated 2026-10-01_
 
 Storyflow drafts the board for you. Clusters is where a crew builds the real one together — free to start, flat-priced, on one canvas.
+
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
 
 ## What Storyflow is, and what it is not
 
@@ -9396,6 +9426,8 @@ _Source: https://clusters.soleilpictures.com/vs/eagle · Updated 2026-10-20_
 
 Eagle is the best private library for one person’s references. Clusters is the shared room a team builds in — live, in the browser, on any machine.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Eagle is a library. Clusters is a room.
 
 Eagle is a digital asset manager: a fast library on your own disk of everything you have ever saved, organised by tags, smart folders and colour, and searchable by an image or a description with its AI Search plugin, offline. For one person’s collection it is excellent, and a one-time price makes it easy to own. Clusters starts where a collection becomes a project other people work on: a canvas in the browser where a team arranges the references for this production, writes beside them and decides — together, at the same time.
@@ -9499,6 +9531,8 @@ _Source: https://clusters.soleilpictures.com/vs/google-drive · Updated 2026-10-
 
 Drive stores your files. Clusters shows them — every reference on one canvas your team builds on together, organised the way your folders were.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Drive stores files. Clusters shows them.
 
 A Drive folder of references is a list of names until you open them one at a time. In Clusters the same folder is a canvas: every image on screen at once, in rows you can rearrange, beside the notes, the script pages and the decisions about it. Nothing is lost on the way in — each file keeps the name it had, and list view still sorts and filters a cluster like a folder when that is what you want.
@@ -9597,6 +9631,8 @@ Updated: 2026-10-02
 _Source: https://clusters.soleilpictures.com/vs/pureref · Updated 2026-10-02_
 
 PureRef is a fast, offline reference window. Clusters is a collaborative reference workspace you can share and grow.
+
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
 
 ## Looking for PureRef online? This is that
 
@@ -9771,6 +9807,8 @@ _Source: https://clusters.soleilpictures.com/vs/miro · Updated 2026-10-20_
 
 Miro is a whiteboard for everything. Clusters is a canvas built specifically for visual, reference-driven creative work.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Purpose-built beats general-purpose
 
 Miro is a powerful general whiteboard for diagrams, workshops, and sticky-note sessions. Clusters is tuned for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, and a relationship graph that connects a mood board to a storyboard to a shot list. For film, photo, and design teams, the whole tool is pointed at your workflow instead of everyone’s.
@@ -9872,6 +9910,8 @@ _Source: https://clusters.soleilpictures.com/use-cases · Updated 2026-10-02_
 
 One canvas for the whole creative process — from first reference to final shot list. Here is where to start.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Tools for every stage
 
 Clusters is a single visual workspace, but people reach for it at different moments. Whatever you are making, it starts the same way: drop your references on a canvas and pull them together.
@@ -9927,6 +9967,8 @@ Updated: 2026-10-05
 _Source: https://clusters.soleilpictures.com/best/pureref-alternatives · Published 2026-08-04 · Updated 2026-10-05_
 
 PureRef is alive, excellent, and still shipping. This list is for the day your reference wall has to leave one machine.
+
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
 
 **Disclosure:** Soleil Clusters is our app — we are Soleil Pictures, a working film studio, and we built it for our own productions. We rank it first for exactly one job: reference boards a whole team works on together. For a private, offline wall on one machine, PureRef itself is still the better tool, and we say so plainly at the bottom of this page.
 
@@ -10416,6 +10458,8 @@ Updated: 2026-10-20
 _Source: https://clusters.soleilpictures.com/best/milanote-alternatives · Published 2026-08-04 · Updated 2026-10-20_
 
 Twelve tools, ranked by the only question that matters: what does your board have to become next?
+
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
 
 **Disclosure:** Soleil Clusters is our app. We are Soleil Pictures, a working film studio, and we built Clusters because our own pre-production kept outgrowing tools like Milanote. We rank it first for one job only — taking a production team from mood board to shot list — and we say plainly where rivals beat us: Milanote's templates and mobile apps are better than ours, Miro's ecosystem is deeper, and Obsidian and PureRef work offline where we do not.
 
@@ -10921,6 +10965,8 @@ _Source: https://clusters.soleilpictures.com/best/mood-board-apps · Published 2
 
 Ranked by a working film studio, tested on real productions — with the dead apps other roundups still recommend culled from the list.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 **Disclosure:** Soleil Clusters is our app — we are Soleil Pictures, the film studio that builds it and uses it on our own productions. We rank it first for exactly one job: production mood boards a crew and a client must act on. For solo planning, polished deliverables, and offline reference walls, other tools here beat us, and we say so in each review.
 
 ## A mood board is a decision document
@@ -11361,6 +11407,8 @@ Updated: 2026-10-02
 _Source: https://clusters.soleilpictures.com/best/storyboard-software · Published 2026-08-25 · Updated 2026-10-02_
 
 Most filmmakers do not need a drawing program. They need their frames to sit next to the shot list, the script, and the people who have notes.
+
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
 
 **Disclosure:** Soleil Clusters is our app — we are Soleil Pictures, a working film studio, and we built it for our own productions. We rank it first for exactly one job: storyboards that stay attached to the shot list, the script and the crew. It is not a drawing program, and we did not give it the highest score on this page — Toon Boom Storyboard Pro earned that. If you draw your boards frame by frame, buy Toon Boom and skip us.
 

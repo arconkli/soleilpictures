@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/tools/shared-reference-board · Upd
 
 One live wall of reference for a concept, VFX, game or 3D team — added to by everyone, opened from one link, with notes pinned to the image they are about.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Why a reference wall stops working at team size
 
 A desktop reference app is built for one artist on one machine. The board is a file; whoever made it has the latest version; everyone else has a screenshot of it from Tuesday. That is fine for a personal study sheet and wrong for a production, where the same reference has to steer six artists, survive a supervisor’s notes, and still be findable when the sequence comes back for revisions. A shared board moves the wall to a URL: one source, edited live, open on any workstation without installing anything — locked-down studio machines included.

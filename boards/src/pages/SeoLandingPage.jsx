@@ -22,6 +22,8 @@ import { SignupBox } from '../components/public/SignupBox.jsx';
 import { hasPlanBlock, planBlockModel } from '../lib/planBlock.js';
 import { SunStage, SunStageFigure } from '../components/public/SunStage.jsx';
 import { stageMode, hasStage } from '../lib/landingStage.js';
+import { UsedBy } from '../components/public/UsedBy.jsx';
+import { showsUsedBy } from '../lib/usedBy.js';
 import './seoLanding.css';
 
 // The template store branches off this component rather than getting its own
@@ -240,6 +242,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
                   {cta.sub && <span>{cta.sub}</span>}
                   <span>Built by a film studio, for real productions.</span>
                 </div>
+                {showsUsedBy(spec) && <UsedBy />}
               </>
             )}
             {/* Not on a storefront. "Updated August 28, 2026" under the sign is

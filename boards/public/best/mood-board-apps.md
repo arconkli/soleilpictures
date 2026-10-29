@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/best/mood-board-apps · Published 2
 
 Ranked by a working film studio, tested on real productions — with the dead apps other roundups still recommend culled from the list.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 **Disclosure:** Soleil Clusters is our app — we are Soleil Pictures, the film studio that builds it and uses it on our own productions. We rank it first for exactly one job: production mood boards a crew and a client must act on. For solo planning, polished deliverables, and offline reference walls, other tools here beat us, and we say so in each review.
 
 ## A mood board is a decision document

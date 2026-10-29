@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/tools/directors-treatment · Update
 
 Develop the look with your team on a live board, write the treatment as a document with the images inline, and send it as a PDF.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## What a treatment has to do
 
 A treatment wins or loses the job before anything is shot. For a commercial it answers a brief the agency already holds; for a music video it sells a world to an artist; for a short or a feature it shows financiers and heads of department the film you can see. Whatever the format, the reader should finish knowing what it will look and feel like — which is why the strongest treatments are mostly images, held together by a few confident paragraphs.

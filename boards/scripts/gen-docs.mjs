@@ -59,6 +59,7 @@ import { computeCellRects, readingOrder } from '../src/lib/gridLayout.js';
 import { layoutById, layoutSize, templateCellOrder } from '../src/lib/templateLayouts.js';
 import { HINT_LIMITS } from '../src/lib/gridLayoutLibrary.js';
 import { SEO_LISTICLE_PAGES } from '../src/lib/seoListicles.js';
+import { showsUsedBy, usedByText } from '../src/lib/usedBy.js';
 import { pricingMarkdown, PRICING_ANSWER } from '../src/lib/pricingCrawlable.js';
 import { hasPlanBlock, planBlockMarkdown } from '../src/lib/planBlock.js';
 
@@ -1338,6 +1339,7 @@ function landingMarkdown(spec, catalogue = null) {
   if (spec.answer) out.push(`> ${spec.answer}`, '');
   out.push(`_Source: ${SITE_ORIGIN}${spec.path} · Updated ${spec.updated}_`, '');
   if (spec.subhead) out.push(spec.subhead, '');
+  if (showsUsedBy(spec)) out.push(usedByText(), '');
   // The shape a curated template page is about, as a table an assistant can
   // quote. Cell count and label order are DERIVED from the preset — the same
   // call the page and the Worker make — so the mirror cannot describe a
@@ -1424,6 +1426,7 @@ function listicleMarkdown(spec) {
   if (spec.answer) out.push(`> ${spec.answer}`, '');
   out.push(`_Source: ${SITE_ORIGIN}${spec.path} · Published ${spec.published} · Updated ${spec.updated}_`, '');
   if (spec.subhead) out.push(spec.subhead, '');
+  if (showsUsedBy(spec)) out.push(usedByText(), '');
   if (spec.disclosure) out.push(`**Disclosure:** ${spec.disclosure}`, '');
   // The intent router (optional): an assistant asked "which PureRef alternative
   // should I use" needs the need → pick split, not only the ranked list.

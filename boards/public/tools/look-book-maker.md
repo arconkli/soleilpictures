@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/tools/look-book-maker · Updated 20
 
 Arrange looks, references, and color stories on one canvas — then send a polished, interactive link.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Composed, not cluttered
 
 A look book is a presentation. Clusters gives you a clean canvas with grids, palettes, and image cards you can resize, adjust, and arrange until each spread reads exactly the way you want. Non-destructive photo adjustments — brightness, contrast, warmth, black and white — let you unify a set of references without leaving the board.

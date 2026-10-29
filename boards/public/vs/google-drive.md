@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/vs/google-drive · Updated 2026-10-
 
 Drive stores your files. Clusters shows them — every reference on one canvas your team builds on together, organised the way your folders were.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Drive stores files. Clusters shows them.
 
 A Drive folder of references is a list of names until you open them one at a time. In Clusters the same folder is a canvas: every image on screen at once, in rows you can rearrange, beside the notes, the script pages and the decisions about it. Nothing is lost on the way in — each file keeps the name it had, and list view still sorts and filters a cluster like a folder when that is what you want.

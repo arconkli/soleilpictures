@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/tools/free-mood-board-maker · Upda
 
 Runs in your browser. Drop images, notes, and palettes on an infinite canvas and share with a link — no download.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Free, and actually usable
 
 A lot of "free" tools are a demo with a wall. Clusters’ Demo tier lets you build a real mood board — images, video, notes, links, color palettes and any other file, at any size, on an infinite canvas — and share it, without paying and without installing anything. It holds 50 cards or 5GB of files, whichever comes first. When you outgrow it, Creator is $25/mo for unlimited cards and a 1TB drive.

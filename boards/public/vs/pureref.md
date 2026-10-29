@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/vs/pureref · Updated 2026-10-02_
 
 PureRef is a fast, offline reference window. Clusters is a collaborative reference workspace you can share and grow.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## Looking for PureRef online? This is that
 
 There is no web version of PureRef — it is a desktop app, and artists have been asking its forum for an online, shareable version for years. Clusters is that tool: the same fast drop-images-and-arrange feel, running in the browser. Open your reference board on any machine and it is the same board — on your workstation, on a laptop at a review, or on an iPad on set. Nothing to install, nothing to sync by hand.

@@ -47,6 +47,7 @@ import { lpCtaClick } from '../hooks/useLandingEngagement.js';
 import { SoleilMark } from '../components/primitives.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { SignInBackdrop } from './SignInBackdrop.jsx';
+import { UsedBy } from '../components/public/UsedBy.jsx';
 import { bootMark } from '../lib/bootMarks.js';
 import { preloadSignedInApp } from '../lib/preloadApp.js';
 import { startBootPrefetch, bootPrefetchPersonal, clearBootPrefetch } from '../lib/bootPrefetch.js';
@@ -1362,6 +1363,11 @@ function SignIn({ warmApp = null }) {
       </div>
 
       <p className="sb-trust">Made by a film studio, for creative professionals.</p>
+      {/* The companies our users work with (lib/usedBy.js). The email step
+          only, and never over an invite or a join: those screens stay on the
+          one thing they ask for. index.html's crawlable fallback carries the
+          same line. */}
+      {stage === 'email' && !inviteHint && !joinHint && !wsJoinHint && !teamLink && <UsedBy variant="signin" />}
     </SignInBackdrop>
   );
 }

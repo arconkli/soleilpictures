@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/best/milanote-alternatives · Publi
 
 Twelve tools, ranked by the only question that matters: what does your board have to become next?
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 **Disclosure:** Soleil Clusters is our app. We are Soleil Pictures, a working film studio, and we built Clusters because our own pre-production kept outgrowing tools like Milanote. We rank it first for one job only — taking a production team from mood board to shot list — and we say plainly where rivals beat us: Milanote's templates and mobile apps are better than ours, Miro's ecosystem is deeper, and Obsidian and PureRef work offline where we do not.
 
 ## From mood board to shot list

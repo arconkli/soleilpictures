@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/vs/storyflow · Updated 2026-10-01_
 
 Storyflow drafts the board for you. Clusters is where a crew builds the real one together — free to start, flat-priced, on one canvas.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## What Storyflow is, and what it is not
 
 Storyflow is an AI visual workspace. You describe a board and its assistant drafts it — a storyboard laid out frame by frame, a shot list, a mood board of collected references — staged as a proposal you accept or discard, with two hundred-odd “Tactics” frameworks to drop in half-built. That is a real idea, done well. It is also the whole product: the AI is what you pay for, metered per plan, and during early access every plan is paid. Clusters starts from the other end. The board is something a crew builds and argues over, live. Nothing is generated for you, and nothing on the canvas sits behind an allowance.

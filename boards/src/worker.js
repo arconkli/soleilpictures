@@ -71,6 +71,7 @@ import { publicTemplateSlug, TEMPLATE_STORE_HELD, isTemplateStorePath, templateS
 import { templateHtml } from './lib/templateCrawlable.js';
 import { getListicleSpec, SEO_LISTICLE_PAGES } from './lib/seoListicles.js';
 import { buildListicleCrawlableHtml, buildListicleJsonLd } from './lib/seoListicleHtml.js';
+import { showsUsedBy, usedByHtml } from './lib/usedBy.js';
 // Public documentation (/docs/*), GENERATED from content/docs/**.md by
 // scripts/gen-docs.mjs: the light index for meta and the sitemap is imported,
 // and each page's pre-rendered crawlable HTML is a file in the assets, read
@@ -2271,6 +2272,8 @@ export function buildLandingCrawlableHtml(spec, extra = null) {
   // The extractable direct answer + a visible freshness signal (mirrors the
   // React hero — anti-cloaking parity).
   if (spec.answer) parts.push(`<p><b>${escapeHtml(spec.answer)}</b></p>`);
+  // "Used by" — the same list and the same pages as the React hero (lib/usedBy).
+  if (showsUsedBy(spec)) parts.push(usedByHtml());
   if (spec.updated) {
     const pretty = new Date(spec.updated + 'T00:00:00Z')
       .toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });

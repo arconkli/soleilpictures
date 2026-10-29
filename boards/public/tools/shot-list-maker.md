@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/tools/shot-list-maker · Updated 20
 
 Keep your shots, reference frames, and notes on one board — visual and organized, not buried in a spreadsheet.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## A shot list with pictures, not just rows
 
 A spreadsheet tells you what to shoot; it never shows you. In Clusters your shot list lives on a visual board, so each shot can carry its own reference frame — or the reference clip itself, playing on the board — with the lens note and movement right beside the description. Switch a board to list view when you want the clean table, and back to canvas when you want to see it.

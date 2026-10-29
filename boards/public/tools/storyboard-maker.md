@@ -6,6 +6,8 @@ _Source: https://clusters.soleilpictures.com/tools/storyboard-maker · Updated 2
 
 Lay your shots out in a grid, drop in frames and reference, and keep the shot list right beside them.
 
+Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
 ## A grid built for sequences
 
 Clusters' grid cards give you a clean, modular storyboard layout: split any cell, drop an image or sketch into each frame, and write the action in the box beneath it. Stamp the next shot from the + on the grid's edge and every shot shares the layout; a SHOT [#] box numbers each one by where it sits, so the storyboard reads top to bottom the way your crew will shoot it.
