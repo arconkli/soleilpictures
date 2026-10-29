@@ -159,7 +159,7 @@ export const CEILINGS = {
   // first_board_more): App's check of whether an account is new enough for
   // it (lib/boardMoreEpoch.js), the lazy BoardMoreNudge's mount and its
   // props; the rules and the toast load later (BoardMoreNudge.jsx, ~8 KB,
-  // fetched only by accounts from 2026-11-06 on). A local build measured
+  // fetched only by accounts from 2026-10-29 on). A local build measured
   // 692.3 KB on 71faeb80 and 692.8 with it.
   appJs: 693_000,
   appCss: 21_000,

@@ -108,7 +108,7 @@ export const EXPERIMENTS = {
   // first_board_more — retention test 1 of the testing map (owner, 2026-10-28).
   // Arm B, a moment after a third card lands on a board in someone's first
   // week, gets one toast asking for a whole folder or a note beside the
-  // pictures; arm A is today's board. Accounts made from 2026-11-06 07:00Z
+  // pictures; arm A is today's board. Accounts made from 2026-10-29 07:00Z
   // (lib/boardMoreEpoch.js) are stamped both arms at their first App load
   // (lib/boardMore.js, components/BoardMoreNudge.jsx), so the App seed loop
   // leaves it alone. Registry only, like workspace_setup: never in
