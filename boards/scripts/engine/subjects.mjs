@@ -13,6 +13,7 @@
 // cluster: the Showcase cluster the board goes in (made under Studio when it's
 // missing). look: the board's light; the shots come in both themes anyway.
 // wants: card kinds the board must hold beyond pictures, notes and a palette.
+// A 'script' is the scene written out, made a real screenplay doc on the board.
 
 export const PAGES = [
   { page: '/tools/free-mood-board-maker', cluster: 'Interiors', subject: 'interiors',
@@ -20,8 +21,8 @@ export const PAGES = [
   { page: '/tools/ai-mood-board-maker', cluster: 'Fashion', subject: 'fashion',
     brief: 'A fashion stylist\'s mood board for an autumn knitwear campaign shot on a windswept coast: textures, styling, locations, light, a palette, and notes for the shoot.' },
   { page: '/tools/storyboard-maker', cluster: 'Film', subject: 'storyboard',
-    brief: 'A storyboard for the opening of a short film: a cyclist crossing a city at dawn, told in numbered frames (wide, medium, close, insert), each picture captioned with its shot and action, plus the scene\'s notes.',
-    wants: ['frames'] },
+    brief: 'A storyboard for the opening of a short film: a cyclist crossing a city at dawn, told in numbered frames (wide, medium, close, insert), each picture captioned with its shot and action, plus the scene as written and the scene\'s notes.',
+    wants: ['frames', 'script'] },
   { page: '/tools/look-book-maker', cluster: 'Film', subject: 'look-book',
     brief: 'A director\'s look book for an indie road movie across the American desert: tone, light, locations, wardrobe, references, a palette, and the director\'s words on the feel.' },
   { page: '/tools/video-reference-board', cluster: 'Music video', subject: 'music-video',
@@ -30,7 +31,7 @@ export const PAGES = [
   { page: '/tools/shared-reference-board', cluster: 'Concept art', subject: 'concept-art',
     brief: 'A game studio art team\'s shared environment reference for a flooded coastal city: architecture, water, weathering, light, scale, with notes from the art director to the team.' },
   { page: '/tools/directors-treatment', cluster: 'Film', subject: 'treatment',
-    brief: 'A director\'s treatment for a short drama about a lighthouse keeper\'s last winter: logline, tone, visual approach, casting, locations, sound, and a short script excerpt.',
+    brief: 'A director\'s treatment for a short drama about a lighthouse keeper\'s last winter: logline, tone, visual approach, casting, locations, sound, and a key scene as written.',
     wants: ['script'] },
   { page: '/tools/production-design-mood-board', cluster: 'Production design', subject: 'production-design',
     brief: 'A production designer\'s board for a 1970s newsroom set: architecture, desks and props, signage, wall colours, light sources, a palette, and build notes.' },
@@ -55,8 +56,8 @@ export const PAGES = [
   { page: '/best/mood-board-apps', cluster: 'Interiors', subject: 'hospitality',
     brief: 'A mood board for a boutique hotel in Lisbon: lobby, rooms, materials, tiles, lighting, signage, a palette, and notes for the architect.' },
   { page: '/best/storyboard-software', cluster: 'Film', subject: 'storyboard',
-    brief: 'A storyboard for a chase through a night market: numbered frames from wide to close, each picture captioned with shot size and action, plus the sequence\'s notes.',
-    wants: ['frames'] },
+    brief: 'A storyboard for a chase through a night market: numbered frames from wide to close, each picture captioned with shot size and action, plus the scene as written and the sequence\'s notes.',
+    wants: ['frames', 'script'] },
 ];
 
 // The pages that keep their boards until their read (#86 A): given engine
@@ -82,7 +83,7 @@ export const MARKETING = [
   { cluster: 'Interiors', subject: 'interiors', brief: 'An interior designer\'s mood board for one room. Pick a fresh style and place.' },
   { cluster: 'Weddings', subject: 'wedding', brief: 'A wedding planner\'s mood board. Pick a fresh season, place and palette.' },
   { cluster: 'Writing', subject: 'world-building', brief: 'A writer\'s world-building board for a novel or series. Pick a fresh world.' },
-  { cluster: 'Film', subject: 'storyboard', brief: 'A storyboard for one scene of a short film, told in numbered frames. Pick a fresh scene.', wants: ['frames'] },
+  { cluster: 'Film', subject: 'storyboard', brief: 'A storyboard for one scene of a short film, told in numbered frames, with the scene as written. Pick a fresh scene.', wants: ['frames', 'script'] },
   { cluster: 'Branding', subject: 'brand-photography', brief: 'A brand photography and art direction board for a small business. Pick a fresh business.' },
 ];
 

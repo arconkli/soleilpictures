@@ -6,9 +6,13 @@
 // note tints, and `auto` laying it all out. So an engine board is laid out the
 // way an assistant's board is, and work on one improves the other.
 //
-// Two things the maker doesn't make, done here: a video (laid out as a picture
-// of its shape, then turned into a video card in the same place) and a script
-// excerpt (a note set in Courier Prime, a little taller for the wider face).
+// Two things the maker doesn't make, done here, each laid out as a picture of
+// its shape and then turned into its own card in the same place: a video, and
+// a script, which becomes the app's real screenplay doc (a doc card in
+// screenplay mode, as a dropped .fountain file becomes one; the owner, 10-29:
+// "we have a screenplay docs feature for screenplay kinda stuff and scenes").
+// The card carries the scene's Fountain as `script`; cardEncode.mjs writes it
+// into the card's own doc store and keeps it off the stored card.
 //
 // Pure. Cards carry `photo: 'si.ii'` (the recipe item their picture came from)
 // and no src; withSources() fills the srcs in, once for the stored board (r2:
@@ -17,7 +21,9 @@
 import { composeMakeBoard } from '../../src/lib/makeBoard.js';
 import { stampCard } from '../lib/cardEncode.mjs';
 
-export const SCRIPT_FONT = "'Courier Prime', 'Courier New', monospace";
+// A script's place on the board: a page, a little taller than wide, so the
+// closed card shows the scene's opening lines under its name.
+export const SCRIPT_SHAPE = Object.freeze({ width: 1000, height: 1250 });
 
 // An image's caption is one line over the picture, cut with an ellipsis when it
 // runs long (styles.css .ic .ic-cap.editable-overlay: 10.5px mono, .04em
@@ -25,29 +31,6 @@ export const SCRIPT_FONT = "'Courier Prime', 'Courier New', monospace";
 // back to whole words, or left off when fewer than two would remain: a board
 // with "Opening wide. Hold it longer than f…" on it reads as broken.
 export const CAPTION = Object.freeze({ charPx: 6.8, insetPx: 30 });
-
-// A script page reads as a screenplay when its speeches sit in the middle:
-// the character's name, a (parenthetical) and the lines under it centred, the
-// action left as it is. Notes keep paragraph alignment (TextAlign is in the
-// note schema, and sanitizeNoteHtml keeps the style). A speech is a paragraph
-// run, between blank lines, that opens with a name in capitals.
-const CUE = /^[A-Z][A-Z0-9 .'’-]{0,28}( \((V\.O\.|O\.S\.|O\.C\.|CONT'D|CONT’D)\))?$/;
-const CENTRE = '<p style="text-align: center">';
-
-export function screenplayHtml(html) {
-  const parts = String(html || '').split(/(?=<p[ >])/);
-  const head = parts[0].startsWith('<p') ? '' : parts.shift();
-  const text = (p) => p.replace(/<[^>]+>/g, '').replace(/&#39;/g, "'").replace(/&amp;/g, '&').trim();
-  let inSpeech = false;
-  const out = parts.map((p, i) => {
-    const t = text(p);
-    if (!t) { inSpeech = false; return p; }
-    const next = parts[i + 1] ? text(parts[i + 1]) : '';
-    if (!inSpeech && CUE.test(t) && /[A-Z]{2}/.test(t) && next) inSpeech = true;
-    return inSpeech ? p.replace(/^<p>/, CENTRE) : p;
-  });
-  return head + out.join('');
-}
 
 export function fitCaption(text, cardW) {
   const t = String(text || '').trim();
@@ -63,7 +46,6 @@ export function fitCaption(text, cardW) {
   out = out.replace(/[\s,;:·—–-]+$/, '');
   return out.split(/\s+/).filter(Boolean).length >= 2 ? out : null;
 }
-const SCRIPT_GROW = 1.22;
 
 /**
  * recipe: recipe.mjs's; found: photos.mjs's Map('si.ii' → photo).
@@ -85,6 +67,11 @@ export function buildBoard(recipe, found, { newId, now = new Date().toISOString(
         pictures.push({ width: ph.w, height: ph.h });
         items.push({ key, kind: it.kind, it, ph });
         return [{ kind: 'picture', url: `photo:${key}`, ...(it.caption ? { caption: it.caption } : {}) }];
+      }
+      if (it.kind === 'script') {
+        pictures.push(SCRIPT_SHAPE);
+        items.push({ key, kind: 'script', it });
+        return [{ kind: 'picture', url: `script:${key}` }];
       }
       if (it.kind === 'note') {
         items.push({ key, kind: 'note', it });
@@ -120,23 +107,12 @@ export function buildBoard(recipe, found, { newId, now = new Date().toISOString(
         const { caption: _c, ...v } = card;
         card = { ...v, kind: 'video', title: src.it.caption || '' };
       }
-    } else if (src.kind === 'note' && src.it.font === 'script') {
-      card = { ...card, html: screenplayHtml(card.html), fontFamily: SCRIPT_FONT, h: Math.round(card.h * SCRIPT_GROW) };
+    } else if (src.kind === 'script') {
+      card = { id: card.id, kind: 'doc', title: String(src.it.title || '').trim() || 'Untitled script', script: String(src.it.fountain || ''),
+        x: card.x, y: card.y, w: card.w, h: card.h, ...(card.groupId ? { groupId: card.groupId } : {}) };
     }
     return stampCard(card, i, now);
   });
-
-  // A script note grown taller can now reach the card under it: push every
-  // card below it in its column down by the growth.
-  const grown = cards.filter((c) => c.fontFamily === SCRIPT_FONT);
-  for (const g of grown) {
-    const extra = g.h - Math.round(g.h / SCRIPT_GROW);
-    for (const c of cards) {
-      if (c === g) continue;
-      const sameColumn = c.x < g.x + g.w && c.x + c.w > g.x;
-      if (sameColumn && c.y >= g.y + g.h - extra - 1) c.y += extra;
-    }
-  }
 
   return { name: made.name, groups, cards, dropped };
 }

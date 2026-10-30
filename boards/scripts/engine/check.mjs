@@ -61,7 +61,7 @@ const overlap = (a, b) => a.x < b.x + b.w - 1 && b.x < a.x + a.w - 1 && a.y < b.
 export function checkBoard({ cards = [], groups = [] } = {}, photos = []) {
   const p = [];
   const pics = cards.filter(isPicture);
-  const notes = cards.filter((c) => c.kind === 'note');
+  const notes = cards.filter((c) => c.kind === 'note' || c.kind === 'doc'); // a script is writing too
   if (pics.length < CHECK.pictures) p.push(`only ${pics.length} pictures (at least ${CHECK.pictures})`);
   if (notes.length < CHECK.notes) p.push(`only ${notes.length} notes (at least ${CHECK.notes})`);
   if (!cards.some((c) => c.kind === 'palette')) p.push('no palette');

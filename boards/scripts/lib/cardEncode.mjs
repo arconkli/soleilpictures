@@ -12,6 +12,8 @@
 import * as Y from 'yjs';
 import { cardToYMap, readCards, bytesToB64 } from '../../src/lib/yhelpers.js';
 import { buildCardIndexRow } from '../../src/lib/cardIndexRow.js';
+import { initCardDocStore, cardScope, setDocMode, writeScriptBody } from '../../src/lib/docState.js';
+import { fountainToBlocks, blocksToDocJSON } from '../../src/lib/screenplayIO.js';
 
 
 // Strip HTML to text for the card_index.body column (notes carry `html`).
@@ -65,6 +67,25 @@ export function buildGridStructure(cellContents, rows, cols) {
   return { layout: { type: 'col', frac: 1, children: rowNodes }, cells };
 }
 
+// A script: a doc card whose `script` is a scene in Fountain. It is written the
+// way App's addScriptCard writes a dropped .fountain file: the card's own doc
+// store, screenplay mode, then the scene as the doc's one page (named for the
+// card, so the closed card shows the scene under the title, not the title
+// twice). `script` itself is never stored on the card.
+const isScript = (c) => c.kind === 'doc' && typeof c.script === 'string';
+
+function writeScript(doc, cardYMap, card) {
+  initCardDocStore(doc, cardYMap);
+  const scope = cardScope(cardYMap);
+  setDocMode(doc, scope, 'screenplay');
+  writeScriptBody(doc, scope, blocksToDocJSON(fountainToBlocks(card.script)), { name: card.title || 'Untitled script' });
+}
+
+/** A script's words as plain lines: its card_index body. */
+export function scriptText(fountain) {
+  return fountainToBlocks(fountain).map((b) => b.text).filter(Boolean).join('\n');
+}
+
 // Build the base64 board_state.doc snapshot from stamped cards + arrows (+ the
 // optional board-level structures). Matches saveBoardSnapshot(): Y.Map('cards')
 // keyed by card.id + Y.Array('arrows') + Y.Array('strokes') + Y.Map('groups')
@@ -76,7 +97,13 @@ export function encodeBoardSnapshot(cards, arrows = [], extras = {}) {
   const doc = new Y.Doc();
   const map = doc.getMap('cards');
   doc.transact(() => {
-    for (const c of cards) map.set(c.id, cardToYMapDeep(c));
+    for (const c of cards) {
+      if (!isScript(c)) { map.set(c.id, cardToYMapDeep(c)); continue; }
+      const { script: _s, ...plain } = c;
+      const ym = cardToYMap(plain);
+      map.set(c.id, ym);
+      writeScript(doc, ym, c);
+    }
     if (Array.isArray(arrows) && arrows.length) {
       doc.getArray('arrows').push(arrows.map((a) => ({ ...a })));
     }
@@ -123,7 +150,8 @@ export function buildCardIndexRows({ workspaceId, boardId, cards }) {
     // Same projection the browser uses — see src/lib/cardIndexRow.js for why
     // that is one function now and not two that were supposed to match.
     const row = buildCardIndexRow({
-      workspaceId, boardId, cardId: card.id, get: (k) => card[k],
+      workspaceId, boardId, cardId: card.id,
+      get: (k) => (k === 'body' && isScript(card) ? scriptText(card.script) : (k === 'script' ? undefined : card[k])),
     });
     if (row) rows.push(row);
   }

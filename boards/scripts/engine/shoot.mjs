@@ -291,6 +291,11 @@ export async function shootBoard({ appDir, board, world, files, outDir, cutouts 
         w: meta.width, h: meta.height, bytes: statSync(file).size });
       log(`shoot: ${shot.kind} ${meta.width}×${meta.height}`);
 
+      // A board with a script shows it open too, on the desktop light page: the
+      // app's own screenplay doc, the scene set out on its page.
+      const script = board.cards.find((c) => c.kind === 'doc');
+      if (shot.kind === 'desk-light' && script) await shootScript(page, script, outDir, shots, errors, log);
+
       // The close-ups ride on the last clean light shot's page: each card alone,
       // on transparency, framed big by the app's own camera.
       if (shot.kind === 'square' && cutouts > 0) {
@@ -321,14 +326,35 @@ export async function shootBoard({ appDir, board, world, files, outDir, cutouts 
   return { shots, errors };
 }
 
-// The cards worth a close-up: the biggest pictures first, then a palette and
-// the longest notes, in board order.
+// The script, opened from its card's own "Open fullscreen" the way a person
+// opens it. A failure is noted, never the end of the board's shots.
+async function shootScript(page, card, outDir, shots, errors, log) {
+  try {
+    await camera(page, [{ type: 'card', id: card.id }]);
+    await page.waitForTimeout(600);
+    await page.locator(`[data-card-id="${card.id}"] [aria-label="Open fullscreen"]`).first().click({ force: true, timeout: 8000 });
+    await page.locator('.doc-paper.is-screenplay .ProseMirror').first().waitFor({ timeout: 30000 });
+    await page.mouse.move(3, 3);
+    await page.waitForTimeout(1500);
+    const file = join(outDir, 'script.png');
+    await page.screenshot({ path: file });
+    const meta = await sharp(file).metadata();
+    await thumb(file, join(outDir, 'script.webp'));
+    shots.push({ kind: 'script', label: 'Script open (screenplay doc)', theme: 'light', file: 'script.png', thumb: 'script.webp',
+      w: meta.width, h: meta.height, bytes: statSync(file).size });
+    log(`shoot: script ${meta.width}×${meta.height}`);
+  } catch (e) { errors.push(`script: ${String(e.message).split('\n')[0].slice(0, 120)}`); }
+}
+
+// The cards worth a close-up: the biggest pictures first, then a palette, a
+// script and the longest notes, in board order.
 export function pickCutouts(cards, n = CUTOUTS) {
   const area = (c) => c.w * c.h;
   const pics = cards.filter((c) => c.kind === 'image' || c.kind === 'video').sort((a, b) => area(b) - area(a)).slice(0, Math.max(1, n - 3));
   const pal = cards.filter((c) => c.kind === 'palette').slice(0, 1);
-  const notes = cards.filter((c) => c.kind === 'note').sort((a, b) => area(b) - area(a)).slice(0, Math.max(0, n - pics.length - pal.length));
-  const keep = new Set([...pics, ...pal, ...notes].map((c) => c.id));
+  const doc = cards.filter((c) => c.kind === 'doc').slice(0, 1);
+  const notes = cards.filter((c) => c.kind === 'note').sort((a, b) => area(b) - area(a)).slice(0, Math.max(0, n - pics.length - pal.length - doc.length));
+  const keep = new Set([...pics, ...pal, ...doc, ...notes].map((c) => c.id));
   return cards.filter((c) => keep.has(c.id));
 }
 

@@ -118,7 +118,7 @@ node scripts/engine/run.mjs --page /tools/storyboard-maker --dry-run   # no writ
 One board, step by step:
 
 1. **Recipe** (`recipe.mjs`): Claude writes the board from the subject's brief
-   (`subjects.mjs`): sections, notes, a palette, a script page, photo searches.
+   (`subjects.mjs`): sections, notes, a palette, photo searches, and for scripts and storyboards the scene in Fountain, made a real screenplay doc on the board.
 2. **Photos** (`photos.mjs`): Pexels and Unsplash only (free for ads, credits
    kept); every photo goes through `~/soleil-social`'s aicheck (detectors, then
    Claude looks). A photo used on another board, by id or by look, is never used again.
