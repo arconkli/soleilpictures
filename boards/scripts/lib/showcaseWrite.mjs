@@ -128,7 +128,8 @@ export async function libraryState(supa) {
     // Boards made to a brief for a post (subject 'tiktok') are not the library's: they never hold up the
     // daily or turn the marketing rotation. Their slugs and photos still count above.
     made: rows.filter((r) => !r.page_path && r.subject !== 'tiktok').map((r) => ({ subject: r.subject, made_at: r.made_at })),
-    pages: new Set(rows.filter((r) => r.page_path).map((r) => r.page_path)),
+    // A page whose board was skipped still needs one: --batch makes it again.
+    pages: new Set(rows.filter((r) => r.page_path && r.status !== 'skipped').map((r) => r.page_path)),
     okByPerson: rows.filter((r) => r.status === 'ok' && r.decided_by).length,
   };
 }
