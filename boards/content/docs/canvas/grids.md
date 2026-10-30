@@ -72,7 +72,9 @@ nowhere to go you are asked first. **Even out** makes every box in the current
 shape the same size, without moving anything out of its box.
 
 **Generate matrix**, in a grid's right-click menu, builds linked copies of the
-grid at whatever size you name — the fast path to a contact sheet.
+grid at whatever size you name — the fast path to a contact sheet. One at a
+time, the **+** on each side of a selected grid adds a linked copy right up
+against that side; press it again and the row keeps growing.
 
 ## Spacing
 

@@ -13413,7 +13413,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", in a grid's right-click menu, builds linked copies of the grid at whatever size you name — the fast path to a contact sheet."
+     "v": ", in a grid's right-click menu, builds linked copies of the grid at whatever size you name — the fast path to a contact sheet. One at a time, the "
+    },
+    {
+     "t": "strong",
+     "v": "+",
+     "children": [
+      {
+       "t": "text",
+       "v": "+"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on each side of a selected grid adds a linked copy right up against that side; press it again and the row keeps growing."
     }
    ]
   },

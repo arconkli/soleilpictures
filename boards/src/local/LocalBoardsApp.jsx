@@ -18,7 +18,7 @@ import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs } f
 import { filesCountOf, isViewSwitchKey, overlayOpen } from '../lib/viewSwitch.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
 import { scheduleCreationAllowed, clusterNudgesAllowed } from '../lib/appHost.js';
-import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells, carryRemovedCells, evenOut } from '../lib/gridLayout.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells, carryRemovedCells, evenOut, stampSlot } from '../lib/gridLayout.js';
 import { hintsToCellMap } from '../lib/gridLayoutLibrary.js';
 import { CURATED_TEMPLATES } from '../lib/gridTemplateIndex.js';
 import { layoutById } from '../lib/templateLayouts.js';
@@ -1533,10 +1533,14 @@ export function LocalBoardsApp({ user, signOut }) {
   };
   const stampGridNeighbor = (gridId, dir) => {
     const card = findLocalGrid(gridId); if (!card) return;
-    const w = card.w || 360, h = card.h || 300, x = card.x, y = card.y, gap = 0; // flush — share the edge line
-    let nx = x, ny = y;
-    if (dir === 'right') nx = x + w + gap; else if (dir === 'left') nx = x - w - gap;
-    else if (dir === 'bottom') ny = y + h + gap; else if (dir === 'top') ny = y - h - gap;
+    const w = card.w || 360, h = card.h || 300, x = Number(card.x) || 0, y = Number(card.y) || 0;
+    // Flush (shared edge line), past any slot a linked sibling already fills —
+    // same rule as the Yjs shell (lib/gridLayout.js stampSlot).
+    const taken = card.templateId
+      ? (boardState[currentId]?.cards || []).filter((c) => c.id !== gridId && c.kind === 'grid' && c.templateId === card.templateId)
+        .map((c) => ({ x: Number(c.x) || 0, y: Number(c.y) || 0, w: c.w || 360, h: c.h || 300 }))
+      : [];
+    const slot = stampSlot({ x, y, w, h }, dir, taken); if (!slot) return;
     const tplId = ensureLocalTemplate(card);
     const seqId = ensureLocalSequence(card);
     const carry = stampCarry(card.cells, card.hints);
@@ -1544,14 +1548,14 @@ export function LocalBoardsApp({ user, signOut }) {
       id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: carry.cells,
       ...(typeof card.gridGap === 'number' && card.gridGap > 0 ? { gridGap: card.gridGap } : {}),
       ...(carry.hints ? { hints: carry.hints } : {}),
-      x: Math.max(8, nx), y: Math.max(8, ny), w, h,
+      x: slot.x, y: slot.y, w, h,
     });
   };
   const bulkGenerateGrids = (gridId, cols, rows, opts = {}) => {
     const card = findLocalGrid(gridId); if (!card) return;
     const C = Math.max(1, Math.min(50, cols | 0)), R = Math.max(1, Math.min(50, rows | 0));
     if (C * R <= 1) return;
-    const w = card.w || 360, h = card.h || 300, x0 = card.x, y0 = card.y, gx = opts.gapX ?? 0, gy = opts.gapY ?? 0;
+    const w = card.w || 360, h = card.h || 300, x0 = Number(card.x) || 0, y0 = Number(card.y) || 0, gx = opts.gapX ?? 0, gy = opts.gapY ?? 0;
     const tplId = ensureLocalTemplate(card);
     const seqId = ensureLocalSequence(card);
     const carry = stampCarry(card.cells, card.hints);
@@ -1562,7 +1566,7 @@ export function LocalBoardsApp({ user, signOut }) {
         id: createId('grid'), kind: 'grid', templateId: tplId, seqId, cells: { ...carry.cells },
         ...(typeof card.gridGap === 'number' && card.gridGap > 0 ? { gridGap: card.gridGap } : {}),
         ...(carry.hints ? { hints: { ...carry.hints } } : {}),
-        x: Math.max(8, x0 + c * (w + gx)), y: Math.max(8, y0 + r * (h + gy)), w, h,
+        x: x0 + c * (w + gx), y: y0 + r * (h + gy), w, h,
       });
     }
     addCards(newCards);

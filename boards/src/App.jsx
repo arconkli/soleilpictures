@@ -237,7 +237,7 @@ import { hintsToCellMap, bodyFromGrid, rowFromRecord, SOURCES } from './lib/grid
 // Generated projection of the kind:'template' seoLanding specs — the preset id
 // and labels only, never the prose. See gen-docs.mjs step 4d.
 import { CURATED_TEMPLATES } from './lib/gridTemplateIndex.js';
-import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells, carryRemovedCells, evenOut } from './lib/gridLayout.js';
+import { presetTree, resizeDivider, splitCell, mergeCell, removeDivider, tileLinkedGrids, graftSubtree, instantiateLayout, sanitizeLayout, rehomeCells, carryRemovedCells, evenOut, stampSlot } from './lib/gridLayout.js';
 import { layoutById } from './lib/templateLayouts.js';
 import { stampCarry } from './lib/gridSequence.js';
 import { todayISO } from './lib/schedDates.js';
@@ -4462,7 +4462,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
     const placeLinkedGrid = (m, tplId, seqId, carry, x, y, w, h, gap = 0) => {
       const id = `grid-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-      const neighbor = stampCreate({ z: nextZ(), id, kind: 'grid', templateId: tplId, seqId, x: Math.max(8, x), y: Math.max(8, y), w, h,
+      // No clamp to the board's top-left: a copy goes exactly where it was put
+      // (lib/gridLayout.js stampSlot says why).
+      const neighbor = stampCreate({ z: nextZ(), id, kind: 'grid', templateId: tplId, seqId, x, y, w, h,
         ...(typeof gap === 'number' && gap > 0 ? { gridGap: gap } : {}) });
       m.set(id, cardToYMap(neighbor));
       const nym = m.get(id);
@@ -4509,17 +4511,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // joined to the source's sequence and auto-numbered by position.
     const stampGridNeighbor = (gridId, dir) => {
       const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return;
-      const x = cy.get('x'), y = cy.get('y'), w = cy.get('w') || 360, h = cy.get('h') || 300;
-      const gap = 0; // flush — the new Grid SHARES the edge line with the source
-      let nx = x, ny = y;
-      if (dir === 'right') nx = x + w + gap;
-      else if (dir === 'left') nx = x - w - gap;
-      else if (dir === 'bottom') ny = y + h + gap;
-      else if (dir === 'top') ny = y - h - gap;
+      const x = Number(cy.get('x')) || 0, y = Number(cy.get('y')) || 0, w = cy.get('w') || 360, h = cy.get('h') || 300;
       breakUndo();
       ydoc.transact(() => {
         const { tplId, seqId, carry } = ensureTemplateAndSequence(cy);
-        const newId = placeLinkedGrid(m, tplId, seqId, carry, nx, ny, w, h, cy.get('gridGap'));
+        // Flush against the source (shared edge line), past any slot a linked
+        // sibling already fills, so a second + on one side grows the row.
+        const taken = [];
+        m.forEach((ym, id) => {
+          if (id !== gridId && ym.get && ym.get('kind') === 'grid' && ym.get('templateId') === tplId) {
+            taken.push({ x: Number(ym.get('x')) || 0, y: Number(ym.get('y')) || 0, w: ym.get('w') || 360, h: ym.get('h') || 300 });
+          }
+        });
+        const slot = stampSlot({ x, y, w, h }, dir, taken); if (!slot) return;
+        const newId = placeLinkedGrid(m, tplId, seqId, carry, slot.x, slot.y, w, h, cy.get('gridGap'));
         ensureGridGroup(m, cy, [gridId, newId]);
       }, 'local');
     };
@@ -4530,7 +4535,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const C = Math.max(1, Math.min(50, cols | 0)), R = Math.max(1, Math.min(50, rows | 0));
       if (C * R <= 1) return;
       const w = cy.get('w') || 360, h = cy.get('h') || 300;
-      const x0 = cy.get('x'), y0 = cy.get('y');
+      const x0 = Number(cy.get('x')) || 0, y0 = Number(cy.get('y')) || 0;
       const gx = opts.gapX ?? 0, gy = opts.gapY ?? 0; // flush — one continuous grid
       breakUndo();
       ydoc.transact(() => {
