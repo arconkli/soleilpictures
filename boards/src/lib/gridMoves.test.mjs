@@ -1,10 +1,10 @@
-// The grid bar's even boxes / even out, the multi-file drop plan and arrow-key
-// moves between boxes. All pure tree / rect math.
+// The grid bar's even boxes / even out, the multi-file drop plan, arrow-key
+// moves between boxes and where the + puts a copy. All pure tree / rect math.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  evenTree, evenOut, planCellFill, neighborCell, computeCellRects, readingOrder, BOXES_MAX,
+  evenTree, evenOut, planCellFill, neighborCell, computeCellRects, readingOrder, BOXES_MAX, stampSlot,
 } from './gridLayout.js';
 
 const counter = () => { let i = 0; return () => 'k' + (++i); };
@@ -160,4 +160,36 @@ test('neighborCell in the storyboard shape: down picks the left box on a tie, up
   assert.equal(neighborCell(r, 'br', 'up'), 'top');
   assert.equal(neighborCell(r, 'bl', 'up'), 'top');
   assert.equal(neighborCell(r, 'bl', 'right'), 'br');
+});
+
+// ── the + (stampSlot) ───────────────────────────────────────────────────────
+const SRC = { x: 300, y: 40, w: 360, h: 300 };
+
+test('stampSlot: each side sits flush, sharing the edge line', () => {
+  assert.deepEqual(stampSlot(SRC, 'right'), { x: 660, y: 40 });
+  assert.deepEqual(stampSlot(SRC, 'left'), { x: -60, y: 40 });
+  assert.deepEqual(stampSlot(SRC, 'bottom'), { x: 300, y: 340 });
+  assert.deepEqual(stampSlot(SRC, 'top'), { x: 300, y: -260 });
+});
+
+test('stampSlot: never pinned to the board corner (a grid above or left of it keeps its line)', () => {
+  const up = { x: -900, y: -1200, w: 360, h: 300 };
+  assert.deepEqual(stampSlot(up, 'right'), { x: -540, y: -1200 });
+  assert.deepEqual(stampSlot(up, 'top'), { x: -900, y: -1500 });
+});
+
+test('stampSlot: a slot a linked sibling fills is walked past, so the row grows', () => {
+  const right1 = { x: 660, y: 40, w: 360, h: 300 };
+  const right2 = { x: 1020, y: 40, w: 360, h: 300 };
+  assert.deepEqual(stampSlot(SRC, 'right', [right1]), { x: 1020, y: 40 });
+  assert.deepEqual(stampSlot(SRC, 'right', [right1, right2]), { x: 1380, y: 40 });
+  // A sibling elsewhere doesn't move the slot.
+  assert.deepEqual(stampSlot(SRC, 'left', [right1, right2]), { x: -60, y: 40 });
+  // A sibling only grazing the slot (under half of it) doesn't count as filling it.
+  assert.deepEqual(stampSlot(SRC, 'right', [{ x: 900, y: 40, w: 360, h: 300 }]), { x: 660, y: 40 });
+});
+
+test('stampSlot: an unknown side places nothing', () => {
+  assert.equal(stampSlot(SRC, 'diagonal'), null);
+  assert.equal(stampSlot(null, 'right'), null);
 });

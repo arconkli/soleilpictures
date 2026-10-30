@@ -125,6 +125,42 @@ test.describe('grids — local interaction', () => {
     await expect(texts.nth(1)).toHaveText('2');
   });
 
+  // The + used to pin a copy to the board's top-left corner, so a + above (or
+  // left of) a grid near that edge landed half over it, and one from a grid past
+  // the edge jumped far away; a second + on one side stacked on the first.
+  test('the + puts each copy flush against its side, and a second + grows the row', async ({ page }) => {
+    await addGrid(page);
+    const grids = page.locator('.card-kind-grid');
+    const rects = () => grids.evaluateAll((els) => els.map((e) => ({
+      x: parseFloat(e.style.left), y: parseFloat(e.style.top), w: parseFloat(e.style.width), h: parseFloat(e.style.height),
+    })));
+    const stamp = async (dir) => {
+      const src = grids.first();
+      await src.click({ position: { x: 60, y: 8 } });
+      await expect(src).toHaveClass(/is-selected/);
+      await src.hover({ position: { x: 60, y: 60 } });
+      await page.locator(`.gridc-add-${dir}`).first().click();
+    };
+    const [s] = await rects();
+
+    await stamp('top');
+    await expect(grids).toHaveCount(2);
+    let r = await rects();
+    expect(r[1]).toEqual({ x: s.x, y: s.y - s.h, w: s.w, h: s.h }); // its bottom edge is the source's top edge
+
+    await stamp('right');
+    await stamp('right');
+    await expect(grids).toHaveCount(4);
+    r = await rects();
+    expect(r[2]).toEqual({ x: s.x + s.w, y: s.y, w: s.w, h: s.h });
+    expect(r[3]).toEqual({ x: s.x + 2 * s.w, y: s.y, w: s.w, h: s.h }); // next along, not on top of the first
+
+    await stamp('left');
+    await expect(grids).toHaveCount(5);
+    r = await rects();
+    expect(r[4]).toEqual({ x: s.x - s.w, y: s.y, w: s.w, h: s.h });
+  });
+
   test('bulk matrix generates a numbered sequence', async ({ page }) => {
     await addGrid(page);
     const grid = page.locator('.card-kind-grid').first();

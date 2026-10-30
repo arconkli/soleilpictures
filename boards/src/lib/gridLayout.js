@@ -671,3 +671,27 @@ export function neighborCell(rects, fromId, dir) {
   }
   return best ? best.id : null;
 }
+
+// Where the directional "+" puts a copy of `src` ({x,y,w,h}): flush against it
+// on `dir` ('left'|'right'|'top'|'bottom'), sharing the edge line. A slot that a
+// linked sibling (`taken`, rects of the same family) already fills is walked
+// past, so a second + on the same side extends the run instead of stacking a
+// copy on top of the first. Never clamped to the board's top-left: the canvas
+// runs into negative space (a drag can put a grid there), and pinning a copy to
+// 8,8 is what sent it far from its source, or half over it.
+export function stampSlot(src, dir, taken = [], maxSteps = 200) {
+  if (!src) return null;
+  const w = src.w, h = src.h;
+  const dx = dir === 'right' ? w : dir === 'left' ? -w : 0;
+  const dy = dir === 'bottom' ? h : dir === 'top' ? -h : 0;
+  if (!dx && !dy) return null;
+  const filled = (sx, sy) => (taken || []).some((r) => {
+    if (!r) return false;
+    const ox = Math.min(sx + w, r.x + r.w) - Math.max(sx, r.x);
+    const oy = Math.min(sy + h, r.y + r.h) - Math.max(sy, r.y);
+    return ox > 0 && oy > 0 && ox * oy >= 0.5 * w * h;
+  });
+  let x = src.x + dx, y = src.y + dy;
+  for (let i = 0; i < maxSteps && filled(x, y); i += 1) { x += dx; y += dy; }
+  return { x, y };
+}
