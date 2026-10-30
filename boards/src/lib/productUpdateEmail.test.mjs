@@ -251,6 +251,14 @@ test('every config string is escaped, items cap at 8, and both parts carry the w
   }
 });
 
+test('a sign-off may run to two lines, each escaped; a third is dropped', async () => {
+  const { renderTemplate } = await import('../../../supabase/functions/_shared/email/templates.ts');
+  const r = renderTemplate('product_update', { ...EDITION, signoff: 'Ann <B>, Founder\r\nSoleil & Co\n\nthird' });
+  assert.match(r.html, /Ann &lt;B&gt;, Founder<br>Soleil &amp; Co<\/p>/);
+  assert.ok(!r.html.includes('third'));
+  assert.match(r.text, /\n\nAnn <B>, Founder\nSoleil & Co\n\n/);
+});
+
 test('the CTA is tagged, stays on the app’s origin, and an off-origin path falls back to /', async () => {
   const { renderTemplate, productUpdatePath } = await import('../../../supabase/functions/_shared/email/templates.ts');
   const r = renderTemplate('product_update', EDITION);
