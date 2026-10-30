@@ -165,7 +165,6 @@ export function SignInBackdrop({ children, exploreHref }) {
   const cardsRef   = useRef(null);
   const cursorsRef = useRef(null);
   const linksRef   = useRef(null);
-  const haloRef    = useRef(null);
   const chromeRef  = useRef(null);
   const hintRef    = useRef(null);
   const boxRef     = useRef(null);
@@ -192,7 +191,6 @@ export function SignInBackdrop({ children, exploreHref }) {
     const cardsEl = cardsRef.current;
     const cursorsEl = cursorsRef.current;
     const linksSvg = linksRef.current;
-    const halo = haloRef.current;
     const hint = hintRef.current;
     const chrome = chromeRef.current;
     if (!scrollEl || !cardsEl) return;
@@ -283,7 +281,8 @@ export function SignInBackdrop({ children, exploreHref }) {
       const z = CURSORS[i].zone;
       // visible, settled, ungrabbed final-board cards whose home is in my zone
       const cands = CARDS.map((c, idx) => ({ c, s: S[idx] }))
-        .filter(({ c, s }) => c.stay && s._v > 0.6 && !s._grab
+        // never the notes: they're the pitch, and a dragged note can't be read
+        .filter(({ c, s }) => c.stay && c.kind !== 'note' && s._v > 0.6 && !s._grab
           && c.x >= z[0] && c.x <= z[1] && c.y >= z[2] && c.y <= z[3]);
       if (cands.length && Math.random() < 0.55){
         cu.held = cands[(Math.random() * cands.length) | 0];
@@ -394,9 +393,10 @@ export function SignInBackdrop({ children, exploreHref }) {
       }
 
       // atmosphere: the ground is the app's own board ground from the first
-      // frame (CSS). The warm glow + orbit belong to the sign-in moment, so they
-      // fade out as the board fills in.
-      if (halo) halo.style.opacity = 1 - clamp(p / 0.3, 0, 1);
+      // frame (CSS). --sb-f (0→1 over the first 30% of the scroll) fades the
+      // warm glow + orbit out as the board fills in, and on phones fades in a
+      // soft veil behind the box's words so passing cards can't muddy them.
+      sceneEl.style.setProperty('--sb-f', clamp(p / 0.3, 0, 1).toFixed(3));
       chrome.style.opacity = clamp((p - 0.74) / 0.16, 0, 1);
       // keep the scroll cue visible through the first nudge so it can't be missed
       hint.style.opacity = 1 - clamp(p / 0.10, 0, 1);
@@ -455,11 +455,15 @@ export function SignInBackdrop({ children, exploreHref }) {
           // board card's name row landed on the legal links and neither could be
           // read. Half-height of the rotated, scaled card, so a tilt can't dip
           // a corner in. Skipped while the footer is stepped aside.
-          if (c.stay && !footCrowded) {
+          // Same at the top on desktop: on a 720-tall laptop the audio card
+          // slid under the faux top bar and lost its title. (On a phone the
+          // bar may cover them: pushing them down lands them on the box.)
+          if (c.stay) {
             const rad = rot * Math.PI / 180;
             const w = (c.w || 116) * sc, h = (c.h || 34) * sc;
             const halfH = (Math.abs(w * Math.sin(rad)) + Math.abs(h * Math.cos(rad))) / 2;
-            oy = Math.min(oy, footTop - 8 - halfH - cyv);
+            if (!footCrowded) oy = Math.min(oy, footTop - 8 - halfH - cyv);
+            if (!coarse) oy = Math.max(oy, chrome.offsetHeight + 10 + halfH - cyv);
           }
         }
         const el = cardEls[i];
@@ -593,7 +597,7 @@ export function SignInBackdrop({ children, exploreHref }) {
             <div className="sb-grain" aria-hidden="true" />
             {/* the search pages' warmth: a soft glow and one faint dotted orbit
                 with two suns drawn the logo's way, behind the box */}
-            <div className="sb-halo" ref={haloRef} aria-hidden="true">
+            <div className="sb-halo" aria-hidden="true">
               <div className="sb-glow" />
               <div className="sb-orbit" />
             </div>
