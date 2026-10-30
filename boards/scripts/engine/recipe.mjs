@@ -1,10 +1,13 @@
 // recipe.mjs — what a board holds, written by Claude to a subject's brief.
 //
 // A recipe is the /make board shape (lib/makeBoard.js reads it: sections, each
-// a list of pictures, notes and palettes), plus `video` items and a note in a
-// typewriter face (`font: 'script'`) for a script excerpt, plus the words for
+// a list of pictures, notes and palettes), plus `video` items and a `script`
+// (a scene in Fountain, which build.mjs makes a real screenplay doc: the app's
+// own script card, as a dropped .fountain file becomes one), plus the words for
 // the board's own /c/ page should it ever be published. Photos are named by a
 // search; photos.mjs finds real ones for them.
+
+import { fountainToBlocks } from '../../src/lib/screenplayIO.js';
 //
 // validateRecipe is pure (recipe.test.mjs): every rule a board is held to
 // before any photo is fetched. writeRecipe asks Claude, checks the answer, and
@@ -25,6 +28,8 @@ export const RULES = Object.freeze({
   noteTitle: 48,
   noteBody: 480,
   caption: 28, // one line over the picture (build.mjs fitCaption)
+  scripts: 1, // a board holds at most one script (the owner, 10-29: scenes go in the app's screenplay docs)
+  script: [300, 2400], // characters of Fountain: a scene or two, a page or so
   // A section is a column on the board: four long notes in one makes a tower
   // beside short picture columns (the costume trial's "lopsided" grade), and a
   // pictures-only section of one or two looks like something went missing.
@@ -73,12 +78,12 @@ export const RECIPE_SCHEMA = {
               additionalProperties: false,
               required: ['kind'],
               properties: {
-                kind: { type: 'string', enum: ['picture', 'video', 'note', 'palette'] },
+                kind: { type: 'string', enum: ['picture', 'video', 'note', 'palette', 'script'] },
                 search: { type: 'string' },
                 caption: { type: 'string' },
                 title: { type: 'string' },
                 body: { type: 'string' },
-                font: { type: 'string', enum: ['script'] },
+                fountain: { type: 'string' },
                 swatches: {
                   type: 'array',
                   items: {
@@ -109,6 +114,30 @@ export const RECIPE_SCHEMA = {
 };
 
 /**
+ * A script reads as a scene once the app parses it (screenplayIO.js, the same
+ * parse a dropped .fountain file gets): a scene heading, some action and at
+ * least one speech, a page or so long. → problems, [] when it's good.
+ */
+export function scriptProblems(it, section = '') {
+  const p = [];
+  const where = section ? ` in "${section}"` : '';
+  const t = str(it?.title);
+  const f = str(it?.fountain);
+  if (!t || t.length > RULES.noteTitle) p.push(`the script${where} needs a title of at most ${RULES.noteTitle} characters`);
+  if (f.length < RULES.script[0] || f.length > RULES.script[1]) {
+    p.push(`the script${where} must be ${RULES.script[0]}–${RULES.script[1]} characters of Fountain, not ${f.length}`);
+  }
+  const blocks = fountainToBlocks(f);
+  const has = (e) => blocks.some((b) => b.element === e && str(b.text));
+  if (!has('scene')) p.push(`the script${where} needs a scene heading line like "INT. LANTERN ROOM - NIGHT"`);
+  if (!has('action')) p.push(`the script${where} needs action lines: what we see, in plain sentences`);
+  if (!has('character') || !has('dialogue')) {
+    p.push(`the script${where} needs a speech: a name in capitals on its own line after a blank line, the dialogue on the line under it`);
+  }
+  return p;
+}
+
+/**
  * Every problem with a recipe, in words Claude can act on; [] when it's good.
  *   brief: { wants?: ['video'|'script'|'frames'] }
  *   taken: slugs already used (the library's and the site's)
@@ -133,8 +162,7 @@ export function validateRecipe(r, brief = {}, { taken = [] } = {}) {
     p.push(`a board has ${R.sections[0]}–${R.sections[1]} sections, not ${sections.length}`);
   }
   const names = new Set();
-  const n = { picture: 0, video: 0, note: 0, palette: 0 };
-  let script = 0;
+  const n = { picture: 0, video: 0, note: 0, palette: 0, script: 0 };
   let frames = 0;
   const searches = new Set();
   sections.forEach((s, si) => {
@@ -164,7 +192,8 @@ export function validateRecipe(r, brief = {}, { taken = [] } = {}) {
         if (!t && !b) p.push(`a note in "${name}" is empty`);
         if (t.length > R.noteTitle) p.push(`the note title "${t.slice(0, 30)}…" is over ${R.noteTitle} characters`);
         if (b.length > R.noteBody) p.push(`the note "${t || b.slice(0, 30)}" is over ${R.noteBody} characters`);
-        if (it.font === 'script') script += 1;
+      } else if (it.kind === 'script') {
+        p.push(...scriptProblems(it, name));
       } else if (it.kind === 'palette') {
         const sw = Array.isArray(it.swatches) ? it.swatches : [];
         if (sw.length < R.swatches[0] || sw.length > R.swatches[1]) p.push(`a palette holds ${R.swatches[0]}–${R.swatches[1]} swatches`);
@@ -172,8 +201,9 @@ export function validateRecipe(r, brief = {}, { taken = [] } = {}) {
       }
     }
     frames = Math.max(frames, captioned);
-    const notes = items.filter((it) => it?.kind === 'note');
-    const text = notes.reduce((a, it) => a + str(it.title).length + str(it.body).length, 0);
+    // A script stands as tall as a note or two in its column: it counts as one.
+    const notes = items.filter((it) => it?.kind === 'note' || it?.kind === 'script');
+    const text = notes.reduce((a, it) => a + (it.kind === 'note' ? str(it.title).length + str(it.body).length : 0), 0);
     if (notes.length > R.sectionNotes) p.push(`section "${name}" holds ${notes.length} notes; at most ${R.sectionNotes} in one section, spread the rest beside the pictures they talk about`);
     else if (text > R.sectionText) p.push(`section "${name}" holds ${text} characters of notes; at most ${R.sectionText} in one section, shorten them or move one beside the pictures it talks about`);
     const pics = items.filter((it) => it?.kind === 'picture' || it?.kind === 'video').length;
@@ -187,9 +217,10 @@ export function validateRecipe(r, brief = {}, { taken = [] } = {}) {
   between('note', R.notes, 'notes');
   between('palette', R.palettes, 'palettes');
   if (wants.has('video')) between('video', R.videos, 'videos');
-  if (wants.has('script') && !script) p.push('this brief wants a script excerpt: a note with font "script" in screenplay form');
+  if (n.script > R.scripts) p.push(`a board holds at most ${R.scripts} script, not ${n.script}`);
+  if (wants.has('script') && !n.script) p.push('this brief wants a script: one item of kind "script", the scene written in Fountain');
   if (wants.has('frames') && frames < R.frames) p.push(`this brief is a storyboard: one section of at least ${R.frames} captioned pictures, the frames in order`);
-  const cards = n.picture + n.video + n.note + n.palette;
+  const cards = n.picture + n.video + n.note + n.palette + n.script;
   if (cards < R.cards[0] || cards > R.cards[1]) p.push(`a board holds ${R.cards[0]}–${R.cards[1]} cards, not ${cards}`);
 
   const seo = r.seo || {};
@@ -266,7 +297,13 @@ export function recipePrompt(brief, { taken = [], redo = null } = {}) {
     `- palette: ${R.palettes[0]}–${R.palettes[1]}, each ${R.swatches[0]}–${R.swatches[1]} swatches named as the maker would ("Harbour fog") with hex colours taken`,
     '  from the look; put a palette in the section it belongs to.',
     ...(wants.has('video') ? [`- videos: ${R.videos[0]}–${R.videos[1]} video items (kind "video"), each a stock footage search, for motion references.`] : []),
-    ...(wants.has('script') ? ['- a script excerpt: one note with font "script", the title the scene heading, the body a few lines of the scene in screenplay form.'] : []),
+    ...(wants.has('script') ? [
+      '- a script: one item of kind "script". It becomes a real screenplay document on the board, so write it as the',
+      `  scene itself, in Fountain (${R.script[0]}–${R.script[1]} characters in "fountain"): a scene heading line ("INT. LANTERN ROOM - NIGHT"),`,
+      '  action in plain lines, a character\'s name in capitals on its own line after a blank line with their dialogue on',
+      '  the next line, a (parenthetical) on its own line between them when needed, a blank line between every element;',
+      '  one or two scenes, no title page, no markdown. Its "title" is the name the doc goes by ("Sc. 4 — The last lamp").',
+    ] : []),
     ...(wants.has('frames') ? [`- frames: one section of ${R.frames}–12 pictures in shot order, every one captioned like "3 · CLOSE — brake lever".`] : []),
     `- In all, ${R.cards[0]}–${R.cards[1]} cards. Each section becomes one column on the board, so keep them even: at most`,
     `  ${R.sectionNotes} notes and ${R.sectionText} characters of notes in a section, a section of pictures alone holds at least`,

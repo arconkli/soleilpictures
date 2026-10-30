@@ -111,7 +111,7 @@ function lookOf(recipe) {
   for (const s of recipe.sections || []) {
     for (const it of s.items || []) {
       if (it.kind === 'palette') lines.push(`palette "${it.title || s.name}": ${(it.swatches || []).map((w) => `${w.name} ${w.hex}`).join(', ')}`);
-      if (it.kind === 'note' && it.font !== 'script') lines.push(`note "${it.title}": ${String(it.body || '').replace(/\s+/g, ' ').slice(0, 280)}`);
+      if (it.kind === 'note') lines.push(`note "${it.title}": ${String(it.body || '').replace(/\s+/g, ' ').slice(0, 280)}`);
     }
   }
   return lines;

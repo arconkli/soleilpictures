@@ -38,7 +38,7 @@ test('pick prompt: the board, its own look, the sheets and the last reviewer not
   const recipe = { title: 'Saltmarsh', story: 'A coastal short.', sections: [{ name: 'Look', items: [
     { kind: 'palette', title: 'Dawn', swatches: [{ name: 'Fog', hex: '#c9d1d6' }] },
     { kind: 'note', title: 'Light', body: 'Overcast only.' },
-    { kind: 'note', title: 'INT. HUT', body: 'Script line', font: 'script' },
+    { kind: 'script', title: 'Sc. 1', fountain: 'INT. HUT - NIGHT\n\nScript line' },
   ] }] };
   const p = pickPrompt(recipe, [{ file: '/x/sheet-1.jpg' }], { notes: ['the headshot is stock'] });
   assert.match(p, /\/x\/sheet-1\.jpg/);

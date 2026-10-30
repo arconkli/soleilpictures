@@ -5,8 +5,11 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateRecipe, recipeContents, RULES } from '../../scripts/engine/recipe.mjs';
-import { buildBoard, withSources, stripBuild, SCRIPT_FONT } from '../../scripts/engine/build.mjs';
+import * as Y from 'yjs';
+import { validateRecipe, recipeContents, scriptProblems, RULES } from '../../scripts/engine/recipe.mjs';
+import { buildBoard, withSources, stripBuild, SCRIPT_SHAPE } from '../../scripts/engine/build.mjs';
+import { encodeBoardSnapshot, buildCardIndexRows } from '../../scripts/lib/cardEncode.mjs';
+import { cardScope, getDocMode, readPages, pageContentMap } from './docState.js';
 import { checkBoard, contrast, CHECK } from '../../scripts/engine/check.mjs';
 import { PAGES, LATER_PAGES, MARKETING, nextMarketing, pageBrief } from '../../scripts/engine/subjects.mjs';
 import { hamming, isDup } from '../../scripts/engine/photos.mjs';
@@ -16,6 +19,23 @@ import { libraryState } from '../../scripts/lib/showcaseWrite.mjs';
 const pic = (search, caption) => ({ kind: 'picture', search, ...(caption ? { caption } : {}) });
 const palette = { kind: 'palette', title: 'Palette', swatches: [
   { name: 'Night', hex: '#1d2a3a' }, { name: 'Lamp', hex: '#e8b04a' }, { name: 'Fog', hex: '#c9d1d6' }, { name: 'Rust', hex: '#8a4b2a' }] };
+
+const SCENE = [
+  'INT. LANTERN ROOM - NIGHT',
+  '',
+  'Rain hammers the glass. TOM (68) winds the clockwork by hand, counting under his breath.',
+  '',
+  'TOM',
+  '(to the lamp)',
+  'Forty-one years. You never once went out on me.',
+  '',
+  'The beam swings across the dark water. Far out, a single ship light answers.',
+  '',
+  'TOM (CONT\'D)',
+  'Not tonight either.',
+  '',
+  'CUT TO:',
+].join('\n');
 
 function sample() {
   return {
@@ -28,8 +48,9 @@ function sample() {
       { name: 'Keeper', color: 'clay', items: [pic('old man wool sweater', 'Tom, 68'), pic('weathered hands rope'), pic('kettle on stove'),
         { kind: 'note', title: 'Who he is', body: 'He has kept the light for forty years.' }, palette] },
       { name: 'Script', color: 'plum', items: [
-        { kind: 'note', title: 'Page 1', body: 'INT. LANTERN ROOM - NIGHT\n\nTOM winds the clockwork. Outside, nothing but weather.', font: 'script' },
-        pic('ship lights at sea'), pic('stone stairs spiral'), pic('logbook handwriting old')] },
+        { kind: 'script', title: 'Sc. 4 — The last lamp', fountain: SCENE },
+        pic('ship lights at sea'), pic('stone stairs spiral'), pic('logbook handwriting old'),
+        { kind: 'note', title: 'Sound', body: 'Clockwork, rain, the lamp motor. No score until the ship.' }] },
     ],
     seo: {
       title: 'Director\'s treatment example: The Lighthouse Keeper',
@@ -78,7 +99,11 @@ test('a recipe names what is wrong with it, in words Claude can act on', () => {
 test('a recipe holds what its brief wants, and nothing it does not', () => {
   const noScript = sample();
   noScript.sections[2].items[0] = { kind: 'note', title: 'Page 1', body: 'Plain note.' };
-  assert.ok(validateRecipe(noScript, { wants: ['script'] }).some((x) => /script excerpt/.test(x)));
+  assert.ok(validateRecipe(noScript, { wants: ['script'] }).some((x) => /wants a script/.test(x)));
+  assert.deepEqual(validateRecipe(sample(), { wants: ['script'] }), []);
+  const two = sample();
+  two.sections[1].items.push({ kind: 'script', title: 'Sc. 9', fountain: SCENE });
+  assert.ok(validateRecipe(two, { wants: ['script'] }).some((x) => /at most 1 script/.test(x)));
   assert.ok(validateRecipe(sample(), { wants: ['frames'] }).some((x) => /storyboard/.test(x)));
   const video = sample();
   video.sections[0].items[0] = { kind: 'video', search: 'lighthouse beam turning' };
@@ -128,13 +153,44 @@ test('each picture card carries the photo it came from, at that photo\'s shape',
   }
 });
 
-test('a script excerpt is set in Courier Prime and pushes the cards under it down', () => {
+test('a script must read as a scene: a heading, action and a speech, a page or so long', () => {
+  assert.deepEqual(scriptProblems({ title: 'Sc. 4', fountain: SCENE }), []);
+  const p = scriptProblems({ title: '', fountain: 'Tom winds the clock. He says nothing at all.' });
+  assert.ok(p.some((x) => /needs a title/.test(x)), p.join('\n'));
+  assert.ok(p.some((x) => /characters of Fountain, not \d+/.test(x)), p.join('\n'));
+  assert.ok(p.some((x) => /scene heading/.test(x)), p.join('\n'));
+  assert.ok(p.some((x) => /needs a speech/.test(x)), p.join('\n'));
+});
+
+test('a script becomes the app\'s screenplay doc: a doc card in its column, at a page\'s shape', () => {
   const { board } = build();
-  const script = board.cards.find((c) => c.fontFamily === SCRIPT_FONT);
-  assert.ok(script);
-  const below = board.cards.filter((c) => c !== script && c.x < script.x + script.w && c.x + c.w > script.x && c.y > script.y);
-  assert.ok(below.length);
-  assert.ok(below.every((c) => c.y >= script.y + script.h), 'nothing under the script note is covered by it');
+  const doc = board.cards.find((c) => c.kind === 'doc');
+  assert.ok(doc);
+  assert.equal(doc.title, 'Sc. 4 — The last lamp');
+  assert.equal(doc.script, SCENE);
+  assert.ok(Math.abs(doc.w / doc.h - SCRIPT_SHAPE.width / SCRIPT_SHAPE.height) < 0.02);
+  assert.equal(doc.groupId, board.groups.find((g) => g.name === 'Script').id);
+  assert.equal(board.cards.filter((c) => c.kind === 'note').length, 3);
+});
+
+test('a script is written into the card\'s own doc store in screenplay mode, and never stored as a field', () => {
+  const { board } = build();
+  const cards = stripBuild(board.cards);
+  const ydoc = new Y.Doc();
+  Y.applyUpdate(ydoc, Buffer.from(encodeBoardSnapshot(cards, [], { groups: board.groups }), 'base64'));
+  const doc = cards.find((c) => c.kind === 'doc');
+  const ym = ydoc.getMap('cards').get(doc.id);
+  assert.equal(ym.get('script'), undefined);
+  assert.equal(ym.get('kind'), 'doc');
+  const scope = cardScope(ym);
+  assert.equal(getDocMode(ydoc, scope), 'screenplay');
+  const pages = readPages(ydoc, scope);
+  assert.deepEqual(pages.map((p) => p.name), ['Sc. 4 — The last lamp']);
+  const elements = pageContentMap(ydoc, scope).get(pages[0].id).toArray().map((n) => n.getAttribute('element'));
+  assert.deepEqual(elements, ['scene', 'action', 'character', 'parenthetical', 'dialogue', 'action', 'character', 'dialogue', 'transition']);
+  const row = buildCardIndexRows({ workspaceId: 'w', boardId: 'b', cards }).find((r) => r.card_id === doc.id);
+  assert.match(row.body, /^INT\. LANTERN ROOM - NIGHT\n/);
+  assert.match(row.body, /Forty-one years/);
 });
 
 test('a picture with no checked photo is dropped, not left empty', () => {

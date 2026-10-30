@@ -20,7 +20,7 @@ export const VIEWS = [
 ];
 
 // Download list order; anything the engine adds later goes after these.
-const SHOT_ORDER = ['wide', 'desk-light', 'desk-dark', 'board-light', 'board-dark', 'phone', 'portrait', 'square'];
+const SHOT_ORDER = ['wide', 'desk-light', 'desk-dark', 'script', 'board-light', 'board-dark', 'phone', 'portrait', 'square'];
 
 const lower = (s) => String(s || '').toLowerCase();
 
