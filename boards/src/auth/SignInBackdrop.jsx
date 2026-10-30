@@ -397,7 +397,7 @@ export function SignInBackdrop({ children, exploreHref }) {
       // warm glow + orbit out as the board fills in, and on phones fades in a
       // soft veil behind the box's words so passing cards can't muddy them.
       sceneEl.style.setProperty('--sb-f', clamp(p / 0.3, 0, 1).toFixed(3));
-      chrome.style.opacity = clamp((p - 0.74) / 0.16, 0, 1);
+      chrome.style.setProperty('--sb-c', clamp((p - 0.74) / 0.16, 0, 1).toFixed(3));
       // keep the scroll cue visible through the first nudge so it can't be missed
       hint.style.opacity = 1 - clamp(p / 0.10, 0, 1);
       // the "explore a live board" link is the payoff. On desktop it surfaces
@@ -605,18 +605,22 @@ export function SignInBackdrop({ children, exploreHref }) {
             <div className="sb-cards" ref={cardsRef} aria-hidden="true" />
             <div className="sb-cursors" ref={cursorsRef} aria-hidden="true" />
 
+            {/* the app's top (FloatingChrome.jsx; the phone bar on a phone),
+                faded in for the finale: signin-backdrop.css */}
             <div className="sb-chrome" ref={chromeRef} aria-hidden="true">
-              <div className="sb-chrome-left">
-                <img src="/clusters-logo-dark.webp" alt="" />
-                <span className="sb-chrome-brand">Clusters</span>
-                <span className="sb-chrome-sep" />
-                <span className="sb-chrome-crumb">Soleil Pictures</span>
-                <span className="sb-chrome-crumb">›</span>
-                <span className="sb-chrome-crumb sb-here">Lost Time · writers room</span>
+              <div className="sb-isl">
+                <i className="tb-icon sbi-side" />
+                <i className="tb-brand"><img src="/clusters-logo-dark.webp" alt="" /></i>
+                <i className="tb-icon sbi-back" /><i className="tb-icon sbi-fwd" />
+                <span className="crumbs"><i className="crumb clk">Lost Time</i><i className="crumb-sep">›</i><i className="crumb here">Writers room</i></span>
+                <i className="sb-sep" /><i className="tb-btn tb-newcluster sbi-plus"><i className="tb-btn-label">New cluster</i></i>
               </div>
-              <div className="sb-chrome-presence">
-                <span className="sb-av" style={{ background:'#ffa500' }}>A</span>
-                <span className="sb-av" style={{ background:'#6b9088' }}>T</span>
+              <div className="sb-isl">
+                <i className="tb-icon sbi-undo" /><i className="tb-icon sbi-redo" /><i className="sb-sep" />
+                <i className="tb-icon sbi-search" /><i className="tb-icon sbi-split" /><i className="tb-icon sbi-theme" /><i className="tb-icon sbi-bell" /><i className="sb-sep" />
+                <span className="ws-presence"><i className="ws-presence-status on" /><b className="ws-presence-avatar" style={{ background:'#ffa500' }}>A</b><b className="ws-presence-avatar" style={{ background:'#6b9088' }}>T</b><b className="ws-presence-avatar ws-presence-overflow">+1</b></span>
+                <i className="tb-btn tb-share sbi-share"><i className="tb-btn-label">Share</i></i><i className="sb-sep" />
+                <i className="tb-icon sbi-more" />
               </div>
             </div>
 
