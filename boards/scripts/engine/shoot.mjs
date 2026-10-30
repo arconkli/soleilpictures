@@ -25,6 +25,8 @@ const ORIGIN = 'http://clusters.engine.local';
 const SB = 'https://example.supabase.co';
 const FAKE_KEY = 'local-engine-key';
 const FONT_HOSTS = /^(use\.typekit\.net|p\.typekit\.net|fonts\.googleapis\.com|fonts\.gstatic\.com)$/;
+// A reference link's preview picture, as the card loads it on the live site.
+const LINK_HOSTS = /^(upload|thumb)\.wikimedia\.org$/;
 const TYPES = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.html': 'text/html', '.json': 'application/json',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2',
   '.woff': 'font/woff', '.ttf': 'font/ttf', '.mp4': 'video/mp4', '.ico': 'image/x-icon', '.txt': 'text/plain', '.webmanifest': 'application/manifest+json', '.wasm': 'application/wasm' };
@@ -48,6 +50,27 @@ export const SHOTS = [
   { kind: 'portrait', label: 'Portrait 4:5', theme: 'dark', size: { width: 1080, height: 1350, dpr: 2 }, capture: CLEAN, frame: true },
   { kind: 'square', label: 'Square 1:1', theme: 'light', size: { width: 1080, height: 1080, dpr: 2 }, capture: CLEAN, frame: true },
 ];
+// A board with its own ground is shot only in the theme the ground suits: the
+// app keeps its ink (section names, arrow labels) on the theme, not the
+// ground, so dark ink on a near-black ground, or light on warm paper, would
+// read as nothing. → 'light' | 'dark' | null (no ground: both themes)
+export function groundTheme(bg) {
+  const m = /^#([0-9a-f]{6})$/i.exec(String(bg || '').trim());
+  if (!m) return null;
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16) / 255)
+    .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.18 ? 'dark' : 'light';
+}
+
+/** The shots for a board's ground: a paired shot (desk, board) keeps only its twin in the ground's theme; the rest take that theme. */
+export function shotsFor(bg) {
+  const theme = groundTheme(bg);
+  if (!theme) return SHOTS;
+  return SHOTS
+    .filter((s) => !/^(desk|board)-(light|dark)$/.test(s.kind) || s.theme === theme)
+    .map((s) => (s.theme === theme ? s : { ...s, theme }));
+}
+
 export const CUTOUTS = 8;
 export const THUMB = 800;
 
@@ -93,12 +116,13 @@ function stage({ world, board }) {
     // The app opens a fresh device on the most recently updated cluster with cards: the board.
     const updated = node.id === board.id ? new Date().toISOString() : new Date(t -= 3600e3).toISOString();
     boards.push({ id: node.id, workspace_id: ws.id, name: node.name, parent_board_id: parent, deleted_at: null, view: 'canvas',
-      created_by: uid, created_at: '2026-09-14T17:00:00Z', updated_at: updated, position: boards.length, bg_color: null,
+      created_by: uid, created_at: '2026-09-14T17:00:00Z', updated_at: updated, position: boards.length,
+      bg_color: node.id === board.id ? board.bg || null : null,
       card_count: node.id === board.id ? board.cards.length : (node.cards || 0) });
     for (const c of node.children || []) add(c, node.id);
   };
   for (const n of world.tree) add(n, null);
-  states.set(board.id, encodeBoardSnapshot(board.cards, [], { groups: board.groups }));
+  states.set(board.id, encodeBoardSnapshot(board.cards, board.arrows || [], { groups: board.groups }));
   return { uid, user, session, ws, boards, states };
 }
 
@@ -175,6 +199,7 @@ async function openContext(browser, shot, S, appDir, files) {
     if (u.origin === ORIGIN) return serveLocal(route, appDir, files);
     if (u.origin === SB) return stub(route, S);
     if (FONT_HOSTS.test(u.hostname)) return route.continue({ headers: { ...route.request().headers(), referer: 'https://clusters.soleilpictures.com/' } });
+    if (LINK_HOSTS.test(u.hostname) && route.request().resourceType() === 'image') return route.continue();
     return route.abort();
   });
   await ctx.routeWebSocket(/.*/, (ws) => ws.close());
@@ -269,7 +294,9 @@ export async function shootBoard({ appDir, board, world, files, outDir, cutouts 
   const shots = [];
   const errors = [];
   try {
-    for (const shot of SHOTS.filter((s) => !only || only.includes(s.kind))) {
+    const plan = shotsFor(board.bg).filter((s) => !only || only.includes(s.kind));
+    const docsOn = plan.find((s) => s.kind.startsWith('desk-'))?.kind;
+    for (const shot of plan) {
       const { ctx, prof } = await openContext(browser, shot, S, appDir, files);
       const page = await ctx.newPage();
       page.on('pageerror', (e) => errors.push(`${shot.kind}: ${String(e.message).slice(0, 140)}`));
@@ -291,10 +318,14 @@ export async function shootBoard({ appDir, board, world, files, outDir, cutouts 
         w: meta.width, h: meta.height, bytes: statSync(file).size });
       log(`shoot: ${shot.kind} ${meta.width}×${meta.height}`);
 
-      // A board with a script shows it open too, on the desktop light page: the
-      // app's own screenplay doc, the scene set out on its page.
-      const script = board.cards.find((c) => c.kind === 'doc');
-      if (shot.kind === 'desk-light' && script) await shootScript(page, script, outDir, shots, errors, log);
+      // A board with a script or a doc shows each open too, on the first desktop
+      // page: the app's own screenplay doc, the scene set out on its page, and
+      // the doc's page (one of each).
+      if (shot.kind === docsOn) {
+        const docs = board.cards.filter((c) => c.kind === 'doc');
+        const one = [docs.find((c) => typeof c.script === 'string'), docs.find((c) => typeof c.script !== 'string')].filter(Boolean);
+        for (const doc of one) await shootDoc(page, doc, outDir, shots, errors, log, shot.theme);
+      }
 
       // The close-ups ride on the last clean light shot's page: each card alone,
       // on transparency, framed big by the app's own camera.
@@ -326,35 +357,47 @@ export async function shootBoard({ appDir, board, world, files, outDir, cutouts 
   return { shots, errors };
 }
 
-// The script, opened from its card's own "Open fullscreen" the way a person
-// opens it. A failure is noted, never the end of the board's shots.
-async function shootScript(page, card, outDir, shots, errors, log) {
+// A doc, opened from its card's own "Open fullscreen" the way a person opens
+// it: a script in screenplay mode, any other doc on its page. A failure is
+// noted, never the end of the board's shots.
+async function shootDoc(page, card, outDir, shots, errors, log, theme = 'light') {
+  const kind = typeof card.script === 'string' ? 'script' : 'doc';
   try {
     await camera(page, [{ type: 'card', id: card.id }]);
     await page.waitForTimeout(600);
     await page.locator(`[data-card-id="${card.id}"] [aria-label="Open fullscreen"]`).first().click({ force: true, timeout: 8000 });
-    await page.locator('.doc-paper.is-screenplay .ProseMirror').first().waitFor({ timeout: 30000 });
+    await page.locator(kind === 'script' ? '.doc-paper.is-screenplay .ProseMirror' : '.doc-paper .ProseMirror').first().waitFor({ timeout: 30000 });
     await page.mouse.move(3, 3);
     await page.waitForTimeout(1500);
-    const file = join(outDir, 'script.png');
+    const file = join(outDir, `${kind}.png`);
     await page.screenshot({ path: file });
     const meta = await sharp(file).metadata();
-    await thumb(file, join(outDir, 'script.webp'));
-    shots.push({ kind: 'script', label: 'Script open (screenplay doc)', theme: 'light', file: 'script.png', thumb: 'script.webp',
-      w: meta.width, h: meta.height, bytes: statSync(file).size });
-    log(`shoot: script ${meta.width}×${meta.height}`);
-  } catch (e) { errors.push(`script: ${String(e.message).split('\n')[0].slice(0, 120)}`); }
+    await thumb(file, join(outDir, `${kind}.webp`));
+    shots.push({ kind, label: kind === 'script' ? 'Script open (screenplay doc)' : 'Doc open', theme, file: `${kind}.png`,
+      thumb: `${kind}.webp`, w: meta.width, h: meta.height, bytes: statSync(file).size });
+    log(`shoot: ${kind} ${meta.width}×${meta.height}`);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(800);
+  } catch (e) { errors.push(`${kind}: ${String(e.message).split('\n')[0].slice(0, 120)}`); }
 }
 
-// The cards worth a close-up: the biggest pictures first, then a palette, a
-// script and the longest notes, in board order.
+// The cards worth a close-up: one of each tool the board shows (a palette, a
+// doc, a photo grid, a table, a link), then the biggest pictures, then the
+// longest notes, in board order.
 export function pickCutouts(cards, n = CUTOUTS) {
   const area = (c) => c.w * c.h;
-  const pics = cards.filter((c) => c.kind === 'image' || c.kind === 'video').sort((a, b) => area(b) - area(a)).slice(0, Math.max(1, n - 3));
-  const pal = cards.filter((c) => c.kind === 'palette').slice(0, 1);
-  const doc = cards.filter((c) => c.kind === 'doc').slice(0, 1);
-  const notes = cards.filter((c) => c.kind === 'note').sort((a, b) => area(b) - area(a)).slice(0, Math.max(0, n - pics.length - pal.length - doc.length));
-  const keep = new Set([...pics, ...pal, ...doc, ...notes].map((c) => c.id));
+  const biggest = (list) => [...list].sort((a, b) => area(b) - area(a));
+  const grids = biggest(cards.filter((c) => c.kind === 'grid'));
+  const one = [
+    cards.find((c) => c.kind === 'palette'),
+    cards.find((c) => c.kind === 'doc'),
+    grids.find((c) => Array.isArray(c.photos)),
+    grids.find((c) => !Array.isArray(c.photos)),
+    cards.find((c) => c.kind === 'link'),
+  ].filter(Boolean);
+  const pics = biggest(cards.filter((c) => c.kind === 'image' || c.kind === 'video')).slice(0, Math.max(1, n - one.length - 1));
+  const notes = biggest(cards.filter((c) => c.kind === 'note')).slice(0, Math.max(0, n - pics.length - one.length));
+  const keep = new Set([...one, ...pics, ...notes].map((c) => c.id));
   return cards.filter((c) => keep.has(c.id));
 }
 

@@ -4,6 +4,9 @@
 //   --spares <n>  --dry-run  --only <kind,kind>
 //   --cluster <name>   the cluster a --brief board lands in (default TikTok; ignored elsewhere)
 //   --json <file>      the run's result, written there in any mode
+//   --style "<look>"   one look for this run (styles.mjs), not the next by turns
+
+import { styleNamed, STYLES } from './styles.mjs';
 
 export function args(argv) {
   const a = { spares: 0, dryRun: false };
@@ -19,6 +22,7 @@ export function args(argv) {
     else if (k === '--spares') a.spares = Number(argv[++i]) || 0;
     else if (k === '--dry-run') a.dryRun = true;
     else if (k === '--only') a.only = argv[++i].split(',');
+    else if (k === '--style') { a.style = argv[++i]; if (!styleNamed(a.style)) throw new Error(`no style "${a.style}" (${STYLES.map((s) => s.name).join(', ')})`); }
     else throw new Error(`unknown argument ${k}`);
   }
   if (!a.mode) throw new Error('say --daily, --batch, --page <path>, --subject <name> or --brief "<text>"');

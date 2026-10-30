@@ -14,6 +14,7 @@ import { cardToYMap, readCards, bytesToB64 } from '../../src/lib/yhelpers.js';
 import { buildCardIndexRow } from '../../src/lib/cardIndexRow.js';
 import { initCardDocStore, cardScope, setDocMode, writeScriptBody } from '../../src/lib/docState.js';
 import { fountainToBlocks, blocksToDocJSON } from '../../src/lib/screenplayIO.js';
+import { preparePages, writePages } from '../../src/lib/docWrite.js';
 
 
 // Strip HTML to text for the card_index.body column (notes carry `html`).
@@ -73,6 +74,10 @@ export function buildGridStructure(cellContents, rows, cols) {
 // card, so the closed card shows the scene under the title, not the title
 // twice). `script` itself is never stored on the card.
 const isScript = (c) => c.kind === 'doc' && typeof c.script === 'string';
+// A doc: a doc card whose `prose` is its page in Markdown, written by the API's
+// own doc writer (docWrite.writePages), its page named for the card. `prose`
+// itself is never stored either.
+const isProse = (c) => c.kind === 'doc' && typeof c.prose === 'string';
 
 function writeScript(doc, cardYMap, card) {
   initCardDocStore(doc, cardYMap);
@@ -81,10 +86,23 @@ function writeScript(doc, cardYMap, card) {
   writeScriptBody(doc, scope, blocksToDocJSON(fountainToBlocks(card.script)), { name: card.title || 'Untitled script' });
 }
 
+function writeProse(doc, cardYMap, card) {
+  writePages(doc, cardYMap, preparePages([{ title: card.title || 'Untitled', markdown: card.prose }]));
+}
+
 /** A script's words as plain lines: its card_index body. */
 export function scriptText(fountain) {
   return fountainToBlocks(fountain).map((b) => b.text).filter(Boolean).join('\n');
 }
+
+/** A doc's Markdown as plain lines: its card_index body. */
+export function proseText(markdown) {
+  return String(markdown || '').split('\n')
+    .map((l) => l.replace(/^\s*(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|>\s?)/, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[*_`]+/g, '').trim())
+    .filter(Boolean).join('\n');
+}
+
+const bodyOf = (card) => (isScript(card) ? scriptText(card.script) : isProse(card) ? proseText(card.prose) : card.body);
 
 // Build the base64 board_state.doc snapshot from stamped cards + arrows (+ the
 // optional board-level structures). Matches saveBoardSnapshot(): Y.Map('cards')
@@ -98,11 +116,11 @@ export function encodeBoardSnapshot(cards, arrows = [], extras = {}) {
   const map = doc.getMap('cards');
   doc.transact(() => {
     for (const c of cards) {
-      if (!isScript(c)) { map.set(c.id, cardToYMapDeep(c)); continue; }
-      const { script: _s, ...plain } = c;
+      if (!isScript(c) && !isProse(c)) { map.set(c.id, cardToYMapDeep(c)); continue; }
+      const { script: _s, prose: _p, ...plain } = c;
       const ym = cardToYMap(plain);
       map.set(c.id, ym);
-      writeScript(doc, ym, c);
+      if (isScript(c)) writeScript(doc, ym, c); else writeProse(doc, ym, c);
     }
     if (Array.isArray(arrows) && arrows.length) {
       doc.getArray('arrows').push(arrows.map((a) => ({ ...a })));
@@ -151,7 +169,7 @@ export function buildCardIndexRows({ workspaceId, boardId, cards }) {
     // that is one function now and not two that were supposed to match.
     const row = buildCardIndexRow({
       workspaceId, boardId, cardId: card.id,
-      get: (k) => (k === 'body' && isScript(card) ? scriptText(card.script) : (k === 'script' ? undefined : card[k])),
+      get: (k) => (k === 'body' ? bodyOf(card) : (k === 'script' || k === 'prose' ? undefined : card[k])),
     });
     if (row) rows.push(row);
   }

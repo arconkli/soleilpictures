@@ -44,9 +44,12 @@ function sample() {
     story: 'A short film about the last keeper on a northern rock.',
     sections: [
       { name: 'Look', color: 'slate', items: [pic('lighthouse storm night'), pic('foggy rocky coast'), pic('old lantern room'),
-        pic('waves crashing rocks'), { kind: 'note', title: 'Light', body: 'Cold blue nights, one warm lamp.' }] },
+        pic('waves crashing rocks'), { kind: 'note', title: 'Light', body: 'Cold blue nights, one warm lamp.' },
+        { kind: 'checklist', title: 'Still to find', checks: [{ text: 'Lamp motor sound', done: true }, { text: 'Keeper coat', done: false },
+          { text: 'Logbook prop', done: false }] }] },
       { name: 'Keeper', color: 'clay', items: [pic('old man wool sweater', 'Tom, 68'), pic('weathered hands rope'), pic('kettle on stove'),
-        { kind: 'note', title: 'Who he is', body: 'He has kept the light for forty years.' }, palette] },
+        { kind: 'note', title: 'Who he is', body: 'He has kept the light for forty years.' }, palette,
+        { kind: 'table', title: 'Wardrobe', rows: [['Piece', 'Fabric'], ['Sweater', 'Oiled wool'], ['Coat', 'Waxed cotton']] }] },
       { name: 'Script', color: 'plum', items: [
         { kind: 'script', title: 'Sc. 4 — The last lamp', fountain: SCENE },
         pic('ship lights at sea'), pic('stone stairs spiral'), pic('logbook handwriting old'),
@@ -105,9 +108,12 @@ test('a recipe holds what its brief wants, and nothing it does not', () => {
   two.sections[1].items.push({ kind: 'script', title: 'Sc. 9', fountain: SCENE });
   assert.ok(validateRecipe(two, { wants: ['script'] }).some((x) => /at most 1 script/.test(x)));
   assert.ok(validateRecipe(sample(), { wants: ['frames'] }).some((x) => /storyboard/.test(x)));
+  // One video is a motion reference any board may hold; more is for a brief that wants video.
   const video = sample();
   video.sections[0].items[0] = { kind: 'video', search: 'lighthouse beam turning' };
-  assert.ok(validateRecipe(video, {}).some((x) => /no video/.test(x)));
+  assert.deepEqual(validateRecipe(video, { wants: ['script'] }), []);
+  video.sections[1].items[0] = { kind: 'video', search: 'old man walking stairs' };
+  assert.ok(validateRecipe(video, {}).some((x) => /at most 1 video/.test(x)));
   assert.ok(validateRecipe(sample(), { wants: ['video'] }).some((x) => new RegExp(`${RULES.videos[0]}–${RULES.videos[1]} videos`).test(x)));
 });
 
@@ -170,7 +176,8 @@ test('a script becomes the app\'s screenplay doc: a doc card in its column, at a
   assert.equal(doc.script, SCENE);
   assert.ok(Math.abs(doc.w / doc.h - SCRIPT_SHAPE.width / SCRIPT_SHAPE.height) < 0.02);
   assert.equal(doc.groupId, board.groups.find((g) => g.name === 'Script').id);
-  assert.equal(board.cards.filter((c) => c.kind === 'note').length, 3);
+  // The three notes and the checklist (a note of ticked lines); the script isn't one of them.
+  assert.equal(board.cards.filter((c) => c.kind === 'note').length, 4);
 });
 
 test('a script is written into the card\'s own doc store in screenplay mode, and never stored as a field', () => {
@@ -325,7 +332,11 @@ test('what is on a recipe comes out as short plain strings, at most forty', () =
 });
 
 // A stand-in for the supabase client: from(table).select() resolves to that table's rows.
-const stubSupa = (tables) => ({ from: (t) => ({ select: async () => ({ data: tables[t], error: null }) }) });
+// A select answers awaited as is or after .order() (the library reads its rows oldest first).
+const stubSupa = (tables) => ({ from: (t) => ({ select: () => {
+  const res = Promise.resolve({ data: tables[t], error: null });
+  return Object.assign(res, { order: async () => ({ data: tables[t], error: null }) });
+} }) });
 
 test('a board made for a post never counts as a library board made, but its slug and photos stay taken', async () => {
   const row = (slug, subject, extra = {}) => ({ slug, subject, page_path: null, made_at: '2026-10-30T06:00:00Z', credits: [{ id: `p:${slug}` }], phash: [`h-${slug}`], status: 'new', ...extra });

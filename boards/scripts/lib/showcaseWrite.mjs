@@ -13,7 +13,7 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { encodeBoardSnapshot, buildCardIndexRows } from './cardEncode.mjs';
-import { withSources, stripBuild } from '../engine/build.mjs';
+import { withSources, stripBuild, photoKeysOf } from '../engine/build.mjs';
 
 const TYPES = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', mp4: 'video/mp4', zip: 'application/zip' };
 const typeOf = (file) => TYPES[file.split('.').pop().toLowerCase()] || 'application/octet-stream';
@@ -43,7 +43,7 @@ export async function ensureCluster(supa, { workspaceId, userId, rootId, name })
 
 /**
  * The board, its photos and its state. Undone as far as it got when a step fails.
- *   board: buildBoard()'s { name, cards, groups } (cards carry `photo` keys)
+ *   board: buildBoard()'s { name, bg, cards, groups, arrows } (cards carry `photo` keys; a photo grid, `photos`)
  *   found: photos.mjs's Map('si.ii' → photo)
  * → { boardId, cards (as stored), heroKey }
  */
@@ -58,18 +58,21 @@ export async function writeBoard({ supa, r2, workspaceId, userId, parentId, boar
   };
   try {
     must(await supa.from('boards').insert({ id: boardId, workspace_id: workspaceId, parent_board_id: parentId,
-      name: board.name, view: 'canvas', created_by: userId }), 'boards insert');
+      name: board.name, view: 'canvas', created_by: userId, ...(board.bg ? { bg_color: board.bg } : {}) }), 'boards insert');
 
     const keys = new Map(); // photo key → { src | video + poster }
     const rows = [];
     for (const c of board.cards) {
-      if (!c.photo) continue;
-      const ph = found.get(c.photo);
-      const k = ph.video ? { video: await put(ph.video, 'mp4'), poster: await put(ph.file, 'jpg') } : { src: await put(ph.file, 'jpg') };
-      keys.set(c.photo, k);
-      for (const key of Object.values(k)) {
-        rows.push({ workspace_id: workspaceId, board_id: boardId, card_id: c.id, storage_path: key, width: ph.w, height: ph.h,
-          uploaded_by: userId, referenced_in_board_ids: [boardId] });
+      // A photo grid's pictures are its cells: each is uploaded, its images row on the grid card.
+      for (const pk of photoKeysOf(c)) {
+        if (keys.has(pk)) continue;
+        const ph = found.get(pk);
+        const k = ph.video ? { video: await put(ph.video, 'mp4'), poster: await put(ph.file, 'jpg') } : { src: await put(ph.file, 'jpg') };
+        keys.set(pk, k);
+        for (const key of Object.values(k)) {
+          rows.push({ workspace_id: workspaceId, board_id: boardId, card_id: c.id, storage_path: key, width: ph.w, height: ph.h,
+            uploaded_by: userId, referenced_in_board_ids: [boardId] });
+        }
       }
     }
     if (rows.length) must(await supa.from('images').insert(rows), 'images insert');
@@ -78,11 +81,14 @@ export async function writeBoard({ supa, r2, workspaceId, userId, parentId, boar
     const keyOf = new Map([...found].map(([k, ph]) => [ph, k]));
     const cards = stripBuild(withSources(board.cards, found, (ph, what) => `r2:${keys.get(keyOf.get(ph))[what]}`));
     const nowIso = new Date().toISOString();
-    const b64 = encodeBoardSnapshot(cards, [], { groups: board.groups });
+    const b64 = encodeBoardSnapshot(cards, board.arrows || [], { groups: board.groups });
     must(await supa.from('board_state').upsert({ board_id: boardId, doc: b64, updated_at: nowIso }, { onConflict: 'board_id' }), 'board_state');
     must(await supa.from('card_index').upsert(buildCardIndexRows({ workspaceId, boardId, cards }), { onConflict: 'board_id,card_id' }), 'card_index');
+    // The hero: the biggest picture, or a photo grid's first cell when every picture is in a grid.
     const hero = cards.filter((c) => c.kind === 'image').sort((a, b) => b.w * b.h - a.w * a.h)[0];
-    return { boardId, cards, heroKey: hero ? hero.src.replace(/^r2:/, '') : null };
+    const cell = Object.values(cards.find((c) => c.kind === 'grid')?.gridCells || {}).find((x) => x?.type === 'image' && x.src);
+    const heroSrc = hero?.src || cell?.src || null;
+    return { boardId, cards, heroKey: heroSrc ? heroSrc.replace(/^r2:/, '') : null };
   } catch (e) {
     log(`write: failed (${e.message}); undoing`);
     await supa.from('images').delete().eq('board_id', boardId);
@@ -117,7 +123,7 @@ export async function recordShowcase(supa, row) {
 
 /** What the library already holds: slugs, photo ids and hashes (never reused), and the marketing boards made. */
 export async function libraryState(supa) {
-  const rows = must(await supa.from('showcase_boards').select('slug, subject, page_path, made_at, credits, phash, status, decided_by'), 'library');
+  const rows = must(await supa.from('showcase_boards').select('slug, subject, page_path, made_at, credits, phash, status, decided_by, score').order('made_at'), 'library');
   const pub = must(await supa.from('public_boards').select('slug'), 'public slugs');
   return {
     taken: [...rows.map((r) => r.slug), ...pub.map((r) => r.slug)],
@@ -131,6 +137,8 @@ export async function libraryState(supa) {
     // A page whose board was skipped still needs one: --batch makes it again.
     pages: new Set(rows.filter((r) => r.page_path && r.status !== 'skipped').map((r) => r.page_path)),
     okByPerson: rows.filter((r) => r.status === 'ok' && r.decided_by).length,
+    // The looks of the boards made, oldest first: the next board takes the one used longest ago.
+    styles: rows.map((r) => r.score?.style).filter(Boolean),
   };
 }
 
