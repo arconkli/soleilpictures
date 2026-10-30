@@ -69,7 +69,12 @@ export const CEILINGS = {
   // failure) is lib/passkeys.js, fetched only where passkeys can work. A
   // CI-style build read 166.4 KB on e7b2d981 before it and 167.2 KB with it;
   // 167.4 KB on main with the "Used by" line.
-  entryJs: 167_500,
+  // 2026-10-29: +0.5 KB for the homepage polish (auth/SignInBackdrop.jsx): the
+  // scene glides after the scroll instead of jumping, resting cards stay clear
+  // of the faux top bar, cursors leave the notes alone. The glow and orbit
+  // went into CSS to stay out of this number. 167.5 KB on main 8e4e476f,
+  // a hair over with it.
+  entryJs: 168_000,
   entryCss: 96_000,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only

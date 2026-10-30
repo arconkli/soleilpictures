@@ -64,11 +64,11 @@
    the board fills in. The orbit turns in once on load, then sits still. A CSS
    image, not markup, so it stays out of the sign-in page's script. */
 .sb-halo { position: absolute; top: 0; left: 0; right: 0; height: var(--sb-vvh, 100%); z-index: 1; pointer-events: none;
-  display: grid; place-items: center; overflow: hidden; }
+  display: grid; place-items: center; overflow: hidden; opacity: calc(1 - var(--sb-f, 0)); }
 .sb-halo > * { grid-area: 1 / 1; }
 .sb-glow { width: 900px; height: 620px; max-width: 140vw; border-radius: 50%;
   background: radial-gradient(closest-side, rgba(255,160,40,.16), rgba(255,140,20,.05) 55%, transparent); }
-.sb-orbit { width: 760px; height: 500px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 760 500'%3E%3Cellipse cx='380' cy='250' rx='360' ry='220' transform='rotate(-7 380 250)' fill='none' stroke='%23fffaf0' stroke-opacity='.28' stroke-width='2' stroke-dasharray='2 10' stroke-linecap='round'/%3E%3CclipPath id='c0'%3E%3Ccircle cx='35.1' cy='216.5' r='15'/%3E%3C/clipPath%3E%3Ccircle cx='35.1' cy='216.5' r='15' fill='%23ffa500'/%3E%3Ccircle cx='37.9' cy='211.7' r='9.0' fill='%23ef7300' clip-path='url(%23c0)'/%3E%3Ccircle cx='41.5' cy='205.5' r='11.9' fill='%23fffaf0'/%3E%3CclipPath id='c1'%3E%3Ccircle cx='692.5' cy='118.0' r='10'/%3E%3C/clipPath%3E%3Ccircle cx='692.5' cy='118.0' r='10' fill='%23ffa500'/%3E%3Ccircle cx='694.4' cy='114.8' r='6.0' fill='%23ef7300' clip-path='url(%23c1)'/%3E%3Ccircle cx='696.8' cy='110.6' r='7.9' fill='%23fffaf0'/%3E%3C/svg%3E") center / contain no-repeat;
+.sb-orbit { width: 800px; height: 560px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 560'%3E%3Cellipse cx='400' cy='280' rx='380' ry='262' transform='rotate(-4 400 280)' fill='none' stroke='%23fffaf0' stroke-opacity='.26' stroke-width='2' stroke-dasharray='2 10' stroke-linecap='round'/%3E%3CclipPath id='c0'%3E%3Ccircle cx='37.5' cy='215.5' r='11'/%3E%3C/clipPath%3E%3Ccircle cx='37.5' cy='215.5' r='11' fill='%23ffa500'/%3E%3Ccircle cx='39.5' cy='212.0' r='6.6' fill='%23ef7300' clip-path='url(%23c0)'/%3E%3Ccircle cx='42.2' cy='207.4' r='8.7' fill='%23fffaf0'/%3E%3CclipPath id='c1'%3E%3Ccircle cx='735.8' cy='145.5' r='8'/%3E%3C/clipPath%3E%3Ccircle cx='735.8' cy='145.5' r='8' fill='%23ffa500'/%3E%3Ccircle cx='737.3' cy='142.9' r='4.8' fill='%23ef7300' clip-path='url(%23c1)'/%3E%3Ccircle cx='739.2' cy='139.6' r='6.3' fill='%23fffaf0'/%3E%3C/svg%3E") center / contain no-repeat;
   animation: sb-orbit-in 2.2s cubic-bezier(.16,.84,.3,1) both; }
 @keyframes sb-orbit-in { from { opacity: 0; transform: rotate(-18deg) scale(.94); } to { opacity: 1; transform: none; } }
 .sb-grain { position: absolute; inset: 0; z-index: 1; pointer-events: none;
@@ -206,7 +206,8 @@
    app-wide half opacity turned the bright orange of the search pages into a
    dim brown. Still visibly waiting, just not muddy. */
 .sb-frost .auth-btn:disabled { opacity: .92; }
-.sb-frost .auth-btn:hover:not(:disabled) { box-shadow: var(--shadow-2); transform: translateY(-1px); }
+.sb-frost .auth-btn { transition: background-color .15s ease, box-shadow .15s ease, transform .15s ease, opacity .15s ease; }
+.sb-frost .auth-btn:hover:not(:disabled) { background: #ffb224; box-shadow: var(--shadow-2), 0 6px 22px rgba(255,165,0,.22); transform: translateY(-1px); }
 /* The app-wide focus ring is a faint gold glow, which disappears on a gold
    fill: a keyboard user tabbing to Continue / Sign in saw the button exactly
    as at rest. A light-ink outline clear of the fill reads on gold and frost. */
@@ -216,7 +217,7 @@
    primary control on the step. */
 .sb-frost .auth-btn.auth-btn-secondary { background: transparent; color: rgba(245,245,247,.92); border: 1px solid rgba(255,255,255,.2); }
 .sb-frost .auth-btn.auth-btn-secondary:hover { border-color: rgba(255,255,255,.36); }
-.sb-cap { font: 400 11.5px/1.4 var(--font-sans); color: var(--ink-3); text-align: center; }
+.sb-cap { font: 400 11.5px/1.4 var(--font-sans); color: var(--ink-3); text-align: center; text-wrap: balance; }
 /* "Use a passkey" (lib/passkeys.js): a quiet line under the caption, never a
    second button. Light ink, since the frost is dark in both themes; never gold,
    which stays with the one primary control. */
@@ -258,6 +259,12 @@
   opacity: 0; pointer-events: none; transition: opacity .4s ease, color var(--dur-base) var(--ease); }
 .sb-explore:hover { color: var(--soleil); }
 
+/* "Used by" under the box: one row where there's room (the box is 392 wide,
+   so the four names wrapped and left NYU alone on a second line) */
+@media (min-width: 641px) {
+  .sb-box .used-by.is-signin { width: max-content; max-width: calc(100vw - 32px); }
+}
+
 /* layer 6 — scroll hint */
 /* Sits clearly ABOVE the footer line; understated but legible — a tracked label
    + a single soleil chevron gently bobbing. */
@@ -275,7 +282,10 @@
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 0 clamp(14px, 4vw, 28px);
   color: var(--ink-3); font: 400 11px/1.4 var(--font-sans); letter-spacing: .04em; pointer-events: none;
-  transition: opacity .2s ease, visibility .2s; }
+  transition: opacity .2s ease, visibility .2s;
+  /* the app sidebar's .sb-foot (styles.css) shares the name: its border-top
+     drew a hard line across the whole page above these links */
+  border-top: 0; margin-top: 0; }
 /* set from the rAF loop while the box (or the explore pill under it) reaches
    the footer — a short visible viewport, e.g. a phone with its keyboard up */
 .sb-scene .sb-foot.sb-foot-crowded { opacity: 0; visibility: hidden; }
@@ -310,8 +320,13 @@
   .sb-foot-left { justify-content: center; gap: 3px 9px; }
   .sb-foot-copy { display: none; }
   .sb-trust { font-size: 11px; }
+  /* the finale's cards crowd a phone and pass behind the logo, the tagline
+     and Used by: a soft dark veil behind the box, faded in with the scroll */
+  .sb-box::before { content: ''; position: absolute; inset: 4px 0; z-index: -1; pointer-events: none;
+    background: rgba(10,10,12,.72); border-radius: 48px; filter: blur(18px);
+    opacity: var(--sb-f, 0); }
   /* the box is a narrow column on a phone: a tall orbit around it */
-  .sb-orbit { width: 430px; height: 470px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 430 470'%3E%3Cellipse cx='215' cy='235' rx='170' ry='214' transform='rotate(-7 215 235)' fill='none' stroke='%23fffaf0' stroke-opacity='.28' stroke-width='2' stroke-dasharray='2 10' stroke-linecap='round'/%3E%3CclipPath id='c0'%3E%3Ccircle cx='283.9' cy='434.8' r='7'/%3E%3C/clipPath%3E%3Ccircle cx='283.9' cy='434.8' r='7' fill='%23ffa500'/%3E%3Ccircle cx='285.2' cy='432.6' r='4.2' fill='%23ef7300' clip-path='url(%23c0)'/%3E%3Ccircle cx='286.9' cy='429.6' r='5.5' fill='%23fffaf0'/%3E%3C/svg%3E"); }
+  .sb-orbit { width: 430px; height: 470px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 430 470'%3E%3Cellipse cx='215' cy='235' rx='170' ry='214' transform='rotate(-7 215 235)' fill='none' stroke='%23fffaf0' stroke-opacity='.26' stroke-width='2' stroke-dasharray='2 10' stroke-linecap='round'/%3E%3CclipPath id='c0'%3E%3Ccircle cx='283.9' cy='434.8' r='6'/%3E%3C/clipPath%3E%3Ccircle cx='283.9' cy='434.8' r='6' fill='%23ffa500'/%3E%3Ccircle cx='285.0' cy='432.9' r='3.6' fill='%23ef7300' clip-path='url(%23c0)'/%3E%3Ccircle cx='286.4' cy='430.4' r='4.7' fill='%23fffaf0'/%3E%3C/svg%3E"); }
   .sb-glow { width: 520px; height: 560px; }
 }
 
