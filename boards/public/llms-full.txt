@@ -5763,7 +5763,7 @@ Sized to its text. Leave h out and a note is as tall as its text at its width �
 
 Colour. A note's color is its fill, a hex colour such as #f3ddaa or one of the named colours, and its text turns dark or light to read on it. Anything else is a 400. A note made without a color, in a section that has one, takes the section's colour lightened (its tint), so the sections read apart at a glance — but not on a board where pictures lead (at least half of its cards pictures, and some sections words: their colours carry it), and not on a board of one section. Send "color": null or "" to keep a note plain, or to take a note's colour off with an update; over MCP, where a null means a value wasn't given, "". Other kinds keep color as given.
 
-Changing one. A new title or body on a note the API wrote is written into it the same way, and its height follows unless you send h. A note that has since been edited in the app keeps the text it has there, and a note resized by hand keeps its size. A note the API made before notes worked this way is brought up to date the next time its board is arranged.
+Changing one. A new title or body on a note the API wrote is written into it the same way, and its height follows unless you send an h its text fits in. A note that has since been edited in the app keeps the text it has there, and a note resized by hand keeps its size. A note the API made before notes worked this way is brought up to date the next time its board is arranged.
 
 Palettes
 
@@ -6012,7 +6012,7 @@ Q: How do I put cards in sections?
 A: Name the section on each card in group. The card goes in the board's group of that name, which is made with the cards when the board has none, and an optional groups list sets the sections' order and colours.
 
 Q: Why leave out w and h?
-A: A note left without them is made as tall as its text, and a palette wide enough to name every colour. A note given a height keeps it, and its text fades out where the card ends.
+A: A note left without them is made as tall as its text, and a palette wide enough to name every colour. A note given a height keeps it when its text fits, and grows to its text when it doesn't. A body that writes its line breaks as a backslash and an n (and has no real ones) gets real line breaks.
 
 
 ========================================================================
@@ -7267,7 +7267,7 @@ Writing
 
 Tool | Input
 create_boards | boards[] — one, or up to 500, each { name, workspace_id?, parent_board_id?, view?, identifiers?, props? }; workspace_id?, on_conflict? · each board comes back with its url; with no parent_board_id it becomes a project at the top of the workspace, where New cluster puts one, and the answer's placement offers up to 12 of your clusters to ask where it belongs
-add_cards | board_id, cards[] — up to 1000, each with its section by name in group?, groups? (the sections' order and colours), on_conflict? · a note shows its title as its heading and is sized to its text, a palette is made from swatches; sections and their notes take colours of their own unless given one; leave x, y, w and h out and the server places and sizes everything — see Cards
+add_cards | board_id, cards[] — up to 1000, each with its section by name in group?, groups? (the sections' order and colours), on_conflict? · a note shows its title as its heading and is sized to its text, a palette is made from swatches; sections and their notes take colours of their own unless given one; leave x, y, w and h out and the server places and sizes everything — 3 or more cards in one call are always laid out as auto lays them out (a layout names another), and x/y place only one or two; a note is never shorter than its text — see Cards
 import_urls | board_id, urls[], titles?, group?, dry_run? — bring reference in from the web, into a section by name if given; safe to re-run
 upload_image | board_id, data (base64), content_type, optionally file_name
 upload_file | board_id, path — local server only; handles large files

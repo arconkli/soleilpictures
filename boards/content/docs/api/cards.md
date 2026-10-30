@@ -17,7 +17,7 @@ faq:
   - q: How do I put cards in sections?
     a: Name the section on each card in group. The card goes in the board's group of that name, which is made with the cards when the board has none, and an optional groups list sets the sections' order and colours.
   - q: Why leave out w and h?
-    a: A note left without them is made as tall as its text, and a palette wide enough to name every colour. A note given a height keeps it, and its text fades out where the card ends.
+    a: A note left without them is made as tall as its text, and a palette wide enough to name every colour. A note given a height keeps it when its text fits, and grows to its text when it doesn't. A body that writes its line breaks as a backslash and an n (and has no real ones) gets real line breaks.
 related:
   - /docs/api/boards
   - /docs/api/docs
@@ -125,7 +125,7 @@ colours carry it), and not on a board of one section. Send `"color": null` or
 `color` as given.
 
 **Changing one.** A new `title` or `body` on a note the API wrote is written
-into it the same way, and its height follows unless you send `h`. A note that
+into it the same way, and its height follows unless you send an `h` its text fits in. A note that
 has since been edited in the app keeps the text it has there, and a note
 resized by hand keeps its size. A note the API made before notes worked this
 way is brought up to date the next time its board is

@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  TOOLS, HOSTED_TOOLS, PROMPTS, SERVER_INFO, RENAMED, RENAMED_PROMPTS, TREE_MAX, PLACE_CHOICES, toolManifest, apiErrorFrom, ApiError,
+  TOOLS, ADD_LAYS_OUT_FROM, HOSTED_TOOLS, PROMPTS, SERVER_INFO, RENAMED, RENAMED_PROMPTS, TREE_MAX, PLACE_CHOICES, toolManifest, apiErrorFrom, ApiError,
   parseFetchId, UNTRUSTED_NOTE, BOARD_VIEW, boardOutline, OUTLINE,
 } from './mcpTools.js';
 import {
@@ -1239,4 +1239,17 @@ test('the manifest declares the notice on every answer that carries it', () => {
     const m = toolManifest(t);
     assert.equal('untrusted' in (m.outputSchema?.properties || {}), !!t.peoplesText, t.name);
   }
+});
+
+test('add_cards lays out three or more cards wherever the AI put them; one or two keep their place', async () => {
+  const add = TOOLS.find((t) => t.name === 'add_cards');
+  const sent = [];
+  const api = async (path, init) => { sent.push(init.body); return {}; };
+  const at = (n) => Array.from({ length: n }, (_, i) => ({ title: `N${i}`, x: i * 400, y: 80 }));
+  await add.call({ board_id: 'b', cards: at(2) }, { api });
+  await add.call({ board_id: 'b', cards: at(ADD_LAYS_OUT_FROM) }, { api });
+  await add.call({ board_id: 'b', cards: at(5), layout: 'grid' }, { api });
+  assert.equal(sent[0].layout, undefined);
+  assert.equal(sent[1].layout, 'auto');
+  assert.equal(sent[2].layout, 'grid');
 });

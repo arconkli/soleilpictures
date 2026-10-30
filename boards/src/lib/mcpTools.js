@@ -55,6 +55,9 @@ const looseObject = (properties) => ({ type: 'object', properties, additionalPro
 // answer it draws; `uri`, its first address, is still answered. The MIME type
 // is how they know it is one, and `metaKey` is the answer's _meta entry the
 // view draws from, which the model never reads.
+
+// add_cards over MCP lays out a call of this many cards or more (see its call).
+export const ADD_LAYS_OUT_FROM = 3;
 export const BOARD_VIEW = Object.freeze({
   uri: 'ui://clusters/board-v1.html',
   mimeType: 'text/html;profile=mcp-app',
@@ -1122,7 +1125,8 @@ export const TOOLS = [
     title: 'Add cards to a board',
     description: 'ADDS cards to a board. Existing cards are never touched. Leave x, y, w and h out: each '
       + 'card is sized to what it holds and each section is laid out as arrange_board lays one out, in the '
-      + 'order sent, clear of what is already there. A note shows its title as its heading and its body as '
+      + 'order sent, clear of what is already there (three or more cards at once are always laid out so; '
+      + 'x and y place only one or two). A note shows its title as its heading and its body as '
       + 'text, where "- " bullets, "1. " lists, "[ ] " checkboxes, **bold** and *italic* show as such: '
       + 'one idea per note in a few lines; long writing goes in write_doc. Put cards in sections by '
       + 'naming one in group (the board\'s group of that name, made if there is none), and list them in '
@@ -1155,9 +1159,9 @@ export const TOOLS = [
           alt: str('Alt text, for kind=image'),
           color: CARD_LOOK.color,
           swatches: CARD_LOOK.swatches,
-          x: num('Left position; leave out to have the card placed'), y: num('Top position'),
+          x: num('Left position, kept only when one or two cards are added; leave out to have the card placed'), y: num('Top position'),
           w: num('Width; leave out and the card is sized to what it holds'),
-          h: num('Height; leave out and a note is as tall as its text'),
+          h: num('Height; leave out and a note is as tall as its text (a note never ends shorter than its text)'),
           z: num('Stacking order — higher is in front'),
           rotation: num('Degrees'),
           group: CARD_LOOK.group,
@@ -1184,7 +1188,12 @@ export const TOOLS = [
         cards: a.cards,
         on_conflict: a.on_conflict,
         ...(a.groups ? { groups: a.groups } : {}),
-        ...(a.layout ? { layout: a.layout } : {}),
+        // Three or more cards at once are laid out, as arrange_board lays them
+        // out, wherever the AI put them: every board an AI placed by hand
+        // (the film diary, the World Cup moodboard) came out as a loose
+        // scatter with no sections and notes cut off. One or two cards keep
+        // where they were put; a named layout is the AI's own choice.
+        ...(a.layout || a.cards?.length >= ADD_LAYS_OUT_FROM ? { layout: a.layout || 'auto' } : {}),
       },
     }),
     summary: (o) => `Added ${plural(o.created ?? o.cards?.length ?? 0, 'card')}${o.updated ? `, updated ${o.updated}` : ''}`

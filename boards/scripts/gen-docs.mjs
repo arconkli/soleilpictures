@@ -95,7 +95,7 @@ import { DOC_WRITE } from '../src/lib/docWrite.js';
 import { COMMENTS } from '../src/lib/apiComments.js';
 import { TAGS } from '../src/lib/apiTags.js';
 import {
-  TOOLS as MCP_TOOLS, FETCH_MAX_CHARS, SEARCH_DEFAULT, SEARCH_MAX, TREE_MAX, UPDATE_BOARDS_MAX, PLACE_CHOICES,
+  TOOLS as MCP_TOOLS, FETCH_MAX_CHARS, SEARCH_DEFAULT, SEARCH_MAX, TREE_MAX, UPDATE_BOARDS_MAX, PLACE_CHOICES, ADD_LAYS_OUT_FROM,
 } from '../src/lib/mcpTools.js';
 import { PLAY_COPY_MAX_SECONDS, PLAY_COPY_MAX_BYTES, PLAY_COPY_MAX_EDGE } from '../src/lib/playCopy.js';
 import {
@@ -672,6 +672,7 @@ export const FACTS = {
   mcpTreeMax: String(TREE_MAX),
   mcpUpdateBoardsMax: String(UPDATE_BOARDS_MAX),
   mcpPlaceChoices: String(PLACE_CHOICES),
+  mcpAddLaysOutFrom: String(ADD_LAYS_OUT_FROM),
   // What one doc write may carry (lib/docWrite.js).
   docWriteMaxChars: DOC_WRITE.maxChars.toLocaleString('en-US'),
   docWriteMaxPages: String(DOC_WRITE.maxPages),

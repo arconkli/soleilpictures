@@ -57730,7 +57730,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " on a note the API wrote is written into it the same way, and its height follows unless you send "
+     "v": " on a note the API wrote is written into it the same way, and its height follows unless you send an "
     },
     {
      "t": "code",
@@ -57738,7 +57738,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". A note that has since been edited in the app keeps the text it has there, and a note resized by hand keeps its size. A note the API made before notes worked this way is brought up to date the next time its board is "
+     "v": " its text fits in. A note that has since been edited in the app keeps the text it has there, and a note resized by hand keeps its size. A note the API made before notes worked this way is brought up to date the next time its board is "
     },
     {
      "t": "link",
@@ -70915,7 +70915,39 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " out and the server places and sizes everything — see "
+       "v": " out and the server places and sizes everything — 3 or more cards in one call are always laid out as "
+      },
+      {
+       "t": "code",
+       "v": "auto"
+      },
+      {
+       "t": "text",
+       "v": " lays them out (a "
+      },
+      {
+       "t": "code",
+       "v": "layout"
+      },
+      {
+       "t": "text",
+       "v": " names another), and "
+      },
+      {
+       "t": "code",
+       "v": "x"
+      },
+      {
+       "t": "text",
+       "v": "/"
+      },
+      {
+       "t": "code",
+       "v": "y"
+      },
+      {
+       "t": "text",
+       "v": " place only one or two; a note is never shorter than its text — see "
       },
       {
        "t": "link",
