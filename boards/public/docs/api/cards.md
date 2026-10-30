@@ -104,7 +104,7 @@ colours carry it), and not on a board of one section. Send `"color": null` or
 `color` as given.
 
 **Changing one.** A new `title` or `body` on a note the API wrote is written
-into it the same way, and its height follows unless you send `h`. A note that
+into it the same way, and its height follows unless you send an `h` its text fits in. A note that
 has since been edited in the app keeps the text it has there, and a note
 resized by hand keeps its size. A note the API made before notes worked this
 way is brought up to date the next time its board is

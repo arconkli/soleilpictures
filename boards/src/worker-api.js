@@ -415,7 +415,7 @@ export function normalizeIncomingCard(input, {
   if (!partial || c.kind != null) out.kind = kind;
 
   if ('title' in c) out.title = str(c.title, 300);
-  if ('body' in c) out[textFieldFor(kind)] = str(c.body, 20000);
+  if ('body' in c) out[textFieldFor(kind)] = realLineBreaks(str(c.body, 20000));
   if ('html' in c) out.html = str(c.html, 40000);
   if ('url' in c) out.url = str(c.url, 2000);
   if ('alt' in c) out.alt = str(c.alt, 300);
@@ -505,6 +505,14 @@ export function normalizeIncomingCard(input, {
   return out;
 }
 
+// ChatGPT has sent a note's lines as the two characters \\n (its JSON escaped
+// twice), and the note showed "USA — …\\nMEXICO" on one line. A text with no
+// real line break but a written one means a line break.
+export function realLineBreaks(text) {
+  if (typeof text !== 'string' || text.includes('\n') || !text.includes('\\n')) return text;
+  return text.replace(/\\r\\n|\\n/g, '\n');
+}
+
 // What the canvas shows of a note is its html, never its title, and a note is
 // as tall as its card: a note the API made from a title and a body showed the
 // body alone, under a fade, at 280×180. So a note given a title or a body
@@ -528,9 +536,9 @@ function noteShowsItsText(c, out, { partial, before, warn }) {
     });
   }
 
-  // Height follows the text unless the caller set one, or someone sized the
-  // note by hand in the app.
-  if (Number.isFinite(c.h)) return;
+  // Height follows the text unless someone sized the note by hand in the app.
+  // A height the caller set is kept when the text fits in it, and grows when
+  // it doesn't: an AI guessing 160px cut every note it made off under a fade.
   if (partial && (!before || before.manuallyResized)) return;
   if (partial && !('html' in out) && !bodyGiven && !Number.isFinite(c.w)) return;
   const html = 'html' in out ? out.html : before?.html;
@@ -540,6 +548,7 @@ function noteShowsItsText(c, out, { partial, before, warn }) {
   const width = Number.isFinite(c.w) ? out.w : (partial ? before?.w : undefined);
   const fit = fitNoteSize({ html: text, w: Number.isFinite(width) ? width : undefined });
   if (!partial || Number.isFinite(c.w)) out.w = fit.w;
+  if (Number.isFinite(c.h) && out.h >= fit.h) return;
   out.h = fit.h;
   if (fit.overflow) {
     warn?.(`its text runs past the tallest a note grows (${NOTE_FIT.maxH}px) and the end fades out; `

@@ -9,7 +9,7 @@ import {
   readSections, resolveSections, sectionName, noteRepair, pictureSize,
 } from './apiCards.js';
 import { API_LAYOUTS } from './layoutAuto.js';
-import { normalizeIncomingCard, publicCard } from '../worker-api.js';
+import { realLineBreaks, normalizeIncomingCard, publicCard } from '../worker-api.js';
 import { composeNoteHtml } from './noteCompose.js';
 import { NOTE_FIT, noteContentHeight } from './noteFit.js';
 import { TOOLS } from './mcpTools.js';
@@ -106,9 +106,14 @@ test('a note made from a title and a body shows both, as tall as its text, in it
   assert.equal(publicCard(c).color, '#f3ddaa', 'and read back as its colour');
 });
 
-test('a note keeps a size it was given, and an empty one keeps the default', () => {
-  const sized = normalizeIncomingCard({ ...MARTY, w: 400, h: 150 });
-  assert.deepEqual([sized.w, sized.h], [400, 150]);
+test('a note keeps a size it was given when its text fits, grows when it does not, and an empty one keeps the default', () => {
+  const sized = normalizeIncomingCard({ ...MARTY, w: 400, h: 400 });
+  assert.deepEqual([sized.w, sized.h], [400, 400]);
+  // An AI guessing a height cut its notes off under a fade: the note grows.
+  const short = normalizeIncomingCard({ ...MARTY, w: 400, h: 60 });
+  assert.equal(short.w, 400);
+  assert.equal(short.h, normalizeIncomingCard({ ...MARTY, w: 400 }).h);
+  assert.ok(short.h > 60);
   const wide = normalizeIncomingCard({ ...MARTY, w: 400 });
   assert.equal(wide.w, 400);
   assert.ok(wide.h < normalizeIncomingCard(MARTY).h, 'a wider note is shorter');
@@ -235,4 +240,13 @@ test('a note opened, sized by hand or made in the app is never rewritten by a ti
   assert.equal(noteRepair({ ...older(), kind: 'image' }), null);
   const odd = noteRepair(older({ color: 'sunset' }));
   assert.equal('bgColor' in odd, false, 'a colour that is not a hex is left as it is');
+});
+
+test('a body that writes its line breaks as \\n gets real ones (ChatGPT escaping twice)', () => {
+  const c = normalizeIncomingCard({ kind: 'note', title: 'Hosts', body: 'USA — scale.\\nMEXICO — colour.\\n\\nCANADA — calm.' });
+  assert.equal(c.body, 'USA — scale.\nMEXICO — colour.\n\nCANADA — calm.');
+  assert.doesNotMatch(c.html, /\\n/);
+  // A text that has real line breaks keeps what it wrote, a path included.
+  assert.equal(realLineBreaks('C:\\new\nline'), 'C:\\new\nline');
+  assert.equal(realLineBreaks('one line'), 'one line');
 });
