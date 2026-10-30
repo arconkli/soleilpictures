@@ -1567,7 +1567,13 @@ function productUpdate(d: ProductUpdateData): RenderedEmail {
   }
   para(d.outro);
   if (cta) { html.push(noteBtn(cta, url)); text.push(`${cta}: ${url}`); }
-  para(d.signoff);
+  // The sign-off may be two lines (a name over a title or the product): one
+  // paragraph, the lines joined by <br>, each escaped on its own.
+  if (d.signoff) {
+    const lines = d.signoff.split("\n");
+    html.push(noteP(lines[0]).replace(/<\/p>$/, lines.slice(1).map((l) => `<br>${escapeHtml(l)}`).join("") + "</p>"));
+    text.push(lines.join("\n"));
+  }
 
   return {
     subject: d.subject,
@@ -1979,7 +1985,8 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         imageUrl:    data.imageUrl != null ? String(data.imageUrl).trim() : undefined,
         imageAlt:    line(data.imageAlt, 160) || undefined,
         outro:       line(data.outro, 600) || undefined,
-        signoff:     line(data.signoff, 120) || undefined,
+        // Up to two lines, each cleaned like any other line.
+        signoff:     String(data.signoff ?? "").split(/\r?\n/).map((l) => line(l, 120)).filter(Boolean).slice(0, 2).join("\n") || undefined,
         version:     data.version != null ? String(data.version).replace(/[^A-Za-z0-9._-]/g, "").slice(0, 32) : undefined,
         workspaceId: data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:     data.boardId != null ? String(data.boardId) : undefined,
