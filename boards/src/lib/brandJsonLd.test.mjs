@@ -17,7 +17,11 @@ const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 const CLUSTERS_ORG = 'https://clusters.soleilpictures.com/#organization';
 const STUDIO_ORG = 'https://soleilpictures.com/#organization';
 // Only the profiles the owner has confirmed. Adding one is a decision, not a fix.
-const CONFIRMED_SAMEAS = ['https://www.instagram.com/soleilclusters', 'https://x.com/soleilclusters'];
+const CONFIRMED_SAMEAS = [
+  'https://www.instagram.com/soleilclusters',
+  'https://x.com/soleilclusters',
+  'https://www.wikidata.org/wiki/Q141922414', // Soleil Clusters, posted by the owner 10-29
+];
 
 function jsonLdBlocks(file) {
   const html = readFileSync(here(file), 'utf8');
