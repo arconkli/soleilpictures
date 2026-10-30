@@ -179,7 +179,11 @@ export const CEILINGS = {
   // A clean npm ci build with CI's environment measured 692,901 B on
   // production e6108312 and 693,078 with the change (CI read 693.1, OVER, on
   // main b7ab128f).
-  appJs: 693_300,
+  // 2026-10-29 (production only): +0.2 KB for the passkey picks, App.jsx's lazy
+  // hook for the save-a-passkey offer. A local build with CI's environment
+  // measured 693,360 B on production f3a66607 + 1821d772 + e329670a. Main
+  // carries its own, higher ceiling for the grid refinements.
+  appJs: 693_500,
   appCss: 21_000,
 };
 
