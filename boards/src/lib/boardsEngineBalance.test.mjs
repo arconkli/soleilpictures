@@ -39,7 +39,7 @@ test('a balanced recipe has no section problems', () => {
 test('four notes stacked in one section are refused, and so is a wall of text', () => {
   const r = sample();
   r.sections[2].items.push(note('Pip', 'The kid. Hand-me-downs.'));
-  assert.match(sectionProblems(r).join('\n'), /"Characters" holds 4 notes; at most 3/);
+  assert.match(sectionProblems(r).join('\n'), /"Characters" holds 4 notes, checklists and docs; at most 3/);
   const t = sample();
   t.sections[2].items[0].body = 'x'.repeat(RULES.sectionText);
   assert.match(sectionProblems(t).join('\n'), /"Characters" holds \d+ characters of notes; at most 1200/);
@@ -58,7 +58,7 @@ test('the prompt asks for modern colour stock photos and even columns', () => {
   const p = recipePrompt({ brief: 'A costume board.' });
   assert.match(p, /modern colour photograph/);
   assert.match(p, /never\s+archival, sepia or black-and-white/);
-  assert.match(p, /one column on the board/);
+  assert.match(p, /one column or block on the board/);
 });
 
 test('a section left with one card after missing photos is refused', () => {

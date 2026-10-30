@@ -36,6 +36,11 @@ export function missingPhotos(recipe, missing = []) {
 }
 
 const isPicture = (c) => c.kind === 'image' || c.kind === 'video';
+// A photo grid's pictures are its image cells; a table is a grid of text alone.
+const gridPhotos = (c) => (c.kind === 'grid' ? Object.values(c.gridCells || {}).filter((x) => x?.type === 'image') : []);
+const isTable = (c) => c.kind === 'grid' && !gridPhotos(c).length;
+// Every photo a card shows, by its found-photo key: a picture's own, or a grid's cells'.
+const photoKeys = (c) => (isPicture(c) ? [c.photo] : gridPhotos(c).map((x) => x.photo));
 
 function luminance(hex) {
   const m = String(hex || '').match(/^#([0-9a-f]{6})$/i);
@@ -60,10 +65,12 @@ const overlap = (a, b) => a.x < b.x + b.w - 1 && b.x < a.x + a.w - 1 && a.y < b.
  */
 export function checkBoard({ cards = [], groups = [] } = {}, photos = []) {
   const p = [];
-  const pics = cards.filter(isPicture);
-  const notes = cards.filter((c) => c.kind === 'note' || c.kind === 'doc'); // a script is writing too
-  if (pics.length < CHECK.pictures) p.push(`only ${pics.length} pictures (at least ${CHECK.pictures})`);
-  if (notes.length < CHECK.notes) p.push(`only ${notes.length} notes (at least ${CHECK.notes})`);
+  const pictures = cards.reduce((n, c) => n + (isPicture(c) ? 1 : gridPhotos(c).length), 0);
+  const notes = cards.filter((c) => c.kind === 'note');
+  // Writing: notes, docs and scripts, and tables.
+  const writing = cards.filter((c) => c.kind === 'note' || c.kind === 'doc' || isTable(c));
+  if (pictures < CHECK.pictures) p.push(`only ${pictures} pictures (at least ${CHECK.pictures})`);
+  if (writing.length < CHECK.notes) p.push(`only ${writing.length} notes, docs and tables (at least ${CHECK.notes})`);
   if (!cards.some((c) => c.kind === 'palette')) p.push('no palette');
   if (cards.length < CHECK.cards[0] || cards.length > CHECK.cards[1]) p.push(`${cards.length} cards (${CHECK.cards[0]}–${CHECK.cards[1]})`);
 
@@ -100,8 +107,8 @@ export function checkBoard({ cards = [], groups = [] } = {}, photos = []) {
 
   const byKey = new Map(photos.map((ph) => [ph.key, ph]));
   const shas = new Set();
-  for (const c of pics) {
-    const ph = byKey.get(c.photo);
+  for (const key of cards.flatMap(photoKeys)) {
+    const ph = byKey.get(key);
     if (!ph) { p.push('a picture has no checked photo behind it'); continue; }
     if (ph.verdict !== 'real') p.push(`a photo wasn't proven real (${ph.verdict})`);
     if (!ph.licence) p.push('a photo has no licence recorded');
@@ -134,6 +141,8 @@ export function gradePrompt(file, recipe) {
     '3: fine but forgettable, or one thing that would embarrass us (a photo that doesn\'t fit, a cheesy stock look,',
     '   a note that sounds like marketing, a section that makes no sense).',
     '2 or 1: wrong subject, clashing photos, broken layout, text you can\'t read, or anything that looks AI-made.',
+    'The board\'s ground colour, its font, its photo grids, tables, checklists, docs, links and arrows are the app\'s own',
+    'tools, chosen on purpose: judge how well they are used, not whether they are there.',
     '',
     'Be strict: most boards are a 3. summary: one sentence. fixes: up to 5 concrete changes that would raise it, each',
     'naming the card or section ("swap the beach photo in Locations for one at dusk"; "cut the second palette").',
