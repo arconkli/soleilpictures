@@ -209,7 +209,14 @@ export const CEILINGS = {
   // join page and its tip only on /share. A CI-style build read appJs 699.1 KB
   // and appCss 21.5 KB on main bc946d4f (appJs already OVER there by 1.6 KB,
   // not raised here), and 702.5 KB and 21.8 KB with it.
-  appJs: 701_000,
+  // 2026-11-01: +0.3 KB of JS: a new share link starts as Can edit, and the
+  // share ask's Copy link hands out the same link the Share panel would (its
+  // rule loads lazily with the panel's chunk). CI-style build: 702.5 KB on
+  // main 4fc326be, 702.8 KB with it. The 1.6 KB bc946d4f added (the video
+  // play mark and shared autoplay time) was never raised for, so main's CI
+  // has failed this check since; this ceiling takes it in too, with 0.1 KB
+  // spare.
+  appJs: 702_900,
   appCss: 21_900,
 };
 

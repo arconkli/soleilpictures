@@ -25,9 +25,14 @@ three answers:
 
 | Setting | What the link does | Account needed |
 |---|---|---|
-| **Can view** | Anyone with the link opens the cluster read-only, and can join it to keep it in their Clusters | No (only to join) |
 | **Can edit** | Recipient confirms, signs in, and joins as an editor | Yes |
+| **Can view** | Anyone with the link opens the cluster read-only, and can join it to keep it in their Clusters | No (only to join) |
 | **No link** | Revokes every link on the cluster that you can revoke | — |
+
+A cluster with no link yet starts on **Can edit**, so the people you send it
+to can join in. If the cluster already has a view link out, the row starts on
+**Can view** and **Copy link** hands out that same link. The **Copy link** on
+the "send it to someone?" message follows the same rule.
 
 Choosing a setting that already has a link copies it straight away. **Copy
 link**, right under it, copies it again any time, and makes the link the first

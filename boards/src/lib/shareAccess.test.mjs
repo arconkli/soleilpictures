@@ -38,19 +38,19 @@ assert(activeLinks([view({ expires_at: 'not a date' })], NOW).length === 0,
   'an unparseable expiry is treated as expired, never as never-expires');
 
 // --- deriveAccessMode -------------------------------------------------------
-assert(deriveAccessMode([], { selfUserId: ME, now: NOW }) === 'view',
-  'nothing live opens on view — the mode whose button produces a link');
+assert(deriveAccessMode([], { selfUserId: ME, now: NOW }) === 'edit',
+  'nothing live opens on edit (the owner\'s pick, 2026-11-01), never on off');
 assert(deriveAccessMode([view()], { selfUserId: ME, now: NOW }) === 'view', 'a live view link → view');
 assert(deriveAccessMode([invite()], { selfUserId: ME, now: NOW }) === 'edit', 'my live invite link → edit');
 assert(deriveAccessMode([view(), invite()], { selfUserId: ME, now: NOW }) === 'edit',
   'both live → edit, the stronger grant, with the view link named as also live');
 assert(deriveAccessMode([view({ revoked_at: inDays(-1) }), invite({ expires_at: inDays(-2) })],
-  { selfUserId: ME, now: NOW }) === 'view',
-  'dead rows of both kinds fall back to view, not to a mode nothing backs');
+  { selfUserId: ME, now: NOW }) === 'edit',
+  'dead rows of both kinds count as nothing live: the default, edit');
 
 // Somebody else's invite link on a board shared with me must not decide my mode.
-assert(deriveAccessMode([invite({ created_by: THEM })], { selfUserId: ME, now: NOW }) === 'view',
-  "another user's invite link never selects edit for me");
+assert(deriveAccessMode([view(), invite({ created_by: THEM })], { selfUserId: ME, now: NOW }) === 'view',
+  "another user's invite link never selects edit for me over a live view link");
 
 // --- linkForMode ------------------------------------------------------------
 const scoped = [view({ token: 'wide', include_subboards: true }),
@@ -86,7 +86,7 @@ assert(deriveAccessMode([{ token: 'x', created_by: ME }], { selfUserId: ME, now:
 // --- junk never throws into a render path ----------------------------------
 for (const bad of [null, undefined, 'rows', 42, {}]) {
   assert(activeLinks(bad).length === 0, `junk rows are empty: ${JSON.stringify(bad)}`);
-  assert(deriveAccessMode(bad, null) === 'view', `junk rows still derive a usable mode: ${JSON.stringify(bad)}`);
+  assert(deriveAccessMode(bad, null) === 'edit', `junk rows still derive a usable mode: ${JSON.stringify(bad)}`);
   assert(linkForMode(bad, 'view', null) === null, `junk rows hand out nothing: ${JSON.stringify(bad)}`);
   assert(otherModeLinks(bad, 'view', null).length === 0, `junk rows report no others: ${JSON.stringify(bad)}`);
 }
@@ -94,8 +94,8 @@ assert(activeLinks([null, undefined, view()], NOW).length === 1, 'holes in the a
 
 // --- the picker's contract --------------------------------------------------
 assert(ACCESS_MODES.length === 3, 'the picker offers exactly three states');
-assert(ACCESS_MODES[0] === 'view', 'view leads — 29 of the first 32 links ever made were view links');
-assert(ACCESS_MODES.includes('edit') && ACCESS_MODES.includes('off'), 'edit and off are the other two');
+assert(ACCESS_MODES[0] === 'edit', 'edit leads (the owner\'s pick, 2026-11-01)');
+assert(ACCESS_MODES.includes('view') && ACCESS_MODES.includes('off'), 'view and off are the other two');
 
 // --- revocableLinks (SHARE-7) ---------------------------------------------
 // revoke_public_link refuses a non-manager on a link they did not create, so

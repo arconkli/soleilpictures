@@ -225,7 +225,7 @@ export function ShareModal({
   // account) · 'edit' (signs in, joins as editor) · 'off' (nothing live).
   // Derived from what is actually true the first time the links land, so the
   // panel opens describing the board rather than proposing something.
-  const [accessMode, setAccessMode] = useState('view');
+  const [accessMode, setAccessMode] = useState('edit');
   const derivedFor = useRef(null);
   const [linkSettingsOpen, setLinkSettingsOpen] = useState(false);
   // Opening the panel lands you ON the footer's Copy link rather than on the
@@ -412,6 +412,12 @@ export function ShareModal({
   // What a copy says. A view link lets people join as viewers, and the toast
   // says so; an invite (edit) link keeps its own wording at its call sites.
   const VIEW_COPIED = 'Link copied. Anyone with it can view and join.';
+  // An edit link: they sign in and join as editors, or as viewers while the
+  // plan has no editor places left (0521).
+  // A function: planWord is declared further down this component.
+  const editCopied = () => (editFull
+    ? `Link copied. While ${planWord} is full, anyone with it joins as a viewer.`
+    : 'Link copied. Anyone with it can join and edit.');
 
   // ── Link access ────────────────────────────────────────────────────────
 
@@ -473,11 +479,7 @@ export function ShareModal({
       // point there instead of pretending it copied.
       feedback.toast(copied
         ? { type: 'success',
-            message: kind === 'invite'
-              ? (editFull
-                  ? `Invite link copied — while ${planWord} is full, anyone with it joins as a viewer.`
-                  : 'Invite link copied — anyone with it can join as an editor.')
-              : VIEW_COPIED }
+            message: kind === 'invite' ? editCopied() : VIEW_COPIED }
         : { type: 'warning', message: 'Link ready — copying failed, use Copy under Link settings.', ttl: 7000 });
       await refreshLinks();
     } catch (e) {
@@ -553,7 +555,7 @@ export function ShareModal({
     if (existing) {
       const c = await copyLinkUrl(existing.token, next === 'edit' ? 'invite' : 'view');
       feedback.toast(c
-        ? { type: 'success', message: next === 'edit' ? 'Link copied.' : VIEW_COPIED }
+        ? { type: 'success', message: next === 'edit' ? editCopied() : VIEW_COPIED }
         : { type: 'info', message: `${window.location.origin}/share/${existing.token}`, ttl: 8000 });
     }
   };
@@ -1330,8 +1332,8 @@ export function ShareModal({
                           aria-label="Who can open this cluster with a link"
                           value={accessMode}
                           onChange={(e) => onPickAccess(e.target.value)}>
-                    <option value="view">Can view</option>
                     <option value="edit">Can edit</option>
+                    <option value="view">Can view</option>
                     <option value="off">No link</option>
                   </select>
                 ),
