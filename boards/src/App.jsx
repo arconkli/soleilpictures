@@ -193,7 +193,7 @@ import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js'
 import { passkeyOfferDue, PASSKEY_OFFER_KEY } from './lib/passkeyGate.js';
 import { trackRegistration } from './lib/metaPixel.js';
 import { holdReload } from './lib/buildWatch.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, syncCardIndex, getProfilesByIds } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listPublicLinks, createCollabLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, syncCardIndex, getProfilesByIds } from './lib/boardsApi.js';
 import { rewardToastMessage } from './lib/inviteReward.js';
 import { undoToast } from './lib/undoToast.js';
 import { failMove } from './lib/moveFailure.js';
@@ -9041,8 +9041,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, yb.cards, yb.ready, currentId, tourActive, canEditCurrent, view, mobileShell, showCoachmark, myTier.loading, myTier.onboarding, currentBoardPerm.source]);
 
-  // Mint-or-reuse a view-only link for the current board and copy it instantly.
-  // Defaults to include-subboards ON so a shared cluster shows depth (server
+  // Mint-or-reuse a link for the current board and copy it instantly. Which
+  // kind is the Share panel's own answer (deriveAccessMode): your live edit
+  // link, else the board's live view link, else a new edit link, so the toast
+  // and the panel always hand out the same link (Can edit first: the owner's
+  // pick, 2026-11-01). A view link defaults to include-subboards ON so a shared cluster shows depth (server
   // still enforces the subtree) and so this and the panel converge on ONE link
   // rather than two of different scope. Eagerly refreshes the OG thumbnail so
   // the pasted link unfurls with a real preview, not the generic logo.
@@ -9062,7 +9065,25 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (quickShareBusy) return;
     setQuickShareBusy(true);
     try {
-      const { token } = await ensurePublicLink({ boardId: currentBoard.id, includeSubboards: true });
+      const rows = await listPublicLinks(currentBoard.id);
+      // Lazy: the Share panel's own chunk already carries it, and the app's doesn't need to.
+      const { deriveAccessMode, linkForMode } = await import('./lib/shareAccess.js');
+      const kind = deriveAccessMode(rows, { selfUserId: user.id }) === 'edit' ? 'invite' : 'view';
+      let token;
+      if (kind === 'invite') {
+        const reused = !!linkForMode(rows, 'edit', { selfUserId: user.id });
+        // Reuses your own live edit link server-side; 30 days, the panel's default.
+        token = await createCollabLink({
+          boardId: currentBoard.id, role: 'editor', expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+        });
+        if (!reused) {
+          try {
+            logEventNow(EV.INVITE_LINK_CREATED, { role: 'editor', expiry: '30d', board_id: currentBoard.id, surface: 'topbar' });
+          } catch (_) {}
+        }
+      } else {
+        ({ token } = await ensurePublicLink({ boardId: currentBoard.id, includeSubboards: true }));
+      }
       const url = `${window.location.origin}/share/${token}`;
       let copied = false;
       try { await navigator.clipboard.writeText(url); copied = true; } catch (_) {}
@@ -9085,11 +9106,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // SHARE_LINK_COPIED is the event ShareModal already emits for the same
       // act, so the two surfaces are now directly comparable.
       try {
-        logEventNow(EV.SHARE_LINK_COPIED, { kind: 'view', surface: 'topbar', board_id: currentBoard.id });
+        logEventNow(EV.SHARE_LINK_COPIED, { kind, surface: 'topbar', board_id: currentBoard.id });
       } catch (_) {}
       setSharedBoardIds((prev) => (prev.has(currentBoard.id) ? prev : new Set(prev).add(currentBoard.id)));
       feedback.toast(copied
-        ? { type: 'success', message: 'Link copied. Anyone with it can view and join.',
+        ? { type: 'success',
+            message: kind === 'invite' ? 'Link copied. Anyone with it can join and edit.' : 'Link copied. Anyone with it can view and join.',
             action: { label: 'Manage access', onClick: () => setShareOpen(true) }, ttl: 9000 }
         : { type: 'info', message: url, ttl: 9000 });
     } catch (e) {

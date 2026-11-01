@@ -62,8 +62,10 @@ test('an editor lands on Copy link, the one gold control, at the top of a panel 
   await expect(block.locator('.share-section-title')).toHaveText('Share a link');
   const linkRow = block.locator('.share-row-link');
   await expect(linkRow).toContainText('Anyone with the link');
-  await expect(linkRow).toContainText('Can view and join · no link yet');
-  await expect(linkRow.locator('select')).toHaveValue('view');
+  // Can edit leads when no link exists yet (the owner's pick, 2026-11-01).
+  await expect(linkRow).toContainText('They sign in, then join as editors · no link yet');
+  await expect(linkRow.locator('select')).toHaveValue('edit');
+  await expect(linkRow.locator('select option').first()).toHaveText('Can edit');
   const rowBox = await linkRow.boundingBox();
   const copyBox = await copy.boundingBox();
   const invite = await panel.locator('.share-invite').boundingBox();

@@ -31,7 +31,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFileSync(join(root, p), 'utf8');
 const app       = () => read('src/App.jsx');
 const modal     = () => read('src/components/ShareModal.jsx');
-const authGate  = () => read('src/auth/AuthGate.jsx');
+const joinClaim = () => read('src/lib/pendingJoinClaim.js');
 const events    = () => read('src/lib/analyticsEvents.js');
 
 test.describe('one Share control, and Share opens sharing', () => {
@@ -84,7 +84,7 @@ test.describe('one Share control, and Share opens sharing', () => {
   test('the copy is still distinguishable from the dialog open', () => {
     const s = app();
     // The ask's copy emits the same event ShareModal uses for the same act…
-    expect(s).toMatch(/SHARE_LINK_COPIED, \{ kind: 'view', surface: 'topbar'/);
+    expect(s).toMatch(/SHARE_LINK_COPIED, \{ kind, surface: 'topbar'/);
     // …and no longer masquerades as a dialog open.
     expect(s).not.toMatch(/SHARE_OPEN, \{ board_id: currentBoard\.id, quick: true \}/);
     // The catalog warns that historic rows are mixed, so a future reader splits them.
@@ -97,7 +97,10 @@ test.describe('one Share control, and Share opens sharing', () => {
     // a board already shared. It never labelled anything and must not start.
     expect(s).toMatch(/alreadyShared: sharedBoardIds\.has\(boardId\)/);
     expect(s).not.toMatch(/\? 'Copy link' : 'Share'/);
-    expect(s).not.toMatch(/listPublicLinks\(/);
+    // The ask's Copy link reads the links on the press (to hand out the same
+    // link the panel would), and that is the only read.
+    expect(s.match(/listPublicLinks\(/g) || []).toHaveLength(1);
+    expect(s).toMatch(/const quickCopyShareLink = [\s\S]{0,400}await listPublicLinks\(currentBoard\.id\)/);
   });
 });
 
@@ -166,9 +169,11 @@ test.describe('the ask to show the work', () => {
 test.describe('collaboration is measurable without archaeology', () => {
   test('every grant mechanism records HOW access was created', () => {
     expect(modal()).toMatch(/ACCESS_GRANTED[\s\S]{0,200}how: isWorkspaceInvite \? 'workspace' : 'email'/);
-    expect(authGate()).toMatch(/ACCESS_GRANTED[\s\S]{0,120}how: 'invite_link'/);
+    // A link claim moved out of AuthGate into its lazy chunk (0830), and a
+    // view link's join is told apart from an invite link's.
+    expect(joinClaim()).toMatch(/ACCESS_GRANTED[\s\S]{0,120}how: kind === 'view' \? 'view_link' : 'invite_link'/);
     // Only branches that actually granted something count.
-    expect(authGate()).toMatch(/status === 'joined' \|\| row\?\.status === 'upgraded'/);
+    expect(joinClaim()).toMatch(/row\?\.status === 'joined' \|\| row\?\.status === 'upgraded'/);
   });
 
   test('co-creation is recorded as it happens, not derived from card actors', () => {

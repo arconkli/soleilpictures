@@ -15,9 +15,11 @@
 //
 // Pure and dependency-free — see the sibling .test.mjs.
 
-// The three states the picker offers. 'view' leads because that is the measured
-// demand: 29 of the first 32 links ever made on this product were view links.
-export const ACCESS_MODES = ['view', 'edit', 'off'];
+// The three states the picker offers. 'edit' leads (the owner's pick,
+// 2026-11-01): a view link was the default and most copied links were view
+// links, so most people who were sent a cluster could look but never take
+// part. A link nobody has made yet now starts as one that lets people edit.
+export const ACCESS_MODES = ['edit', 'view', 'off'];
 
 // Row kinds as stored by list_public_links. Rows written before 0189 predate
 // the column, so an absent kind means 'view' everywhere it is read.
@@ -71,16 +73,18 @@ export function linkForMode(rows, mode, opts) {
 //
 // 'edit' outranks 'view' when both are live because it is the stronger grant —
 // the status line then names the view link as also live, so nothing is hidden.
-// Nothing-live resolves to 'view' rather than 'off': 'off' is the accurate
-// description of an unshared board, but it makes the panel open on the one
-// state whose Copy button does nothing, for a control whose entire purpose is
-// producing a link.
+// A live view link (and no edit link of yours) keeps the panel on 'view': that
+// link is already out in people's messages, and Copy should hand out the same
+// one. Nothing live resolves to 'edit' (the owner's pick, 2026-11-01; it was
+// 'view'), never 'off': 'off' is the accurate description of an unshared
+// board, but it makes the panel open on the one state whose Copy button does
+// nothing, for a control whose entire purpose is producing a link.
 export function deriveAccessMode(rows, opts) {
   const { selfUserId = null, now = Date.now() } = opts || {};
   const live = activeLinks(rows, now);
   if (live.some((l) => linkKind(l) === 'invite' && l.created_by === selfUserId)) return 'edit';
   if (live.some((l) => linkKind(l) === 'view')) return 'view';
-  return 'view';
+  return 'edit';
 }
 
 // Live links the chosen mode does NOT hand out — a stale-scope view link, an

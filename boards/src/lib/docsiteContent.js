@@ -34674,32 +34674,6 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Can view",
-       "children": [
-        {
-         "t": "text",
-         "v": "Can view"
-        }
-       ]
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "Anyone with the link opens the cluster read-only, and can join it to keep it in their Clusters"
-      }
-     ],
-     [
-      {
-       "t": "text",
-       "v": "No (only to join)"
-      }
-     ]
-    ],
-    [
-     [
-      {
-       "t": "strong",
        "v": "Can edit",
        "children": [
         {
@@ -34719,6 +34693,32 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "Yes"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Can view",
+       "children": [
+        {
+         "t": "text",
+         "v": "Can view"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Anyone with the link opens the cluster read-only, and can join it to keep it in their Clusters"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "No (only to join)"
       }
      ]
     ],
@@ -34748,6 +34748,71 @@ export const DOCS_CONTENT = {
       }
      ]
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A cluster with no link yet starts on "
+    },
+    {
+     "t": "strong",
+     "v": "Can edit",
+     "children": [
+      {
+       "t": "text",
+       "v": "Can edit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", so the people you send it to can join in. If the cluster already has a view link out, the row starts on "
+    },
+    {
+     "t": "strong",
+     "v": "Can view",
+     "children": [
+      {
+       "t": "text",
+       "v": "Can view"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Copy link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " hands out that same link. The "
+    },
+    {
+     "t": "strong",
+     "v": "Copy link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on the \"send it to someone?\" message follows the same rule."
+    }
    ]
   },
   {
