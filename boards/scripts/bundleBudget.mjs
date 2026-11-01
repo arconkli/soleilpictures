@@ -220,7 +220,13 @@ export const CEILINGS = {
   // play mark and shared autoplay time) was never raised for, so main's CI
   // has failed this check since; this ceiling takes it in too, with 0.1 KB
   // spare.
-  appJs: 702_900,
+  // 2026-11-01: +0.4 KB of JS for a video's start point (3631b029): Start
+  // here, Start at… and Clear start point in the canvas's right-click menu,
+  // and the offset videoSync applies to the shared autoplay time. It landed
+  // without a raise, so main's CI read appJs 703.2 KB, OVER, on 3631b029; a
+  // CI-style build measured 703,184 B there and on the production release
+  // that carries it.
+  appJs: 703_300,
   appCss: 21_900,
 };
 
