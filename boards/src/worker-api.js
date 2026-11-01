@@ -109,8 +109,9 @@ import {
 } from './lib/layoutEngine.js';
 import {
   normalizeImportItems, cardSpecFor, kindForContentType, noteFor, mapWithConcurrency,
-  IMPORT_CONCURRENCY, IMPORT_TIMEOUT_MS, SOURCE_SCOPE, provenanceProps,
+  IMPORT_CONCURRENCY, IMPORT_TIMEOUT_MS, SOURCE_SCOPE, sourceIdentifierValue, provenanceProps,
 } from './lib/importManifest.js';
+import { pageExcerpt } from './lib/pageExcerpt.js';
 
 // Raised from 100 once a positioned batch stopped costing O(the whole board):
 // the write is now one card_index insert and one small Yjs update, so the batch
@@ -2375,7 +2376,9 @@ async function dispatch(url, request, env, ctx) {
   // answer this question.
   if (head === 'resolve' && method === 'GET') {
     const scope = (url.searchParams.get('scope') || '').trim().toLowerCase();
-    const value = (url.searchParams.get('value') || '').trim();
+    const asked = (url.searchParams.get('value') || '').trim();
+    // An import stamps a source address too long to store as its digest.
+    const value = scope === SOURCE_SCOPE ? await sourceIdentifierValue(asked) : asked;
     const type = url.searchParams.get('type');
     const ws = url.searchParams.get('workspace');
     if (!scope || !value) throw fail(400, 'bad_request', 'scope and value are required');
@@ -2441,7 +2444,7 @@ async function dispatch(url, request, env, ctx) {
     const wantBoards = kind !== 'card';
     const wantCards = kind !== 'board';
 
-    const [boardRows, cardRows, pictureRows] = await Promise.all([
+    const [boardRows, cardRows, pictureRows, pageRows] = await Promise.all([
       wantBoards
         ? userSelect(env, token, 'boards',
           `name=ilike.${encodeURIComponent(value)}&deleted_at=is.null${wsFilter}`
@@ -2462,6 +2465,16 @@ async function dispatch(url, request, env, ctx) {
           // Words still find words when pictures can't be searched.
           .catch(() => [])
         : Promise.resolve([]),
+      // The words inside a doc's pages: a doc card's own text is only its
+      // title, so without this a treatment written with write_doc was found
+      // by its name and never by what it says.
+      wantCards
+        ? userSelect(env, token, 'doc_page_index',
+          `or=${encodeURIComponent(`(page_title.ilike.${value},page_text.ilike.${value})`)}${wsFilter}`
+          + `&select=doc_card_id,page_id,page_title,page_text,workspace_id,updated_at`
+          + `&order=updated_at.desc&limit=${limit + 1}&offset=${offset}`)
+          .catch(() => [])
+        : Promise.resolve([]),
     ]);
 
     const boards = paginate(boardRows, limit, offset);
@@ -2470,10 +2483,21 @@ async function dispatch(url, request, env, ctx) {
     const asCard = new Set(cards.items.map((r) => `${r.board_id}:${r.card_id}`));
     const pictures = paginate(pictureRows, limit, offset);
     pictures.items = pictures.items.filter((r) => !asCard.has(`${r.board_id}:${r.card_id}`));
+    // A page names its doc card, not its board: the doc's card_index row says
+    // which board and what the doc is called. A page whose doc can't be read
+    // (or is gone) is left out.
+    const pages = paginate(pageRows, limit, offset);
+    const docIds = [...new Set(pages.items.map((r) => r.doc_card_id))];
+    const docs = new Map(docIds.length
+      ? (await userSelect(env, token, 'card_index',
+        `card_id=in.${encodeURIComponent(pgInList(docIds))}&kind=eq.doc&select=board_id,card_id,title`)
+        .catch(() => []) || []).map((d) => [d.card_id, d])
+      : []);
+    pages.items = pages.items.filter((r) => docs.has(r.doc_card_id));
     // The board each card is on, by name, so a hit says where it is without a
     // second call. One select for the page; a board that can't be read leaves
     // the name null rather than failing the search.
-    const onIds = [...new Set([...cards.items, ...pictures.items].map((r) => r.board_id))];
+    const onIds = [...new Set([...cards.items, ...pictures.items, ...[...docs.values()]].map((r) => r.board_id))];
     const boardNames = new Map(onIds.length
       ? (await userSelect(env, token, 'boards',
         `id=in.${encodeURIComponent(pgInList(onIds))}&select=id,name`).catch(() => []) || [])
@@ -2513,6 +2537,24 @@ async function dispatch(url, request, env, ctx) {
           updated_at: r.updated_at,
           url: cardUrl(url.origin, r.board_id, r.card_id),
         })),
+      },
+      pages: {
+        ...pages,
+        items: pages.items.map((r) => {
+          const doc = docs.get(r.doc_card_id);
+          return {
+            board_id: doc.board_id,
+            board_name: boardNames.get(doc.board_id) ?? null,
+            card_id: r.doc_card_id,
+            doc_title: doc.title ?? null,
+            page_id: r.page_id,
+            page_title: r.page_title || null,
+            excerpt: pageExcerpt(r.page_text, q),
+            workspace_id: r.workspace_id,
+            updated_at: r.updated_at,
+            url: cardUrl(url.origin, doc.board_id, r.doc_card_id),
+          };
+        }),
       },
     });
   }
@@ -3518,6 +3560,7 @@ async function dispatch(url, request, env, ctx) {
     // Throws on a manifest that is structurally wrong — including one internal
     // address — before a single byte is fetched.
     const items = normalizeImportItems(body.items);
+    for (const it of items) it.sourceValue = await sourceIdentifierValue(it.url);
 
     // A dry run answers "would this manifest work" without fetching anything,
     // which is what you want before pointing a hundred-item import at a board.

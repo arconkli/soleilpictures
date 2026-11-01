@@ -295,9 +295,22 @@ function searchResults(data) {
       card_id: p.card_id,
       url: p.url || '',
     })),
+    // Found in a doc's pages: the id fetch reads is that one page.
+    ...(data?.pages?.items || []).map((p) => ({
+      id: `doc:${p.board_id}:${p.card_id}:${p.page_id}`,
+      kind: 'card',
+      card_kind: 'doc',
+      title: [p.doc_title || 'Doc', p.page_title].filter(Boolean).join(' › '),
+      ...(p.excerpt ? { excerpt: clip(p.excerpt, 200) } : {}),
+      board_id: p.board_id,
+      ...(p.board_name ? { board_name: p.board_name } : {}),
+      card_id: p.card_id,
+      url: p.url || '',
+    })),
   ];
   const { limit = 0, offset = 0 } = data?.boards || data?.cards || {};
-  const hasMore = !!(data?.boards?.has_more || data?.cards?.has_more || data?.pictures?.has_more);
+  const hasMore = !!(data?.boards?.has_more || data?.cards?.has_more || data?.pictures?.has_more
+    || data?.pages?.has_more);
   return { query: data?.query ?? '', results, has_more: hasMore, next_offset: hasMore ? offset + limit : null };
 }
 
@@ -575,7 +588,7 @@ export const TOOLS = [
   {
     name: 'search',
     title: 'Search boards and cards',
-    description: 'Finds boards and cards by their words (a board\'s name, a card\'s title or text) across every '
+    description: 'Finds boards and cards by their words (a board\'s name, a card\'s title or text, a doc\'s pages) across every '
       + 'board this account can open. Use it to find the board about something rather than listing boards and '
       + 'reading each. It matches the words as written, part of a word included, not their meaning: try another '
       + 'word when nothing comes back. A picture is found by what is in it too ("red car", "night exterior"). '

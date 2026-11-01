@@ -4054,10 +4054,10 @@ export const DOCS_PAGES = [
     "title": "Search API — Soleil Clusters",
     "metaDescription": "Search Soleil Clusters boards and cards by text over REST. Query parameters, kind and workspace filters, pagination and result shape.",
     "h1": "Search API",
-    "answer": "GET /search finds boards and cards by text across everything your account can see, and pictures by what is in them. Pass q with at least two characters, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.",
+    "answer": "GET /search finds boards and cards by text across everything your account can see, the words inside docs, and pictures by what is in them. Pass q with at least two characters, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.",
     "section": "developers",
     "order": 9,
-    "updated": "2026-10-28",
+    "updated": "2026-11-01",
     "navLabel": "Search",
     "headings": [
       {
@@ -4073,6 +4073,10 @@ export const DOCS_PAGES = [
         "text": "Pictures, by what is in them"
       },
       {
+        "id": "inside-docs",
+        "text": "Inside docs"
+      },
+      {
         "id": "notes-for-agents",
         "text": "Notes for agents"
       }
@@ -4085,7 +4089,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "What does search look at?",
-        "a": "Board names, card titles and text, and what is in a picture, once a picture you brought in has been described. It is the programmatic equivalent of the Cmd-K palette in the app."
+        "a": "Board names, card titles and text, the pages of docs, and what is in a picture, once a picture you brought in has been described. It is the programmatic equivalent of the Cmd-K palette in the app."
       },
       {
         "q": "Why does a one-character query fail?",

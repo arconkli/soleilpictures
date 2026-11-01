@@ -1249,6 +1249,30 @@ test('search finds a picture by what is in it, once, through the view held to pi
   assert.deepEqual(boardsOnly.body.pictures.items, []);
 });
 
+test('search finds the words inside a doc\'s pages and says which doc, page and board', async () => {
+  putBoard(B1, [], { name: 'Neon Rain' });
+  on('GET', 'card_index', (c) => reply(c.query.get('kind') === 'eq.doc'
+    ? [{ board_id: B1, card_id: 'd1', title: 'Treatment' }]
+    : []));
+  on('GET', 'doc_page_index', () => reply([
+    { doc_card_id: 'd1', page_id: 'p1', page_title: 'Logline', page_text: `${'x '.repeat(200)}a reel of film in his back seat ${'y '.repeat(200)}`, workspace_id: 'w1', updated_at: 't' },
+    { doc_card_id: 'gone', page_id: 'p9', page_title: 'Orphan', page_text: 'a reel of film', workspace_id: 'w1', updated_at: 't' },
+  ]));
+  const r = await api('GET', '/search?q=reel%20of%20film&kind=card');
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const [page, ...rest] = r.body.pages.items;
+  assert.equal(rest.length, 0, 'a page whose doc cannot be read is left out');
+  assert.deepEqual([page.board_id, page.board_name, page.card_id, page.doc_title, page.page_id, page.page_title],
+    [B1, 'Neon Rain', 'd1', 'Treatment', 'p1', 'Logline']);
+  assert.match(page.excerpt, /^….*a reel of film in his back seat.*…$/);
+  assert.ok(page.excerpt.length <= 302);
+  assert.equal(page.url, `https://clusters.test/?to=c:${B1}:d1`);
+  const asked = calls.find((c) => c.path === 'doc_page_index');
+  assert.equal(asked.query.get('or'), '(page_title.ilike."%reel of film%",page_text.ilike."%reel of film%")');
+  const boardsOnly = await api('GET', '/search?q=reel%20of%20film&kind=board');
+  assert.deepEqual(boardsOnly.body.pages.items, []);
+});
+
 test('search still finds words when pictures cannot be searched', async () => {
   on('GET', 'card_index', () => reply([
     { board_id: B1, card_id: 'c1', kind: 'note', title: 'Neon', body: null, workspace_id: 'w1', updated_at: 't' },

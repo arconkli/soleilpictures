@@ -882,6 +882,23 @@ test('search returns a picture found by what is in it, with what the model saw',
   assert.deepEqual([out.has_more, out.next_offset], [true, 20]);
 });
 
+test('search returns a doc page found by its words, as an id fetch reads', async () => {
+  const api = async () => ({
+    query: 'reel of film',
+    boards: { items: [], limit: 20, offset: 0, has_more: false },
+    cards: { items: [], limit: 20, offset: 0, has_more: false },
+    pages: {
+      items: [{ board_id: BOARD_ID, board_name: 'Neon Rain', card_id: 'd-1', doc_title: 'Treatment', page_id: 'p-1',
+        page_title: 'Logline', excerpt: 'A driver finds a reel of film', url: 'https://x/?to=c:d' }],
+      limit: 20, offset: 0, has_more: false,
+    },
+  });
+  const out = await tool('search').call({ query: 'reel of film' }, { api });
+  assert.deepEqual(out.results.map((r) => [r.id, r.card_kind, r.title, r.excerpt, r.board_name]),
+    [[`doc:${BOARD_ID}:d-1:p-1`, 'doc', 'Treatment › Logline', 'A driver finds a reel of film', 'Neon Rain']]);
+  assert.ok(parseFetchId(out.results[0].id));
+});
+
 test('list_boards reads one level, a whole hierarchy, or the deleted boards', async () => {
   const seen = [];
   const api = async (p) => { seen.push(p); return p === '/workspaces' ? { workspaces: [{ id: 'w-1' }] } : { boards: [] }; };
