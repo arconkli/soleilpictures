@@ -804,7 +804,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
 // `src` was stamped on the card (works for r2: and external https).
 function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdate, autoFocus = false, editTitleAt = 0, onDownload = null,
                      pending = false, uploadProgress = null, mediaJson = null, onExpand = null,
-                     cardId = null, selected = false, tapToPlay = false, playSrc = null, syncBoardId = null }) {
+                     cardId = null, selected = false, tapToPlay = false, playSrc = null, syncBoardId = null, syncStart = null }) {
   // The clip's own facts (lib/mediaProbe.js), as a string so memo can compare it.
   const media = useMemo(() => { try { return mediaJson ? JSON.parse(mediaJson) : null; } catch (_) { return null; } }, [mediaJson]);
   // Same fix as ImageCard: don't auto-open the title row on paste; it
@@ -883,7 +883,7 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
     let tick = null;
     const dur = () => (Number.isFinite(el.duration) && el.duration > 0 ? el.duration
       : Number.isFinite(mediaDur) && mediaDur > 0 ? mediaDur : NaN);
-    const target = () => syncTarget({ now: serverNow(), epoch: getBoardEpoch(syncBoardId), dur: dur(), loop });
+    const target = () => syncTarget({ now: serverNow(), epoch: getBoardEpoch(syncBoardId), dur: dur(), loop, start: Number(syncStart) || 0 });
     const play = () => {
       if (!el.paused) return;
       expectPlay = true;
@@ -966,7 +966,7 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
       if (synced) document.removeEventListener('visibilitychange', onVisibility);
       try { el.playbackRate = 1; el.pause(); } catch (_) {}
     };
-  }, [autoplay, resolvedUrl, loop, syncBoardId, mediaDur]);
+  }, [autoplay, resolvedUrl, loop, syncBoardId, mediaDur, syncStart]);
 
   // ── The film player, mounted when it's wanted ───────────────────────────
   // At rest a clip with a poster is just its poster — no <video>, no clock, no

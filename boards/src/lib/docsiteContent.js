@@ -18619,6 +18619,87 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "To line clips up against each other, give one a "
+    },
+    {
+     "t": "strong",
+     "v": "start point",
+     "children": [
+      {
+       "t": "text",
+       "v": "start point"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": the frame it shows when the board starts. Right-click an autoplaying clip and choose "
+    },
+    {
+     "t": "strong",
+     "v": "Start here",
+     "children": [
+      {
+       "t": "text",
+       "v": "Start here"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to use the frame on screen (pause on the exact frame first if you like), or "
+    },
+    {
+     "t": "strong",
+     "v": "Start at…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Start at…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to type a time such as "
+    },
+    {
+     "t": "code",
+     "v": "0:12"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "1:05.5"
+    },
+    {
+     "t": "text",
+     "v": ". A looping clip still plays the whole clip, just shifted; one that plays once begins at its start point. The start point is saved on the card, so everyone sees the same alignment, and "
+    },
+    {
+     "t": "strong",
+     "v": "Clear start point",
+     "children": [
+      {
+       "t": "text",
+       "v": "Clear start point"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " puts the clip back to its beginning."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 3,
    "text": "What Clusters knows about a clip",

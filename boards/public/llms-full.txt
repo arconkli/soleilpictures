@@ -1778,6 +1778,8 @@ A clip only plays while it is on screen. Scroll it out of view and it pauses. On
 
 Autoplaying clips keep the same time for everyone. Open a board nobody else is on and its autoplaying clips all start from the beginning, together. Anyone who opens it while you're there lands on the frame you're seeing, and the clips stay in step from then on, quietly catching up if one stalls to load. A clip that loops goes round; one that doesn't plays through once and stops on its last frame at the same moment for everyone. Pause one from its controls and it stays paused for you alone; press play and it rejoins everyone else.
 
+To line clips up against each other, give one a start point: the frame it shows when the board starts. Right-click an autoplaying clip and choose Start here to use the frame on screen (pause on the exact frame first if you like), or Start at… to type a time such as 0:12 or 1:05.5. A looping clip still plays the whole clip, just shifted; one that plays once begins at its start point. The start point is saved on the card, so everyone sees the same alignment, and Clear start point puts the clip back to its beginning.
+
 What Clusters knows about a clip
 
 Right-click a video and choose Info, or select it and press ⌘I. Clusters reads the file's own container — MP4, MOV and M4V — and reports what an editor would look for:

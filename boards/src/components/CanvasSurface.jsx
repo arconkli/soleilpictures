@@ -251,7 +251,7 @@ import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layou
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { isComposingKey } from '../lib/composerKeys.js';
-import { earliestEpoch, serverNow, setBoardEpoch, syncServerClock } from '../lib/videoSync.js';
+import { earliestEpoch, formatClipTime, parseClipTime, serverNow, setBoardEpoch, syncServerClock } from '../lib/videoSync.js';
 
 // The cluster glyph. Once the cluster nudges ship it is the folder a cluster
 // already wears in Files, list rows and the cluster browser (cards.jsx
@@ -9048,6 +9048,36 @@ export function CanvasSurface({
                      run: () => mutators.updateCard?.(c.id, { autoplay: c.autoplay ? null : true }) });
         items.push({ id: 'video-loop', label: c.loop ? 'Turn off looping' : 'Loop',
                      run: () => mutators.updateCard?.(c.id, { loop: c.loop ? null : true }) });
+        // Start points (lib/videoSync.js): the frame an autoplay clip shows when
+        // the board starts, so clips can be lined up against each other. Stored
+        // on the card, so everyone on the board sees the same alignment.
+        if (c.autoplay && c.src) {
+          const cur = Number(c.syncStart) > 0 ? Number(c.syncStart) : 0;
+          let vid = null;
+          try { vid = document.querySelector(`[data-card-id="${CSS.escape(c.id)}"] video.vc-video`); } catch (_) {}
+          const here = vid && Number.isFinite(vid.currentTime) ? vid.currentTime : null;   // the frame showing as the menu opens
+          const setStart = (s) => mutators.updateCard?.(c.id, { syncStart: Number.isFinite(s) && s > 0.05 ? Math.round(s * 100) / 100 : null });
+          if (here != null) {
+            items.push({ id: 'video-start-here', label: `Start here (${formatClipTime(here)})`, run: () => setStart(here) });
+          }
+          items.push({ id: 'video-start-at', label: 'Start at…', run: async () => {
+            const typed = await feedback.prompt({
+              title: 'Start this clip at',
+              label: 'Time (m:ss)',
+              placeholder: '0:12',
+              defaultValue: formatClipTime(cur),
+              confirmLabel: 'Set start',
+            });
+            if (typed == null) return;
+            const s = parseClipTime(typed);
+            if (s == null) { feedback.toast({ type: 'info', message: 'Type a time like 0:12 or 1:05.5.', ttl: 3500 }); return; }
+            const dur = Number.isFinite(vid?.duration) && vid.duration > 0 ? vid.duration : Number(c.media?.dur);
+            setStart(Number.isFinite(dur) && dur > 0 ? Math.min(s, dur) : s);
+          } });
+          if (cur > 0) {
+            items.push({ id: 'video-start-clear', label: `Clear start point (${formatClipTime(cur)})`, run: () => setStart(0) });
+          }
+        }
         if (c.src) {
           items.push({ id: 'video-download', label: 'Download', run: () => runDownload(c, 'video') });
         }
@@ -11706,6 +11736,7 @@ export function CanvasSurface({
                                                         pending={!!c.pending} uploadProgress={uploadProgressById[c.id] ?? null}
                                                         autoplay={!!c.autoplay} loop={!!c.loop} onUpdate={onUpdate} autoFocus={af}
                                                         syncBoardId={c.autoplay ? board.id : null}
+                                                        syncStart={c.autoplay ? (c.syncStart ?? null) : null}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                         onDownload={c.src ? () => runDownload(c, 'video') : null}
                                                         mediaJson={c.media ? JSON.stringify(c.media) : null}
