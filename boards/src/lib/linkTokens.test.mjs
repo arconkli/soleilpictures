@@ -260,8 +260,8 @@ test('the pixel never loads where this page or the one before it holds a token',
 test('every param a link capture reads is a token param or opens nothing', () => {
   // Read by the capture sites and safe to report: a workspace or board id opens
   // nothing without membership, lc is an email's campaign tag, back says where
-  // to return, ref is a referral code.
-  const OPENS_NOTHING = new Set(['w', 'b', 'lc', 'back', 'ref']);
+  // to return, ref is a referral code, jk is the kind of a pending join (view or invite).
+  const OPENS_NOTHING = new Set(['w', 'b', 'lc', 'back', 'ref', 'jk']);
   const consts = {};
   for (const f of ['./workspaceLink.js', './shareReturn.js']) {
     for (const m of read(f).matchAll(/(?:export )?const ([A-Z][A-Z_]+) = '([a-z_]+)';/g)) consts[m[1]] = m[2];

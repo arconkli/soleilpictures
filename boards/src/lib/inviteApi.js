@@ -44,6 +44,26 @@ export async function peekJoinBoardName(token) {
   return typeof name === 'string' && name.trim() ? name.trim() : null;
 }
 
+// The same lookup with everything the sign-in screen and the toasts say about
+// a link (0830): { name, kind, sharer, cards, canJoin }, or null on an invalid
+// link. `kind` is 'view' | 'invite'; `sharer` is the maker's first name or
+// null; the old shape (no link_kind yet) reads as kind null.
+export async function peekJoinMeta(token) {
+  const { data, error } = await supabase
+    .rpc('get_share_meta', { p_token: token });
+  if (error) throw error;
+  const m = Array.isArray(data) ? data[0] : data;
+  if (!m || typeof m !== 'object') return null;
+  const text = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  return {
+    name: text(m.name),
+    kind: m.link_kind === 'view' || m.link_kind === 'invite' ? m.link_kind : null,
+    sharer: text(m.sharer_name),
+    cards: Number(m.card_count) > 0 ? Number(m.card_count) : null,
+    canJoin: typeof m.can_join === 'boolean' ? m.can_join : null,
+  };
+}
+
 // Authed call — claim a multi-use invite LINK (?join=<token>, 0189).
 // Returns { workspace_id, board_id, role, status } where status is
 // 'joined' | 'upgraded' | 'already' | 'noop'. Idempotent; safe to call on
@@ -51,6 +71,19 @@ export async function peekJoinBoardName(token) {
 export async function claimCollabLink(token) {
   const { data, error } = await supabase
     .rpc('claim_collab_link', { p_token: token });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row || null;
+}
+
+// Authed call — join the cluster a VIEW link shows (0830), as a named viewer.
+// Same answer shape as claimCollabLink: { workspace_id, board_id, role, status }
+// with status 'joined' | 'already' | 'noop' (the owner or a teammate). Raises
+// P0002 (no such link), 22023 (turned off, expired, or "this link shares one
+// cluster only"), 42501 (signed out or suspended). Safe to repeat.
+export async function joinViewLink(token) {
+  const { data, error } = await supabase
+    .rpc('join_view_link', { p_token: token });
   if (error) throw error;
   const row = Array.isArray(data) ? data[0] : data;
   return row || null;

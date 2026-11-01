@@ -47,7 +47,18 @@ test('the gate is 0421\'s live body with team_invite added to stranger mail, and
   assert.ok(before.includes(line));
   assert.equal(after, before.replace(line,
     "when p_template in ('pending_invite', 'board_shared', 'workspace_invite', 'file_shared', 'team_invite') then 'stranger'"));
-  assert.equal(latestDefinition('_outbound_gate').file, F);
+});
+
+// 0830 re-emits the gate with Ask to edit's two emails as member mail (the
+// recipient already shares the cluster), and changes nothing else.
+test('the live gate is 0541\'s with edit_request and edit_granted added to member mail, and nothing else', () => {
+  const G = '0830_share_links_join.sql';
+  const line = "when p_template in ('mention_email', 'comment_reply_email', 'schedule_update', 'invite_accepted', 'file_commented') then 'member'";
+  const before = bodyIn(F, '_outbound_gate');
+  assert.ok(before.includes(line));
+  assert.equal(bodyIn(G, '_outbound_gate'), before.replace(line,
+    "when p_template in ('mention_email', 'comment_reply_email', 'schedule_update', 'invite_accepted', 'file_commented', 'edit_request', 'edit_granted') then 'member'"));
+  assert.equal(latestDefinition('_outbound_gate').file, G);
 });
 
 test('every invite spends the allowance before its email, and the email names the inviter by address', () => {

@@ -240,7 +240,7 @@ test('the events say which link, which cluster and which source, never a token',
   const view = read('../components/PublicBoardView.jsx');
   assert.match(view, /link_kind: slug \? 'public' : \(r\.bundle\.join\?\.kind === 'invite' \? 'invite' : 'view'\),/);
   assert.match(view, /link_role: r\.bundle\.join\?\.kind === 'invite' \? \(r\.bundle\.join\.role \|\| null\) : null,/);
-  assert.match(view, /<JoinBoardCard\s+role=\{joinInfo\.role\}\s+boardName=\{board\.name\}\s+rootId=\{rootId\}/);
+  assert.match(view, /<JoinBoardCard\s+kind=\{linkKind\}\s+role=\{joinInfo\?\.role\}\s+boardName=\{joinName\}\s+sharerName=\{sharerName\}\s+rootId=\{rootId\}/);
   const card = read('../components/JoinBoardCard.jsx');
   assert.match(card, /EV\.INVITE_LINK_VIEW, \{ role, root_id: rootId \|\| null \}/);
   assert.match(card, /EV\.INVITE_LINK_JOIN_CLICK, \{ role, root_id: rootId \|\| null \}/);

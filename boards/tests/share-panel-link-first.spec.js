@@ -62,7 +62,7 @@ test('an editor lands on Copy link, the one gold control, at the top of a panel 
   await expect(block.locator('.share-section-title')).toHaveText('Share a link');
   const linkRow = block.locator('.share-row-link');
   await expect(linkRow).toContainText('Anyone with the link');
-  await expect(linkRow).toContainText('No account needed · no link yet');
+  await expect(linkRow).toContainText('Can view and join · no link yet');
   await expect(linkRow.locator('select')).toHaveValue('view');
   const rowBox = await linkRow.boundingBox();
   const copyBox = await copy.boundingBox();

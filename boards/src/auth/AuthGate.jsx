@@ -28,9 +28,11 @@ import { EV, classifyAuthError } from '../lib/analyticsEvents.js';
 import { getWebviewInfo } from '../lib/webview.js';
 import { usePresenceHeartbeat } from '../hooks/usePresenceHeartbeat.js';
 import { recordSeen } from '../lib/returnVisit.js';
-import { peekPendingInviteEmail, peekJoinBoardName, claimPendingInvite, claimCollabLink, peekWorkspaceInviteLink, claimWorkspaceInviteLink } from '../lib/inviteApi.js';
+import { peekPendingInviteEmail, peekJoinMeta, claimPendingInvite, peekWorkspaceInviteLink, claimWorkspaceInviteLink } from '../lib/inviteApi.js';
 import { parseRemixParam, stashRemix } from '../lib/remix.js';
-import { parseJoinParam, stashJoin, readJoin, clearJoin } from '../lib/joinLink.js';
+import { parseJoinParam } from '../lib/joinLink.js';
+import { stashPendingJoin, readPendingJoin } from '../lib/pendingJoin.js';
+import { useOptionalFeedback } from '../components/AppFeedback.jsx';
 import { WSJOIN_PARAM, parseWsJoinParam, stashWsJoin, readWsJoin, clearWsJoin, markJoined } from '../lib/workspaceLink.js';
 import { onPreviewHost, workspaceSetupAllowed, teamsAllowed } from '../lib/appHost.js';
 import { readSetupOverride, setupMayOpenFirst } from '../lib/setupRule.js';
@@ -266,58 +268,36 @@ function captureRemixSource() {
 // Capture ?join=<token> (a multi-use collab invite link, 0189 — distinct
 // from single-recipient ?invite= tokens) and stash it across the OTP hop.
 // Runs signed-in or not: an already-signed-in click claims on this same
-// pageload via consumePendingJoin.
+// pageload via consumePendingJoin. &jk=view|invite is the link's kind, put on
+// the href by the /share page that knows it (lib/pendingJoin.js); a token
+// without one is tried as an edit link, then as a view link.
 function captureJoinToken() {
   if (typeof window === 'undefined') return;
   const url = new URL(window.location.href);
   const token = parseJoinParam(url.searchParams.get('join'));
   if (!token) return;
-  stashJoin(token);
+  stashPendingJoin({ token, kind: url.searchParams.get('jk') });
   url.searchParams.delete('join');
+  url.searchParams.delete('jk');
   window.history.replaceState({}, document.title, url.pathname + url.search);
 }
 
-// Claim a stashed collab-link token: claim_collab_link inserts the
-// board_shares row (idempotent) and returns the workspace/board to land on.
-// Best-effort; never throws upward. Clears the stash on ANY outcome — a
-// terminally-bad token (revoked/expired) must not retry forever.
-async function consumePendingJoin(userId) {
-  if (typeof window === 'undefined' || !userId) return;
-  const token = readJoin();
-  if (!token) return;
+// Claiming a stashed link token (join_view_link for a view link,
+// claim_collab_link for an edit link) lives in lib/pendingJoinClaim.js, fetched
+// only when a join is waiting after sign-in; the entry keeps the capture and
+// the stash. getSession and onAuthStateChange both reach this on a fresh
+// sign-in: the import is memoised and the module's consumer is single-flight,
+// so the claim runs once. Best-effort; never throws upward, and a failed fetch
+// leaves the stash for the next sign-in or boot.
+let joinClaimModule = null;
+async function consumePendingJoin(userId, toast) {
+  if (typeof window === 'undefined' || !userId || !readPendingJoin()) return;
   try {
-    const row = await claimCollabLink(token);
-    // Record EVERY outcome. claim_collab_link only writes its own
-    // invite_link_claimed row on the fresh-join branch — 'upgraded', 'already'
-    // and 'noop' each return early, so those claims used to leave no trace at
-    // all and a join click could vanish with neither a success nor a failure.
-    try { logEvent(EV.INVITE_LINK_CLAIM_RESULT, { status: row?.status || 'unknown' }); } catch (_) {}
-    // The third grant mechanism, recorded in the same shape as the two in
-    // ShareModal so "which path actually produces collaborators" is one query
-    // rather than three reconstructions. Only the branches that really created
-    // access count — 'already' and 'noop' granted nothing.
-    if (row?.status === 'joined' || row?.status === 'upgraded') {
-      try {
-        logEvent(EV.ACCESS_GRANTED, {
-          how: 'invite_link', board_id: row?.board_id || null, surface: 'join_link',
-        });
-      } catch (_) {}
-    }
-    if (row?.workspace_id) {
-      const wsKey = `soleil.boards.session.${userId}.workspace`;
-      localStorage.setItem(wsKey, JSON.stringify({ activeWorkspaceId: row.workspace_id }));
-      if (row.board_id) {
-        const boardKey = `soleil.boards.session.${userId}.${row.workspace_id}`;
-        let existing = {};
-        try { existing = JSON.parse(localStorage.getItem(boardKey) || '{}'); } catch (_) {}
-        localStorage.setItem(boardKey, JSON.stringify({ ...existing, stack: [row.board_id] }));
-      }
-    }
+    joinClaimModule = joinClaimModule || import('../lib/pendingJoinClaim.js');
+    await (await joinClaimModule).claimPendingJoin(userId, toast);
   } catch (e) {
+    joinClaimModule = null;
     console.warn('[join-link] claim failed', e?.message || e);
-    try { logEvent(EV.INVITE_LINK_CLAIM_FAILED, { reason: String(e?.message || e).slice(0, 120) }); } catch (_) {}
-  } finally {
-    clearJoin();
   }
 }
 
@@ -622,6 +602,9 @@ export function AuthGate({ children, signedOut = null, warmApp = null }) {
   // claimed on the visit alone.
   const [wsJoinAsk, setWsJoinAsk] = useState(null);
   const [teamJoinAsk, setTeamJoinAsk] = useState(false);
+  // The join claim below says what happened in a toast (it runs outside render).
+  const feedbackRef = useRef(null);
+  feedbackRef.current = useOptionalFeedback();
 
   useEffect(() => {
     if (localMode || devWithoutSupabase) return;
@@ -656,7 +639,7 @@ export function AuthGate({ children, signedOut = null, warmApp = null }) {
           clearPendingCode(window.localStorage);
           consumeDeepLink(data.session.user.id);
           await consumePendingInvite(data.session.user.id);
-          await consumePendingJoin(data.session.user.id);
+          await consumePendingJoin(data.session.user.id, feedbackRef.current?.toast);
           await consumePendingWsJoin(data.session.user.id);
           await consumePendingTeamLink(data.session.user.id);
           await consumeScoutClaim(data.session.user.id);
@@ -714,7 +697,7 @@ export function AuthGate({ children, signedOut = null, warmApp = null }) {
           clearPendingCode(window.localStorage);
           consumeDeepLink(sess.user.id);
           await consumePendingInvite(sess.user.id);
-          await consumePendingJoin(sess.user.id);
+          await consumePendingJoin(sess.user.id, feedbackRef.current?.toast);
           await consumePendingWsJoin(sess.user.id);
           await consumePendingTeamLink(sess.user.id);
           await consumeScoutClaim(sess.user.id);
@@ -853,10 +836,14 @@ function SignIn({ warmApp = null }) {
   // Non-null when the user arrived via an /?invite=<token> link.
   // We pre-fill the email field and show an "invited as ..." banner.
   const [inviteHint, setInviteHint] = useState(null);
-  // Non-null when the user arrived via an /?join=<token> collab link. There is
-  // no email to pre-fill (the link is multi-use, not addressed to anyone), so
-  // the payoff is purely context: name the cluster they were invited to.
-  const [joinHint, setJoinHint] = useState(null);
+  // Non-null when the user arrived via an /?join=<token> link (edit or view).
+  // There is no email to pre-fill (the link is multi-use, not addressed to
+  // anyone), so the payoff is purely context: who sent what, and where they
+  // land. The /share page that sent them already knows the words, so they are
+  // here from the first paint; a bare link waits for the peek below.
+  const [joinHint, setJoinHint] = useState(() => {
+    try { const p = readPendingJoin(); return p && p.name ? p : null; } catch (_) { return null; }
+  });
   // ?wsjoin= names the workspace and who sent it (peek_workspace_invite_link).
   const [wsJoinHint, setWsJoinHint] = useState(null);
   // A stashed ?teamjoin= / ?teaminvite=, noted by the lazy TeamLink.
@@ -1000,13 +987,24 @@ function SignIn({ warmApp = null }) {
   // and the right response is the ordinary landing, not an error.
   useEffect(() => {
     let cancelled = false;
-    const token = readJoin();
-    if (!token) return undefined;
-    peekJoinBoardName(token)
-      .then((name) => {
+    const pending = readPendingJoin();
+    if (!pending) return undefined;
+    peekJoinMeta(pending.token)
+      .then((m) => {
         if (cancelled) return;
-        setJoinHint({ name });
-        logEvent(EV.LANDING_JOIN_PREFILL, { had_name: !!name });
+        const merged = {
+          ...pending,
+          name: m?.name || pending.name,
+          kind: pending.kind || m?.kind || null,
+          sharer: m?.sharer || pending.sharer,
+          cards: m?.cards || pending.cards,
+        };
+        // Keep what the peek learned (the kind above all) for the claim, but
+        // only while the join is still waiting: a claim that already ran has
+        // cleared it, and putting it back would claim it twice.
+        if (readPendingJoin()?.token === pending.token) stashPendingJoin(merged);
+        setJoinHint(merged);
+        logEvent(EV.LANDING_JOIN_PREFILL, { had_name: !!merged.name });
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -1240,13 +1238,33 @@ function SignIn({ warmApp = null }) {
 
       {/* ?join= has no addressed email, so it can't pre-fill — but it must still
           say what you're joining, or the sign-in wall reads as a dead end. */}
-      {!inviteHint && joinHint && (
-        <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
-          {joinHint.name
-            ? <>You've been invited to collaborate on <b>{joinHint.name}</b>. Sign in to join.</>
-            : <>You've been invited to collaborate. Sign in to join.</>}
+      {!inviteHint && joinHint && (joinHint.name ? (
+        <div className="auth-joinc" role="note">
+          <h2 className="auth-joinc-h">
+            {joinHint.kind === 'invite' && joinHint.sharer ? `${joinHint.sharer} invited you to edit`
+              : joinHint.sharer ? `Join ${joinHint.sharer} on Clusters`
+              : `Join “${joinHint.name}” on Clusters`}
+          </h2>
+          <div className="auth-joinc-chip">
+            <span className="auth-joinc-th" aria-hidden="true"
+                  style={{ backgroundImage: `url(/api/share-thumb/${joinHint.token})` }} />
+            <span className="auth-joinc-t">
+              <b>{joinHint.name}</b>
+              {(joinHint.sharer || joinHint.cards) && (
+                <span>
+                  {[joinHint.sharer ? `Shared by ${joinHint.sharer}` : null,
+                    joinHint.cards ? `${joinHint.cards} ${joinHint.cards === 1 ? 'card' : 'cards'}` : null]
+                    .filter(Boolean).join(' · ')}
+                </span>
+              )}
+            </span>
+          </div>
         </div>
-      )}
+      ) : (
+        <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
+          You've been invited to collaborate. Sign in to join.
+        </div>
+      ))}
 
       {/* ?wsjoin= — a whole workspace, named, with who invited them. */}
       {!inviteHint && !joinHint && wsJoinHint && (wsJoinHint.status === 'dead' ? (
@@ -1316,7 +1334,11 @@ function SignIn({ warmApp = null }) {
               {busy ? 'Sending…' : 'Continue with email →'}
             </button>
             {error && <div className="auth-error t-meta">{error}</div>}
-            <div className="sb-cap">Sign in or sign up — we'll email a 6-digit code.</div>
+            <div className="sb-cap">
+              {!inviteHint && joinHint?.name
+                ? `We’ll email you a code. You’ll land right back in ${joinHint.name}.`
+                : 'Sign in or sign up — we\'ll email a 6-digit code.'}
+            </div>
             {passkey.link && (
               <button type="button" className="pk-link" onClick={signInByPasskey} disabled={busy || sending}>
                 <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">

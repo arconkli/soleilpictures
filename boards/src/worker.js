@@ -14,6 +14,9 @@
 // /api/share-thumb/*  — serves a shared board's stored R2 thumbnail as the
 //                       og:image behind /share link previews. Gated by the
 //                       share token (get_share_meta RPC), no user auth.
+// /share/<token>/card.jpg — the 1200×630 JPEG a /share link unfurls as (the
+//                       saved card, else the static fallback). /api/share-card
+//                       is the signed-in app saving it (can_write_board, JPEG, 400 KB).
 // /api/email-thumb/*  — serves a board's stored R2 thumbnail to email clients
 //                       (the welcome email embeds the recipient's own board).
 //                       Gated by an HMAC in the URL, no user auth.
@@ -76,6 +79,8 @@ import { templateHtml } from './lib/templateCrawlable.js';
 import { getListicleSpec, SEO_LISTICLE_PAGES } from './lib/seoListicles.js';
 import { buildListicleCrawlableHtml, buildListicleJsonLd } from './lib/seoListicleHtml.js';
 import { showsUsedBy, usedByHtml } from './lib/usedBy.js';
+import { shareMetaCopy } from './lib/shareMetaCopy.js';
+import { verifyUser } from './lib/workerAuth.js';
 // Public documentation (/docs/*), GENERATED from content/docs/**.md by
 // scripts/gen-docs.mjs: the light index for meta and the sitemap is imported,
 // and each page's pre-rendered crawlable HTML is a file in the assets, read
@@ -519,7 +524,7 @@ window.__publicBundle={slug:m[1],boardId:boardId,promise:fetch(
 {headers:{'Accept':'application/json'}})};
 }catch(_){}})()<\/script>`;
 
-function injectShareMeta(res, meta, token) {
+function injectShareMeta(res, meta, token, cardV = 'f') {
   const rw = new HTMLRewriter();
   // Tokened URLs are noindexed unless the link owner opted in (allow_indexing,
   // 0134) OR the board is a published public board (public_slug, 0136). In the
@@ -539,8 +544,7 @@ function injectShareMeta(res, meta, token) {
     rw.on('head', new AppendHead(SHARE_EARLY_FETCH));
   }
 
-  const name = (meta?.name || '').trim();
-  if (!name) return rw.transform(res); // no meta → keep homepage defaults
+  if (!meta?.board_id) return rw.transform(res); // no meta → keep homepage defaults
 
   // Mirror the client's shareUrl() convention (PublicBoardView): the root
   // board is the clean /share/<token> URL; sub-boards carry ?b=<id>.
@@ -549,10 +553,14 @@ function injectShareMeta(res, meta, token) {
   // Consolidate ranking: when this board is a published public board, point both
   // og:url and rel=canonical at its /c/<slug> instead of the tokened URL.
   const canonicalUrl = meta.public_slug ? `${SITE_ORIGIN}/c/${meta.public_slug}` : shareUrl;
-  const title = `${name} — Soleil Clusters`;
-  // Board-specific description for unfurls + (when indexable) SERP snippets.
-  // The name only ever flows through SetContent/SetText, which escape it.
-  const description = `“${name}” — a board shared from Soleil Clusters. References, images, and ideas in one place. Explore it, then make your own free.`;
+  // Who sent it, what it is and what they can do (lib/shareMetaCopy.js). The
+  // name and the sender only ever flow through SetText/SetContent, which escape.
+  const { title, description, alt } = shareMetaCopy({
+    kind: meta.link_kind,
+    sharerName: meta.sharer_name,
+    name: meta.name,
+    cardCount: meta.card_count,
+  });
   rw.on('title',                            new SetText(title))
     .on('meta[name="description"]',         new SetContent(description))
     .on('meta[property="og:title"]',        new SetContent(title))
@@ -562,24 +570,21 @@ function injectShareMeta(res, meta, token) {
     .on('meta[name="twitter:description"]', new SetContent(description))
     .on('link[rel="canonical"]',            new SetHref(canonicalUrl));
 
-  // Only point og:image at the thumb route when the board HAS a stored
-  // thumbnail — otherwise leave the logo defaults untouched (some scrapers
-  // reject og:image URLs that redirect, so "don't rewrite" beats "fallback").
-  if (meta.thumb_key) {
-    const v = encodeURIComponent(meta.thumb_updated_at || '');
-    const img = `${SITE_ORIGIN}/api/share-thumb/${token}?b=${meta.board_id}&v=${v}`;
-    // v2+ thumbnails (mini-screenshot rework) are 16:9 1200×675 logical;
-    // legacy v1 renders still serving are 800×600. Dims are advisory hints
-    // for scrapers, so the stale-bytes window during self-heal is harmless.
-    const isV2 = (meta.thumb_version || 0) >= 2;
-    rw.on('meta[property="og:image"]',        new SetContent(img))
-      .on('meta[property="og:image:width"]',  new SetContent(isV2 ? '1200' : '800'))
-      .on('meta[property="og:image:height"]', new SetContent(isV2 ? '675' : '600'))
-      .on('meta[property="og:image:type"]',   new SetContent('image/webp'))
-      .on('meta[property="og:image:alt"]',    new SetContent(name))
-      .on('meta[name="twitter:image"]',       new SetContent(img))
-      .on('meta[name="twitter:image:alt"]',   new SetContent(name));
-  }
+  // The picture is /share/<token>/card.jpg (handleShareCard): a 1200×630 JPEG
+  // the sender's app made when the link was copied or sent, or the static
+  // fallback when there is none, so it always answers with bytes (some scrapers
+  // reject og:image URLs that redirect). `v` is the saved card's uploaded time
+  // in ms ('f' = the fallback), so a new picture is a new URL. A sub-cluster
+  // carries ?b= so the card is the target's.
+  const img = `${SITE_ORIGIN}/share/${token}/card.jpg?${isSub ? `b=${meta.board_id}&` : ''}v=${cardV}`;
+  rw.on('meta[property="og:image"]',        new SetContent(img))
+    .on('meta[property="og:image:width"]',  new SetContent('1200'))
+    .on('meta[property="og:image:height"]', new SetContent('630'))
+    .on('meta[property="og:image:type"]',   new SetContent('image/jpeg'))
+    .on('meta[property="og:image:alt"]',    new SetContent(alt))
+    .on('meta[name="twitter:card"]',        new SetContent('summary_large_image'))
+    .on('meta[name="twitter:image"]',       new SetContent(img))
+    .on('meta[name="twitter:image:alt"]',   new SetContent(alt));
   return rw.transform(res);
 }
 
@@ -802,6 +807,14 @@ const worker = {
       if (resetMatch) return await handleBoardReset(resetMatch[1], request, ctx, env);
       const thumbMatch = url.pathname.match(/^\/api\/share-thumb\/([0-9a-f-]{36})$/i);
       if (thumbMatch) return await handleShareThumb(env, thumbMatch[1], url.searchParams, request);
+      // The 1200×630 JPEG behind a /share link preview (og:image), and the
+      // signed-in app saving it. Both before env.ASSETS: a dotted path would
+      // otherwise be a static-file miss.
+      const shareCardMatch = url.pathname.match(/^\/share\/([0-9a-f-]{36})\/card\.jpg$/i);
+      if (shareCardMatch && (request.method === 'GET' || request.method === 'HEAD')) {
+        return await handleShareCard(env, shareCardMatch[1], url.searchParams, request);
+      }
+      if (url.pathname === '/api/share-card') return await handleShareCardPut(env, url.searchParams, request);
       const fileThumbMatch = url.pathname.match(/^\/api\/file-thumb\/([0-9a-f-]{36})$/i);
       if (fileThumbMatch) return await handleFileThumb(env, fileThumbMatch[1], request);
       const emailThumbMatch = url.pathname.match(/^\/api\/email-thumb\/([0-9a-f-]{36})$/i);
@@ -884,6 +897,9 @@ const worker = {
     const shareMetaPromise = shareMatch
       ? fetchShareMeta(env, shareMatch[1], url.searchParams.get('b')).catch(failOpen('share_meta'))
       : null;
+    // The saved picture's version, looked up as soon as the meta lands so it
+    // overlaps the assets fetch below. Never rejects: 'f' = the fallback.
+    const shareCardVPromise = shareMetaPromise ? shareMetaPromise.then((m) => shareCardVersion(env, m)) : null;
 
     const fileShareMatch = isPageReq ? url.pathname.match(FILE_SHARE_PATH_RE) : null;
     const fileShareMetaPromise = fileShareMatch
@@ -1102,7 +1118,7 @@ const worker = {
 
     if (shareMatch && contentType.includes('text/html')) {
       const meta = await shareMetaPromise;
-      const out = withRevalidate(injectShareMeta(res, meta, shareMatch[1]));
+      const out = withRevalidate(injectShareMeta(res, meta, shareMatch[1], await shareCardVPromise));
       // Mirror injectShareMeta's robots-meta condition as a response HEADER so
       // non-HTML-parsing fetchers also see the noindex (meta-only is invisible
       // to them). Same fail-closed rule: no meta → noindex.
@@ -2859,6 +2875,149 @@ async function handleAdminPreviewThumb(env, boardId, request) {
     return new Response(null, { status: 304, headers });
   }
   return new Response(obj.body, { status: 200, headers });
+}
+
+// ── Link-preview card (/share/<token>/card.jpg) ─────────────────────────────
+// The picture a pasted /share link unfurls as: a 1200×630 JPEG the sender's app
+// makes when a link is copied or sent and saves through PUT /api/share-card, at
+// <workspace_id>/thumbs/<board_id>-share.jpg. That is the ONLY key either route
+// below reads or writes.
+const SHARE_CARD_FALLBACK = '/og/share-fallback.jpg';
+const SHARE_CARD_MAX_BYTES = 400 * 1024;
+
+function shareCardKey(workspaceId, boardId) {
+  if (!UUID_RE.test(workspaceId || '') || !UUID_RE.test(boardId || '')) return null;
+  return `${workspaceId}/thumbs/${boardId}-share.jpg`;
+}
+
+// The saved card's uploaded time in ms, the og:image URL's ?v=; 'f' when there
+// is none (the fallback picture). Never throws: a preview must not wait on, or
+// fail with, a storage hiccup.
+async function shareCardVersion(env, meta) {
+  try {
+    const key = shareCardKey(meta?.workspace_id, meta?.board_id);
+    if (!key || !env.IMAGES) return 'f';
+    const head = await env.IMAGES.head(key);
+    const t = head?.uploaded instanceof Date ? head.uploaded.getTime() : 0;
+    return t > 0 ? String(t) : 'f';
+  } catch {
+    return 'f';
+  }
+}
+
+// Streams the saved card, or the static fallback as bytes (some scrapers, and
+// WhatsApp most of all, do not follow an image redirect). A dead token, a
+// board with no card and a storage error all answer the fallback with 200, so a
+// preview never breaks.
+async function handleShareCard(env, token, searchParams, request) {
+  const headers = {
+    'content-type': 'image/jpeg',
+    'content-security-policy': IMAGE_ONLY_CSP,
+    'cache-control': 'public, max-age=600',
+    'x-robots-tag': 'noindex',
+  };
+  const fallback = async () => {
+    try {
+      const r = await env.ASSETS.fetch(new Request(new URL(SHARE_CARD_FALLBACK, request.url)));
+      if (r.ok && (r.headers.get('content-type') || '').startsWith('image/')) {
+        return new Response(request.method === 'HEAD' ? null : r.body, { status: 200, headers });
+      }
+    } catch { /* fall through */ }
+    return new Response('Not found', { status: 404, headers: { 'cache-control': 'no-store' } });
+  };
+
+  let meta = null;
+  try {
+    meta = await fetchShareMeta(env, token, searchParams.get('b'));
+  } catch {
+    return await fallback();
+  }
+  const key = shareCardKey(meta?.workspace_id, meta?.board_id);
+  if (!key || !env.IMAGES) return await fallback();
+
+  let obj = null;
+  try { obj = await env.IMAGES.get(key); } catch { return await fallback(); }
+  if (!obj) return await fallback();
+
+  const etagged = { ...headers, etag: obj.httpEtag };
+  if (request.headers.get('if-none-match') === obj.httpEtag) {
+    return new Response(null, { status: 304, headers: etagged });
+  }
+  return new Response(request.method === 'HEAD' ? null : obj.body, { status: 200, headers: etagged });
+}
+
+// The signed-in app saving a cluster's link-preview card. Same-origin only (no
+// CORS headers). The caller must be able to write the cluster
+// (can_write_board, as them), the workspace comes from the database and never
+// from the request, and the key is built here, so no other object can be
+// written. The body is capped and must be a JPEG.
+async function handleShareCardPut(env, searchParams, request) {
+  const reply = (status, msg) => new Response(msg ?? null, {
+    status,
+    headers: { 'cache-control': 'no-store', 'content-type': 'text/plain; charset=utf-8' },
+  });
+  if (request.method !== 'PUT') return reply(405, 'PUT only');
+
+  const token = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!token) return reply(401, 'Sign in first');
+  const boardId = searchParams.get('board') || '';
+  if (!UUID_RE.test(boardId)) return reply(400, 'Bad board');
+  if (Number(request.headers.get('content-length') || 0) > SHARE_CARD_MAX_BYTES) return reply(413, 'Too large');
+  if (!env.IMAGES) return reply(503, 'Storage unavailable');
+
+  let auth = null;
+  try { auth = await verifyUser(request, env); } catch { return reply(502, 'Could not check sign-in'); }
+  if (!auth?.ok) return reply(auth?.status === 500 ? 502 : 401, 'Sign in first');
+
+  let canWrite = false;
+  let workspaceId = null;
+  try {
+    canWrite = (await userRpc(env, 'can_write_board', { p_board_id: boardId }, token)) === true;
+    if (canWrite) {
+      const res = await fetch(
+        `${env.SUPABASE_URL}/rest/v1/boards?id=eq.${boardId}&deleted_at=is.null&select=workspace_id`,
+        {
+          headers: { apikey: env.SUPABASE_ANON_KEY, authorization: `Bearer ${token}`, accept: 'application/json' },
+          signal: AbortSignal.timeout(8000),
+        },
+      );
+      const rows = res.ok ? await res.json() : [];
+      workspaceId = Array.isArray(rows) && rows.length === 1 ? rows[0]?.workspace_id : null;
+    }
+  } catch {
+    return reply(502, 'Could not check access');
+  }
+  if (!canWrite) return reply(403, 'Not allowed');
+  const key = shareCardKey(workspaceId, boardId);
+  if (!key) return reply(403, 'Not allowed');
+
+  // Read at most the cap + 1 byte: a body that lies about its length still stops.
+  const chunks = [];
+  let size = 0;
+  if (request.body) {
+    const reader = request.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > SHARE_CARD_MAX_BYTES) {
+        try { await reader.cancel(); } catch { /* already closed */ }
+        return reply(413, 'Too large');
+      }
+      chunks.push(value);
+    }
+  }
+  const bytes = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) { bytes.set(c, at); at += c.byteLength; }
+  if (size < 3 || bytes[0] !== 0xFF || bytes[1] !== 0xD8 || bytes[2] !== 0xFF) return reply(400, 'Not a JPEG');
+
+  try {
+    await env.IMAGES.put(key, bytes, { httpMetadata: { contentType: 'image/jpeg' } });
+  } catch {
+    return reply(502, 'Could not save the card');
+  }
+  return reply(204);
 }
 
 // Serves a shared board's stored thumbnail (<ws>/thumbs/<board>.webp in R2)

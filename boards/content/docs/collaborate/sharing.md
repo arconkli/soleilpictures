@@ -5,11 +5,13 @@ h1: Sharing and public links
 navLabel: Sharing
 section: collaborate
 order: 1
-updated: 2026-10-27
-answer: A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
+updated: 2026-11-01
+answer: A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are view-only, include nested clusters by default and can expire after 7 or 30 days. Anyone who opens one can join to keep the cluster in their Clusters, and ask you to let them edit. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 faq:
   - q: Does someone need an account to open a shared link?
-    a: No. A view link opens the board read-only for anyone, with no sign-in.
+    a: No. A view link opens the board read-only for anyone, with no sign-in. Signing in is only needed to join it, which keeps the cluster in their own Clusters.
+  - q: Can someone who joined from a view link edit?
+    a: Not on their own. They join view-only and can press Ask to edit; you, or the cluster's owner, say yes in one tap from the bell, the email or the Share panel.
   - q: Can a public link be edited by whoever has it?
     a: Never. A view link is always read-only. Edit access comes from a separate kind of link that asks the recipient to sign in before it grants anything, or from inviting a named person by email.
   - q: Will a shared board show up in Google?
@@ -51,7 +53,7 @@ three answers:
 
 | Setting | What the link does | Account needed |
 |---|---|---|
-| **Can view** | Anyone with the link opens the cluster read-only | No |
+| **Can view** | Anyone with the link opens the cluster read-only, and can join it to keep it in their Clusters | No (only to join) |
 | **Can edit** | Recipient confirms, signs in, and joins as an editor | Yes |
 | **No link** | Revokes every link on the cluster that you can revoke | — |
 
@@ -70,6 +72,33 @@ co-owner revokes them.
 An edit link is not an editable public link. It grants nothing on its own: the
 person who opens it sees a preview and an explicit **Join** step, and access is
 created when they sign in and take it.
+
+### Joining from a view link
+
+Someone who opens a view link sees who sent it and a **Join** button. Joining
+asks them to sign in (a code to their email, nothing else), then puts the
+cluster in their sidebar under Shared with me. They see your changes as they
+happen, and still cannot change anything. You get a note that they joined, and
+they appear in **Who has access** as a viewer you can remove like anyone else.
+A new account that joins this way counts as your
+[referral](/docs/account/referrals), as on an edit link.
+
+A link that leaves sub-clusters out cannot be joined when the cluster has
+sub-clusters, because a person added to a cluster can open the clusters inside
+it. They can still look, and you can invite them by email instead.
+
+Turning a link off stops new people joining through it. People who already
+joined keep their access until you remove them.
+
+### Asking to edit
+
+A viewer who joined sees **View only** and **Ask to edit** at the top of the
+cluster. Pressing it tells the person whose link they joined and the cluster's
+owner, in the bell, as a note in the app and by email when they are away.
+**Let them edit** makes them an editor at once; it counts toward your editors
+like any other, so it is refused when the account has no room. **Not now**
+tells them nothing, and they can ask again a day later. Open asks also wait at
+the top of the cluster's **Who has access** list.
 
 ### What "view" includes
 
@@ -274,8 +303,19 @@ a link on one, but you can still open **Share** to see who has access.
 
 ## Link previews
 
-A shared link unfurls properly in Slack, Messages and email — the board's own
-name and a thumbnail of its actual contents, not a generic logo.
+A shared link unfurls in Messages, WhatsApp, Slack, email and the rest as a
+picture card: the cluster's own pictures on the Clusters sun, and its name in
+large type. The title says who sent it ("Andrew shared “Lost Time” with you",
+or "invited you to edit" for an edit link) and the line under it says how many
+cards it holds. The card never shows the text of notes or docs. A cluster with
+no pictures gets a card with just its name. The card is refreshed when you open
+**Share** or copy the link.
+
+### What someone sees the first time
+
+Someone without an account opening a shared link for the first time gets one
+small tip, once: **Click a cluster to open it**, then how to go back. A cluster
+with nothing inside it says how to move around instead. Any tap puts it away.
 
 ## Publishing instead
 

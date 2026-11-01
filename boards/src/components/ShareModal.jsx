@@ -34,6 +34,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from './Modal.jsx';
+import { supabase } from '../lib/supabase.js';
 import {
   shareBoard, unshareBoard, restoreBoardShare, listBoardShares, listInheritedBoardShares,
   removeWorkspaceMember, transferWorkspaceOwnership, setWorkspaceMemberRole,
@@ -124,6 +125,11 @@ export function ShareModal({
   onSeeEditors = null,
   // Where a team's seats are priced and bought; the probe passes its own.
   teamBilling = TEAM_SEAT_BILLING,
+  // The board's live Y.Doc when the app has it open, so the link's preview
+  // picture is made from what is on screen; without one the saved copy is read.
+  liveDoc = null,
+  // Opened from "asked to edit": scroll the open asks into view.
+  focusAsks = false,
 }) {
   const feedback = useFeedback();
   const isOwner = workspace?.created_by === selfUserId;
@@ -308,6 +314,45 @@ export function ShareModal({
     return () => { cancelled = true; };
   }, [board?.id, canInvite, workspace?.id]);
 
+  // The picture a pasted link shows (lib/shareCard.js): made here, in the
+  // sender's browser, and uploaded for the Worker to serve. Made when the panel
+  // opens, so it is ready before the paste, and again on every copy; the module
+  // skips it when nothing it is drawn from changed. Only for people who can
+  // edit the cluster (the endpoint refuses anyone else), and fire-and-forget:
+  // a link never waits on its picture. Lazy, so the drawing code is not in the
+  // panel's own chunk.
+  const cardBoardId = canInvite && !workspaceScope ? board?.id : null;
+  const refreshCard = () => {
+    if (!cardBoardId) return;
+    import('../lib/shareCard.js')
+      .then((m) => m.refreshShareCardFor({ supabase, boardId: cardBoardId, name: board?.name, ydoc: liveDoc }))
+      .catch(() => {});
+  };
+  useEffect(() => { refreshCard(); }, [cardBoardId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // "Ask to edit" requests on this cluster from people it was shared with:
+  // [{ request_id, requester_id, requester_name, email }]. A failure (an
+  // older database, a refused read) just leaves the list empty.
+  const [asks, setAsks] = useState([]);
+  const [asksBusy, setAsksBusy] = useState(() => new Set());
+  const asksRef = useRef(null);
+  useEffect(() => {
+    // Clear first: the last cluster's rows must not show while this one loads.
+    setAsks([]);
+    if (!canInvite || !board?.id) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('list_edit_requests', { p_board_id: board.id });
+        if (!cancelled && !error) setAsks(Array.isArray(data) ? data : []);
+      } catch (_) { /* the list reads fine without asks */ }
+    })();
+    return () => { cancelled = true; };
+  }, [board?.id, canInvite]);
+  useEffect(() => {
+    if (focusAsks && asks.length > 0) asksRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [focusAsks, asks.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Resolve names for workspace members too — peers covers online ones,
   // but offline members were rendering as a generic "Member".
   useEffect(() => {
@@ -358,9 +403,15 @@ export function ShareModal({
         ...(position ? { position } : {}),
       });
     } catch (_) {}
+    // The link's preview picture, kept current as the link goes out.
+    refreshCard();
     try { await navigator.clipboard.writeText(url); return true; }
     catch (_) { return false; }
   };
+
+  // What a copy says. A view link lets people join as viewers, and the toast
+  // says so; an invite (edit) link keeps its own wording at its call sites.
+  const VIEW_COPIED = 'Link copied. Anyone with it can view and join.';
 
   // ── Link access ────────────────────────────────────────────────────────
 
@@ -426,7 +477,7 @@ export function ShareModal({
               ? (editFull
                   ? `Invite link copied — while ${planWord} is full, anyone with it joins as a viewer.`
                   : 'Invite link copied — anyone with it can join as an editor.')
-              : 'Link copied — anyone with it can view this cluster.' }
+              : VIEW_COPIED }
         : { type: 'warning', message: 'Link ready — copying failed, use Copy under Link settings.', ttl: 7000 });
       await refreshLinks();
     } catch (e) {
@@ -502,15 +553,16 @@ export function ShareModal({
     if (existing) {
       const c = await copyLinkUrl(existing.token, next === 'edit' ? 'invite' : 'view');
       feedback.toast(c
-        ? { type: 'success', message: 'Link copied.' }
+        ? { type: 'success', message: next === 'edit' ? 'Link copied.' : VIEW_COPIED }
         : { type: 'info', message: `${window.location.origin}/share/${existing.token}`, ttl: 8000 });
     }
   };
 
   const onCopyPublicLink = async (token) => {
     const copied = await copyLinkUrl(token);
+    const isInvite = publicLinks.find(l => l.token === token)?.kind === 'invite';
     feedback.toast(copied
-      ? { type: 'success', message: 'Link copied to clipboard.' }
+      ? { type: 'success', message: isInvite ? 'Link copied to clipboard.' : VIEW_COPIED }
       : { type: 'info', message: `${window.location.origin}/share/${token}` });
   };
 
@@ -858,6 +910,36 @@ export function ShareModal({
     }
   };
 
+  // Say yes or not now to one "asked to edit". The row goes either way; on yes
+  // the person's row below becomes Can edit. A refusal (the editor limit, not
+  // allowed) is said in the panel's words and the row stays.
+  const answerAsk = async (req, yes) => {
+    const id = req.request_id;
+    if (asksBusy.has(id)) return;
+    setAsksBusy((s) => new Set(s).add(id));
+    const done = () => setAsksBusy((s) => { const n = new Set(s); n.delete(id); return n; });
+    try {
+      const { data, error } = await supabase.rpc('answer_edit_request', { p_request_id: id, p_yes: yes });
+      if (error) {
+        const full = editorLimitRefusal(error);
+        if (full) onEditorLimitRefused(full, 'edit_request');
+        else feedback.toast({ type: 'error', code: 'edit_answer_failed', message: error.message || 'Could not answer — try again.' });
+        return;
+      }
+      setAsks((rows) => rows.filter((r) => r.request_id !== id));
+      if (yes && data === 'yes') {
+        setShares((rows) => rows.map((x) => (x.user_id === req.requester_id ? { ...x, role: 'editor' } : x)));
+        try { setShares(await listBoardShares(board.id)); } catch (_) {}
+        onSharesChanged?.();
+        editorLimit.refresh();
+      }
+    } catch (e) {
+      feedback.toast({ type: 'error', code: 'edit_answer_failed', message: e?.message || 'Could not answer — try again.' });
+    } finally {
+      done();
+    }
+  };
+
   const onChangeShareRole = async (share, newRole) => {
     try {
       // share_board upserts so re-issuing with a different role updates.
@@ -1091,7 +1173,7 @@ export function ShareModal({
     // While the plan is full, an edit link lets people in to view (0521).
     const what = accessMode === 'edit'
       ? (editFull ? `They sign in, then join as viewers while ${planWord} is full` : 'They sign in, then join as editors')
-      : 'No account needed';
+      : 'Can view and join';
     if (!currentLink) return `${what} · no link yet`;
     const expiry = currentLink.expires_at
       ? `expires ${new Date(currentLink.expires_at).toLocaleDateString()}` : 'never expires';
@@ -1255,6 +1337,11 @@ export function ShareModal({
                 ),
               })}
             </div>
+            {accessMode === 'off' && (
+              <div className="share-hint share-link-off-note">
+                People who joined keep access. Remove them below.
+              </div>
+            )}
             <div className="share-link-actions">
               <button className={'share-invite-btn share-link-copy' + goldIf('copy')}
                       ref={copyLinkRef}
@@ -1395,6 +1482,35 @@ export function ShareModal({
               </div>
             ) : null}
 
+            {/* Open asks to edit, first: someone this cluster was shared with
+                wants to add and move cards. Neutral ink, never gold — gold is
+                the panel's one action, and this is a question put to you. */}
+            {asks.length > 0 && <div ref={asksRef} className="share-asks" />}
+            {asks.map(req => {
+              const who = maskName(req.requester_name, req.requester_id)
+                || maskEmail(req.email, req.requester_id) || 'Someone';
+              const busy = asksBusy.has(req.request_id);
+              return personRow({
+                key: `ask-${req.request_id}`,
+                className: 'share-ask',
+                avatar: avatarFor(req.requester_id, who),
+                name: who,
+                sub: 'asked to edit',
+                control: (
+                  <div className="share-ask-actions">
+                    <button type="button" className="share-ask-yes" disabled={busy}
+                            onClick={() => answerAsk(req, true)}>
+                      Let them edit
+                    </button>
+                    <button type="button" className="share-ask-no" disabled={busy}
+                            onClick={() => answerAsk(req, false)}>
+                      Not now
+                    </button>
+                  </div>
+                ),
+              });
+            })}
+
             {workspaceMembers.map(m => {
               const meta = userMeta(m.user_id);
               const isWsOwner = m.user_id === workspace?.created_by;
@@ -1468,7 +1584,7 @@ export function ShareModal({
                 key: s.user_id,
                 avatar: avatarFor(s.user_id, displayName),
                 name: displayName,
-                sub: `${profile?.name && s.email ? `${s.email} · ` : ''}this cluster`,
+                sub: `${profile?.name && s.email ? `${s.email} · ` : ''}${s.via_link ? 'joined from a link' : 'this cluster'}`,
                 control: canChange ? (
                   <select className="share-access-pick" aria-label={`Access for ${displayName}`}
                           value={s.role}

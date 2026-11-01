@@ -23,6 +23,16 @@
 import { EV } from './analyticsEvents.js';
 
 export const FEATURE_EVENTS = Object.freeze({
+  // A view link can be joined: Join on the shared page, sign in if needed,
+  // and the cluster lands in their Clusters (join_view_link, 0830). The
+  // server's view_link_joined is the success; the client's claim result
+  // carries every status, failures included.
+  viewLinkJoin: {
+    exposure: [EV.SHARE_VIEW, EV.SHARE_TIP],
+    action: [EV.VIEW_LINK_JOIN_CLICK],
+    outcome: [EV.INVITE_LINK_CLAIM_RESULT, EV.ACCESS_GRANTED],
+    failure: [EV.INVITE_LINK_CLAIM_FAILED],
+  },
   // The Files sidebar, home of every file. Home v2 is its Home.
   sidebarFiles: {
     exposure: [EV.HOME_VIEW],

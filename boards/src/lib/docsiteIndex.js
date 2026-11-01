@@ -2158,10 +2158,10 @@ export const DOCS_PAGES = [
     "title": "Sharing and Public Links — Soleil Clusters",
     "metaDescription": "Share a Soleil Clusters board with a view-only public link that needs no account, set an expiry, include sub-clusters, or invite editors by email.",
     "h1": "Sharing and public links",
-    "answer": "A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.",
+    "answer": "A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are view-only, include nested clusters by default and can expire after 7 or 30 days. Anyone who opens one can join to keep the cluster in their Clusters, and ask you to let them edit. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.",
     "section": "collaborate",
     "order": 1,
-    "updated": "2026-10-27",
+    "updated": "2026-11-01",
     "navLabel": "Sharing",
     "headings": [
       {
@@ -2217,7 +2217,11 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Does someone need an account to open a shared link?",
-        "a": "No. A view link opens the board read-only for anyone, with no sign-in."
+        "a": "No. A view link opens the board read-only for anyone, with no sign-in. Signing in is only needed to join it, which keeps the cluster in their own Clusters."
+      },
+      {
+        "q": "Can someone who joined from a view link edit?",
+        "a": "Not on their own. They join view-only and can press Ask to edit; you, or the cluster's owner, say yes in one tap from the bell, the email or the Share panel."
       },
       {
         "q": "Can a public link be edited by whoever has it?",
@@ -2919,10 +2923,10 @@ export const DOCS_PAGES = [
     "title": "Referrals — Invite and Earn — Soleil Clusters",
     "metaDescription": "Invite people to Soleil Clusters. They get bonus cards and storage when they join; you get yours once they get started. Stats live in Settings.",
     "h1": "Referrals",
-    "answer": "Invite someone new to Clusters — by email from a cluster's Share panel, with an edit link or your workspace's invite link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get 25 extra cards and 0.5GB of storage when they sign up. You get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.",
+    "answer": "Invite someone new to Clusters — by email from a cluster's Share panel, with a link to one of your clusters or your workspace's invite link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get 25 extra cards and 0.5GB of storage when they sign up. You get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.",
     "section": "account",
     "order": 3,
-    "updated": "2026-10-21",
+    "updated": "2026-11-01",
     "navLabel": "Referrals",
     "headings": [
       {

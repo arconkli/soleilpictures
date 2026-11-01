@@ -1,0 +1,171 @@
+/* shareJoin.css — what the person who RECEIVES a /share link sees: the sender
+   under the cluster's name, the one Join button, the Join card, and the
+   first-visit tip. Everything sits inside .public-shell.public-dark, so the
+   tokens are the dark ones. Neutral ink throughout: gold (--soleil) stays with
+   active / selected / focus states and is not used here. */
+
+/* ── Top bar: who sent it ── */
+.public-board-title.has-from {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+}
+.public-board-title.has-from .public-board-name { flex: 0 1 auto; }
+.public-board-from {
+  display: inline-flex; align-items: center; gap: 8px; min-width: 0;
+  font: 500 12px/1.2 var(--font-sans);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.public-board-from-t { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.public-av {
+  width: 22px; height: 22px; flex: none;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  background: #3b6e5a; color: #fff;
+  font: 700 11px/1 var(--font-sans);
+  text-transform: uppercase;
+}
+
+/* ── Top bar: Join is the one primary button; the rest are quiet ── */
+.public-btn-quiet, .public-btn-join {
+  display: inline-flex; align-items: center;
+  height: 32px; padding: 0 14px;
+  border-radius: var(--radius);
+  font: 600 13px/1 var(--font-sans);
+  text-decoration: none; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+.public-btn-quiet { color: var(--ink-1); background: transparent; border: 0; cursor: pointer; }
+.public-btn-quiet:hover { color: var(--ink-0); background: var(--bg-hov); }
+.public-btn-join { color: var(--bg-0); background: var(--ink-0); border: 1px solid var(--ink-0); }
+.public-btn-join:hover { transform: translateY(-1px); }
+.public-btn-quiet:focus-visible, .public-btn-join:focus-visible { outline: 2px solid var(--ink-0); outline-offset: 2px; }
+
+/* Not enough width to sit beside the name: under it. */
+@media (max-width: 900px) {
+  .public-board-title.has-from { flex-direction: column; gap: 2px; }
+  .public-board-from { font-size: 11px; }
+  .public-board-from .public-av { width: 16px; height: 16px; font-size: 9px; }
+}
+@media (max-width: 640px) {
+  /* A phone's bar keeps only Join. */
+  .public-topbar .public-btn-quiet { display: none; }
+  .public-btn-join { height: 40px; }
+}
+
+/* ── The Join card: bottom-right on a computer, a bottom sheet on a phone ── */
+.jc {
+  position: fixed;
+  right: 18px;
+  bottom: calc(18px + var(--safe-bottom, 0px));
+  z-index: 60;
+  width: 300px;
+  max-width: calc(100vw - 36px);
+  box-sizing: border-box;
+  padding: 18px 18px 16px;
+  background: var(--bg-1);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgba(0,0,0,.45);
+  color: var(--ink-0);
+  animation: jc-in .28s var(--ease) both;
+}
+@keyframes jc-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jc { animation: none; }
+}
+.jc-x {
+  position: absolute; top: 8px; right: 8px;
+  width: 28px; height: 28px;
+  border: 0; background: transparent;
+  color: var(--ink-3);
+  font: 400 16px/1 var(--font-sans);
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: grid; place-items: center;
+}
+.jc-x:hover { color: var(--ink-0); background: var(--bg-hov); }
+.jc-eb {
+  display: flex; align-items: center; gap: 8px;
+  font: 700 10px/1 var(--font-sans);
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-2);
+}
+.jc-eb .public-av { width: 18px; height: 18px; font-size: 9px; letter-spacing: 0; }
+.jc-tt {
+  margin: 10px 0 6px;
+  padding-right: 18px; /* clear the X */
+  font: 700 17px/1.25 ui-serif, Georgia, serif;
+  color: var(--ink-0);
+}
+.jc-tx { font: 400 13px/1.45 var(--font-sans); color: var(--ink-1); }
+.jc-acts { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+.jc-acts .public-btn-join { flex: 1; justify-content: center; height: 38px; }
+.jc-acts .public-btn-quiet { height: 38px; }
+@media (max-width: 640px) {
+  .jc {
+    left: 0; right: 0; bottom: 0;
+    width: auto; max-width: none;
+    padding: 18px 18px calc(22px + var(--safe-bottom, 0px));
+    border-radius: 16px 16px 0 0;
+    border-left: 0; border-right: 0; border-bottom: 0;
+  }
+  .jc-acts .public-btn-join { height: 44px; }
+  .jc-acts .public-btn-quiet { height: 44px; }
+}
+@media (max-height: 420px) {
+  .jc { padding: 12px 14px; }
+  .jc-tx { display: none; }
+}
+
+/* ── First-visit tip ── */
+.fvt-ring {
+  position: fixed; z-index: 61;
+  border: 2px solid #f5f5f7;
+  border-radius: 10px;
+  box-shadow: 0 0 0 6px rgba(245,245,247,.16);
+  pointer-events: none;
+}
+.fvt-tip {
+  position: fixed; z-index: 62;
+  display: flex; align-items: center; gap: 12px;
+  box-sizing: border-box;
+  max-width: calc(100vw - 24px);
+  padding: 10px 12px 10px 14px;
+  background: #f5f5f7; color: #0a0a0c;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5);
+  font: 600 13.5px/1.35 var(--font-sans);
+  animation: fvt-in .24s var(--ease) both;
+}
+.fvt-tip.is-free { left: 50%; transform: translateX(-50%); bottom: calc(22px + var(--safe-bottom, 0px)); }
+@keyframes fvt-in { from { opacity: 0; } to { opacity: 1; } }
+.fvt-tip.is-free { animation-name: fvt-in-free; }
+@keyframes fvt-in-free { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .fvt-tip, .fvt-tip.is-free { animation: none; }
+}
+.fvt-tip::after {
+  content: ''; position: absolute; width: 12px; height: 12px;
+  background: #f5f5f7; transform: rotate(45deg);
+  display: none;
+}
+.fvt-tip.up::after { display: block; top: -5px; left: 24px; }
+.fvt-tip.down::after { display: block; bottom: -5px; left: 24px; }
+.fvt-t { display: block; min-width: 0; }
+.fvt-t small { display: block; margin-top: 2px; font: 500 12px/1.35 var(--font-sans); color: #55555c; }
+.fvt-dots { display: flex; gap: 6px; margin-left: 4px; flex: none; }
+.fvt-dots i { width: 6px; height: 6px; border-radius: 50%; background: #c4c4ca; }
+.fvt-dots i.on { background: #0a0a0c; }
+.fvt-ok {
+  flex: none; cursor: pointer; border: 0;
+  padding: 4px 8px; border-radius: 6px;
+  background: #e6e6ea; color: #55555c;
+  font: 600 12px/1.2 var(--font-sans);
+  white-space: nowrap;
+}
+.fvt-ok:hover { background: #dcdce0; color: #0a0a0c; }
+.fvt-ok:focus-visible { outline: 2px solid #0a0a0c; outline-offset: 2px; }

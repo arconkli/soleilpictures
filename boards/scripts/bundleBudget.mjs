@@ -74,7 +74,14 @@ export const CEILINGS = {
   // of the faux top bar, cursors leave the notes alone. The glow and orbit
   // went into CSS to stay out of this number. 167.5 KB on main 8e4e476f,
   // a hair over with it.
-  entryJs: 168_000,
+  // 2026-11-01: +1.0 KB for joining from a shared link (0830): the sign-in
+  // page reads ?jk=, keeps the pending join and draws the "Join Andrew on
+  // Clusters" card (the cluster's picture, name and who shared it) above the
+  // email box, since it is the first thing a joiner sees. Claiming the link,
+  // its toasts and events load only after sign-in, when one is waiting
+  // (lib/pendingJoinClaim.js). A CI-style build read 167.7 KB on main
+  // bc946d4f and 168.5 KB with it.
+  entryJs: 169_000,
   entryCss: 96_000,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
@@ -198,8 +205,16 @@ export const CEILINGS = {
   // icon, so no new icon joins vendor-icons. A local build with CI's
   // environment measured appJs 693,098 B and appCss 20,901 B on 33f1a69d,
   // and 697,170 B and 21,478 B with the change.
-  appJs: 697_500,
-  appCss: 21_600,
+  // 2026-11-01: +3.5 KB of JS and +0.3 KB of CSS for share links people join
+  // (0830): Ask to edit in the top bar, its answer in the bell (Let them
+  // edit / Not now) and in the Share panel, the toasts for an ask and a yes,
+  // and the Share panel's "joined from a link" rows. The preview card's
+  // drawing (lib/shareCard.js) loads only when a link is copied, and the
+  // join page and its tip only on /share. A CI-style build read appJs 699.1 KB
+  // and appCss 21.5 KB on main bc946d4f (appJs already OVER there by 1.6 KB,
+  // not raised here), and 702.5 KB and 21.8 KB with it.
+  appJs: 701_000,
+  appCss: 21_900,
 };
 
 // Chunks that must never be in the app's critical closure. Matched against the
@@ -248,6 +263,9 @@ export const LAZY_IN_APP = [
   // R2Image.jsx, useFileViewBackfill.js: asking for and waiting on a photo's
   // view, and writing it onto cards
   'fileViewWork',
+  // AuthGate.jsx: claiming a stashed ?join= link once signed in (the entry
+  // keeps only the capture and the stash, lib/pendingJoin.js)
+  'pendingJoinClaim',
 ];
 
 const br = (buf) => brotliCompressSync(buf, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } }).length;

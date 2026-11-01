@@ -18,6 +18,8 @@ export type TemplateName =
   | "workspace_invite"
   | "board_shared"
   | "invite_accepted"
+  | "edit_request"
+  | "edit_granted"
   | "pending_invite"
   | "team_invite"
   | "mention_email"
@@ -42,6 +44,8 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "workspace_invite",
   "board_shared",
   "invite_accepted",
+  "edit_request",
+  "edit_granted",
   "pending_invite",
   "team_invite",
   "mention_email",
@@ -584,6 +588,98 @@ function workspaceJoined(d: InviteAcceptedData): RenderedEmail {
     html: renderEmail({
       preheader: subtitle,
       eyebrow: "They're in",
+      headline,
+      subtitle,
+      cta: { label, url },
+    }),
+    text: plain([
+      "CLUSTERS",
+      "",
+      headline,
+      subtitle,
+      "",
+      `${label}: ` + url,
+      "",
+      "© Soleil Pictures · clusters.soleilpictures.com",
+    ]),
+  };
+}
+
+// Someone who can see a cluster through a link asked to edit it. Sent to the
+// person who shared it (share_notifications kind='edit_request'). The button
+// opens the cluster with ?asks=1, which opens its Share panel on the open asks
+// (Let them edit / Not now). Ignoring it is a "not now": they keep view access.
+interface EditRequestData {
+  askerName: string;
+  boardName: string;
+  workspaceId?: string;
+  boardId?: string;
+}
+
+// "Let Sam edit": the first word of a name; an email address or the fallback
+// "Someone" reads better as "them".
+function firstNameOf(name: string): string {
+  const first = name.trim().split(/\s+/)[0] || "";
+  return !first || first.includes("@") || first === "Someone" ? "them" : first;
+}
+
+function editRequest(d: EditRequestData): RenderedEmail {
+  const headline = `${d.askerName} asked to edit.`;
+  const subtitle = `${d.askerName} can see “${d.boardName}” and asked to edit it.`;
+  const caveat = "Not now? Ignore this. They keep view access.";
+  const label = `Let ${firstNameOf(d.askerName)} edit`;
+  const base = deepLink(
+    { w: d.workspaceId, b: d.boardId },
+    { utm_source: "email", utm_medium: "transactional", utm_campaign: "edit_request" },
+  );
+  const url = base + (base.includes("?") ? "&" : "?") + "asks=1";
+  return {
+    subject: `${d.askerName} asked to edit “${d.boardName}”`,
+    html: renderEmail({
+      preheader: subtitle,
+      eyebrow: "Edit request",
+      headline,
+      subtitle,
+      cta: { label, url },
+      caveat,
+    }),
+    text: plain([
+      "CLUSTERS",
+      "",
+      headline,
+      subtitle,
+      "",
+      `${label}: ` + url,
+      "",
+      caveat,
+      "",
+      "© Soleil Pictures · clusters.soleilpictures.com",
+    ]),
+  };
+}
+
+// The sharer said yes to an edit request: sent to the person who asked
+// (share_notifications kind='edit_granted').
+interface EditGrantedData {
+  sharerName: string;
+  boardName: string;
+  workspaceId?: string;
+  boardId?: string;
+}
+
+function editGranted(d: EditGrantedData): RenderedEmail {
+  const headline = `${d.sharerName} said yes.`;
+  const subtitle = `You can now edit “${d.boardName}”.`;
+  const label = [...d.boardName].length <= WS_CTA_MAX ? `Open ${d.boardName}` : "Open cluster";
+  const url = deepLink(
+    { w: d.workspaceId, b: d.boardId },
+    { utm_source: "email", utm_medium: "transactional", utm_campaign: "edit_granted" },
+  );
+  return {
+    subject: `${d.sharerName} said yes: you can edit “${d.boardName}”`,
+    html: renderEmail({
+      preheader: subtitle,
+      eyebrow: "You can edit",
       headline,
       subtitle,
       cta: { label, url },
@@ -1788,6 +1884,20 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         boardId:       data.boardId != null ? String(data.boardId) : undefined,
         scope:         data.scope === "workspace" ? "workspace" : undefined,
         workspaceName: safeLabel(data.workspaceName, 60) || undefined,
+      });
+    case "edit_request":
+      return editRequest({
+        askerName:   safePerson(data.askerName),
+        boardName:   safeLabel(data.boardName, 60, "a cluster"),
+        workspaceId: data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:     data.boardId != null ? String(data.boardId) : undefined,
+      });
+    case "edit_granted":
+      return editGranted({
+        sharerName:  safePerson(data.sharerName),
+        boardName:   safeLabel(data.boardName, 60, "a cluster"),
+        workspaceId: data.workspaceId != null ? String(data.workspaceId) : undefined,
+        boardId:     data.boardId != null ? String(data.boardId) : undefined,
       });
     case "team_invite":
       return teamInvite({

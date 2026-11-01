@@ -36,6 +36,65 @@ function agoLabel(ts) {
   return `${Math.round(h / 24)}d`;
 }
 
+// A 'edit_request' row (0830): someone with view access asked to edit a cluster
+// of yours. It carries its own buttons, so it is not the row button the others
+// are. The answer lives in the row (a reload shows the buttons again; answering
+// a settled ask returns what was decided, which reads as "Already answered").
+function EditRequestRow({ n, onAnswer, onMarkRead, nameOf }) {
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(null);   // 'yes' | 'not_now' | 'already' | 'gone'
+  const [err, setErr] = useState('');
+  const requestId = n.data?.request_id || null;
+  const who = (nameOf?.(n.data?.requester_id) || '').trim()
+    || String(n.title || '').split(' asked to edit')[0].trim();
+  const initial = (who.charAt(0) || '?').toUpperCase();
+
+  const answer = async (yes) => {
+    if (busy || !requestId || !onAnswer) return;
+    setBusy(true);
+    setErr('');
+    try {
+      const got = await onAnswer(requestId, yes);
+      const asked = yes ? 'yes' : 'not_now';
+      if (got === 'gone') setDone('gone');
+      else if (got && got !== asked) setDone('already');
+      else setDone(asked);
+      onMarkRead?.([n.id]);
+    } catch (e) {
+      setErr(String(e?.message || e || 'Could not save that. Try again.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const note = done === 'yes' ? 'You said yes'
+    : done === 'not_now' ? 'Not now'
+    : done === 'already' ? 'Already answered'
+    : done === 'gone' ? 'No longer on this cluster' : '';
+
+  return (
+    <div className={`ntf-row ntf-ask${n.read_at ? '' : ' is-unread'}`} data-kind="edit_request">
+      <span className="ntf-dot" aria-hidden="true" />
+      <span className="ntf-av" aria-hidden="true">{initial}</span>
+      <span className="ntf-row-main">
+        <span className="ntf-row-title">{n.title}</span>
+        {note ? (
+          <span className="ntf-ask-note">{note}</span>
+        ) : (
+          <span className="ntf-ask-acts">
+            <button type="button" className="ntf-btn is-primary" disabled={busy || !requestId}
+              onClick={() => answer(true)}>Let them edit</button>
+            <button type="button" className="ntf-btn" disabled={busy || !requestId}
+              onClick={() => answer(false)}>Not now</button>
+          </span>
+        )}
+        {err && <span className="ntf-ask-err" role="alert">{err}</span>}
+      </span>
+      <span className="ntf-row-ago">{agoLabel(n.created_at)}</span>
+    </div>
+  );
+}
+
 const viewport = () => ({ width: window.innerWidth, height: window.innerHeight });
 
 // The box the panel hangs from: the island the bell sits in, else the bell.
@@ -47,6 +106,7 @@ function anchorBox(el) {
 export function NotificationsPanel({
   items = [], unread = 0, loading = false,
   onOpenBoard = null, onOpenSettings = null, onMarkRead = null, onClose = null,
+  onAnswerEdit = null, nameOf = null,
   anchorRef = null, mobileShell = false,
 }) {
   // Escape closes the panel (COMMS-22). The panel takes focus when it opens so
@@ -163,6 +223,9 @@ export function NotificationsPanel({
           <ul className="ntf-list">
             {items.map((n) => (
               <li key={n.id}>
+                {n.kind === 'edit_request' && onAnswerEdit ? (
+                  <EditRequestRow n={n} onAnswer={onAnswerEdit} onMarkRead={onMarkRead} nameOf={nameOf} />
+                ) : (
                 <button type="button"
                   className={`ntf-row${n.read_at ? '' : ' is-unread'}`}
                   data-kind={n.kind || undefined}
@@ -174,6 +237,7 @@ export function NotificationsPanel({
                   </span>
                   <span className="ntf-row-ago">{agoLabel(n.created_at)}</span>
                 </button>
+                )}
               </li>
             ))}
           </ul>
