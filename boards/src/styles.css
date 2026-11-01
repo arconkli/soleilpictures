@@ -11363,6 +11363,27 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 .vc-download:hover { background: rgba(10, 10, 12, 0.85); }
 .vc-download:focus-visible { opacity: 1; outline: 2px solid var(--soleil); outline-offset: 1px; }
 @media (hover: none) { .vc-download { opacity: 1; } }
+/* The resting "this is a video" mark (VideoCard, clips that don't play
+   themselves). Neutral white on the download button's glass, never gold. */
+.vc-badge {
+  position: absolute;
+  top: 10px; right: 10px;
+  z-index: 2;
+  display: grid; place-items: center;
+  width: 22px; height: 22px;
+  padding-left: 1px;
+  border-radius: 6px;
+  background: rgba(10, 10, 12, 0.55);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  pointer-events: none;
+  transition: opacity var(--dur-quick) var(--ease);
+}
+.vc:hover .vc-badge,
+.vc:focus-within .vc-badge,
+.vc:has(.film.is-playing) .vc-badge { opacity: 0; }
+/* Touch screens keep the download button showing, so the mark sits beside it. */
+@media (hover: none) { .vc-download ~ .vc-badge { right: 40px; } }
 .vc-vidwrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: #000; }
 /* At rest a clip is its poster (VideoCard mounts the film player on hover,
    selection or play), with its length in the corner. */

@@ -94,6 +94,7 @@ function prefetchFilmPlayer() {
   import('./film/FilmPlayer.jsx').catch(() => { filmPlayerPrefetched = false; });
 }
 import { registerCardPlayer } from '../lib/playerBus.js';
+import { driftFix, getBoardEpoch, serverNow, SEEK_LEAD_S, SEEK_OVER_S, subscribeBoardEpoch, syncTarget, timeDiff } from '../lib/videoSync.js';
 import { probeCardVideo } from '../hooks/useMediaFacts.js';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
 
@@ -803,7 +804,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
 // `src` was stamped on the card (works for r2: and external https).
 function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdate, autoFocus = false, editTitleAt = 0, onDownload = null,
                      pending = false, uploadProgress = null, mediaJson = null, onExpand = null,
-                     cardId = null, selected = false, tapToPlay = false, playSrc = null }) {
+                     cardId = null, selected = false, tapToPlay = false, playSrc = null, syncBoardId = null }) {
   // The clip's own facts (lib/mediaProbe.js), as a string so memo can compare it.
   const media = useMemo(() => { try { return mediaJson ? JSON.parse(mediaJson) : null; } catch (_) { return null; } }, [mediaJson]);
   // Same fix as ImageCard: don't auto-open the title row on paste; it
@@ -857,25 +858,115 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
   // browser, so an autoplaying clip is a moving still. It also keeps out of
   // audioBus's one-sound-at-a-time rule, which a wall of self-starting audio
   // would otherwise trample. The user can unmute from the controls.
+  //
+  // On a board (syncBoardId) the clip also keeps time with everyone else
+  // looking at it (lib/videoSync.js): it sits at (now − the board's start)
+  // into itself, wrapped round for a loop, held on the last frame once a
+  // play-once clip is done. Once a second it checks its drift: a big one
+  // jumps, a small one plays a touch fast or slow until it has caught up.
+  // Pausing it from its controls holds it for you; pressing play rejoins the
+  // board. A finished play-once clip you start yourself plays through for you.
   const videoRef = useRef(null);
+  const mediaDur = media?.dur;
   useEffect(() => {
     const el = videoRef.current;
-    if (!el || !autoplay || !resolvedUrl) return;
+    if (!el || !autoplay || !resolvedUrl) return undefined;
     // React does not reliably reflect a `muted` prop onto the element, and
     // without it play() rejects. Set it on the node.
     el.muted = true;
-    if (typeof IntersectionObserver === 'undefined') { el.play?.().catch(() => {}); return; }
-    const io = new IntersectionObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting) el.play?.().catch(() => {});   // still rejects if the tab is hidden
-        else el.pause?.();
+    const synced = !!syncBoardId;
+    let visible = false;
+    let userPaused = false;   // paused from its controls: stays paused for this viewer
+    let ownRun = false;       // a finished play-once clip this viewer restarted
+    let expectPlay = false;   // play/pause events we caused, so they aren't read as the viewer's
+    let expectPause = false;
+    let tick = null;
+    const dur = () => (Number.isFinite(el.duration) && el.duration > 0 ? el.duration
+      : Number.isFinite(mediaDur) && mediaDur > 0 ? mediaDur : NaN);
+    const target = () => syncTarget({ now: serverNow(), epoch: getBoardEpoch(syncBoardId), dur: dur(), loop });
+    const play = () => {
+      if (!el.paused) return;
+      expectPlay = true;
+      el.play?.()?.catch?.(() => { expectPlay = false; });   // still rejects if the tab is hidden
+    };
+    const pause = () => { if (!el.paused) { expectPause = true; el.pause?.(); } };
+    const seek = (t) => { try { el.currentTime = Math.max(0, t); } catch (_) {} };
+    const align = () => {
+      if (!visible || userPaused || ownRun) return;
+      if (!synced) { play(); return; }
+      const t = target();
+      if (!t) return;   // the board's start (or the clip's length) isn't known yet
+      el.playbackRate = 1;
+      if (t.ended) {
+        if (Math.abs(el.currentTime - t.time) > 0.1) seek(t.time - 0.05);
+        pause();
+        return;
       }
-    }, { threshold: 0.15 });
-    io.observe(el);
+      if (Math.abs(timeDiff(t.time, el.currentTime, dur(), loop)) > SEEK_OVER_S) seek(t.time + SEEK_LEAD_S);
+      play();
+    };
+    const correct = () => {
+      if (!visible || userPaused || ownRun || el.paused || el.seeking) return;
+      const t = target();
+      if (!t) return;
+      if (t.ended) { align(); return; }
+      const fix = driftFix(timeDiff(t.time, el.currentTime, dur(), loop));
+      if (fix.seek) { el.playbackRate = 1; seek(t.time + SEEK_LEAD_S); }
+      else if (el.playbackRate !== fix.rate) el.playbackRate = fix.rate;
+    };
+    const onPlay = () => {
+      if (expectPlay) { expectPlay = false; return; }
+      userPaused = false;   // the viewer pressed play: back with everyone
+      if (synced && target()?.ended) { ownRun = true; return; }
+      align();
+    };
+    const onPause = () => {
+      if (expectPause) { expectPause = false; return; }
+      // Not the viewer: the clip finished, scrolled away, the tab hid, or the
+      // element is reloading (its copy arrived) and has nothing to show yet.
+      if (el.ended || !visible || el.readyState < 2 || (typeof document !== 'undefined' && document.hidden)) return;
+      userPaused = true;
+      el.playbackRate = 1;
+    };
+    const onEnded = () => { ownRun = false; };
+    const onEmptied = () => { userPaused = false; ownRun = false; expectPlay = false; expectPause = false; };
+    const onVisibility = () => { if (!document.hidden) align(); };
+    el.addEventListener('loadedmetadata', align);
+    el.addEventListener('play', onPlay);
+    el.addEventListener('pause', onPause);
+    el.addEventListener('ended', onEnded);
+    el.addEventListener('emptied', onEmptied);
+    if (synced) document.addEventListener('visibilitychange', onVisibility);
+    const unsub = synced ? subscribeBoardEpoch(syncBoardId, () => align()) : () => {};
+    const setVisible = (v) => {
+      visible = v;
+      clearInterval(tick); tick = null;
+      if (v) { align(); if (synced) tick = setInterval(correct, 1000); }
+      else pause();
+    };
+    let io = null;
+    if (typeof IntersectionObserver === 'undefined') setVisible(true);
+    else {
+      io = new IntersectionObserver((entries) => {
+        for (const entry of entries) setVisible(entry.isIntersecting);
+      }, { threshold: 0.15 });
+      io.observe(el);
+    }
     // Turning autoplay off should stop the clip that is autoplaying, not just
     // decline to start it next time.
-    return () => { io.disconnect(); try { el.pause(); } catch (_) {} };
-  }, [autoplay, resolvedUrl]);
+    return () => {
+      io?.disconnect();
+      clearInterval(tick);
+      unsub();
+      el.removeEventListener('loadedmetadata', align);
+      el.removeEventListener('play', onPlay);
+      el.removeEventListener('pause', onPause);
+      el.removeEventListener('ended', onEnded);
+      el.removeEventListener('emptied', onEmptied);
+      if (synced) document.removeEventListener('visibilitychange', onVisibility);
+      try { el.playbackRate = 1; el.pause(); } catch (_) {}
+    };
+  }, [autoplay, resolvedUrl, loop, syncBoardId, mediaDur]);
 
   // ── The film player, mounted when it's wanted ───────────────────────────
   // At rest a clip with a poster is just its poster — no <video>, no clock, no
@@ -979,6 +1070,15 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
                 aria-label="Download video" title="Download">
           <Icon as={Download} size={14} />
         </button>
+      )}
+      {/* A clip that waits for a click looks like a still: a small play mark in
+          the corner says it's a video. It steps aside on hover (the download
+          button takes the corner) and while the clip plays. A clip that plays
+          itself is already moving, so it gets none. */}
+      {src && !autoplay && (
+        <span className="vc-badge" aria-hidden="true">
+          <svg width="10" height="10" viewBox="0 0 24 24"><path d="M7 4.8v14.4a1 1 0 0 0 1.53.85l11.2-7.2a1 1 0 0 0 0-1.7L8.53 3.95A1 1 0 0 0 7 4.8Z" fill="currentColor" /></svg>
+        </span>
       )}
       <div className="vc-vidwrap" onPointerEnter={onEnter} onPointerLeave={onLeave} onPointerDownCapture={onDownCapture}>
         {/* A clip that plays itself is a moving still — it keeps the plain

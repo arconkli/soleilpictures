@@ -98,8 +98,21 @@ export function CellText({ html, seqIndex, seqFormat, style, effBg }) {
 
 export function CellVideo({ src }) {
   const url = useResolvedSrc(src);
+  // Same resting play mark as a video card (styles.css .vc-badge): a paused
+  // first frame reads as a photo without it. Gone while the clip plays.
+  const [playing, setPlaying] = useState(false);
   if (!url) return <div className="gc-loading" aria-hidden="true" />;
-  return <video className="gc-video" src={url} controls preload="metadata" onPointerDown={stop} />;
+  return (
+    <>
+      <video className="gc-video" src={url} controls preload="metadata" onPointerDown={stop}
+             onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
+      {!playing && (
+        <span className="gc-video-badge" aria-hidden="true">
+          <svg width="10" height="10" viewBox="0 0 24 24"><path d="M7 4.8v14.4a1 1 0 0 0 1.53.85l11.2-7.2a1 1 0 0 0 0-1.7L8.53 3.95A1 1 0 0 0 7 4.8Z" fill="currentColor" /></svg>
+        </span>
+      )}
+    </>
+  );
 }
 
 export function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard, textStyle, effBg = null, cardId, cellId, compare = false }) {

@@ -251,6 +251,7 @@ import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layou
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { earliestEpoch, serverNow, setBoardEpoch, syncServerClock } from '../lib/videoSync.js';
 
 // The cluster glyph. Once the cluster nudges ship it is the folder a cluster
 // already wears in Files, list rows and the cluster browser (cards.jsx
@@ -1625,6 +1626,72 @@ export function CanvasSurface({
       color: currentUser.color || pickPresenceColor(currentUser.id),
     });
   }, [getAwareness, currentUser?.id, currentUser?.name, currentUser?.color]);
+
+  // One start time for the board's autoplay clips (lib/videoSync.js), so
+  // everyone looking at it sees each clip at the same frame. Opening a board
+  // nobody else is on starts its clips from the beginning together; joining
+  // one takes the earliest start already shared on it. Only a board that has
+  // an autoplay clip asks the server's clock or says anything over presence.
+  const hasAutoplayVideo = useMemo(
+    () => (cards || []).some((c) => c.kind === 'video' && c.autoplay && c.src),
+    [cards]);
+  // The start this surface settled on, so presence reconnecting (which re-runs
+  // the effect) keeps the clips where they are instead of restarting them.
+  const videoEpochRef = useRef({ boardId: null, t: null });
+  useEffect(() => {
+    if (!hasAutoplayVideo) return undefined;
+    const boardId = board.id;
+    const aw = getAwareness?.();
+    const kept = videoEpochRef.current.boardId === boardId ? videoEpochRef.current.t : null;
+    let own = null;
+    let disposed = false;
+    const settleOn = (t) => {
+      own = t;
+      videoEpochRef.current = { boardId, t };
+      publish(t);
+      setBoardEpoch(boardId, t);
+    };
+    const peerEpochs = () => {
+      const out = [];
+      if (!aw) return out;
+      aw.getStates().forEach((state, clientId) => {
+        if (clientId === aw.clientID) return;
+        const ve = state?.videoEpoch;
+        if (ve && ve.boardId === boardId && Number.isFinite(ve.t)) out.push(ve.t);
+      });
+      return out;
+    };
+    const publish = (t) => {
+      try { aw?.setLocalStateField('videoEpoch', t == null ? null : { boardId, t }); } catch (_) {}
+    };
+    // Give the board a moment to hear who's already here (and the server's
+    // clock to answer) before starting from zero; a peer's start heard in the
+    // meantime is taken at once.
+    let settle = null;
+    if (kept != null) settleOn(earliestEpoch(kept, peerEpochs()));
+    else {
+      settle = setTimeout(() => {
+        Promise.race([syncServerClock(), new Promise((r) => setTimeout(r, 1200))]).then(() => {
+          if (disposed || own != null) return;
+          settleOn(earliestEpoch(serverNow(), peerEpochs()));
+        });
+      }, 600);
+      syncServerClock();
+    }
+    const onChange = (_changes, origin) => {
+      if (origin === 'local') return;
+      const next = earliestEpoch(own, peerEpochs());
+      if (next != null && next !== own) settleOn(next);
+    };
+    aw?.on('change', onChange);
+    return () => {
+      disposed = true;
+      clearTimeout(settle);
+      aw?.off('change', onChange);
+      publish(null);
+      setBoardEpoch(boardId, null);
+    };
+  }, [getAwareness, board.id, hasAutoplayVideo]);
 
   // Cursor broadcast — write to awareness on a throttled interval rather than
   // every pointermove/rAF. The interval SCALES with the live peer count
@@ -11638,6 +11705,7 @@ export function CanvasSurface({
     else if (c.kind === 'video')     inner = <VideoCard src={c.src} playSrc={c.playSrc} poster={c.poster} title={c.title}
                                                         pending={!!c.pending} uploadProgress={uploadProgressById[c.id] ?? null}
                                                         autoplay={!!c.autoplay} loop={!!c.loop} onUpdate={onUpdate} autoFocus={af}
+                                                        syncBoardId={c.autoplay ? board.id : null}
                                                         editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                         onDownload={c.src ? () => runDownload(c, 'video') : null}
                                                         mediaJson={c.media ? JSON.stringify(c.media) : null}
