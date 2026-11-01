@@ -12,8 +12,9 @@ need to look at it frame by frame.
 ## Video
 
 A video card plays inline. Move it, resize it, group it and comment on it like
-anything else. At rest it shows its poster frame and its length in the corner.
-Hover it for its controls: play, one frame back and forward, a scrubber along
+anything else. At rest it shows its poster frame, a small play mark in the top
+right corner so it reads as a video and not a photo, and its length in the
+bottom corner. Videos inside a grid get the same mark. Hover it for its controls: play, one frame back and forward, a scrubber along
 the bottom edge that lands on exact frames, the timecode, mute, and **⤢** to
 open the review player. The controls stay a usable size at any zoom.
 
@@ -107,6 +108,14 @@ own controls when you want to hear it.
 A clip only plays while it is **on screen**. Scroll it out of view and it pauses.
 On a board holding twenty takes, autoplaying all of them at once is what makes a
 canvas stutter, so this is the behaviour rather than a setting.
+
+Autoplaying clips keep **the same time for everyone**. Open a board nobody else
+is on and its autoplaying clips all start from the beginning, together. Anyone
+who opens it while you're there lands on the frame you're seeing, and the clips
+stay in step from then on, quietly catching up if one stalls to load. A clip
+that loops goes round; one that doesn't plays through once and stops on its last
+frame at the same moment for everyone. Pause one from its controls and it stays
+paused for you alone; press play and it rejoins everyone else.
 
 ### What Clusters knows about a clip
 

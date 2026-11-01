@@ -825,6 +825,12 @@ const worker = {
           minBuild: MIN_CLIENT_BUILD, reloadBy: RELOAD_BY,
         });
       }
+      // The server's clock, for lib/videoSync.js: everyone on a board lines its
+      // autoplay clips up against this, not against their own (often minutes
+      // off) device clock. Nothing but a number; never cached.
+      if (url.pathname === '/api/time' && request.method === 'GET') {
+        return json({ t: Date.now() });
+      }
       // The soleil-ctx codes (lib/edgeContext.js) for a page that could not carry
       // the tag: `/` is answered by the static assets before this Worker runs,
       // so a session that starts there asks here, once. The same string the tag
