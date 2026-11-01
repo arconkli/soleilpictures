@@ -3230,9 +3230,9 @@ A: Yes, on the canvas. Viewers can read, comment and vote; they cannot add, move
 ========================================================================
 # Sharing and public links
 URL: https://clusters.soleilpictures.com/docs/collaborate/sharing
-Updated: 2026-10-27
+Updated: 2026-11-01
 
-A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are always view-only, include nested clusters by default, can be set to expire after 7 or 30 days, and can be marked as not indexable by search engines. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
+A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are view-only, include nested clusters by default and can expire after 7 or 30 days. Anyone who opens one can join to keep the cluster in their Clusters, and ask you to let them edit. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 
 The Share panel answers one question — who can open this cluster? — in the order you decide it: the link first, under Share a link, then Invite people, then Who has access, one list of the people who can open it. Every row has the same shape: who on the left, what they can do on the right — a dropdown wherever you can change it. Copy link sits right under Anyone with the link, and anything more detailed about links is behind Link settings, under it. Done sits at the bottom and stays put while the rest scrolls.
 
@@ -3243,7 +3243,7 @@ The link — what it grants
 The link has its own row at the top: Anyone with the link. Its dropdown has three answers:
 
 Setting | What the link does | Account needed
-Can view | Anyone with the link opens the cluster read-only | No
+Can view | Anyone with the link opens the cluster read-only, and can join it to keep it in their Clusters | No (only to join)
 Can edit | Recipient confirms, signs in, and joins as an editor | Yes
 No link | Revokes every link on the cluster that you can revoke | —
 
@@ -3252,6 +3252,18 @@ Choosing a setting that already has a link copies it straight away. Copy link, r
 Owners and co-owners can revoke any link on the cluster. An editor can revoke the links they made themselves, so when an editor picks No link their own links are revoked and the panel says how many links other people made are still live. Those stay until the person who made them, the owner or a co-owner revokes them.
 
 An edit link is not an editable public link. It grants nothing on its own: the person who opens it sees a preview and an explicit Join step, and access is created when they sign in and take it.
+
+Joining from a view link
+
+Someone who opens a view link sees who sent it and a Join button. Joining asks them to sign in (a code to their email, nothing else), then puts the cluster in their sidebar under Shared with me. They see your changes as they happen, and still cannot change anything. You get a note that they joined, and they appear in Who has access as a viewer you can remove like anyone else. A new account that joins this way counts as your referral, as on an edit link.
+
+A link that leaves sub-clusters out cannot be joined when the cluster has sub-clusters, because a person added to a cluster can open the clusters inside it. They can still look, and you can invite them by email instead.
+
+Turning a link off stops new people joining through it. People who already joined keep their access until you remove them.
+
+Asking to edit
+
+A viewer who joined sees View only and Ask to edit at the top of the cluster. Pressing it tells the person whose link they joined and the cluster's owner, in the bell, as a note in the app and by email when they are away. Let them edit makes them an editor at once; it counts toward your editors like any other, so it is refused when the account has no room. Not now tells them nothing, and they can ask again a day later. Open asks also wait at the top of the cluster's Who has access list.
 
 What "view" includes
 
@@ -3334,7 +3346,11 @@ Boards you are viewing without edit rights show a clear VIEW ONLY badge, so ther
 
 Link previews
 
-A shared link unfurls properly in Slack, Messages and email — the board's own name and a thumbnail of its actual contents, not a generic logo.
+A shared link unfurls in Messages, WhatsApp, Slack, email and the rest as a picture card: the cluster's own pictures on the Clusters sun, and its name in large type. The title says who sent it ("Andrew shared “Lost Time” with you", or "invited you to edit" for an edit link) and the line under it says how many cards it holds. The card never shows the text of notes or docs. A cluster with no pictures gets a card with just its name. The card is refreshed when you open Share or copy the link.
+
+What someone sees the first time
+
+Someone without an account opening a shared link for the first time gets one small tip, once: Click a cluster to open it, then how to go back. A cluster with nothing inside it says how to move around instead. Any tap puts it away.
 
 Publishing instead
 
@@ -3487,7 +3503,10 @@ A shortcut carries no copy of the file and nothing that names it: it shows the f
 ## Frequently asked questions
 
 Q: Does someone need an account to open a shared link?
-A: No. A view link opens the board read-only for anyone, with no sign-in.
+A: No. A view link opens the board read-only for anyone, with no sign-in. Signing in is only needed to join it, which keeps the cluster in their own Clusters.
+
+Q: Can someone who joined from a view link edit?
+A: Not on their own. They join view-only and can press Ask to edit; you, or the cluster's owner, say yes in one tap from the bell, the email or the Share panel.
 
 Q: Can a public link be edited by whoever has it?
 A: Never. A view link is always read-only. Edit access comes from a separate kind of link that asks the recipient to sign in before it grants anything, or from inviting a named person by email.
@@ -4429,15 +4448,15 @@ A: No. Text colours are resolved against the actual background, so notes stay le
 ========================================================================
 # Referrals
 URL: https://clusters.soleilpictures.com/docs/account/referrals
-Updated: 2026-10-21
+Updated: 2026-11-01
 
-Invite someone new to Clusters — by email from a cluster's Share panel, with an edit link or your workspace's invite link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get 25 extra cards and 0.5GB of storage when they sign up. You get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.
+Invite someone new to Clusters — by email from a cluster's Share panel, with a link to one of your clusters or your workspace's invite link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get 25 extra cards and 0.5GB of storage when they sign up. You get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.
 
 Invite from Share on any cluster, or from Settings → Invite and earn.
 
 How it works
 
-Invite someone who does not have a Clusters account yet: by email from a cluster's Share panel, with one of your edit links, with your workspace's invite link, or with your referral link. When they sign up they get 25 extra cards and 0.5GB of storage straight away. You get 25 bonus cards and 0.5GB as soon as they actually get started — they have opened the app and placed their first card.
+Invite someone who does not have a Clusters account yet: by email from a cluster's Share panel, with one of your links to a cluster (a view link they join, or an edit link), with your workspace's invite link, or with your referral link. When they sign up they get 25 extra cards and 0.5GB of storage straight away. You get 25 bonus cards and 0.5GB as soon as they actually get started — they have opened the app and placed their first card.
 
 The activation gate is the important detail. The reward is not for a signup, it is for someone who used the product — which means the number in your stats reflects people who are actually there.
 
@@ -4478,7 +4497,7 @@ Two different things:
 Inviting a collaborator to a cluster is free and needs no referral link. That is how you work with someone.
 A referral is inviting someone to have their own account and workspace.
 
-They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your edit links, or your workspace's invite link, within 7 days of signing up. The same rules apply, and each person counts once. The Share panel's Details, under its invite box, says so too.
+They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your links to a cluster (view or edit), or your workspace's invite link, within 7 days of signing up. The same rules apply, and each person counts once. The Share panel's Details, under its invite box, says so too.
 
 ## Frequently asked questions
 

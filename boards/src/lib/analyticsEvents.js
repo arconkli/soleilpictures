@@ -460,6 +460,14 @@ export const EV = Object.freeze({
   // 'noop' all return early and left the funnel dark (join clicks with neither
   // a success nor a failure recorded). {status} (must-land)
   INVITE_LINK_CLAIM_RESULT:'invite_link_claim_result',
+  // ── View links that can be joined + Ask to edit (0830) ──
+  VIEW_LINK_JOIN_CLICK:    'view_link_join_clicked',      // Join on a shared cluster's page {kind:'view'|'invite', signed_in, where:'topbar'|'card'} (must-land)
+  VIEW_LINK_JOINED:        'view_link_joined',            // SERVER: join_view_link added the cluster to someone's Clusters {board_id,role,status}
+  EDIT_ASKED:              'edit_asked',                  // SERVER: request_edit sent an ask to the sharer and the owner {board_id}
+  EDIT_ANSWERED:           'edit_answered',               // SERVER: answer_edit_request {board_id, answer:'yes'|'not_now'}
+  // The first-visit tip on a shared cluster for someone without an account:
+  // open a sub-cluster, come back, move around. {step:'open'|'back'|'move', action:'shown'|'done'|'skipped'}
+  SHARE_TIP:               'share_tip',
 
   // ── First-run setup (workspace_setup arm B, components/setup) ──
   // Name the workspace, who and what it's for, invite — before the canvas.

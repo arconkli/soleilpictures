@@ -36,7 +36,8 @@ test.describe('share return wiring', () => {
   test('a signed-in viewer gets Save a copy, no Sign in link, and no sign-up prompt', () => {
     const s = view();
     expect(s).toMatch(/auth\?\.getSession\(\)/);
-    expect(s).toMatch(/signedIn \? null : \(\s*<SharePrompt/);
+    // The sign-up prompt is /c/ only now; a /share page gets the Join card (0830).
+    expect(s).toMatch(/slug && !signedIn && \(\s*<SharePrompt/);
     // The topbar markup moved into PublicTopbar; the view hands it signedIn.
     expect(s).toMatch(/<PublicTopbar\b[\s\S]{0,300}?signedIn=\{signedIn\}/);
     const bar = read('src/components/PublicTopbar.jsx');

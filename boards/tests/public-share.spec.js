@@ -102,29 +102,22 @@ test('sub-board navigation: progress shimmer, breadcrumbs, title, deep-link URL,
   expect(ev.props.cached).toBe(false);
 });
 
-test('engagement prompt: dwell trigger (QA override) and 14-day dismissal memory', async ({ page }) => {
+test('a /share page never shows the /c/ signup prompt, even with the QA dwell override or after opening a sub-board', async ({ page }) => {
+  // SharePrompt ("Like this board? Make your own.") is for /c/ public pages
+  // only. A /share page is something a person sent, and gets the Join card and
+  // the first-visit tip instead (tests/share-join.spec.js).
   const rows = [];
   await routeAnalytics(page, rows);
   await routeShareBundle(page);
   await page.goto(`/share/${TOKEN}?shareqa=1&promptms=300`);
-
-  const prompt = page.locator('.share-prompt');
-  await expect(prompt).toBeVisible();
-  await expect(prompt).toContainText('Like this board? Make your own.');
-  await expect(prompt.locator('.share-prompt-cta')).toHaveText('Try Clusters free');
-  await expect.poll(() => rows.map((r) => r.event), { timeout: 10_000 }).toContain('share_prompt_view');
-  expect(rows.find((r) => r.event === 'share_prompt_view').props.trigger).toBe('dwell');
-
-  await prompt.locator('.share-prompt-x').click();
-  await expect(prompt).toBeHidden();
-  const dismissedAt = await page.evaluate(() => localStorage.getItem('soleil.share.prompt.dismissedAt'));
-  expect(Date.parse(dismissedAt)).toBeGreaterThan(0);
-
-  // Reload — recent dismissal suppresses the prompt entirely.
-  await page.goto(`/share/${TOKEN}?shareqa=1&promptms=300`);
   await expect(page.locator('.public-board-name')).toHaveText('Marketing Root');
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(1000);
   await expect(page.locator('.share-prompt')).toHaveCount(0);
+
+  await openSubBoard(page);
+  await page.waitForTimeout(500);
+  await expect(page.locator('.share-prompt')).toHaveCount(0);
+  expect(rows.map((r) => r.event)).not.toContain('share_prompt_view');
 });
 
 test('the topbar offers exactly one green-field action, and says what the page is', async ({ page }) => {
@@ -264,20 +257,6 @@ test('the signup prompt fires at the dwell the median visitor actually reaches',
   const ms = Number(m[1].replace(/_/g, ''));
   expect(ms).toBeGreaterThanOrEqual(5_000);   // below this it's an ambush on arrival
   expect(ms).toBeLessThanOrEqual(15_000);     // above this it outruns the median visit
-});
-
-test('engagement prompt: sub-board navigation trigger', async ({ page }) => {
-  const rows = [];
-  await routeAnalytics(page, rows);
-  await routeShareBundle(page);
-  await page.goto(`/share/${TOKEN}`);
-  await expect(page.locator('.public-board-name')).toHaveText('Marketing Root');
-  await expect(page.locator('.share-prompt')).toHaveCount(0);
-
-  await openSubBoard(page);
-  await expect(page.locator('.share-prompt')).toBeVisible();
-  await expect.poll(() => rows.map((r) => r.event), { timeout: 10_000 }).toContain('share_prompt_view');
-  expect(rows.find((r) => r.event === 'share_prompt_view').props.trigger).toBe('subboard');
 });
 
 test('unreachable board tiles are hidden on public — no broken/locked tiles, no warn', async ({ page }) => {

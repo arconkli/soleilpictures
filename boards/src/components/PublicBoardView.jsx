@@ -24,7 +24,10 @@
 // This page doubles as a marketing surface: it seeds share attribution
 // into the session first-touch source (analytics.seedShareFirstSource), is
 // fully instrumented (EV.SHARE_*), and shows a dismissible signup prompt
-// after real engagement (SharePrompt).
+// after real engagement (SharePrompt). /share/<token> is a different page in
+// kind: someone SENT it, so it says who, makes Join the one main button (a view
+// link and an edit link both can be joined, 0830), shows a Join card after the
+// first-visit tip, and leaves the "Make your own" prompt to /c/.
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as Y from 'yjs';
@@ -62,7 +65,9 @@ import { logEvent, logEventNow, logEventOnce, seedShareFirstSource, seedPublicBo
 import { getRelatedPublicBoards } from '../lib/publicBoardsApi.js';
 import { encodeRemixParam } from '../lib/remix.js';
 import { withShareReturn } from '../lib/shareReturn.js';
-import { PublicTopbar } from './PublicTopbar.jsx';
+import { PublicTopbar, ShareTitle } from './PublicTopbar.jsx';
+import { FirstVisitTip } from './FirstVisitTip.jsx';
+import { stashPendingJoin } from '../lib/pendingJoin.js';
 import { supabase } from '../lib/supabase.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { qaShareNoPrefetch } from '../lib/localMode.js';
@@ -177,15 +182,69 @@ export function PublicBoardView({ token, slug }) {
   // Does this viewer already have a session? /share bypasses AuthGate, so the
   // page has to ask. Never blocks paint; a failed read simply means signed out.
   const [signedIn, setSignedIn] = useState(false);
+  // Whether that read has finished: the tip and the Join card are for the
+  // signed-out and the not-yet-in, so they wait for the answer.
+  const [authChecked, setAuthChecked] = useState(false);
   useEffect(() => {
     let alive = true;
     try {
-      supabase?.auth?.getSession()
-        .then(({ data }) => { if (alive) setSignedIn(!!data?.session?.user?.id); })
-        .catch(() => {});
-    } catch (_) {}
+      const read = supabase?.auth?.getSession();
+      if (!read) { setAuthChecked(true); return undefined; }
+      read
+        .then(({ data }) => { if (alive) { setSignedIn(!!data?.session?.user?.id); setAuthChecked(true); } })
+        .catch(() => { if (alive) setAuthChecked(true); });
+    } catch (_) { setAuthChecked(true); }
     return () => { alive = false; };
   }, []);
+
+  // A link someone sent (/share only): what get_share_meta says about it (0830:
+  // link_kind, can_join, sharer_name, card_count). Anon-callable; a failed read
+  // leaves null and the page falls back to what the bundle says, which is the
+  // old behaviour (an edit link can be joined, a view link cannot).
+  const [shareMeta, setShareMeta] = useState(null);
+  useEffect(() => {
+    if (!token || !supabase) return undefined;
+    let alive = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_share_meta', { p_token: token });
+        const row = Array.isArray(data) ? data[0] : data;
+        if (alive && !error && row && typeof row === 'object') setShareMeta(row);
+      } catch (_) { /* the bundle's answer stands */ }
+    })();
+    return () => { alive = false; };
+  }, [token]);
+
+  // Signed in: is this person already in? can_read_board is true for the
+  // cluster's owner, a member of its workspace, and anyone it is already shared
+  // with (directly or through a cluster above it). null until answered.
+  const [viewerIn, setViewerIn] = useState(null);
+  const metaBoardId = shareMeta?.board_id || null;
+  useEffect(() => {
+    if (!token || !signedIn || !metaBoardId || !supabase) return undefined;
+    let alive = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('can_read_board', { p_board_id: metaBoardId });
+        if (alive) setViewerIn(!error && data === true);
+      } catch (_) { if (alive) setViewerIn(false); }
+    })();
+    return () => { alive = false; };
+  }, [token, signedIn, metaBoardId]);
+
+  // The first-visit tip is finished (or was never going to show): the Join card
+  // waits for it.
+  const [tipDone, setTipDone] = useState(false);
+  const onTipDone = useCallback(() => setTipDone(true), []);
+  // A visitor who ignores the tip still gets the Join card, after a while.
+  const [tipWaitedOut, setTipWaitedOut] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setTipWaitedOut(true), 20000);
+    return () => clearTimeout(t);
+  }, []);
+  // Once eligible, the tip stays mounted for the rest of the page (hidden while
+  // not eligible) so a flip does not lose its step.
+  const tipMountedRef = useRef(false);
 
   // Uniform lp_* engagement package. Each /c/<slug> is its own landing page;
   // /share is one aggregate page (NEVER the token). Canvas pans, so no scroll axis.
@@ -842,6 +901,55 @@ export function PublicBoardView({ token, slug }) {
   // the Errors tab by the effect above.)
   const missing = !!cur?.missingState;
 
+  // /share only: what kind of link this is, whether it can be joined, and
+  // whether this signed-in viewer is already in. get_share_meta is the source;
+  // the bundle's invite flag stands in until it answers (or if it fails), which
+  // is the old behaviour: an edit link can be joined, a view link cannot.
+  const linkKind = shareMeta?.link_kind === 'invite' || shareMeta?.link_kind === 'view'
+    ? shareMeta.link_kind
+    : (joinInfo ? 'invite' : 'view');
+  const canJoin = !!token && (typeof shareMeta?.can_join === 'boolean' ? shareMeta.can_join : !!joinInfo);
+  const sharerName = shareMeta?.sharer_name || null;
+  const alreadyIn = !!token && signedIn && viewerIn === true;
+  // A signed-in viewer's answer is still coming: show neither Join nor Open it
+  // yet, so the button never flips under their cursor.
+  const inUnknown = !!token && signedIn && !!metaBoardId && viewerIn === null;
+  const joinName = shareMeta?.name || cache[rootId]?.board?.name || board.name || '';
+  const onJoinClick = (where) => {
+    ctaClickedRef.current = true;
+    // The stash is what the sign-in screen and the first load read; the token
+    // goes there, never into the event.
+    stashPendingJoin({
+      token, kind: linkKind, name: joinName || null, sharer: sharerName,
+      cards: Number(shareMeta?.card_count) > 0 ? Number(shareMeta.card_count) : null,
+    });
+    logEventNow(EV.VIEW_LINK_JOIN_CLICK, { kind: linkKind, signed_in: signedIn, where });
+  };
+  let topbarJoin = null;
+  if (token && !inUnknown && (canJoin || alreadyIn)) {
+    topbarJoin = alreadyIn
+      ? {
+        label: 'Open it',
+        href: shareMeta?.workspace_id
+          ? `/?w=${encodeURIComponent(shareMeta.workspace_id)}&b=${encodeURIComponent(metaBoardId)}`
+          : '/',
+        onClick: () => { ctaClickedRef.current = true; },
+      }
+      : {
+        label: 'Join',
+        href: `${ctaHref(ctx, 'join')}&join=${encodeURIComponent(token)}&jk=${linkKind}`,
+        onClick: () => onJoinClick('topbar'),
+      };
+  }
+
+  // The first-visit tip: signed-out visitors on a /share page, once per device.
+  // The Join card waits for it (or shows at once when there is none).
+  const tipEligible = !!token && authChecked && !signedIn && status === 'ok' && !!cur && !missing;
+  if (tipEligible) tipMountedRef.current = true;
+  const joinCardReady = authChecked && (tipDone || tipWaitedOut || !tipMountedRef.current);
+  const hasSubClusters = visibleCards.some(c => c.kind === 'board' || c.kind === 'boardlink');
+  const parentName = stack.length > 1 ? (navBoards[stack[stack.length - 2]] || '') : '';
+
   // Keep the dark app chrome regardless of board.bg_color (only the canvas
   // surface honors it): chrome built from theme tokens can't guarantee
   // contrast over arbitrary owner-picked backgrounds, and the dark frame
@@ -860,6 +968,7 @@ export function PublicBoardView({ token, slug }) {
         // mode (no pageModel) keeps the classic "Make a copy".
         remixUrl={(!pageModel || pageModel.isTemplate) ? remixHref(ctx) : null}
         remixLabel={pageModel?.isTemplate ? 'Use this template' : 'Make a copy'}
+        join={topbarJoin}
         center={showCrumbs ? (
           <nav className="public-crumbs" aria-label="Breadcrumb">
             {stack.map((id, i) => {
@@ -889,10 +998,13 @@ export function PublicBoardView({ token, slug }) {
           // above it answer both, and the read-only fact stops people from
           // trying to edit and concluding the page is broken. Token shares
           // only: a /c/ page is a published page, not something sent to you.
-          <div className="public-board-title">
-            {!slug && <div className="public-board-eyebrow">Shared with you · view only</div>}
-            <div className="public-board-name">{board.name || 'Untitled'}</div>
-          </div>
+          slug ? (
+            <div className="public-board-title">
+              <div className="public-board-name">{board.name || 'Untitled'}</div>
+            </div>
+          ) : (
+            <ShareTitle name={board.name} sharer={shareMeta?.sharer_name || null} kind={linkKind} />
+          )
         )}
       />
 
@@ -1037,20 +1149,38 @@ export function PublicBoardView({ token, slug }) {
         </nav>
       )}
 
-      {/* Invite link (0189): the Join confirm card replaces the generic
-          signup prompt — the visitor was invited, not ambushed. Joining is
-          claim-on-click: the href lands on / with ?join=<token>, AuthGate
-          stashes it across the OTP hop and claims once a session exists. */}
-      {joinInfo && token ? (
+      {/* A link someone sent (/share): the Join card, bottom-right on a
+          computer and a sheet on a phone, after the first-visit tip. Both an
+          edit link (0189) and a view link (0830) can be joined; joining is
+          claim-on-click: the href lands on / with ?join=<token>&jk=<kind>,
+          AuthGate stashes it across the OTP hop and claims once a session
+          exists. Someone already in gets no card (the top bar says Open it). */}
+      {token && canJoin && !alreadyIn && !inUnknown && (
         <JoinBoardCard
-          role={joinInfo.role}
-          boardName={board.name}
+          kind={linkKind}
+          role={joinInfo?.role}
+          boardName={joinName}
+          sharerName={sharerName}
           rootId={rootId}
           token={token}
-          href={`${ctaHref(ctx, 'join')}&join=${encodeURIComponent(token)}`}
-          onJoinClick={() => { ctaClickedRef.current = true; }}
+          href={`${ctaHref(ctx, 'join')}&join=${encodeURIComponent(token)}&jk=${linkKind}`}
+          onJoinClick={onJoinClick}
+          ready={joinCardReady}
+          delayMs={6000}
         />
-      ) : signedIn ? null : (
+      )}
+      {tipMountedRef.current && (
+        <FirstVisitTip
+          hidden={!tipEligible}
+          hasSubClusters={hasSubClusters}
+          depth={stack.length}
+          parentName={parentName}
+          onDone={onTipDone}
+        />
+      )}
+      {/* "Like this board? Make your own" stays on /c/ pages. A /share page is
+          a person's own gift and gets the Join card instead. */}
+      {slug && !signedIn && (
         <SharePrompt
           href={ctaHref(ctx, 'prompt')}
           onCtaClick={onCta('prompt')}

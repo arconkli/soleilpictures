@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Generate 1200×630 Open Graph cards for the SEO landing pages + the site
-// default, into public/og/. Each card: dark brand background with a soft gold
+// default, into public/og/ (one, share-fallback.jpg, is a JPEG for the Worker's share card). Each card: dark brand background with a soft gold
 // glow, the sun art (the search pages) or the mark (home), the page H1 in large display type, the subhead, and the
 // domain footer. Rendered with Playwright (HTML → screenshot), compressed with
 // sharp. Re-run whenever a page's h1/subhead changes.
@@ -184,6 +184,21 @@ const HOME_CARDS = [
   { html: paletteHtml('Yahweh', ['#ffffff', '#ffd158', '#552a21', '#a93535']), cx: 1085, cy: 1420, rot: -2, maxW: 400 },
 ];
 
+// The picture a /share link unfurls as when its cluster has none saved yet (or
+// the link is dead): worker.js handleShareCard streams this file. The orbits
+// and suns of the search pages' look on the dark ground, no cards, and no text
+// but the wordmark. A JPEG, since the Worker's card route is image/jpeg only.
+const shareFallbackHtml = () => `<!doctype html><html><head><link rel="stylesheet" href="https://use.typekit.net/qtd2rwk.css" /></head>
+<body style="margin:0;width:1200px;height:630px;overflow:hidden;">
+  <div style="position:relative;width:1200px;height:630px;overflow:hidden;background:radial-gradient(ellipse 62% 70% at 70% 50%,#1d130a,#0a0809 74%);color:#f5f5f7;">
+    <svg viewBox="0 0 ${ORBIT_ART.og.box.join(' ')}" width="1200" height="630" style="position:absolute;left:0;top:0;z-index:2;overflow:visible;"><style>.orb{filter:drop-shadow(0 8px 16px rgba(0,0,0,.45))}</style>${orbitArtSvg('og', { id: 'og', motion: false })}</svg>
+    <div style="position:absolute;left:72px;top:0;bottom:0;display:flex;align-items:center;gap:22px;z-index:5;">
+      <img src="${LOGO}" width="68" height="68" style="display:block;" />
+      <span style="font:700 44px/1 ${DISPLAY};letter-spacing:.18em;">CLUSTERS</span>
+    </div>
+  </div>
+</body></html>`;
+
 const cards = [
   ...SEO_LANDING_PAGES.map(searchCard),
   ...SEO_LISTICLE_PAGES.map(searchCard),
@@ -223,6 +238,7 @@ const cards = [
     h1: 'Changelog',
     subhead: 'Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly.',
   },
+  { file: 'share-fallback.jpg', html: shareFallbackHtml(), jpeg: true },
   {
     file: 'default.png',
     h1: 'Creative Workspace & Moodboard for Production Teams',
@@ -243,7 +259,9 @@ for (const c of cards) {
     await fitHeadline(page);
   }
   const shot = await page.screenshot({ type: 'png' });
-  const optimized = await sharp(shot).png({ palette: true, compressionLevel: 9, quality: 90 }).toBuffer();
+  const optimized = c.jpeg
+    ? await sharp(shot).jpeg({ quality: 82, mozjpeg: true }).toBuffer()
+    : await sharp(shot).png({ palette: true, compressionLevel: 9, quality: 90 }).toBuffer();
   writeFileSync(resolve(OUT, c.file), optimized);
   console.log(`✓ public/og/${c.file} (${Math.round(optimized.length / 1024)}KB)`);
 }

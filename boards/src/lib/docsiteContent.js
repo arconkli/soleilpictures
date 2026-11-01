@@ -34686,13 +34686,13 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Anyone with the link opens the cluster read-only"
+       "v": "Anyone with the link opens the cluster read-only, and can join it to keep it in their Clusters"
       }
      ],
      [
       {
        "t": "text",
-       "v": "No"
+       "v": "No (only to join)"
       }
      ]
     ],
@@ -34858,6 +34858,179 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " step, and access is created when they sign in and take it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Joining from a view link",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Joining from a view link"
+    }
+   ],
+   "id": "joining-from-a-view-link"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Someone who opens a view link sees who sent it and a "
+    },
+    {
+     "t": "strong",
+     "v": "Join",
+     "children": [
+      {
+       "t": "text",
+       "v": "Join"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button. Joining asks them to sign in (a code to their email, nothing else), then puts the cluster in their sidebar under Shared with me. They see your changes as they happen, and still cannot change anything. You get a note that they joined, and they appear in "
+    },
+    {
+     "t": "strong",
+     "v": "Who has access",
+     "children": [
+      {
+       "t": "text",
+       "v": "Who has access"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " as a viewer you can remove like anyone else. A new account that joins this way counts as your "
+    },
+    {
+     "t": "link",
+     "v": "referral",
+     "href": "/docs/account/referrals",
+     "children": [
+      {
+       "t": "text",
+       "v": "referral"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", as on an edit link."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A link that leaves sub-clusters out cannot be joined when the cluster has sub-clusters, because a person added to a cluster can open the clusters inside it. They can still look, and you can invite them by email instead."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Turning a link off stops new people joining through it. People who already joined keep their access until you remove them."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Asking to edit",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Asking to edit"
+    }
+   ],
+   "id": "asking-to-edit"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A viewer who joined sees "
+    },
+    {
+     "t": "strong",
+     "v": "View only",
+     "children": [
+      {
+       "t": "text",
+       "v": "View only"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Ask to edit",
+     "children": [
+      {
+       "t": "text",
+       "v": "Ask to edit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the top of the cluster. Pressing it tells the person whose link they joined and the cluster's owner, in the bell, as a note in the app and by email when they are away. "
+    },
+    {
+     "t": "strong",
+     "v": "Let them edit",
+     "children": [
+      {
+       "t": "text",
+       "v": "Let them edit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " makes them an editor at once; it counts toward your editors like any other, so it is refused when the account has no room. "
+    },
+    {
+     "t": "strong",
+     "v": "Not now",
+     "children": [
+      {
+       "t": "text",
+       "v": "Not now"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " tells them nothing, and they can ask again a day later. Open asks also wait at the top of the cluster's "
+    },
+    {
+     "t": "strong",
+     "v": "Who has access",
+     "children": [
+      {
+       "t": "text",
+       "v": "Who has access"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " list."
     }
    ]
   },
@@ -36065,7 +36238,56 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A shared link unfurls properly in Slack, Messages and email — the board's own name and a thumbnail of its actual contents, not a generic logo."
+     "v": "A shared link unfurls in Messages, WhatsApp, Slack, email and the rest as a picture card: the cluster's own pictures on the Clusters sun, and its name in large type. The title says who sent it (\"Andrew shared “Lost Time” with you\", or \"invited you to edit\" for an edit link) and the line under it says how many cards it holds. The card never shows the text of notes or docs. A cluster with no pictures gets a card with just its name. The card is refreshed when you open "
+    },
+    {
+     "t": "strong",
+     "v": "Share",
+     "children": [
+      {
+       "t": "text",
+       "v": "Share"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or copy the link."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "What someone sees the first time",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What someone sees the first time"
+    }
+   ],
+   "id": "what-someone-sees-the-first-time"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Someone without an account opening a shared link for the first time gets one small tip, once: "
+    },
+    {
+     "t": "strong",
+     "v": "Click a cluster to open it",
+     "children": [
+      {
+       "t": "text",
+       "v": "Click a cluster to open it"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", then how to go back. A cluster with nothing inside it says how to move around instead. Any tap puts it away."
     }
    ]
   },
@@ -46526,7 +46748,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", with one of your edit links, with your workspace's "
+     "v": ", with one of your links to a cluster (a view link they join, or an edit link), with your workspace's "
     },
     {
      "t": "link",
@@ -46977,7 +47199,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your edit links, or your workspace's invite link, within 7 days of signing up. The same rules apply, and each person counts once. The Share panel's "
+     "v": "They overlap in one place: someone who signs up because you invited them to a cluster by email counts as your referral, and so does someone who joins through one of your links to a cluster (view or edit), or your workspace's invite link, within 7 days of signing up. The same rules apply, and each person counts once. The Share panel's "
     },
     {
      "t": "strong",

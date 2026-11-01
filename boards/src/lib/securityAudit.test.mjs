@@ -190,7 +190,7 @@ test('a typed link can never become a script URL in an href', async () => {
 // ── 0369 + 0370: the outbound breaker ───────────────────────────────────────
 
 const STRANGER = ['pending_invite', 'board_shared', 'workspace_invite', 'file_shared', 'team_invite'];
-const MEMBER = ['mention_email', 'comment_reply_email', 'schedule_update', 'invite_accepted', 'file_commented'];
+const MEMBER = ['mention_email', 'comment_reply_email', 'schedule_update', 'invite_accepted', 'file_commented', 'edit_request', 'edit_granted'];
 
 // Functions whose live (latest, not since dropped) definition matches `re`,
 // with what each match captured.

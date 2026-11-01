@@ -5605,6 +5605,84 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // describes (toolbarPane). null = the main pane's cluster, which is what
   // every other way in (sidebar, ⌘K, toasts) navigates the main pane to first.
   const [shareBoardId, setShareBoardId] = useState(null);
+  // Open asks ("Sam asked to edit"): the Share panel opens scrolled to them
+  // (ShareModal's `focusAsks`). Cleared whenever the panel closes, so a plain
+  // open afterwards starts at the top.
+  const [shareFocusAsks, setShareFocusAsks] = useState(false);
+  useEffect(() => { if (!shareOpen) setShareFocusAsks(false); }, [shareOpen]);
+  // Ask to edit (a viewer of a cluster shared with them): boardId -> 'busy' |
+  // 'asked', for this session. A pending ask lives on the server; after a
+  // reload the button shows again and asking again returns the same request.
+  const [askedEdit, setAskedEdit] = useState({});
+  // The panes' clusters, read by refreshEditAccess below (it runs after an await).
+  const liveBoardIdsRef = useRef([]);
+  liveBoardIdsRef.current = [currentId, splitId].filter(Boolean);
+  // A yes arrived (or the ask found we already can edit): refetch what is
+  // shared with us so the permission recomputes and the cluster turns editable
+  // without a reload. The open cluster's live socket was made read-only
+  // (x-can-write is decided when it connects), so a pane on the granted
+  // cluster, or one inside it, is remounted through the board-reset signal;
+  // the new socket asks the server again.
+  const refreshEditAccess = useCallback(async (grantedBoardId) => {
+    try { await refreshSharedBoards?.(); } catch (_) {}
+    if (!grantedBoardId) return;
+    const map = boardsRef.current || {};
+    const inside = (id) => {
+      let cur = map[id];
+      let guard = 64;
+      while (cur && guard-- > 0) {
+        if (cur.id === grantedBoardId) return true;
+        cur = cur.parent_board_id ? map[cur.parent_board_id] : null;
+      }
+      return false;
+    };
+    for (const id of liveBoardIdsRef.current) {
+      if (!inside(id)) continue;
+      try { window.dispatchEvent(new CustomEvent('soleil-board-reset', { detail: { boardId: id, reason: 'access' } })); } catch (_) {}
+    }
+  }, [refreshSharedBoards]);
+  const askToEdit = useCallback(async (boardId) => {
+    if (!boardId) return;
+    const forget = () => setAskedEdit((m) => { const { [boardId]: _gone, ...rest } = m; return rest; });
+    setAskedEdit((m) => ({ ...m, [boardId]: 'busy' }));
+    const { data, error } = await supabase.rpc('request_edit', { p_board_id: boardId });
+    if (error) {
+      forget();
+      feedback.toast({ type: 'error', code: 'edit_ask_failed', message: error.message || 'Could not send that. Try again in a moment.' });
+      return;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row?.status === 'editor') {
+      // Already allowed to edit (a stale list): just pick up the access.
+      forget();
+      await refreshEditAccess(row.board_id || boardId);
+      return;
+    }
+    setAskedEdit((m) => ({ ...m, [boardId]: 'asked' }));
+    // Who to name: the share list carries no sharer's name, so it stays "they".
+    feedback.toast({ type: 'success', ttl: 8000, message: 'Asked. We’ll tell you when they say yes.' });
+  }, [feedback, refreshEditAccess]);
+  // The bell's "Let them edit" / "Not now": resolves 'yes' | 'not_now' | 'gone'
+  // (or the answer someone else already gave); a refusal (the editor limit,
+  // not allowed) is thrown for the row to say.
+  const answerEditRequest = useCallback(async (requestId, yes) => {
+    const { data, error } = await supabase.rpc('answer_edit_request', { p_request_id: requestId, p_yes: !!yes });
+    if (error) throw error;
+    const v = Array.isArray(data) ? data[0] : data;
+    return typeof v === 'string' ? v : null;
+  }, []);
+  // Share panel for one cluster, on its open asks: the toast's "Review".
+  const openShareAsks = useCallback(async (boardId) => {
+    if (!boardId) return;
+    const r = await openBoardAnywhere(boardId);
+    if (!r || r === 'switched') return;
+    setCurrentSurface('board');
+    setShareBoardId(boardId);
+    setShareInitialSection(null);
+    shareSurfaceRef.current = 'edit_request';
+    setShareFocusAsks(true);
+    setShareOpen(true);
+  }, [openBoardAnywhere]);
   // A primary overlay opening closes the phone drawer. The drawer (and its
   // backdrop) stack above the modal layer, so "Share workspace" from the
   // drawer's workspace menu opened the Share panel UNDER the still-open
@@ -5839,6 +5917,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     })();
   }, [user?.id, boardsReady, sharedLoaded, navHandlers]);
 
+  // ?asks=1 on the usual email deep link (?w=&b=, which AuthGate turns into the
+  // stored workspace + cluster before this mounts and strips): the email's "Let
+  // Sam edit". It lands on that cluster, so open its Share panel on the open
+  // asks, then drop the param like the other link params.
+  const asksLinkDoneRef = useRef(false);
+  useEffect(() => {
+    if (asksLinkDoneRef.current || !boardsReady || !sharedLoaded) return;
+    asksLinkDoneRef.current = true;
+    try {
+      const u = new URL(window.location.href);
+      if (u.searchParams.get('asks') !== '1') return;
+      u.searchParams.delete('asks');
+      window.history.replaceState({}, '', u.pathname + (u.search || '') + u.hash);
+      setCurrentSurface('board');
+      setShareBoardId(null);
+      setShareInitialSection(null);
+      shareSurfaceRef.current = 'edit_request';
+      setShareFocusAsks(true);
+      setShareOpen(true);
+    } catch (_) {}
+  }, [boardsReady, sharedLoaded]);
+
   // Surface "X shared a board with you" notifications as toasts on
   // first load. Each toast has a "View" action that opens the board
   // and dismisses; otherwise we batch-dismiss after the initial toast
@@ -5925,6 +6025,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         });
         continue;
       }
+      // Someone with view access asked to edit a cluster of yours (0830):
+      // "Review" opens its Share panel on the asks.
+      if (n.kind === 'edit_request') {
+        const askedName = boards[n.board_id]?.name || 'a cluster';
+        feedback.toast({
+          type: 'info',
+          ttl: 10000,
+          message: `${n.detail || 'Someone'} asked to edit “${askedName}”`,
+          ...(n.board_id ? { action: { label: 'Review', onClick: () => openShareAsks(n.board_id) } } : {}),
+        });
+        continue;
+      }
+      // The yes to our ask, found on load (nothing live brings these): the
+      // shared list is refetched so the cluster is editable. The live yes
+      // arrives through the bell (the effect after useMyTier below).
+      if (n.kind === 'edit_granted') {
+        const grantedName = boards[n.board_id]?.name || 'a cluster';
+        feedback.toast({
+          type: 'success',
+          ttl: 8000,
+          message: `${n.detail || 'They'} said yes: you can edit “${grantedName}”.`,
+        });
+        refreshSharedBoards?.();
+        continue;
+      }
       const board = boards[n.board_id];
       const name = board?.name || 'a cluster';
       feedback.toast({
@@ -5940,6 +6065,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shareNotifs]);
+  // A yes to our ask arrives in the bell as an 'edit_granted' row (a live ping,
+  // or the list on load). One that is fresh makes the cluster editable now:
+  // see refreshEditAccess. Older rows are history, and each id is handled once.
+  const grantedHandledRef = useRef(new Set());
+  useEffect(() => {
+    if (!sharedLoaded) return;
+    for (const n of (notifications.items || [])) {
+      if (n.kind !== 'edit_granted' || n.read_at || grantedHandledRef.current.has(n.id)) continue;
+      grantedHandledRef.current.add(n.id);
+      const at = Date.parse(n.created_at);
+      if (Number.isFinite(at) && Date.now() - at > 90 * 1000) continue;
+      refreshEditAccess(n.board_id);
+    }
+  }, [notifications.items, sharedLoaded, refreshEditAccess]);
   // Tier (admin / paid / demo / waitlist) drives the upgrade chip,
   // the demo-cap on addCard, and the tier-aware viewer fallback in
   // useBoardPermission for non-owned boards.
@@ -8713,6 +8852,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     tier: myTier.tier,
   });
   const canEditCurrent = currentBoardPerm.canEdit;
+  // A viewer through a share (not a workspace member, whatever their role
+  // there) can ask the people who shared the cluster to let them edit.
+  const canAskToEdit = !canEditCurrent && currentBoardPerm.source === 'share'
+    && currentBoardPerm.role === 'viewer' && !!currentBoard?.id;
+  const askEditState = (canAskToEdit && askedEdit[currentBoard.id]) || null;
   // "Start a treatment" pressed on its page before signing in (lib/starterIntent):
   // the document it promised lands on the first cluster this person can write,
   // once a brand-new account's own first run has finished, beside whatever is
@@ -8927,6 +9071,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const yd = yb.ready && yb.boardId === currentBoard.id ? yb.ydoc : null;
         if (yd) forceBoardThumbnail(currentBoard.id, yd, { workspaceId: workspace.id, userId: user.id });
       } catch (_) {}
+      // The picture the pasted link shows (lib/shareCard.js): drawn here and
+      // uploaded without holding up the copy. Lazy; it never throws.
+      try {
+        const ydoc = yb.ready && yb.boardId === currentBoard.id ? yb.ydoc : null;
+        import('./lib/shareCard.js')
+          .then((m) => m.refreshShareCardFor({ supabase, boardId: currentBoard.id, name: currentBoard.name, ydoc }))
+          .catch(() => {});
+      } catch (_) {}
       // Was SHARE_OPEN{quick:true}, which made a one-tap copy indistinguishable
       // from opening the permissions dialog — the two ends of this funnel;
       // reading them as one number is what hid where sharing actually fails.
@@ -8937,7 +9089,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } catch (_) {}
       setSharedBoardIds((prev) => (prev.has(currentBoard.id) ? prev : new Set(prev).add(currentBoard.id)));
       feedback.toast(copied
-        ? { type: 'success', message: 'Share link copied — anyone with it can view this cluster.',
+        ? { type: 'success', message: 'Link copied. Anyone with it can view and join.',
             action: { label: 'Manage access', onClick: () => setShareOpen(true) }, ttl: 9000 }
         : { type: 'info', message: url, ttl: 9000 });
     } catch (e) {
@@ -8945,7 +9097,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     } finally {
       setQuickShareBusy(false);
     }
-  }, [quickShareBusy, currentBoard.id, yb.ready, yb.boardId, yb.ydoc, workspace.id, user.id, feedback]);
+  }, [quickShareBusy, currentBoard.id, currentBoard.name, yb.ready, yb.boardId, yb.ydoc, workspace.id, user.id, feedback]);
 
   // The ask to SHOW this cluster, offered once per board after a work burst.
   //
@@ -11353,6 +11505,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     <Icon as={Maximize2} size={16} />
                   </button>
                 )}
+                {canAskToEdit && <AskToEditButton state={askEditState} onAsk={() => askToEdit(currentBoard.id)} />}
                 <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} {...tlTip('Share this cluster')} aria-label="Share this cluster">
                   <Icon as={Share2} size={14} weight="regular" /> <span className="tb-btn-label">Share</span>
                 </button>
@@ -11488,7 +11641,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                                     max={mobileShell ? 1 : 4}
                                     onJumpTo={jumpToPeer} />
             <span className="tb-divider" aria-hidden="true" />
-            {!canEditCurrent && (
+            {/* On a phone the Ask to edit button takes the pill's room (the
+                bar has none to spare): it says the same, and presses. */}
+            {!canEditCurrent && !(mobileShell && canAskToEdit) && (
               <span className="tb-viewonly" title="You have view-only access to this cluster"><Icon as={Eye} size={14} weight="regular" />View only</span>
             )}
             {isTouch && !mobileShell && (
@@ -11519,6 +11674,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 circle on a phone where the label is hidden. Grey text among grey
                 icons was easy to miss, and it is the way people reach
                 invitations. */}
+            {canAskToEdit && <AskToEditButton state={askEditState} onAsk={() => askToEdit(currentBoard.id)} />}
             {notifBell}
             <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} title="Share this cluster" aria-label="Share this cluster">
               <Icon as={Share2} size={14} weight="regular" /> <span className="tb-btn-label">Share</span>
@@ -11933,6 +12089,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onMarkRead={notifications.markRead}
           onOpenBoard={(id) => { openBoardAnywhere(id); setCurrentSurface('board'); setNotifOpen(false); }}
           onOpenSettings={openNotificationSettings}
+          onAnswerEdit={answerEditRequest}
+          nameOf={(id) => userProfiles.get(id)?.name || ''}
           onClose={() => setNotifOpen(false)}
           anchorRef={notifBellRef}
           mobileShell={mobileShell}
@@ -12005,6 +12163,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             canManage={shareScope === 'workspace' ? canEditBoard(rootBoard.id)
               : shareTarget.id === currentId ? canEditCurrent : canEditBoard(shareTarget.id)}
             initialSection={shareInitialSection}
+            focusAsks={shareFocusAsks}
+            liveDoc={yb.ready && yb.boardId === shareTarget.id ? yb.ydoc
+              : (splitYb.ready && splitYb.boardId === shareTarget.id ? splitYb.ydoc : null)}
             onClose={() => { setShareOpen(false); setShareInitialSection(null); setShareScope('cluster'); setShareBoardId(null); }}
             onMembersChanged={() => { refreshWorkspaceMembers?.(); }}
             onWorkspacesChanged={() => { refreshWorkspaceRole(); onWorkspacesChanged?.(); }}
@@ -12469,6 +12630,20 @@ function SplitContainer({ left, right, ratio = 0.5, onRatio, showSplit = true, a
              style={{ flex: 1 - shown }}>{right}</div>
       )}
     </div>
+  );
+}
+
+// "Ask to edit" in the top bar of a cluster shared with you as a viewer.
+// state: null (can ask), 'busy' (asking) or 'asked' (this session). Neutral ink:
+// gold is for active and selected.
+function AskToEditButton({ state = null, onAsk }) {
+  const asked = state === 'asked';
+  return (
+    <button type="button" className={`ask-edit${asked ? ' is-asked' : ''}`}
+            disabled={asked || state === 'busy'} onClick={() => onAsk?.()}
+            title={asked ? 'Asked. We’ll tell you when they say yes.' : 'Ask the people who shared this to let you edit'}>
+      {asked ? 'Asked' : 'Ask to edit'}
+    </button>
   );
 }
 

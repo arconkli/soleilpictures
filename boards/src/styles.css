@@ -2649,6 +2649,26 @@ body {
 }
 .share-remove:hover { color: #f87171; background: rgba(248,113,113,.12); }
 
+/* An open "asked to edit" at the top of Who has access: who and what they
+   asked on the left, [Let them edit] [Not now] on the right. The yes is the
+   panel's ink, not its gold (the gold is the one action the panel is about to
+   take); the no is quiet. On a narrow panel the pair drops under the name
+   rather than squeezing it. */
+.share-row.share-person.share-ask { flex-wrap: wrap; background: var(--bg-2); border: 1px solid var(--line-2); margin: 2px 0 4px; }
+.share-ask-actions { display: flex; align-items: center; gap: 4px; }
+.share-ask-yes, .share-ask-no {
+  appearance: none; cursor: pointer; white-space: nowrap;
+  font: 600 12px/1 var(--font-sans);
+  padding: 7px 12px; border-radius: var(--radius);
+  transition: background var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+.share-ask-yes { background: var(--ink-0); border: 1px solid var(--ink-0); color: var(--bg-0); }
+.share-ask-yes:hover:not(:disabled) { opacity: 0.88; }
+.share-ask-no { background: transparent; border: 1px solid transparent; color: var(--ink-2); }
+.share-ask-no:hover:not(:disabled) { color: var(--ink-0); background: var(--bg-hov); }
+.share-ask-yes:disabled, .share-ask-no:disabled { opacity: 0.4; cursor: not-allowed; }
+.share-link-off-note { margin: 8px 0 0; }
+
 /* A whole section collapsed into a disclosure (Publish to Explore). The
    summary carries the section eyebrow AND its live status, so collapsing it
    costs no information — a disclosure that hides whether your submission is

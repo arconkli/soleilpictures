@@ -173,3 +173,65 @@ body[data-doc-overlay='1'] .ntf-shell.is-sheet { z-index: 2147483602; }
 .ntf-shell.is-sheet .ntf-row-title { font-size: 15px; }
 .ntf-shell.is-sheet .ntf-row-body { font-size: 13px; }
 .ntf-shell.is-sheet .ntf-row-ago { font-size: 12px; line-height: 21px; }
+
+/* ── An ask to edit (0830) ────────────────────────────────────────────────── */
+/* The row carries its own buttons: the asker's initial, the title, then
+   "Let them edit" (neutral primary, ink fill) and "Not now" (quiet). Ink
+   throughout; no gold. */
+.ntf-shell .ntf-row.ntf-ask { cursor: default; }
+.ntf-av {
+  flex: none;
+  width: 24px; height: 24px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--bg-4, var(--bg-3));
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  color: var(--ink-1);
+  font: 700 11px/1 var(--font-sans);
+}
+.ntf-ask-acts { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.ntf-shell .ntf-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 28px; padding: 0 12px;
+  border-radius: 8px;
+  font: 600 12px/1 var(--font-sans);
+  color: var(--ink-1);
+  transition: background var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+.ntf-shell .ntf-btn:hover:not(:disabled) { background: var(--bg-hov); color: var(--ink-0); }
+.ntf-shell .ntf-btn.is-primary { background: var(--ink-0); color: var(--bg-0); }
+.ntf-shell .ntf-btn.is-primary:hover:not(:disabled) { background: var(--ink-0); color: var(--bg-0); opacity: .88; }
+.ntf-shell .ntf-btn:disabled { opacity: .5; cursor: default; }
+.ntf-shell .ntf-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.ntf-ask-note { margin-top: 4px; font: 400 12px/1.4 var(--font-sans); color: var(--ink-3); }
+.ntf-ask-err { margin-top: 4px; font: 400 12px/1.4 var(--font-sans); color: var(--ink-1); }
+.ntf-shell.is-sheet .ntf-btn { height: 40px; padding: 0 16px; font-size: 14px; }
+.ntf-shell.is-sheet .ntf-av { width: 28px; height: 28px; font-size: 12px; }
+
+/* ── Ask to edit, in the top bar ──────────────────────────────────────────── */
+/* A viewer of a cluster shared with them. A quiet outlined pill beside Share
+   (which is the raised one); its own class rather than .tb-btn so the phone
+   bar's fit rules for .tb-btn (a 40px square, the label hidden) leave it
+   alone. "Asked" is the same pill, dimmed. */
+.ask-edit {
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 28px; padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--ink-1);
+  font: 600 12px/1 var(--font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+.ask-edit:hover:not(:disabled) { background: var(--bg-hov); color: var(--ink-0); }
+.ask-edit:disabled { cursor: default; }
+.ask-edit.is-asked { opacity: .55; }
+.ask-edit:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+.chrome-island .ask-edit { margin-left: 4px; }
+/* The phone's bar: it takes the View only pill's place, so it stays small. */
+@media (max-width: 640px) {
+  .topbar .ask-edit { height: 30px; padding: 0 10px; font-size: 12px; }
+}

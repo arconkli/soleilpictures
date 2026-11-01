@@ -5,8 +5,8 @@ h1: Referrals
 navLabel: Referrals
 section: account
 order: 3
-updated: 2026-10-21
-answer: Invite someone new to Clusters — by email from a cluster's Share panel, with an edit link or your workspace's invite link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get {{fact:referralFriendCards}} extra cards and {{fact:referralBonusStorage}} of storage when they sign up. You get {{fact:referralRewardCards}} bonus cards and {{fact:referralBonusStorage}} as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.
+updated: 2026-11-01
+answer: Invite someone new to Clusters — by email from a cluster's Share panel, with a link to one of your clusters or your workspace's invite link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get {{fact:referralFriendCards}} extra cards and {{fact:referralBonusStorage}} of storage when they sign up. You get {{fact:referralRewardCards}} bonus cards and {{fact:referralBonusStorage}} as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.
 faq:
   - q: When does the reward land?
     a: Your friend's bonus lands when they sign up. Yours lands as soon as they have opened the app and placed their first card. Anything held back is checked again every hour.
@@ -30,7 +30,8 @@ Invite from **Share** on any cluster, or from **Settings → Invite and earn**.
 ## How it works
 
 Invite someone who does not have a Clusters account yet: by email from a
-cluster's [Share panel](/docs/collaborate/sharing), with one of your edit links,
+cluster's [Share panel](/docs/collaborate/sharing), with one of your links to a
+cluster (a view link they join, or an edit link),
 with your workspace's [invite link](/docs/collaborate/sharing#inviting-a-whole-workspace),
 or with your referral link. When they sign up they get
 **{{fact:referralFriendCards}} extra cards** and **{{fact:referralBonusStorage}}
@@ -98,7 +99,7 @@ Two different things:
 
 They overlap in one place: someone who signs up because you invited them to a
 cluster by email counts as your referral, and so does someone who joins through
-one of your edit links, or your workspace's invite link, within
+one of your links to a cluster (view or edit), or your workspace's invite link, within
 {{fact:referralLinkJoinDays}} days of signing up.
 The same rules apply, and each person counts once. The Share panel's
 **Details**, under its invite box, says so too.
