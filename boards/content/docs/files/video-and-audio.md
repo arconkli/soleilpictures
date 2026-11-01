@@ -135,6 +135,14 @@ that loops goes round; one that doesn't plays through once and stops on its last
 frame at the same moment for everyone. Pause one from its controls and it stays
 paused for you alone; press play and it rejoins everyone else.
 
+To line clips up against each other, give one a **start point**: the frame it
+shows when the board starts. Right-click an autoplaying clip and choose **Start
+here** to use the frame on screen (pause on the exact frame first if you like),
+or **Start at…** to type a time such as `0:12` or `1:05.5`. A looping clip still
+plays the whole clip, just shifted; one that plays once begins at its start point.
+The start point is saved on the card, so everyone sees the same alignment, and
+**Clear start point** puts the clip back to its beginning.
+
 ### What Clusters knows about a clip
 
 Right-click a video and choose [**Info**](/docs/canvas/cards#info), or select it

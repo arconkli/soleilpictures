@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   syncTarget, timeDiff, driftFix, earliestEpoch, offsetFromSamples,
   getBoardEpoch, setBoardEpoch, subscribeBoardEpoch, SEEK_OVER_S, NUDGE_RATE,
+  parseClipTime, formatClipTime,
 } from './videoSync.js';
 
 const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} ≈ ${b}`);
@@ -84,4 +85,33 @@ test('each board keeps its own epoch and tells its listeners when it moves', () 
   setBoardEpoch('b1', null);
   assert.deepEqual(seen, [5_000, 3_000]);
   assert.equal(getBoardEpoch('b1'), null);
+});
+
+test('a start point shifts a loop and keeps the whole clip', () => {
+  near(syncTarget({ now: 0, epoch: 0, dur: 10, loop: true, start: 4 }).time, 4);
+  near(syncTarget({ now: 7_000, epoch: 0, dur: 10, loop: true, start: 4 }).time, 1);   // wrapped past the end, into 0–4
+  near(syncTarget({ now: 3_000, epoch: 0, dur: 10, loop: true, start: 0 }).time, 3);
+  near(syncTarget({ now: 3_000, epoch: 0, dur: 10, loop: true, start: -2 }).time, 3);  // nonsense start ignored
+});
+
+test('a play-once clip begins at its start point and holds its end', () => {
+  assert.deepEqual(syncTarget({ now: 2_000, epoch: 0, dur: 10, loop: false, start: 5 }), { time: 7, ended: false });
+  assert.deepEqual(syncTarget({ now: 6_000, epoch: 0, dur: 10, loop: false, start: 5 }), { time: 10, ended: true });
+  assert.deepEqual(syncTarget({ now: 0, epoch: 0, dur: 10, loop: false, start: 99 }), { time: 10, ended: true });
+});
+
+test('typed clip times', () => {
+  assert.equal(parseClipTime('12'), 12);
+  assert.equal(parseClipTime('0:12'), 12);
+  assert.equal(parseClipTime(' 1:02.5 '), 62.5);
+  assert.equal(parseClipTime('1:00:03'), 3603);
+  assert.equal(parseClipTime('.5'), 0.5);
+  assert.equal(parseClipTime('1:75'), null);
+  assert.equal(parseClipTime('abc'), null);
+  assert.equal(parseClipTime(''), null);
+  assert.equal(parseClipTime('-3'), null);
+  assert.equal(formatClipTime(12), '0:12');
+  assert.equal(formatClipTime(62.5), '1:02.5');
+  assert.equal(formatClipTime(3723), '1:02:03');
+  assert.equal(formatClipTime(9.96), '0:10');
 });
