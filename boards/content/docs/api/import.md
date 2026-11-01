@@ -58,7 +58,9 @@ curl -X POST {{fact:siteOrigin}}/api/v1/boards/$BOARD/import \
 
 This is the point of the endpoint, not a footnote. Every imported card is
 stamped with an identifier in the `{{fact:importSourceScope}}` scope holding the
-URL it came from, and the import resolves on that identifier. Run the same
+URL it came from (an address longer than {{fact:identifierValueMax}} characters is held as
+`sha256:` and the hex of its digest, and `/resolve` hashes it the same way, so you
+still look it up by the address), and the import resolves on that identifier. Run the same
 manifest again and the same cards are **updated** rather than added a second
 time — the response tells you which, in `imported` versus `updated`.
 

@@ -67,6 +67,8 @@ import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.
 import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL, TRIAL_STORAGE_LABEL, CREATOR_TRIAL_DAYS, STORAGE_ADDON_BLOCK_LABEL, STORAGE_ADDON_MAX_BLOCKS, STORAGE_ADDON_PRICING } from '../src/lib/billingCopy.js';
 import { AUDIO_ANALYZE_MAX_BYTES, AUDIO_ANALYZE_MAX_SECONDS, FREE_PDF_CAP } from '../src/lib/fileIngest.js';
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
+import { MAX_VALUE_LENGTH as IDENTIFIER_VALUE_MAX } from '../src/lib/objectMeta.js';
+import { PAGE_EXCERPT_MAX } from '../src/lib/pageExcerpt.js';
 import { ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from '../src/lib/zipStore.js';
 import { CREATOR_INTENT_MAX_AGE_MS } from '../src/lib/creatorIntent.js';
 import { EDITOR_LIMIT } from '../src/lib/editorLimit.js';
@@ -714,6 +716,8 @@ export const FACTS = {
   maxImportItems: String(MAX_IMPORT_ITEMS),
   importTimeoutSeconds: String(IMPORT_TIMEOUT_MS / 1000),
   importSourceScope: SOURCE_SCOPE,
+  identifierValueMax: String(IDENTIFIER_VALUE_MAX),
+  pageExcerptMax: String(PAGE_EXCERPT_MAX),
   layoutAlgorithms: layoutAlgorithmList().map((l) => `\`${l}\``).join(' · '),
   maxCardsPerArrange: String(api.maxCardsPerCall ?? 1000),
   // A board written into a /make link (lib/makeLink.js), and how many such

@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { normalizeIncomingCard } from '../worker-api.js';
 import {
   normalizeImportItems, kindForContentType, cardSpecFor, titleFromUrl, fitDims,
-  summarize, mapWithConcurrency, noteFor, provenanceProps,
+  summarize, mapWithConcurrency, noteFor, provenanceProps, sourceIdentifierValue,
   MAX_IMPORT_ITEMS, SOURCE_SCOPE, SOURCE_PROP, IMPORTED_AT_PROP,
 } from './importManifest.js';
 
@@ -123,6 +123,24 @@ test('EVERY imported card can be found again by its source url', () => {
   assert.deepEqual(spec.identifiers.at(-1), { scope: SOURCE_SCOPE, value: url('a') });
   assert.equal(provenanceProps(item, AT)[SOURCE_PROP], url('a'));
   assert.equal(provenanceProps(item, AT)[IMPORTED_AT_PROP], AT);
+});
+
+test('an address too long to be an identifier is stamped as its digest, the same every time', async () => {
+  // Wikimedia and CDN addresses often run past the 200 characters an
+  // identifier's value may hold, and one such address failed a whole import.
+  const short = url('a');
+  assert.equal(await sourceIdentifierValue(short), short);
+  const long = `https://upload.example.org/thumb/${'a'.repeat(240)}.jpg`;
+  const value = await sourceIdentifierValue(long);
+  assert.match(value, /^sha256:[0-9a-f]{64}$/);
+  assert.equal(await sourceIdentifierValue(long), value);
+  assert.notEqual(await sourceIdentifierValue(`${long}?v=2`), value);
+  const [item] = normalizeImportItems([{ url: long }]);
+  item.sourceValue = value;
+  const spec = cardSpecFor(item, { kind: 'image', importedAt: AT, stored: { imageKey: 'k', width: 10, height: 10 } });
+  assert.deepEqual(spec.identifiers.at(-1), { scope: SOURCE_SCOPE, value });
+  // Provenance keeps the address itself.
+  assert.equal(provenanceProps(item, AT)[SOURCE_PROP], long);
 });
 
 test('provenance is written by the SERVER, never carried on the card spec', () => {

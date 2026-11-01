@@ -23,7 +23,7 @@
 
 import { publicHttpsUrlProblem } from './safeUrl.js';
 // The prefix itself is defined once, in the module that enforces it.
-import { RESERVED_PREFIX } from './objectMeta.js';
+import { RESERVED_PREFIX, MAX_VALUE_LENGTH } from './objectMeta.js';
 
 // A Worker gets a bounded number of subrequests per request, and each item here
 // costs a fetch plus a storage write. A hundred is comfortably inside that and
@@ -41,6 +41,20 @@ export const IMPORT_TIMEOUT_MS = 15_000;
 // shows up in `GET /resolve?scope=source_url&value=…`, which is how you answer
 // "did we already bring this one in?".
 export const SOURCE_SCOPE = 'source_url';
+
+// An identifier's value is at most MAX_VALUE_LENGTH characters (a CHECK on
+// object_identifiers), and a picture's address on a CDN or Wikimedia is often
+// longer. Such an address is stamped as `sha256:` and the hex of its digest
+// instead, and /resolve hashes a long source_url the same way, so the lookup
+// by address still works and the import still resolves on it. Before this, one
+// long address failed the whole import.
+export const SOURCE_HASH_PREFIX = 'sha256:';
+
+export async function sourceIdentifierValue(url) {
+  if (url.length <= MAX_VALUE_LENGTH) return url;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(url));
+  return SOURCE_HASH_PREFIX + [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
 
 // Provenance, under the reserved prefix — callers are refused these keys, which
 // is precisely so we can write them without ever colliding with a customer's.
@@ -187,7 +201,7 @@ export function cardSpecFor(item, { kind, stored = null, importedAt }) {
   // scope does not silently displace the one the import resolves on.
   spec.identifiers = [
     ...(item.identifiers || []).filter((x) => x?.scope !== SOURCE_SCOPE),
-    { scope: SOURCE_SCOPE, value: item.url },
+    { scope: SOURCE_SCOPE, value: item.sourceValue ?? item.url },
   ];
 
   return spec;
