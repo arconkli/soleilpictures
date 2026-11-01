@@ -6,7 +6,11 @@
 //   node scripts/engine/run.mjs --page /tools/storyboard-maker
 //   node scripts/engine/run.mjs --subject costume       one board on a marketing subject
 //   node scripts/engine/run.mjs --batch [--spares 2]    every page that has no board yet, then spares
+//   node scripts/engine/run.mjs --brief "<text>" [--cluster Film]
+//                                                       one board to a free-text brief, made for a TikTok post
+//                                                       (cluster TikTok unless told; kept out of the library's review queue)
 //   … --dry-run                                         everything but the writes; shots stay on disk
+//   … --json <file>                                     the run's result, { ok, results }, written there (any mode)
 //
 // One board: Claude writes a recipe (recipe.mjs) → real photos found and
 // proven real (photos.mjs + aicheck) → laid out by the app's own maker
@@ -30,8 +34,9 @@ import sharp from 'sharp';
 import { makeSupabase } from '../lib/supa.mjs';
 import { makeR2 } from '../lib/r2.mjs';
 import { rootCluster, ensureCluster, writeBoard, uploadShots, recordShowcase, libraryState, startRun, finishRun } from '../lib/showcaseWrite.mjs';
+import { args } from './args.mjs';
 import { PAGES, MARKETING, LATER_PAGES, pageBrief, nextMarketing } from './subjects.mjs';
-import { writeRecipe } from './recipe.mjs';
+import { writeRecipe, recipeContents } from './recipe.mjs';
 import { findPhotos, pingUsed } from './photos.mjs';
 import { pickPhotos } from './pick.mjs';
 import { buildBoard, withSources } from './build.mjs';
@@ -54,23 +59,6 @@ function loadEnv() {
   }
 }
 function need(name) { const v = process.env[name]; if (!v) throw new Error(`Missing env ${name} (set it in scripts/.env)`); return v; }
-
-function args(argv) {
-  const a = { spares: 0, dryRun: false };
-  for (let i = 0; i < argv.length; i += 1) {
-    const k = argv[i];
-    if (k === '--daily') a.mode = 'daily';
-    else if (k === '--batch') a.mode = 'batch';
-    else if (k === '--page') { a.mode = 'page'; a.page = argv[++i]; }
-    else if (k === '--subject') { a.mode = 'subject'; a.subject = argv[++i]; }
-    else if (k === '--spares') a.spares = Number(argv[++i]) || 0;
-    else if (k === '--dry-run') a.dryRun = true;
-    else if (k === '--only') a.only = argv[++i].split(',');
-    else throw new Error(`unknown argument ${k}`);
-  }
-  if (!a.mode) throw new Error('say --daily, --batch, --page <path> or --subject <name>');
-  return a;
-}
 
 const stamp = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
 const log = (m) => console.log(`${stamp()} ${m}`);
@@ -99,7 +87,10 @@ function worldFor(brief, board) {
   };
 }
 
-/** One board, start to finish. → { ok, slug?, why? } */
+/**
+ * One board, start to finish.
+ * → { ok, slug, title, outDir, shots: [{ kind, file }], contents, boardId? } or { ok: false, slug?, why }
+ */
 async function makeOne(brief, ctx) {
   const { claude, check, keys, lib, dryRun } = ctx;
   let notes = null;
@@ -150,9 +141,11 @@ async function makeOne(brief, ctx) {
     const used = [...photos.found.values()];
     const credits = used.map((ph) => ({ ...ph.credit, id: ph.id }));
     const zip = zipShots(out, shot.shots, credits);
+    const made = { slug: recipe.slug, title: recipe.title, outDir: out,
+      shots: shot.shots.map((s) => ({ kind: s.kind, file: join(out, s.dir || '', s.file) })), contents: recipeContents(recipe) };
     if (dryRun) {
       log(`dry run: ${recipe.slug} passed; shots in ${out}`);
-      return { ok: true, slug: recipe.slug };
+      return { ok: true, ...made };
     }
 
     const { supa, r2, workspaceId, userId } = ctx;
@@ -163,7 +156,9 @@ async function makeOne(brief, ctx) {
     await r2.put(`showcase/${written.boardId}/recipe.json`, Buffer.from(JSON.stringify(recipe)), 'application/json');
     await recordShowcase(supa, {
       board_id: written.boardId, slug: recipe.slug, title: recipe.title, story: recipe.story, subject: brief.subject,
-      page_path: brief.page || null, status: lib.okByPerson >= HAND_OKS ? 'ok' : 'new',
+      page_path: brief.page || null,
+      // A board made for a post is not up for the public library's review.
+      status: brief.subject === 'tiktok' ? 'skipped' : lib.okByPerson >= HAND_OKS ? 'ok' : 'new',
       score: { grade: grade.score, summary: grade.summary, fixes: grade.fixes, tries: attempt, rejected: photos.rejected,
         cards: written.cards.length, photos: used.length },
       shots, credits, phash: used.map((ph) => ph.hash), run_id: ctx.runId,
@@ -172,9 +167,19 @@ async function makeOne(brief, ctx) {
     lib.taken.push(recipe.slug);
     for (const ph of used) { lib.used.ids.add(ph.id); lib.used.hashes.push(ph.hash); }
     log(`made: ${recipe.slug} (${written.boardId})`);
-    return { ok: true, slug: recipe.slug, boardId: written.boardId };
+    return { ok: true, boardId: written.boardId, ...made };
   }
   return { ok: false, why: 'no try passed' };
+}
+
+// --json <file>: the run's result, written on every way out (read off argv so a bad command line lands there too).
+const jsonPath = (() => { const i = process.argv.indexOf('--json'); return i > -1 ? process.argv[i + 1] || null : null; })();
+let jsonDone = false;
+function writeJson(out) {
+  if (!jsonPath || jsonDone) return;
+  jsonDone = true;
+  try { mkdirSync(dirname(resolve(jsonPath)), { recursive: true }); writeFileSync(jsonPath, JSON.stringify(out, null, 2)); }
+  catch (e) { console.error(`${stamp()} ✗ could not write ${jsonPath}: ${e.message}`); }
 }
 
 async function main() {
@@ -205,9 +210,11 @@ async function main() {
     const b = MARKETING.find((m) => m.subject === a.subject);
     if (!b) throw new Error(`no marketing subject "${a.subject}" (${MARKETING.map((m) => m.subject).join(', ')})`);
     briefs = [b];
+  } else if (a.mode === 'brief') {
+    briefs = [{ cluster: a.cluster || 'TikTok', subject: 'tiktok', brief: a.brief }];
   } else if (a.mode === 'daily') {
     const lastMade = Math.max(0, ...ctx.lib.made.map((m) => Date.parse(m.made_at) || 0));
-    if (!a.dryRun && Date.now() - lastMade < 20 * 3600e3) { log('daily: a board was made in the last 20 hours; nothing to do'); unlock(); return; }
+    if (!a.dryRun && Date.now() - lastMade < 20 * 3600e3) { log('daily: a board was made in the last 20 hours; nothing to do'); writeJson({ ok: true, results: [], why: 'a board was made in the last 20 hours' }); unlock(); return; }
     briefs = [nextMarketing(ctx.lib.made)];
   } else {
     briefs = PAGES.filter((p) => !ctx.lib.pages.has(p.page));
@@ -220,7 +227,7 @@ async function main() {
   }
 
   ctx.appDir = buildApp({ boardsDir: BOARDS, outDir: join(HOME, 'app'), log });
-  ctx.runId = a.dryRun ? null : await startRun(supa, a.mode);
+  ctx.runId = a.dryRun ? null : await startRun(supa, a.mode === 'brief' ? 'subject' : a.mode);
   const results = [];
   try {
     for (const brief of briefs) {
@@ -233,6 +240,7 @@ async function main() {
   } finally {
     const made = results.filter((r) => r.ok).length;
     const dropped = results.length - made;
+    writeJson({ ok: made > 0, results });
     if (ctx.runId) {
       await finishRun(supa, ctx.runId, { ok: made > 0 || !results.length, made, dropped,
         note: results.filter((r) => !r.ok).map((r) => `${r.brief}: ${r.why}`).join('\n') || null });
@@ -242,4 +250,4 @@ async function main() {
   }
 }
 
-main().catch((e) => { console.error(`${stamp()} ✗ ${e.message}`); process.exit(1); });
+main().catch((e) => { console.error(`${stamp()} ✗ ${e.message}`); writeJson({ ok: false, results: [], why: e.message }); process.exit(1); });

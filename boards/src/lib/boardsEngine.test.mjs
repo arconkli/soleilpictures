@@ -5,11 +5,13 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateRecipe, RULES } from '../../scripts/engine/recipe.mjs';
+import { validateRecipe, recipeContents, RULES } from '../../scripts/engine/recipe.mjs';
 import { buildBoard, withSources, stripBuild, SCRIPT_FONT } from '../../scripts/engine/build.mjs';
 import { checkBoard, contrast, CHECK } from '../../scripts/engine/check.mjs';
 import { PAGES, LATER_PAGES, MARKETING, nextMarketing, pageBrief } from '../../scripts/engine/subjects.mjs';
 import { hamming, isDup } from '../../scripts/engine/photos.mjs';
+import { args } from '../../scripts/engine/args.mjs';
+import { libraryState } from '../../scripts/lib/showcaseWrite.mjs';
 
 const pic = (search, caption) => ({ kind: 'picture', search, ...(caption ? { caption } : {}) });
 const palette = { kind: 'palette', title: 'Palette', swatches: [
@@ -232,4 +234,51 @@ test('two pictures a few bits apart are one photo', () => {
   assert.equal(hamming('ffffffffffffffff', 'fffffffffffffff0'), 4);
   assert.ok(isDup('ffffffffffffffff', ['fffffffffffffff0']));
   assert.ok(!isDup('ffffffffffffffff', ['0000000000000000']));
+});
+
+// ── the command line, and boards made for a post ─────────────────────────────
+
+test('--brief is a mode of its own, landing in the TikTok cluster unless told otherwise', () => {
+  const a = args(['--brief', 'x']);
+  assert.equal(a.mode, 'brief');
+  assert.equal(a.brief, 'x');
+  assert.equal(a.cluster, 'TikTok');
+  const b = args(['--brief', 'x', '--cluster', 'Film', '--json', '/tmp/o.json', '--dry-run']);
+  assert.deepEqual([b.mode, b.brief, b.cluster, b.json, b.dryRun], ['brief', 'x', 'Film', '/tmp/o.json', true]);
+  assert.equal(args(['--daily', '--json', '/tmp/o.json']).json, '/tmp/o.json');
+  assert.equal(args(['--daily', '--cluster', 'Film']).mode, 'daily');
+});
+
+test('the command line refuses what it does not know, no mode, and a brief with no text', () => {
+  assert.throws(() => args(['--daily', '--bogus']), /unknown argument --bogus/);
+  assert.throws(() => args([]), /say --daily/);
+  assert.throws(() => args(['--dry-run']), /say --daily/);
+  assert.throws(() => args(['--brief']), /needs the text/);
+  assert.throws(() => args(['--brief', '--dry-run']), /needs the text/);
+});
+
+test('what is on a recipe comes out as short plain strings, at most forty', () => {
+  const lines = recipeContents(sample());
+  assert.equal(lines[0], 'Title: The Lighthouse Keeper');
+  assert.ok(lines.includes('Section: Keeper'));
+  assert.ok(lines.includes('Photo "Tom, 68" (old man wool sweater)'));
+  assert.ok(lines.some((l) => l.startsWith('Note "Who he is": He has kept the light')));
+  assert.ok(lines.some((l) => l.startsWith('Palette Palette: Night, Lamp')));
+  assert.ok(lines.every((l) => typeof l === 'string' && l.length <= 140));
+  assert.equal(recipeContents(sample(), 5).length, 5);
+});
+
+// A stand-in for the supabase client: from(table).select() resolves to that table's rows.
+const stubSupa = (tables) => ({ from: (t) => ({ select: async () => ({ data: tables[t], error: null }) }) });
+
+test('a board made for a post never counts as a library board made, but its slug and photos stay taken', async () => {
+  const row = (slug, subject, extra = {}) => ({ slug, subject, page_path: null, made_at: '2026-10-30T06:00:00Z', credits: [{ id: `p:${slug}` }], phash: [`h-${slug}`], status: 'new', ...extra });
+  const lib = await libraryState(stubSupa({
+    showcase_boards: [row('costume-one', 'costume'), row('post-one', 'tiktok'), row('page-one', 'look-book', { page_path: '/tools/x' })],
+    public_boards: [{ slug: 'public-one' }],
+  }));
+  assert.deepEqual(lib.made.map((m) => m.subject), ['costume']);
+  assert.deepEqual(lib.taken, ['costume-one', 'post-one', 'page-one', 'public-one']);
+  assert.ok(lib.used.ids.has('p:post-one'));
+  assert.ok(lib.used.hashes.includes('h-post-one'));
 });

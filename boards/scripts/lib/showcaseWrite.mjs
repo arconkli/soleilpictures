@@ -125,7 +125,9 @@ export async function libraryState(supa) {
       ids: new Set(rows.flatMap((r) => (r.credits || []).map((c) => c.id).filter(Boolean))),
       hashes: rows.flatMap((r) => r.phash || []),
     },
-    made: rows.filter((r) => !r.page_path).map((r) => ({ subject: r.subject, made_at: r.made_at })),
+    // Boards made to a brief for a post (subject 'tiktok') are not the library's: they never hold up the
+    // daily or turn the marketing rotation. Their slugs and photos still count above.
+    made: rows.filter((r) => !r.page_path && r.subject !== 'tiktok').map((r) => ({ subject: r.subject, made_at: r.made_at })),
     pages: new Set(rows.filter((r) => r.page_path).map((r) => r.page_path)),
     okByPerson: rows.filter((r) => r.status === 'ok' && r.decided_by).length,
   };

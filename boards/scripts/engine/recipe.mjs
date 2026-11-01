@@ -206,6 +206,29 @@ export function validateRecipe(r, brief = {}, { taken = [] } = {}) {
   return p;
 }
 
+/**
+ * What is on a board, as short plain strings for someone writing about it: the title, the story, then each
+ * section's name and what its cards say (a picture's caption, else what it shows; a note's title and opening;
+ * a palette's swatch names). At most `max` strings, each cut to 140 characters.
+ */
+export function recipeContents(r, max = 40) {
+  const out = [];
+  const cut = (s) => { const t = str(s).replace(/\s+/g, ' '); return t.length > 140 ? `${t.slice(0, 139)}…` : t; };
+  const add = (s) => { const t = cut(s); if (t) out.push(t); };
+  add(`Title: ${r.title}`);
+  add(`About: ${r.story}`);
+  for (const s of r.sections || []) {
+    add(`Section: ${s.name}`);
+    for (const it of s.items || []) {
+      if (it.kind === 'picture') add(it.caption ? `Photo "${str(it.caption)}" (${str(it.search)})` : `Photo: ${str(it.search)}`);
+      else if (it.kind === 'video') add(`Video: ${str(it.search)}${it.caption ? ` "${str(it.caption)}"` : ''}`);
+      else if (it.kind === 'note') add(`Note "${str(it.title)}": ${str(it.body)}`);
+      else if (it.kind === 'palette') add(`Palette ${str(it.title)}: ${(it.swatches || []).map((w) => str(w.name)).join(', ')}`);
+    }
+  }
+  return out.slice(0, max);
+}
+
 export function recipePrompt(brief, { taken = [], redo = null } = {}) {
   const R = RULES;
   const wants = new Set(brief.wants || []);
