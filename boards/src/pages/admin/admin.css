@@ -113,7 +113,7 @@
 
 /* iOS Safari URL-bar collapse fix: 100vh includes the address bar at idle but
    the bar collapses on scroll, so the viewport visibly jumps. 100dvh tracks the
-   dynamic viewport. Phones hit AdminPhoneGate before this matters, but a touch
+   dynamic viewport. Phones get the phone panel unless ?full=1, but a touch
    tablet up to 1024px gets the admin shell for real — hence the same
    `mobileShell` query styles.css uses. It has to live here rather than in that
    file's mobile block: admin.css loads second, so an override left behind there
@@ -7410,6 +7410,3 @@ button.adm-sh-tt-row:focus-visible { outline: none; box-shadow: var(--shadow-glo
 @media (max-width: 640px) { .adm-sh-feed-tag { display: none; } .adm-sh-feed-row { grid-template-columns: 40px minmax(0, 1fr); } }
 .adm-sh-older { margin-top: 10px; }
 
-/* The phone gate offers Boards, the one tab with a phone layout. */
-.welcome-screen .admin-phone-boards { display: block; margin: 14px auto 0; }
-.admin-header-phone { padding: 12px 16px; }
