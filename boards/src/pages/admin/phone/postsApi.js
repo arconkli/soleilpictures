@@ -15,7 +15,11 @@ async function authHeaders() {
 async function get(path) {
   const r = await fetch(path, { headers: await authHeaders() });
   if (!r.ok) {
-    const e = new Error(r.status === 404 ? 'Posts aren’t set up' : r.status === 403 ? 'Admin only' : 'Couldn’t reach the posts page');
+    // Only the Worker's own "Posts not set up" means the source row is missing;
+    // any other 404 is the page not answering.
+    const said = r.status === 404 ? await r.text().catch(() => '') : '';
+    const e = new Error(said.startsWith('Posts not set up') ? 'Posts aren’t set up'
+      : r.status === 403 ? 'Admin only' : 'Couldn’t reach the posts page');
     e.status = r.status;
     throw e;
   }

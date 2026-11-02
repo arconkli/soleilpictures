@@ -877,6 +877,7 @@ const worker = {
       if (url.pathname.startsWith(ADMIN_POSTS_PREFIX)) {
         return await handleAdminPosts(request, url.pathname.slice(ADMIN_POSTS_PREFIX.length), {
           rpc: (fn, params, token) => userRpc(env, fn, params, token),
+          posts: env.POSTS,
         });
       }
       // Logged-out one-click unsubscribe for lifecycle email (migration 0173).

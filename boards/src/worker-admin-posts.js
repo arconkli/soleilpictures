@@ -84,7 +84,11 @@ export async function handleAdminPosts(request, rest, deps) {
     }
 
     const path = target === 'days' ? 'days.json' : target.file;
-    const r = await doFetch(src.base + path);
+    // The page is a workers.dev Worker on this account, which the preview (also
+    // workers.dev) may not fetch by URL (Cloudflare 1042, a 404), so the page's
+    // files go through the POSTS service binding when there is one. A binding
+    // keeps the URL's path, so the page's token path still applies.
+    const r = deps.posts ? await deps.posts.fetch(src.base + path) : await doFetch(src.base + path);
     if (r.status === 404) return plain('Not found', 404);
     if (!r.ok) return plain('Upstream failed', 502);
     const body = await r.arrayBuffer();
