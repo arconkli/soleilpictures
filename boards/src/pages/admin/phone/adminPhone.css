@@ -146,3 +146,11 @@
 /* Boards: the existing phone Boards tab inside the panel */
 .ap-boards { padding: 0; }
 .ap-boards .admin-body { padding-top: 0; }
+
+/* The desktop admin's Posts tab (AdminPostsTab.jsx): the same screen in a
+   centred column inside the admin page, not a fixed full-screen panel. */
+.ap.ap-desk { position: static; inset: auto; display: block; background: transparent; max-width: 760px; margin: 0 auto; padding: 8px 0 32px; }
+.ap-desk-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ap-desk-top h1 { font-family: var(--font-display); font-size: 22px; font-weight: 600; margin: 0; }
+.ap-desk-top .ap-btn { flex: none; }
+.ap-desk .ap-strip img, .ap-desk .ap-strip .ph { height: 260px; }
