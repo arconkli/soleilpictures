@@ -70,6 +70,9 @@ const prefetchUniverseTab = () => { loadUniverseTab().catch(() => {}); };
 // /admin on a phone (pages/admin/phone/): its own chunk, so desktop never loads it.
 const AdminPhonePanel = lazyWithReload(() => import('./admin/phone/AdminPhonePanel.jsx').then((m) => ({ default: m.AdminPhonePanel })));
 
+// Posts (the TikTok posts: the phone panel's Posts screen in a column), its own chunk too.
+const AdminPostsTab = lazyWithReload(() => import('./admin/AdminPostsTab.jsx').then((m) => ({ default: m.AdminPostsTab })));
+
 const AdminBoardsTab = lazyWithReload(() => import('./admin/AdminBoardsTab.jsx').then((m) => ({ default: m.AdminBoardsTab })));
 
 // Overview and Analytics were two tabs showing the same numbers: both led with
@@ -81,6 +84,7 @@ const AdminBoardsTab = lazyWithReload(() => import('./admin/AdminBoardsTab.jsx')
 const TABS = [
   { id: 'overview',  label: 'Analytics' },
   { id: 'users',     label: 'Users' },
+  { id: 'posts',     label: 'Posts' },
   { id: 'grants',    label: 'Grants' },
   { id: 'discounts', label: 'Discounts' },
   { id: 'campaign',  label: 'Campaign' },
@@ -105,7 +109,7 @@ const STORAGE_KEY = 'admin.tab';
 // The header shows only the daily/frequent sections as pills; the rarely-touched
 // long tail folds into a single "More" overflow so the bar isn't 11 items wide.
 // PRIMARY_IDS is the one knob — reorder/trim it and the overflow recomputes.
-const PRIMARY_IDS = ['overview', 'users', 'approvals', 'boards'];
+const PRIMARY_IDS = ['overview', 'users', 'posts', 'approvals', 'boards'];
 // Overflow order is triage-first, then rare/config, split by a single divider.
 // The waitlist has been switched off since 2026-06-15, so Waitlist sits with
 // Campaign among the rarely opened rather than in the pills.
@@ -360,6 +364,11 @@ export function AdminPage() {
         {tab === 'boards' && (
           <Suspense fallback={null}>
             <AdminBoardsTab onWaitingChange={setPendingBoards} />
+          </Suspense>
+        )}
+        {tab === 'posts' && (
+          <Suspense fallback={null}>
+            <AdminPostsTab />
           </Suspense>
         )}
         {tab === 'overview'  && <AdminAnalyticsTab />}

@@ -37,6 +37,7 @@ import { AdminBoardsTab } from '../pages/admin/AdminBoardsTab.jsx';
 import { FeedbackProvider } from '../components/AppFeedback.jsx';
 import { AdminPhonePanel } from '../pages/admin/phone/AdminPhonePanel.jsx';
 import { makePhonePostsApi } from './adminPhoneFixtures.js';
+import { AdminPostsTab } from '../pages/admin/AdminPostsTab.jsx';
 
 // Install the fixture shim before any tab mounts + fetches.
 const MOCKS_OK = installAdminPreviewMocks(supabase);
@@ -244,10 +245,17 @@ function BoardsQaTab({ onWaitingChange }) {
   );
 }
 
+// Posts over the fake posts source (adminPhoneFixtures.js).
+const deskPostsApi = makePhonePostsApi();
+function PostsQaTab() {
+  return <AdminPostsTab api={deskPostsApi} />;
+}
+
 const TABS = [
   // One dashboard tab now — its four views live behind ?view= inside it.
   { id: 'overview',  label: 'Analytics', Component: AdminAnalyticsTab },
   { id: 'users',     label: 'Users',     Component: AdminUsersTab },
+  { id: 'posts',     label: 'Posts',     Component: PostsQaTab },
   { id: 'grants',    label: 'Grants',    Component: AdminGrantsTab },
   { id: 'waitlist',  label: 'Waitlist',  Component: AdminWaitlistTab },
   { id: 'feedback',  label: 'Feedback',  Component: AdminFeedbackTab },
