@@ -235,13 +235,15 @@ test("every reader that took 0149's rule asks the helper, and the proof names ea
   // 0462 moved one more column of admin_list_users onto the helper; 0472 gave
   // admin_event_coverage four more rows, and 0475 counted an import's start
   // toward first_cluster; 0495 made admin_first_session_compare read each
-  // signup day once; 0746 gave the Users list and its count a Sharing filter.
+  // signup day once; 0746 gave the Users list and its count a Sharing filter; 0851 left service accounts out of _admin_people and admin_signups_by_day.
   // Each later body still asks the helper.
   const LATER = {
     admin_list_users: '0746_users_list_sharing.sql',
     admin_user_count: '0746_users_list_sharing.sql',
     admin_event_coverage: '0475_import_clusters_count_as_imports.sql',
     admin_first_session_compare: '0495_first_session_compare_reads_day_one_once.sql',
+    _admin_people: '0851_admin_people_skip_service.sql',
+    admin_signups_by_day: '0851_admin_people_skip_service.sql',
   };
   // The helper itself was restated by 0705 (pinned in the test above).
   for (const name of new Set(HERE.map((d) => d.name))) {

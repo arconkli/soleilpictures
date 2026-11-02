@@ -5,6 +5,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { latestDefinition, latestMatch } from './migrationText.mjs';
 
 // ── 0600: a session must come from the inbox ───────────────────────────────
@@ -18,13 +19,17 @@ test('the access checks grant nothing to a session that did not come from the in
 });
 
 test('the inbox methods are the emailed ones, never a password', () => {
-  const def = latestDefinition('_session_proves_inbox').body;
+  // 0850 moved the list into _session_from_inbox(); _session_proves_inbox()
+  // asks it first (pinned with the passkey rule under 0850 below).
+  const strict = latestDefinition('_session_from_inbox').body;
   for (const method of ['otp', 'magiclink', 'recovery', 'invite', 'email/signup', 'email_change']) {
-    assert.ok(def.includes(`'${method}'`), `${method} counts as the inbox`);
+    assert.ok(strict.includes(`'${method}'`), `${method} counts as the inbox`);
   }
-  assert.ok(!def.includes("'password'"), 'a password never proves the inbox');
-  assert.ok(latestMatch(/revoke execute on function public\._session_proves_inbox\(\) from public, anon, authenticated/),
-    '_session_proves_inbox() is for SECURITY DEFINER callers only');
+  for (const fn of ['_session_from_inbox', '_session_proves_inbox']) {
+    assert.ok(!latestDefinition(fn).body.includes("'password'"), `a password never proves the inbox (${fn})`);
+    assert.ok(latestMatch(new RegExp(`revoke execute on function public\\.${fn}\\(\\) from public, anon, authenticated`)),
+      `${fn}() is for SECURITY DEFINER callers only`);
+  }
 });
 
 test('the access token hook refuses password sign-ins and only the auth server may run it', () => {
@@ -188,7 +193,8 @@ test('a share on a trashed cluster grants neither read nor write', () => {
 test('an account proves its address only from a session that came from the inbox, and clients cannot write the proof', () => {
   assert.ok(latestMatch(/alter table public\.profiles\s+add column if not exists inbox_proven_at timestamptz,\s+add column if not exists inbox_proven_hash text;/));
   const stamp = latestDefinition('_stamp_inbox_proof').body;
-  assert.match(stamp, /if auth\.uid\(\) is null or not public\._session_proves_inbox\(\) then\s+return;/);
+  assert.match(stamp, /if auth\.uid\(\) is null or not public\._session_from_inbox\(\) then\s+return;/,
+    'only an inbox session stamps it: a passkey never proves an address afresh (0850)');
   assert.match(stamp, /inbox_proven_hash = encode\(sha256\(convert_to\(lower\(u\.email\), 'UTF8'\)\), 'hex'\)/, 'a hash, never the address');
   assert.match(latestDefinition('touch_presence').body, /perform public\._stamp_inbox_proof\(\);/, 'the heartbeat stamps it');
   assert.match(latestDefinition('_user_proved_inbox').body, /p\.inbox_proven_hash = encode\(sha256\(convert_to\(lower\(u\.email\), 'UTF8'\)\), 'hex'\)/);
@@ -203,6 +209,42 @@ test('matching an address to a named account needs a proven inbox, not a confirm
   assert.ok(reach.file >= '0527', 'the latest definition is 0527 or a later re-emit that carries it');
   assert.match(reach.body, /u\.email_confirmed_at is not null\s+and public\._user_proved_inbox\(p_user\);/);
   assert.match(reach.body, /public\._user_can_write_board\(p\.invited_by, p_share\.board_id\)/);
+});
+
+// ── 0850: a passkey counts only when every passkey came from the inbox ─────
+
+test('a passkey session counts as the person only when every passkey on the account was saved from the inbox', () => {
+  const proves = latestDefinition('_session_proves_inbox').body;
+  assert.match(proves, /when public\._session_from_inbox\(\) then true/, 'an inbox session answers from its token alone');
+  assert.match(proves,
+    /where a ->> 'method' = 'passkey'\)\s+then public\._user_proved_inbox\(auth\.uid\(\)\) and public\._passkeys_all_noted\(auth\.uid\(\)\)/,
+    'a passkey session needs a proven address and every passkey noted');
+  assert.match(proves, /else false\s+end/, 'anything else is refused');
+
+  const noted = latestDefinition('_passkeys_all_noted').body;
+  assert.match(noted, /and exists \(select 1 from auth\.webauthn_credentials c\s+where c\.user_id = p_user and c\.id is distinct from p_except\)/,
+    'an account with no passkey is never all noted');
+  assert.match(noted,
+    /and not exists \(\s+select 1 from auth\.webauthn_credentials c[\s\S]*?and not exists \(select 1 from public\.passkeys_from_inbox f\s+where f\.passkey_id = c\.id and f\.user_id = p_user\)\)/,
+    'one passkey saved any other way switches passkey sign-in off');
+
+  const note = latestDefinition('note_passkey_saved').body;
+  assert.match(note, /where c\.id = p_passkey\s+and c\.user_id = v_uid\s+and c\.created_at > now\(\) - interval '15 minutes'\) then\s+return false;/,
+    "only the caller's own passkey, saved just now");
+  assert.match(note,
+    /if not \(\s+public\._session_from_inbox\(\)\s+or \(jsonb_typeof\(v_amr\) = 'array'\s+and exists \(select 1 from jsonb_array_elements\(v_amr\) a where a ->> 'method' = 'passkey'\)\s+and public\._user_proved_inbox\(v_uid\)\s+and public\._passkeys_all_noted\(v_uid, p_passkey\)\)\s+\) then\s+return false;/,
+    'noted from an inbox session, or from a passkey session whose other passkeys are all noted');
+
+  assert.ok(latestMatch(/alter table public\.passkeys_from_inbox enable row level security;\s+revoke all on table public\.passkeys_from_inbox from public, anon, authenticated;/),
+    'the notes table is closed to clients');
+  assert.ok(latestMatch(/revoke execute on function public\._passkeys_all_noted\(uuid, uuid\) from public, anon, authenticated;/));
+  assert.ok(latestMatch(/revoke execute on function public\.note_passkey_saved\(uuid\) from public, anon;\s+grant execute on function public\.note_passkey_saved\(uuid\) to authenticated;/));
+
+  // The app's half: a new passkey is noted at once, and comes off the account if it can't be.
+  const app = readFileSync(new URL('./passkeys.js', import.meta.url), 'utf8');
+  assert.match(app, /let note = await supabase\.rpc\('note_passkey_saved', \{ p_passkey: data\.id \?\? null \}\);/);
+  assert.match(app, /if \(note\.error \|\| note\.data !== true\) \{\s+try \{ if \(data\.id\) await supabase\.auth\.passkey\.delete\(\{ passkeyId: data\.id \}\); \} catch \(_\) \{\}/);
+  assert.ok(app.indexOf("rpc('note_passkey_saved'") < app.indexOf('return { passkey, error: null }'), 'noted before the save reports success');
 });
 
 // ── 0605: chat ends at removal ─────────────────────────────────────────────

@@ -57,6 +57,10 @@ const defOf = (fn) => {
   return def;
 };
 
+// 0851 restated _admin_people to leave service accounts out
+// (adminServiceAccountsMigration.test.mjs: the body before it plus one clause).
+const LATER = { _admin_people: '0851_admin_people_skip_service.sql' };
+
 // The same shape latestDefinition matches, scoped to one file's text.
 function definitionIn(sql, fn) {
   const re = new RegExp(
@@ -89,7 +93,7 @@ test('the migration exists and is one transaction', () => {
 
 test('all seven functions are defined here, and every admin_* one asks _require_admin() first', () => {
   for (const fn of ALL_FNS) {
-    assert.equal(defOf(fn).file, FILE, `${fn} is defined in ${FILE}`);
+    assert.equal(defOf(fn).file, LATER[fn] ?? FILE, `${fn} is defined in ${LATER[fn] ?? FILE}`);
   }
   for (const fn of ADMIN_FNS) {
     const body = defOf(fn).body;
@@ -99,7 +103,9 @@ test('all seven functions are defined here, and every admin_* one asks _require_
 });
 
 test('_admin_people is the one population predicate, callable by definer functions only', () => {
-  const body = defOf('_admin_people').body;
+  // What this file wrote; the live one (0851) is pinned at the end.
+  const body = definitionIn(src, '_admin_people');
+  assert.ok(body, `${FILE} defines _admin_people`);
   assert.deepEqual(returnsTable(body), [['user_id', 'uuid'], ['created_at', 'timestamptz']]);
   assert.match(body, /language sql stable security definer set search_path = public/i);
   assert.match(body, /not p_verified_only\s+or \(u\.email_confirmed_at is not null and u\.last_sign_in_at is not null\)/,
@@ -110,6 +116,13 @@ test('_admin_people is the one population predicate, callable by definer functio
   const grants = [...src.matchAll(/grant execute on function public\._admin_people\([^)]*\)\s+to ([^;]+);/g)]
     .map((m) => m[1].trim());
   assert.deepEqual(grants, ['service_role'], 'granted to service_role only');
+  const live = defOf('_admin_people');
+  assert.equal(live.file, LATER._admin_people, 'the live one is 0851');
+  assert.match(live.body, /not p_exclude_internal\s+or u\.id not in \(select iu\.user_id from public\._internal_user_ids\(\) iu\)/,
+    "the live one keeps 0110's internal rule");
+  assert.match(live.body, /public\._admin_entered_code\(\)/, "and 0461's code-entry rule");
+  assert.match(live.body, /and not exists \(select 1 from public\.profiles sp\s+where sp\.user_id = u\.id and coalesce\(sp\.is_service, false\)\)/,
+    'and leaves service accounts out');
 });
 
 test('every admin_* function is revoked from public and anon, and granted to authenticated and service_role', () => {

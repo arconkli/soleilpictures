@@ -184,9 +184,23 @@ export async function signInWithPasskeyNow({ captchaToken } = {}) {
 
 // Saves a passkey for the signed-in person on this device, naming it after
 // the device when the server gives it no name. Resolves to { passkey, error }.
+//
+// A passkey sign-in only opens the account when every passkey on it was noted
+// as saved from a session that came in through the inbox (migration 0850), so
+// the new one is noted straight away. If the server won't note it, it comes
+// back off the account: left on, it would open an empty account and switch
+// off sign-in with the person's other passkeys too.
 export async function savePasskey() {
   const { data, error } = await supabase.auth.registerPasskey();
   if (error || !data) return { passkey: null, error: error || new Error('no passkey') };
+  let note = await supabase.rpc('note_passkey_saved', { p_passkey: data.id ?? null });
+  if (note.error) note = await supabase.rpc('note_passkey_saved', { p_passkey: data.id ?? null });
+  if (note.error || note.data !== true) {
+    try { if (data.id) await supabase.auth.passkey.delete({ passkeyId: data.id }); } catch (_) {}
+    const err = new Error('passkey not noted');
+    err.code = 'passkey_not_noted';
+    return { passkey: null, error: err };
+  }
   let passkey = data;
   if (!data.friendly_name && data.id) {
     const label = passkeyDeviceLabel(navigator.userAgent);
