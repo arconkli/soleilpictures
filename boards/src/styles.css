@@ -6348,6 +6348,23 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
+/* The phone menu's Admin button: neutral ink at rest (gold is for active). */
+.sb-admin-btn {
+  flex-shrink: 0;
+  height: 30px;
+  margin: 0 6px 0 4px;
+  padding: 0 12px;
+  background: transparent;
+  color: var(--ink-1);
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  font: 600 11px/1 var(--font-sans);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.sb-admin-btn:active { border-color: var(--soleil); color: var(--soleil); }
+body[data-capture='1'] .sb-admin-btn { display: none; }
 .tb-admin-btn:hover {
   background: var(--soleil);
   color: var(--on-soleil);

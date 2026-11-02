@@ -10948,6 +10948,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           <Icon as={Search} size={16} weight="regular" />
         </button>
       )}
+      {/* A phone's way into /admin (the phone panel): first thing in the
+          menu, beside its close, since the top bar has no room (SHELL-06). */}
+      {mobileShell && myTier.tier === 'admin' && (
+        <button className="sb-admin-btn" title="Admin dashboard"
+                onClick={() => window.location.assign('/admin')}>
+          Admin
+        </button>
+      )}
       {/* In the drawer this is the drawer's close. It used to write the
           desktop collapse preference (to the account) and leave the
           drawer open with every row hidden. */}
@@ -11109,13 +11117,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
            {...rowButtonProps(() => { setMobileNavOpen(false); setFocusMode(true); })}>
         <Icon as={Maximize2} size={14} />
         <span className="sb-row-label">Focus view</span>
-      </div>
-    )}
-    {mobileShell && myTier.tier === 'admin' && (
-      <div className="sb-row"
-           {...rowButtonProps(() => window.location.assign('/admin'))}>
-        <Icon as={LayoutGrid} size={14} />
-        <span className="sb-row-label">Admin dashboard</span>
       </div>
     )}
     </div>
