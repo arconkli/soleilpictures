@@ -79,6 +79,10 @@ test('more than a few searches with no photo send the recipe back, naming them',
   const [why] = missingPhotos(r, ['0.0', '0.1', '1.0', '1.1']);
   assert.match(why, /^4 searches found no real photo/);
   assert.match(why, /"fisherman oilskin coat", "wool peacoat harbour", "cable knit wool close", "waxed cotton texture"/);
+  // One lost storyboard frame is enough: the sheet's numbers are the shot list's.
+  const [frame] = missingPhotos(r, ['1.0'], new Set(['1.0', '1.1']));
+  assert.match(frame, /^1 storyboard frame found no photo in the board's one look \("cable knit wool close"\)/);
+  assert.equal(missingPhotos(r, ['0.0', '0.1', '1.0', '1.1'], new Set(['1.0'])).length, 2);
 });
 
 test('no brief asks for period dress stock sites cannot show', () => {

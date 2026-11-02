@@ -25,14 +25,23 @@ export const GRADE = Object.freeze({ pass: 4 });
  * search by search, so the next recipe can swap them. → [] or [problem]
  *   missing: ['si.ii', …] from findPhotos
  */
-export function missingPhotos(recipe, missing = []) {
-  if (missing.length <= CHECK.missing) return [];
+export function missingPhotos(recipe, missing = [], frames = new Set()) {
   const search = (key) => {
     const [si, ii] = key.split('.').map(Number);
     return recipe?.sections?.[si]?.items?.[ii]?.search || key;
   };
-  return [`${missing.length} searches found no real photo that fits (${missing.map((k) => `"${search(k)}"`).join(', ')}); `
-    + 'swap them for places, objects, textures and light a stock site holds today, in one modern colour look'];
+  const why = [];
+  // A storyboard sheet numbers its frames by the shot list, so even one lost frame sends the recipe back.
+  const lost = missing.filter((k) => frames.has(k));
+  if (lost.length) {
+    why.push(`${lost.length} storyboard frame${lost.length > 1 ? 's' : ''} found no photo in the board's one look (${lost.map((k) => `"${search(k)}"`).join(', ')}); `
+      + 'the sheet must show every frame its shot list names, so swap those searches for shots a stock site holds today, in the same light as the rest');
+  }
+  if (missing.length > CHECK.missing) {
+    why.push(`${missing.length} searches found no real photo that fits (${missing.map((k) => `"${search(k)}"`).join(', ')}); `
+      + 'swap them for places, objects, textures and light a stock site holds today, in one modern colour look');
+  }
+  return why;
 }
 
 const isPicture = (c) => c.kind === 'image' || c.kind === 'video';
@@ -140,9 +149,13 @@ export function gradePrompt(file, recipe) {
     '4: good enough to show; small things you would still change.',
     '3: fine but forgettable, or one thing that would embarrass us (a photo that doesn\'t fit, a cheesy stock look,',
     '   a note that sounds like marketing, a section that makes no sense).',
-    '2 or 1: wrong subject, clashing photos, broken layout, text you can\'t read, or anything that looks AI-made.',
-    'The board\'s ground colour, its font, its photo grids, tables, checklists, docs, links and arrows are the app\'s own',
-    'tools, chosen on purpose: judge how well they are used, not whether they are there.',
+    '2 or 1: wrong subject, clashing photos, broken layout, text you can\'t read, anything that looks AI-made, or a',
+    '   photo with graffiti, a sign, a logo or any other writing in it (we can\'t vouch for what it says).',
+    'The board\'s ground colour, its font, its photo grids, tables, checklists, docs, links and arrows, its sound card,',
+    'its PDF, its card for a sub-cluster (a smaller board inside this one), its tags, the comment bubbles and the vote',
+    'beside a card, and the red marker drawn round a card are the app\'s own tools, chosen on purpose: judge how well',
+    'they are used, not whether they are there. The comments and the vote are the crew\'s, people on the project:',
+    'judge them as you would real colleagues\' (do they sound like a real crew, and does each sit clear of the cards?).',
     '',
     'Be strict: most boards are a 3. summary: one sentence. fixes: up to 5 concrete changes that would raise it, each',
     'naming the card or section ("swap the beach photo in Locations for one at dusk"; "cut the second palette").',

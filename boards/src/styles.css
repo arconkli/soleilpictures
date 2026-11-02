@@ -22290,7 +22290,7 @@ button, [role="button"], a {
   color: var(--pat);
 }
 .pa-updated { font-size: .82rem; color: var(--pats); margin: 0 0 18px; }
-.pa-body { color: var(--pats); margin: 0 0 8px; }
+.pa-body { color: var(--pats); margin: 0 0 8px; white-space: pre-line; }
 .pa-deck { color: var(--pats); margin: 0 0 16px; font-size: .95rem; }
 
 .pa-chips {

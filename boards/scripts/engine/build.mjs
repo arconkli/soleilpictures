@@ -22,7 +22,17 @@
 //     screenplay docs feature for screenplay kinda stuff and scenes")
 //   · a link: the app's link preview card, for a page links.mjs checked live
 //   · arrows: between two cards the recipe names by title or caption
-//   · a video, laid out as a picture of its shape
+//   · a video, laid out as a picture of its shape; the board's first plays by
+//     itself (muted), as a person sets it to
+// and since 11-01 (the owner: "as many of our features as possible in here.
+// so add like video, maybe audio, grids, etc"):
+//   · a sound: the app's audio card, its waveform drawn from the sound
+//     (sounds.mjs), its cover a picture from the board
+//   · a PDF: the app's PDF card, page 1 as its picture (pdfs.mjs)
+//   · a sub-cluster: a cluster of its own inside the board (a child board of
+//     more pictures and a note), shown on the board as the app's cluster card
+//   · tags on cards, the crew's comments and a vote (crew.mjs), and a marker
+//     loop drawn round the picture the vote is on, as a person marks one up
 // and the board's style (styles.mjs) sets its ground, its arrangement and the
 // notes' font.
 //
@@ -42,6 +52,8 @@ import { computeArrowAttachments } from '../../src/lib/arrowGeometry.js';
 import { stampCard } from '../lib/cardEncode.mjs';
 import { FONTS, styleNamed } from './styles.mjs';
 import { CHECK } from './check.mjs';
+import { snapBubbleToBox } from '../../src/lib/bubbleLayout.js';
+import { crewOf } from './crew.mjs';
 
 const span = (n) => n * AUTO.column + (n - 1) * AUTO.gap;
 
@@ -51,7 +63,212 @@ export const PAGE_SHAPE = Object.freeze({ w: AUTO.column, h: Math.round(AUTO.col
 export const SCRIPT_SHAPE = Object.freeze({ width: PAGE_SHAPE.w * 4, height: PAGE_SHAPE.h * 4 });
 
 // A link preview: the canvas's own sizes (cards.jsx LinkCard), taller with a picture.
-export const LINK_SHAPE = Object.freeze({ w: 280, h: 110, withImage: 290 });
+export const LINK_SHAPE = Object.freeze({ w: 280, h: 110 });
+
+// A sound: the audio card's own size (cards.jsx AudioCard).
+export const AUDIO_SHAPE = Object.freeze({ w: 380, h: 130 });
+// A sub-cluster's card on its parent (onboardingStarter.js's).
+export const CLUSTER_SHAPE = Object.freeze({ w: 280, h: 200 });
+// The loop drawn round the voted picture: a red marker, a hand's width off the
+// card (inside the gap to its neighbours), its end running on past its start.
+export const MARKUP = Object.freeze({ color: '#e5484d', width: 5, brush: 'marker', pad: 11, radius: 26, step: 14, wobble: 3, overrun: 0.12 });
+
+// The size the app gives a bubble beside a card (bubbleLayout.js measures it
+// once drawn): a comment is BUBBLE_W wide with a two-line preview, a little
+// taller with its reply count; a vote is its label (up to 160px) and two
+// buttons. `outside`: what a bubble reaching past the board's edge costs, per
+// unit of area, against covering a card (1): little, since the shots frame it in.
+export const BUBBLE = Object.freeze({ comment: { w: 240, h: 76 }, thread: { w: 240, h: 92 }, voteH: 34, voteButtons: 112,
+  voteLabelPx: 6.5, voteLabelMax: 160, outside: 0.25, bubbles: 1.5 });
+export const voteSize = (label) => ({ w: Math.min(BUBBLE.voteLabelMax, Math.ceil(String(label || '').length * BUBBLE.voteLabelPx)) + BUBBLE.voteButtons, h: BUBBLE.voteH });
+
+const area = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+
+/**
+ * Where a comment or vote bubble sits beside its card, and the offset that
+ * puts it there. The app draws a bubble flush against one side of its card
+ * (bubbleLayout.js snapBubbleToBox), so each side is tried at its start,
+ * middle and end, and the spot that covers least wins: other cards and
+ * section labels count in full, other bubbles half again, and whatever
+ * reaches past `edge` (the board's cards) a quarter. Ties keep the app's
+ * order: right, left, below, above. Pure.
+ *   box: the card; size: { w, h }; obstacles: rects; placed: bubbles already placed
+ * → { offset: { x, y }, rect: { x, y, w, h }, side }
+ */
+export function placeBubble(box, size, { obstacles = [], placed = [], edge = null } = {}) {
+  let best = null;
+  for (const s of bubbleSpots(box, size)) {
+    let covers = 0;
+    for (const o of obstacles) covers += area(s.rect, o);
+    for (const p of placed) covers += BUBBLE.bubbles * area(s.rect, p);
+    const score = covers + (edge ? BUBBLE.outside * (size.w * size.h - area(s.rect, edge)) : 0);
+    if (!best || score < best.score) best = { ...s, score, covers };
+  }
+  return best;
+}
+
+/**
+ * The spots placeBubble tries, in the app's order, each with the offset that
+ * puts it there: on each side its start, middle and end, then the two the app
+ * lets reach 18px past the card's corners (to clear a tag strip, say). Pure.
+ */
+export function bubbleSpots(box, { w, h }) {
+  // oy: the bubble's top at box.y - 8 + oy (clamped to box.y - 18 … box.y + box.h - h + 18)
+  const ys = [0, box.h / 2 - h / 2 + 8, box.h - h + 16, -10, box.h - h + 26];
+  // ox for a bubble below or above: its left at box.x + box.w + 8 + ox (clamped to box.x - 18 … box.x + box.w - w + 18)
+  const xs = [-box.w - 8, -box.w / 2 - w / 2 - 8, -w - 8, -w + 10, -box.w - 26];
+  const cands = [
+    ...ys.map((oy) => ({ want: 'right', ox: 0, oy })),
+    ...ys.map((oy) => ({ want: 'left', ox: -(box.w + 16 + w), oy })),
+    ...xs.map((ox) => ({ want: 'bottom', ox, oy: 2 * box.h + 2 * h })),
+    ...xs.map((ox) => ({ want: 'top', ox, oy: -(2 * box.h + 2 * h) })),
+  ];
+  const out = [];
+  for (const c of cands) {
+    const offset = { x: Math.round(c.ox), y: Math.round(c.oy) };
+    const snap = snapBubbleToBox(box, offset.x, offset.y, w, h);
+    if (snap.side === c.want) out.push({ offset, rect: { x: snap.bubble.x, y: snap.bubble.y, w, h }, side: snap.side });
+  }
+  return out;
+}
+
+/**
+ * The strip of tags under a card, as CanvasSurface draws it: 6px under the
+ * card, up to four chips (9.5px type, a dot, 120px at most) 4px apart. → a
+ * rect, or null with no tags.
+ */
+export const TAG_CHIP = Object.freeze({ below: 6, h: 18, gap: 4, base: 28, perChar: 5.5, max: 120, shown: 4, minStrip: 180 });
+export function tagStrip(card, names) {
+  if (!names.length) return null;
+  const w = names.slice(0, TAG_CHIP.shown).reduce((n, t, i) => n + (i ? TAG_CHIP.gap : 0) + Math.min(TAG_CHIP.max, TAG_CHIP.base + TAG_CHIP.perChar * t.length), 0);
+  const room = Math.max(card.w, TAG_CHIP.minStrip);
+  const rows = Math.ceil(w / room);
+  return { x: card.x, y: card.y + card.h + TAG_CHIP.below, w: Math.min(w, room), h: rows * TAG_CHIP.h + (rows - 1) * TAG_CHIP.gap };
+}
+
+/**
+ * What the vote's red loop rings: its card, and the card's tag strip when it
+ * has one, since a loop MARKUP.pad off the card runs straight through the chips.
+ * → a box for markerLoop.
+ */
+export function loopBox(card, strip = null) {
+  if (!strip) return { x: card.x, y: card.y, w: card.w, h: card.h };
+  return { x: card.x, y: card.y, w: Math.max(card.w, strip.x + strip.w - card.x), h: strip.y + strip.h - card.y };
+}
+// How far under a loop's box the next card must start: the pad, the wobble, the
+// stroke and a little air.
+export const LOOP_REACH = MARKUP.pad + MARKUP.wobble + MARKUP.width + 6;
+
+/** Where a bubble at `offset` beside `box` is drawn (snapBubbleToBox). */
+export const bubbleRect = (box, offset, { w, h }) => ({ ...snapBubbleToBox(box, offset.x, offset.y, w, h).bubble, w, h });
+
+/**
+ * On a board set close, a bubble covers a neighbour on every side. Room is
+ * made in its card's column instead, as an arrow's is (openRoom): for a bubble
+ * below, the rest of the column moves down; for one above, the card itself
+ * and the rest of its column. Each spot below and above is tried, least
+ * moving first; `ok(cards)` vets the board each would make (arrows still
+ * reading, say). → { cards, offset } or null when no room can be made.
+ *   cover(rect, cards): what the bubble at rect would cover on those cards
+ */
+export function bubbleRoom(cards, cardId, size, { cover, ok = () => true }) {
+  const box = cards.find((c) => c.id === cardId);
+  const gap = AUTO.gap;
+  const tries = [];
+  for (const s of bubbleSpots(box, size)) {
+    if (s.side !== 'bottom' && s.side !== 'top') continue;
+    const x0 = Math.min(s.rect.x, box.x);
+    const x1 = Math.max(s.rect.x + s.rect.w, box.x + box.w);
+    const line = s.side === 'bottom' ? box.y + box.h : box.y;
+    const span = (c) => c.x < x1 && c.x + c.w > x0;
+    const dy = s.side === 'bottom'
+      ? Math.max(0, ...cards.filter((c) => c.groupId === box.groupId && c.y >= line - 1 && span(c)).map((c) => s.rect.y + s.rect.h + gap - c.y))
+      : Math.max(0, ...cards.filter((c) => c.id !== cardId && c.y < box.y && span(c)).map((c) => c.y + c.h + gap - s.rect.y));
+    tries.push({ ...s, x0, x1, line, dy: Math.ceil(dy) });
+  }
+  tries.sort((a, b) => a.dy - b.dy);
+  for (const t of tries) {
+    const next = t.dy ? moveDown(cards, { line: t.line, x0: t.x0, x1: t.x1, groupId: box.groupId, dy: t.dy }) : cards;
+    if (!next) continue;
+    const moved = next.find((c) => c.id === cardId);
+    if (cover(bubbleRect(moved, t.offset, size), next) === 0 && ok(next)) return { cards: next, offset: t.offset };
+  }
+  return null;
+}
+
+/**
+ * A hand-drawn loop round a card: its box grown by `pad`, corners rounded, a
+ * little uneven and only ever outward, ending past where it began. Pure and
+ * the same every time for the same box. -> [[x, y], ...]
+ */
+export function markerLoop(box, { pad = MARKUP.pad, radius = MARKUP.radius, step = MARKUP.step, wobble = MARKUP.wobble, overrun = MARKUP.overrun } = {}) {
+  const x0 = box.x - pad;
+  const y0 = box.y - pad;
+  const x1 = box.x + box.w + pad;
+  const y1 = box.y + box.h + pad;
+  const r = Math.min(radius, (x1 - x0) / 2, (y1 - y0) / 2);
+  // The outline as straight runs and quarter arcs, clockwise from the top edge's start.
+  const segs = [
+    { line: [[x0 + r, y0], [x1 - r, y0]] }, { arc: [x1 - r, y0 + r, -Math.PI / 2] },
+    { line: [[x1, y0 + r], [x1, y1 - r]] }, { arc: [x1 - r, y1 - r, 0] },
+    { line: [[x1 - r, y1], [x0 + r, y1]] }, { arc: [x0 + r, y1 - r, Math.PI / 2] },
+    { line: [[x0, y1 - r], [x0, y0 + r]] }, { arc: [x0 + r, y0 + r, Math.PI] },
+  ];
+  const ring = []; // [x, y, outward nx, ny]
+  for (const s of segs) {
+    if (s.line) {
+      const [[ax, ay], [bx, by]] = s.line;
+      const len = Math.hypot(bx - ax, by - ay);
+      const n = Math.max(1, Math.round(len / step));
+      const nx = (by - ay) / (len || 1);
+      const ny = -(bx - ax) / (len || 1);
+      for (let i = 0; i < n; i += 1) ring.push([ax + ((bx - ax) * i) / n, ay + ((by - ay) * i) / n, nx, ny]);
+    } else {
+      const [cx, cy, a0] = s.arc;
+      const n = Math.max(2, Math.round(((Math.PI / 2) * r) / step));
+      for (let i = 0; i < n; i += 1) {
+        const a = a0 + ((Math.PI / 2) * i) / n;
+        ring.push([cx + r * Math.cos(a), cy + r * Math.sin(a), Math.cos(a), Math.sin(a)]);
+      }
+    }
+  }
+  // Begin a little way along the top, as a hand would, and run on past the start.
+  const start = Math.round(ring.length * 0.06);
+  const total = ring.length + Math.round(ring.length * overrun);
+  const out = [];
+  for (let i = 0; i <= total; i += 1) {
+    const [x, y, nx, ny] = ring[(start + i) % ring.length];
+    const off = wobble * (0.5 + 0.5 * Math.sin(i * 0.9 + box.w * 0.01)) + (i / total) * wobble;
+    out.push([Math.round((x + nx * off) * 10) / 10, Math.round((y + ny * off) * 10) / 10]);
+  }
+  return out;
+}
+
+/**
+ * The pictures a recipe's sub-clusters hold, as sections after the board's own,
+ * so photos.mjs finds and picks them with the rest, in the same world. The k-th
+ * picture of the j-th sub-cluster is `${recipe.sections.length + j}.${k}`. Pure.
+ */
+export function clusterSections(recipe) {
+  const out = [];
+  for (const s of recipe?.sections || []) {
+    for (const it of s?.items || []) {
+      if (it?.kind === 'cluster') out.push({ name: clean(it.title), items: (it.searches || []).map((q) => ({ kind: 'picture', search: q })) });
+    }
+  }
+  return out;
+}
+export const photoRecipe = (recipe) => ({ ...recipe, sections: [...(recipe?.sections || []), ...clusterSections(recipe)] });
+
+// A card's photo keys renamed (a sub-cluster's own '0.k' -> the parent's key).
+function rekey(c, back) {
+  const k = (x) => back.get(x) || x;
+  const out = { ...c };
+  if (out.photo) out.photo = k(out.photo);
+  if (Array.isArray(out.photos)) out.photos = out.photos.map(k);
+  if (out.gridCells) out.gridCells = Object.fromEntries(Object.entries(out.gridCells).map(([id, cell]) => [id, cell?.photo ? { ...cell, photo: k(cell.photo) } : cell]));
+  return out;
+}
 
 // Grids: how a table's cells are sized, and a photo grid's.
 export const GRID = Object.freeze({
@@ -158,13 +375,42 @@ export const MOSAIC_MAX = 9;
 export const frameCaption = (caption, i) => clean(caption).replace(/^\d+\s*([·.:—–-])\s*/, `${i + 1} $1 `);
 export const frameRange = (text, n) => String(text || '').replace(/\b1\s*([–-])\s*\d+\b/, `1$1${n}`);
 
+// A grid's pictures are a frames sheet when there are six or more and most are captioned; a storyboard
+// when most captions also carry the frame's number ("3 · CLOSE — brake lever"), the shot list's.
+export const isFrameSheet = (pics) => pics.length >= 6 && pics.filter((p) => clean(p.it?.caption)).length >= Math.ceil(pics.length / 2);
+const NUMBERED = /^\d+\s*[·.:—–-]/;
+export const isStoryboard = (pics) => isFrameSheet(pics) && pics.filter((p) => NUMBERED.test(clean(p.it?.caption))).length >= Math.ceil(pics.length / 2);
+
 /**
- * A photo grid's card. pics: [{ key, it, ph }] in order. A storyboard sheet when
- * they're frames (most of them captioned): rows of three or four frames at
- * 16:9, each with its caption in the row under it; else a mosaic.
+ * The pictures a recipe would lay out as a storyboard's frames. → Set of 'si.ii'.
+ * Their numbers are the shot list's, so a lost frame contradicts the board's
+ * own writing: the run sends one back to be searched again, and the last
+ * try's side-by-side check never takes one out.
  */
+export function frameKeys(recipe) {
+  const keys = new Set();
+  (recipe?.sections || []).forEach((s, si) => {
+    if (!s?.grid) return;
+    const pics = (s.items || []).map((it, ii) => ({ it, key: `${si}.${ii}` })).filter((p) => p.it?.kind === 'picture');
+    if (isStoryboard(pics)) for (const p of pics) keys.add(p.key);
+  });
+  return keys;
+}
+
+/**
+ * A photo grid's card. pics: [{ key, it, ph }] in order. A frames sheet when
+ * they're frames (most of them captioned): rows of three or four frames at
+ * 16:9, each with its caption in the row under it; else a mosaic. A frame with
+ * no photo (ph null) is left off a contact sheet, which is then numbered as it
+ * stands; on a storyboard it keeps its place and its number, the shot list's,
+ * and its frame reads "Still to find".
+ */
+export const STILL_TO_FIND = 'Still to find';
 export function photoGridCard(pics, { title = '', font = null, frames = false, mk }) {
-  const image = (p) => ({ type: 'image', photo: p.key, fit: 'cover', alt: clean(p.it.caption) || clean(p.ph.alt) });
+  const image = (p) => (p.ph
+    ? { type: 'image', photo: p.key, fit: 'cover', alt: clean(p.it.caption) || clean(p.ph.alt) }
+    : { type: 'text', html: `<p>${STILL_TO_FIND}</p>` });
+  if (!frames || !isStoryboard(pics)) pics = pics.filter((p) => p.ph);
   if (frames) {
     // Full strips only: a sheet with a half-empty last row reads as gaps, so
     // the odd frames past the last full strip are left off.
@@ -179,19 +425,27 @@ export function photoGridCard(pics, { title = '', font = null, frames = false, m
     }
     const { tree, ids } = rowsTree(rows, mk);
     const gridCells = {};
+    // A frame with no caption would leave an empty box (the app's "+") under it; then every frame is
+    // numbered, as on a contact sheet, and a frame with no caption shows its number alone.
+    const all = pics.every((p) => clean(p.it.caption));
+    const capOf = (p, i) => {
+      const c = clean(p.it.caption);
+      if (all || /^\d+\s*[·.:—–-]/.test(c)) return frameCaption(c, i);
+      return c ? `${i + 1} · ${c}` : String(i + 1);
+    };
     for (let s = 0; s < strips; s += 1) {
       for (let c = 0; c < per; c += 1) {
         const p = pics[s * per + c];
         const img = ids[(2 * s) * per + c];
         const cap = ids[(2 * s + 1) * per + c];
         gridCells[img] = p ? image(p) : { type: 'empty' };
-        gridCells[cap] = p && clean(p.it.caption) ? { type: 'text', html: `<p>${esc(frameCaption(p.it.caption, s * per + c))}</p>` } : { type: 'empty' };
+        gridCells[cap] = p ? { type: 'text', html: `<p>${esc(capOf(p, s * per + c))}</p>` } : { type: 'empty' };
       }
     }
     return {
       kind: 'grid', title: frameRange(clean(title), pics.length), layout: tree, templateId: null, seqId: null, gridCells,
       textStyle: { fontSize: 12, vAlign: 'center', ...(font ? { fontFamily: font } : {}) },
-      photos: pics.map((p) => p.key), w: Math.round(w), h: Math.round(strips * (frameH + GRID.caption)),
+      photos: pics.filter((p) => p.ph).map((p) => p.key), w: Math.round(w), h: Math.round(strips * (frameH + GRID.caption)),
     };
   }
   const m = MOSAIC[Math.min(MOSAIC_MAX, pics.length)];
@@ -318,17 +572,9 @@ export function openRoom(cards, fromId, toId, need = ARROW.minLen) {
     const gap = lo.y - (hi.y + hi.h);
     if (gap >= need) return cards;
     dy = need - gap;
-    const line = hi.y + hi.h;
     // Under a card that spans the section (a table, a grid), every column
     // under it moves, so the line runs through open ground.
-    const x0 = Math.min(hi.x, lo.x);
-    const x1 = Math.max(hi.x + hi.w, lo.x + lo.w);
-    const column = (c) => c.groupId === lo.groupId && c.y >= line - 1 && c.x < x1 && c.x + c.w > x0;
-    // A section set under this one (blocks, in rows) moves down with it.
-    const own = boxOf(cards.filter((c) => c.groupId === lo.groupId));
-    const under = new Set(cards.filter((c) => c.groupId && c.groupId !== lo.groupId).map((c) => c.groupId)
-      .filter((g) => { const gb = boxOf(cards.filter((c) => c.groupId === g)); return gb.y >= line && gb.x < own.x + own.w && own.x < gb.x + gb.w; }));
-    tries = [column, (c) => column(c) || under.has(c.groupId)];
+    return moveDown(cards, { line: hi.y + hi.h, x0: Math.min(hi.x, lo.x), x1: Math.max(hi.x + hi.w, lo.x + lo.w), groupId: lo.groupId, dy });
   } else if (yOver && r.x >= l.x + l.w - 1) {
     const gap = r.x - (l.x + l.w);
     if (gap >= need) return cards;
@@ -343,6 +589,24 @@ export function openRoom(cards, fromId, toId, need = ARROW.minLen) {
   } else {
     return cards; // corner to corner: its own length, read as it is
   }
+  return shiftFirst(cards, tries, dx, dy);
+}
+
+/**
+ * A section's cards at or under `line` whose columns meet x0…x1 move down by
+ * dy; failing that, with the sections set under it (blocks, in rows). → the
+ * cards moved, or null when either way crowds another card.
+ */
+function moveDown(cards, { line, x0, x1, groupId, dy }) {
+  const column = (c) => c.groupId === groupId && c.y >= line - 1 && c.x < x1 && c.x + c.w > x0;
+  const own = boxOf(cards.filter((c) => c.groupId === groupId));
+  const under = new Set(cards.filter((c) => c.groupId && c.groupId !== groupId).map((c) => c.groupId)
+    .filter((g) => { const gb = boxOf(cards.filter((c) => c.groupId === g)); return gb.y >= line && gb.x < own.x + own.w && own.x < gb.x + gb.w; }));
+  return shiftFirst(cards, [column, (c) => column(c) || under.has(c.groupId)], 0, dy);
+}
+
+// The first of `tries` (each picks the cards that move) that moves them by dx, dy without crowding a card left.
+function shiftFirst(cards, tries, dx, dy) {
   for (const moves of tries) {
     const next = cards.map((c) => (moves(c) ? { ...c, x: c.x + dx, y: c.y + dy } : c));
     const moved = next.filter((c, i) => c !== cards[i]);
@@ -384,12 +648,18 @@ const aspectOk = (cards) => {
 };
 
 /**
- * recipe: recipe.mjs's; found: photos.mjs's Map('si.ii' → photo);
+ * recipe: recipe.mjs's; found: Map('si.ii' → what the item is made of): a photo
+ *   (photos.mjs, run over photoRecipe(recipe) so a sub-cluster's pictures are
+ *   in it too), a sound (sounds.mjs, `media: 'sound'`) or a PDF (pdfs.mjs,
+ *   `media: 'pdf'`);
  * links: links.mjs's Map('si.ii' → { url, title, description, image }).
  * newId: () => a fresh unique id (crypto.randomUUID in the engine).
  * style: styles.mjs's (default: the one the recipe names).
- * → { name, bg, groups, cards, arrows, dropped, arrangement }
- *   dropped: items whose photo or link wasn't found, and arrows that named no card.
+ * → { name, bg, groups, cards, arrows, strokes, children, tags, comments, vote, dropped, arrangement }
+ *   children: the sub-clusters, each { id, name, bg, groups, cards, arrows }, its id its card's on the board
+ *   tags: [{ name, cardIds }]; comments: [{ cardId, by (crew key), text, offset, reply? { by, text } }];
+ *   vote: { cardId, label, up, down, offset } | null
+ *   dropped: items whose photo, sound, PDF or link wasn't found, and arrows, comments or a vote that named no card.
  */
 export function buildBoard(recipe, found, { newId, now = new Date().toISOString(), links = new Map(), style = styleNamed(recipe?.style) } = {}) {
   const font = style ? FONTS[style.font] || null : null;
@@ -400,10 +670,28 @@ export function buildBoard(recipe, found, { newId, now = new Date().toISOString(
   const sectionName = new Map(); // a section's name → as its frames sheet now numbers it
   const names = new Map(); // a title or caption → the card it names
   const name = (text, card) => { const k = norm(text); if (k && !names.has(k)) names.set(k, card); };
+  const children = [];
+  let clusterAt = (recipe.sections || []).length;
+  // A sound's cover is a picture of the same world that isn't already beside it: a sub-cluster's last
+  // (seen on this board, if at all, only small in the sub-cluster's card), else one from the section
+  // farthest from the sound's, its own only when it has no other.
+  const coverFor = (si) => {
+    const pics = [];
+    photoRecipe(recipe).sections.forEach((s, i) => (s.items || []).forEach((it, ii) => {
+      const ph = found.get(`${i}.${ii}`);
+      if (it?.kind === 'picture' && ph && !ph.video) pics.push({ i, key: `${i}.${ii}` });
+    }));
+    const own = (recipe.sections || []).length;
+    const sub = pics.filter((p) => p.i >= own);
+    if (sub.length) return sub[sub.length - 1].key;
+    return [...pics].sort((a, b) => Math.abs(b.i - si) - Math.abs(a.i - si))[0]?.key || null;
+  };
 
   (recipe.sections || []).forEach((s, si) => {
     const items = (s.items || []).map((it, ii) => ({ it, key: `${si}.${ii}` }));
-    const gridPics = s.grid ? items.filter((x) => x.it.kind === 'picture' && found.get(x.key)).map((x) => ({ ...x, ph: found.get(x.key) })) : [];
+    // Every picture of a grid section, found or not: a storyboard keeps a lost frame's place (photoGridCard).
+    const gridAll = s.grid ? items.filter((x) => x.it.kind === 'picture').map((x) => ({ ...x, ph: found.get(x.key) || null })) : [];
+    const gridPics = gridAll.filter((x) => x.ph);
     const asGrid = gridPics.length >= GRID.min;
     let grid = null;
     for (const { it, key } of items) {
@@ -413,9 +701,9 @@ export function buildBoard(recipe, found, { newId, now = new Date().toISOString(
         if (!ph) { dropped.push(key); continue; }
         if (asGrid && it.kind === 'picture') {
           if (!grid) {
-            const frames = gridPics.filter((p) => clean(p.it.caption)).length >= Math.ceil(gridPics.length / 2) && gridPics.length >= 6;
-            grid = photoGridCard(gridPics, { title: s.name, font, frames, mk });
-            if (frames) sectionName.set(s.name, frameRange(s.name, grid.photos.length));
+            const frames = isFrameSheet(gridPics) || isStoryboard(gridAll);
+            grid = photoGridCard(gridAll, { title: s.name, font, frames, mk });
+            if (frames) sectionName.set(s.name, grid.title);
             card = grid;
             name(s.name, grid);
           }
@@ -443,11 +731,41 @@ export function buildBoard(recipe, found, { newId, now = new Date().toISOString(
         card = { kind: 'doc', title: clean(it.title) || 'Untitled', prose: String(it.markdown || ''), ...PAGE_SHAPE };
       } else if (it.kind === 'script') {
         card = { kind: 'doc', title: clean(it.title) || 'Untitled script', script: String(it.fountain || ''), ...PAGE_SHAPE };
+      } else if (it.kind === 'audio') {
+        const snd = found.get(key);
+        if (!snd) { dropped.push(key); continue; }
+        const title = clean(it.title) || 'Sound';
+        const cover = coverFor(si);
+        card = { kind: 'audio', photo: key, title, duration: snd.duration, peaks: snd.peaks, ext: 'm4a', mime: 'audio/mp4',
+          fileName: `${title.replace(/[^a-z0-9 ,.'()&-]/gi, '').trim() || 'Sound'}.m4a`, sizeBytes: snd.bytes, analyzed: 1,
+          ...(cover ? { coverPhoto: cover } : {}), ...AUDIO_SHAPE };
+      } else if (it.kind === 'pdf') {
+        const pdf = found.get(key);
+        if (!pdf) { dropped.push(key); continue; }
+        card = { kind: 'pdf', photo: key, name: pdf.name, pageCount: pdf.pageCount, w: pdf.w, h: pdf.h };
+      } else if (it.kind === 'cluster') {
+        // Its pictures are photoRecipe's extra section for it; it is built as a board of its own.
+        const at = clusterAt;
+        clusterAt += 1;
+        const pics = (it.searches || []).map((q, k) => ({ q, key: `${at}.${k}` })).filter((p) => found.get(p.key));
+        if (pics.length < 2) { dropped.push(key); continue; }
+        const sub = new Map(pics.map((p, k) => [`0.${k}`, found.get(p.key)]));
+        const back = new Map(pics.map((p, k) => [`0.${k}`, p.key]));
+        const own = { title: clean(it.title) || 'Cluster', sections: [{ name: '', items: [
+          ...pics.map((p) => ({ kind: 'picture', search: p.q })),
+          ...(clean(it.body) ? [{ kind: 'note', title: '', body: it.body }] : []),
+        ] }] };
+        const child = buildBoard(own, sub, { newId, now, style: style ? { ...style, arrangement: 'pictures' } : null });
+        const id = newId();
+        children.push({ id, name: child.name, bg: child.bg, groups: child.groups, cards: child.cards.map((c) => rekey(c, back)), arrows: [] });
+        card = { kind: 'board', childId: id, ...CLUSTER_SHAPE };
       } else if (it.kind === 'link') {
         const l = links.get(key);
         if (!l) { dropped.push(key); continue; }
+        // Words only: Wikipedia's picture is never from the board's world (a black-and-white still on a
+        // warm board, a sunny lighthouse in February), and the grade failed boards over it again and again.
         card = { kind: 'link', source: l.url, link: l.url, title: l.title, ...(l.description ? { description: l.description } : {}),
-          ...(l.image ? { image: l.image } : {}), w: LINK_SHAPE.w, h: l.image ? LINK_SHAPE.withImage : LINK_SHAPE.h };
+          w: LINK_SHAPE.w, h: LINK_SHAPE.h };
         name(it.title, card);
         name(l.title, card);
       }
@@ -460,6 +778,9 @@ export function buildBoard(recipe, found, { newId, now = new Date().toISOString(
   });
 
   for (const c of fresh) if (sectionName.has(c.section)) c.section = sectionName.get(c.section);
+  // The board's first video plays by itself, muted, as a person sets one to.
+  const lead = fresh.find((c) => c.kind === 'video');
+  if (lead) lead.autoplay = true;
 
   // A card an arrow leaves from goes straight after the card it points at, in
   // the same section, so the layout sets the two side by side and the arrow
@@ -514,8 +835,8 @@ export function buildBoard(recipe, found, { newId, now = new Date().toISOString(
   const arrangement = pick.used;
 
   const cards = laid.map((c, i) => {
-    const { aspect: _a, section: _s, key: _k, ...rest } = c;
-    let card = { ...rest, id: newId(), x: Math.round(c.x), y: Math.round(c.y), w: Math.round(c.w), h: Math.round(c.h) };
+    const { aspect: _a, section: _s, key: _k, childId, ...rest } = c;
+    let card = { ...rest, id: childId || newId(), x: Math.round(c.x), y: Math.round(c.y), w: Math.round(c.w), h: Math.round(c.h) };
     if (card.kind === 'note') card = { ...card, bgColor: card.bgColor ?? null, color: null };
     if (card.kind === 'image' && card.caption) {
       const fit = fitCaption(card.caption, card.w);
@@ -555,27 +876,113 @@ export function buildBoard(recipe, found, { newId, now = new Date().toISOString(
     arrows.push(arrow);
   }
 
+  // Tags, the crew's comments and the vote go on the cards the recipe names.
+  const cardOf = (text) => idOf.get(names.get(norm(text))) || null;
+  const tags = [];
+  for (const t of Array.isArray(recipe.tags) ? recipe.tags : []) {
+    const nm = clean(t?.name);
+    const cardIds = [...new Set((Array.isArray(t?.on) ? t.on : []).map(cardOf).filter(Boolean))];
+    if (!nm || !cardIds.length || tags.some((x) => norm(x.name) === norm(nm))) { dropped.push(`tag ${nm}`); continue; }
+    tags.push({ name: nm, cardIds });
+  }
+  // Each bubble takes the side of its card that covers least (placeBubble); where every side covers a
+  // card, room is made in its column (bubbleRoom), so long as the arrows still read. `marks` are where
+  // the bubbles end up, so the shots can frame them in.
+  const labelsOf = (cs) => plan.created.map((g) => cs.filter((c) => c.groupId === g.id)).filter((g) => g.length)
+    .map((g) => boxOf(g)).map((b) => ({ x: b.x - 4, y: b.y - 36, w: 220, h: 30 })); // the section name, as CanvasSurface draws it
+  const chipsOf = (cs) => cs.map((c) => tagStrip(c, tags.filter((t) => t.cardIds.includes(c.id)).map((t) => t.name))).filter(Boolean);
+  const bubbles = [];
+  const marksOn = (cs) => bubbles.map((b) => ({ ...bubbleRect(cs.find((c) => c.id === b.cardId), b.offset, b.size), kind: b.kind, cardId: b.cardId }));
+  const arrowsOk = (cs) => arrows.every((x) => arrowReads(x, cs) && labelClear(x, cs, zoom));
+  // The vote's loop rings its card and the card's tags (loopBox); where that reaches the next card down its
+  // column, the rest of the column moves down to clear it, before any bubble is placed.
+  const voteId = recipe.vote ? cardOf(recipe.vote.on) : null;
+  const ringOf = (cs) => { const c = cs.find((x) => x.id === voteId); return c ? loopBox(c, chipsOf([c])[0] || null) : null; };
+  if (voteId) {
+    const c = placed.find((x) => x.id === voteId);
+    const ring = ringOf(placed);
+    const under = placed.filter((o) => o.id !== c.id && o.groupId === c.groupId && o.y >= c.y + c.h - 1 && o.x < ring.x + ring.w && o.x + o.w > ring.x);
+    const top = under.length ? Math.min(...under.map((o) => o.y)) : Infinity;
+    const reach = ring.y + ring.h + LOOP_REACH;
+    if (top < reach) {
+      const next = moveDown(placed, { line: c.y + c.h, x0: ring.x, x1: ring.x + ring.w, groupId: c.groupId, dy: Math.ceil(reach - top) });
+      if (next && arrowsOk(next)) placed = next;
+    }
+  }
+  const bubbleBy = (cardId, size, kind) => {
+    const box = placed.find((p) => p.id === cardId);
+    const obstacles = (cs) => [...cs.filter((p) => p.id !== cardId), ...labelsOf(cs), ...chipsOf(cs)];
+    const at = placeBubble(box, size, { obstacles: obstacles(placed), placed: marksOn(placed), edge: boxOf(placed) });
+    let offset = at.offset;
+    if (at.covers > 0) {
+      const cover = (rect, cs) => [...obstacles(cs), ...marksOn(cs)].reduce((n, o) => n + area(rect, o), 0);
+      const room = bubbleRoom(placed, cardId, size, { cover, ok: arrowsOk });
+      if (room) ({ cards: placed, offset } = room);
+    }
+    bubbles.push({ cardId, size, kind, offset });
+    return offset;
+  };
+  const comments = [];
+  for (const c of Array.isArray(recipe.comments) ? recipe.comments : []) {
+    const cardId = cardOf(c?.on);
+    const who = crewOf(c?.by);
+    if (!cardId || !who || !clean(c?.text)) { dropped.push(`comment on ${clean(c?.on)}`); continue; }
+    const re = c.reply && crewOf(c.reply.by) && crewOf(c.reply.by) !== who && clean(c.reply.text)
+      ? { by: crewOf(c.reply.by).key, text: clean(c.reply.text) } : null;
+    const offset = bubbleBy(cardId, re ? BUBBLE.thread : BUBBLE.comment, 'comment');
+    comments.push({ cardId, by: who.key, text: clean(c.text), offset, ...(re ? { reply: re } : {}) });
+  }
+  let vote = null;
+  if (recipe.vote) {
+    const cardId = cardOf(recipe.vote.on);
+    if (!cardId) dropped.push(`vote on ${clean(recipe.vote.on)}`);
+    else {
+      const label = clean(recipe.vote.label);
+      const offset = bubbleBy(cardId, voteSize(label), 'vote');
+      vote = { cardId, label, up: recipe.vote.up | 0, down: recipe.vote.down | 0, offset };
+    }
+  }
+  // Drawn once the cards have stopped moving.
+  const marks = marksOn(placed).map((m) => ({ ...m, groupId: placed.find((c) => c.id === m.cardId).groupId || null }));
+  const strokes = vote ? [{ color: MARKUP.color, width: MARKUP.width, brush: MARKUP.brush, points: markerLoop(ringOf(placed)) }] : [];
+
   return {
     name: recipe.title || 'Untitled',
     bg: style?.ground || null,
     groups: plan.created,
     cards: placed,
     arrows,
+    strokes,
+    children,
+    tags,
+    comments,
+    vote,
+    marks,
     dropped,
     arrangement,
   };
 }
 
-/** The photo keys a card shows: its own picture, or a photo grid's. */
+/** The keys of what a card shows: its own picture, sound or PDF, or a photo grid's pictures (not a sound's cover). */
 export const photoKeysOf = (c) => (c.photo ? [c.photo] : Array.isArray(c.photos) ? c.photos : []);
 
 /**
- * The cards with their pictures' srcs: srcOf(photo, 'src' | 'video' | 'poster') → string.
- * The `photo` keys stay on the cards (and a grid's cells) for the caller and
- * are stripped on write.
+ * The cards with their files' srcs: srcOf(item, what, card) → string, `what`
+ * one of 'src' | 'video' | 'poster' (a picture or video), 'sound' (a sound),
+ * 'cover' (a sound's cover, a picture of its own), 'pdf' | 'thumb' (a PDF and
+ * its page 1). The `photo` keys stay on the cards (and a grid's cells) for the
+ * caller and are stripped on write.
  */
 export function withSources(cards, found, srcOf) {
   return cards.map((c) => {
+    if (c.kind === 'audio' && c.photo) {
+      const cover = c.coverPhoto ? found.get(c.coverPhoto) : null;
+      return { ...c, src: srcOf(found.get(c.photo), 'sound', c), ...(cover ? { cover: srcOf(cover, 'cover', c) } : {}) };
+    }
+    if (c.kind === 'pdf' && c.photo) {
+      const pdf = found.get(c.photo);
+      return { ...c, pdfSrc: srcOf(pdf, 'pdf', c), src: srcOf(pdf, 'thumb', c) };
+    }
     if (c.kind === 'grid' && Array.isArray(c.photos)) {
       const gridCells = Object.fromEntries(Object.entries(c.gridCells || {}).map(([id, cell]) => {
         if (cell?.type !== 'image' || !cell.photo) return [id, cell];
@@ -592,7 +999,7 @@ export function withSources(cards, found, srcOf) {
   });
 }
 
-export const stripBuild = (cards) => cards.map(({ photo: _p, photos: _ps, ...c }) => {
+export const stripBuild = (cards) => cards.map(({ photo: _p, photos: _ps, coverPhoto: _cp, ...c }) => {
   if (c.kind !== 'grid' || !c.gridCells) return c;
   return { ...c, gridCells: Object.fromEntries(Object.entries(c.gridCells).map(([id, { photo: _x, ...cell }]) => [id, cell])) };
 });
