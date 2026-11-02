@@ -83,7 +83,7 @@ export const MARKETING = [
   { cluster: 'Interiors', subject: 'interiors', brief: 'An interior designer\'s mood board for one room. Pick a fresh style and place.' },
   { cluster: 'Weddings', subject: 'wedding', brief: 'A wedding planner\'s mood board. Pick a fresh season, place and palette.' },
   { cluster: 'Writing', subject: 'world-building', brief: 'A writer\'s world-building board for a novel or series. Pick a fresh world.' },
-  { cluster: 'Film', subject: 'storyboard', brief: 'A storyboard for one scene of a short film, told in numbered frames, with the scene as written. Pick a fresh scene.', wants: ['frames', 'script'] },
+  { cluster: 'Film', subject: 'storyboard', brief: 'A storyboard for one scene of a short film, told in numbered frames, with the scene as written. Pick a fresh scene set where stock sites hold many photos in one light (a city street, a beach, a forest path, a market or a kitchen by day), never a night interior: every frame needs a real photo.', wants: ['frames', 'script'] },
   { cluster: 'Branding', subject: 'brand-photography', brief: 'A brand photography and art direction board for a small business. Pick a fresh business.' },
 ];
 

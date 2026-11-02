@@ -115,24 +115,45 @@ node scripts/engine/run.mjs --batch --spares 2      # every search page without 
 node scripts/engine/run.mjs --page /tools/storyboard-maker --dry-run   # no writes; shots stay in ENGINE_HOME/out
 ```
 
-One board, step by step:
+One board, step by step (three tries; each redo carries the last try's notes):
 
 1. **Recipe** (`recipe.mjs`): Claude writes the board from the subject's brief
-   (`subjects.mjs`): sections, notes, a palette, photo searches, and for scripts and storyboards the scene in Fountain, made a real screenplay doc on the board.
-2. **Photos** (`photos.mjs`): Pexels and Unsplash only (free for ads, credits
-   kept); every photo goes through `~/soleil-social`'s aicheck (detectors, then
-   Claude looks). A photo used on another board, by id or by look, is never used again.
-3. **Layout** (`build.mjs`): the app's own grid maker, so it reads like a board
+   (`subjects.mjs`) in one of six looks taken in turns (`styles.mjs`: moodboard,
+   night lookbook, production binder, storyboard wall, pitch, field notes, each
+   with its own ground, font and layout): sections, notes, palettes, photo grids,
+   a table, a checklist, a doc, a video, a sound, a PDF, reference links, arrows,
+   tags, crew comments and a vote, and for scripts and storyboards the scene in
+   Fountain, made a real screenplay doc on the board.
+2. **Photos** (`photos.mjs`, `pick.mjs`): Pexels and Unsplash only (free for ads,
+   credits kept); every photo goes through `~/soleil-social`'s aicheck (detectors,
+   then Claude looks). Claude picks from contact sheets, then sees the picks side by
+   side and takes out any that break the board's one look. A photo used on another
+   board, by id or by look, is never used again. A storyboard keeps every frame its
+   shot list numbers.
+3. **Media** (`links.mjs`, `sounds.mjs`, `pdfs.mjs`): reference links, a sound from
+   Wikimedia Commons (its licence named in the credits), a one-page PDF.
+4. **Layout** (`build.mjs`): the app's own grid maker, so it reads like a board
    someone made.
-4. **Check** (`check.mjs`): nothing overlaps, every photo real and licensed,
-   notes readable on their colours. A failure means one redo, then it's dropped.
-5. **Shots** (`shoot.mjs`): the real app, built from this checkout and staged
+5. **Check** (`check.mjs`): nothing overlaps, every photo real and licensed,
+   notes readable on their colours.
+6. **Shots** (`shoot.mjs`): the real app, built from this checkout and staged
    signed in with a stubbed backend, photographed by Playwright: desktop light
-   and dark, wide, board only (4K) light and dark, phone, 4:5, 1:1, card cut-outs
-   and a zip. Claude grades the board-only shot; under the bar, one redo with its notes.
-6. **Write** (`../lib/showcaseWrite.mjs`): a real board in the Showcase workspace,
+   and dark, wide, board only (4K), phone, 4:5, 1:1, card cut-outs and a zip
+   (dark-ground looks are shot in dark mode). Claude grades the board-only shot;
+   under 4 of 5, a redo with its notes.
+7. **Write** (`../lib/showcaseWrite.mjs`): a real board in the Showcase workspace,
    under its subject's cluster; shots to R2 under `showcase/<board id>/`, readable
-   only through the signed links Admin › Boards gets (`worker-showcase.js`).
+   only through the signed links Admin › Boards gets (`worker-showcase.js`). Comments
+   and votes are signed by eight made-up crew accounts (`crew.mjs`): internal, every
+   email off, members of the Showcase workspace only.
+
+`ENGINE_MAKE` (`showcaseWrite.mjs`) is stored with each board; raise it when the
+engine changes enough that the page boards should be made again, and `--batch`
+remakes every page board from an older make.
+
+`node scripts/engine/publish.mjs <slug> …` puts boards the library holds as OK on
+the public site at `/c/<slug>`, the article from the recipe with the photographers
+named; a page shows one only once `EXAMPLES_BY_PATH` names it and that lands.
 
 The first ten boards wait for a person's OK in Admin › Boards; after that they
 go straight into the library. Every run is a `showcase_runs` row, and the tab

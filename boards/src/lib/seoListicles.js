@@ -3002,9 +3002,9 @@ const PAGES = [
 // Slugs of published /c/<slug> boards (first = hero shot on our item card).
 const EXAMPLES_BY_PATH = {
   '/best/pureref-alternatives': ['film-noir-look-book', 'neon-noir-look-book', 'japandi-living-room'],
-  '/best/milanote-alternatives': ['japandi-living-room', 'screenplay-beat-sheet', 'neon-noir-look-book'],
-  '/best/mood-board-apps': ['japandi-living-room', 'sage-terracotta-wedding', 'world-cup-2026-moodboard'],
-  '/best/storyboard-software': ['short-film-shot-list', 'screenplay-beat-sheet', 'film-noir-look-book'],
+  '/best/milanote-alternatives': ['kelsay-northern-island-novel-world-building-bible', 'last-length-lido-short-film-pre-production-board', 'hartley-kitchen-mediterranean-limewash-mood-board'],
+  '/best/mood-board-apps': ['casa-dos-arcos-lisbon-boutique-hotel-mood-board', 'hartley-kitchen-mediterranean-limewash-mood-board', 'spindrift-coastal-knitwear-campaign-styling-board'],
+  '/best/storyboard-software': ['closing-bell-night-market-chase-storyboard', 'alkali-flats-desert-road-movie-directors-look-book', 'hollow-acre-farmhouse-horror-short-pre-production'],
 };
 
 // Attach derived fields (mirrors seoLanding.js's attach loop).

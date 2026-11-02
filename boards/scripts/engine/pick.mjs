@@ -45,7 +45,8 @@ function labelSvg(slot, w, h) {
 }
 
 function badgeSvg(letter) {
-  return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34"><rect width="34" height="34" rx="6" fill="#111" fill-opacity="0.82"/><text x="17" y="24" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#fff">${letter}</text></svg>`);
+  const w = letter.length > 1 ? 44 : 34;
+  return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="34"><rect width="${w}" height="34" rx="6" fill="#111" fill-opacity="0.82"/><text x="${w / 2}" y="24" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#fff">${xml(letter)}</text></svg>`);
 }
 
 /**
@@ -134,8 +135,9 @@ export function pickPrompt(recipe, sheets, { notes = [] } = {}) {
     'unedited as an example of a professional\'s working board, so the photos must read as ONE world: the same',
     'light, season, place, era and colour as the look above, as if from one shoot or one careful hunt. Leave a',
     'candidate out when it is: off that light or palette, a posed or smiling stock model, a generic stock look,',
-    'over-saturated or HDR, an illustration, a 3D render or anything that looks AI-made, carrying text, logos or',
-    'watermarks, a studio product shot on a plain or white backdrop, sunshine or a landscape the look doesn\'t have',
+    'over-saturated or HDR, an illustration, a 3D render or anything that looks AI-made, carrying any writing at all',
+    '(graffiti, a sign, a shop name, a poster, a label, a logo, a watermark, words on clothing: even writing too small',
+    'to read, since it is read at full size on the board), a studio product shot on a plain or white backdrop, sunshine or a landscape the look doesn\'t have',
     '(a forest on a harbour board), or the wrong subject for its row. A row where nothing fits gets an empty list:',
     'a board one picture short is better than one that clashes, so never settle for the least bad candidate.',
     'Never pick the same photo for two rows.',
@@ -143,6 +145,114 @@ export function pickPrompt(recipe, sheets, { notes = [] } = {}) {
     'look: one sentence on the light and colour you held the picks to.',
     'picks: one entry per row: slot is the row id exactly as written (e.g. "2.3"), order the letters, best first.',
   ].join('\n');
+}
+
+// ── side by side ─────────────────────────────────────────────────────────────
+// Picked a row at a time, each photo is the best its search found; side by
+// side, one can still be a river where the rest are a lido, or noon where the
+// rest are dawn, and the grader turns the board down as "not one world". So
+// every photo that passed goes onto one numbered sheet, Claude names the ones
+// that break the world the rest share, and the board is built without them.
+
+export const UNIFY = Object.freeze({ cols: 5, cell: [360, 270], gap: 8, most: 1 / 3, least: 4 });
+
+export const UNIFY_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['world', 'out'],
+  properties: {
+    world: { type: 'string' },
+    out: {
+      type: 'array',
+      items: { type: 'object', additionalProperties: false, required: ['n', 'why'], properties: { n: { type: 'integer' }, why: { type: 'string' } } },
+    },
+  },
+};
+
+/** What each numbered photo on the sheet is for: its section and its caption or search. */
+function purposeOf(recipe, key) {
+  const [si, ii] = key.split('.').map(Number);
+  const s = recipe?.sections?.[si];
+  const it = s?.items?.[ii];
+  return `section "${s?.name || '?'}"${it?.kind === 'video' ? ', a video (its still)' : ''}: ${it?.caption ? `"${it.caption}", ` : ''}found by "${it?.search || '?'}"`;
+}
+
+export function unifyPrompt(recipe, file, keys) {
+  const most = Math.floor(keys.length * UNIFY.most);
+  return [
+    `Read the image ${file}. It holds the ${keys.length} photos picked for one board in Clusters, a canvas app for`,
+    `film crews and creative teams, numbered. The board is "${recipe.title}": ${recipe.story}`,
+    '',
+    'What the board says its look is:',
+    ...lookOf(recipe).map((l) => `- ${l}`),
+    '',
+    'What each photo is for:',
+    ...keys.map((k, i) => `${i + 1}. ${purposeOf(recipe, k)}`),
+    '',
+    'The board is shown unedited as an example of a professional\'s working board, so its photos must look like one',
+    'shoot: the same light, season, place, era and colour. Each was the best its own search found; seen together, some',
+    'may not belong. Name the ones that break the world the rest share, worst first: a different light or season, a',
+    'different kind of place, a heavy colour grade or HDR, a generic stock look or a posed model, the wrong subject for',
+    'what it is for (a river where it says a pool), or any writing in it (graffiti, a sign, a logo, a poster, words),',
+    `readable or not. The board is built without the ones you name, so name only those a viewer would stop at: at most ${most}.`,
+    'Naming none is a fine answer.',
+    '',
+    'world: one sentence on the light, place and colour the photos you keep share.',
+    'out: the photos to leave out, worst first: n is the number on the sheet, why a few words.',
+  ].join('\n');
+}
+
+/**
+ * Claude's numbers → Map(key → why), at most a third of them, unknown numbers
+ * and repeats dropped. floor { onBoard(key), keep, fixed(key) }: never fewer
+ * than `keep` of the board's own pictures left (a sub-cluster's can still go),
+ * and never a `fixed` one (a storyboard frame, numbered by the shot list).
+ */
+export function readUnify(answer, keys, log = () => {}, floor = null) {
+  const out = new Map();
+  const most = Math.floor(keys.length * UNIFY.most);
+  let left = floor ? keys.filter(floor.onBoard).length : Infinity;
+  for (const o of answer?.out || []) {
+    const key = keys[Number(o?.n) - 1];
+    if (!key || out.has(key) || out.size >= most) continue;
+    if (floor?.fixed?.(key)) { log(`unify: ${key} kept, a storyboard frame`); continue; }
+    const mine = floor?.onBoard(key);
+    if (mine && left <= floor.keep) { log(`unify: ${key} kept, the board needs ${floor.keep} pictures`); continue; }
+    if (mine) left -= 1;
+    out.set(key, String(o.why || '').trim() || 'off the board\'s world');
+  }
+  if (answer?.world) log(`unify: ${answer.world}`);
+  return out;
+}
+
+/**
+ * The photos (and videos' stills) found for a board, side by side → Map(key →
+ * why) of those to leave out. Fewer than UNIFY.least photos: nothing to
+ * compare, nothing out. Throws when the call fails; the caller keeps them all.
+ */
+export async function unifyPhotos({ recipe, found, dir, claude, floor = null, log = () => {} }) {
+  const items = [...found].filter(([, ph]) => !ph.media && ph.file);
+  if (items.length < UNIFY.least) return new Map();
+  mkdirSync(dir, { recursive: true });
+  const [cw, ch] = UNIFY.cell;
+  const rows = Math.ceil(items.length / UNIFY.cols);
+  const layers = [];
+  for (const [i, [, ph]] of items.entries()) {
+    const left = UNIFY.gap + (i % UNIFY.cols) * (cw + UNIFY.gap);
+    const top = UNIFY.gap + Math.floor(i / UNIFY.cols) * (ch + UNIFY.gap);
+    const img = await sharp(ph.file).rotate().resize(cw, ch, { fit: 'contain', background: '#18171b' }).jpeg().toBuffer();
+    layers.push({ input: img, left, top }, { input: badgeSvg(String(i + 1)), left: left + 6, top: top + 6 });
+  }
+  const file = join(dir, 'together.jpg');
+  await sharp({ create: { width: UNIFY.cols * (cw + UNIFY.gap) + UNIFY.gap, height: rows * (ch + UNIFY.gap) + UNIFY.gap, channels: 3, background: '#0f0f12' } })
+    .composite(layers).jpeg({ quality: 85 }).toFile(file);
+  const keys = items.map(([k]) => k);
+  const answer = await claude({
+    prompt: unifyPrompt(recipe, file, keys), schema: UNIFY_SCHEMA, tools: ['Read'],
+    model: 'opus', effort: 'medium', budgetUsd: 1, cwd: dir, log,
+  });
+  writeFileSync(join(dir, 'together.json'), JSON.stringify(answer, null, 2));
+  return readUnify(answer, keys, log, floor);
 }
 
 /**

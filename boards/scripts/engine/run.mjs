@@ -29,20 +29,24 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
+import { chromium } from '@playwright/test';
 import { makeSupabase } from '../lib/supa.mjs';
 import { makeR2 } from '../lib/r2.mjs';
-import { rootCluster, ensureCluster, writeBoard, uploadShots, recordShowcase, libraryState, startRun, finishRun } from '../lib/showcaseWrite.mjs';
+import { rootCluster, ensureCluster, writeBoard, uploadShots, recordShowcase, libraryState, startRun, finishRun, ENGINE_MAKE } from '../lib/showcaseWrite.mjs';
 import { args } from './args.mjs';
 import { PAGES, MARKETING, LATER_PAGES, pageBrief, nextMarketing } from './subjects.mjs';
 import { writeRecipe, recipeContents, toolsOf } from './recipe.mjs';
 import { findPhotos, pingUsed } from './photos.mjs';
-import { pickPhotos } from './pick.mjs';
-import { buildBoard, withSources } from './build.mjs';
-import { checkBoard, missingPhotos, gradeShot, GRADE } from './check.mjs';
+import { pickPhotos, unifyPhotos } from './pick.mjs';
+import { buildBoard, withSources, photoRecipe, frameKeys } from './build.mjs';
+import { findSounds } from './sounds.mjs';
+import { makePdfs } from './pdfs.mjs';
+import { ensureCrew, fakeCrewIds } from './crew.mjs';
+import { checkBoard, missingPhotos, gradeShot, GRADE, CHECK } from './check.mjs';
 import { buildApp, shootBoard, zipShots } from './shoot.mjs';
 import { findLinks } from './links.mjs';
 import { nextStyle, styleNamed, fits } from './styles.mjs';
@@ -95,31 +99,48 @@ function worldFor(brief, board) {
  * One board, start to finish.
  * → { ok, slug, title, outDir, shots: [{ kind, file }], contents, boardId? } or { ok: false, slug?, why }
  */
+// Tries at a board: each after the first rewrites the recipe from what turned the last one down.
+const TRIES = 3;
+
 async function makeOne(brief, ctx) {
   const { claude, check, keys, lib, dryRun } = ctx;
   let notes = null;
   let last = null;
   const asked = ctx.style ? styleNamed(ctx.style) : null;
   const style = asked && fits(asked, brief) ? asked : nextStyle(brief, lib.styles);
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
+  for (let attempt = 1; attempt <= TRIES; attempt += 1) {
     log(`board: ${brief.page || brief.subject} as a ${style.name} (try ${attempt})`);
     const { recipe, problems } = await writeRecipe(brief, { claude, taken: lib.taken, log, notes, last, style });
     if (problems.length) return { ok: false, why: `recipe: ${problems.slice(0, 3).join('; ')}` };
-    const pick = (slots) => pickPhotos({ recipe, slots, dir: join(HOME, 'picks', `${recipe.slug}-${attempt}`), claude,
+    // The pictures, a sub-cluster's among them (photoRecipe), then the sounds and PDFs, all in one map by key.
+    const wanted = photoRecipe(recipe);
+    const pick = (slots) => pickPhotos({ recipe: wanted, slots, dir: join(HOME, 'picks', `${recipe.slug}-${attempt}`), claude,
       notes: attempt > 1 ? notes || [] : [], log });
-    const photos = await findPhotos(recipe, { dir: join(HOME, 'photos'), keys, check, used: lib.used, pick, log });
+    const photos = await findPhotos(wanted, { dir: join(HOME, 'photos'), keys, check, used: lib.used, pick, log });
     log(`photos: ${photos.found.size} real, ${photos.missing.length} missing, ${photos.rejected} rejected`);
+    // Side by side, the photos that break the board's one world go (pick.mjs unifyPhotos); they count as
+    // missing, so a first try short of too many rethinks its searches.
+    // The last try has no rethink to fall back on, so it keeps the board the pictures it needs and every
+    // storyboard frame (an earlier try's lost frame sends the recipe back instead: missingPhotos).
+    const frames = frameKeys(recipe);
+    const floor = attempt === TRIES ? { onBoard: (k) => Number(k.split('.')[0]) < recipe.sections.length, keep: CHECK.pictures, fixed: (k) => frames.has(k) } : null;
+    const odd = await unifyPhotos({ recipe: wanted, found: photos.found, dir: join(HOME, 'picks', `${recipe.slug}-${attempt}`), claude, floor, log })
+      .catch((e) => { log(`unify: ${e.message}; keeping them all`); return new Map(); });
+    for (const [key, why] of odd) { photos.found.delete(key); photos.missing.push(key); log(`unify: ${key} out (${why})`); }
     const links = await findLinks(recipe, { log });
     if (links.missing.length) log(`links: ${links.missing.length} not found`);
-    const board = buildBoard(recipe, photos.found, { newId: randomUUID, links: links.found, style });
+    const sounds = await findSounds(recipe, { dir: join(HOME, 'sounds'), claude, log });
+    const pdfs = await makePdfs(recipe, { browser: await ctx.browser(), dir: join(HOME, 'pdfs'), log });
+    const found = new Map([...photos.found, ...sounds.found, ...pdfs.found]);
+    const board = buildBoard(recipe, found, { newId: randomUUID, links: links.found, style });
     if (board.dropped.length) log(`build: dropped ${board.dropped.join('; ')}`);
     const checked = [...photos.found].map(([key, ph]) => ({ key, sha: ph.sha, verdict: 'real', licence: ph.credit?.source }));
     // Too many empty rows sends the first try back to rethink its searches; the last try builds with what
     // fits, and the check and the grader judge what's left.
-    const broken = [...(attempt < 2 ? missingPhotos(recipe, photos.missing) : []), ...checkBoard(board, checked)];
+    const broken = [...(attempt < TRIES ? missingPhotos(wanted, photos.missing, frames) : []), ...checkBoard(board, checked)];
     if (broken.length) {
       log(`check: ${broken.join('; ')}`);
-      if (attempt === 2) return { ok: false, slug: recipe.slug, why: `check: ${broken.slice(0, 3).join('; ')}` };
+      if (attempt === TRIES) return { ok: false, slug: recipe.slug, why: `check: ${broken.slice(0, 3).join('; ')}` };
       notes = broken; last = recipe; continue;
     }
 
@@ -128,13 +149,20 @@ async function makeOne(brief, ctx) {
     rmSync(out, { recursive: true, force: true });
     mkdirSync(out, { recursive: true });
     writeFileSync(join(out, 'recipe.json'), JSON.stringify(recipe, null, 2));
+    // Every file the shot needs, served at /engine-photos/<name>: a picture or video by its photo's sha, a
+    // sound, a PDF or its page picture by its own file name (each named by its sha already).
     const files = new Map();
-    const staged = withSources(board.cards, photos.found, (ph, what) => {
-      const name = `${ph.sha.slice(0, 20)}.${what === 'video' ? 'mp4' : 'jpg'}`;
-      files.set(name, what === 'video' ? ph.video : ph.file);
+    const srcOf = (it, what) => {
+      const file = what === 'video' ? it.video : what === 'thumb' ? it.thumb : it.file;
+      const name = it.media ? basename(file) : `${it.sha.slice(0, 20)}.${what === 'video' ? 'mp4' : 'jpg'}`;
+      files.set(name, file);
       return `/engine-photos/${name}`;
-    });
-    const shot = await shootBoard({ appDir: ctx.appDir, board: { id, name: board.name, cards: staged, groups: board.groups, arrows: board.arrows, bg: board.bg },
+    };
+    const staged = withSources(board.cards, found, srcOf);
+    const children = (board.children || []).map((ch) => ({ ...ch, cards: withSources(ch.cards, found, srcOf) }));
+    const shot = await shootBoard({ appDir: ctx.appDir,
+      board: { id, name: board.name, cards: staged, groups: board.groups, arrows: board.arrows, bg: board.bg, strokes: board.strokes,
+        children, tags: board.tags, comments: board.comments, vote: board.vote, marks: board.marks, crew: ctx.crew },
       world: worldFor(brief, { id, name: board.name }), files, outDir: out, only: ctx.only, log });
     if (shot.errors.length) log(`shoot: ${shot.errors.join('; ')}`);
     const judged = shot.shots.find((s) => s.kind === 'board-light' || s.kind === 'board-dark') || shot.shots[0];
@@ -143,12 +171,14 @@ async function makeOne(brief, ctx) {
     const grade = await gradeShot(join(out, 'grade.jpg'), recipe, { claude, cwd: out, log });
     log(`grade: ${grade.score}/5: ${grade.summary}`);
     if (grade.score < GRADE.pass) {
-      if (attempt === 2) return { ok: false, slug: recipe.slug, why: `grade ${grade.score}/5: ${grade.summary}` };
+      if (attempt === TRIES) return { ok: false, slug: recipe.slug, why: `grade ${grade.score}/5: ${grade.summary}` };
       notes = grade.fixes.length ? grade.fixes : [grade.summary]; last = recipe; continue;
     }
 
     const used = [...photos.found.values()];
-    const credits = used.map((ph) => ({ ...ph.credit, id: ph.id }));
+    // The sounds on the board are credited too, their licences ask for it.
+    const heard = [...sounds.found].filter(([key]) => board.cards.some((c) => c.photo === key)).map(([, s]) => s);
+    const credits = [...used, ...heard].map((ph) => ({ ...ph.credit, id: ph.id }));
     const zip = zipShots(out, shot.shots, credits);
     const made = { slug: recipe.slug, title: recipe.title, outDir: out,
       shots: shot.shots.map((s) => ({ kind: s.kind, file: join(out, s.dir || '', s.file) })), contents: recipeContents(recipe) };
@@ -161,7 +191,7 @@ async function makeOne(brief, ctx) {
     const { supa, r2, workspaceId, userId } = ctx;
     const root = await rootCluster(supa, workspaceId);
     const parentId = await ensureCluster(supa, { workspaceId, userId, rootId: root.id, name: brief.cluster });
-    const written = await writeBoard({ supa, r2, workspaceId, userId, parentId, board, found: photos.found, log });
+    const written = await writeBoard({ supa, r2, workspaceId, userId, parentId, board, found, crew: ctx.crew, log });
     const shots = await uploadShots({ r2, boardId: written.boardId, outDir: out, shots: shot.shots, zip });
     await r2.put(`showcase/${written.boardId}/recipe.json`, Buffer.from(JSON.stringify(recipe)), 'application/json');
     await recordShowcase(supa, {
@@ -170,7 +200,9 @@ async function makeOne(brief, ctx) {
       // A board made for a post is not up for the public library's review.
       status: brief.subject === 'tiktok' ? 'skipped' : lib.okByPerson >= HAND_OKS ? 'ok' : 'new',
       score: { grade: grade.score, summary: grade.summary, fixes: grade.fixes, tries: attempt, rejected: photos.rejected,
-        cards: written.cards.length, photos: used.length, style: style.name, tools: toolsOf(recipe) },
+        cards: written.cards.length, photos: used.length, style: style.name, tools: toolsOf(recipe),
+        sounds: heard.length, pdfs: board.cards.filter((c) => c.kind === 'pdf').length, subClusters: (board.children || []).length,
+        comments: (board.comments || []).length, vote: !!board.vote, tags: (board.tags || []).length, make: ENGINE_MAKE },
       shots, credits, phash: used.map((ph) => ph.hash), run_id: ctx.runId,
     });
     await pingUsed(used, keys);
@@ -239,6 +271,10 @@ async function main() {
 
   ctx.appDir = buildApp({ boardsDir: BOARDS, outDir: join(HOME, 'app'), log });
   ctx.runId = a.dryRun ? null : await startRun(supa, a.mode === 'brief' ? 'subject' : a.mode);
+  // The crew who comment and vote: real accounts for a board that's kept, made-up ids for a dry run.
+  ctx.crew = a.dryRun ? fakeCrewIds() : await ensureCrew(supa, { workspaceId: ctx.workspaceId, log });
+  let browser = null;
+  ctx.browser = async () => (browser ||= await chromium.launch({ headless: true }));
   const results = [];
   try {
     for (const brief of briefs) {
@@ -256,6 +292,7 @@ async function main() {
       await finishRun(supa, ctx.runId, { ok: made > 0 || !results.length, made, dropped,
         note: results.filter((r) => !r.ok).map((r) => `${r.brief}: ${r.why}`).join('\n') || null });
     }
+    if (browser) await browser.close().catch(() => {});
     unlock();
     log(`run: ${made} made, ${dropped} dropped`);
   }

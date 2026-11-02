@@ -108,12 +108,13 @@ test('a recipe holds what its brief wants, and nothing it does not', () => {
   two.sections[1].items.push({ kind: 'script', title: 'Sc. 9', fountain: SCENE });
   assert.ok(validateRecipe(two, { wants: ['script'] }).some((x) => /at most 1 script/.test(x)));
   assert.ok(validateRecipe(sample(), { wants: ['frames'] }).some((x) => /storyboard/.test(x)));
-  // One video is a motion reference any board may hold; more is for a brief that wants video.
+  // One or two videos are motion references any board may hold; more is for a brief that wants video.
   const video = sample();
-  video.sections[0].items[0] = { kind: 'video', search: 'lighthouse beam turning' };
+  video.sections[0].items.push({ kind: 'video', search: 'lighthouse beam turning' });
+  video.sections[1].items.push({ kind: 'video', search: 'old man walking stairs' });
   assert.deepEqual(validateRecipe(video, { wants: ['script'] }), []);
-  video.sections[1].items[0] = { kind: 'video', search: 'old man walking stairs' };
-  assert.ok(validateRecipe(video, {}).some((x) => /at most 1 video/.test(x)));
+  video.sections[0].items.push({ kind: 'video', search: 'waves on black rocks' });
+  assert.ok(validateRecipe(video, {}).some((x) => new RegExp(`at most ${RULES.video} videos`).test(x)));
   assert.ok(validateRecipe(sample(), { wants: ['video'] }).some((x) => new RegExp(`${RULES.videos[0]}–${RULES.videos[1]} videos`).test(x)));
 });
 

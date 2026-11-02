@@ -20,6 +20,9 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, rmSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { encodeBoardSnapshot } from '../lib/cardEncode.mjs';
+import { randomUUID } from 'node:crypto';
+import { CREW, crewEmail } from './crew.mjs';
+import { soundTitle } from './publish.mjs';
 
 const ORIGIN = 'http://clusters.engine.local';
 const SB = 'https://example.supabase.co';
@@ -29,8 +32,13 @@ const FONT_HOSTS = /^(use\.typekit\.net|p\.typekit\.net|fonts\.googleapis\.com|f
 const LINK_HOSTS = /^(upload|thumb)\.wikimedia\.org$/;
 const TYPES = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.html': 'text/html', '.json': 'application/json',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2',
-  '.woff': 'font/woff', '.ttf': 'font/ttf', '.mp4': 'video/mp4', '.ico': 'image/x-icon', '.txt': 'text/plain', '.webmanifest': 'application/manifest+json', '.wasm': 'application/wasm' };
+  '.woff': 'font/woff', '.ttf': 'font/ttf', '.mp4': 'video/mp4', '.m4a': 'audio/mp4', '.pdf': 'application/pdf', '.ico': 'image/x-icon', '.txt': 'text/plain', '.webmanifest': 'application/manifest+json', '.wasm': 'application/wasm' };
+// A clean shot (capture.clean) hides the app's chrome and, with it, the comment layer; the crew's comments are
+// part of the board, so they stay. A sound's empty tempo and key fields show to its editor only, as
+// placeholders; the board is shown as anyone opening it sees it, so they go.
 const BASE_CSS = `.capture-hud,.capture-hud-dot,.capture-mask,.dev-banner{display:none!important}
+body[data-capture-clean='1'] .canvas-comment-layer{display:block!important}
+.ac-meta-field.is-placeholder{display:none!important}
 .card-resize,.ic-act,.pc-cell-x,.pc-add,.gridc-cell-x,.lc-open,.ic-add-caption{display:none!important}
 *{caret-color:transparent!important}
 .ws-presence-status.off{background:#10b981!important;box-shadow:0 0 6px rgba(16,185,129,.5)!important}`;
@@ -99,8 +107,41 @@ export function buildApp({ boardsDir, outDir, log = () => {} }) {
 
 const b64url = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
 
+// The board's people and what they left on it, as the app reads them back:
+// the crew's comments (comments rows), the vote (list_vote_cards' rows, its
+// ballots counted), the tags (tags rows) and which cards carry them
+// (entity_links rows), and each person's name (member_profiles, users_by_ids).
+// `crew`: Map(crew key → user id), the same ids the stored board was given. Pure.
+export function people({ board, workspaceId, crew, now = Date.now() }) {
+  const at = (minsAgo) => new Date(now - minsAgo * 60e3).toISOString();
+  const comments = [];
+  (board.comments || []).forEach((c, i) => {
+    const top = { id: randomUUID(), workspace_id: workspaceId, board_id: board.id, anchor_kind: 'card', anchor_id: c.cardId,
+      anchor_x: null, anchor_y: null, offset_x: c.offset?.x || 0, offset_y: c.offset?.y || 0, doc_page_id: null, doc_from: null, doc_to: null,
+      author: crew.get(c.by), body: c.text, reply_to: null, hidden: false, resolved: false,
+      created_at: at(190 - i * 40), updated_at: at(190 - i * 40), deleted_at: null };
+    comments.push(top);
+    if (c.reply) {
+      comments.push({ ...top, id: randomUUID(), author: crew.get(c.reply.by), body: c.reply.text, reply_to: top.id,
+        offset_x: 0, offset_y: 0, created_at: at(170 - i * 40), updated_at: at(170 - i * 40) });
+    }
+  });
+  const votes = board.vote ? [{ id: randomUUID(), workspace_id: workspaceId, board_id: board.id, anchor_kind: 'card', anchor_id: board.vote.cardId,
+    anchor_x: null, anchor_y: null, offset_x: board.vote.offset?.x || 0, offset_y: board.vote.offset?.y || 0, label: board.vote.label,
+    author: crew.get(CREW[0].key), hidden: false, resolved: false, created_at: at(240), updated_at: at(240),
+    up_count: board.vote.up, down_count: board.vote.down, my_value: null }] : [];
+  const tags = (board.tags || []).map((t, i) => ({ id: randomUUID(), workspace_id: workspaceId, name: t.name, slug: t.name.toLowerCase(), color: null,
+    kind: 'user', entity_type: null, description: null, created_by: crew.get(CREW[i % CREW.length].key), created_at: at(300) }));
+  const links = (board.tags || []).flatMap((t, i) => t.cardIds.map((cardId) => ({ source_workspace: workspaceId, source_board_id: board.id,
+    source_id: cardId, target_id: tags[i].id, source: 'user', created_at: at(280) })));
+  const profiles = CREW.filter((c) => crew.has(c.key)).map((c) => ({ user_id: crew.get(c.key), display_name: c.name, color: c.color, avatar_url: null }));
+  const emails = CREW.filter((c) => crew.has(c.key)).map((c) => ({ user_id: crew.get(c.key), email: crewEmail(c.key) }));
+  return { comments, votes, tags, links, profiles, emails };
+}
+
 // The signed-in world the app boots into: one workspace, the board's cluster
-// tree, and the board itself as Yjs state.
+// tree, and the board itself as Yjs state, its sub-clusters under it, and the
+// people on it (people()).
 function stage({ world, board }) {
   const now = Math.floor(Date.now() / 1000);
   const uid = '7d1f0e7a-1111-4c2b-9a51-5f0c2b8e9a01';
@@ -122,8 +163,15 @@ function stage({ world, board }) {
     for (const c of node.children || []) add(c, node.id);
   };
   for (const n of world.tree) add(n, null);
-  states.set(board.id, encodeBoardSnapshot(board.cards, board.arrows || [], { groups: board.groups }));
-  return { uid, user, session, ws, boards, states };
+  states.set(board.id, encodeBoardSnapshot(board.cards, board.arrows || [], { groups: board.groups, strokes: board.strokes || [] }));
+  for (const ch of board.children || []) {
+    boards.push({ id: ch.id, workspace_id: ws.id, name: ch.name, parent_board_id: board.id, deleted_at: null, view: 'canvas',
+      created_by: uid, created_at: '2026-09-14T17:00:00Z', updated_at: new Date(t -= 3600e3).toISOString(), position: boards.length,
+      bg_color: ch.bg || null, card_count: ch.cards.length });
+    states.set(ch.id, encodeBoardSnapshot(ch.cards, ch.arrows || [], { groups: ch.groups || [] }));
+  }
+  const P = people({ board, workspaceId: ws.id, crew: board.crew || new Map() });
+  return { uid, user, session, ws, boards, states, P };
 }
 
 function stub(route, S) {
@@ -150,6 +198,16 @@ function stub(route, S) {
     if (single) return rows[0] ? json(rows[0]) : json({ code: 'PGRST116', message: 'no rows' }, 406);
     return json(rows);
   }
+  // The people on the board (people()).
+  const eqOf = (k) => (url.searchParams.get(k) || '').replace(/^eq\./, '');
+  if (path === '/rest/v1/comments' && req.method() === 'GET') return json(S.P.comments.filter((c) => !eqOf('board_id') || c.board_id === eqOf('board_id')));
+  if (path === '/rest/v1/rpc/list_vote_cards') return json(S.P.votes);
+  if (path === '/rest/v1/tags' && req.method() === 'GET') return json(S.P.tags);
+  if (path === '/rest/v1/entity_links' && req.method() === 'GET') {
+    return json(eqOf('source_kind') === 'card' && eqOf('target_kind') === 'tag' ? S.P.links.filter((l) => !eqOf('source_board_id') || l.source_board_id === eqOf('source_board_id')) : []);
+  }
+  if (path === '/rest/v1/member_profiles' && req.method() === 'GET') return json(S.P.profiles);
+  if (path === '/rest/v1/rpc/users_by_ids') return json(S.P.emails);
   if (path === '/rest/v1/board_state' && req.method() === 'GET') {
     const id = (url.searchParams.get('board_id') || '').replace(/^eq\./, '');
     const doc = S.states.get(id);
@@ -241,12 +299,23 @@ export function pickFrame(cards, groups, aspect) {
 // The app's camera takes fit, zoom and pan; a frame is the fit, a zoom about
 // the centre and a pan (the graphics engine's real.mjs `frame`). inset: screen
 // px on the left the app's tool rail covers.
-async function frameMoves(page, cards, groups, { inset = 0, margin = 24 } = {}) {
+// marks: the comment and vote bubbles beside cards (buildBoard's), framed in
+// with their cards. whole: the whole board, bubbles and all, as the app's fit
+// would show it were they cards (a fit alone when none reaches past the cards).
+async function frameMoves(page, cards, groups, { inset = 0, margin = 24, marks = [], whole = false } = {}) {
   const r = await page.evaluate(() => { const b = document.querySelector('.canvas-wrap').getBoundingClientRect(); return { w: b.width, h: b.height }; });
   const B = bounds(cards);
   const fm = r.w > 640 ? 80 : Math.max(16, Math.round(r.w * 0.05));
   const z0 = Math.min((r.w - 2 * fm) / B.w, (r.h - 2 * fm) / B.h);
-  const F = pickFrame(cards, groups, (r.w - 2 * margin - inset) / (r.h - 2 * margin));
+  const all = [...cards, ...marks];
+  if (whole) {
+    const A = bounds(all);
+    if (!inset && A.x >= B.x && A.y >= B.y && A.x + A.w <= B.x + B.w && A.y + A.h <= B.y + B.h) return [{ type: 'fit' }];
+    const za = Math.min((r.w - 2 * fm - inset) / A.w, (r.h - 2 * fm) / A.h);
+    return [{ type: 'fit' }, { type: 'zoom', by: za / z0 },
+      { type: 'pan', dx: (A.x + A.w / 2) - (B.x + B.w / 2) - inset / 2 / za, dy: (A.y + A.h / 2) - (B.y + B.h / 2) }];
+  }
+  const F = pickFrame(all, groups, (r.w - 2 * margin - inset) / (r.h - 2 * margin));
   const zt = Math.min((r.w - 2 * margin - inset) / F.w, (r.h - 2 * margin) / F.h);
   const dx = (F.x + F.w / 2) - (B.x + B.w / 2) - inset / 2 / zt;
   const dy = (F.y + F.h / 2) - (B.y + B.h / 2);
@@ -283,7 +352,8 @@ async function thumb(png, out) {
 
 /**
  * Shoots one board. → { shots: [{ kind, label, file, thumb, w, h, bytes, theme? }], errors }
- *   board: { id, name, cards, groups } with srcs at /engine-photos/<name>
+ *   board: { id, name, cards, groups, strokes, children, tags, comments, vote, crew } with srcs at /engine-photos/<name>
+ *     (buildBoard's, its sub-clusters' cards staged too; crew: Map(crew key → user id))
  *   world: { user, email, workspace, tree: [{ id, name, children, cards }] } holding the board's id
  *   files: Map(name → file on disk) for /engine-photos/
  */
@@ -306,8 +376,9 @@ export async function shootBoard({ appDir, board, world, files, outDir, cutouts 
       await page.evaluate((cap) => window.__soleilCapture?.set(cap), shot.capture);
       await page.mouse.move(prof.viewport.width - 3, prof.viewport.height - 3);
       await page.waitForTimeout(1200);
-      const inset = shot.frame && !shot.capture.clean ? await railInset(page) : 0;
-      await camera(page, shot.frame ? await frameMoves(page, board.cards, board.groups || [], { inset }) : [{ type: 'fit' }]);
+      const marks = board.marks || [];
+      const inset = !shot.capture.clean && (shot.frame || marks.length) ? await railInset(page) : 0;
+      await camera(page, await frameMoves(page, board.cards, board.groups || [], { inset, marks, whole: !shot.frame }));
       await settle(page, errors);
       const file = join(outDir, `${shot.kind}.png`);
       await page.screenshot({ path: file });
@@ -403,7 +474,8 @@ export function pickCutouts(cards, n = CUTOUTS) {
 
 /** One zip of every shot and close-up, plus the credits. → the zip's name */
 export function zipShots(outDir, shots, credits) {
-  writeFileSync(join(outDir, 'credits.txt'), credits.map((c) => `${c.source}: ${c.name}${c.page ? ` — ${c.page}` : ''}`).join('\n') + '\n');
+  const line = (c) => `${c.source}: ${c.name}${c.kind === 'sound' && c.title ? `, "${soundTitle(c.title)}"` : ''}${c.licence ? ` (${c.licence})` : ''}${c.page ? ` — ${c.page}` : ''}`;
+  writeFileSync(join(outDir, 'credits.txt'), credits.map(line).join('\n') + '\n');
   const files = [...shots.map((s) => (s.dir ? `${s.dir}/${s.file}` : s.file)), 'credits.txt'];
   rmSync(join(outDir, 'all.zip'), { force: true });
   sh('zip', ['-q', '-X', 'all.zip', ...files], { cwd: outDir });
