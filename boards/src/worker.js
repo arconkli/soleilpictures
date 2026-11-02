@@ -42,6 +42,7 @@ import { handleApiRoute, handleMcpEndpoint } from './worker-api.js';
 import { handleKeepBundle, handleSignedImage } from './worker-keep.js';
 import { handleMakeKeep } from './worker-make.js';
 import { handleShowcaseShot } from './worker-showcase.js';
+import { ADMIN_POSTS_PREFIX, handleAdminPosts } from './worker-admin-posts.js';
 import { runWebhooks } from './lib/webhooks.js';
 import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME, PRICING_PAGE } from './lib/billingCopy.js';
 import { buildPricingCrawlableHtml, buildPricingJsonLd } from './lib/pricingCrawlable.js';
@@ -872,6 +873,12 @@ const worker = {
       // a pending board has no slug, hence the board_id-keyed admin twin.
       const admThumbMatch = url.pathname.match(/^\/api\/admin\/preview-thumb\/([0-9a-f-]{36})$/i);
       if (admThumbMatch) return await handleAdminPreviewThumb(env, admThumbMatch[1], request);
+      // The admin phone panel's Posts tab (worker-admin-posts.js, migration 0840).
+      if (url.pathname.startsWith(ADMIN_POSTS_PREFIX)) {
+        return await handleAdminPosts(request, url.pathname.slice(ADMIN_POSTS_PREFIX.length), {
+          rpc: (fn, params, token) => userRpc(env, fn, params, token),
+        });
+      }
       // Logged-out one-click unsubscribe for lifecycle email (migration 0173).
       if (url.pathname === '/api/unsubscribe') return await handleUnsubscribe(request, url, env);
     } catch (e) {

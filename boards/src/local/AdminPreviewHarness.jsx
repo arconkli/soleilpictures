@@ -35,6 +35,8 @@ import { AdminDiscoverTab } from '../pages/admin/AdminDiscoverTab.jsx';
 import { AdminEmailsTab } from '../pages/admin/AdminEmailsTab.jsx';
 import { AdminBoardsTab } from '../pages/admin/AdminBoardsTab.jsx';
 import { FeedbackProvider } from '../components/AppFeedback.jsx';
+import { AdminPhonePanel } from '../pages/admin/phone/AdminPhonePanel.jsx';
+import { makePhonePostsApi } from './adminPhoneFixtures.js';
 
 // Install the fixture shim before any tab mounts + fetches.
 const MOCKS_OK = installAdminPreviewMocks(supabase);
@@ -267,7 +269,7 @@ function initialTab() {
   return 'overview';
 }
 
-export function AdminPreviewHarness() {
+function DesktopHarness() {
   const [tab, setTab] = useState(initialTab);
   const [light, setLight] = useState(false);
   const [pendingBoards, setPendingBoards] = useState(0);
@@ -342,4 +344,22 @@ export function AdminPreviewHarness() {
       </main>
     </div>
   );
+}
+
+// ?adminpreview=1&phone=1: the phone panel (pages/admin/phone/) over the same
+// fixtures, with a fake posts source (adminPhoneFixtures.js).
+const PHONE = (() => { try { return new URLSearchParams(window.location.search).get('phone') === '1'; } catch (_) { return false; } })();
+const phonePostsApi = makePhonePostsApi();
+
+function PhoneHarness() {
+  return (
+    <AdminPhonePanel
+      postsApi={phonePostsApi}
+      boards={<AdminBoardsTab onWaitingChange={() => {}} />}
+    />
+  );
+}
+
+export function AdminPreviewHarness() {
+  return PHONE ? <PhoneHarness /> : <DesktopHarness />;
 }

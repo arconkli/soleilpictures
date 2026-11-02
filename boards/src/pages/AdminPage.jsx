@@ -51,7 +51,6 @@ import { AdminEmailsTab } from './admin/AdminEmailsTab.jsx';
 import { AdminTaggingTab } from './admin/AdminTaggingTab.jsx';
 import { AdminMoreMenu } from './admin/AdminMoreMenu.jsx';
 import { FeedbackButton } from '../components/FeedbackButton.jsx';
-import { AdminPhoneGate } from './admin/AdminPhoneGate.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { adminPublicBoardSubmissionCounts } from '../lib/boardsApi.js';
 import { supabase } from '../lib/supabase.js';
@@ -68,6 +67,9 @@ const prefetchUniverseTab = () => { loadUniverseTab().catch(() => {}); };
 
 // Boards carries its own stylesheet and the image-heavy grid, and only its tab
 // draws them, so it loads when the tab opens too.
+// /admin on a phone (pages/admin/phone/): its own chunk, so desktop never loads it.
+const AdminPhonePanel = lazyWithReload(() => import('./admin/phone/AdminPhonePanel.jsx').then((m) => ({ default: m.AdminPhonePanel })));
+
 const AdminBoardsTab = lazyWithReload(() => import('./admin/AdminBoardsTab.jsx').then((m) => ({ default: m.AdminBoardsTab })));
 
 // Overview and Analytics were two tabs showing the same numbers: both led with
@@ -154,6 +156,11 @@ export function AdminPage() {
   // Boards pill. Seeded with the Approvals one; the tab keeps it live.
   const [pendingBoards, setPendingBoards] = useState(0);
   const { isPhone } = useBreakpoint();
+  // ?full=1: the desktop admin on a phone, for this visit (the phone panel's
+  // "Open full admin" links). The tables are cramped at 375px, but they work.
+  const [fullOnPhone] = useState(() => {
+    try { return new URLSearchParams(window.location.search).get('full') === '1'; } catch { return false; }
+  });
   const tabRefs = useRef([]);
   const moreTriggerRef = useRef(null);
 
@@ -252,13 +259,6 @@ export function AdminPage() {
     }
   };
 
-  // Admin is desktop-only on phone. The dashboard's tables, analytics
-  // grids, and GPU-instanced Universe graph aren't worth shrinking to
-  // 375px — better to redirect than serve a broken experience.
-  // The one exception is Boards: finding a shot to post is a phone job, and
-  // its grid folds to two columns. It still passes the admin check below.
-  if (isPhone && tab !== 'boards') return <AdminPhoneGate onBoards={() => selectTab('boards')} />;
-
   if (loading) return <Splash />;
 
   // tier !== 'admin' splits two ways: a genuine non-admin, or a transient
@@ -292,22 +292,19 @@ export function AdminPage() {
     ? PRIMARY_TABS.length
     : (activePrimaryIdx >= 0 ? activePrimaryIdx : 0);
 
-  // A phone only ever gets here on Boards: a slim header, no tab bar.
-  if (isPhone) {
+  // A phone gets the phone panel (Today · Posts · Boards), unless ?full=1 asked
+  // for the desktop admin for this visit.
+  if (isPhone && !fullOnPhone) {
     return (
-      <div className="admin-screen">
-        <header className="admin-header admin-header-phone">
-          <SoleilWordmark size="block" />
-          <div className="admin-header-right">
-            <button className="auth-link" onClick={() => { window.location.assign('/'); }}>← App</button>
-          </div>
-        </header>
-        <main className="admin-body">
-          <Suspense fallback={null}>
-            <AdminBoardsTab onWaitingChange={setPendingBoards} />
-          </Suspense>
-        </main>
-      </div>
+      <Suspense fallback={<Splash />}>
+        <AdminPhonePanel
+          boards={(
+            <Suspense fallback={null}>
+              <AdminBoardsTab onWaitingChange={setPendingBoards} />
+            </Suspense>
+          )}
+        />
+      </Suspense>
     );
   }
 
