@@ -174,8 +174,11 @@ test('every new argument defaults to the old behaviour', () => {
   // The cron used to call it bare, which captured today; bare still does.
   assert.match(defOf('capture_metrics_daily').body, /capture_metrics_daily\(p_day date default current_date\)/);
 
+  // 0851 restated admin_signups_by_day to leave service accounts out; its
+  // arguments and their defaults (checked above, on the live one) are this file's.
+  const RESTATED = { admin_signups_by_day: '0851_admin_people_skip_service.sql' };
   for (const fn of ['admin_active_now', 'admin_signups_by_day', 'admin_acquisition_channels', 'capture_metrics_daily']) {
-    assert.equal(defOf(fn).file, FILE, `the live ${fn} is this one`);
+    assert.equal(defOf(fn).file, RESTATED[fn] ?? FILE, `the live ${fn} is ${RESTATED[fn] ?? 'this one'}`);
   }
 });
 

@@ -115,8 +115,8 @@ export const TESTS = [
     // The read returns the live start: app_config's holdout_from, or this
     // instant if it is later.
     startIso: EMAIL_HOLDOUT_START,
-    reads: [{ iso: '2026-11-12', what: 'First look' }, { iso: '2026-12-14', what: 'Verdict' }],
-    verdictIso: '2026-12-14',
+    reads: [{ iso: '2026-11-12', what: 'First look' }, { iso: '2026-12-10', what: 'Verdict' }],
+    verdictIso: '2026-12-10',
     noneText: 'None due yet',
     // Made something: a card placed or edited, or a doc edited, in the 72 hours
     // after the send, or after the moment a held-back person would have had it
