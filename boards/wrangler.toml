@@ -90,6 +90,13 @@ crons = ["0 4 * * *", "15 * * * *", "* * * * *", "0 6 * * 1", "45 * * * *"]
 binding = "PARTY"
 service = "soleil-boards-party"
 
+# The admin Posts tab's page (worker-admin-posts.js), for the same reason: the
+# preview can't fetch it by its workers.dev URL. The page's address and token
+# path stay in the admin-only row (0840); the binding only reaches the Worker.
+[[services]]
+binding = "POSTS"
+service = "soleil-posts"
+
 # R2 binding for the orphan sweeper. Matches PartyKit's R2_BUCKET so
 # the same bucket uploads go into is the one being swept.
 [[r2_buckets]]

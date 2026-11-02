@@ -195,4 +195,23 @@ test('worker.js routes the prefix to handleAdminPosts with userRpc', () => {
   assert.match(worker, /import \{[^}]*\bhandleAdminPosts\b[^}]*\} from '\.\/worker-admin-posts\.js'/);
   assert.match(worker, /startsWith\(ADMIN_POSTS_PREFIX\)/);
   assert.match(worker, /handleAdminPosts\(request,[\s\S]{0,120}userRpc\(env,/);
+  assert.match(worker, /handleAdminPosts\(request,[\s\S]{0,200}posts: env\.POSTS/);
+});
+
+test('with a POSTS binding the page files go through it, ntfy still by fetch', async () => {
+  const { calls, deps } = setup({ fetchImpl: () => new Response('', { status: 200 }) });
+  const via = [];
+  deps.posts = { fetch: async (url) => { via.push(String(url)); return new Response('[]', { status: 200 }); } };
+  const { res } = await run(req(), 'days.json', deps);
+  assert.equal(res.status, 200);
+  assert.deepEqual(via, [SOURCE.base + 'days.json']);
+  assert.equal(calls.fetch.length, 0);
+  await run(req(), 'posted', deps);
+  assert.equal(calls.fetch.length, 1);
+  assert.equal(via.length, 1);
+});
+
+test('wrangler.toml binds POSTS to the posts page Worker', () => {
+  const toml = readFileSync(resolve(SRC, '..', 'wrangler.toml'), 'utf8');
+  assert.match(toml, /\[\[services\]\]\s*\nbinding = "POSTS"\s*\nservice = "soleil-posts"/);
 });
