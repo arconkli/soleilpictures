@@ -81,7 +81,13 @@ export const CEILINGS = {
   // its toasts and events load only after sign-in, when one is waiting
   // (lib/pendingJoinClaim.js). A CI-style build read 167.7 KB on main
   // bc946d4f and 168.5 KB with it.
-  entryJs: 169_000,
+  // 2026-11-03: +1.5 KB for the phone sign-in screen (auth/SignInBackdrop.jsx):
+  // on a phone the scroll's cards come one group at a time, laid out in the
+  // band above the wordmark and the one below Explore, so nothing covers the
+  // box or runs off the screen, and the cursors keep to their band. The rings,
+  // the glow and the box polish are CSS. A CI-style build read 168.8 KB on main
+  // 6387bde8 and 170.4 KB with it.
+  entryJs: 170_500,
   entryCss: 96_000,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
