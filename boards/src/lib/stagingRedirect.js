@@ -63,8 +63,24 @@ export function switchToLatest() {
 
 // Called once on app mount (AppShell). On the prod domain, redirect an eligible,
 // non-opted-out admin to the latest preview, carrying their session in the hash.
+//
+// Never from a Home Screen app (owner, 2026-11-03: "when i add the admin panel
+// as an app it doesn't sign us out"). The app has its own storage and its scope
+// is this origin, so the hop opened the preview outside the app, and the two
+// origins then held one refresh-token family: whichever refreshed second
+// presented a rotated token and Supabase revoked the session everywhere. The
+// app stays on the address it was added from, signed in on its own.
+export function inHomeScreenApp() {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.standalone === true) return true;
+    return typeof matchMedia === 'function'
+      && (matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches);
+  } catch (_) { return false; }
+}
+
 export async function maybeRedirectToLatest() {
   if (!onProdHost()) return; // only ever redirect FROM the prod domain
+  if (inHomeScreenApp()) return;
 
   // ?stable=1 = escape hatch (stay on prod, e.g. if a preview was broken);
   // ?stable=0 = re-enable. Works even if the in-app toggle is unreachable.

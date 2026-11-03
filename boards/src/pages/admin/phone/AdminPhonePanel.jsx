@@ -141,14 +141,23 @@ export function AdminPhonePanel({ boards, postsApi }) {
         </div>
         {tab === 'boards' && <div className="ap-boards">{boards}</div>}
       </div>
-      <nav className="ap-tabs" role="tablist" aria-label="Admin">
-        {TABS.map((t) => (
-          <button key={t.id} type="button" role="tab" className="ap-tab" aria-selected={tab === t.id} onClick={() => select(t.id)}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">{t.icon}</svg>
-            {t.label}
-            {t.id === 'posts' && badge > 0 && <span className="ap-badge" aria-label={`${badge} not posted yet`}>{badge}</span>}
-          </button>
-        ))}
+      <nav className="ap-tabs" aria-label="Admin and Clusters">
+        <div className="ap-tablist" role="tablist" aria-label="Admin">
+          {TABS.map((t) => (
+            <button key={t.id} type="button" role="tab" className="ap-tab" aria-selected={tab === t.id} onClick={() => select(t.id)}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">{t.icon}</svg>
+              {t.label}
+              {t.id === 'posts' && badge > 0 && <span className="ap-badge" aria-label={`${badge} not posted yet`}>{badge}</span>}
+            </button>
+          ))}
+        </div>
+        {/* Back to the app itself (the owner, 2026-11-03: "be able to go back
+            to normal clusters so it's like a full clusters app"). Its menu's
+            Admin button comes back here. */}
+        <a className="ap-tab ap-home" href="/">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 9.5V20h13V9.5" /></svg>
+          Clusters
+        </a>
       </nav>
     </div>
   );

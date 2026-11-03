@@ -50,6 +50,6 @@
       "purpose": "any maskable"
     }
   ],
-  "scope": "/admin",
+  "scope": "/",
   "id": "/admin"
 }

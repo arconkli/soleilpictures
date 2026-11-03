@@ -55,6 +55,11 @@ test('the tab bar has Today, Posts and Boards, with the unposted count on Posts'
   await expect(page.getByRole('tab', { name: /^Posts/ })).toHaveAttribute('aria-selected', 'false');
   await expect(page.getByRole('tab', { name: /^Boards/ })).toBeVisible();
   await expect(page.getByRole('tab', { name: /^Posts/ }).locator('.ap-badge')).toHaveText('2', T);
+  // Clusters is a plain link beside the tablist, not a fourth tab.
+  const home = page.getByRole('link', { name: 'Clusters', exact: true });
+  await expect(home).toBeVisible();
+  await expect(home).toHaveAttribute('href', '/');
+  await expect(tabs).toHaveCount(3);
 });
 
 test('Posts lists how the last ones did and today\'s cards; Posted sticks across a reload', async ({ page }) => {
