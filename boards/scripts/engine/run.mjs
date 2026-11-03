@@ -114,18 +114,33 @@ async function makeOne(brief, ctx) {
     if (problems.length) return { ok: false, why: `recipe: ${problems.slice(0, 3).join('; ')}` };
     // The pictures, a sub-cluster's among them (photoRecipe), then the sounds and PDFs, all in one map by key.
     const wanted = photoRecipe(recipe);
-    const pick = (slots) => pickPhotos({ recipe: wanted, slots, dir: join(HOME, 'picks', `${recipe.slug}-${attempt}`), claude,
-      notes: attempt > 1 ? notes || [] : [], log });
-    const photos = await findPhotos(wanted, { dir: join(HOME, 'photos'), keys, check, used: lib.used, pick, log });
+    const frames = frameKeys(recipe);
+    const picksDir = join(HOME, 'picks', `${recipe.slug}-${attempt}`);
+    const pick = (slots) => pickPhotos({ recipe: wanted, slots, dir: picksDir, claude, notes: attempt > 1 ? notes || [] : [], log });
+    const screen = attempt < TRIES ? async (picked, { empty = [] } = {}) => {
+      const out = await unifyPhotos({ recipe: wanted, found: picked, dir: picksDir, claude, floor: null, log });
+      for (const [key, why] of out) log(`unify: ${key} out (${why})`);
+      return { out, stop: missingPhotos(wanted, [...out.keys(), ...empty], frames).length > 0 };
+    } : null;
+    const photos = await findPhotos(wanted, { dir: join(HOME, 'photos'), keys, check, used: lib.used, pick, screen, log });
+    if (photos.stopped) {
+      const broken = missingPhotos(wanted, [...photos.screened.keys(), ...(photos.empty || [])], frames);
+      log(`check: ${broken.join('; ')}`);
+      log(`photos: ${photos.screened.size} left out before the AI check; rethinking without checking the rest`);
+      notes = broken; last = recipe; continue;
+    }
     log(`photos: ${photos.found.size} real, ${photos.missing.length} missing, ${photos.rejected} rejected`);
     // Side by side, the photos that break the board's one world go (pick.mjs unifyPhotos); they count as
-    // missing, so a first try short of too many rethinks its searches.
+    // missing, so a first try short of too many rethinks its searches. Before the last try the first round's
+    // photos are unified before the AI check (findPhotos' screen), so a try the misfits already send back costs
+    // no checks; the final unify runs on the last try, or when a later round brought a photo the screen never saw.
     // The last try has no rethink to fall back on, so it keeps the board the pictures it needs and every
     // storyboard frame (an earlier try's lost frame sends the recipe back instead: missingPhotos).
-    const frames = frameKeys(recipe);
     const floor = attempt === TRIES ? { onBoard: (k) => Number(k.split('.')[0]) < recipe.sections.length, keep: CHECK.pictures, fixed: (k) => frames.has(k) } : null;
-    const odd = await unifyPhotos({ recipe: wanted, found: photos.found, dir: join(HOME, 'picks', `${recipe.slug}-${attempt}`), claude, floor, log })
-      .catch((e) => { log(`unify: ${e.message}; keeping them all`); return new Map(); });
+    const odd = attempt === TRIES || [...photos.found.values()].some((ph) => !photos.seen.has(ph.file))
+      ? await unifyPhotos({ recipe: wanted, found: photos.found, dir: picksDir, claude, floor, log })
+        .catch((e) => { log(`unify: ${e.message}; keeping them all`); return new Map(); })
+      : new Map();
     for (const [key, why] of odd) { photos.found.delete(key); photos.missing.push(key); log(`unify: ${key} out (${why})`); }
     const links = await findLinks(recipe, { log });
     if (links.missing.length) log(`links: ${links.missing.length} not found`);

@@ -132,10 +132,14 @@ async function fetchToDisk(cand, dir) {
  *   used:   { ids: Set of 'pexels:123'…, hashes: [hex…] } already in the library
  *   pick:   optional async (slots) → Map(key → [cand id…] best first) (pick.mjs): only
  *           picked candidates are tried, in that order; when it throws, search order
- * → { found: Map('si.ii' → photo), missing: ['si.ii'…], rejected: n }
+ *   screen: optional async (Map key → { file }, { empty: [keys with nothing to try] }) → { out: Map(key → why), stop }: runs once on the
+ *           first round's downloads, before check(); the `out` slots are left out unchecked and
+ *           not refilled; `stop` returns at once with no checks. When it throws, they are all checked.
+ * → { found: Map('si.ii' → photo), missing: ['si.ii'…], rejected: n, screened: Map(key → why),
+ *     seen: Set of the files the screen was shown, stopped: bool }
  *   photo: { file, video?, w, h, sha, hash, id, source, alt, credit, why }
  */
-export async function findPhotos(recipe, { dir, keys, check, used = { ids: new Set(), hashes: [] }, rounds = 3, pick = null, log = () => {} }) {
+export async function findPhotos(recipe, { dir, keys, check, used = { ids: new Set(), hashes: [] }, rounds = 3, pick = null, screen = null, log = () => {} }) {
   mkdirSync(dir, { recursive: true });
   const wanted = [];
   (recipe.sections || []).forEach((s, si) => (s.items || []).forEach((it, ii) => {
@@ -171,6 +175,8 @@ export async function findPhotos(recipe, { dir, keys, check, used = { ids: new S
   const found = new Map();
   const takenIds = new Set(used.ids);
   const boardHashes = [];
+  const screened = new Map();
+  const seen = new Set();
   let rejected = 0;
   for (let round = 0; round < rounds; round += 1) {
     const picks = [];
@@ -190,6 +196,25 @@ export async function findPhotos(recipe, { dir, keys, check, used = { ids: new S
           boardHashes.push(hash);
           break;
         } catch (e) { log(`photos: ${cand.id}: ${e.message}`); }
+      }
+    }
+    if (round === 0 && screen && picks.length) {
+      let res = null;
+      // Slots with nothing left to try are missing whatever the check says; the screen counts them too.
+      const empty = wanted.filter((w) => !picks.some((p) => p.w.key === w.key)).map((w) => w.key);
+      try { res = await screen(new Map(picks.map((p) => [p.w.key, { file: p.file }])), { empty }); } catch (e) { log(`photos: screen failed (${e.message}); checking them all`); }
+      if (res) {
+        for (const p of picks) seen.add(p.file);
+        for (const [key, why] of res.out || []) {
+          const i = picks.findIndex((p) => p.w.key === key);
+          if (i < 0) continue;
+          const [p] = picks.splice(i, 1);
+          const h = boardHashes.indexOf(p.hash);
+          if (h >= 0) boardHashes.splice(h, 1);
+          queue.set(key, []);
+          screened.set(key, why);
+        }
+        if (res.stop) return { found, missing: wanted.filter((w) => !found.has(w.key)).map((w) => w.key), rejected, screened, seen, empty, stopped: true };
       }
     }
     if (!picks.length) break;
@@ -214,7 +239,7 @@ export async function findPhotos(recipe, { dir, keys, check, used = { ids: new S
       }
     }
   }
-  return { found, missing: wanted.filter((w) => !found.has(w.key)).map((w) => w.key), rejected };
+  return { found, missing: wanted.filter((w) => !found.has(w.key)).map((w) => w.key), rejected, screened, seen, stopped: false };
 }
 
 // Unsplash asks for a ping when one of its photos is used.
