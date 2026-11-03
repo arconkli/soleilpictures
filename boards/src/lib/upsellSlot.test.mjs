@@ -6,7 +6,7 @@
 // Plain Node ESM, no test framework — exit code 0 on pass, non-zero on failure
 // (matches upsellEligibility.test.mjs). The module is pure, so no backend/DOM.
 
-import { claimUpsellSlot, upsellSlotBusy, __resetUpsellSlot, UPSELL_STACK_WINDOW_MS } from './upsellSlot.js';
+import { claimUpsellSlot, upsellSlotBusy, upsellSlotHolder, __resetUpsellSlot, UPSELL_STACK_WINDOW_MS } from './upsellSlot.js';
 
 let failed = 0;
 let passed = 0;
@@ -303,6 +303,20 @@ __resetUpsellSlot();
 assert(claimUpsellSlot('power-reveal', T, 'v7'), 'a tip');
 assert(claimUpsellSlot('cap-hit', W, 'v7'), 'then the wall');
 assertEq(claimUpsellSlot('share-ask', W + 5_000, 'v7'), false, 'the share ask never lands on the wall');
+
+// --- who holds the moment (for up_suppressed winner) -----------------------
+__resetUpsellSlot();
+assertEq(upsellSlotHolder(T, 'h1'), null, 'a free slot has no holder');
+assert(claimUpsellSlot('share-ask', T, 'h1'), 'the share ask takes the slot');
+assertEq(upsellSlotHolder(T + 1_000, 'h1'), 'share-ask', 'inside the minute the claimant holds it');
+assertEq(upsellSlotBusy(T + 1_000), true, 'asking who holds it took nothing');
+assertEq(upsellSlotHolder(T + UPSELL_STACK_WINDOW_MS + 1, 'h1'), 'share-ask', 'after the minute the ambient ask still owns the visit');
+assertEq(upsellSlotHolder(T + UPSELL_STACK_WINDOW_MS + 1, 'h2'), null, 'a new visit has no ambient owner');
+__resetUpsellSlot();
+assert(claimUpsellSlot('first-value', T, 'h3'), 'a non-ambient claim');
+assertEq(upsellSlotHolder(T, 'h3'), 'first-value', 'its holder is named');
+assertEq(upsellSlotHolder(T + UPSELL_STACK_WINDOW_MS, 'h3'), null, 'non-ambient: free again after the minute');
+assertEq(upsellSlotHolder(null, null), null, 'junk clock and visit do not throw');
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

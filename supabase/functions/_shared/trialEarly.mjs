@@ -15,7 +15,7 @@
 export const TRIAL_EARLY_KEY = 'trial_early';
 
 // Flip together with EXPERIMENTS.trial_early.enabled; the test enforces it.
-export const TRIAL_EARLY_ON = false;
+export const TRIAL_EARLY_ON = true;
 
 export const TRIAL_EARLY_ARMS = [{ id: 'A', weight: 50 }, { id: 'B', weight: 50 }];
 

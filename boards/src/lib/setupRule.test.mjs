@@ -25,14 +25,12 @@ test('the setup may open first only for an account new enough for it, in arm B',
   assert.equal(setupMayOpenFirst({ user: null, allowed: true, override: 'B' }), false);
 });
 
-test('with no override, the arm the setup gate itself opens on', () => {
-  const seen = new Set();
+test('with no override and the test ended, the setup gate opens for nobody', () => {
+  // workspace_setup ended 2026-11-03 (experiments.js enabled:false), so assignArm is null.
   for (const id of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) {
-    const arm = assignArm('workspace_setup', id);
-    seen.add(arm);
-    assert.equal(setupMayOpenFirst({ user: { id, created_at: AFTER }, allowed: true }), arm === 'B', id);
+    assert.equal(assignArm('workspace_setup', id), null, id);
+    assert.equal(setupMayOpenFirst({ user: { id, created_at: AFTER }, allowed: true }), false, id);
   }
-  assert.deepEqual([...seen].sort(), ['A', 'B'], 'both arms occur, so the loop tests something');
 });
 
 test('the setup modules hand on the same rule, not a copy', () => {

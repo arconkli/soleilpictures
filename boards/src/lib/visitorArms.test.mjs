@@ -34,7 +34,7 @@ test('the user-id machinery never assigns it', () => {
   assert.equal(assignArm('signup_box', 'some-user-id'), null);
   assert.ok(!getActiveExperiments().includes('signup_box'));
   // and the user-id experiments still are what they were
-  assert.ok(getActiveExperiments().includes('workspace_setup'));
+  assert.ok(getActiveExperiments().includes('first_board_more'));
   assert.equal(assignVisitorArm('workspace_setup', 'dev-1', AFTER), null);
 });
 

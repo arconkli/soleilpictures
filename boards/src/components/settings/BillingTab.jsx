@@ -3,7 +3,7 @@
 //   paid      → plan + status + next renewal, "Manage billing →" (Stripe Portal)
 //   demo      → card count + "Upgrade to Creator" button (opens PricingModal)
 //   waitlist  → defensive note (this surface shouldn't be reachable)
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
@@ -28,10 +28,17 @@ export function BillingTab({ user }) {
     useMyTier({ userId: user?.id });
   // Settings was the one upgrade entry that never named the trial to someone
   // owed it. Decided on the server's count, like every other trial surface.
-  const trialOffer = creatorTrialEligibility({
+  const trialDecision = creatorTrialEligibility({
     tier, cards: serverCardCount, cardLimit: effectiveCardLimit, trialStartedAt: creatorTrialStartedAt,
     early: trialEarlyOn(user?.id),
-  }).eligible;
+  });
+  const trialOffer = trialDecision.eligible;
+  // What the offer looked like when this tab was read, for up_settings_view and
+  // the click: the trial_early read needs the same four fields on both rows.
+  const offerProps = {
+    trial: trialOffer, trial_reason: trialDecision.reason,
+    count: demoCardCount, server_cards: Number.isFinite(serverCardCount) ? serverCardCount : null,
+  };
   const [sub, setSub] = useState(null);
   const [busy, setBusy] = useState(false);
   const [pricingOpen, setPricingOpen] = useState(false);
@@ -56,6 +63,16 @@ export function BillingTab({ user }) {
   // Manage billing's function, booted and its preflight answered while the tab
   // is read (lib/checkout.js), so the click waits on Stripe alone.
   useEffect(() => { if (tier === 'paid') warmPortal(); }, [tier]);
+
+  // Once per mount, as soon as the plan is known: Settings logged nothing when
+  // it was merely read, so its share of the trial offer's exposure was unseen.
+  const viewLoggedRef = useRef(false);
+  useEffect(() => {
+    if (loading || !tier || viewLoggedRef.current) return;
+    viewLoggedRef.current = true;
+    logEvent(EV.UP_SETTINGS_VIEW, { tier, ...offerProps });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, tier]);
 
   const openPortal = async () => {
     if (busy) return;
@@ -116,7 +133,7 @@ export function BillingTab({ user }) {
         onUpgrade={() => {
           // Was dark: only the downstream modal pricing_view fired, so Settings
           // upgrades were indistinguishable from every other modal entry.
-          logEvent(EV.UP_SETTINGS_CLICK, {});
+          logEvent(EV.UP_SETTINGS_CLICK, offerProps);
           setPricingOpen(true);
         }} />
 

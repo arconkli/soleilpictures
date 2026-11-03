@@ -105,10 +105,6 @@ test.describe('cluster nudges', () => {
     await card(page, 'mixqa-1').click({ button: 'right' });
     await expect(page.locator('.ctx-menu .ctx-item', { hasText: /^New cluster from 2 cards/ })).toBeVisible();
     await page.keyboard.press('Escape');
-    // The empty Studio's panel ends with the line about clusters.
-    await page.goto('/?local=1&reset=1&blank=1');
-    await expect(page.locator('.cnv-empty-tiles')).toBeVisible();
-    await expect(page.locator('.cnv-empty-clusters')).toBeVisible();
   });
 
 
@@ -294,23 +290,6 @@ test.describe('cluster nudges', () => {
     await expect(pop).toHaveCount(0);
     await expect(page.locator('.card.card-kind-board')).toHaveCount(0);
     await expect(card(page, 'mixqa-0')).toBeVisible();
-  });
-
-  test('the empty Studio ends with a line about clusters that opens the bar\'s popover', async ({ page }) => {
-    await optIn(page);
-    await page.goto('/?local=1&reset=1&blank=1');
-    const line = page.locator('.cnv-empty-tiles .cnv-empty-clusters');
-    await expect(line).toContainText('Working on more than one thing?');
-    await line.locator('button', { hasText: 'Start a cluster for each' }).click();
-    const pop = page.locator('.ncl-pop');
-    await expect(pop.locator('.ncl-help')).toHaveText('It lands on Studio as a card and opens, ready to fill.');
-    await expect(pop.locator('.ncl-field')).toBeFocused();
-    await pop.locator('.ncl-field').fill('Music video');
-    await page.keyboard.press('Enter');
-    await expect(page.locator('.crumbs .crumb')).toHaveText(['Studio', 'Music video']);
-    // Inside a cluster the empty panel has no such line: it is Studio's alone.
-    await expect(page.locator('.cnv-empty-tiles')).toBeVisible();
-    await expect(page.locator('.cnv-empty-clusters')).toHaveCount(0);
   });
 
   test('the Studio bar: a pile gets one offer, named in the bar\'s popover, and all of it moves', async ({ page }) => {

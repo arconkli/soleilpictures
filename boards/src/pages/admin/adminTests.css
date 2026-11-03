@@ -125,6 +125,24 @@
 .adm-tests-plot.bad .ci { stroke: var(--t-bad); }
 .adm-tests-plot.bad .pt { fill: var(--t-bad); }
 .adm-tests-few { font: 10.5px var(--t-mono); color: var(--ink-3); }
+/* A reach against its target: the 0 to 100 axis and the target's tick. */
+.adm-tests-plot .axis { stroke: var(--line-2); }
+.adm-tests-plot .target { stroke: var(--ink-2); stroke-dasharray: 2 2; }
+
+/* Under the measures: the like-for-like strata and the share ask's misses. */
+.adm-tests-sub { margin-top: 14px; }
+.adm-tests-sub h5 {
+  margin: 0 0 6px; font: 500 10px/1.4 var(--t-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
+}
+.adm-tests-strata, .adm-tests-misses { list-style: none; margin: 0; padding: 0; }
+.adm-tests-strata li, .adm-tests-misses li {
+  display: grid; gap: 12px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--line-1); font-size: 12px;
+}
+.adm-tests-strata li { grid-template-columns: minmax(140px, 1fr) 120px 120px; }
+.adm-tests-misses li { grid-template-columns: 1fr auto; }
+.adm-tests-strata span:first-child, .adm-tests-misses span { color: var(--ink-2); }
+.adm-tests-strata b, .adm-tests-misses b { font: 500 13px var(--t-mono); color: var(--ink-0); margin-right: 6px; }
+.adm-tests-strata small { font: 10px var(--t-mono); color: var(--ink-3); }
 
 .adm-tests-checks { list-style: none; margin: 0; padding: 0; }
 .adm-tests-checks li { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line-1); }
@@ -183,6 +201,8 @@
   .adm-tests-ml { min-width: 160px; }
   .adm-tests-er { grid-template-columns: 1fr; gap: 2px; padding: 9px 16px; }
   .adm-tests-er code { text-align: left; }
+  .adm-tests-strata li { grid-template-columns: 1fr 1fr; }
+  .adm-tests-strata span:first-child { grid-column: 1 / -1; }
   .adm-tests-sec { flex-wrap: wrap; }
   .adm-tests-sec::after { display: none; }
   .adm-tests-sec small { flex-basis: 100%; }

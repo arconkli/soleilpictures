@@ -2218,17 +2218,6 @@ export function CanvasSurface({
   const panelTiles = (firstLike ? EMPTY_TILES.filter((t) => FIRST_BOARD_TILE_IDS.includes(t.id)) : EMPTY_TILES)
     .map((t) => (t.id === 'board' ? { ...t, icon: clusterGlyph() } : t));
   const panelCopy = firstBoardCopy(firstBoard ? firstBoardKind : null, { coarse: isPhone, links: firstBoardLinks, join: firstBoardJoin });
-  // On the empty Studio the panel ends with a line about clusters (below).
-  // Seen is logged once per cluster per session, as the panel's own row is.
-  const emptyStudioLine = !isPublic && board?.parent_board_id == null && clusterNudgesAllowed();
-  useEffect(() => {
-    if (!emptyPanelVisible || !emptyStudioLine || !board?.id) return;
-    if (typeof document !== 'undefined' && document.body?.dataset?.tourVariant) return;
-    logEventOnce(`cluster_nudge:empty_studio:${board.id}`, EV.CLUSTER_NUDGE, {
-      surface: 'empty_studio', action: 'view', picked: 0, board_id: board.id,
-    });
-  }, [emptyPanelVisible, emptyStudioLine, board?.id]);
-
   // ── The Studio bar ──
   // A pile on Studio gets one offer to move into a cluster of its own: once
   // per device (lib/hints.js), never on the account's first day (that pile is
@@ -7116,8 +7105,8 @@ export function CanvasSurface({
     return () => document.removeEventListener('soleil-new-cluster', onNew);
   }, [board?.id, paneId, canEdit, isPublic]);
   // A phone's bar has no room for "+ New cluster", so its + sheet leads with
-  // the row instead, and the empty Studio's line has no popover to open there;
-  // both ask the name in the app's own prompt, in the popover's words, and
+  // the row instead, and the sweep has no popover to open there; both ask the
+  // name in the app's own prompt, in the popover's words, and
   // then go the same way — the Studio bar's sweep too, on a phone. A nudge
   // (`surface`) logs its answer as the popover would.
   const newClusterPrompted = async ({ via, surface = null, sweep = false }) => {
@@ -7142,13 +7131,6 @@ export function CanvasSurface({
     }
     if (typed == null) return;
     await newClusterHereRef.current?.({ name: String(typed).trim().slice(0, 200) || null, via, sweep });
-  };
-  // "Start a cluster for each" on the empty Studio: the top bar's popover when
-  // the bar shows this pane, else the prompt.
-  const startClusterFromEmpty = () => {
-    const d = { boardId: board?.id, paneId, via: 'empty_studio', handled: false };
-    document.dispatchEvent(new CustomEvent('soleil-new-cluster-open', { detail: d }));
-    if (!d.handled) newClusterPrompted({ via: 'empty_studio', surface: 'empty_studio' });
   };
   // The second idea's toast (armed above) and its answer: the new cards are
   // picked, so the popover counts them and they are what moves.
@@ -14980,20 +14962,6 @@ export function CanvasSurface({
           </div>
           <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-fine">drag an image straight in&ensp;·&ensp;paste&ensp;·&ensp;or double-click to add</span>
           <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-coarse">drag an image in&ensp;·&ensp;or long-press the canvas to add</span>
-          {/* Under the drop area, never in its place: images stay the first
-              thing to do here, and a cluster per project is the next thing to
-              know. Only on Studio, the one canvas everything lands on. */}
-          {emptyStudioLine && (
-            <>
-              <div className="cnv-empty-rule" aria-hidden="true" />
-              <div className="cnv-empty-clusters">
-                Working on more than one thing?
-                <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={startClusterFromEmpty}>
-                  <Icon as={Plus} size={14} weight="regular" />Start a cluster for each
-                </button>
-              </div>
-            </>
-          )}
         </div>
         );
       })()}

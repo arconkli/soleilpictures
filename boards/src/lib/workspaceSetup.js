@@ -19,7 +19,7 @@
 
 // Who sees the steps at all, and the accounts too old to: setupRule.js, light
 // enough for the entry chunk, which asks before the rest of this has arrived.
-export { SETUP_EPOCH, isSetupCandidate } from './setupRule.js';
+export { SETUP_EPOCH, isSetupCandidate, workspaceSetupOn } from './setupRule.js';
 
 export const NAME_MAX = 60;           // the invite emails cut names here too (safeLabel)
 export const REASK_MIN_CARDS = 6;     // where day-one return stops climbing slowly
@@ -178,8 +178,10 @@ export function nextSetupState(state, move) {
 // Whether to ask a skipper once more, now. Only arm B, only someone who
 // skipped the invite step, only once ever, only after their workspace has
 // some work in it, and never over something else: an upload still landing, a
-// tour, a dialog. Past the window it never shows.
-export function reaskDue({ arm, welcome, reasked, ownCards, uploading, overlayOpen, createdAt, now } = {}) {
+// tour, a dialog. Past the window it never shows. `setupOn` is
+// workspaceSetupOn(): once the test has ended nobody is asked, whatever they did.
+export function reaskDue({ arm, welcome, reasked, ownCards, uploading, overlayOpen, createdAt, now, setupOn = true } = {}) {
+  if (setupOn !== true) return false;
   if (arm !== 'B' || reasked) return false;
   if (!welcome || !welcome.done || welcome.invitee || welcome.invite !== 'skipped') return false;
   if (!(Number(ownCards) >= REASK_MIN_CARDS)) return false;

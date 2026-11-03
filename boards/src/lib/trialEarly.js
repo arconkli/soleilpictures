@@ -9,9 +9,26 @@ import { assignArm } from './experiments.js';
 
 export const TRIAL_EARLY_KEY = 'trial_early';
 
+// Dev-only seam for the Playwright harness: under ?local=1 (the same test the
+// app uses, localMode.js isLocalQaMode) the user is 'local-user', whose coin is
+// B, which would put a trial in front of every spec that expects none at 1-12
+// cards. So the harness reads arm A unless the URL says trialearly=B. The
+// literal DEV guard lets the bundler drop it from production; the try keeps the
+// module importable under plain node, where import.meta.env does not exist.
+function harnessHoldsArmA() {
+  try {
+    if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+    const q = new URLSearchParams(window.location.search);
+    return q.get('local') === '1' && q.get('trialearly') !== 'B';
+  } catch (_) {
+    return false;
+  }
+}
+
 // 'A' | 'B' | null (null while the test is off or without a user id).
 export function trialEarlyArm(userId) {
-  return assignArm(TRIAL_EARLY_KEY, userId);
+  const arm = assignArm(TRIAL_EARLY_KEY, userId);
+  return arm && harnessHoldsArmA() ? 'A' : arm;
 }
 
 export function trialEarlyOn(userId) {

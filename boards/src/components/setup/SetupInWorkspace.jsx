@@ -28,7 +28,7 @@ import { upsellSlotBusy } from '../../lib/upsellSlot.js';
 import { isImportGuideOpen } from '../../lib/importGuide.js';
 import { hasActiveImport, subscribeImportJobs } from '../../lib/importJobs.js';
 import { TIPS_KEY, TIPS_QUIET_MS, TIPS_RETRY_MS, tipsEligible, tipsDue, tipsRecord } from '../../lib/setupTips.js';
-import { REASK_KEY, REASK_SETTLE_MS, reaskDue } from '../../lib/workspaceSetup.js';
+import { REASK_KEY, REASK_SETTLE_MS, reaskDue, workspaceSetupOn } from '../../lib/workspaceSetup.js';
 import { joinedFlagKey } from '../../lib/workspaceLink.js';
 
 const SetupTips = lazyWithReload(() => import('./SetupTips.jsx'));
@@ -84,6 +84,7 @@ export default function SetupInWorkspace({
     overlayOpen: false,          // checked on screen when it is time (screenBusy)
     createdAt: user?.created_at,
     now: nowIso(),
+    setupOn: workspaceSetupOn(),
   });
 
   useEffect(() => {

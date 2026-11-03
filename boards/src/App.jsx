@@ -41,7 +41,7 @@ import { openBesideDock, mainPaneMoved, sidebarShown, toggleSidebar } from './li
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
 import { OnboardingTour } from './components/OnboardingTour.jsx';
 import { useOnboardingTour } from './hooks/useOnboardingTour.js';
-import { mergeTourIntoOnboarding } from './lib/onboardingTour.js';
+import { mergeTourIntoOnboarding, shouldRearmOnboarding } from './lib/onboardingTour.js';
 import { firstBoardKindFrom } from './lib/firstBoardCopy.js';
 import { momentumHintSeen, markMomentumHintSeen } from './lib/momentumHint.js';
 import {
@@ -224,10 +224,10 @@ import { storageRoom } from './lib/storageRoom.js';
 import { holdDrop, claimReady, setHeldBaseline, subscribeHeld, announceBillingChange, heldEntries, discardHeld, listenBillingChange } from './lib/heldUploads.js';
 import { useHeldUploads } from './hooks/useHeldUploads.js';
 import { HeldUploadsBar } from './components/HeldUploadsBar.jsx';
-import { claimUpsellSlot } from './lib/upsellSlot.js';
+import { claimUpsellSlot, upsellSlotBusy } from './lib/upsellSlot.js';
 import { publishOwnWork } from './lib/ownWork.js';
 import { recordSeen, takeReturn } from './lib/returnVisit.js';
-import { shouldAskToShare, SHARE_ASK_MIN_CARDS } from './lib/shareAsk.js';
+import { shouldAskToShare, shareAskSkipReason, SHARE_ASK_MIN_CARDS } from './lib/shareAsk.js';
 import { BOARD_REF_MIME } from './lib/dragMimes.js';
 import { initCardDocStore, cardScope, setDocMode, setTitlePage, writeScriptBody } from './lib/docState.js';
 import { STARTER_DOCS, isStarterKind, starterDocSpot, writeStarterDoc, starterDocsTouched, isPristineStarter } from './lib/starterDocs.js';
@@ -7801,12 +7801,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     try { setJourneyState({ phase: JOURNEY_PHASE.SEED }); journey(EV.PS_SEED_SKIP, { gate }); } catch (_) {}
   };
   const [onboardingUiActive, setOnboardingUiActive] = useState(false);
+  // True once onboarding ended in THIS page load (tour finished or dismissed).
+  // The server's onboarding.done lags the local finish, so the re-arm effect
+  // must not switch the UI back on from a stale snapshot. No path replays the
+  // tour inside a load; a reload starts with false, so mid-tour reloads resume.
+  const onboardingEndedRef = useRef(false);
   // Passive escalation: true once a brand-new user trips the stuck signal
   // (frictionSignal.js) — brightens the empty-board hint + coachmark. Cleared the
   // instant their first genuine card lands.
   const [frictionStuck, setFrictionStuck] = useState(false);
 
   const dismissOnboarding = (reason) => {
+    onboardingEndedRef.current = true;
     setOnboardingUiActive(false);
     logEvent(EV.ONBOARDING_DISMISS, { reason: reason || 'dismissed' });
     updateOwnSettings({ onboarding: { ...(myTier.onboarding || {}), seeded: true, done: true } })
@@ -7972,6 +7978,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const tourFinishedToastRef = useRef(false);
   useEffect(() => {
     if (!tour.state.done) return;
+    onboardingEndedRef.current = true;
     setOnboardingUiActive(false);
     setDesktopHandoff(false); // a handoff tour that finished closes its gate
     if (tourCompletedRef.current && !tourFinishedToastRef.current) {
@@ -8043,7 +8050,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // first sitting (cards arriving mid-tour) from dismissing its own tour.
   useEffect(() => {
     const onb = myTier.onboarding;
-    if (!(onb?.seeded === true && onb?.done !== true)) return;
+    if (!shouldRearmOnboarding({ seeded: onb?.seeded, done: onb?.done, endedThisLoad: onboardingEndedRef.current })) return;
     const back = takeReturn(user?.id);
     const ageHours = (Date.now() - Date.parse(user?.created_at || '')) / 3.6e6;
     const notFirstSitting = (typeof back === 'number' && back >= 1)
@@ -8630,12 +8637,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the next card); one that opened already past the line never is. Its own
   // effect so it keeps running after the onboarding stamps above are all set.
   const shareAskBaseRef = useRef(new Map());
+  // Boards already reported as share_ask_skipped, or already asked, on this
+  // page load: at most one skip row per board, and none once the ask has shown.
+  const shareAskSkippedRef = useRef(new Set());
+  const logShareAskSkipped = (boardId, cards, reason) => {
+    if (!reason || shareAskSkippedRef.current.has(boardId)) return;
+    shareAskSkippedRef.current.add(boardId);
+    try { logEvent(EV.SHARE_ASK_SKIPPED, { board_id: boardId, cards, reason }); } catch (_) {}
+  };
   useEffect(() => {
     if (!user?.id || !yb.ready || yb.boardId !== currentId) return;
     const n = genuineCards(yb.cards).length;
     const base = shareAskBaseRef.current;
     if (!base.has(currentId)) { base.set(currentId, n); return; }
-    if (tourActive || base.get(currentId) >= SHARE_ASK_MIN_CARDS || n < SHARE_ASK_MIN_CARDS) return;
+    if (base.get(currentId) >= SHARE_ASK_MIN_CARDS || n < SHARE_ASK_MIN_CARDS) return;
+    if (tourActive) { logShareAskSkipped(currentId, n, 'tour'); return; }
     window.dispatchEvent(new CustomEvent('soleil:share-ask', {
       detail: { boardId: currentId, cards: n, justReached: true },
     }));
@@ -9162,6 +9178,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       try { already = localStorage.getItem(key) === '1'; } catch (_) {}
       try { lastAskedAt = localStorage.getItem(lastKey); } catch (_) {}
 
+      // share_ask_skipped: a crossing of the line that shows nothing. Any
+      // reason here means shouldAskToShare below is false, so this never
+      // fires for an ask that is about to show.
+      if (justReached && cards >= SHARE_ASK_MIN_CARDS) {
+        logShareAskSkipped(boardId, cards, shareAskSkipReason({
+          canEdit: canEditCurrent, alreadyShared: sharedBoardIds.has(boardId), boardStamped: already, lastAskedAt, slotFree: true,
+        }));
+      }
+
       if (!shouldAskToShare({
         genuineCards: cards,
         justReached,
@@ -9173,11 +9198,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       // Somebody else owns this moment (the wall, first-value, the invite
       // nudge). Declining leaves the stamp unwritten, so the next card retries.
+      // The share ask follows nothing, so a refused claim IS a busy slot.
+      if (upsellSlotBusy()) logShareAskSkipped(boardId, cards, shareAskSkipReason({ canEdit: true, slotFree: false }));
       if (!claimUpsellSlot('share-ask')) return;
 
       try { localStorage.setItem(key, '1'); } catch (_) {}
       try { localStorage.setItem(lastKey, String(Date.now())); } catch (_) {}
       try { logEvent(EV.SHARE_ASK_SHOWN, { board_id: boardId, cards, at: SHARE_ASK_MIN_CARDS }); } catch (_) {}
+      shareAskSkippedRef.current.add(boardId);
       feedback.toast({
         message: 'This cluster is looking good — send it to someone?',
         ttl: 9000,

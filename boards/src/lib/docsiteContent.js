@@ -45347,6 +45347,15 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "While this is being tried out, some free accounts are offered the trial from their first card."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "A card is required; nothing is charged until the trial ends, and cancelling before then costs nothing. About three days before the first charge, Clusters emails you the date and the amount, with a link to "
     },
     {

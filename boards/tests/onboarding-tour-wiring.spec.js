@@ -20,6 +20,12 @@ test.describe('guided tour wiring', () => {
     expect(s).toMatch(/<OnboardingTour\b/);
   });
 
+  test('the re-arm effect asks shouldRearmOnboarding with the ended-this-load ref', () => {
+    const s = app();
+    expect(s).toMatch(/shouldRearmOnboarding\(\{[^}]*endedThisLoad: onboardingEndedRef\.current[^}]*\}\)/);
+    expect(s).toMatch(/dismissOnboarding = \(reason\) => \{\s*onboardingEndedRef\.current = true;/);
+  });
+
   test('App fires every tour advance trigger', () => {
     const s = app();
     for (const ev of ['cluster_created', 'cluster_renamed', 'cluster_opened', 'nav_back', 'content_added', 'view_switched']) {
@@ -76,7 +82,7 @@ test.describe('guided tour wiring', () => {
   });
 
   test('App tags the nav breadcrumb anchor', () => {
-    expect(app()).toContain('className="crumbs" data-tour="nav"');
+    expect(app()).toMatch(/className=\{`crumbs[^`]*`\} data-tour="nav"/);
   });
 
   test('OnboardingTour sets the body[data-tour-active] lock flag', () => {
@@ -215,7 +221,7 @@ test.describe('project_first wiring', () => {
   test('addNewBoard accepts a caller-supplied name and skips the rename autofocus for it', () => {
     const s = app();
     expect(s).toMatch(/opts\.name \|\|/);
-    expect(s).toMatch(/if \(!opts\.name\) setAutoFocusId/);
+    expect(s).toMatch(/if \(!opts\.name \|\| opts\.focusName\) setAutoFocusId/);
   });
 
   test('the analytics registry names the intent event', () => {

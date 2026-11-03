@@ -8,7 +8,7 @@ import {
   boardMoreCopy, noteBesidePictures, isPictureCard,
 } from './boardMore.js';
 import { boardMoreMayRun } from './boardMoreEpoch.js';
-import { EXPERIMENTS, assignArm } from './experiments.js';
+import { EXPERIMENTS, assignArm, pickArm } from './experiments.js';
 import { HINT_KINDS } from './hints.js';
 import { EV } from './analyticsEvents.js';
 
@@ -30,7 +30,9 @@ test('the coin is even and crosses the setup test\'s evenly', () => {
   for (let i = 0; i < n; i += 1) {
     const uid = `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`;
     const mine = assignArm(BOARD_MORE_KEY, uid);
-    const setup = assignArm('workspace_setup', uid);
+    // workspace_setup ended (assignArm is null for it now): its coin is still
+    // the hash of `uid:key` over its arms, which is what independence needs.
+    const setup = pickArm(EXPERIMENTS.workspace_setup.arms, `${uid}:workspace_setup`);
     if (mine === 'B') b += 1;
     cells[setup + mine] += 1;
   }

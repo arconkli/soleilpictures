@@ -350,3 +350,10 @@ export function readTourState(onboarding, sessionVariant = 'full', start = null)
     ...(typeof t.intent === 'string' ? { intent: t.intent } : {}),
   };
 }
+
+// Whether the re-arm effect in App.jsx may switch the onboarding UI back on:
+// only for a seeded, unfinished tour that did not already end in this page
+// load (the server's `done` lags the local finish, so it alone isn't enough).
+export function shouldRearmOnboarding({ seeded, done, endedThisLoad } = {}) {
+  return seeded === true && done !== true && !endedThisLoad;
+}
