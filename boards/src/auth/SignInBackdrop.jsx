@@ -93,6 +93,36 @@ const ARROWS = [
 ];
 const SVGNS = 'http://www.w3.org/2000/svg';
 
+// PHONE — the phone's own choreography (a touch screen ≤640px wide). The box is
+// a full-width column there, so the only free space is a band ABOVE the
+// wordmark (under the faux top bar) and a band BELOW the explore pill (above
+// the footer). Each band holds one group at a time: a note on one side of the
+// box, the media it describes on the other, swapping sides scene by scene; a
+// group's rows of cards share one scale, are centred in their band, and never
+// overlap. Each band's next group arrives only after the last one has gone
+// (out + PH_OUT ≤ next in). The last row of a group is dropped when the band
+// is too short for it, and a group that still can't fit is hidden — a short
+// screen shows less, never a crammed or clipped card. The finale (no `out`)
+// is a small resolved board: the graph note + tags on top, two cards below.
+// A screen whose bottom band can't hold a card (an iPhone SE) keeps the pitch:
+// the bottom band's notes move up and take the top media's turn (every note
+// window starts exactly as the previous top window has finished).
+const PHONE_GROUPS = [
+  { band:'bot', in:0.03, out:0.19, rows:[[1,0]] },     // Yahweh board + keyart
+  { band:'top', in:0.05, out:0.21, rows:[[2]] },       // LIVE CANVAS
+  { band:'bot', in:0.26, out:0.39, rows:[[5]] },       // TAGS
+  { band:'top', in:0.27, out:0.41, rows:[[4,3]] },     // Lost Time still + palette
+  { band:'bot', in:0.45, out:0.59, rows:[[6,8]] },     // MoodBoard + score
+  { band:'top', in:0.47, out:0.61, rows:[[7]] },       // DOCS, BUILT IN
+  { band:'top', in:0.66, out:0.81, rows:[[9]] },       // dailies reel
+  { band:'bot', in:0.66, out:0.81, rows:[[10]] },      // SHARE OR LOCK
+  { band:'top', in:0.87, rows:[[16],[17,18]] },        // finale: RELATIONSHIP GRAPH + tags
+  { band:'bot', in:0.86, rows:[[15,14]] },             // finale: Clusters Logo board + palette
+];
+const PH_IN = 0.06, PH_OUT = 0.05, PH_STAGGER = 0.02;
+const PH_MEDIA_MAX = 0.66, PH_MEDIA_MIN = 0.42, PH_NOTE_MIN = 0.84;
+const PH_EDGE = 16, PH_GAP = 10, PH_NOTE_W = 330;
+
 // Each cursor wanders its OWN zone (left / right) with eased, pausing motion
 // toward fresh targets, and sometimes grabs a nearby card and nudges it, like a
 // teammate tidying the board. zone = [xMin,xMax,yMin,yMax] center-rel px.
@@ -244,10 +274,81 @@ export function SignInBackdrop({ children, exploreHref }) {
     const easeOut = (t) => 1 - Math.pow(1 - t, 3);
     const ramp = (p, start, win) => easeOut(clamp((p - start) / win, 0, 1));
 
+    // Phone layout state. PHONE_OF[i] = the card's group and its stagger slot;
+    // PS[i] = its unscaled size (notes are re-flowed to one wide, short banner
+    // and measured; tags are measured), refreshed in measure(), never per frame.
+    const PHONE_OF = CARDS.map(() => null);
+    PHONE_GROUPS.forEach((g) => { let k = 0; g.rows.forEach(row => row.forEach(i => { PHONE_OF[i] = { g, k: k++ }; })); });
+    const PS = CARDS.map(c => ({ w: c.w || 116, h: c.h || 34 }));
+    const PL = CARDS.map(() => ({ x: 0, y: 0, s: 1, on: false, band: 'top' }));
+    let phone = false, plKey = '';
+    const bands = { top: [0, 0], bot: [0, 0] };
+    function setupPhone(vw) {
+      const was = phone;
+      phone = coarse && vw <= 640;
+      if (!phone && !was) return;
+      cardsEl.classList.toggle('sb-phone', phone);   // the phone's tighter note banner (CSS)
+      const noteW = Math.min(PH_NOTE_W, vw - 2 * PH_EDGE);
+      CARDS.forEach((c, i) => {
+        const el = cardEls[i];
+        if (c.kind === 'note') {
+          el.style.width = (phone ? noteW : c.w) + 'px';
+          el.style.height = phone ? 'auto' : c.h + 'px';
+          PS[i] = phone ? { w: noteW, h: el.offsetHeight || c.h } : { w: c.w, h: c.h };
+        } else if (c.kind === 'tag') {
+          PS[i] = { w: el.offsetWidth || 100, h: el.offsetHeight || 26 };
+        }
+      });
+      plKey = '';
+    }
+    // Lay every phone group out in its band: one shared scale per group, rows
+    // centred and stacked, the last row dropped (then the group hidden) when
+    // the band is too short. Pure math, cached until a band or width moves.
+    function layoutPhone(vw) {
+      const key = `${vw}|${bands.top}|${bands.bot}`;
+      if (key === plKey) return;
+      plKey = key;
+      const W = vw - 2 * PH_EDGE;
+      const squeeze = bands.bot[1] - bands.bot[0] < 60;
+      for (const g of PHONE_GROUPS) {
+        g.rows.forEach(row => row.forEach(i => { PL[i].on = false; }));
+        const isNote = g.rows.some(row => row.some(i => CARDS[i].kind === 'note'));
+        if (squeeze && g.band === 'top' && !isNote && g.out != null) continue;
+        const band = squeeze && isNote ? 'top' : g.band;
+        const [y0, y1] = bands[band];
+        const H = y1 - y0;
+        let rows = g.rows, s = 0;
+        for (;;) {
+          let fixedH = 0, varH = 0, sW = Infinity;
+          for (const row of rows) {
+            const rh = Math.max(...row.map(i => PS[i].h));
+            if (row.every(i => CARDS[i].kind === 'tag')) { fixedH += rh; continue; }
+            varH += rh;
+            sW = Math.min(sW, (W - PH_GAP * (row.length - 1)) / row.reduce((a, i) => a + PS[i].w, 0));
+          }
+          s = Math.min(isNote ? 1 : PH_MEDIA_MAX, sW, (H - fixedH - PH_GAP * (rows.length - 1)) / (varH || 1));
+          if (s >= (isNote ? PH_NOTE_MIN : PH_MEDIA_MIN)) break;
+          if (rows.length > 1) rows = rows.slice(0, -1); else { rows = null; break; }
+        }
+        if (!rows) continue;
+        const rs = (row) => row.every(i => CARDS[i].kind === 'tag') ? 1 : s;
+        const total = rows.reduce((a, row) => a + Math.max(...row.map(i => PS[i].h)) * rs(row), 0) + PH_GAP * (rows.length - 1);
+        let y = y0 + (H - total) / 2;
+        for (const row of rows) {
+          const k = rs(row);
+          const rh = Math.max(...row.map(i => PS[i].h)) * k;
+          let x = (vw - (row.reduce((a, i) => a + PS[i].w * k, 0) + PH_GAP * (row.length - 1))) / 2;
+          for (const i of row) { const w = PS[i].w * k; Object.assign(PL[i], { x: x + w / 2, y: y + rh / 2, s: k, on: true, band }); x += w + PH_GAP; }
+          y += rh + PH_GAP;
+        }
+      }
+    }
+
     let maxScroll = 1;
     function measure() {
       const vw = (sceneEl && sceneEl.clientWidth) || innerWidth;
       const vh = (sceneEl && sceneEl.clientHeight) || innerHeight;
+      setupPhone(vw);
       // Pin runway/stage to the VISIBLE viewport width — the scroller itself is
       // wider so its scrollbar is cropped off-screen. Exact px heights keep the
       // sticky stage pinned cleanly on mobile.
@@ -277,7 +378,26 @@ export function SignInBackdrop({ children, exploreHref }) {
       cu.sx0 = cu.x; cu.sy0 = cu.y; cu.ex = ex; cu.ey = ey;
       cu.dur = Math.max(0.45, Math.hypot(ex - cu.x, ey - cu.y) / speed); cu.t = 0;
     }
+    // On a phone each cursor keeps to one band (the first above the box, the
+    // second below it), only ever picks up a resting card in that band, and
+    // carries it a few px, so the tidy phone board stays tidy.
+    const phoneBand = (i) => (i === 0 ? 'top' : 'bot');
     function chooseNext(cu, i, sx, sy, cxv, cyv){
+      if (phone){
+        const b = bands[phoneBand(i)];
+        const cands = CARDS.map((c, idx) => ({ c, s: S[idx], idx }))
+          .filter(({ c, s, idx }) => c.stay && c.kind !== 'note' && c.kind !== 'tag' && s._v > 0.6 && !s._grab
+            && PL[idx].on && PL[idx].band === phoneBand(i));
+        if (cands.length && Math.random() < 0.5){
+          cu.held = cands[(Math.random() * cands.length) | 0];
+          cu.state = 'toCard'; setSeg(cu, cu.held.s._x, cu.held.s._y, 220);
+        } else {
+          const ex = PH_EDGE + Math.random() * (cw() - 2 * PH_EDGE - 48);   // room for the name flag on its right
+          const ey = b[0] + Math.random() * Math.max(0, b[1] - b[0] - 24);
+          cu.state = 'move'; setSeg(cu, ex, ey, 180);
+        }
+        return;
+      }
       const z = CURSORS[i].zone;
       // visible, settled, ungrabbed final-board cards whose home is in my zone
       const cands = CARDS.map((c, idx) => ({ c, s: S[idx] }))
@@ -297,7 +417,7 @@ export function SignInBackdrop({ children, exploreHref }) {
       if (cu.state === 'toCard' && cu.held){
         const s = cu.held.s; s._grab = true;
         cu.grabX0 = cu.x; cu.grabY0 = cu.y; s._baseX = s.dragX || 0; s._baseY = s.dragY || 0;
-        const ddx = (Math.random()*2-1) * 74, ddy = (Math.random()*2-1) * 56;
+        const ddx = (Math.random()*2-1) * (phone ? 12 : 74), ddy = (Math.random()*2-1) * (phone ? 6 : 56);
         cu.state = 'drag'; setSeg(cu, cu.x + ddx, cu.y + ddy, 150);   // slow = "carrying"
       } else if (cu.state === 'drag'){
         if (cu.held) cu.held.s._grab = false; cu.held = null;
@@ -312,8 +432,12 @@ export function SignInBackdrop({ children, exploreHref }) {
       lastNow = now;
       CU.forEach((cu, i) => {
         const el = cursorEls[i];
-        if (cu.x == null){ const z = CURSORS[i].zone; cu.x = cxv + ((z[0]+z[1])/2)*sx; cu.y = cyv + ((z[2]+z[3])/2)*sy; cu.state = 'pause'; cu.timer = 0.2 + i*0.5; }
-        el.style.opacity = vis;
+        if (cu.x == null){
+          const z = CURSORS[i].zone; cu.x = cxv + ((z[0]+z[1])/2)*sx; cu.y = cyv + ((z[2]+z[3])/2)*sy; cu.state = 'pause'; cu.timer = 0.2 + i*0.5;
+          if (phone){ const b = bands[phoneBand(i)]; cu.x = cw() * (i ? 0.72 : 0.28); cu.y = (b[0] + b[1]) / 2; }
+        }
+        // a band too short to hold a card (a small phone's bottom) keeps no cursor
+        el.style.opacity = (phone && (bands[phoneBand(i)][1] - bands[phoneBand(i)][0]) < 60) ? 0 : vis;
         if (vis > 0.01 && !reduce){
           if (cu.state === 'pause'){ cu.timer -= dt; if (cu.timer <= 0) chooseNext(cu, i, sx, sy, cxv, cyv); }
           else {
@@ -322,8 +446,8 @@ export function SignInBackdrop({ children, exploreHref }) {
             cu.x = cu.sx0 + (cu.ex - cu.sx0) * k;
             cu.y = cu.sy0 + (cu.ey - cu.sy0) * k;
             if (cu.state === 'drag' && cu.held){
-              cu.held.s.dragX = clampN(cu.held.s._baseX + (cu.x - cu.grabX0), -115, 115);
-              cu.held.s.dragY = clampN(cu.held.s._baseY + (cu.y - cu.grabY0), -90, 90);
+              cu.held.s.dragX = clampN(cu.held.s._baseX + (cu.x - cu.grabX0), phone ? -12 : -115, phone ? 12 : 115);
+              cu.held.s.dragY = clampN(cu.held.s._baseY + (cu.y - cu.grabY0), phone ? -6 : -90, phone ? 6 : 90);
             }
             if (cu.t >= 1) arrive(cu);
           }
@@ -338,6 +462,24 @@ export function SignInBackdrop({ children, exploreHref }) {
             if (m===dl) X = br.left-pad; else if (m===dr) X = br.right+pad; else if (m===dtp) Y = br.top-pad; else Y = br.bottom+pad;
           }
         }
+        // on a phone the notes span their band: step the cursor (and its name
+        // flag, which hangs below it) off a note's or a tag's words, above or below it
+        let cuHide = false;
+        if (phone){
+          for (let k = 0; k < CARDS.length; k++){
+            const s = S[k];
+            if ((CARDS[k].kind !== 'note' && CARDS[k].kind !== 'tag') || s._v < 0.3) continue;
+            const t0 = s._y - s._hh - 36, t1 = s._y + s._hh + 4;
+            if (X > s._x - s._hw - 4 && X < s._x + s._hw + 4 && Y > t0 && Y < t1){
+              // nearest side, unless that side would put it on the box
+              const b = bands[phoneBand(i)];
+              const fits = (y) => y >= b[0] - 4 && y <= b[1] - 30;
+              const near = (Y - t0 < t1 - Y) ? t0 : t1, far = near === t0 ? t1 : t0;
+              if (fits(near)) Y = near; else if (fits(far)) Y = far; else { Y = near; cuHide = true; }
+            }
+          }
+        }
+        if (cuHide) el.style.opacity = 0;   // no room beside the note: step out
         cu._x = X; cu._y = Y;
         el.style.transform = `translate(${X}px, ${Y}px)`;
       });
@@ -391,6 +533,13 @@ export function SignInBackdrop({ children, exploreHref }) {
         const exEl = exploreRef.current;                                       // always-on pill on touch
         noteExploreBot = exEl ? exEl.getBoundingClientRect().bottom : (br.bottom + 44);
       }
+      if (phone && br) {
+        // the box's top padding is empty; its first words sit 28px in
+        bands.top = [Math.round(noteBandTop), Math.round(br.top + 10)];
+        // the bottom band stops 22px short of the footer (noteBandBot's 10 + 12)
+        bands.bot = [Math.round(Math.max(noteExploreBot, br.bottom - 16) + 12), Math.round(noteBandBot - 12)];
+        layoutPhone(cw());
+      }
 
       // atmosphere: the ground is the app's own board ground from the first
       // frame (CSS). --sb-f (0→1 over the first 30% of the scroll) fades the
@@ -424,7 +573,24 @@ export function SignInBackdrop({ children, exploreHref }) {
         let ox, oy, rot = c.r;
         // Cards grow in from 86% (was 70%): a settle, not a pop.
         let sc = 0.86 + 0.14 * e - 0.16 * o + (s._grab ? 0.05 : 0);
-        if (coarse && c.kind === 'note' && br) {
+        if (phone) {
+          // the phone choreography (PHONE_GROUPS): own windows, own spot
+          const ph = PHONE_OF[i], pl = PL[i];
+          if (!ph || !pl.on || !br) {
+            v = 0; ox = 0; oy = 0; sc = 1;
+          } else {
+            const start = ph.g.in + ph.k * PH_STAGGER;
+            const pe = ramp(p, start, PH_IN);
+            const po = (ph.g.out != null) ? ramp(p, ph.g.out, PH_OUT) : 0;
+            v = pe * (1 - po);
+            const away = pl.band === 'top' ? -1 : 1;           // arrive from (and leave toward) the screen edge
+            const pwob = reduce ? 0 : Math.sin(t * 0.6 + c.phase) * 1.5 * v;
+            ox = pl.x - cxv + (s.dragX || 0);
+            oy = pl.y - cyv + away * (10 * (1 - pe) + 8 * po) + pwob + (s.dragY || 0);
+            sc = pl.s * (0.94 + 0.06 * pe - 0.06 * po + (s._grab ? 0.03 : 0));
+            rot = c.kind === 'note' || c.kind === 'tag' ? 0 : c.r * 0.4;
+          }
+        } else if (coarse && c.kind === 'note' && br) {
           // mobile: notes are the pitch — stack them tight to the box but ALWAYS
           // inside the safe band (below the topbar, above the footer, clear of the
           // explore pill). If a note can't fit its slot, shrink it; if there's truly
@@ -471,7 +637,7 @@ export function SignInBackdrop({ children, exploreHref }) {
         el.style.transform = `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px)) rotate(${rot}deg) scale(${sc})`;
         el.classList.toggle('sb-grab', !!s._grab);
         s._x = cxv + ox; s._y = cyv + oy; s._v = v;
-        s._hw = ((c.w || 116) * sc) / 2; s._hh = ((c.h || 34) * sc) / 2;  // for edge-attached links/arrows
+        s._hw = (PS[i].w * sc) / 2; s._hh = (PS[i].h * sc) / 2;  // for edge-attached links/arrows
       });
 
       connEls.forEach((l, k) => {
@@ -545,6 +711,9 @@ export function SignInBackdrop({ children, exploreHref }) {
     };
 
     measure();
+    // the phone's notes are measured at their wrapped height: again once the
+    // web fonts land, since the fallback font wraps differently
+    if (coarse && document.fonts) document.fonts.ready.then(() => { if (phone) setupPhone(cw()); }).catch(() => {});
     syncVisibleHeight();
     scrollEl.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);

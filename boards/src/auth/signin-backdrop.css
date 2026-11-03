@@ -64,7 +64,10 @@
    the board fills in. The orbit turns in once on load, then sits still. A CSS
    image, not markup, so it stays out of the sign-in page's script. */
 .sb-halo { position: absolute; top: 0; left: 0; right: 0; height: var(--sb-vvh, 100%); z-index: 1; pointer-events: none;
-  display: grid; place-items: center; overflow: hidden; opacity: calc(1 - var(--sb-f, 0)); }
+  display: grid; place-items: center; place-content: center; overflow: hidden; opacity: calc(1 - var(--sb-f, 0)); }
+/* place-content: the glow is wider than a phone (and the orbit wider than a
+   narrow window), so without it the one grid track grows past the screen and
+   starts at its left edge: the whole solar system sat ~70px right of the box */
 .sb-halo > * { grid-area: 1 / 1; }
 .sb-glow { width: 900px; height: 620px; max-width: 140vw; border-radius: 50%;
   background: radial-gradient(closest-side, rgba(255,160,40,.16), rgba(255,140,20,.05) 55%, transparent); }
@@ -90,6 +93,12 @@
 .sb-card.sb-note .sb-nb { padding: 12px 14px; font: 400 12.5px/1.55 var(--font-sans); color: #f3ecdd; }
 .sb-card.sb-note .sb-nhead { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
 .sb-card.sb-note .sb-nh { font: 700 9px/1 var(--font-display); letter-spacing: .15em; text-transform: uppercase; color: var(--soleil); }
+.sb-cards.sb-phone .sb-card.sb-note .sb-nb { padding: 10px 13px 11px; line-height: 1.45; }
+.sb-cards.sb-phone .sb-card.sb-note .sb-nhead { margin-bottom: 6px; }
+/* a phone's resting notes keep to neutral ink: a quiet hairline and label
+   (gold is for the card a cursor holds, .sb-grab) */
+.sb-cards.sb-phone .sb-card.sb-note:not(.sb-grab) { border-color: var(--line-3); box-shadow: var(--shadow-2); }
+.sb-cards.sb-phone .sb-card.sb-note:not(.sb-grab) :is(.sb-nh, .sb-ninfo) { color: rgba(245,245,247,.62); border-color: rgba(245,245,247,.42); }
 .sb-ninfo { flex-shrink: 0; width: 15px; height: 15px; border-radius: 50%; border: 1.4px solid var(--soleil);
   display: grid; place-items: center; font: 700 9px/1 var(--font-mono); color: var(--soleil); }
 
@@ -368,9 +377,18 @@
   .sb-box::before { content: ''; position: absolute; inset: 4px 0; z-index: -1; pointer-events: none;
     background: rgba(10,10,12,.72); border-radius: 48px; filter: blur(18px);
     opacity: var(--sb-f, 0); }
-  /* the box is a narrow column on a phone: a tall orbit around it */
-  .sb-orbit { width: 430px; height: 470px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 430 470'%3E%3Cellipse cx='215' cy='235' rx='170' ry='214' transform='rotate(-7 215 235)' fill='none' stroke='%23fffaf0' stroke-opacity='.26' stroke-width='2' stroke-dasharray='2 10' stroke-linecap='round'/%3E%3CclipPath id='c0'%3E%3Ccircle cx='283.9' cy='434.8' r='6'/%3E%3C/clipPath%3E%3Ccircle cx='283.9' cy='434.8' r='6' fill='%23ffa500'/%3E%3Ccircle cx='285.0' cy='432.9' r='3.6' fill='%23ef7300' clip-path='url(%23c0)'/%3E%3Ccircle cx='286.4' cy='430.4' r='4.7' fill='%23fffaf0'/%3E%3C/svg%3E"); }
-  .sb-glow { width: 520px; height: 560px; }
+  /* the box is a narrow column on a phone: two faint rings around the whole
+  stack (the inner passes above the wordmark and below Explore, the outer runs
+  off the sides) with three suns; neither ring crosses a word. Stepped by height */
+  .sb-orbit { width: 800px; height: 920px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 920'%3E%3Cellipse cx='400' cy='460' rx='262' ry='292' transform='rotate(-4 400 460)' fill='none' stroke='%23fffaf0' stroke-opacity='0.26' stroke-width='2' stroke-dasharray='2 10' stroke-linecap='round'/%3E%3Cellipse cx='400' cy='460' rx='380' ry='360' transform='rotate(-4 400 460)' fill='none' stroke='%23fffaf0' stroke-opacity='0.2' stroke-width='2' stroke-dasharray='2 10' stroke-linecap='round'/%3E%3CclipPath id='c0'%3E%3Ccircle cx='291.5' cy='192.5' r='10'/%3E%3C/clipPath%3E%3Ccircle cx='291.5' cy='192.5' r='10' fill='%23ffa500'/%3E%3Ccircle cx='293.3' cy='189.3' r='6.0' fill='%23ef7300' clip-path='url(%23c0)'/%3E%3Ccircle cx='295.7' cy='185.2' r='7.9' fill='%23fffaf0'/%3E%3CclipPath id='c1'%3E%3Ccircle cx='508.5' cy='727.5' r='8'/%3E%3C/clipPath%3E%3Ccircle cx='508.5' cy='727.5' r='8' fill='%23ffa500'/%3E%3Ccircle cx='509.9' cy='724.9' r='4.8' fill='%23ef7300' clip-path='url(%23c1)'/%3E%3Ccircle cx='511.9' cy='721.7' r='6.3' fill='%23fffaf0'/%3E%3CclipPath id='c2'%3E%3Ccircle cx='281.3' cy='802.9' r='7'/%3E%3C/clipPath%3E%3Ccircle cx='281.3' cy='802.9' r='7' fill='%23ffa500'/%3E%3Ccircle cx='282.5' cy='800.7' r='4.2' fill='%23ef7300' clip-path='url(%23c2)'/%3E%3Ccircle cx='284.2' cy='797.8' r='5.5' fill='%23fffaf0'/%3E%3C/svg%3E"); }
+  .sb-glow { width: 520px; height: 560px; translate: 0 -26px; }
+  /* the rings fade out before the footer, whatever the screen's height */
+  .sb-halo { -webkit-mask-image: linear-gradient(#000 calc(100% - 60px - var(--safe-bottom, 0px)), transparent calc(100% - 42px - var(--safe-bottom, 0px)));
+    mask-image: linear-gradient(#000 calc(100% - 60px - var(--safe-bottom, 0px)), transparent calc(100% - 42px - var(--safe-bottom, 0px))); }
+}
+
+@media (max-width: 640px) and (min-height: 881px) {
+  .sb-orbit { width: 840px; height: 1000px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 840 1000'%3E%3Cellipse cx='420' cy='500' rx='282' ry='296' transform='rotate(-4 420 500)' fill='none' stroke='%23fffaf0' stroke-opacity='0.26' stroke-width='2' stroke-dasharray='2 10' stroke-linecap='round'/%3E%3Cellipse cx='420' cy='500' rx='400' ry='380' transform='rotate(-4 420 500)' fill='none' stroke='%23fffaf0' stroke-opacity='0.2' stroke-width='2' stroke-dasharray='2 10' stroke-linecap='round'/%3E%3CclipPath id='c0'%3E%3Ccircle cx='304.4' cy='229.3' r='10'/%3E%3C/clipPath%3E%3Ccircle cx='304.4' cy='229.3' r='10' fill='%23ffa500'/%3E%3Ccircle cx='306.2' cy='226.1' r='6.0' fill='%23ef7300' clip-path='url(%23c0)'/%3E%3Ccircle cx='308.6' cy='222.0' r='7.9' fill='%23fffaf0'/%3E%3CclipPath id='c1'%3E%3Ccircle cx='535.6' cy='770.7' r='8'/%3E%3C/clipPath%3E%3Ccircle cx='535.6' cy='770.7' r='8' fill='%23ffa500'/%3E%3Ccircle cx='537.0' cy='768.1' r='4.8' fill='%23ef7300' clip-path='url(%23c1)'/%3E%3Ccircle cx='539.0' cy='764.9' r='6.3' fill='%23fffaf0'/%3E%3CclipPath id='c2'%3E%3Ccircle cx='295.1' cy='861.9' r='7'/%3E%3C/clipPath%3E%3Ccircle cx='295.1' cy='861.9' r='7' fill='%23ffa500'/%3E%3Ccircle cx='296.4' cy='859.7' r='4.2' fill='%23ef7300' clip-path='url(%23c2)'/%3E%3Ccircle cx='298.0' cy='856.8' r='5.5' fill='%23fffaf0'/%3E%3C/svg%3E"); }
 }
 
 /* Touch: the "explore a live board" payoff is shown from the first frame
@@ -389,6 +407,64 @@
     font-size: 13px;
   }
   .sb-hint { display: none; }
+}
+
+/* Phone sign-in stack polish. Desktop (>640px, fine pointer) is untouched:
+   every rule sits under (max-width: 640px) and/or (pointer: coarse). */
+@media (max-width: 640px) {
+  /* one rhythm down the stack: wordmark -> frost -> credential -> Used by all
+     24px apart (was 20/24/23); the box's side padding trims from 34 to 26 so
+     the frost gets the width a phone's caption needs */
+  .sb-box { gap: 24px; padding-left: 26px; padding-right: 26px; }
+  /* 18px sides (was 22) so the caption fits one line at 375 (iPhone SE) */
+  .sb-frost { padding: 22px 18px; }
+  /* the box gap now sets the space above the credential line on its own */
+  .sb-trust { margin-top: 0; }
+  /* the caption was --ink-3 at 11.5px, about 2.7:1 on the frost: light
+     neutral ink at half strength is about 5:1, and 12px still fits one line
+     at 375 inside the wider frost. Literal ink, since the frost is dark in
+     both themes (public-dark) */
+  .sb-cap { font-size: 12px; color: rgba(245,245,247,.5); }
+  /* the wordmark's box counts the trailing 0.18em of tracking after the last
+     S, so its ink sat ~3.3px left of centre; half the tracking, in its own
+     ems, puts the ink on the axis at every clamp() size. translate composes
+     with the inline transform SoleilWordmark sets, and its measurement sees
+     both edges move together, so it never fights it */
+  .sb-box > div:has(> .clusters-mark) { translate: .09em 0; }
+}
+@media (pointer: coarse) {
+  /* a 48px target and a 15px label under a finger; colours unchanged */
+  .sb-frost .auth-btn { height: 48px; font-size: 15px; }
+  /* "Explore a live board" read as disabled (--ink-2 on --bg-1 behind a
+     --line-3 hairline): light neutral ink, a clearer hairline, a faint lift
+     on a solid ground so the moving cards never show through. Never gold.
+     44px tall (was 39) */
+  .sb-explore { color: rgba(245,245,247,.78); border-color: rgba(255,255,255,.2);
+    background: linear-gradient(rgba(255,255,255,.05), rgba(255,255,255,.05)) #111114;
+    min-height: 44px; box-sizing: border-box; padding: 0 18px; }
+}
+@media (max-width: 640px) and (pointer: coarse) {
+  /* the box is centred in the visible height but the pill hangs below it,
+     so the stack (wordmark .. pill) sat ~38px low and crowded the footer on
+     an SE. Lift the box, and the orbit and glow that frame it, by up to 36px;
+     less as the visible height shrinks (keyboard up), none under 460px, and
+     none on the code step, which has no pill */
+  .sb-scene:has(.sb-explore) { --sb-lift: clamp(0px, (var(--sb-vvh, 100vh) - 460px) / 4, 36px); }
+  /* the lift eases off as the board fills in (--sb-f), so the scroll's
+     cards get the full band above the wordmark */
+  .sb-box-wrap { translate: 0 calc(-1 * var(--sb-lift, 0px) * (1 - var(--sb-f, 0))); }
+  /* the rings stay centred on the whole stack: the lifted box plus the pill
+     under it (about 36px lower than the box's own centre) */
+  .sb-scene:has(.sb-explore) .sb-orbit { translate: 0 calc(36px - var(--sb-lift, 0px)); }
+  .sb-glow { translate: 0 calc(-26px - var(--sb-lift, 0px)); }
+}
+/* an SE-height screen has no room for the outer ring below Explore: it
+   shows at the corners; under 600px tall, one ring */
+@media (max-width: 640px) and (max-height: 700px) {
+  .sb-orbit { width: 700px; height: 720px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 700 720'%3E%3Cellipse cx='350' cy='360' rx='290' ry='270' transform='rotate(0 350 360)' fill='none' stroke='%23fffaf0' stroke-opacity='0.26' stroke-width='2' stroke-dasharray='2 10' stroke-linecap='round'/%3E%3Cellipse cx='350' cy='360' rx='330' ry='345' transform='rotate(0 350 360)' fill='none' stroke='%23fffaf0' stroke-opacity='0.2' stroke-width='2' stroke-dasharray='2 10' stroke-linecap='round'/%3E%3CclipPath id='c0'%3E%3Ccircle cx='279.8' cy='98.0' r='10'/%3E%3C/clipPath%3E%3Ccircle cx='279.8' cy='98.0' r='10' fill='%23ffa500'/%3E%3Ccircle cx='281.6' cy='94.8' r='6.0' fill='%23ef7300' clip-path='url(%23c0)'/%3E%3Ccircle cx='284.0' cy='90.7' r='7.9' fill='%23fffaf0'/%3E%3CclipPath id='c1'%3E%3Ccircle cx='495.0' cy='593.8' r='8'/%3E%3C/clipPath%3E%3Ccircle cx='495.0' cy='593.8' r='8' fill='%23ffa500'/%3E%3Ccircle cx='496.4' cy='591.2' r='4.8' fill='%23ef7300' clip-path='url(%23c1)'/%3E%3Ccircle cx='498.4' cy='588.0' r='6.3' fill='%23fffaf0'/%3E%3C/svg%3E"); }
+}
+@media (max-width: 640px) and (max-height: 600px) {
+  .sb-orbit { width: 620px; height: 560px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 620 560'%3E%3Cellipse cx='310' cy='280' rx='300' ry='260' transform='rotate(0 310 280)' fill='none' stroke='%23fffaf0' stroke-opacity='0.26' stroke-width='2' stroke-dasharray='2 10' stroke-linecap='round'/%3E%3CclipPath id='c0'%3E%3Ccircle cx='200.0' cy='38.1' r='10'/%3E%3C/clipPath%3E%3Ccircle cx='200.0' cy='38.1' r='10' fill='%23ffa500'/%3E%3Ccircle cx='201.8' cy='34.9' r='6.0' fill='%23ef7300' clip-path='url(%23c0)'/%3E%3Ccircle cx='204.2' cy='30.8' r='7.9' fill='%23fffaf0'/%3E%3CclipPath id='c1'%3E%3Ccircle cx='475.0' cy='62.9' r='8'/%3E%3C/clipPath%3E%3Ccircle cx='475.0' cy='62.9' r='8' fill='%23ffa500'/%3E%3Ccircle cx='476.4' cy='60.3' r='4.8' fill='%23ef7300' clip-path='url(%23c1)'/%3E%3Ccircle cx='478.4' cy='57.1' r='6.3' fill='%23fffaf0'/%3E%3C/svg%3E"); }
 }
 
 @media (prefers-reduced-motion: reduce) {
