@@ -81,8 +81,8 @@ test('the canvas claims its own cluster\'s holds and puts them back through the 
 });
 
 test('the canvas claims nothing until its cluster\'s doc is live', () => {
-  assert.match(canvas, /const heldReady = Boolean\(boardReady && mutators\?\.addCard && mutators\?\.preflightImport && !mutators\?\.captureGuarded\);/,
-    'Capture Mode\'s guarded mutators refuse every add: a claim through them loses the files');
+  assert.match(canvas, /const heldReady = Boolean\(boardReady && canEdit && mutators\?\.addCard && mutators\?\.preflightImport && !mutators\?\.captureGuarded\);/,
+    'Capture Mode\'s guarded mutators refuse every add: a claim through them loses the files, and a view-only cluster leaves them held');
   const effect = region(canvas, 'const heldReady = Boolean(', '}, [board?.id, useLocalImages, clientToCanvas, heldReady, mutators]);');
   assert.match(effect, /if \(!boardId \|\| useLocalImages \|\| !heldReady\) return undefined;/);
   // App's claimers likewise wait for the board surface, and the bar names
@@ -102,7 +102,11 @@ test('the list drop holds its tail and its refused files; a folder is held only 
 
 test('App claims list drops, and a full-Files cluster\'s canvas drops, and mounts the watcher and the bar', () => {
   const claim = region(app, 'useHeldUploads({ tier: myTier.tier, refetchTier: myTier.refetch, userId: user?.id });', 'const off = subscribeHeld(later);');
-  assert.match(claim, /\[currentId, mainMutators, mainFilesMode === 'full'\]/);
+  assert.match(claim, /\[currentId, mainMutators, mainFilesMode === 'full', canEditCurrent\]/);
+  assert.match(claim, /\[splitId, splitMutators, splitView === 'list', splitBoardPerm\.canEdit\]/);
+  assert.ok(claim.includes('if (!bid || !canEdit || !muts?.ingestFilesArranged) continue;'));
+  assert.ok(app.indexOf('useHeldUploads({ tier:') > app.indexOf('const splitBoardPerm = useBoardPermission('),
+    'the claimers read both panes\' permissions, so they come after them');
   assert.match(claim, /claimReady\(\{ boardId: bid, via: 'list' \}\)/);
   assert.match(claim, /\.\.\.\(filesOnly \? claimReady\(\{ boardId: bid, via: 'canvas' \}\) : \[\]\)/);
   assert.match(app, /<HeldUploadsBar\s/);

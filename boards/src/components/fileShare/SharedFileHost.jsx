@@ -8,7 +8,8 @@
 // it allows downloading) and, where the app offers it, Add shortcut. What
 // those do lives in App (the cluster picker, the walls, the toasts); this only
 // asks.
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import { SHARED_FILE_EVENT, notifySharedFilesChanged } from '../../lib/sharedFileBus.js';
 import { FILE_TOKEN_RE } from '../../lib/fileShareBundle.js';
 import * as modalGuard from '../../lib/modalGuard.js';
@@ -17,7 +18,7 @@ import { EV } from '../../lib/analyticsEvents.js';
 import { Icon } from '../Icon.jsx';
 import { ChevronDown } from '../../lib/icons.js';
 
-const FileSharePage = lazy(() => import('./FileSharePage.jsx').then((m) => ({ default: m.FileSharePage })));
+const FileSharePage = lazyWithReload(() => import('./FileSharePage.jsx').then((m) => ({ default: m.FileSharePage })));
 
 const SAVEABLE = new Set(['image', 'video', 'audio', 'pdf', 'file']);
 

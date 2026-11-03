@@ -6,12 +6,13 @@
 //
 // The dialog is lazy, so the shell only carries this listener until someone
 // actually shares a file.
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import { FILE_SHARE_EVENT } from '../../lib/fileShareBus.js';
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 
-const FileShareDialog = lazy(() => import('./FileShareDialog.jsx').then((m) => ({ default: m.FileShareDialog })));
+const FileShareDialog = lazyWithReload(() => import('./FileShareDialog.jsx').then((m) => ({ default: m.FileShareDialog })));
 
 export function FileShareHost({ api } = {}) {
   const [req, setReq] = useState(null);

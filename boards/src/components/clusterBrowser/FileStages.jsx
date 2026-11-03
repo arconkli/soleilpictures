@@ -17,6 +17,7 @@ import { headLines, parseCues, stageTable } from '../../lib/textPages.js';
 import { resolveSrc } from '../../lib/r2.js';
 import { readHead } from '../../lib/fileHead.js';
 import { deliverFile } from '../../lib/exportDelivery.js';
+import { downloadFailedWords } from '../../lib/transferWords.js';
 import { canPutFiles, putFiles } from '../../lib/fileActions.js';
 import {
   TEXT_STAGE_MAX_BYTES, TABLE_STAGE_MAX_ROWS, TABLE_STAGE_MAX_CELLS, MAIL_MAX_BYTES,
@@ -310,7 +311,7 @@ function Attachments({ letter, mail, item, canPut, onClose }) {
   const files = () => atts.map((a, i) => new File([a.content], mail.attachmentName(a, i), { type: a.mimeType || '' }));
   const save = (a, i) => {
     deliverFile(new Blob([a.content], { type: a.mimeType || 'application/octet-stream' }), mail.attachmentName(a, i))
-      .catch((err) => feedback?.toast({ type: 'error', code: 'mail_attachment_download_failed', message: `Download failed: ${err?.message || err}` }));
+      .catch((err) => feedback?.toast({ type: 'error', code: 'mail_attachment_download_failed', message: downloadFailedWords(err) }));
   };
   const put = canPut && item.boardId && canPutFiles(item.boardId);
   return (

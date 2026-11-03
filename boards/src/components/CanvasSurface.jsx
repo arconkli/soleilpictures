@@ -10,6 +10,7 @@ import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey
 import { todayISO as schedTodayISO } from '../lib/schedDates.js';
 import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed, clusterNudgesAllowed, bulkImportAllowed, touchPassAllowed } from '../lib/appHost.js';
 import { isZipFile } from '../lib/importZips.js';
+import { uploadFailedWords, downloadFailedWords } from '../lib/transferWords.js';
 import { createGroundPainter, cameraFromTransform, parseColor, isWheelClick, glideZoom } from '../lib/canvasGround.js';
 import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
 import { secondIdeaDue } from '../lib/secondIdea.js';
@@ -4268,7 +4269,7 @@ export function CanvasSurface({
         type: 'error',
         code: 'file_upload_failed',
         ttl: TTL,
-        message: 'Upload failed: ' + (err?.message || err),
+        message: uploadFailedWords(err),
         group: 'upload-failed',
         groupMessage: (n) => `${n} uploads failed`,
         ...(failed.items.length ? { action: { label: 'Retry', onClick: retryAll } } : {}),
@@ -4794,7 +4795,7 @@ export function CanvasSurface({
   // download path downstream produces an extensionless file. `title` is the
   // display name; `fileName` is the download authority.
   const dropAudioFile = useCallback(async (file, cx, cy, rect = null) => {
-    if (!workspaceId) throw new Error('workspaceId required');
+    if (!workspaceId || !file) return;
     const dropBoardId = board?.id;
     const id = `aud-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const { w, h } = FALLBACK_DIMS.audio;
@@ -4871,6 +4872,8 @@ export function CanvasSurface({
   const ingestFiles = useCallback(async (fileList, cx, cy, source = 'drop', opts = null) => {
     const files = Array.from(fileList || []);
     if (!files.length) return;
+    // Every way in (drop, picker, paste, retry) stops here on a view-only cluster.
+    if (!canEdit) { feedback?.toast?.({ type: 'info', message: 'This cluster is view-only.' }); return; }
     // Dropped, picked or pasted files are the user's own placement: an empty
     // cluster must not then auto-fit and zoom-frame the first one (the Files
     // drag path always did this; Finder drops, the photo picker — the phone's
@@ -5019,7 +5022,7 @@ export function CanvasSurface({
           await dispatchIngestOne(accepted[i], rect.x + rect.w / 2, rect.y + rect.h / 2, rect);
         } catch (err) {
           console.error(err);
-          feedback.toast({ type: 'error', code: 'file_upload_failed', message: 'Upload failed: ' + (err.message || err) });
+          feedback.toast({ type: 'error', code: 'file_upload_failed', message: uploadFailedWords(err) });
         }
       }
     }
@@ -5053,7 +5056,7 @@ export function CanvasSurface({
     }
     reportSkippedFiles(skipped, { surface: 'canvas', toast: feedback.toast });
   }, [ownsWorkspace, isPaidPlan, canAttemptFiles, dispatchIngestOne, onRequestStorageUpgrade,
-      onRequestUpgrade, feedback, board?.id, mutators, markViewSettled]);
+      onRequestUpgrade, feedback, board?.id, mutators, markViewSettled, canEdit]);
   ingestFilesRef.current = ingestFiles;
   // Quick look's "Put both on board" (an email's attachments, FileStages.jsx)
   // lands its files here as a drop does, in the middle of the view; offered
@@ -5102,7 +5105,8 @@ export function CanvasSurface({
   // Not through Capture Mode's guarded mutators either: they refuse every
   // add, quietly, and the files would be claimed into nothing. The claim
   // waits for the reframe to end.
-  const heldReady = Boolean(boardReady && mutators?.addCard && mutators?.preflightImport && !mutators?.captureGuarded);
+  // A view-only cluster leaves held drops held: ingestFiles would refuse them once claimed.
+  const heldReady = Boolean(boardReady && canEdit && mutators?.addCard && mutators?.preflightImport && !mutators?.captureGuarded);
   useEffect(() => {
     const boardId = board?.id;
     if (!boardId || useLocalImages || !heldReady) return undefined;
@@ -5269,7 +5273,7 @@ export function CanvasSurface({
       if (target && target.h < 150) patch.h = 150;
       mutators.updateCard?.(cardId, patch);
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'cover_upload_failed', message: 'Cover upload failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'cover_upload_failed', message: uploadFailedWords(err, "Couldn't upload the cover. Try again.") });
     }
   }, [workspaceId, board?.id, userId, mutators, cards, feedback]);
 
@@ -5296,7 +5300,7 @@ export function CanvasSurface({
     try {
       await downloadCardAsset(card, kind, { surface: isPublic ? 'public_canvas' : 'canvas' });
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'file_download_failed', message: 'Download failed: ' + (err?.message || err) });
+      feedback.toast({ type: 'error', code: 'file_download_failed', message: downloadFailedWords(err) });
     } finally {
       if (--busy.n === 0) {
         clearTimeout(busy.timer);
@@ -6259,6 +6263,13 @@ export function CanvasSurface({
       }
 
       if (isEditorTarget(e)) return;
+      // View-only cluster: nothing pasted lands here. Say so, as a drop does,
+      // instead of letting a pasted file reach the upload code and fail there.
+      if (!canEdit) {
+        e.preventDefault();
+        feedback?.toast?.({ type: 'info', message: 'This cluster is view-only — pasting is disabled.' });
+        return;
+      }
 
       // 1) A file in the OS clipboard wins outright, routed through the SAME
       // classifier drag-drop and the picker use (lib/fileIngest.js). This used
@@ -6311,7 +6322,7 @@ export function CanvasSurface({
           dispatchIngestOne({ file, route: c.route, kind: c.kind }, pos.x, pos.y)
             .catch((err) => {
               console.error(err);
-              feedback.toast({ type: 'error', code: 'file_upload_failed', message: 'Upload failed: ' + (err?.message || err) });
+              feedback.toast({ type: 'error', code: 'file_upload_failed', message: uploadFailedWords(err) });
             });
           return;
         }
@@ -6377,7 +6388,7 @@ export function CanvasSurface({
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
   }, [feedback, dispatchIngestOne, canAttemptFiles, doPaste, mutators,
-      ownsWorkspace, isPaidPlan, onRequestUpgrade, onRequestStorageUpgrade, hasSplit, paneId, markViewSettled, placeDropRect]);
+      ownsWorkspace, isPaidPlan, onRequestUpgrade, onRequestStorageUpgrade, hasSplit, paneId, markViewSettled, placeDropRect, canEdit]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   // A selected grid's box keys (arrows, Enter, Delete, Esc) — assigned each
@@ -8812,7 +8823,7 @@ export function CanvasSurface({
                 // brings its own or clears the old one (null drops the key).
                 mutators.updateCard?.(c.id, { src: payload.publicUrl, adjust: null, pending: false, fileName: payload.fileName || null });
               } catch (err) {
-                feedback.toast({ type: 'error', code: 'file_upload_failed', message: 'Upload failed: ' + (err.message || err) });
+                feedback.toast({ type: 'error', code: 'file_upload_failed', message: uploadFailedWords(err) });
               }
             };
             input.click();
@@ -11372,7 +11383,7 @@ export function CanvasSurface({
         const up = await uploadFile({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress, originalName: meaningfulFileName(f) });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'file', fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext });
       }
-    } catch (e) { feedback.toast({ type: 'error', code: 'cell_upload_failed', message: 'Upload failed: ' + (e.message || e) }); }
+    } catch (e) { feedback.toast({ type: 'error', code: 'cell_upload_failed', message: uploadFailedWords(e) }); }
     finally { setCellUploads((p) => { const n = { ...p }; delete n[key]; return n; }); }
   }, [mutators, workspaceId, board?.id, userId, feedback, guardCellFill, resolveCellWriteKey, canAttemptFiles]);
   // Decode a clipboard/drag payload INTO a cell: files/images → upload; a bare URL

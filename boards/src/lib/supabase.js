@@ -74,12 +74,28 @@ function makeNamespacedStorage(suffix) {
   };
 }
 
+// An expired sign-in token (sessionRepair.js): a data request refused for
+// it gets one shared refresh and is sent again. The module loads on the
+// first 401, so the entry carries only this stub.
+let repairing = null;
+async function supabaseFetch(input, init) {
+  const res = await fetch(input, init);
+  if (res.status !== 401) return res;
+  if (!repairing) {
+    repairing = import('./sessionRepair.js')
+      .then((m) => m.makeSessionRepair({ fetchNow: (...a) => fetch(...a), getAuth: () => supabase?.auth }))
+      .catch(() => { repairing = null; return null; });
+  }
+  const repair = await repairing;
+  return repair ? repair(res, input, init) : res;
+}
+
 export let supabase = (url && publicKey)
   ? createClient(url, publicKey, {
       // supabase-js keeps the fetch it is given; this one looks the global up
       // on each call, so lib/netWatch.js, installed after this module runs,
       // sees every query, RPC, auth call and upload.
-      global: { fetch: (...a) => fetch(...a) },
+      global: { fetch: supabaseFetch },
       auth: {
         persistSession: true,
         autoRefreshToken: true,

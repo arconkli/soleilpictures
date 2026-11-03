@@ -171,10 +171,11 @@ cluster opened, an upload started, an error shown. Never what was in them.
 - A request is recorded by its service and route, never its address, which can
   hold a private link's key or a cluster's name.
 - A page that crashes (it ran out of memory, say) can't say so itself, so the
-  app keeps a note in that tab's session storage of when the page opened and
-  whether it was on screen, and a page that closes normally takes it away. The
-  next page in the tab that finds one records that the page before it crashed,
-  and how long it had been open.
+  app keeps a note in that tab's session storage of when the page opened,
+  whether it was on screen and which cluster was open (by its id, never its
+  name), and a page that closes normally takes it away. The next page in the
+  tab that finds one records that the page before it crashed, how long it had
+  been open, and that cluster's id.
 
 Clusters' own servers record their failures the same way: which route,
 background job or live sync room failed (a room by its cluster's id, never its

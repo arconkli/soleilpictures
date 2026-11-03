@@ -7,7 +7,8 @@
 // Code-split (loaded only on a landing path) and dependency-light — it imports
 // just the brand mark and the shared registry, staying out of the editor chunk.
 
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { SEO_LANDING_PAGES, getLandingSpec } from '../lib/seoLanding.js';
 import { SEO_LISTICLE_INDEX } from '../lib/seoListicleIndex.js';
@@ -31,9 +32,9 @@ import './seoLanding.css';
 // /templates/<anything>, and adding a router const would be a public-surface
 // change requiring docs:accept for no behavioural gain. Both children are lazy
 // so the store's registries never land in the landing chunk.
-const TemplatesStorePage = lazy(() => import('./TemplatesStorePage.jsx').then((m) => ({ default: m.TemplatesStorePage })));
-const TemplateItemPage = lazy(() => import('./TemplateItemPage.jsx').then((m) => ({ default: m.TemplateItemPage })));
-const PublicTemplatePage = lazy(() => import('./PublicTemplatePage.jsx').then((m) => ({ default: m.PublicTemplatePage })));
+const TemplatesStorePage = lazyWithReload(() => import('./TemplatesStorePage.jsx').then((m) => ({ default: m.TemplatesStorePage })));
+const TemplateItemPage = lazyWithReload(() => import('./TemplateItemPage.jsx').then((m) => ({ default: m.TemplateItemPage })));
+const PublicTemplatePage = lazyWithReload(() => import('./PublicTemplatePage.jsx').then((m) => ({ default: m.PublicTemplatePage })));
 
 // path → short link label, for related-page spokes in the footer. Includes the
 // /best/* listicles via the light index (never the full listicle registry —

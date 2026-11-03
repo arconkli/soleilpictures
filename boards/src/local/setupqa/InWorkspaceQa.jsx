@@ -15,7 +15,8 @@
 //   &cards=N  &setup=A|B  &import=0 (no import guide here)  &wscards=N (joiner)
 //   &drawer=0          a phone starts with the drawer shut, as App does
 
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import { useBreakpoint } from '../../hooks/useBreakpoint.js';
 import { shellOf } from '../../lib/deviceShell.js';
 import { markJoined } from '../../lib/workspaceLink.js';
@@ -23,7 +24,7 @@ import { Icon } from '../../components/Icon.jsx';
 import { PanelLeftOpen } from '../../lib/icons.js';
 import { SidebarQaHarness } from '../SidebarQaHarness.jsx';
 
-const SetupInWorkspace = lazy(() => import('../../components/setup/SetupInWorkspace.jsx'));
+const SetupInWorkspace = lazyWithReload(() => import('../../components/setup/SetupInWorkspace.jsx'));
 
 const PHOTOS = Object.values(import.meta.glob('../qa-photos/*.jpg', { eager: true, query: '?url', import: 'default' }));
 

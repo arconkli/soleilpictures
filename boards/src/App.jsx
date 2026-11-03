@@ -80,11 +80,12 @@ import { getActiveExperiments, assignArm, drawArm } from './lib/experiments.js';
 // stays node-importable so it can't import analytics.js itself). Idempotent.
 setJourneySink({ logEvent, logEventNow });
 // A page that died on screen (out of memory, its renderer gone), noticed by the
-// load after it in the same tab (lib/pageLife.js).
+// load after it in the same tab (lib/pageLife.js), with the cluster it had open.
+let pageLife = null;
 if (typeof window !== 'undefined') {
   try {
-    startPageLife({ store: window.sessionStorage, doc: document, win: window,
-      report: (ms) => reportError(new Error('Page died on screen'), { kind: 'page_crash', severity: 'crash', context: { ms } }) });
+    pageLife = startPageLife({ store: window.sessionStorage, doc: document, win: window,
+      report: (ms, boardId) => reportError(new Error('Page died on screen'), { kind: 'page_crash', severity: 'crash', context: { ms, board_id: boardId } }) });
   } catch (_) { /* no session storage here: nothing to keep a note in */ }
 }
 import { applyThemeNow, resolveTheme, currentTheme } from './lib/theme.js';
@@ -110,7 +111,7 @@ import { SidebarBoardsSection } from './components/SidebarBoardsSection.jsx';
 import { SidebarSharedBoards } from './components/SidebarSharedBoards.jsx';
 import { SidebarTags } from './components/SidebarTags.jsx';
 // The Shared page (held: sharedFilesAllowed), loaded when it is opened.
-const SharedPage = React.lazy(() => import('./components/shared/SharedPage.jsx').then((m) => ({ default: m.SharedPage })));
+const SharedPage = lazyWithReload(() => import('./components/shared/SharedPage.jsx').then((m) => ({ default: m.SharedPage })));
 import { useWorkspaceTags } from './hooks/useWorkspaceTags.js';
 import { useAutotagWorker } from './hooks/useAutotagWorker.js';
 import { useAiTagger } from './hooks/useAiTagger.js';
@@ -613,12 +614,13 @@ export function App() {
     setActiveWorkspaceId(personalWorkspace?.id || null);
   }, [workspaceSessionKey, personalWorkspace?.id]);
 
-  if (wsError) return <FullScreenError error={wsError} signOut={signOut} />;
+  if (wsError) return <FullScreenError error={wsError} signOut={signOut} refused={signInAgain(wsError)} />;
   if (activeRootError) {
     return (
       <FullScreenError
         error={activeRootError}
         signOut={signOut}
+        refused={signInAgain(activeRootError)}
         actionLabel={personalWorkspace && activeWorkspace?.id !== personalWorkspace.id
           ? 'Back to your workspace' : null}
         onAction={recoverToPersonalWorkspace}
@@ -5781,6 +5783,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     mountedBoardRef.current = (yb.ready && currentSurface === 'board') ? yb.boardId : null;
   }, [yb.ready, yb.boardId, currentSurface]);
 
+  // The crash note names the cluster on screen, by id (lib/pageLife.js). The
+  // one still opening counts: a cluster heavy enough to take the page down
+  // usually does it while it opens. Leaving the cluster, or the workspace,
+  // takes its id off again.
+  const crashNoteBoardId = currentSurface === 'board' ? (currentId || currentBoard?.id || null) : null;
+  useEffect(() => { pageLife?.noteCluster(crashNoteBoardId); return () => pageLife?.noteCluster(null); }, [crashNoteBoardId]);
+
   // Navigate handlers exposed to every linking surface via
   // EntityNavigateProvider, and run by the ?to= resolver below, so a copied
   // link and a click take one path. A cluster opens with its breadcrumb, and
@@ -7444,58 +7453,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     finally { folderImportBusyRef.current = false; idle(); }
   }, [importFolderOnce, feedback, startBulkImportHere]);
 
-  // Held drops (lib/heldUploads.js): the release watcher, and the claimers App
-  // owns. Each CanvasSurface claims its own cluster's canvas drops and
-  // folders. App claims list-view drops for the cluster each pane shows, and
-  // the canvas drops and folders of a cluster shown in full Files, whose
-  // canvas is not mounted to claim them — those land in Files, off the board,
-  // as a list drop does.
-  useHeldUploads({ tier: myTier.tier, refetchTier: myTier.refetch, userId: user?.id });
-  useEffect(() => {
-    // Only while the panes are what is on screen: Home shows neither, and
-    // the bar then offers to open the cluster instead.
-    if (currentSurface !== 'board') return undefined;
-    const panes = [
-      [currentId, mainMutators, mainFilesMode === 'full'],
-      [splitId, splitMutators, splitView === 'list'],
-    ];
-    const take = () => {
-      for (const [bid, muts, filesOnly] of panes) {
-        if (!bid || !muts?.ingestFilesArranged) continue;
-        const files = [
-          ...claimReady({ boardId: bid, via: 'list' }),
-          ...(filesOnly ? claimReady({ boardId: bid, via: 'canvas' }) : []),
-        ].flatMap((e) => e.files);
-        if (files.length) muts.ingestFilesArranged(files);
-        const folders = filesOnly ? claimReady({ boardId: bid, via: 'folder' }) : [];
-        if (!folders.length) continue;
-        const paid = ['paid', 'admin'].includes((myTierRef.current || myTier).tier);
-        (async () => {
-          for (const e of folders) {
-            await importFolder({
-              walked: e.folder.walked, at: e.folder.at, boardId: bid, mutators: muts,
-              canAttemptFiles: paid, source: 'held', boardWasEmpty: false,
-            });
-          }
-        })();
-      }
-    };
-    // A claim changes the store, which calls this again: on the next
-    // microtask, not inside the claim, so one pass sees one consistent list.
-    let queued = false;
-    let live = true;
-    const later = () => {
-      if (queued) return;
-      queued = true;
-      queueMicrotask(() => { queued = false; if (live) take(); });
-    };
-    take();
-    const off = subscribeHeld(later);
-    return () => { live = false; off(); };
-    // myTier is read through its ref at claim time.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSurface, currentId, splitId, mainMutators, splitMutators, mainFilesMode, splitView, importFolder]);
-
   // Should this demo user be pitched at all? Shared by every always-on upsell
   // surface so the chip, the first-value banner and the list-toolbar chip agree
   // rather than each inventing its own threshold. The cap-hit modal is
@@ -8930,6 +8887,60 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     userId: user.id,
     tier: myTier.tier,
   });
+
+  // Held drops (lib/heldUploads.js): the release watcher, and the claimers App
+  // owns. Each CanvasSurface claims its own cluster's canvas drops and
+  // folders. App claims list-view drops for the cluster each pane shows, and
+  // the canvas drops and folders of a cluster shown in full Files, whose
+  // canvas is not mounted to claim them — those land in Files, off the board,
+  // as a list drop does. It sits after the permission hooks because a view-only
+  // cluster's holds stay held.
+  useHeldUploads({ tier: myTier.tier, refetchTier: myTier.refetch, userId: user?.id });
+  useEffect(() => {
+    // Only while the panes are what is on screen: Home shows neither, and
+    // the bar then offers to open the cluster instead.
+    if (currentSurface !== 'board') return undefined;
+    const panes = [
+      [currentId, mainMutators, mainFilesMode === 'full', canEditCurrent],
+      [splitId, splitMutators, splitView === 'list', splitBoardPerm.canEdit],
+    ];
+    const take = () => {
+      for (const [bid, muts, filesOnly, canEdit] of panes) {
+        // A view-only cluster leaves its holds held: its drops would be refused once claimed.
+        if (!bid || !canEdit || !muts?.ingestFilesArranged) continue;
+        const files = [
+          ...claimReady({ boardId: bid, via: 'list' }),
+          ...(filesOnly ? claimReady({ boardId: bid, via: 'canvas' }) : []),
+        ].flatMap((e) => e.files);
+        if (files.length) muts.ingestFilesArranged(files);
+        const folders = filesOnly ? claimReady({ boardId: bid, via: 'folder' }) : [];
+        if (!folders.length) continue;
+        const paid = ['paid', 'admin'].includes((myTierRef.current || myTier).tier);
+        (async () => {
+          for (const e of folders) {
+            await importFolder({
+              walked: e.folder.walked, at: e.folder.at, boardId: bid, mutators: muts,
+              canAttemptFiles: paid, source: 'held', boardWasEmpty: false,
+            });
+          }
+        })();
+      }
+    };
+    // A claim changes the store, which calls this again: on the next
+    // microtask, not inside the claim, so one pass sees one consistent list.
+    let queued = false;
+    let live = true;
+    const later = () => {
+      if (queued) return;
+      queued = true;
+      queueMicrotask(() => { queued = false; if (live) take(); });
+    };
+    take();
+    const off = subscribeHeld(later);
+    return () => { live = false; off(); };
+    // myTier is read through its ref at claim time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSurface, currentId, splitId, mainMutators, splitMutators, mainFilesMode, splitView, importFolder, canEditCurrent, splitBoardPerm.canEdit]);
 
   // ── Just-in-time power reveals ────────────────────────────────────────────
   // Upfront feature tours underperformed just-in-time discovery here, so power
@@ -12725,18 +12736,40 @@ function LoadingShell() {
   );
 }
 
-function FullScreenError({ error, signOut, actionLabel = null, onAction = null }) {
+// Migration 0854: ensure_workspace_root refuses a sign-in that doesn't count
+// as the person with 42501 and this hint; their clusters are invisible to it.
+function signInAgain(e) {
+  return e?.code === '42501' && e?.hint === 'sign_in_again';
+}
+
+// The screen when the workspace can't be read. A refusal (signInAgain: 42501
+// with the hint sign_in_again) means this sign-in doesn't count as the person
+// (since the 10-21 security review only an inbox session does): signing in
+// again with the emailed code opens everything, so it says that and offers
+// only that. Anything else offers a reload (or the caller's own way out) and
+// keeps the raw message for a report.
+function FullScreenError({ error, signOut, actionLabel = null, onAction = null, refused = false }) {
+  if (refused) {
+    return (
+      <div className="auth-screen">
+        <div className="auth-card">
+          <div className="auth-title">Sign in again to open your clusters</div>
+          <div className="auth-sub" style={{ marginBottom: 14 }}>This sign-in can't open your account. Sign in with the code we email you and everything will be there.</div>
+          <button className="auth-btn" onClick={signOut}>Sign in with your email code</button>
+        </div>
+      </div>
+    );
+  }
+  const own = Boolean(actionLabel && onAction);
   return (
     <div className="auth-screen">
       <div className="auth-card">
         <div className="auth-title">Something went wrong</div>
-        <div className="auth-sub" style={{ marginBottom: 14 }}>workspace setup</div>
+        <div className="auth-sub" style={{ marginBottom: 14 }}>Your clusters couldn't be opened just now. Nothing is lost.</div>
         <pre style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)', whiteSpace: 'pre-wrap', marginBottom: 14 }}>
-          {String(error.message || error)}
+          {String(error?.message || error)}
         </pre>
-        {actionLabel && onAction && (
-          <button className="auth-btn" onClick={onAction} style={{ marginBottom: 8 }}>{actionLabel}</button>
-        )}
+        <button className="auth-btn" onClick={own ? onAction : () => window.location.reload()} style={{ marginBottom: 8 }}>{own ? actionLabel : 'Try again'}</button>
         <button className="auth-btn" onClick={signOut}>Sign out</button>
       </div>
     </div>

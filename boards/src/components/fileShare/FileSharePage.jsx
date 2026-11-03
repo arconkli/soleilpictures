@@ -34,7 +34,8 @@
 // Close instead of the brand, Esc closes, and the host adds its own actions
 // (Save a copy, Add shortcut). A signed-in open marks the file opened (0424),
 // which also puts a link you opened on your "Shared with me" list.
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import { createPortal } from 'react-dom';
 import {
   fetchFileShare, listFileComments, addFileComment, resolveFileComment, deleteFileComment, restoreFileComment,
@@ -56,11 +57,11 @@ import { FileComments, Avatar } from './FileComments.jsx';
 import { FILE_SHARE_CHANGED_EVENT } from '../../lib/fileShareBus.js';
 import './fileShare.css';
 
-const FilmPlayer = lazy(() => import('../film/FilmPlayer.jsx').then((m) => ({ default: m.FilmPlayer })));
-const PdfViewer = lazy(() => import('../PdfViewer.jsx').then((m) => ({ default: m.PdfViewer })));
-const ImageZoomStage = lazy(() => import('../ImageLightbox.jsx').then((m) => ({ default: m.ImageZoomStage })));
-const FileShareDialog = lazy(() => import('./FileShareDialog.jsx').then((m) => ({ default: m.FileShareDialog })));
-const DocShareView = lazy(() => import('./DocShareView.jsx').then((m) => ({ default: m.DocShareView })));
+const FilmPlayer = lazyWithReload(() => import('../film/FilmPlayer.jsx').then((m) => ({ default: m.FilmPlayer })));
+const PdfViewer = lazyWithReload(() => import('../PdfViewer.jsx').then((m) => ({ default: m.PdfViewer })));
+const ImageZoomStage = lazyWithReload(() => import('../ImageLightbox.jsx').then((m) => ({ default: m.ImageZoomStage })));
+const FileShareDialog = lazyWithReload(() => import('./FileShareDialog.jsx').then((m) => ({ default: m.FileShareDialog })));
+const DocShareView = lazyWithReload(() => import('./DocShareView.jsx').then((m) => ({ default: m.DocShareView })));
 
 const REFRESH_MS = 5 * 60 * 1000;
 // A mounted viewer's urls older than this are swapped for fresh ones.

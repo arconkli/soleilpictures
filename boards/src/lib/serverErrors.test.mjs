@@ -310,9 +310,10 @@ test('the live sync server records every 5xx it answers, and each place its room
   const door = index.slice(index.indexOf('export default {'));
   assert.match(door, /bindReports\(env\);\s*doorOpened\(\);/);
   assert.match(door, /res = await answer\(request, env\);/);
-  assert.match(door, /await reportParty\(\{ kind: "route", error: e, request, status: 500, phase: "tail" \}, ctx\);\s*throw e;/);
+  assert.match(door, /await reportParty\(\{ kind: "route", error: e, request, status: 500, phase: "tail", boardId: boardOf\(request\) \}, ctx\);\s*throw e;/);
+  assert.ok(index.includes('/^\\/parties\\/main\\/([^/]+)(?:\\/|$)/') && index.includes('UUID.test(m[1])'), 'boardOf reads only the Main party');
   assert.match(door, /\} finally \{[^}]*doorClosed\(ctx\);\s*\}/);
-  assert.match(door, /if \(res\.status >= 500\) void reportParty\(\{ kind: "route", request, status: res\.status, \.\.\.answerOf\(request\) \}, ctx\);/);
+  assert.match(door, /if \(res\.status >= 500\) void reportParty\(\{ kind: "route", request, status: res\.status, \.\.\.answerOf\(request\), boardId: boardOf\(request\) \}, ctx\);/);
   assert.match(index, /console\.error\("\[party\] routing failed", e\);\s*answeredWith\(request, e\);\s*return new Response\("Party unavailable", \{ status: 503 \}\);/);
 
   // Every room that reports binds its env first.

@@ -94,7 +94,7 @@ test('a signed-out Team start opens the setup after sign-in, only while Team is 
 
 test('PricingPageView lazy-imports the card and renders it only when teamCard is set', () => {
   const view = read('auth/PricingPageView.jsx');
-  assert.ok(view.includes("lazy(() => import('../components/team/TeamPlanCard.jsx'))"));
+  assert.ok(view.includes("lazyWithReload(() => import('../components/team/TeamPlanCard.jsx'))"));
   assert.doesNotMatch(view, /^import[^\n]*components\/team\/TeamPlanCard/m);
   assert.match(view, /\{teamCard && \(\s*<Suspense fallback=\{null\}>\s*<TeamPlanCard/);
   assert.ok(view.includes("teamCard = null,"));
