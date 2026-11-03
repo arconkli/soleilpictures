@@ -9,11 +9,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EXPERIMENTS } from './experiments.js';
-import { SETUP_EPOCH } from './setupRule.js';
 import { BOARD_MORE_EPOCH } from './boardMoreEpoch.js';
 import {
   TESTS, EARLIER_TESTS, TEST_GROUPS, isTestOn, testByKey,
-  SHARE_ASK_RELEASE, EMAIL_HOLDOUT_START,
+  SHARE_ASK_RELEASE, EMAIL_HOLDOUT_START, SIGNUP_BOX_PAGE_GROUPS, SHARE_ASK_MISSES,
 } from './testsCatalog.js';
 
 const ROLES = new Set(['decides', 'aims at', 'also read', 'guardrail', 'counted']);
@@ -59,12 +58,60 @@ test('a running coin flip really splits, and an earlier test that still runs has
   }
 });
 
-test('start dates are the code’s own', () => {
-  assert.equal(testByKey('workspace_setup').startIso, SETUP_EPOCH);
+test('start dates are the code’s own, or the read’s for a test that starts with a release', () => {
   assert.equal(testByKey('first_board_more').startIso, BOARD_MORE_EPOCH);
   assert.equal(testByKey('signup_box').startIso, EXPERIMENTS.signup_box.startsAt);
   assert.equal(testByKey('share_ask').startIso, SHARE_ASK_RELEASE);
   assert.equal(testByKey('email_holdout').startIso, EMAIL_HOLDOUT_START);
+  // The trial from card one starts with the release that carries it: only the
+  // read can know when that was, so the code types no instant for it.
+  const trial = testByKey('trial_early');
+  assert.equal(trial.startKey, 'on_from');
+  assert.equal(trial.startIso, undefined);
+  for (const t of TESTS.filter((x) => x.startKey)) assert.ok(!t.startIso, `${t.key}: a start from the read and one from the code`);
+});
+
+test('the ended tests moved to Earlier tests', () => {
+  for (const key of ['workspace_setup', 'whats_new']) {
+    assert.equal(testByKey(key), null, `${key} is still on the page as a test`);
+    const e = EARLIER_TESTS.find((x) => x.key === key);
+    assert.ok(e && e.name && e.when && e.out, `${key} has its line under Earlier tests`);
+  }
+  assert.equal(EXPERIMENTS.workspace_setup.enabled, false);
+  assert.equal(testByKey('trial_early').group, 'running');
+  assert.equal(testByKey('trial_early').offNote, undefined);
+});
+
+test('each running test is read on one deciding line', () => {
+  for (const t of TESTS) {
+    assert.equal(t.measures.filter((m) => m.role === 'decides' || m.role === 'aims at').length, 1, `${t.key}: one line decides`);
+  }
+  assert.equal(testByKey('email_holdout').measures[0].id, 'open_72h');
+  assert.equal(testByKey('first_board_more').measures[0].id, 'ten_after_1d');
+  const box = testByKey('signup_box').measures[0];
+  assert.equal(box.from, 'strata');
+  const reach = testByKey('share_ask').measures[0];
+  assert.equal(reach.id, 'reach_load');
+  // The registered target is a number the view reads, never words on the page.
+  assert.equal(typeof reach.target, 'number');
+});
+
+test('the sign-up box’s strata are frozen as they were on Nov 3', () => {
+  assert.ok(Object.isFrozen(SIGNUP_BOX_PAGE_GROUPS));
+  assert.deepEqual(SIGNUP_BOX_PAGE_GROUPS.map((g) => g.id), ['kept_close', 'held', 'full']);
+  // Copied from landingStage.js's KEPT_CLOSE and STAGE_HELD, not imported: the
+  // landing stage may move on, the read's strata may not (0855 holds the same
+  // lists).
+  const kept = SIGNUP_BOX_PAGE_GROUPS[0].paths, held = SIGNUP_BOX_PAGE_GROUPS[1].paths;
+  assert.deepEqual([...kept], ['/vs/pureref', '/tools/reference-board-maker', '/tools/shot-list-maker', '/tools/mood-board-maker']);
+  assert.deepEqual([...held], ['/best/pureref-alternatives']);
+  assert.equal(SIGNUP_BOX_PAGE_GROUPS[2].paths, null);
+});
+
+test('every share-ask miss has plain words', () => {
+  for (const r of ['tour', 'board_stamp', 'weekly_stamp', 'not_editor', 'already_shared', 'slot_busy', 'not_in_view']) {
+    assert.ok(SHARE_ASK_MISSES[r], `${r} has no words`);
+  }
 });
 
 test('a switched-on test has a start, its reads in order, and is read on something', () => {
@@ -81,11 +128,11 @@ test('a switched-on test has a start, its reads in order, and is read on somethi
       assert.ok(m.label, `${t.key}.${m.id}: label`);
     }
     if (t.offNote || t.kind === 'rotation') continue;
-    assert.ok(t.startIso && !Number.isNaN(Date.parse(t.startIso)), `${t.key}: startIso`);
+    assert.ok(t.startKey || (t.startIso && !Number.isNaN(Date.parse(t.startIso))), `${t.key}: startIso or startKey`);
     const days = t.reads.map((r) => r.iso);
     assert.deepEqual([...days].sort(), days, `${t.key}: reads in date order`);
     assert.ok(days.length > 0 && days.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)), `${t.key}: read dates`);
-    assert.ok(days[0] > t.startIso.slice(0, 10), `${t.key}: first read after the start`);
+    if (t.startIso) assert.ok(days[0] > t.startIso.slice(0, 10), `${t.key}: first read after the start`);
     assert.equal(t.verdictIso, days[days.length - 1], `${t.key}: the verdict is the last read`);
     assert.ok(t.measures.some((m) => m.role === 'decides' || m.role === 'aims at'), `${t.key}: nothing decides it`);
   }

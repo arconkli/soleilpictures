@@ -10,7 +10,15 @@
 // Pure and node-testable (setupRule.test.mjs): no React, no Supabase, no
 // import.meta.env.
 
-import { assignArm } from './experiments.js';
+import { assignArm, EXPERIMENTS } from './experiments.js';
+
+// Whether the first-run setup test is still running. It ended 2026-11-03
+// (experiments.js workspace_setup.enabled:false): nobody new is enrolled, and
+// the 6-card invite re-ask stops for everyone, accounts already past the steps
+// included. The tips and the invitee copy do not ask this.
+export function workspaceSetupOn() {
+  return EXPERIMENTS.workspace_setup?.enabled === true;
+}
 
 // Accounts created before this never see the steps, wherever the gate is open.
 // A user who already has an `onboarding` record has been in the app either way.

@@ -6,7 +6,7 @@
 // sure the tests are actually running properly". Built to the picked mockup,
 // look A: one row per test, which opens into its full read.
 //
-// One read, admin_tests_read (0810), counts only. Which tests exist, what each
+// One read, admin_tests_read (0810, helpers re-aimed by 0855), counts only. Which tests exist, what each
 // side gets and when each is read come from lib/testsCatalog.js; every rate, gap,
 // verdict word and check sentence from lib/testsView.js, where they are tested.
 // The read leaves the team, service and banned accounts out of every test, so
@@ -24,7 +24,7 @@ import { Plate } from '../../viz/Well.jsx';
 import { Detail } from '../../viz/Detail.jsx';
 import { ActivationByExperiment } from '../widgets/ActivationByExperiment.jsx';
 import { getActiveExperiments } from '../../../../lib/experiments.js';
-import { MIN_N, f1, sgn, testsPage } from '../../../../lib/testsView.js';
+import { MIN_N, MIN_EVENTS, f1, sgn, testsPage } from '../../../../lib/testsView.js';
 import '../../adminTests.css';
 
 const VERDICT_CLASS = { wait: 'v-wait', off: 'v-off', good: 'v-good', bad: 'v-bad', even: 'v-even' };
@@ -78,8 +78,8 @@ export function TestsView() {
           ))}
           <Earlier earlier={page.earlier} n={page.groups.length + 1} />
           <p className="adm-tests-foot">
-            Numbers update live; the verdict word waits for each test’s read date. Fewer than {MIN_N} on a side is
-            too few to read. The team, service and banned accounts are left out of every number.
+            Numbers update live; the verdict word waits for each test’s read date. Fewer than {MIN_N} on a side, or
+            fewer than {MIN_EVENTS} events on both, is too few to read. The team, service and banned accounts are left out of every number.
           </p>
         </div>
       )}
@@ -127,16 +127,48 @@ function Headline({ m }) {
       <div className="adm-tests-hl-n">
         <i className="adm-tests-sw a" aria-hidden="true" /><b>{f1(row.A.rate)}</b>
         <i className="adm-tests-sw b" aria-hidden="true" /><b>{f1(row.B.rate)}</b>
-        <GapPlot g={row.gap} w={120} span={40} tone={row.tone} />
-        {row.gap && !row.gap.few ? <code>{sgn(row.gap.d)}</code> : null}
+        {row.reach ? (
+          <>
+            <ReachPlot x={row.reach} w={120} tone={row.tone} />
+            <code>target {row.reach.target}</code>
+          </>
+        ) : (
+          <>
+            <GapPlot g={row.gap} w={120} span={40} tone={row.tone} />
+            {row.gap && !row.gap.few ? <code>{sgn(row.gap.d)}</code> : null}
+          </>
+        )}
       </div>
     </div>
+  );
+}
+
+// B's rate per 100 with its exact 95% range, on 0 to 100, against its target.
+function ReachPlot({ x, w = 200, tone = '' }) {
+  const at = (v) => 6 + (Math.max(0, Math.min(100, v)) / 100) * (w - 12);
+  return (
+    <svg
+      className={`adm-tests-plot ${tone}`}
+      width={w}
+      height="18"
+      viewBox={`0 0 ${w} 18`}
+      role="img"
+      aria-label={`Reach ${f1(x.rate)} per 100, exact range ${f1(x.lo)} to ${f1(x.hi)}, target ${x.target}`}
+    >
+      <line className="axis" x1={at(0)} x2={at(100)} y1="9" y2="9" />
+      <line className="target" x1={at(x.target)} x2={at(x.target)} y1="1" y2="17" />
+      <line className="ci" x1={at(x.lo)} x2={at(x.hi)} y1="9" y2="9" />
+      <line className="ci" x1={at(x.lo)} x2={at(x.lo)} y1="5" y2="13" />
+      <line className="ci" x1={at(x.hi)} x2={at(x.hi)} y1="5" y2="13" />
+      <circle className="pt" cx={at(x.rate)} cy="9" r="3.5" />
+    </svg>
   );
 }
 
 // B − A in points, on an axis of ±span, with its 95% range.
 function GapPlot({ g, w = 200, span = 40, tone = '' }) {
   if (!g) return <svg className="adm-tests-plot" width={w} height="18" aria-hidden="true" />;
+  if (g.few && g.events) return <span className="adm-tests-few">too few events · {g.most} at most on a side</span>;
   if (g.few) return <span className="adm-tests-few">too few to read · {g.min} on one side</span>;
   const x = (v) => w / 2 + (Math.max(-span, Math.min(span, v)) / span) * (w / 2 - 6);
   return (
@@ -256,12 +288,24 @@ function Measures({ m }) {
                   <>
                     <td className="adm-tests-num"><b>{f1(r.A.rate)}</b><small>{r.A.k} of {r.A.n}</small></td>
                     <td className="adm-tests-num"><b>{f1(r.B.rate)}</b><small>{r.B.k} of {r.B.n}</small></td>
-                    <td className="adm-tests-pl"><GapPlot g={r.gap} w={200} span={m.span} tone={r.tone} /></td>
-                    <td className="adm-tests-gp">
-                      {r.gap && !r.gap.few
-                        ? <><b className={r.tone}>{sgn(r.gap.d)} pts</b><small>{sgn(r.gap.lo)} to {sgn(r.gap.hi)}</small></>
-                        : <b>—</b>}
-                    </td>
+                    {r.reach ? (
+                      <>
+                        <td className="adm-tests-pl"><ReachPlot x={r.reach} w={200} tone={r.tone} /></td>
+                        <td className="adm-tests-gp">
+                          <b className={r.tone}>{f1(r.reach.rate)} vs {r.reach.target}</b>
+                          <small>{t.bName}, exact {f1(r.reach.lo)} to {f1(r.reach.hi)}</small>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="adm-tests-pl"><GapPlot g={r.gap} w={200} span={m.span} tone={r.tone} /></td>
+                        <td className="adm-tests-gp">
+                          {r.gap && !r.gap.few
+                            ? <><b className={r.tone}>{sgn(r.gap.d)} pts</b><small>{sgn(r.gap.lo)} to {sgn(r.gap.hi)}</small></>
+                            : <b>—</b>}
+                        </td>
+                      </>
+                    )}
                   </>
                 )}
               </tr>
@@ -270,7 +314,46 @@ function Measures({ m }) {
         </table>
       </div>
       {t.gapNote ? <p className="adm-tests-note">The gap is {t.gapNote}.</p> : null}
+      {m.rows.some((r) => r.reach) ? (
+        <p className="adm-tests-note">The reach is read on {t.bName.toLowerCase()} alone, against the target it was registered with, by its exact range.</p>
+      ) : null}
+      {m.strata?.length ? <Strata m={m} /> : null}
+      {m.misses ? <Misses misses={m.misses} /> : null}
     </>
+  );
+}
+
+// The like-for-like line's strata: each kind of page and device, both sides.
+function Strata({ m }) {
+  const { t } = m;
+  return (
+    <div className="adm-tests-sub">
+      <h5>Like for like, by page and device</h5>
+      <ul className="adm-tests-strata">
+        {m.strata.map((s) => (
+          <li key={s.key}>
+            <span>{s.label}</span>
+            <span><i className="adm-tests-sw a" aria-hidden="true" /><b>{f1(s.A.rate)}</b><small>{s.A.k} of {s.A.n}</small></span>
+            <span><i className="adm-tests-sw b" aria-hidden="true" /><b>{f1(s.B.rate)}</b><small>{s.B.k} of {s.B.n}</small></span>
+          </li>
+        ))}
+      </ul>
+      <p className="adm-tests-note">Each line weighs by how many it holds on both sides; {t.aName.toLowerCase()} and {t.bName.toLowerCase()} are compared within it.</p>
+    </div>
+  );
+}
+
+// The share ask's misses: why the rest weren't asked, most first.
+function Misses({ misses }) {
+  return (
+    <div className="adm-tests-sub">
+      <h5>Why the rest weren’t asked</h5>
+      {misses.length ? (
+        <ul className="adm-tests-misses">
+          {misses.map((x) => <li key={x.reason}><span>{x.text}</span><b>{x.n}</b></li>)}
+        </ul>
+      ) : <p className="adm-tests-muted">No one missed so far.</p>}
+    </div>
   );
 }
 

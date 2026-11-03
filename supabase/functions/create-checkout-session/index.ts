@@ -351,7 +351,12 @@ Deno.serve(reported("create-checkout-session", async (req) => {
         ...(earlyArm ? { exp_trial_early: earlyArm } : {}),
       },
       subscription_data: {
-        metadata: { supabase_user_id: userId, plan, ...(trial ? { trial: "1" } : {}) },
+        metadata: {
+          supabase_user_id: userId, plan,
+          ...(trial ? { trial: "1" } : {}),
+          // Same arm as the session metadata above, so the subscription's own events carry it.
+          ...(earlyArm ? { exp_trial_early: earlyArm } : {}),
+        },
         ...(trial
           ? {
               trial_period_days: CREATOR_TRIAL_DAYS,

@@ -1,5 +1,8 @@
-// testsView.js — turns admin_tests_read (0810) into what Analytics › Tests says:
-// each side's rate per 100, the gap with its 95% range, the verdict word, and
+// testsView.js — turns admin_tests_read (0810; helpers re-aimed by 0855) into
+// what Analytics › Tests says: each side's rate per 100, the gap with its 95%
+// range (Newcombe's hybrid score interval; like for like by Mantel-Haenszel
+// where a test is read over strata; a reach against its target by the exact
+// binomial range), the verdict word, and
 // whether the test is really running (people put in, an even split, its events
 // still arriving, nobody in both groups, nobody in a test that's off).
 //
@@ -29,9 +32,19 @@
 //              counts everyone in its population; next is when the first one
 //              not yet counted will be.
 //   start:     ISO           when the read knows the start better than the code
+//   on_from / fix_from: ISO  a start that only the read can know: the first
+//                            sighting of the release that carries it (0855)
+//   strata:    [{ page, phone, A: {n, k}, B: {n, k} }]   the sign-up box's
+//                            like-for-like strata (page group × phone)
+//   misses:    [{ reason, n }]  the share ask: why the rest weren't asked
+//   signals.click: { views, clicks }   first_board_more: the ask clicked through
+//   signals.reach: { views, early }    trial_early: B's offers under 13 cards,
+//                            and how many offered the early trial
+//   signals.leak / signals.lost_to_ask: n   counts, not { last, due }
+//   weeks:     n             the email hold-back's configured length
 //   error:     text          that test's read failed
 
-import { TESTS, TEST_GROUPS, EARLIER_TESTS, isTestOn } from './testsCatalog.js';
+import { TESTS, TEST_GROUPS, EARLIER_TESTS, SIGNUP_BOX_PAGE_GROUPS, isTestOn } from './testsCatalog.js';
 
 export const MIN_N = 30;
 const Z95 = 1.96;
@@ -91,23 +104,146 @@ export function rateOf(side) {
   return n ? (100 * num(side?.k)) / n : null;
 }
 
-// B − A in points per 100, with a 95% (Wald) range. Fewer than MIN_N on a side
-// is too few to read.
+// Fewer than this many events on both sides is too few to read, however many
+// people there are: a rate of 0 to 4 in a few hundred has no shape yet.
+export const MIN_EVENTS = 5;
+
+// Wilson's score interval for k of n (95%), as proportions.
+export function wilson(k, n, z = Z95) {
+  if (!(n > 0)) return null;
+  const p = k / n, z2 = z * z;
+  const den = 1 + z2 / n;
+  const mid = (p + z2 / (2 * n)) / den;
+  const half = (z * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n))) / den;
+  return { lo: Math.max(0, mid - half), hi: Math.min(1, mid + half) };
+}
+
+// Too few on a side (MIN_N), or too few events on both (MIN_EVENTS): the
+// shapes the plot and the verdict read as "not yet".
+function tooFew(na, nb, ka, kb) {
+  if (na < MIN_N || nb < MIN_N) return { few: true, min: Math.min(na, nb) };
+  if (ka < MIN_EVENTS && kb < MIN_EVENTS) return { few: true, events: true, most: Math.max(ka, kb) };
+  return null;
+}
+
+// B − A in points per 100, with a 95% range by Newcombe's hybrid score method
+// (Newcombe 1998, method 10): a Wilson interval on each side, combined. It
+// keeps its coverage near the edges (rates near 0 or 100, small sides), where
+// the Wald range is too narrow. Fewer than MIN_N on a side, or fewer than
+// MIN_EVENTS events on both, is too few to read.
 export function gapOf(m) {
   if (!m || !m.A || !m.B) return null;
-  const na = num(m.A.n), nb = num(m.B.n);
-  if (na < MIN_N || nb < MIN_N) return { few: true, min: Math.min(na, nb) };
-  const pa = num(m.A.k) / na, pb = num(m.B.k) / nb;
-  const d = (pb - pa) * 100;
-  const se = Math.sqrt((pa * (1 - pa)) / na + (pb * (1 - pb)) / nb) * 100;
-  return { d, lo: d - Z95 * se, hi: d + Z95 * se };
+  const na = num(m.A.n), nb = num(m.B.n), ka = num(m.A.k), kb = num(m.B.k);
+  const few = tooFew(na, nb, ka, kb);
+  if (few) return few;
+  const pa = ka / na, pb = kb / nb;
+  const wa = wilson(ka, na), wb = wilson(kb, nb);
+  const d = pb - pa;
+  const lo = d - Math.sqrt((pb - wb.lo) ** 2 + (wa.hi - pa) ** 2);
+  const hi = d + Math.sqrt((wb.hi - pb) ** 2 + (pa - wa.lo) ** 2);
+  return { d: d * 100, lo: lo * 100, hi: hi * 100 };
+}
+
+// Like for like: B − A over strata, the Mantel-Haenszel risk difference with
+// Sato's (1989) variance, in points with a 95% range. Each stratum weighs
+// nA·nB/N; a stratum missing either side carries no weight and is skipped.
+// The too-few rules read the totals.
+export function mhGapOf(strata) {
+  if (!Array.isArray(strata) || !strata.length) return null;
+  let na = 0, nb = 0, ka = 0, kb = 0, top = 0, w = 0, P = 0, Q = 0;
+  for (const s of strata) {
+    const n0 = num(s?.A?.n), b = num(s?.A?.k), n1 = num(s?.B?.n), a = num(s?.B?.k);
+    na += n0; nb += n1; ka += b; kb += a;
+    if (!(n0 > 0 && n1 > 0)) continue;
+    const N = n0 + n1;
+    top += (a * n0 - b * n1) / N;
+    w += (n1 * n0) / N;
+    P += (n1 * n1 * b - n0 * n0 * a + (n1 * n0 * (n0 - n1)) / 2) / (N * N);
+    Q += (a * (n0 - b) + b * (n1 - a)) / (2 * N);
+  }
+  const few = tooFew(na, nb, ka, kb);
+  if (few) return few;
+  if (!(w > 0)) return null;
+  const d = top / w;
+  const se = Math.sqrt(Math.max(0, (d * P + Q) / (w * w)));
+  return { d: d * 100, lo: (d - Z95 * se) * 100, hi: (d + Z95 * se) * 100 };
+}
+
+// The read returns each device's first page path as seen; the written rule
+// weighs SIGNUP_BOX_PAGE_GROUPS x phone/desktop. Pool the entries into those
+// groups (a page already named as a group keeps it; an unlisted path is the
+// full stage), summing each side's counts per group and device.
+export function signupStrataOf(strata) {
+  if (!Array.isArray(strata)) return strata;
+  const full = SIGNUP_BOX_PAGE_GROUPS.find((g) => g.paths == null)?.id;
+  const groupOf = (page) => (SIGNUP_BOX_PAGE_GROUPS.some((g) => g.id === page)
+    ? page
+    : SIGNUP_BOX_PAGE_GROUPS.find((g) => g.paths && g.paths.includes(page))?.id ?? full);
+  const pooled = new Map();
+  for (const s of strata) {
+    const page = groupOf(s?.page), phone = s?.phone === true;
+    const key = `${page}:${phone}`;
+    const to = pooled.get(key) || { page, phone, A: { n: 0, k: 0 }, B: { n: 0, k: 0 } };
+    for (const side of ['A', 'B']) { to[side].n += num(s?.[side]?.n); to[side].k += num(s?.[side]?.k); }
+    pooled.set(key, to);
+  }
+  return [...pooled.values()];
+}
+
+// The strata summed, for the counts beside a like-for-like line.
+export function pooledOf(strata) {
+  if (!Array.isArray(strata) || !strata.length) return null;
+  const add = (side) => strata.reduce((acc, s) => ({ n: acc.n + num(s?.[side]?.n), k: acc.k + num(s?.[side]?.k) }), { n: 0, k: 0 });
+  return { A: add('A'), B: add('B') };
+}
+
+// Exact (Clopper-Pearson) 95% range for k of n, as proportions: the p at which
+// k or more (for the low end), or k or fewer (for the high end), would happen
+// one time in 40.
+function binomTail(k, n, p, upper) {
+  // upper: P(X ≥ k); else P(X ≤ k).
+  if (p <= 0) return upper ? (k <= 0 ? 1 : 0) : 1;
+  if (p >= 1) return upper ? 1 : (k >= n ? 1 : 0);
+  const lc = lnGamma(n + 1), lp = Math.log(p), lq = Math.log(1 - p);
+  let sum = 0;
+  const [from, to] = upper ? [k, n] : [0, k];
+  for (let i = from; i <= to; i++) sum += Math.exp(lc - lnGamma(i + 1) - lnGamma(n - i + 1) + i * lp + (n - i) * lq);
+  return Math.min(1, sum);
+}
+export function exactRange(k, n, alpha = 0.05) {
+  if (!(n > 0)) return null;
+  // f rises with p; the p where it reaches `at`, by halving.
+  const solve = (f, at) => {
+    let lo = 0, hi = 1;
+    for (let i = 0; i < 60; i++) {
+      const mid = (lo + hi) / 2;
+      if (f(mid) < at) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  };
+  // Low end: P(X ≥ k) = alpha/2. High end: P(X ≤ k) = alpha/2.
+  const low = k <= 0 ? 0 : solve((p) => binomTail(k, n, p, true), alpha / 2);
+  const high = k >= n ? 1 : solve((p) => 1 - binomTail(k, n, p, false), 1 - alpha / 2);
+  return { lo: low, hi: high };
+}
+
+// A reach read on B alone against the target it was registered with (a rate
+// per 100): reaching it once the exact range's low end clears the target, short
+// of it once its high end is below, else too early to say.
+export function reachOf(side, target) {
+  const n = num(side?.n), k = num(side?.k);
+  if (!n || !Number.isFinite(target)) return null;
+  const r = exactRange(k, n);
+  const lo = r.lo * 100, hi = r.hi * 100;
+  const state = lo > target ? 'reaching' : hi < target ? 'short' : 'open';
+  return { rate: (100 * k) / n, lo, hi, target, state };
 }
 
 // The plot's axis: ±40 points unless a range reaches further, then the next 10.
 export function spanOf(gaps) {
   let s = 40;
   for (const g of gaps) {
-    if (g && !g.few) s = Math.max(s, Math.ceil(Math.max(Math.abs(g.lo), Math.abs(g.hi)) / 10) * 10);
+    if (g && !g.few && Number.isFinite(g.lo)) s = Math.max(s, Math.ceil(Math.max(Math.abs(g.lo), Math.abs(g.hi)) / 10) * 10);
   }
   return s;
 }
@@ -120,23 +256,37 @@ export function headlineMeasure(t) {
 const toneFor = (t, side) => (side === (t.goodSide || 'B') ? 'good' : 'bad');
 
 // The colour of a measure's range: only once the verdict date has come, and only
-// for what the test is read on.
-export function measureTone(t, m, g, nowIso) {
-  if (!g || g.few || !t.verdictIso || !hasCome(t.verdictIso, nowIso)) return '';
+// for what the test is read on. A reach against its target colours by the reach.
+export function measureTone(t, m, g, nowIso, reach = null) {
+  if (!t.verdictIso || !hasCome(t.verdictIso, nowIso)) return '';
   if (m.role !== 'decides' && m.role !== 'aims at') return '';
+  if (reach) return reach.state === 'reaching' ? 'good' : reach.state === 'short' ? 'bad' : '';
+  if (!g || g.few) return '';
   if (g.lo > 0) return toneFor(t, 'B');
   if (g.hi < 0) return toneFor(t, 'A');
   return '';
 }
 
-const startOf = (t, r) => r?.start || t.startIso || null;
-const notYetStarted = (t, nowIso) => t.registry && t.startIso && ms(nowIso) < ms(t.startIso);
+// A start the read knows (startKey: the release that carries the test) comes
+// first; then the read's live start; then the code's.
+const startOf = (t, r) => (t.startKey ? r?.[t.startKey] : null) || r?.start || t.startIso || null;
+// Not started: before a registry test's start instant, or, for a test that
+// starts with a release, while the read hasn't seen that release yet.
+const notYetStarted = (t, r, nowIso) => {
+  if (t.startKey) return !!r && !r.error && !r[t.startKey];
+  return !!(t.registry && t.startIso && ms(nowIso) < ms(t.startIso));
+};
+const startsWords = (t) => (t.startKey ? 'Starts with its release' : `Starts ${fmtStart(t.startIso)}`);
 const noOne = (t) => (t.unit === 'device' ? 'No visitor in it yet' : 'No one in it yet');
 
-function pendingText(t, r, x, nowIso) {
+function pendingText(t, r, x, nowIso, m) {
+  if (m?.target != null && t.fixKey && r && !r.error && !r[t.fixKey]) return 'Starts with the first fixed build';
   if (t.kind === 'beforeafter' && !num(r?.in?.B)) return t.noneText || noOne(t);
   const inN = num(r?.in?.A) + num(r?.in?.B);
-  if (!x || !num(x.due)) return inN === 0 ? (t.noneText || noOne(t)) : (t.noneText || 'None due yet');
+  if (inN === 0 && (!x || !num(x.due))) return t.noneText || noOne(t);
+  // A measure the read doesn't carry yet (a read older than the catalog).
+  if (!x && r && !r.error && r.measures && m) return 'Not in the read yet';
+  if (!x || !num(x.due)) return t.noneText || 'None due yet';
   if (x.next) return `First ones finish ${fmtUntil(x.next, nowIso)}`;
   return 'Waiting for both sides';
 }
@@ -144,16 +294,26 @@ function pendingText(t, r, x, nowIso) {
 // One line per measure: both sides' rates and counts, the gap, or why not yet.
 export function measureRows(t, r, nowIso) {
   const rows = t.measures.map((m) => {
-    const x = r?.measures?.[m.id];
+    const strata = m.from === 'strata' ? signupStrataOf(r?.strata) : null;
+    const pooled = m.from === 'strata' ? pooledOf(strata) : null;
+    const x = m.from === 'strata' ? (pooled ? { ...pooled, due: pooled.A.n + pooled.B.n } : undefined) : r?.measures?.[m.id];
     const na = num(x?.A?.n), nb = num(x?.B?.n);
-    if (!x || na === 0 || nb === 0) return { m, pending: pendingText(t, r, x, nowIso) };
-    const g = gapOf(x);
+    // A reach against its target reads B alone, so it shows once B has anyone.
+    const waiting = m.target != null ? nb === 0 : (na === 0 || nb === 0);
+    if (!x || waiting) {
+      const inN = num(r?.in?.A) + num(r?.in?.B);
+      if (m.from === 'strata' && r && !r.error && !Array.isArray(r.strata) && inN > 0) return { m, pending: 'Not in the read yet' };
+      return { m, pending: pendingText(t, r, x, nowIso, m) };
+    }
+    const g = m.from === 'strata' ? mhGapOf(strata) : gapOf(x);
+    const reach = m.target != null ? reachOf(x.B, m.target) : null;
     return {
       m,
-      A: { n: na, k: num(x.A.k), rate: rateOf(x.A) },
+      A: { n: na, k: num(x.A?.k), rate: rateOf(x.A) },
       B: { n: nb, k: num(x.B.k), rate: rateOf(x.B) },
       gap: g,
-      tone: measureTone(t, m, g, nowIso),
+      reach,
+      tone: measureTone(t, m, g, nowIso, reach),
     };
   });
   return { rows, span: spanOf(rows.map((x) => x.gap)) };
@@ -161,12 +321,21 @@ export function measureRows(t, r, nowIso) {
 
 export function verdictOf(t, r, nowIso) {
   if (t.kind === 'rotation' && r?.idle) return { tone: 'wait', text: 'Waits for the next send' };
-  if (notYetStarted(t, nowIso)) return { tone: 'wait', text: `Starts ${fmtStart(t.startIso)}` };
+  if (notYetStarted(t, r, nowIso)) return { tone: 'wait', text: startsWords(t) };
   if (!isTestOn(t, nowIso)) return { tone: 'off', text: 'Off' };
   if (!t.verdictIso) return { tone: 'wait', text: 'No read date set' };
   if (!hasCome(t.verdictIso, nowIso)) return { tone: 'wait', text: `Too early · verdict ${fmtDay(t.verdictIso)}` };
   const m = headlineMeasure(t);
-  const g = m && gapOf(r?.measures?.[m.id]);
+  // A reach against its registered target: B alone, by its exact range.
+  if (m && m.target != null) {
+    const reach = reachOf(r?.measures?.[m.id]?.B, m.target);
+    if (!reach) return { tone: 'wait', text: 'Too few to say' };
+    if (reach.state === 'reaching') return { tone: 'good', text: 'Reaching it' };
+    if (reach.state === 'short') return { tone: 'bad', text: 'Short of it' };
+    return { tone: 'wait', text: 'Too early to say' };
+  }
+  const g = !m ? null : m.from === 'strata' ? mhGapOf(signupStrataOf(r?.strata)) : gapOf(r?.measures?.[m.id]);
+  if (g?.few && g.events) return { tone: 'wait', text: 'Too few events' };
   if (!g || g.few) return { tone: 'wait', text: 'Too few to say' };
   if (g.lo > 0) return { tone: toneFor(t, 'B'), text: `${t.bName} ahead, ${sgn(g.d)} pts` };
   if (g.hi < 0) return { tone: toneFor(t, 'A'), text: `${t.aName} ahead, ${sgn(-g.d)} pts` };
@@ -220,7 +389,14 @@ function putInCheck(t, r, nowIso) {
   const inN = num(r.in?.A) + num(r.in?.B);
   if (t.kind === 'holdout') {
     if (!inN) return { id: 'put_in', name, state: 'wait', text: `Since ${fmtDay(start)}, nobody has been due either email yet.` };
-    return { id: 'put_in', name, state: 'ok', text: `${inN} ${nounOf(t, inN)} due an email since ${fmtDay(start)}: ${num(r.in.A)} sent, ${num(r.in.B)} held back.` };
+    const weeks = num(r.weeks) ? ` Held back for ${num(r.weeks)} weeks.` : '';
+    return { id: 'put_in', name, state: 'ok', text: `${inN} ${nounOf(t, inN)} due an email since ${fmtDay(start)}: ${num(r.in.A)} sent, ${num(r.in.B)} held back.${weeks}` };
+  }
+  // A test that takes in accounts old and new from its release: no count of
+  // who could have been put in, only who was.
+  if (t.startKey) {
+    if (!inN) return { id: 'put_in', name, state: 'wait', text: `Live since ${fmtSince(start, nowIso)}. Nobody seen with a side yet.` };
+    return { id: 'put_in', name, state: 'ok', text: `${inN} ${nounOf(t, inN)} seen with a side since ${fmtDay(start)}.` };
   }
   const elig = Math.max(num(r.eligible), inN);
   if (!elig) {
@@ -267,6 +443,44 @@ function signalCheck(t, r, nowIso) {
     }
   }
   return null;
+}
+
+// A signal's click-through (first_board_more: the ask's views, and how many
+// were clicked): shown, never a look.
+function clickChecks(t, r) {
+  const out = [];
+  for (const s of t.signals || []) {
+    if (!s.click) continue;
+    const c = r.signals?.[s.click];
+    if (!c || typeof c !== 'object') continue;
+    const views = num(c.views), clicks = num(c.clicks);
+    const what = s.label.replace(/^The /, 'the ');
+    out.push(views
+      ? { id: 'click', name: 'Clicked through', state: 'ok', text: `${clicks} of ${views} views of ${what} were clicked through.` }
+      : { id: 'click', name: 'Clicked through', state: 'wait', text: `No view of ${what} yet.` });
+  }
+  return out;
+}
+
+// trial_early's own health: B's offers under 13 cards should carry the early
+// trial (reach), and A should never be offered it (leak).
+function reachCheck(t, r) {
+  const id = 'reach', name = 'Reaching B';
+  const x = r.signals?.[t.reachKey];
+  if (!x || typeof x !== 'object') return { id, name, state: 'wait', text: 'Not in the read yet.' };
+  const views = num(x.views), early = num(x.early);
+  if (!views) return { id, name, state: 'wait', text: 'No offer shown to B under 13 cards yet.' };
+  if (!early && views >= 3) return { id, name, state: 'look', text: `None of the ${views} offers shown to B under 13 cards offered the early trial.` };
+  return { id, name, state: 'ok', text: `${early} of the ${views} offers shown to B under 13 cards offered the early trial.` };
+}
+function leakCheck(t, r) {
+  const id = 'match', name = 'Groups match';
+  const raw = r.signals?.[t.leakKey];
+  if (raw == null) return { id, name, state: 'wait', text: 'Not in the read yet.' };
+  const n = num(raw);
+  return n > 0
+    ? { id, name, state: 'look', text: `${n} ${n === 1 ? 'offer' : 'offers'} to A carried the early trial: there must be none.` }
+    : { id, name, state: 'ok', text: 'No one in A was offered the early trial.' };
 }
 
 function eventsCheck(t, r, nowIso) {
@@ -332,7 +546,18 @@ function beforeAfterChecks(t, r, nowIso) {
     : last
       ? { id: 'events', name: 'Events arriving', state: 'ok', text: `Last ask at 10: ${fmtSince(last, nowIso)}.` }
       : { id: 'events', name: 'Events arriving', state: 'wait', text: 'No ask at 10 yet.' };
-  return [reach, events];
+  const out = [reach, events];
+  if (t.fixKey) {
+    const fix = r[t.fixKey];
+    out.push(fix
+      ? { id: 'fix', name: 'The fix', state: 'ok', text: `First fixed build seen ${fmtSince(fix, nowIso)}; the after side counts from it.` }
+      : { id: 'fix', name: 'The fix', state: 'wait', text: 'No fixed build seen yet: the after side starts with the first one.' });
+  }
+  if (t.lostKey && r.signals?.[t.lostKey] != null) {
+    const n = num(r.signals[t.lostKey]);
+    out.push({ id: 'lost', name: 'Gave way to it', state: 'ok', text: `${n} upgrade ${n === 1 ? 'offer' : 'offers'} gave the slot to the ask.` });
+  }
+  return out;
 }
 
 export function checksOf(t, r, nowIso) {
@@ -342,7 +567,10 @@ export function checksOf(t, r, nowIso) {
       ? [{ id: 'idle', name: 'Waiting', state: 'wait', text: 'Nothing to check until the next update email goes out.' }]
       : [{ id: 'sending', name: 'Sending', state: 'ok', text: r.last_run ? `Last sent ${fmtSince(r.last_run, nowIso)}.` : 'Sending now.' }];
   }
-  if (notYetStarted(t, nowIso)) return [{ id: 'start', name: 'Not started', state: 'wait', text: `Starts ${fmtStart(t.startIso)}.` }];
+  if (notYetStarted(t, r, nowIso)) {
+    const text = t.startKey ? 'Starts with the release that carries it: no build of it seen yet.' : `Starts ${fmtStart(t.startIso)}.`;
+    return [{ id: 'start', name: 'Not started', state: 'wait', text }];
+  }
   if (!isTestOn(t, nowIso)) {
     const n = num(r.stamped_off);
     return [n > 0
@@ -350,13 +578,19 @@ export function checksOf(t, r, nowIso) {
       : { id: 'off', name: 'Switched off', state: 'ok', text: 'Nobody has a side, as it should be while it’s off.' }];
   }
   if (t.kind === 'beforeafter') return beforeAfterChecks(t, r, nowIso);
-  return [putInCheck(t, r, nowIso), splitCheck(t, r), eventsCheck(t, r, nowIso), matchCheck(t, r)];
+  return [
+    putInCheck(t, r, nowIso),
+    splitCheck(t, r),
+    t.reachKey ? reachCheck(t, r) : eventsCheck(t, r, nowIso),
+    ...clickChecks(t, r),
+    t.leakKey ? leakCheck(t, r) : matchCheck(t, r),
+  ];
 }
 
 export function healthOf(t, r, nowIso, checks = checksOf(t, r, nowIso)) {
   if (checks.some((c) => c.state === 'look')) return { tone: 'look', text: 'Needs a look' };
   if (t.kind === 'rotation' && r?.idle) return { tone: 'wait', text: 'Nothing sent lately' };
-  if (notYetStarted(t, nowIso)) return { tone: 'wait', text: 'Not started' };
+  if (notYetStarted(t, r, nowIso)) return { tone: 'wait', text: 'Not started' };
   if (!isTestOn(t, nowIso)) return { tone: 'off', text: 'Off, as planned' };
   if (checks.some((c) => c.state === 'wait')) return { tone: 'wait', text: 'Waiting for people' };
   return { tone: 'ok', text: 'Running properly' };
@@ -376,6 +610,30 @@ export function splitNote(t, r) {
   const rest = Math.max(0, elig - inN);
   if (rest > 0 && t.neitherNote) return `${rest} more ${t.neitherNote}, so they’re on neither side`;
   return `For ${nounOf(t)} made from ${fmtStart(startOf(t, r))}`;
+}
+
+// The share ask's misses, most first, in words: why the rest weren't asked.
+export function missesOf(t, r) {
+  if (!t.missReasons || !Array.isArray(r?.misses)) return null;
+  return r.misses
+    .map((x) => ({ reason: x?.reason, n: num(x?.n), text: t.missReasons[x?.reason] || String(x?.reason || 'Unknown') }))
+    .filter((x) => x.n > 0)
+    .sort((a, b) => b.n - a.n);
+}
+
+// The like-for-like strata as lines: page group and device, each side's rate.
+// Page groups in SIGNUP_BOX_PAGE_GROUPS' order, phones after desktops.
+export function strataOf(t, r) {
+  if (!t.measures.some((m) => m.from === 'strata') || !Array.isArray(r?.strata)) return null;
+  const order = SIGNUP_BOX_PAGE_GROUPS.map((g) => g.id);
+  const rank = (s) => (order.indexOf(s?.page) < 0 ? order.length : order.indexOf(s?.page)) * 2 + (s?.phone ? 1 : 0);
+  const side = (x) => ({ n: num(x?.n), k: num(x?.k), rate: rateOf(x) });
+  return [...signupStrataOf(r.strata)].sort((a, b) => rank(a) - rank(b)).map((s) => ({
+    key: `${s?.page}:${s?.phone ? 'phone' : 'desk'}`,
+    label: `${SIGNUP_BOX_PAGE_GROUPS.find((g) => g.id === s?.page)?.label || String(s?.page ?? 'Other')} · ${s?.phone ? 'phone' : 'desktop'}`,
+    A: side(s?.A),
+    B: side(s?.B),
+  }));
 }
 
 // The line across the top of an open row: the start, each read, and today.
@@ -402,7 +660,7 @@ export function testModel(t, r, nowIso) {
   return {
     t,
     on,
-    off: !on && !(t.kind === 'rotation') ? (t.offNote || (notYetStarted(t, nowIso) ? `Starts ${fmtStart(t.startIso)}.` : 'Switched off.')) : null,
+    off: !on && !(t.kind === 'rotation') ? (t.offNote || (notYetStarted(t, r, nowIso) ? `${startsWords(t)}.` : 'Switched off.')) : null,
     idle: t.kind === 'rotation' && !!r?.idle,
     inA: num(r?.in?.A),
     inB: num(r?.in?.B),
@@ -415,6 +673,8 @@ export function testModel(t, r, nowIso) {
     headline: head ? rows.find((x) => x.m.id === head.id) : null,
     note: splitNote(t, r),
     timeline: timelineOf(t, r, nowIso),
+    misses: missesOf(t, r),
+    strata: strataOf(t, r),
   };
 }
 
@@ -424,7 +684,10 @@ export function testsPage(read, nowIso = read?.now || new Date().toISOString()) 
   const models = TESTS.map((t) => testModel(t, per[t.key] || null, nowIso));
   return {
     now: nowIso,
-    groups: TEST_GROUPS.filter((g) => g.id !== 'earlier').map((g) => ({ ...g, tests: models.filter((m) => m.t.group === g.id) })),
+    // A section with no test in it isn't drawn.
+    groups: TEST_GROUPS.filter((g) => g.id !== 'earlier')
+      .map((g) => ({ ...g, tests: models.filter((m) => m.t.group === g.id) }))
+      .filter((g) => g.tests.length > 0),
     earlier: { ...TEST_GROUPS.find((g) => g.id === 'earlier'), tests: EARLIER_TESTS },
     running: models.filter((m) => m.t.group === 'running' && m.on).length,
     looks: models.filter((m) => m.health.tone === 'look').length,

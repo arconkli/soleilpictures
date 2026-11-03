@@ -74,6 +74,30 @@ export function shouldAskToShare(opts) {
   return n >= floor;
 }
 
+// Why a crossing of the line showed no ask, for share_ask_skipped. First
+// match wins, in the order the product reads them: a stamp for this cluster,
+// the account's weekly stamp, a link already live, a viewer who cannot share,
+// then another surface holding the upsell slot. `slotFree` is read last by the
+// caller (claiming the slot is a side effect), so it is only consulted when
+// everything before it passed. Null when nothing explains it. Never changes
+// whether the ask shows; shouldAskToShare still decides that.
+export function shareAskSkipReason(opts) {
+  const {
+    canEdit = false,
+    alreadyShared = false,
+    boardStamped = false,
+    lastAskedAt = null,
+    now = Date.now(),
+    slotFree = true,
+  } = opts || {};
+  if (boardStamped) return 'board_stamp';
+  if (askedWithinGap(lastAskedAt, now)) return 'weekly_stamp';
+  if (alreadyShared) return 'already_shared';
+  if (!canEdit) return 'not_editor';
+  if (!slotFree) return 'slot_busy';
+  return null;
+}
+
 // `lastAskedAt` arrives straight from localStorage: a string, null, or junk.
 // Junk is ignored rather than obeyed, so a bad stamp costs one extra ask and
 // is then rewritten, instead of retiring the ask for the account for good.

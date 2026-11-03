@@ -126,6 +126,8 @@ test.describe('the ask to show the work', () => {
     expect(eff).not.toMatch(/fcDone|momDone/);
     expect(s.slice(at, at + 200)).toMatch(/justReached: true/);
     expect(s).toMatch(/SHARE_ASK_SHOWN, \{ board_id: boardId, cards, at: SHARE_ASK_MIN_CARDS \}/);
+    // Once the ask has shown, no share_ask_skipped row is logged for that cluster.
+    expect(s).toMatch(/EV\.SHARE_ASK_SHOWN[^\n]*\n\s*shareAskSkippedRef\.current\.add\(boardId\);/);
   });
 
   test('claims the shared slot, so it can never land on top of the wall', () => {

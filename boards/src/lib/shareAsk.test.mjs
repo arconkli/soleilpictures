@@ -6,7 +6,7 @@
 // Plain Node ESM, no test framework — exit code 0 on pass, non-zero on failure
 // (matches depthDock/upsellEligibility). The predicate is pure, so no backend.
 
-import { shouldAskToShare, SHARE_ASK_MIN_CARDS, SHARE_ASK_GAP_MS } from './shareAsk.js';
+import { shouldAskToShare, shareAskSkipReason, SHARE_ASK_MIN_CARDS, SHARE_ASK_GAP_MS } from './shareAsk.js';
 import { DEPTH_DOCK_MAX } from './depthDock.js';
 
 let failed = 0;
@@ -72,6 +72,22 @@ for (const bad of [null, undefined, {}, { canEdit: true }, { genuineCards: NaN, 
                    { genuineCards: 10, canEdit: true, justReached: true, min: NaN }]) {
   assert(shouldAskToShare(bad) === false, `junk input is silent: ${JSON.stringify(bad)}`);
 }
+
+// --- why a crossing showed nothing (share_ask_skipped) --------------------
+const why = (over) => shareAskSkipReason({ canEdit: true, now: NOW, ...over });
+assert(why({}) === null, 'nothing in the way, no reason');
+assert(why({ boardStamped: true }) === 'board_stamp', 'a board stamp is named');
+assert(why({ lastAskedAt: NOW - DAY }) === 'weekly_stamp', 'a recent ask is the weekly stamp');
+assert(why({ lastAskedAt: NOW - 30 * DAY }) === null, 'an old stamp is no reason');
+assert(why({ alreadyShared: true }) === 'already_shared', 'a live link is named');
+assert(why({ canEdit: false }) === 'not_editor', 'a viewer is named');
+assert(why({ slotFree: false }) === 'slot_busy', 'a held slot is named');
+assert(why({ boardStamped: true, lastAskedAt: NOW - DAY, alreadyShared: true, canEdit: false, slotFree: false }) === 'board_stamp',
+  'board stamp wins');
+assert(why({ lastAskedAt: NOW - DAY, alreadyShared: true, canEdit: false, slotFree: false }) === 'weekly_stamp', 'weekly beats shared');
+assert(why({ alreadyShared: true, canEdit: false, slotFree: false }) === 'already_shared', 'shared beats not-editor');
+assert(why({ canEdit: false, slotFree: false }) === 'not_editor', 'not-editor beats slot');
+assert(shareAskSkipReason(null) === 'not_editor' && shareAskSkipReason() === 'not_editor', 'junk input is silent, no throw');
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

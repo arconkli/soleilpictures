@@ -1,9 +1,11 @@
-// Analytics › Tests (0810; the owner's ask of 2026-10-29, look A).
+// Analytics › Tests (0810, re-aimed by 0855; the owner's ask of 2026-10-29, look A).
 //
 // On the DEV-only fixture harness (?adminpreview=1): no auth, no network. The
-// read is invented (adminFixtures.js, testsReadFixture) as of 2026-11-20: the
-// share ask is past its verdict date, the rest are mid-run, and the sign-up box
-// is putting nobody in, so it is the one that needs a look.
+// read is invented (adminFixtures.js, testsReadFixture) as of 2026-11-27: the
+// share ask is past its verdict date and reaching its target, the rest are
+// mid-run, and the sign-up box is putting nobody in, so it is the one that needs
+// a look. Workspace setup and the what's-new email have ended: the read still
+// returns them, the page lists them only under Earlier tests.
 
 import { test, expect } from '@playwright/test';
 
@@ -44,8 +46,9 @@ test.describe('Analytics › Tests', () => {
       const errors = watchConsole(page);
       await openTests(page, { theme });
       await expect(page.getByRole('tab', { name: /^tests$/i })).toHaveAttribute('aria-selected', 'true');
-      await expect(page.locator('.adm-tests-sec')).toHaveText([/Running/, /Just changed/, /Waiting or off/, /Earlier tests/]);
-      await expect(page.locator('.adm-tests-row')).toHaveCount(7);
+      // No test is waiting or off, so that section isn't drawn.
+      await expect(page.locator('.adm-tests-sec')).toHaveText([/Running/, /Just changed/, /Earlier tests/]);
+      await expect(page.locator('.adm-tests-row')).toHaveCount(5);
       expect(errors, errors.join('\n')).toEqual([]);
     });
   }
@@ -74,38 +77,46 @@ test.describe('Analytics › Tests', () => {
 
   test('a row opens into both sides, the comparison and the checks', async ({ page }) => {
     await openTests(page);
-    const setup = row(page, 'Workspace setup');
-    await setup.locator('.adm-tests-row-h').click();
-    await expect(setup.locator('.adm-tests-row-h')).toHaveAttribute('aria-expanded', 'true');
+    const more = row(page, 'First board asks for more');
+    await more.locator('.adm-tests-row-h').click();
+    await expect(more.locator('.adm-tests-row-h')).toHaveAttribute('aria-expanded', 'true');
     await expect(page.locator('.adm-tests-det')).toHaveCount(1);
-    const det = setup.locator('.adm-tests-det');
+    const det = more.locator('.adm-tests-det');
     await expect(det.locator('h4')).toHaveText([/What it tests/, /Compared to as before/, /Running properly\?/]);
-    await expect(det.locator('.adm-tests-mt tbody tr')).toHaveCount(4);
-    await expect(det.locator('.adm-tests-split-n')).toContainText('214');
-    await expect(det.locator('.adm-tests-split-n')).toContainText('209');
+    await expect(det.locator('.adm-tests-mt tbody tr')).toHaveCount(6);
+    await expect(det.locator('.adm-tests-mt tbody tr').first()).toContainText('within a day of the moment');
+    await expect(det.locator('.adm-tests-split-n')).toContainText('96');
+    await expect(det.locator('.adm-tests-split-n')).toContainText('101');
+    // The ask's click-through shows among the checks.
+    await expect(det.locator('.adm-tests-checks')).toContainText('Clicked through');
     // Before the read date the verdict waits, and no range is coloured.
-    await expect(setup.locator('.adm-tests-rv')).toContainText('Too early');
+    await expect(more.locator('.adm-tests-rv')).toContainText('Too early');
     await expect(det.locator('.adm-tests-plot.good, .adm-tests-plot.bad')).toHaveCount(0);
   });
 
-  test('past its read date, a clear gap names the side that is ahead', async ({ page }) => {
+  test('past its read date, the share ask is read against its target', async ({ page }) => {
     await openTests(page);
     const share = row(page, 'Share ask');
-    await expect(share.locator('.adm-tests-rv')).toContainText('Since Oct 29 ahead');
+    await expect(share.locator('.adm-tests-rv')).toContainText('Reaching it');
     await share.locator('.adm-tests-row-h').click();
     await expect(share.locator('.adm-tests-det h4').nth(1)).toContainText('Compared to before');
     // Coloured in the row's headline and in the open read's table; only the
-    // measure it is read on, never the guardrail.
+    // measure it is read on, never the guardrails.
     await expect(share.locator('.adm-tests-rh .adm-tests-plot.good')).toHaveCount(1);
     await expect(share.locator('.adm-tests-det .adm-tests-plot.good')).toHaveCount(1);
     await expect(share.locator('.adm-tests-det .adm-tests-plot.bad')).toHaveCount(0);
+    // Why the rest weren't asked, in words.
+    await expect(share.locator('.adm-tests-misses li')).toHaveCount(4);
+    await expect(share.locator('.adm-tests-misses')).toContainText('Already asked this week');
   });
 
-  test('a switched-off test is off, as planned', async ({ page }) => {
+  test('the trial from card one runs from its release, as the read saw it', async ({ page }) => {
     await openTests(page);
     const trial = row(page, 'Free trial');
-    await expect(trial.locator('.adm-tests-rv')).toContainText('Off');
-    await expect(trial.locator('.adm-tests-rk')).toContainText('Off, as planned');
+    await trial.locator('.adm-tests-row-h').click();
+    await expect(trial.locator('.adm-tests-tl-mark.start')).toContainText('Nov 13');
+    await expect(trial.locator('.adm-tests-rv')).toContainText('Too early');
+    await expect(trial.locator('.adm-tests-rk')).toContainText('Running properly');
   });
 
   test('a read that fails for one test says so on that test only', async ({ page }) => {
@@ -114,11 +125,19 @@ test.describe('Analytics › Tests', () => {
       const { supabase } = await import('/src/lib/supabase.js');
       return (await supabase.rpc('admin_tests_read')).data;
     });
-    read.tests.workspace_setup = { error: '57014' };
+    read.tests.first_board_more = { error: '57014' };
     await patchRpc(page, { admin_tests_read: { data: read, error: null } });
     await page.locator('.admin-toolbar').getByRole('button', { name: /refresh/i }).click();
-    await expect(row(page, 'Workspace setup').locator('.adm-tests-rk')).toContainText('Needs a look');
+    await expect(row(page, 'First board asks for more').locator('.adm-tests-rk')).toContainText('Needs a look');
     await expect(row(page, 'Share ask').locator('.adm-tests-rk')).toContainText('Running properly');
+  });
+
+  test('the ended tests are listed under Earlier tests', async ({ page }) => {
+    await openTests(page);
+    const earlier = page.locator('.adm-tests-earlier');
+    await expect(earlier).toContainText('Workspace setup steps');
+    await expect(earlier).toContainText('What’s new email, two versions');
+    await expect(row(page, 'Workspace setup')).toHaveCount(0);
   });
 
   test('the old scoreboards moved here from System, which links to them', async ({ page }) => {

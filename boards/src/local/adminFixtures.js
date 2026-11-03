@@ -1856,13 +1856,15 @@ function sharingRecentFixture(limit = 30, before = null) {
   return { rows, next_before: before ? null : rows[rows.length - 1].at };
 }
 
-// admin_tests_read (0810), invented. Read as of 2026-11-20, so one test is past
-// its verdict date and the rest are mid-run, and every state the view draws is on
-// screen: a clear gap, an even one, too few to read, a measure nobody is old
-// enough for yet, a switched-off test, an idle rotation, and one test that needs
-// a look (the sign-up box putting nobody in), which opens by itself.
+// admin_tests_read (0810, helpers re-aimed by 0855), invented. Read as of
+// 2026-11-27, so the share ask is past its verdict date and the rest are mid-run,
+// and the states the view draws are on screen: a reach against its target, too
+// few to read, too few events, the share ask's misses, and one test that needs a
+// look (the sign-up box putting nobody in), which opens by itself. The two ended
+// tests (workspace_setup, whats_new) are still returned, as the live read keeps
+// returning them until production carries the new catalog; the page ignores them.
 function testsReadFixture() {
-  const now = '2026-11-20T12:00:00Z';
+  const now = '2026-11-27T12:00:00Z';
   const at = (h) => new Date(Date.parse(now) - h * 3_600_000).toISOString();
   const s = (n, k) => ({ n, k });
   const m = (a, b, due, next = null) => ({ A: a, B: b, due, next });
@@ -1871,21 +1873,23 @@ function testsReadFixture() {
     tests: {
       workspace_setup: {
         in: { A: 214, B: 209 }, eligible: 448,
-        recent: { eligible: 31, assigned: 29 },
-        last: { A: at(1), B: at(2) }, mismatched: 0,
+        recent: { eligible: 0, assigned: 0 },
+        last: { A: at(100), B: at(100) }, mismatched: 0,
         measures: {
-          back_7d: m(s(182, 38), s(178, 51), 423, at(-20)),
-          joined_7d: m(s(182, 9), s(178, 14), 423, at(-20)),
-          card_1d: m(s(205, 141), s(201, 139), 423, at(-6)),
-          board_1d: m(s(205, 188), s(201, 181), 423, at(-6)),
+          back_7d: m(s(182, 38), s(178, 51), 423),
+          joined_7d: m(s(182, 9), s(178, 14), 423),
+          card_1d: m(s(205, 141), s(201, 139), 423),
+          board_1d: m(s(205, 188), s(201, 181), 423),
         },
       },
       first_board_more: {
         in: { A: 96, B: 101 }, eligible: 207,
         recent: { eligible: 30, assigned: 30 },
         last: { A: at(1), B: at(1) }, mismatched: 0,
-        signals: { shown: { last: at(5), due: 1 } },
+        signals: { shown: { last: at(5), due: 1 }, click: { views: 58, clicks: 9 } },
         measures: {
+          ten_after_1d: m(s(41, 6), s(44, 11), 85, at(-9)),
+          more_1d: m(s(41, 22), s(44, 30), 85, at(-9)),
           ten_1d: m(s(90, 21), s(94, 33), 197, at(-9)),
           back_7d: m(s(68, 14), s(71, 17), 197, at(-9)),
           card_1d: m(s(90, 62), s(94, 64), 197, at(-9)),
@@ -1897,14 +1901,17 @@ function testsReadFixture() {
         recent: { eligible: 22, assigned: 0 },
         last: { A: null, B: null }, mismatched: 0,
         signals: { box_sent: { last: null, due: 0 } },
+        strata: [],
         measures: {},
       },
       email_holdout: {
-        start: '2026-10-29T01:38:00Z', holdout_pct: 50,
+        start: '2026-10-29T01:38:00Z', holdout_pct: 50, weeks: 12,
         in: { A: 58, B: 61 },
         parts: [{ label: 'Day-one nudge', A: 41, B: 44 }, { label: 'board waiting', A: 17, B: 17 }],
         last_run: at(3), mismatched: 0,
         measures: {
+          open_72h: m(s(52, 24), s(55, 17), 119, at(-20)),
+          unsub: m(s(44, 1), s(46, 0), 119, at(-30)),
           nudge_made_72h: m(s(38, 7), s(41, 11), 85, at(-30)),
           waiting_made_72h: m(s(15, 4), s(16, 4), 34, at(-50)),
           nudge_open_7d: m(s(29, 9), s(33, 13), 85, at(-30)),
@@ -1913,14 +1920,29 @@ function testsReadFixture() {
       },
       share_ask: {
         start: '2026-10-29T05:15:00Z',
+        fix_from: at(24 * 10),
         in: { A: 412, B: 131 }, shown: 104,
-        signals: { ask_at_10: { last: at(4), due: 1 } },
+        signals: { ask_at_10: { last: at(4), due: 1 }, lost_to_ask: 2 },
+        misses: [
+          { reason: 'not_in_view', n: 4 },
+          { reason: 'weekly_stamp', n: 3 },
+          { reason: 'tour', n: 1 },
+          { reason: 'slot_busy', n: 1 },
+        ],
         measures: {
+          reach_load: { A: s(40, 22), B: s(90, 81), due: 130, next: at(-12) },
           shown_1d: { A: s(412, 29), B: s(128, 104), due: 131, next: at(-12) },
+          crowd_reveal: { A: s(160, 71), B: s(70, 33), due: 230, next: null },
+          crowd_banner: { A: s(160, 52), B: s(70, 22), due: 230, next: null },
           tips: { A: s(1310, 402), B: s(388, 117), due: 388, next: null },
         },
       },
-      trial_early: { stamped_off: 0 },
+      trial_early: {
+        on_from: at(24 * 14), stamped_off: 0,
+        in: { A: 340, B: 333 },
+        signals: { reach: { views: 4, early: 4 }, leak: 0 },
+        measures: { press_14d: m(s(3, 0), s(4, 1), 7, at(-48)) },
+      },
       whats_new: {
         in: { A: 110, B: 99 }, last_run: '2026-10-02T15:00:00Z', idle: true,
         measures: { back_1d: m(s(110, 12), s(99, 13), 209) },

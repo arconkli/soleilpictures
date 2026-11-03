@@ -87,8 +87,14 @@ export const EXPERIMENTS = {
   // loop leaves it alone. Registry only: never put it in app_config.experiments,
   // where the nightly optimizer would move the weights of a test that has to
   // stay 50/50 to be read.
+  //
+  // ENDED 2026-11-03 (owner pick #233 A): it could not meet its Dec 17 win rule,
+  // and its invite link brought in nobody. enabled:false stops new assignment
+  // (assignArm returns null, so nobody new gets the steps) and the 6-card re-ask
+  // (setupRule.js workspaceSetupOn). Stamps already on profiles stay, so the
+  // final read can still be run.
   workspace_setup: {
-    enabled: true,
+    enabled: false,
     arms: [
       { id: 'A', weight: 50 },  // control — today's first run
       { id: 'B', weight: 50 },  // the setup steps and the one re-ask
@@ -104,7 +110,15 @@ export const EXPERIMENTS = {
   // together, trialEarly.test.mjs holds them equal. Stamped once per demo
   // account by UpgradeChip via lib/trialEarly.js. Switch-on after the
   // wall-trial read (around 2026-11-19).
-  trial_early: { enabled: false, arms: [{ id: 'A', weight: 50 }, { id: 'B', weight: 50 }] },
+  // SWITCHED ON 2026-11-03 (owner pick #234: "we need to try SOMETHING for
+  // conversions"), as the built 50/50 so A stays a reference. Too few people a
+  // week to read as a test: watched on its one risk instead (an early trial that
+  // lapses leaves that person priced at the wall). Deploy create-checkout-session
+  // (TRIAL_EARLY_ON) BEFORE this client reaches people: a client that offers the
+  // early trial to a server that doesn't grant it answers B accounts at 1-12
+  // cards with "the trial isn't available". The other order is safe: an older
+  // client never asks for a trial under 13 cards.
+  trial_early: { enabled: true, arms: [{ id: 'A', weight: 50 }, { id: 'B', weight: 50 }] },
   // first_board_more — retention test 1 of the testing map (owner, 2026-10-28).
   // Arm B, a moment after a third card lands on a board in someone's first
   // week, gets one toast asking for a whole folder or a note beside the

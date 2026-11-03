@@ -155,6 +155,9 @@ offer appears where you are already working: on the upgrade pill in the corner,
 on the prompts that show up as a cluster fills, when the files you drop will not
 fit, in **Settings → Plan & billing**, and on the upgrade screen.
 
+While this is being tried out, some free accounts are offered the trial from
+their first card.
+
 A card is required; nothing is charged until the trial ends, and cancelling
 before then costs nothing. About three days before the first charge, Clusters
 emails you the date and the amount, with a link to **Settings → Plan & billing**

@@ -171,6 +171,15 @@ export function upsellSlotBusy(now = Date.now()) {
   return elapsed >= 0 && elapsed < UPSELL_STACK_WINDOW_MS;
 }
 
+// Which surface is why the moment is taken: the kind holding the minute, else
+// the ambient ask that owns this visit, else null. Non-mutating, for logs that
+// say who won when a surface stood down. `visit` defaults to the live session.
+export function upsellSlotHolder(now = Date.now(), visit = currentVisit()) {
+  if (upsellSlotBusy(now)) return lastClaim.kind;
+  if (visit && visitAsk.visit === visit && visitAsk.kind) return visitAsk.kind;
+  return null;
+}
+
 // Try to take the moment for `kind`. Returns true if the surface should show.
 //
 // IMPORTANT for callers with a once-per-account one-shot: a `false` here must

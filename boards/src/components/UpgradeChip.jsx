@@ -27,7 +27,7 @@ import { useStorageUsage } from '../hooks/useStorageUsage.js';
 import { creatorTrialEligibility, trialAwaitingServer } from '../lib/creatorTrial.js';
 import { trialEarlyArm, stampTrialEarlyArm, TRIAL_EARLY_KEY } from '../lib/trialEarly.js';
 import { evaluateUpsell, atCapWall, ELIGIBILITY_REV } from '../lib/upsellEligibility.js';
-import { claimUpsellSlot } from '../lib/upsellSlot.js';
+import { claimUpsellSlot, upsellSlotHolder } from '../lib/upsellSlot.js';
 import { markPriceSeen } from '../lib/upsellLatches.js';
 
 // How long the first-value banner may wait for the server's card count to
@@ -202,10 +202,11 @@ export function UpgradeChip() {
       // is a different and more interesting silence than "never qualified".
       // Keyed per REASON so all three are legible in one page-load without
       // becoming a per-render beacon.
-      const standDown = (reason) => {
+      const standDown = (reason, extra) => {
         logEventOnce(`up_suppressed:first_value:${reason}`, EV.UP_SUPPRESSED, {
           surface: 'first_value',
           reason,
+          ...extra,
           cap_pct: elig.capPct,
           demo_cards: demoCardCount,
           limit: cardLimit,
@@ -264,7 +265,7 @@ export function UpgradeChip() {
 
       // Somebody else (the invite nudge, or the wall) already has this moment.
       if (!claimUpsellSlot('first-value') && !qaForceFirstValue()) {
-        standDown('slot_busy');
+        standDown('slot_busy', { winner: upsellSlotHolder() });
         return;
       }
 
@@ -279,7 +280,8 @@ export function UpgradeChip() {
       // only be guessed from a neighbouring pill impression.
       logEvent(EV.FIRST_VALUE_UPGRADE_VIEW, {
         copy_rev: COPY_REV, elig_reason: elig.reason, cap_pct: elig.capPct,
-        trial: trialOffer, price_shown: !trialOffer,
+        trial: trialOffer, price_shown: !trialOffer, trial_reason: trialDecision.reason,
+        count: demoCardCount,
         server_cards: Number.isFinite(serverCardCount) ? serverCardCount : null,
         rearmed,
       });
@@ -451,7 +453,13 @@ export function UpgradeChip() {
 
   if (tier !== 'demo') return null;
   const onSeeCreator = () => {
-    logEventNow(EV.FIRST_VALUE_UPGRADE_CTA, { copy_rev: COPY_REV }); // must-land: a redirect may follow from the modal
+    // must-land: a redirect may follow from the modal
+    logEventNow(EV.FIRST_VALUE_UPGRADE_CTA, {
+      copy_rev: COPY_REV,
+      trial: trialOffer, trial_reason: trialDecision.reason,
+      count: demoCardCount,
+      server_cards: Number.isFinite(serverCardCount) ? serverCardCount : null,
+    });
     setFvBanner(false);
     setFvModal(true);
   };

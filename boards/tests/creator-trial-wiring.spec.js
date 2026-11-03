@@ -189,6 +189,18 @@ test.describe('creator trial wiring', () => {
     await expect(page.locator('.upgrade-chip-trial')).toHaveCount(0);
   });
 
+  test('the harness holds the early-trial arm at A unless the URL asks for B', async ({ page }) => {
+    // 'local-user' hashes to B; under ?local=1 the dev-only seam in
+    // lib/trialEarly.js reads it as A so specs expecting no trial at 1-12
+    // cards stay true. The chip is not the probe: it needs more than five cards.
+    const arm = (url) => page.goto(url).then(() => page.evaluate(async () => {
+      const m = await import('/src/lib/trialEarly.js');
+      return [m.trialEarlyArm('local-user'), m.trialEarlyOn('local-user')];
+    }));
+    expect(await arm('/?local=1&reset=1&tier=demo&cards=5&limit=50')).toEqual(['A', false]);
+    expect(await arm('/?local=1&reset=1&tier=demo&cards=5&limit=50&trialearly=B')).toEqual(['B', true]);
+  });
+
   test('the trial never reaches a surface that is not an in-product invitation', async ({ page }) => {
     // What protects a premium position is WHO is offered the trial and WHERE.
     // A "START FREE TRIAL" banner on the public price list is the thing this
@@ -196,9 +208,12 @@ test.describe('creator trial wiring', () => {
     await page.goto('/pricing');
     // Prove the page actually rendered first — a blank page passes a bare
     // "does not contain" assertion trivially.
-    await expect(page.getByText('Creator').first()).toBeVisible();
-    await expect(page.locator('body')).not.toContainText(/days free/i);
-    await expect(page.locator('body')).not.toContainText(/free for \d+ days/i);
+    // The Team card's "N days free · card needed" is deliberate (teamPricingCopy.js),
+    // so the check reads the Creator plan's card alone.
+    const creator = page.locator('.pp-plan-creator');
+    await expect(creator.getByText('Creator').first()).toBeVisible();
+    await expect(creator).not.toContainText(/days free/i);
+    await expect(creator).not.toContainText(/free for \d+ days/i);
   });
 
   test('a refused trial records WHY the server refused', () => {

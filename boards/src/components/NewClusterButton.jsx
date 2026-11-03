@@ -15,9 +15,9 @@
 //   · nothing picked: it lands beside what is there and opens, ready to fill.
 // The surface marks the event handled; one that nobody took goes to
 // `onUnhandled(name)`. The count beside the label is what would move
-// (lib/newClusterPick.js). The empty Studio's "Start a cluster for each" opens
-// this same popover ('soleil-new-cluster-open'), so one field names a cluster
-// wherever the offer was made, and the create carries that door's `via`.
+// (lib/newClusterPick.js). The second idea's toast opens this same popover
+// ('soleil-new-cluster-open'), so one field names a cluster wherever the
+// offer was made, and the create carries that door's `via`.
 //
 // Raised like Share, so the two things to press in the bar look alike — a step
 // quieter, its label at the trail's weight — and like Share never gold: gold
