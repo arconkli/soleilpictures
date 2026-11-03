@@ -39,6 +39,8 @@
   display: flex; flex-direction: column; align-items: center; gap: 3px; position: relative;
   width: 84px; min-height: 44px; background: none; border: 0; color: var(--ink-2); font: inherit; font-size: 11px;
 }
+.ap-tablist { display: contents; }
+.ap-home { text-decoration: none; justify-content: flex-start; }
 .ap-tab svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.6; }
 .ap-tab[aria-selected="true"] { color: var(--soleil); }
 .ap-badge {
