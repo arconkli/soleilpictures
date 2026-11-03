@@ -24,7 +24,8 @@
 // has db, calls, events(), clipboard, shared, setLinkMode, setLatency. The page
 // sets <html data-setupqa-ready="1"> once mounted.
 
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
 import '../styles.css';
 import { installSupabaseForQa } from '../lib/supabase.js';
 import { SIDEBAR_FILES_DEV_FLAG, WORKSPACE_SETUP_DEV_FLAG } from '../lib/appHost.js';
@@ -34,7 +35,7 @@ import { getSetupOutcome } from '../lib/setupGate.js';
 import { flushNow } from '../lib/analytics.js';
 import { buildSetupDb, createSetupFake } from './setupqa/fakeSetupSupabase.js';
 
-const InWorkspaceQa = lazy(() => import('./setupqa/InWorkspaceQa.jsx'));
+const InWorkspaceQa = lazyWithReload(() => import('./setupqa/InWorkspaceQa.jsx'));
 
 const QS = new URLSearchParams(window.location.search);
 const INWS = ['tips', 'reask', 'joiner'].includes(QS.get('inws')) ? QS.get('inws') : null;

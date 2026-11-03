@@ -28,6 +28,7 @@ import { canUnpackZips } from '../../lib/importZips.js';
 import { fileFamily } from '../../lib/fileView.js';
 import { VIDEO_EXT_RE } from '../../lib/fileIngest.js';
 import { reportError } from '../../lib/errorReporting.js';
+import { downloadFailedWords } from '../../lib/transferWords.js';
 import { UNPACK_MAX_BYTES, ZIP_THUMB_MAX_BYTES } from '../../lib/fileFaceLimits.js';
 import { familyGlyph } from '../cards/FamilyFace.jsx';
 import { humanSize, iconForFile } from '../cards/FileCard.jsx';
@@ -370,7 +371,7 @@ function ZipSheet({ zip, item, sizeBytes, canPut, onClose }) {
       const blob = await entryBlob(zip.remote, t.entry, TYPES[t.ext] || 'application/octet-stream');
       await deliverFile(blob, t.name);
     } catch (err) {
-      feedback?.toast({ type: 'error', code: 'zip_entry_download_failed', message: `Download failed: ${err?.message || err}` });
+      feedback?.toast({ type: 'error', code: 'zip_entry_download_failed', message: downloadFailedWords(err) });
     } finally {
       setSaving(null);
     }
@@ -400,7 +401,7 @@ function ZipSheet({ zip, item, sizeBytes, canPut, onClose }) {
     } catch (err) {
       if (ctl.signal.aborted) return;
       setPulling(null);
-      feedback?.toast({ type: 'error', code: 'zip_unpack_download_failed', message: `The zip couldn't be downloaded: ${err?.message || err}` });
+      feedback?.toast({ type: 'error', code: 'zip_unpack_download_failed', message: downloadFailedWords(err, "Couldn't download the zip. Try again.") });
     }
   };
 

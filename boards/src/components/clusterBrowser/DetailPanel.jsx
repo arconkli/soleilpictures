@@ -17,6 +17,7 @@ import { useFeedback } from '../AppFeedback.jsx';
 import { Icon } from '../Icon.jsx';
 import { X, Download, ArrowsOutSimple, Link as LinkIcon, BoundingBox } from '../../lib/icons.js';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
+import { downloadFailedWords } from '../../lib/transferWords.js';
 import { getMeta as getMetaDefault, primeFileFacts, subscribeMeta } from '../../lib/imageMeta.js';
 import { DOWNLOADABLE, downloadCardAsset, isPublicSurface } from '../../lib/cardDownload.js';
 import * as userProfiles from '../../lib/userProfiles.js';
@@ -214,7 +215,7 @@ export function DetailPanel({
     try {
       await downloadCardAsset(card, item.kind, { surface: 'cluster_browser' });
     } catch (err) {
-      feedback?.toast?.({ type: 'error', code: 'file_download_failed', message: 'Download failed: ' + (err?.message || err) });
+      feedback?.toast?.({ type: 'error', code: 'file_download_failed', message: downloadFailedWords(err) });
     }
   };
   const location = boards[item.boardId]?.name || null;

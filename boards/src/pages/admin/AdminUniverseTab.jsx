@@ -7,7 +7,8 @@
 // The graph renderer + privacy contract (IDs/counts only, no titles/content) are
 // untouched; the Command Center only *reuses* <UniverseGraph>.
 
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import { AdminUniverseTicker } from './AdminUniverseTicker.jsx';
 import { UniverseGraph } from './UniverseGraph.jsx';
 import { UniverseLegend } from './UniverseLegend.jsx';
@@ -21,7 +22,7 @@ import { useActivityPulse } from './useActivityPulse.js';
 //
 // The Command Center itself is untouched — it is a different design language on
 // purpose and the owner likes it as it is.
-const AdminCommandCenter = lazy(() =>
+const AdminCommandCenter = lazyWithReload(() =>
   import('./AdminCommandCenter.jsx').then((m) => ({ default: m.AdminCommandCenter })));
 import { fmtDateTime } from '../../lib/adminFormat.js';
 import { directorText } from '../../lib/universeMoments.js';

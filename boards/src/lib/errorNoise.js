@@ -11,8 +11,10 @@
 // they grow with SEO + public /share traffic. Drop by UA (not by message) so
 // REAL users' fetch failures still log and stay visible/actionable.
 
+import { BOT_RE } from './device.js';
+
 export function isBotUA(ua) {
-  return /bot|crawl|spider|slurp|bingpreview|applebot|duckduckbot|yandex|baiduspider|facebookexternalhit|googlebot/i.test(ua || '');
+  return BOT_RE.test(String(ua || '').toLowerCase()) || /bot|crawl|spider|slurp|bingpreview|applebot|duckduckbot|yandex|baiduspider|facebookexternalhit|googlebot/i.test(ua || '');
 }
 
 export function isNoise(message, stack, ua) {

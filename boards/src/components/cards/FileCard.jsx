@@ -17,6 +17,7 @@ import { R2Image } from '../R2Image.jsx';
 import { resolveSrc } from '../../lib/r2.js';
 import { viewKindOfKey, docFamily, extOfKey, DOC_MAX_PAGES, fileFamily, isDrawnFamily } from '../../lib/fileView.js';
 import { downloadCardAsset } from '../../lib/cardDownload.js';
+import { downloadFailedWords } from '../../lib/transferWords.js';
 import { useOptionalFeedback } from '../AppFeedback.jsx';
 import {
   FileIcon, FileText, FilePdf, FileZip, FileDoc, FilePpt, FileXls, Presentation, Image as ImagePh,
@@ -166,7 +167,7 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
       await downloadCardAsset({ fileSrc, fileName, mime, sizeBytes, ext: e, title }, 'file',
                               { surface: 'file_card' });
     } catch (err) {
-      feedback?.toast({ type: 'error', code: 'file_download_failed', message: 'Download failed: ' + (err?.message || err) });
+      feedback?.toast({ type: 'error', code: 'file_download_failed', message: downloadFailedWords(err) });
     } finally {
       setBusy(false);
     }

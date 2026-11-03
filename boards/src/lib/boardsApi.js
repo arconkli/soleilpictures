@@ -14,6 +14,7 @@ import { markLocalReset } from './docResets.js';
 import { createStateWriteGate } from './boardStateGate.js';
 import { shareThisTurn } from './shareThisTurn.js';
 import { normalizeEditorCapacity } from './editorLimit.js';
+import { isUuid } from './uuid.js';
 import {
   personalWorkspaceQuery, rootBoardQuery, boardListQuery, sharedBoardsQuery, boardStateQuery,
 } from './bootQueries.js';
@@ -2194,15 +2195,27 @@ export async function syncDocPageIndex({ workspaceId, docCardId, pages }) {
 // `doc_backlinks` mirror keeps existing readers working until their
 // next migration; the rows are kept consistent because both tables
 // share the source pointer.
+// The columns each link table types uuid. A row carrying anything else in one
+// of them (a link to a doc-… doc, a hand-edited target) would fail the whole
+// insert with 22P02 and take the page's other links with it, so it is left out.
+const BACKLINK_UUID_COLS = ['source_workspace_id', 'source_doc_card_id', 'source_page_id', 'source_link_id', 'target_workspace_id', 'target_board_id', 'target_doc_card_id', 'target_page_id'];
+const ENTITY_LINK_UUID_COLS = ['source_workspace', 'target_id', 'target_board_id', 'target_doc_card_id'];
+const uuidsFit = (row, cols) => cols.every((c) => row[c] == null || isUuid(row[c]));
 export async function updateBacklinks({ workspaceId, docCardId, pageId, links }) {
   if (!supabase || !workspaceId || !docCardId || !pageId) return { ok: false };
 
+  // The legacy table keys on uuid columns, so a doc-… doc keeps its links in
+  // entity_links only.
+  const legacyOk = isUuid(docCardId) && isUuid(pageId);
+
   // 1. Delete existing rows for this source page in BOTH indexes.
-  const delLegacy = await supabase
-    .from('doc_backlinks').delete()
-    .eq('source_doc_card_id', docCardId)
-    .eq('source_page_id', pageId);
-  if (delLegacy.error) console.warn('doc_backlinks delete failed', delLegacy.error);
+  if (legacyOk) {
+    const delLegacy = await supabase
+      .from('doc_backlinks').delete()
+      .eq('source_doc_card_id', docCardId)
+      .eq('source_page_id', pageId);
+    if (delLegacy.error) console.warn('doc_backlinks delete failed', delLegacy.error);
+  }
 
   // Scope to the rows this function writes: link mentions that carry a
   // source_link_id. A bare source='user' also matched the page's tags (a
@@ -2256,11 +2269,17 @@ export async function updateBacklinks({ workspaceId, docCardId, pageId, links })
     }
   }
   if (legacyRows.length === 0) return { ok: true, count: 0 };
-  const ins = await supabase.from('doc_backlinks').insert(legacyRows);
-  if (ins.error) console.warn('doc_backlinks insert failed', ins.error);
-  const ins2 = await supabase.from('entity_links').insert(newRows);
-  if (ins2.error && ins2.error.code !== '23505') {
-    console.warn('entity_links insert failed', ins2.error);
+  const legacyFit = legacyOk ? legacyRows.filter((r) => uuidsFit(r, BACKLINK_UUID_COLS)) : [];
+  if (legacyFit.length) {
+    const ins = await supabase.from('doc_backlinks').insert(legacyFit);
+    if (ins.error) console.warn('doc_backlinks insert failed', ins.error);
+  }
+  const newFit = newRows.filter((r) => uuidsFit(r, ENTITY_LINK_UUID_COLS));
+  if (newFit.length) {
+    const ins2 = await supabase.from('entity_links').insert(newFit);
+    if (ins2.error && ins2.error.code !== '23505') {
+      console.warn('entity_links insert failed', ins2.error);
+    }
   }
   return { ok: true, count: legacyRows.length };
 }
@@ -2278,7 +2297,8 @@ export async function cleanupDocCards(docCardIds) {
   for (const id of docCardIds) {
     try {
       await supabase.from('doc_page_index').delete().eq('doc_card_id', id);
-      await supabase.from('doc_backlinks').delete().eq('source_doc_card_id', id);
+      // source_doc_card_id is a uuid column; a doc-… id can never have rows there.
+      if (isUuid(String(id))) await supabase.from('doc_backlinks').delete().eq('source_doc_card_id', id);
       const { error } = await supabase.rpc('soft_delete_doc_links', { p_doc_card_id: String(id) });
       if (error) throw error;
     } catch (e) { console.warn('cleanupDocCards failed for', id, e); }

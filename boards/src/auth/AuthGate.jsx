@@ -20,7 +20,8 @@
 //     regressed it to 'demo'). TierRouter sends waitlist users to
 //     /welcome where they pick between requesting demo access or paying.
 
-import { useEffect, useRef, useState, createContext, useContext, lazy, Suspense } from 'react';
+import { useEffect, useRef, useState, createContext, useContext, Suspense } from 'react';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { isLocalQaMode } from '../lib/localMode.js';
 import { logEvent, logEventNow, logEventOnce, getFirstSource } from '../lib/analytics.js';
@@ -583,9 +584,9 @@ function startPersonalPrefetch(user) {
 }
 
 // Only someone already signed in who opens a workspace invite link sees it.
-const WorkspaceJoinCard = lazy(() => import('../components/WorkspaceJoinCard.jsx'));
+const WorkspaceJoinCard = lazyWithReload(() => import('../components/WorkspaceJoinCard.jsx'));
 // The same for a team's link, and its note on the sign-in form (`note`).
-const TeamLink = lazy(teamLinkModule);
+const TeamLink = lazyWithReload(teamLinkModule);
 
 // `warmApp` runs the app that renders once there is a session (main.jsx passes
 // AppShell's warm), so the sign-in form can start it while a code is typed.

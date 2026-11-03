@@ -21,7 +21,7 @@
 // or AdminPage: they are the four heavy trees, and pulling one in would drag it
 // into a shared chunk and inflate the build for every signed-out visitor. The
 // surfaces that live inside them are listed as 'insitu' with a recipe instead.
-import { lazy } from 'react';
+import { lazyWithReload } from '../../lib/lazyWithReload.js';
 
 import { Inbox, Image as ImageIcon, Search, Home, Plus } from '../../lib/icons.js';
 
@@ -83,7 +83,7 @@ const OPTIONAL = import.meta.glob('../{SaveTemplateDialog,TemplateAddedPrompt}.j
 function optional(file, exportName) {
   const loader = OPTIONAL[`../${file}.jsx`];
   if (!loader) return null;
-  return lazy(() => loader().then((m) => ({ default: m[exportName] })));
+  return lazyWithReload(() => loader().then((m) => ({ default: m[exportName] })));
 }
 
 const SaveTemplateDialog = optional('SaveTemplateDialog', 'SaveTemplateDialog');

@@ -104,11 +104,18 @@ function errorRow(error, opts, m) {
   };
 }
 
+// Hidden, offline, or back from either in the last half minute: a tab's
+// requests and channel joins fail then as a matter of course.
+function quietTab(m) {
+  return m.vis !== 'visible' || !m.online
+    || (m.crumbs || []).some((c) => (c.k === 'vis' || c.k === 'net') && c.t > -30_000);
+}
+
 async function takeHttp({ f, m }) {
-  if (!routeOf(f.url, hosts)) return;
+  if (!routeOf(f.url, hosts) || isBotUA(ua())) return;
   let pg = null;
   if (f.body) { try { pg = bodyCode(await f.body.text()); } catch (_) {} }
-  const v = classifyHttpFailure({ ...f, online: m.online, pg }, hosts);
+  const v = classifyHttpFailure({ ...f, online: m.online, pg, quiet: quietTab(m) }, hosts);
   if (!v || !once(`http|${v.message}`)) return;
   push({ ...base(m, 'http', { http: v.http }), severity: v.severity, name: 'HttpFailure', message: v.message });
 }
@@ -150,17 +157,16 @@ export function take(it) {
       if (!once(`res|${message}`)) return;
       push({ ...base(m, 'resource', { tag, host: r.svc }), severity: 'warning', name: 'ResourceError', message });
     } else if (it.t === 'chan') {
-      // A channel's own failure (errorCore.js channelFailure), once a page: a
-      // refusal by the channel's leading words, and a join that timed out as
-      // one problem whichever channel it was (the service, or the way to it,
-      // is the slow one). Not while the page is hidden or offline, nor within
-      // half a minute of coming back from either: those rejoins race the
-      // fresh token and time out as a matter of course.
+      // A channel's own failure (errorCore.js channelFailure) is reported once
+      // a page per kind of failure (a refusal by its reason's code word, a join
+      // that timed out), whichever channel it was, with the channel's leading
+      // words in context.op. Nothing is reported while the tab is quiet
+      // (quietTab), when rejoins race the fresh token and time out as a matter
+      // of course.
       const what = channelFailure(it.status, it.err);
-      if (!what || isBotUA(ua()) || m.vis !== 'visible' || !m.online) return;
-      if ((m.crumbs || []).some((c) => (c.k === 'vis' || c.k === 'net') && c.t > -30_000)) return;
+      if (!what || isBotUA(ua()) || quietTab(m)) return;
       const label = channelLabel(it.name);
-      const message = what === 'timed out' ? 'Live updates timed out' : `Live updates ${what}: ${label}`;
+      const message = `Live updates ${what}`;
       if (!once(`chan|${message}`)) return;
       push({ ...base(m, 'realtime', { op: label }), severity: 'warning', name: 'ChannelFailure', message });
     } else if (it.t === 'boot') {

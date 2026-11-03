@@ -103,6 +103,34 @@ test('the crawler test knows every crawler the client drops', () => {
   for (const w of words) assert.ok(sql.includes(w), `the SQL crawler test misses ${w}`);
 });
 
+test('the crawler test also knows every crawler in device.js BOT_RE', async () => {
+  // 0853. isBotUA drops BOT_RE's crawlers too; the server must skip the rows
+  // older builds still send from them. One sample per alternative of BOT_RE.
+  const { BOT_RE } = await import('./device.js');
+  const alternatives = [];
+  let depth = 0, cur = '';
+  for (const ch of BOT_RE.source) {
+    if (ch === '(') depth += 1;
+    if (ch === ')') depth -= 1;
+    if (ch === '|' && depth === 0) { alternatives.push(cur); cur = ''; } else cur += ch;
+  }
+  alternatives.push(cur);
+  assert.ok(alternatives.length >= 40, 'BOT_RE splits into its alternatives');
+  const sample = (alt) => alt
+    .replace(/\\b/g, '')
+    .replace(/\[(.)[^\]]*\]/g, '$1')
+    .replace(/\(([^|)]*)[^)]*\)/g, '$1')
+    .replace(/\\(.)/g, '$1');
+  const pattern = body('_error_is_bot_ua').match(/~\*\s*'([^']+)'/)[1];
+  const sql = new RegExp(pattern, 'i');
+  for (const alt of alternatives) {
+    const s = sample(alt);
+    assert.ok(BOT_RE.test(s), `the sample "${s}" stands for ${alt}`);
+    assert.ok(sql.test(`Mozilla/5.0 (compatible; ${s.toUpperCase()})`), `the SQL crawler test misses ${alt}`);
+  }
+  assert.ok(!sql.test('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'));
+});
+
 test('caps: once per problem per 6 hours, 6 emails a day, one email per pass', () => {
   const check = body('check_breaking');
   assert.match(check, /c_per_problem\s+constant interval := interval '6 hours'/);

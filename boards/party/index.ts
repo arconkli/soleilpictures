@@ -38,6 +38,19 @@ const DOC_ROOM = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\
 // Durable Object is created for it.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// The board a /parties/main/<id> request is for, so a failure the door
+// records names its cluster by id, as board.ts's own reports do. Only a board
+// room: a doc room's name carries its share key, and nothing else here is a
+// cluster.
+function boardOf(request: Request): string | undefined {
+  try {
+    const m = /^\/parties\/main\/([^/]+)(?:\/|$)/.exec(new URL(request.url).pathname);
+    return m && UUID.test(m[1]) ? m[1].toLowerCase() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 type Lobby = { className: string; name: string };
 
 const notFound = () => new Response("Not found", { status: 404 });
@@ -191,13 +204,13 @@ export default {
     try {
       res = await answer(request, env);
     } catch (e) {
-      await reportParty({ kind: "route", error: e, request, status: 500, phase: "tail" }, ctx);
+      await reportParty({ kind: "route", error: e, request, status: 500, phase: "tail", boardId: boardOf(request) }, ctx);
       throw e;
     } finally {
       // What the access checks recorded on the way (report.ts).
       doorClosed(ctx);
     }
-    if (res.status >= 500) void reportParty({ kind: "route", request, status: res.status, ...answerOf(request) }, ctx);
+    if (res.status >= 500) void reportParty({ kind: "route", request, status: res.status, ...answerOf(request), boardId: boardOf(request) }, ctx);
     return res;
   },
 };

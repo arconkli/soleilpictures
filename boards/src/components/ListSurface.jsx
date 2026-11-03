@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { canDragFromFiles, canCopyCard, buildFilesPayload, parseFilesPayload } from '../lib/filesDrag.js';
@@ -43,7 +44,7 @@ import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } fr
 const SCROLL_MEMORY = new Map();
 
 // Quick look ships in its own chunk: most visits to Files never open it.
-const QuickLook = lazy(() => import('./clusterBrowser/QuickLook.jsx'));
+const QuickLook = lazyWithReload(() => import('./clusterBrowser/QuickLook.jsx'));
 
 // Info (the detail panel) is opt-in — ⌘I or Info — and the choice is this
 // device's. It used to open on every single-item selection.
@@ -73,6 +74,7 @@ import { kindFromMime, canBeVersionOf } from '../lib/versionUpload.js';
 import { uploadContext } from '../lib/uploadContext.js';
 import { openPlayer } from '../lib/playerBus.js';
 import { resolveSrc } from '../lib/r2.js';
+import { downloadFailedWords } from '../lib/transferWords.js';
 import { Icon, IconWeightContext } from './Icon.jsx';
 import { useFilesLook } from './clusterBrowser/filesLook.js';
 import { FilesPageHead, FilesPageTools } from './clusterBrowser/FilesPageHead.jsx';
@@ -1905,7 +1907,7 @@ export function ListSurface({
     try {
       await downloadCardAsset(it.card, it.kind, { surface: 'list' });
     } catch (err) {
-      feedback?.toast?.({ type: 'error', code: 'file_download_failed', message: 'Download failed: ' + (err?.message || err) });
+      feedback?.toast?.({ type: 'error', code: 'file_download_failed', message: downloadFailedWords(err) });
     }
   }, [feedback]);
 
@@ -1953,7 +1955,7 @@ export function ListSurface({
           message: `Storage would not hand those files back to ${origin}. Downloading one at a time still works.`,
         });
       } else {
-        feedback?.toast?.({ type: 'error', code: 'zip_download_failed', message: 'Download failed: ' + (err?.message || err) });
+        feedback?.toast?.({ type: 'error', code: 'zip_download_failed', message: downloadFailedWords(err, "Couldn't download those files. Try again.") });
       }
     } finally {
       setZipping(false);

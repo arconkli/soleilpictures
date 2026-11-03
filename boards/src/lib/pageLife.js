@@ -10,10 +10,13 @@
 // died there. A hidden one was likelier the system reclaiming a tab in the
 // background, which nobody saw.
 //
-// The note holds two times and a word, nothing else. Pure apart from what it
+// The note holds two times, a word, and the id of the cluster on screen (its id,
+// never its name), nothing else. Pure apart from what it
 // is handed, so node tests it (pageLife.test.mjs). App.jsx starts it as its
 // chunk loads: a cluster heavy enough to take the page down usually does it
-// while opening.
+// while opening. App.jsx also tells it which cluster is on screen (noteCluster).
+
+import { isUuid } from './uuid.js';
 
 export const PAGE_NOTE_KEY = 'soleil.page';
 const LOOK_MS = 60_000;
@@ -26,11 +29,18 @@ export function diedOnScreen(note) {
   return vis === 'visible' && since && Number.isFinite(lived) && lived >= 0 ? lived : null;
 }
 
+// The cluster the page before had open, when its note names one; otherwise null.
+export function whereItDied(note) {
+  const id = String(note || '').split(' ')[3];
+  return id && isUuid(id) ? id.toLowerCase() : null;
+}
+
 export function startPageLife({ store, doc, win, report, now = () => Date.now() }) {
   let before = null;
   try { before = store.getItem(PAGE_NOTE_KEY); } catch (_) { return; }
   const since = now();
-  const look = () => { try { store.setItem(PAGE_NOTE_KEY, `${since} ${now()} ${doc.visibilityState}`); } catch (_) {} };
+  let cluster = '';
+  const look = () => { try { store.setItem(PAGE_NOTE_KEY, `${since} ${now()} ${doc.visibilityState}${cluster ? ' ' + cluster : ''}`); } catch (_) {} };
   look();
   doc.addEventListener('visibilitychange', look);
   win.addEventListener('pagehide', () => { try { store.removeItem(PAGE_NOTE_KEY); } catch (_) {} });
@@ -38,5 +48,13 @@ export function startPageLife({ store, doc, win, report, now = () => Date.now() 
   win.addEventListener('pageshow', (e) => { if (e.persisted) look(); });
   win.setInterval(() => { if (doc.visibilityState === 'visible') look(); }, LOOK_MS);
   const lived = diedOnScreen(before);
-  if (lived != null) report(lived);
+  if (lived != null) report(lived, whereItDied(before));
+  return {
+    noteCluster(boardId) {
+      const next = isUuid(boardId) ? boardId.toLowerCase() : '';
+      if (next === cluster) return;
+      cluster = next;
+      look();
+    },
+  };
 }

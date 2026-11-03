@@ -23,7 +23,8 @@
 // rule — the pricing-specific bits are all .pp-*, in styles.css — so the two
 // stylesheets' injection order cannot matter.
 
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
+import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { FeatureList, BenefitGrid, PlanToggle, CreatorPriceRow } from '../components/PricingBits.jsx';
 import { DEMO_FEATURES, PRICING_PAGE, PLAN_COMPARISON, PRICING_FAQ, PLAN_NAME, CREATOR_BENEFITS } from '../lib/billingCopy.js';
@@ -33,10 +34,10 @@ import '../pages/seoLanding.css';
 // The Team card, which both pricing pages pass (appHost teamPricingAllowed,
 // open everywhere since the launch). Lazy, so the card's own code loads after
 // the page's.
-const TeamPlanCard = lazy(() => import('../components/team/TeamPlanCard.jsx'));
+const TeamPlanCard = lazyWithReload(() => import('../components/team/TeamPlanCard.jsx'));
 // With the card, the comparison gains a Team column (the same lazy module).
-const TeamCompareTable = lazy(() => import('../components/team/TeamPlanCard.jsx').then((m) => ({ default: m.TeamCompareTable })));
-const TeamTalkLine = lazy(() => import('../components/team/TeamPlanCard.jsx').then((m) => ({ default: m.TeamTalkLine })));
+const TeamCompareTable = lazyWithReload(() => import('../components/team/TeamPlanCard.jsx').then((m) => ({ default: m.TeamCompareTable })));
+const TeamTalkLine = lazyWithReload(() => import('../components/team/TeamPlanCard.jsx').then((m) => ({ default: m.TeamTalkLine })));
 
 const NO_PROPS = () => ({});
 

@@ -223,6 +223,13 @@ export function classifyHttpFailure(f, hosts = {}) {
   const pg = typeof f.pg === 'string' ? f.pg : null;
   const method = String(f.method || 'GET').toUpperCase().slice(0, 7);
   const lost = r.svc === 'auth' && r.route === 'token/refresh_token' && status >= 400 && status < 500 && SESSION_LOST.has(pg);
+  // A quiet tab (errorSender.js quietTab: hidden, offline, or back from
+  // either in the last half minute) fails, stalls and crawls as a matter of
+  // course, and its first requests carry the token that expired while it
+  // slept. Those say nothing about the service. Its server errors, timeouts
+  // (57014), schema-cache misses (PGRST002), refusals and a lost session
+  // still count.
+  if (f.quiet && !lost && (status === 0 || f.slow || f.stalled || status === 401)) return null;
   let severity;
   if (f.slow) severity = 'warning';
   else if (status === 0 || status >= 500 || pg === '57014') severity = 'error';

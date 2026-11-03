@@ -45,7 +45,8 @@
 // workspace, nothing goes into a cluster you can only view, and a label at the
 // pointer says which before you let go (DragLabel.jsx).
 
-import { Suspense, lazy, useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import { createPortal } from 'react-dom';
 import { CardContextMenu } from '../CardContextMenu.jsx';
 import { composeMenuSections, SECTION } from '../../lib/contextMenuSections.js';
@@ -88,7 +89,7 @@ import { logEvent, noteSessionCounter } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import './clusterSidebar.css';
 
-const QuickLook = lazy(() => import('../clusterBrowser/QuickLook.jsx'));
+const QuickLook = lazyWithReload(() => import('../clusterBrowser/QuickLook.jsx'));
 
 const PREFS_KEY = 'soleil.sidebar.prefs';
 const unfoldedKey = (ws) => `soleil.sidebar.unfolded.${ws}`;

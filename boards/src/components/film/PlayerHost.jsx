@@ -9,10 +9,11 @@
 //            same picture whatever rate each side counted in
 //   playing  whether to carry on playing (default: start playing, unless a
 //            frame or time was given)
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import { PLAYER_EVENT } from '../../lib/playerBus.js';
 
-const FilmReview = lazy(() => import('./FilmReview.jsx').then((m) => ({ default: m.FilmReview })));
+const FilmReview = lazyWithReload(() => import('./FilmReview.jsx').then((m) => ({ default: m.FilmReview })));
 
 export const PLAYER_CLOSED_EVENT = 'soleil-player-closed';
 

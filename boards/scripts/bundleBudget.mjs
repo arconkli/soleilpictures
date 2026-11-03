@@ -222,7 +222,17 @@ export const CEILINGS = {
   // without a raise, so main's CI read appJs 703.2 KB, OVER, on 3631b029; a
   // CI-style build measured 703,184 B there and on the production release
   // that carries it.
-  appJs: 703_300,
+  // 2026-11-03: +1.0 KB of JS for the error sweep: plain words for a failed
+  // upload or download (lib/transferWords.js) in place of the machine's text,
+  // a view-only cluster's paste and drops answered with the view-only toast,
+  // held drops left held on a pane that can't take them, the crash note
+  // naming the cluster that was open, and the workspace error screen's words,
+  // its Try again and its Sign in again (0854). The sign-in repair
+  // (lib/sessionRepair.js) loads only on a refused request. A CI-style build
+  // measured appJs 703,161 B on main 4fd7a43f and 704,188 B with it
+  // (CanvasSurface +623 B, AppShell +365 B); the entry grew 163 B, inside
+  // its ceiling.
+  appJs: 704_300,
   appCss: 21_900,
 };
 

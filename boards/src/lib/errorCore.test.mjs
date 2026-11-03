@@ -253,6 +253,25 @@ test('one failure with a different number in it is one failure', () => {
   assert.notEqual(dedupeKey('render', 'x', ''), dedupeKey('save', 'x', ''));
 });
 
+test('a quiet tab\'s network trouble and expired token say nothing about the service', () => {
+  const rest = `${SB}/rest/v1/boards`;
+  const rpc = `${SB}/rest/v1/rpc/save_board_snapshot`;
+  const refresh = `${SB}/auth/v1/token?grant_type=refresh_token`;
+  const q = { quiet: true };
+  assert.equal(fail({ url: rest, status: 0, ...q }), null);
+  assert.equal(fail({ url: rpc, method: 'POST', status: 200, ms: 9100, slow: true, ...q }), null);
+  assert.equal(fail({ url: rest, status: 0, stalled: true, ...q }), null);
+  assert.equal(fail({ url: rest, status: 401, pg: 'PGRST303', ...q }), null);
+  assert.ok(fail({ url: rpc, method: 'POST', status: 500, ...q }));
+  assert.ok(fail({ url: rpc, method: 'POST', status: 500, pg: '57014', ...q }));
+  assert.ok(fail({ url: rest, status: 503, pg: 'PGRST002', ...q }));
+  assert.ok(fail({ url: rest, method: 'PATCH', status: 403, pg: '42501', ...q }));
+  for (const status of [400, 401]) {
+    assert.ok(fail({ url: refresh, method: 'POST', status, pg: 'refresh_token_not_found', ...q }), String(status));
+  }
+  assert.equal(fail({ url: rest, status: 401, pg: 'PGRST303' })?.severity, 'warning');
+});
+
 test('noise is dropped, a real failure is kept', () => {
   const chrome = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
   assert.equal(isNoise('Failed to fetch', 'TypeError: Failed to fetch', chrome), false);
@@ -260,6 +279,10 @@ test('noise is dropped, a real failure is kept', () => {
   assert.equal(isNoise('Failed to fetch', '', 'Mozilla/5.0 (compatible; Googlebot/2.1)'), true);
   assert.equal(isBotUA('facebookexternalhit/1.1'), true);
   assert.equal(isBotUA(chrome), false);
+  assert.equal(isBotUA('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/120.0.0.0 Safari/537.36'), true);
+  assert.equal(isBotUA('python-requests/2.31.0'), true);
+  assert.equal(isBotUA('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'), false);
+  assert.equal(isBotUA('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 300.0.0.0'), false);
   for (const m of ['Script error.', 'ResizeObserver loop completed with undelivered notifications.',
     'AbortError: The user aborted a request.', 'signal is aborted without reason', 'The operation was aborted.',
     'Object Not Found Matching Id:3, MethodName:update, ParamCount:4']) {
@@ -322,6 +345,8 @@ test('a watchdog that went off before its time is a renderer\'s, never a person\
   assert.match(reporting, /hand\(\{ t: 'boot', m: moment\(\), after: BOOT_STUCK_MS \}\)/);
   assert.match(reporting, /\}, BOOT_STUCK_MS\);/);
   const sender = readFileSync(new URL('./errorSender.js', import.meta.url), 'utf8');
+  assert.ok(sender.includes('const message = `Live updates ${what}`;'));
+  assert.ok(sender.includes('quiet: quietTab(m)'));
   const boot = sender.slice(sender.indexOf("it.t === 'boot'"), sender.indexOf("it.t === 'perf'"));
   assert.match(boot, /timersRanAhead\(m\.at, it\.after\)[\s\S]*?\) return;/);
   // 0583 drops the rows builds already out still send, at the same 45 seconds.
