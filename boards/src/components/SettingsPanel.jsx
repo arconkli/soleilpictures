@@ -29,6 +29,7 @@ import { useFeedback } from './AppFeedback.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { SettingsSaveProvider, useSettingsSaveState, SettingsSavedFlash } from './settings/saveState.jsx';
 import { ProfileTab } from './settings/ProfileTab.jsx';
+import AccountBox from './settings/AccountBox.jsx';
 import { AppearanceTab } from './settings/AppearanceTab.jsx';
 import { NotificationsTab } from './settings/NotificationsTab.jsx';
 import { ConnectionsTab } from './settings/ConnectionsTab.jsx';
@@ -288,6 +289,7 @@ export function SettingsPanel({
         <div className={`settings-body${stacked ? (detail ? ' is-detail' : ' is-list') : ''}`}>
           <nav className="settings-tabs" role="tablist" aria-label="Settings"
                aria-orientation="vertical" onKeyDown={onRailKeyDown}>
+            {stacked && onSignOut && <AccountBox email={user?.email} onSignOut={signOut} />}
             {groups.map(g => (
               <div key={g.id} className="settings-tabs-group">
                 <span className="settings-tabs-grouplabel" role="presentation">{g.label}</span>
@@ -311,10 +313,11 @@ export function SettingsPanel({
                 ))}
               </div>
             ))}
-            {onSignOut && (
+            {onSignOut && !stacked && (
               <div className="settings-tabs-foot">
                 <button type="button" className="settings-tab settings-tab-signout"
                         onClick={signOut}>Sign out</button>
+                <span className="settings-tabs-foot-email" title={user?.email || ''}>{user?.email}</span>
               </div>
             )}
           </nav>
@@ -322,7 +325,8 @@ export function SettingsPanel({
                aria-labelledby={`settings-tab-${tab}`}>
             <SettingsSaveProvider value={save}>
               {tab === 'profile' && (
-                <ProfileTab user={user} workspaceId={workspaceId} onSaved={onSaved} />
+                <ProfileTab user={user} workspaceId={workspaceId} onSaved={onSaved}
+                            onSignOut={onSignOut ? signOut : undefined} />
               )}
               {tab === 'appearance' && (
                 <AppearanceTab mySettings={mySettings} refresh={refresh} />

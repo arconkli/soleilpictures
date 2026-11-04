@@ -43169,7 +43169,30 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Profile picture, display name, email, and your "
+     "v": "It starts with the email you're signed in as and a "
+    },
+    {
+     "t": "strong",
+     "v": "Sign out",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sign out"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " button. Have two emails? Sign out, then sign in with the other one; nothing is deleted."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Below that: profile picture, display name and your "
     },
     {
      "t": "strong",
@@ -44238,7 +44261,62 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "At the foot of the rail, under every group. It asks first, and names the account it is about to sign out of."
+     "v": "The same button sits in three places:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "At the top of "
+     },
+     {
+      "t": "strong",
+      "v": "Profile",
+      "children": [
+       {
+        "t": "text",
+        "v": "Profile"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", next to the email you're signed in as."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "At the foot of the rail on a computer, with that email under it."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "First in the list on a phone, above every tab."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It asks first, and names the account it is about to sign out of. Signing out ends that email's sign-in on every device, so each one asks for a fresh code or a passkey next time. To switch to another email, sign out, then sign in with that one: nothing in either account is touched. Typing \"log out\" or \"switch account\" in "
+    },
+    {
+     "t": "code",
+     "v": "⌘K"
+    },
+    {
+     "t": "text",
+     "v": " finds it too."
     }
    ]
   },
@@ -44417,7 +44495,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The panel fills the screen and works as a list: the rail is the first screen, tapping a tab pushes it, and the back chevron in the header returns to the list. The bottom nav's "
+     "v": "The panel fills the screen and works as a list: the rail is the first screen, headed by the email you're signed in as and "
+    },
+    {
+     "t": "strong",
+     "v": "Sign out",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sign out"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; tapping a tab pushes it, and the back chevron in the header returns to the list. The bottom nav's "
     },
     {
      "t": "strong",
@@ -49075,6 +49167,29 @@ export const DOCS_CONTENT = {
     }
    ],
    "id": "deleting-your-account"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Only want to use a different email? You don't need to delete anything: "
+    },
+    {
+     "t": "strong",
+     "v": "sign out",
+     "children": [
+      {
+       "t": "text",
+       "v": "sign out"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " (at the top of Profile) and sign in with the other one. The delete panel offers the same before anything else."
+    }
+   ]
   },
   {
    "type": "para",

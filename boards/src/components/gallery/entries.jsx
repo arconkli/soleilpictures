@@ -264,7 +264,7 @@ export const RENDERERS = {
   'settings-defaults': ({ close }) => <SettingsStage tab="defaults" close={close} />,
   'settings-docs': ({ close }) => <SettingsStage tab="docs" close={close} />,
   'settings-capture': ({ close }) => <SettingsStage tab="capture" close={close} />,
-  'delete-account-panel': () => <BillingStage><DeleteAccount email={USER.email} /></BillingStage>,
+  'delete-account-panel': () => <BillingStage><DeleteAccount email={USER.email} onSignOut={NOOP} /></BillingStage>,
 
   // Modals & panels
   'shortcuts': ({ close }) => <ShortcutsOverlay open onClose={close} />,

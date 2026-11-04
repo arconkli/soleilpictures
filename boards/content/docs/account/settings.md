@@ -5,13 +5,15 @@ h1: Settings
 navLabel: Settings
 section: account
 order: 0
-updated: 2026-10-29
+updated: 2026-11-04
 answer: Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 faq:
   - q: Are settings per device?
     a: No. They are stored on your account and follow you to any browser or device you sign in on, including the theme and the scroll-wheel mode.
   - q: What is the difference between the cog and my avatar?
     a: Nothing except where they land you. Both open the same panel — the cog on the workspace's General tab, the avatar on your Profile. Everything else is one click away in the same rail.
+  - q: How do I sign out or switch to another email?
+    a: Open Settings from your avatar. Profile starts with the email you are signed in as and a Sign out button, and on a phone that is also the first thing in the Settings list. Sign out, then sign in with the other email. Signing out deletes nothing.
   - q: Where do I find my storage usage?
     a: Under Plan and billing, as a meter showing used against your quota.
   - q: Where are API tokens?
@@ -41,7 +43,10 @@ between devices.
 
 ### Profile
 
-Profile picture, display name, email, and your
+It starts with the email you're signed in as and a **Sign out** button. Have
+two emails? Sign out, then sign in with the other one; nothing is deleted.
+
+Below that: profile picture, display name and your
 **[presence colour](/docs/collaborate/presence)** — the colour your cursor and
 selection halos appear in to everyone else.
 
@@ -163,8 +168,17 @@ your canvas.
 
 ## Sign out
 
-At the foot of the rail, under every group. It asks first, and names the
-account it is about to sign out of.
+The same button sits in three places:
+
+- At the top of **Profile**, next to the email you're signed in as.
+- At the foot of the rail on a computer, with that email under it.
+- First in the list on a phone, above every tab.
+
+It asks first, and names the account it is about to sign out of. Signing out
+ends that email's sign-in on every device, so each one asks for a fresh code
+or a passkey next time. To switch to another email, sign out, then sign in
+with that one: nothing in either account is touched. Typing "log out" or
+"switch account" in `⌘K` finds it too.
 
 ## Not in Settings
 
@@ -181,5 +195,5 @@ A few things live where they apply rather than in a settings screen:
 ## On a phone
 
 The panel fills the screen and works as a list: the rail is the first screen,
-tapping a tab pushes it, and the back chevron in the header returns to the
+headed by the email you're signed in as and **Sign out**; tapping a tab pushes it, and the back chevron in the header returns to the
 list. The bottom nav's **Settings** tab opens it.

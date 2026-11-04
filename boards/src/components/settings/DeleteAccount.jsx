@@ -50,7 +50,7 @@ function Impact({ data }) {
   );
 }
 
-export function DeleteAccount({ email }) {
+export function DeleteAccount({ email, onSignOut }) {
   const feedback = useFeedback();
   const [open, setOpen] = useState(false);
   const [impact, setImpact] = useState(null);
@@ -113,6 +113,13 @@ export function DeleteAccount({ email }) {
   return (
     <div className="settings-callout settings-callout-danger">
       <div className="settings-callout-title">Delete your account</div>
+      {onSignOut && (
+        <div className="settings-switch">
+          <span>Only want to use a different email? Sign out instead: nothing is deleted, and you can sign in with the other one.</span>
+          <button type="button" className="settings-btn" disabled={busy}
+                  onClick={onSignOut}>Sign out</button>
+        </div>
+      )}
       {loading ? (
         <p>Working out what this would affect…</p>
       ) : (

@@ -6,6 +6,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { guardRealtimeConnect, watchChannels } from './realtimeGuard.js';
 import { logClientError, noteChannel } from './errorReporting.js';
+import { fixAuthResponse } from './authFetch.js';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 // Prefer the modern publishable key; fall back to legacy anon JWT.
@@ -80,6 +81,8 @@ function makeNamespacedStorage(suffix) {
 let repairing = null;
 async function supabaseFetch(input, init) {
   const res = await fetch(input, init);
+  // Sign-in answers are corrected for a wrong device clock (authFetch.js).
+  if ((typeof input === 'string' ? input : (input?.url ?? String(input))).includes('/auth/v1/')) return fixAuthResponse(res, input, init);
   if (res.status !== 401) return res;
   if (!repairing) {
     repairing = import('./sessionRepair.js')
