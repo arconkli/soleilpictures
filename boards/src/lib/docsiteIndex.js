@@ -2926,7 +2926,7 @@ export const DOCS_PAGES = [
     "answer": "Invite someone new to Clusters — by email from a cluster's Share panel, with a link to one of your clusters or your workspace's invite link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get 25 extra cards and 0.5GB of storage when they sign up. You get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.",
     "section": "account",
     "order": 3,
-    "updated": "2026-11-01",
+    "updated": "2026-11-04",
     "navLabel": "Referrals",
     "headings": [
       {
@@ -2940,6 +2940,10 @@ export const DOCS_PAGES = [
       {
         "id": "bonus-cards-and-storage",
         "text": "Bonus cards and storage"
+      },
+      {
+        "id": "earn-by-working-together",
+        "text": "Earn by working together"
       },
       {
         "id": "stats",
@@ -2976,6 +2980,10 @@ export const DOCS_PAGES = [
       {
         "q": "Does inviting someone who already has an account count?",
         "a": "No. It shares the cluster with them as usual, but only people new to Clusters earn a reward."
+      },
+      {
+        "q": "Do I earn anything for working with someone?",
+        "a": "Yes. While you and someone else are both active in the same cluster, you each earn a bonus card every 2 minutes for each other person working with you, up to 3 every 2 minutes, and at most 25 cards a calendar month."
       },
       {
         "q": "Where do I see how it is going?",

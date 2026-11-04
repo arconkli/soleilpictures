@@ -4,11 +4,12 @@
 // first card (granted server-side, 0377/0416). inviteReward.js holds every
 // figure, and the build holds those to the SQL that pays them.
 import { useEffect, useState } from 'react';
-import { getOrCreateMyReferralCode, getMyReferralStats } from '../../lib/boardsApi.js';
+import { getOrCreateMyReferralCode, getMyReferralStats, getMyTogetherStats } from '../../lib/boardsApi.js';
 import { logEvent, logEventNow } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { logClientError } from '../../lib/errorReporting.js';
 import { describeReason } from '../../lib/describeReason.js';
+import { settingsLine } from '../../lib/liveTogether.js';
 import { REFERRAL_PITCH, referralMessage, buildShareTargets } from '../../lib/shareTargets.js';
 import {
   REFERRAL_BONUS_CARDS, REFERRAL_REWARD_CARDS, REFERRAL_REWARDS_PER_30_DAYS,
@@ -31,6 +32,7 @@ export function InviteTab({ user }) {
   const feedback = useFeedback();
   const [code, setCode] = useState(null);
   const [stats, setStats] = useState(null);
+  const [together, setTogether] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(false);
 
@@ -41,9 +43,11 @@ export function InviteTab({ user }) {
     // allSettled, not all: a failure of ONE of these RPCs must not blank the
     // whole tab. And log genuine failures — this surface used to swallow them
     // silently, which hid a server-side referral-mint outage for a day.
-    Promise.allSettled([getOrCreateMyReferralCode(), getMyReferralStats()])
-      .then(([codeRes, statsRes]) => {
+    Promise.allSettled([getOrCreateMyReferralCode(), getMyReferralStats(), getMyTogetherStats()])
+      .then(([codeRes, statsRes, togetherRes]) => {
         if (cancelled) return;
+        // A failure just hides the line (0862 may not be applied yet).
+        setTogether(togetherRes.status === 'fulfilled' ? togetherRes.value : null);
         if (codeRes.status === 'rejected') {
           try { logClientError(describeReason(codeRes.reason, 'referral code'), { kind: 'referral', op: 'get_or_create_my_referral_code' }); } catch (_) {}
         }
@@ -184,6 +188,11 @@ export function InviteTab({ user }) {
             <p className="settings-section-hint" style={{ marginTop: 8 }}>
               {stats.friendsPaid} {stats.friendsPaid === 1 ? 'friend' : 'friends'} you invited
               {' '}upgraded to a paid plan — that’s {stats.monthsEarned} free {stats.monthsEarned === 1 ? 'month' : 'months'} for you.
+            </p>
+          )}
+          {together && (
+            <p className="settings-section-hint" style={{ marginTop: 12 }}>
+              Working live with someone in the same cluster earns you both cards too: {settingsLine(together.monthCards)}.
             </p>
           )}
         </>

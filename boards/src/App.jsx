@@ -20,6 +20,9 @@ import * as userProfiles from './lib/userProfiles.js';
 import { useBoardPermission, computeBoardPermission } from './hooks/useBoardPermission.js';
 import { setBoardClipboard, getBoardClipboard } from './lib/boardClipboard.js';
 import { useMyTier, expectIndexChange } from './hooks/useMyTier.js';
+import { useTogether } from './lib/useTogether.js';
+import { setHereBoard } from './lib/yPartyKit.js';
+import { togetherShown } from './lib/togetherState.js';
 import { useCreatorIntentResume } from './hooks/useCreatorIntentResume.js';
 import { setCapture } from './lib/captureState.js';
 import { maskName, maskEmail } from './lib/captureIdentity.js';
@@ -195,7 +198,8 @@ import { passkeyOfferDue, PASSKEY_OFFER_KEY } from './lib/passkeyGate.js';
 import { trackRegistration } from './lib/metaPixel.js';
 import { holdReload } from './lib/buildWatch.js';
 import { ownPersonalCount, isWorkspaceLimitError, workspaceCountFromError, WORKSPACE_LIMIT } from './lib/workspaceLimit.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listPublicLinks, createCollabLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, syncCardIndex, getProfilesByIds } from './lib/boardsApi.js';
+import { rewardCardsBeyondTogether } from './lib/liveTogether.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listPublicLinks, createCollabLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, getMyTogetherStats, syncCardIndex, getProfilesByIds } from './lib/boardsApi.js';
 import { rewardToastMessage } from './lib/inviteReward.js';
 import { undoToast } from './lib/undoToast.js';
 import { failMove } from './lib/moveFailure.js';
@@ -321,6 +325,8 @@ const SetupInWorkspace = lazyWithReload(() => import('./components/setup/SetupIn
 // The first-board test (experiments.js first_board_more): fetched only for an
 // account new enough for it, or a QA tab (lib/boardMoreEpoch.js).
 const BoardMoreNudge = lazyWithReload(() => import('./components/BoardMoreNudge.jsx'));
+// The Together chip by the faces in the top bar (free accounts, while working live with someone).
+const TogetherChip = lazyWithReload(() => import('./components/TogetherChip.jsx'));
 const WhatsNewHint = lazyWithReload(() => import('./components/whatsNew/WhatsNewHint.jsx'));
 // Files, docked beside the board or as the whole view. It starts shut, so most
 // opens never render it, and one that does paints the board while it arrives.
@@ -6110,6 +6116,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // the demo-cap on addCard, and the tier-aware viewer fallback in
   // useBoardPermission for non-owned boards.
   const myTier = useMyTier({ userId: user.id });
+  // Working live together (lib/liveTogether.js): the room's minute-by-minute
+  // word on this cluster. The chip is for free accounts; paid tiers bank cards
+  // silently. Cards earned raise the free limit, so the tier is read again as
+  // they grow.
+  const together = useTogether(currentBoard?.id);
+  const togetherEarnedRef = useRef(0);
+  useEffect(() => {
+    const cur = together.on ? together.earned : 0;
+    const prev = togetherEarnedRef.current;
+    togetherEarnedRef.current = cur;
+    if (cur > prev) myTier.refetch?.();
+  }, [together.on, together.earned]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // Only the cluster on screen takes the `here` stamp (yPartyKit.js).
+  useEffect(() => {
+    setHereBoard(landingPending ? null : currentBoard?.id);
+    return () => setHereBoard(null);
+  }, [currentBoard?.id, landingPending]);
 
   // The floating sidebar: stacked or side by side, and each card's size
   // (lib/sidebarLayout.js). A handle sizes the cards directly while it's
@@ -7533,31 +7556,47 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // invited just got started". The storage half of a reward lands with the
   // cards (0416), so the toast names both.
   const prevBonusRef = useRef(null);
+  // Cards from working live together (0862) land in the same bonus credits a
+  // minute at a time while the chip already says so, so they are not a reward to
+  // announce. get_my_together_stats reads the credits and the together count in
+  // one snapshot, so the toast names only the growth the together count doesn't
+  // explain (liveTogether.js rewardCardsBeyondTogether). Each look chains onto
+  // the last, so two growths never share a baseline.
+  const readBonusSplit = () => getMyTogetherStats().then((s) => (Number.isFinite(s?.bonusCardCredits) ? { bonus: s.bonusCardCredits, lifetime: s.lifetimeCards } : null), () => null);
+  const bonusSplitRef = useRef(null);
   useEffect(() => {
     if (myTier.loading) return;
     const cur = Number(myTier.bonusCardCredits || 0);
     const prev = prevBonusRef.current;
     prevBonusRef.current = cur;
-    if (prev != null && cur > prev) {
-      const delta = cur - prev;
-      (async () => {
+    if (prev == null) { bonusSplitRef.current = readBonusSplit(); return; }
+    if (cur <= prev) return;
+    const delta = cur - prev;
+    const before = bonusSplitRef.current || Promise.resolve(null);
+    const step = (async () => {
+      const was = await before;
+      const now = await readBonusSplit();
+      const rest = rewardCardsBeyondTogether(was, now, delta);
+      if (rest > 0) {
         let asInviter = true;   // the common case, and all this toast used to say
         try {
           const stats = await getMyReferralStats();
-          asInviter = (Number(stats?.cardsEarned) || 0) >= delta;
+          asInviter = (Number(stats?.cardsEarned) || 0) >= rest;
         } catch (_) { /* keep the inviter wording */ }
         try {
           feedback.toast({
             type: 'success',
-            message: rewardToastMessage({ deltaCards: delta, asInviter }),
+            message: rewardToastMessage({ deltaCards: rest, asInviter }),
             // The highest-intent re-share moment — turn the celebration back into
             // the loop instead of dead-ending. Longer ttl so the CTA is clickable.
             action: { label: asInviter ? 'Invite more' : 'Invite someone', onClick: () => openInviteFriends('reward_toast') },
             ttl: 12000,
           });
         } catch (_) {}
-      })();
-    }
+      }
+      return now || was;
+    })();
+    bonusSplitRef.current = step.then((v) => v, () => null);
   }, [myTier.bonusCardCredits, myTier.loading]);
 
   // The server card-cap trigger rejected a card_index write (syncCardIndex
@@ -9360,6 +9399,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       isActive: tabVisible && currentSurface === 'board',
     },
   });
+  // Rendered beside the faces in both top bars. Free accounts only: paid tiers
+  // bank the cards silently (see `together` above).
+  const togetherChipEl = myTier.tier === 'demo' && togetherShown(together, Date.now()) ? (
+    <Suspense fallback={null}>
+      <TogetherChip state={together} peers={wsPeers} selfId={user.id} compact={mobileShell}
+                    onArrive={(message) => feedback.toast({ type: 'info', message, ttl: 6000 })} />
+    </Suspense>
+  ) : null;
   // Hydrate the userProfiles cache from workspace presence — every
   // online peer brings name+email along, so messages from / mentions
   // of online users get resolved without an RPC roundtrip.
@@ -11576,6 +11623,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <span className="chrome-sep" aria-hidden="true" />
                 <WorkspacePresenceStack peers={wsPeers} status={wsStatus} selfId={user.id}
                                         workspaceId={workspace.id} max={4} onJumpTo={jumpToPeer} />
+                {togetherChipEl}
                 {/* In view on touch, as in the bar: a tablet has no ⌘. for clean mode. */}
                 {isTouch && (
                   <button className="tb-icon tb-icon-focus" onClick={() => setFocusMode(true)}
@@ -11719,6 +11767,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                                     workspaceId={workspace.id}
                                     max={mobileShell ? 1 : 4}
                                     onJumpTo={jumpToPeer} />
+            {togetherChipEl}
             <span className="tb-divider" aria-hidden="true" />
             {/* On a phone the Ask to edit button takes the pill's room (the
                 bar has none to spare): it says the same, and presses. */}

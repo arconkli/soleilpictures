@@ -225,6 +225,18 @@ export async function getOrCreateMyReferralCode() {
   return data || null;
 }
 
+// Cards earned by working live together (0862): this month and ever, and the
+// bonus credits they sit in, read in one snapshot (App.jsx's reward toast).
+export async function getMyTogetherStats() {
+  const { data, error } = await supabase.rpc('get_my_together_stats');
+  if (error) throw error;
+  return {
+    monthCards: Number(data?.month_cards ?? 0),
+    lifetimeCards: Number(data?.lifetime_cards ?? 0),
+    bonusCardCredits: data?.bonus_card_credits == null ? null : Number(data.bonus_card_credits),
+  };
+}
+
 // Referral: the caller's invite stats for the "Invite & earn" tab. Always
 // returns one row (zeros when no referrals yet). friendsPaid/monthsEarned are
 // the conversion-gated paid reward (migration 0167): a referee who upgrades to a

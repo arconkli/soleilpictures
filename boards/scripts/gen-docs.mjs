@@ -73,6 +73,7 @@ import { ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from '../src/lib/zipStore.js';
 import { CREATOR_INTENT_MAX_AGE_MS } from '../src/lib/creatorIntent.js';
 import { EDITOR_LIMIT } from '../src/lib/editorLimit.js';
 import { WORKSPACE_LIMIT } from '../src/lib/workspaceLimit.js';
+import { TOGETHER_ACTIVE_SECONDS, TOGETHER_CARD_SECONDS, TOGETHER_MAX_BOOST, TOGETHER_MONTH_CAP } from '../src/lib/liveTogether.js';
 import { TEAM_SEAT_MAX } from '../src/lib/teamModel.js';
 import { TEAM_MIN_SEATS, TEAM_SEAT_UNIT_AMOUNT, TEAM_TRIAL_DAYS } from '../../supabase/functions/_shared/teamBillingCore.mjs';
 import { BODY_MAX as CARD_INDEX_BODY_MAX } from '../src/lib/cardIndexRow.js';
@@ -421,6 +422,27 @@ if (!workspaceLimitSql) {
 if (Number(workspaceLimitSql[1]) !== WORKSPACE_LIMIT) {
   throw new Error('gen-docs: WORKSPACE_LIMIT disagrees with _workspace_limit() in the migrations');
 }
+
+// Working live together (live_together_tick, 0862): the time together that
+// pays a card with one other person, the most a bigger group pays each person
+// in that time, and the month's cap. How long someone counts as active after
+// their last input is the board room's (togetherClock.js, from liveTogether.js).
+// The Together chip says the same numbers from liveTogether.js, so each one is
+// held to the SQL here.
+const togetherSql = latestDefinition('live_together_tick')?.body;
+const togetherConst = (name) => togetherSql?.match(new RegExp(`${name}\\s+constant\\s+integer\\s*:=\\s*(\\d+)`))?.[1];
+const together = {
+  cardSeconds: togetherConst('c_card_seconds'),
+  monthCap: togetherConst('c_month_cap'),
+  maxBoost: togetherConst('c_max_boost'),
+};
+if (Object.values(together).some((v) => !v)) {
+  throw new Error('gen-docs: the working-together rules were not found in live_together_tick — update the extractor');
+}
+if (Number(together.cardSeconds) !== TOGETHER_CARD_SECONDS || Number(together.monthCap) !== TOGETHER_MONTH_CAP
+    || Number(together.maxBoost) !== TOGETHER_MAX_BOOST || TOGETHER_CARD_SECONDS % 60 || TOGETHER_ACTIVE_SECONDS % 60) {
+  throw new Error('gen-docs: liveTogether.js disagrees with live_together_tick in the migrations');
+}
 if (Number(editorLimitSql[1]) !== EDITOR_LIMIT || Number(teamSeatCeiling[1]) !== TEAM_SEAT_MAX
     || TEAM_SEAT_UNIT_AMOUNT.month % 100 || TEAM_SEAT_UNIT_AMOUNT.year % 100) {
   throw new Error('gen-docs: the Team plan numbers disagree with the code that enforces them');
@@ -573,6 +595,11 @@ export const FACTS = {
   // The Team plan and the 10-editor limit (see the extractor above FACTS).
   editorLimit: editorLimitSql[1],
   workspaceLimit: workspaceLimitSql[1],
+  // Working live together (see the extractor above FACTS).
+  togetherCardMinutes: String(Number(together.cardSeconds) / 60),
+  togetherMaxCards: together.maxBoost,
+  togetherMonthCap: together.monthCap,
+  togetherActiveMinutes: String(TOGETHER_ACTIVE_SECONDS / 60),
   teamSeatMonthly: `$${TEAM_SEAT_UNIT_AMOUNT.month / 100}`,
   teamSeatAnnual: `$${TEAM_SEAT_UNIT_AMOUNT.year / 100}`,
   teamSeatMin: String(TEAM_MIN_SEATS),

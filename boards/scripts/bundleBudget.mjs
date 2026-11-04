@@ -257,7 +257,15 @@ export const CEILINGS = {
   // (lib/workspaceLimit.js, 434 B). A CI-style build measured appJs
   // 704,405 B on main e233d0aa (already 105 B over) and 705,454 B with it.
   // On production (release-nov-04-0318) the same +1.2 KB lands on 704_500.
-  appJs: 705_500,
+  // 2026-11-04: +1.6 KB of JS for working live together: the socket reads the
+  // room's together message and stamps `here` on real input (yPartyKit.js,
+  // with liveTogether.js and togetherClock.js, which it now imports), the
+  // state fold and its hook (togetherState.js, useTogether.js), the free-card
+  // limit re-read as cards arrive, and the reward toast leaving out cards
+  // earned together. The chip and its popover load later (TogetherChip). A
+  // CI-style build measured appJs 705,442 B on main 16539aea and 707,083 B
+  // with it.
+  appJs: 707_100,
   appCss: 21_900,
 };
 
@@ -278,6 +286,8 @@ export const LAZY_IN_APP = [
   'TrashModal', 'VersionHistoryModal', 'WorkspaceRecoveryModal', 'EntityBacklinksPanel', 'importStart', 'TeamPage', 'TeamPageLive', 'NewWorkspaceDialog',
   // App.jsx: the first-board test, for accounts from its epoch on
   'BoardMoreNudge',
+  // App.jsx: the Together chip by the faces, for free accounts working live with someone
+  'TogetherChip',
   // App.jsx: the save-a-passkey offer after a code sign-in (lib/passkeyOffer.js)
   'passkeyOffer',
   // TierRouter.jsx: one route's page each

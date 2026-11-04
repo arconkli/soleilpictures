@@ -132,7 +132,9 @@ cluster still uses it — and emptying the trash gives back everything in it at
 once.
 
 You can also raise your own cap without paying: [referrals](/docs/account/referrals)
-grant bonus cards for people you invite who actually get started.
+grant bonus cards for people you invite who actually get started, and
+[working live with someone](/docs/account/referrals#earn-by-working-together)
+in the same cluster earns you both cards, up to 25 a month.
 
 ## More storage
 

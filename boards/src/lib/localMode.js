@@ -223,6 +223,14 @@ export function isPresenceQaMode() {
   return new URLSearchParams(window.location.search).get('presenceqa') === '1';
 }
 
+// Dev-only Together chip harness. Active ONLY in a DEV build with ?togetherqa=1
+// (same trust boundary as isPresenceQaMode). Renders the real TogetherChip in
+// each of its states inside a top-bar look-alike. See ../local/TogetherQaHarness.jsx.
+export function isTogetherQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('togetherqa') === '1';
+}
+
 // Dev-only READ-ONLY board harness. Active ONLY in a DEV build with ?roqa=1
 // (same trust boundary as isPresenceQaMode). Renders the local Home board with
 // canEdit=false + isPublic=true, i.e. exactly what a /share visitor sees, so
@@ -260,7 +268,7 @@ const QA_MODE_PARAMS = [
   'local', 'adminpreview', 'docqa', 'noteqa', 'thumbqa', 'dndqa', 'arrowqa',
   'alignqa', 'gridqa', 'schedqa', 'tourqa', 'revealqa', 'imgeditqa',
   'presenceqa', 'shareqa', 'roqa', 'msgqa', 'setupqa', 'sidebarqa', 'importqa',
-  'toolbarqa',
+  'toolbarqa', 'togetherqa',
 ];
 export function isAnyQaMode() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return false;
