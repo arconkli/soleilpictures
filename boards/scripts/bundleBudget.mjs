@@ -242,7 +242,11 @@ export const CEILINGS = {
   // measured appJs 703,161 B on main 4fd7a43f and 704,188 B with it
   // (CanvasSurface +623 B, AppShell +365 B); the entry grew 163 B, inside
   // its ceiling.
-  appJs: 704_300,
+  // 2026-11-04 (production only): +0.2 KB for the tests re-aim (1f4fcf28):
+  // the share ask's skip reason, the upsell slot holder, the trial offer's
+  // fields and the plan tab's view event. A CI-style build measured appJs
+  // 704,468 B on production bae43980 with it.
+  appJs: 704_500,
   appCss: 21_900,
 };
 
