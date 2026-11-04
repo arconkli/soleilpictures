@@ -20,6 +20,7 @@ import { fileSharesAllowed, sharedFilesAllowed } from '../lib/appHost.js';
 import { editorLimitAllowed } from '../lib/appHost.js';
 import { openSharedFile } from '../lib/sharedFileBus.js';
 import { notificationTarget } from '../lib/notificationsBell.js';
+import { refreshMyTier } from './useMyTier.js';
 import { noticeToastText, missedJoinedAsViewer } from '../lib/editorLimit.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
@@ -89,6 +90,11 @@ export function useNotifications({ userId, feedback = null, onOpenBoard = null, 
       });
       if (toasted.has(payload.id)) return;
       toasted.add(payload.id);
+      // An invite reward is quiet: the bell's dot carries it, and the app's own
+      // reward toast (App.jsx, when the bonus grows) stays the one pop-up. The
+      // tier is re-read now, so that toast and the higher card limit don't wait
+      // for the next focus.
+      if (payload.kind === 'invite.reward') { refreshMyTier(); return; }
       const openIt = () => { try { onOpenRef.current?.(payload.board_id); } catch (_) {} };
       const fileToken = fileSharesAllowed() && String(payload.kind || '').startsWith('file.') ? payload.data?.token : null;
       // An editor-limit notice opens Settings › Members in its workspace.

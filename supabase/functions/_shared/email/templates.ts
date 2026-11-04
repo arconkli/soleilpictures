@@ -18,6 +18,7 @@ export type TemplateName =
   | "workspace_invite"
   | "board_shared"
   | "invite_accepted"
+  | "invite_reward"
   | "edit_request"
   | "edit_granted"
   | "pending_invite"
@@ -44,6 +45,7 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "workspace_invite",
   "board_shared",
   "invite_accepted",
+  "invite_reward",
   "edit_request",
   "edit_granted",
   "pending_invite",
@@ -621,6 +623,51 @@ interface EditRequestData {
 function firstNameOf(name: string): string {
   const first = name.trim().split(/\s+/)[0] || "";
   return !first || first.includes("@") || first === "Someone" ? "them" : first;
+}
+
+// 0863: a friend you invited added their first card, so your invite reward was
+// paid (_tg_referral_reward_notice; sent only when you are not in the app).
+// The numbers come from the database; when one is missing the copy just says
+// "more", so no number is ever typed here.
+interface InviteRewardData {
+  cards?: number;
+  storage?: string;
+  unsubscribeToken?: string;
+}
+
+function inviteReward(d: InviteRewardData): RenderedEmail {
+  const cards = d.cards ? `${d.cards} more cards` : "more cards";
+  const storage = d.storage ? `${d.storage} more storage` : "more storage";
+  const headline = `You earned ${cards}.`;
+  const subtitle = `A friend you invited just added their first card to Clusters, so you get ${cards} and ${storage}.`;
+  const caveat = "You're getting this because you invited someone.";
+  const url = deepLink({}, { utm_source: "email", utm_medium: "transactional", utm_campaign: "invite_reward" });
+  const unsub = d.unsubscribeToken ? unsubUrl(d.unsubscribeToken, "email_invite_reward") : undefined;
+  return {
+    subject: `You earned ${cards}`,
+    html: renderEmail({
+      preheader: subtitle,
+      eyebrow: "Invite reward",
+      headline,
+      subtitle,
+      cta: { label: "Open Clusters", url },
+      caveat,
+      unsubscribeUrl: unsub,
+    }),
+    text: plain([
+      "CLUSTERS",
+      "",
+      headline,
+      subtitle,
+      "",
+      "Open Clusters: " + url,
+      "",
+      caveat,
+      "",
+      "© Soleil Pictures · clusters.soleilpictures.com",
+      unsub ? "Turn these emails off: " + unsub : "",
+    ]),
+  };
 }
 
 function editRequest(d: EditRequestData): RenderedEmail {
@@ -1881,6 +1928,16 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         workspaceId: data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:     data.boardId != null ? String(data.boardId) : undefined,
       });
+    case "invite_reward": {
+      // Only ever the database's numbers: a whole count and a "0.5GB"-style label.
+      const n = Number(data.cards);
+      const s = data.storage != null ? String(data.storage) : "";
+      return inviteReward({
+        cards: Number.isInteger(n) && n > 0 && n <= 100000 ? n : undefined,
+        storage: /^\d{1,5}(\.\d)?(GB|TB)$/.test(s) ? s : undefined,
+        unsubscribeToken: unsubTokenOf(data.unsubscribeToken),
+      });
+    }
     case "invite_accepted":
       return inviteAccepted({
         joinerName:    safePerson(data.joinerName),

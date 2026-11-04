@@ -3769,17 +3769,18 @@ Comment replies | Someone replies in a thread you are part of
 Workspace invites | You are added to a workspace
 Board shares | A cluster is shared with you
 Invite accepted | Someone you invited opens your link and joins
+Invite rewards | A friend you invited adds their first card and you earn more cards and storage
 Product tips and check-ins | Occasional messages about the product, including a short note from the team when something new ships
 
-The last one is the one to switch off if you only want to hear about your own work. The other five are all consequences of something a person did that involves you.
+The last one is the one to switch off if you only want to hear about your own work. The other six are all consequences of something a person did that involves you.
 
 Where they appear
 
 In the app — unread indicators on the sidebar, and in the browser tab title for messages. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app; for a file, Open opens it in the app. The share itself also reaches you by email, and every file shared with you is listed under Shared files in the sidebar.
 
-The bell — at the top right of the board, right after the theme switch; on a phone it is in the top bar, just before Share. Its number counts the notifications you haven't read. Press it and the list opens under it, newest first, with the unread ones marked; Mark all read clears the number. Press a row to go to what it is about: a row for a file shared with you, or a comment on one, opens the file in the app. Esc, a click outside the list or the bell again closes it; on a phone the list fills the screen and × closes it.
+The bell — at the top right of the board, right after the theme switch; on a phone it is in the top bar, just before Share. Its number counts the notifications you haven't read. Press it and the list opens under it, newest first, with the unread ones marked; Mark all read clears the number. Press a row to go to what it is about: a row for a file shared with you, or a comment on one, opens the file in the app, and a note that you earned an invite reward opens Settings → Invite and earn. Esc, a click outside the list or the bell again closes it; on a phone the list fills the screen and × closes it.
 
-Email only when you are away — an accepted-invite email is sent only if you are not currently in the app. If you are, the in-app notification is the whole story and a second copy in your inbox is just noise.
+Email only when you are away — an accepted-invite email and an invite-reward email are each sent only if you are not currently in the app. If you are, the in-app notification is the whole story and a second copy in your inbox is just noise.
 
 Browser notifications — only if you grant permission. Nothing is requested until there is an actual reason to ask.
 
@@ -4470,6 +4471,8 @@ Invite from Share on any cluster, or from Settings → Invite and earn.
 How it works
 
 Invite someone who does not have a Clusters account yet: by email from a cluster's Share panel, with one of your links to a cluster (a view link they join, or an edit link), with your workspace's invite link, or with your referral link. When they sign up they get 25 extra cards and 0.5GB of storage straight away. You get 25 bonus cards and 0.5GB as soon as they actually get started — they have opened the app and placed their first card.
+
+When that happens a note lands in your bell, and if you are not in the app at the time, one email says so too. You can switch the email off in Settings → Notifications → Invite rewards, or with the link at the bottom of it.
 
 The activation gate is the important detail. The reward is not for a signup, it is for someone who used the product — which means the number in your stats reflects people who are actually there.
 

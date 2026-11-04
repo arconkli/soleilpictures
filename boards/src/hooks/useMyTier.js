@@ -191,6 +191,9 @@ const READ_REARM_MS = 15000;
 let _focusAttached = false;
 let _indexSyncTimer = null;
 function _onFocus() { if (_store.userId) _fetchTier(); }
+// An invite reward paid server-side (its bell note arriving, useNotifications)
+// re-reads at once, so the new limit and its toast don't wait for a focus.
+export function refreshMyTier() { if (_store.userId) _fetchTier(); }
 // It also re-reads after a read from elsewhere. That read settled the whole
 // local delta against card_index as it stood, and card_index lags placements by
 // the ten-second sync — so a focus or a pricing-modal refetch inside that window

@@ -104,4 +104,38 @@ test.describe('the notifications bell', () => {
     expect(Math.abs(box.right - island.right)).toBeLessThanOrEqual(1);
     expect(box.left).toBeGreaterThanOrEqual(16);
   });
+  test('with &ntf=reward the invite reward row leads with a quiet +25 mark', async ({ page }) => {
+    await open(page, '&ntf=reward');
+    await expect(bell(page)).toHaveAttribute('aria-label', 'Notifications, 4 unread');
+    await expect(bell(page).locator('.nb-count')).toHaveText('4');
+    await bell(page).click();
+    const p = panel(page);
+    await expect(p).toBeVisible();
+    await page.waitForTimeout(300);
+    const row = p.locator('.ntf-row').first();
+    await expect(row).toHaveAttribute('data-kind', 'invite.reward');
+    const earn = row.locator('.ntf-earn');
+    await expect(earn).toHaveText('+25');
+    // Ink like the title, not the gold of --soleil.
+    const [mark, title, gold] = await row.evaluate((el) => {
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--soleil)';
+      document.body.appendChild(probe);
+      const g = getComputedStyle(probe).color;
+      probe.remove();
+      return [getComputedStyle(el.querySelector('.ntf-earn')).color, getComputedStyle(el.querySelector('.ntf-row-title')).color, g];
+    });
+    expect(mark).toBe(title);
+    expect(mark).not.toBe(gold);
+    // Between the dot and the text.
+    const dot = await rect(row.locator('.ntf-dot'));
+    const m = await rect(earn);
+    const main = await rect(row.locator('.ntf-row-main'));
+    expect(m.left).toBeGreaterThanOrEqual(dot.right);
+    expect(m.left).toBeLessThan(main.left);
+    // Opens Settings on Invite and marks it read.
+    await row.click();
+    await expect(bell(page).locator('.nb-count')).toHaveText('3');
+    expect(await page.evaluate(() => window.__sidebarqaSettings)).toEqual(['invite', undefined]);
+  });
 });

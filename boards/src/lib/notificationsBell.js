@@ -48,7 +48,8 @@ export function wantsNotificationSheet({ mobileShell = false, viewportWidth = In
 
 // Where a row leads:
 //   { kind: 'file', token, inApp }            a file.* row with a link token
-//   { kind: 'settings', tab, workspaceId }    an editor-limit row: Members
+//   { kind: 'settings', tab, workspaceId }    an editor-limit row: Members; an
+//                                             invite reward: Invite & earn
 //   { kind: 'board', boardId }                anything else with a board
 //   null                                      nothing to open
 // fileShares / sharedFiles are the appHost holds, passed in so this stays pure.
@@ -63,6 +64,7 @@ export function notificationTarget(n, { fileShares = true, sharedFiles = true } 
     const workspaceId = n.workspace_id || n.data?.workspace_id || null;
     if (workspaceId) return { kind: 'settings', tab: 'members', workspaceId };
   }
+  if (kind === 'invite.reward') return { kind: 'settings', tab: 'invite' };
   if (n.board_id) return { kind: 'board', boardId: n.board_id };
   return null;
 }
