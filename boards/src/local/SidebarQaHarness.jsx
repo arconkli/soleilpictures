@@ -64,7 +64,12 @@ const QS = typeof window !== 'undefined' ? new URLSearchParams(window.location.s
 function notifFixture() {
   const ago = (ms) => new Date(Date.now() - ms).toISOString();
   const M = 60_000; const H = 60 * M;
+  // `&ntf=reward` prepends one unread invite reward row (default five stay as they are).
+  const reward = import.meta.env.DEV && QS.get('ntf') === 'reward'
+    ? [{ id: 'n0', kind: 'invite.reward', title: 'A friend you invited added their first card', body: 'You earned 25 more cards and 0.5GB more storage.', created_at: ago(M), read_at: null, board_id: null, data: { cards: 25, storage_bytes: 536870912, referral_id: 'ref-qa' } }]
+    : [];
   return [
+    ...reward,
     { id: 'n1', kind: 'file.shared', title: 'Maya Ortiz shared “Casting notes.pdf” with you', created_at: ago(4 * M), read_at: null, board_id: null, data: {} },
     { id: 'n2', kind: 'file.commented', title: 'Jon Park commented on “film-still-003.jpg”', created_at: ago(26 * M), read_at: null, board_id: 'film', data: {} },
     { id: 'n3', kind: 'file.replied', title: 'Maya Ortiz replied on “Shot list”', created_at: ago(H), read_at: null, board_id: 'film', data: {} },
@@ -962,7 +967,7 @@ export function SidebarQaHarness() {
         onMarkRead={(ids) => setNotifItems((prev) => prev.map((n) => (
           (!ids || ids.includes(n.id)) && !n.read_at ? { ...n, read_at: new Date().toISOString() } : n)))}
         onOpenBoard={(id) => { say(`notif board ${id}`); setNotifOpen(false); }}
-        onOpenSettings={(tab, ws) => say(`notif settings ${tab} ${ws}`)}
+        onOpenSettings={(tab, ws) => { if (import.meta.env.DEV) window.__sidebarqaSettings = [tab, ws]; say(`notif settings ${tab} ${ws}`); }}
         onClose={() => setNotifOpen(false)}
         anchorRef={notifBellRef}
         mobileShell={mobileShell}

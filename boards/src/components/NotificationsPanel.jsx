@@ -181,8 +181,11 @@ export function NotificationsPanel({
     }
     if (target.kind === 'settings') {
       // An editor-limit row: Members, in that row's workspace. Its toast logs
-      // the same event with via 'toast' (useNotifications).
-      try { logEvent(EV.EDITOR_LIMIT_NOTICE_OPEN, { via: 'bell' }); } catch (_) {}
+      // the same event with via 'toast' (useNotifications). An invite reward
+      // opens Invite & earn and logs nothing here.
+      if (n.kind === 'editors.limit_reached') {
+        try { logEvent(EV.EDITOR_LIMIT_NOTICE_OPEN, { via: 'bell' }); } catch (_) {}
+      }
       onOpenSettings?.(target.tab, target.workspaceId);
       onCloseRef.current?.();
       return;
@@ -231,6 +234,7 @@ export function NotificationsPanel({
                   data-kind={n.kind || undefined}
                   onClick={() => open(n)}>
                   <span className="ntf-dot" aria-hidden="true" />
+                  {n.kind === 'invite.reward' && Number(n.data?.cards) > 0 && <span className="ntf-earn" aria-hidden="true">+{Number(n.data.cards)}</span>}
                   <span className="ntf-row-main">
                     <span className="ntf-row-title">{n.title}</span>
                     {n.body && <span className="ntf-row-body">{n.body}</span>}

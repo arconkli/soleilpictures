@@ -58,7 +58,8 @@ test('the live gate is 0541\'s with edit_request and edit_granted added to membe
   assert.ok(before.includes(line));
   assert.equal(bodyIn(G, '_outbound_gate'), before.replace(line,
     "when p_template in ('mention_email', 'comment_reply_email', 'schedule_update', 'invite_accepted', 'file_commented', 'edit_request', 'edit_granted') then 'member'"));
-  assert.equal(latestDefinition('_outbound_gate').file, G);
+  // 0863 re-emits it once more for invite_reward (inviteRewardNoticeMigration.test.mjs pins that copy).
+  assert.equal(latestDefinition('_outbound_gate').file, '0863_invite_reward_notice.sql');
 });
 
 test('every invite spends the allowance before its email, and the email names the inviter by address', () => {

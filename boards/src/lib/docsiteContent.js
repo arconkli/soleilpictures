@@ -40750,6 +40750,26 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
+       "v": "Invite rewards",
+       "children": [
+        {
+         "t": "text",
+         "v": "Invite rewards"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "A friend you invited adds their first card and you earn more cards and storage"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
        "v": "Product tips and check-ins",
        "children": [
         {
@@ -40773,7 +40793,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The last one is the one to switch off if you only want to hear about your own work. The other five are all consequences of something a person did that involves you."
+     "v": "The last one is the one to switch off if you only want to hear about your own work. The other six are all consequences of something a person did that involves you."
     }
    ]
   },
@@ -40909,7 +40929,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " clears the number. Press a row to go to what it is about: a row for a file shared with you, or a comment on one, opens the file in the app. "
+     "v": " clears the number. Press a row to go to what it is about: a row for a file shared with you, or a comment on one, opens the file in the app, and a note that you earned an invite reward opens Settings → Invite and earn. "
     },
     {
      "t": "strong",
@@ -40956,7 +40976,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — an accepted-invite email is sent only if you are not currently in the app. If you are, the in-app notification is the whole story and a second copy in your inbox is just noise."
+     "v": " — an accepted-invite email and an invite-reward email are each sent only if you are not currently in the app. If you are, the in-app notification is the whole story and a second copy in your inbox is just noise."
     }
    ]
   },
@@ -47191,6 +47211,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " — they have opened the app and placed their first card."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When that happens a note lands in your bell, and if you are not in the app at the time, one email says so too. You can switch the email off in Settings → Notifications → Invite rewards, or with the link at the bottom of it."
     }
    ]
   },

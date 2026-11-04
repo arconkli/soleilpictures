@@ -48,3 +48,20 @@ test('the bell sits before Share and opens a full-screen sheet that × closes', 
   await sheet.locator('.ntf-x').tap();
   await expect(page.locator('.ntf-shell')).toHaveCount(0);
 });
+
+test('the invite reward row and its mark fit the phone without sideways overflow', async ({ page }) => {
+  await page.goto('/?sidebarqa=1&surface=files&drawer=0&ntf=reward');
+  await page.waitForSelector('[data-sidebarqa-ready]');
+  await page.locator('.topbar .tb-right .nb-bell').tap();
+  const sheet = page.locator('.ntf-shell.is-sheet');
+  await expect(sheet).toBeVisible();
+  const row = sheet.locator('.ntf-row').first();
+  await expect(row).toHaveAttribute('data-kind', 'invite.reward');
+  const vw = page.viewportSize().width;
+  const r = await rect(row);
+  const m = await rect(row.locator('.ntf-earn'));
+  expect(r.right).toBeLessThanOrEqual(vw + 0.5);
+  expect(m.right).toBeLessThanOrEqual(r.right + 0.5);
+  expect(await row.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+});

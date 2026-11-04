@@ -1498,13 +1498,14 @@ function unsubConfirmPage(action, key) {
 
 // Preference keys a one-click unsubscribe link may turn off, and what the
 // confirm page calls each one. Mirrors the allowlist inside the
-// email_unsubscribe() RPC (mentions and replies joined both in 0369).
+// email_unsubscribe() RPC (mentions and replies joined both in 0369; invite rewards in 0863).
 const UNSUB_LABELS = {
   email_lifecycle: 'product tips &amp; check-in emails',
   email_schedule: 'schedule emails',
   email_share_activity: 'emails about who opened your clusters',
   email_mentions: 'emails when someone mentions you',
   email_comment_replies: 'emails when someone replies to your comments',
+  email_invite_reward: 'emails when you earn an invite reward',
 };
 const UNSUB_KEYS = new Set(Object.keys(UNSUB_LABELS));
 

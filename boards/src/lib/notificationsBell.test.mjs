@@ -72,6 +72,16 @@ test('editors.limit_reached opens Settings at Members in its workspace, never th
   assert.equal(notificationTarget({ kind: 'editors.limit_reached' }), null);
 });
 
+test('invite.reward opens Settings at Invite & earn, with or without a board', () => {
+  const want = { kind: 'settings', tab: 'invite' };
+  assert.deepEqual(notificationTarget({ kind: 'invite.reward', data: { cards: 25 } }), want);
+  assert.deepEqual(notificationTarget({ kind: 'invite.reward', board_id: 'b1', data: { cards: 25 } }), want);
+  // An editor-limit row is unaffected.
+  assert.deepEqual(
+    notificationTarget({ kind: 'editors.limit_reached', workspace_id: 'ws1' }),
+    { kind: 'settings', tab: 'members', workspaceId: 'ws1' });
+});
+
 test('editors.joined_as_viewer and plain rows open their board', () => {
   assert.deepEqual(notificationTarget({ kind: 'editors.joined_as_viewer', workspace_id: 'ws1', board_id: 'b2' }), { kind: 'board', boardId: 'b2' });
   assert.deepEqual(notificationTarget({ kind: 'share.viewed', board_id: 'b3' }), { kind: 'board', boardId: 'b3' });

@@ -41,6 +41,10 @@ of storage** straight away. You get **{{fact:referralRewardCards}} bonus cards**
 and **{{fact:referralBonusStorage}}** as soon as they **actually get started** —
 they have opened the app and placed their first card.
 
+When that happens a note lands in your bell, and if you are not in the app at the
+time, one email says so too. You can switch the email off in Settings →
+Notifications → Invite rewards, or with the link at the bottom of it.
+
 The activation gate is the important detail. The reward is not for a signup, it
 is for someone who used the product — which means the number in your stats
 reflects people who are actually there.

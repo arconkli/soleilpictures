@@ -33,10 +33,11 @@ Six categories, six independent switches, in **Settings → Notifications**.
 | **Workspace invites** | You are added to a workspace |
 | **Board shares** | A cluster is shared with you |
 | **Invite accepted** | Someone you invited opens your link and joins |
+| **Invite rewards** | A friend you invited adds their first card and you earn more cards and storage |
 | **Product tips and check-ins** | Occasional messages about the product, including a short note from the team when something new ships |
 
 The last one is the one to switch off if you only want to hear about your own
-work. The other five are all consequences of something a person did that
+work. The other six are all consequences of something a person did that
 involves you.
 
 ## Where they appear
@@ -53,11 +54,12 @@ a phone it is in the top bar, just before **Share**. Its number counts the
 notifications you haven't read. Press it and the list opens under it, newest
 first, with the unread ones marked; **Mark all read** clears the number. Press
 a row to go to what it is about: a row for a file shared with you, or a comment
-on one, opens the file in the app. **Esc**, a click outside the list or the
+on one, opens the file in the app, and a note that you earned an invite
+reward opens Settings → Invite and earn. **Esc**, a click outside the list or the
 bell again closes it; on a phone the list fills the screen and **×** closes it.
 
-**Email only when you are away** — an accepted-invite email is sent only if you
-are not currently in the app. If you are, the in-app notification is the whole story and
+**Email only when you are away** — an accepted-invite email and an invite-reward
+email are each sent only if you are not currently in the app. If you are, the in-app notification is the whole story and
 a second copy in your inbox is just noise.
 
 **Browser notifications** — only if you grant permission. Nothing is requested

@@ -103,6 +103,12 @@ export function NotificationsTab({ user }) {
         onChange={(v) => togglePref('email_invite_accepted', v)} />
 
       <Toggle
+        label="Invite rewards"
+        desc="When a friend you invited adds their first card and you earn more cards and storage. Only sent if you're not already in the app."
+        value={isOn('email_invite_reward')}
+        onChange={(v) => togglePref('email_invite_reward', v)} />
+
+      <Toggle
         label="Product tips & check-ins"
         desc="Occasional nudges to help you get started and get back in when it's been a while, and a short note when something new ships."
         value={isOn('email_lifecycle')}

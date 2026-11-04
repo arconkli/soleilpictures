@@ -18,6 +18,10 @@ of storage** straight away. You get **25 bonus cards**
 and **0.5GB** as soon as they **actually get started** —
 they have opened the app and placed their first card.
 
+When that happens a note lands in your bell, and if you are not in the app at the
+time, one email says so too. You can switch the email off in Settings →
+Notifications → Invite rewards, or with the link at the bottom of it.
+
 The activation gate is the important detail. The reward is not for a signup, it
 is for someone who used the product — which means the number in your stats
 reflects people who are actually there.
