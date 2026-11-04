@@ -9,6 +9,7 @@
 import { test, expect } from '@playwright/test';
 import * as Y from 'yjs';
 import { bootSignedIn } from './helpers/signedInStub.js';
+import { DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
 
 const TOKEN = '0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d';
 const ROOT = 'b0000000-0000-4000-8000-000000000001';
@@ -177,8 +178,10 @@ test('signed out: the draft under the island, then the email, the code, and it i
   const island = page.locator('.keep-island');
   await expect(island.locator('.keep-island-title')).toHaveText(NAME);
   await expect(island.locator('.keep-island-meta')).toHaveText(/^Made with ChatGPT · 9 cards · deleted (25 Nov|Nov 25) unless you keep it$/);
+  // The draft's own limit is 50 here (an older draft); the line names what a
+  // new account gets, since keeping it moves the cards into that account.
   await expect(island.locator('.keep-island-foot')).toHaveText(
-    'We’ll email you a 6-digit code. Free up to 50 cards and 5GB. Already on Clusters? Use the email you sign in with.');
+    `We’ll email you a 6-digit code. Free up to ${DEMO_CARD_LIMIT} cards and 5GB. Already on Clusters? Use the email you sign in with.`);
   // The draft opens whole, above the island.
   const top = (await island.boundingBox()).y;
   const bottoms = await page.locator('.public-canvas-host [data-card-id]').evaluateAll(

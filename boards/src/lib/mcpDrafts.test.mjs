@@ -18,7 +18,7 @@ import { join } from 'node:path';
 import { MIGRATIONS_DIR } from './migrationText.mjs';
 import { HOSTED_TOOLS, toolManifest } from './mcpTools.js';
 import { handleMcpMessage, INSTRUCTIONS, VIEW_URI, withViewUri } from './mcpServer.js';
-import { DEMO_CARD_LIMIT } from './demoCardCap.js';
+import { DEMO_CARD_LIMIT, PRIOR_DEMO_CARD_LIMIT } from './demoCardCap.js';
 import {
   draftsOpen, DRAFTS_HELD, DRAFT_LIFETIME_DAYS, draftSecret, draftTokens, subjectHash, sha256Hex, draftEmail, isDraftKey,
   DRAFT_TOOLS, isDraftTool, draftRouteAllowed, mixedManifest, withoutDraft, DRAFT_INSTRUCTIONS, draftHost,
@@ -319,6 +319,17 @@ test('a draft answer says how many cards are used, when it knows', async () => {
   const unknown = draftAnswer(out, base);
   assert.ok(!/Cards used/.test(unknown.content[1].text));
   assert.ok(!('cards_used' in unknown._meta['clusters/draft']));
+});
+
+test('a draft started under an older limit is told its own', async () => {
+  const tokens = await draftTokens(await draftSecret('service-key'), DRAFT);
+  const out = { content: [{ type: 'text', text: 'ok' }] };
+  const base = { origin: ORIGIN, tokens, expiresAt: '2026-11-26T00:00:00Z', created: false };
+  const older = draftAnswer(out, { ...base, cardsUsed: 40, cardLimit: PRIOR_DEMO_CARD_LIMIT });
+  assert.ok(older.content[1].text.includes(`Cards used 40 of ${PRIOR_DEMO_CARD_LIMIT}.`));
+  assert.equal(older._meta['clusters/draft'].card_limit, PRIOR_DEMO_CARD_LIMIT);
+  const unread = draftAnswer(out, { ...base, cardsUsed: 3 });
+  assert.equal(unread._meta['clusters/draft'].card_limit, DEMO_CARD_LIMIT);
 });
 
 test('a cluster named with no draft key says how to pass it, never a key', () => {

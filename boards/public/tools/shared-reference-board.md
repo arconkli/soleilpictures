@@ -34,7 +34,7 @@ Nest a cluster per character, environment or shot and the project stays navigabl
 
 ## One plan for the team, not a licence per seat
 
-Free and Creator have no per-seat charges. Up to 10 people edit free on either, and every limit is charged to the workspace owner: the free plan gives the workspace 50 cards or 5GB of files (clusters themselves are free), shared by everyone working in it. Creator lifts the card ceiling for the whole workspace at once and gives it a 1TB drive — so a team of six pays for one plan, not six. A department with more than 10 people who edit moves to Team, which is priced per seat.
+Free and Creator have no per-seat charges. Up to 10 people edit free on either, and every limit is charged to the workspace owner: the free plan gives the workspace 25 cards or 5GB of files (clusters themselves are free), shared by everyone working in it. Creator lifts the card ceiling for the whole workspace at once and gives it a 1TB drive — so a team of six pays for one plan, not six. A department with more than 10 people who edit moves to Team, which is priced per seat.
 
 ## Where a desktop app is still the right call
 
@@ -54,7 +54,7 @@ Start free. Pay when you outgrow it.
 
 **Free — $0 forever**
 
-- **50 cards** to build with
+- **25 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
 - Free collaboration — up to 10 people who edit
@@ -92,5 +92,5 @@ No. Clusters is a browser workspace and needs a connection. In exchange the boar
 
 ### Is it free?
 
-Free for 50 cards or 5GB of files across the workspace — clusters themselves are free — with free editors. Creator removes the card cap and gives you a 1TB drive; see “What it costs” on this page.
+Free for 25 cards or 5GB of files across the workspace — clusters themselves are free — with free editors. Creator removes the card cap and gives you a 1TB drive; see “What it costs” on this page.
 

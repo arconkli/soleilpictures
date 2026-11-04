@@ -26,9 +26,9 @@ A production is not one board. In Clusters the mood board, the storyboard grid, 
 
 ## A free plan you can use today, and a flat price after it
 
-Storyflow’s pricing page says it plainly: it is paid-only during early access, and its Free plan launches before the end of 2026 — unless a paid member invites you, in which case you can join their boards free now. Its paid tiers run from $7.99 to $39 a month billed annually, each with its own AI allowance, and the coming free plan will cap file uploads at 20. Clusters’ Demo tier is free today with no credit card, covers 50 cards — the clusters you make cost none of them — or 5GB of files, whichever comes first. Creator is a flat $25 a month for unlimited cards, a 1TB drive, and everyone you invite edits free.
+Storyflow’s pricing page says it plainly: it is paid-only during early access, and its Free plan launches before the end of 2026 — unless a paid member invites you, in which case you can join their boards free now. Its paid tiers run from $7.99 to $39 a month billed annually, each with its own AI allowance, and the coming free plan will cap file uploads at 20. Clusters’ Demo tier is free today with no credit card, covers 25 cards — the clusters you make cost none of them — or 5GB of files, whichever comes first. Creator is a flat $25 a month for unlimited cards, a 1TB drive, and everyone you invite edits free.
 
-- Free today: 50 cards or 5GB of files (clusters themselves are free)
+- Free today: 25 cards or 5GB of files (clusters themselves are free)
 - Creator is $25/mo flat — not per seat, not per AI call
 - Storyflow: paid early access; its Free plan is due before the end of 2026
 
@@ -61,7 +61,7 @@ How the two compare on the things production teams care about. Storyflow figures
 | Nested boards with a relationship graph | Yes | Not on its pricing page (September 2026) |
 | Screenplay mode (Final Draft and Fountain) | Yes | Not on its pricing page (September 2026) |
 | Files of any type, at any size | Yes — any size, on every plan | Unlimited uploads on paid plans; 20 on the coming free plan |
-| Free-plan card cap | 50 cards or 5GB of files | No object or board limit on any plan; uploads and AI are capped |
+| Free-plan card cap | 25 cards or 5GB of files | No object or board limit on any plan; uploads and AI are capped |
 | Template library | Growing (grid templates) | 200+ frameworks on paid plans |
 | Works with Claude and other MCP clients | Yes, one URL | No server listed in the MCP registry |
 
@@ -71,7 +71,7 @@ Start free. Pay when you outgrow it.
 
 **Free — $0 forever**
 
-- **50 cards** to build with
+- **25 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
 - Free collaboration — up to 10 people who edit
@@ -113,7 +113,7 @@ Storyflow exports boards as PNG, SVG or PDF. Bring the original images and files
 
 ### Does Clusters have a limit like Storyflow’s upload cap?
 
-Clusters’ free Demo tier caps cards at 50 or storage at 5GB — the clusters you make cost none — and takes files of any size; Creator ($25/mo) removes the card cap. Storyflow’s coming free plan caps file uploads at 20 and AI at a one-time allowance, with no object limit.
+Clusters’ free Demo tier caps cards at 25 or storage at 5GB — the clusters you make cost none — and takes files of any size; Creator ($25/mo) removes the card cap. Storyflow’s coming free plan caps file uploads at 20 and AI at a one-time allowance, with no object limit.
 
 ### Can I use Clusters on an iPad or a phone?
 

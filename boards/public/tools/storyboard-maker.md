@@ -52,5 +52,5 @@ Yes — Clusters is real-time. Your director, DP, and AD can edit and comment on
 
 ### Is it free?
 
-Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — the clusters you make cost none of them. Creator ($25/mo) removes the card cap and gives you a 1TB drive — collaborators edit free.
+Yes. The free Demo tier covers 25 cards or 5GB of files, whichever comes first — the clusters you make cost none of them. Creator ($25/mo) removes the card cap and gives you a 1TB drive — collaborators edit free.
 

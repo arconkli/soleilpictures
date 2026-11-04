@@ -39,6 +39,7 @@ import { emailProblem } from '../lib/emailTypo.js';
 import { resendWait } from '../lib/pendingCode.js';
 import { captchaEnabled, captchaToken } from '../auth/turnstile.js';
 import { FREE_STORAGE_LABEL } from '../lib/billingCopy.js';
+import { DEMO_CARD_LIMIT } from '../lib/demoCardCap.js';
 import { WORKSPACE_LIMIT, workspaceCountFromError } from '../lib/workspaceLimit.js';
 import {
   fetchKeepBundle, firstClusterOf, firstCardOf, keepPath, hostName, keepFailure, roomLeft, deleteDay,
@@ -573,7 +574,9 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
     Number.isFinite(draft?.cardCount) ? `${draft.cardCount} ${draft.cardCount === 1 ? 'card' : 'cards'}` : null,
     day ? `deleted ${day} unless you keep it` : null,
   ].filter(Boolean).join(' · ');
-  const limit = Number.isFinite(draft?.cardLimit) ? draft.cardLimit : null;
+  // The sign-up line names what a new account gets, never the draft's own
+  // limit (draft.cardLimit): a draft started before 0864 keeps 50, but keeping
+  // it moves its cards into the account that signs in, and a new one has 25.
 
   if (kept) {
     const room = kept.room;
@@ -687,7 +690,7 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
         ) : (
           <>
             We’ll email you a 6-digit code.
-            {limit != null ? ` Free up to ${limit} cards and ${FREE_STORAGE_LABEL}.` : ''}
+            {` Free up to ${DEMO_CARD_LIMIT} cards and ${FREE_STORAGE_LABEL}.`}
             {' '}Already on Clusters? Use the email you sign in with.
           </>
         )}

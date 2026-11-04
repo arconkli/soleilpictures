@@ -190,7 +190,7 @@ export function evaluateUpsell({
   const floor   = workFloor(limit);
 
   // Invested by fraction OR by an absolute body of work: the cap is per-user
-  // (50 new, 100 grandfathered, plus referral credits), and a fraction alone
+  // (25 new, 50 or 100 for older accounts, plus credits), and a fraction alone
   // made the same thirteen cards "committed" under one cap and "not yet"
   // under another. Thirteen is where people go on to keep the board.
   const invested = capFrac >= THRESHOLDS.investedFrac || cards >= THRESHOLDS.investedMin;

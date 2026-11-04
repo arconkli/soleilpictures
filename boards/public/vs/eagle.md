@@ -49,7 +49,7 @@ How the two compare. Eagle figures are from its own store, blog and support page
 | Notes, docs and a screenplay beside the images | Yes | Notes on each asset |
 | Comments and votes from a team | Yes | No |
 | Any file, any size | Yes — video, audio and PDFs play or open on the card; the drive is the only limit (5GB free, 1TB on Creator) | Yes — any format, previews for images, GIFs, video and audio |
-| Price | Free to start (50 cards or 5GB of files); Creator $25/mo | US$34.95 once, two devices |
+| Price | Free to start (25 cards or 5GB of files); Creator $25/mo | US$34.95 once, two devices |
 
 ## What it costs
 
@@ -57,7 +57,7 @@ Start free. Pay when you outgrow it.
 
 **Free — $0 forever**
 
-- **50 cards** to build with
+- **25 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
 - Free collaboration — up to 10 people who edit

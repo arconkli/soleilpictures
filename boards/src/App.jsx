@@ -11393,7 +11393,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               meterProps={{
                 isPaid: myTier.tier === 'paid' || myTier.tier === 'admin',
                 cardsUsed: myTier.demoCardCount,
-                cardLimit: myTier.effectiveCardLimit || DEMO_CARD_LIMIT,
+                // No number until the tier lands: the placeholder is the new-account limit, and most existing accounts have more.
+                cardLimit: myTier.tier == null ? null : (myTier.effectiveCardLimit || DEMO_CARD_LIMIT),
                 storage: sidebarStorage,
                 onOpenGuide: bulkImportAllowed() ? () => openImportGuide() : null,
               }}

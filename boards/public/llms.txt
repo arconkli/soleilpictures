@@ -88,7 +88,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 ## Account and plans
 
 - [Settings](https://clusters.soleilpictures.com/docs/account/settings): Every setting in Soleil Clusters — Profile, Appearance, Notifications, Connections, Billing, Invite and earn, General, Members, Card defaults and Documentation.
-- [Plans and pricing](https://clusters.soleilpictures.com/docs/account/plans): Soleil Clusters is free with 50 cards or 5GB of files, and free collaborators. Creator removes the card cap and gives you a 1TB drive.
+- [Plans and pricing](https://clusters.soleilpictures.com/docs/account/plans): Soleil Clusters is free with 25 cards or 5GB of files, and free collaborators. Creator removes the card cap and gives you a 1TB drive.
 - [Team](https://clusters.soleilpictures.com/docs/account/team): Team is the plan for groups where more than 10 people edit — $25 a seat a month, 1TB of shared drive per seat, admins, and work the team owns.
 - [Theme and defaults](https://clusters.soleilpictures.com/docs/account/theme-and-defaults): Follow your system theme or pick light or dark in Soleil Clusters, set an accent colour and body font, and choose what new notes, shapes and clusters start as.
 - [Referrals](https://clusters.soleilpictures.com/docs/account/referrals): Invite people to Soleil Clusters. They get bonus cards and storage when they join; you get yours once they get started. Stats live in Settings.

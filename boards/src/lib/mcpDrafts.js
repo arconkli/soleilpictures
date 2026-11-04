@@ -259,9 +259,12 @@ export function rewriteDraftLinks(value, origin, keepUrl) {
 // pass back, the keep link and what a draft is. In words for the model (a
 // second text block, so search and fetch keep their bare JSON first), and in
 // _meta for a host's own use.
-export function draftAnswer(out, { origin, tokens, expiresAt, created, cardsUsed = null }) {
+export function draftAnswer(out, { origin, tokens, expiresAt, created, cardsUsed = null, cardLimit = null }) {
   const keepUrl = `${origin}/keep/${tokens.keep}`;
   const answer = rewriteDraftLinks(out, origin, keepUrl);
+  // The draft's own limit when this call read it (a draft started before the
+  // free limit changed keeps the one it was made with); a new draft's otherwise.
+  const limit = Number.isFinite(cardLimit) && cardLimit > 0 ? cardLimit : DEMO_CARD_LIMIT;
   const lines = [];
   if (created) {
     lines.push('Started a draft: Clusters works here without an account. A draft holds up to '
@@ -271,13 +274,13 @@ export function draftAnswer(out, { origin, tokens, expiresAt, created, cardsUsed
   lines.push(`Not signed in, so this is a draft: pass draft "${tokens.key}" with every Clusters call in this `
     + `conversation. Give the person this link to keep it in Clusters (free, with an email address): ${keepUrl}`);
   // After a call that changed its cards: how much of the limit is spent.
-  if (Number.isFinite(cardsUsed)) lines.push(`Cards used ${cardsUsed} of ${DEMO_CARD_LIMIT}.`);
+  if (Number.isFinite(cardsUsed)) lines.push(`Cards used ${cardsUsed} of ${limit}.`);
   return {
     ...answer,
     content: [...(answer.content || []), { type: 'text', text: lines.join('\n') }],
     _meta: {
       ...(answer._meta || {}),
-      'clusters/draft': { key: tokens.key, keep_url: keepUrl, expires_at: expiresAt, card_limit: DEMO_CARD_LIMIT,
+      'clusters/draft': { key: tokens.key, keep_url: keepUrl, expires_at: expiresAt, card_limit: limit,
         ...(Number.isFinite(cardsUsed) ? { cards_used: cardsUsed } : {}) },
     },
   };

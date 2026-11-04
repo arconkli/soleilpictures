@@ -389,7 +389,7 @@ The tool matters less than the decision the board records. A board that got the 
 
 ### What is the best free mood board app?
 
-For production work, Soleil Clusters — the free Demo tier has no credit card, no trial clock, and any file at any size up to 50 cards or 5GB of files, which is what a reference pull actually spends. Canva's free tier is generous too (unlimited whiteboards, 5GB), and Pinterest is entirely free for discovery. Milanote's free plan stops at 10 file uploads, ever.
+For production work, Soleil Clusters — the free Demo tier has no credit card, no trial clock, and any file at any size up to 25 cards or 5GB of files, which is what a reference pull actually spends. Canva's free tier is generous too (unlimited whiteboards, 5GB), and Pinterest is entirely free for discovery. Milanote's free plan stops at 10 file uploads, ever.
 
 ### Which mood board apps do not add watermarks?
 

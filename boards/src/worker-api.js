@@ -105,7 +105,7 @@ import {
   draftRefusal, draftAnswer, DRAFT_SAYS,
 } from './lib/mcpDrafts.js';
 import { makeEdgeLimiter } from './lib/edgeLimits.js';
-import { DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
+import { DEMO_CARD_LIMIT, PRIOR_DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import {
   arrange, rearrange, placeGrouped, DEFAULT_LAYOUT,
 } from './lib/layoutEngine.js';
@@ -1620,10 +1620,13 @@ async function draftCall(url, request, env, ctx, name, params) {
           throw e;
         }
       },
-      afterCall: async (out) => draftAnswer(out, {
-        origin: url.origin, tokens, expiresAt: draft.expires_at, created,
-        cardsUsed: CARD_CHANGING.has(name) ? await draftCardsUsed(env, draft.workspace_id) : null,
-      }),
+      afterCall: async (out) => {
+        const cards = CARD_CHANGING.has(name) ? await draftCards(env, draft) : null;
+        return draftAnswer(out, {
+          origin: url.origin, tokens, expiresAt: draft.expires_at, created,
+          cardsUsed: cards ? cards.used : null, cardLimit: cards ? cards.limit : null,
+        });
+      },
       // A tool asks the person nothing a draft can't answer (create_boards' placement).
       draft: true,
     },
@@ -1633,14 +1636,26 @@ async function draftCall(url, request, env, ctx, name, params) {
 // The tools whose answers say how many of a draft's cards are used.
 const CARD_CHANGING = new Set(['add_cards', 'import_urls', 'write_doc', 'delete_cards']);
 
-// Cards in a draft's workspace: its limit is small, so this reads at most one
-// more row than the limit, by id, off the workspace's index. null when it can't.
-async function draftCardsUsed(env, workspaceId) {
-  if (!workspaceId) return null;
+// Cards in a draft's workspace, and the draft's own limit: card_cap_base +
+// bonus_card_credits on its identity's profile, the number the cap trigger
+// counts it against. A draft started before 0864 keeps the 50 it was made
+// with, so the limit is read, never assumed. The count reads at most one row
+// more than the largest base a draft can have, by id, off the workspace's
+// index. null when either read fails, so a draft is never told a limit it
+// doesn't have.
+async function draftCards(env, draft) {
+  if (!draft?.workspace_id || !draft?.user_id) return null;
   try {
-    const rows = await scoutSelect(env, 'card_index',
-      `workspace_id=eq.${workspaceId}&select=card_id&limit=${DEMO_CARD_LIMIT + 1}`, 3000);
-    return Array.isArray(rows) ? Math.min(rows.length, DEMO_CARD_LIMIT) : null;
+    const [profiles, rows] = await Promise.all([
+      scoutSelect(env, 'profiles',
+        `user_id=eq.${draft.user_id}&select=card_cap_base,bonus_card_credits&limit=1`, 3000),
+      scoutSelect(env, 'card_index',
+        `workspace_id=eq.${draft.workspace_id}&select=card_id&limit=${Math.max(DEMO_CARD_LIMIT, PRIOR_DEMO_CARD_LIMIT) + 1}`, 3000),
+    ]);
+    const p = Array.isArray(profiles) ? profiles[0] : null;
+    const limit = Number(p?.card_cap_base) + (Number(p?.bonus_card_credits) || 0);
+    if (!Array.isArray(rows) || !Number.isFinite(limit) || limit <= 0) return null;
+    return { used: Math.min(rows.length, limit), limit };
   } catch (_) {
     return null;
   }

@@ -46,7 +46,7 @@ Start free. Pay when you outgrow it.
 
 **Free — $0 forever**
 
-- **50 cards** to build with
+- **25 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
 - Free collaboration — up to 10 people who edit
@@ -80,5 +80,5 @@ For the looks, yes: fitting and continuity photos live in the character’s grid
 
 ### Is it free?
 
-Free across the workspace for 50 cards or 5GB of files, whichever comes first — clusters themselves are free — with free editors. A full principal cast will outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace. See “What it costs” on this page.
+Free across the workspace for 25 cards or 5GB of files, whichever comes first — clusters themselves are free — with free editors. A full principal cast will outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace. See “What it costs” on this page.
 

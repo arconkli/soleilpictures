@@ -16,8 +16,8 @@ faq:
     a: Only if that person owns the workspace. Every limit is charged to the workspace owner, so the plan that counts is the owner's. A collaborator's own plan applies to the workspaces they own, not to yours. The same goes for a transfer: hand a workspace to someone else and it runs on their plan from then on — make them a co-owner instead if your plan should keep covering it.
   - q: What happens when I hit a limit?
     a: You are told, and asked to upgrade. Nothing already made is taken away or locked. Deleting files gives their space back within a few minutes, and emptying the trash gives back everything in it at once.
-  - q: My card limit is {{fact:legacyDemoCardLimit}}, not {{fact:demoCardLimit}}. Why?
-    a: Accounts created before the free plan changed keep the {{fact:legacyDemoCardLimit}}-card allowance they signed up under, permanently. Nobody's cap was lowered.
+  - q: My card limit is {{fact:priorDemoCardLimit}} or {{fact:legacyDemoCardLimit}}, not {{fact:demoCardLimit}}. Why?
+    a: Every account keeps the card allowance it signed up under, permanently. The free plan gave {{fact:legacyDemoCardLimit}} cards at first, then {{fact:priorDemoCardLimit}}, and gives {{fact:demoCardLimit}} to accounts made since. Nobody's cap was lowered.
   - q: Where do I enter a discount code?
     a: On the payment page, under Add promotion code. Codes apply to the monthly plan only and come off your first month.
   - q: Is there a free trial of {{fact:planName}}?
@@ -112,9 +112,10 @@ it — a collaborator's own plan never applies to someone else's workspace. If y
 work across several, the one that matters is the workspace the cluster lives in.
 
 > **Older accounts keep a higher cap.** The free allowance used to be
-> {{fact:legacyDemoCardLimit}} cards. Every account created while that was the
-> plan keeps it, permanently — no existing cap was ever lowered. Your own figure
-> is on the Upgrade pill and in Settings → Plan & billing, and it is the one enforced.
+> {{fact:legacyDemoCardLimit}} cards, and then {{fact:priorDemoCardLimit}}. Every
+> account keeps the allowance it was created under, permanently — no existing
+> cap was ever lowered. Your own figure is on the Upgrade pill and in Settings →
+> Plan & billing, and it is the one enforced.
 > [Referral credits](/docs/account/referrals) add to whichever cap you have.
 
 > **Note:** There is no separate cap on clusters — each one is a card, and counts

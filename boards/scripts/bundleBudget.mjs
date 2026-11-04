@@ -260,7 +260,11 @@ export const CEILINGS = {
   // earned together. The chip and its popover load later (TogetherChip). A
   // CI-style build measured appJs 705,442 B on main 16539aea and 707,083 B
   // with it.
-  appJs: 707_100,
+  // 2026-11-04: +0.1 KB of room. A CI-style build measured appJs 707,190 B
+  // on main 8f4aa6c0 (already 90 B over) and 707,199 B with the free card
+  // limit for new accounts (25, 0864), whose app-side code is the sidebar
+  // meter waiting for the account's own limit and the keep page's line.
+  appJs: 707_200,
   appCss: 21_900,
 };
 

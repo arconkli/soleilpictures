@@ -1,6 +1,6 @@
 # A Milanote Alternative Built for Production Teams
 
-> Soleil Clusters is a free Milanote alternative built for team production work: a real-time multiplayer canvas with live cursors, pinned comments, a relationship graph across projects, and a free tier of 50 cards or 5GB of files — Creator is a flat $25/mo with a 1TB drive. Milanote is strong for solo planning; Clusters is for visual, media-heavy, collaborative work.
+> Soleil Clusters is a free Milanote alternative built for team production work: a real-time multiplayer canvas with live cursors, pinned comments, a relationship graph across projects, and a free tier of 25 cards or 5GB of files — Creator is a flat $25/mo with a 1TB drive. Milanote is strong for solo planning; Clusters is for visual, media-heavy, collaborative work.
 
 _Source: https://clusters.soleilpictures.com/vs/milanote · Updated 2026-10-02_
 
@@ -53,7 +53,7 @@ How the two compare on the things production teams care about:
 | Built-in docs & screenplay mode | Yes | Notes |
 | Share a live, interactive link | Yes | Yes |
 | Free tier | Yes | Yes (capped) |
-| Free-plan item cap | 50 cards or 5GB of files | Caps items, plus 10 uploads ever |
+| Free-plan item cap | 25 cards or 5GB of files | Caps items, plus 10 uploads ever |
 | Template library | Growing | Extensive |
 
 ## What it costs
@@ -62,7 +62,7 @@ Start free. Pay when you outgrow it.
 
 **Free — $0 forever**
 
-- **50 cards** to build with
+- **25 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
 - Free collaboration — up to 10 people who edit
@@ -88,7 +88,7 @@ Clusters focuses on live team production — multiplayer editing with cursors an
 
 ### Does Clusters have a free tier like Milanote?
 
-Yes. The Demo tier is free with no credit card and covers 50 cards or 5GB of files, whichever comes first — the clusters you make cost none of them. Creator is $25/mo for unlimited cards and a 1TB drive.
+Yes. The Demo tier is free with no credit card and covers 25 cards or 5GB of files, whichever comes first — the clusters you make cost none of them. Creator is $25/mo for unlimited cards and a 1TB drive.
 
 ### Can I move my Milanote boards over?
 

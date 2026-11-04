@@ -16,10 +16,25 @@
 // and reaches the client as get_my_tier().effective_card_limit, threaded through
 // useMyTier. DEMO_CARD_LIMIT is only (a) the value new accounts get, and (b) a
 // pre-resolution fallback for callers that have no resolved tier yet. Never
-// render it as a user's actual limit — accounts created before 0229 are
-// grandfathered at LEGACY_DEMO_CARD_LIMIT and would see the wrong number.
+// render it as a user's actual limit: three generations of account exist, and
+// each keeps the base it was made with, permanently.
+//   LEGACY_DEMO_CARD_LIMIT  100  accounts created before 0229
+//   PRIOR_DEMO_CARD_LIMIT    50  accounts created from 0229 until 0864
+//   DEMO_CARD_LIMIT          25  accounts created since 0864
+// The new number is the lowest, so a gate, meter or wall that put it on an
+// account whose row hasn't loaded would stop most existing accounts at half
+// their limit. Gates wait for a resolved tier (useMyTier's tier !== null) and
+// leave anything before that to the server trigger. scripts/gen-docs.mjs
+// refuses to build when DEMO_CARD_LIMIT and the newest profiles.card_cap_base
+// default in the migrations disagree.
 
-export const DEMO_CARD_LIMIT = 50;
+export const DEMO_CARD_LIMIT = 25;
+
+// What accounts created from migration 0229 until 0864 keep, permanently: the
+// free plan's limit in that time. Exported for the plans page
+// ({{fact:priorDemoCardLimit}}) and for readers that must not assume an account
+// or a draft is on the new number (worker-api's draftCards).
+export const PRIOR_DEMO_CARD_LIMIT = 50;
 
 // What accounts created before migration 0229 keep, permanently. Exported so the
 // public docs can state the grandfather rule through {{fact:legacyDemoCardLimit}}
