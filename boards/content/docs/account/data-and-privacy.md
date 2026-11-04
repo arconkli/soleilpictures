@@ -5,7 +5,7 @@ h1: Data and privacy
 navLabel: Data and privacy
 section: account
 order: 5
-updated: 2026-10-29
+updated: 2026-11-04
 answer: Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 faq:
   - q: How do I delete my account?
@@ -90,6 +90,10 @@ Nothing is trapped:
 - **[REST API](/docs/api)** — read every board and card programmatically
 
 ## Deleting your account
+
+Only want to use a different email? You don't need to delete anything: **sign
+out** (at the top of Profile) and sign in with the other one. The delete panel
+offers the same before anything else.
 
 **Settings → Profile → Delete account.** Before it asks you to confirm, it
 tells you what will actually happen to *your* account — how many clusters go,

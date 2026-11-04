@@ -87,8 +87,13 @@ export const CEILINGS = {
   // box or runs off the screen, and the cursors keep to their band. The rings,
   // the glow and the box polish are CSS. A CI-style build read 168.8 KB on main
   // 6387bde8 and 170.4 KB with it.
-  entryJs: 170_500,
-  entryCss: 96_000,
+  // 2026-11-04: +0.5 KB for sign-in on a computer whose clock is off
+  // (lib/authFetch.js): it has to correct the very first sign-in answer, so it
+  // cannot wait for a lazy chunk. A CI-style build read 170,376 B on main
+  // c0714366 and 170,822 B with it. entryCss +0.2 KB for the Signed in as box
+  // and Sign out rows in Settings: 95,935 B before, 96,098 B with them.
+  entryJs: 171_000,
+  entryCss: 96_200,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
   // they draw (vite.config.js iconSplit), from 687 KB.

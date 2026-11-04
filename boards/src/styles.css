@@ -18201,8 +18201,14 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
 .settings-tab:hover { background: var(--bg-hov); color: var(--ink-1); }
 .settings-tab.is-active { background: var(--bg-3); color: var(--ink-0); }
 .settings-tab:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
-.settings-tab-signout { color: var(--ink-3); }
+.settings-tab-signout { color: var(--ink-1); }
 .settings-tab-signout:hover { color: var(--ink-0); }
+.settings-tabs-foot-email {
+  font: 400 10.5px/1.4 var(--font-mono);
+  color: var(--ink-3);
+  padding: 0 12px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 /* The disclosure chevron only renders on the stacked (phone/touch-tablet)
    layout — the panel omits the element entirely rather than hiding it here,
    because Icon sets an inline display:block that a class cannot outrank. */
@@ -18258,6 +18264,31 @@ select.settings-input {
 }
 .settings-input:focus { outline: 0; border-color: var(--soleil); }
 .settings-input:disabled { opacity: 0.5; cursor: not-allowed; }
+.settings-account {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
+  background: var(--bg-2);
+}
+.settings-account-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.settings-account-label {
+  font: 600 10.5px/1 var(--font-display);
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.settings-account-email {
+  margin-top: 5px;
+  font: 400 13px/1.3 var(--font-mono);
+  color: var(--ink-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.settings-account-signout { flex-shrink: 0; }
+.settings-account-hint {
+  margin: 8px 2px 18px;
+  font: 400 12px/1.5 var(--font-sans);
+  color: var(--ink-2);
+}
 .settings-readonly {
   font: 400 12.5px/1.4 var(--font-mono);
   color: var(--ink-3);
@@ -20519,6 +20550,14 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   background: var(--bg-2);
 }
 .settings-callout-title { font: 600 12.5px/1.3 var(--font-sans); color: var(--ink-0); }
+.settings-switch {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  margin-top: 10px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--line-2);
+  font: 400 12px/1.5 var(--font-sans);
+  color: var(--ink-2);
+}
+.settings-switch > span { flex: 1 1 200px; min-width: 0; }
 .settings-callout p {
   margin: 6px 0 0;
   font: 400 12px/1.5 var(--font-sans);
@@ -21208,6 +21247,8 @@ button, [role="button"], a {
     border-right: none;
     padding: 12px 12px 24px;
   }
+  .settings-tabs .settings-account { margin-bottom: 18px; }
+  .settings-account .settings-account-signout { width: auto; min-height: 44px; }
   .settings-tabs-group + .settings-tabs-group { margin-top: 22px; }
   .settings-tab {
     min-height: 44px;

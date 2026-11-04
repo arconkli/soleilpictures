@@ -2646,7 +2646,7 @@ export const DOCS_PAGES = [
     "answer": "Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.",
     "section": "account",
     "order": 0,
-    "updated": "2026-10-29",
+    "updated": "2026-11-04",
     "navLabel": "Settings",
     "headings": [
       {
@@ -2687,6 +2687,10 @@ export const DOCS_PAGES = [
       {
         "q": "What is the difference between the cog and my avatar?",
         "a": "Nothing except where they land you. Both open the same panel — the cog on the workspace's General tab, the avatar on your Profile. Everything else is one click away in the same rail."
+      },
+      {
+        "q": "How do I sign out or switch to another email?",
+        "a": "Open Settings from your avatar. Profile starts with the email you are signed in as and a Sign out button, and on a phone that is also the first thing in the Settings list. Sign out, then sign in with the other email. Signing out deletes nothing."
       },
       {
         "q": "Where do I find my storage usage?",
@@ -3059,7 +3063,7 @@ export const DOCS_PAGES = [
     "answer": "Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.",
     "section": "account",
     "order": 5,
-    "updated": "2026-10-29",
+    "updated": "2026-11-04",
     "navLabel": "Data and privacy",
     "headings": [
       {

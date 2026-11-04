@@ -20,9 +20,10 @@ import { ColorPicker } from '../ColorPicker.jsx';
 import { Field, SwatchChip, AvatarUploadRow } from './fields.jsx';
 import { useSettingsSave } from './saveState.jsx';
 import { DeleteAccount } from './DeleteAccount.jsx';
+import AccountBox from './AccountBox.jsx';
 import { PasskeysSection } from './PasskeysSection.jsx';
 
-export function ProfileTab({ user, workspaceId, onSaved }) {
+export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
   const feedback = useFeedback();
   const save = useSettingsSave();
   const [name, setName] = useState('');
@@ -127,6 +128,7 @@ export function ProfileTab({ user, workspaceId, onSaved }) {
 
   return (
     <div className="settings-section">
+      <AccountBox email={user?.email} onSignOut={onSignOut} hint />
       <h3 className="settings-section-title">Profile</h3>
       <p className="settings-section-hint">
         What everyone you share a cluster with sees. Changes save as you make them.
@@ -173,9 +175,6 @@ export function ProfileTab({ user, workspaceId, onSaved }) {
           )}
         </div>
       </Field>
-      <Field label="Email">
-        <div className="settings-readonly">{user?.email || '—'}</div>
-      </Field>
       {/* Ways back in without the emailed code (lib/passkeys.js). Hidden
           where passkeys can't work. */}
       {user?.email && <PasskeysSection />}
@@ -183,7 +182,7 @@ export function ProfileTab({ user, workspaceId, onSaved }) {
           thing in the panel that asks twice and cannot be taken back. A Scout
           shell account has no address to re-type, so it gets nothing here —
           the server refuses those too. */}
-      {user?.email && <DeleteAccount email={user.email} />}
+      {user?.email && <DeleteAccount email={user.email} onSignOut={onSignOut} />}
       {pickerPos && (
         <ColorPicker
           value={color || presenceFallback}
