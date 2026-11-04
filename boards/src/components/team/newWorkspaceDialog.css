@@ -8,7 +8,9 @@
   text-align: left; font: inherit; color: var(--ink-1); cursor: pointer;
   background: var(--bg-0); border: 1px solid var(--line-2); border-radius: var(--radius); padding: 10px;
 }
-.nwd-radio:hover { border-color: var(--line-3); }
+.nwd-radio:disabled { cursor: not-allowed; }
+.nwd-radio:disabled .nwd-av, .nwd-radio:disabled b { opacity: .45; }
+.nwd-radio:hover:not(:disabled) { border-color: var(--line-3); }
 .nwd-radio[aria-checked="true"] { border-color: var(--soleil); box-shadow: 0 0 0 2px var(--soleil-soft); }
 .nwd-radio:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--soleil-soft); }
 .nwd-av {

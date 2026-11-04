@@ -243,7 +243,13 @@ export const CEILINGS = {
   // measured appJs 703,161 B on main 4fd7a43f and 704,188 B with it
   // (CanvasSurface +623 B, AppShell +365 B); the entry grew 163 B, inside
   // its ceiling.
-  appJs: 704_300,
+  // 2026-11-04: +1.2 KB of JS for the workspace limit (0856): New workspace
+  // counts your own workspaces before it asks for a name and opens the
+  // "You have 10 workspaces" box (lazy) at the limit or on the server's
+  // refusal, and the switcher shows the quiet count from 8
+  // (lib/workspaceLimit.js, 434 B). A CI-style build measured appJs
+  // 704,405 B on main e233d0aa (already 105 B over) and 705,454 B with it.
+  appJs: 705_500,
   appCss: 21_900,
 };
 

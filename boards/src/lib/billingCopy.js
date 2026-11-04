@@ -22,6 +22,7 @@ export const COPY_REV = 'studio_v6';
 
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 import { EDITOR_LIMIT } from './editorLimit.js';
+import { WORKSPACE_LIMIT } from './workspaceLimit.js';
 
 // Root pricing object — both "per month" (shown on the cards) and "billed"
 // (shown on the Billing tab) figures derive from these so they can't drift.
@@ -550,6 +551,15 @@ export const PLAN_COMPARISON = [
     demo: `${FREE_STORAGE_LABEL} — any file, any size`,
     creator: `${CREATOR_STORAGE_LABEL} — any file, any size`,
   },
+  {
+    // Enforced by _workspace_limit() and create_workspace_with_root (0856): the
+    // same ceiling on Free and Creator, counting only workspaces you made
+    // outside a team. Not a benefit key — CREATOR_FEATURE_KEYS has no entry.
+    key: 'workspaces',
+    label: 'Workspaces',
+    demo: String(WORKSPACE_LIMIT),
+    creator: String(WORKSPACE_LIMIT),
+  },
 ];
 
 // The questions people actually arrive with, given where they arrive from.
@@ -561,6 +571,10 @@ export const PRICING_FAQ = [
     a: `Two things — how many cards you can have and how much you can store: ${freeLimitSentence()}. ` +
        'Any file of any size is welcome on every plan, and clusters are free — they cost none of your cards. ' +
        `People are the same on Free and ${PLAN_NAME}: up to ${EDITOR_LIMIT} who edit, and as many as you like who view.`,
+  },
+  {
+    q: 'How many workspaces can I have?',
+    a: `Up to ${WORKSPACE_LIMIT} of your own on Free and ${PLAN_NAME}. Workspaces that belong to a team don't count, and Team has no limit.`,
   },
   {
     q: 'Do the people I invite need to pay?',

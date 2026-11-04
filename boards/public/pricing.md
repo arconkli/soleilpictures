@@ -46,6 +46,7 @@ These are the only differences. Everything absent from this table is on every pl
 |---|---|---|---|
 | Cards | 50 | Unlimited | Unlimited |
 | Storage | 5GB — any file, any size | 1TB — any file, any size | 1TB a seat, shared — any file, any size |
+| Workspaces | 10 | 10 | No limit |
 | People who edit | Up to 10 | Up to 10 | A seat each, 3 to 100 |
 | People who view | Unlimited | Unlimited | Unlimited, free |
 | Admins | — | — | Yes |
@@ -58,6 +59,10 @@ One Creator plan covers the whole workspace — up to 10 people who edit build a
 ### What is actually limited on the free plan?
 
 Two things — how many cards you can have and how much you can store: 50 cards or 5GB of files, whichever comes first. Any file of any size is welcome on every plan, and clusters are free — they cost none of your cards. People are the same on Free and Creator: up to 10 who edit, and as many as you like who view.
+
+### How many workspaces can I have?
+
+Up to 10 of your own on Free and Creator. Workspaces that belong to a team don't count, and Team has no limit.
 
 ### Do the people I invite need to pay?
 

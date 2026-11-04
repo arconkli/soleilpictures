@@ -35,7 +35,10 @@ and **Delete workspace** — your personal workspace can be renamed but never
 deleted — and one shared with you has **Leave workspace**. **New workspace**
 beside the name starts a fresh one, with its own Studio, and opens it on Home.
 In an account's first {{fact:newAccountHours}} hours it can own up to
-{{fact:newAccountWorkspaces}} workspaces; the limit lifts after that.
+{{fact:newAccountWorkspaces}} workspaces; the limit lifts after that. As you get
+close to your {{fact:workspaceLimit}} workspaces, the switcher shows how many you
+have used; at the limit, **New workspace** explains it and offers to start a
+team.
 
 The same switcher sits at the top of the sidebar. Switching from there takes
 you straight to the workspace's canvas instead.

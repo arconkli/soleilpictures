@@ -39,6 +39,7 @@ import { emailProblem } from '../lib/emailTypo.js';
 import { resendWait } from '../lib/pendingCode.js';
 import { captchaEnabled, captchaToken } from '../auth/turnstile.js';
 import { FREE_STORAGE_LABEL } from '../lib/billingCopy.js';
+import { WORKSPACE_LIMIT, workspaceCountFromError } from '../lib/workspaceLimit.js';
 import {
   fetchKeepBundle, firstClusterOf, keepPath, hostName, keepFailure, roomLeft, deleteDay,
   signInWords, signupFirstSource, keepFailReason,
@@ -479,6 +480,8 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
     setStep('email');
     setError(why === 'not_a_person'
       ? 'Sign in with your own email address to keep a draft.'
+      : why === 'workspace_limit'
+        ? `You have ${workspaceCountFromError(e) ?? WORKSPACE_LIMIT} workspaces of your own, the most outside Team. Delete one you no longer need, then open this link again to keep the draft.`
       : why === 'suspended'
         ? 'This account can’t keep drafts. Sign in with another email.'
         : 'It couldn’t be kept just now. Try again in a moment.');

@@ -7,11 +7,17 @@ import { useEffect, useRef, useState } from 'react';
 import { X } from '@phosphor-icons/react';
 import { Icon } from '../Icon.jsx';
 import { registerModalOpen } from '../../lib/modalGuard.js';
+import { logEventNow } from '../../lib/analytics.js';
+import { EV } from '../../lib/analyticsEvents.js';
+import { WORKSPACE_LIMIT } from '../../lib/workspaceLimit.js';
+import { justMeLimitLine } from '../../lib/workspaceLimitCopy.js';
 import './newWorkspaceDialog.css';
 
-export default function NewWorkspaceDialog({ team, userName, defaultFor = 'team', onCancel, onCreate }) {
+export default function NewWorkspaceDialog({ team, userName, defaultFor = 'team', personalCount = 0, onCancel, onCreate }) {
   const [name, setName] = useState('');
-  const [forTeam, setForTeam] = useState(defaultFor !== 'me');
+  // At 10 workspaces of their own (0856) "Just me" is off; the team option still works.
+  const meFull = personalCount >= WORKSPACE_LIMIT;
+  const [forTeam, setForTeam] = useState(meFull || defaultFor !== 'me');
   const [isPrivate, setIsPrivate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -23,6 +29,15 @@ export default function NewWorkspaceDialog({ team, userName, defaultFor = 'team'
   }, []);
 
   useEffect(() => registerModalOpen(), []);
+  // Full at mount ('precheck') or made full while open by a refusal ('server'):
+  // "Just me" goes off, the team option is picked, and it is logged once.
+  const fullAtMount = useRef(meFull);
+  useEffect(() => {
+    if (!meFull) return;
+    setForTeam(true);
+    try { logEventNow(EV.WORKSPACE_LIMIT_SEEN, { surface: 'new_dialog', n: personalCount, via: fullAtMount.current ? 'precheck' : 'server' }); } catch (_) {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meFull]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -58,8 +73,8 @@ export default function NewWorkspaceDialog({ team, userName, defaultFor = 'team'
     setError((res && res.line) || 'That didn’t work. Try again.');
   };
 
-  const radio = (on, toTeam, avatar, title, sub) => (
-    <button type="button" role="radio" aria-checked={on} className="nwd-radio"
+  const radio = (on, toTeam, avatar, title, sub, off = false) => (
+    <button type="button" role="radio" aria-checked={on} className="nwd-radio" disabled={off}
             onClick={() => pick(toTeam)}>
       {avatar}
       <span className="nwd-text"><b>{title}</b><span className="nwd-sub">{sub}</span></span>
@@ -86,7 +101,7 @@ export default function NewWorkspaceDialog({ team, userName, defaultFor = 'team'
             team.name, 'Everyone on the team can open it. It uses the team’s seats and storage.')}
           {radio(!forTeam, false,
             <span className="nwd-av nwd-av-me" aria-hidden="true">{myLetter}</span>,
-            'Just me', 'Personal. The team never sees it, and it’s on your own plan.')}
+            'Just me', meFull ? justMeLimitLine(personalCount) : 'Personal. The team never sees it, and it’s on your own plan.', meFull)}
         </div>
         {canPrivate && (
           <div className="nwd-private">

@@ -84,6 +84,7 @@ export function teamBenefits(editorLimit) {
 export const TEAM_COLUMN = Object.freeze({
   cards: 'Unlimited',
   storage: `${size(TEAM_STORAGE_PER_SEAT)} a seat, shared — any file, any size`,
+  workspaces: 'No limit',
 });
 
 export function teamComparison(editorLimit) {

@@ -25,6 +25,7 @@ export const TEAM_HINT = {
   team_has_plan: 'team_has_plan',                   // paying again while the plan is still live: manage it instead
   team_domain_missing: 'team_domain_missing',      // 0540: that domain isn't on this team
   new_account: 'new_account',
+  workspace_limit: 'workspace_limit',               // 0856: 10 workspaces of your own is the most outside a team (workspaceLimit.js)
   invite_limit_reached: 'invite_limit_reached',     // 0541: an invite spends the inviter's daily allowance (0358/0375)
   sending_on_hold: 'sending_on_hold',               // 0541: this account's sending is paused (0369)
 };

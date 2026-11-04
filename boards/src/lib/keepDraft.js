@@ -84,6 +84,7 @@ export function keepFailure(error) {
   if (hint === 'draft_expired') return 'expired';
   if (hint === 'draft_unknown') return 'unknown';
   if (hint === 'not_a_person') return 'not_a_person';
+  if (hint === 'workspace_limit') return 'workspace_limit';   // 0856
   if (error?.code === '42501' && /suspended/i.test(String(error?.message || ''))) return 'suspended';
   return 'retry';
 }

@@ -11,6 +11,8 @@ import { Plus, Search, MoreHorizontal, LogOut, Trash2, Edit, Check, Share2, Lock
 import { Icon } from './Icon.jsx';
 import { R2Image } from './R2Image.jsx';
 import { pickPresenceColor } from '../lib/presenceColor.js';
+import { ownPersonalCount, workspaceCountLine } from '../lib/workspaceLimit.js';
+import { teamsAllowed } from '../lib/appHost.js';
 
 // Show the filter input once we have more workspaces than this — on
 // small lists it's just visual clutter.
@@ -86,6 +88,8 @@ export function WorkspaceMenu({
   const shared = useMemo(() => list
     .filter(w => w.created_by !== selfUserId && matches(w) && !inTeam(w))
     .sort((a, b) => (a._joinedAt || '').localeCompare(b._joinedAt || '')), [list, selfUserId, q, team?.ids]);
+  // From 8 of your own (0856): "8 of 10 workspaces"; "of your own" when a team's are in the list too.
+  const countLine = workspaceCountLine(ownPersonalCount(list, selfUserId), { teams: teamsAllowed(), mixed: list.some(w => w.org_id) });
   const noResults = q && mine.length === 0 && shared.length === 0;
 
   // Map online users by id so each workspace row can render a small
@@ -264,6 +268,7 @@ export function WorkspaceMenu({
           <span className="ws-menu-name">New workspace</span>
         </span>
       </button>
+      {countLine && <div className="ws-menu-count">{countLine}</div>}
     </div>
   );
 }

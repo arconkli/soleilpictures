@@ -9,6 +9,10 @@ across everything an account owns, and any number of viewers. Team is for the
 groups that need more than that: a team owns its workspaces and pays for them
 per seat, and admins look after its people, seats and joining.
 
+Workspaces that belong to a team don't count toward the 10
+of your own that Free and Creator allow, and a team has no limit on
+how many workspaces it owns.
+
 ## What a seat is
 
 Everyone who can edit in the team's workspaces holds a seat: the owner, admins,
