@@ -16,6 +16,7 @@ import { encodeBoardSnapshot, buildCardIndexRows } from './cardEncode.mjs';
 import { withSources, stripBuild, photoKeysOf } from '../engine/build.mjs';
 import { CREW } from '../engine/crew.mjs';
 import { PDF } from '../engine/pdfs.mjs';
+import { RESERVED } from '../engine/recipe.mjs';
 
 // A PDF's page-1 picture: the page's width at the thumb's, its height in proportion.
 const PDF_THUMB = { w: PDF.thumbW, h: Math.round(PDF.thumbW * PDF.pageH / PDF.pageW) };
@@ -232,6 +233,33 @@ export async function uploadShots({ r2, boardId, outDir, shots, zip }) {
 /** The library's row for the board. */
 export async function recordShowcase(supa, row) {
   must(await supa.from('showcase_boards').insert(row), 'showcase_boards insert');
+}
+
+/**
+ * Gives a post's board a public address at /c/<word>, unlisted: the page answers but is noindex and
+ * left out of every listing (public_boards.unlisted). Tries each word in order, skipping the paths
+ * the site owns and moving on when a word is taken (23505).
+ * `userId` (the showcase account) is written as created_by; without it nothing is written.
+ * → { slug } or { why }
+ */
+export async function publishPostBoard({ supa, boardId, userId, words = [], title, description }) {
+  // The sharing ledger credits an unlisted page to its maker (0860's check), so no maker, no page.
+  if (!userId) return { why: 'no maker' };
+  const tried = [];
+  for (const raw of words) {
+    const slug = String(raw || '').trim().toLowerCase();
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length > 80 || RESERVED.has(slug)) { tried.push(`${slug || '(empty)'}: not usable`); continue; }
+    const now = new Date().toISOString();
+    const { error } = await supa.from('public_boards').upsert({
+      board_id: boardId, slug, seo_title: String(title || '').trim() || null, seo_description: String(description || '').trim() || null,
+      priority: 0, is_template: false, review_status: 'approved', published_at: now, updated_at: now,
+      unlisted: true, published_by: 'post', created_by: userId,
+    }, { onConflict: 'board_id' });
+    if (!error) return { slug };
+    if (error.code === '23505') { tried.push(`${slug}: taken`); continue; }
+    return { why: `public_boards upsert: ${error.message}` };
+  }
+  return { why: tried.length ? `no word was free (${tried.join('; ')})` : 'no words given' };
 }
 
 // Which make of the engine a board came from, kept in its score. A page whose board an older make made

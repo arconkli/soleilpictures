@@ -36,7 +36,7 @@ import sharp from 'sharp';
 import { chromium } from '@playwright/test';
 import { makeSupabase } from '../lib/supa.mjs';
 import { makeR2 } from '../lib/r2.mjs';
-import { rootCluster, ensureCluster, writeBoard, uploadShots, recordShowcase, libraryState, startRun, finishRun, ENGINE_MAKE } from '../lib/showcaseWrite.mjs';
+import { rootCluster, ensureCluster, writeBoard, uploadShots, recordShowcase, publishPostBoard, libraryState, startRun, finishRun, ENGINE_MAKE } from '../lib/showcaseWrite.mjs';
 import { args } from './args.mjs';
 import { PAGES, MARKETING, LATER_PAGES, pageBrief, nextMarketing } from './subjects.mjs';
 import { writeRecipe, recipeContents, toolsOf } from './recipe.mjs';
@@ -225,7 +225,18 @@ async function makeOne(brief, ctx) {
     lib.styles.push(style.name);
     for (const ph of used) { lib.used.ids.add(ph.id); lib.used.hashes.push(ph.hash); }
     log(`made: ${recipe.slug} (${written.boardId})`);
-    return { ok: true, boardId: written.boardId, ...made };
+    // A board made for a post gets its public address; a failure here never un-makes the board.
+    let publicity = {};
+    if (ctx.words?.length) {
+      try {
+        const first = made.contents.slice(2, 5).map((c) => c.replace(/^[A-Za-z]+:?\s*/, '').replace(/"/g, '')).filter(Boolean).join(', ');
+        const description = `${recipe.title}${first ? `: ${first}` : ''}.`.slice(0, 300);
+        const r = await publishPostBoard({ supa, userId, boardId: written.boardId, words: ctx.words, title: recipe.title, description });
+        publicity = r.slug ? { publicSlug: r.slug } : { publishWhy: r.why };
+      } catch (e) { publicity = { publishWhy: e.message }; }
+      log(publicity.publicSlug ? `public: /c/${publicity.publicSlug}` : `not public: ${publicity.publishWhy}`);
+    }
+    return { ok: true, boardId: written.boardId, ...made, ...publicity };
   }
   return { ok: false, why: 'no try passed' };
 }
@@ -252,7 +263,7 @@ async function main() {
     claude: claudeJson,
     check: (items, o) => checkPhotos(items, { ...o, look: true }),
     keys: { pexels: need('PEXELS_API_KEY'), unsplash: process.env.UNSPLASH_ACCESS_KEY || null },
-    supa, dryRun: a.dryRun, only: a.only || null, style: a.style || null,
+    supa, dryRun: a.dryRun, words: a.words || null, only: a.only || null, style: a.style || null,
     r2: a.dryRun ? null : makeR2({ accountId: need('R2_ACCOUNT_ID'), bucket: need('R2_BUCKET'), accessKeyId: need('R2_ACCESS_KEY_ID'), secretAccessKey: need('R2_SECRET_ACCESS_KEY') }),
     workspaceId: need('SEED_WORKSPACE_ID'), userId: need('SEED_USER_ID'),
     lib: await libraryState(supa),

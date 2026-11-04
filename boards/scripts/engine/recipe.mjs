@@ -100,7 +100,7 @@ export const EVERY = Object.freeze(['grid', 'video', 'audio', 'cluster', 'tags',
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 // Paths the site owns: a board's /c/ slug can't be one (seedBoard.mjs's list).
-const RESERVED = new Set(['c', 'explore', 'share', 'pricing', 'legal', 'api', 'assets', 'admin',
+export const RESERVED = new Set(['c', 'explore', 'share', 'pricing', 'legal', 'api', 'assets', 'admin',
   'robots', 'sitemap', 'app', 'auth', 'login', 'signup', 'board', 'boards', 'favicon', '_headers',
   'tools', 'vs', 'use-cases', 'best', 'docs', 'templates']);
 

@@ -4,6 +4,7 @@
 //   --spares <n>  --dry-run  --only <kind,kind>
 //   --cluster <name>   the cluster a --brief board lands in (default TikTok; ignored elsewhere)
 //   --json <file>      the run's result, written there in any mode
+//   --words a,b,c      candidate /c/ words: a board made is then published unlisted at the first free one
 //   --style "<look>"   one look for this run (styles.mjs), not the next by turns
 
 import { styleNamed, STYLES } from './styles.mjs';
@@ -19,6 +20,7 @@ export function args(argv) {
     else if (k === '--brief') { a.mode = 'brief'; a.brief = argv[++i]; }
     else if (k === '--cluster') a.cluster = argv[++i];
     else if (k === '--json') a.json = argv[++i];
+    else if (k === '--words') a.words = String(argv[++i] || '').split(',').map((w) => w.trim().toLowerCase()).filter(Boolean);
     else if (k === '--spares') a.spares = Number(argv[++i]) || 0;
     else if (k === '--dry-run') a.dryRun = true;
     else if (k === '--only') a.only = argv[++i].split(',');

@@ -28,6 +28,7 @@
 //                       (showcase_library, 0820), showcase/ prefix only.
 
 import { handleTagsRoute } from './worker-tags.js';
+import { isUnlistedBoard, postBoardRobots } from './lib/postBoardRobots.js';
 import { handleClustersRoute } from './worker-clusters.js';
 import { handleTeamRoute, runTeamDomainRecheck } from './worker-team.js';
 import { runDraftReap } from './worker-drafts.js';
@@ -1106,7 +1107,8 @@ const worker = {
 
     // Public marketing board (/c/<slug>): keyword-rich meta + crawlable
     // server-rendered content + JSON-LD. Never noindex — these are meant to
-    // rank. Definitive not-found (P0002 sentinel) → real 404; transient RPC
+    // rank. The one exception: an unlisted post board (the TikTok machine's
+    // own posts; postBoardRobots.js), which is noindex and carries no JSON-LD. Definitive not-found (P0002 sentinel) → real 404; transient RPC
     // miss (null) → SPA shell with default meta at 200 (fail open, no noindex).
     if (pubMatch && contentType.includes('text/html')) {
       const [meta, content, related, page] = await Promise.all([
@@ -1114,7 +1116,10 @@ const worker = {
       if (meta === PUB_NOT_FOUND) {
         return notFoundResponse(res, 'Board not found — Soleil Clusters');
       }
-      return withRevalidate(injectPublicBoard(res, meta, content, pubMatch[1], related, page));
+      const out = withRevalidate(injectPublicBoard(res, meta, content, pubMatch[1], related, page));
+      const robots = postBoardRobots(meta);
+      if (robots) out.headers.set('x-robots-tag', robots);
+      return out;
     }
 
     // Public board index (/explore): crawlable list of /c/<slug> links + JSON-LD.
@@ -1684,7 +1689,9 @@ const IMAGE_ONLY_CSP = "default-src 'none'; sandbox";
 
 // Inject /c/<slug> meta + crawlable content + JSON-LD. NEVER noindex: a public
 // board is meant to rank, and a transient RPC miss must not deindex it — on miss
-// we serve the SPA shell untouched (default homepage meta, no noindex).
+// we serve the SPA shell untouched (default homepage meta, no noindex). The one
+// exception is an unlisted post board, which the TikTok machine publishes for
+// its own posts and keeps out of search: noindex, and no JSON-LD.
 function injectPublicBoard(res, meta, content, slug, related, page) {
   const rw = new HTMLRewriter();
   if (!meta?.board_id) return rw.transform(res);
@@ -1738,9 +1745,13 @@ function injectPublicBoard(res, meta, content, slug, related, page) {
     rw.on('head', new AppendHead(
       '<script>window.__publicPageModel=' + jsonLdSafe(model) + '</script>'));
   }
-  rw.on('head', new AppendHead(
-    '<script type="application/ld+json">' + jsonLdSafe(buildPublicJsonLd(meta, cards, slug, model)) + '</script>'
-  ));
+  if (isUnlistedBoard(meta)) {
+    rw.on('head', new AppendHead('<meta name="robots" content="noindex">'));
+  } else {
+    rw.on('head', new AppendHead(
+      '<script type="application/ld+json">' + jsonLdSafe(buildPublicJsonLd(meta, cards, slug, model)) + '</script>'
+    ));
+  }
   return rw.transform(res);
 }
 
@@ -2728,7 +2739,7 @@ async function handleImageSitemap(env, request) {
 }
 
 // og:image for /c/<slug> — clone of handleShareThumb but slug-keyed and
-// INDEXABLE (no x-robots-tag: noindex). Prefers an admin og_image_key override.
+// INDEXABLE (no x-robots-tag: noindex), except an unlisted post board's. Prefers an admin og_image_key override.
 async function handlePublicThumb(env, slug, searchParams, request) {
   const fallback = () =>
     new Response(null, {
@@ -2751,6 +2762,8 @@ async function handlePublicThumb(env, slug, searchParams, request) {
     'cache-control': 'public, max-age=3600',
     'etag': obj.httpEtag,
   };
+  const robots = postBoardRobots(meta);
+  if (robots) headers['x-robots-tag'] = robots;
   if (request.headers.get('if-none-match') === obj.httpEtag) {
     return new Response(null, { status: 304, headers });
   }
@@ -2760,12 +2773,16 @@ async function handlePublicThumb(env, slug, searchParams, request) {
 // Crawlable per-card image for /c/<slug> (?i=<index>). Re-authorizes on EVERY
 // request: re-resolves the slug through the published+not-deleted gate, bounds
 // the index, and only serves a key that actually belongs to that board's image
-// card (no enumeration oracle). INDEXABLE (no noindex).
+// card (no enumeration oracle). INDEXABLE (no noindex), except an unlisted post
+// board's pictures (postBoardRobots.js).
 async function handlePublicImg(env, slug, searchParams, request) {
   const i = parseInt(searchParams.get('i') || '', 10);
   if (!Number.isInteger(i) || i < 0) return new Response('Not found', { status: 404 });
   let content = null;
-  try { content = await fetchPublicBoardContent(env, slug); } catch { return new Response('Not found', { status: 404 }); }
+  // The meta read runs beside the content read and never delays the picture by more than 250 ms.
+  const metaP = fetchPublicBoardMeta(env, slug).catch(() => null); // a failed meta read leaves the picture indexable, like the page
+  try { content = await fetchPublicBoardContent(env, slug); }
+  catch { return new Response('Not found', { status: 404 }); }
   const cards = Array.isArray(content?.cards) ? content.cards : [];
   const card = cards[i];
   if (!card || card.kind !== 'image' || !card.media) return new Response('Not found', { status: 404 });
@@ -2776,12 +2793,20 @@ async function handlePublicImg(env, slug, searchParams, request) {
   // 0366 audit: never the uploader's declared type — see safeRasterType.
   const type = safeRasterType(obj.httpMetadata?.contentType, key);
   if (!type) return new Response('Not found', { status: 404 });
+  const META_LATE = Symbol('meta late');
+  let metaTimer;
+  const meta = await Promise.race([metaP, new Promise((r) => { metaTimer = setTimeout(() => r(META_LATE), 250); })]);
+  clearTimeout(metaTimer);
+  // Meta not back in time: serve without noindex but for a minute only, so the next request carries the right header.
+  const late = meta === META_LATE;
   const headers = {
     'content-type': type,
     'content-security-policy': IMAGE_ONLY_CSP,
-    'cache-control': 'public, max-age=86400',
+    'cache-control': late ? 'public, max-age=60' : 'public, max-age=86400',
     'etag': obj.httpEtag,
   };
+  const robots = late ? null : postBoardRobots(meta);
+  if (robots) headers['x-robots-tag'] = robots;
   if (request.headers.get('if-none-match') === obj.httpEtag) {
     return new Response(null, { status: 304, headers });
   }
