@@ -26418,7 +26418,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " beside the name starts a fresh one, with its own Studio, and opens it on Home. In an account's first 72 hours it can own up to 4 workspaces; the limit lifts after that."
+     "v": " beside the name starts a fresh one, with its own Studio, and opens it on Home. In an account's first 72 hours it can own up to 4 workspaces; the limit lifts after that. As you get close to your 10 workspaces, the switcher shows how many you have used; at the limit, "
+    },
+    {
+     "t": "strong",
+     "v": "New workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "New workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " explains it and offers to start a team."
     }
    ]
   },
@@ -44557,6 +44571,12 @@ export const DOCS_CONTENT = {
       "t": "text",
       "v": "Free collaboration — up to 10 people who edit"
      }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Up to 10 workspaces of your own"
+     }
     ]
    ]
   },
@@ -44677,6 +44697,22 @@ export const DOCS_CONTENT = {
      {
       "t": "text",
       "v": " it is 100GB, and the full drive comes with the first payment.)"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Up to 10 workspaces of your own",
+      "children": [
+       {
+        "t": "text",
+        "v": "Up to 10 workspaces of your own"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — the same as Free."
      }
     ],
     [
@@ -44815,6 +44851,32 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
+       "v": "Workspaces of your own",
+       "children": [
+        {
+         "t": "text",
+         "v": "Workspaces of your own"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "10"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "10"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
        "v": "[File types and sizes](/docs/files)",
        "children": [
         {
@@ -44844,6 +44906,30 @@ export const DOCS_CONTENT = {
       }
      ]
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Free and Creator allow up to 10 workspaces of your own. Workspaces you are invited into, and ones that belong to a "
+    },
+    {
+     "t": "link",
+     "v": "team",
+     "href": "/docs/account/team",
+     "children": [
+      {
+       "t": "text",
+       "v": "team"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", don't count, and Team has no limit. If you end up with more (someone hands you theirs, or a team closes) you keep every one and can make a new one once you have fewer than 10; deleting one frees a place straight away."
+    }
    ]
   },
   {
@@ -45552,6 +45638,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Free and Creator include up to 10 people who can edit across everything an account owns, and any number of viewers. Team is for the groups that need more than that: a team owns its workspaces and pays for them per seat, and admins look after its people, seats and joining."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Workspaces that belong to a team don't count toward the 10 of your own that Free and Creator allow, and a team has no limit on how many workspaces it owns."
     }
    ]
   },
@@ -73730,6 +73825,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": ", opens a cluster an assistant made for someone who wasn't signed in to Clusters. The page shows the cluster read only, and keeping it takes an email address and the 6-digit code sent there: the cluster then belongs to that account, a new one or one that already exists. Whoever holds the link can keep it, so it goes only to the person it was made for. Once kept it opens nothing, and a cluster nobody keeps is deleted 30 days after its last change."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A cluster kept by someone who already has a workspace of their own arrives as another one beside it. Someone who already has 10 workspaces of their own deletes one first, then opens the link again."
     }
    ]
   },

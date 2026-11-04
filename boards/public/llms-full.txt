@@ -2385,7 +2385,7 @@ Home is where your projects are. Open it from Home in the sidebar or the Cluster
 
 Your workspace
 
-The top of the panel names the workspace these projects belong to, and whether it is your personal one, another of yours, or shared with you. Click it to switch to any workspace you are in: Home stays open and shows that workspace's projects. In the list, a workspace you own has a ⋯ menu with Rename & icon… and Delete workspace — your personal workspace can be renamed but never deleted — and one shared with you has Leave workspace. New workspace beside the name starts a fresh one, with its own Studio, and opens it on Home. In an account's first 72 hours it can own up to 4 workspaces; the limit lifts after that.
+The top of the panel names the workspace these projects belong to, and whether it is your personal one, another of yours, or shared with you. Click it to switch to any workspace you are in: Home stays open and shows that workspace's projects. In the list, a workspace you own has a ⋯ menu with Rename & icon… and Delete workspace — your personal workspace can be renamed but never deleted — and one shared with you has Leave workspace. New workspace beside the name starts a fresh one, with its own Studio, and opens it on Home. In an account's first 72 hours it can own up to 4 workspaces; the limit lifts after that. As you get close to your 10 workspaces, the switcher shows how many you have used; at the limit, New workspace explains it and offers to start a team.
 
 The same switcher sits at the top of the sidebar. Switching from there takes you straight to the workspace's canvas instead.
 
@@ -4175,6 +4175,7 @@ Demo — free
 A 5GB drive — any file, at any size
 Clusters are free — they cost none of your cards
 Free collaboration — up to 10 people who edit
+Up to 10 workspaces of your own
 
 The free plan stops at whichever limit you reach first.
 
@@ -4184,6 +4185,7 @@ $25/mo billed monthly, or $20/mo billed annually ($240/yr, saving $60/yr).
 
 Unlimited cards — the 50-card ceiling comes off, and every card you have already made stays exactly where it is.
 A 1TB drive — free holds 5GB; Creator holds 1TB, room for the footage, the camera originals and the project archives. (During a trial it is 100GB, and the full drive comes with the first payment.)
+Up to 10 workspaces of your own — the same as Free.
 Covers your whole workspace — everyone you invite builds at your limits: up to 10 people who edit, anyone who views, and no per-seat charges.
 
 What is genuinely limited
@@ -4193,7 +4195,10 @@ Two things — cards and storage. A free account stops at whichever it reaches f
  | Demo | Creator
 Total cards | 50 | Unlimited
 Storage | 5GB | 1TB
+Workspaces of your own | 10 | 10
 File types and sizes | Any, at any size | Any, at any size
+
+Free and Creator allow up to 10 workspaces of your own. Workspaces you are invited into, and ones that belong to a team, don't count, and Team has no limit. If you end up with more (someone hands you theirs, or a team closes) you keep every one and can make a new one once you have fewer than 10; deleting one frees a place straight away.
 
 Everything else is the same on both plans. What counts toward storage — and what does not — is spelled out on the files page.
 
@@ -4300,6 +4305,8 @@ Updated: 2026-10-27
 Team is for groups where more than 10 people edit. Everyone who can edit holds a seat, at $25 a month or $240 a year; viewers are free. Seats are shared across the team's workspaces, each seat adds 1TB to one shared drive, and the team owns its workspaces, with admins to run it. It starts with a 14-day trial.
 
 Free and Creator include up to 10 people who can edit across everything an account owns, and any number of viewers. Team is for the groups that need more than that: a team owns its workspaces and pays for them per seat, and admins look after its people, seats and joining.
+
+Workspaces that belong to a team don't count toward the 10 of your own that Free and Creator allow, and a team has no limit on how many workspaces it owns.
 
 What a seat is
 
@@ -7392,6 +7399,8 @@ The assistant is told what the board holds, never the pictures' addresses: an ou
 Keep links
 
 A keep link, https://clusters.soleilpictures.com/keep/…, opens a cluster an assistant made for someone who wasn't signed in to Clusters. The page shows the cluster read only, and keeping it takes an email address and the 6-digit code sent there: the cluster then belongs to that account, a new one or one that already exists. Whoever holds the link can keep it, so it goes only to the person it was made for. Once kept it opens nothing, and a cluster nobody keeps is deleted 30 days after its last change.
+
+A cluster kept by someone who already has a workspace of their own arrives as another one beside it. Someone who already has 10 workspaces of their own deletes one first, then opens the link again.
 
 Assistants don't hand out keep links yet.
 
@@ -11880,6 +11889,7 @@ These are the only differences. Everything absent from this table is on every pl
 |---|---|---|---|
 | Cards | 50 | Unlimited | Unlimited |
 | Storage | 5GB — any file, any size | 1TB — any file, any size | 1TB a seat, shared — any file, any size |
+| Workspaces | 10 | 10 | No limit |
 | People who edit | Up to 10 | Up to 10 | A seat each, 3 to 100 |
 | People who view | Unlimited | Unlimited | Unlimited, free |
 | Admins | — | — | Yes |
@@ -11892,6 +11902,10 @@ One Creator plan covers the whole workspace — up to 10 people who edit build a
 ### What is actually limited on the free plan?
 
 Two things — how many cards you can have and how much you can store: 50 cards or 5GB of files, whichever comes first. Any file of any size is welcome on every plan, and clusters are free — they cost none of your cards. People are the same on Free and Creator: up to 10 who edit, and as many as you like who view.
+
+### How many workspaces can I have?
+
+Up to 10 of your own on Free and Creator. Workspaces that belong to a team don't count, and Team has no limit.
 
 ### Do the people I invite need to pay?
 

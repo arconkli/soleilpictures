@@ -148,6 +148,14 @@ export const FEATURE_EVENTS = Object.freeze({
     failure: [EV.EDITOR_LIMIT_REFUSED],
   },
 
+  // The 10-workspace limit (0856): the box New workspace opens at 10.
+  workspaceLimit: {
+    exposure: [EV.WORKSPACE_LIMIT_SEEN],
+    action: [EV.WORKSPACE_LIMIT_TEAM],
+    outcome: [EV.WORKSPACE_LIMIT_TEAM],
+    failure: [],
+  },
+
   // The Team plan: the setup, its checkout and the return from Stripe. The
   // server also logs team_created, team_joined, team_seat_viewer_fallback and
   // team_closed.

@@ -519,6 +519,9 @@ export const EV = Object.freeze({
   EDITOR_LIMIT_SEE_WHO:    'editor_limit_see_who',        // the note's See who opened Members {surface, stage}
   EDITOR_LIMIT_MAKE_ROOM:  'editor_limit_make_room',      // the owner freed a place from "People who can edit" {action:'make_viewer'|'remove'|'revoke', ok, grants}
   EDITOR_LIMIT_NOTICE_OPEN:'editor_limit_notice_open',    // an editors.limit_reached notice opened Members {via:'toast'|'bell'}
+  // The 10-workspace limit (0856): at most 10 workspaces of your own outside a team.
+  WORKSPACE_LIMIT_SEEN:    'workspace_limit_seen',        // the "You have N workspaces" box opened, or a seat holder's New workspace opened with "Just me" off {surface:'menu'|'home'|'new_dialog', n, via:'precheck'|'server'}
+  WORKSPACE_LIMIT_TEAM:    'workspace_limit_team',        // the box's Start a team {surface}
 
   // ── Remix ("Make a copy" — clone a public board into your workspace, 0168) ──
   REMIX_CLONE:             'remix_clone',                 // a shared/public board was cloned into the user's workspace {kind:'token'|'slug',n,source_board_id}; the link behind it is in remix_sources (0743)

@@ -23,6 +23,7 @@ page, drops it.
 - A **5GB** drive — any file, at any size
 - Clusters are free — they cost none of your cards
 - Free collaboration — up to 10 people who edit
+- Up to 10 workspaces of your own
 
 The free plan stops at whichever limit you reach first.
 
@@ -38,6 +39,7 @@ The free plan stops at whichever limit you reach first.
   holds **1TB**, room for the footage, the camera originals and the
   project archives. (During a [trial](#trying-creator-first) it is
   100GB, and the full drive comes with the first payment.)
+- **Up to 10 workspaces of your own** — the same as Free.
 - **Covers your whole workspace** — everyone you invite builds at your limits:
   up to 10 people who edit, anyone who views, and no per-seat
   charges.
@@ -51,7 +53,15 @@ first:
 |---|---|---|
 | **Total [cards](/docs/canvas/cards)** | 50 | Unlimited |
 | **[Storage](/docs/files#storage)** | 5GB | 1TB |
+| **Workspaces of your own** | 10 | 10 |
 | **[File types and sizes](/docs/files)** | Any, at any size | Any, at any size |
+
+Free and Creator allow up to 10 workspaces of your
+own. Workspaces you are invited into, and ones that belong to a
+[team](/docs/account/team), don't count, and Team has no limit. If you end up
+with more (someone hands you theirs, or a team closes) you keep every one and can
+make a new one once you have fewer than 10; deleting one
+frees a place straight away.
 
 Everything else is the same on both plans. [What counts toward
 storage](/docs/files#what-counts) — and what does not — is spelled out on the

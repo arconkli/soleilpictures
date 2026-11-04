@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { teamBenefits, teamComparison, TEAM_COLUMN } from './teamPricingCopy.js';
 import { PLAN_COMPARISON, TRIAL_STORAGE_LABEL } from './billingCopy.js';
 import { EDITOR_LIMIT } from './editorLimit.js';
+import { WORKSPACE_LIMIT } from './workspaceLimit.js';
 import { TEAM_SEAT_MIN, TEAM_SEAT_MAX, TEAM_STORAGE_PER_SEAT, SEAT_PERK_STORAGE } from './teamModel.js';
 
 test('the figures are the enforced ones: 1TB a seat, 3 to 100 seats, 50GB perk, the trial drive', () => {
@@ -36,5 +37,8 @@ test('the Team column answers every row of the two-plan comparison, then adds it
   assert.deepEqual(rows.map((r) => r.key), [...PLAN_COMPARISON.map((r) => r.key), 'editors', 'viewers', 'admins', 'domain']);
   const editors = rows.find((r) => r.key === 'editors');
   assert.deepEqual([editors.demo, editors.creator, editors.team], [`Up to ${EDITOR_LIMIT}`, `Up to ${EDITOR_LIMIT}`, 'A seat each, 3 to 100']);
+  const ws = rows.find((r) => r.key === 'workspaces');
+  assert.deepEqual([ws.label, ws.demo, ws.creator, ws.team], ['Workspaces', String(WORKSPACE_LIMIT), String(WORKSPACE_LIMIT), 'No limit']);
+  assert.deepEqual(rows.slice(0, 3).map((r) => r.key), ['cards', 'storage', 'workspaces']);
   for (const r of rows) assert.ok(r.demo && r.creator && r.team, r.key);
 });

@@ -72,6 +72,7 @@ import { PAGE_EXCERPT_MAX } from '../src/lib/pageExcerpt.js';
 import { ZIP_MAX_BYTES, ZIP_MAX_ENTRIES } from '../src/lib/zipStore.js';
 import { CREATOR_INTENT_MAX_AGE_MS } from '../src/lib/creatorIntent.js';
 import { EDITOR_LIMIT } from '../src/lib/editorLimit.js';
+import { WORKSPACE_LIMIT } from '../src/lib/workspaceLimit.js';
 import { TEAM_SEAT_MAX } from '../src/lib/teamModel.js';
 import { TEAM_MIN_SEATS, TEAM_SEAT_UNIT_AMOUNT, TEAM_TRIAL_DAYS } from '../../supabase/functions/_shared/teamBillingCore.mjs';
 import { BODY_MAX as CARD_INDEX_BODY_MAX } from '../src/lib/cardIndexRow.js';
@@ -390,6 +391,7 @@ if (!freeQuota || bytesLabel(Number(freeQuota[1])) !== FREE_STORAGE_LABEL) {
 }
 
 // The Team plan and the 10-editor limit, each from the code that enforces it:
+// _workspace_limit (0856, which workspaceLimitMigration.test pins to WORKSPACE_LIMIT);
 // _editor_limit (0520, which editorLimitMigration.test pins to EDITOR_LIMIT);
 // team-billing's seat prices, minimum and trial (teamBillingCore.mjs, which
 // teamBillingCore.test pins to teamModel); the self-serve ceiling
@@ -398,6 +400,7 @@ if (!freeQuota || bytesLabel(Number(freeQuota[1])) !== FREE_STORAGE_LABEL) {
 // unpaid team goes view-only (_team_grace_days, 0538); and the seat perk
 // (_seat_perk_storage_bytes, 0537).
 const editorLimitSql = latestDefinition('_editor_limit')?.body.match(/select\s+(\d+);/);
+const workspaceLimitSql = latestDefinition('_workspace_limit')?.body.match(/select\s+(\d+);/);
 const teamSeatCeiling = latestSqlMatching(/seat_ceiling\s+integer not null default \d+/)
   ?.match(/seat_ceiling\s+integer not null default (\d+)/);
 const teamSeatBytes = latestDefinition('_team_storage_seat_bytes')?.body.match(/select\s+(\d+)::bigint/);
@@ -405,6 +408,12 @@ const teamGraceDays = latestDefinition('_team_grace_days')?.body.match(/select\s
 const seatPerkBytes = latestDefinition('_seat_perk_storage_bytes')?.body.match(/select\s+(\d+)::bigint/);
 if (!editorLimitSql || !teamSeatCeiling || !teamSeatBytes || !teamGraceDays || !seatPerkBytes) {
   throw new Error('gen-docs: the Team plan rules were not found — update the extractor');
+}
+if (!workspaceLimitSql) {
+  throw new Error('gen-docs: _workspace_limit was not found — update the extractor');
+}
+if (Number(workspaceLimitSql[1]) !== WORKSPACE_LIMIT) {
+  throw new Error('gen-docs: WORKSPACE_LIMIT disagrees with _workspace_limit() in the migrations');
 }
 if (Number(editorLimitSql[1]) !== EDITOR_LIMIT || Number(teamSeatCeiling[1]) !== TEAM_SEAT_MAX
     || TEAM_SEAT_UNIT_AMOUNT.month % 100 || TEAM_SEAT_UNIT_AMOUNT.year % 100) {
@@ -557,6 +566,7 @@ export const FACTS = {
   // and the edit-link window for counting as a referral (claim_collab_link).
   // The Team plan and the 10-editor limit (see the extractor above FACTS).
   editorLimit: editorLimitSql[1],
+  workspaceLimit: workspaceLimitSql[1],
   teamSeatMonthly: `$${TEAM_SEAT_UNIT_AMOUNT.month / 100}`,
   teamSeatAnnual: `$${TEAM_SEAT_UNIT_AMOUNT.year / 100}`,
   teamSeatMin: String(TEAM_MIN_SEATS),

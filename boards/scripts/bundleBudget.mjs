@@ -246,7 +246,14 @@ export const CEILINGS = {
   // the share ask's skip reason, the upsell slot holder, the trial offer's
   // fields and the plan tab's view event. A CI-style build measured appJs
   // 704,468 B on production bae43980 with it.
-  appJs: 704_500,
+  // 2026-11-04: +1.2 KB of JS for the workspace limit (0856): New workspace
+  // counts your own workspaces before it asks for a name and opens the
+  // "You have 10 workspaces" box (lazy) at the limit or on the server's
+  // refusal, and the switcher shows the quiet count from 8
+  // (lib/workspaceLimit.js, 434 B). A CI-style build measured appJs
+  // 704,405 B on main e233d0aa (already 105 B over) and 705,454 B with it.
+  // On production (release-nov-04-0318) the same +1.2 KB lands on 704_500.
+  appJs: 705_500,
   appCss: 21_900,
 };
 

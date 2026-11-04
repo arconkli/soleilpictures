@@ -347,6 +347,8 @@ already exists. Whoever holds the link can keep it, so it goes only to the
 person it was made for. Once kept it opens nothing, and a cluster nobody keeps
 is deleted 30 days after its last change.
 
+A cluster kept by someone who already has a workspace of their own arrives as another one beside it. Someone who already has 10 workspaces of their own deletes one first, then opens the link again.
+
 Assistants don't hand out keep links yet.
 
 ## What agents should know

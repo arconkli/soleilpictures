@@ -68,13 +68,14 @@ test("keep_mcp_draft's refusals, as the page answers them", () => {
   assert.equal(keepFailure({ hint: 'draft_unknown', code: 'P0002' }), 'unknown');
   assert.equal(keepFailure({ hint: 'not_a_person', code: '42501' }), 'not_a_person');
   assert.equal(keepFailure({ code: '42501', message: 'this account is suspended' }), 'suspended');
+  assert.equal(keepFailure({ hint: 'workspace_limit', code: '42501' }), 'workspace_limit');
   for (const e of [null, { code: '42501', message: 'sign in to keep a draft' }, { message: 'Failed to fetch' }, { code: '57014' }]) {
     assert.equal(keepFailure(e), 'retry', JSON.stringify(e));
   }
   // Every hint the function raises is one the page knows.
   const def = latestDefinition('keep_mcp_draft');
   const hints = [...new Set([...def.body.matchAll(/hint = '([a-z_]+)'/g)].map((m) => m[1]))].sort();
-  assert.deepEqual(hints, ['draft_expired', 'draft_kept', 'draft_unknown', 'not_a_person']);
+  assert.deepEqual(hints, ['draft_expired', 'draft_kept', 'draft_unknown', 'not_a_person', 'workspace_limit']);
   assert.match(def.body, /raise exception 'this account is suspended' using errcode = '42501'/);
 });
 

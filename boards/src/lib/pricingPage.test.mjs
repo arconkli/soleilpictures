@@ -23,6 +23,7 @@ import {
   CREATOR_FEATURE_KEYS, CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL, PLAN_NAME, creatorBenefits, DEMO_FEATURES,
 } from './billingCopy.js';
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
+import { WORKSPACE_LIMIT } from './workspaceLimit.js';
 import { FREE_VIDEO_CAP, FREE_AUDIO_CAP, FREE_PDF_CAP, FREE_VIDEO_SECONDS } from './fileIngest.js';
 
 const HERE = new URL('.', import.meta.url).pathname;
@@ -75,12 +76,13 @@ test('every number on the page is injected from the code that enforces it', () =
 });
 
 test('the comparison is the two enforced gates, and nothing else', () => {
-  // Two, because two is how many free/paid differences exist in code since
-  // 0413: enforce_demo_card_cap_trg and the owner's drive (_storage_quota_bytes,
-  // enforced by authorize_upload / authorize_image_upload). A third row means
+  // Three, because three is how many free/paid differences exist in code:
+  // enforce_demo_card_cap_trg, the owner's drive (_storage_quota_bytes, enforced
+  // by authorize_upload / authorize_image_upload) and the workspace ceiling
+  // (_workspace_limit(), create_workspace_with_root, 0856). A fourth row means
   // someone sold something the server does not enforce — the exact failure
   // billingCopy's header describes.
-  assert.equal(PLAN_COMPARISON.length, 2);
+  assert.deepEqual(PLAN_COMPARISON.map((r) => r.key), ['cards', 'storage', 'workspaces']);
   for (const row of PLAN_COMPARISON) {
     for (const f of ['key', 'label', 'demo', 'creator']) {
       assert.ok(row[f] && String(row[f]).length, `${row.key}.${f} must be set`);
@@ -88,7 +90,8 @@ test('the comparison is the two enforced gates, and nothing else', () => {
   }
   // The hover keys have to stay comparable with the modal's, or a feature read
   // on one surface cannot be counted beside a read on the other.
-  const keys = [...PLAN_COMPARISON.map((r) => r.key), 'workspace'];
+  // 'workspaces' is a limit row, not a Creator benefit, so it has no hover key.
+  const keys = [...PLAN_COMPARISON.map((r) => r.key).filter((k) => k !== 'workspaces'), 'workspace'];
   assert.deepEqual(keys, CREATOR_FEATURE_KEYS,
     'the comparison rows plus the workspace note carry the modal’s feature keys, in order');
 });
@@ -174,6 +177,10 @@ test('the FAQ answers the questions this page is actually asked', () => {
   assert.match(qs, /invite/i);
   assert.match(qs, new RegExp(`${DEMO_CARD_LIMIT} cards`));
   assert.match(qs, /cancel/i);
+  const ws = PRICING_FAQ.find((f) => /how many workspaces/i.test(f.q));
+  assert.ok(ws, 'the FAQ answers how many workspaces');
+  assert.match(ws.a, new RegExp(`Up to ${WORKSPACE_LIMIT} of your own`));
+  assert.match(ws.a, /Team has no limit/);
   for (const f of PRICING_FAQ) {
     assert.ok(f.a.length > 60, `"${f.q}" deserves a real answer, not a word`);
   }

@@ -54,7 +54,8 @@ for (const [fn, [from, to]] of Object.entries(SWAPS)) {
 
 const madeIn = (text) => [...text.matchAll(/create\s+(?:or\s+replace\s+)?function\s+public\.([a-z0-9_]+)\s*\(/gi)]
   .map((m) => m[1]).sort();
-const RESTATED_LATER = { mcp_draft_keep_view: FILE_0708 };
+const FILE_0856 = '0856_workspace_limit.sql';
+const RESTATED_LATER = { mcp_draft_keep_view: FILE_0708, keep_mcp_draft: FILE_0856 };
 
 test('0706 makes these four functions, and they are the ones that run (or a later restatement)', () => {
   const made = madeIn(src);
@@ -82,6 +83,22 @@ for (const [fn, [file, after, added]] of Object.entries(ADDS)) {
     assert.equal(now, before.replace(after, after + added));
   });
 }
+
+// 0856 restates keep_mcp_draft with the workspace limit added before the hand-over:
+// 0706's body (declarations aside) must be intact around the additions.
+test("0856's keep_mcp_draft is 0706's with only the workspace limit added", () => {
+  const before = definedIn('keep_mcp_draft', FILE_0706);
+  const now = definedIn('keep_mcp_draft', FILE_0856);
+  assert.ok(before && now, 'defined in both files');
+  const decl = '  v_count   integer;\n';
+  const anchor = "  -- Someone who already has a workspace of their own gets this one beside it,\n";
+  assert.equal(before.split(decl).length, 2);
+  assert.equal(before.split(anchor).length, 2);
+  const added = now.slice(now.indexOf('  -- 0856:'), now.indexOf(anchor));
+  assert.match(added, /pg_advisory_xact_lock\(hashtext\('workspace_count:' \|\| v_me::text\)\)/);
+  assert.match(added, /hint = 'workspace_limit'/);
+  assert.equal(now, before.replace(decl, decl + '  v_personal integer;\n').replace(anchor, added + anchor));
+});
 
 // 0741 restates the channel with a shared file's arm added after the share
 // link's; shareCaptureMigration.test.mjs holds it to 0708's plus that arm.

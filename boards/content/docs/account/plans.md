@@ -49,6 +49,7 @@ page, drops it.
 - A **{{fact:freeStorage}}** drive — any file, at any size
 - Clusters are free — they cost none of your cards
 - Free collaboration — up to {{fact:editorLimit}} people who edit
+- Up to {{fact:workspaceLimit}} workspaces of your own
 
 The free plan stops at whichever limit you reach first.
 
@@ -64,6 +65,7 @@ The free plan stops at whichever limit you reach first.
   holds **{{fact:creatorStorage}}**, room for the footage, the camera originals and the
   project archives. (During a [trial](#trying-creator-first) it is
   {{fact:trialStorage}}, and the full drive comes with the first payment.)
+- **Up to {{fact:workspaceLimit}} workspaces of your own** — the same as Free.
 - **Covers your whole workspace** — everyone you invite builds at your limits:
   up to {{fact:editorLimit}} people who edit, anyone who views, and no per-seat
   charges.
@@ -77,7 +79,15 @@ first:
 |---|---|---|
 | **Total [cards](/docs/canvas/cards)** | {{fact:demoCardLimit}} | Unlimited |
 | **[Storage](/docs/files#storage)** | {{fact:freeStorage}} | {{fact:creatorStorage}} |
+| **Workspaces of your own** | {{fact:workspaceLimit}} | {{fact:workspaceLimit}} |
 | **[File types and sizes](/docs/files)** | Any, at any size | Any, at any size |
+
+Free and {{fact:planName}} allow up to {{fact:workspaceLimit}} workspaces of your
+own. Workspaces you are invited into, and ones that belong to a
+[team](/docs/account/team), don't count, and Team has no limit. If you end up
+with more (someone hands you theirs, or a team closes) you keep every one and can
+make a new one once you have fewer than {{fact:workspaceLimit}}; deleting one
+frees a place straight away.
 
 Everything else is the same on both plans. [What counts toward
 storage](/docs/files#what-counts) — and what does not — is spelled out on the

@@ -194,6 +194,7 @@ import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js'
 import { passkeyOfferDue, PASSKEY_OFFER_KEY } from './lib/passkeyGate.js';
 import { trackRegistration } from './lib/metaPixel.js';
 import { holdReload } from './lib/buildWatch.js';
+import { ownPersonalCount, isWorkspaceLimitError, workspaceCountFromError, WORKSPACE_LIMIT } from './lib/workspaceLimit.js';
 import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listPublicLinks, createCollabLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, syncCardIndex, getProfilesByIds } from './lib/boardsApi.js';
 import { rewardToastMessage } from './lib/inviteReward.js';
 import { undoToast } from './lib/undoToast.js';
@@ -336,6 +337,7 @@ const WorkspaceRecoveryModal = lazyPanel(() => import('./components/WorkspaceRec
 const TeamPage = lazyWithReload(() => import('./components/team/TeamPage.jsx'));
 const TeamPageLive = lazyWithReload(() => import('./components/team/TeamPageLive.jsx'));
 const NewWorkspaceDialog = lazyWithReload(() => import('./components/team/NewWorkspaceDialog.jsx'));
+const WorkspaceLimitDialog = lazyWithReload(() => import('./components/WorkspaceLimitDialog.jsx'));
 const ShareModal = lazyWithReload(() => import('./components/ShareModal.jsx').then(m => ({ default: m.ShareModal })));
 const MessagesPanel = lazyWithReload(() => import('./components/MessagesPanel.jsx').then(m => ({ default: m.MessagesPanel })));
 const TagDetailView = lazyWithReload(() => import('./components/TagDetailView.jsx').then(m => ({ default: m.TagDetailView })));
@@ -4869,12 +4871,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // `thenHome`: asked for from Home, so the new workspace opens on Home — its
   // projects panel, with Studio and New project — rather than on its canvas.
   const [newWsAsk, setNewWsAsk] = useState(null);
+  // At 10 workspaces of your own (0856) a box replaces the name prompt: { n, surface, via }.
+  const [wsLimitAsk, setWsLimitAsk] = useState(null);
   const addNewWorkspace = async ({ thenHome = false } = {}) => {
+    const surface = thenHome ? 'home' : 'menu';
+    const own = ownPersonalCount(workspaces, user.id);
     // Someone who holds a team seat chooses who the workspace is for.
     const seatTeam = teamsAllowed()
       ? ((realTeam && realTeam.holds_seat ? realTeam : null) || myTeams.find((t) => t.holds_seat) || null)
       : null;
-    if (seatTeam) { setNewWsAsk({ team: seatTeam, thenHome }); return; }
+    if (seatTeam) { setNewWsAsk({ team: seatTeam, thenHome, own }); return; }
+    const onTeam = myTeams.length > 0 || !!realTeam;
+    if (own >= WORKSPACE_LIMIT) { onWorkspacesChanged?.(); setWsLimitAsk({ n: own, surface, via: 'precheck', onTeam }); return; }
     const name = await feedback.prompt({
       title: 'New workspace',
       label: 'Workspace name',
@@ -4891,6 +4899,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (thenHome === true) markHomeAfterSwitch(ws.id);
       onSwitchWorkspace?.(ws.id);
     } catch (e) {
+      if (isWorkspaceLimitError(e)) {
+        onWorkspacesChanged?.();
+        setWsLimitAsk({ n: workspaceCountFromError(e) ?? Math.max(own, WORKSPACE_LIMIT), surface, via: 'server', onTeam });
+        return;
+      }
       console.error('addNewWorkspace failed', e);
       feedback.toast({ type: 'error', code: 'workspace_create_failed', message: 'Could not create workspace: ' + (e.message || e) });
     }
@@ -4917,7 +4930,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     } catch (e) {
       console.error('createFromDialog failed', e);
       const [{ teamRefusal }, { refusalLine }] = await Promise.all([import('./lib/teamHints.js'), import('./lib/teamCopy.js')]);
-      return { ok: false, line: refusalLine(teamRefusal(e)) };
+      const r = teamRefusal(e);
+      if (r?.kind === 'workspace_limit') {
+        onWorkspacesChanged?.();
+        setNewWsAsk((a) => a && { ...a, own: Math.max(a.own || 0, workspaceCountFromError(e) ?? WORKSPACE_LIMIT) });
+      }
+      return { ok: false, line: refusalLine(r && { code: r.kind, needed: r.needed }) };
     }
   };
 
@@ -11983,11 +12001,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         </Suspense>
       )}
 
+      {wsLimitAsk && (
+        <Suspense fallback={null}>
+          <WorkspaceLimitDialog {...wsLimitAsk} onClose={() => setWsLimitAsk(null)} />
+        </Suspense>
+      )}
+
       {newWsAsk && (
         <Suspense fallback={null}>
           <NewWorkspaceDialog team={newWsAsk.team}
                               userName={user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || ''}
                               defaultFor={workspace?.org_id === newWsAsk.team.org_id ? 'team' : 'me'}
+                              personalCount={newWsAsk.own}
                               onCancel={() => setNewWsAsk(null)} onCreate={createFromDialog} />
         </Suspense>
       )}
