@@ -60,5 +60,5 @@ No. Clusters runs in your browser; on a phone or tablet it can be added to the h
 
 ### Can an AI assistant make the board for me?
 
-Yes. Connect Claude or any MCP client with one URL and ask. It creates the cluster, brings in references from links you give it, and arranges them as justified rows or masonry. It works with your own images rather than generating them — see the AI mood board maker page.
+Yes. Connect Claude, ChatGPT, Cursor, VS Code or any other MCP app with one URL and ask. Anyone can try it from Claude or ChatGPT with no account. It creates the cluster, brings in references from links you give it, and arranges them as justified rows or masonry. It works with your own images rather than generating them — see the AI mood board maker page.
 

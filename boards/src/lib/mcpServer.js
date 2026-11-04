@@ -28,7 +28,7 @@
 
 import {
   HOSTED_TOOLS, PROMPTS, SERVER_INFO, RENAMED, RENAMED_PROMPTS, UNTRUSTED_NOTE, toolManifest, ApiError,
-  describeApiError, BOARD_VIEW,
+  describeApiError, BOARD_VIEW, parseFetchId,
 } from './mcpTools.js';
 import { checkArgs, argsProblemText } from './mcpValidate.js';
 import { MCP_APP_HTML, MCP_APP_VERSION } from './mcpAppHtml.generated.js';
@@ -113,12 +113,25 @@ export const INSTRUCTIONS =
 
 // resources: the inline view's page (BOARD_VIEW). Hosts that draw apps say so
 // in their own capabilities; a server has nothing to declare for it.
-const CAPABILITIES = { tools: {}, prompts: {}, resources: {} };
+// completions: completion/complete, for the cluster a prompt asks for.
+export const CAPABILITIES = { tools: {}, prompts: {}, resources: {}, completions: {} };
 
 // The inline view, as listed and as read. Its pictures come from this origin
 // (/api/img/), which the host's sandbox must allow; it fetches nothing.
+//
+// The CSP is named three ways, each for the hosts that read it: ui.csp (the MCP
+// Apps spec), and openai/widgetCSP, ChatGPT's own name for the same list in
+// snake_case. Pictures are the only thing it loads (resource_domains); it
+// fetches nothing (connect_domains), and the links it opens go to this origin
+// (redirect_domains, ChatGPT's list for openExternal). ui.domain is left out:
+// the spec makes its format each host's own.
+export const VIEW_DESCRIPTION = 'A cluster drawn as it is on its canvas: its sections, notes, pictures and '
+  + 'palettes in place, which the person can pan and open in Clusters.';
 const viewResourceMeta = (origin) => ({
-  ui: { csp: { resourceDomains: [origin] }, prefersBorder: false },
+  ui: { csp: { connectDomains: [], resourceDomains: [origin] }, prefersBorder: false },
+  'openai/widgetDescription': VIEW_DESCRIPTION,
+  'openai/widgetDomain': origin,
+  'openai/widgetCSP': { connect_domains: [], resource_domains: [origin], redirect_domains: [origin] },
 });
 // Its address names its build, so a host that kept an older page (ChatGPT
 // keeps a template it has read) asks for this one. An older address, the
@@ -142,6 +155,7 @@ const viewResource = (origin) => ({
   title: 'A board, as drawn',
   description: 'The view show_board opens in the chat: a board laid out as it is on its canvas.',
   mimeType: BOARD_VIEW.mimeType,
+  annotations: { audience: ['user'] },
   _meta: viewResourceMeta(origin),
 });
 const DEFAULT_ORIGIN = 'https://clusters.soleilpictures.com';
@@ -344,7 +358,13 @@ async function callTool(tools, name, rawArgs, ctx) {
   // Held to the tool's own schema first, so a misspelt key or a name where an
   // id belongs comes back as a sentence the model can act on — lib/mcpValidate.js.
   const { args, problems } = checkArgs(tool.inputSchema, rawArgs);
-  if (problems.length) return toolFailure(argsProblemText(tool.name, problems));
+  // The request log learns why a call failed through ctx.onToolError; what the
+  // host receives is unchanged.
+  const noted = (code) => { try { ctx?.onToolError?.(code); } catch { /* a log hook never fails a call */ } };
+  if (problems.length) {
+    noted('invalid_arguments');
+    return toolFailure(argsProblemText(tool.name, problems));
+  }
   // The transport may want a per-call context — the stdio server derives an
   // idempotency key from the tool name and its arguments.
   const callCtx = typeof ctx?.forTool === 'function' ? ctx.forTool(tool, args) : ctx;
@@ -356,7 +376,82 @@ async function callTool(tools, name, rawArgs, ctx) {
     if (!(e instanceof ApiError) && Object.getPrototypeOf(e || {}) !== Error.prototype) {
       console.error('[mcp] tool failed', name, e);
     }
+    noted(e instanceof ApiError ? (e.code || 'error') : 'internal_error');
     return toolFailure(describeApiError(e));
+  }
+}
+
+// ── A cluster named in a prompt ──────────────────────────────────────────────
+
+// The prompts whose board_id may be an id, a name or an app link.
+const CLUSTER_ARGS = new Set(['review_board', 'organize_board', 'treatment']);
+const COMPLETE_MAX = 10;
+const BOARD_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// An id from any form of reference: the bare id, "board:<id>", the fetch ids
+// (card:<board>:<card>, doc:<board>:<card>[:page]), or a link: the app's
+// (?to=b:… / ?to=c:… / ?board=&card=) or a draft's keep page (?b=&c=). null
+// when the text is none of these.
+export function clusterIdFromRef(raw) {
+  const s = String(raw ?? '').trim();
+  if (BOARD_ID.test(s)) return s.toLowerCase();
+  const fetched = parseFetchId(s);
+  if (fetched) return fetched.boardId;
+  if (/^https?:\/\//i.test(s)) {
+    try {
+      const q = new URL(s).searchParams;
+      for (const key of ['board', 'b']) {
+        const v = q.get(key) || '';
+        if (BOARD_ID.test(v)) return v.toLowerCase();
+      }
+    } catch { return null; }
+  }
+  const first = s.replace(/^board:/i, '').split(':')[0];
+  return BOARD_ID.test(first) ? first.toLowerCase() : null;
+}
+
+// { id } or { problem }. A name is found the way search finds boards by name.
+async function resolveCluster(raw, api) {
+  const direct = clusterIdFromRef(raw);
+  if (direct) return { id: direct };
+  // Without an account behind the call there is nothing to look a name up in.
+  if (typeof api !== 'function') return { id: raw };
+  const name = String(raw).trim();
+  if (name.length < 2) return { problem: 'board_id must be a cluster\'s id, name or link' };
+  let found;
+  try {
+    found = (await api(`/search?q=${encodeURIComponent(name)}&kind=board&limit=50`))?.boards?.items || [];
+  } catch {
+    return { problem: `could not look up a cluster named "${name.slice(0, 80)}": sign in to Clusters, or give its id or link` };
+  }
+  const lower = name.toLowerCase();
+  const same = found.filter((b) => String(b.name || '').trim().toLowerCase() === lower);
+  const holds = found.filter((b) => String(b.name || '').toLowerCase().includes(lower));
+  if (same.length === 1) return { id: same[0].id };
+  if (!same.length && holds.length === 1) return { id: holds[0].id };
+  const n = name.slice(0, 80);
+  const list = (rows) => rows.slice(0, 5).map((b) => `${b.name || 'Untitled'} (${b.id})`).join(', ');
+  if (same.length || holds.length) return { problem: `more than one cluster matches "${n}": ${list(same.length ? same : holds)}. Give one's id` };
+  if (!found.length) return { problem: `no cluster named "${n}": search finds one by name, or give its id or link` };
+  return { problem: `no cluster is named "${n}"; the nearest: ${list(found)}. Give one's id to use it` };
+}
+
+async function completeClusters(typed, api) {
+  if (typeof api !== 'function') return [];
+  const prefix = typed.trim().toLowerCase();
+  try {
+    const rows = prefix.length >= 2
+      ? (await api(`/search?q=${encodeURIComponent(prefix)}&kind=board&limit=50`))?.boards?.items
+      : (await api('/boards?limit=50'))?.boards;
+    const names = [];
+    for (const b of rows || []) {
+      const n = String(b?.name || '').trim();
+      if (n && n.toLowerCase().startsWith(prefix) && !names.includes(n)) names.push(n);
+      if (names.length >= COMPLETE_MAX) break;
+    }
+    return names;
+  } catch {
+    return [];
   }
 }
 
@@ -491,7 +586,7 @@ export async function handleMcpMessage(msg, ctx) {
         }
         return err(id, ERR.INVALID_PARAMS, `unknown tool: ${name}`, { available });
       }
-      return ok(id, typeof callCtx?.afterCall === 'function' ? callCtx.afterCall(out) : out, modern);
+      return ok(id, typeof callCtx?.afterCall === 'function' ? await callCtx.afterCall(out) : out, modern);
     }
 
     case 'prompts/list':
@@ -515,13 +610,30 @@ export async function handleMcpMessage(msg, ctx) {
       if (missing.length) {
         return err(id, ERR.INVALID_PARAMS, `missing required argument: ${missing.join(', ')}`);
       }
+      let promptArgs = params?.arguments || {};
+      if (CLUSTER_ARGS.has(p.name) && typeof promptArgs.board_id === 'string') {
+        const found = await resolveCluster(promptArgs.board_id, ctx?.api);
+        if (found.problem) return err(id, ERR.INVALID_PARAMS, found.problem);
+        promptArgs = { ...promptArgs, board_id: found.id };
+      }
       return ok(id, {
         description: p.description,
         messages: [{
           role: 'user',
-          content: { type: 'text', text: p.render(params?.arguments || {}) },
+          content: { type: 'text', text: p.render(promptArgs) },
         }],
       }, modern);
+    }
+
+    // Names of the caller's own clusters for a prompt's cluster argument,
+    // starting with what was typed. Nothing else completes.
+    case 'completion/complete': {
+      const ref = params?.ref;
+      const arg = params?.argument;
+      const values = ref?.type === 'ref/prompt' && CLUSTER_ARGS.has(ref.name) && arg?.name === 'board_id'
+        ? await completeClusters(String(arg.value ?? ''), ctx?.api)
+        : [];
+      return ok(id, { completion: { values, total: values.length, hasMore: false } }, modern);
     }
 
     // One resource: the inline view's page, which a host reads once it sees a

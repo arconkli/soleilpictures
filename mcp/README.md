@@ -3,10 +3,24 @@
 MCP server for [Soleil Clusters](https://clusters.soleilpictures.com) — read and
 build visual boards from Claude, or any Model Context Protocol client.
 
-## You probably do not need this package
+## Connect it
 
-There is a **hosted** server, and it now signs you in by itself. Point your
-client at a URL:
+The **hosted** server is a URL, and it signs you in by itself:
+`https://clusters.soleilpictures.com/api/v1/mcp`
+
+No token. The first call comes back `401` with a pointer to the OAuth metadata;
+your client registers itself, opens a browser, and you approve the connection on
+one screen. If you do not have an account yet you get one there.
+
+- **Claude** (claude.ai or the desktop app): Settings, Connectors, add a custom
+  connector, paste the URL.
+- **ChatGPT**: Settings, Apps, Advanced settings, turn on developer mode; then
+  create an app and paste the URL.
+- **Claude Code**: `claude mcp add --transport http soleil-clusters https://clusters.soleilpictures.com/api/v1/mcp`
+- **Cursor**: [Add to Cursor](https://cursor.com/en/install-mcp?name=soleil-clusters&config=eyJ1cmwiOiJodHRwczovL2NsdXN0ZXJzLnNvbGVpbHBpY3R1cmVzLmNvbS9hcGkvdjEvbWNwIn0%3D)
+- **VS Code**: [Add to VS Code](https://insiders.vscode.dev/redirect/mcp/install?name=soleil-clusters&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fclusters.soleilpictures.com%2Fapi%2Fv1%2Fmcp%22%7D)
+- **Windsurf** and any other client that takes a remote server: add this to its
+  MCP config (Windsurf calls the URL field `serverUrl`).
 
 ```json
 {
@@ -19,10 +33,14 @@ client at a URL:
 }
 ```
 
-No token. The first call comes back `401` with a pointer to the OAuth metadata;
-your client registers itself, opens a browser, and you approve the connection on
-one screen. If you do not have an account yet you get one there — signing in is
-a single email box.
+### No account
+
+`https://clusters.soleilpictures.com/mcp` works with no account. Anyone can try
+it from Claude or ChatGPT: the assistant builds a draft cluster, and you keep it
+with the keep link it hands back (an email address and a code). Signed in, the
+same URL works as your account.
+
+### Local, for files on your machine
 
 Install this package only for the one tool the hosted server cannot offer:
 `upload_file`, which reads a file from your own disk — including large media
@@ -63,7 +81,7 @@ from a brief, review a board, organise one, write a treatment from one, and plan
 Version 3.0 folded fifteen tools into others (`get_board` into `read_board`, `update_card` into
 `update_cards`, and so on). Calling an old name says which tool does it now.
 
-Full reference: <https://clusters.soleilpictures.com/docs/mcp>
+Full reference, limits and per-app steps: <https://clusters.soleilpictures.com/docs/mcp>
 
 ## Permissions
 

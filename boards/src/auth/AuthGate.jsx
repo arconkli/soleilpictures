@@ -45,6 +45,7 @@ import { getFbCookies } from '../lib/metaPixel.js';
 import { suggestEmail, emailProblem } from '../lib/emailTypo.js';
 import { savePendingCode, readPendingCode, clearPendingCode, resendWait } from '../lib/pendingCode.js';
 import { captchaEnabled, captchaToken } from './turnstile.js';
+import { usesPassword } from '../lib/passwordSignIn.js';
 import { passkeysMayWork } from '../lib/passkeyGate.js';
 import { mailboxFor, isConsumerAddress } from '../lib/mailboxLink.js';
 import { lpCtaClick } from '../hooks/useLandingEngagement.js';
@@ -828,6 +829,7 @@ function SignIn({ warmApp = null }) {
   const [sending, setSending]   = useState(false);
   const verifyingRef = useRef(false);
   const [code,  setCode]        = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError]       = useState(null);
   const [resendCooldown, setResendCooldown] = useState(() => (restored ? resendWait(restored.sentAt, Date.now()) : 0));
   // Codes sent to this address in this step. Asking again kills the code before
@@ -1155,6 +1157,29 @@ function SignIn({ warmApp = null }) {
     }
   };
 
+  // The directory reviewers' demo account only: a password instead of a code.
+  const signInByPassword = async () => {
+    if (busy || !password) return;
+    setError(null);
+    setBusy(true);
+    signingInByForm = true;
+    try {
+      const challenge = captchaEnabled() ? await captchaToken(captchaRef.current) : '';
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+        options: challenge ? { captchaToken: challenge } : {},
+      });
+      if (error) throw error;
+      // onAuthStateChange fires SIGNED_IN; AuthGate re-renders to children.
+    } catch (_) {
+      signingInByForm = false;
+      setError("That email and password don't match.");
+      setPassword('');
+      setBusy(false);
+    }
+  };
+
   const verifyCode = async (e) => {
     e?.preventDefault?.();
     if (busy) return;
@@ -1307,7 +1332,7 @@ function SignIn({ warmApp = null }) {
 
       <div className="sb-frost">
         {stage === 'email' ? (
-          <form className="auth-form" onSubmit={(e) => { e.preventDefault(); if (email.trim()) { logTypoSeen(email, 'submit'); sendCode(false); } }}>
+          <form className="auth-form" onSubmit={(e) => { e.preventDefault(); if (!email.trim()) return; if (usesPassword(email)) { signInByPassword(); return; } logTypoSeen(email, 'submit'); sendCode(false); }}>
             <input
               className="auth-input"
               type="email"
@@ -1331,12 +1356,27 @@ function SignIn({ warmApp = null }) {
               disabled={busy}
             />
             {typoOffer('email')}
-            <button className="auth-btn" type="submit" disabled={busy || !email.trim()}>
-              {busy ? 'Sending…' : 'Continue with email →'}
+            {usesPassword(email) && (
+              <input
+                className="auth-input"
+                type="password"
+                autoComplete="current-password"
+                required
+                aria-label="Password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={busy}
+              />
+            )}
+            <button className="auth-btn" type="submit" disabled={busy || !email.trim() || (usesPassword(email) && !password)}>
+              {busy ? (usesPassword(email) ? 'Signing in…' : 'Sending…') : usesPassword(email) ? 'Sign in →' : 'Continue with email →'}
             </button>
             {error && <div className="auth-error t-meta">{error}</div>}
             <div className="sb-cap">
-              {!inviteHint && joinHint?.name
+              {usesPassword(email)
+                ? 'The demo account signs in with its password.'
+                : !inviteHint && joinHint?.name
                 ? `We’ll email you a code. You’ll land right back in ${joinHint.name}.`
                 : 'Sign in or sign up — we\'ll email a 6-digit code.'}
             </div>

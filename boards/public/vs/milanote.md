@@ -116,5 +116,5 @@ Canva is a template-driven graphics editor, strongest when the goal is a finishe
 
 ### Can I drive it from an AI assistant?
 
-Clusters connects to Claude and any other MCP client with a single URL, so you can ask an assistant to build a board, import references and arrange them. No Milanote server is listed in the official Model Context Protocol registry at the time of writing. Clusters works with the images you already have — it does not generate them.
+Clusters connects to Claude, ChatGPT, Cursor, VS Code and other MCP apps with a single URL (anyone can try it from Claude or ChatGPT with no account), so you can ask an assistant to build a board, import references and arrange them. No Milanote server is listed in the official Model Context Protocol registry at the time of writing. Clusters works with the images you already have — it does not generate them.
 

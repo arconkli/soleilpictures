@@ -20,7 +20,7 @@ import { HOSTED_TOOLS, toolManifest } from './mcpTools.js';
 import { handleMcpMessage, INSTRUCTIONS, VIEW_URI, withViewUri } from './mcpServer.js';
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 import {
-  draftsOpen, DRAFT_LIFETIME_DAYS, draftSecret, draftTokens, subjectHash, sha256Hex, draftEmail, isDraftKey,
+  draftsOpen, DRAFTS_HELD, DRAFT_LIFETIME_DAYS, draftSecret, draftTokens, subjectHash, sha256Hex, draftEmail, isDraftKey,
   DRAFT_TOOLS, isDraftTool, draftRouteAllowed, mixedManifest, withoutDraft, DRAFT_INSTRUCTIONS, draftHost,
   signInAnswer, draftRefusal, DRAFT_SAYS, rewriteDraftLinks, draftAnswer,
 } from './mcpDrafts.js';
@@ -36,17 +36,24 @@ const ASCII = /^[\x20-\x7e]*$/;
 const TOOL_LIKE = /\b((?:list|get|read|view|show|export|create|add|update|move|delete|restore|rename|set|upload|import|arrange|tag|write|share|resolve)_[a-z_]+)\b/g;
 const HOSTED = new Set(HOSTED_TOOLS.map((t) => t.name));
 
-test('held on production: only branch previews and dev answer', () => {
+test('open everywhere: production, previews and dev all answer', () => {
+  for (const h of ['localhost', '127.0.0.1', 'app.localhost', 'main-soleil-boards.arconkli.workers.dev',
+    'clusters.soleilpictures.com', 'soleil-boards.arconkli.workers.dev', '', null, undefined]) {
+    assert.equal(draftsOpen(h), true, String(h));
+  }
+  assert.equal(DRAFTS_HELD, false);
+});
+
+test('the hold, if put back, lets only branch previews and dev answer', () => {
+  const held = { held: true };
   for (const h of ['localhost', '127.0.0.1', 'app.localhost', 'main-soleil-boards.arconkli.workers.dev',
     'p3b-drafts-soleil-boards.arconkli.workers.dev', 'MAIN-soleil-boards.arconkli.workers.dev']) {
-    assert.equal(draftsOpen(h), true, h);
+    assert.equal(draftsOpen(h, held), true, h);
   }
   for (const h of ['clusters.soleilpictures.com', 'soleil-boards.arconkli.workers.dev',
     'main-soleil-boards.arconkli.workers.dev.evil.example', 'main-soleil-boards.other.workers.dev', '', null, undefined]) {
-    assert.equal(draftsOpen(h), false, String(h));
+    assert.equal(draftsOpen(h, held), false, String(h));
   }
-  // What a release flips, with its docs.
-  assert.equal(draftsOpen('clusters.soleilpictures.com', { held: false }), true);
 });
 
 test('a draft always gets the same key and keep link, and no other draft gets them', async () => {
@@ -265,10 +272,10 @@ test("a draft's refusals read as the tool's own failure", () => {
 test("a draft's links open its keep page, and no one else's links change", () => {
   const keepUrl = `${ORIGIN}/keep/0f0e0d0c-0b0a-4908-8706-050403020100`;
   const out = rewriteDraftLinks({
-    content: [{ type: 'text', text: `Created board "Noir" ${ORIGIN}/?to=b:${BOARD}\n\n{"url":"${ORIGIN}/?to=c:${BOARD}:card-Ab_9"}` }],
+    content: [{ type: 'text', text: `Created board "Noir" ${ORIGIN}/?to=b:${BOARD}\n\n{"url":"${ORIGIN}/?to=c:${BOARD}:card.Ab_9"}` }],
     structuredContent: {
       url: `${ORIGIN}/?to=b:${BOARD}`,
-      card: `${ORIGIN}/?to=c:${BOARD}:card-Ab_9`,
+      card: `${ORIGIN}/?to=c:${BOARD}:card.Ab_9`,
       doc: `${ORIGIN}/?to=d:card-1`,
       elsewhere: `https://example.com/?to=b:${BOARD}`,
       plain: `${ORIGIN}/docs/mcp`,
@@ -285,6 +292,38 @@ test("a draft's links open its keep page, and no one else's links change", () =>
     plain: `${ORIGIN}/docs/mcp`,
     n: 3,
   });
+});
+
+test("a draft's card link keeps its card when the card id is an id", () => {
+  const keepUrl = `${ORIGIN}/keep/0f0e0d0c-0b0a-4908-8706-050403020100`;
+  const CARD = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+  const out = rewriteDraftLinks({
+    a: `${ORIGIN}/?to=c:${BOARD}:${CARD}`,
+    b: `see ${ORIGIN}/?to=c:${BOARD}:${CARD}) and ${ORIGIN}/?to=c:${BOARD}:x/y`,
+    d: `${ORIGIN}/?to=c:${BOARD}:api-mh3k2j1x-4f9a2b`,
+    c: `${ORIGIN}/?to=b:${BOARD}`,
+  }, ORIGIN, keepUrl);
+  assert.equal(out.a, `${keepUrl}?b=${BOARD}&c=${CARD}`);
+  assert.equal(out.b, `see ${keepUrl}?b=${BOARD}&c=${CARD}) and ${keepUrl}?b=${BOARD}`, 'a card id that is not an id drops to the cluster');
+  assert.equal(out.d, `${keepUrl}?b=${BOARD}&c=api-mh3k2j1x-4f9a2b`, 'an API-made card keeps its link');
+  assert.equal(out.c, `${keepUrl}?b=${BOARD}`);
+});
+
+test('a draft answer says how many cards are used, when it knows', async () => {
+  const tokens = await draftTokens(await draftSecret('service-key'), DRAFT);
+  const out = { content: [{ type: 'text', text: 'ok' }] };
+  const base = { origin: ORIGIN, tokens, expiresAt: '2026-11-26T00:00:00Z', created: false };
+  const said = draftAnswer(out, { ...base, cardsUsed: 16 });
+  assert.ok(said.content[1].text.includes(`Cards used 16 of ${DEMO_CARD_LIMIT}.`));
+  assert.equal(said._meta['clusters/draft'].cards_used, 16);
+  const unknown = draftAnswer(out, base);
+  assert.ok(!/Cards used/.test(unknown.content[1].text));
+  assert.ok(!('cards_used' in unknown._meta['clusters/draft']));
+});
+
+test('a cluster named with no draft key says how to pass it, never a key', () => {
+  assert.equal(DRAFT_SAYS.ifDraft, 'If this cluster is a draft, pass its draft key as draft.');
+  assert.ok(!/dk_/.test(DRAFT_SAYS.ifDraft));
 });
 
 test('every draft answer carries its key and keep link, and the first says what a draft is', async () => {
@@ -369,4 +408,32 @@ test('beforeCall answers in the tool\'s place, or runs it as someone else', asyn
   const unknown = await handleMcpMessage(callMsg('no_such_tool', {}), { beforeCall: () => { asked = true; return { http }; } });
   assert.equal(asked, false, 'an unknown tool is answered as unknown');
   assert.equal(unknown.body.error.code, -32602);
+});
+
+test('the draft instructions fit the host\'s budget and state the draft card limit up front', () => {
+  assert.ok(DRAFT_INSTRUCTIONS.length <= 2000, `DRAFT_INSTRUCTIONS is ${DRAFT_INSTRUCTIONS.length} characters (2000)`);
+  const said = DRAFT_INSTRUCTIONS.indexOf(`${DEMO_CARD_LIMIT} cards`);
+  assert.ok(said >= 0, 'the limit comes from DEMO_CARD_LIMIT');
+  assert.ok(said < DRAFT_INSTRUCTIONS.indexOf(INSTRUCTIONS.split('\n\n')[1]), 'and is said before the long middle');
+});
+
+test('the draft parameter is one short sentence pair', () => {
+  const arg = mixedManifest(toolManifest(HOSTED_TOOLS.find((t) => t.name === 'add_cards'))).inputSchema.properties.draft;
+  assert.ok(arg.description.split(/\s+/).length <= 15, arg.description);
+  assert.match(arg.description, /^The draft key create_boards returned\. Pass it on every call about that draft\.$/);
+});
+
+// The most the /mcp tools/list may weigh: JSON.stringify(result).length measured
+// plus about 3%. It is the host's context budget, spent before a word is said.
+test('the /mcp tool list stays inside the context budget', async () => {
+  const r = await handleMcpMessage({ jsonrpc: '2.0', id: 1, method: 'tools/list' }, { tools: HOSTED_TOOLS, manifest: mixedManifest });
+  assert.ok(JSON.stringify(r.body.result).length <= 50800, 'the /mcp tools/list grew past its ceiling');
+});
+
+// The privacy policy is plain text in the client bundle (auth/legalContent.js),
+// where {{fact:…}} can't reach and this module can't be imported: hold its
+// sentence to the lifetime the reaper enforces.
+test('the privacy policy names the draft lifetime the code enforces', () => {
+  const policy = readFileSync(new URL('../auth/legalContent.js', import.meta.url), 'utf8');
+  assert.match(policy, new RegExp(`deleted ${DRAFT_LIFETIME_DAYS} days after its last change`));
 });

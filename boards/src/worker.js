@@ -52,6 +52,7 @@ import {
 } from './worker-scout.js';
 import { runCompactionJob1 } from './worker-compaction.js';
 import { isOAuthRoute, handleOAuthRoute } from './worker-oauth.js';
+import { wellKnownResponse, SERVER_CARD_ENDPOINTS } from './lib/mcpDiscovery.js';
 import { classifyCrawler, isCrawlablePath, crawlerHitPath } from './lib/crawlerUa.js';
 import { ogTargetProblem } from './lib/safeUrl.js';
 import { makeRateLimiter } from './lib/webImageSave.js';
@@ -746,6 +747,22 @@ const worker = {
       if (isOAuthRoute(url.pathname)
           && !(request.method === 'GET' && url.pathname === '/oauth/authorize')) {
         return await handleOAuthRoute(url, request, env);
+      }
+
+      // The rest of /.well-known: the AI Catalog, the older MCP server card, a file the build ships,
+      // or a JSON 404. The SPA fallback would answer anything else with the
+      // app's HTML and a 200, which a scanner reads as a document.
+      // The standard server card answers at the MCP endpoints' /server-card
+      // addresses, ahead of the /api/v1 router and the /mcp branch (no sign-in).
+      if (SERVER_CARD_ENDPOINTS.includes(url.pathname)) return wellKnownResponse(url, request.method);
+      if (url.pathname.startsWith('/.well-known/')) {
+        const card = wellKnownResponse(url, request.method);
+        if (card.status !== 404) return card;
+        const asset = await env.ASSETS.fetch(request).catch(() => null);
+        if (asset && asset.status === 200 && !(asset.headers.get('content-type') || '').includes('text/html')) {
+          return asset;
+        }
+        return card;
       }
 
       if (url.pathname === '/api/csp-report') {

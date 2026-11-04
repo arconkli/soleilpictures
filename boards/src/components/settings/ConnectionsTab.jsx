@@ -11,6 +11,7 @@ import { useFeedback } from '../AppFeedback.jsx';
 import { isShellEmail } from '../ScoutClaimBanner.jsx';
 import { SettingsCategory } from './fields.jsx';
 import { scoutConnectAllowed } from '../../lib/appHost.js';
+import { cursorInstallLinks, vscodeInstallLinks } from '../../lib/mcpInstallLinks.js';
 
 export function ConnectionsTab({ user }) {
   return (
@@ -319,6 +320,7 @@ function ApiSection({ user }) {
   const [fresh, setFresh] = useState(null);   // { token, prefix } — shown once
 
   const mcpUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/mcp`;
+  const installLinks = { cursor: cursorInstallLinks(mcpUrl).web, vscode: vscodeInstallLinks(mcpUrl).web };
 
   const load = async () => {
     const { data, error } = await supabase.rpc('api_token_list');
@@ -400,9 +402,18 @@ function ApiSection({ user }) {
           <button type="button" className="settings-btn"
                   onClick={() => copy(mcpUrl, 'Endpoint')}>Copy</button>
         </div>
+        <div className="api-token-row" style={{ marginTop: 8 }}>
+          <span className="callout-label">One click:</span>
+          <a className="settings-btn" href={installLinks.cursor} target="_blank" rel="noreferrer noopener">Add to Cursor</a>
+          <a className="settings-btn" href={installLinks.vscode} target="_blank" rel="noreferrer noopener">Add to VS Code</a>
+        </div>
         <p>
-          <a href="/docs/mcp" target="_blank" rel="noreferrer noopener">Read the MCP setup</a>
-          {' '}for the exact steps in Claude, Cursor and the rest.
+          Exact steps for{' '}
+          <a href="/docs/mcp#claude" target="_blank" rel="noreferrer noopener">Claude</a>,{' '}
+          <a href="/docs/mcp#chatgpt" target="_blank" rel="noreferrer noopener">ChatGPT</a>,{' '}
+          <a href="/docs/mcp#claude-code" target="_blank" rel="noreferrer noopener">Claude Code</a>,{' '}
+          <a href="/docs/mcp#windsurf" target="_blank" rel="noreferrer noopener">Windsurf</a>, or{' '}
+          <a href="/docs/mcp#local-for-files-on-your-machine" target="_blank" rel="noreferrer noopener">running it locally</a>.
         </p>
       </div>
 

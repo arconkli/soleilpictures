@@ -18,7 +18,9 @@
 //     people count by either event (0475);
 //   * the welcome pair counts who lifecycle_due_welcome_board would find, late
 //     enough that each has had its send hour, and every other pair's words
-//     and numbers are what they were (0497).
+//     and numbers are what they were (0497);
+//   * the drafts' two pairs count nothing until production's keep pages
+//     arrive, and nothing else in the body moved (0859).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -28,6 +30,7 @@ import { MIGRATIONS_DIR, latestDefinition, definitionsOf, migrationFiles } from 
 const FILE = '0472_instrumentation_check.sql';
 const IMPORTS = '0475_import_clusters_count_as_imports.sql';
 const WELCOME = '0497_instrumentation_watches_the_welcome.sql';
+const DRAFTS = '0859_instrumentation_watches_the_drafts.sql';
 const src = readFileSync(join(MIGRATIONS_DIR, FILE), 'utf8');
 const fix = readFileSync(join(MIGRATIONS_DIR, IMPORTS), 'utf8');
 const wel = readFileSync(join(MIGRATIONS_DIR, WELCOME), 'utf8');
@@ -46,10 +49,9 @@ test('these files are where the check, its numbers and the email kinds live', ()
     assert.equal(latestDefinition(fn)?.file, FILE, `the live ${fn} is ${FILE}'s`);
   }
   assert.equal(latestDefinition('admin_event_coverage')?.file, IMPORTS, `the live admin_event_coverage is ${IMPORTS}'s`);
-  for (const fn of ['check_instrumentation', '_instrumentation_pairs']) {
-    assert.equal(latestDefinition(fn)?.file, WELCOME, `the live ${fn} is ${WELCOME}'s`);
-  }
-  for (const [name, text] of [[FILE, src], [IMPORTS, fix], [WELCOME, wel]]) {
+  assert.equal(latestDefinition('check_instrumentation')?.file, WELCOME, `the live check_instrumentation is ${WELCOME}'s`);
+  assert.equal(latestDefinition('_instrumentation_pairs')?.file, DRAFTS, `the live _instrumentation_pairs is ${DRAFTS}'s`);
+  for (const [name, text] of [[FILE, src], [IMPORTS, fix], [WELCOME, wel], [DRAFTS, readFileSync(join(MIGRATIONS_DIR, DRAFTS), 'utf8')]]) {
     assert.doesNotMatch(text.replace(/--.*$/gm, ''), /\bdrop\s+function\b/i, `${name}: create or replace keeps every grant`);
   }
 });
@@ -65,14 +67,15 @@ test('only an event that stopped pages', () => {
   assert.match(body, /r\.ev_n::numeric \/ r\.truth_n < 0\.5 \* r\.base_ev_n::numeric \/ r\.base_truth_n/);
 });
 
-test('eight pairs, and the team is left out of every source', () => {
+test('ten pairs, and the team is left out of every source', () => {
   const body = latestDefinition('_instrumentation_pairs').body;
   const pairs = [...body.matchAll(/^\s*\('(\w+)',\s+(true|false),/gm)].map((m) => m[1]);
-  assert.deepEqual(pairs, ['active', 'session_context', 'first_card', 'cluster_create', 'msg_send', 'import_job', 'link_claim', 'welcome']);
+  assert.deepEqual(pairs, ['active', 'session_context', 'first_card', 'cluster_create', 'msg_send', 'import_job', 'link_claim', 'welcome', 'keep_view', 'keep_kept']);
   assert.match(body, /internal as \(select i\.user_id from public\._internal_user_ids\(\) i\)/);
   // user_active_day, profiles, boards, messages, import_jobs, link joins,
   // analytics_events, and the welcome's accounts.
-  for (const col of ['d.user_id', 'p.user_id', 'b.created_by', 'm.sender_id', 'j.owner_id', 'l.user_id', 'e.user_id', 'u.id']) {
+  // And the drafts' keepers (0859).
+  for (const col of ['d.user_id', 'p.user_id', 'b.created_by', 'm.sender_id', 'j.owner_id', 'l.user_id', 'e.user_id', 'u.id', 'd.claimed_by']) {
     assert.ok(body.includes(`and not exists (select 1 from internal i where i.user_id = ${col})`), `${col} leaves the team out`);
   }
 });
@@ -244,4 +247,37 @@ test("the welcome's alerts name the email; every other pair's words are 0472's (
   assert.equal(sched.at(-1), 'lifecycle-email-cron', 'the cron the alert names exists, and posts to the function it names');
   // never-measured stays for row pairs; the welcome is per person and can't reach it.
   assert.equal(raises(now)[1].includes('welcome'), false);
+});
+
+test("the drafts' pairs wait for production's keep pages, and nothing else moved (0859)", () => {
+  const [was, now] = [defIn('_instrumentation_pairs', WELCOME), defIn('_instrumentation_pairs', DRAFTS)];
+  assert.ok(was && now, `${WELCOME} and ${DRAFTS} both define it`);
+  const a = bodyLines(now.body), b = bodyLines(was.body);
+  // Removed: only lines that gained a comma or a third source.
+  assert.deepEqual(b.filter((l) => !a.includes(l)), [
+    "('welcome', true, 'Accounts due the welcome email, signed up 36 to 108 hours before', 'sent it (lifecycle_email_log)', 8)",
+    'coalesce(pc.ev_n, ec.ev_n, 0),',
+    'coalesce(pc.base_ev_n, ec.base_ev_n, 0)',
+  ]);
+  const flat = now.body.replace(/--.*$/gm, '').replace(/\s+/g, ' ');
+  // The start: the third browser session's first live keep page, in the live
+  // table, and nothing counted while there is none.
+  assert.ok(flat.includes("where e.event = 'keep_page_view' and e.props->>'state' = 'live' and e.occurred_at < p_at group by 1) s order by s.first_at offset 2 limit 1) as dr_start) dr"));
+  assert.ok(flat.includes("case when dr.dr_start is not null then greatest(p_at - interval '16 days', dr.dr_start) end as dr_base"),
+    'dr_base is null until the start (greatest() alone would skip a null)');
+  // Every draft source reads from dr_base: two truths, one event set.
+  assert.equal((flat.match(/>= w\.dr_base/g) || []).length, 3);
+  assert.ok(flat.includes('d.first_viewed_at >= w.dr_base and d.first_viewed_at < p_at'));
+  assert.ok(flat.includes('d.claimed_at >= w.dr_base and d.claimed_at < p_at'));
+  assert.ok(flat.includes("when e.event = 'keep_page_view' and e.props->>'state' = 'live' then 'keep_view'"));
+  assert.ok(flat.includes("when e.event = 'keep_kept' then 'keep_kept'"));
+  // Row pairs, so check_instrumentation's paging rule (base_ev_n > 0) is what
+  // holds them until they have a fortnight's baseline; its body is 0497's.
+  assert.ok(a.includes("('keep_view', false, 'Drafts whose keep page opened (mcp_drafts.first_viewed_at)', 'keep_page_view events with state live', 9),"));
+  assert.ok(a.includes("('keep_kept', false, 'Drafts kept (mcp_drafts.claimed_at)', 'keep_kept events', 10)"));
+  const drafts = readFileSync(join(MIGRATIONS_DIR, DRAFTS), 'utf8');
+  assert.doesNotMatch(drafts, /function public\.check_instrumentation\(/);
+  assert.doesNotMatch(drafts.replace(/--.*$/gm, ''), /\b(grant|revoke)\b[^;]*\bon\s+function\b/i, '0859 leaves the ACLs as they were');
+  const proof = drafts.match(/do \$proof\$([\s\S]*?)\$proof\$;/)?.[1];
+  assert.ok(proof && proof.includes("foreach v_fn in array array['public._instrumentation_pairs(timestamptz)', 'public.check_instrumentation()'] loop"));
 });

@@ -3436,7 +3436,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, a client names itself by the URL of its own metadata document or registers dynamically, PKCE with S256 is required, and access tokens last 60 minutes with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then Connections.",
     "section": "developers",
     "order": 3,
-    "updated": "2026-10-25",
+    "updated": "2026-11-04",
     "navLabel": "OAuth",
     "headings": [
       {
@@ -3629,7 +3629,7 @@ export const DOCS_PAGES = [
     "answer": "A doc card's pages are read and written as Markdown. GET /boards/:id/cards/:cardId/doc reads every page with a hash of each; POST /boards/:id/docs makes a doc holding up to 50 pages; POST …/doc/pages adds pages; PATCH …/doc/pages/:pageId rewrites, edits or renames one page. A rewrite names the hash the page was read at, so it never erases a change made since, and it keeps every block it didn't change, comments included.",
     "section": "developers",
     "order": 4.5,
-    "updated": "2026-10-25",
+    "updated": "2026-11-04",
     "navLabel": "Docs",
     "headings": [
       {
@@ -3889,7 +3889,7 @@ export const DOCS_PAGES = [
     "answer": "POST /boards/:id/import takes a list of https URLs and brings them onto a board. Images are downloaded and stored; anything else becomes a link card pointing at the original, and the response says which happened to each item. Every card is stamped with a source_url identifier and the import resolves on it, so running the same manifest twice updates the same cards rather than duplicating them.",
     "section": "developers",
     "order": 6,
-    "updated": "2026-10-02",
+    "updated": "2026-11-04",
     "navLabel": "Import",
     "headings": [
       {
@@ -3911,6 +3911,10 @@ export const DOCS_PAGES = [
       {
         "id": "how-it-is-laid-out",
         "text": "How it is laid out"
+      },
+      {
+        "id": "items-as-plain-strings",
+        "text": "Items as plain strings"
       },
       {
         "id": "positioning-and-metadata",
@@ -4057,7 +4061,7 @@ export const DOCS_PAGES = [
     "answer": "GET /search finds boards and cards by text across everything your account can see, the words inside docs, and pictures by what is in them. Pass q with at least two characters, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.",
     "section": "developers",
     "order": 9,
-    "updated": "2026-11-01",
+    "updated": "2026-11-04",
     "navLabel": "Search",
     "headings": [
       {
@@ -4154,10 +4158,10 @@ export const DOCS_PAGES = [
     "title": "MCP Server — Soleil Clusters for AI Agents",
     "metaDescription": "Connect Claude or any MCP client to Soleil Clusters — hosted over a URL, or run locally. Tools for reading, building, importing and exporting boards.",
     "h1": "MCP server",
-    "answer": "Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser — it signs you in over OAuth, so there is no token to paste and no account needed beforehand. Run it locally with npx only for tools that need your filesystem. Either way it holds no credentials of its own, so an agent reaches exactly what your account reaches and no more.",
+    "answer": "Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser; it signs you in over OAuth, so there is no token to paste. With no account, https://clusters.soleilpictures.com/mcp lets an assistant build a draft cluster you keep with a link. Run it locally with npx only for files on your machine. It holds no credentials of its own, so an agent reaches exactly what your account reaches.",
     "section": "developers",
     "order": 10,
-    "updated": "2026-10-28",
+    "updated": "2026-11-04",
     "navLabel": "MCP",
     "headings": [
       {
@@ -4165,8 +4169,16 @@ export const DOCS_PAGES = [
         "text": "What it is"
       },
       {
-        "id": "two-ways-to-connect",
-        "text": "Two ways to connect"
+        "id": "connect-it",
+        "text": "Connect it"
+      },
+      {
+        "id": "no-account-drafts",
+        "text": "No account: drafts"
+      },
+      {
+        "id": "discovery",
+        "text": "Discovery"
       },
       {
         "id": "protocol-versions",
@@ -4222,7 +4234,11 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Do I need an account before connecting?",
-        "a": "No. Sign-in is a single email box that creates the account if there isn't one, so you can go from Connect to a working assistant without visiting the site first."
+        "a": "Not to try it. The no-account address, https://clusters.soleilpictures.com/mcp, lets an assistant build a draft cluster of up to 50 cards, which you keep with a link and an email address. The hosted address, /api/v1/mcp, needs you signed in: it opens the sign-in itself, and the sign-in screen is a single email box that creates the account if there isn't one."
+      },
+      {
+        "q": "Which apps does it work with?",
+        "a": "Claude, ChatGPT, Claude Code, Cursor, VS Code, Windsurf, and any app that takes a remote MCP server by URL. Coding apps connect on an account's first day too, under the new-account hourly limit."
       },
       {
         "q": "Do I still need a personal access token?",
@@ -4242,7 +4258,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Can the assistant show me the board in the chat?",
-        "a": "In ChatGPT and Claude, yes. show_board draws the cluster inside the conversation, laid out as it is on its canvas; you can pick cards and ask about them, or open it in Clusters. Elsewhere the assistant gives you the board's link."
+        "a": "In ChatGPT and Claude, yes. show_board draws the cluster inside the conversation, laid out as it is on its canvas; you can pick cards and ask about them, or open it in Clusters. Cursor, VS Code, Windsurf and other apps don't draw it: the assistant gives you the cluster's link instead."
       },
       {
         "q": "Is it the same set of tools either way?",

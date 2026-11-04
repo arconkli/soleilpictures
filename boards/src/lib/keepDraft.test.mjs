@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  KEEP_BUNDLE_PATH, KeepBundleError, firstClusterOf, keepPath, hostName, fetchKeepBundle,
+  KEEP_BUNDLE_PATH, KeepBundleError, firstClusterOf, firstCardOf, keepPath, hostName, fetchKeepBundle,
   keepFailure, roomLeft, deleteDay, signInWords, signupFirstSource, keepFailReason,
 } from './keepDraft.js';
 import { EV } from './analyticsEvents.js';
@@ -23,6 +23,15 @@ test('the cluster to open first is ?b= when it is an id, and the address drops i
   assert.equal(keepPath(TOKEN, BOARD, BOARD), `/keep/${TOKEN}`);
   assert.equal(keepPath(TOKEN, null, BOARD), `/keep/${TOKEN}`);
   assert.equal(keepPath(TOKEN, 'other', BOARD), `/keep/${TOKEN}?b=other`);
+});
+
+test('an API-made card id is kept as it is', () => {
+  assert.equal(firstCardOf(`?b=${BOARD}&c=api-mh3k2j1x-4f9a2b`), 'api-mh3k2j1x-4f9a2b');
+});
+
+test('the card to select is ?c= when it is an id', () => {
+  assert.equal(firstCardOf(`?b=${BOARD}&c=${TOKEN.toUpperCase()}`), TOKEN);
+  for (const s of ['', '?c=', '?c=x/y', '?c=a%26b%3D1', undefined]) assert.equal(firstCardOf(s), null, String(s));
 });
 
 test('the host by name, or none (mcp_drafts.host)', () => {

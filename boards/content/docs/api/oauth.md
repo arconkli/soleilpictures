@@ -5,7 +5,7 @@ h1: Connecting an app (OAuth)
 navLabel: OAuth
 section: developers
 order: 3
-updated: 2026-10-25
+updated: 2026-11-04
 answer: Soleil Clusters is its own OAuth 2.1 authorization server, so an MCP client or any other application can connect without anyone copying a token. Discovery is at /.well-known/oauth-protected-resource and /.well-known/oauth-authorization-server, a client names itself by the URL of its own metadata document or registers dynamically, PKCE with S256 is required, and access tokens last {{fact:oauthAccessTtl}} with a rotating refresh token. The person approves the connection on one screen and can disconnect it at any time under Settings then Connections.
 faq:
   - q: Do I need to register an application first?
@@ -254,8 +254,12 @@ working immediately rather than at its next expiry. Everything the app did is in
 the [audit log](/docs/api/audit), with the tool it used.
 
 At most {{fact:maxConnectedApps}} connected apps per account. In an account's
-first {{fact:newAccountHours}} hours, only ChatGPT and Claude can connect, by
-sending the person back to their own callback, and their tokens answer
+first {{fact:newAccountHours}} hours, ChatGPT, Claude and the coding apps can
+connect: ChatGPT and Claude by sending the person back to their own callback,
+and Claude Code, Codex, Cursor, VS Code, Windsurf and the npm package by sending
+the code to an address on the person's own computer (`localhost`, `127.0.0.1`
+or `[::1]`, over `http`), to VS Code's redirect page or `vscode://` handler, or
+to Cursor's `cursor://` handler or its cloud callback. Their tokens answer
 {{fact:oauthNewAccountPerHour}} requests an hour instead of
 {{fact:rateLimitPerHour}}. Every other app can connect once the account is
 {{fact:newAccountHours}} hours old.

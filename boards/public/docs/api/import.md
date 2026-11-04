@@ -2,7 +2,7 @@
 
 > POST /boards/:id/import takes a list of https URLs and brings them onto a board. Images are downloaded and stored; anything else becomes a link card pointing at the original, and the response says which happened to each item. Every card is stamped with a source_url identifier and the import resolves on it, so running the same manifest twice updates the same cards rather than duplicating them.
 
-_Source: https://clusters.soleilpictures.com/docs/api/import · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/docs/api/import · Updated 2026-11-04_
 
 Reference rarely starts life in Clusters. It is in a shared drive folder, on a
 CDN, in somebody's export from another tool. `import` is how it gets here
@@ -110,6 +110,14 @@ does. An import into sections is placed as cards naming them are: a new section
 laid out as `auto` lays one out, under what is already there, and pictures for a
 section the board has beside that section's cards. Bringing in a moodboard a
 section at a time — streets, faces, light — is one import each.
+
+## Items as plain strings
+
+An item can be just the address: `"items": ["https://cdn.example.com/ref/diner-01.jpg"]`
+is the same as `{ "url": "…" }`, and the two can be mixed in one list. A `title`
+on an item becomes the picture's caption, and a `group` puts it in that section.
+The [MCP](/docs/mcp) tool `import_urls` takes the same, and its `titles` list by
+position.
 
 ## Positioning and metadata
 

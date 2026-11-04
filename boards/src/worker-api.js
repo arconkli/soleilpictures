@@ -96,6 +96,7 @@ import {
   AFTER_WRITE_DRAIN,
 } from './lib/webhooks.js';
 import { handleMcpRequest, mcpTraceName } from './lib/mcpServer.js';
+import { apiLogParams, mcpClientName, mcpOutcome } from './lib/apiLog.js';
 import { answeredWith, reportWorkerError } from './lib/workerErrors.js';
 import { ApiError, apiErrorFrom, HOSTED_TOOLS } from './lib/mcpTools.js';
 import {
@@ -104,6 +105,7 @@ import {
   draftRefusal, draftAnswer, DRAFT_SAYS,
 } from './lib/mcpDrafts.js';
 import { makeEdgeLimiter } from './lib/edgeLimits.js';
+import { DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import {
   arrange, rearrange, placeGrouped, DEFAULT_LAYOUT,
 } from './lib/layoutEngine.js';
@@ -197,7 +199,7 @@ const CORS = {
     + 'mcp-protocol-version,mcp-method,mcp-name',
   'access-control-expose-headers':
     'x-ratelimit-limit,x-ratelimit-remaining,x-ratelimit-reset,retry-after,'
-    + 'idempotent-replay,x-image-variant,etag',
+    + 'idempotent-replay,x-image-variant,etag,www-authenticate',
   'access-control-max-age': '86400',
 };
 
@@ -824,6 +826,9 @@ function embedAfterWrite(env, ctx, workspaceId, boardId, cards) {
     .catch((e) => console.warn('[api-embed] failed', items.length, e?.message || e)));
 }
 
+const UNDESCRIBED_WINDOW_MS = 2 * 60 * 60 * 1000;
+const UNDESCRIBED_CAP = 50;
+
 // A described picture in one line, as search reads it (entity_search's
 // `seen`, 0595): the description, its keywords, then what it is made of.
 const SEEN_MAX = 600;
@@ -1302,6 +1307,14 @@ export async function handleApiRoute(url, request, env, ctx, opts = {}) {
   // The path is the resource's own path, so /api/v1/mcp and /api/v1 each
   // describe themselves rather than sharing one document that is wrong for one
   // of them.
+  // A browser opening the MCP address reads how to connect it, as /mcp does.
+  // An MCP client's GET asks for an event stream, never a page.
+  if (!opts.resourcePath && request.method === 'GET' && url.pathname.replace(/\/$/, '') === '/api/v1/mcp'
+      && !request.headers.get('authorization')
+      && (request.headers.get('accept') || '').includes('text/html')) {
+    return Response.redirect(new URL('/docs/mcp', url.origin).toString(), 302);
+  }
+
   const resourcePath = opts.resourcePath
     || (url.pathname.startsWith('/api/v1/mcp') ? '/api/v1/mcp' : '/api/v1');
   const challenge = (params) => ({
@@ -1314,8 +1327,12 @@ export async function handleApiRoute(url, request, env, ctx, opts = {}) {
   if (!auth.ok) {
     return json({ error: auth.error, code: auth.code }, auth.status, {
       ...rateHeaders(auth.rate, { retryAfter: auth.status === 429 }),
+      // RFC 6750 §3.1: a request that sent no credential gets no error code,
+      // only the way in; a bad or expired one is an invalid_token.
       ...(auth.status === 401
-        ? challenge('error="invalid_token", scope="read write"')
+        ? challenge(request.headers.get('authorization')
+          ? 'error="invalid_token", scope="read write"'
+          : 'scope="read write"')
         : {}),
     });
   }
@@ -1449,22 +1466,16 @@ export async function handleApiRoute(url, request, env, ctx, opts = {}) {
   // Off the response path via waitUntil — an audit write must never be what
   // makes someone's request slow, or what fails it.
   if ((request.method !== 'GET' || trace.log) && auth.tokenId) {
-    const write = scoutRpc(env, 'api_log_request', {
-      p_token_id: auth.tokenId,
-      p_user_id: auth.userId,
-      p_method: request.method,
-      p_route: trace.route,
-      p_status: res.status,
-      p_ms: Date.now() - t0,
-      p_target: trace.target,
-      p_tool: trace.tool || null,
-      // 0320: where from. cf-connecting-ip is set by Cloudflare on every
-      // request and cannot be forged by the client; the UA is bounded here so
-      // the column stays small.
-      p_ip: request.headers.get('cf-connecting-ip') || null,
-      p_ua: (request.headers.get('user-agent') || '').slice(0, 200) || null,
-    }).catch(() => {});
-    if (ctx?.waitUntil) ctx.waitUntil(write);
+    // A refused REST call says why in its body; an MCP call's reason was
+    // collected into the trace as it ran.
+    if (res.status >= 400 && !trace.errorCode) {
+      trace.errorCode = (await res.clone().json().catch(() => null))?.code || null;
+    }
+    const logged = apiLogParams({
+      auth, request, trace, status: res.status, ms: Date.now() - t0,
+    });
+    const write = logged ? scoutRpc(env, 'api_log_request', logged).catch(() => {}) : null;
+    if (write && ctx?.waitUntil) ctx.waitUntil(write);
   }
 
   // A write may have queued webhook events. Draining here means an API-driven
@@ -1491,7 +1502,7 @@ export async function handleApiRoute(url, request, env, ctx, opts = {}) {
 // 0705, lib/mcpDrafts.js), and the rest ask the person to sign in the way their
 // host shows it. With a token it is /api/v1/mcp, listing the tools the same way.
 //
-// Held on production until a release opens it with its docs (draftsOpen).
+// Open on every host (draftsOpen, DRAFTS_HELD in lib/mcpDrafts.js).
 
 // New drafts per address a minute. ChatGPT and Claude call from a few shared
 // addresses for all of their users, so this only stops a burst; the day's
@@ -1574,7 +1585,10 @@ async function draftCall(url, request, env, ctx, name, params) {
   let draft = state === 'live' ? found : null;
   let created = false;
   if (!draft) {
-    if (name !== 'create_boards') return signIn(DRAFT_SAYS.nothingYet);
+    if (name !== 'create_boards') {
+      // A cluster named with no draft key: it may be a draft whose key this call forgot.
+      return signIn(raw.board_id && !key ? `${DRAFT_SAYS.nothingYet} ${DRAFT_SAYS.ifDraft}` : DRAFT_SAYS.nothingYet);
+    }
     const made = await makeDraft(env, request, { secret, subject, host, signIn });
     if (made.answer) return made.answer;
     ({ draft, created } = made);
@@ -1594,12 +1608,42 @@ async function draftCall(url, request, env, ctx, name, params) {
   return {
     args: withoutDraft(raw),
     ctx: {
-      api: (path, opts = {}) => internalCall(url, env, ctx, { auth, token }, path, opts),
-      afterCall: (out) => draftAnswer(out, { origin: url.origin, tokens, expiresAt: draft.expires_at, created }),
+      api: async (path, opts = {}) => {
+        try {
+          return await internalCall(url, env, ctx, { auth, token }, path, opts);
+        } catch (e) {
+          // A cluster this draft can't see, asked for with no draft key: say how to pass it.
+          if (!key && raw.board_id && e instanceof ApiError && e.status === 404) {
+            throw new ApiError(`${e.message}${/[.!?]$/.test(e.message) ? '' : '.'} ${DRAFT_SAYS.ifDraft}`,
+              { status: 404, code: e.code || 'not_found' });
+          }
+          throw e;
+        }
+      },
+      afterCall: async (out) => draftAnswer(out, {
+        origin: url.origin, tokens, expiresAt: draft.expires_at, created,
+        cardsUsed: CARD_CHANGING.has(name) ? await draftCardsUsed(env, draft.workspace_id) : null,
+      }),
       // A tool asks the person nothing a draft can't answer (create_boards' placement).
       draft: true,
     },
   };
+}
+
+// The tools whose answers say how many of a draft's cards are used.
+const CARD_CHANGING = new Set(['add_cards', 'import_urls', 'write_doc', 'delete_cards']);
+
+// Cards in a draft's workspace: its limit is small, so this reads at most one
+// more row than the limit, by id, off the workspace's index. null when it can't.
+async function draftCardsUsed(env, workspaceId) {
+  if (!workspaceId) return null;
+  try {
+    const rows = await scoutSelect(env, 'card_index',
+      `workspace_id=eq.${workspaceId}&select=card_id&limit=${DEMO_CARD_LIMIT + 1}`, 3000);
+    return Array.isArray(rows) ? Math.min(rows.length, DEMO_CARD_LIMIT) : null;
+  } catch (_) {
+    return null;
+  }
 }
 
 // A new draft: an auth user at the draft's address, its personal workspace and
@@ -2303,13 +2347,21 @@ async function dispatch(url, request, env, ctx) {
     // Which tool, not just which route. See mcpTraceName — one HTTP route
     // serving thirty-three tools makes a route-keyed log useless.
     trace.tool = mcpTraceName(body);
+    const first = Array.isArray(body) ? body[0] : body;
+    trace.mcpMethod = typeof first?.method === 'string' ? first.method : null;
+    trace.client = mcpClientName(body);
     // /mcp signed in: its tool list and the draft argument it strips (ctx.mcp).
     const out = await handleMcpRequest(request, {
       api: (path, opts = {}) => internalCall(url, env, ctx, { auth, token }, path, opts),
       // Where the inline view's pictures come from (resources/read's CSP).
       origin: url.origin,
+      // Why a tool failed, for the request log; the answer is unchanged.
+      onToolError: (code) => { trace.errorCode ||= code; },
       ...(ctx.mcp || {}),
     }, body);
+    const outcome = mcpOutcome(out.body);
+    trace.isError = outcome.isError;
+    if (outcome.code) trace.errorCode ||= outcome.code;
     if (out.body === null) return new Response(null, { status: out.status, headers: CORS });
     return json(out.body, out.status, out.headers);
   }
@@ -2444,7 +2496,7 @@ async function dispatch(url, request, env, ctx) {
     const wantBoards = kind !== 'card';
     const wantCards = kind !== 'board';
 
-    const [boardRows, cardRows, pictureRows, pageRows] = await Promise.all([
+    const [boardRows, cardRows, pictureRows, pageRows, undescribedRows] = await Promise.all([
       wantBoards
         ? userSelect(env, token, 'boards',
           `name=ilike.${encodeURIComponent(value)}&deleted_at=is.null${wsFilter}`
@@ -2475,6 +2527,17 @@ async function dispatch(url, request, env, ctx) {
           + `&order=updated_at.desc&limit=${limit + 1}&offset=${offset}`)
           .catch(() => [])
         : Promise.resolve([]),
+      // Pictures added or changed in the last two hours that carry no
+      // description yet: the describe job runs on a cron (worker-vision.js),
+      // so a fresh picture is found by its title alone until it has one.
+      // The window keeps the view's per-picture description lookup to the
+      // few that are new; one capped read, and a failure costs the note only.
+      wantCards
+        ? userSelect(env, token, 'entity_search',
+          `kind=eq.image&seen=is.null&updated_at=gte.${encodeURIComponent(new Date(Date.now() - UNDESCRIBED_WINDOW_MS).toISOString())}${wsFilter}`
+          + `&select=card_id&limit=${UNDESCRIBED_CAP + 1}`)
+          .catch(() => [])
+        : Promise.resolve([]),
     ]);
 
     const boards = paginate(boardRows, limit, offset);
@@ -2503,8 +2566,12 @@ async function dispatch(url, request, env, ctx) {
         `id=in.${encodeURIComponent(pgInList(onIds))}&select=id,name`).catch(() => []) || [])
         .map((b) => [b.id, b.name])
       : []);
+    const undescribed = Array.isArray(undescribedRows) ? undescribedRows.length : 0;
     return json({
       query: q,
+      // Recent pictures not yet described, so a search by what is in a picture
+      // that finds nothing can say why (capped: UNDESCRIBED_CAP means "or more").
+      ...(undescribed ? { undescribed_pictures: Math.min(undescribed, UNDESCRIBED_CAP) } : {}),
       // Each hit with a link that opens it in the app this API is served from.
       boards: { ...boards, items: boards.items.map((b) => ({ ...publicBoard(b), url: boardUrl(url.origin, b.id) })) },
       cards: {
@@ -3559,7 +3626,9 @@ async function dispatch(url, request, env, ctx) {
 
     // Throws on a manifest that is structurally wrong — including one internal
     // address — before a single byte is fetched.
-    const items = normalizeImportItems(body.items);
+    // An item is { url, title?, group?, … } or just the URL as a string.
+    const items = normalizeImportItems(Array.isArray(body.items)
+      ? body.items.map((it) => (typeof it === 'string' ? { url: it } : it)) : body.items);
     for (const it of items) it.sourceValue = await sourceIdentifierValue(it.url);
 
     // A dry run answers "would this manifest work" without fetching anything,
@@ -4174,8 +4243,18 @@ async function dispatch(url, request, env, ctx) {
       || (pages.length === 1 && pages[0].title !== 'Untitled' ? pages[0].title : '')
       || 'Untitled doc';
     if (pages[0].title === 'Untitled' && title !== 'Untitled doc') pages[0].title = title.slice(0, dw.DOC_WRITE.maxTitle);
-    // The app's size for a new doc card.
-    const card = normalizeIncomingCard({ kind: 'doc', title, w: 320, h: 240, x: body.x, y: body.y });
+    // The section it goes in, by name (made if missing), as a card's group is.
+    if (body.group != null && typeof body.group !== 'string') throw fail(400, 'bad_request', 'group must be a section name');
+    if (body.position != null && body.position !== 'top') throw fail(400, 'bad_request', 'position must be "top" when given');
+    const wantsTop = body.position === 'top';
+    if (wantsTop && (body.group != null || body.x != null || body.y != null)) throw fail(400, 'bad_request', 'position "top" puts the doc at the cluster\'s top-left: leave out group, x and y, or leave out position');
+    const sized = (v) => (Number.isFinite(v) && v > 0 ? v : undefined);
+    // The app's size for a new doc card, unless w and h say otherwise.
+    const card = normalizeIncomingCard({
+      kind: 'doc', title, w: sized(body.w) ?? 320, h: sized(body.h) ?? 240, x: body.x, y: body.y,
+    });
+    const sections = sectionName(body.group)
+      ? sectionsFor([{ group: body.group }], [card], {}, { userId: auth.userId }) : null;
 
     let images = new Set();
     let made = [];
@@ -4185,9 +4264,17 @@ async function dispatch(url, request, env, ctx) {
       userId: auth.userId,
       accessToken: token,
       requireLive: true,
-      buildCards: async (existing) => {
+      ...(sections ? { prepare: sections.prepare } : {}),
+      buildCards: async (existing, prepared) => {
         images = dw.placeableImages(existing, null);
-        return layoutCards([card], existing);
+        if (sections) sections.assign(card, 0, prepared);
+        // position "top": the top-left of the cluster, just above what is there,
+        // ahead of the sections (arrange_board's order puts a card there too).
+        if (wantsTop) {
+          const box = blockBounds(existing.filter((c) => [c.x, c.y, c.w, c.h].every(Number.isFinite)));
+          if (box) { card.x = box.x; card.y = box.y - card.h - 24; }
+        }
+        return layoutCards([card], existing, null, { order: prepared?.order });
       },
       afterInsert: (doc, cardYMap) => {
         made = dw.writePages(doc, cardYMap, pages, { userId: auth.userId, imageAllowed: pictureFrom(images) });
@@ -4201,6 +4288,7 @@ async function dispatch(url, request, env, ctx) {
       card: publicCard(placed),
       url: cardUrl(url.origin, id, placed.id),
       pages: made.map(publicDocPage),
+      ...(sections?.named ? { groups: publicSections(sections) } : {}),
       live: true,
     }, 201);
   }

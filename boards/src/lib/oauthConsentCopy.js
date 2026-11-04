@@ -56,17 +56,18 @@ const BY_CODE = {
     title: 'We could not check that app just now',
     body: 'Try again in a moment, or start again from the app you were in. Nothing has been shared.',
   },
-  // 0375 + 0704: in an account's first days only ChatGPT and Claude connect.
+  // 0375 + 0704 + 0857: in an account's first days only ChatGPT, Claude and the
+  // coding apps (Claude Code, Codex, Cursor, VS Code, Windsurf) connect.
   // consentError puts the database's own sentence first when there is one, so
   // how long the wait is lives in one place (_refuse_if_new).
   new_account: {
     title: 'Not yet for a new account',
-    body: 'ChatGPT and Claude can connect straight away. Other apps open up once an account '
-      + 'is a few days old. Nothing has been shared.',
+    body: 'ChatGPT, Claude and coding apps like Claude Code, Cursor and VS Code can connect straight '
+      + 'away. Other apps open up once an account is a few days old. Nothing has been shared.',
   },
 };
 
-const NEW_ACCOUNT_REST = 'ChatGPT and Claude can connect straight away. Nothing has been shared.';
+const NEW_ACCOUNT_REST = 'ChatGPT, Claude and coding apps like Claude Code, Cursor and VS Code can connect straight away. Nothing has been shared.';
 
 /**
  * Pick the sentence to show for an OAuth failure.

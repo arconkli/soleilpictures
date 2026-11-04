@@ -87,7 +87,11 @@ export const CEILINGS = {
   // box or runs off the screen, and the cursors keep to their band. The rings,
   // the glow and the box polish are CSS. A CI-style build read 168.8 KB on main
   // 6387bde8 and 170.4 KB with it.
-  entryJs: 170_500,
+  // 2026-11-04 (production, release-nov-04-0331): +0.8 KB for the MCP
+  // connecting work's password sign-in (lib/passwordSignIn.js, in the sign-in
+  // gate). Production lacks main's e233d0aa clock fix, so it keeps its own
+  // lower ceiling; main carries 171_800 with both.
+  entryJs: 171_300,
   entryCss: 96_000,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only

@@ -264,6 +264,12 @@ if (!mentionCap || !replyCap || mentionCap[1] !== replyCap[1]) {
 // An account's first hours (_account_is_new, migration 0375): no API keys,
 // webhooks, connected apps, service accounts, indexable links or Explore
 // submissions, and a cap on workspaces (create_workspace_with_root's constant).
+const draftRequestsPerHour = latestSqlDefining('mcp_draft_resolve')
+  ?.match(/c_req_limit\s+constant integer := (\d+)/);
+if (!draftRequestsPerHour) throw new Error('gen-docs: draft request limit not found in mcp_draft_resolve (0705)');
+const undescribedPicturesCap = readFileSync(resolve(BOARDS, 'src/worker-api.js'), 'utf8')
+  .match(/const UNDESCRIBED_CAP = (\d+);/);
+if (!undescribedPicturesCap) throw new Error('gen-docs: UNDESCRIBED_CAP not found in worker-api.js');
 const newAccountHours = latestSqlDefining('_account_is_new')
   ?.match(/_account_is_new\(\)[\s\S]*?interval '(\d+) hours'/);
 const newAccountWorkspaces = latestSqlDefining('create_workspace_with_root')
@@ -633,6 +639,10 @@ export const FACTS = {
   // How long a draft nobody keeps lasts after its last change (lib/mcpDrafts.js;
   // mcpDrafts.test.mjs holds 0705's lifetime to it).
   draftLifetimeDays: String(DRAFT_LIFETIME_DAYS),
+  // Requests an hour one draft may make (mcp_draft_resolve's c_req_limit, 0705).
+  draftRequestsPerHour: draftRequestsPerHour[1],
+  // The most a search's undescribed_pictures count says (worker-api.js UNDESCRIBED_CAP).
+  undescribedPicturesCap: undescribedPicturesCap[1],
   // A board's gallery: its pages and what one answer may embed (lib/gallery.js),
   // and how many pictures view_board looks at closely (the tool's own schema).
   galleryDefaultLimit: String(GALLERY.defaultLimit),

@@ -41,7 +41,7 @@ import { captchaEnabled, captchaToken } from '../auth/turnstile.js';
 import { FREE_STORAGE_LABEL } from '../lib/billingCopy.js';
 import { WORKSPACE_LIMIT, workspaceCountFromError } from '../lib/workspaceLimit.js';
 import {
-  fetchKeepBundle, firstClusterOf, keepPath, hostName, keepFailure, roomLeft, deleteDay,
+  fetchKeepBundle, firstClusterOf, firstCardOf, keepPath, hostName, keepFailure, roomLeft, deleteDay,
   signInWords, signupFirstSource, keepFailReason,
 } from '../lib/keepDraft.js';
 import './keepPage.css';
@@ -79,6 +79,8 @@ function decodeBundle(bundle) {
 
 export function KeepPage({ token }) {
   const firstId = useMemo(() => firstClusterOf(window.location.search), []);
+  const firstCard = useMemo(() => firstCardOf(window.location.search), []);
+  const flashedRef = useRef(false);
   const [status, setStatus] = useState('loading'); // loading | live | kept | expired | unknown | error
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [draft, setDraft] = useState(null);        // { host, expiresAt, lifetimeDays, cardCount, cardLimit }
@@ -104,6 +106,18 @@ export function KeepPage({ token }) {
   currentIdRef.current = currentId;
   const stackRef = useRef(stack);
   stackRef.current = stack;
+
+  // A link to one card (&c=): once its cluster is on screen, select it and
+  // bring it to the middle, as the app does for ?board=&card= (App.jsx fires
+  // the same event; CanvasSurface waits for the card to stream in).
+  useEffect(() => {
+    if (!firstCard || flashedRef.current || status !== 'live' || !currentId || !cur) return undefined;
+    const t = setTimeout(() => {
+      flashedRef.current = true;
+      document.dispatchEvent(new CustomEvent('soleil-flash-card', { detail: { boardId: currentId, cardId: firstCard } }));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [firstCard, status, currentId, cur]);
 
   // ── The draft's pictures, from the bundle's signed addresses ──
   useEffect(() => {

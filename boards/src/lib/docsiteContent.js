@@ -56674,7 +56674,55 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "At most 20 connected apps per account. In an account's first 72 hours, only ChatGPT and Claude can connect, by sending the person back to their own callback, and their tokens answer 300 requests an hour instead of"
+     "v": "At most 20 connected apps per account. In an account's first 72 hours, ChatGPT, Claude and the coding apps can connect: ChatGPT and Claude by sending the person back to their own callback, and Claude Code, Codex, Cursor, VS Code, Windsurf and the npm package by sending the code to an address on the person's own computer ("
+    },
+    {
+     "t": "code",
+     "v": "localhost"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "127.0.0.1"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": "[::1]"
+    },
+    {
+     "t": "text",
+     "v": ", over "
+    },
+    {
+     "t": "code",
+     "v": "http"
+    },
+    {
+     "t": "text",
+     "v": "), to VS Code's redirect page or "
+    },
+    {
+     "t": "code",
+     "v": "vscode://"
+    },
+    {
+     "t": "text",
+     "v": " handler, or to Cursor's "
+    },
+    {
+     "t": "code",
+     "v": "cursor://"
+    },
+    {
+     "t": "text",
+     "v": " handler or its cloud callback. Their tokens answer 300 requests an hour instead of"
     }
    ]
   },
@@ -61416,7 +61464,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A new doc card holding the pages you send, placed in free space on the board, or at "
+     "v": "A new doc card holding the pages you send, placed in free space on the board, at "
     },
     {
      "t": "code",
@@ -61432,7 +61480,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ", in a section, or at the top."
     }
    ]
   },
@@ -61515,6 +61563,88 @@ export const DOCS_CONTENT = {
        "v": "Where the card goes. Left out, it is placed where it covers nothing"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "group"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The section it goes in, by name; the board's group of that name, made if it has none"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "position"
+      }
+     ],
+     [
+      {
+       "t": "code",
+       "v": "\"top\""
+      },
+      {
+       "t": "text",
+       "v": " puts it at the top-left, ahead of the sections. Not with "
+      },
+      {
+       "t": "code",
+       "v": "group"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "x"
+      },
+      {
+       "t": "text",
+       "v": " or "
+      },
+      {
+       "t": "code",
+       "v": "y"
+      },
+      {
+       "t": "text",
+       "v": ": sending it with any of them is refused with "
+      },
+      {
+       "t": "code",
+       "v": "400 bad_request"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "w"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "h"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The card's width and height. Left out, 320 by 240"
+      }
+     ]
     ]
    ]
   },
@@ -61539,6 +61669,62 @@ export const DOCS_CONTENT = {
    "type": "code",
    "lang": "json",
    "code": "{\n  \"board_id\": \"9f1c…\",\n  \"card\": { \"id\": \"api-m2x9k1-a81f3c\", \"kind\": \"doc\", \"title\": \"Tokyo noir\", … },\n  \"url\": \"https://clusters.soleilpictures.com/?to=c:9f1c…:api-m2x9k1-a81f3c\",\n  \"pages\": [\n    { \"id\": \"p_k3v8x0q2m1c4\", \"title\": \"Logline\", \"parent_id\": null, \"depth\": 0, \"chars\": 64, \"hash\": \"5d1f0c2a\" },\n    { \"id\": \"p_7hd2w9zr8b0e\", \"title\": \"Places\", \"parent_id\": null, \"depth\": 0, \"chars\": 57, \"hash\": \"0be4a9d1\" }\n  ],\n  \"live\": true\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When "
+    },
+    {
+     "t": "code",
+     "v": "group"
+    },
+    {
+     "t": "text",
+     "v": " named a section the answer also carries "
+    },
+    {
+     "t": "code",
+     "v": "groups"
+    },
+    {
+     "t": "text",
+     "v": ", the section it names with its "
+    },
+    {
+     "t": "code",
+     "v": "id"
+    },
+    {
+     "t": "text",
+     "v": ", and "
+    },
+    {
+     "t": "code",
+     "v": "\"created\": true"
+    },
+    {
+     "t": "text",
+     "v": " if the call made it, as "
+    },
+    {
+     "t": "link",
+     "v": "cards",
+     "href": "/docs/api/cards#sections",
+     "children": [
+      {
+       "t": "text",
+       "v": "cards"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " do."
+    }
+   ]
   },
   {
    "type": "para",
@@ -66159,6 +66345,90 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Items as plain strings",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Items as plain strings"
+    }
+   ],
+   "id": "items-as-plain-strings"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An item can be just the address: "
+    },
+    {
+     "t": "code",
+     "v": "\"items\": [\"https://cdn.example.com/ref/diner-01.jpg\"]"
+    },
+    {
+     "t": "text",
+     "v": " is the same as "
+    },
+    {
+     "t": "code",
+     "v": "{ \"url\": \"…\" }"
+    },
+    {
+     "t": "text",
+     "v": ", and the two can be mixed in one list. A "
+    },
+    {
+     "t": "code",
+     "v": "title"
+    },
+    {
+     "t": "text",
+     "v": " on an item becomes the picture's caption, and a "
+    },
+    {
+     "t": "code",
+     "v": "group"
+    },
+    {
+     "t": "text",
+     "v": " puts it in that section. The "
+    },
+    {
+     "t": "link",
+     "v": "MCP",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "MCP"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " tool "
+    },
+    {
+     "t": "code",
+     "v": "import_urls"
+    },
+    {
+     "t": "text",
+     "v": " takes the same, and its "
+    },
+    {
+     "t": "code",
+     "v": "titles"
+    },
+    {
+     "t": "text",
+     "v": " list by position."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Positioning and metadata",
    "inline": [
     {
@@ -68782,6 +69052,23 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "text",
+     "v": "A picture added in the last couple of hours may not be described yet, and until it is, it is found by its title only. When some are waiting, the answer carries "
+    },
+    {
+     "t": "code",
+     "v": "undescribed_pictures"
+    },
+    {
+     "t": "text",
+     "v": ", how many (counted up to 50, which then means \"or more\"), so a search by what is in a picture that finds nothing can say why. Try again in a few minutes."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
      "t": "code",
      "v": "in_picture"
     },
@@ -69715,47 +70002,29 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
-   "text": "Two ways to connect",
+   "text": "Connect it",
    "inline": [
     {
      "t": "text",
-     "v": "Two ways to connect"
+     "v": "Connect it"
     }
    ],
-   "id": "two-ways-to-connect"
-  },
-  {
-   "type": "heading",
-   "depth": 3,
-   "text": "Hosted — nothing to install, nothing to paste",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Hosted — nothing to install, nothing to paste"
-    }
-   ],
-   "id": "hosted-nothing-to-install-nothing-to-paste"
-  },
-  {
-   "type": "code",
-   "lang": "json",
-   "code": "{\n  \"mcpServers\": {\n    \"soleil-clusters\": {\n      \"type\": \"http\",\n      \"url\": \"https://clusters.soleilpictures.com/api/v1/mcp\"\n    }\n  }\n}"
+   "id": "connect-it"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "A URL. That is the whole setup."
-    }
-   ]
-  },
-  {
-   "type": "para",
-   "inline": [
+     "v": "Every app below uses the same address, "
+    },
+    {
+     "t": "code",
+     "v": "https://clusters.soleilpictures.com/api/v1/mcp"
+    },
     {
      "t": "text",
-     "v": "The first call comes back "
+     "v": ". It signs you in itself, so there is no token to paste: the first call comes back "
     },
     {
      "t": "code",
@@ -69778,7 +70047,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " metadata. The client identifies itself (Claude, ChatGPT and VS Code by the address of their own published metadata, others by registering), opens a browser, and you approve the connection on one screen. No token is ever copied, and if you do not have an account yet you get one on that screen — signing in is a single email box."
+     "v": " metadata, the app opens a browser, and you approve the connection on one screen. If you do not have an account yet you get one on that screen, since signing in is a single email box."
     }
    ]
   },
@@ -69809,12 +70078,321 @@ export const DOCS_CONTENT = {
    "type": "para",
    "inline": [
     {
+     "t": "text",
+     "v": "Coding apps connect on an account's first day too, as Claude and ChatGPT do: Claude Code, Codex, Cursor, VS Code and Windsurf, and the npm package below. While an account is under 72 hours old, a connected app's token answers 300 requests an hour instead of 1000."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Claude",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Claude"
+    }
+   ],
+   "id": "claude"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "In claude.ai or the desktop app, open "
+    },
+    {
      "t": "strong",
-     "v": "If your client cannot do OAuth",
+     "v": "Settings → Connectors",
      "children": [
       {
        "t": "text",
-       "v": "If your client cannot do OAuth"
+       "v": "Settings → Connectors"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", add a custom connector, and paste the address. Claude then draws a cluster in the chat when you ask to see one."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "ChatGPT",
+   "inline": [
+    {
+     "t": "text",
+     "v": "ChatGPT"
+    }
+   ],
+   "id": "chatgpt"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "In ChatGPT, turn on developer mode under "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Apps → Advanced settings",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Apps → Advanced settings"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", then create an app from "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Apps",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Apps"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and paste the address. On a Business or Enterprise workspace an admin may need to allow developer mode first. ChatGPT draws a cluster in the chat too."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Claude Code",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Claude Code"
+    }
+   ],
+   "id": "claude-code"
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "claude mcp add --transport http soleil-clusters https://clusters.soleilpictures.com/api/v1/mcp"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Then run "
+    },
+    {
+     "t": "code",
+     "v": "/mcp"
+    },
+    {
+     "t": "text",
+     "v": " inside Claude Code to sign in. It answers with a link to the cluster rather than drawing it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Cursor",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Cursor"
+    }
+   ],
+   "id": "cursor"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "link",
+     "v": "Add to Cursor",
+     "href": "https://cursor.com/en/install-mcp?name=soleil-clusters&config=%65yJ1cmwiOiJodHRwczovL2NsdXN0ZXJzLnNvbGVpbHBpY3R1cmVzLmNvbS9hcGkvdjEvbWNwIn0%3D",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add to Cursor"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " installs it in one click. Or put this in "
+    },
+    {
+     "t": "code",
+     "v": "~/.cursor/mcp.json"
+    },
+    {
+     "t": "text",
+     "v": ":"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"mcpServers\": {\n    \"soleil-clusters\": {\n      \"url\": \"https://clusters.soleilpictures.com/api/v1/mcp\"\n    }\n  }\n}"
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "VS Code",
+   "inline": [
+    {
+     "t": "text",
+     "v": "VS Code"
+    }
+   ],
+   "id": "vs-code"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "link",
+     "v": "Add to VS Code",
+     "href": "https://insiders.vscode.dev/redirect/mcp/install?name=soleil-clusters&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fclusters.soleilpictures.com%2Fapi%2Fv1%2Fmcp%22%7D",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add to VS Code"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " installs it in one click. The same install as a link to the app itself is "
+    },
+    {
+     "t": "code",
+     "v": "vscode:mcp/install?%7B%22name%22%3A%22soleil-clusters%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fclusters.soleilpictures.com%2Fapi%2Fv1%2Fmcp%22%7D"
+    },
+    {
+     "t": "text",
+     "v": ". Or put this in "
+    },
+    {
+     "t": "code",
+     "v": ".vscode/mcp.json"
+    },
+    {
+     "t": "text",
+     "v": ", which uses "
+    },
+    {
+     "t": "code",
+     "v": "servers"
+    },
+    {
+     "t": "text",
+     "v": ", not "
+    },
+    {
+     "t": "code",
+     "v": "mcpServers"
+    },
+    {
+     "t": "text",
+     "v": ":"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"servers\": {\n    \"soleil-clusters\": {\n      \"type\": \"http\",\n      \"url\": \"https://clusters.soleilpictures.com/api/v1/mcp\"\n    }\n  }\n}"
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Windsurf",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Windsurf"
+    }
+   ],
+   "id": "windsurf"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Add this to "
+    },
+    {
+     "t": "code",
+     "v": "~/.codeium/windsurf/mcp_config.json"
+    },
+    {
+     "t": "text",
+     "v": ". Windsurf calls the address field "
+    },
+    {
+     "t": "code",
+     "v": "serverUrl"
+    },
+    {
+     "t": "text",
+     "v": ":"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"mcpServers\": {\n    \"soleil-clusters\": {\n      \"serverUrl\": \"https://clusters.soleilpictures.com/api/v1/mcp\"\n    }\n  }\n}"
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Any other app",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Any other app"
+    }
+   ],
+   "id": "any-other-app"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An app that takes a remote server by URL needs only the address:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "{\n  \"mcpServers\": {\n    \"soleil-clusters\": {\n      \"type\": \"http\",\n      \"url\": \"https://clusters.soleilpictures.com/api/v1/mcp\"\n    }\n  }\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "If your app cannot do OAuth",
+     "children": [
+      {
+       "t": "text",
+       "v": "If your app cannot do OAuth"
       }
      ]
     },
@@ -69869,6 +70447,38 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Only Claude and ChatGPT draw the cluster in the chat ("
+    },
+    {
+     "t": "link",
+     "v": "below",
+     "href": "#the-board-in-the-chat",
+     "children": [
+      {
+       "t": "text",
+       "v": "below"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "). In the others, "
+    },
+    {
+     "t": "code",
+     "v": "show_board"
+    },
+    {
+     "t": "text",
+     "v": " and every answer end with the cluster's link."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 3,
    "text": "Local — for files on your machine",
@@ -69881,9 +70491,101 @@ export const DOCS_CONTENT = {
    "id": "local-for-files-on-your-machine"
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The hosted address cannot read your disk. Install the npm package only for the one tool that needs it, "
+    },
+    {
+     "t": "code",
+     "v": "upload_file"
+    },
+    {
+     "t": "text",
+     "v": ", which reads a file from your computer and uploads it, including large ones like video that cannot fit through an assistant's message."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sign in once from a terminal:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "sh",
+   "code": "npx soleil-clusters-mcp login"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It runs the same OAuth flow: it opens a browser, catches the callback on a port on your own computer, and stores the credential in "
+    },
+    {
+     "t": "code",
+     "v": "~/.config/soleil-clusters/credentials.json"
+    },
+    {
+     "t": "text",
+     "v": ", refreshing it as it nears expiry. "
+    },
+    {
+     "t": "code",
+     "v": "npx soleil-clusters-mcp logout"
+    },
+    {
+     "t": "text",
+     "v": " removes it; the connection is then still listed under "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Connections → Connected apps",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Connections → Connected apps"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", to disconnect for good. Then point your app at the package:"
+    }
+   ]
+  },
+  {
    "type": "code",
    "lang": "json",
-   "code": "{\n  \"mcpServers\": {\n    \"soleil-clusters\": {\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"soleil-clusters-mcp\"],\n      \"env\": { \"SOLEIL_API_TOKEN\": \"undefined…\" }\n    }\n  }\n}"
+   "code": "{\n  \"mcpServers\": {\n    \"soleil-clusters\": {\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"soleil-clusters-mcp\"]\n    }\n  }\n}"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Prefer a token? "
+    },
+    {
+     "t": "code",
+     "v": "SOLEIL_API_TOKEN"
+    },
+    {
+     "t": "text",
+     "v": " takes precedence over a stored sign-in:"
+    }
+   ]
+  },
+  {
+   "type": "code",
+   "lang": "json",
+   "code": "\"env\": { \"SOLEIL_API_TOKEN\": \"undefined…\" }"
   },
   {
    "type": "para",
@@ -69894,7 +70596,253 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " overrides the host. Without a token the server exits at startup rather than running in a state where every call fails."
+     "v": " overrides the host. With neither a sign-in nor a token the server exits at startup, telling you to run "
+    },
+    {
+     "t": "code",
+     "v": "login"
+    },
+    {
+     "t": "text",
+     "v": ", rather than running in a state where every call fails."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "upload_file"
+    },
+    {
+     "t": "text",
+     "v": " is the local server's one extra tool. Everything else is identical: both servers are built from one registry, so a tool cannot exist on one and not the other."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "No account: drafts",
+   "inline": [
+    {
+     "t": "text",
+     "v": "No account: drafts"
+    }
+   ],
+   "id": "no-account-drafts"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "https://clusters.soleilpictures.com/mcp"
+    },
+    {
+     "t": "text",
+     "v": " works with no account, so anyone can try Clusters from Claude or ChatGPT. When the person is not signed in, "
+    },
+    {
+     "t": "code",
+     "v": "create_boards"
+    },
+    {
+     "t": "text",
+     "v": " starts a "
+    },
+    {
+     "t": "strong",
+     "v": "draft",
+     "children": [
+      {
+       "t": "text",
+       "v": "draft"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " cluster: up to 50 cards, with a "
+    },
+    {
+     "t": "strong",
+     "v": "draft key",
+     "children": [
+      {
+       "t": "text",
+       "v": "draft key"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "code",
+     "v": "dk_…"
+    },
+    {
+     "t": "text",
+     "v": ") that the assistant passes as "
+    },
+    {
+     "t": "code",
+     "v": "draft"
+    },
+    {
+     "t": "text",
+     "v": " on every later call, and a "
+    },
+    {
+     "t": "strong",
+     "v": "keep link",
+     "children": [
+      {
+       "t": "text",
+       "v": "keep link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " it gives the person. Every answer repeats both, and after a call that changed cards says how much is spent: "
+    },
+    {
+     "t": "code",
+     "v": "Cards used 12 of 50."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "A draft lasts 30 days after its last change, then is deleted. Each draft may make 300 requests an hour."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A card link in a draft's answers opens that card on the keep page: the page shows the cluster read only, selects the card and brings it into view."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A tool that needs an account, such as one that reads the person's own clusters, answers that they need to sign in. Signed in, the same address works as the account."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A draft can't be shared until it is kept."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Keeping takes an email address and the 6-digit code sent there; the cluster then belongs to that account, a new one or one that already exists, and the keep link opens nothing more. See "
+    },
+    {
+     "t": "link",
+     "v": "keep links",
+     "href": "#keep-links",
+     "children": [
+      {
+       "t": "text",
+       "v": "keep links"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Discovery",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Discovery"
+    }
+   ],
+   "id": "discovery"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A client finds the server without being told anything but the address. A call to "
+    },
+    {
+     "t": "code",
+     "v": "/api/v1/mcp"
+    },
+    {
+     "t": "text",
+     "v": " with no credential comes back "
+    },
+    {
+     "t": "code",
+     "v": "401"
+    },
+    {
+     "t": "text",
+     "v": " with a "
+    },
+    {
+     "t": "code",
+     "v": "WWW-Authenticate"
+    },
+    {
+     "t": "text",
+     "v": " header whose "
+    },
+    {
+     "t": "code",
+     "v": "resource_metadata"
+    },
+    {
+     "t": "text",
+     "v": " points at our "
+    },
+    {
+     "t": "link",
+     "v": "OAuth",
+     "href": "/docs/api/oauth",
+     "children": [
+      {
+       "t": "text",
+       "v": "OAuth"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " metadata; a call with a token that is wrong or expired adds "
+    },
+    {
+     "t": "code",
+     "v": "error=\"invalid_token\""
+    },
+    {
+     "t": "text",
+     "v": ", so a client can tell \"sign in\" from \"sign in again\". A web browser sent to the address is redirected to this page."
     }
    ]
   },
@@ -69903,15 +70851,63 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The local server has one extra tool, "
+     "v": "The server describes itself, without any sign-in, in MCP's standard server card at "
     },
     {
      "t": "code",
-     "v": "upload_file"
+     "v": "/api/v1/mcp/server-card"
     },
     {
      "t": "text",
-     "v": ", which reads a file from your disk and uploads it — including large ones like video, which cannot fit through an assistant's message. Everything else is identical: both servers are built from one registry, so a tool cannot exist on one and not the other."
+     "v": " (the same card is at "
+    },
+    {
+     "t": "code",
+     "v": "/mcp/server-card"
+    },
+    {
+     "t": "text",
+     "v": "): its name, title, version, the two addresses and the protocol versions they accept. "
+    },
+    {
+     "t": "code",
+     "v": "/.well-known/ai-catalog.json"
+    },
+    {
+     "t": "text",
+     "v": " lists it, so a client that knows only the domain finds it. Directories that scan a server they can't sign in to read the older card at "
+    },
+    {
+     "t": "code",
+     "v": "/.well-known/mcp/server-card.json"
+    },
+    {
+     "t": "text",
+     "v": " (and "
+    },
+    {
+     "t": "code",
+     "v": "/.well-known/mcp.json"
+    },
+    {
+     "t": "text",
+     "v": "), which adds that it signs in over OAuth, its capabilities and its tools with their titles and annotations. Any other path under "
+    },
+    {
+     "t": "code",
+     "v": "/.well-known/"
+    },
+    {
+     "t": "text",
+     "v": " that we don't serve answers a JSON "
+    },
+    {
+     "t": "code",
+     "v": "404"
+    },
+    {
+     "t": "text",
+     "v": ", not a page."
     }
    ]
   },
@@ -70682,7 +71678,39 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "— · the account, its scopes, rate limit, whether it is a service account, and the workspaces it can see"
+       "v": "— · the account, its scopes ("
+      },
+      {
+       "t": "code",
+       "v": "read"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "write"
+      },
+      {
+       "t": "text",
+       "v": ", "
+      },
+      {
+       "t": "code",
+       "v": "delete"
+      },
+      {
+       "t": "text",
+       "v": "), whether it is a service account (confined to one workspace), and the workspaces it can see, with the ids "
+      },
+      {
+       "t": "code",
+       "v": "workspace_id"
+      },
+      {
+       "t": "text",
+       "v": " takes"
       }
      ]
     ],
@@ -70780,7 +71808,27 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " reads"
+       "v": " reads. Pictures added in the last couple of hours have no description yet and are found by title until it is ready: when some are waiting, the answer carries "
+      },
+      {
+       "t": "code",
+       "v": "undescribed_pictures"
+      },
+      {
+       "t": "text",
+       "v": " (the count, capped at 50, which then means \"or more\") and a "
+      },
+      {
+       "t": "code",
+       "v": "note"
+      },
+      {
+       "t": "text",
+       "v": " saying to try again in a few minutes or look with "
+      },
+      {
+       "t": "code",
+       "v": "view_board"
       }
      ]
     ],
@@ -71153,7 +72201,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " where the host can draw it (ChatGPT, Claude). Every answer also outlines the board, its sections and a few card titles each, and ends with its link"
+       "v": " where the host can draw it (ChatGPT, Claude). Every answer also outlines the board, its sections and a few card titles each (a section with more says "
+      },
+      {
+       "t": "code",
+       "v": "+N more"
+      },
+      {
+       "t": "text",
+       "v": "), and ends with a line giving its link to pass on"
       }
      ]
     ],
@@ -71629,7 +72685,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", "
+       "v": " — each an https address as a plain string, or "
+      },
+      {
+       "t": "code",
+       "v": "{ url, title?, group? }"
+      },
+      {
+       "t": "text",
+       "v": "; "
       },
       {
        "t": "code",
@@ -71637,11 +72701,19 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", "
+       "v": " by position, "
       },
       {
        "t": "code",
        "v": "group?"
+      },
+      {
+       "t": "text",
+       "v": " for those that name none, "
+      },
+      {
+       "t": "code",
+       "v": "layout?"
       },
       {
        "t": "text",
@@ -71653,7 +72725,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — bring reference in from the web, into a section by name if given; safe to re-run"
+       "v": " — bring reference in from the web, into a section by name if given; a title becomes the picture's caption; safe to re-run"
       }
      ]
     ],
@@ -71773,7 +72845,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", "
+       "v": " for a new doc, placed in free space or at "
       },
       {
        "t": "code",
@@ -71781,7 +72853,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", "
+       "v": " and "
       },
       {
        "t": "code",
@@ -71789,7 +72861,39 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " for a new doc, or "
+       "v": ", in a section by name with "
+      },
+      {
+       "t": "code",
+       "v": "group?"
+      },
+      {
+       "t": "text",
+       "v": " (made if missing), at the top-left ahead of the sections with "
+      },
+      {
+       "t": "code",
+       "v": "position: \"top\""
+      },
+      {
+       "t": "text",
+       "v": ", and sized with "
+      },
+      {
+       "t": "code",
+       "v": "w?"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "h?"
+      },
+      {
+       "t": "text",
+       "v": "; or "
       },
       {
        "t": "code",
@@ -72193,7 +73297,15 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " · a note's new title or body is written into it, and its height follows"
+       "v": " · a note's new title or body is written into it, and its height follows; the answer lists each card compactly, as "
+      },
+      {
+       "t": "code",
+       "v": "add_cards"
+      },
+      {
+       "t": "text",
+       "v": " does"
       }
      ]
     ],
@@ -72301,7 +73413,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": ", "
+       "v": " (card ids to put first, in order; those in no section come first, at the top-left), "
       },
       {
        "t": "code",
@@ -72855,7 +73967,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Every tool carries "
+     "v": "Every tool carries a "
+    },
+    {
+     "t": "strong",
+     "v": "title",
+     "children": [
+      {
+       "t": "text",
+       "v": "title"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
     },
     {
      "t": "strong",
@@ -72893,7 +74019,346 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "openWorldHint"
+    },
+    {
+     "t": "text",
      "v": " — which is what a client reads when deciding whether a call needs confirming. They are structured, so unlike a warning in a description they actually participate in that decision."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Read-only:",
+      "children": [
+       {
+        "t": "text",
+        "v": "Read-only:"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " "
+     },
+     {
+      "t": "code",
+      "v": "whoami"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "search"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "fetch"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "list_boards"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "resolve_identifier"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "read_board"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "view_board"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "show_board"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "list_comments"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "list_tags"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "list_audit"
+     },
+     {
+      "t": "text",
+      "v": ". They change nothing and can be repeated freely."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Destructive:",
+      "children": [
+       {
+        "t": "text",
+        "v": "Destructive:"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " "
+     },
+     {
+      "t": "code",
+      "v": "update_boards"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "update_cards"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "edit_doc_page"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "unshare_board"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "delete_cards"
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "code",
+      "v": "delete_board"
+     },
+     {
+      "t": "text",
+      "v": ", since each can take something away (words, a link, cards, a cluster)."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Open-world:",
+      "children": [
+       {
+        "t": "text",
+        "v": "Open-world:"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " "
+     },
+     {
+      "t": "code",
+      "v": "import_urls"
+     },
+     {
+      "t": "text",
+      "v": ", which fetches addresses on the web, and "
+     },
+     {
+      "t": "code",
+      "v": "share_board"
+     },
+     {
+      "t": "text",
+      "v": ", which makes a link anyone can open. The rest act only on the person's own clusters."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Answers to the card writers are compact.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Answers to the card writers are compact."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " "
+    },
+    {
+     "t": "code",
+     "v": "add_cards"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "update_cards"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "arrange_board"
+    },
+    {
+     "t": "text",
+     "v": " answer with each card's "
+    },
+    {
+     "t": "code",
+     "v": "id"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "kind"
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": "title"
+    },
+    {
+     "t": "text",
+     "v": ", section, position and size, and its "
+    },
+    {
+     "t": "code",
+     "v": "url"
+    },
+    {
+     "t": "text",
+     "v": " where it points somewhere, not the card whole; "
+    },
+    {
+     "t": "code",
+     "v": "read_board"
+    },
+    {
+     "t": "text",
+     "v": " has the rest."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Errors say what to do next.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Errors say what to do next."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " A failed call returns the reason in a sentence and then the next step (connect again with a wider permission, wait and retry, use "
+    },
+    {
+     "t": "code",
+     "v": "list_boards"
+    },
+    {
+     "t": "text",
+     "v": " to find the id, pass the draft key), ending with the API's "
+    },
+    {
+     "t": "link",
+     "v": "error code",
+     "href": "/docs/api/errors",
+     "children": [
+      {
+       "t": "text",
+       "v": "error code"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in brackets."
     }
    ]
   },
@@ -73335,7 +74800,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — says what a board is going for, what is missing and what to add next; changes nothing"
+       "v": " (an id, the cluster's name, or a link from the app) — says what a board is going for, what is missing and what to add next; changes nothing"
       }
      ]
     ],
@@ -73353,7 +74818,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — proposes groups, or boards inside it, without moving anything until asked"
+       "v": " (id, name or link) — proposes groups, or boards inside it, without moving anything until asked"
       }
      ]
     ],
@@ -73371,7 +74836,7 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — writes a treatment as a doc on the board, grounded in what is on it"
+       "v": " (id, name or link) — writes a treatment as a doc on the board, grounded in what is on it"
       }
      ]
     ],
@@ -73401,6 +74866,50 @@ export const DOCS_CONTENT = {
       }
      ]
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A prompt that asks for a cluster takes its id, its name, or a link copied from the app. A name is looked up among the person's clusters, an exact match preferred; if two clusters answer to it, or none does, the prompt says so in a sentence rather than guessing."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Completions.",
+     "children": [
+      {
+       "t": "text",
+       "v": "Completions."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " The server declares the "
+    },
+    {
+     "t": "code",
+     "v": "completions"
+    },
+    {
+     "t": "text",
+     "v": " capability: while a person types a cluster for one of those prompts, "
+    },
+    {
+     "t": "code",
+     "v": "completion/complete"
+    },
+    {
+     "t": "text",
+     "v": " returns their own clusters' names that start with what they have typed, a short list."
+    }
    ]
   },
   {
@@ -73688,7 +75197,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " opens the board inside the conversation, in hosts that draw MCP Apps (ChatGPT and Claude): the cluster laid out as it is on its canvas, its groups named, its pictures, notes, palettes and docs where they sit. Clicking a card picks it, as on the canvas, and "
+     "v": " opens the board inside the conversation, in the hosts that draw MCP Apps, which are ChatGPT and Claude (Cursor, VS Code and Windsurf don't, and the answer's link is how the person gets to the cluster there): the cluster laid out as it is on its canvas, its groups named, its pictures, notes, palettes and docs where they sit. Clicking a card picks it, as on the canvas, and "
     },
     {
      "t": "strong",
@@ -73842,7 +75351,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Assistants don't hand out keep links yet."
+     "v": "Drafts made through "
+    },
+    {
+     "t": "link",
+     "v": "`/mcp`",
+     "href": "#no-account-drafts",
+     "children": [
+      {
+       "t": "code",
+       "v": "/mcp"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " hand one out in every answer."
     }
    ]
   },
@@ -74268,7 +75792,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " It reports the scopes and remaining rate budget, which is cheaper than discovering both through failures, and lists the workspaces."
+     "v": " It reports the scopes and whether the credential is a service account, which is cheaper than discovering both through failures, and lists the workspaces and the ids to pass as "
+    },
+    {
+     "t": "code",
+     "v": "workspace_id"
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },

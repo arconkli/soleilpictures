@@ -102,7 +102,7 @@ test('view_board\'s limits are the gallery\'s', () => {
   assert.match(viewBoard.description, new RegExp(`card_ids \\(up to ${p.card_ids.maxItems}\\)`));
   assert.match(p.limit.description, new RegExp(`default ${GALLERY.defaultLimit}, max ${GALLERY.maxLimit}$`));
   assert.match(p.card_ids.description, new RegExp(`^Up to ${p.card_ids.maxItems} `));
-  assert.deepEqual(viewBoard.annotations, { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true });
+  assert.deepEqual(viewBoard.annotations, { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false });
 });
 
 const GALLERY_ANSWER = {
