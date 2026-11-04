@@ -247,6 +247,8 @@ export function scriptProblems(it, section = '') {
   return p;
 }
 
+// A search for any of these comes back carrying writing, which the photo look and the unify pass turn away.
+const WRITING_SEARCH = /\b(signs?|signage|posters?|menus?|labels?|notes|manuscripts?|newspapers?|logos?|billboards?)\b/i;
 const norm = (s) => str(s).toLowerCase().replace(/\s+/g, ' ');
 const isPic = (it) => it?.kind === 'picture' || it?.kind === 'video';
 // A section is a photo grid (one grid card: a mosaic, or a storyboard sheet
@@ -359,6 +361,7 @@ export function validateRecipe(r, brief = {}, { taken = [], style = styleNamed(r
         const q = str(it.search);
         const w = words(q);
         if (w < R.search[0] || w > R.search[1]) p.push(`the search "${q}" must be ${R.search[0]}–${R.search[1]} words`);
+        if (WRITING_SEARCH.test(q)) p.push(`the search "${q}" asks for something that carries writing (a sign, poster, menu, label, notes, logo...), which is left off the board; search the place or object instead`);
         if (searches.has(q.toLowerCase())) p.push(`the search "${q}" is used twice; every photo needs its own search`);
         searches.add(q.toLowerCase());
         if (it.caption && str(it.caption).length > R.caption) p.push(`a caption in "${name}" is over ${R.caption} characters`);
@@ -401,7 +404,8 @@ export function validateRecipe(r, brief = {}, { taken = [], style = styleNamed(r
         if (qs.length < R.clusterPictures[0] || qs.length > R.clusterPictures[1]) p.push(`the cluster "${str(it.title)}" holds ${R.clusterPictures[0]}–${R.clusterPictures[1]} pictures in "searches", not ${qs.length}`);
         for (const q of qs) {
           if (words(q) < R.search[0] || words(q) > R.search[1]) p.push(`the search "${q}" must be ${R.search[0]}–${R.search[1]} words`);
-          if (searches.has(q.toLowerCase())) p.push(`the search "${q}" is used twice; every photo needs its own search`);
+          if (WRITING_SEARCH.test(q)) p.push(`the search "${q}" asks for something that carries writing (a sign, poster, menu, label, notes, logo...), which is left off the board; search the place or object instead`);
+        if (searches.has(q.toLowerCase())) p.push(`the search "${q}" is used twice; every photo needs its own search`);
           searches.add(q.toLowerCase());
         }
       }
@@ -565,7 +569,11 @@ export function recipePrompt(brief, { taken = [], redo = null, style = null } = 
     `- pictures: ${R.pictures[0]}–${R.pictures[1]} in all. Each picture`,
     `  is a stock photo search of ${R.search[0]}–${R.search[1]} plain words a photo site would match (subject, setting, light; e.g.`,
     '  "foggy harbour at dawn", "wool coat texture close up", "neon diner interior night"). No brand names, no famous',
-    '  people, no logos, no illustrations, no text in the picture, no two searches alike. A caption only where the maker',
+    '  people, no logos, no illustrations, no text in the picture. Every picture shows a different thing: no two searches',
+    '  for the same object, effect or place (not "mirror ball" and "disco ball"). Name the board\'s place in two words',
+    '  ("roadside diner", "roller rink") and put that noun in every search of the place itself, never a neighbour that comes',
+    '  back modern (cafe, restaurant, bar, arena). Never search for a sign, poster, menu, notes, manuscript, newspaper,',
+    '  label, logo or billboard: they carry writing. A caption only where the maker',
     `  would write one: a label of two to four words, at most ${R.caption} characters, shown on one line over the picture`,
     '  ("Relief boat landing", "Sc. 20 cottage").',
     '  The pictures must read as one world, as if from one shoot: settle the light, season and place first, and let',
@@ -600,7 +608,8 @@ export function recipePrompt(brief, { taken = [], redo = null, style = null } = 
     '  let a note or an arrow in its section say what to take from it.',
     `- arrows: ${R.arrows[0]}–${R.arrows[1]}, each { "from", "to", "label" }, joining two cards in the SAME section, named by`,
     `  their exact title or caption (a photo grid by its section's name): from a note to the picture it talks about, from a`,
-    `  checklist to the table it works through. A label of at most ${R.arrowLabel} characters, two or three words.`,
+    `  checklist to the table it works through. A label of at most ${R.arrowLabel} characters, two short words at most (about 12 characters,`,
+    '  e.g. "p.12 -> p.104"), because a longer label is left off the board.',
     ...(wants.has('video') ? [`- videos: ${R.videos[0]}–${R.videos[1]} video items (kind "video"), each a stock footage search, for motion references.`]
       : [`- videos (kind "video", 1–${R.video}): a stock footage search of what moves in this world (water, smoke, rain on glass,`,
         '  traffic, a crowd, light through leaves) with a caption; the first plays on the board by itself.']),

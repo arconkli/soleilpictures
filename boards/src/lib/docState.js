@@ -882,10 +882,16 @@ export function renameBookmark(ydoc, id, name, scope) {
 // Walk a Y.XmlFragment / Y.XmlElement tree and pull out plain text. Used for
 // doc previews on canvas thumbnails (we have no Tiptap editor mounted at
 // preview time — just the raw Yjs structure).
-export function pageFragmentToText(fragment, max = 240) {
+//
+// Default is one line of text, every block joined by a space (thumbnails,
+// search, workers). `{ lines: true }` is for the closed doc card's preview: a
+// block ends its line and list items keep their bullet or number, so a heading
+// and the paragraph under it no longer run together ("The series Six
+// episodes…") and an ordered list keeps its numbers.
+export function pageFragmentToText(fragment, max = 240, { lines = false } = {}) {
   if (!fragment) return '';
   let out = '';
-  const walk = (node) => {
+  const walk = (node, prefix = '') => {
     if (!node || out.length >= max) return;
     // Text leaf = has toDelta (Y.Text/Y.XmlText) but no toArray (which
     // XmlElement/XmlFragment have). DUCK-TYPED on purpose: the old
@@ -910,12 +916,22 @@ export function pageFragmentToText(fragment, max = 240) {
     }
     if (typeof node.toArray === 'function') {
       const kids = node.toArray();
+      const tag = node.nodeName;
+      if (lines && /^listItem$/i.test(tag || '')) out += prefix;
+      const isOrdered = lines && /^orderedList$/i.test(tag || '');
+      const isBullet = lines && /^bulletList$/i.test(tag || '');
+      let n = 1;
+      if (isOrdered) {
+        const start = Number(node.getAttribute?.('start'));
+        if (Number.isInteger(start) && start >= 1) n = start;
+      }
       for (const k of kids) {
-        walk(k);
+        walk(k, isOrdered ? `${n++}. ` : isBullet ? '• ' : '');
         if (out.length >= max) break;
       }
-      const tag = node.nodeName;
-      if (tag && /^(paragraph|heading|listItem|blockquote|codeBlock|hardBreak|screenplayBlock)$/i.test(tag)) {
+      if (lines) {
+        if (tag && /^(paragraph|heading|blockquote|codeBlock|screenplayBlock|hardBreak)$/i.test(tag) && !out.endsWith('\n')) out += '\n';
+      } else if (tag && /^(paragraph|heading|listItem|blockquote|codeBlock|hardBreak|screenplayBlock)$/i.test(tag)) {
         if (!out.endsWith(' ') && !out.endsWith('\n')) out += ' ';
       }
     } else if (typeof node.forEach === 'function') {
@@ -923,17 +939,19 @@ export function pageFragmentToText(fragment, max = 240) {
     }
   };
   try { walk(fragment); } catch (_) {}
-  out = out.replace(/\s+/g, ' ').trim();
+  out = lines
+    ? out.replace(/[ \t]+/g, ' ').replace(/\n{2,}/g, '\n').trim()
+    : out.replace(/\s+/g, ' ').trim();
   return out.length > max ? out.slice(0, max - 1) + '…' : out;
 }
 
-export function readDocSummary(ydoc, max = 240, scope) {
+export function readDocSummary(ydoc, max = 240, scope, { lines = false } = {}) {
   const pages = readPages(ydoc, scope).sort(byPageOrder);
   const firstPage = pages.find(p => p.parent_id == null) || pages[0];
   let firstText = '';
   if (firstPage) {
     const frag = pageContentMap(ydoc, scope)?.get(firstPage.id);
-    firstText = pageFragmentToText(frag, max);
+    firstText = pageFragmentToText(frag, max, { lines });
   }
   // Nothing written yet (the closed card's Start writing): no page, or one
   // page whose every sheet is blank.

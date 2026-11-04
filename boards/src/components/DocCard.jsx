@@ -82,8 +82,9 @@ function DocCardSummary({ ydoc, cardYMap, scope, children }) {
     };
   }, [ydoc, cardYMap]);
   // A generous slice of the first page, so the preview fills the card with
-  // prose (600 chars ≈ a paragraph-and-a-half at the preview's size).
-  return children((ydoc && scope?.pages) ? readDocSummary(ydoc, 600, scope) : NO_SUMMARY);
+  // prose (600 chars ≈ a paragraph-and-a-half at the preview's size). Lines
+  // keep headings, paragraphs and list numbers on their own lines.
+  return children((ydoc && scope?.pages) ? readDocSummary(ydoc, 600, scope, { lines: true }) : NO_SUMMARY);
 }
 
 export function RichDocCard({

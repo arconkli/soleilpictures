@@ -132,14 +132,35 @@ async function fetchToDisk(cand, dir) {
  *   used:   { ids: Set of 'pexels:123'…, hashes: [hex…] } already in the library
  *   pick:   optional async (slots) → Map(key → [cand id…] best first) (pick.mjs): only
  *           picked candidates are tried, in that order; when it throws, search order
- *   screen: optional async (Map key → { file }, { empty: [keys with nothing to try] }) → { out: Map(key → why), stop }: runs once on the
- *           first round's downloads, before check(); the `out` slots are left out unchecked and
- *           not refilled; `stop` returns at once with no checks. When it throws, they are all checked.
+ *   screen: optional async (Map key → { file }, { empty: [keys with nothing to try], spare: Map key → picks left }) → { out: Map(key → why), stop, refill? }:
+ *           runs once on the first round's downloads, before check(); the `out` slots are left out unchecked and
+ *           not refilled. With `refill` (the last try) a slot's next pick is tried like a look reject's, and the
+ *           photo taken out is kept as the slot's fallback: if the swap finds nothing, it is looked at once after
+ *           the rounds and goes back on the board. `stop` returns at once with no checks. When it throws, they
+ *           are all checked.
+ *   A photo the writing rule sets aside is a fallback too (already looked at); a slot with no photo at the end
+ *   takes its fallback back, a looked one over an unlooked one.
  * → { found: Map('si.ii' → photo), missing: ['si.ii'…], rejected: n, screened: Map(key → why),
- *     seen: Set of the files the screen was shown, stopped: bool }
+ *     seen: Set of the files the screen was shown,
+ *     leftOut: the keys chooseBack left out (they count as removals), stopped: bool }
  *   photo: { file, video?, w, h, sha, hash, id, source, alt, credit, why }
  */
-export async function findPhotos(recipe, { dir, keys, check, used = { ids: new Set(), hashes: [] }, rounds = 3, pick = null, screen = null, log = () => {} }) {
+// Writing the look read off a photo: a quoted transcription (2+ characters) beside a word that names where
+// writing lives. The look's own fields are marks (watermarks, stamps) and realSigns (what shows it is a
+// camera photo); a sign or lettering noticed there is read at full size on the board, so the photo is no use.
+const QUOTED = /['"\u2018\u201c]([^'"\u2019\u201d]{2,})['"\u2019\u201d]/;
+const WRITING = /\b(signs?|signage|lettering|text|letters|logo|label|words|reads|badge|poster|plate)\b/i;
+export function writingIn(r) {
+  const looks = r?.looks?.length ? r.looks : r?.look ? [r.look] : [];
+  for (const lk of looks) {
+    for (const s of [...(lk.marks || []), ...(lk.realSigns || [])]) {
+      if (QUOTED.test(String(s)) && WRITING.test(String(s))) return String(s);
+    }
+  }
+  return '';
+}
+
+export async function findPhotos(recipe, { dir, keys, check, used = { ids: new Set(), hashes: [] }, rounds = 3, pick = null, screen = null, chooseBack = null, log = () => {} }) {
   mkdirSync(dir, { recursive: true });
   const wanted = [];
   (recipe.sections || []).forEach((s, si) => (s.items || []).forEach((it, ii) => {
@@ -176,7 +197,19 @@ export async function findPhotos(recipe, { dir, keys, check, used = { ids: new S
   const takenIds = new Set(used.ids);
   const boardHashes = [];
   const screened = new Map();
+  const refilling = new Set(); // slots the screen took out whose next pick is tried
   const seen = new Set();
+  const fallbacks = new Map(); // slot → { p, r? }: the photo a swap replaced; r is its look, absent when not looked at yet
+  const keepFallback = (key, fb) => { const was = fallbacks.get(key); if (!was || (fb.r && !was.r)) fallbacks.set(key, fb); };
+  const photoOf = (p, r) => {
+    const isVideo = p.cand.kind === 'video';
+    return {
+      file: p.file, ...(isVideo ? { video: p.video } : {}),
+      w: isVideo ? p.cand.w : p.dims.w, h: isVideo ? p.cand.h : p.dims.h,
+      sha: r.sha, hash: p.hash, id: p.cand.id, source: p.cand.source, alt: p.cand.alt, credit: p.cand.credit,
+      why: r.why || [], downloadLocation: p.cand.downloadLocation || null,
+    };
+  };
   let rejected = 0;
   for (let round = 0; round < rounds; round += 1) {
     const picks = [];
@@ -202,16 +235,23 @@ export async function findPhotos(recipe, { dir, keys, check, used = { ids: new S
       let res = null;
       // Slots with nothing left to try are missing whatever the check says; the screen counts them too.
       const empty = wanted.filter((w) => !picks.some((p) => p.w.key === w.key)).map((w) => w.key);
-      try { res = await screen(new Map(picks.map((p) => [p.w.key, { file: p.file }])), { empty }); } catch (e) { log(`photos: screen failed (${e.message}); checking them all`); }
+      // Picks left per slot, so a screen on the last try can take a misfit out only where a refill exists.
+      const spare = new Map(wanted.map((w) => [w.key, (queue.get(w.key) || []).length]));
+      try { res = await screen(new Map(picks.map((p) => [p.w.key, { file: p.file }])), { empty, spare }); } catch (e) { log(`photos: screen failed (${e.message}); checking them all`); }
       if (res) {
         for (const p of picks) seen.add(p.file);
         for (const [key, why] of res.out || []) {
           const i = picks.findIndex((p) => p.w.key === key);
           if (i < 0) continue;
           const [p] = picks.splice(i, 1);
-          const h = boardHashes.indexOf(p.hash);
-          if (h >= 0) boardHashes.splice(h, 1);
-          queue.set(key, []);
+          // Before the last try the try is sent back anyway, so nothing is refilled; on the last try the
+          // slot's next pick goes through the rounds like a look reject's, and the photo waits as its fallback
+          // (its hash stays: a near-duplicate of a misfit is a misfit too).
+          if (res.refill) { refilling.add(key); keepFallback(key, { p }); } else {
+            const h = boardHashes.indexOf(p.hash);
+            if (h >= 0) boardHashes.splice(h, 1);
+            queue.set(key, []);
+          }
           screened.set(key, why);
         }
         if (res.stop) return { found, missing: wanted.filter((w) => !found.has(w.key)).map((w) => w.key), rejected, screened, seen, empty, stopped: true };
@@ -224,13 +264,21 @@ export async function findPhotos(recipe, { dir, keys, check, used = { ids: new S
     for (const p of picks) {
       const r = byFile.get(p.file);
       if (r?.verdict === 'real') {
-        const isVideo = p.cand.kind === 'video';
-        found.set(p.w.key, {
-          file: p.file, ...(isVideo ? { video: p.video } : {}),
-          w: isVideo ? p.cand.w : p.dims.w, h: isVideo ? p.cand.h : p.dims.h,
-          sha: r.sha, hash: p.hash, id: p.cand.id, source: p.cand.source, alt: p.cand.alt, credit: p.cand.credit,
-          why: r.why || [], downloadLocation: p.cand.downloadLocation || null,
-        });
+        // Writing the look read off the photo shows at full size on the board: swap it while the slot has a
+        // spare pick and another round to use it in, otherwise keep it (a board one picture short is worse).
+        const writing = writingIn(r);
+        if (writing) {
+          if ((queue.get(p.w.key) || []).length && round + 1 < rounds) {
+            rejected += 1;
+            // It stays the slot's fallback, hash included: a near-duplicate carries the same writing.
+            keepFallback(p.w.key, { p, r });
+            log(`photos: ${p.cand.id} out (writing: ${writing.slice(0, 80)})`);
+            continue;
+          }
+          log(`photos: ${p.cand.id} writing kept (no spare)`);
+        }
+        if (refilling.has(p.w.key)) log(`photos: ${p.w.key} refilled by ${p.cand.id} after the screen took it out`);
+        found.set(p.w.key, photoOf(p, r));
       } else {
         rejected += 1;
         const i = boardHashes.indexOf(p.hash);
@@ -239,7 +287,41 @@ export async function findPhotos(recipe, { dir, keys, check, used = { ids: new S
       }
     }
   }
-  return { found, missing: wanted.filter((w) => !found.has(w.key)).map((w) => w.key), rejected, screened, seen, stopped: false };
+  // A slot whose swap found nothing takes its fallback back: a looked one as it is, an unlooked one after one look.
+  const back = [...fallbacks].filter(([key]) => !found.has(key));
+  let unlookedKeys = back.filter(([, fb]) => !fb.r).map(([key]) => key);
+  const leftOut = [];
+  // The last try can leave some out: a fallback the board does not need would only be taken out again.
+  if (chooseBack && unlookedKeys.length) {
+    const chosen = new Set(chooseBack(unlookedKeys, found));
+    for (const key of unlookedKeys) if (!chosen.has(key)) { leftOut.push(key); log(`photos: ${key} left out, the board has the pictures it needs`); }
+    unlookedKeys = unlookedKeys.filter((key) => chosen.has(key));
+  }
+  const unlooked = unlookedKeys.map((key) => fallbacks.get(key).p);
+  const looks = new Map();
+  if (unlooked.length) {
+    log(`photos: looking at ${unlooked.length} photo(s) a swap replaced`);
+    const items = unlooked.map((p) => ({ file: p.file, source: p.cand.source, origW: p.cand.w, origH: p.cand.h, name: p.cand.id }));
+    // One retry: a failed look would leave every fallback missing, a storyboard frame among them.
+    for (let go = 1; go <= 2; go += 1) {
+      try {
+        for (const r of await check(items, { log })) looks.set(r.file, r);
+        break;
+      } catch (e) { log(`photos: fallback look failed (${e.message})${go < 2 ? '; trying once more' : ''}`); }
+    }
+  }
+  for (const [key, fb] of back) {
+    const r = fb.r || looks.get(fb.p.file);
+    if (!fb.r && !r) continue;
+    if (r.verdict === 'real') {
+      found.set(key, photoOf(fb.p, r));
+      log(`photos: ${key} keeps ${fb.p.cand.id}, its swap found nothing better`);
+    } else {
+      rejected += 1;
+      log(`photos: ${fb.p.cand.id} out (${r.verdict || 'no verdict'}: ${(r.why || []).slice(0, 2).join('; ')})`);
+    }
+  }
+  return { found, missing: wanted.filter((w) => !found.has(w.key)).map((w) => w.key), rejected, screened, seen, leftOut, stopped: false };
 }
 
 // Unsplash asks for a ping when one of its photos is used.

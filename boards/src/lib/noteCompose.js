@@ -120,7 +120,7 @@ export function composeNoteHtml({ title, body } = {}, { maxLen = NOTE_HTML_MAX }
         pendingBlank = false;
         const open = c.kind === 'ck' ? '<ul class="note-checklist">'
           : c.kind === 'ul' ? '<ul>'
-          : c.num !== 1 ? `<ol start="${c.num}">` : '<ol>';
+          : c.num >= 2 ? `<ol start="${c.num}">` : '<ol>';
         const block = { open, items: [], close: c.kind === 'ol' ? '</ol>' : '</ul>' };
         blocks.push(block);
         list = { kind: c.kind, block };

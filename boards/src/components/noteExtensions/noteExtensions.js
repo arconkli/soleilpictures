@@ -14,6 +14,7 @@
 import StarterKit from '@tiptap/starter-kit';
 import BulletList from '@tiptap/extension-bullet-list';
 import OrderedList from '@tiptap/extension-ordered-list';
+import { mergeAttributes } from '@tiptap/core';
 import Underline from '@tiptap/extension-underline';
 import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
@@ -58,7 +59,16 @@ export const noteExtensions = [
   // auto-continues the prefix (NoteTiptapSurface handleKeyDown). listItem
   // still ships via StarterKit, so toggleBulletList/toggleOrderedList work.
   BulletList.extend({ addInputRules: () => [] }),
-  OrderedList.extend({ addInputRules: () => [] }),
+  OrderedList.extend({
+    addInputRules: () => [],
+    // A stored start below 2 renders no attribute, so a 0 shows as 1.
+    renderHTML({ HTMLAttributes }) {
+      const { start, ...rest } = HTMLAttributes;
+      return start >= 2
+        ? ['ol', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0]
+        : ['ol', mergeAttributes(this.options.HTMLAttributes, rest), 0];
+    },
+  }),
   Underline,
   // Inline color / font-family / font-size live on the textStyle mark and
   // render as <span style="…"> — matching the legacy wrapSelectionStyle output.

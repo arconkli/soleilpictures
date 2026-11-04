@@ -41,7 +41,7 @@ import { args } from './args.mjs';
 import { PAGES, MARKETING, LATER_PAGES, pageBrief, nextMarketing } from './subjects.mjs';
 import { writeRecipe, recipeContents, toolsOf } from './recipe.mjs';
 import { findPhotos, pingUsed } from './photos.mjs';
-import { pickPhotos, unifyPhotos } from './pick.mjs';
+import { pickPhotos, unifyPhotos, splitScreen, lastTryCuts, backChooser } from './pick.mjs';
 import { buildBoard, withSources, photoRecipe, frameKeys } from './build.mjs';
 import { findSounds } from './sounds.mjs';
 import { makePdfs } from './pdfs.mjs';
@@ -117,12 +117,29 @@ async function makeOne(brief, ctx) {
     const frames = frameKeys(recipe);
     const picksDir = join(HOME, 'picks', `${recipe.slug}-${attempt}`);
     const pick = (slots) => pickPhotos({ recipe: wanted, slots, dir: picksDir, claude, notes: attempt > 1 ? notes || [] : [], log });
-    const screen = attempt < TRIES ? async (picked, { empty = [] } = {}) => {
-      const out = await unifyPhotos({ recipe: wanted, found: picked, dir: picksDir, claude, floor: null, log });
-      for (const [key, why] of out) log(`unify: ${key} out (${why})`);
-      return { out, stop: missingPhotos(wanted, [...out.keys(), ...empty], frames).length > 0 };
-    } : null;
-    const photos = await findPhotos(wanted, { dir: join(HOME, 'photos'), keys, check, used: lib.used, pick, screen, log });
+    // The last try's floor: it keeps the board the pictures it needs and every storyboard frame (an earlier
+    // try's lost frame sends the recipe back instead: missingPhotos).
+    const floor = attempt === TRIES ? { onBoard: (k) => Number(k.split('.')[0]) < recipe.sections.length, keep: CHECK.pictures, fixed: (k) => frames.has(k) } : null;
+    // Before the last try a misfit is left out and never refilled (the try is sent back when too many go).
+    // The last try has no rethink, so a misfit there is a swap, never a deletion: where the slot has a pick left
+    // the photo goes out and findPhotos tries the next pick (keeping the photo if that finds nothing); every
+    // other named photo stays, remembered, and is judged after the AI look (applyScreen below) against the floor.
+    let named = new Map();
+    const screenFiles = new Map();
+    const screen = async (picked, { empty = [], spare = new Map() } = {}) => {
+      const all = await unifyPhotos({ recipe: wanted, found: picked, dir: picksDir, claude, floor: null, log });
+      if (attempt < TRIES) {
+        for (const [key, why] of all) log(`unify: ${key} out (${why})`);
+        return { out: all, stop: missingPhotos(wanted, [...all.keys(), ...empty], frames).length > 0 };
+      }
+      named = all;
+      for (const [key, ph] of picked) screenFiles.set(key, ph.file);
+      const { out, kept } = splitScreen(all, spare, (k) => frames.has(k));
+      for (const [key, why] of out) log(`unify: ${key} out (${why}); trying its next pick`);
+      for (const [key, why] of kept) log(`unify: ${key} named (${why}); judged after the look`);
+      return { out, stop: false, refill: true };
+    };
+    const photos = await findPhotos(wanted, { dir: join(HOME, 'photos'), keys, check, used: lib.used, pick, screen, chooseBack: floor ? backChooser(floor) : null, log });
     if (photos.stopped) {
       const broken = missingPhotos(wanted, [...photos.screened.keys(), ...(photos.empty || [])], frames);
       log(`check: ${broken.join('; ')}`);
@@ -133,15 +150,17 @@ async function makeOne(brief, ctx) {
     // Side by side, the photos that break the board's one world go (pick.mjs unifyPhotos); they count as
     // missing, so a first try short of too many rethinks its searches. Before the last try the first round's
     // photos are unified before the AI check (findPhotos' screen), so a try the misfits already send back costs
-    // no checks; the final unify runs on the last try, or when a later round brought a photo the screen never saw.
-    // The last try has no rethink to fall back on, so it keeps the board the pictures it needs and every
-    // storyboard frame (an earlier try's lost frame sends the recipe back instead: missingPhotos).
-    const floor = attempt === TRIES ? { onBoard: (k) => Number(k.split('.')[0]) < recipe.sections.length, keep: CHECK.pictures, fixed: (k) => frames.has(k) } : null;
-    const odd = attempt === TRIES || [...photos.found.values()].some((ph) => !photos.seen.has(ph.file))
-      ? await unifyPhotos({ recipe: wanted, found: photos.found, dir: picksDir, claude, floor, log })
-        .catch((e) => { log(`unify: ${e.message}; keeping them all`); return new Map(); })
-      : new Map();
-    for (const [key, why] of odd) { photos.found.delete(key); photos.missing.push(key); log(`unify: ${key} out (${why})`); }
+    // no checks; the final unify runs only when a later round (a refill, or a retry after a look reject) brought a photo the screen never saw.
+    // The last try's screen swaps what it takes out and judges the rest after the look (applyScreen), so it needs no rethink either.
+    // On the last try the screen, the left-outs and the final unify share the one budget HEAD's single unify had
+    // (a third of the photos it would have been shown; lastTryCuts), and the final one counts only on unseen photos.
+    const unify = () => unifyPhotos({ recipe: wanted, found: photos.found, dir: picksDir, claude, floor, log })
+      .catch((e) => { log(`unify: ${e.message}; keeping them all`); return new Map(); });
+    if (floor) {
+      await lastTryCuts({ found: photos.found, missing: photos.missing, named, screenFiles, seen: photos.seen, leftOut: photos.leftOut || [], floor, unify, log });
+    } else if ([...photos.found.values()].some((ph) => !photos.seen.has(ph.file))) {
+      for (const [key, why] of await unify()) { photos.found.delete(key); photos.missing.push(key); log(`unify: ${key} out (${why})`); }
+    }
     const links = await findLinks(recipe, { log });
     if (links.missing.length) log(`links: ${links.missing.length} not found`);
     const sounds = await findSounds(recipe, { dir: join(HOME, 'sounds'), claude, log });

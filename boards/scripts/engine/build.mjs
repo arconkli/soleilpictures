@@ -90,18 +90,22 @@ const area = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x
  * (bubbleLayout.js snapBubbleToBox), so each side is tried at its start,
  * middle and end, and the spot that covers least wins: other cards and
  * section labels count in full, other bubbles half again, and whatever
- * reaches past `edge` (the board's cards) a quarter. Ties keep the app's
+ * reaches past `edge` (the board's cards) a quarter, unless `inside` (the card's own section frame) is given: then
+ * whatever reaches past that counts in full and `edge` counts for nothing. Ties keep the app's
  * order: right, left, below, above. Pure.
  *   box: the card; size: { w, h }; obstacles: rects; placed: bubbles already placed
  * → { offset: { x, y }, rect: { x, y, w, h }, side }
  */
-export function placeBubble(box, size, { obstacles = [], placed = [], edge = null } = {}) {
+export function placeBubble(box, size, { obstacles = [], placed = [], edge = null, inside = null } = {}) {
   let best = null;
   for (const s of bubbleSpots(box, size)) {
     let covers = 0;
     for (const o of obstacles) covers += area(s.rect, o);
     for (const p of placed) covers += BUBBLE.bubbles * area(s.rect, p);
-    const score = covers + (edge ? BUBBLE.outside * (size.w * size.h - area(s.rect, edge)) : 0);
+    // A bubble on a sectioned card stays inside its own section's frame: leaving it counts as cover.
+    if (inside) covers += size.w * size.h - area(s.rect, inside);
+    // The board's edge is free room for a card with no section only.
+    const score = covers + (edge && !inside ? BUBBLE.outside * (size.w * size.h - area(s.rect, edge)) : 0);
     if (!best || score < best.score) best = { ...s, score, covers };
   }
   return best;
@@ -306,6 +310,8 @@ export function fitCaption(text, cardW) {
 
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const clean = (s) => String(s ?? '').trim();
+// "- 1. X" reads as a bullet holding an ordered list, which renders broken: the bullet goes, the number stays.
+export const numberedBullets = (md) => String(md ?? '').replace(/^(\s*)[-*+]\s+(\d+[.)]\s)/gm, '$1$2');
 const norm = (s) => clean(s).toLowerCase().replace(/\s+/g, ' ');
 
 // A layout tree: a column of rows, each a row of leaves, every frac given.
@@ -384,8 +390,9 @@ export const isStoryboard = (pics) => isFrameSheet(pics) && pics.filter((p) => N
 /**
  * The pictures a recipe would lay out as a storyboard's frames. → Set of 'si.ii'.
  * Their numbers are the shot list's, so a lost frame contradicts the board's
- * own writing: the run sends one back to be searched again, and the last
- * try's side-by-side check never takes one out.
+ * own writing: the run sends one back to be searched again. On the last try a
+ * frame can be swapped for its slot's next pick, and keeps its own photo when
+ * the swap finds nothing; it is never taken out.
  */
 export function frameKeys(recipe) {
   const keys = new Set();
@@ -401,20 +408,24 @@ export function frameKeys(recipe) {
  * A photo grid's card. pics: [{ key, it, ph }] in order. A frames sheet when
  * they're frames (most of them captioned): rows of three or four frames at
  * 16:9, each with its caption in the row under it; else a mosaic. A frame with
- * no photo (ph null) is left off a contact sheet, which is then numbered as it
- * stands; on a storyboard it keeps its place and its number, the shot list's,
- * and its frame reads "Still to find".
+ * no photo (ph null) is left off, never drawn as a hole. A contact sheet is
+ * numbered as it stands; a storyboard keeps the shot list's numbers (the notes
+ * name each frame by them), so its captions keep their own and its title range
+ * runs to the last kept frame's number.
  */
-export const STILL_TO_FIND = 'Still to find';
+const lastNumber = (pics) => Number(clean(pics[pics.length - 1]?.it?.caption).match(/^\d+/)?.[0]) || pics.length;
+export const STILL_TO_FIND = 'Still to find'; // what a lost storyboard frame used to read; the shots count any left
 export function photoGridCard(pics, { title = '', font = null, frames = false, mk }) {
-  const image = (p) => (p.ph
-    ? { type: 'image', photo: p.key, fit: 'cover', alt: clean(p.it.caption) || clean(p.ph.alt) }
-    : { type: 'text', html: `<p>${STILL_TO_FIND}</p>` });
-  if (!frames || !isStoryboard(pics)) pics = pics.filter((p) => p.ph);
+  const image = (p) => ({ type: 'image', photo: p.key, fit: 'cover', alt: clean(p.it.caption) || clean(p.ph.alt) });
+  // A storyboard is judged on the pics as passed in, before lost frames are left off.
+  const board = isStoryboard(pics);
+  pics = pics.filter((p) => p.ph);
   if (frames) {
     // Full strips only: a sheet with a half-empty last row reads as gaps, so
     // the odd frames past the last full strip are left off.
-    const per = pics.length % 3 !== 0 && pics.length % 4 === 0 ? 4 : pics.length === 12 ? 4 : 3;
+    const kept = (k) => Math.floor(pics.length / k) * k;
+    const pref = pics.length % 3 !== 0 && pics.length % 4 === 0 ? 4 : pics.length === 12 ? 4 : 3;
+    const per = [3, 4].reduce((b, k) => (kept(k) > kept(b) ? k : b), pref); // the strip width that keeps most frames
     pics = pics.slice(0, Math.floor(pics.length / per) * per);
     const w = span(per);
     const frameH = (w / per) * (9 / 16);
@@ -430,6 +441,7 @@ export function photoGridCard(pics, { title = '', font = null, frames = false, m
     const all = pics.every((p) => clean(p.it.caption));
     const capOf = (p, i) => {
       const c = clean(p.it.caption);
+      if (board && NUMBERED.test(c)) return c;
       if (all || /^\d+\s*[·.:—–-]/.test(c)) return frameCaption(c, i);
       return c ? `${i + 1} · ${c}` : String(i + 1);
     };
@@ -443,7 +455,7 @@ export function photoGridCard(pics, { title = '', font = null, frames = false, m
       }
     }
     return {
-      kind: 'grid', title: frameRange(clean(title), pics.length), layout: tree, templateId: null, seqId: null, gridCells,
+      kind: 'grid', title: frameRange(clean(title), board ? lastNumber(pics) : pics.length), layout: tree, templateId: null, seqId: null, gridCells,
       textStyle: { fontSize: 12, vAlign: 'center', ...(font ? { fontFamily: font } : {}) },
       photos: pics.filter((p) => p.ph).map((p) => p.key), w: Math.round(w), h: Math.round(strips * (frameH + GRID.caption)),
     };
@@ -487,7 +499,7 @@ export const ARROW = Object.freeze({
   maxLen: 640, // longer and it's a line across the board
   pad: 6, // the room it keeps from a card it passes
   minLen: 96, // shorter and it's a stub between neighbours: the gap is opened to this
-  roomMax: AUTO.column, // the widest gap opened to fit a label; past it the label goes
+  roomMax: 160, // the widest gap opened to fit a label; past it the label goes (a column-wide hole is worse than no label)
   // The label: 11px semibold at constant SCREEN size (styles.css .arrow-label-text),
   // set 7px off the line (CanvasSurface), so on the board it is that over the zoom.
   label: { charPx: 6.8, padPx: 12, hPx: 18, offPx: 7 },
@@ -631,6 +643,37 @@ function crosses(a, b, r) {
 }
 
 // How far out of the check's shape a board is (0: in it), as a ratio.
+// The share of the board's box (frames included) that no section's frame covers.
+export function emptyBetween(cards) {
+  const P = GROUP_OUTLINE_PAD;
+  const gs = [...new Set(cards.map((c) => c.groupId || c.id))];
+  const fr = gs.map((g) => { const b = boxOf(cards.filter((c) => (c.groupId || c.id) === g)); return { x: b.x - P, y: b.y - P, w: b.w + 2 * P, h: b.h + 2 * P }; });
+  const bb = boxOf(fr);
+  return 1 - fr.reduce((n, f) => n + f.w * f.h, 0) / (bb.w * bb.h);
+}
+// Each section rises into the empty canvas above it: blocks top-align a row, so a short section leaves a hole
+// under it that the next row could fill. Kept only when no two frames crowd and the board stays in shape.
+export function liftSections(cards) {
+  if (!cards.length || cards.some((c) => !c.groupId)) return cards;
+  const P = GROUP_OUTLINE_PAD;
+  const gs = [...new Set(cards.map((c) => c.groupId))];
+  const bOf = (cs, g) => boxOf(cs.filter((c) => c.groupId === g));
+  const top = Math.min(...cards.map((c) => c.y));
+  let cs = cards;
+  for (const g of [...gs].sort((a, b) => bOf(cards, a).y - bOf(cards, b).y || bOf(cards, a).x - bOf(cards, b).x)) {
+    const b = bOf(cs, g);
+    const above = gs.filter((o) => o !== g).map((o) => bOf(cs, o))
+      .filter((o) => o.y + o.h <= b.y && o.x < b.x + b.w + 2 * P + AUTO.across && b.x < o.x + o.w + 2 * P + AUTO.across);
+    const floor = above.length ? Math.max(...above.map((o) => o.y + o.h)) + 2 * P + AUTO.down : top;
+    const dy = b.y - floor;
+    if (dy > 0) cs = cs.map((c) => (c.groupId === g ? { ...c, y: c.y - dy } : c));
+  }
+  const frames = gs.map((g) => bOf(cs, g));
+  const crowd = frames.some((a, i) => frames.some((b, j) => j > i && meets(a, b, 2 * P + Math.min(AUTO.across, AUTO.down) - 1)));
+  if (crowd || (!aspectOk(cs) && offShape(cs) > offShape(cards))) return cards;
+  return cs;
+}
+
 const offShape = (cards) => {
   if (!cards.length) return 0;
   const b = boxOf(cards);
@@ -728,7 +771,7 @@ export function buildBoard(recipe, found, { newId, now = new Date().toISOString(
       } else if (it.kind === 'table') {
         card = tableCard(it, { font, mk });
       } else if (it.kind === 'doc') {
-        card = { kind: 'doc', title: clean(it.title) || 'Untitled', prose: String(it.markdown || ''), ...PAGE_SHAPE };
+        card = { kind: 'doc', title: clean(it.title) || 'Untitled', prose: numberedBullets(it.markdown), ...PAGE_SHAPE };
       } else if (it.kind === 'script') {
         card = { kind: 'doc', title: clean(it.title) || 'Untitled script', script: String(it.fountain || ''), ...PAGE_SHAPE };
       } else if (it.kind === 'audio') {
@@ -820,7 +863,7 @@ export function buildBoard(recipe, found, { newId, now = new Date().toISOString(
   // arrangeAuto hands the cards back in the order given, so laid[i] is fresh[i].
   const lay = (a) => {
     let used = null;
-    const cards = arrangeAuto([], tinted, { ...(a ? { arrangement: a } : {}), onArrangement: (x) => { used = x; } });
+    const cards = arrangeAuto([], tinted, { beside: true, ...(a ? { arrangement: a } : {}), onArrangement: (x) => { used = x; } });
     return { cards, used };
   };
   // The style's arrangement, else auto's, else whichever other comes out in
@@ -831,6 +874,19 @@ export function buildBoard(recipe, found, { newId, now = new Date().toISOString(
     const next = lay(a);
     if (aspectOk(next.cards) || offShape(next.cards) < offShape(pick.cards)) pick = next;
   }
+  // Of the arrangements that come out in shape, each with its sections lifted into the canvas above them,
+  // the one leaving least empty canvas between the sections' frames: the style's own unless another beats it
+  // by 5 points, and never one that leaves more than the style's own unlifted.
+  const own = pick;
+  const lifted = (p) => ({ ...p, cards: liftSections(p.cards) });
+  let best = lifted(pick);
+  for (const a of ARRANGEMENTS) {
+    const next = lifted(lay(a));
+    if (!aspectOk(next.cards)) continue;
+    if (!aspectOk(best.cards) || emptyBetween(next.cards) < emptyBetween(best.cards) - 0.05) best = next;
+  }
+  if (emptyBetween(best.cards) > emptyBetween(own.cards)) best = own;
+  pick = best;
   const laid = pick.cards;
   const arrangement = pick.used;
 
@@ -909,17 +965,30 @@ export function buildBoard(recipe, found, { newId, now = new Date().toISOString(
       if (next && arrowsOk(next)) placed = next;
     }
   }
-  const bubbleBy = (cardId, size, kind) => {
+  // A bubble never covers a card and never crosses a section frame: its own section's frame is where it
+  // belongs, every other section's is an obstacle, and with no clear spot it is left off (null).
+  const framesOf = (cs) => plan.created.map((g) => ({ id: g.id, cs: cs.filter((c) => c.groupId === g.id) })).filter((g) => g.cs.length)
+    .map((g) => { const b = boxOf(g.cs); return { id: g.id, rect: { x: b.x - GROUP_OUTLINE_PAD, y: b.y - GROUP_OUTLINE_PAD, w: b.w + 2 * GROUP_OUTLINE_PAD, h: b.h + 2 * GROUP_OUTLINE_PAD } }; });
+  const groupOf = (cs, cardId) => cs.find((c) => c.id === cardId)?.groupId || null;
+  const ownFrame = (cs, cardId) => { const g = groupOf(cs, cardId); return g ? framesOf(cs).find((f) => f.id === g)?.rect || null : null; };
+  const obstaclesFor = (cardId) => (cs) => [...cs.filter((p) => p.id !== cardId), ...labelsOf(cs), ...chipsOf(cs),
+    ...framesOf(cs).filter((f) => f.id !== groupOf(cs, cardId)).map((f) => f.rect)];
+  // What the bubble at rect covers on cs: obstacles, other bubbles (all but #skip), and whatever is outside its own frame.
+  const bubbleCover = (cardId, size, skip = -1) => (rect, cs) => {
+    const own = ownFrame(cs, cardId);
+    const others = bubbles.filter((_, i) => i !== skip).map((b) => bubbleRect(cs.find((c) => c.id === b.cardId), b.offset, b.size));
+    return [...obstaclesFor(cardId)(cs), ...others].reduce((n, o) => n + area(rect, o), 0) + (own ? size.w * size.h - area(rect, own) : 0);
+  };
+  const bubbleBy = (cardId, size, kind, on) => {
     const box = placed.find((p) => p.id === cardId);
-    const obstacles = (cs) => [...cs.filter((p) => p.id !== cardId), ...labelsOf(cs), ...chipsOf(cs)];
-    const at = placeBubble(box, size, { obstacles: obstacles(placed), placed: marksOn(placed), edge: boxOf(placed) });
+    const at = placeBubble(box, size, { obstacles: obstaclesFor(cardId)(placed), placed: marksOn(placed), edge: boxOf(placed), inside: ownFrame(placed, cardId) });
     let offset = at.offset;
     if (at.covers > 0) {
-      const cover = (rect, cs) => [...obstacles(cs), ...marksOn(cs)].reduce((n, o) => n + area(rect, o), 0);
-      const room = bubbleRoom(placed, cardId, size, { cover, ok: arrowsOk });
-      if (room) ({ cards: placed, offset } = room);
+      const room = bubbleRoom(placed, cardId, size, { cover: bubbleCover(cardId, size), ok: arrowsOk });
+      if (!room) { dropped.push(`${kind} on ${on} (no clear spot)`); return null; }
+      ({ cards: placed, offset } = room);
     }
-    bubbles.push({ cardId, size, kind, offset });
+    bubbles.push({ cardId, size, kind, offset, on });
     return offset;
   };
   const comments = [];
@@ -929,7 +998,8 @@ export function buildBoard(recipe, found, { newId, now = new Date().toISOString(
     if (!cardId || !who || !clean(c?.text)) { dropped.push(`comment on ${clean(c?.on)}`); continue; }
     const re = c.reply && crewOf(c.reply.by) && crewOf(c.reply.by) !== who && clean(c.reply.text)
       ? { by: crewOf(c.reply.by).key, text: clean(c.reply.text) } : null;
-    const offset = bubbleBy(cardId, re ? BUBBLE.thread : BUBBLE.comment, 'comment');
+    const offset = bubbleBy(cardId, re ? BUBBLE.thread : BUBBLE.comment, 'comment', clean(c.on));
+    if (!offset) continue;
     comments.push({ cardId, by: who.key, text: clean(c.text), offset, ...(re ? { reply: re } : {}) });
   }
   let vote = null;
@@ -938,9 +1008,19 @@ export function buildBoard(recipe, found, { newId, now = new Date().toISOString(
     if (!cardId) dropped.push(`vote on ${clean(recipe.vote.on)}`);
     else {
       const label = clean(recipe.vote.label);
-      const offset = bubbleBy(cardId, voteSize(label), 'vote');
-      vote = { cardId, label, up: recipe.vote.up | 0, down: recipe.vote.down | 0, offset };
+      const offset = bubbleBy(cardId, voteSize(label), 'vote', clean(recipe.vote.on));
+      if (offset) vote = { cardId, label, up: recipe.vote.up | 0, down: recipe.vote.down | 0, offset };
     }
+  }
+  // Room made for a later bubble can move a card under an earlier one: each is checked again against the
+  // final cards and left off if it now covers something.
+  for (let i = bubbles.length - 1; i >= 0; i -= 1) {
+    const b = bubbles[i];
+    if (bubbleCover(b.cardId, b.size, i)(bubbleRect(placed.find((c) => c.id === b.cardId), b.offset, b.size), placed) === 0) continue;
+    bubbles.splice(i, 1);
+    dropped.push(`${b.kind} on ${b.on} (no clear spot)`);
+    if (b.kind === 'vote') vote = null;
+    else { const k = comments.findIndex((c) => c.offset === b.offset); if (k >= 0) comments.splice(k, 1); }
   }
   // Drawn once the cards have stopped moving.
   const marks = marksOn(placed).map((m) => ({ ...m, groupId: placed.find((c) => c.id === m.cardId).groupId || null }));
