@@ -209,10 +209,12 @@ test('0596 hands out only finished descriptions and never likens a picture to it
 });
 
 // ── 0597: a published cluster's pictures carry their descriptions as alt ───
-test('0597 is the latest word on both public reads, and keeps them definer reads for anon', () => {
+test('0597 / 0860 are the latest word on both public reads, and keep them definer reads for anon', () => {
+  // 0860 restates get_public_board_page (adding `unlisted`); get_public_board_content is still 0597's.
+  const LATEST = { get_public_board_page: '0860_post_boards_unlisted.sql', get_public_board_content: '0597_public_pictures_alt.sql' };
   for (const name of ['get_public_board_page', 'get_public_board_content']) {
     const def = latestDefinition(name);
-    assert.equal(def?.file, '0597_public_pictures_alt.sql', `${name}: no later migration restates it`);
+    assert.equal(def?.file, LATEST[name], `${name}: no later migration restates it`);
     assert.match(def.body, /security definer\s+set search_path = public/, name);
     assert.match(def.body, /_resolve_published_board\(p_slug\)/, `${name}: still only a published cluster`);
   }
@@ -220,6 +222,14 @@ test('0597 is the latest word on both public reads, and keeps them definer reads
   assert.doesNotMatch(sql97, /grant[^;]*image_descriptions/i, 'the table itself stays closed');
   assert.match(sql97, /has_table_privilege\('anon', 'public\.image_descriptions', 'select'\)/);
   assert.match(sql97, /has_function_privilege\('anon', 'public\.get_public_board_page\(text\)', 'execute'\)/);
+  // 0860 restates the page read: it opens no table, and its own proof block checks the page read's
+  // grant for anon and its definer rights.
+  const sql60 = readFileSync(join(MIGRATIONS_DIR, '0860_post_boards_unlisted.sql'), 'utf8');
+  assert.doesNotMatch(sql60, /grant[^;]*image_descriptions/i, '0860 leaves the table closed');
+  assert.match(sql60, /'public\.get_public_board_page\(text\)'/);
+  assert.match(sql60, /foreach v_role in array array\['anon', 'authenticated', 'service_role'\]/);
+  assert.match(sql60, /has_function_privilege\(v_role, v_fn, 'execute'\)/);
+  assert.match(sql60, /p\.prosecdef and 'search_path=public' = any \(p\.proconfig\)/);
 });
 
 test('0597 takes a person\'s alt, then the card\'s, then the finished description, then the older model\'s', () => {
