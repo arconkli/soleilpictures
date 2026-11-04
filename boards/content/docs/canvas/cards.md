@@ -141,9 +141,9 @@ called "Untitled" is a card you will not find later.
 ## The card limit
 
 The free Demo plan allows **{{fact:demoCardLimit}} cards** in total across every
-cluster you create. Cards on clusters someone else owns do not count against
-you — if you are invited as an editor, you are spending their allowance, not
-yours.
+cluster you create (older accounts keep the higher allowance they signed up
+under). Cards on clusters someone else owns do not count against you — if you
+are invited as an editor, you are spending their allowance, not yours.
 
 Files waiting in Files, not on the board, are still cards and count the same.
 

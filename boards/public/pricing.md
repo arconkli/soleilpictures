@@ -10,7 +10,7 @@ Soleil Clusters has three plans. Free is $0 forever with no credit card. Creator
 
 No card, no clock, no expiry.
 
-- **50 cards** to build with
+- **25 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
 - Free collaboration — up to 10 people who edit
@@ -19,7 +19,7 @@ No card, no clock, no expiry.
 
 Or $20/mo billed annually ($240/yr) — save 20%. Cancel any time — your cards stay yours.
 
-- **Unlimited cards** — The 50-card ceiling comes off. Everything you have already made stays exactly where it is.
+- **Unlimited cards** — The 25-card ceiling comes off. Everything you have already made stays exactly where it is.
 - **A 1TB drive** — Free holds 5GB. Creator holds **1TB** — room for the footage, the camera originals and the project archives.
 - **Covers your whole workspace** — Everyone you invite builds at your limits: up to 10 people who edit, anyone who views, and no per-seat charges.
 
@@ -44,7 +44,7 @@ These are the only differences. Everything absent from this table is on every pl
 
 | | Free | Creator | Team |
 |---|---|---|---|
-| Cards | 50 | Unlimited | Unlimited |
+| Cards | 25 | Unlimited | Unlimited |
 | Storage | 5GB — any file, any size | 1TB — any file, any size | 1TB a seat, shared — any file, any size |
 | Workspaces | 10 | 10 | No limit |
 | People who edit | Up to 10 | Up to 10 | A seat each, 3 to 100 |
@@ -58,7 +58,7 @@ One Creator plan covers the whole workspace — up to 10 people who edit build a
 
 ### What is actually limited on the free plan?
 
-Two things — how many cards you can have and how much you can store: 50 cards or 5GB of files, whichever comes first. Any file of any size is welcome on every plan, and clusters are free — they cost none of your cards. People are the same on Free and Creator: up to 10 who edit, and as many as you like who view.
+Two things — how many cards you can have and how much you can store: 25 cards or 5GB of files, whichever comes first. Any file of any size is welcome on every plan, and clusters are free — they cost none of your cards. People are the same on Free and Creator: up to 10 who edit, and as many as you like who view.
 
 ### How many workspaces can I have?
 
@@ -68,7 +68,7 @@ Up to 10 of your own on Free and Creator. Workspaces that belong to a team don't
 
 No. On Free and Creator, up to 10 people can edit at no cost to them, and anyone can view. What Creator does is carry YOUR limits to them: everything they add counts against the workspace owner, so one plan raises the ceiling for everyone working in that workspace. There are no per-seat charges. More than 10 people who edit is what Team is for, priced per seat.
 
-### What happens when I reach 50 cards or fill 5GB?
+### What happens when I reach 25 cards or fill 5GB?
 
 You are told, and asked to upgrade. Nothing you have already made is removed, hidden or locked — you simply cannot add more until you free some room or upgrade. Deleting a file gives its space back within a few minutes, and emptying the trash gives back everything in it at once.
 

@@ -1,6 +1,6 @@
 # Plans and pricing
 
-> The free Demo plan gives you 50 cards or 5GB of files, whichever comes first, up to 10 people who edit, and any file at any size; clusters cost no cards. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes two things: the card cap is removed, and your drive grows to 1TB. Limits are charged to the workspace owner, so one plan covers everyone in that workspace, with no per-seat charges. Team is for more than 10 people who edit, at $25 a seat a month.
+> The free Demo plan gives you 25 cards or 5GB of files, whichever comes first, up to 10 people who edit, and any file at any size; clusters cost no cards. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes two things: the card cap is removed, and your drive grows to 1TB. Limits are charged to the workspace owner, so one plan covers everyone in that workspace, with no per-seat charges. Team is for more than 10 people who edit, at $25 a seat a month.
 
 _Source: https://clusters.soleilpictures.com/docs/account/plans · Updated 2026-10-27_
 
@@ -19,7 +19,7 @@ page, drops it.
 
 ## Demo — free
 
-- **50 cards** to build with
+- **25 cards** to build with
 - A **5GB** drive — any file, at any size
 - Clusters are free — they cost none of your cards
 - Free collaboration — up to 10 people who edit
@@ -33,7 +33,7 @@ The free plan stops at whichever limit you reach first.
 **$20/mo** billed annually
 ($240/yr, saving $60/yr).
 
-- **Unlimited cards** — the 50-card ceiling comes off, and every
+- **Unlimited cards** — the 25-card ceiling comes off, and every
   card you have already made stays exactly where it is.
 - **A 1TB drive** — free holds 5GB; Creator
   holds **1TB**, room for the footage, the camera originals and the
@@ -51,7 +51,7 @@ first:
 
 | | Demo | Creator |
 |---|---|---|
-| **Total [cards](/docs/canvas/cards)** | 50 | Unlimited |
+| **Total [cards](/docs/canvas/cards)** | 25 | Unlimited |
 | **[Storage](/docs/files#storage)** | 5GB | 1TB |
 | **Workspaces of your own** | 10 | 10 |
 | **[File types and sizes](/docs/files)** | Any, at any size | Any, at any size |
@@ -86,9 +86,10 @@ it — a collaborator's own plan never applies to someone else's workspace. If y
 work across several, the one that matters is the workspace the cluster lives in.
 
 > **Older accounts keep a higher cap.** The free allowance used to be
-> 100 cards. Every account created while that was the
-> plan keeps it, permanently — no existing cap was ever lowered. Your own figure
-> is on the Upgrade pill and in Settings → Plan & billing, and it is the one enforced.
+> 100 cards, and then 50. Every
+> account keeps the allowance it was created under, permanently — no existing
+> cap was ever lowered. Your own figure is on the Upgrade pill and in Settings →
+> Plan & billing, and it is the one enforced.
 > [Referral credits](/docs/account/referrals) add to whichever cap you have.
 
 > **Note:** There is no separate cap on clusters — each one is a card, and counts
@@ -197,7 +198,7 @@ against paying monthly, so its checkout does not offer a code field.
 ## Free forever
 
 The Demo plan is not a trial. It does not expire and it does not degrade. If
-50 cards and 5GB are enough for what you do,
+25 cards and 5GB are enough for what you do,
 that is a complete account. The Creator trial above is separate: it is a taste of the
 paid plan, and when it ends you are back on exactly this one.
 

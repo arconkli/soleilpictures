@@ -10,7 +10,7 @@ Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
 
 ## Free, and actually usable
 
-A lot of "free" tools are a demo with a wall. Clusters’ Demo tier lets you build a real mood board — images, video, notes, links, color palettes and any other file, at any size, on an infinite canvas — and share it, without paying and without installing anything. It holds 50 cards or 5GB of files, whichever comes first. When you outgrow it, Creator is $25/mo for unlimited cards and a 1TB drive.
+A lot of "free" tools are a demo with a wall. Clusters’ Demo tier lets you build a real mood board — images, video, notes, links, color palettes and any other file, at any size, on an infinite canvas — and share it, without paying and without installing anything. It holds 25 cards or 5GB of files, whichever comes first. When you outgrow it, Creator is $25/mo for unlimited cards and a 1TB drive.
 
 - Works in any modern browser — nothing to download
 - Drop in images, links, video, notes, and palettes
@@ -36,7 +36,7 @@ This is not a generic whiteboard. Clusters is built for film, photo, design, and
 
 ### Is it really free?
 
-Yes. The free Demo tier covers 50 cards or 5GB of files, whichever comes first — the clusters you make cost none of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
+Yes. The free Demo tier covers 25 cards or 5GB of files, whichever comes first — the clusters you make cost none of them — with no credit card and no trial clock. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
 
 ### Do I have to download anything?
 
@@ -44,7 +44,7 @@ No. It runs in your browser, and on a phone or tablet it can be added to the hom
 
 ### What is the catch with the free tier?
 
-The Demo tier stops at 50 cards or 5GB of files, whichever comes first. Collaboration is free, and invited editors edit on any tier. Upgrading to Creator removes the card cap and gives you a 1TB drive.
+The Demo tier stops at 25 cards or 5GB of files, whichever comes first. Collaboration is free, and invited editors edit on any tier. Upgrading to Creator removes the card cap and gives you a 1TB drive.
 
 ### What happens when the free drive is full?
 

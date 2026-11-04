@@ -139,7 +139,7 @@ A link pasted into the box is read as a link.
 - A link the AI writes inside a note keeps its words and loses its address, so
   nothing on the page is a link someone else wrote.
 - Keeping a board needs room for its cards in your plan. A new account is free
-  up to 50 cards and 5GB; with less room
+  up to 25 cards and 5GB; with less room
   than the board needs, you can keep its first cards or see the
   [plans](/docs/account/plans).
 - One address can keep 10 boards a minute.

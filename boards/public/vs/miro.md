@@ -47,7 +47,7 @@ Different tools for different jobs:
 | Client view without a workspace invite | Yes | Account for editing |
 | Flat pricing, not per-seat | Yes ($25/mo Creator) | Per-member |
 | Diagramming & integrations marketplace | Focused | Extensive |
-| Free tier | Yes — 50 cards or 5GB of files | Yes |
+| Free tier | Yes — 25 cards or 5GB of files | Yes |
 
 ## What it costs
 
@@ -55,7 +55,7 @@ Start free. Pay when you outgrow it.
 
 **Free — $0 forever**
 
-- **50 cards** to build with
+- **25 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
 - Free collaboration — up to 10 people who edit
@@ -85,7 +85,7 @@ Yes. Share a link and they see a clean, interactive read-only preview — no wor
 
 ### Does Clusters have a free tier?
 
-Yes. The Demo tier is free for 50 cards or 5GB of files, whichever comes first; Creator is $25/mo for unlimited cards and a 1TB drive.
+Yes. The Demo tier is free for 25 cards or 5GB of files, whichever comes first; Creator is $25/mo for unlimited cards and a 1TB drive.
 
 ### Is there a simpler Miro alternative for mood boards?
 

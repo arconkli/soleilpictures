@@ -1857,11 +1857,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "50 cards",
+     "v": "25 cards",
      "children": [
       {
        "t": "text",
-       "v": "50 cards"
+       "v": "25 cards"
       }
      ]
     },
@@ -9672,17 +9672,17 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "50 cards",
+     "v": "25 cards",
      "children": [
       {
        "t": "text",
-       "v": "50 cards"
+       "v": "25 cards"
       }
      ]
     },
     {
      "t": "text",
-     "v": " in total across every cluster you create. Cards on clusters someone else owns do not count against you — if you are invited as an editor, you are spending their allowance, not yours."
+     "v": " in total across every cluster you create (older accounts keep the higher allowance they signed up under). Cards on clusters someone else owns do not count against you — if you are invited as an editor, you are spending their allowance, not yours."
     }
    ]
   },
@@ -26159,7 +26159,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Yes, at any size, on every plan. The free plan holds 50 cards or 5GB of files, whichever comes first; Creator removes the card cap and gives you a 1TB drive"
+       "v": "Yes, at any size, on every plan. The free plan holds 25 cards or 5GB of files, whichever comes first; Creator removes the card cap and gives you a 1TB drive"
       }
      ]
     ],
@@ -44639,11 +44639,11 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "50 cards",
+      "v": "25 cards",
       "children": [
        {
         "t": "text",
-        "v": "50 cards"
+        "v": "25 cards"
        }
       ]
      },
@@ -44763,7 +44763,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — the 50-card ceiling comes off, and every card you have already made stays exactly where it is."
+      "v": " — the 25-card ceiling comes off, and every card you have already made stays exactly where it is."
      }
     ],
     [
@@ -44916,7 +44916,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "50"
+       "v": "25"
       }
      ],
      [
@@ -45167,7 +45167,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " The free allowance used to be 100 cards. Every account created while that was the plan keeps it, permanently — no existing cap was ever lowered. Your own figure is on the Upgrade pill and in Settings → Plan & billing, and it is the one enforced. "
+     "v": " The free allowance used to be 100 cards, and then 50. Every account keeps the allowance it was created under, permanently — no existing cap was ever lowered. Your own figure is on the Upgrade pill and in Settings → Plan & billing, and it is the one enforced. "
     },
     {
      "t": "link",
@@ -45717,7 +45717,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The Demo plan is not a trial. It does not expire and it does not degrade. If 50 cards and 5GB are enough for what you do, that is a complete account. The Creator trial above is separate: it is a taste of the paid plan, and when it ends you are back on exactly this one."
+     "v": "The Demo plan is not a trial. It does not expire and it does not degrade. If 25 cards and 5GB are enough for what you do, that is a complete account. The Creator trial above is separate: it is a taste of the paid plan, and when it ends you are back on exactly this one."
     }
    ]
   },
@@ -47317,21 +47317,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Bonus cards raise your card limit above the free plan's "
+     "v": "Bonus cards add to your free card allowance ("
     },
     {
      "t": "strong",
-     "v": "50",
+     "v": "25",
      "children": [
       {
        "t": "text",
-       "v": "50"
+       "v": "25"
       }
      ]
     },
     {
      "t": "text",
-     "v": ". Bonus storage adds to your drive on any plan: 0.5GB for joining through an invitation, and 0.5GB for each friend of yours who gets started. Both stack across referrals and neither expires."
+     "v": " for a new account, more for older ones). Bonus storage adds to your drive on any plan: 0.5GB for joining through an invitation, and 0.5GB for each friend of yours who gets started. Both stack across referrals and neither expires."
     }
    ]
   },
@@ -47488,7 +47488,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " They raise your card limit above the free plan's 50 and never expire. On Creator and Team they are kept for you. They never change how many people can edit a workspace or how many workspaces you can own."
+      "v": " They add to your free card allowance, whatever it started at, and never expire. On Creator and Team they are kept for you. They never change how many people can edit a workspace or how many workspaces you can own."
      }
     ]
    ]
@@ -61425,17 +61425,17 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "50",
+     "v": "25",
      "children": [
       {
        "t": "text",
-       "v": "50"
+       "v": "25"
       }
      ]
     },
     {
      "t": "text",
-     "v": " on the free plan, counted against the "
+     "v": " on the free plan for an account made today (older accounts keep the allowance they signed up under), counted against the "
     },
     {
      "t": "strong",
@@ -70965,7 +70965,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " cluster: up to 50 cards, with a "
+     "v": " cluster: up to 25 cards, with a "
     },
     {
      "t": "strong",
@@ -71013,7 +71013,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "code",
-     "v": "Cards used 12 of 50."
+     "v": "Cards used 12 of 25."
     }
    ]
   },
@@ -76899,7 +76899,7 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Keeping a board needs room for its cards in your plan. A new account is free up to 50 cards and 5GB; with less room than the board needs, you can keep its first cards or see the "
+      "v": "Keeping a board needs room for its cards in your plan. A new account is free up to 25 cards and 5GB; with less room than the board needs, you can keep its first cards or see the "
      },
      {
       "t": "link",

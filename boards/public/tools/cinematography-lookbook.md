@@ -50,7 +50,7 @@ Start free. Pay when you outgrow it.
 
 **Free — $0 forever**
 
-- **50 cards** to build with
+- **25 cards** to build with
 - A **5GB** drive — any file, any size
 - Clusters are free — they cost none of your cards
 - Free collaboration — up to 10 people who edit
@@ -84,5 +84,5 @@ Yes, through a view-only link that opens in any browser and can expire after 7 o
 
 ### Is it free?
 
-Free for 50 cards or 5GB of files, whichever comes first — clusters themselves are free — with free editors. A full lookbook can outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace. See “What it costs” on this page.
+Free for 25 cards or 5GB of files, whichever comes first — clusters themselves are free — with free editors. A full lookbook can outgrow that; Creator removes the card cap and raises the drive to 1TB for the whole workspace. See “What it costs” on this page.
 

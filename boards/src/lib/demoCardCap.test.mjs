@@ -13,7 +13,7 @@
 // constant. The one place a literal is still correct is the pair of cohort
 // tests at the bottom, which exist precisely to pin the two real cap values.
 
-import { evaluateDemoCap, rejectedNoun, DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT, fitByCost } from './demoCardCap.js';
+import { evaluateDemoCap, rejectedNoun, DEMO_CARD_LIMIT, PRIOR_DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT, fitByCost } from './demoCardCap.js';
 
 let failed = 0;
 let passed = 0;
@@ -30,13 +30,16 @@ function assertEq(actual, expected, msg) {
 
 const CAP = DEMO_CARD_LIMIT;
 
-// The two cap cohorts that actually exist in the database. New accounts default
-// to DEMO_CARD_LIMIT; accounts predating migration 0229 are grandfathered at
-// LEGACY_DEMO_CARD_LIMIT and must never be lowered.
-assertEq(DEMO_CARD_LIMIT, 50, 'DEMO_CARD_LIMIT is 50 (new accounts)');
+// The cap cohorts that actually exist in the database. New accounts get
+// DEMO_CARD_LIMIT; accounts from earlier generations keep
+// PRIOR_DEMO_CARD_LIMIT or LEGACY_DEMO_CARD_LIMIT and must never be lowered.
+assertEq(DEMO_CARD_LIMIT, 25, 'DEMO_CARD_LIMIT is 25 (new accounts, 0864)');
+assertEq(PRIOR_DEMO_CARD_LIMIT, 50, 'PRIOR_DEMO_CARD_LIMIT is 50 (accounts made 0229 until 0864)');
 assertEq(LEGACY_DEMO_CARD_LIMIT, 100, 'LEGACY_DEMO_CARD_LIMIT is 100 (grandfathered)');
 assertEq(LEGACY_DEMO_CARD_LIMIT > DEMO_CARD_LIMIT, true,
   'the grandfathered cap is the HIGHER of the two — nobody was lowered');
+assertEq(LEGACY_DEMO_CARD_LIMIT > PRIOR_DEMO_CARD_LIMIT && PRIOR_DEMO_CARD_LIMIT > DEMO_CARD_LIMIT, true,
+  'each earlier generation kept the higher cap — nobody was lowered');
 
 // Non-demo tiers are never capped (remaining Infinity, all accepted).
 assertEq(evaluateDemoCap({ tier: 'paid', demoCardCount: 0, requested: 50 }),
@@ -49,8 +52,8 @@ assertEq(evaluateDemoCap({ tier: null, demoCardCount: 0, requested: 3 }),
 // Demo, comfortably under the cap.
 assertEq(evaluateDemoCap({ tier: 'demo', demoCardCount: 10, requested: 1 }),
   { accepted: 1, capHit: false, remaining: CAP - 10 }, 'demo under cap: single allowed');
-assertEq(evaluateDemoCap({ tier: 'demo', demoCardCount: 10, requested: 20 }),
-  { accepted: 20, capHit: false, remaining: CAP - 10 }, 'demo under cap: batch allowed');
+assertEq(evaluateDemoCap({ tier: 'demo', demoCardCount: 10, requested: CAP - 10 }),
+  { accepted: CAP - 10, capHit: false, remaining: CAP - 10 }, 'demo under cap: batch allowed');
 
 // Demo, batch exactly fills the remaining room — allowed, no cap-hit.
 assertEq(evaluateDemoCap({ tier: 'demo', demoCardCount: CAP - 5, requested: 5 }),

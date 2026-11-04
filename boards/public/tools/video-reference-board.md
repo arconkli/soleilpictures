@@ -1,6 +1,6 @@
 # A Reference Board That Plays Video
 
-> Soleil Clusters is a free reference board that plays video: clips, GIFs and stills share one canvas in the browser, a clip steps frame by frame or loops like a GIF, and one link shares the board. PureRef’s format list is images and animated GIFs. The free plan holds 50 cards or 5GB of files, whichever comes first.
+> Soleil Clusters is a free reference board that plays video: clips, GIFs and stills share one canvas in the browser, a clip steps frame by frame or loops like a GIF, and one link shares the board. PureRef’s format list is images and animated GIFs. The free plan holds 25 cards or 5GB of files, whichever comes first.
 
 _Source: https://clusters.soleilpictures.com/tools/video-reference-board · Updated 2026-10-20_
 
@@ -76,5 +76,5 @@ No. Clusters plays video; it does not edit it. Trim in your editor and drop in t
 
 ### Is it free?
 
-Yes. The free plan holds 50 cards or 5GB of files, whichever comes first, clusters themselves are free, and editors you invite are free. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
+Yes. The free plan holds 25 cards or 5GB of files, whichever comes first, clusters themselves are free, and editors you invite are free. Creator ($25/mo) removes the card cap and gives you a 1TB drive.
 

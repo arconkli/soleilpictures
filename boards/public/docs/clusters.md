@@ -130,7 +130,7 @@ board](/docs/clusters/list-view#not-on-board).
 There is no limit on how many clusters you make, and they cost none of your
 [cards](/docs/canvas/cards): a cluster's card on its parent's canvas is free on
 every plan. Only what is inside it counts toward the free Demo plan's
-50. A [linked cluster](#nesting) — a reference to a
+25. A [linked cluster](#nesting) — a reference to a
 cluster that lives elsewhere — counts as a card like any other.
 
 ## Making a cluster from cards you already have

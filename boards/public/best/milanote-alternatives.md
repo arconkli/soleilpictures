@@ -1,6 +1,6 @@
 # The 12 Best Milanote Alternatives in 2026
 
-> Soleil Clusters is the best Milanote alternative for production teams in 2026: a free tier that takes any file at any size, up to 50 cards or 5GB of files, where Milanote stops at 10 file uploads ever, plus a flat $25/mo where Milanote charges per person or $49/mo for a team, and real-time boards that carry a project from mood board to shot list. Miro is the runner-up for team whiteboarding, Obsidian Canvas for free offline work, Canva for polished deliverables.
+> Soleil Clusters is the best Milanote alternative for production teams in 2026: a free tier that takes any file at any size, up to 25 cards or 5GB of files, where Milanote stops at 10 file uploads ever, plus a flat $25/mo where Milanote charges per person or $49/mo for a team, and real-time boards that carry a project from mood board to shot list. Miro is the runner-up for team whiteboarding, Obsidian Canvas for free offline work, Canva for polished deliverables.
 
 _Source: https://clusters.soleilpictures.com/best/milanote-alternatives · Published 2026-08-04 · Updated 2026-10-20_
 
@@ -108,7 +108,7 @@ The canvas itself is sticky-note-centric with no image-first features, and there
 
 ## Which Milanote alternative holds the most files on a free plan?
 
-For a board you share in the browser, Soleil Clusters: its free plan takes any file at any size and stops at 50 cards or 5GB of files, whichever comes first, while Milanote's free plan allows 100 notes, images or links and 10 file uploads. If the files only need to live on your own computer, a desktop app is limited by your disk instead of a plan.
+For a board you share in the browser, Soleil Clusters: its free plan takes any file at any size and stops at 25 cards or 5GB of files, whichever comes first, while Milanote's free plan allows 100 notes, images or links and 10 file uploads. If the files only need to live on your own computer, a desktop app is limited by your disk instead of a plan.
 
 On a Clusters board, video, audio and PDFs play or open on the card, and anything else — a PSD, a zip, a font — lands as a card with its name and size, ready to download. Nobody you invite needs a plan of their own to add to it. Creator removes the card cap and gives you a 1TB drive.
 
@@ -135,7 +135,7 @@ The one tool on this list built so the board never has to be exported to become 
 
 Clusters is what we built when our own pre-production kept splintering across four apps: a real-time multiplayer canvas in the browser whose boards hold images, video, audio, PDFs, links, notes, docs, color palettes, image grids, and vote cards, with non-destructive photo adjustments built in. The point is not the format list — it is that the mood board, storyboard, shot list, and script live as connected boards in one project, tied together by a relationship graph. The board becomes the next thing instead of being rebuilt as it.
 
-Against Milanote, two structural differences. First, the wall: Milanote's free plan spends a 10-file upload budget that never resets, so one scene's reference pull can end it in an afternoon — Clusters takes any file at any size, with 50 cards or 5GB of files free, and the free Demo tier has no trial clock or credit card. Second, the team math: Creator is a flat $25/mo — not per person — for unlimited cards and a 1TB drive. On Milanote, adding your DP and production designer adds a Pro seat each, or a $49/mo team plan. On Clusters it does not, and free editors can collaborate.
+Against Milanote, two structural differences. First, the wall: Milanote's free plan spends a 10-file upload budget that never resets, so one scene's reference pull can end it in an afternoon — Clusters takes any file at any size, with 25 cards or 5GB of files free, and the free Demo tier has no trial clock or credit card. Second, the team math: Creator is a flat $25/mo — not per person — for unlimited cards and a 1TB drive. On Milanote, adding your DP and production designer adds a Pro seat each, or a $49/mo team plan. On Clusters it does not, and free editors can collaborate.
 
 Sharing is one link. Viewers need no account — a producer opens the live board in a browser — and anyone you invite, free, can comment right on the exact image they mean. Select everything in a reference folder and drag it in, and it lands in one go — at hour three of a pull, nobody uploads one file at a time. Screenplay mode lives in docs, so the script draft sits beside the imagery it describes. We use all of this daily; the features exist because a shoot demanded them.
 
@@ -464,7 +464,7 @@ So here is the honest boundary. If you work alone, plan in text more than media,
 
 ### Is there a free Milanote alternative without item caps?
 
-Yes. Soleil Clusters' free tier has no trial clock and takes any file at any size (50 cards or 5GB of files), so the pull that spends Milanote's 10-file allowance in an afternoon fits here. Obsidian Canvas is entirely free with no caps at all — boards are local files on your own disk. Canva's free plan also allows unlimited whiteboards, though premium assets are paywalled.
+Yes. Soleil Clusters' free tier has no trial clock and takes any file at any size (25 cards or 5GB of files), so the pull that spends Milanote's 10-file allowance in an afternoon fits here. Obsidian Canvas is entirely free with no caps at all — boards are local files on your own disk. Canva's free plan also allows unlimited whiteboards, though premium assets are paywalled.
 
 ### What are Milanote's free plan limits?
 

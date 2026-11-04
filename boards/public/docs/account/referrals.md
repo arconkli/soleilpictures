@@ -39,8 +39,8 @@ reflects people who are actually there.
 
 ## Bonus cards and storage
 
-Bonus cards raise your card limit above the free plan's
-**50**. Bonus storage adds to your drive on any plan:
+Bonus cards add to your free card allowance (**25** for a new
+account, more for older ones). Bonus storage adds to your drive on any plan:
 0.5GB for joining through an invitation, and
 0.5GB for each friend of yours who gets started. Both
 stack across referrals and neither expires.
@@ -69,9 +69,8 @@ bigger group.
 - **People, not tabs.** Two tabs or two devices of your own are one person, and
   working in two clusters at once earns once, not twice. Each person needs a
   confirmed email, and nothing is paid to, or for, a banned account.
-- **The same bonus cards.** They raise your card limit above the free plan's
-  50 and never expire. On Creator and Team they are kept for
-  you. They never change how many people can edit a workspace or how many
+- **The same bonus cards.** They add to your free card allowance, whatever it
+  started at, and never expire. On Creator and Team they are kept for you. They never change how many people can edit a workspace or how many
   workspaces you can own.
 
 On the free plan a small **Together** chip shows beside the faces at the top

@@ -227,8 +227,9 @@ export const CREATOR_BENEFITS = [
     // DEMO_CARD_LIMIT is what a NEW account gets, which is the right number for
     // a signed-out visitor reading /pricing and the WRONG one for a signed-in
     // reader. demoCardCap.js says so in its own header: the cap is per-user
-    // since 0229, accounts predating it are grandfathered at 100, and a
-    // referred signup starts at 50 + REFERRAL_BONUS_CARDS. In-app callers must
+    // since 0229, every account keeps the base it was made with (100 before
+    // 0229, 50 from 0229 until 0864, 25 since), and a referred signup starts
+    // at DEMO_CARD_LIMIT + REFERRAL_BONUS_CARDS. In-app callers must
     // use creatorBenefits({ cardLimit }) below and pass the viewer's real one —
     // a paywall whose single checkable number is wrong about the reader is
     // worse than one that stays general.
@@ -258,7 +259,9 @@ export const CREATOR_BENEFITS = [
 // The same benefits, with the cap stated as THIS viewer's rather than a new
 // account's. Falls back to the generic list when the caller has no resolved
 // limit — a pre-resolution useMyTier placeholder must never be rendered as a
-// number, so "the 50-card ceiling" is the honest default and a wrong 100 is not.
+// number. The generic list names the new-account ceiling, right for a reader
+// with no account and lower than what most existing accounts have, so in-app
+// callers pass the viewer's resolved limit.
 //
 // Returns the SAME array identity when there is nothing to substitute, so
 // callers can keep passing it straight to BenefitGrid without re-rendering.
@@ -796,6 +799,12 @@ export function grantCopy({ grantActive, grantExpiresAt } = {}) {
 // so it is graded as one event with it, never as a copy test of its own. Same
 // predicate, window and floor as above, dated from that deploy. Expectation:
 // no material change — neither phrase is a query term.
+//
+// AMENDED 2026-11-04 — the free number in it follows DEMO_CARD_LIMIT from 50
+// to 25 (new accounts only, 0864). A fact change carried by the deploy that
+// changes the limit, never a copy test of its own. Same predicate, window and
+// floor as above, dated from that production deploy. Expectation: no material
+// change — the number is not a query term.
 export const PRICING_META_DESCRIPTION =
   `Soleil Clusters pricing — start free with the Demo (${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, ` +
   `free collaborators), or go ${PLAN_NAME} ` +

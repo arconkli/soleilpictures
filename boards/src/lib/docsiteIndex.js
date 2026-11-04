@@ -101,7 +101,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Is Soleil Clusters free?",
-        "a": "Yes. The free Demo plan gives you 50 cards — clusters themselves are free — and up to 10 people who edit, free. Creator removes the card limit and gives you a 1TB drive instead of 5GB — every plan takes any file at any size."
+        "a": "Yes. The free Demo plan gives you 25 cards — clusters themselves are free — and up to 10 people who edit, free. Creator removes the card limit and gives you a 1TB drive instead of 5GB — every plan takes any file at any size."
       },
       {
         "q": "What is a cluster?",
@@ -122,7 +122,7 @@ export const DOCS_PAGES = [
     "title": "Getting Started with Soleil Clusters",
     "metaDescription": "Sign in, make your first cluster, get images onto the canvas and share it. A five-minute walkthrough of Soleil Clusters from empty account to shareable board.",
     "h1": "Getting started",
-    "answer": "Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 50 cards and up to 10 people who edit.",
+    "answer": "Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 25 cards and up to 10 people who edit.",
     "section": "start",
     "order": 1,
     "updated": "2026-10-29",
@@ -500,7 +500,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Is there a limit on cards?",
-        "a": "The free Demo plan allows 50 cards across every cluster you create. A cluster sits on its parent's canvas as a card, but that card is free, and there is no limit on clusters. Creator removes the limit."
+        "a": "The free Demo plan allows 25 cards across every cluster you create. A cluster sits on its parent's canvas as a card, but that card is free, and there is no limit on clusters. Creator removes the limit."
       },
       {
         "q": "What happens if I delete a card by accident?",
@@ -1327,7 +1327,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Is there a limit on how many clusters I can make?",
-        "a": "No. A cluster sits on the canvas that holds it as a card, but that card is free — it does not count toward the free Demo plan's 50 cards. Only what you put inside a cluster counts. Creator removes the card limit."
+        "a": "No. A cluster sits on the canvas that holds it as a card, but that card is free — it does not count toward the free Demo plan's 25 cards. Only what you put inside a cluster counts. Creator removes the card limit."
       },
       {
         "q": "How do I move a cluster somewhere else?",
@@ -2705,9 +2705,9 @@ export const DOCS_PAGES = [
   {
     "path": "/docs/account/plans",
     "title": "Plans and Pricing — Soleil Clusters",
-    "metaDescription": "Soleil Clusters is free with 50 cards or 5GB of files, and free collaborators. Creator removes the card cap and gives you a 1TB drive.",
+    "metaDescription": "Soleil Clusters is free with 25 cards or 5GB of files, and free collaborators. Creator removes the card cap and gives you a 1TB drive.",
     "h1": "Plans and pricing",
-    "answer": "The free Demo plan gives you 50 cards or 5GB of files, whichever comes first, up to 10 people who edit, and any file at any size; clusters cost no cards. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes two things: the card cap is removed, and your drive grows to 1TB. Limits are charged to the workspace owner, so one plan covers everyone in that workspace, with no per-seat charges. Team is for more than 10 people who edit, at $25 a seat a month.",
+    "answer": "The free Demo plan gives you 25 cards or 5GB of files, whichever comes first, up to 10 people who edit, and any file at any size; clusters cost no cards. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes two things: the card cap is removed, and your drive grows to 1TB. Limits are charged to the workspace owner, so one plan covers everyone in that workspace, with no per-seat charges. Team is for more than 10 people who edit, at $25 a seat a month.",
     "section": "account",
     "order": 1,
     "updated": "2026-10-27",
@@ -2766,7 +2766,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "What is actually limited on the free plan?",
-        "a": "Two things — total cards and total storage — 50 cards or 5GB of files, whichever you reach first. Any file of any size is welcome on every plan; there is no per-file limit at all. Clusters are free — they cost none of your cards — and people are the same on Free and Creator: up to 10 who edit, and as many as you like who view."
+        "a": "Two things — total cards and total storage — 25 cards or 5GB of files, whichever you reach first. Any file of any size is welcome on every plan; there is no per-file limit at all. Clusters are free — they cost none of your cards — and people are the same on Free and Creator: up to 10 who edit, and as many as you like who view."
       },
       {
         "q": "Do collaborators need to pay?",
@@ -2781,8 +2781,8 @@ export const DOCS_PAGES = [
         "a": "You are told, and asked to upgrade. Nothing already made is taken away or locked. Deleting files gives their space back within a few minutes, and emptying the trash gives back everything in it at once."
       },
       {
-        "q": "My card limit is 100, not 50. Why?",
-        "a": "Accounts created before the free plan changed keep the 100-card allowance they signed up under, permanently. Nobody's cap was lowered."
+        "q": "My card limit is 50 or 100, not 25. Why?",
+        "a": "Every account keeps the card allowance it signed up under, permanently. The free plan gave 100 cards at first, then 50, and gives 25 to accounts made since. Nobody's cap was lowered."
       },
       {
         "q": "Where do I enter a discount code?",
@@ -2979,7 +2979,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "What do the bonuses do?",
-        "a": "Bonus cards raise your card limit above the free plan's 50. Bonus storage adds to your drive on any plan. Both stack, and neither expires."
+        "a": "Bonus cards raise your card limit, whatever it started at (25 for a new account). Bonus storage adds to your drive on any plan. Both stack, and neither expires."
       },
       {
         "q": "Does inviting someone who already has an account count?",
@@ -4246,7 +4246,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Do I need an account before connecting?",
-        "a": "Not to try it. The no-account address, https://clusters.soleilpictures.com/mcp, lets an assistant build a draft cluster of up to 50 cards, which you keep with a link and an email address. The hosted address, /api/v1/mcp, needs you signed in: it opens the sign-in itself, and the sign-in screen is a single email box that creates the account if there isn't one."
+        "a": "Not to try it. The no-account address, https://clusters.soleilpictures.com/mcp, lets an assistant build a draft cluster of up to 25 cards, which you keep with a link and an email address. The hosted address, /api/v1/mcp, needs you signed in: it opens the sign-in itself, and the sign-in screen is a single email box that creates the account if there isn't one."
       },
       {
         "q": "Which apps does it work with?",
@@ -4338,7 +4338,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Is keeping it free?",
-        "a": "Yes. A new account is free up to 50 cards and 5GB. When a board has more cards than your plan has room for, you can keep the first ones that fit."
+        "a": "Yes. A new account is free up to 25 cards and 5GB. When a board has more cards than your plan has room for, you can keep the first ones that fit."
       }
     ]
   },

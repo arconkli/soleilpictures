@@ -13,7 +13,7 @@ faq:
   - q: Is there a limit?
     a: You can earn at most {{fact:referralRewardsPer30Days}} rewards in any 30 days. Friends past that still count; their rewards wait their turn and land as the window frees.
   - q: What do the bonuses do?
-    a: Bonus cards raise your card limit above the free plan's {{fact:demoCardLimit}}. Bonus storage adds to your drive on any plan. Both stack, and neither expires.
+    a: Bonus cards raise your card limit, whatever it started at ({{fact:demoCardLimit}} for a new account). Bonus storage adds to your drive on any plan. Both stack, and neither expires.
   - q: Does inviting someone who already has an account count?
     a: No. It shares the cluster with them as usual, but only people new to Clusters earn a reward.
   - q: Do I earn anything for working with someone?
@@ -62,8 +62,8 @@ reflects people who are actually there.
 
 ## Bonus cards and storage
 
-Bonus cards raise your card limit above the free plan's
-**{{fact:demoCardLimit}}**. Bonus storage adds to your drive on any plan:
+Bonus cards add to your free card allowance (**{{fact:demoCardLimit}}** for a new
+account, more for older ones). Bonus storage adds to your drive on any plan:
 {{fact:referralBonusStorage}} for joining through an invitation, and
 {{fact:referralBonusStorage}} for each friend of yours who gets started. Both
 stack across referrals and neither expires.
@@ -92,9 +92,8 @@ bigger group.
 - **People, not tabs.** Two tabs or two devices of your own are one person, and
   working in two clusters at once earns once, not twice. Each person needs a
   confirmed email, and nothing is paid to, or for, a banned account.
-- **The same bonus cards.** They raise your card limit above the free plan's
-  {{fact:demoCardLimit}} and never expire. On Creator and Team they are kept for
-  you. They never change how many people can edit a workspace or how many
+- **The same bonus cards.** They add to your free card allowance, whatever it
+  started at, and never expire. On Creator and Team they are kept for you. They never change how many people can edit a workspace or how many
   workspaces you can own.
 
 On the free plan a small **Together** chip shows beside the faces at the top

@@ -108,9 +108,9 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     storageBytes: storage.used,
   });
   // The cards benefit names a ceiling, and in-app we know which one. A demo
-  // account grandfathered at 100 (or started at 75 by a referral) reads its own
-  // chip saying "84/100" and would otherwise open a modal asserting its ceiling
-  // is 50 — the one number on that screen it can check, wrong.
+  // account made before the limit changed (50 or 100, more with referral
+  // credits) reads its own chip saying "42/50" and would otherwise open a modal
+  // asserting its ceiling is 25 — the one number on that screen it can check, wrong.
   const benefits = creatorBenefits({ cardLimit: effectiveCardLimit });
   // The plan they are leaving, in their own numbers. Same rule as the cards
   // benefit above: the viewer's effective cap, never the new-account one.
@@ -147,7 +147,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
   // up_* exposure telemetry — what the user DOES on this pitch before leaving
   // (feature-row reads, toggles, dismiss method, dwell → up_exposure_summary).
   // Card counts gate on a RESOLVED tier: useMyTier's pre-fetch placeholders
-  // (demoCardCount 0 / limit 100) must never be recorded as measured values —
+  // (demoCardCount 0 / the new-account limit) must never be recorded as measured values —
   // the envelope emits null until real, and the summary self-heals via the
   // hook's update effect once the RPC lands.
   const up = useUpsellExposure({

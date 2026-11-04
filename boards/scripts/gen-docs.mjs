@@ -63,7 +63,7 @@ import { showsUsedBy, usedByText } from '../src/lib/usedBy.js';
 import { pricingMarkdown, PRICING_ANSWER } from '../src/lib/pricingCrawlable.js';
 import { hasPlanBlock, planBlockMarkdown } from '../src/lib/planBlock.js';
 
-import { DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
+import { DEMO_CARD_LIMIT, PRIOR_DEMO_CARD_LIMIT, LEGACY_DEMO_CARD_LIMIT } from '../src/lib/demoCardCap.js';
 import { PLAN_NAME, PRICING, CREATOR_BENEFITS, CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL, TRIAL_STORAGE_LABEL, CREATOR_TRIAL_DAYS, STORAGE_ADDON_BLOCK_LABEL, STORAGE_ADDON_MAX_BLOCKS, STORAGE_ADDON_PRICING } from '../src/lib/billingCopy.js';
 import { AUDIO_ANALYZE_MAX_BYTES, AUDIO_ANALYZE_MAX_SECONDS, FREE_PDF_CAP } from '../src/lib/fileIngest.js';
 import { MAX_IMPORT_ITEMS, IMPORT_TIMEOUT_MS, SOURCE_SCOPE } from '../src/lib/importManifest.js';
@@ -447,15 +447,27 @@ if (Number(editorLimitSql[1]) !== EDITOR_LIMIT || Number(teamSeatCeiling[1]) !==
     || TEAM_SEAT_UNIT_AMOUNT.month % 100 || TEAM_SEAT_UNIT_AMOUNT.year % 100) {
   throw new Error('gen-docs: the Team plan numbers disagree with the code that enforces them');
 }
+// What a NEW account gets is the profiles.card_cap_base column default (0229
+// set 50, 0864 set 25); DEMO_CARD_LIMIT carries the same number to the copy and
+// the client gates. Every page states the constant, so it may never drift from
+// the default the server hands out.
+const cardCapDefault = latestSqlMatching(/alter\s+column\s+card_cap_base\s+set\s+default\s+\d+/i)
+  ?.match(/alter\s+column\s+card_cap_base\s+set\s+default\s+(\d+)/i);
+if (!cardCapDefault || Number(cardCapDefault[1]) !== DEMO_CARD_LIMIT) {
+  throw new Error('gen-docs: DEMO_CARD_LIMIT disagrees with the profiles.card_cap_base default in the migrations');
+}
 
 export const FACTS = {
   demoCardLimit: String(DEMO_CARD_LIMIT),
   // How long a message stays editable by its author (the app enforces it).
   messageEditWindowMin: String(MESSAGE_EDIT_WINDOW_MIN),
   // The cap accounts created before migration 0229 keep, permanently. The plans
-  // page states the grandfather rule; both cohorts are real, so both numbers
-  // have to come from code rather than being typed into the markdown.
+  // page states the grandfather rule; every cohort is real, so every number
+  // has to come from code rather than being typed into the markdown.
   legacyDemoCardLimit: String(LEGACY_DEMO_CARD_LIMIT),
+  // The cap accounts created from 0229 until 0864 keep, permanently: the
+  // generation between legacyDemoCardLimit and demoCardLimit.
+  priorDemoCardLimit: String(PRIOR_DEMO_CARD_LIMIT),
   planName: PLAN_NAME,
   priceMonthly: PRICING.monthly.billedLabel,
   priceAnnual: PRICING.annual.billedLabel,

@@ -188,10 +188,10 @@ one and not the other.
 
 `https://clusters.soleilpictures.com/mcp` works with no account, so anyone can try Clusters from
 Claude or ChatGPT. When the person is not signed in, `create_boards` starts a
-**draft** cluster: up to 50 cards, with a **draft key**
+**draft** cluster: up to 25 cards, with a **draft key**
 (`dk_…`) that the assistant passes as `draft` on every later call, and a **keep
 link** it gives the person. Every answer repeats both, and after a call that
-changed cards says how much is spent: `Cards used 12 of 50.`
+changed cards says how much is spent: `Cards used 12 of 25.`
 
 - A draft lasts 30 days after its last change, then is
   deleted. Each draft may make 300 requests an hour.

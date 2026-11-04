@@ -171,8 +171,8 @@ function EngagementSection({ eng, tier, lastSignInAt, lastWorkedAt, device, geo 
               {eng.bonus_card_credits > 0 && (
                 <span className="is-muted" style={{ marginLeft: 6 }}>(+{formatCount(eng.bonus_card_credits)} from referrals)</span>
               )}
-              {/* Which cap cohort this account is in. Accounts predating migration
-                  0229 keep the base cap they signed up under, so a support answer
+              {/* Which cap cohort this account is in. Accounts made before a free-plan
+                  change (0229, 0864) keep the base cap they signed up under, so a support answer
                   about "why can they add more than I can" is one glance away. */}
               {eng.card_cap_base > DEMO_CARD_LIMIT && (
                 <span className="is-muted" style={{ marginLeft: 6 }}>(grandfathered at {eng.card_cap_base})</span>
