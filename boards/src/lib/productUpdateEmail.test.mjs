@@ -237,10 +237,10 @@ test('every config string is escaped, items cap at 8, and both parts carry the w
   for (const raw of ['<new>', '<changed>', '<b>what</b>', '<script>', 'Files <x>', '<look>', '"file"']) {
     assert.ok(!r.html.includes(raw), `escaped in the HTML: ${raw}`);
   }
-  assert.match(r.html, /<span class="preheader">what &lt;changed&gt;<\/span>/);
+  assert.match(r.html, /mso-hide:all;">what &lt;changed&gt;(&zwnj;&nbsp;)+<\/div>/);
   assert.match(r.html, /one &lt;script&gt;alert\(1\)&lt;\/script&gt;/);
-  assert.match(r.html, /<strong style="font-weight:600;">Files &lt;x&gt;<\/strong> any &quot;file&quot; &amp; more/);
-  assert.equal((r.html.match(/&middot;<\/span>/g) || []).length, 8, 'at most 8 items, empty ones dropped');
+  assert.match(r.html, /<strong class="ink0" style="font-weight:600;color:#f5f5f7;">Files &lt;x&gt;<\/strong> any &quot;file&quot; &amp; more/);
+  assert.equal((r.html.match(/&bull;<\/td>/g) || []).length, 8, 'at most 8 items, empty ones dropped');
   assert.match(r.text, /^hey, the clusters team here\.\n\nhere is <b>what<\/b> shipped:\n\n· one <script>/);
   assert.match(r.text, /\n· Files <x> any "file" & more\n/, 'the lead is plain text in the text part');
   assert.equal((r.text.match(/^· /gm) || []).length, 8);
@@ -281,21 +281,21 @@ test('an edition can carry one screenshot from the app’s /email/ folder, under
   const { renderTemplate } = await import('../../../supabase/functions/_shared/email/templates.ts');
   const shot = 'https://clusters.soleilpictures.com/email/2026-10-22-new-look.jpg';
   const r = renderTemplate('product_update', { ...EDITION, imageUrl: shot, imageAlt: 'The new <look>' });
-  const img = r.html.match(/<a href="([^"]+)"[^>]*><img src="([^"]+)" alt="([^"]*)"/);
+  const img = r.html.match(/<a href="([^"]+)"[^>]*><img class="line" src="([^"]+)" width="478" alt="([^"]*)"/);
   assert.ok(img, 'one linked picture');
   assert.equal(img[2], shot);
   assert.equal(img[3], 'The new &lt;look&gt;', 'its alt is escaped');
   const cta = r.text.match(/take a <look>: (\S+)\n/)[1];
   assert.equal(img[1], cta.replace(/&/g, '&amp;'), 'the picture opens what the button opens');
   const at = (s) => r.html.indexOf(s);
-  assert.ok(at('shipped:') < at(shot) && at(shot) < at('&middot;</span>'), 'the intro, then the picture, then the list');
+  assert.ok(at('shipped:') < at(shot) && at(shot) < at('&bull;</td>'), 'the intro, then the picture, then the list');
   assert.ok(!r.text.includes(shot), 'the text part has no picture');
   for (const bad of ['https://evil.example/email/x.jpg', 'https://clusters.soleilpictures.com/api/x.jpg',
     'http://clusters.soleilpictures.com/email/x.jpg', '', null]) {
-    assert.doesNotMatch(renderTemplate('product_update', { ...EDITION, imageUrl: bad }).html, /<img /,
+    assert.doesNotMatch(renderTemplate('product_update', { ...EDITION, imageUrl: bad }).html, /<img (?![^>]*mark-dark-84)/,
       `no picture for ${JSON.stringify(bad)}`);
   }
-  assert.doesNotMatch(renderTemplate('product_update', EDITION).html, /<img /, 'no image_path, no picture');
+  assert.doesNotMatch(renderTemplate('product_update', EDITION).html, /<img (?![^>]*mark-dark-84)/, 'no image_path, no picture');
 });
 
 test('the cron hands over an edition’s image_path only from /email/, as whats_new does', () => {

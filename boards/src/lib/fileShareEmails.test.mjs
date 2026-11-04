@@ -66,7 +66,7 @@ test('a doc is "a document" you can view, or view and edit', () => {
 
 test('file_commented carries the comment-reply unsubscribe', () => {
   assert.match(tpl, /unsubUrl\(d\.unsubscribeToken, "email_comment_replies"\)/);
-  assert.match(tpl, /bodyHtml: quoteBlock\(d\.commentPreview\)/);
+  assert.match(tpl, /bodyHtml: quoteBlock\(d\.commentPreview, d\.commenterName\)/);
 });
 
 test('no \\u escapes in either file (the MCP deploy rewrites them)', () => {

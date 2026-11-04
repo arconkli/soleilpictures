@@ -20,6 +20,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import { renderTemplate, TEMPLATE_NAMES, type TemplateName } from "../_shared/email/templates.ts";
+import { isLegacyLookEdition } from "../_shared/email/legacyNote.ts";
 
 const RESEND_API_KEY    = Deno.env.get("RESEND_API_KEY") || "";
 const SEND_EMAIL_SECRET = Deno.env.get("SEND_EMAIL_SECRET") || "";
@@ -64,6 +65,55 @@ async function logEmailSend(opts: {
     });
   } catch (e) {
     console.warn("email_sends log failed", (e as Error)?.message || String(e));
+  }
+}
+
+// The look-switch stamp. The welcome and comeback emails (activate_nudge_1,
+// board_waiting) are in a send-vs-hold-back test until 2027-01-24, and the
+// January read splits the sends at the instant the new look first went out:
+// app_config 'email_look_switch' value->>'first_send_at'. The first send of a
+// template rendered by renderPlainNote (the notes) writes it; INSERT ... ON
+// CONFLICT DO NOTHING means the first write anywhere wins and a later one
+// changes nothing. NON-FATAL: it never throws and never changes the response.
+// It is never awaited either: it runs detached under EdgeRuntime.waitUntil with
+// its own 4s timeout, so a slow or failing database can't hold up the answer
+// (_cron_edge_post gives up on a caller after 5s and would retry a sent email).
+// A product_update edition that keeps the old look (isLegacyLookEdition) is not
+// the new look, so it does not stamp.
+const NOTE_LOOK_TEMPLATES = [
+  "activate_nudge_1", "activate_nudge_2", "reengage_1", "welcome_board",
+  "board_waiting", "nudge_dormant_early", "whats_new", "product_update", "share_activity",
+];
+let lookSwitchStamped = false;
+let lookSwitchInFlight = false;
+
+// Keep a detached promise alive past the response on Supabase Edge (the
+// keepAlive of _shared/meta-capi.ts); elsewhere it simply runs detached.
+function keepAlive(p: Promise<unknown>): void {
+  const er = (globalThis as unknown as {
+    EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void };
+  }).EdgeRuntime;
+  if (er?.waitUntil) { try { er.waitUntil(p); } catch (_) { /* runs detached */ } }
+}
+
+async function stampLookSwitch(template: string, data: Record<string, unknown>): Promise<void> {
+  if (lookSwitchStamped || lookSwitchInFlight || !logDb || !NOTE_LOOK_TEMPLATES.includes(template)) return;
+  lookSwitchInFlight = true;
+  try {
+    if (template === "product_update") {
+      const v = data.version != null ? String(data.version).replace(/[^A-Za-z0-9._-]/g, "").slice(0, 32) : undefined;
+      if (isLegacyLookEdition(v)) return;
+    }
+    const { error } = await logDb.from("app_config").upsert(
+      { key: "email_look_switch", value: { first_send_at: new Date().toISOString(), template, look: "darkroom" } },
+      { onConflict: "key", ignoreDuplicates: true },
+    ).abortSignal(AbortSignal.timeout(4_000));
+    if (error) console.warn("email_look_switch stamp failed", error.message);
+    else lookSwitchStamped = true;
+  } catch (e) {
+    console.warn("email_look_switch stamp failed", (e as Error)?.message || String(e));
+  } finally {
+    lookSwitchInFlight = false;
   }
 }
 
@@ -302,6 +352,7 @@ Deno.serve(async (req) => {
   }
 
   await logEmailSend({ template: body.template, to, ok: true, resendId: resendBody.id, actorId });
+  keepAlive(stampLookSwitch(body.template, body.data || {}));
   // Resend has it; until then the dispatcher retries it (0369). That is not
   // the same as a person seeing it, which only Seen in the Security tab
   // records, and which _ops_deadman (0390) watches for.
