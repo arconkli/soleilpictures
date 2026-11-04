@@ -8,6 +8,8 @@
 //   4. update send-transactional-email's accepted template list
 
 import { renderEmail, renderPlainNote, POSTAL_ADDRESS } from "./layout.ts";
+import { quote, button, list, picture, pText, signoff, strip } from "./theme.ts";
+import { isLegacyLookEdition, LEGACY_KIT, type ProductUpdateKit } from "./legacyNote.ts";
 // Names other people typed, made safe for a subject line: no links, no
 // newlines, a length cap. See safeLabel.mjs for why (migration 0358).
 import { safeLabel, safePerson } from "./safeLabel.mjs";
@@ -149,17 +151,15 @@ function utm(campaign: string, version?: string): Record<string, string> {
   };
 }
 
-const NOTE_FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
-
 function noteP(text: string): string {
-  return `<p style="margin:0 0 18px; font:400 15px/1.65 ${NOTE_FONT}; color:#1a1a1a;">${escapeHtml(text)}</p>`;
+  return pText(text, "left");
 }
 
 // The lifecycle CTA. Formerly a bare inline text-link — the founder notes opened
-// well (welcome_board ~58%) but almost nobody clicked through, so the CTA is now
+// well (welcome_board ~58%) but almost nobody clicked through, so the CTA is
 // a bulletproof (table-based) button that reads as a real tap target in
-// Gmail/Outlook/Apple Mail. A dark pill on the light note background, left-
-// aligned to sit in the note's flow (not a centered marketing blast).
+// Gmail/Outlook/Apple Mail. Left-aligned to sit in the note's flow (not a
+// centered marketing blast).
 //
 // The "signed out? we'll email you a 6-digit code" caveat under the button used
 // to be unconditional. It was an honest warning about a genuinely bad ending —
@@ -169,34 +169,25 @@ function noteP(text: string): string {
 // walking into the OTP wall and deserves to be told.
 function noteBtn(label: string, url: string): string {
   const walled = !url.startsWith(RESUME_URL);
-  const caveat = walled
-    ? `\n                <p style="margin:0 0 18px; font:400 12px/1.5 ${NOTE_FONT}; color:#8a8780;">signed out? we'll email you a 6-digit code — no password to dig up.</p>`
-    : "";
-  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:6px 0 ${walled ? "6px" : "18px"};">
-                  <tr>
-                    <td bgcolor="#1a1a1a" style="background:#1a1a1a; border-radius:8px;">
-                      <a href="${escapeHtml(url)}" style="display:inline-block; padding:0 24px; height:46px; line-height:46px; font:600 15px/46px ${NOTE_FONT}; color:#faf9f7; text-decoration:none; border-radius:8px;">${escapeHtml(label)} &rarr;</a>
-                    </td>
-                  </tr>
-                </table>${caveat}`;
+  return button(
+    `${label} →`,
+    url,
+    "left",
+    walled ? "signed out? we'll email you a 6-digit code — no password to dig up." : undefined,
+  );
 }
 
 // A short bulleted run inside the note body (whats_new's shipped-features
-// list). Table rows rather than <ul> — Outlook's list indentation and bullet
-// glyph are unreliable, and a hand-rolled middot renders identically anywhere.
+// list).
 function noteList(items: string[]): string {
   if (!items.length) return "";
-  const rows = items.map((it) =>
-    `<tr><td style="padding:0 0 9px; font:400 15px/1.6 ${NOTE_FONT}; color:#1a1a1a;"><span style="color:#8a8780;">&middot;</span>&nbsp;&nbsp;${escapeHtml(it)}</td></tr>`
-  ).join("");
-  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 18px;">${rows}</table>`;
+  return list(items);
 }
 
 // A linked image inside the note body (welcome_board embeds the user's own
-// board thumbnail). width= attribute + inline max-width keep it bounded in
-// Outlook and fluid everywhere else.
+// board thumbnail).
 function noteImg(src: string, alt: string, href: string): string {
-  return `<p style="margin:4px 0 18px;"><a href="${escapeHtml(href)}" style="text-decoration:none;"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" width="440" style="width:100%; max-width:440px; height:auto; display:block; border-radius:10px; border:1px solid #e7e4df;"></a></p>`;
+  return picture(src, alt, href);
 }
 
 // ── What the person added (migration 0790) ──────────────────────────────────
@@ -280,31 +271,16 @@ function countsPhrase(counts: Record<string, number>): string {
 }
 
 // A row of up to four tiles. Pictures keep their shape (never stretched);
-// everything without a picture is a small text tile. Fluid on phones: each
-// cell is 25% of the row and the image fills it up to its natural size.
+// everything without a picture is a small text tile.
 function noteStrip(items: AddedItem[], href: string): string {
   if (!items.length) return "";
-  const cells = items.map((it, i) => {
-    const kindWord = escapeHtml(ADDED_KIND_WORD[it.kind] ?? "file");
-    let tile: string;
-    if (it.url) {
-      let W = 100;
-      let H = 0;
-      if (it.w && it.h) {
-        if (it.h / it.w > 1.3) { H = 130; W = Math.round(130 * it.w / it.h); }
-        else { W = 100; H = Math.max(1, Math.round(100 * it.h / it.w)); }
-      }
-      tile = `<img src="${escapeHtml(it.url)}" alt="${kindWord}" width="${W}"${H ? ` height="${H}"` : ""} style="display:block; width:100%; max-width:${W}px; height:auto; border-radius:8px; border:1px solid #e7e4df;">`;
-    } else {
-      tile = `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="width:100%;"><tr><td valign="top" height="100" style="height:100px; padding:10px; background:#f3f1ed; border:1px solid #e7e4df; border-radius:8px; word-break:break-word;">` +
-        `<div style="font:600 11px/1.3 ${NOTE_FONT}; color:#8a8780; margin:0 0 6px;">${kindWord}</div>` +
-        (it.label ? `<div style="font:400 13px/1.35 ${NOTE_FONT}; color:#1a1a1a;">${escapeHtml(it.label)}</div>` : "") +
-        `</td></tr></table>`;
-    }
-    const pad = i === items.length - 1 ? "0" : "0 8px 0 0";
-    return `<td width="25%" valign="top" style="padding:${pad};"><a href="${escapeHtml(href)}" style="text-decoration:none;">${tile}</a></td>`;
-  }).join("");
-  return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="width:100%; max-width:424px; margin:4px 0 18px;"><tr>${cells}</tr></table>`;
+  return strip(
+    items.map((it) => {
+      const kindWord = ADDED_KIND_WORD[it.kind] ?? "file";
+      return { url: it.url, w: it.w, h: it.h, kind: kindWord, label: it.label, alt: kindWord };
+    }),
+    href,
+  );
 }
 
 // ── Single-note lifecycle types (migration 0790) ────────────────────────────
@@ -372,7 +348,7 @@ function composeNote(blocks: NoteBlock[], c: CopyCtx, preheader: string): { html
   const html: string[] = [];
   const text: string[] = [];
   for (const b of blocks) {
-    if (b.k === "p") { html.push(noteP(b.t)); text.push(b.text ?? b.t); }
+    if (b.k === "p") { html.push(b.t === SIGNOFF ? signoff([b.t]) : noteP(b.t)); text.push(b.text ?? b.t); }
     else if (b.k === "img") { if (c.img) html.push(c.img); }   // no plaintext equivalent
     else if (b.k === "strip") { if (c.strip) html.push(c.strip); }
     else { html.push(noteBtn(b.label, c.url)); text.push(`${b.label}: ${c.url}`); }
@@ -502,10 +478,10 @@ function boardShared(d: BoardSharedData): RenderedEmail {
     subject: `${d.sharerName} shared "${d.boardName}" with you`,
     html: renderEmail({
       preheader: subtitle,
-      eyebrow: "Board shared",
+      eyebrow: "Cluster shared",
       headline,
       subtitle,
-      cta: { label: "Open board", url },
+      cta: { label: "Open cluster", url },
     }),
     text: plain([
       "CLUSTERS",
@@ -513,7 +489,7 @@ function boardShared(d: BoardSharedData): RenderedEmail {
       headline,
       subtitle,
       "",
-      "Open board: " + url,
+      "Open cluster: " + url,
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -864,9 +840,9 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function quoteBlock(preview: string): string {
+function quoteBlock(preview: string, who?: string): string {
   if (!preview) return "";
-  return `<div style="font:400 14px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#b3b3b7; font-style:italic; padding:12px 16px; border-left:2px solid #ffa500; background:rgba(255,165,0,0.06); border-radius:0 4px 4px 0; text-align:left;">${escapeHtml(preview)}</div>`;
+  return quote({ who, text: preview });
 }
 
 function mentionEmailTpl(d: MentionEmailData): RenderedEmail {
@@ -890,7 +866,7 @@ function mentionEmailTpl(d: MentionEmailData): RenderedEmail {
       eyebrow: "Mention",
       headline: `${d.mentionerName} mentioned you.`,
       subtitle,
-      bodyHtml: quoteBlock(d.messagePreview),
+      bodyHtml: quoteBlock(d.messagePreview, d.mentionerName),
       cta: { label: "Open in Clusters", url },
       unsubscribeUrl: unsub,
     }),
@@ -931,7 +907,7 @@ function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
       eyebrow: "Reply",
       headline: `${d.replierName} replied.`,
       subtitle,
-      bodyHtml: quoteBlock(d.replyPreview),
+      bodyHtml: quoteBlock(d.replyPreview, d.replierName),
       cta: { label: "Open comment", url },
       unsubscribeUrl: unsub,
     }),
@@ -1031,7 +1007,7 @@ function fileCommented(d: FileCommentedData): RenderedEmail {
       eyebrow: "Comment",
       headline: `${d.commenterName} commented.`,
       subtitle,
-      bodyHtml: quoteBlock(d.commentPreview),
+      bodyHtml: quoteBlock(d.commentPreview, d.commenterName),
       cta: { label: "Open file", url },
       unsubscribeUrl: unsub,
     }),
@@ -1082,6 +1058,9 @@ function scheduleUpdateTpl(d: ScheduleUpdateData): RenderedEmail {
       ? `${d.title} — cancelled`
       : `${d.title}${d.version ? ` — call sheet v${d.version}` : ""}`;
   const eyebrow = verb === "cancelled" ? "Cancelled" : verb === "moved" ? "Schedule change" : "Call sheet";
+  // The same one-click switch the List-Unsubscribe header points at
+  // (email_schedule), now also in the footer like mentions and replies.
+  const unsub = d.unsubscribeToken ? unsubUrl(d.unsubscribeToken, "email_schedule") : undefined;
   return {
     subject,
     html: renderEmail({
@@ -1090,6 +1069,7 @@ function scheduleUpdateTpl(d: ScheduleUpdateData): RenderedEmail {
       headline: d.title,
       subtitle: `${d.body || ""}${d.body ? " · " : ""}${d.productionName}`.trim(),
       cta: { label: verb === "cancelled" ? "Open the schedule" : "Open the day", url },
+      unsubscribeUrl: unsub,
     }),
     text: plain([
       "CLUSTERS",
@@ -1100,6 +1080,7 @@ function scheduleUpdateTpl(d: ScheduleUpdateData): RenderedEmail {
       "",
       "Open: " + url,
       "",
+      unsub ? "Turn these emails off: " + unsub : "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
   };
@@ -1570,7 +1551,7 @@ function whatsNew(d: WhatsNewData): RenderedEmail {
           noteList(items) +
           (ownImg ? noteP(yours) + ownImg : noteP(yours)) +
           noteBtn(cta, url) +
-          noteP("talk soon, the clusters team"),
+          signoff(["talk soon, the clusters team"]),
         unsubscribeUrl: unsub,
       }),
       text:
@@ -1601,7 +1582,7 @@ Unsubscribe: ${unsub}`,
         noteList(items) +
         (ownImg ? noteP(yours) + ownImg : noteP(yours)) +
         noteBtn(cta, url) +
-        noteP("talk soon, the clusters team"),
+        signoff(["talk soon, the clusters team"]),
       unsubscribeUrl: unsub,
     }),
     text:
@@ -1677,18 +1658,26 @@ function productUpdateUrl(d: ProductUpdateData): string {
   return `${APP_ORIGIN}${path}?${new URLSearchParams(tags).toString()}${frag}`;
 }
 
-function productUpdateItemHtml(it: ProductUpdateItem): string {
-  const body = typeof it === "string"
-    ? escapeHtml(it)
-    : `<strong style="font-weight:600;">${escapeHtml(it.lead)}</strong> ${escapeHtml(it.text)}`;
-  return `<tr><td style="padding:0 0 9px; font:400 15px/1.6 ${NOTE_FONT}; color:#1a1a1a;"><span style="color:#8a8780;">&middot;</span>&nbsp;&nbsp;${body}</td></tr>`;
-}
-
 function productUpdateItemText(it: ProductUpdateItem): string {
   return typeof it === "string" ? `· ${it}` : `· ${it.lead} ${it.text}`;
 }
 
+// The current look of the product_update note, built from the same pieces as
+// every other note. An edition listed in legacyNote.ts keeps its old look.
+const NOTE_KIT: ProductUpdateKit = {
+  p: noteP,
+  img: noteImg,
+  items: (items) => items.length
+    ? list(items.map((it) => typeof it === "string" ? it : { lead: it.lead, text: it.text }))
+    : "",
+  btn: noteBtn,
+  signoff: (lines) => signoff(lines),
+  shell: ({ preheader, bodyHtml, unsubscribeUrl }) =>
+    renderPlainNote({ preheader, bodyHtml, unsubscribeUrl }),
+};
+
 function productUpdate(d: ProductUpdateData): RenderedEmail {
+  const kit = isLegacyLookEdition(d.version) ? LEGACY_KIT : NOTE_KIT;
   const url = productUpdateUrl(d);
   const unsub = unsubUrl(d.unsubscribeToken);
   const items = d.items.slice(0, PRODUCT_UPDATE_MAX_ITEMS);
@@ -1696,31 +1685,31 @@ function productUpdate(d: ProductUpdateData): RenderedEmail {
 
   const html: string[] = [];
   const text: string[] = [];
-  const para = (s?: string) => { if (s) { html.push(noteP(s)); text.push(s); } };
+  const para = (s?: string) => { if (s) { html.push(kit.p(s)); text.push(s); } };
   para(d.greeting);
   para(d.intro);
   // One screenshot at most, from the app's own /email/ folder as whats_new's,
   // opening what the button opens. The text part has none.
   if (d.imageUrl && d.imageUrl.startsWith(EMAIL_ASSET_PREFIX)) {
-    html.push(noteImg(d.imageUrl, d.imageAlt || "What's new in Clusters", url));
+    html.push(kit.img(d.imageUrl, d.imageAlt || "What's new in Clusters", url));
   }
   if (items.length) {
-    html.push(`<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 18px;">${items.map(productUpdateItemHtml).join("")}</table>`);
+    html.push(kit.items(items));
     text.push(items.map(productUpdateItemText).join("\n"));
   }
   para(d.outro);
-  if (cta) { html.push(noteBtn(cta, url)); text.push(`${cta}: ${url}`); }
+  if (cta) { html.push(kit.btn(cta, url)); text.push(`${cta}: ${url}`); }
   // The sign-off may be two lines (a name over a title or the product): one
   // paragraph, the lines joined by <br>, each escaped on its own.
   if (d.signoff) {
     const lines = d.signoff.split("\n");
-    html.push(noteP(lines[0]).replace(/<\/p>$/, lines.slice(1).map((l) => `<br>${escapeHtml(l)}`).join("") + "</p>"));
+    html.push(kit.signoff(lines));
     text.push(lines.join("\n"));
   }
 
   return {
     subject: d.subject,
-    html: renderPlainNote({ preheader: d.preheader || "", bodyHtml: html.join(""), unsubscribeUrl: unsub }),
+    html: kit.shell({ preheader: d.preheader || "", bodyHtml: html.join(""), unsubscribeUrl: unsub }),
     text: `${text.join("\n\n")}\n\n${POSTAL_ADDRESS}\nUnsubscribe: ${unsub}`,
   };
 }
@@ -2007,7 +1996,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         body:           data.body != null ? (safeLabel(data.body, 140) || undefined) : undefined,
         productionName: safeLabel(data.productionName, 60, "Your schedule"),
         version:        data.version != null ? String(data.version) : undefined,
-        unsubscribeToken: data.unsubscribeToken != null ? String(data.unsubscribeToken) : undefined,
+        unsubscribeToken: unsubTokenOf(data.unsubscribeToken),
         workspaceId:    data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:        data.boardId != null ? String(data.boardId) : undefined,
       });

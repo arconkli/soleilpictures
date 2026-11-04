@@ -219,7 +219,8 @@ const { renderTemplate } = await import('../../../supabase/functions/_shared/ema
 const TOKEN = 'a'.repeat(64);
 const hex32 = (c) => c.repeat(32);
 const cardUrl = (id, s = hex32('a')) => `https://clusters.soleilpictures.com/api/email-card/${BOARD}/${id}?s=${s}`;
-const imgs = (html) => html.match(/<img\b/g) ?? [];
+// The brand mark above the card is not content.
+const imgs = (html) => (html.match(/<img\b[^>]*>/g) ?? []).filter((t) => !t.includes('/email/mark-dark-84.png'));
 const tiles = (html) => html.match(/<td width="25%"/g) ?? [];
 const render = (name, data) => renderTemplate(name, { unsubscribeToken: TOKEN, boardName: 'Trip ideas', ...data });
 
@@ -238,8 +239,10 @@ test('activate_nudge_1 with things: subject, two sized pictures, a note tile, co
   assert.equal(imgs(r.html).length, 2);
   assert.ok(r.html.includes(cardUrl('img-1-2')));
   assert.ok(r.html.includes(cardUrl('img-2-3', hex32('b'))));
-  assert.ok(r.html.includes('width="87" height="130"'), 'tall picture');
-  assert.ok(r.html.includes('width="100" height="56"'), 'wide picture');
+  // 800x1200 fitted into 110x136: the width rounds down (90, not 91) so the
+  // picture, drawn at height:auto, is 135px and never taller than its box.
+  assert.ok(r.html.includes('width="90" height="136"'), 'tall picture');
+  assert.ok(r.html.includes('width="110" height="62"'), 'wide picture');
   assert.ok(r.html.includes('Packing list'));
   assert.ok(r.text.includes(`here's what you've put on "Trip ideas" so far: 2 photos and a note.`));
   assert.ok(r.html.includes('the 3 things you added are saved.'));

@@ -2,7 +2,11 @@
 <!--
   Soleil Clusters — Magic Link / OTP email template (dark, brand-true).
 
-  Paste into Supabase Dashboard → Authentication → Emails → "Magic link".
+  GENERATED. The look comes from supabase/functions/_shared/email/theme.ts;
+  regenerate with `node scripts/gen-magic-link.mjs` from boards/. Do not edit
+  this file by hand. After changing it, paste the file into Supabase Dashboard
+  → Authentication → Emails → "Magic link".
+
   Subject (the Dashboard's subject field):
       {{ .Token }} is your Clusters sign-in code
   The code in the subject shows on a phone's lock screen and in the inbox
@@ -15,124 +19,85 @@
   app remembers the code step for the same hour (boards/src/lib/pendingCode.js).
   Asking for a new code kills the one before it, so the body says so.
 
-  Token renders via {{ .Token }}. We do NOT include {{ .ConfirmationURL }}
+  Token renders via {{ .Token }}. We do NOT include the ConfirmationURL field
   on purpose — disposable / corporate email scanners prefetch links and
   consume one-time tokens, blowing up the OTP flow.
-
-  Matches the app's website: near-black bg (#0a0a0c), soleil gold (#ffa500)
-  accents, no big white card — floating wordmark + headline + a single
-  gold-tinted code tile.
 -->
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="color-scheme" content="dark only">
-    <meta name="supported-color-schemes" content="dark only">
-    <title>Your Clusters sign-in code</title>
-    <style>
-      /* Block Gmail / Outlook.com from auto-inverting our dark email. */
-      :root { color-scheme: dark; supported-color-schemes: dark; }
-      [data-ogsc] body, [data-ogsb] body { background:#0a0a0c !important; }
-      [data-ogsc] .ink-0  { color:#f5f5f7 !important; }
-      [data-ogsc] .ink-2  { color:#b3b3b7 !important; }
-      [data-ogsc] .ink-3  { color:#8a8a8e !important; }
-      [data-ogsc] .gold   { color:#ffa500 !important; }
-      .preheader { display:none !important; visibility:hidden; opacity:0; color:transparent; height:0; width:0; }
-    </style>
-  </head>
-  <body class="bg" style="margin:0; padding:0; background:#0a0a0c; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#f5f5f7; -webkit-font-smoothing:antialiased;">
-    <span class="preheader">Your Clusters sign-in code: {{ .Token }}</span>
-
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#0a0a0c;">
-      <tr>
-        <td align="center" style="padding:64px 20px;">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:440px;">
-
-            <!-- Wordmark: cluster mark + CLUSTERS, centered, white -->
-            <tr>
-              <td align="center" style="padding-bottom:48px;">
-                <table role="presentation" cellspacing="0" cellpadding="0" border="0">
-                  <tr>
-                    <td valign="middle" style="padding-right:12px;">
-                      <img
-                        src="https://clusters.soleilpictures.com/clusters-logo-dark.png"
-                        width="36" height="36" alt=""
-                        style="display:block; border:0; outline:none; width:36px; height:36px;">
-                    </td>
-                    <td valign="middle">
-                      <div class="ink-0" style="font:700 22px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; letter-spacing:0.18em; text-transform:uppercase; color:#f5f5f7;">
-                        Clusters
-                      </div>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-
-            <!-- Gold eyebrow -->
-            <tr>
-              <td align="center" style="padding-bottom:14px;">
-                <div class="gold" style="font:600 11px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; letter-spacing:0.20em; text-transform:uppercase; color:#ffa500;">
-                  Sign-in code
-                </div>
-              </td>
-            </tr>
-
-            <!-- Big headline -->
-            <tr>
-              <td align="center" style="padding-bottom:14px;">
-                <div class="ink-0" style="font:600 26px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#f5f5f7; letter-spacing:-0.01em;">
-                  Here's your code.
-                </div>
-              </td>
-            </tr>
-
-            <!-- Subtitle -->
-            <tr>
-              <td align="center" style="padding-bottom:28px;">
-                <div class="ink-2" style="font:400 14px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#b3b3b7;">
-                  Enter this 6-digit code on the sign-in screen.<br>It works for an hour. Asked for more than one? Only the newest works.
-                </div>
-              </td>
-            </tr>
-
-            <!-- Code tile — the only bordered element, soleil-glow vibe -->
-            <tr>
-              <td align="center" style="padding-bottom:28px;">
-                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto;">
-                  <tr>
-                    <td align="center" style="background:rgba(255,165,0,0.06); border:1px solid rgba(255,165,0,0.35); border-radius:12px; padding:24px 32px;">
-                      <div class="ink-0" style="font:700 34px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; letter-spacing:0.5em; color:#f5f5f7; padding-left:0.5em;">
-                        {{ .Token }}
-                      </div>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-
-            <!-- Quiet caveat -->
-            <tr>
-              <td align="center" style="padding-bottom:8px;">
-                <div class="ink-3" style="font:400 12px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#8a8a8e;">
-                  Didn't request this? You can safely ignore this email.
-                </div>
-              </td>
-            </tr>
-
-            <!-- Footer — matches the in-app © Soleil Pictures footer -->
-            <tr>
-              <td align="center" style="padding-top:40px;">
-                <div class="ink-3" style="font:400 11px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#8a8a8e; letter-spacing:0.04em;">
-                  © Soleil Pictures · clusters.soleilpictures.com
-                </div>
-              </td>
-            </tr>
-
-          </table>
-        </td>
-      </tr>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="dark only">
+<meta name="supported-color-schemes" content="dark only">
+<title>Your Clusters sign-in code</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
+<style>
+  body { margin:0; padding:0; }
+  h1 { margin:0; }
+  @media (max-width: 480px) {
+    .outer { padding:28px 16px 36px !important; }
+    .cardpad { padding:28px 22px 26px !important; }
+    .h1 { font-size:24px !important; }
+    .ttxt { font-size:11px !important; max-height:45px !important; }
+    .tpad { padding:7px !important; }
+    .tbox { height:82px !important; }
+    .pimg { width:auto !important; max-width:100% !important; height:auto !important; max-height:80px !important; }
+  }
+</style>
+<!-- Three style blocks on purpose: Gmail drops a whole block it does not
+     accept, so the phone rules above never share one with :root or the
+     attribute selectors below. -->
+<style>
+  :root { color-scheme: dark; supported-color-schemes: dark; }
+</style>
+<style>
+  /* Dark-mode hardening. Outlook.com and the Outlook apps mark what their dark
+     mode recoloured with data-ogsc (text) / data-ogsb (backgrounds); these put
+     back our own colours, so the white button stays white. Nothing else is
+     added on purpose: Gmail ignores color-scheme, and the background-image and
+     blend-mode tricks for Gmail iOS can protect a background while its text is
+     still inverted, which is worse than Gmail's own consistent inversion. */
+  [data-ogsc] .ink0 { color:#f5f5f7 !important; }
+  [data-ogsc] .ink1 { color:#d0d0d4 !important; }
+  [data-ogsc] .ink2 { color:#a0a0a8 !important; }
+  [data-ogsc] .ink3 { color:#80808a !important; }
+  [data-ogsc] .btnt { color:#0a0a0c !important; }
+  [data-ogsc] .avatar { color:#d0d0d4 !important; }
+  [data-ogsb] .bg { background:#0a0a0c !important; }
+  [data-ogsb] .card { background:#121215 !important; }
+  [data-ogsb] .panel { background:#1a1a1e !important; }
+  [data-ogsb] .btn { background:#f5f5f7 !important; }
+  [data-ogsb] .avatar { background:#2a2a30 !important; }
+</style>
+</head>
+<body class="bg" bgcolor="#0a0a0c" style="margin:0;padding:0;background:#0a0a0c;-webkit-font-smoothing:antialiased;">
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Your Clusters sign-in code: {{ .Token }}&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="bg" bgcolor="#0a0a0c" style="background:#0a0a0c;">
+  <tr><td align="center" class="outer" style="padding:44px 20px 48px;">
+    <!--[if mso]><table role="presentation" width="560" align="center" cellspacing="0" cellpadding="0" border="0"><tr><td><![endif]-->
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;">
+      <tr><td align="center" style="padding:0 0 24px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto;"><tr>
+          <td valign="middle" style="padding-right:10px;"><img src="https://clusters.soleilpictures.com/email/mark-dark-84.png" width="28" height="28" alt="" style="display:block;width:28px;height:28px;border:0;"></td>
+          <td valign="middle"><span class="ink0" style="font:700 13px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:0.2em;text-transform:uppercase;color:#f5f5f7;">Clusters</span></td>
+        </tr></table>
+      </td></tr>
+      <tr><td class="card cardpad" bgcolor="#121215" style="background:#121215;border:1px solid #222227;border-radius:16px;padding:40px 40px 36px;">
+        <div class="ink2" style="margin:0 0 12px;font:600 11px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:0.16em;text-transform:uppercase;color:#a0a0a8;text-align:center;">Sign-in code</div>
+        <h1 class="ink0 h1" style="margin:0 0 12px;font:700 28px/1.22 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:-0.02em;color:#f5f5f7;text-align:center;">Here&#39;s your code.</h1>
+        <p class="ink1" style="margin:0 0 28px;font:400 16px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#d0d0d4;text-align:center;">Enter this 6-digit code on the sign-in screen.</p>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 16px;"><tr><td class="panel" align="center" style="background:#1a1a1e;border-radius:12px;padding:22px 12px;">
+        <span class="ink0" style="font:600 34px/1 ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;letter-spacing:0.32em;color:#f5f5f7;padding-left:0.32em;">{{ .Token }}</span>
+      </td></tr></table>
+        <p class="ink2" style="margin:20px 0 0;font:400 13px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#a0a0a8;text-align:center;">It works for an hour. Asked for more than one? Only the newest works. Didn&#39;t request this? You can safely ignore this email.</p>
+      </td></tr>
+      <tr><td align="center" style="padding:24px 8px 0;">
+    <div class="ink3" style="font:400 12px/1.7 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#80808a;text-align:center;">Clusters by Soleil Pictures · <a class="ink3" href="https://clusters.soleilpictures.com/" style="color:#80808a;text-decoration:underline;">clusters.soleilpictures.com</a></div>
+  </td></tr>
     </table>
-  </body>
+    <!--[if mso]></td></tr></table><![endif]-->
+  </td></tr>
+</table>
+</body>
 </html>
