@@ -223,7 +223,7 @@ const PAGES = [
       { q: 'What happens when my drive is full?', a: 'Nothing you have made is removed or locked. A drop that would not fit is caught before anything uploads, so you can add the part that fits. The rest waits in that browser tab and goes on by itself when you upgrade or add storage — or press Upload now after deleting something to make room. Closing the tab lets the waiting files go; they are still on your computer.' },
       { q: 'Can I share a mood board without making people sign up?', a: 'Yes. Every board can be shared with a single public link that opens a clean, interactive read-only preview — no account required for viewers.' },
       { q: 'Do I need to install anything?', a: 'No. Clusters runs in your browser; on a phone or tablet it can be added to the home screen as a web app. There is nothing to download to get started, and no store app yet.' },
-          { q: 'Can an AI assistant make the board for me?', a: 'Yes. Connect Claude or any MCP client with one URL and ask. It creates the cluster, brings in references from links you give it, and arranges them as justified rows or masonry. It works with your own images rather than generating them — see the AI mood board maker page.' },
+          { q: 'Can an AI assistant make the board for me?', a: 'Yes. Connect Claude, ChatGPT, Cursor, VS Code or any other MCP app with one URL and ask. Anyone can try it from Claude or ChatGPT with no account. It creates the cluster, brings in references from links you give it, and arranges them as justified rows or masonry. It works with your own images rather than generating them — see the AI mood board maker page.' },
 ],
     related: ['/tools/storyboard-maker', '/tools/look-book-maker', '/best/mood-board-apps', '/vs/milanote', '/vs/pureref', '/use-cases', '/tools/ai-mood-board-maker'],
   },
@@ -256,7 +256,7 @@ const PAGES = [
     subhead:
       'Point Claude at your clusters and ask. It builds the board, brings in the references, and lays them out.',
     answer:
-      'Soleil Clusters connects to Claude and any other MCP client, so you can ask an assistant to build a mood board for you. It creates the board, pulls in images from links you give it, and lays them out as justified rows or masonry. It arranges your own references rather than generating pictures, and reaches only what your account reaches.',
+      'Soleil Clusters connects to Claude, ChatGPT, Cursor, VS Code and other MCP apps, and anyone can try it from Claude or ChatGPT with no account. Ask an assistant and it creates the board, pulls in images from links you give it, and lays them out. It arranges your own references rather than generating pictures.',
     updated: '2026-08-10',
     cta: { label: 'Connect your assistant — free', sub: 'One URL. Approve it in the browser. No token to paste.' },
     stepsHeading: 'How to build a mood board with your assistant',
@@ -306,7 +306,7 @@ const PAGES = [
     ],
     faq: [
       { q: 'Does it generate images with AI?', a: 'No. It works with references you already have, or that you point it at with a link. It builds and arranges the board; it does not invent pictures. For reference work that is the right way round — a board full of images nobody can actually shoot is not much use on the day.' },
-      { q: 'Which assistants work with it?', a: 'Claude, and any other client that speaks the Model Context Protocol. The hosted server is a URL, so anything that can add a remote MCP connector can use it. There is also an npm package, soleil-clusters-mcp, for clients that need to read files off your own machine.' },
+      { q: 'Which assistants work with it?', a: 'Claude, ChatGPT, Cursor, VS Code and any other app that speaks the Model Context Protocol. Anyone can try it from Claude or ChatGPT with no account: the assistant builds a draft and you keep it with a link. The hosted server is a URL, so anything that can add a remote MCP connector can use it. There is also an npm package, soleil-clusters-mcp, for clients that need to read files off your own machine.' },
       { q: 'Do I need to be a developer?', a: 'No. You add one URL to your assistant and press Allow in the browser. There is no key to generate and nothing to paste into a configuration file.' },
       { q: 'Can the assistant delete my work?', a: 'Only if you let it. Deleting is a separate permission from writing and is not granted by default, so an assistant can build boards without being able to remove anything. You can disconnect it at any time under Settings → API, which stops it working immediately.' },
       { q: 'Can it see all of my boards?', a: 'It sees exactly what your account sees — no more. It runs as you, under the same database permissions as your browser session, so a cluster you cannot open is one it cannot open either.' },
@@ -1156,7 +1156,7 @@ const PAGES = [
       { q: 'Is there a free Milanote alternative without item caps?', a: `Both free tiers cap items, so the honest answer is what the cap is made of. Milanote’s free plan also spends a budget of 10 file uploads that never resets; Soleil Clusters limits files by storage (${FREE_STORAGE_LABEL}), not by a count of uploads, has no trial clock, and Creator ($25/mo, flat) removes the card cap entirely. If you need genuinely uncapped, Obsidian Canvas keeps boards as local files.` },
       { q: 'What do filmmakers use instead of Milanote?', a: 'Many use Clusters, because pre-production is connected there: the mood board links to the storyboard and the shot list as one project, with screenplay mode built in — and the whole crew edits the same boards in real time.' },
       { q: 'Milanote vs Canva — and where does Clusters fit?', a: 'Canva is a template-driven graphics editor, strongest when the goal is a finished design. Milanote is a board app for planning and collecting ideas. Clusters covers that planning ground for production teams — a real-time multiplayer canvas that takes any file at any size, where the finished board shares with one link a client can open without an account.' },
-          { q: 'Can I drive it from an AI assistant?', a: 'Clusters connects to Claude and any other MCP client with a single URL, so you can ask an assistant to build a board, import references and arrange them. No Milanote server is listed in the official Model Context Protocol registry at the time of writing. Clusters works with the images you already have — it does not generate them.' },
+          { q: 'Can I drive it from an AI assistant?', a: 'Clusters connects to Claude, ChatGPT, Cursor, VS Code and other MCP apps with a single URL (anyone can try it from Claude or ChatGPT with no account), so you can ask an assistant to build a board, import references and arrange them. No Milanote server is listed in the official Model Context Protocol registry at the time of writing. Clusters works with the images you already have — it does not generate them.' },
 ],
     siblingListicle: { path: '/best/milanote-alternatives', label: 'See all 12 Milanote alternatives, ranked by a film studio.' },
     related: ['/best/milanote-alternatives', '/tools/mood-board-maker', '/tools/storyboard-maker', '/tools/shot-list-maker', '/tools/production-design-mood-board', '/vs/pureref', '/vs/miro', '/use-cases', '/tools/ai-mood-board-maker', '/vs/storyflow'],
@@ -1576,7 +1576,7 @@ const PAGES = [
       },
       {
         heading: 'Something PureRef cannot do at all',
-        body: 'PureRef is a local window on one machine. There is no API and nothing for an assistant to talk to, so a reference board built there is a board only you can touch. Clusters connects to Claude and other MCP clients: you can ask an assistant to pull a set of references, build the board and arrange it, then open the result and take over by hand. The images are still yours — it collects and arranges, it does not invent pictures.',
+        body: 'PureRef is a local window on one machine. There is no API and nothing for an assistant to talk to, so a reference board built there is a board only you can touch. Clusters connects to Claude, ChatGPT, Cursor, VS Code and other MCP apps, and anyone can try it from Claude or ChatGPT with no account: you can ask an assistant to pull a set of references, build the board and arrange it, then open the result and take over by hand. The images are still yours — it collects and arranges, it does not invent pictures.',
         bullets: [
           'Ask an assistant to gather and lay out a reference board',
           'Connect with a URL — nothing to install, no key to paste',
@@ -1620,7 +1620,7 @@ const PAGES = [
       { q: 'Does Clusters work offline like PureRef?', a: 'Clusters is a cloud, browser-based workspace, so it is not a fully-offline desktop window the way PureRef is. In exchange you get sharing, collaboration, and cross-device sync.' },
       { q: 'Can I put more than images on a Clusters board?', a: 'Yes — images, notes, links, video, PDFs, docs, and color palettes all live on the same canvas, with non-destructive image adjustments built in.' },
       { q: 'Is Clusters free?', a: `Yes, the Demo tier is free with no credit card. Creator ($25/mo) adds unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.` },
-          { q: 'Can an AI assistant work with my reference board?', a: 'In Clusters, yes — connect Claude or any MCP client with one URL and ask it to build or tidy a board. PureRef is an offline desktop app with no API, so there is nothing for an assistant to connect to. Clusters arranges the references you already have rather than generating images.' },
+          { q: 'Can an AI assistant work with my reference board?', a: 'In Clusters, yes — connect Claude, ChatGPT, Cursor, VS Code or any other MCP app with one URL and ask (anyone can try it from Claude or ChatGPT with no account) it to build or tidy a board. PureRef is an offline desktop app with no API, so there is nothing for an assistant to connect to. Clusters arranges the references you already have rather than generating images.' },
 ],
     siblingListicle: { path: '/best/pureref-alternatives', label: 'See all 10 PureRef alternatives, ranked by a film studio.' },
     related: ['/best/pureref-alternatives', '/tools/reference-board-maker', '/tools/shared-reference-board', '/tools/mood-board-maker', '/tools/free-mood-board-maker', '/vs/milanote', '/use-cases', '/tools/ai-mood-board-maker'],

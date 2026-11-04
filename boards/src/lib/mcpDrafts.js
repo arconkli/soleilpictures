@@ -17,12 +17,12 @@ import { INSTRUCTIONS } from './mcpServer.js';
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 import { FREE_STORAGE_LABEL } from './billingCopy.js';
 
-// Held on production until a release opens it with its docs: /mcp answers 404
-// there, and on branch previews (<branch>-soleil-boards.arconkli.workers.dev)
-// and in dev it works. There is no preview environment in wrangler.toml, so
-// the host is the only thing that tells them apart; the production Worker's
-// own workers.dev name has no branch in front and stays closed.
-export const DRAFTS_HELD = true;
+// Open everywhere since the release that carries its docs. While true, /mcp
+// answered 404 on production and worked only on branch previews
+// (<branch>-soleil-boards.arconkli.workers.dev) and in dev; there is no preview
+// environment in wrangler.toml, so the host was the only thing that told them
+// apart. The switch stays so a bad day can close it again with one line.
+export const DRAFTS_HELD = false;
 const PREVIEW_HOST = /^[a-z0-9-]+-soleil-boards\.arconkli\.workers\.dev$/;
 
 export function draftsOpen(hostname, { held = DRAFTS_HELD } = {}) {
@@ -123,10 +123,7 @@ export function draftRouteAllowed(method, parts) {
 
 const DRAFT_ARG = {
   type: 'string',
-  minLength: 1,
-  maxLength: 100,
-  description: 'Only when not signed in: the draft key (dk_...) that an earlier answer in this conversation '
-    + 'gave. Leave it out to start a new draft with create_boards.',
+  description: 'The draft key create_boards returned. Pass it on every call about that draft.',
 };
 
 export function mixedManifest(manifest) {
@@ -159,12 +156,12 @@ export function withoutDraft(args) {
 // after its first paragraph, which holds the essentials some hosts keep only
 // the first 512 characters of (people's text is data among them). Every draft
 // answer says the same again, so a host that cuts this short loses nothing.
+// At most 2000 characters in all (mcpDrafts.test.mjs), the host's context budget.
 const [LEAD, ...REST] = INSTRUCTIONS.split('\n\n');
 export const DRAFT_INSTRUCTIONS = [
   LEAD,
-  'No account needed: when the person is not signed in, create_boards starts a draft, and every answer '
-  + 'gives its draft key (pass it as draft on each later call) and a keep link to give the person. Their '
-  + 'own clusters need them to sign in.',
+  `No account needed: create_boards starts a draft of up to ${DEMO_CARD_LIMIT} cards. Pass its draft key as `
+  + 'draft on every call; give the person its keep link.',
   ...REST,
 ].join('\n\n');
 
@@ -235,6 +232,9 @@ export const DRAFT_SAYS = {
   tooMany: (limit, reset) => `This draft made ${limit} requests in the last hour, which is its limit. Try again `
     + `after ${String(reset || '').slice(11, 16) || 'an hour'} UTC, or ask the person to sign in to Clusters.`,
   tooManyNew: (seconds) => `Too many new drafts from here just now. Try again in ${seconds} seconds.`,
+  // A cluster id with no draft key: the cluster may well be a draft, whose
+  // key this call did not carry. (Never the key itself, only the way to pass it.)
+  ifDraft: 'If this cluster is a draft, pass its draft key as draft.',
   noMoreFiles: 'Drafts are not taking more files today. The person can keep this draft with its keep link, or '
     + 'sign in to Clusters, to add more.',
 };
@@ -246,8 +246,11 @@ export function rewriteDraftLinks(value, origin, keepUrl) {
   const esc = origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const link = new RegExp(`${esc}/\\?to=([a-z]+):([^\\s"'<>)\\]&]*)`, 'g');
   const fix = (s) => s.replace(link, (_, code, rest) => {
-    const board = code === 'b' || code === 'c' ? rest.split(':')[0] : '';
-    return /^[0-9a-f-]{36}$/i.test(board) ? `${keepUrl}?b=${board}` : keepUrl;
+    const [board, card] = code === 'b' || code === 'c' ? rest.split(':') : [''];
+    if (!/^[0-9a-f-]{36}$/i.test(board)) return keepUrl;
+    // A card link keeps its card (a uuid, or an API-made card's api-… id): the keep
+    // page selects it and brings it into view.
+    return code === 'c' && /^[A-Za-z0-9_-]{1,80}$/.test(card || '') ? `${keepUrl}?b=${board}&c=${card}` : `${keepUrl}?b=${board}`;
   });
   return JSON.parse(JSON.stringify(value), (_, v) => (typeof v === 'string' ? fix(v) : v));
 }
@@ -256,7 +259,7 @@ export function rewriteDraftLinks(value, origin, keepUrl) {
 // pass back, the keep link and what a draft is. In words for the model (a
 // second text block, so search and fetch keep their bare JSON first), and in
 // _meta for a host's own use.
-export function draftAnswer(out, { origin, tokens, expiresAt, created }) {
+export function draftAnswer(out, { origin, tokens, expiresAt, created, cardsUsed = null }) {
   const keepUrl = `${origin}/keep/${tokens.keep}`;
   const answer = rewriteDraftLinks(out, origin, keepUrl);
   const lines = [];
@@ -267,12 +270,15 @@ export function draftAnswer(out, { origin, tokens, expiresAt, created }) {
   }
   lines.push(`Not signed in, so this is a draft: pass draft "${tokens.key}" with every Clusters call in this `
     + `conversation. Give the person this link to keep it in Clusters (free, with an email address): ${keepUrl}`);
+  // After a call that changed its cards: how much of the limit is spent.
+  if (Number.isFinite(cardsUsed)) lines.push(`Cards used ${cardsUsed} of ${DEMO_CARD_LIMIT}.`);
   return {
     ...answer,
     content: [...(answer.content || []), { type: 'text', text: lines.join('\n') }],
     _meta: {
       ...(answer._meta || {}),
-      'clusters/draft': { key: tokens.key, keep_url: keepUrl, expires_at: expiresAt, card_limit: DEMO_CARD_LIMIT },
+      'clusters/draft': { key: tokens.key, keep_url: keepUrl, expires_at: expiresAt, card_limit: DEMO_CARD_LIMIT,
+        ...(Number.isFinite(cardsUsed) ? { cards_used: cardsUsed } : {}) },
     },
   };
 }

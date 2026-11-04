@@ -218,17 +218,45 @@ test('0320: api_request_log rows outlive their token and user', () => {
 test('0320: api_log_request is a single 10-argument function, service-role only', () => {
   const sql = textOf('0320');
   assert.match(sql, /drop function if exists public\.api_log_request\(uuid, uuid, text, text, integer, integer, uuid, text\);/);
+  assert.match(sql, /revoke all on function public\.api_log_request\(uuid, uuid, text, text, integer, integer, uuid, text, inet, text\)\s+from public, anon, authenticated;/);
+  // 0858 replaced it the same way, with three more optional arguments; it keeps
+  // 0320's where-from columns and its service-role-only grant.
   const def = latestDefinition('api_log_request');
-  assert.ok(def.file.startsWith('0320'));
+  assert.ok(def.file.startsWith('0858'), `the live api_log_request is ${def.file}'s`);
   assert.match(def.body, /p_ip\s+inet default null/);
   assert.match(def.body, /p_ua\s+text default null/);
   assert.match(def.body, /actor_label/);
-  assert.match(sql, /revoke all on function public\.api_log_request\(uuid, uuid, text, text, integer, integer, uuid, text, inet, text\)\s+from public, anon, authenticated;/);
+});
+
+test('0858: api_log_request records failures, still one function, the old call still fits', () => {
+  const sql = textOf('0858');
+  assert.match(sql, /drop function if exists public\.api_log_request\(uuid, uuid, text, text, integer, integer, uuid, text, inet, text\);/);
+  const def = latestDefinition('api_log_request');
+  assert.match(def.body, /p_is_error\s+boolean default false/);
+  assert.match(def.body, /p_error_code\s+text default null/);
+  assert.match(def.body, /p_client\s+text default null/);
+  // Bounded inside, never refused: the checks are 64 and 120.
+  assert.match(def.body, /nullif\(left\(btrim\(p_error_code\), 64\), ''\)/);
+  assert.match(def.body, /nullif\(left\(btrim\(p_client\), 120\), ''\)/);
+  assert.match(sql, /check \(length\(error_code\) <= 64\)/);
+  assert.match(sql, /check \(length\(client\) <= 120\)/);
+  assert.match(sql, /add column if not exists is_error boolean not null default false/);
+  const sig = 'public\\.api_log_request\\(uuid, uuid, text, text, integer, integer, uuid, text, inet, text, boolean, text, text\\)';
+  assert.match(sql, new RegExp(`revoke all on function ${sig}\\s+from public, anon, authenticated;`));
+  assert.match(sql, new RegExp(`grant execute on function ${sig}\\s+to service_role;`));
+  // Every argument the current Worker sends is still a parameter, by name.
+  // The Worker builds them in lib/apiLog.js (apiLogParams) and sends that.
+  const src = readFileSync(new URL('./apiLog.js', import.meta.url), 'utf8');
+  assert.match(readFileSync(new URL('../worker-api.js', import.meta.url), 'utf8'), /scoutRpc\(env, 'api_log_request', logged\)/);
+  const at = src.indexOf('return {\n    p_token_id');
+  const sent = [...src.slice(at).split('\n  };')[0].matchAll(/\b(p_[a-z_]+):/g)].map((m) => m[1]);
+  assert.ok(sent.length >= 13, 'found the Worker\'s call');
+  for (const name of sent) assert.match(def.body, new RegExp(`\\b${name}\\b`), `${name} is a parameter`);
 });
 
 test('worker passes the client IP and user agent to api_log_request', () => {
-  const src = readFileSync(new URL('../worker-api.js', import.meta.url), 'utf8');
-  const call = src.slice(src.indexOf("scoutRpc(env, 'api_log_request'"), src.indexOf("scoutRpc(env, 'api_log_request'") + 600);
+  const src = readFileSync(new URL('./apiLog.js', import.meta.url), 'utf8');
+  const call = src.slice(src.indexOf('p_ip:'), src.indexOf('p_ip:') + 400);
   assert.match(call, /p_ip: request\.headers\.get\('cf-connecting-ip'\) \|\| null/);
   assert.match(call, /p_ua: \(request\.headers\.get\('user-agent'\) \|\| ''\)\.slice\(0, 200\) \|\| null/);
 });

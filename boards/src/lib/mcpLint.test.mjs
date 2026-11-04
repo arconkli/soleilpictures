@@ -184,3 +184,28 @@ test('the server introduces itself with a version and absolute icons', () => {
   assert.ok(SERVER_INFO.title);
   for (const i of SERVER_INFO.icons || []) assert.match(i.src, /^https:\/\//, 'the stdio copy has no origin');
 });
+
+test('only a tool that reaches outside Clusters claims an open world', () => {
+  // import_urls fetches addresses the caller names; share_board makes a link
+  // anyone on the internet can open. Everything else stays inside the account.
+  const open = TOOLS.filter((t) => t.annotations.openWorldHint).map((t) => t.name).sort();
+  assert.deepEqual(open, ['import_urls', 'share_board']);
+});
+
+test('what the hosted surface says never names a tool the hosted surface lacks', () => {
+  const hosted = new Set(HOSTED_TOOLS.map((t) => t.name));
+  const texts = (node, where, out) => {
+    if (!node || typeof node !== 'object') return out;
+    if (typeof node.description === 'string') out.push([where, node.description]);
+    for (const [k, v] of Object.entries(node.properties || {})) texts(v, `${where}.${k}`, out);
+    if (node.items) texts(node.items, `${where}[]`, out);
+    return out;
+  };
+  for (const t of HOSTED_TOOLS) {
+    const m = toolManifest(t);
+    const all = [[t.name, m.description], ...texts(m.inputSchema, `${t.name} in`, []), ...texts(m.outputSchema, `${t.name} out`, [])];
+    for (const [where, text] of all) {
+      for (const [, n] of text.matchAll(TOOL_LIKE)) assert.ok(hosted.has(n), `${where} names ${n}, which the hosted surface lacks`);
+    }
+  }
+});

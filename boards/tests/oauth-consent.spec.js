@@ -98,7 +98,7 @@ test('a new account is told which apps connect today', async ({ page }) => {
   await expect(page.locator('.empty-title')).toHaveText('Not yet for a new account');
   await expect(page.locator('.empty-body')).toHaveText(
     'Connecting an app opens up once an account is three days old. '
-    + 'ChatGPT and Claude can connect straight away. Nothing has been shared.');
+    + 'ChatGPT, Claude and coding apps like Claude Code, Cursor and VS Code can connect straight away. Nothing has been shared.');
 });
 
 test('Switch signs out and keeps the request for whoever signs in next', async ({ page }) => {

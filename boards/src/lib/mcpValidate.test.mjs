@@ -153,7 +153,7 @@ test('a refusal lists at most a handful of problems, under the tool\'s name', ()
 test('an API refusal reads as the API wrote it, with its code', () => {
   const e = apiErrorFrom(402, { error: 'Demo accounts are limited to 50 cards', code: 'limit_reached' });
   assert.ok(e instanceof ApiError);
-  assert.equal(describeApiError(e), 'Demo accounts are limited to 50 cards [limit_reached]');
+  assert.match(describeApiError(e), /^Demo accounts are limited to 50 cards\. Delete .*make room.* \[limit_reached\]$/);
 });
 
 test('a missing scope says what the connection may do and how to get more', () => {

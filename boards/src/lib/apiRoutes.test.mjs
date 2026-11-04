@@ -932,7 +932,7 @@ test('show_board over /mcp draws for the view and tells the model what is there,
     // The first address, which a host may have kept, still opens the page.
     const first = (await mcp('resources/read', { uri: 'ui://clusters/board-v1.html' })).body.result.contents[0];
     assert.equal(first.text, page.text);
-    assert.match(r.content[0].text, /\n\nOpen it in Clusters: https:\/\/clusters\.test\/\?to=b:[^\n]+$/);
+    assert.match(r.content[0].text, /\n\nIf no board view appeared above, give the person this link to open it in Clusters: https:\/\/clusters\.test\/\?to=b:[^\n]+$/);
     assert.ok(Array.isArray(r.structuredContent.outline));
   });
 });

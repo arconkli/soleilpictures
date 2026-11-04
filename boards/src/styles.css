@@ -20567,6 +20567,8 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   font: 400 12px/1.5 var(--font-sans);
   color: var(--ink-2);
 }
+.callout-label { font: 400 12px/1.5 var(--font-sans); color: var(--ink-2); }
+a.settings-btn, .settings-callout a.settings-btn { display: inline-block; text-decoration: none; }
 
 /* Account deletion. Red, because this is the one thing in Settings with no
    undo toast behind it — the convention everywhere else in the app — and the

@@ -2,7 +2,7 @@
 
 > A doc card's pages are read and written as Markdown. GET /boards/:id/cards/:cardId/doc reads every page with a hash of each; POST /boards/:id/docs makes a doc holding up to 50 pages; POST …/doc/pages adds pages; PATCH …/doc/pages/:pageId rewrites, edits or renames one page. A rewrite names the hash the page was read at, so it never erases a change made since, and it keeps every block it didn't change, comments included.
 
-_Source: https://clusters.soleilpictures.com/docs/api/docs · Updated 2026-10-25_
+_Source: https://clusters.soleilpictures.com/docs/api/docs · Updated 2026-11-04_
 
 A [doc](/docs/documents) card holds pages of writing. Over the API you read
 them and write them as Markdown, page by page: the same Markdown the
@@ -50,7 +50,7 @@ A card that is not a doc answers `400`, naming the route that reads it.
 ## `POST /boards/:id/docs`
 
 A new doc card holding the pages you send, placed in free space on the board,
-or at `x` and `y`.
+at `x` and `y`, in a section, or at the top.
 
 ```json
 {
@@ -67,6 +67,9 @@ or at `x` and `y`.
 | `pages` | Required. Up to 50, each `{ title?, markdown }`, with up to 200,000 characters of Markdown between them |
 | `title` | The card's title. Left out, its one page's title, else "Untitled doc" |
 | `x`, `y` | Where the card goes. Left out, it is placed where it covers nothing |
+| `group` | The section it goes in, by name; the board's group of that name, made if it has none |
+| `position` | `"top"` puts it at the top-left, ahead of the sections. Not with `group`, `x` or `y`: sending it with any of them is refused with `400 bad_request` |
+| `w`, `h` | The card's width and height. Left out, 320 by 240 |
 
 A page with no `title` takes the words of its first heading, and a first page
 with neither takes the card's title, as a new doc's first page does in the app.
@@ -84,6 +87,10 @@ Titles are cut at 200 characters.
   "live": true
 }
 ```
+
+When `group` named a section the answer also carries `groups`, the section
+it names with its `id`, and `"created": true` if the call made it, as
+[cards](/docs/api/cards#sections) do.
 
 That is a `201`. The doc counts as one card toward the
 [card cap](/docs/canvas/cards).

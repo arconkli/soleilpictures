@@ -108,12 +108,15 @@ const rpc = (method, params = {}, opts) => post({ jsonrpc: '2.0', id: 1, method,
 const callTool = (name, args, opts = {}) => rpc('tools/call', { name, arguments: args, ...(opts.meta ? { _meta: opts.meta } : {}) }, opts);
 const textOf = (r) => (r.body.result?.content || []).map((c) => c.text).join('\n');
 
-test('held on production: /mcp is not there', async () => {
-  for (const origin of ['https://clusters.soleilpictures.com', 'https://soleil-boards.arconkli.workers.dev']) {
-    const r = await rpc('initialize', { protocolVersion: '2025-11-25' }, { origin });
-    assert.equal(r.status, 404, origin);
-    assert.equal(r.body.code, 'not_found');
-  }
+test('open on production: /mcp answers there, and a browser is still sent to its docs', async () => {
+  const origin = 'https://clusters.soleilpictures.com';
+  const r = await rpc('initialize', { protocolVersion: '2025-11-25' }, { origin });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.result.serverInfo.name, 'soleil-clusters');
+  const page = await handleMcpEndpoint(new URL('/mcp', origin),
+    new Request(`${origin}/mcp`, { headers: { accept: 'text/html,application/xhtml+xml' } }), ENV, null);
+  assert.equal(page.status, 302);
+  assert.equal(page.headers.get('location'), `${origin}/docs/mcp`);
   assert.equal(calls.length, 0);
 });
 
@@ -154,7 +157,8 @@ test('with no draft yet, only create_boards starts one; anything else asks to si
   const write = await callTool('add_cards', { board_id: WS, cards: [{ kind: 'note', body: 'x' }] },
     { meta: { 'openai/subject': SUBJECT } });
   assert.equal(write.body.result.isError, true);
-  assert.equal(write.body.result.content[0].text, DRAFT_SAYS.nothingYet);
+  // It named a cluster with no draft key: say how to pass one.
+  assert.equal(write.body.result.content[0].text, `${DRAFT_SAYS.nothingYet} ${DRAFT_SAYS.ifDraft}`);
   assert.equal(users.size, 0, 'no account was made');
 });
 

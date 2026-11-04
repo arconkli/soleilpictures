@@ -18,11 +18,11 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   TOOLS, ADD_LAYS_OUT_FROM, HOSTED_TOOLS, PROMPTS, SERVER_INFO, RENAMED, RENAMED_PROMPTS, TREE_MAX, PLACE_CHOICES, toolManifest, apiErrorFrom, ApiError,
-  parseFetchId, UNTRUSTED_NOTE, BOARD_VIEW, boardOutline, OUTLINE,
+  parseFetchId, UNTRUSTED_NOTE, BOARD_VIEW, boardOutline, OUTLINE, describeApiError,
 } from './mcpTools.js';
 import {
   handleMcpMessage, handleMcpRequest, headerProblem, decodeHeaderValue,
-  SUPPORTED_PROTOCOL_VERSIONS, META, ERR, INSTRUCTIONS, toolResult, VIEW_URI,
+  SUPPORTED_PROTOCOL_VERSIONS, META, ERR, INSTRUCTIONS, toolResult, VIEW_URI, clusterIdFromRef,
 } from './mcpServer.js';
 import { MCP_APP_HTML, MCP_APP_VERSION } from './mcpAppHtml.generated.js';
 
@@ -151,6 +151,7 @@ test('update_cards can change every field add_cards can set', () => {
   const update = tool('update_cards').inputSchema.properties.cards.items;
   const missing = Object.keys(item.properties).filter((k) => !(k in update.properties));
   assert.deepEqual(missing, [], `update_cards is missing ${missing.join(', ')}`);
+  for (const k of ['mime', 'html']) assert.ok(k in update.properties, `update_cards keeps ${k}`);
   assert.deepEqual(update.properties.kind.enum, item.properties.kind.enum);
   assert.deepEqual(update.required, ['id']);
   assert.equal(update.additionalProperties, false, 'a misspelt field is refused, not dropped');
@@ -193,7 +194,10 @@ test('anything that deletes is marked destructive, and nothing else is', () => {
   // again for anyone holding it: irreversible for other people, so a client
   // should ask first. edit_doc_page can take a page's words away; the board
   // goes to Version history first, but getting them back is done in the app.
-  assert.deepEqual(destructive, ['delete_board', 'delete_cards', 'edit_doc_page', 'unshare_board']);
+  // update_boards and update_cards overwrite what was there (a rename, a new
+  // body), so a client should ask before a batch of them.
+  assert.deepEqual(destructive,
+    ['delete_board', 'delete_cards', 'edit_doc_page', 'unshare_board', 'update_boards', 'update_cards']);
   // And a read-only tool must not also claim to write.
   for (const t of TOOLS) {
     if (t.annotations.readOnlyHint) {
@@ -249,7 +253,7 @@ test('initialize negotiates and advertises only what is implemented', async () =
   // Resources are the inline view's page, which a host reads. Nothing is
   // offered that is never sent: advertising subscriptions with no update to
   // send would leave a client waiting for something that never comes.
-  assert.deepEqual(Object.keys(r.result.capabilities).sort(), ['prompts', 'resources', 'tools']);
+  assert.deepEqual(Object.keys(r.result.capabilities).sort(), ['completions', 'prompts', 'resources', 'tools']);
   assert.deepEqual(r.result.capabilities.resources, {});
   assert.ok(r.result.instructions);
 });
@@ -347,12 +351,94 @@ test('a local-only tool is not callable over the hosted transport', async () => 
 test('prompts list and render with their arguments', async () => {
   const list = await rpc('prompts/list');
   assert.equal(list.result.prompts.length, PROMPTS.length);
-  const got = await rpc('prompts/get', { name: 'review_board', arguments: { board_id: 'b-1' } });
+  const got = await rpc('prompts/get', { name: 'review_board', arguments: { board_id: BOARD_ID } });
   assert.equal(got.result.messages[0].role, 'user');
-  assert.match(got.result.messages[0].content.text, /b-1/);
+  assert.match(got.result.messages[0].content.text, new RegExp(BOARD_ID));
   const brief = await rpc('prompts/get', { name: 'moodboard', arguments: { brief: 'a 70s Tokyo noir' } });
   assert.match(brief.result.messages[0].content.text, /a 70s Tokyo noir/);
   assert.doesNotMatch(brief.result.messages[0].content.text, /workspace undefined|in workspace/);
+});
+
+// A prompt's cluster is an id, a name or an app link; completion offers the
+// caller's own cluster names.
+const CLUSTERS = [
+  { id: BOARD_ID, name: 'Diner at night' },
+  { id: '22222222-2222-4222-8222-222222222222', name: 'Diner interiors' },
+  { id: '33333333-3333-4333-8333-333333333333', name: 'Harbour' },
+];
+const withBoards = (extra = {}) => ({
+  origin: 'https://clusters.test',
+  api: async (path) => {
+    const u = new URL(path, 'https://x');
+    if (u.pathname === '/search') {
+      const q = u.searchParams.get('q').toLowerCase();
+      return { boards: { items: CLUSTERS.filter((b) => b.name.toLowerCase().includes(q)) } };
+    }
+    return { boards: CLUSTERS };
+  },
+  ...extra,
+});
+const promptText = async (args, c) => {
+  const r = (await handleMcpMessage({ jsonrpc: '2.0', id: 1, method: 'prompts/get', params: { name: 'treatment', arguments: args } }, c)).body;
+  return r.result?.messages[0].content.text ?? r.error.message;
+};
+
+test('a prompt takes a cluster by id, by app link, or by name', async () => {
+  const c = withBoards();
+  assert.match(await promptText({ board_id: BOARD_ID }, c), new RegExp(`board ${BOARD_ID}`));
+  assert.match(await promptText({ board_id: `https://clusters.test/?to=b:${BOARD_ID}` }, c), new RegExp(`board ${BOARD_ID}`));
+  assert.match(await promptText({ board_id: `https://clusters.test/app?board=${BOARD_ID}&c=x` }, c), new RegExp(`board ${BOARD_ID}`));
+  assert.match(await promptText({ board_id: 'Harbour' }, c), /board 33333333-3333-4333-8333-333333333333/);
+  assert.match(await promptText({ board_id: 'diner at night' }, c), new RegExp(`board ${BOARD_ID}`));
+  assert.match(await promptText({ board_id: 'Diner' }, c), /more than one cluster matches "Diner"/);
+  assert.match(await promptText({ board_id: 'Nowhere' }, c), /no cluster named "Nowhere"/);
+  const signedOut = withBoards({ api: async () => { throw new ApiError('sign in', { status: 401, code: 'invalid_token' }); } });
+  assert.match(await promptText({ board_id: 'Harbour' }, signedOut), /sign in to Clusters/);
+  assert.match(await promptText({ board_id: BOARD_ID }, signedOut), new RegExp(`board ${BOARD_ID}`), 'an id needs no lookup');
+});
+
+test('completion offers the caller\'s cluster names that start with what was typed, at most 10', async () => {
+  const complete = (value, c = withBoards(), name = 'review_board', argName = 'board_id') =>
+    handleMcpMessage({ jsonrpc: '2.0', id: 1, method: 'completion/complete', params: {
+      ref: { type: 'ref/prompt', name }, argument: { name: argName, value },
+    } }, c).then((r) => r.body.result.completion);
+  assert.deepEqual((await complete('Din')).values, ['Diner at night', 'Diner interiors']);
+  assert.deepEqual((await complete('')).values, ['Diner at night', 'Diner interiors', 'Harbour']);
+  assert.deepEqual((await complete('ner')).values, [], 'a prefix, not a substring');
+  assert.deepEqual((await complete('Din', withBoards(), 'moodboard', 'brief')).values, []);
+  const many = withBoards({ api: async () => ({ boards: Array.from({ length: 30 }, (_, i) => ({ id: String(i), name: `Set ${i}` })) }) });
+  assert.equal((await complete('', many)).values.length, 10);
+  const signedOut = withBoards({ api: async () => { throw new ApiError('sign in', { status: 401 }); } });
+  assert.deepEqual((await complete('Din', signedOut)).values, []);
+  assert.deepEqual(clusterIdFromRef('board:' + BOARD_ID), BOARD_ID);
+  assert.equal(clusterIdFromRef('Harbour'), null);
+  const B = BOARD_ID;
+  assert.equal(clusterIdFromRef(`card:${B}:c-1`), B);
+  assert.equal(clusterIdFromRef(`doc:${B}:c-1:p-2`), B);
+  assert.equal(clusterIdFromRef(`https://clusters.soleilpictures.com/?to=c:${B}:c-1`), B);
+  assert.equal(clusterIdFromRef(`https://clusters.soleilpictures.com/?board=${B}&card=x`), B);
+  assert.equal(clusterIdFromRef(`https://clusters.soleilpictures.com/keep?b=${B}&c=x`), B);
+  assert.equal(clusterIdFromRef(`board:${B.toUpperCase()}`), B, 'upper case comes back lower-case');
+  assert.equal(clusterIdFromRef('https://clusters.soleilpictures.com/keep?b=Harbour'), null);
+});
+
+test('a cluster named in a prompt is never guessed', async () => {
+  const hits = (names) => withBoards({
+    api: async (path) => {
+      assert.match(path, /limit=50/);
+      return { boards: { items: names.map((name, i) => ({ id: `${String(i + 1).padStart(2, '0')}000000-1111-4111-8111-111111111111`, name })) } };
+    },
+  });
+  const fillers = Array.from({ length: 12 }, (_, i) => `Harbour ${i}`);
+  assert.match(await promptText({ board_id: 'Harbour' }, hits([...fillers, 'harbour '])), /board 13000000-1111/,
+    'an exact match past position 10 of the hits is used');
+  assert.match(await promptText({ board_id: 'Quay' }, hits(['Old Quay notes', 'Other'])), /board 01000000-1111/,
+    'the one hit containing the text is used');
+  assert.match(await promptText({ board_id: 'Quay' }, hits(['Pier'])), /no cluster is named "Quay"; the nearest: Pier \(/,
+    'a single unrelated hit is listed, not used');
+  const twice = await promptText({ board_id: 'Pier' }, hits(['Pier', 'pier', 'Pier two']));
+  assert.match(twice, /more than one cluster matches "Pier": Pier \(.*pier \(/);
+  assert.doesNotMatch(twice, /Pier two/, 'only the exact matches are listed');
 });
 
 test('a prompt missing a required argument says which one', async () => {
@@ -380,7 +466,7 @@ test('every prompt names only tools that exist', () => {
 });
 
 test('an unsupported method is method-not-found, not a hang', async () => {
-  const r = await rpc('completion/complete', {});
+  const r = await rpc('sampling/createMessage', {});
   assert.equal(r.error.code, -32601);
 });
 
@@ -389,8 +475,16 @@ test('the one resource is the inline view, read as one page that fetches from th
   assert.equal(list.length, 1);
   assert.equal(list[0].uri, VIEW_URI);
   assert.equal(list[0].mimeType, 'text/html;profile=mcp-app', 'how a host knows it is an app');
-  assert.deepEqual(list[0]._meta.ui.csp, { resourceDomains: ['https://clusters.test'] },
+  assert.deepEqual(list[0]._meta.ui.csp, { connectDomains: [], resourceDomains: ['https://clusters.test'] },
     'its pictures come from the origin that answered, preview or production');
+  assert.deepEqual(list[0].annotations, { audience: ['user'] });
+  // ChatGPT's names for the same view: the description, the origin, and the CSP in snake_case.
+  assert.match(list[0]._meta['openai/widgetDescription'], /cluster/i);
+  assert.equal(list[0]._meta['openai/widgetDomain'], 'https://clusters.test');
+  assert.deepEqual(list[0]._meta['openai/widgetCSP'], {
+    connect_domains: [], resource_domains: ['https://clusters.test'], redirect_domains: ['https://clusters.test'],
+  });
+  assert.equal(list[0]._meta.ui.domain, undefined, 'the spec leaves its format to each host');
   assert.deepEqual((await rpc('resources/templates/list')).result, { resourceTemplates: [] });
 
   const read = (await rpc('resources/read', { uri: VIEW_URI })).result;
@@ -400,7 +494,10 @@ test('the one resource is the inline view, read as one page that fetches from th
   assert.equal(page.mimeType, BOARD_VIEW.mimeType);
   assert.equal(page.text, MCP_APP_HTML);
   assert.match(page.text, /^<!doctype html>/);
-  assert.deepEqual(page._meta.ui, { csp: { resourceDomains: ['https://clusters.test'] }, prefersBorder: false });
+  assert.deepEqual(page._meta.ui, {
+    csp: { connectDomains: [], resourceDomains: ['https://clusters.test'] }, prefersBorder: false,
+  });
+  assert.deepEqual(page._meta['openai/widgetCSP'].resource_domains, ['https://clusters.test']);
 
   // Without an origin (the stdio package always passes one) it names production.
   const bare = await handleMcpMessage({ jsonrpc: '2.0', id: 1, method: 'resources/read', params: { uri: BOARD_VIEW.uri } },
@@ -440,7 +537,12 @@ test('show_board names the view, and hands the view what the model never reads',
     ui: { resourceUri: VIEW_URI },
     'ui/resourceUri': VIEW_URI,
     'openai/outputTemplate': VIEW_URI,
+    'openai/toolInvocation/invoking': 'Drawing the cluster…',
+    'openai/toolInvocation/invoked': 'Cluster drawn',
   });
+  for (const k of ['openai/toolInvocation/invoking', 'openai/toolInvocation/invoked']) {
+    assert.ok(listed._meta[k].length <= 64, k);
+  }
   // No other tool opens the view: a host draws one for every call that names it.
   assert.deepEqual((await rpc('tools/list')).result.tools.filter((t) => t._meta?.ui).map((t) => t.name), ['show_board']);
 
@@ -477,9 +579,9 @@ test('show_board names the view, and hands the view what the model never reads',
   // last, for the model to hand on.
   assert.deepEqual(r.structuredContent.outline, [
     { section: 'Streets', cards: 1, titles: ['Neon at 2am'] },
-    { cards: 2, titles: ['Wet streets, long lenses'] },
+    { cards: 2, titles: ['Wet streets, long lenses', '+1 more'] },
   ]);
-  assert.match(r.content[0].text, /\n\nOpen it in Clusters: https:\/\/clusters\.test\/\?to=b:x$/);
+  assert.match(r.content[0].text, /\n\nIf no board view appeared above, give the person this link to open it in Clusters: https:\/\/clusters\.test\/\?to=b:x$/);
   const [, json] = r.content[0].text.split('\n\n');
   assert.deepEqual(JSON.parse(json), r.structuredContent);
 });
@@ -501,12 +603,14 @@ test('a board\'s outline: its sections in reading order, a few titles each, loos
   });
   assert.deepEqual(outline.map((s) => s.section), ['First', 'Untitled section', 'Later', undefined]);
   assert.equal(outline[0].cards, OUTLINE.titles + 3);
-  assert.equal(outline[0].titles.length, OUTLINE.titles);
+  assert.equal(outline[0].titles.length, OUTLINE.titles + 1);
+  assert.equal(outline[0].titles.at(-1), '+3 more', 'a cut section says how many it left out');
   assert.equal(outline[0].titles[0], 'Two words');
   assert.equal(outline[0].titles[1].length, OUTLINE.titleMax);
   assert.ok(outline[0].titles[1].endsWith('…'));
   assert.deepEqual(outline[1], { section: 'Untitled section', cards: 1, titles: [] });
   assert.deepEqual(outline.at(-1), { cards: 2, titles: ['Loose', 'Its section is gone'] });
+  assert.ok(!outline[2].titles.some((t) => /more$/.test(t)), 'nothing cut, nothing said');
   assert.ok(!('section' in outline.at(-1)));
   const many = boardOutline({
     cards: Array.from({ length: OUTLINE.sections + 3 }, (_, i) => ({ id: `c${i}`, x: 0, y: i, group_id: `g${i}` })),
@@ -538,7 +642,7 @@ test('server/discover is answered — the spec says servers MUST implement it', 
   assert.equal(status, 200);
   assert.deepEqual(body.result.supportedVersions, SUPPORTED_PROTOCOL_VERSIONS);
   assert.equal(body.result.supportedVersions[0], MODERN, 'newest first: it is a preference order');
-  assert.deepEqual(Object.keys(body.result.capabilities).sort(), ['prompts', 'resources', 'tools']);
+  assert.deepEqual(Object.keys(body.result.capabilities).sort(), ['completions', 'prompts', 'resources', 'tools']);
   assert.equal(body.result._meta[META.serverInfo].name, 'soleil-clusters');
   assert.equal(body.result.resultType, 'complete');
   assert.ok(body.result.ttlMs > 0);
@@ -593,10 +697,10 @@ test('a modern request without client capabilities is malformed', async () => {
 });
 
 test('an unknown method is 404 in the modern era and 200 in the legacy one', async () => {
-  const modern = await modernRpc('completion/complete');
+  const modern = await modernRpc('sampling/createMessage');
   assert.equal(modern.status, 404);
   assert.equal(modern.body.error.code, ERR.METHOD_NOT_FOUND);
-  const legacy = await handleMcpMessage({ jsonrpc: '2.0', id: 1, method: 'completion/complete' }, ctx);
+  const legacy = await handleMcpMessage({ jsonrpc: '2.0', id: 1, method: 'sampling/createMessage' }, ctx);
   assert.equal(legacy.status, 200);
   assert.equal(legacy.body.error.code, ERR.METHOD_NOT_FOUND);
 });
@@ -1020,7 +1124,7 @@ test('update_boards moves boards a destination at a time, changes the rest one b
   ], 'a board already under its parent counts as moved, and is still renamed');
   assert.deepEqual(out.failed, [
     { board_id: B(3), error: 'could not move it: cycle [conflict]' },
-    { board_id: B(4), error: 'you cannot rename this board [forbidden]' },
+    { board_id: B(4), error: 'you cannot rename this board. If the cluster is view-only for the person, ask its owner for edit access, or use another cluster. [forbidden]' },
   ]);
   assert.deepEqual(calls.filter((c) => c.p === '/boards/move').map((c) => c.body),
     [{ board_ids: [B(2), B(3)], parent_board_id: P }, { board_ids: [B(5)], parent_board_id: null }]);
@@ -1032,7 +1136,7 @@ test('update_boards: one board refused is that refusal, and an entry must change
   const run = (boards) => tool('update_boards').call({ boards }, { api });
   await assert.rejects(run([{ board_id: BOARD_ID, name: 'Diner' }]), (e) => e instanceof ApiError && e.code === 'forbidden');
   await assert.rejects(run([{ board_id: BOARD_ID, name: 'a' }, { board_id: '11111111-1111-4111-8111-111111111111', name: 'b' }]),
-    /^Error: none of the 2 boards changed: .*you cannot rename this board \[forbidden\]/);
+    /^Error: none of the 2 boards changed: .*you cannot rename this board\. If the cluster is view-only .*\[forbidden\]/);
   await assert.rejects(run([{ board_id: BOARD_ID }]), /say what to change/);
   await assert.rejects(run([{ board_id: BOARD_ID, name: 'a' }, { board_id: BOARD_ID, view: 'list' }]), /listed twice/);
 });
@@ -1269,4 +1373,155 @@ test('add_cards lays out three or more cards wherever the AI put them; one or tw
   assert.equal(sent[0].layout, undefined);
   assert.equal(sent[1].layout, 'auto');
   assert.equal(sent[2].layout, 'grid');
+});
+
+// ── titles, annotations, and what a failure says next ────────────────────────
+
+test('every tool has a short title, on the tool and in its annotations, and says all four hints', () => {
+  for (const t of TOOLS) {
+    const m = toolManifest(t);
+    assert.ok(m.title && m.title.length <= 24, `${t.name}: title "${m.title}"`);
+    assert.equal(m.annotations.title, m.title, `${t.name}: annotations.title matches`);
+    for (const h of ['readOnlyHint', 'destructiveHint', 'idempotentHint', 'openWorldHint']) {
+      assert.equal(typeof m.annotations[h], 'boolean', `${t.name}: say ${h}`);
+    }
+  }
+});
+
+test('deleting twice is the same as deleting once; importing twice makes no second card', () => {
+  // import_urls: each card is stamped with its source URL and a repeat run
+  // updates it (worker-api.js, the import route's on_conflict identifier).
+  const hints = (n) => TOOLS.find((t) => t.name === n).annotations;
+  for (const n of ['delete_cards', 'delete_board', 'import_urls']) assert.equal(hints(n).idempotentHint, true, n);
+  assert.equal(hints('add_cards').idempotentHint, false, 'add_cards adds again');
+});
+
+test('a hint for each failure the API names says what to do next, with no number typed here', () => {
+  const say = (status, code, error) => describeApiError(apiErrorFrom(status, { error, code }));
+  const gone = say(404, 'not_found', 'board not found');
+  assert.match(gone, /^board not found\. Check the id: list_boards or search give current ones\..*draft key.* \[not_found\]$/);
+  const full = say(402, 'limit_reached', 'those cards would take the destination board\'s owner past their limit of 50 cards');
+  assert.match(full, /past their limit of 50 cards\. Delete .*make room.*upgrade in Settings .* \[limit_reached\]$/);
+  assert.doesNotMatch(say(402, 'limit_reached', 'out of space'), /\d/);
+  assert.match(say(403, 'forbidden', 'you cannot write to that board'),
+    /view-only.*ask its owner for edit access.*another cluster\. \[forbidden\]$/);
+  assert.match(say(503, 'room_unavailable', 'the live room is busy'),
+    /busy\. Try again in a few seconds\. \[room_unavailable\]$/);
+  assert.match(say(403, 'forbidden', 'new accounts cannot share this kind of file by link yet'),
+    /lower limits for a while: try again later\. \[forbidden\]$/);
+  assert.equal(say(400, 'bad_request', 'nope'), 'nope [bad_request]', 'a refusal with no advice reads as written');
+});
+
+test('import_urls points at resolve_identifier, not at an endpoint', async () => {
+  const tool = TOOLS.find((t) => t.name === 'import_urls');
+  const api = async () => ({
+    imported: 1,
+    next: 'Re-running this manifest updates the same cards rather than duplicating them — '
+      + 'each carries a "source_url" identifier you can also look up with GET /resolve.',
+  });
+  const out = await tool.call({ board_id: 'b', urls: ['https://x/a.jpg'] }, { api });
+  assert.match(out.next, /look it up with resolve_identifier \(scope source_url\)\.$/);
+  assert.doesNotMatch(out.next, /GET \/resolve/);
+});
+
+// The most tools/list may weigh, measured as JSON.stringify(result).length plus
+// about 3%: it is the host's context budget, spent before a word is said.
+// +150: show_board's two openai/toolInvocation strings.
+// +100: update_cards advertises z and rotation, as add_cards does.
+const LIST_CEILING = { hosted: 44251, stdio: 45100 };
+const listSize = async (tools) => JSON.stringify(
+  (await handleMcpMessage({ jsonrpc: '2.0', id: 1, method: 'tools/list' }, { tools })).body.result).length;
+
+test('the hosted and stdio tool lists stay inside the context budget', async () => {
+  assert.ok(await listSize(HOSTED_TOOLS) <= LIST_CEILING.hosted, 'hosted tools/list grew past its ceiling');
+  assert.ok(await listSize(TOOLS) <= LIST_CEILING.stdio, 'stdio tools/list grew past its ceiling');
+});
+
+// ── Short answers, search's note, import_urls and write_doc ──────────────────
+
+const fullCard = (i, over = {}) => ({
+  id: `api-${i}`, kind: 'note', x: 10.4 * i, y: 20, w: 200, h: 120.6, z: 3,
+  title: `Card ${i}`, body: 'long text '.repeat(40), html: '<p>long html</p>'.repeat(40),
+  url: null, image_key: null, alt: null, color: null, created_at: '2026-11-04T10:00:00Z', updated_at: '2026-11-04T10:00:00Z',
+  ...over,
+});
+const callWith = async (name, args, api) => (await handleMcpMessage(
+  { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name, arguments: args } }, { api })).body.result;
+
+test('add_cards, update_cards and arrange_board answer each card in a line, not whole', async () => {
+  const cards = Array.from({ length: 16 }, (_, i) => fullCard(i, i === 0 ? { kind: 'link', url: 'https://a.test/x', group_id: 'g1' } : {}));
+  const groups = [{ id: 'g1', name: 'Streets' }];
+  const cases = [
+    ['add_cards', { board_id: BOARD_ID, cards: [{ title: 'x' }] }, { board_id: BOARD_ID, cards, groups, created: 16, live: true }],
+    ['update_cards', { board_id: BOARD_ID, cards: [{ id: 'api-0', title: 'x' }] }, { board_id: BOARD_ID, cards, groups, updated: 16, not_found: [] }],
+    ['arrange_board', { board_id: BOARD_ID }, { board_id: BOARD_ID, layout: 'auto', arranged: 16, sections: 1, cards }],
+  ];
+  for (const [name, args, answer] of cases) {
+    const r = await callWith(name, args, async () => answer);
+    assert.equal(r.isError, undefined, name);
+    const sc = r.structuredContent;
+    assert.equal(sc.cards.length, 16, name);
+    const first = name === 'arrange_board' ? { group_id: 'g1' } : { group: 'Streets' };
+    assert.deepEqual(sc.cards[0], { id: 'api-0', kind: 'link', title: 'Card 0', ...first, x: 0, y: 20, w: 200, h: 121, url: 'https://a.test/x' }, name);
+    assert.deepEqual(Object.keys(sc.cards[1]), ['id', 'kind', 'title', 'x', 'y', 'w', 'h'], 'no html, body, timestamps or nulls');
+    const text = r.content[0].text;
+    assert.ok(!/long (text|html)|created_at|"html"/.test(text), `${name} does not echo the cards whole`);
+    assert.ok(text.length < 3000, `${name} text is ${text.length} characters`);
+    assert.deepEqual(JSON.parse(text.slice(text.indexOf('\n\n') + 2)).cards, sc.cards, 'text and structuredContent carry the same JSON');
+  }
+});
+
+test('search says when pictures are too new to be found by what is in them', async () => {
+  const r = await callWith('search', { query: 'red car' }, async () => ({
+    query: 'red car', boards: { items: [] }, cards: { items: [] }, undescribed_pictures: 3,
+  }));
+  const sc = r.structuredContent;
+  assert.equal(sc.undescribed_pictures, 3);
+  assert.match(sc.note, /3 recent pictures have no description yet.*found by title until described.*view_board/);
+  const none = await callWith('search', { query: 'red car' }, async () => ({ query: 'red car', boards: { items: [] }, cards: { items: [] } }));
+  assert.ok(!('undescribed_pictures' in none.structuredContent) && !('note' in none.structuredContent));
+});
+
+test('import_urls takes strings or {url, title, group}, with the top-level titles and group as defaults', async () => {
+  const tool = TOOLS.find((t) => t.name === 'import_urls');
+  let sent = null;
+  const api = async (path, opts) => { sent = opts.body; return { imported: 4 }; };
+  await tool.call({
+    board_id: BOARD_ID,
+    urls: ['https://x/a.jpg', { url: 'https://x/b.jpg', title: 'Neon', group: 'Streets' }, { url: 'https://x/c.jpg' }, 'https://x/d.jpg'],
+    titles: ['A', 'ignored for b', 'C'],
+    group: 'Everything',
+  }, { api });
+  assert.deepEqual(sent.items, [
+    { url: 'https://x/a.jpg', title: 'A', group: 'Everything' },
+    { url: 'https://x/b.jpg', title: 'Neon', group: 'Streets' },
+    { url: 'https://x/c.jpg', title: 'C', group: 'Everything' },
+    { url: 'https://x/d.jpg', group: 'Everything' },
+  ]);
+  const ok = await callWith('import_urls', { board_id: BOARD_ID, urls: ['https://x/a.jpg', { url: 'https://x/b.jpg', group: 'S' }] }, async () => ({ imported: 2 }));
+  assert.equal(ok.isError, undefined, 'both shapes pass the tool\'s own schema');
+  const bad = await callWith('import_urls', { board_id: BOARD_ID, urls: [{ title: 'no url' }] }, async () => ({}));
+  assert.equal(bad.isError, true);
+  assert.match(tool.description, /caption/);
+});
+
+test('write_doc sends group, position and size for a new doc, and refuses them for pages of an old one', async () => {
+  const tool = TOOLS.find((t) => t.name === 'write_doc');
+  let sent = null;
+  const api = async (path, opts) => { sent = { path, body: opts.body }; return { board_id: BOARD_ID, card: { id: 'api-1' }, url: 'u', pages: [], groups: [{ id: 'g', name: 'Notes' }] }; };
+  const pages = [{ markdown: '# Hi' }];
+  const made = await tool.call({ board_id: BOARD_ID, pages, group: 'Notes', w: 400, h: 300 }, { api });
+  assert.deepEqual(sent.body, { title: undefined, pages, x: undefined, y: undefined, group: 'Notes', w: 400, h: 300 });
+  assert.deepEqual(made.groups, [{ id: 'g', name: 'Notes' }]);
+  await tool.call({ board_id: BOARD_ID, pages, position: 'top' }, { api });
+  assert.equal(sent.body.position, 'top');
+  await tool.call({ board_id: BOARD_ID, pages }, { api });
+  assert.ok(!('group' in sent.body) && !('position' in sent.body) && !('w' in sent.body), 'omitted, unchanged');
+  await assert.rejects(tool.call({ board_id: BOARD_ID, pages, position: 'top', group: 'Notes' }, { api }), /leave out group, x and y/);
+  await assert.rejects(tool.call({ board_id: BOARD_ID, card_id: 'c', pages, group: 'Notes' }, { api }), /new doc/);
+});
+
+test('arrange_board says cards in no section listed in order come first, at the top-left', () => {
+  const order = TOOLS.find((t) => t.name === 'arrange_board').inputSchema.properties.order;
+  assert.match(order.description, /no section come first, at the top-left/);
 });

@@ -69,12 +69,11 @@ test('the bundle answers POST only', async () => {
   assert.equal(res.headers.get('allow'), 'POST');
 });
 
-test('where drafts are held there is no draft, and the database is never asked', async () => {
+test('drafts are open on production too: its keep page gets the bundle', async () => {
   rpc.mcp_draft_keep_view = () => LIVE;
   const res = await bundle(PRODUCTION, { token: TOKEN });
-  assert.equal(res.status, 404);
-  assert.deepEqual(await res.json(), { state: 'unknown', lifetime_days: DRAFT_LIFETIME_DAYS });
-  assert.equal(keepCalls().length, 0);
+  assert.equal(res.status, 200);
+  assert.equal(keepCalls().length, 1);
 });
 
 test('only a keep token reaches the database, and only as its hash', async () => {

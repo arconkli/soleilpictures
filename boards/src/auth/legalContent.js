@@ -26,7 +26,7 @@ export const DOC_LABELS = {
 const privacy = {
   slug: 'privacy',
   title: 'Privacy Policy',
-  updated: 'October 24, 2026',
+  updated: 'November 4, 2026',
   intro:
     "This Privacy Policy explains how Soleil Pictures (\"Soleil,\" \"we,\" \"us,\" or \"our\") collects, uses, and shares information when you use Soleil Clusters (the \"Service\"), available at clusters.soleilpictures.com. By using the Service, you agree to this Policy.",
   sections: [
@@ -38,6 +38,8 @@ const privacy = {
           list: [
             'Account information. When you sign in we collect your email address. We use a one-time passcode (OTP) sent to your email instead of a password, so we do not collect or store a password. To understand who uses the Service, we also group addresses by the kind of provider they come from — a personal email service, a school or university, or an organization’s own domain — and, for a school or university, by the institution.',
             'Content you create. The clusters, canvases, notes, documents, comments, tags, and files you upload — including images, video, audio, and other media — along with their titles, descriptions, and arrangement on the canvas.',
+            'Drafts made through an AI assistant. An assistant connected to the no-account address (clusters.soleilpictures.com/mcp) can build a draft cluster for someone who is not signed in. A draft stores what the assistant puts in it (the cards, pictures and text), a one-way hash of the access key the assistant passes back (and, for ChatGPT, of its anonymous user identifier), which kind of assistant made it, when it was last used, and a count of its requests in the hour. If nobody keeps it, it is deleted 30 days after its last change; keeping it takes an email address and a one-time passcode, and the cluster then belongs to that account.',
+            'API and AI assistant activity. When an app or AI assistant acts on your account through our API or MCP server, we log the call: which token made it, the route or tool, the response status and how long it took, the IP address and user agent, whether the call failed and the short error code it failed with, and, on an assistant’s first message of a session, the name and version the app reports for itself.',
             'Collaboration data. When you share a cluster, invite collaborators, or create public links, we process the information needed to provide those features, including collaborators’ email addresses and presence or activity within a shared workspace. If you take part in our referral program, we also process the email address you use to invite someone and the information needed to determine reward eligibility.',
             'Payment information. If you subscribe to a paid plan, our payment processor (Stripe) collects and processes your payment details. We do not receive or store full card numbers; we keep limited billing metadata such as your subscription status, plan, and customer and subscription identifiers.',
             'Answers you choose to give. The app occasionally asks a short, optional question — such as what brings you back, what best describes you, your age range, or what is holding you back from upgrading — and stores the answer you pick, and anything you choose to write, with your account. We ask for an age range (such as 25–34), never your date of birth.',

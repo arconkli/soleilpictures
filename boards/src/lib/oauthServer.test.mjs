@@ -183,7 +183,7 @@ test('every recognised failure says whether anything was shared', () => {
   }
 });
 
-// 0375 + 0704: a new account connects only ChatGPT and Claude. The database
+// 0375 + 0704 + 0857: a new account connects only ChatGPT, Claude and the coding apps. The database
 // says how long the rest wait, so the page repeats its sentence rather than
 // writing the number down a second time.
 test('a new account is told which apps connect now, in the database\'s words', () => {
@@ -191,10 +191,10 @@ test('a new account is told which apps connect now, in the database\'s words', (
   const { title, body } = consentError('new_account', said);
   assert.equal(title, 'Not yet for a new account');
   assert.ok(body.startsWith(`${said}. `), body);
-  assert.match(body, /ChatGPT and Claude can connect straight away/);
+  assert.match(body, /ChatGPT, Claude and coding apps like Claude Code, Cursor and VS Code can connect straight away/);
   assert.match(body, /nothing has been shared/i);
   // Without the sentence, still the same answer, with no number in it.
-  assert.match(consentError('new_account').body, /ChatGPT and Claude can connect straight away/);
+  assert.match(consentError('new_account').body, /ChatGPT, Claude and coding apps like Claude Code, Cursor and VS Code can connect straight away/);
   assert.ok(!/\d/.test(consentError('new_account').body));
 });
 

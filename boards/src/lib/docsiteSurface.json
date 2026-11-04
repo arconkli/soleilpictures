@@ -74,23 +74,23 @@
   "mcpTools": [
     {
       "name": "add_cards",
-      "schema": "bab40a9ca59a"
+      "schema": "3af8a23df834"
     },
     {
       "name": "add_comment",
-      "schema": "3c001c31d8db"
+      "schema": "e9586941ab6e"
     },
     {
       "name": "arrange_board",
-      "schema": "18a2ede5d304"
+      "schema": "dbd8c7b2497f"
     },
     {
       "name": "create_boards",
-      "schema": "84cc9e70a479"
+      "schema": "465f9d677035"
     },
     {
       "name": "create_group",
-      "schema": "23797a67c375"
+      "schema": "d2b903736264"
     },
     {
       "name": "delete_board",
@@ -102,47 +102,47 @@
     },
     {
       "name": "edit_doc_page",
-      "schema": "e15364129588"
+      "schema": "bcccb19cbd20"
     },
     {
       "name": "fetch",
-      "schema": "c1f1c4508b07"
+      "schema": "48ee74357972"
     },
     {
       "name": "import_urls",
-      "schema": "788d457017c5"
+      "schema": "baee06a7c43d"
     },
     {
       "name": "list_audit",
-      "schema": "211b7fc571af"
+      "schema": "378ee25f657e"
     },
     {
       "name": "list_boards",
-      "schema": "28b7c9739435"
+      "schema": "a3923794b8b9"
     },
     {
       "name": "list_comments",
-      "schema": "a023016d804b"
+      "schema": "7edf99343b23"
     },
     {
       "name": "list_tags",
-      "schema": "c4291e844460"
+      "schema": "331d0d17c40d"
     },
     {
       "name": "move_cards",
-      "schema": "4b891252fe12"
+      "schema": "86bb89df4602"
     },
     {
       "name": "read_board",
-      "schema": "93dc485d40ac"
+      "schema": "b36a44222a34"
     },
     {
       "name": "resolve_comments",
-      "schema": "4b18b7813b59"
+      "schema": "984dd7035fa8"
     },
     {
       "name": "resolve_identifier",
-      "schema": "141f5f5b1e1f"
+      "schema": "a2274bb1b1e4"
     },
     {
       "name": "restore_board",
@@ -150,11 +150,11 @@
     },
     {
       "name": "search",
-      "schema": "f762f7615158"
+      "schema": "144d5d39ef30"
     },
     {
       "name": "share_board",
-      "schema": "4446c48628d4"
+      "schema": "b6e8a2cbcabf"
     },
     {
       "name": "show_board",
@@ -162,7 +162,7 @@
     },
     {
       "name": "tag_cards",
-      "schema": "4c7d1f9e8f2f"
+      "schema": "0caf745ac4d0"
     },
     {
       "name": "unshare_board",
@@ -170,11 +170,11 @@
     },
     {
       "name": "update_boards",
-      "schema": "e08dabe95cf1"
+      "schema": "f03fb2fc1545"
     },
     {
       "name": "update_cards",
-      "schema": "cbcf87f4b7c6"
+      "schema": "9670a80dd61b"
     },
     {
       "name": "upload_file",
@@ -182,11 +182,11 @@
     },
     {
       "name": "upload_image",
-      "schema": "2c5d898ac6e5"
+      "schema": "bfbfd1175848"
     },
     {
       "name": "view_board",
-      "schema": "f8bddeb19b54"
+      "schema": "324799e1d895"
     },
     {
       "name": "whoami",
@@ -194,7 +194,7 @@
     },
     {
       "name": "write_doc",
-      "schema": "0abd9bbff594"
+      "schema": "5029dd087ee9"
     }
   ],
   "mcpPrompts": [
@@ -211,6 +211,7 @@
       "2025-06-18"
     ],
     "methods": [
+      "completion/complete",
       "initialize",
       "ping",
       "prompts/get",

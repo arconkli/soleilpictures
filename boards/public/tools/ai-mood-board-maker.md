@@ -1,6 +1,6 @@
 # AI Mood Board Maker
 
-> Soleil Clusters connects to Claude and any other MCP client, so you can ask an assistant to build a mood board for you. It creates the board, pulls in images from links you give it, and lays them out as justified rows or masonry. It arranges your own references rather than generating pictures, and reaches only what your account reaches.
+> Soleil Clusters connects to Claude, ChatGPT, Cursor, VS Code and other MCP apps, and anyone can try it from Claude or ChatGPT with no account. Ask an assistant and it creates the board, pulls in images from links you give it, and lays them out. It arranges your own references rather than generating pictures.
 
 _Source: https://clusters.soleilpictures.com/tools/ai-mood-board-maker · Updated 2026-08-10_
 
@@ -55,7 +55,7 @@ No. It works with references you already have, or that you point it at with a li
 
 ### Which assistants work with it?
 
-Claude, and any other client that speaks the Model Context Protocol. The hosted server is a URL, so anything that can add a remote MCP connector can use it. There is also an npm package, soleil-clusters-mcp, for clients that need to read files off your own machine.
+Claude, ChatGPT, Cursor, VS Code and any other app that speaks the Model Context Protocol. Anyone can try it from Claude or ChatGPT with no account: the assistant builds a draft and you keep it with a link. The hosted server is a URL, so anything that can add a remote MCP connector can use it. There is also an npm package, soleil-clusters-mcp, for clients that need to read files off your own machine.
 
 ### Do I need to be a developer?
 

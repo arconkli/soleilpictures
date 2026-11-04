@@ -9,6 +9,7 @@
 
 export const KEEP_BUNDLE_PATH = '/api/keep/bundle';
 
+const CARD_ID = /^[A-Za-z0-9_-]{1,80}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // The cluster to open first: ?b=<id>, where the draft's own links point
@@ -17,6 +18,20 @@ export function firstClusterOf(search) {
   try {
     const b = new URLSearchParams(search || '').get('b');
     return b && UUID.test(b) ? b.toLowerCase() : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// The card to select and bring into view on opening: &c=<id>, where a draft's
+// card links point (mcpDrafts.js rewriteDraftLinks), as the app's own
+// ?board=&card= does (App.jsx, lib/cardLink.js). A uuid comes back lower-case;
+// a card the API made (api-… ids) comes back as it is. null when absent or not an id.
+export function firstCardOf(search) {
+  try {
+    const c = new URLSearchParams(search || '').get('c');
+    if (!c || !CARD_ID.test(c)) return null;
+    return UUID.test(c) ? c.toLowerCase() : c;
   } catch (_) {
     return null;
   }

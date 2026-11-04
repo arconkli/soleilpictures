@@ -92,7 +92,10 @@ export const CEILINGS = {
   // cannot wait for a lazy chunk. A CI-style build read 170,376 B on main
   // c0714366 and 170,822 B with it. entryCss +0.2 KB for the Signed in as box
   // and Sign out rows in Settings: 95,935 B before, 96,098 B with them.
-  entryJs: 171_000,
+  // 2026-11-04: +0.8 KB for the MCP connecting work: password sign-in for the
+  // directory reviewers' demo account (lib/passwordSignIn.js, used by the
+  // sign-in gate in the entry). A CI-style build measured 171,051 B with it.
+  entryJs: 171_800,
   entryCss: 96_200,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only

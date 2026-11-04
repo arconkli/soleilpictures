@@ -446,17 +446,19 @@ export function apiFacts() {
   if (!tokens) throw new Error('publicSurface: token cap not found in 0224_oauth_authorization_server.sql');
 
   // oauth_refresh_rotate was last defined by 0701, so the refresh ceiling and
-  // the retry window are read from there, and oauth_authorize_consent by 0704,
+  // the retry window are read from there, and oauth_authorize_consent by 0857,
   // so the connection cap is read from that: the version that runs, same rule
-  // as the rate limit above.
+  // as the rate limit above. 0857 is also where the redirects that connect on
+  // an account's first day are listed (_oauth_day_one_redirect).
   const oauthSql = read('supabase/migrations/0701_oauth_metadata_clients_refresh_reuse.sql');
   const oauthSqlPick = (re, what) => {
     const m = oauthSql.match(re);
     if (!m) throw new Error(`publicSurface: ${what} not found in 0701_oauth_metadata_clients_refresh_reuse.sql`);
     return Number(m[1]);
   };
-  const consentCap = rateSql.match(/where user_id = auth\.uid\(\) and revoked_at is null\) >= (\d+)/);
-  if (!consentCap) throw new Error('publicSurface: connection cap not found in 0704_ai_chats_connect_on_day_one.sql');
+  const consentSql = read('supabase/migrations/0857_coding_apps_connect_on_day_one.sql');
+  const consentCap = consentSql.match(/where user_id = auth\.uid\(\) and revoked_at is null\) >= (\d+)/);
+  if (!consentCap) throw new Error('publicSurface: connection cap not found in 0857_coding_apps_connect_on_day_one.sql');
   const connections = Number(consentCap[1]);
 
   // New clients per address an hour: oauth_client_register (0224) counts the

@@ -50,7 +50,7 @@ A PureRef file lives on one artist’s machine. In Clusters the whole team works
 
 ## Something PureRef cannot do at all
 
-PureRef is a local window on one machine. There is no API and nothing for an assistant to talk to, so a reference board built there is a board only you can touch. Clusters connects to Claude and other MCP clients: you can ask an assistant to pull a set of references, build the board and arrange it, then open the result and take over by hand. The images are still yours — it collects and arranges, it does not invent pictures.
+PureRef is a local window on one machine. There is no API and nothing for an assistant to talk to, so a reference board built there is a board only you can touch. Clusters connects to Claude, ChatGPT, Cursor, VS Code and other MCP apps, and anyone can try it from Claude or ChatGPT with no account: you can ask an assistant to pull a set of references, build the board and arrange it, then open the result and take over by hand. The images are still yours — it collects and arranges, it does not invent pictures.
 
 - Ask an assistant to gather and lay out a reference board
 - Connect with a URL — nothing to install, no key to paste
@@ -165,5 +165,5 @@ Yes, the Demo tier is free with no credit card. Creator ($25/mo) adds unlimited 
 
 ### Can an AI assistant work with my reference board?
 
-In Clusters, yes — connect Claude or any MCP client with one URL and ask it to build or tidy a board. PureRef is an offline desktop app with no API, so there is nothing for an assistant to connect to. Clusters arranges the references you already have rather than generating images.
+In Clusters, yes — connect Claude, ChatGPT, Cursor, VS Code or any other MCP app with one URL and ask (anyone can try it from Claude or ChatGPT with no account) it to build or tidy a board. PureRef is an offline desktop app with no API, so there is nothing for an assistant to connect to. Clusters arranges the references you already have rather than generating images.
 
