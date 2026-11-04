@@ -440,6 +440,9 @@ export const EV = Object.freeze({
   REFERRAL_SIGNUP:         'referral_signup',             // SERVER: friend signed up via a referral {source,code}
   REFERRAL_ACTIVATED:      'referral_activated',          // SERVER: referee created first genuine card
   REFERRAL_REWARD_GRANTED: 'referral_reward_granted',     // SERVER: referrer credited {referee,amount,storage_bytes}
+  TOGETHER_STARTED:        'together_started',            // SERVER: live_together_tick (0862), never the client: a person's stretch working live with others began {board,people}
+  TOGETHER_CARD_EARNED:    'together_card_earned',        // SERVER: live_together_tick (0862): bonus cards credited for time together {board,cards,people,month_cards}
+  TOGETHER_ENDED:          'together_ended',              // SERVER: live_together_tick (0862): the stretch ended, as the room saw it {board,seconds,people}
 
   // ── Collaborator invites (the "build together" growth loop) ──
   // The banner fires at the activation beat (3 genuine cards) and routes into

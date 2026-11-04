@@ -42,6 +42,8 @@ import { socketLooksDead } from './partyKeepalive.js';
 import { parkWhileHidden, parkWhileIdle } from './partyPark.js';
 import { pageBusy } from './buildWatch.js';
 import { logClientError } from './errorReporting.js';
+import { readTogether } from './liveTogether.js';
+import { HERE_EVERY_MS } from './togetherClock.js';
 
 const KEEPALIVE_MS = 15_000;
 const MESSAGE_AWARENESS = 1;
@@ -61,6 +63,11 @@ async function freshAccessToken() {
     return '';
   }
 }
+
+// The cluster on screen (App sets it): only its room takes the `here` stamp,
+// so a split pane or a background upload's room never makes you count there.
+let hereBoardId = null;
+export function setHereBoard(boardId) { hereBoardId = boardId || null; }
 
 export function attachRealtime(ydoc, boardId, { user } = {}) {
   if (!boardId) return { destroy() {}, awareness: null };
@@ -315,6 +322,35 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     window.addEventListener('soleil-board-reset', onBoardReset);
   }
 
+  // Working together (lib/liveTogether.js): the room tells each person once a
+  // minute how it is going, as a custom message beside the Yjs frames. Other
+  // custom messages (roomAck.js) are not ours; readTogether answers null.
+  const onTogether = (text) => {
+    try {
+      const m = readTogether(text);
+      if (m) window.dispatchEvent(new CustomEvent('soleil-together', { detail: { boardId, ...m } }));
+    } catch (_) {}
+  };
+  provider.on('custom-message', onTogether);
+
+  // The `here` stamp: real input while the tab is on screen, at most every
+  // HERE_EVERY_MS, so a phone or a reader with no cursor still counts as active
+  // (togetherClock.js INPUT_FIELDS). Only for someone signed in, and only in
+  // the room of the cluster on screen (setHereBoard).
+  const HERE_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'];
+  const hereOpts = { passive: true, capture: true };
+  let lastHereAt = 0;
+  const onHereInput = () => {
+    if (destroyed || boardId !== hereBoardId || document.visibilityState !== 'visible') return;
+    const now = Date.now();
+    if (now - lastHereAt < HERE_EVERY_MS) return;
+    lastHereAt = now;
+    try { awareness.setLocalStateField('here', { at: now }); } catch (_) {}
+  };
+  if (user && typeof window !== 'undefined') {
+    for (const ev of HERE_EVENTS) window.addEventListener(ev, onHereInput, hereOpts);
+  }
+
   // A doc's save line asks this room whether a change is stored.
   ydoc._soleilRoom = provider;
   return {
@@ -354,6 +390,10 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       parking.dispose();
       try { ydoc.off('update', onRemoteUpdate); } catch (_) {}
       try { awareness.off('change', onAwarenessChange); } catch (_) {}
+      try { provider.off('custom-message', onTogether); } catch (_) {}
+      if (typeof window !== 'undefined') {
+        for (const ev of HERE_EVENTS) { try { window.removeEventListener(ev, onHereInput, hereOpts); } catch (_) {} }
+      }
       reconnector.dispose();
       closeSocket('left');
       try { provider.destroy(); } catch (_) {}

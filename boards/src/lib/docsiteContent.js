@@ -45391,7 +45391,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " grant bonus cards for people you invite who actually get started."
+     "v": " grant bonus cards for people you invite who actually get started, and "
+    },
+    {
+     "t": "link",
+     "v": "working live with someone",
+     "href": "/docs/account/referrals#earn-by-working-together",
+     "children": [
+      {
+       "t": "text",
+       "v": "working live with someone"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the same cluster earns you both cards, up to 25 a month."
     }
    ]
   },
@@ -47333,6 +47348,148 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Earn by working together",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Earn by working together"
+    }
+   ],
+   "id": "earn-by-working-together"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Work in the same cluster at the same time as someone else and you both earn bonus cards while you do: "
+    },
+    {
+     "t": "strong",
+     "v": "a card every 2 minutes",
+     "children": [
+      {
+       "t": "text",
+       "v": "a card every 2 minutes"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for each other person working with you, up to "
+    },
+    {
+     "t": "strong",
+     "v": "3 every 2 minutes",
+     "children": [
+      {
+       "t": "text",
+       "v": "3 every 2 minutes"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in a bigger group."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Both of you, right now.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Both of you, right now."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " You count while you are in the cluster and have done something there in the last 2 minutes: an edit, a move of your cursor, a selection, a scroll, a key. Someone who can only view the cluster counts too. A tab left open in the background does not."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Up to 25 cards a calendar month",
+      "children": [
+       {
+        "t": "text",
+        "v": "Up to 25 cards a calendar month"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " from working together, on top of anything referrals pay. The count starts again on the 1st (UTC)."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "People, not tabs.",
+      "children": [
+       {
+        "t": "text",
+        "v": "People, not tabs."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Two tabs or two devices of your own are one person, and working in two clusters at once earns once, not twice. Each person needs a confirmed email, and nothing is paid to, or for, a banned account."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "The same bonus cards.",
+      "children": [
+       {
+        "t": "text",
+        "v": "The same bonus cards."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " They raise your card limit above the free plan's 50 and never expire. On Creator and Team they are kept for you. They never change how many people can edit a workspace or how many workspaces you can own."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On the free plan a small "
+    },
+    {
+     "t": "strong",
+     "v": "Together",
+     "children": [
+      {
+       "t": "text",
+       "v": "Together"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " chip shows beside the faces at the top while it is happening, with a ring that fills toward the next card. Tap it to see who you are working with and how many of this month's cards you have."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Stats",
    "inline": [
     {
@@ -47445,7 +47602,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The gap between the first two is the honest one. It is shown rather than hidden. Rewards still on their way — past the 30-day limit — are listed under the stats until they land."
+     "v": "The gap between the first two is the honest one. It is shown rather than hidden. Rewards still on their way — past the 30-day limit — are listed under the stats until they land. Below them, a line says how many cards working together has earned you this month."
     }
    ]
   },

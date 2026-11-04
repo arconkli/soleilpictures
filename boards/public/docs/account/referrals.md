@@ -2,7 +2,7 @@
 
 > Invite someone new to Clusters — by email from a cluster's Share panel, with a link to one of your clusters or your workspace's invite link, or with the referral link in Settings → Invite and earn — and you both get bonus cards and storage. They get 25 extra cards and 0.5GB of storage when they sign up. You get 25 bonus cards and 0.5GB as soon as they have opened the app and placed their first card. A signup that never makes anything earns you nothing.
 
-_Source: https://clusters.soleilpictures.com/docs/account/referrals · Updated 2026-11-01_
+_Source: https://clusters.soleilpictures.com/docs/account/referrals · Updated 2026-11-04_
 
 Invite from **Share** on any cluster, or from **Settings → Invite and earn**.
 
@@ -47,6 +47,33 @@ Work inside someone else's cluster still counts against that cluster's owner, as
 it always does. See [Cards](/docs/canvas/cards) and
 [Plans](/docs/account/plans).
 
+## Earn by working together
+
+Work in the same cluster at the same time as someone else and you both earn
+bonus cards while you do: **a card every 2 minutes**
+for each other person working with you, up to
+**3 every 2 minutes** in a
+bigger group.
+
+- **Both of you, right now.** You count while you are in the cluster and have
+  done something there in the last 2 minutes: an
+  edit, a move of your cursor, a selection, a scroll, a key. Someone who can
+  only view the cluster counts too. A tab left open in the background does not.
+- **Up to 25 cards a calendar month** from working
+  together, on top of anything referrals pay. The count starts again on the
+  1st (UTC).
+- **People, not tabs.** Two tabs or two devices of your own are one person, and
+  working in two clusters at once earns once, not twice. Each person needs a
+  confirmed email, and nothing is paid to, or for, a banned account.
+- **The same bonus cards.** They raise your card limit above the free plan's
+  50 and never expire. On Creator and Team they are kept for
+  you. They never change how many people can edit a workspace or how many
+  workspaces you can own.
+
+On the free plan a small **Together** chip shows beside the faces at the top
+while it is happening, with a ring that fills toward the next card. Tap it to
+see who you are working with and how many of this month's cards you have.
+
 ## Stats
 
 The tab tracks:
@@ -61,7 +88,8 @@ The tab tracks:
 
 The gap between the first two is the honest one. It is shown rather than hidden.
 Rewards still on their way — past the 30-day limit — are listed under the stats
-until they land.
+until they land. Below them, a line says how many cards working together has
+earned you this month.
 
 ## Sharing the link
 

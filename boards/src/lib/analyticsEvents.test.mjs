@@ -45,6 +45,9 @@ const SERVER_EMITTED = new Map([
   ['TEAM_JOINED',            '0533_teams_people.sql / 0534_teams_joining.sql (via _team_event)'],
   ['TEAM_SEAT_VIEWER_FALLBACK','0531_teams_seats.sql (_team_request_and_notify)'],
   ['TEAM_CLOSED',            '0532_teams_rpcs.sql (close_team, via _team_event)'],
+  ['TOGETHER_STARTED', '0862_live_together.sql (live_together_tick)'],
+  ['TOGETHER_CARD_EARNED', '0862_live_together.sql (live_together_tick)'],
+  ['TOGETHER_ENDED', '0862_live_together.sql (live_together_tick)'],
 ]);
 
 // Comments are documentation, not wiring. This file's own header shows a

@@ -1,0 +1,35 @@
+/* The Together chip by the faces in the top bar (mockups/1-chip.html). Quiet:
+   no motion on arrival; the ring's arc may ease, and reduced motion turns it
+   all off. Gold is the ring arc only: it marks an active state. */
+.tg-wrap { position: relative; display: inline-flex; align-items: center; }
+.tg-chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 5px;
+  border: 1px solid var(--line-2); border-radius: 999px; background: var(--bg-3);
+  color: var(--ink-1); font: 500 12px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+}
+.tg-chip.is-compact { padding: 0 6px 0 5px; }
+.tg-chip.is-ring { padding: 0 5px; }
+.tg-chip.is-open { background: var(--bg-act); border-color: var(--line-3); }
+.tg-ring { flex: none; display: block; }
+.tg-ring-arc { transition: stroke-dashoffset 600ms ease; }
+.tg-lbl { display: inline-flex; align-items: center; gap: 5px; }
+.tg-lbl i { font-style: normal; color: var(--ink-3); }
+.tg-lbl b { font-weight: 600; color: var(--ink-0); }
+/* Portaled to <body>: fixed and placed inline from the chip; under the toast stack. */
+.presence-roster.tg-pop { position: fixed; right: auto; max-width: none; z-index: 1000000; padding: 12px; animation: none; }
+/* Focus moves here on open for screen readers; the box itself is not a control. */
+.presence-roster.tg-pop:focus { outline: none; }
+.tg-title { font: 600 13px/1.3 var(--font-sans); color: var(--ink-0); }
+.tg-sub { margin-top: 4px; font: 400 12px/1.4 var(--font-sans); color: var(--ink-2); }
+.tg-people { display: flex; margin-top: 10px; }
+.tg-people .presence-dot + .presence-dot { margin-left: -6px; }
+.tg-sep { height: 1px; background: var(--line-1); margin: 10px -12px; }
+.tg-month { font: 500 12.5px/1.2 var(--font-sans); color: var(--ink-1); }
+.tg-meter { height: 4px; border-radius: 2px; background: var(--sbf-meter, rgba(245, 245, 247, .09)); margin-top: 8px; overflow: hidden; }
+.tg-meter i { display: block; height: 100%; border-radius: 2px; background: var(--sbf-meter-fill, #a4a4ac); }
+[data-theme='light'] .tg-meter { background: var(--sbf-meter, rgba(10, 10, 12, .08)); }
+[data-theme='light'] .tg-meter i { background: var(--sbf-meter-fill, #7a7a82); }
+.tg-more { font: 400 12px/1.4 var(--font-sans); color: var(--ink-2); }
+@media (prefers-reduced-motion: reduce) {
+  .tg-chip, .tg-chip *, .tg-pop, .tg-pop * { transition: none !important; animation: none !important; }
+}

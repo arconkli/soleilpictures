@@ -52,6 +52,7 @@ import { answerEmptyClose } from "../src/lib/partyClose.js";
 import { ROOM_ANSWERS, answerAck } from "../src/lib/roomAck.js";
 import { BoardBridge } from "./bridge";
 import { bindReports, reportParty } from "./report";
+import { TogetherWatch } from "./together";
 
 const ALARM_MS = 60_000;
 const IDLE_WATCH_MS = 15 * 60_000;
@@ -88,6 +89,8 @@ export class BoardParty extends YServer<Env> {
   private remote!: BoardRoomState;
   // Shared docs' mirrors of this board's doc cards (party/bridge.ts, doc.ts).
   private bridge: BoardBridge | null = null;
+  // Who is working here together, for the cards it earns (party/together.ts).
+  private together: TogetherWatch | null = null;
   private resetting = false;
   private opLogWired = false;
   private localHeldContent = false;
@@ -153,6 +156,19 @@ export class BoardParty extends YServer<Env> {
     // And every presence change, for the doc's readers (inert with no mirror).
     this.document.awareness.on("update", (changes: { added: number[]; updated: number[]; removed: number[] }) =>
       this.bridge?.onAwareness(changes));
+    // Working together: an edit or a presence move marks its sender active. The
+    // origin is the sender's socket (y-partyserver passes it to Yjs), whose
+    // account the door verified; the room's own writes carry no account.
+    this.together = new TogetherWatch({
+      boardId: this.name,
+      supabaseUrl: this.supabaseUrl,
+      serviceKey: this.env.SUPABASE_SERVICE_ROLE_KEY,
+      send: (conn, message) => this.sendCustomMessage(conn, message),
+    });
+    this.document.on("update", (_update: Uint8Array, origin: unknown) => this.together?.onDocUpdate(origin));
+    this.document.awareness.on("change",
+      (changes: { added: number[]; updated: number[]; removed: number[] }, origin: unknown) =>
+        this.together?.onAwarenessChange(changes, origin, this.document.awareness.getStates()));
     // The local copy held something: make sure the database gets it now
     // rather than at the next edit. The write is a compare-and-set, so this can
     // only add to what is stored.
@@ -288,6 +304,7 @@ export class BoardParty extends YServer<Env> {
         accessAmong(this.env.SUPABASE_SERVICE_ROLE_KEY, this.name, ids),
       ]);
       const now = Date.now();
+      const stays: Connection[] = [];
       for (const c of conns) {
         const uid = stateOf(c).userId;
         if (uid && banned.has(uid)) {
@@ -304,11 +321,16 @@ export class BoardParty extends YServer<Env> {
           continue;
         }
         const heard = this.lastHeard.get(c);
-        if (heard == null) { this.lastHeard.set(c, now); continue; }
+        if (heard == null) { this.lastHeard.set(c, now); stays.push(c); continue; }
         if (now - heard > SILENT_CLOSE_MS) {
           try { c.close(SILENT_CLOSE, "silent"); } catch (_) { /* already gone */ }
+          continue;
         }
+        stays.push(c);
       }
+      // Working together: who among those still here earned cards this minute
+      // (party/together.ts; it never throws, and fails closed).
+      try { await this.together?.tick(stays); } catch (e) { this.problem("together tick", e, "together"); }
     } else {
       const lastActive = Number(await this.ctx.storage.get(ACTIVE_KEY)) || 0;
       keepGoing = Date.now() - lastActive < IDLE_WATCH_MS;
