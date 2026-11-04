@@ -336,7 +336,35 @@ async function railInset(page) {
   });
 }
 
-async function settle(page, errors) {
+/**
+ * The page predicate behind settle's preview wait (runs in the page; exported so a test can feed it a fake DOM).
+ * titles: the names of the sub-clusters that hold cards. BoardCard draws a placeholder until its preview resolves
+ * and carries no board id, so such a card is told by the title it shows: while it has no .bc-thumb-wrap holding a
+ * drawn img, canvas or svg (an img complete, with width) it is not settled. Any other card in view is.
+ */
+export function previewsDrawn({ titles }, doc = document, vw = innerWidth, vh = innerHeight) {
+  const want = new Set(titles);
+  return [...doc.querySelectorAll('.canvas-wrap .bc:not(.bc-locked):not(.bc-list)')].every((card) => {
+    const b = card.getBoundingClientRect();
+    if (!(b.width > 0 && b.bottom > 0 && b.right > 0 && b.top < vh && b.left < vw)) return true;
+    const name = card.querySelector('.bc-name, .bc-list-title');
+    if (!want.has(String(name?.textContent || '').trim())) return true;
+    const wrap = card.querySelector('.bc-thumb-wrap');
+    if (!wrap) return false;
+    const drawn = [...wrap.querySelectorAll('img, canvas, svg')];
+    return drawn.length > 0 && drawn.every((el) => el.tagName !== 'IMG' || (el.complete && el.naturalWidth > 0));
+  });
+}
+
+/** How long settle waits for sub-cluster previews: once a shoot has reported one that never drew, later shots wait only 2 s. */
+export const previewWait = (state = {}) => (state.previewReported ? 2000 : 20000);
+
+async function settle(page, errors, state = {}, titles = []) {
+  // A sub-cluster card's thumbnail is drawn after the card mounts (its child board is read, then its picture
+  // resolved): a shot taken before then shows a placeholder or a blank preview. Wait until every card in view for
+  // a sub-cluster that holds cards has drawn one (previewsDrawn); a failure is reported once per shoot.
+  await page.waitForFunction(previewsDrawn, { titles }, { timeout: previewWait(state) })
+    .catch(() => { if (!state.previewReported) { state.previewReported = true; errors.push('cluster preview not drawn'); } });
   // Only the pictures in view: the app leaves the ones off-screen unloaded.
   await page.waitForFunction(() => [...document.images].filter((i) => {
     const b = i.getBoundingClientRect();
@@ -363,6 +391,7 @@ export async function shootBoard({ appDir, board, world, files, outDir, cutouts 
   const browser = await chromium.launch({ headless: true });
   const shots = [];
   const errors = [];
+  const settled = {}; // settle's once-per-shoot flags
   try {
     const plan = shotsFor(board.bg).filter((s) => !only || only.includes(s.kind));
     const docsOn = plan.find((s) => s.kind.startsWith('desk-'))?.kind;
@@ -379,7 +408,7 @@ export async function shootBoard({ appDir, board, world, files, outDir, cutouts 
       const marks = board.marks || [];
       const inset = !shot.capture.clean && (shot.frame || marks.length) ? await railInset(page) : 0;
       await camera(page, await frameMoves(page, board.cards, board.groups || [], { inset, marks, whole: !shot.frame }));
-      await settle(page, errors);
+      await settle(page, errors, settled, (board.children || []).filter((ch) => ch.cards?.length).map((ch) => ch.name));
       const file = join(outDir, `${shot.kind}.png`);
       await page.screenshot({ path: file });
       const meta = await sharp(file).metadata();

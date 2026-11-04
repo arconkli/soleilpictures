@@ -15076,6 +15076,8 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: -0.003em;
+  /* The preview text carries line breaks (heading, paragraph, list items). */
+  white-space: pre-line;
   flex: 1 1 auto;
   min-height: 0;
   /* The box is usually shorter than the 18-line clamp, so overflow slices

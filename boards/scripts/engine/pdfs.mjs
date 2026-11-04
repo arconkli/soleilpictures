@@ -26,6 +26,7 @@ export const PDF = Object.freeze({
 });
 
 const md = new MarkdownIt({ html: false, linkify: false, typographer: true });
+// "- 1. X" would read as a bullet holding an ordered list and render broken: pdfHtml drops the bullet, keeps the number.
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
@@ -60,7 +61,7 @@ code { font: 9pt "SF Mono", Menlo, monospace; }
 </style></head><body>
 <div class="top"><b>${esc(production)}</b><span>${esc(title)}</span></div>
 <h1 class="doc">${esc(title)}</h1>
-<main>${md.render(String(markdown || '').replace(/^#\s+[^\n]*\n+/, (h) => (h.replace(/^#\s+/, '').trim().toLowerCase() === String(title).trim().toLowerCase() ? '' : h)))}</main>
+<main>${md.render(String(markdown || '').replace(/^(\s*)[-*+]\s+(\d+[.)]\s)/gm, '$1$2').replace(/^#\s+[^\n]*\n+/, (h) => (h.replace(/^#\s+/, '').trim().toLowerCase() === String(title).trim().toLowerCase() ? '' : h)))}</main>
 </body></html>`;
 }
 

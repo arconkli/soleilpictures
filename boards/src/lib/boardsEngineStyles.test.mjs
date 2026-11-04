@@ -417,21 +417,40 @@ test('a stub in a section that sits over another pushes that one down too', () =
   assert.equal(room.find((c) => c.id === 'low').y, 500 + ARROW.minLen - 24);
 });
 
-test('a storyboard that lost a frame keeps the shot list\'s numbers, the lost frame still to find', () => {
+test('a storyboard that lost a frame leaves it off and keeps the shot list\'s numbers, with no "Still to find" cell', () => {
   let n = 0;
   const mk = () => `c${(n += 1)}`;
   const caps = ['1 · WIDE — pool hall', '2 · MID — torch', '3 · INSERT — footprints', '4 · MID — locker', '5 · WIDE — deck', '6 · CLOSE — eyes', '7 · WIDE — exit', '8 · CLOSE — door'];
   const pics = caps.map((caption, i) => ({ key: `0.${i}`, it: { caption }, ph: i === 2 ? null : { alt: '' } }));
   const g = photoGridCard(pics, { title: 'Frames 1–8', frames: true, mk });
-  assert.equal(g.title, 'Frames 1–8');
-  assert.equal(g.photos.length, 7);
-  assert.ok(!g.photos.includes('0.2'));
+  // 7 frames left: strips of 3 keep 6, strips of 4 keep 4, so it is 3 wide.
+  assert.equal(g.title, 'Frames 1–7');
+  assert.deepEqual(g.photos, ['0.0', '0.1', '0.3', '0.4', '0.5', '0.6']);
   const texts = Object.values(g.gridCells).filter((c) => c.type === 'text').map((c) => c.html);
-  assert.equal(texts.filter((t) => t === `<p>${STILL_TO_FIND}</p>`).length, 1);
-  const captions = texts.filter((t) => t !== `<p>${STILL_TO_FIND}</p>`);
-  assert.deepEqual(captions.map((t) => t.match(/<p>(\d+) /)[1]), ['1', '2', '3', '4', '5', '6', '7', '8']);
-  assert.match(captions[2], /3 · INSERT — footprints/);
+  assert.ok(!texts.some((t) => t.includes(STILL_TO_FIND)));
+  assert.deepEqual(texts.map((t) => t.match(/<p>(\d+) /)[1]), ['1', '2', '4', '5', '6', '7']);
+  assert.match(texts[2], /4 · MID — locker/);
   assert.equal(Object.values(g.gridCells).filter((c) => c.type === 'empty').length, 0);
+});
+
+test('a storyboard that lost frame 4 of 10 shows 1,2,3,5..10, and its title range ends at 10', () => {
+  let n = 0;
+  const mk = () => `c${(n += 1)}`;
+  const pics = Array.from({ length: 10 }, (_, i) => ({ key: `0.${i}`, it: { caption: `${i + 1} · SHOT ${i + 1}` }, ph: i === 3 ? null : { alt: '' } }));
+  const g = photoGridCard(pics, { title: 'Frames 1–10', frames: true, mk });
+  const texts = Object.values(g.gridCells).filter((c) => c.type === 'text').map((c) => c.html);
+  assert.deepEqual(texts.map((t) => t.match(/<p>(\d+) /)[1]), ['1', '2', '3', '5', '6', '7', '8', '9', '10']);
+  assert.equal(g.title, 'Frames 1–10');
+});
+
+test('a storyboard takes the strip width that keeps the most frames', () => {
+  let n = 0;
+  const mk = () => `c${(n += 1)}`;
+  const pics = Array.from({ length: 9 }, (_, i) => ({ key: `0.${i}`, it: { caption: `${i + 1} · SHOT` }, ph: i === 4 ? null : { alt: '' } }));
+  // 8 frames left: 3 wide keeps 6, 4 wide keeps all 8.
+  const g = photoGridCard(pics, { title: 'Frames 1–9', frames: true, mk });
+  assert.equal(g.photos.length, 8);
+  assert.equal(g.title, 'Frames 1–9', 'the title runs to the last kept frame\'s own number');
 });
 
 test('a contact sheet that lost a picture is numbered as it stands', () => {

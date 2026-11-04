@@ -154,7 +154,7 @@ export function jsonToMarkdown(doc) {
       }
       case 'bulletList': renderList(node, () => '-'); break;
       case 'orderedList': {
-        const start = Number.isInteger(node.attrs?.start) && node.attrs.start >= 0 ? node.attrs.start : 1;
+        const start = Number.isInteger(node.attrs?.start) && node.attrs.start >= 1 ? node.attrs.start : 1;
         renderList(node, (i) => `${start + i}.`);
         break;
       }
@@ -216,7 +216,7 @@ export function jsonToMarkdown(doc) {
       const lines = [];
       (li.content || []).forEach((child, k) => {
         const own = blockLines(child);
-        const tight = LISTS.has(child.type) && !(child.type === 'orderedList' && (child.attrs?.start ?? 1) !== 1);
+        const tight = LISTS.has(child.type) && !(child.type === 'orderedList' && Number.isInteger(child.attrs?.start) && child.attrs.start >= 2);
         if (k && !tight && lines.some(Boolean)) lines.push('');
         lines.push(...own);
       });

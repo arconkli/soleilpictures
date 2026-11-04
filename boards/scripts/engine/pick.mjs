@@ -131,6 +131,8 @@ export function pickPrompt(recipe, sheets, { notes = [] } = {}) {
     ...lookOf(recipe).map((l) => `- ${l}`),
     ...(notes.length ? ['', 'A reviewer turned the last version of this board down for:', ...notes.map((n) => `- ${n}`)] : []),
     '',
+    'Judge every row against the board\'s place and era too, not only against its search: a search can come back with',
+    'a modern cafe where the board is a 1950s diner, and that candidate does not belong.',
     'Pick, for every row, the candidates that belong on this board, best first, at most three. The board is shown',
     'unedited as an example of a professional\'s working board, so the photos must read as ONE world: the same',
     'light, season, place, era and colour as the look above, as if from one shoot or one careful hunt. Leave a',
@@ -194,7 +196,9 @@ export function unifyPrompt(recipe, file, keys) {
     'may not belong. Name the ones that break the world the rest share, worst first: a different light or season, a',
     'different kind of place, a heavy colour grade or HDR, a generic stock look or a posed model, the wrong subject for',
     'what it is for (a river where it says a pool), or any writing in it (graffiti, a sign, a logo, a poster, words),',
-    `readable or not. The board is built without the ones you name, so name only those a viewer would stop at: at most ${most}.`,
+    'readable or not.',
+    'Two photos of the same subject or the same shot (two mirror balls, two rain-on-glass close-ups, two of one road): name the weaker one; the board needs each picture to show something new.',
+    `The board is built without the ones you name, so name only those a viewer would stop at: at most ${most}.`,
     'Naming none is a fine answer.',
     '',
     'world: one sentence on the light, place and colour the photos you keep share.',
@@ -223,6 +227,116 @@ export function readUnify(answer, keys, log = () => {}, floor = null) {
   }
   if (answer?.world) log(`unify: ${answer.world}`);
   return out;
+}
+
+/**
+ * The last try's verdicts, applied once the AI look has run (no Claude call). named: Map(key → why) the side-by-side
+ * screen named, worst first; screenFiles: Map(key → the file the screen saw). A named photo is judged only when it is
+ * still the file the screen saw (a deferred one, or a swap that fell back to it; a different file is a swap that
+ * worked). It stays when it is a `fixed` frame or the board is down to `keep` of its own pictures; otherwise it moves
+ * from `found` to `missing`.
+ */
+export function applyScreen(found, missing, named, screenFiles, floor, log = () => {}, budget = Infinity) {
+  let removed = 0;
+  for (const [key, why] of named) {
+    const ph = found.get(key);
+    if (!ph || ph.file !== screenFiles.get(key)) continue;
+    if (floor.fixed?.(key)) { log(`unify: ${key} kept, a storyboard frame`); continue; }
+    if (floor.onBoard(key) && [...found.keys()].filter(floor.onBoard).length <= floor.keep) { log(`unify: ${key} kept, the board needs ${floor.keep} pictures`); continue; }
+    if (removed >= budget) { log(`unify: ${key} kept, the unify budget is spent`); continue; }
+    found.delete(key);
+    missing.push(key);
+    removed += 1;
+    log(`unify: ${key} out (${why})`);
+  }
+  return removed;
+}
+
+/** The most the last try's two unifies may take out together: what one unify over the n photos the screen saw could. */
+export function unifyBudget(n) {
+  return Math.floor(n * UNIFY.most);
+}
+
+/**
+ * The last try's final unify, narrowed to photos the screen never saw (swaps that came in, retries after a look
+ * reject): its verdicts on a key whose file the screen saw are dropped, and no more than `left` are kept.
+ */
+export function finalVerdicts(odd, found, seen, left) {
+  const out = new Map();
+  for (const [key, why] of odd) {
+    const ph = found.get(key);
+    if (!ph || seen.has(ph.file) || out.size >= left) continue;
+    out.set(key, why);
+  }
+  return out;
+}
+
+/**
+ * The last try's screen verdicts, split: a named misfit with a spare pick that is not a fixed frame is swapped
+ * (`out`, findPhotos tries its next pick); every other one is `kept` named and judged after the look (applyScreen).
+ * A storyboard frame is never swapped: it stays in and goes through the round-0 look.
+ */
+export function splitScreen(all, spare, fixed = () => false) {
+  const out = new Map();
+  const kept = new Map();
+  for (const [key, why] of all) {
+    if ((spare.get(key) || 0) > 0 && !fixed(key)) out.set(key, why);
+    else kept.set(key, why);
+  }
+  return { out, kept };
+}
+
+/**
+ * The last try's whole step after findPhotos, one budget for everything it takes out. The budget is what HEAD's one
+ * final unify could take: a third of the n photos it would have been shown (the found ones with a file and no media,
+ * plus the left-outs, which HEAD kept), and 0 when n < UNIFY.least. Left-outs are charged first; applyScreen then
+ * judges the screen's named photos; the final unify (`unify`, called only when a found photo was never seen by the
+ * screen) is narrowed to unseen photos, never a fixed frame, and to what is left. found/missing are updated.
+ * → { removed: [keys], budget }
+ */
+export async function lastTryCuts({ found, missing, named, screenFiles, seen, leftOut = [], floor, unify, log = () => {} }) {
+  const n = [...found.values()].filter((ph) => !ph.media && ph.file).length + leftOut.length;
+  const budget = n < UNIFY.least ? 0 : Math.max(0, unifyBudget(n) - leftOut.length);
+  const removed = [];
+  const before = new Set(missing);
+  let left = budget - applyScreen(found, missing, named, screenFiles, floor, log, budget);
+  for (const key of missing) if (!before.has(key)) removed.push(key);
+  if ([...found.values()].some((ph) => !seen.has(ph.file))) {
+    const odd = finalVerdicts(await unify(), found, seen, Infinity);
+    for (const [key, why] of odd) {
+      if (left <= 0) break;
+      if (floor.fixed?.(key)) { log(`unify: ${key} kept, a storyboard frame`); continue; }
+      found.delete(key);
+      missing.push(key);
+      removed.push(key);
+      left -= 1;
+      log(`unify: ${key} out (${why})`);
+    }
+  }
+  return { removed, budget };
+}
+
+/**
+ * findPhotos' chooseBack for the last try: of the slots with an unlooked fallback (in the order the screen named
+ * them), a fixed frame always (an onBoard one counts toward the floor), an onBoard one only while the board's
+ * projected count is under the floor, and a sub-cluster photo (not onBoard) left out. The left-outs count as removals
+ * (lastTryCuts charges them first), so when more are left out than the budget allows, the last ones come back.
+ */
+export function backChooser(floor) {
+  return (keys, found) => {
+    let projected = [...found.keys()].filter(floor.onBoard).length;
+    const chosen = new Set();
+    const leftOut = [];
+    for (const key of keys) {
+      if (floor.fixed?.(key)) { chosen.add(key); if (floor.onBoard(key)) projected += 1; }
+      else if (floor.onBoard(key) && projected < floor.keep) { chosen.add(key); projected += 1; }
+      else leftOut.push(key);
+    }
+    const n = [...found.values()].filter((ph) => !ph.media && ph.file).length + keys.length;
+    const budget = n < UNIFY.least ? 0 : unifyBudget(n);
+    while (leftOut.length > budget) chosen.add(leftOut.pop());
+    return keys.filter((key) => chosen.has(key));
+  };
 }
 
 /**

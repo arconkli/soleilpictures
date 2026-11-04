@@ -143,6 +143,13 @@ test('what the Markdown says lands as the nodes and marks the editor uses', () =
   assert.ok(odd.every((li) => li.content[0].type === 'paragraph'), 'every list item starts with a paragraph');
 });
 
+test('an ordered list writes its start only from 2 up: "1." and "0." write none, "3." writes 3', () => {
+  const attrs = (md) => markdownToDoc(md).content[0].attrs;
+  assert.equal(attrs('1. a\n2. b'), undefined);
+  assert.equal(attrs('0. a\n1. b'), undefined);
+  assert.deepEqual(attrs('3. a\n4. b'), { start: 3 });
+});
+
 test('pictures: placed only from files already in the cluster, otherwise a link or their words', () => {
   const doc = markdownToDoc(CORPUS.pictures, { imageAllowed: (s) => s === 'r2:images/abc.jpg' });
   const images = doc.content.filter((b) => b.type === 'image');

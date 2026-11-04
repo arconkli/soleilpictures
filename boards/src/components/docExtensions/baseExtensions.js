@@ -3,6 +3,8 @@
 // etc.) is added by DocPageEditor on top of this list.
 
 import StarterKit from '@tiptap/starter-kit';
+import OrderedList from '@tiptap/extension-ordered-list';
+import { mergeAttributes } from '@tiptap/core';
 import Underline from '@tiptap/extension-underline';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
@@ -25,12 +27,25 @@ import { CommentMark } from './CommentMark.js';
 import { ScreenplayBlock } from './screenplay/ScreenplayBlock.js';
 import { ClearFormatting } from './ClearFormatting.js';
 
+// StarterKit's list, except a stored start below 2 renders no attribute, so a
+// start of 0 (written before 2026-11-04) shows as 1. Only renderHTML differs.
+export const DocOrderedList = OrderedList.extend({
+  renderHTML({ HTMLAttributes }) {
+    const { start, ...rest } = HTMLAttributes;
+    return start >= 2
+      ? ['ol', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0]
+      : ['ol', mergeAttributes(this.options.HTMLAttributes, rest), 0];
+  },
+});
+
 export const baseDocExtensions = [
   StarterKit.configure({
     history: false,
+    orderedList: false,
     codeBlock: { HTMLAttributes: { class: 'tt-code' } },
     heading: { levels: [1, 2, 3, 4, 5, 6] },
   }),
+  DocOrderedList,
   Underline,
   Subscript,
   Superscript,

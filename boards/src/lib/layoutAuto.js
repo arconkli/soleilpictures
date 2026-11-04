@@ -258,8 +258,37 @@ function sectionBlock(cards, k, o) {
     }
   }
 
-  const h = Math.max(...at.map((p) => p.y + p.h));
-  return { w: W, h, at };
+  const top = { w: W, h: Math.max(...at.map((p) => p.y + p.h)), at };
+  // `o.beside` (the engine's boards only): words under spanning cards leave the span's width empty beside
+  // them (a storyboard sheet, a palette over one note). Try the rest in columns BESIDE the spans instead and
+  // keep whichever block is fuller (cards' area over the block's), by a clear margin.
+  if (!o.beside || pictures || !spans.length || !rest.length) return top;
+  const fill = (b) => cards.reduce((n, c, i) => n + b.at[i].w * b.at[i].h, 0) / (b.w * b.h);
+  let best = top;
+  const spanW = Math.max(...spans.map((i) => ownWidth(cards[i])));
+  for (let c = 1; c <= Math.max(1, Math.min(k, rest.length)); c++) {
+    const at2 = new Array(cards.length);
+    let y = 0;
+    for (const i of spans) {
+      at2[i] = { x: 0, y, w: cards[i].kind === 'palette' ? spanW : cards[i].w, h: cards[i].h };
+      y += cards[i].h + o.gap;
+    }
+    const x0 = spanW + o.gap;
+    const bottoms = new Array(c).fill(-o.gap);
+    for (const i of rest) {
+      const cd = cards[i];
+      let j = 0;
+      for (let m = 1; m < c; m++) if (bottoms[m] < bottoms[j]) j = m;
+      const w = isPicture(cd) ? colW : cd.w;
+      const hh = isPicture(cd) ? Math.max(1, Math.round(colW / aspectOf(cd))) : cd.h;
+      const yy = bottoms[j] + o.gap;
+      at2[i] = { x: x0 + j * (colW + o.gap), y: yy, w, h: hh };
+      bottoms[j] = yy + hh;
+    }
+    const b = { w: x0 + c * colW + (c - 1) * o.gap, h: Math.max(...at2.map((p) => p.y + p.h)), at: at2 };
+    if (fill(b) > fill(best) + 0.08) best = b;
+  }
+  return best;
 }
 
 // Blocks set out in rows, in order, at the row width whose board comes nearest
@@ -520,11 +549,12 @@ function arrangementOf(sections, o, forced = null) {
  * order given and returns them in that order, each with its x, y, w and h:
  * pictures are sized to their row or column (their `aspect`, when given, is
  * their true shape), a palette to its section's width; everything else keeps
- * its size. `opts.arrangement` names one of ARRANGEMENTS rather than letting
+ * its size. `opts.beside` (the engine's boards only) also tries a section's
+ * other cards in columns beside its spanning ones. `opts.arrangement` names one of ARRANGEMENTS rather than letting
  * the board's cards choose.
  */
 export function autoPlan(items, opts = {}) {
-  const o = { ...AUTO, ...(Number.isFinite(opts.gap) ? { gap: Math.max(0, opts.gap) } : {}) };
+  const o = { ...AUTO, ...(Number.isFinite(opts.gap) ? { gap: Math.max(0, opts.gap) } : {}), ...(opts.beside ? { beside: true } : {}) };
   const list = (items || []).filter(Boolean).map((c) => (
     Number.isFinite(c.w) && c.w > 0 && Number.isFinite(c.h) && c.h > 0
       ? c : { ...c, w: DEFAULT_W, h: DEFAULT_H }));

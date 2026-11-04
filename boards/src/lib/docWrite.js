@@ -387,8 +387,11 @@ export function tokensToDoc(tokens, { imageAllowed = () => false } = {}) {
       case 'blockquote_open': open({ type: 'blockquote' }); break;
       case 'bullet_list_open': open({ type: 'bulletList' }); break;
       case 'ordered_list_open': {
-        const start = Number(t.attrGet('start'));
-        open({ type: 'orderedList', ...(Number.isInteger(start) && start >= 0 && start !== 1 ? { attrs: { start } } : {}) });
+        // markdown-it sets no start attr on a list that starts at 1. A start
+        // below 1 reads as 1 everywhere, so only 2 and up is written.
+        const raw = t.attrGet('start');
+        const start = raw == null ? 1 : Number(raw);
+        open({ type: 'orderedList', ...(Number.isInteger(start) && start >= 2 ? { attrs: { start } } : {}) });
         break;
       }
       case 'list_item_open': open({ type: 'listItem' }); break;
