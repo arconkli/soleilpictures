@@ -153,6 +153,15 @@ export const SEO_PROBE_CONTRACT = [
     expected: 'Every plan, line by line', source: { kind: 'pricing' } },
   { id: 81, path: '/pricing.md', check: 'pricing md mirror',
     expected: 'Start free. Pay when you outgrow it.', source: { kind: 'file', path: 'public/pricing.md' } },
+
+  // ── /tools/video-reference-board (0866) ──────────────────────────────────
+  // Ids pinned by the migration itself, so this mirror lands with it. The
+  // mirror row asserts the h1 the .md carries (never the <title>); the sitemap
+  // row is a route path. Title/canonical rows (82, 83) need no mirror.
+  { id: 84, path: '/tools/video-reference-board.md', check: 'video reference board md mirror',
+    expected: 'A Reference Board That Plays Video', source: { kind: 'file', path: 'public/tools/video-reference-board.md' } },
+  { id: 85, path: '/sitemap.xml', check: 'sitemap has video reference board',
+    expected: '/tools/video-reference-board', source: { kind: 'route' } },
 ];
 
 // Deliberately NOT pinned: their `expected` is live database content, not

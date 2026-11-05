@@ -743,7 +743,7 @@ test('no cron job carries its secret inline; one definer helper reads it from Va
     assert.ok(latestMatch(new RegExp(`cron\\.schedule\\('${job}',\\s+'[^']+',\\s+\\$\\$select public\\._cron_edge_post\\(`)), job);
   }
   assert.match(latestDefinition('check_security_invariants').body,
-    /p\.proname not in \('_notify_email_send', 'ops_alert_dispatch', '_cron_edge_post', '_ops_hc_ping', 'check_security_invariants'\)/);
+    /p\.proname not in \('_notify_email_send', 'ops_alert_dispatch', '_cron_edge_post', '_ops_hc_ping', 'check_security_invariants', '_indexnow_send'\)/);
 });
 
 // ── 0387: storage counts what was actually stored ───────────────────────────

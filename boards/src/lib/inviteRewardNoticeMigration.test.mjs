@@ -1,5 +1,6 @@
 // 0863: a friend's first card tells the inviter (bell note + one email).
 // Pinned at the source (the latest migration definitions). Text only.
+// check_security_invariants is read at 0863's own definition because 0865 re-emits it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -66,9 +67,9 @@ test('email_unsubscribe allows exactly the keys the Worker knows', () => {
 
 test('0863 classes invite_reward as a member email in the gate and lists the sender in the daily check', () => {
   const gate = latestDefinition('_outbound_gate');
-  const check = latestDefinition('check_security_invariants');
+  const check = definitionsOf('check_security_invariants').find(d => /_invite_reward_notice\.sql$/.test(d.file));
   assert.match(gate.file, /_invite_reward_notice\.sql$/);
-  assert.match(check.file, /_invite_reward_notice\.sql$/);
+  assert.ok(check, 'check_security_invariants has a definition in 0863');
   assert.match(gate.body, /when p_template in \([^)]*'edit_granted', 'invite_reward'\) then 'member'/);
   assert.ok(check.body.includes("'_tg_referral_reward_notice'"));
 });
@@ -81,8 +82,10 @@ test('the gate and the daily check are exact copies of their previous definition
   ];
   for (const [name, token, prevFile] of pairs) {
     const defs = definitionsOf(name);
-    const cur = defs[defs.length - 1];
-    const prev = defs[defs.length - 2];
+    const i = defs.findIndex(d => /_invite_reward_notice\.sql$/.test(d.file));
+    assert.ok(i > 0, `${name}: 0863 defines it`);
+    const cur = defs[i];
+    const prev = defs[i - 1];
     assert.match(cur.file, /_invite_reward_notice\.sql$/, name);
     assert.ok(prev.file.startsWith(prevFile), `${name}: previous definition is ${prev.file}`);
     assert.ok(token.test(cur.body), `${name}: added token present`);

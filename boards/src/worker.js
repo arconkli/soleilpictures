@@ -224,6 +224,13 @@ function normalizePath(pathname) {
   return p;
 }
 
+// App pages served the SPA shell that must never be indexed. /resume carries a
+// single-use credential; /admin is the owner's console, which Search Console
+// showed listed for brand searches under the homepage's title. The app routes
+// /admin as an exact path with tabs in the query string, so the exact
+// normalized path is enough.
+const NOINDEX_APP_PAGES = new Set(['/resume', '/admin']);
+
 // Tiny HTMLRewriter element handlers — each owns one mutation.
 class SetText      { constructor(t) { this.t = t; } element(el) { el.setInnerContent(this.t); } }
 class SetContent   { constructor(v) { this.v = v; } element(el) { el.setAttribute('content', this.v); } }
@@ -1009,6 +1016,8 @@ const worker = {
     // (and any crawler that only reads headers) never see the tag. Same
     // fail-closed posture as the tokened /share URLs above.
     //
+    // /admin takes the same branch (see NOINDEX_APP_PAGES).
+    //
     // Headers are COPIED into a fresh Headers and the response rebuilt, exactly
     // as notFoundResponse does — do not "simplify" this to out.headers.set().
     //
@@ -1019,7 +1028,7 @@ const worker = {
     // answers GET perfectly and 500s on HEAD — invisible in a browser, caught
     // on the preview deploy where /resume was the only route failing, and
     // reproduced locally under `wrangler dev` both ways before this fix landed.
-    if (isPageReq && normalizePath(url.pathname) === '/resume' && contentType.includes('text/html')) {
+    if (isPageReq && NOINDEX_APP_PAGES.has(normalizePath(url.pathname)) && contentType.includes('text/html')) {
       const out = new HTMLRewriter()
         .on('head', new AppendHead('<meta name="robots" content="noindex">'))
         .transform(res);
