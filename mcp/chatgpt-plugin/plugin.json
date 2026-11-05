@@ -1,0 +1,105 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "soleil-clusters",
+  "version": "1.0.0",
+  "description": "Make and browse moodboards in Soleil Clusters, a visual workspace for film and creative work: bring in pictures from web links, add notes, colour palettes and docs in named sections, and see the board right in the chat.",
+  "author": {
+    "name": "Soleil Pictures",
+    "email": "clusters@soleilpictures.com",
+    "url": "https://clusters.soleilpictures.com"
+  },
+  "homepage": "https://clusters.soleilpictures.com",
+  "repository": "https://github.com/arconkli/soleilpictures",
+  "license": "MIT",
+  "keywords": ["moodboard", "mood board", "lookbook", "reference board", "film", "creative", "treatment", "visual workspace"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Soleil Clusters",
+        "shortDescription": "Moodboards for creative work",
+        "longDescription": "Soleil Clusters is a visual workspace for film and creative work: moodboards, lookbooks, references, treatments and shot lists that a team keeps together on a canvas. Each board is called a cluster, and clusters can sit inside each other.\n\nWith Soleil Clusters in ChatGPT you can:\n- Make a moodboard from a brief. ChatGPT creates a cluster, brings in pictures from the web links you give it, and adds notes, a colour palette and a written treatment, sorted into named sections.\n- See it in the chat. The cluster is drawn right in the conversation, with a link to open it in Clusters.\n- Find things. Search every cluster you can open by name, text, tag or what is in a picture, and read a cluster's notes and docs.\n- Tidy and edit. Lay a cluster out in sections, move cards between clusters, rename and tag cards, edit doc pages, and reply to or resolve comments.\n- Share when you ask. Get a view-only link to a cluster.\n\nTry it without an account: ChatGPT starts a draft cluster and gives you a link to keep it in Clusters. Sign in to work on your own clusters. ChatGPT reaches only the clusters your account can open, with the same rights you have in the app, and checks with you before deleting anything. Signed in, deleting stays off unless you allow it when you connect. Every connected app is listed in Clusters under Settings, Connections, with what it may do and when it was last used, and you can disconnect it there.\n\nLimitations: pictures come from web links you give or files already in Clusters; Clusters does not generate images. A draft cannot be shared until it is kept, and a draft nobody keeps is deleted after a while.",
+        "developerName": "Soleil Pictures",
+        "category": "Creativity",
+        "capabilities": [
+          "Make a moodboard from a brief",
+          "Bring in pictures from web links",
+          "Add notes, palettes and docs in sections",
+          "Show a cluster in the chat",
+          "Search and read your clusters",
+          "Arrange, tag and move cards",
+          "Read and resolve comments",
+          "Get a view-only link when you ask"
+        ],
+        "websiteURL": "https://clusters.soleilpictures.com",
+        "supportURL": "https://clusters.soleilpictures.com/docs/account/support",
+        "privacyPolicyURL": "https://clusters.soleilpictures.com/legal/privacy",
+        "termsOfServiceURL": "https://clusters.soleilpictures.com/legal/terms",
+        "defaultPrompt": [
+          "Make a moodboard for a neo-noir short film set in a rainy city at night",
+          "Build a lookbook for a 1970s road-trip music video with a colour palette",
+          "Show me my most recent cluster and sum up its notes"
+        ],
+        "brandColor": "#F29C00",
+        "brandColorDark": "#FFA500",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Make a moodboard from a brief, signed in as the demo account",
+              "prompt": "Make a moodboard for a 1970s Tokyo neo-noir short: night streets, neon, rain. Add a colour palette and notes on the light.",
+              "tools_triggered": "create_boards, add_cards, show_board",
+              "expected_behavior": "Creates a new cluster in the demo account with notes and a palette card sorted into named sections (such as Look, Light and Places), draws the cluster in the chat, and gives its link."
+            },
+            {
+              "description": "Find a sample cluster and show it",
+              "prompt": "Show me my Lookbook cluster.",
+              "tools_triggered": "search, show_board",
+              "expected_behavior": "Finds the Lookbook sample cluster and draws it in the chat with its sections, pictures and notes, plus a link that opens it in Clusters."
+            },
+            {
+              "description": "Write a treatment onto a cluster",
+              "prompt": "Write a one-page treatment from my Tokyo neo-noir cluster and add it to that cluster.",
+              "tools_triggered": "read_board, write_doc",
+              "expected_behavior": "Reads the cluster's cards and adds a doc card holding a one-page treatment to the same cluster, then links to it."
+            },
+            {
+              "description": "Tidy a cluster into sections",
+              "prompt": "Sort my Tokyo neo-noir cluster into Look, Light and Places.",
+              "tools_triggered": "read_board, update_cards, arrange_board",
+              "expected_behavior": "Asks before rearranging, since moving cards into sections and laying them out are marked destructive. Once confirmed, every card sits in one of the three sections and the cluster is laid out by section."
+            },
+            {
+              "description": "Catch up on comments and resolve the finished ones",
+              "prompt": "What did people comment on my Lookbook cluster? Resolve the ones that are done.",
+              "tools_triggered": "search, list_comments, resolve_comments",
+              "expected_behavior": "Lists the open comment threads on Lookbook with the card each is on, says which look done, and resolves those after confirming with the person."
+            }
+          ],
+          "negative": [
+            {
+              "description": "General question with no board involved. Soleil Clusters should not be called; ChatGPT answers on its own.",
+              "prompt": "What's a good lens for night street photography?"
+            },
+            {
+              "description": "Bulk deletion. Soleil Clusters should not delete anything without the person confirming exactly what goes. With deleting left off at sign-in (the default), any delete is refused and ChatGPT should say deleting isn't allowed for this connection.",
+              "prompt": "Delete all my clusters."
+            },
+            {
+              "description": "Access outside the connected account. Soleil Clusters reaches only clusters the signed-in account can open, so it should find nothing and say so rather than guess or invent results.",
+              "prompt": "Show me the moodboards in Pixar's Clusters workspace."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "Soleil Clusters sells nothing in ChatGPT: it shows no plans or prices and links to no checkout."
+      },
+      "publication": {
+        "countries": [],
+        "release_notes": "First release. Make moodboards from a brief, see clusters drawn in the chat, search and read clusters, write docs, lay out, tag and move cards, and read and resolve comments. Works without an account as a draft you can keep; sign in to work on your own clusters."
+      }
+    }
+  }
+}

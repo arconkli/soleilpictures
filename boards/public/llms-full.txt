@@ -4971,6 +4971,48 @@ A: Not today. Sign-in is an emailed one-time code or a passkey, and using a pass
 
 
 ========================================================================
+# Help and support
+URL: https://clusters.soleilpictures.com/docs/account/support
+Updated: 2026-11-05
+
+Email clusters@soleilpictures.com with a link to the cluster and what happened. To stop ChatGPT, Claude or another AI app from reaching your clusters, open Settings, then Connections, and disconnect it. A deleted cluster waits in the trash and can be restored.
+
+Email us
+
+Write to clusters@soleilpictures.com. It helps to include:
+
+a link to the cluster, copied from the address bar, or the workspace's name
+what you did, and what happened instead
+when it happened, and a screenshot if you have one
+
+AI apps connected to your clusters
+
+ChatGPT, Claude and other AI apps reach your clusters through the Clusters MCP server, signed in as you. An app sees only the clusters your account can open, with the same rights you have in the app.
+
+Disconnect an app: open Settings, then Connections. Each app you approved is listed with what it may do, when it was connected and when it was last used. Disconnect cuts it off.
+Deleting is off unless you allowed it when you connected the app.
+Something removed by mistake: a deleted cluster waits in the trash and can be restored. See Trash and recovery.
+
+Your data
+
+What we keep, for how long, and how to export or delete it is in Data and privacy. The legal terms are the Privacy Policy and Terms of Service.
+
+## Frequently asked questions
+
+Q: How do I contact Soleil Clusters?
+A: Email clusters@soleilpictures.com. Include a link to the cluster, what you did and what happened instead.
+
+Q: How do I disconnect ChatGPT, Claude or another AI app?
+A: Open Settings, then Connections. Each app you approved is listed with what it may do and when it was last used, and Disconnect cuts it off.
+
+Q: Can an AI app delete my clusters?
+A: Only if you allowed deleting when you connected it. Deleting is off unless you turn it on, and an app reaches only the clusters your account can open.
+
+Q: Something was deleted by mistake. Can I get it back?
+A: A deleted cluster waits in the trash and can be restored from there. See Trash and recovery.
+
+
+========================================================================
 # The REST API
 URL: https://clusters.soleilpictures.com/docs/api
 Updated: 2026-10-27
@@ -7469,7 +7511,7 @@ Discovery
 
 A client finds the server without being told anything but the address. A call to /api/v1/mcp with no credential comes back 401 with a WWW-Authenticate header whose resource_metadata points at our OAuth metadata; a call with a token that is wrong or expired adds error="invalid_token", so a client can tell "sign in" from "sign in again". A web browser sent to the address is redirected to this page.
 
-The server describes itself, without any sign-in, in MCP's standard server card at /api/v1/mcp/server-card (the same card is at /mcp/server-card): its name, title, version, the two addresses and the protocol versions they accept. /.well-known/ai-catalog.json lists it, so a client that knows only the domain finds it. Directories that scan a server they can't sign in to read the older card at /.well-known/mcp/server-card.json (and /.well-known/mcp.json), which adds that it signs in over OAuth, its capabilities and its tools with their titles and annotations. Any other path under /.well-known/ that we don't serve answers a JSON 404, not a page.
+The server describes itself, without any sign-in, in MCP's standard server card at /api/v1/mcp/server-card (the same card is at /mcp/server-card): its name, title, version, the two addresses and the protocol versions they accept. /.well-known/ai-catalog.json lists it, so a client that knows only the domain finds it. Directories that scan a server they can't sign in to read the older card at /.well-known/mcp/server-card.json (and /.well-known/mcp.json), which adds that it signs in over OAuth, its capabilities and its tools with their titles and annotations. /.well-known/openai-apps-challenge answers, as plain text, the token OpenAI's plugin portal shows when it checks that we own the domain, while one is set. Any other path under /.well-known/ that we don't serve answers a JSON 404, not a page.
 
 Protocol versions
 
@@ -7583,7 +7625,7 @@ add_cards once lacked audio and pdf while the REST API took both, so an agent co
 Every tool carries a title and annotations — readOnlyHint, destructiveHint, idempotentHint, openWorldHint — which is what a client reads when deciding whether a call needs confirming. They are structured, so unlike a warning in a description they actually participate in that decision.
 
 Read-only: whoami, search, fetch, list_boards, resolve_identifier, read_board, view_board, show_board, list_comments, list_tags and list_audit. They change nothing and can be repeated freely.
-Destructive: update_boards, update_cards, edit_doc_page, unshare_board, delete_cards and delete_board, since each can take something away (words, a link, cards, a cluster).
+Destructive: update_boards, update_cards, edit_doc_page, arrange_board, move_cards, tag_cards, resolve_comments, unshare_board, delete_cards and delete_board, since each can take something away or write over it (words, positions, tags, a thread's state, a link, cards, a cluster). Only a write that purely adds is marked non-destructive, even where the same call could put things back.
 Open-world: import_urls, which fetches addresses on the web, and share_board, which makes a link anyone can open. The rest act only on the person's own clusters.
 
 Answers to the card writers are compact. add_cards, update_cards and arrange_board answer with each card's id, kind, title, section, position and size, and its url where it points somewhere, not the card whole; read_board has the rest.

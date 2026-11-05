@@ -31,6 +31,14 @@
 // tool works on one account's own boards, a closed set. The two that reach
 // outside it, import_urls (fetches addresses on the web) and share_board
 // (makes a link anyone can open), say true themselves.
+//
+// destructiveHint is true for anything that removes or writes over what was
+// there, even when the same call can put it back: OpenAI's plugin directory
+// allows false only for writes that purely add ("Being able to undo an action
+// does not, by itself, justify setting destructiveHint to false"). So
+// arranging (positions), moving (off the source), tagging (a tag taken off)
+// and resolving (a thread put away) are destructive, with the overwrites and
+// the deletes.
 const READS = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 const WRITES = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 const EDITS = { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false };
@@ -1598,7 +1606,7 @@ export const TOOLS = [
       + 'suit the board; it also brings notes the API made earlier up to date. order lists card ids to put '
       + 'first. "justified" fits rows flush on both edges, "masonry" is colour-ordered columns, "grid" uniform '
       + 'cells, "row" and "column" single lines. Omit card_ids for the whole board.',
-    annotations: EDITS,
+    annotations: OVERWRITES,
     inputSchema: schema({
       board_id: uuid('The board'),
       layout: str('Default auto', { enum: ['auto', 'justified', 'masonry', 'grid', 'row', 'column'] }),
@@ -1650,7 +1658,7 @@ export const TOOLS = [
     description: 'MOVES cards from one cluster to another: they stop being on the source and are laid out on the '
       + 'destination so they do not overlap what is there. Use it to move cards between clusters; to arrange cards '
       + 'inside one cluster use arrange_board.',
-    annotations: WRITES,
+    annotations: DESTROYS,
     inputSchema: schema({
       from_board_id: uuid('Where the cards are now'),
       to_board_id: uuid('Where they should go'),
@@ -1672,9 +1680,10 @@ export const TOOLS = [
     description: 'Puts tags on cards of one board and takes them off. A tag is a name or an id from list_tags; a name '
       + 'with no tag in the workspace makes a new one. A tag taken off stays off: automatic tagging never puts '
       + 'it back. Tag only what the person asked for.',
-    // Not destructive: a tag taken off goes back on with this same call, which
-    // lifts the "keep it off" too, so there is nothing to confirm first.
-    annotations: EDITS,
+    // Destructive: taking a tag off removes it, and "remove" keeps it off
+    // against automatic tagging. OpenAI's directory counts any removal or
+    // overwrite as destructive even when the same call can put it back.
+    annotations: OVERWRITES,
     inputSchema: schema({
       board_id: uuid('The board the cards are on'),
       card_ids: {
@@ -1718,7 +1727,7 @@ export const TOOLS = [
     description: 'CHANGES whether comment threads on a board are resolved: resolved true (default) puts them away, false '
       + 'reopens them. Takes thread ids from list_comments. On the canvas a thread\'s author or an editor may '
       + 'resolve it; inside docs and notes, an editor. Resolve only what the person asked.',
-    annotations: EDITS,
+    annotations: OVERWRITES,
     inputSchema: schema({
       board_id: uuid('The board'),
       comment_ids: {
@@ -2062,8 +2071,9 @@ export function apiErrorFrom(status, body, headers) {
 const NEXT_STEP = {
   not_found: 'Check the id: list_boards or search give current ones. On the no-account endpoint the draft key '
     + 'may be missing.',
-  limit_reached: 'Delete what is no longer needed to make room, or the person can upgrade in '
-    + 'Settings → Plan & billing.',
+  // OpenAI's plugin guidelines: a plugin may explain that a limit comes from a
+  // plan, but must not promote upgrades. Every client gets this same hint.
+  limit_reached: 'Delete what is no longer needed to make room; the limit comes with the account\'s plan.',
   forbidden: 'If the cluster is view-only for the person, ask its owner for edit access, or use another cluster.',
   room_unavailable: 'Try again in a few seconds.',
 };

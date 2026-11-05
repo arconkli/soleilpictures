@@ -56,6 +56,7 @@ import {
 import { runCompactionJob1 } from './worker-compaction.js';
 import { isOAuthRoute, handleOAuthRoute } from './worker-oauth.js';
 import { wellKnownResponse, SERVER_CARD_ENDPOINTS } from './lib/mcpDiscovery.js';
+import { openaiAppsChallengeResponse } from './lib/openaiAppsChallenge.js';
 import { classifyCrawler, isCrawlablePath, crawlerHitPath } from './lib/crawlerUa.js';
 import { ogTargetProblem } from './lib/safeUrl.js';
 import { makeRateLimiter } from './lib/webImageSave.js';
@@ -774,6 +775,8 @@ const worker = {
       // addresses, ahead of the /api/v1 router and the /mcp branch (no sign-in).
       if (SERVER_CARD_ENDPOINTS.includes(url.pathname)) return wellKnownResponse(url, request.method);
       if (url.pathname.startsWith('/.well-known/')) {
+        const challenge = openaiAppsChallengeResponse(url.pathname, request.method, env);
+        if (challenge) return challenge;
         const card = wellKnownResponse(url, request.method);
         if (card.status !== 404) return card;
         const asset = await env.ASSETS.fetch(request).catch(() => null);

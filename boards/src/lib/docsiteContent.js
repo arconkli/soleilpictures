@@ -51446,6 +51446,267 @@ export const DOCS_CONTENT = {
    ]
   }
  ],
+ "/docs/account/support": [
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Email us",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Email us"
+    }
+   ],
+   "id": "email-us"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Write to "
+    },
+    {
+     "t": "strong",
+     "v": "clusters@soleilpictures.com",
+     "children": [
+      {
+       "t": "text",
+       "v": "clusters@soleilpictures.com"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". It helps to include:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "a link to the cluster, copied from the address bar, or the workspace's name"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "what you did, and what happened instead"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "when it happened, and a screenshot if you have one"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "AI apps connected to your clusters",
+   "inline": [
+    {
+     "t": "text",
+     "v": "AI apps connected to your clusters"
+    }
+   ],
+   "id": "ai-apps-connected-to-your-clusters"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "ChatGPT, Claude and other AI apps reach your clusters through the "
+    },
+    {
+     "t": "link",
+     "v": "Clusters MCP server",
+     "href": "/docs/mcp",
+     "children": [
+      {
+       "t": "text",
+       "v": "Clusters MCP server"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", signed in as you. An app sees only the clusters your account can open, with the same rights you have in the app."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Disconnect an app:",
+      "children": [
+       {
+        "t": "text",
+        "v": "Disconnect an app:"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " open "
+     },
+     {
+      "t": "link",
+      "v": "Settings",
+      "href": "/docs/account/settings",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", then Connections. Each app you approved is listed with what it may do, when it was connected and when it was last used. "
+     },
+     {
+      "t": "strong",
+      "v": "Disconnect",
+      "children": [
+       {
+        "t": "text",
+        "v": "Disconnect"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " cuts it off."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Deleting is off",
+      "children": [
+       {
+        "t": "text",
+        "v": "Deleting is off"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " unless you allowed it when you connected the app."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Something removed by mistake:",
+      "children": [
+       {
+        "t": "text",
+        "v": "Something removed by mistake:"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " a deleted cluster waits in the trash and can be restored. See "
+     },
+     {
+      "t": "link",
+      "v": "Trash and recovery",
+      "href": "/docs/clusters/trash-and-recovery",
+      "children": [
+       {
+        "t": "text",
+        "v": "Trash and recovery"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Your data",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Your data"
+    }
+   ],
+   "id": "your-data"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "What we keep, for how long, and how to export or delete it is in "
+    },
+    {
+     "t": "link",
+     "v": "Data and privacy",
+     "href": "/docs/account/data-and-privacy",
+     "children": [
+      {
+       "t": "text",
+       "v": "Data and privacy"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". The legal terms are the "
+    },
+    {
+     "t": "link",
+     "v": "Privacy Policy",
+     "href": "/legal/privacy",
+     "children": [
+      {
+       "t": "text",
+       "v": "Privacy Policy"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "link",
+     "v": "Terms of Service",
+     "href": "/legal/terms",
+     "children": [
+      {
+       "t": "text",
+       "v": "Terms of Service"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  }
+ ],
  "/docs/api": [
   {
    "type": "para",
@@ -72413,7 +72674,15 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "), which adds that it signs in over OAuth, its capabilities and its tools with their titles and annotations. Any other path under "
+     "v": "), which adds that it signs in over OAuth, its capabilities and its tools with their titles and annotations. "
+    },
+    {
+     "t": "code",
+     "v": "/.well-known/openai-apps-challenge"
+    },
+    {
+     "t": "text",
+     "v": " answers, as plain text, the token OpenAI's plugin portal shows when it checks that we own the domain, while one is set. Any other path under "
     },
     {
      "t": "code",
@@ -75702,6 +75971,38 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "code",
+      "v": "arrange_board"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "move_cards"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "tag_cards"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
+      "v": "resolve_comments"
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "code",
       "v": "unshare_board"
      },
      {
@@ -75722,7 +76023,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ", since each can take something away (words, a link, cards, a cluster)."
+      "v": ", since each can take something away or write over it (words, positions, tags, a thread's state, a link, cards, a cluster). Only a write that purely adds is marked non-destructive, even where the same call could put things back."
      }
     ],
     [

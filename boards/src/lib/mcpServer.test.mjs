@@ -188,16 +188,19 @@ test('every tool declares all four annotations', () => {
   }
 });
 
-test('anything that deletes is marked destructive, and nothing else is', () => {
+test('anything that removes or writes over something is marked destructive, and nothing else is', () => {
   const destructive = TOOLS.filter((t) => t.annotations.destructiveHint).map((t) => t.name).sort();
-  // unshare_board deletes nothing anyone made, but a revoked link never opens
-  // again for anyone holding it: irreversible for other people, so a client
-  // should ask first. edit_doc_page can take a page's words away; the board
-  // goes to Version history first, but getting them back is done in the app.
-  // update_boards and update_cards overwrite what was there (a rename, a new
-  // body), so a client should ask before a batch of them.
+  // OpenAI's plugin directory allows destructiveHint false only for writes
+  // that purely add; being able to undo does not count. So besides the
+  // deletes: unshare_board revokes a link for everyone holding it;
+  // edit_doc_page can take a page's words away (Version history first);
+  // update_boards and update_cards overwrite (a rename, a new body);
+  // arrange_board writes over where cards were; move_cards takes cards off
+  // the source; tag_cards can take tags off; resolve_comments puts threads
+  // away. What only adds (create_boards, add_cards, write_doc, import_urls,
+  // add_comment, share_board, restore_board, …) stays false.
   assert.deepEqual(destructive,
-    ['delete_board', 'delete_cards', 'edit_doc_page', 'unshare_board', 'update_boards', 'update_cards']);
+    ['arrange_board', 'delete_board', 'delete_cards', 'edit_doc_page', 'move_cards', 'resolve_comments', 'tag_cards', 'unshare_board', 'update_boards', 'update_cards']);
   // And a read-only tool must not also claim to write.
   for (const t of TOOLS) {
     if (t.annotations.readOnlyHint) {
@@ -1401,7 +1404,9 @@ test('a hint for each failure the API names says what to do next, with no number
   const gone = say(404, 'not_found', 'board not found');
   assert.match(gone, /^board not found\. Check the id: list_boards or search give current ones\..*draft key.* \[not_found\]$/);
   const full = say(402, 'limit_reached', 'those cards would take the destination board\'s owner past their limit of 50 cards');
-  assert.match(full, /past their limit of 50 cards\. Delete .*make room.*upgrade in Settings .* \[limit_reached\]$/);
+  assert.match(full, /past their limit of 50 cards\. Delete .*make room; the limit comes with the account's plan\. \[limit_reached\]$/);
+  // OpenAI's plugin guidelines: explain a plan limit, never promote upgrades.
+  assert.doesNotMatch(full, /upgrade|billing|subscri/i);
   assert.doesNotMatch(say(402, 'limit_reached', 'out of space'), /\d/);
   assert.match(say(403, 'forbidden', 'you cannot write to that board'),
     /view-only.*ask its owner for edit access.*another cluster\. \[forbidden\]$/);
