@@ -77,6 +77,50 @@ test('a picture gets an address only once the caller\'s own read has found it, a
   assert.equal(out.expires_at, new Date(1_800_000_000 * 1000).toISOString());
 });
 
+// Pictures added through the API have no renditions until the app makes them,
+// and here a browser draws them: a page's budget, not a model's.
+test('a picture with no renditions is sent whole when a browser draws it and it is small enough', async () => {
+  const sign = async (key) => `signed:${key}`;
+  const run = async (cards, imageRows) => canvasAnswer({
+    board: BOARD, boardUrl: 'u', plan: planCanvas(cards), imageRows, sign, expiresAt: 1_800_000_000,
+  });
+  const card = (id, key) => ({ id, kind: 'image', src: `r2:${key}`, x: 0, y: 0, w: 100, h: 100 });
+  const out = await run([
+    card('a', 'w1/a.jpg'), card('b', 'w1/b.jpg'), card('c', 'w1/c.heic'), card('d', 'w1/d.tif'), card('e', 'w1/e.JPG'),
+  ], [
+    { storage_path: 'w1/a.jpg', width: 3000, height: 2000, size_bytes: 717 * 1024 },
+    { storage_path: 'w1/b.jpg', width: 6000, height: 4000, size_bytes: 3 * 1024 * 1024 },
+    { storage_path: 'w1/c.heic', width: 3000, height: 2000, size_bytes: 300 * 1024 },
+    { storage_path: 'w1/d.tif', width: 3000, height: 2000, size_bytes: 300 * 1024 },
+    { storage_path: 'w1/e.JPG', width: 1000, height: 500, size_bytes: null },
+  ]);
+  const by = Object.fromEntries(out.cards.map((c) => [c.id, c.picture]));
+  assert.deepEqual(by.a, { url: 'signed:w1/a.jpg', width: 3000, height: 2000 });
+  assert.deepEqual(by.b, { width: 6000, height: 4000 }, 'too big for a page: kept, undrawn');
+  assert.equal(by.c.url, undefined, 'a type browsers don\'t draw');
+  assert.equal(by.d.url, undefined);
+  assert.equal(by.e.url, undefined, 'an unknown size is not a small one');
+  assert.equal(out.picture_count, 5);
+
+  const withSm = await run([card('a', 'w1/a.jpg')], [
+    { storage_path: 'w1/a.jpg', preview_sm_path: 'w1/a_sm.webp', preview_sm_w: 640, preview_sm_h: 427,
+      width: 3000, height: 2000, size_bytes: 717 * 1024 },
+  ]);
+  assert.equal(withSm.cards[0].picture.url, 'signed:w1/a_sm.webp');
+});
+
+test('the originals in one answer stay within their total budget', async () => {
+  const each = CANVAS.originalMaxBytes;
+  const n = CANVAS.originalTotalMaxBytes / each + 1;
+  const cards = Array.from({ length: n }, (_, i) => ({ id: `i${i}`, kind: 'image', src: `r2:w1/${i}.jpg`, x: i * 10, y: 0 }));
+  const rows = cards.map((_, i) => ({ storage_path: `w1/${i}.jpg`, width: 4000, height: 3000, size_bytes: each }));
+  const { out, signed } = await answer(cards, { imageRows: rows });
+  assert.equal(n, 13);
+  assert.equal(signed.length, 12);
+  assert.equal(out.cards.filter((c) => c.picture?.url).length, 12);
+  assert.equal(out.picture_count, 13);
+});
+
 test('past the picture budget, pictures are drawn in their colour', async () => {
   const n = CANVAS.maxPictures + 5;
   const cards = Array.from({ length: n }, (_, i) => ({ id: `i${i}`, kind: 'image', src: `r2:w1/${i}.jpg`, x: i * 10, y: 0 }));
@@ -155,6 +199,13 @@ test('a note that opens with a heading is titled by it, and its text is what fol
   assert.deepEqual([a.title, a.text], ['MARTY SUPREME (2025)', '9.75 / 10 One of your highest-rated films.']);
   assert.deepEqual([b.title, b.text], ['Shot list', 'Wide']);
   assert.deepEqual([c.title, c.text], ['Kept', 'No heading here']);
+});
+
+test('a note\'s escaped quotes are quotes in its title and text', async () => {
+  const { out } = await answer([
+    { id: 'n1', kind: 'note', x: 0, y: 0, html: '<h2>Places</h2><p>Yurakucho&#39;s arches, &quot;Golden Gai&quot;</p>' },
+  ]);
+  assert.deepEqual([out.cards[0].title, out.cards[0].text], ['Places', 'Yurakucho\'s arches, "Golden Gai"']);
 });
 
 test('cards come in their stacking order, groups round their members, and the board\'s extent', async () => {

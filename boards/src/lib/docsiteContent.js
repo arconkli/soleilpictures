@@ -56460,7 +56460,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "A picture is an image, a video's poster frame, a link's preview or a cluster's thumbnail, at its smaller rendition (the original only when it is small), and "
+     "v": "A picture is an image, a video's poster frame, a link's preview or a cluster's thumbnail, at its smaller rendition, and "
     },
     {
      "t": "code",
@@ -56468,7 +56468,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " is its average colour, to draw before it arrives. Only pictures your own read of the board can see get an address, at most 80; the rest are drawn in their tone. An address works for anyone who has it until "
+     "v": " is its average colour, to draw before it arrives. A picture with no rendition yet, as one added through the API has until the app makes them, comes as its original when that is a JPEG, PNG, GIF, WebP or AVIF of at most 2 MB, while the originals in one answer stay within 24 MB. Only pictures your own read of the board can see get an address, at most 80; the rest are drawn in their tone. An address works for anyone who has it until "
     },
     {
      "t": "code",

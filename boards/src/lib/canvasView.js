@@ -23,7 +23,17 @@ export const CANVAS = {
   titleMax: 80,
   // Colours on a palette card.
   swatchesMax: 12,
+  // A picture with no smaller rendition is sent whole up to this size, and no
+  // more than this much of them in one answer. Here a person's browser draws
+  // the picture, so the budget is a page's, not a model's (gallery.js sizes
+  // its own for that). Pictures added through the API have no renditions
+  // until the app makes them.
+  originalMaxBytes: 2 * 1024 * 1024,
+  originalTotalMaxBytes: 24 * 1024 * 1024,
 };
+
+// Types every browser draws; a small .heic or .tif is no use to it.
+const DRAWABLE = /\.(?:jpe?g|png|gif|webp|avif)$/i;
 
 const r2Key = (v) => (typeof v === 'string' && v.startsWith('r2:') && v.length > 3 ? v.slice(3) : null);
 const num = (v, fallback) => (Number.isFinite(v) ? v : fallback);
@@ -155,6 +165,7 @@ export async function canvasAnswer({ board, boardUrl, plan, imageRows = [], boar
   const boardById = new Map((boardRows || []).map((r) => [String(r.id), r]));
   let pictures = 0;
   let signed = 0;
+  let originalBytes = 0;
 
   const out = [];
   for (const c of plan.drawn) {
@@ -192,6 +203,7 @@ export async function canvasAnswer({ board, boardUrl, plan, imageRows = [], boar
 
     const src = pictureSource(c);
     let picture = null;
+    let originalSize = 0;
     if (src?.key && rowByKey.has(src.key)) {
       const row = rowByKey.get(src.key);
       const rendition = pickRendition(row, 'sm');
@@ -201,6 +213,18 @@ export async function canvasAnswer({ board, boardUrl, plan, imageRows = [], boar
         tone: blurhashTone(row.blur_hash),
         key: rendition?.key || null,
       };
+      if (!rendition || rendition.variant === 'original') {
+        picture.key = null;
+        const bytes = row.size_bytes == null ? NaN : Number(row.size_bytes);
+        if (DRAWABLE.test(String(row.storage_path || '')) && Number.isFinite(bytes)
+          && bytes <= CANVAS.originalMaxBytes && signed < CANVAS.maxPictures
+          && originalBytes + bytes <= CANVAS.originalTotalMaxBytes) {
+          picture.key = row.storage_path;
+          picture.width = row.width ?? null;
+          picture.height = row.height ?? null;
+          originalSize = bytes;
+        }
+      }
     } else if (src?.board && boardById.get(src.board)?.thumb_key) {
       picture = { width: null, height: null, tone: null, key: boardById.get(src.board).thumb_key };
     }
@@ -211,6 +235,7 @@ export async function canvasAnswer({ board, boardUrl, plan, imageRows = [], boar
       if (key && signed < CANVAS.maxPictures) {
         shown.url = await sign(key);
         signed += 1;
+        originalBytes += originalSize;
       }
       for (const k of Object.keys(shown)) if (shown[k] == null) delete shown[k];
       card.picture = shown;
