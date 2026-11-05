@@ -938,6 +938,12 @@ const clampSize = (n) => Math.max(40, Math.min(Math.round(n), 4000));
 //   1. LIKE metacharacters (% _ \) so a search for "100%" is not a wildcard;
 //   2. PostgREST's own quoting, which doubles the backslashes layer 1 added.
 // Unquoting then hands Postgres exactly one backslash, which is its LIKE escape.
+//
+// PostgREST unquotes a value only inside `or=(…)` / `and=(…)` or an `in.(…)`
+// list. A plain filter such as `name=ilike.…` keeps the quotes as part of the
+// pattern and matches nothing. So this function's output always goes inside
+// `or=(…)`, even for a single column. From 2026-08-08 until that was fixed,
+// board-name and picture search found nothing because of exactly that.
 export function pgLikeValue(q) {
   const escaped = String(q).replace(/[\\%_]/g, (m) => `\\${m}`);
   const pattern = `%${escaped}%`;
@@ -2514,7 +2520,7 @@ async function dispatch(url, request, env, ctx) {
     const [boardRows, cardRows, pictureRows, pageRows, undescribedRows] = await Promise.all([
       wantBoards
         ? userSelect(env, token, 'boards',
-          `name=ilike.${encodeURIComponent(value)}&deleted_at=is.null${wsFilter}`
+          `or=${encodeURIComponent(`(name.ilike.${value})`)}&deleted_at=is.null${wsFilter}`
           + `&select=id,name,workspace_id,parent_board_id,view,created_at,updated_at,deleted_at`
           + `&order=created_at.desc&limit=${limit + 1}&offset=${offset}`)
         : Promise.resolve([]),
@@ -2526,7 +2532,7 @@ async function dispatch(url, request, env, ctx) {
         : Promise.resolve([]),
       wantCards
         ? userSelect(env, token, 'entity_search',
-          `kind=eq.image&seen=ilike.${encodeURIComponent(value)}${wsFilter}`
+          `kind=eq.image&or=${encodeURIComponent(`(seen.ilike.${value})`)}${wsFilter}`
           + `&select=board_id,card_id,title,seen,workspace_id,updated_at`
           + `&order=updated_at.desc&limit=${limit + 1}&offset=${offset}`)
           // Words still find words when pictures can't be searched.
