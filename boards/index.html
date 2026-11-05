@@ -276,11 +276,9 @@
   <noscript><style>#boot-splash{display:none!important;}</style></noscript>
 </head>
 <body>
-  <!-- Meta Pixel (noscript fallback) — lives in <body>: an <img> inside a
-       <noscript> is disallowed in <head> per the HTML spec (parse5/vite reject it). -->
-  <noscript><img height="1" width="1" style="display:none"
-    src="https://www.facebook.com/tr?id=1671656413978924&ev=PageView&noscript=1"
-  /></noscript>
+  <!-- No Meta Pixel <noscript> fallback: it would fire without the GPC and
+       private-link checks the script above applies, which the Privacy and
+       Cookie policies promise. -->
   <div id="root">
     <!-- Boot splash — FIRST child of #root so it paints (and, via z-index,
          stacks) above the SEO <main> from the very first frame, even on a
