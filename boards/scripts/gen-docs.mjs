@@ -120,7 +120,7 @@ import {
 import {
   DOC_ROOM_MAX_CONNECTIONS, DOC_ROOM_GUEST_DOC_MAX_BYTES, DOC_ROOM_FRAME_MAX_BYTES,
 } from '../src/lib/docRoomLimits.js';
-import { latestDefinition } from '../src/lib/migrationText.mjs';
+import { MIGRATIONS_DIR, migrationFiles, latestDefinition } from '../src/lib/migrationText.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BOARDS = resolve(HERE, '..');
@@ -379,6 +379,26 @@ const commentRestore = readdirSync(MIGRATIONS)
   ?.match(/deleted_at\s*<\s*\(?\s*now\(\)\s*-\s*interval\s*'(\d+) days'/i);
 if (!commentRestore) {
   throw new Error('gen-docs: how long a deleted comment is kept was not found — update the extractor');
+}
+
+// How long a deleted cluster waits in Trash: every interval in the latest
+// definition of purge_old_deleted_boards (0050). legalContent.test.mjs holds
+// the privacy policy to the same purge.
+const trashDef = latestDefinition('purge_old_deleted_boards');
+const trashWindow = [...new Set([...(trashDef?.body ?? '').matchAll(/interval\s+'(\d+)\s+days'/gi)].map((m) => m[1]))];
+if (trashWindow.length !== 1) {
+  throw new Error('gen-docs: the Trash window was not found (or mixes intervals) in purge_old_deleted_boards — update the extractor');
+}
+
+// How long the record of calls made with a key or a connected app is kept:
+// the last cron.schedule(...) that runs purge_api_request_log(N) (0220).
+let apiAudit = null;
+for (const f of migrationFiles()) {
+  const re = /cron\.schedule\s*\([^;]*?\$[a-z_]*\$\s*select\s+(?:public\.)?purge_api_request_log\s*\(\s*(\d+)\s*\)/gi;
+  for (const m of readFileSync(join(MIGRATIONS_DIR, f), 'utf8').matchAll(re)) apiAudit = m[1];
+}
+if (!apiAudit) {
+  throw new Error('gen-docs: no cron.schedule(...) running purge_api_request_log(N) was found — update the extractor');
 }
 
 // How much text automatic tagging may send for embedding per account per day
@@ -748,6 +768,9 @@ export const FACTS = {
   commentQuoteMax: String(COMMENTS.maxQuote),
   commentAnchorMax: String(COMMENTS.maxAnchor),
   commentRestoreDays: commentRestore[1],
+  // The Trash window and how long API call records are kept (see above).
+  trashDays: trashWindow[0],
+  apiAuditDays: apiAudit,
   // Tags over the API (lib/apiTags.js).
   tagCardsMax: String(TAGS.maxCards),
   tagNamesMax: String(TAGS.maxNames),

@@ -295,7 +295,7 @@ export function DocsPage({ path }) {
               than pinned across the bottom of every page. */}
           <footer className="docs-footer">
             <span>Machine-readable: <a href="/llms.txt">llms.txt</a> · <a href="/llms-full.txt">llms-full.txt</a> · <a href="/api/v1/openapi.json">OpenAPI</a></span>
-            <span><a href="/changelog">Changelog</a> · <a href="/pricing">Pricing</a> · <a href="/explore">Explore</a> · <a href="/legal/privacy">Privacy</a></span>
+            <span><a href="/changelog">Changelog</a> · <a href="/pricing">Pricing</a> · <a href="/explore">Explore</a> · <a href="/legal/privacy">Privacy</a> · <a href="/docs/security">Security</a></span>
           </footer>
         </div>
       </div>

@@ -20,6 +20,7 @@ related:
   - /docs/collaborate/sharing
   - /docs/clusters/trash-and-recovery
   - /docs/api
+  - /docs/security
 ---
 
 ## Who can see a board

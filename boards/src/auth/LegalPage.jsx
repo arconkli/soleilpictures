@@ -96,6 +96,7 @@ export function LegalPage({ doc = 'privacy' }) {
               {DOC_LABELS[s]}
             </a>
           ))}
+          <a className="legal-tab" href="/docs/security">Security</a>
         </nav>
 
         <h1 className="legal-title">{data.title}</h1>

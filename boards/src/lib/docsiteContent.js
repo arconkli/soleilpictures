@@ -50225,6 +50225,1227 @@ export const DOCS_CONTENT = {
    ]
   }
  ],
+ "/docs/security": [
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Clusters keeps film and creative work: scripts, references, cuts in progress. This page says how that work is protected, in plain words, and only what is true today. Where a protection belongs to one of our providers, it says so and links to theirs."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Report a vulnerability",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Report a vulnerability"
+    }
+   ],
+   "id": "report-a-vulnerability"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Email "
+    },
+    {
+     "t": "strong",
+     "v": "security@soleilpictures.com",
+     "children": [
+      {
+       "t": "text",
+       "v": "security@soleilpictures.com"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Please include:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "what you found, and where (a page, an API route, an MCP tool)"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the steps to reproduce it"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "what someone could do with it"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A few ground rules while you look:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Use your own account and your own test data. Don't open, change or delete anyone else's."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Don't run tests that slow the service down for others, and don't send spam or invitations to people who didn't ask for them."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Give us a fair chance to fix it before you tell anyone else."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "We read every report and reply from the same address. There is no paid bug bounty, but we're glad to credit you when the fix ships, if you'd like. Our "
+    },
+    {
+     "t": "link",
+     "v": "security.txt",
+     "href": "https://clusters.soleilpictures.com/.well-known/security.txt",
+     "children": [
+      {
+       "t": "text",
+       "v": "security.txt"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " has the same contact."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Where your data lives",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Where your data lives"
+    }
+   ],
+   "id": "where-your-data-lives"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Clusters is run from the United States. Each part runs on one provider:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "What"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Provider"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "Your account, clusters, cards, documents, comments and messages"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Supabase (Postgres database and sign-in), in AWS us-west-2, Oregon"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Uploaded files, and their backup copy"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Cloudflare R2. Some message attachments and a few older card pictures are in Supabase storage"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "The website, the API and the MCP server"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Cloudflare Workers"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Live editing: who's here, and changes as they happen"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Cloudflare Durable Objects"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Picture descriptions for search and tags"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Cloudflare Workers AI, which doesn't keep the picture or train on it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Payments"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Stripe. Card details are typed on Stripe's page and never reach Clusters"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Email"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Resend"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Making videos and audio play in every browser, previews of photos and documents browsers can't open, and Scout"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Fly.io"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The full list, including the Meta measurement used on public pages, is in the "
+    },
+    {
+     "t": "link",
+     "v": "Privacy Policy",
+     "href": "/legal/privacy",
+     "children": [
+      {
+       "t": "text",
+       "v": "Privacy Policy"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Encryption",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Encryption"
+    }
+   ],
+   "id": "encryption"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "On the way.",
+      "children": [
+       {
+        "t": "text",
+        "v": "On the way."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Every connection uses HTTPS. A plain "
+     },
+     {
+      "t": "code",
+      "v": "http"
+     },
+     {
+      "t": "text",
+      "v": " address is sent to HTTPS, and browsers are told to use only HTTPS for this site and every address under it."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "At rest.",
+      "children": [
+       {
+        "t": "text",
+        "v": "At rest."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Stored data is encrypted by the provider that holds it: Supabase encrypts the database with AES-256 ("
+     },
+     {
+      "t": "link",
+      "v": "Supabase security",
+      "href": "https://supabase.com/security",
+      "children": [
+       {
+        "t": "text",
+        "v": "Supabase security"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "), Cloudflare R2 encrypts files with AES-256 ("
+     },
+     {
+      "t": "link",
+      "v": "R2 data security",
+      "href": "https://developers.cloudflare.com/r2/reference/data-security/",
+      "children": [
+       {
+        "t": "text",
+        "v": "R2 data security"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "), and Durable Objects are encrypted at rest ("
+     },
+     {
+      "t": "link",
+      "v": "Durable Objects data security",
+      "href": "https://developers.cloudflare.com/durable-objects/reference/data-security/",
+      "children": [
+       {
+        "t": "text",
+        "v": "Durable Objects data security"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "). Stripe encrypts card numbers with AES-256 and is certified PCI Service Provider Level 1 ("
+     },
+     {
+      "t": "link",
+      "v": "Stripe security",
+      "href": "https://docs.stripe.com/security",
+      "children": [
+       {
+        "t": "text",
+        "v": "Stripe security"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ")."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Keys and tokens.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Keys and tokens."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " API keys and connected-app tokens are kept only as a one-way hash. A key is shown once, when you make it, and can't be read back, even by us."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Signing in",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Signing in"
+    }
+   ],
+   "id": "signing-in"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "An emailed code or a passkey.",
+      "children": [
+       {
+        "t": "text",
+        "v": "An emailed code or a passkey."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Your account has no password to set, reuse or leak. (The one exception is an internal demo account that app directories use to review Clusters.)"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Passkeys.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Passkeys."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Only a public key reaches us; the passkey itself stays with your device or its password manager, and using it usually asks for your face, fingerprint or device PIN. You can see and remove your passkeys in "
+     },
+     {
+      "t": "strong",
+      "v": "Settings › Profile",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings › Profile"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and a removed one stops working at once."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Your inbox is the proof.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Your inbox is the proof."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Joining a team, accepting an invitation by address or joining by company domain needs a session that started from that inbox (a code or link we emailed), or from a passkey saved while signed in that way."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "New accounts wait.",
+      "children": [
+       {
+        "t": "text",
+        "v": "New accounts wait."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " For its first 72 hours an account can't make API keys or add webhooks, and can connect only the main AI assistants and apps that sign in through your own computer, as coding tools do. This slows down throwaway accounts."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Signing out",
+      "children": [
+       {
+        "t": "text",
+        "v": "Signing out"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " signs you out on every device. A page already open on another device can keep working for a short while, until its current sign-in expires. An account banned for abuse is signed out everywhere, and its links, invitations and keys stop working."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Who can see what",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Who can see what"
+    }
+   ],
+   "id": "who-can-see-what"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Your workspace, your people.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Your workspace, your people."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " A cluster is visible to the people in its workspace and to anyone you share it with. A workspace of your own is just you until you invite someone or make a link. On a Team, team workspaces are open to the team."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Roles.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Roles."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " A workspace has an owner, co-owners, editors and viewers. Viewers can open, comment and vote but never change anything. Only the owner can delete a workspace or hand it over."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Links.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Links."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " A public link is always view-only, asks search engines not to list it unless you turn that on, can be set to expire, and can be turned off at any time. An edit link grants nothing by itself: the person has to sign in and press "
+     },
+     {
+      "t": "strong",
+      "v": "Join",
+      "children": [
+       {
+        "t": "text",
+        "v": "Join"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". See "
+     },
+     {
+      "t": "link",
+      "v": "Sharing",
+      "href": "/docs/collaborate/sharing",
+      "children": [
+       {
+        "t": "text",
+        "v": "Sharing"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "When someone leaves or is removed,",
+      "children": [
+       {
+        "t": "text",
+        "v": "When someone leaves or is removed,"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " the links and invitations they made end, the files they shared stop reaching people, they leave the workspace's conversations, and the webhooks and service accounts they set up are turned off."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "The database enforces it.",
+      "children": [
+       {
+        "t": "text",
+        "v": "The database enforces it."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Every table has row-level security, so who can read or change a row is checked by the database itself, the same way for the app, the API and connected apps. An automatic check runs every day and alerts us if any table has that protection turned off, or a new rule lets anyone add rows."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "On a Team",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a Team"
+    }
+   ],
+   "id": "on-a-team"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "The owner and admins manage people, seats and how people join. Only the owner changes the card or closes the team."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The owner and admins can open every team workspace, including private ones, and only they see members' email addresses."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Joining by company email domain needs the domain proved with a DNS record, and free email providers can't be used for it."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "See "
+    },
+    {
+     "t": "link",
+     "v": "Team",
+     "href": "/docs/account/team",
+     "children": [
+      {
+       "t": "text",
+       "v": "Team"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "API, MCP and connected apps",
+   "inline": [
+    {
+     "t": "text",
+     "v": "API, MCP and connected apps"
+    }
+   ],
+   "id": "api-mcp-and-connected-apps"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "A key acts as you.",
+      "children": [
+       {
+        "t": "text",
+        "v": "A key acts as you."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " It reaches exactly what your account reaches, under the same database rules as the app. A key made in "
+     },
+     {
+      "t": "strong",
+      "v": "Settings › Connections",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings › Connections"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " starts read-only unless you choose more, and revoking it works at once."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Separate permissions.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Separate permissions."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Access comes in parts ("
+     },
+     {
+      "t": "code",
+      "v": "delete"
+     },
+     {
+      "t": "text",
+      "v": " · "
+     },
+     {
+      "t": "code",
+      "v": "read"
+     },
+     {
+      "t": "text",
+      "v": " · "
+     },
+     {
+      "t": "code",
+      "v": "write"
+     },
+     {
+      "t": "text",
+      "v": "), and deleting is its own permission, never part of write."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Connected apps (OAuth),",
+      "children": [
+       {
+        "t": "text",
+        "v": "Connected apps (OAuth),"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " such as Claude or ChatGPT through MCP. You approve each one in your browser, on a screen that lists what it may do. An app that asks to read and write can't delete unless you also tick "
+     },
+     {
+      "t": "strong",
+      "v": "Allow deleting",
+      "children": [
+       {
+        "t": "text",
+        "v": "Allow deleting"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", and one that asks to delete says so there first. Sign-in uses PKCE. An access token lasts 60 minutes. Each renewal token works once (a retry within 30 seconds is allowed), and one reused after that ends the connection. After 180 days an app has to be approved again. Disconnecting an app works at once."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "The MCP server holds no keys of its own.",
+      "children": [
+       {
+        "t": "text",
+        "v": "The MCP server holds no keys of its own."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Every call it makes is yours, held to the permission that call needs. Text people wrote is marked as data for the assistant, so instructions hidden in a card aren't treated as commands."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Limits.",
+      "children": [
+       {
+        "t": "text",
+        "v": "Limits."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " A personal key can make 1000 requests an hour."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "A record of changes.",
+      "children": [
+       {
+        "t": "text",
+        "v": "A record of changes."
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " Writes made through the API or MCP are logged with the key or app that made them, and you can read that log through the "
+     },
+     {
+      "t": "link",
+      "v": "API",
+      "href": "/docs/api/audit",
+      "children": [
+       {
+        "t": "text",
+        "v": "API"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". Records are deleted after 30 days."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Webhooks",
+      "children": [
+       {
+        "t": "text",
+        "v": "Webhooks"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " are signed with HMAC-SHA256 using a secret for that webhook, go only to public HTTPS addresses, never follow redirects, and can be set up only by the workspace owner."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "See "
+    },
+    {
+     "t": "link",
+     "v": "Authentication",
+     "href": "/docs/api/authentication",
+     "children": [
+      {
+       "t": "text",
+       "v": "Authentication"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "link",
+     "v": "OAuth",
+     "href": "/docs/api/oauth",
+     "children": [
+      {
+       "t": "text",
+       "v": "OAuth"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Backups and deleting your data",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Backups and deleting your data"
+    }
+   ],
+   "id": "backups-and-deleting-your-data"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "The database",
+      "children": [
+       {
+        "t": "text",
+        "v": "The database"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is backed up every night. The backup is encrypted before it leaves the backup job, stored apart from the live database, and then read back to check it arrived whole. The database provider keeps its own backups as well."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Files uploaded to clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "Files uploaded to clusters"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " are copied by an hourly job to a separate backup store. Message attachments kept in Supabase storage aren't part of that copy."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Deleted clusters",
+      "children": [
+       {
+        "t": "text",
+        "v": "Deleted clusters"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " stay in "
+     },
+     {
+      "t": "link",
+      "v": "Trash",
+      "href": "/docs/clusters/trash-and-recovery",
+      "children": [
+       {
+        "t": "text",
+        "v": "Trash"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " for 30 days, then are deleted for good."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Deleting your account",
+      "children": [
+       {
+        "t": "text",
+        "v": "Deleting your account"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in "
+     },
+     {
+      "t": "strong",
+      "v": "Settings › Profile",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings › Profile"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " takes effect at once and can't be undone. A file's backup copy isn't removed when you delete it yet, and the database provider's backups can hold deleted information until they are replaced. The "
+     },
+     {
+      "t": "link",
+      "v": "Privacy Policy",
+      "href": "/legal/privacy",
+      "children": [
+       {
+        "t": "text",
+        "v": "Privacy Policy"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " has the details, and "
+     },
+     {
+      "t": "link",
+      "v": "Data and privacy",
+      "href": "/docs/account/data-and-privacy",
+      "children": [
+       {
+        "t": "text",
+        "v": "Data and privacy"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " says how to get everything out first."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "How the code is looked after",
+   "inline": [
+    {
+     "t": "text",
+     "v": "How the code is looked after"
+    }
+   ],
+   "id": "how-the-code-is-looked-after"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Automated tests run on every change, including one that fails when these public docs no longer match the code."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "GitHub scans the code for security problems (CodeQL), raises and opens fixes for vulnerable dependencies (Dependabot), and blocks secrets from being committed (secret scanning with push protection)."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Text people write is cleaned before it is shown, so it can't run script in someone else's browser. Uploaded files are served so they can't run script on our site."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The site can't be framed by another site, and browsers are told not to guess file types."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Certifications",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Certifications"
+    }
+   ],
+   "id": "certifications"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Clusters has no SOC 2, ISO 27001 or similar certification of its own, and has not had a third-party penetration test. The providers it runs on publish theirs: "
+    },
+    {
+     "t": "link",
+     "v": "Supabase",
+     "href": "https://supabase.com/security",
+     "children": [
+      {
+       "t": "text",
+       "v": "Supabase"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "link",
+     "v": "Cloudflare",
+     "href": "https://www.cloudflare.com/trust-hub/compliance-resources/",
+     "children": [
+      {
+       "t": "text",
+       "v": "Cloudflare"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "link",
+     "v": "Stripe",
+     "href": "https://docs.stripe.com/security",
+     "children": [
+      {
+       "t": "text",
+       "v": "Stripe"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  }
+ ],
  "/docs/api": [
   {
    "type": "para",
