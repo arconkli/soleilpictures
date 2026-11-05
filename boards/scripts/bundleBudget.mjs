@@ -273,7 +273,12 @@ export const CEILINGS = {
   // on main 8f4aa6c0 (already 90 B over) and 707,199 B with the free card
   // limit for new accounts (25, 0864), whose app-side code is the sidebar
   // meter waiting for the account's own limit and the keep page's line.
-  appJs: 707_200,
+  // 2026-11-04: +0.1 KB more, for chunk names, not code. CI read 707.2 KB,
+  // OVER, on 4c87aed2, a few bytes above that local 707,199: the release tag
+  // (the commit's short SHA, in the entry via errorReporting.js) renames the
+  // entry chunk, which AppShell and CanvasSurface import by name, so appJs
+  // moves a few bytes with every commit and 1 B of room can't hold.
+  appJs: 707_300,
   appCss: 21_900,
 };
 
