@@ -28,6 +28,9 @@ export function signupsToday(rows, now = new Date()) {
   return { n, capped: list.length > 0 && n === list.length };
 }
 
+// The first day the phone's "coming back" cohorts are read from (passed to admin_return_fixed_horizon).
+export const RETURN_SINCE = '2026-08-17';
+
 // A usual day's signups: the daily average over the last four complete weeks
 // of admin_weekly_series (oldest first). null with fewer than two such weeks.
 export function usualDay(weeks) {
@@ -55,20 +58,23 @@ export function delta(cur, prev, kind = 'count') {
   return { text: `${pct > 0 ? '▲' : '▼'} ${Math.abs(pct)}%`, dir: pct > 0 ? 'up' : 'down' };
 }
 
-// Polyline points for a small line chart of `values` in a w×h box. Returns
-// { points, last: {x, y} } or null with fewer than two values.
-export function sparkPoints(values, w = 70, h = 24, pad = 2) {
-  const v = (Array.isArray(values) ? values : []).map(num).filter((x) => x != null);
-  if (v.length < 2) return null;
-  const lo = Math.min(...v);
-  const hi = Math.max(...v);
-  const span = hi - lo || 1;
-  const pts = v.map((x, i) => {
-    const px = pad + (i * (w - 2 * pad)) / (v.length - 1);
-    const py = hi === lo ? h / 2 : pad + (1 - (x - lo) / span) * (h - 2 * pad);
-    return [Math.round(px * 10) / 10, Math.round(py * 10) / 10];
+// The last `max` of `values` for a small line chart, leading nulls dropped.
+// `runs` are the index runs (into `vals`) of consecutive real values, so a
+// missing week leaves a gap in the line instead of being joined across; `last`
+// is the index of the last real value, or -1 with none.
+export function sparkRuns(values, max = 12) {
+  if (!Array.isArray(values)) return { vals: [], runs: [], last: -1 };
+  const vals = values.slice(-max).map(num);
+  while (vals.length && vals[0] == null) vals.shift();
+  const runs = [];
+  let last = -1;
+  vals.forEach((x, i) => {
+    if (x == null) return;
+    if (last === i - 1 && runs.length) runs[runs.length - 1].push(i);
+    else runs.push([i]);
+    last = i;
   });
-  return { points: pts.map((p) => p.join(',')).join(' '), last: { x: pts.at(-1)[0], y: pts.at(-1)[1] } };
+  return { vals, runs, last };
 }
 
 export function formatCount(n) {
@@ -77,13 +83,26 @@ export function formatCount(n) {
   return Math.round(v).toLocaleString('en-US');
 }
 
+// Two per-day figures printed side by side: whole numbers, unless they round
+// to the same whole number while still differing, when both take one decimal
+// (so "9.0" and "8.9", never "9" against "9"). A missing side is a dash.
+export function dayPair(a, b) {
+  const x = num(a);
+  const y = num(b);
+  const dash = '—';
+  const one = (v) => v.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const ok = (v) => v != null && Number.isFinite(v);
+  if (ok(x) && ok(y) && Math.round(x) === Math.round(y) && x !== y) return [one(x), one(y)];
+  return [ok(x) ? formatCount(x) : dash, ok(y) ? formatCount(y) : dash];
+}
+
 // The "This week vs last" rows. `series` is the weekly field charted (the last
 // 12 weeks, this one included), or null when no weekly series counts it.
 export const MEASURES = [
   { id: 'signups', label: 'Signups', sub: 'code entered', kind: 'count', series: 'signups',
     about: 'People who signed up and entered their code, the same count as the Overview.' },
-  { id: 'activation_rate', label: 'Got started', sub: 'made something, day one', kind: 'rate', series: null,
-    about: 'Of this week’s signups, the share who made their first card.' },
+  { id: 'activation_rate', label: 'Got started', sub: 'made something on day one', kind: 'rate', series: null,
+    about: 'Of the people who signed up in the newest week whose signups have all had a full first day, the share who made something within 24 hours.' },
   { id: 'wau', label: 'Active people', sub: 'opened the app', kind: 'count', series: 'active_users',
     about: 'People who opened the app in the last 7 days.' },
   { id: 'work_users', label: 'Did real work', sub: 'added to a cluster', kind: 'count', series: 'work_users',
@@ -93,31 +112,6 @@ export const MEASURES = [
   { id: 'checkouts', label: 'Checkouts', sub: 'finished of started', kind: 'checkout', series: null,
     about: 'Checkouts finished, out of the checkouts opened, in the last 7 days.' },
 ];
-
-export function measureRows(kpi, weeks) {
-  const cur = kpi?.current || {};
-  const prev = kpi?.previous || {};
-  const wk = (Array.isArray(weeks) ? weeks : []).slice(-12);
-  return MEASURES.map((m) => {
-    let value;
-    let d;
-    if (m.kind === 'rate') {
-      value = num(cur[m.id]) == null ? '–' : `${Math.round(cur[m.id] * 100)}%`;
-      d = delta(cur[m.id], prev[m.id], 'rate');
-    } else if (m.kind === 'checkout') {
-      value = `${formatCount(cur.checkout_success)} of ${formatCount(cur.checkout_open)}`;
-      d = delta(cur.checkout_success, prev.checkout_success);
-    } else {
-      value = formatCount(cur[m.id]);
-      d = delta(cur[m.id], prev[m.id]);
-    }
-    const values = m.series ? wk.map((w) => w[m.series]) : [];
-    // The line ends at the last complete week: a week so far always dips, and
-    // would read as a fall. The sheet's bars still show it, labelled.
-    const whole = m.series ? wk.filter((w) => w.complete).map((w) => w[m.series]) : [];
-    return { ...m, value, delta: d, values, weeks: wk.map((w) => w.week_start), spark: m.series ? sparkPoints(whole) : null };
-  });
-}
 
 // "12 min", "3 h", "2 d".
 export function ago(ts, now = new Date()) {
