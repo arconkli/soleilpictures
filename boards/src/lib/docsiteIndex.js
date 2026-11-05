@@ -3126,7 +3126,8 @@ export const DOCS_PAGES = [
     "related": [
       "/docs/collaborate/sharing",
       "/docs/clusters/trash-and-recovery",
-      "/docs/api"
+      "/docs/api",
+      "/docs/security"
     ],
     "faq": [
       {
@@ -3144,6 +3145,83 @@ export const DOCS_PAGES = [
       {
         "q": "How do I get all my data out?",
         "a": "Export boards and documents, download original files, or read everything programmatically through the REST API."
+      }
+    ]
+  },
+  {
+    "path": "/docs/security",
+    "title": "Security — Soleil Clusters",
+    "metaDescription": "How Soleil Clusters protects your work: where data lives, encryption, sign-in, who can see what, AI app access, backups, and how to report a vulnerability.",
+    "h1": "Security",
+    "answer": "Clusters runs on Supabase (database and sign-in, in AWS us-west-2) and Cloudflare (website, API, files and live editing), and both encrypt stored data. Every connection is HTTPS. Sign-in is an emailed code or a passkey, with no password to leak. A cluster is seen only by its workspace and people you share it with, and the database enforces access on every table. API keys and connected-app tokens are stored only as hashes, and an AI app can delete only if you allow it. Report a vulnerability to security@soleilpictures.com.",
+    "section": "account",
+    "order": 5.5,
+    "updated": "2026-11-05",
+    "navLabel": "Security",
+    "headings": [
+      {
+        "id": "report-a-vulnerability",
+        "text": "Report a vulnerability"
+      },
+      {
+        "id": "where-your-data-lives",
+        "text": "Where your data lives"
+      },
+      {
+        "id": "encryption",
+        "text": "Encryption"
+      },
+      {
+        "id": "signing-in",
+        "text": "Signing in"
+      },
+      {
+        "id": "who-can-see-what",
+        "text": "Who can see what"
+      },
+      {
+        "id": "api-mcp-and-connected-apps",
+        "text": "API, MCP and connected apps"
+      },
+      {
+        "id": "backups-and-deleting-your-data",
+        "text": "Backups and deleting your data"
+      },
+      {
+        "id": "how-the-code-is-looked-after",
+        "text": "How the code is looked after"
+      },
+      {
+        "id": "certifications",
+        "text": "Certifications"
+      }
+    ],
+    "related": [
+      "/docs/account/data-and-privacy",
+      "/docs/account/team",
+      "/docs/api/authentication",
+      "/docs/api/oauth"
+    ],
+    "faq": [
+      {
+        "q": "Is Soleil Clusters SOC 2 certified?",
+        "a": "No. Clusters has no SOC 2 or ISO 27001 certification of its own and has not had a third-party penetration test. The providers it runs on, Supabase, Cloudflare and Stripe, publish their own certifications. This page says what is in place instead."
+      },
+      {
+        "q": "How do I report a security problem?",
+        "a": "Email security@soleilpictures.com with what you found and how to reproduce it. The same address is in /.well-known/security.txt."
+      },
+      {
+        "q": "Where is my data stored?",
+        "a": "The database and sign-in run on Supabase in AWS us-west-2 (Oregon, United States). Files are stored on Cloudflare, which also runs the website, the API and live editing. Payments are handled by Stripe, and card details are typed on Stripe's own page, never on Clusters."
+      },
+      {
+        "q": "Can an AI app I connect delete my clusters?",
+        "a": "Only if you let it. The approval screen lists what an app may do. An app that asks to read and write can't delete unless you also tick Allow deleting, and an app that asks to delete shows Delete there before you approve. You can disconnect an app at any time and it stops working at once."
+      },
+      {
+        "q": "Do you offer two-step sign-in or single sign-on (SSO)?",
+        "a": "Not today. Sign-in is an emailed one-time code or a passkey, and using a passkey usually asks for your face, fingerprint or device PIN. For single sign-on on a Team, use Talk to us on the pricing page."
       }
     ]
   },

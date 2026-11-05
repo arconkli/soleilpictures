@@ -162,6 +162,9 @@ const RETIRED_PAGES = new Map([
   // them; each lands on the page that covers what is left.
   ['/docs/canvas/schedule', '/docs/canvas/cards'],
   ['/docs/clusters/production-schedule', '/docs/clusters'],
+  // Not retired: a short address for the security page, given out in
+  // directory listings' trust-center field and to Team buyers (2026-11-05).
+  ['/security', '/docs/security'],
 ]);
 
 // META PRE-REGISTERED 2026-10-20 (the CLAUDE.md ritual). The homepage

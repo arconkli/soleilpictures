@@ -142,6 +142,8 @@ export function PublicPricingPage() {
           <a className="auth-link" href="/legal/privacy">Privacy</a>
           <span className="welcome-foot-sep">·</span>
           <a className="auth-link" href="/legal/terms">Terms</a>
+          <span className="welcome-foot-sep">·</span>
+          <a className="auth-link" href="/docs/security">Security</a>
         </div>
       }
     />
