@@ -38,6 +38,18 @@ export const TITLE_MAX = 200;
 const SIZED_MEDIA = new Set(['image', 'video', 'audio', 'pdf']);
 export const BODY_MAX = 500;
 
+// Entities are decoded in one pass, so "&amp;lt;" is the text "&lt;", not "<".
+// noteCompose writes ' and " as &#39; and &quot;. A code point of 0, a
+// surrogate or past U+10FFFF, and any name not listed, stay as written.
+const ENTITY = /&(?:(amp|lt|gt|quot|apos|nbsp)|#(\d+)|#[xX]([0-9a-fA-F]+));/g;
+const NAMED = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+function decodeEntity(whole, name, dec, hex) {
+  if (name) return NAMED[name];
+  const cp = dec !== undefined ? parseInt(dec, 10) : parseInt(hex, 16);
+  if (!(cp > 0 && cp <= 0x10ffff) || (cp >= 0xd800 && cp <= 0xdfff)) return whole;
+  return String.fromCodePoint(cp);
+}
+
 // The richer of the two implementations, and the correct one. The browser's
 // collapsed every entity to a space and every block to nothing.
 export function htmlToText(html) {
@@ -45,8 +57,7 @@ export function htmlToText(html) {
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(p|div|h[1-6]|li)>/gi, '\n')
     .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(ENTITY, decodeEntity)
     .replace(/[ \t]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim();

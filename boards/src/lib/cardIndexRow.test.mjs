@@ -106,6 +106,15 @@ test('an entity survives indexing — "Tom & Jerry" is not "Tom  Jerry"', () => 
   assert.equal(htmlToText('a &lt;b&gt; c'), 'a <b> c');
 });
 
+test('numeric and quote entities decode, in one pass', () => {
+  // noteCompose writes ' and " as &#39; and &quot;.
+  assert.equal(htmlToText('<p>Yurakucho&#39;s &quot;arches&quot; &apos;x&apos; &#x27;y&#X27;</p>'), 'Yurakucho\'s "arches" \'x\' \'y\'');
+  assert.equal(htmlToText('it&#8217;s'), 'it’s');
+  assert.equal(htmlToText('<p>Tom &amp;amp; Jerry</p>'), 'Tom &amp; Jerry');
+  assert.equal(htmlToText('&amp;lt;b&amp;gt;'), '&lt;b&gt;');
+  for (const kept of ['&#0;', '&#xD800;', '&#x110000;', '&bogus;']) assert.equal(htmlToText(kept), kept);
+});
+
 test('paragraph structure survives indexing', () => {
   // The public /c/<slug> article renders from this body. Collapsing every
   // block to a space turned an article into one paragraph.

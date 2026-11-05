@@ -260,8 +260,11 @@ link's domain. Colours are plain hex. A cluster's card carries its name and its
 thumbnail.
 
 A picture is an image, a video's poster frame, a link's preview or a cluster's
-thumbnail, at its smaller rendition (the original only when it is small), and
-`tone` is its average colour, to draw before it arrives. Only pictures your own
+thumbnail, at its smaller rendition, and `tone` is its average colour, to draw
+before it arrives. A picture with no rendition yet, as one added through the API
+has until the app makes them, comes as its original when that is a JPEG, PNG,
+GIF, WebP or AVIF of at most {{fact:canvasOriginalMax}}, while the originals in
+one answer stay within {{fact:canvasOriginalTotal}}. Only pictures your own
 read of the board can see get an address, at most {{fact:canvasMaxPictures}};
 the rest are drawn in their tone. An address works for anyone who has it until
 `expires_at`, so a picture deleted meanwhile stays reachable until then; ask

@@ -738,6 +738,8 @@ export const FACTS = {
   // card carries, and how long an address works (lib/signedImage.js).
   canvasMaxCards: String(CANVAS.maxCards),
   canvasMaxPictures: String(CANVAS.maxPictures),
+  canvasOriginalMax: `${CANVAS.originalMaxBytes / MB} MB`,
+  canvasOriginalTotal: `${CANVAS.originalTotalMaxBytes / MB} MB`,
   canvasTextMax: String(CANVAS.textMax),
   signedImageLife: SIGNED_IMAGE_TTL_S === 3600 ? 'an hour'
     : SIGNED_IMAGE_TTL_S % 3600 === 0 ? `${SIGNED_IMAGE_TTL_S / 3600} hours` : `${Math.round(SIGNED_IMAGE_TTL_S / 60)} minutes`,
