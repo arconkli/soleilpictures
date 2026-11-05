@@ -3148,6 +3148,54 @@ export const DOCS_PAGES = [
     ]
   },
   {
+    "path": "/docs/account/support",
+    "title": "Help and Support — Soleil Clusters",
+    "metaDescription": "Get help with Soleil Clusters: who to email and what to include, how to disconnect ChatGPT, Claude or another AI app, and how to restore a deleted cluster.",
+    "h1": "Help and support",
+    "answer": "Email clusters@soleilpictures.com with a link to the cluster and what happened. To stop ChatGPT, Claude or another AI app from reaching your clusters, open Settings, then Connections, and disconnect it. A deleted cluster waits in the trash and can be restored.",
+    "section": "account",
+    "order": 6,
+    "updated": "2026-11-05",
+    "navLabel": "Help and support",
+    "headings": [
+      {
+        "id": "email-us",
+        "text": "Email us"
+      },
+      {
+        "id": "ai-apps-connected-to-your-clusters",
+        "text": "AI apps connected to your clusters"
+      },
+      {
+        "id": "your-data",
+        "text": "Your data"
+      }
+    ],
+    "related": [
+      "/docs/account/data-and-privacy",
+      "/docs/mcp",
+      "/docs/clusters/trash-and-recovery"
+    ],
+    "faq": [
+      {
+        "q": "How do I contact Soleil Clusters?",
+        "a": "Email clusters@soleilpictures.com. Include a link to the cluster, what you did and what happened instead."
+      },
+      {
+        "q": "How do I disconnect ChatGPT, Claude or another AI app?",
+        "a": "Open Settings, then Connections. Each app you approved is listed with what it may do and when it was last used, and Disconnect cuts it off."
+      },
+      {
+        "q": "Can an AI app delete my clusters?",
+        "a": "Only if you allowed deleting when you connected it. Deleting is off unless you turn it on, and an app reaches only the clusters your account can open."
+      },
+      {
+        "q": "Something was deleted by mistake. Can I get it back?",
+        "a": "A deleted cluster waits in the trash and can be restored from there. See Trash and recovery."
+      }
+    ]
+  },
+  {
     "path": "/docs/api",
     "title": "REST API — Soleil Clusters",
     "metaDescription": "Read and write Soleil Clusters boards, cards and images from your own code. Bearer-token REST API at /api/v1, with an OpenAPI spec and MCP server.",

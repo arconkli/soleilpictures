@@ -94,6 +94,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [Referrals](https://clusters.soleilpictures.com/docs/account/referrals): Invite people to Soleil Clusters. They get bonus cards and storage when they join; you get yours once they get started. Stats live in Settings.
 - [Mobile and tablet](https://clusters.soleilpictures.com/docs/account/mobile): Soleil Clusters on phones and tablets — touch gestures, focus view, the mobile add sheet, and adding it to your home screen as a web app.
 - [Data and privacy](https://clusters.soleilpictures.com/docs/account/data-and-privacy): Where Soleil Clusters stores your files, how long deleted things are kept, how sharing affects visibility, and how to get your data out or delete it.
+- [Help and support](https://clusters.soleilpictures.com/docs/account/support): Get help with Soleil Clusters: who to email and what to include, how to disconnect ChatGPT, Claude or another AI app, and how to restore a deleted cluster.
 
 ## Developers
 

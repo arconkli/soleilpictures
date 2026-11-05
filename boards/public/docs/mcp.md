@@ -222,7 +222,9 @@ title, version, the two addresses and the protocol versions they accept.
 finds it. Directories that scan a server they can't sign in to read the older
 card at `/.well-known/mcp/server-card.json` (and `/.well-known/mcp.json`), which
 adds that it signs in over OAuth, its capabilities and its tools with their
-titles and annotations. Any other path under `/.well-known/` that we don't serve
+titles and annotations. `/.well-known/openai-apps-challenge` answers, as plain
+text, the token OpenAI's plugin portal shows when it checks that we own the
+domain, while one is set. Any other path under `/.well-known/` that we don't serve
 answers a JSON `404`, not a page.
 
 ## Protocol versions
@@ -391,8 +393,11 @@ unlike a warning in a description they actually participate in that decision.
   `read_board`, `view_board`, `show_board`, `list_comments`, `list_tags` and
   `list_audit`. They change nothing and can be repeated freely.
 - **Destructive:** `update_boards`, `update_cards`, `edit_doc_page`,
+  `arrange_board`, `move_cards`, `tag_cards`, `resolve_comments`,
   `unshare_board`, `delete_cards` and `delete_board`, since each can take
-  something away (words, a link, cards, a cluster).
+  something away or write over it (words, positions, tags, a thread's state,
+  a link, cards, a cluster). Only a write that purely adds is marked
+  non-destructive, even where the same call could put things back.
 - **Open-world:** `import_urls`, which fetches addresses on the web, and
   `share_board`, which makes a link anyone can open. The rest act only on the
   person's own clusters.
