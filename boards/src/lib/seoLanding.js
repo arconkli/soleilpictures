@@ -1049,7 +1049,24 @@ const PAGES = [
   {
     path: '/vs/milanote',
     kind: 'compare',
-    title: 'Free Milanote Alternative — Flat Price, Real-Time Teams',
+    // TITLE + META PRE-REGISTERED 2026-11-05 (CLAUDE.md ritual). The page sits
+    // on page one and is rarely clicked, and its snippet led with "flat price"
+    // (no longer ours to claim: Team is priced per seat) and said nothing about
+    // files. Both now lead with what Milanote's free plan rations hardest:
+    // milanote.com/plans, re-read 2026-11-04, gives free accounts "100 notes,
+    // images or links" and "10 file uploads". The description names our own
+    // free limit through freeLimitSentence(), so the card count is never
+    // hidden; it stays out of the title because beside Milanote's 100 notes it
+    // reads as less. Title and description together, this commit only; nothing
+    // else on the page moves.
+    //   Predicate: path = '/vs/milanote', query = '' (page level),
+    //     search_type = 'web'; CTR and impression-weighted position.
+    //   Window: ±7 and ±14 days around the PRODUCTION deploy, never inside 3
+    //     days of it. Floor: 200 post-change web impressions before reading.
+    //   Expectation: CTR up at a steady position. Impressions were already
+    //     falling at the same rank before this ship, so grade CTR, not clicks.
+    //     The baseline lives in the project notes, not in this public file.
+    title: `Free Milanote Alternative — ${FREE_STORAGE_LABEL} of Any File, Any Size`,
     // META PRE-REGISTERED 2026-10-01 (CLAUDE.md ritual). The description sold
     // "auto-tagging" that files dropped work, and tagging moves nothing (and
     // reads text, never pictures). Swapped for screenplay mode, a live and
@@ -1081,7 +1098,7 @@ const PAGES = [
     //     before/after cannot be pinned on the description. It ships for
     //     truth; read any movement as the release.
     metaDescription:
-      `The free Milanote alternative without per-person pricing — a real-time multiplayer canvas with screenplay mode, link sharing and ${CREATOR_STORAGE_LABEL} on the paid plan.`,
+      `Milanote's free plan stops at 10 file uploads. Clusters' free plan takes any file at any size: ${freeLimitSentence()}.`,
     h1: 'A Milanote Alternative Built for Production Teams',
     subhead:
       'Milanote is a lovely place to think. Clusters is where a team pulls a whole production together — live, on one canvas.',
