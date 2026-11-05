@@ -11,8 +11,6 @@
 //     rates) and says nothing when either side is missing;
 //   * the spark line puts the highest value at the top, a flat series in the
 //     middle, and the last point at the right edge;
-//   * measureRows keeps the six measures in order, formats rate and checkout
-//     values, and charts only the last 12 weeks;
 //   * small formatters (ago, initials, formatCount, dayLabel, slideUrl) and the
 //     signup row wording;
 //   * the "At 72 h: …" note parses into posts with views and ratios (1.3k is
@@ -24,8 +22,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  startOfDay, signupsToday, usualDay, delta, sparkPoints, formatCount,
-  MEASURES, measureRows, ago, initials, signupRow, parseNote, noteBars,
+  startOfDay, signupsToday, usualDay, delta, sparkRuns, dayPair, formatCount,
+  MEASURES, ago, initials, signupRow, parseNote, noteBars,
   localDate, unpostedCount, dayLabel, slideUrl,
 } from './phonePanel.js';
 
@@ -110,23 +108,56 @@ test('delta with a missing side has no text', () => {
   assert.deepEqual(delta(null, null, 'rate'), { text: '', dir: 'flat' });
 });
 
-test('sparkPoints needs two values', () => {
-  assert.equal(sparkPoints([]), null);
-  assert.equal(sparkPoints([3]), null);
-  assert.equal(sparkPoints(null), null);
-  assert.equal(sparkPoints([null, 3]), null);
+test('sparkRuns: leading nulls are trimmed, one run, last on the final value', () => {
+  assert.deepEqual(sparkRuns([null, null, 2, 3, 4]), { vals: [2, 3, 4], runs: [[0, 1, 2]], last: 2 });
 });
 
-test('sparkPoints: highest at y=pad, lowest at the bottom, last point at x=w-pad', () => {
-  const s = sparkPoints([1, 2, 3], 70, 24, 2);
-  assert.equal(s.points, '2,22 35,12 68,2');
-  assert.deepEqual(s.last, { x: 68, y: 2 });
+test('sparkRuns: a middle null splits into two runs', () => {
+  assert.deepEqual(sparkRuns([1, 2, null, 4, 5]), { vals: [1, 2, null, 4, 5], runs: [[0, 1], [3, 4]], last: 4 });
+  assert.deepEqual(sparkRuns([1, null, 3]).runs, [[0], [2]]);
 });
 
-test('sparkPoints: a flat series sits at h/2', () => {
-  const s = sparkPoints([4, 4, 4], 70, 24, 2);
-  assert.equal(s.points, '2,12 35,12 68,12');
-  assert.deepEqual(s.last, { x: 68, y: 12 });
+test('sparkRuns: a trailing null leaves last on the last real value', () => {
+  assert.deepEqual(sparkRuns([1, 2, 3, null]), { vals: [1, 2, 3, null], runs: [[0, 1, 2]], last: 2 });
+});
+
+test('sparkRuns: nothing real, or not an array, is empty', () => {
+  assert.deepEqual(sparkRuns([null, null]), { vals: [], runs: [], last: -1 });
+  assert.deepEqual(sparkRuns([]), { vals: [], runs: [], last: -1 });
+  assert.deepEqual(sparkRuns(null), { vals: [], runs: [], last: -1 });
+  assert.deepEqual(sparkRuns('abc'), { vals: [], runs: [], last: -1 });
+});
+
+test('sparkRuns: keeps the last 12 of 14, and the last max when asked', () => {
+  const v = Array.from({ length: 14 }, (_, i) => i + 1);
+  const r = sparkRuns(v);
+  assert.equal(r.vals.length, 12);
+  assert.equal(r.vals[0], 3);
+  assert.equal(r.vals[11], 14);
+  assert.deepEqual(r.runs, [Array.from({ length: 12 }, (_, i) => i)]);
+  assert.equal(r.last, 11);
+  assert.deepEqual(sparkRuns(v, 3).vals, [12, 13, 14]);
+  // a null that falls out of the window is not a gap
+  assert.deepEqual(sparkRuns([null, 1, 2, 3], 3), { vals: [1, 2, 3], runs: [[0, 1, 2]], last: 2 });
+});
+
+test('sparkRuns: numeric strings count the way num does, junk is a gap', () => {
+  assert.deepEqual(sparkRuns(['3', 4, 'x', '', '5']), { vals: [3, 4, null, null, 5], runs: [[0, 1], [4]], last: 4 });
+});
+
+test('dayPair: whole numbers, unless two different values would read the same', () => {
+  assert.deepEqual(dayPair(9, 8.857), ['9.0', '8.9']);
+  assert.deepEqual(dayPair(12.4, 9.6), ['12', '10']);
+  assert.deepEqual(dayPair(9, 9), ['9', '9']);
+  assert.deepEqual(dayPair(1234.4, 1234.2), ['1,234.4', '1,234.2']);
+});
+
+test('dayPair: a missing side is a dash, a real zero stays 0', () => {
+  assert.deepEqual(dayPair(null, 3), ['—', '3']);
+  assert.deepEqual(dayPair(3, undefined), ['3', '—']);
+  assert.deepEqual(dayPair(NaN, Infinity), ['—', '—']);
+  assert.deepEqual(dayPair(0, 0), ['0', '0']);
+  assert.deepEqual(dayPair(0, null), ['0', '—']);
 });
 
 test('formatCount', () => {
@@ -134,71 +165,6 @@ test('formatCount', () => {
   assert.equal(formatCount(undefined), '–');
   assert.equal(formatCount(3410), '3,410');
   assert.equal(formatCount(0), '0');
-});
-
-test('measureRows returns the six measures in MEASURES order', () => {
-  const rows = measureRows({ current: {}, previous: {} }, []);
-  assert.equal(rows.length, 6);
-  assert.deepEqual(rows.map((r) => r.id), MEASURES.map((m) => m.id));
-  assert.deepEqual(rows.map((r) => r.id), [
-    'signups', 'activation_rate', 'wau', 'work_users', 'cards_created', 'checkouts',
-  ]);
-});
-
-test('measureRows formats counts, the rate as a percent and checkouts as S of O', () => {
-  const kpi = {
-    current: { signups: 3410, activation_rate: 0.52, wau: 40, work_users: 12, cards_created: 90, checkout_success: 2, checkout_open: 5 },
-    previous: { signups: 3410, activation_rate: 0.5, wau: 50, work_users: 12, cards_created: 45, checkout_success: 1, checkout_open: 4 },
-  };
-  const by = Object.fromEntries(measureRows(kpi, []).map((r) => [r.id, r]));
-  assert.equal(by.signups.value, '3,410');
-  assert.equal(by.signups.delta.text, 'same');
-  assert.equal(by.activation_rate.value, '52%');
-  assert.equal(by.activation_rate.delta.text, '▲ 2 pts');
-  assert.equal(by.wau.delta.text, '▼ 20%');
-  assert.equal(by.cards_created.delta.text, '▲ 100%');
-  assert.equal(by.checkouts.value, '2 of 5');
-  assert.equal(by.checkouts.delta.text, '▲ 100%');
-});
-
-test('measureRows: a missing rate reads as a dash', () => {
-  const by = Object.fromEntries(measureRows({ current: {}, previous: {} }, []).map((r) => [r.id, r]));
-  assert.equal(by.activation_rate.value, '–');
-  assert.equal(by.activation_rate.delta.text, '');
-});
-
-test('measureRows: rate and checkouts have no spark', () => {
-  const weeks = Array.from({ length: 3 }, (_, i) => ({ week_start: `w${i}`, complete: true, signups: i, active_users: i, work_users: i, cards: i }));
-  const by = Object.fromEntries(measureRows({}, weeks).map((r) => [r.id, r]));
-  assert.equal(by.activation_rate.spark, null);
-  assert.equal(by.checkouts.spark, null);
-  assert.deepEqual(by.activation_rate.values, []);
-  assert.notEqual(by.signups.spark, null);
-  assert.notEqual(by.wau.spark, null);
-});
-
-test('measureRows charts only the last 12 weeks', () => {
-  const weeks = Array.from({ length: 15 }, (_, i) => ({
-    week_start: `w${i}`, signups: i, active_users: i * 2, work_users: i, cards: i,
-  }));
-  const by = Object.fromEntries(measureRows({}, weeks).map((r) => [r.id, r]));
-  assert.equal(by.signups.values.length, 12);
-  assert.deepEqual(by.signups.values.slice(0, 2), [3, 4]);
-  assert.equal(by.signups.values.at(-1), 14);
-  assert.equal(by.signups.weeks.length, 12);
-  assert.equal(by.signups.weeks[0], 'w3');
-  assert.deepEqual(by.wau.values.slice(0, 1), [6]); // active_users
-});
-
-test('measureRows: the line stops at the last complete week; the bars keep this week', () => {
-  const weeks = [
-    { week_start: 'a', complete: true, signups: 2 },
-    { week_start: 'b', complete: true, signups: 8 },
-    { week_start: 'c', complete: false, signups: 1 },
-  ];
-  const by = Object.fromEntries(measureRows({}, weeks).map((r) => [r.id, r]));
-  assert.deepEqual(by.signups.values, [2, 8, 1]);
-  assert.deepEqual(by.signups.spark, sparkPoints([2, 8]));
 });
 
 test('ago', () => {

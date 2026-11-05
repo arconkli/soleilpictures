@@ -299,12 +299,22 @@ const RPCS = {
       { user_id: 'u8', email: 'ines@paperplane', friends_joined: 2, friends_activated: 1, friends_paid: 0, cards_earned: 25 },
     ],
   },
+  // The 30-day read, keyed by derive_acquisition_channel's own tokens (0741),
+  // biggest first and 'direct' ahead of 'google' as it can be live. A shorter
+  // window is this scaled down in rpcResult.
   admin_acquisition_breakdown: [
-    { source: 'google',  signups: 412, converted: 79, conversion: 0.1917 },
-    { source: 'reddit',  signups: 233, converted: 28, conversion: 0.1202 },
-    { source: 'twitter', signups: 168, converted: 21, conversion: 0.125 },
-    { source: 'direct',  signups: 121, converted: 14, conversion: 0.1157 },
-    { source: 'product-hunt', signups: 64, converted: 11, conversion: 0.1719 },
+    { source: 'direct',       signups: 188, converted: 21, conversion: 0.1117 },
+    { source: 'google',       signups: 143, converted: 19, conversion: 0.1329 },
+    { source: 'reddit',       signups: 71,  converted: 6,  conversion: 0.0845 },
+    { source: 'chatgpt',      signups: 52,  converted: 9,  conversion: 0.1731 },
+    { source: 'share_link',   signups: 38,  converted: 5,  conversion: 0.1316 },
+    { source: 'public_board', signups: 24,  converted: 2,  conversion: 0.0833 },
+    { source: 'bing',         signups: 17,  converted: 2,  conversion: 0.1176 },
+    { source: 'duckduckgo',   signups: 11,  converted: 1,  conversion: 0.0909 },
+    { source: 'search',       signups: 8,   converted: 0,  conversion: 0 },
+    { source: 'mcp_connect',  signups: 5,   converted: 1,  conversion: 0.2 },
+    { source: 'referral',     signups: 4,   converted: 0,  conversion: 0 },
+    { source: 'producthunt',  signups: 3,   converted: 0,  conversion: 0 },
   ],
   admin_activation_funnel: {
     signed_up: 96, first_board: 78, first_card: 58,
@@ -550,12 +560,61 @@ RPCS.admin_event_coverage = [
 // admin_email_stats(category, template, sent, delivered, opened, clicked,
 // bounced, complained, failed)
 RPCS.admin_email_stats = [
-  { category: 'lifecycle', template: 'welcome',      sent: 137, delivered: 134, opened: 71, clicked: 18, bounced: 2, complained: 0, failed: 1 },
-  { category: 'lifecycle', template: 'day3_nudge',   sent: 96,  delivered: 95,  opened: 33, clicked: 6,  bounced: 1, complained: 0, failed: 0 },
-  { category: 'transact',  template: 'otp',          sent: 383, delivered: 381, opened: 340, clicked: 331, bounced: 0, complained: 0, failed: 2 },
+  { category: 'lifecycle', template: 'welcome_board',    sent: 137, delivered: 134, opened: 71, clicked: 18, bounced: 2, complained: 0, failed: 1 },
+  { category: 'lifecycle', template: 'activate_nudge_1', sent: 96,  delivered: 95,  opened: 33, clicked: 6,  bounced: 1, complained: 0, failed: 0 },
+  { category: 'transact',  template: 'unknown',          sent: 383, delivered: 381, opened: 340, clicked: 331, bounced: 0, complained: 0, failed: 2 },
+  // The template ids send-transactional-email really sends, so the phone's Emails
+  // page names them: a note whose opens are not recorded, a small send (counts, not
+  // a rate) and an id the page has no name for.
+  { category: 'lifecycle', template: 'product_update', sent: 240, delivered: 236, opened: 0, clicked: 0, bounced: 3, complained: 0, failed: 1 },
+  { category: 'lifecycle', template: 'board_waiting',  sent: 58,  delivered: 57,  opened: 31, clicked: 9, bounced: 1, complained: 0, failed: 0 },
+  { category: 'transact',  template: 'pending_invite', sent: 12,  delivered: 11,  opened: 6,  clicked: 4, bounced: 1, complained: 0, failed: 0 },
+  { category: 'transact',  template: 'invite_reward',  sent: 7,   delivered: 7,   opened: 0,  clicked: 0, bounced: 0, complained: 0, failed: 0 },
+  { category: 'transact',  template: 'file_comment_digest', sent: 4, delivered: 4, opened: 2, clicked: 1, bounced: 0, complained: 0, failed: 0 },
 ];
 
 RPCS.admin_public_board_submission_counts = { pending: 2, approved: 8, rejected: 1 };
+
+// admin_team_contacts (0542): Talk-to-us requests, newest first. Invented
+// people at example.com; status is new, handled or spam.
+RPCS.admin_team_contacts = [
+  ['new', 0.4], ['new', 2.1], ['handled', 5.5], ['spam', 6.2], ['handled', 12.8],
+].map(([status, back], i) => ({
+  id: `00000000-0000-4000-8000-${String(700000000000 + i).padStart(12, '0')}`,
+  created_at: tsISO(back * 1440),
+  name: `Sample Contact ${i + 1}`, email: `contact${i + 1}@example.com`, company: `Example Studio ${i + 1}`,
+  editors: 4 + i * 3, needs: i % 2 ? ['seats', 'sso'] : ['seats'], message: 'A sample message for the preview.',
+  status, handled_at: status === 'new' ? null : tsISO((back - 0.3) * 1440), signed_in: i % 2 === 0,
+}));
+
+// admin_ai_referrals (0335): a bare array, no team or verified filter. The
+// preview page layers a copy of this over the shared shim (AdminPreviewHarness).
+RPCS.admin_ai_referrals = [
+  { ref_host: 'chatgpt.com', landing_path: '/', signups: 9, activated: 5 },
+  { ref_host: 'utm:chatgpt.com', landing_path: '/', signups: 7, activated: 3 },
+  { ref_host: 'www.perplexity.ai', landing_path: '/vs/pureref', signups: 4, activated: 2 },
+  { ref_host: 'gemini.google.com', landing_path: '/best/mood-board-apps', signups: 3, activated: 1 },
+  { ref_host: 'copilot.microsoft.com', landing_path: '/', signups: 1, activated: 0 },
+];
+
+// admin_crawler_hits (0295). by_bot comes back in the SQL's own order, a TEXT
+// sort on hits ("97" before "9" before "41"), so a client must sort it again.
+RPCS.admin_crawler_hits = (() => {
+  const by_bot = [
+    ['GPTBot', 'ai', 212, 38], ['Googlebot', 'search', 184, 61], ['ClaudeBot', 'ai', 97, 24],
+    ['PerplexityBot', 'ai', 41, 12], ['bingbot', 'search', 36, 29], ['AhrefsBot', 'other', 19, 19], ['Bytespider', 'ai', 9, 6],
+  ].map(([bot, kind, hits, paths], i) => ({ bot, kind, hits, paths, last_seen: tsISO(60 * (3 + i * 7)) }))
+    .sort((a, b) => (String(a.hits) < String(b.hits) ? 1 : -1));
+  return {
+    from: dayISO(30),
+    by_bot,
+    by_day: Array.from({ length: 30 }, (_, i) => ({ day: dayISO(29 - i), ai: 6 + ((i * 7) % 11), search: 4 + ((i * 5) % 7), other: i % 3 })),
+    top_ai_paths: [
+      { path: '/vs/pureref', hits: 64, bots: 3 }, { path: '/', hits: 51, bots: 3 },
+      { path: '/best/mood-board-apps', hits: 38, bots: 2 }, { path: '/docs/api', hits: 27, bots: 2 },
+    ],
+  };
+})();
 
 // admin_journey_reconstruct_by_user → [{ jid, t0_iso, n_events, events: [...] }]
 // Two sessions with a real shape: one that reaches a first card, one that
@@ -1241,7 +1300,10 @@ export const HARNESS_BREAKS = DEFINITION_BREAKS.map((b) => (
 //   work      measured from WK[WORK_FROM] only, and cut by HARNESS_BREAKS the
 //             week after, so the line is thin for one week, then full;
 //   day one   cohorts under SMALL_N early on (small unjoined dots), and the
-//             newest complete week still filling until it is eight days old;
+//             newest complete week still filling until it is eight days old.
+//             The two weeks before the open one are the lowest in twenty
+//             weeks (so "the lowest since" has an earlier week to name), whichever
+//             of them is the newest to have a full first day;
 //   time      not recorded before today, the state production is in until its
 //             first full week: the chart is hatched with its message. ?time=1
 //             starts it at WK[WORK_FROM] instead, to look at the measured bars.
@@ -1254,8 +1316,8 @@ const TODAY_ISO = new Date().toISOString().slice(0, 10);
 const EARLY_SIGNUPS  = [3, 1, 2, 4, 3, 6, 8, 7, 11, 14, 18, 23];
 const EARLY_ACTIVE   = [null, null, null, 6, 7, 9, 12, 14, 18, 22, 27, 34];
 const EARLY_CARDS    = [0, 4, 12, 20, 35, 60, 90, 118, 160, 214, 262, 331];
-const DAY_ONE_RATE   = [0.33, 1, 0.5, 0.5, 0.33, 0.5, 0.38, 0.43, 0.45, 0.43, 0.39, 0.43,
-  0.46, 0.42, 0.4, 0.45, 0.44, 0.42, 0.47, 0.44, 0.48, 0.41, 0.46, 0.43, 0.47, 0.42];
+const DAY_ONE_RATE   = [0.33, 1, 0.5, 0.5, 0.33, 0.5, 0.38, 0.43, 0.45, 0.43, 0.33, 0.43,
+  0.46, 0.42, 0.4, 0.45, 0.44, 0.42, 0.47, 0.44, 0.48, 0.41, 0.46, 0.37, 0.35, 0.42];
 const GROWTH_ACTIVE_FLOOR = GW[3];
 function timeFloor() {
   try { if (new URLSearchParams(window.location.search).get('time') === '1') return WK[WORK_FROM]; } catch { /* no window */ }
@@ -1789,12 +1851,16 @@ function userWorkspacesFixture(userId) {
 // of every route the ledger files, so Analytics › Sharing is judged full.
 function sharingOverviewFixture(days = 90) {
   const nWeeks = Math.max(2, Math.ceil(Number(days || 90) / 7));
+  // The last week is the open one (this UTC week so far) and, as the SQL does,
+  // the weeks run to it; it beats every full week on signups from shares.
+  const thisMonday = weekStarts(1)[0];
   const weekly = Array.from({ length: nWeeks }, (_, i) => {
     const k = i + 3;
+    const open = i === nWeeks - 1;
     return {
-      week: new Date(Date.UTC(2026, 9, 26) - (nWeeks - 1 - i) * 7 * 86400000).toISOString().slice(0, 10),
+      week: isoPlus(thisMonday, -(nWeeks - 1 - i) * 7),
       shares: 20 + ((k * 7) % 17), sharers: 8 + (k % 6), opened: 30 + ((k * 5) % 13), copied: 14 + (k % 9),
-      seen: 60 + ((k * 11) % 40), signed_up: 2 + (k % 4), made_something: 1 + (k % 3), got_in: 5 + (k % 5), co_creating: k % 3,
+      seen: 60 + ((k * 11) % 40), signed_up: open ? 9 : 2 + (k % 4), made_something: 1 + (k % 3), got_in: 5 + (k % 5), co_creating: k % 3,
     };
   });
   const sum = (key) => weekly.reduce((a, w) => a + w[key], 0);
@@ -1820,7 +1886,7 @@ function sharingOverviewFixture(days = 90) {
       reach: got_in + signed_up };
   });
   return {
-    window: { days: Number(days || 90), from: weekly[0].week, to: '2026-10-28' },
+    window: { days: Number(days || 90), from: weekly[0].week, to: TODAY_ISO },
     weekly,
     totals: { shares: sum('shares'), sharers: 74, panel_opens: sum('opened'), panel_openers: 92, copies: sum('copied'),
       seen: sum('seen'), got_in: sum('got_in'), signed_up: sum('signed_up'), made_something: sum('made_something'),
@@ -2054,6 +2120,82 @@ function showcaseWaitingFixture() {
   return SHOWCASE_BOARDS.map(showcaseRow).filter((b) => b.status === 'new' && !b.trashed).length;
 }
 
+// admin_page_search_daily (0254): a bare array, one element per (path, day),
+// page-level totals only (query = ''), web search, ordered by day. Invented,
+// and shaped so each of the phone's Search rules has something to find:
+//   * the newest day is three days old (Google's lag), no day missing in the
+//     newest 14; one day further back has no rows at all (a gap);
+//   * not counting '/', the newest 7 days are shown ~1.8x as often as the 7
+//     before while clicks are the same weekly pattern (a rise under 15%);
+//   * one clear jump day, 4 days before the newest;
+//   * the places improve a little over the newest 7 days.
+// '/' (the home page) is mixed in as the RPC does, with a brand-sized click rate.
+const SEARCH_PATHS = [
+  // path, share of non-home views, clicks a day, average place
+  ['/vs/pureref', 0.27, 2.4, 5.6],
+  ['/best/mood-board-apps', 0.21, 1.8, 7.9],
+  ['/vs/milanote', 0.14, 1.1, 8.8],
+  ['/tools/shot-list-maker', 0.12, 0.9, 11.4],
+  ['/docs/api', 0.09, 0.6, 9.3],
+  ['/templates/film-lookbook', 0.07, 0.4, 13.2],
+  ['/changelog', 0.05, 0.3, 6.1],
+  ['/docs/cards', 0.05, 0.2, 10.7],
+];
+const SEARCH_JUMP_BACK = 4;   // days before the newest day
+const SEARCH_GAP_BACK = 40;   // a day Search Console has no rows for
+
+function searchViews(k) {
+  const ripple = Math.sin(k * 1.3);
+  if (k === SEARCH_JUMP_BACK) return 560;
+  if (k < 7) return Math.round(330 + 25 * ripple);
+  if (k < 14) return Math.round(200 + 18 * ripple);
+  return Math.round(205 - Math.min(40, k - 14) * 0.5 + 22 * ripple);
+}
+
+function searchDailyFixture(params) {
+  if ((params?.p_search_type ?? 'web') !== 'web') return [];
+  const asked = Math.trunc(Number(params?.p_days));
+  const days = Math.min(400, Math.max(1, Number.isFinite(asked) && asked > 0 ? asked : 90));
+  const only = params?.p_path ?? null;
+  const rows = [];
+  for (let k = days - 3; k >= 0; k--) {   // oldest first; k = 0 is the newest day
+    if (k === SEARCH_GAP_BACK) continue;
+    const day = new Date(Date.UTC(TODAY.getUTCFullYear(), TODAY.getUTCMonth(), TODAY.getUTCDate() - 3 - k)).toISOString().slice(0, 10);
+    const total = searchViews(k);
+    const closer = k < 7 ? 1.2 : 0;
+    SEARCH_PATHS.forEach(([path, share, perDay, place], i) => {
+      const impressions = Math.max(1, Math.round(total * share * (1 + 0.12 * Math.sin(k * 0.7 + i))));
+      // Clicks repeat weekly, so a week of them is the same as the week before.
+      const wave = Math.sin((k % 7) * 1.9 + i * 2);
+      const clicks = Math.max(0, Math.min(impressions, Math.round(perDay + 1.1 * wave) + (k === SEARCH_JUMP_BACK && i === 0 ? 1 : 0)));
+      const position = Math.max(1, place + 0.4 * Math.sin(k + i) - closer);
+      rows.push({ path, day, clicks, impressions, position: Number(position.toFixed(2)) });
+    });
+    rows.push({
+      path: '/', day,
+      clicks: 30 + Math.round(5 * Math.sin(k * 1.1)), impressions: 85 + Math.round(10 * Math.sin(k * 0.9)),
+      position: Number((1.6 + 0.1 * Math.sin(k)).toFixed(2)),
+    });
+  }
+  return only ? rows.filter((r) => r.path === only) : rows;
+}
+
+// admin_error_groups (0582), totals only, by window: the phone reads the
+// totals and nothing else. The preview page layers adminIssuesFixtures.js over
+// this one, so the desktop Errors tab never sees it.
+function errorGroupsFixture(params) {
+  const days = Math.max(1, Math.min(Number(params?.p_days) || 7, 90));
+  const wide = days > 2;
+  return {
+    days,
+    since: new Date(TODAY.getTime() - days * 86400000).toISOString(),
+    totals: wide
+      ? { problems: 9, occurrences: 64, people: 17, crash_people: 3, new: 3, returned: 1 }
+      : { problems: 5, occurrences: 27, people: 9, crash_people: 2, new: 3, returned: 0 },
+    kinds: [], breaking: [], alerts: [], groups: [],
+  };
+}
+
 function rpcResult(name, params) {
   if (name === 'admin_tests_read') return testsReadFixture();
   if (name === 'showcase_library') return showcaseLibraryFixture();
@@ -2092,6 +2234,17 @@ function rpcResult(name, params) {
   if (name === 'admin_user_workspaces') return userWorkspacesFixture(params?.p_user_id);
   if (name === 'admin_user_placements') return userPlacementsFixture(params?.p_user_id);
   if (name === 'admin_sharing_overview') return sharingOverviewFixture(params?.p_days);
+  if (name === 'admin_page_search_daily') return searchDailyFixture(params);
+  if (name === 'admin_error_groups') return errorGroupsFixture(params);
+  // A shorter window is the 30-day rows scaled down, still biggest first.
+  if (name === 'admin_acquisition_breakdown') {
+    const f = Math.min(1, Math.max(1, Number(params?.p_days) || 30) / 30);
+    return RPCS.admin_acquisition_breakdown.map((r) => {
+      const signups = Math.round(r.signups * f);
+      const converted = Math.min(signups, Math.round(r.converted * f));
+      return { ...r, signups, converted, conversion: signups ? Number((converted / signups).toFixed(4)) : 0 };
+    }).filter((r) => r.signups > 0);
+  }
   if (name === 'admin_sharing_recent') return sharingRecentFixture(params?.p_limit, params?.p_before);
   // 0746: the list honours its Sharing filter and the reach sort, so the
   // harness can show what picking one does.
@@ -2192,7 +2345,11 @@ function rpcResult(name, params) {
     } else {
       const asked = params?.p_weeks == null ? 14 : Math.trunc(Number(params.p_weeks));
       const want = Math.min(52, Math.max(2, Number.isFinite(asked) ? asked : 14));
-      kept = rows.slice(Math.max(0, rows.length - want));
+      // Past the fourteen rows held, the earlier weeks are the growth series',
+      // cut to this RPC's columns (its last fourteen rows ARE these rows).
+      kept = want > rows.length
+        ? growthRows().slice(-want).map((g) => Object.fromEntries(Object.keys(rows[0]).map((k) => [k, g[k]])))
+        : rows.slice(Math.max(0, rows.length - want));
     }
     return kept.map((r) => ({ ...r }));
   }
