@@ -689,6 +689,11 @@ const worker = {
       if (to) {
         return Response.redirect(url.origin + to + (isMd ? '.md' : '') + url.search, 301);
       }
+      // The docs hub's Markdown twin is /docs/index.md (gen-docs writes it
+      // there); /docs.md was advertised once and served the app's HTML.
+      if (p === '/docs.md') {
+        return Response.redirect(url.origin + '/docs/index.md' + url.search, 301);
+      }
     }
 
     // ── URL normalization (SEO): 301 duplicate-URL variants onto the canonical
@@ -994,6 +999,19 @@ const worker = {
     // the HTML as JavaScript and crashing with "undefined (reading 'default')".
     if (request.method === 'GET' && url.pathname.startsWith('/assets/') && contentType.includes('text/html')) {
       return new Response('Not found', {
+        status: 404,
+        headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
+      });
+    }
+
+    // A made-up file address (/atom.xml, /sitemap.txt, /explore.md) falls through
+    // to the SPA shell, which would answer 200 with the app's HTML. Every real
+    // .md/.xml/.txt is either answered above (sitemaps, the IndexNow key) or is
+    // a static asset with its own type, so text/html here means "no such file".
+    if ((request.method === 'GET' || request.method === 'HEAD')
+        && /\.(md|xml|txt)$/i.test(url.pathname.split('/').pop())
+        && contentType.includes('text/html')) {
+      return new Response(request.method === 'HEAD' ? null : 'Not found', {
         status: 404,
         headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
       });
@@ -2159,7 +2177,7 @@ function injectDocs(res, page, html) {
       // Point machines at the markdown twin of this exact page. `alternate`
       // with a text/markdown type is the honest way to say "same content,
       // parseable format" without pretending it's a translation.
-      + `<link rel="alternate" type="text/markdown" href="${escapeHtml(page.path)}.md">`
+      + `<link rel="alternate" type="text/markdown" href="${page.path === '/docs' ? '/docs/index' : escapeHtml(page.path)}.md">`
     ))
     .transform(res);
 }

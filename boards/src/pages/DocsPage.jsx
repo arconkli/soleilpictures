@@ -236,7 +236,7 @@ export function DocsPage({ path }) {
                   })}
                 </time>
                 {' · '}
-                <a href={`${page.path}.md`}>View as Markdown</a>
+                <a href={`${page.path === '/docs' ? '/docs/index' : page.path}.md`}>View as Markdown</a>
               </p>
             </div>
 

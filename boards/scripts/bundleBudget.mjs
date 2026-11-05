@@ -95,7 +95,12 @@ export const CEILINGS = {
   // 2026-11-04: +0.8 KB for the MCP connecting work: password sign-in for the
   // directory reviewers' demo account (lib/passwordSignIn.js, used by the
   // sign-in gate in the entry). A CI-style build measured 171,051 B with it.
-  entryJs: 171_800,
+  // 2026-11-04: +0.2 KB for the homepage's three fact notecards (any file, the
+  // free plan, ChatGPT and Claude) in auth/SignInBackdrop.jsx, their words in
+  // lib/homeFactNotes.js as literals so billingCopy.js stays out of the entry
+  // (importing it cost 7.4 KB). A CI-style build read 171,066 B on main
+  // 0e775ca4 and 171,792 B with them, 8 B under the old ceiling.
+  entryJs: 172_000,
   entryCss: 96_200,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only

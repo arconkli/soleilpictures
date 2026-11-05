@@ -1230,7 +1230,8 @@ function crawlableHtml(page) {
   // registry exists for do not run JavaScript. A docs page reached from a search
   // result is the most common entry point into the corpus; without this it is a
   // dead end for the one question the docs deliberately never answer.
-  out.push(`<p style="color:#8a8a92;font-size:.85rem;margin-top:2em;">Machine-readable: <a href="${escapeHtml(page.path)}.md" style="color:#FFA500;">${escapeHtml(page.path)}.md</a> · <a href="/llms.txt" style="color:#FFA500;">/llms.txt</a><br>What changed and when: <a href="/changelog" style="color:#FFA500;">/changelog</a></p>`);
+  const mdHref = `${page.path === '/docs' ? '/docs/index' : page.path}.md`;
+  out.push(`<p style="color:#8a8a92;font-size:.85rem;margin-top:2em;">Machine-readable: <a href="${escapeHtml(mdHref)}" style="color:#FFA500;">${escapeHtml(mdHref)}</a> · <a href="/llms.txt" style="color:#FFA500;">/llms.txt</a><br>What changed and when: <a href="/changelog" style="color:#FFA500;">/changelog</a></p>`);
 
   return `<div style="max-width:820px;margin:0 auto;padding:14vh 24px 24px;"><article>${out.join('')}</article></div>`;
 }
