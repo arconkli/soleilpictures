@@ -1243,7 +1243,10 @@ test('search finds a picture by what is in it, once, through the view held to pi
   assert.equal(r.body.pictures.items[0].url, `https://clusters.test/?to=c:${B1}:c2`);
   const asked = calls.find((c) => c.path === 'entity_search');
   assert.equal(asked.query.get('kind'), 'eq.image', 'never the directory rows the view also holds');
-  assert.equal(asked.query.get('seen'), 'ilike."%red car%"');
+  // Inside or=(…): PostgREST keeps the quotes of a plain seen=ilike."…" and it
+  // matches nothing (searchRoute.test.mjs runs that against a faithful fake).
+  assert.equal(asked.query.get('or'), '(seen.ilike."%red car%")');
+  assert.equal(asked.query.get('seen'), null);
 
   const boardsOnly = await api('GET', '/search?q=red%20car&kind=board');
   assert.deepEqual(boardsOnly.body.pictures.items, []);
