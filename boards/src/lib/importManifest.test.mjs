@@ -11,8 +11,11 @@ import { normalizeIncomingCard } from '../worker-api.js';
 import {
   normalizeImportItems, kindForContentType, cardSpecFor, titleFromUrl, fitDims,
   summarize, mapWithConcurrency, noteFor, provenanceProps, sourceIdentifierValue,
+  sourceStampsElsewhere, copiesByAddress,
   MAX_IMPORT_ITEMS, SOURCE_SCOPE, SOURCE_PROP, IMPORTED_AT_PROP,
 } from './importManifest.js';
+
+import { identifierKey } from './objectMeta.js';
 
 const AT = '2026-08-09T00:00:00.000Z';
 const url = (n) => `https://cdn.example.com/ref/${n}.jpg`;
@@ -251,4 +254,53 @@ test('one item failing does not abandon the rest', async () => {
   assert.equal(out.length, 3);
   assert.equal(out[1].ok, false);
   assert.equal(out[2].ok, true);
+});
+
+// ── a picture that is already on another cluster ─────────────────────────────
+
+const HERE = '22222222-2222-4222-8222-222222222222';
+const THERE = '11111111-1111-4111-8111-111111111111';
+const stamp = (value) => ({ scope: SOURCE_SCOPE, value });
+const rowFor = (scope, value, board_id, object_id) => [
+  identifierKey(scope, value), { board_id, object_type: 'card', object_id, scope, value },
+];
+
+test('sourceStampsElsewhere: only a source_url stamp held by another board counts', () => {
+  const matches = new Map([
+    rowFor(SOURCE_SCOPE, url('a'), THERE, 'c1'),
+    rowFor(SOURCE_SCOPE, url('b'), HERE, 'c2'),
+    rowFor('shotgrid', 'Shot:1', THERE, 'c3'),
+  ]);
+  const lists = [
+    [stamp(url('a'))],                                  // elsewhere
+    [stamp(url('b'))],                                  // this board
+    [stamp(url('c'))],                                  // matched nowhere
+    [{ scope: 'shotgrid', value: 'Shot:1' }, stamp(url('d'))],   // another scope is not a copy
+    null,
+    [],
+  ];
+  assert.deepEqual([...sourceStampsElsewhere(lists, matches, { boardId: HERE })], [0]);
+});
+
+test('sourceStampsElsewhere: board ids compare as strings, and a long address is just a value', () => {
+  const long = `${'sha256:'}${'ab'.repeat(32)}`;
+  const matches = new Map([rowFor(SOURCE_SCOPE, long, 7, 'c1')]);
+  assert.deepEqual([...sourceStampsElsewhere([[stamp(long)]], matches, { boardId: '7' })], []);
+  assert.deepEqual([...sourceStampsElsewhere([[stamp(long)]], matches, { boardId: 8 })], [0]);
+  assert.equal(sourceStampsElsewhere([], new Map(), { boardId: HERE }).size, 0);
+});
+
+test('copiesByAddress: the newest row for each wanted address, and no one else', () => {
+  const rows = [   // newest first
+    { object_id: 'new', props: { [SOURCE_PROP]: url('a') } },
+    { object_id: 'no-props', props: null },
+    { object_id: 'no-key', props: { other: 1 } },
+    { object_id: 'unwanted', props: { [SOURCE_PROP]: url('z') } },
+    { object_id: 'old', props: { [SOURCE_PROP]: url('a') } },
+    { object_id: 'b', props: { [SOURCE_PROP]: url('b') } },
+  ];
+  const found = copiesByAddress(rows, [url('a'), url('b'), url('c')]);
+  assert.deepEqual([...found], [[url('a'), 'new'], [url('b'), 'b']]);
+  assert.equal(copiesByAddress([], [url('a')]).size, 0);
+  assert.equal(copiesByAddress(rows, []).size, 0);
 });

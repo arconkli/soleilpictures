@@ -23,7 +23,7 @@
 
 import { publicHttpsUrlProblem } from './safeUrl.js';
 // The prefix itself is defined once, in the module that enforces it.
-import { RESERVED_PREFIX, MAX_VALUE_LENGTH } from './objectMeta.js';
+import { RESERVED_PREFIX, MAX_VALUE_LENGTH, identifierKey } from './objectMeta.js';
 
 // A Worker gets a bounded number of subrequests per request, and each item here
 // costs a fetch plus a storage write. A hundred is comfortably inside that and
@@ -217,6 +217,42 @@ export function cardSpecFor(item, { kind, stored = null, importedAt }) {
  */
 export function provenanceProps(item, importedAt) {
   return { [SOURCE_PROP]: item.url, [IMPORTED_AT_PROP]: importedAt };
+}
+
+/**
+ * The items whose source_url stamp already belongs to a card on ANOTHER board.
+ * Identifiers are unique per workspace, so such an item cannot carry the stamp
+ * a second time; it is a copy of that picture, not a conflict. `identifierLists`
+ * is each item's identifiers (null for none) and `matches` is matchIdentifiers'
+ * answer, keyed by identifierKey. A long address is stamped as a sha256 value
+ * and is matched like any other value. Returns the item indexes.
+ */
+export function sourceStampsElsewhere(identifierLists, matches, { boardId }) {
+  const out = new Set();
+  identifierLists.forEach((list, i) => {
+    for (const ident of list || []) {
+      if (ident?.scope !== SOURCE_SCOPE) continue;
+      const row = matches.get(identifierKey(ident.scope, ident.value));
+      if (row && String(row.board_id) !== String(boardId)) out.add(i);
+    }
+  });
+  return out;
+}
+
+/**
+ * Which card on this board an address already produced, for an item that has no
+ * stamp of its own (a copy, or one whose stamp was freed later). `rows` are this
+ * board's object_props rows { object_id, props }, newest first, so the newest
+ * card for an address wins. Returns Map url -> object_id.
+ */
+export function copiesByAddress(rows, urls) {
+  const wanted = new Set(urls);
+  const out = new Map();
+  for (const r of rows || []) {
+    const url = r?.props?.[SOURCE_PROP];
+    if (typeof url === 'string' && wanted.has(url) && !out.has(url)) out.set(url, r.object_id);
+  }
+  return out;
 }
 
 // A readable fallback title: the filename, minus its extension and separators.

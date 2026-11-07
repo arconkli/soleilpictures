@@ -5,7 +5,7 @@ h1: Identifiers and properties
 navLabel: Identifiers and properties
 section: developers
 order: 8
-updated: 2026-08-09
+updated: 2026-11-05
 answer: An identifier is a scope and value pair assigned by another system, like shotgrid and Shot:12345. Attach as many as you like to a board or a card, look objects up by them with GET /resolve, and pass on_conflict identifier when creating so an object that already carries one is updated instead of duplicated. That is what makes an import re-runnable. Properties are a free-form JSON object on the same objects, for whatever fields your pipeline needs.
 faq:
   - q: How do I stop a re-run of my import from duplicating everything?
@@ -101,6 +101,10 @@ card. The old card's id is gone with it, so read the new one from the response.
   names the board, so you can move it or use a different identifier. Quietly
   doing nothing would leave you believing the card is on your board when it is
   not.
+
+An import's own `source_url` stamp is the exception: the same picture already
+on another cluster is imported as a copy rather than refused (see
+[Import](/docs/api/import#it-is-safe-to-run-twice)).
 
 ### Looking things up
 

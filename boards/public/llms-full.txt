@@ -6829,7 +6829,7 @@ A: The board owner's, exactly as in the app. Going past it returns 402.
 ========================================================================
 # Import
 URL: https://clusters.soleilpictures.com/docs/api/import
-Updated: 2026-11-04
+Updated: 2026-11-05
 
 POST /boards/:id/import takes a list of https URLs and brings them onto a board. Images are downloaded and stored; anything else becomes a link card pointing at the original, and the response says which happened to each item. Every card is stamped with a source_url identifier and the import resolves on it, so running the same manifest twice updates the same cards rather than duplicating them.
 
@@ -6864,6 +6864,8 @@ It is safe to run twice
 This is the point of the endpoint, not a footnote. Every imported card is stamped with an identifier in the source_url scope holding the URL it came from (an address longer than 200 characters is held as sha256: and the hex of its digest, and /resolve hashes it the same way, so you still look it up by the address), and the import resolves on that identifier. Run the same manifest again and the same cards are updated rather than added a second time — the response tells you which, in imported versus updated.
 
 That means an import that half-failed does not need unpicking. Fix the dead links and run the whole thing again.
+
+A picture or link that is already on another cluster in the workspace — a second moodboard with the same references, or a cluster that was deleted and can still be restored — is still imported here. An identifier belongs to one card, so it stays with the first one and /resolve keeps finding that card; the copy here is found by its source address instead, so running the import again on this cluster updates it too. The item's note says it is a copy when the other cluster is one you can open.
 
 It also means you can find anything you brought in:
 
@@ -6916,6 +6918,9 @@ Your own properties are kept, but the import always records where a card came fr
 
 Q: What happens if I run the same import twice?
 A: The same cards are updated, not duplicated. Each imported card carries a source_url identifier and the import resolves on it, so a run that half-failed can simply be repeated.
+
+Q: What if a picture is already on another cluster?
+A: It is still imported here. The source_url identifier stays with the first card, so /resolve keeps finding that one, and the copy here is found again by its source address, so running the import again on this cluster updates it too. The item's note says it is a copy when the other cluster is one you can open.
 
 Q: Can it import a PDF or a video?
 A: Not the file itself. Only images are downloaded and stored; everything else becomes a link card pointing at the original, and the response says so per item. Use the multipart upload endpoints for large media, which stream from the client instead of through the API.
@@ -7077,7 +7082,7 @@ A: Name the section in group on each card, and the board's group of that name is
 ========================================================================
 # Identifiers and properties
 URL: https://clusters.soleilpictures.com/docs/api/metadata
-Updated: 2026-08-09
+Updated: 2026-11-05
 
 An identifier is a scope and value pair assigned by another system, like shotgrid and Shot:12345. Attach as many as you like to a board or a card, look objects up by them with GET /resolve, and pass on_conflict identifier when creating so an object that already carries one is updated instead of duplicated. That is what makes an import re-runnable. Properties are a free-form JSON object on the same objects, for whatever fields your pipeline needs.
 
@@ -7132,6 +7137,8 @@ Two refusals rather than a guess
 
 one item whose identifiers match two different existing objects — picking one would silently merge two records
 a card whose identifier already lives on a different board, and that card is still there — the response names the board, so you can move it or use a different identifier. Quietly doing nothing would leave you believing the card is on your board when it is not.
+
+An import's own source_url stamp is the exception: the same picture already on another cluster is imported as a copy rather than refused (see Import).
 
 Looking things up
 

@@ -67668,6 +67668,31 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "A picture or link that is already on another cluster in the workspace — a second moodboard with the same references, or a cluster that was deleted and can still be restored — is still imported here. An identifier belongs to one card, so it stays with the first one and "
+    },
+    {
+     "t": "code",
+     "v": "/resolve"
+    },
+    {
+     "t": "text",
+     "v": " keeps finding that card; the copy here is found by its source address instead, so running the import again on this cluster updates it too. The item's "
+    },
+    {
+     "t": "code",
+     "v": "note"
+    },
+    {
+     "t": "text",
+     "v": " says it is a copy when the other cluster is one you can open."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "It also means you can find anything you brought in:"
     }
    ]
@@ -70129,6 +70154,38 @@ export const DOCS_CONTENT = {
       "v": ", and that card is still there — the response names the board, so you can move it or use a different identifier. Quietly doing nothing would leave you believing the card is on your board when it is not."
      }
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An import's own "
+    },
+    {
+     "t": "code",
+     "v": "source_url"
+    },
+    {
+     "t": "text",
+     "v": " stamp is the exception: the same picture already on another cluster is imported as a copy rather than refused (see "
+    },
+    {
+     "t": "link",
+     "v": "Import",
+     "href": "/docs/api/import#it-is-safe-to-run-twice",
+     "children": [
+      {
+       "t": "text",
+       "v": "Import"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ")."
+    }
    ]
   },
   {
