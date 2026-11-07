@@ -4027,7 +4027,7 @@ export const DOCS_PAGES = [
     "answer": "POST /boards/:id/import takes a list of https URLs and brings them onto a board. Images are downloaded and stored; anything else becomes a link card pointing at the original, and the response says which happened to each item. Every card is stamped with a source_url identifier and the import resolves on it, so running the same manifest twice updates the same cards rather than duplicating them.",
     "section": "developers",
     "order": 6,
-    "updated": "2026-11-04",
+    "updated": "2026-11-05",
     "navLabel": "Import",
     "headings": [
       {
@@ -4068,6 +4068,10 @@ export const DOCS_PAGES = [
       {
         "q": "What happens if I run the same import twice?",
         "a": "The same cards are updated, not duplicated. Each imported card carries a source_url identifier and the import resolves on it, so a run that half-failed can simply be repeated."
+      },
+      {
+        "q": "What if a picture is already on another cluster?",
+        "a": "It is still imported here. The source_url identifier stays with the first card, so /resolve keeps finding that one, and the copy here is found again by its source address, so running the import again on this cluster updates it too. The item's note says it is a copy when the other cluster is one you can open."
       },
       {
         "q": "Can it import a PDF or a video?",
@@ -4143,7 +4147,7 @@ export const DOCS_PAGES = [
     "answer": "An identifier is a scope and value pair assigned by another system, like shotgrid and Shot:12345. Attach as many as you like to a board or a card, look objects up by them with GET /resolve, and pass on_conflict identifier when creating so an object that already carries one is updated instead of duplicated. That is what makes an import re-runnable. Properties are a free-form JSON object on the same objects, for whatever fields your pipeline needs.",
     "section": "developers",
     "order": 8,
-    "updated": "2026-08-09",
+    "updated": "2026-11-05",
     "navLabel": "Identifiers and properties",
     "headings": [
       {

@@ -38,7 +38,7 @@ import {
 import {
   normalizeProps, normalizeIdentifiers, matchIdentifiers, loadMeta, loadBoardsMeta,
   saveMeta, saveMetaBulk, withMeta, parseInclude, purgeCardMeta, repointCardMeta,
-  resolveUpsert, OBJECT_TYPES, pgInList,
+  resolveUpsert, OBJECT_TYPES, pgInList, identifierKey,
 } from './lib/objectMeta.js';
 import { scoutRpc, scoutDelete, scoutInsert, scoutSelect } from './lib/scoutDb.js';
 import {
@@ -112,8 +112,13 @@ import {
 import {
   normalizeImportItems, cardSpecFor, kindForContentType, noteFor, mapWithConcurrency,
   IMPORT_CONCURRENCY, IMPORT_TIMEOUT_MS, SOURCE_SCOPE, sourceIdentifierValue, provenanceProps,
+  sourceStampsElsewhere, copiesByAddress,
 } from './lib/importManifest.js';
 import { pageExcerpt } from './lib/pageExcerpt.js';
+
+// What an import item says when its picture was already on another cluster.
+const COPY_NOTE = 'already on another cluster, which keeps its source_url identifier; '
+  + 're-running this import updates this copy';
 
 // Raised from 100 once a positioned batch stopped costing O(the whole board):
 // the write is now one card_index insert and one small Yjs update, so the batch
@@ -1740,6 +1745,9 @@ async function internalCall(baseUrl, env, ctx, { auth, token }, path, opts = {})
     // waitUntil called off its own object ("Illegal invocation").
     res = await dispatch(target, req, env, {
       auth, token, trace, waitUntil: ctx?.waitUntil ? (p) => ctx.waitUntil(p) : null,
+      // Set by the Worker's own routes only (the import's source addresses); a
+      // REST request has no way to send it.
+      ...(opts.internal ? { internal: opts.internal } : {}),
     });
   } catch (e) {
     // dispatch THROWS its refusals and lets a database failure through raw;
@@ -3635,6 +3643,12 @@ async function dispatch(url, request, env, ctx) {
   // twice updates rather than duplicates. That falls out of object_identifiers,
   // which already had the unique index — nothing new was needed for it.
   //
+  // A picture whose source_url stamp is already on a card of ANOTHER cluster
+  // (identifiers are unique per workspace) is imported here as a copy rather
+  // than refusing the whole manifest: the cards route is told the addresses
+  // (ctx.internal) and drops that one stamp, and finds the copy again on a
+  // re-run by the address recorded on it. Explicit identifiers still refuse.
+  //
   // Partially fallible on purpose. A dead link in a ninety-nine item manifest
   // must not fail the other ninety-eight, so every item reports its own outcome
   // and the envelope counts them.
@@ -3674,6 +3688,8 @@ async function dispatch(url, request, env, ctx) {
     let cards = [];
     let created = 0;
     let updated = 0;
+    // The usable results whose picture was already on another cluster.
+    const copied = new Set();
 
     if (usable.length) {
       // Cards are created through the ORDINARY route, not a second
@@ -3702,7 +3718,9 @@ async function dispatch(url, request, env, ctx) {
           ...(Number.isFinite(body.row_height) ? { row_height: body.row_height } : {}),
           ...(Number.isFinite(body.columns) ? { columns: body.columns } : {}),
         },
+        internal: { importSources: usable.map((r) => ({ url: r.item.url })) },
       });
+      for (const i of res?.copies || []) copied.add(usable[i]);
       cards = res?.cards || [];
       created = res?.created ?? 0;
       updated = res?.updated ?? 0;
@@ -3739,12 +3757,18 @@ async function dispatch(url, request, env, ctx) {
         url: r.item.url,
         ok: r.ok,
         ...(r.ok ? { kind: r.kind } : { error: r.error, code: r.code }),
-        ...(r.note ? { note: r.note } : {}),
+        ...(r.note || copied.has(r)
+          ? { note: [r.note, copied.has(r) ? COPY_NOTE : null].filter(Boolean).join('; ') } : {}),
         ...(r.ok && aligned ? { card_id: cards[usable.indexOf(r)]?.id ?? null } : {}),
       })),
       // Said plainly because it is the property that makes an import usable.
       next: 'Re-running this manifest updates the same cards rather than duplicating them — '
-        + `each carries a "${SOURCE_SCOPE}" identifier you can also look up with GET /resolve.`,
+        + `each carries a "${SOURCE_SCOPE}" identifier you can also look up with GET /resolve.`
+        + (copied.size === 1
+          ? ' One of them was already on another cluster, which keeps that identifier; a re-run finds the copy here by its address.'
+          : copied.size > 1
+            ? ` ${copied.size} of them were already on other clusters, which keep those identifiers; a re-run finds the copies here by their address.`
+            : ''),
     }, 201);
   }
 
@@ -5162,10 +5186,48 @@ async function dispatch(url, request, env, ctx) {
       // documents and free what names nothing. (Matches on THIS board are
       // checked against its document below, by the update itself.)
       await dropStaleForeignMatches(env, token, matches, id);
+
+      // An import (and only an import: ctx.internal is set by the Worker's own
+      // route, never by a request) stamps each picture with its address as a
+      // source_url identifier. The same picture in a second moodboard, or in a
+      // deleted cluster that can still be restored, is a copy, not a conflict:
+      // the item here goes without the stamp, which stays with the first card so
+      // GET /resolve keeps finding it. Any other identifier still refuses.
+      const sources = Array.isArray(ctx.internal?.importSources)
+        && ctx.internal.importSources.length === incoming.length ? ctx.internal.importSources : null;
+      const copies = sources
+        ? sourceStampsElsewhere(metas.map((m) => m.identifiers), matches, { boardId: id })
+        : new Set();
+      for (const i of copies) {
+        // null, not []: saveMetaBulk leaves null alone and clears a [].
+        const rest = (metas[i].identifiers || []).filter((x) => x.scope !== SOURCE_SCOPE);
+        metas[i] = { ...metas[i], identifiers: rest.length ? rest : null };
+      }
+
       const resolvedHits = resolveUpsert(
         metas.map((m) => ({ identifiers: m.identifiers })),
         matches, { objectType: 'card', boardId: id },
       );
+
+      // A copy has no stamp of its own, and an item whose stamp was freed since
+      // (its first card left the other cluster) finds none either. Both are
+      // found again by the address recorded on the card here, so a re-run
+      // updates them rather than adding a second one.
+      if (sources) {
+        const unmatched = resolvedHits.filter((h) => h.existing === null);
+        if (unmatched.length) {
+          const rows = await selectAll(env, token, 'object_props',
+            `board_id=eq.${id}&object_type=eq.card&select=object_id,props,updated_at&order=updated_at.desc,object_id.asc`);
+          const found = copiesByAddress(rows, unmatched.map((h) => sources[h.index].url));
+          const used = new Set(resolvedHits.filter((h) => h.existing).map((h) => String(h.existing.object_id)));
+          for (const hit of unmatched) {
+            const cardId = found.get(sources[hit.index].url);
+            if (cardId === undefined || used.has(String(cardId))) continue;
+            used.add(String(cardId));
+            hit.existing = { board_id: id, object_id: cardId };
+          }
+        }
+      }
 
       const updateIdx = [];
       const createIdx = [];
@@ -5234,22 +5296,43 @@ async function dispatch(url, request, env, ctx) {
       const finalCards = incoming.map((_, i) => createdById.get(i) || updatedById.get(i)).filter(Boolean);
       embedAfterWrite(env, ctx, board.workspace_id, id, finalCards);
 
-      await saveMetaBulk(env, token, {
+      const metaEntries = (list) => incoming.map((_, i) => {
+        const card = createdById.get(i) || updatedById.get(i);
+        return card
+          ? { objectId: card.id, props: list[i].props, identifiers: list[i].identifiers }
+          : null;
+      }).filter(Boolean);
+      const saveCardMeta = (list) => saveMetaBulk(env, token, {
         workspaceId: board.workspace_id, boardId: id, objectType: 'card',
-        userId: auth.userId,
-        entries: incoming.map((_, i) => {
-          const card = createdById.get(i) || updatedById.get(i);
-          return card
-            ? { objectId: card.id, props: metas[i].props, identifiers: metas[i].identifiers }
-            : null;
-        }).filter(Boolean),
+        userId: auth.userId, entries: metaEntries(list),
       });
+      try {
+        await saveCardMeta(metas);
+      } catch (e) {
+        if (!sources || !isDuplicate(e)) throw e;
+        // A guest editor reads object_identifiers through RLS, so a stamp held on
+        // a cluster they cannot open was invisible to the match above and the
+        // insert has just met it. The picture is a copy all the same: keep it
+        // without the stamps that are not already this cluster's, once. Nothing
+        // is said about which pictures collided (that would tell the guest what
+        // is on clusters they cannot open), and `copies` stays out of it. A
+        // re-run finds these cards by their address like any other copy.
+        await saveCardMeta(metas.map((m) => {
+          const rest = (m.identifiers || []).filter((x) => {
+            if (x.scope !== SOURCE_SCOPE) return true;
+            const row = matches.get(identifierKey(SOURCE_SCOPE, x.value));
+            return !!row && String(row.board_id) === String(id);
+          });
+          return { ...m, identifiers: rest.length ? rest : null };
+        }));
+      }
 
       return json({
         board_id: id,
         cards: finalCards.map(publicCard),
         created: createIdx.length,
         updated: updatedById.size,
+        ...(sources && copies.size ? { copies: [...copies].sort((a, b) => a - b) } : {}),
         ...(plan?.named ? { groups: publicSections(plan) } : {}),
         ...(warnings.length ? { warnings } : {}),
         live: true,

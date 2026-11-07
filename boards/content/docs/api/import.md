@@ -5,11 +5,13 @@ h1: Import
 navLabel: Import
 section: developers
 order: 6
-updated: 2026-11-04
+updated: 2026-11-05
 answer: POST /boards/:id/import takes a list of https URLs and brings them onto a board. Images are downloaded and stored; anything else becomes a link card pointing at the original, and the response says which happened to each item. Every card is stamped with a source_url identifier and the import resolves on it, so running the same manifest twice updates the same cards rather than duplicating them.
 faq:
   - q: What happens if I run the same import twice?
     a: The same cards are updated, not duplicated. Each imported card carries a source_url identifier and the import resolves on it, so a run that half-failed can simply be repeated.
+  - q: What if a picture is already on another cluster?
+    a: It is still imported here. The source_url identifier stays with the first card, so /resolve keeps finding that one, and the copy here is found again by its source address, so running the import again on this cluster updates it too. The item's note says it is a copy when the other cluster is one you can open.
   - q: Can it import a PDF or a video?
     a: Not the file itself. Only images are downloaded and stored; everything else becomes a link card pointing at the original, and the response says so per item. Use the multipart upload endpoints for large media, which stream from the client instead of through the API.
   - q: What happens if one URL is dead?
@@ -66,6 +68,13 @@ time — the response tells you which, in `imported` versus `updated`.
 
 That means an import that half-failed does not need unpicking. Fix the dead
 links and run the whole thing again.
+
+A picture or link that is already on another cluster in the workspace — a second
+moodboard with the same references, or a cluster that was deleted and can still
+be restored — is still imported here. An identifier belongs to one card, so it
+stays with the first one and `/resolve` keeps finding that card; the copy here
+is found by its source address instead, so running the import again on this
+cluster updates it too. The item's `note` says it is a copy when the other cluster is one you can open.
 
 It also means you can find anything you brought in:
 

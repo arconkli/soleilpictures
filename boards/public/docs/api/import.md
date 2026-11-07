@@ -2,7 +2,7 @@
 
 > POST /boards/:id/import takes a list of https URLs and brings them onto a board. Images are downloaded and stored; anything else becomes a link card pointing at the original, and the response says which happened to each item. Every card is stamped with a source_url identifier and the import resolves on it, so running the same manifest twice updates the same cards rather than duplicating them.
 
-_Source: https://clusters.soleilpictures.com/docs/api/import · Updated 2026-11-04_
+_Source: https://clusters.soleilpictures.com/docs/api/import · Updated 2026-11-05_
 
 Reference rarely starts life in Clusters. It is in a shared drive folder, on a
 CDN, in somebody's export from another tool. `import` is how it gets here
@@ -48,6 +48,13 @@ time — the response tells you which, in `imported` versus `updated`.
 
 That means an import that half-failed does not need unpicking. Fix the dead
 links and run the whole thing again.
+
+A picture or link that is already on another cluster in the workspace — a second
+moodboard with the same references, or a cluster that was deleted and can still
+be restored — is still imported here. An identifier belongs to one card, so it
+stays with the first one and `/resolve` keeps finding that card; the copy here
+is found by its source address instead, so running the import again on this
+cluster updates it too. The item's `note` says it is a copy when the other cluster is one you can open.
 
 It also means you can find anything you brought in:
 
