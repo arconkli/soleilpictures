@@ -93,6 +93,55 @@ between a surface change and stale documentation.
 
 ---
 
+## Look before you build
+
+Before writing code for a general problem (parsing, decoding, escaping,
+sanitising, a file format, a protocol such as OAuth, MIME or PostgREST
+queries, a statistic, a standard analysis method), check whether a mature
+open-source library or tool already solves it, and use it when it
+qualifies. Look first at what we already have: `package.json` and the
+lockfile, Postgres and Supabase built-ins, the converter's tools on Fly.
+Board search matched nothing for 89 days because the Worker built
+PostgREST filters by hand while `@supabase/supabase-js` was installed
+(3d0f4ac6).
+
+A candidate qualifies when all of these hold:
+
+- **Mature, not new.** Years in use, many dependents, more than one
+  maintainer or an organisation behind it, a release in the last year.
+  Stars and newness count for nothing.
+- **Real.** Confirm the exact name on npm and its source repo before
+  installing; agents invent package names.
+- **Fits where it runs.** In the Worker, in the app within the bundle
+  budget (load anything heavy on demand), or on Fly or at build time.
+  Measure the size; don't guess.
+- **Licence fits.** MIT, BSD, ISC, Apache or MPL in the app and the
+  Worker. GPL or LGPL only as a separate program on Fly, as ffmpeg is.
+  No AGPL, SSPL, BSL, FSL or licence-key SDKs in shipped code. Don't
+  paste outside source into this repo (it is public and has no licence
+  of its own); a vendored file keeps its licence header.
+- **We can run it ourselves.** Prefer the open-source part we host on our
+  own Cloudflare, Fly or Supabase over a vendor's hosted service.
+  PartyKit gave seven days' notice.
+
+Depend on it; don't fork it. Keep its defaults: turning one off needs a
+test that measures the cost (Yjs with gc off restarted Postgres five
+times on 2026-10-26).
+
+Build our own when it is the product itself (the canvas, cards, nesting,
+caps, billing, abuse rules, our own link formats), when no candidate
+qualifies, or when the piece is a few lines. For data analysis, numbers
+have gone wrong at the definition, not the tooling: borrow standard
+methods (retention counted from first visit, an experiment's
+uneven-split check) to test our SQL against, and don't add a second
+analytics system.
+
+A commit that adds a dependency or builds a general-purpose piece says
+in one line what was checked: "Uses X." or "Checked X and Y; built our
+own because Z."
+
+---
+
 ## Deploying
 
 **Pushing `main` deploys a PREVIEW, not production.** Production is the
@@ -168,8 +217,8 @@ doesn't already pin it; an omitted effort inherits `max`.
   The diagnosis and the decision come back to the main session; no Sonnet retry
   loops.
 - `Explore` and `Plan` don't load this file. A plan delegated to `Plan` has
-  never heard of the docs gate or the 0311 grant habit, so name the rules it has
-  to honour in its prompt.
+  never heard of the docs gate, the 0311 grant habit or the look-before-you-build
+  check, so name the rules it has to honour in its prompt.
 - **Never set `CLAUDE_CODE_EFFORT_LEVEL`.** It outranks the agents'
   `effort: medium` frontmatter, so they'd run at `max`. Settings can't hold
   `max`, so the main session gets it from `alias claude='claude --effort max'`
