@@ -113,3 +113,33 @@ test('ticking a box on a non-editing note keeps its mention and comment anchor',
   expect(await cardField(page, 'html')).toContain('data-entity-ref=');
   await expect(page.locator(`${A} .ck-box`).nth(1)).toHaveClass(/is-checked/);
 });
+
+// A note nobody has edited keeps its html byte for byte through an open and a
+// close: opening seeds the fragment, but only an edit rewrites the html, so
+// what the note schema can't hold (a table) stays.
+const setLegacyHtml = (page, html) => page.evaluate((h) => {
+  const t = window.__soleilNoteTest;
+  t.docA.transact(() => t.cardA.set('html', h), 'local');
+}, html);
+
+async function openAndClose(page) {
+  await page.locator(A).dblclick();
+  await page.locator(A_EDIT).waitFor();
+  await expect(page.locator(A_EDIT)).toBeFocused();
+  await page.waitForTimeout(600); // past any debounce
+  await page.mouse.click(5, 5);
+  await expect(page.locator(A_EDIT)).toHaveCount(0);
+}
+
+test('an untouched API note with a table keeps its html byte for byte after open and close', async ({ page }) => {
+  await ready(page);
+  // html an API/MCP note may carry (sanitizeNoteHtml allows table and h4),
+  // on a note no editor has opened yet (no seeded fragment).
+  const html = '<h4>Shot list</h4><table><tbody><tr><td>Wide</td><td>2s</td></tr><tr><td>Close</td><td>4s</td></tr></tbody></table>';
+  await setLegacyHtml(page, html);
+  await expect(page.locator(`${A} table`)).toHaveCount(1);
+  await openAndClose(page);
+  await page.waitForTimeout(600);
+  expect(await page.evaluate(() => window.__soleilNoteTest.cardA.get('html'))).toBe(html);
+  await expect(page.locator(`${A} table`)).toHaveCount(1);
+});

@@ -114,3 +114,106 @@ test('warm fetches the chunk ahead of the first render and swallows a failure', 
   process.off('unhandledRejection', onUnhandled);
   assert.equal(unhandled, null, 'a failed warm is left for the render, which recovers from it');
 });
+
+// ── offline (the note editor's option) ─────────────────────────────────
+//
+// A note opened on a weak connection used to reload the whole app on one
+// failed fetch, and offline that reload landed on the browser's offline page.
+// No retries: a browser keeps a failed import() for the page's life
+// (Chromium 147 and WebKit 26.4, probed 2026-11-09, answered a second
+// import() of the same address without fetching), so only a reload helps.
+
+const chunkError = () => new Error('Failed to fetch dynamically imported module: /assets/NoteTiptapSurface-x.js');
+
+// A failing factory: rejects `failures` times (Infinity: always), then loads.
+function flaky(failures, err = chunkError) {
+  const f = () => {
+    f.calls += 1;
+    return f.calls <= failures ? Promise.reject(err()) : Promise.resolve({ default: () => null });
+  };
+  f.calls = 0;
+  return f;
+}
+
+// A browser just big enough for the reload guard: window.location.reload,
+// sessionStorage and navigator.onLine.
+function fakeBrowser({ onLine = true, reloadedAt = null } = {}) {
+  const store = new Map();
+  if (reloadedAt != null) store.set('soleil:chunk-reload-at', String(reloadedAt));
+  const reloads = { count: 0 };
+  const nav = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  globalThis.window = { location: { reload: () => { reloads.count += 1; } } };
+  globalThis.sessionStorage = {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => store.set(k, String(v)),
+  };
+  Object.defineProperty(globalThis, 'navigator', { value: { onLine }, configurable: true, writable: true });
+  return {
+    reloads,
+    restore() {
+      delete globalThis.window;
+      delete globalThis.sessionStorage;
+      if (nav) Object.defineProperty(globalThis, 'navigator', nav);
+      else delete globalThis.navigator;
+    },
+  };
+}
+
+// 'resolved' | 'rejected' | 'pending' (a reload in flight never settles).
+const settleWithin = (p, ms = 30) => Promise.race([
+  p.then(() => 'resolved', () => 'rejected'),
+  new Promise((r) => setTimeout(() => r('pending'), ms)),
+]);
+
+test('without options a chunk failure still reloads at once, online or not', async () => {
+  const { loadChunk } = await import('./lazyWithReload.js');
+  const b = fakeBrowser({ onLine: false });
+  try {
+    const f = flaky(Infinity);
+    assert.equal(await settleWithin(loadChunk(f)), 'pending', 'the reload is in flight');
+    assert.equal(f.calls, 1, 'no retries by default');
+    assert.equal(b.reloads.count, 1, 'every other caller keeps the old behaviour');
+  } finally { b.restore(); }
+});
+
+test("the note editor's option, online: one try, then the reload", async () => {
+  const { loadChunk } = await import('./lazyWithReload.js');
+  const b = fakeBrowser();
+  try {
+    const f = flaky(Infinity);
+    assert.equal(await settleWithin(loadChunk(f, { reloadWhenOffline: false })), 'pending', 'the reload is in flight');
+    assert.equal(f.calls, 1, 'a second import of the same address would only repeat the failure');
+    assert.equal(b.reloads.count, 1, 'a stale deploy still gets its one reload');
+  } finally { b.restore(); }
+});
+
+test('offline, the note editor never reloads: the failure reaches its boundary', async () => {
+  const { loadChunk } = await import('./lazyWithReload.js');
+  const b = fakeBrowser({ onLine: false });
+  try {
+    const f = flaky(Infinity);
+    await assert.rejects(loadChunk(f, { reloadWhenOffline: false }), /dynamically imported module/);
+    assert.equal(f.calls, 1, 'one try');
+    assert.equal(b.reloads.count, 0);
+  } finally { b.restore(); }
+});
+
+test('just reloaded for a chunk: the failure reaches the boundary instead of looping', async () => {
+  const { loadChunk } = await import('./lazyWithReload.js');
+  const b = fakeBrowser({ reloadedAt: Date.now() - 1_000 });
+  try {
+    await assert.rejects(loadChunk(flaky(Infinity), { reloadWhenOffline: false }));
+    assert.equal(b.reloads.count, 0);
+  } finally { b.restore(); }
+});
+
+test("the note editor's lazy warms with one import and can be reset", async () => {
+  const { lazyWithReload } = await import('./lazyWithReload.js');
+  const f = flaky(0);
+  const C = lazyWithReload(f, { reloadWhenOffline: false });
+  assert.equal(typeof C, 'function', 'a component');
+  assert.equal(typeof C.reset, 'function');
+  C.warm();
+  assert.equal(f.calls, 1, 'warm is one import(), no render');
+  C.reset(); // nothing failed: a no-op, so a loaded editor never re-suspends
+});

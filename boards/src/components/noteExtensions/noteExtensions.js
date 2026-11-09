@@ -14,6 +14,8 @@
 import StarterKit from '@tiptap/starter-kit';
 import BulletList from '@tiptap/extension-bullet-list';
 import OrderedList from '@tiptap/extension-ordered-list';
+import Blockquote from '@tiptap/extension-blockquote';
+import Code from '@tiptap/extension-code';
 import { mergeAttributes } from '@tiptap/core';
 import Underline from '@tiptap/extension-underline';
 import TextStyle from '@tiptap/extension-text-style';
@@ -28,15 +30,20 @@ import { NoteChecklist, NoteChecklistItem } from './NoteChecklist.js';
 import { ClearFormatting } from '../docExtensions/ClearFormatting.js';
 
 // Whether html anchors (a seeded older note, a paste) become link marks in
-// the note fragment. OFF until every open tab runs a build whose schema knows
-// the mark. y-prosemirror meets a mark its schema doesn't know by DELETING
-// that paragraph's text from the shared fragment, for every collaborator
-// (createTextNodesFromYText), and that delete is not on anyone's undo stack.
-// A tab still on a build from before Link was in this list would do exactly
-// that to the first note holding a link. So this ships in two promotes:
-// first the mark alone (this), then this flag flipped to true once the
-// pre-Link builds have aged out of open tabs.
-export const NOTE_LINK_MARKS = false;
+// the note fragment. ON since 2026-11 (phase 2). y-prosemirror meets a mark
+// its schema doesn't know by DELETING that paragraph's text from the shared
+// fragment, for every collaborator (createTextNodesFromYText), and that
+// delete is not on anyone's undo stack. That is why this shipped in two
+// promotes. Phase 1 (2b1fe402, 2026-10-12) put the mark in the schema with
+// nothing parsing into it. Phase 2 (this) parses into it. It is safe because
+// no build without the mark can reach a note any more. Every build since
+// 2026-10-12 has it. A tab from before then can't be reloaded by
+// MIN_CLIENT_BUILD (the build watch, lib/buildWatch.js, came on 2026-10-17 in
+// 78cb45ae), but it synced through the PartyKit host, whose project and room
+// data were deleted on 2026-10-23, so it can no longer receive or send a
+// note's fragment. And no phone-app session has been seen since tracking
+// began on 2026-10-22. Never remove Link from this list: notes now hold the mark.
+export const NOTE_LINK_MARKS = true;
 
 export const noteExtensions = [
   StarterKit.configure({
@@ -48,9 +55,12 @@ export const noteExtensions = [
     codeBlock: false,
     horizontalRule: false,
     heading: { levels: [1, 2, 3] },
-    // Lists are re-added below with their markdown input rules stripped.
+    // Lists, quotes and inline code are re-added below with their markdown
+    // input rules (and quote/code shortcuts) stripped.
     bulletList: false,
     orderedList: false,
+    blockquote: false,
+    code: false,
   }),
   // Same list nodes/commands (schema + toolbar toggles unchanged) minus the
   // "- " / "* " / "1. " markdown input rules: typing a plain dash list kept
@@ -69,6 +79,14 @@ export const noteExtensions = [
         : ['ol', mergeAttributes(this.options.HTMLAttributes, rest), 0];
     },
   }),
+  // Quotes and inline code stay in the schema (older notes and pastes hold
+  // them, and y-prosemirror deletes what a schema can't parse), but nothing
+  // typed makes them any more: "> " turned a line into a quote and a pair of
+  // backticks turned words into code mid-sentence, which read as glitches.
+  // Their shortcuts (⇧⌘B, ⌘E) and Code's paste rule go too. A quiet look for
+  // the ones that exist lives in styles.css (.note-body blockquote / code).
+  Blockquote.extend({ addInputRules: () => [], addKeyboardShortcuts: () => ({}) }),
+  Code.extend({ addInputRules: () => [], addPasteRules: () => [], addKeyboardShortcuts: () => ({}) }),
   Underline,
   // Inline color / font-family / font-size live on the textStyle mark and
   // render as <span style="…"> — matching the legacy wrapSelectionStyle output.
@@ -90,10 +108,8 @@ export const noteExtensions = [
   // noteLinkify links them, with their preview, on every write-through — so
   // Link's paste rule (which marks every pasted URL) is off for good.
   // Clicks don't navigate while editing; the read-only note is where a link
-  // opens. Link's own URI check drops javascript: and friends on parse.
-  //
-  // Phase 1: the mark is in the schema but nothing parses INTO it (see
-  // NOTE_LINK_MARKS above), so no link mark reaches a shared fragment yet.
+  // opens. Phase 2 is on (see NOTE_LINK_MARKS above): anchors parse into link
+  // marks, and Link's own URI check drops javascript: and friends.
   Link.extend({
     parseHTML() { return NOTE_LINK_MARKS ? this.parent?.() : []; },
     addPasteRules() { return []; },

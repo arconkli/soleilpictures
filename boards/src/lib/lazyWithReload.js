@@ -13,7 +13,7 @@
 // It shares the exact sessionStorage guard key + window with the preloadError
 // handler, so the two paths can never double-reload.
 
-import { lazy } from 'react';
+import { createElement, lazy } from 'react';
 
 const RELOAD_KEY = 'soleil:chunk-reload-at';   // shared with main.jsx vite:preloadError handler
 const RELOAD_WINDOW_MS = 10_000;
@@ -96,8 +96,12 @@ export function isCssPreloadError(err) {
 // never-resolving promise so the caller's pending UI (a <Suspense> fallback, or
 // just nothing) stays put during the imminent reload instead of flashing an
 // error boundary. Throws to bubble; never returns a rejected promise.
-function recoverFromChunkError(err) {
+function recoverFromChunkError(err, { reloadWhenOffline = true } = {}) {
   if (typeof window === 'undefined' || !isChunkLoadError(err)) throw err;
+  // Offline, a reload can't fetch the chunk either: it only swaps the open
+  // board for the browser's offline page. A caller that opts out gets the
+  // error instead, for its own boundary to handle.
+  if (!reloadWhenOffline && typeof navigator !== 'undefined' && navigator.onLine === false) throw err;
   if (!guardedReloadOnce()) throw err;
   // Keep whatever was showing up during the imminent reload: never resolve.
   return new Promise(() => {});
@@ -116,7 +120,34 @@ export function reloadIfStaleChunk(err, componentStack = '') {
   return guardedReloadOnce();
 }
 
-export function lazyWithReload(factory) {
+// One try, then the shared recovery: the guarded one-shot reload, or (with
+// reloadWhenOffline: false, while offline) the error itself. No retries: a
+// browser keeps a failed import() for the page's life (Chromium and WebKit
+// answer a second import() of the same address with the first failure,
+// without fetching it again), so only a reload can fetch the chunk again.
+export function loadChunk(factory, opts = {}) {
+  return factory().catch((err) => recoverFromChunkError(err, opts));
+}
+
+// lazyWithReload(factory) — the default, for routes and panels: one try, then
+// the guarded reload.
+// lazyWithReload(factory, { reloadWhenOffline: false }) — for a component a
+// person opens on the spot (the note editor): offline it never reloads (that
+// would only swap the page for the browser's offline page). The failure is
+// thrown to the caller's error boundary, which calls `.reset()` so the next
+// open goes through the recovery again: React.lazy keeps a rejected import
+// for good and would only throw it again, never reaching the reload that,
+// back online, is the one way to fetch the chunk.
+export function lazyWithReload(factory, opts = null) {
+  if (opts) {
+    let failed = false;
+    const make = () => lazy(() => loadChunk(factory, opts).catch((err) => { failed = true; throw err; }));
+    let current = make();
+    const Resettable = (props) => createElement(current, props);
+    Resettable.warm = () => { factory().catch(() => {}); };
+    Resettable.reset = () => { if (failed) { failed = false; current = make(); } };
+    return Resettable;
+  }
   const Lazy = lazy(() => factory().catch(recoverFromChunkError));
   // Fetch the chunk ahead of its first render (App does after the board has
   // settled), so that render seldom waits. A failure here is left for the

@@ -52,10 +52,11 @@ function boardKeysBlocked() {
 import { getDocUndoTarget } from '../lib/overlayRouting.js';
 import { undoToast } from '../lib/undoToast.js';
 import { swallowGhostClick, tapIsDouble } from '../lib/doubleTap.js';
+import { holdTouchKeyboard } from '../lib/touchKeyboard.js';
 import {
   BoardCard, BoardLinkCard, ImageCard, NoteCard, LinkCard,
   PaletteCard, DocCard, ScheduleCard as ScheduleTableCard, ShapeCard, VideoCard, AudioCard, ArtCanvasCard, PdfCard, FileCard, GridCard,
-  shallowEqualIgnoreFns,
+  shallowEqualIgnoreFns, prefetchNoteEditor,
 } from './cards.jsx';
 import { RichDocCard as RichDocCardView } from './DocCard.jsx';
 import { Spinner } from './Spinner.jsx';
@@ -101,6 +102,7 @@ import { CardContextMenu } from './CardContextMenu.jsx';
 import { EditableText } from './EditableText.jsx';
 import { BackgroundContextMenu } from './BackgroundContextMenu.jsx';
 import { ToolOptionsBar, useCanvasBarsA } from './ToolOptionsBar.jsx';
+import { endActiveNoteEdit, getActiveNoteActions } from '../lib/noteEditorRegistry.js';
 import { ColorPicker } from './ColorPicker.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import {
@@ -264,7 +266,10 @@ import { importDroppedScripts, reportSkippedFiles } from '../lib/dropOutcomes.js
 import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
+import { addCanvasRevealer } from '../lib/noteEditorRegistry.js';
+import { revealDelta } from '../lib/noteTouchTyping.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { afterBoot } from '../lib/afterBoot.js';
 import { earliestEpoch, formatClipTime, parseClipTime, serverNow, setBoardEpoch, syncServerClock } from '../lib/videoSync.js';
 
 // The cluster glyph. Once the cluster nudges ship it is the folder a cluster
@@ -851,6 +856,19 @@ export function CanvasSurface({
     el.addEventListener('scroll', back, { passive: true });
     return () => el.removeEventListener('scroll', back);
   }, []);
+  // A mouse warms the note editor's chunk by hovering a note (cards.jsx
+  // prefetchNoteEditor); a finger has no hover, so a double-tap waited on the
+  // fetch. On a touch screen, fetch it once the board has settled (afterBoot:
+  // its first picture or a few seconds after paint, then idle). One import(),
+  // once per session (prefetchNoteEditor's guard); nothing renders. Only on a
+  // board this person can edit: a viewer, or a visitor to a public board,
+  // never opens the editor.
+  useEffect(() => {
+    if (!canEdit || isPublic) return;
+    let coarse = false;
+    try { coarse = !!window.matchMedia?.('(pointer: coarse)')?.matches; } catch (_) {}
+    if (coarse) afterBoot(prefetchNoteEditor, { signedInApp: true });
+  }, [canEdit, isPublic]);
   // Closing the split hands the shortcuts back to the main pane — otherwise
   // a split that closed while active would leave 'split' claimed forever and
   // dead-key the whole app.
@@ -2564,7 +2582,10 @@ export function CanvasSurface({
   // grants a page the right to open one on the release (pointerup), not the
   // press, and iOS drops a picker asked for any earlier. Placed where the
   // finger came down, if it lifted there (a drag isn't a tap).
-  const placesOnRelease = (e) => selectedTool === 'image' && e.pointerType === 'touch';
+  // A note under a finger or pen waits for the lift too: the keyboard comes up
+  // only for a focus inside the release (the keeper, below).
+  const placesOnRelease = (e) => (selectedTool === 'image' && e.pointerType === 'touch')
+    || (selectedTool === 'text' && (e.pointerType === 'touch' || e.pointerType === 'pen'));
   const placeToolOnRelease = (e) => {
     const at = { x: e.clientX, y: e.clientY };
     const done = () => {
@@ -2574,7 +2595,14 @@ export function CanvasSurface({
     const onUp = (ev) => {
       if (ev.pointerId !== e.pointerId) return;
       done();
-      if (Math.hypot(ev.clientX - at.x, ev.clientY - at.y) <= TOUCH_LIFT_TOLERANCE) placeToolAt(clientToCanvas(at.x, at.y));
+      if (Math.hypot(ev.clientX - at.x, ev.clientY - at.y) > TOUCH_LIFT_TOLERANCE) return;
+      if (selectedTool === 'text') {
+        // The new note's editor takes the keyboard over from the keeper
+        // (lib/touchKeyboard.js); the tap's late mousedown can't take it away.
+        holdTouchKeyboard(null, at);
+        swallowGhostClick(at);
+      }
+      placeToolAt(clientToCanvas(at.x, at.y));
     };
     const onCancel = (ev) => { if (ev.pointerId === e.pointerId) done(); };
     window.addEventListener('pointerup', onUp, true);
@@ -6114,6 +6142,25 @@ export function CanvasSurface({
   useEffect(() => () => {
     if (touchPanCommitTimer.current) clearTimeout(touchPanCommitTimer.current);
   }, []);
+  // A note being typed on a phone or tablet keeps its line in view
+  // (NoteTiptapSurface asks through lib/noteEditorRegistry.js): the board
+  // glides up or down just enough, on the camera tween. Never during a pinch
+  // or two-finger pan, or the 140ms they take to settle: that is the person
+  // moving the board. A new ask mid-glide retargets it from where it is.
+  useEffect(() => addCanvasRevealer((el, rect, band) => {
+    if (!el || !wrapRef.current?.contains(el)) return false;
+    if (touchPanCommitTimer.current) return false;
+    const dy = revealDelta(rect, band);
+    if (!dy) return false;
+    const p = panRef.current;
+    const cam = { zoom: zoomRef.current, pan: { x: p.x, y: p.y + dy } };
+    if (reduceMotionMq?.matches) { tweenCameraTo(cam, 0); return true; }
+    const done = tweenCameraTo(cam, 180, 'settle');
+    const run = cameraRunRef.current;
+    // Image tiers re-evaluate once the board is still, not under a later glide.
+    done.then(() => { if (cameraRunRef.current === run) emitCanvasSettle(); });
+    return true;
+  }), [tweenCameraTo, reduceMotionMq]);
   useGesture(
     {
       onPinch: ({ event, origin: [ox, oy], movement: [ms], memo }) => {
@@ -8257,6 +8304,10 @@ export function CanvasSurface({
           emitCanvasSettle();
           noteSessionCounter('canvas.drag_pan.touch');
         } else if (!panned && !touchScrolling && !aborted) {
+          // A tap on another card finishes the note being written first. The
+          // tapped note itself may be starting to edit (its pointerup raised
+          // the keyboard keeper just before this), so its keeper stays.
+          if (c.id !== editingNoteId) endActiveNoteEdit(c.id);
           // Tap: boards still open on tap (as before); other cards select.
           if (toggling) {
             const next = new Set(selected);
@@ -9940,6 +9991,9 @@ export function CanvasSurface({
   // it: the canvas owns every touch (touch-action: none, and the pan's
   // preventDefault), and most browsers never send one.
   const onTouchTapEmpty = (ev) => {
+    // Finishes the note being written, as a click outside does with a mouse:
+    // the canvas's preventDefault means the browser never blurs it itself.
+    endActiveNoteEdit();
     if (tapIsDouble(lastBgTapRef, ev)) {
       bgDoubleTapAtRef.current = performance.now();
       onBackgroundDoubleClick(ev);
@@ -12136,6 +12190,7 @@ export function CanvasSurface({
                                                 ydoc={ydoc} cardYMap={ydoc?.getMap('cards')?.get(c.id) || null}
                                                 currentUser={currentUser} isPublic={isPublic}
                                                 peerLiveHtml={peerNoteEdits[c.id] ?? null}
+                                                tapToType={selectedTool === 'select' && !touchSelecting && selected.size === 1 && selected.has(c.id)}
                                                 onEditingChange={(editing) => setEditingNoteId(editing ? c.id : (prev => (prev === c.id ? null : prev)))} />;
     else if (c.kind === 'link')      inner = <LinkCard title={c.title} source={c.source} link={c.link} url={c.url} target={c.target}
                                                        image={c.image} description={c.description} favicon={c.favicon}
@@ -15698,7 +15753,13 @@ export function CanvasSurface({
         arrowOptions={arrowOptions} setArrowOptions={setArrowOptions}
         onOpenSketchpad={() => setSketchpadOpen(true)}
         editingNoteCard={editingNoteId ? cardById[editingNoteId] : null}
-        onUpdateEditingNote={editingNoteId ? (patch) => mutators.updateCard?.(editingNoteId, patch) : null}
+        onUpdateEditingNote={editingNoteId ? (patch) => {
+          // Through the editing note, so ⌘Z in it takes this style back first
+          // (lib/noteUndoRoute.js). With no Tiptap note, a plain write.
+          const write = () => mutators.updateCard?.(editingNoteId, patch);
+          const styleWrite = getActiveNoteActions().noteStyleWrite;
+          if (styleWrite) styleWrite(mutators, write); else write();
+        } : null}
         editingCellText={!!styleCell?.editing}
         selectedCellStyle={!!styleCell && !styleCell.editing}
         cellKind={styleCellKind}

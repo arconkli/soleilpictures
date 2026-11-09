@@ -5,10 +5,9 @@ import { expect, test } from '@playwright/test';
 // or a hyperlink was pasted in. Bare URLs survived only because linkify
 // re-links them on every write-through.
 //
-// The fix ships in two phases (NOTE_LINK_MARKS in noteExtensions.js). Phase
-// 1, now: the schema knows the link mark, so a link written by a later build
-// is kept, but nothing parses into it yet, because a tab on a build without
-// the mark deletes the text of any paragraph holding one, for everybody.
+// The fix shipped in two phases (NOTE_LINK_MARKS in noteExtensions.js): first
+// the mark in the schema, because a tab on a build without it deletes the
+// text of any paragraph holding one, for everybody; then (now) parsing into it.
 
 const A = '[data-client="A"] .note';
 const A_EDIT = '[data-client="A"] .note-body[contenteditable="true"]';
@@ -27,6 +26,7 @@ const setLegacyHtml = (page, html) => page.evaluate((h) => {
 async function openAndClose(page) {
   await page.locator(A).dblclick();
   await page.locator(A_EDIT).waitFor();
+  await expect(page.locator(A_EDIT)).toBeFocused();
   await page.mouse.click(5, 5);
   await expect(page.locator(A_EDIT)).toHaveCount(0);
 }
@@ -50,8 +50,9 @@ test('a link mark another client wrote is kept, not deleted, when the note is ed
   });
   await page.locator(A).dblclick();
   await page.locator(A_EDIT).waitFor();
-  await page.locator(A_EDIT).click();
-  await page.keyboard.press('End');
+  await expect(page.locator(A_EDIT)).toBeFocused();
+  // To the end of the note (on a Mac, End only scrolls).
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowDown' : 'Control+End');
   await page.keyboard.type('!');
   await page.mouse.click(5, 5);
   await expect(page.locator(A_EDIT)).toHaveCount(0);
@@ -67,13 +68,16 @@ test('a link mark another client wrote is kept, not deleted, when the note is ed
   await expect(page.locator(`${A} a[href="https://docs.example.com/brief"]`)).toHaveText('Read the brief');
 });
 
-test('phase 1: a legacy named link seeds as its words, with no link mark yet', async ({ page }) => {
+test('a legacy named link seeds as a link mark and keeps its address', async ({ page }) => {
   await ready(page);
   await setLegacyHtml(page, '<p>Before the call <a href="https://docs.example.com/brief" target="_blank" rel="noopener noreferrer">Read the brief</a> today</p>');
   await openAndClose(page);
   const frag = await page.evaluate(() => window.__soleilNoteTest.getFragHtmlA());
-  expect(frag).not.toContain('<a');
-  expect(frag).toContain('Before the call Read the brief today');
+  expect(frag).toContain('href="https://docs.example.com/brief"');
+  expect(frag).toContain('>Read the brief</a>');
+  const html = await page.evaluate(() => window.__soleilNoteTest.cardA.get('html'));
+  expect(html).toContain('href="https://docs.example.com/brief"');
+  await expect(page.locator(`${A} a[href="https://docs.example.com/brief"]`)).toHaveAttribute('target', '_blank');
 });
 
 test('a bare URL stays plain text in the note and keeps exactly one preview', async ({ page }) => {
@@ -101,22 +105,24 @@ async function paste(page, html, text) {
   }, [html, text]);
 }
 
-test('phase 1: a pasted hyperlink keeps its words and adds no link mark', async ({ page }) => {
+test('a pasted hyperlink keeps its address', async ({ page }) => {
   await ready(page);
   await page.locator(A).dblclick();
   await page.locator(A_EDIT).waitFor();
+  await expect(page.locator(A_EDIT)).toBeFocused();
   await page.locator(A_EDIT).click();
   await page.keyboard.type('See ');
   await paste(page, '<meta charset="utf-8"><a href="https://example.org/spec" style="color:#1155cc;font-family:Arial">the spec</a>', 'the spec');
   await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.getFragHtmlA()))
-    .toContain('See the spec');
-  expect(await page.evaluate(() => window.__soleilNoteTest.getFragHtmlA())).not.toContain('<a');
+    .toContain('href="https://example.org/spec"');
+  expect(await page.evaluate(() => window.__soleilNoteTest.getFragHtmlA())).toContain('>the spec</a>');
 });
 
 test('a pasted bare URL stays plain text (no link mark from the paste rule)', async ({ page }) => {
   await ready(page);
   await page.locator(A).dblclick();
   await page.locator(A_EDIT).waitFor();
+  await expect(page.locator(A_EDIT)).toBeFocused();
   await page.locator(A_EDIT).click();
   await page.keyboard.type('Deck ');
   await paste(page, null, 'https://example.com/deck');
@@ -132,6 +138,7 @@ test('a note with a URL is sized to fit its link preview after editing', async (
   await ready(page);
   await page.locator(A).dblclick();
   await page.locator(A_EDIT).waitFor();
+  await expect(page.locator(A_EDIT)).toBeFocused();
   await page.locator(A_EDIT).click();
   await page.keyboard.type('Research https://example.com/deck');
   await page.mouse.click(5, 5);
@@ -151,6 +158,7 @@ test('a note with a URL is sized to fit its link preview after editing', async (
   const h1 = await page.evaluate(() => window.__soleilNoteTest.cardA.get('h'));
   await page.locator(A).dblclick();
   await page.locator(A_EDIT).waitFor();
+  await expect(page.locator(A_EDIT)).toBeFocused();
   await page.mouse.click(5, 5);
   await expect(page.locator(A_EDIT)).toHaveCount(0);
   const h2 = await page.evaluate(() => window.__soleilNoteTest.cardA.get('h'));
@@ -168,6 +176,7 @@ for (const trie of [false, true]) {
     await expect(page.locator('#noteqa-ready')).toHaveText('noteqa ready', { timeout: 15000 });
     await page.locator(A).dblclick();
     await page.locator(A_EDIT).waitFor();
+    await expect(page.locator(A_EDIT)).toBeFocused();
     await page.locator(A_EDIT).click();
     await page.keyboard.type('Research https://example.com/deck');
     await page.mouse.click(5, 5);
@@ -217,4 +226,92 @@ test('a javascript: link is not kept', async ({ page }) => {
   const frag = await page.evaluate(() => window.__soleilNoteTest.getFragHtmlA());
   expect(frag).not.toContain('javascript:');
   expect(frag).toContain('click');
+});
+
+// A preview removed while the note is open gives back its space.
+test('removing a preview while editing shrinks the note to its text', async ({ page }) => {
+  await ready(page);
+  await page.locator(A).dblclick();
+  await page.locator(A_EDIT).waitFor();
+  await expect(page.locator(A_EDIT)).toBeFocused();
+  await page.locator(A_EDIT).click();
+  await page.keyboard.type('Research https://example.com/deck');
+  await page.mouse.click(5, 5);
+  await expect(page.locator(A_EDIT)).toHaveCount(0);
+  await expect(page.locator(`${A} .note-link-preview`)).toHaveCount(1);
+  const tall = await page.evaluate(() => window.__soleilNoteTest.cardA.get('h'));
+
+  await page.locator(A).dblclick();
+  await page.locator(A_EDIT).waitFor();
+  await expect(page.locator(A_EDIT)).toBeFocused();
+  await page.locator(`${A} .note-preview-remove`).click();
+  await expect(page.locator(`${A} .note-link-preview`)).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.cardA.get('h'))).toBeLessThan(tall);
+  await page.mouse.click(5, 5);
+  await expect(page.locator(A_EDIT)).toHaveCount(0);
+  expect(await page.evaluate(() => window.__soleilNoteTest.cardA.get('hiddenPreviews')))
+    .toEqual(['https://example.com/deck']);
+});
+
+// Opening and closing a note without a change writes nothing, so an older
+// build's html survives byte for byte.
+test('a note opened and closed untouched keeps its html exactly', async ({ page }) => {
+  await ready(page);
+  await setLegacyHtml(page, '<p>Before</p><p>After</p>');
+  await openAndClose(page); // the first open seeds the fragment
+  const older = '<p>Before</p><p>After<br></p>'; // what an older serializer could have saved
+  await setLegacyHtml(page, older);
+  await openAndClose(page);
+  expect(await page.evaluate(() => window.__soleilNoteTest.cardA.get('html'))).toBe(older);
+});
+
+test('a pasted link whose words are its address stays plain text, with one preview', async ({ page }) => {
+  await ready(page);
+  await page.locator(A).dblclick();
+  await page.locator(A_EDIT).waitFor();
+  await expect(page.locator(A_EDIT)).toBeFocused();
+  await page.locator(A_EDIT).click();
+  await page.keyboard.type('Deck ');
+  await paste(page, '<a href="https://example.com/deck">https://example.com/deck</a>', 'https://example.com/deck');
+  await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.getFragHtmlA()))
+    .toContain('Deck https://example.com/deck');
+  expect(await page.evaluate(() => window.__soleilNoteTest.getFragHtmlA())).not.toContain('<a');
+  await page.mouse.click(5, 5);
+  await expect(page.locator(A_EDIT)).toHaveCount(0);
+  await expect(page.locator(`${A} .note-link-preview`)).toHaveCount(1);
+});
+
+test("a pasted note's preview card doesn't come in as text", async ({ page }) => {
+  await ready(page);
+  await page.locator(A).dblclick();
+  await page.locator(A_EDIT).waitFor();
+  await expect(page.locator(A_EDIT)).toBeFocused();
+  await page.locator(A_EDIT).click();
+  await paste(page,
+    '<p>Deck https://example.com/deck</p><div class="note-link-preview" data-url="https://example.com/deck"><div class="note-link-preview-meta"><span>LINK PREVIEW</span><strong>example.com</strong><small>https://example.com/deck</small></div></div>',
+    'Deck https://example.com/deck');
+  await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.getFragHtmlA()))
+    .toContain('Deck https://example.com/deck');
+  expect(await page.evaluate(() => window.__soleilNoteTest.getFragHtmlA())).not.toContain('LINK PREVIEW');
+});
+
+// A hyperlink pasted from a page whose words are its bare domain
+// ("acme.com" -> https://acme.com) keeps its address: the paste's unwrapping of
+// an auto-link (stripNoteChromeForSeed) only applies to text linkify links
+// again, a scheme or www.
+test('a pasted link whose words are its bare domain keeps its address', async ({ page }) => {
+  await ready(page);
+  await page.locator(A).dblclick();
+  await page.locator(A_EDIT).waitFor();
+  await expect(page.locator(A_EDIT)).toBeFocused();
+  await page.locator(A_EDIT).click();
+  await page.keyboard.type('Site ');
+  // A web page's footer link, as Chrome copies it.
+  await paste(page, '<meta charset="utf-8"><a href="https://acme.com">acme.com</a>', 'acme.com');
+  await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.getFragHtmlA())).toContain('acme.com');
+  await page.mouse.click(5, 5);
+  await expect(page.locator(A_EDIT)).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.cardA.get('html') || ''))
+    .toContain('href="https://acme.com"');
+  await expect(page.locator(`${A} a[href="https://acme.com"]`)).toHaveText('acme.com');
 });

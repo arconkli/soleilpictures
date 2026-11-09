@@ -1,7 +1,8 @@
 // All card kinds. Most accept onUpdate(patch) so they can self-edit inline.
 
-import { memo, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { lazyWithReload } from '../lib/lazyWithReload.js';
+import { Component, memo, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { lazyWithReload, looksLikeStaleChunk } from '../lib/lazyWithReload.js';
+import { reportError } from '../lib/errorReporting.js';
 import { ImagePlaceholder, Avatar, COVER_TINTS } from './primitives.jsx';
 import { R2Image } from './R2Image.jsx';
 import { useImageSeen } from '../lib/imageSeen.js';
@@ -14,23 +15,39 @@ import { EditableText } from './EditableText.jsx';
 import { peaksFromBase64, peaksToPath, peaksPathWidth, PEAK_COUNT } from '../lib/audioAnalysis.js';
 import { formatKey, canonicalKey, formatLabel } from '../lib/loopMeta.js';
 import { RichNoteEditor, useNoteOverflow } from './RichNoteEditor.jsx';
-import { tapIsDouble } from '../lib/doubleTap.js';
+import { swallowGhostClick, tapIsDouble } from '../lib/doubleTap.js';
+import { noteEntryFromEvent } from '../lib/noteEntryPoint.js';
+import { holdTouchKeyboard, claimTouchKeyboard, dropTouchKeyboard } from '../lib/touchKeyboard.js';
+
+// A finger's tap on a note: what CanvasSurface counts as a tap and not a pan or
+// a hold (TOUCH_LIFT_TOLERANCE, TOUCH_LIFT_MS there; a card lifts at 480ms).
+const NOTE_TAP_SLOP_PX = 10;
+const NOTE_TAP_MAX_MS = 480;
+const fingerOrPen = (e) => e?.pointerType === 'touch' || e?.pointerType === 'pen';
 import { tlTip } from '../lib/looks.js';
 import './noteChecklist.css';
 // Lazy so Tiptap + y-prosemirror stay out of the canvas chunk and only load
 // when a note is actually opened for editing (mirrors how docs lazy-load).
 // lazyWithReload (not bare lazy) so a 404'd chunk after a deploy triggers the
-// shared one-shot reload instead of stranding the note on the SurfaceErrorBoundary.
+// shared one-shot reload, the one way to fetch a chunk again (a browser keeps
+// a failed import for the page's life). Offline the page never reloads:
+// NoteEditorBoundary puts the note back to reading with a toast, and the next
+// open, back online, reloads once.
 const NoteTiptapSurface = lazyWithReload(() =>
-  import('./NoteTiptapSurface.jsx').then(m => ({ default: m.NoteTiptapSurface })));
+  import('./NoteTiptapSurface.jsx').then(m => ({ default: m.NoteTiptapSurface })),
+  { reloadWhenOffline: false });
 // Start fetching that chunk when a pointer comes onto an editable note, so a
 // double-click usually finds it loaded. Once per session; a failure here is
-// left for the real import (and its reload recovery) to meet.
+// left for the real import (and its reload recovery) to meet. Touch devices
+// have no hover, so CanvasSurface calls this once the board has settled.
 let noteEditorPrefetched = false;
-function prefetchNoteEditor() {
+export function prefetchNoteEditor() {
   if (noteEditorPrefetched) return;
   noteEditorPrefetched = true;
   import('./NoteTiptapSurface.jsx').catch(() => { noteEditorPrefetched = false; });
+  // And the toast's chunk, so "Couldn't open the note editor" can show
+  // when the connection has gone (NoteEditorBoundary).
+  warmFeedbackOverlay();
 }
 // Reading a comment thread on a NON-editing note must not drag in Tiptap — the
 // popover only needs the Yjs thread store, so it's its own lazy chunk. Wrapper
@@ -69,7 +86,7 @@ import {
   CornersOut, DownloadSimple, Edit,
 } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
-import { useFeedback } from './AppFeedback.jsx';
+import { useFeedback, useOptionalFeedback, warmFeedbackOverlay } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
 import { detectEmbed, safeEmbed } from '../lib/oembed.js';
 import { inertContainer } from '../lib/inertHtml.js';
@@ -1143,6 +1160,34 @@ function toggleChecklistInHtml(source, index) {
   return root.innerHTML;
 }
 
+// Around a note's editing branch. When the editor can't be had (its chunk
+// failed and a reload wouldn't help: offline, or the page only just
+// reloaded for it) or it throws while mounting, the note goes back
+// to reading (onFail) instead of taking the canvas down with it. The text is
+// safe in the note's fragment. It lives only while the note edits, so the next
+// open starts with a fresh one, and reset() lets that open reach the reload.
+class NoteEditorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error, info) {
+    // A fetch that failed is the connection, not a bug: only real crashes are reported.
+    if (!looksLikeStaleChunk(error)) reportError(error, { kind: 'note-editor', componentStack: info?.componentStack });
+    NoteTiptapSurface.reset?.();
+    this.props.onFail?.();
+  }
+
+  render() {
+    return this.state.failed ? (this.props.fallback ?? null) : this.props.children;
+  }
+}
+
 // Collaborative note card. Renders the derived card.html read-only by default
 // and mounts the live Tiptap editing surface only when THIS note is being
 // edited (one at a time on the canvas), so there is never a Tiptap instance per
@@ -1155,8 +1200,16 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
                           onUpdate, onEditingChange, autoFocus = false,
                           manuallyResized = false, ydoc = null, cardYMap = null,
                           cardId = null, boardId = null, awareness = null,
-                          currentUser = null, isPublic = false }) {
+                          currentUser = null, isPublic = false,
+                          // The canvas: this note is the only selected card and
+                          // the Select tool is armed, so a tap on it types.
+                          tapToType = false }) {
   const [editing, setEditing] = useState(autoFocus);
+  // Where the gesture that opened editing landed (lib/noteEntryPoint.js): the
+  // editor puts the caret, or the word, there. null = the end (a new note).
+  const [editEntry, setEditEntry] = useState(null);
+  // dblclick is a MouseEvent with no pointerType: a pen's is known from its press.
+  const lastPointerTypeRef = useRef('mouse');
   // Reading a comment must not require entering edit mode — a reader with
   // view-only access has no edit mode at all. { id, anchor } | null.
   const [openThread, setOpenThread] = useState(null);
@@ -1165,7 +1218,39 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   const ref = useRef(null);
   const overflowing = useNoteOverflow(ref, [html, body, fontSize, fontSizeV, fontFamily, editing, manuallyResized]);
   const lastTapRef = useRef({});
+  // Tap it again: a finger or pen press on this note while it was already the
+  // only selected card. Recorded at the press (the canvas selects a touched
+  // card on its release); { id, x, y, t, off } | null.
+  const tapArmRef = useRef(null);
+  // The keyboard keeper (lib/touchKeyboard.js) belongs to this note while it
+  // edits: a note placed by a finger claims the one the canvas raised for it,
+  // and a keeper still waiting when editing ends (or the note unmounts) goes.
+  useEffect(() => {
+    if (editing) claimTouchKeyboard(cardId, () => { setEditEntry(null); setEditing(false); });
+    else dropTouchKeyboard(cardId);
+  }, [editing]);
+  // Only a real unmount drops it. React's StrictMode (dev) unmounts and
+  // remounts every new component at once, which dropped the keeper of a note
+  // just placed with the tool, so what was typed next reached the canvas as
+  // shortcuts. The drop waits a microtask and skips a note that came back.
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      queueMicrotask(() => { if (!mountedRef.current) dropTouchKeyboard(cardId); });
+    };
+  }, []);
+  const disarmTap = () => {
+    const arm = tapArmRef.current;
+    tapArmRef.current = null;
+    arm?.off?.();
+    return arm;
+  };
+  useEffect(() => () => { disarmTap(); }, []);
   const theme = useThemeAttr();
+  // null in the ?noteqa harness, which renders cards with no FeedbackProvider.
+  const feedback = useOptionalFeedback();
 
   const fontStyle = noteFontStyle(fontFamily, fontSize, fontSizeV);
   const hasBg = !!bgColor && bgColor !== 'transparent';
@@ -1196,21 +1281,73 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   // never saw it: only its author (whose recent fonts preload) got the face.
   useEffect(() => { try { ensureFontForCss(fontFamily); } catch (_) {} }, [fontFamily]);
 
+  // Start editing with the caret at `entry` (noteEntryFromEvent), or at the end
+  // when null. The read-only body's scroll goes with it, so the point maps onto
+  // the same line in the editor. Step 4's tap-to-type calls this too.
+  const beginEdit = (entry = null) => {
+    const scrollTop = ref.current?.querySelector('.note-body')?.scrollTop || 0;
+    setEditEntry(entry ? { ...entry, scrollTop } : null);
+    setEditing(true);
+  };
+  // A finger or pen opens the note: the keyboard keeper takes the focus now,
+  // inside the tap, so iOS raises the keyboard; the editor takes it over when
+  // it mounts. The tap's late mouse events and click are swallowed, so they
+  // can't land on the note's loading body and move the focus off the keeper.
+  const beginTouchEdit = (e) => {
+    holdTouchKeyboard(cardId, { x: e.clientX, y: e.clientY }, () => { setEditEntry(null); setEditing(false); });
+    swallowGhostClick({ x: e.clientX, y: e.clientY });
+    beginEdit(noteEntryFromEvent(e));
+  };
+
+  // A link preview's remove (x), from the read-only note or from under the
+  // editor. The fragment can't hold the old editor's hidden-marker spans, so
+  // the dismissal is a card field (hiddenPreviews) that every write-through
+  // honours; the cached html drops the block now. One card update, so one
+  // canvas Cmd+Z brings the preview back (NOTES-08).
+  const removePreview = (url) => {
+    if (!url || isPublic) return;
+    const prev = cardYMap?.get?.('hiddenPreviews');
+    const hidden = Array.isArray(prev) ? prev : [];
+    import('../lib/noteLinkify.js').then((l) => {
+      onUpdate({
+        hiddenPreviews: hidden.includes(url) ? hidden : [...hidden, url],
+        html: l.removeLinkPreview(noteSourceHtml(html, body), url),
+        body: null,
+      });
+    }).catch(() => {});
+  };
+
+  // The editor couldn't open: back to reading, and say why.
+  const onEditorFail = () => {
+    setEditEntry(null);
+    setEditing(false);
+    feedback?.toast({
+      type: 'error',
+      code: 'note_editor_unavailable',
+      message: "Couldn't open the note editor. Check your connection and try again.",
+    });
+  };
+
   if (editing) {
     return (
       <div ref={ref} className={cls} style={noteStyle}>
         {/* The editor is its own chunk, fetched on the session's first edit.
             Until it lands, keep showing the note as it reads — the empty
-            fallback blanked its text for the whole load (NOTES-17). */}
+            fallback blanked its text for the whole load (NOTES-17). If it
+            never lands, NoteEditorBoundary hands the note back to reading. */}
+        <NoteEditorBoundary onFail={onEditorFail} fallback={<NoteAutoLinkBody html={safeDisplay} />}>
         <Suspense fallback={<NoteAutoLinkBody html={safeDisplay} />}>
           <NoteTiptapSurface
             ydoc={ydoc} cardYMap={cardYMap} html={html} body={body}
             cardId={cardId} boardId={boardId} awareness={awareness}
             currentUser={currentUser}
             manuallyResized={manuallyResized} autoFocus={autoFocus}
-            onExitEdit={() => setEditing(false)}
+            entry={editEntry}
+            onRemovePreview={removePreview}
+            onExitEdit={() => { setEditEntry(null); setEditing(false); }}
           />
         </Suspense>
+        </NoteEditorBoundary>
       </div>
     );
   }
@@ -1218,7 +1355,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   // Read-only display + edit affordances (double-click / touch double-tap to
   // edit; checklist toggle without entering edit). `safeDisplay` (computed
   // above) is `display` with colors made readable on this surface.
-  const startEdit = (e) => { e?.stopPropagation?.(); setEditing(true); };
+  const startEdit = (e) => { e?.stopPropagation?.(); beginEdit(noteEntryFromEvent(e, lastPointerTypeRef.current)); };
   const onBodyClick = (e) => {
     // Commented text opens its thread straight from the read-only note.
     const commentEl = e.target.closest?.('.tt-comment[data-comment-id]');
@@ -1236,17 +1373,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
     if (removeBtn) {
       e.preventDefault();
       e.stopPropagation();
-      const url = removeBtn.closest('.note-link-preview')?.dataset?.url;
-      if (!url || isPublic) return;
-      const prev = cardYMap?.get?.('hiddenPreviews');
-      const hidden = Array.isArray(prev) ? prev : [];
-      import('../lib/noteLinkify.js').then((l) => {
-        onUpdate({
-          hiddenPreviews: hidden.includes(url) ? hidden : [...hidden, url],
-          html: l.removeLinkPreview(noteSourceHtml(html, body), url),
-          body: null,
-        });
-      }).catch(() => {});
+      removePreview(removeBtn.closest('.note-link-preview')?.dataset?.url);
       return;
     }
     const box = e.target.closest?.('.ck-box');
@@ -1287,17 +1414,43 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
       if (next != null) onUpdate({ html: next, body: null });
     }
   };
+  const onPointerDown = (e) => {
+    lastPointerTypeRef.current = e.pointerType || 'mouse';
+    disarmTap();
+    if (!(tapToType && fingerOrPen(e) && e.isPrimary && ref.current?.contains(e.target))) return;
+    const arm = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, off: null };
+    // A second finger anywhere (a pinch) means this press isn't a tap.
+    const other = (ev) => { if (ev.pointerId !== arm.id && tapArmRef.current === arm) disarmTap(); };
+    const timer = setTimeout(() => { if (tapArmRef.current === arm) disarmTap(); }, NOTE_TAP_MAX_MS);
+    window.addEventListener('pointerdown', other, true);
+    arm.off = () => { clearTimeout(timer); window.removeEventListener('pointerdown', other, true); };
+    tapArmRef.current = arm;
+  };
+  const onPointerMove = (e) => {
+    const arm = tapArmRef.current;
+    if (arm && e.pointerId === arm.id
+        && Math.hypot(e.clientX - arm.x, e.clientY - arm.y) > NOTE_TAP_SLOP_PX) disarmTap();
+  };
   const onPointerUp = (e) => {
-    if (e.pointerType !== 'touch') return;
-    // A tap on commented text opens the thread (handled in onBodyClick); it
-    // must not also count toward the double-tap-to-edit gesture.
-    if (e.target.closest?.('a, .note-preview-remove, .ck-box, .tt-comment[data-comment-id]')) return;
-    if (!tapIsDouble(lastTapRef, e)) return;
-    setEditing(true);
+    const arm = disarmTap();
+    if (!fingerOrPen(e)) return;
+    // Taps in the comment popover (portaled to <body>) bubble through here in React.
+    if (!ref.current?.contains(e.target)) return;
+    // These keep their own actions: a link, a checkbox, a preview's remove,
+    // commented text (onBodyClick opens its thread), Show all.
+    if (e.target.closest?.('a, .note-preview-remove, .ck-box, .tt-comment[data-comment-id], .note-more-chip')) return;
+    const again = !!arm && e.isPrimary && e.pointerId === arm.id
+      && e.timeStamp - arm.t < NOTE_TAP_MAX_MS
+      && Math.hypot(e.clientX - arm.x, e.clientY - arm.y) <= NOTE_TAP_SLOP_PX;
+    // tapIsDouble sees every tap, so its pairs stay in step.
+    const twice = tapIsDouble(lastTapRef, e);
+    if (again || twice) beginTouchEdit(e);
   };
   return (
     <div ref={ref} className={cls} style={noteStyle}
          onPointerEnter={prefetchNoteEditor}
+         onPointerDown={onPointerDown} onPointerMove={onPointerMove}
+         onPointerCancel={disarmTap}
          onDoubleClick={startEdit} onPointerUp={onPointerUp} onClick={onBodyClick}>
       <NoteAutoLinkBody html={safeDisplay} />
       {openThread && ydoc && cardYMap && (
@@ -1329,7 +1482,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
 }
 
 function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize, fontSizeV = null,
-                           vAlign = null,
+                           vAlign = null, tapToType = false,
                            onUpdate, onEditingChange, autoFocus = false,
                            manuallyResized = false,
                            awareness = null, cardId = null, boardId = null, peerLiveHtml = null,
@@ -1375,6 +1528,7 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize, fontSi
         ydoc={ydoc} cardYMap={cardYMap}
         cardId={cardId} boardId={boardId} awareness={awareness}
         currentUser={currentUser} isPublic={isPublic}
+        tapToType={tapToType}
       />
     );
   }

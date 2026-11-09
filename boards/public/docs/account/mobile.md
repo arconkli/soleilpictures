@@ -2,7 +2,7 @@
 
 > Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom, long-press menus and hold-then-drag to select, Files open with a tap, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 
-_Source: https://clusters.soleilpictures.com/docs/account/mobile · Updated 2026-10-21_
+_Source: https://clusters.soleilpictures.com/docs/account/mobile · Updated 2026-11-09_
 
 Two ways to run it on a phone or tablet: the mobile browser, or the same app
 added to your home screen. They are the same app.
@@ -14,7 +14,9 @@ added to your home screen. They are the same app.
 | One finger drag | Pan |
 | Pinch | Zoom |
 | Tap | Select a card; on empty canvas, clear the selection |
-| Double tap | Add menu at that point |
+| Tap a selected note | Type where you tapped, with the keyboard up |
+| Double tap | On empty canvas, the add menu at that point; on a note, type where you tapped |
+| Tap outside the note you are typing in | Finish; the keyboard goes down |
 | Touch and hold empty canvas, then drag | A selection box, as dragging one with a mouse draws |
 | Touch and hold empty canvas, then let go | The board's menu, with **Select…** in it |
 | Touch and hold a card | Pick it up to move it (on a cluster you can only view, its menu) |
@@ -31,6 +33,11 @@ as it was.
 **Done** in the bar that says "Tap cards to select", each tap adds a card or
 takes it out, and a hold-and-drag box adds to what is picked. **Done** keeps the
 selection; a tap on empty canvas drops it.
+
+While you type in a note, the board glides to keep your line above the keyboard
+and the note's toolbar, and the page doesn't zoom in on an iPhone or iPad. The
+keyboard's autocorrect, automatic capitals and spellcheck work in notes, as in
+any text field.
 
 With the draw tool active, one finger draws and two fingers still pinch-zoom.
 Starting a pinch part-way through a stroke discards that stroke rather than

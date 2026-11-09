@@ -14,6 +14,7 @@ import { logClientError, installErrorWatch } from './lib/errorReporting.js';
 import { initPerfReport } from './lib/perfReport.js';
 import { lazyWithReload, isCssPreloadError, reloadedRecently } from './lib/lazyWithReload.js';
 import { installDomMutationGuard } from './lib/domMutationGuard.js';
+import { stopIosFocusZoom } from './lib/iosViewport.js';
 import './styles/breakpoints.css';
 import './styles.css';
 
@@ -21,6 +22,8 @@ import './styles.css';
 // docs have: marked on <html> once, before anything renders, so the CSS has
 // them from the first frame.
 if (typeof document !== 'undefined') {
+  // iOS only: no zoom when a note (15px text) takes the focus (lib/iosViewport.js).
+  try { stopIosFocusZoom(); } catch (_) { /* the page still works zoomed */ }
   document.documentElement.dataset.tb = 'a';
   document.documentElement.dataset.docLook = 'a';
   // Their one tooltip, with the shortcut's keys in caps.

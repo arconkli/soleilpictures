@@ -28,6 +28,14 @@ export function htmlHasText(html) {
     .trim().length > 0;
 }
 
+// True when an html draws something: text, or an element that shows without
+// text (a picture, a rule, a table, a video, an embed). The note editor's
+// failed-seed guard keeps such a cache rather than writing a blank note over it.
+export function htmlHasContent(html) {
+  if (htmlHasText(html)) return true;
+  return /<(img|picture|svg|video|audio|iframe|embed|object|hr|table)\b/i.test(String(html || ''));
+}
+
 export function bodyHasText(body) {
   return body != null && String(body).trim().length > 0;
 }

@@ -5,7 +5,7 @@ h1: Keyboard shortcuts
 navLabel: Keyboard shortcuts
 section: start
 order: 3
-updated: 2026-10-29
+updated: 2026-11-09
 answer: Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 faq:
   - q: How do I see shortcuts without leaving what I am doing?
@@ -241,10 +241,15 @@ the player for this list.
 | Key | Action |
 |---|---|
 | Double-click | Edit a note or a title |
-| `⌘Z` / `⌘⇧Z` | Undo · redo text — history survives closing the note |
+| `⌘Z` / `⌘⇧Z` | Undo · redo text — history survives closing the note; right after a colour, font, size or Center in the box from the note bar, that change first |
 | `⌘B` / `⌘I` / `⌘U` | Bold · italic · underline |
 | `⌘\` | Clear formatting — links and comments stay |
+| `Tab` / `⇧Tab` | In a bulleted or numbered list, nest · un-nest the item. In a checklist, nothing · back to a plain line. Elsewhere `Tab` types two spaces. Neither leaves the note |
+| `Enter` | In a checklist, the next item, unticked — at the very start of a ticked item, a new unticked one above it |
 | `@` | Mention a board, doc, or card |
+
+In a note, `- `, `>` and backticks stay as you type them, and there are no quote
+or code keys: lists come from the note's toolbar.
 
 ## Document
 

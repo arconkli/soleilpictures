@@ -4813,7 +4813,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Undo · redo text — history survives closing the note"
+       "v": "Undo · redo text — history survives closing the note; right after a colour, font, size or Center in the box from the note bar, that change first"
       }
      ]
     ],
@@ -4865,6 +4865,50 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "code",
+       "v": "Tab"
+      },
+      {
+       "t": "text",
+       "v": " / "
+      },
+      {
+       "t": "code",
+       "v": "⇧Tab"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "In a bulleted or numbered list, nest · un-nest the item. In a checklist, nothing · back to a plain line. Elsewhere "
+      },
+      {
+       "t": "code",
+       "v": "Tab"
+      },
+      {
+       "t": "text",
+       "v": " types two spaces. Neither leaves the note"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Enter"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "In a checklist, the next item, unticked — at the very start of a ticked item, a new unticked one above it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
        "v": "@"
       }
      ],
@@ -4875,6 +4919,31 @@ export const DOCS_CONTENT = {
       }
      ]
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "In a note, "
+    },
+    {
+     "t": "code",
+     "v": "- "
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "code",
+     "v": ">"
+    },
+    {
+     "t": "text",
+     "v": " and backticks stay as you type them, and there are no quote or code keys: lists come from the note's toolbar."
+    }
    ]
   },
   {
@@ -10745,7 +10814,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Double-click a note to start editing. Click away — or press "
+     "v": "Double-click a note to start editing; the caret lands where you clicked. On a phone or tablet, tap the note to select it, then tap it again where you want to type, or double-tap it, and the keyboard comes up. Click or tap away — or press "
     },
     {
      "t": "code",
@@ -10761,7 +10830,29 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " undoes inside the note, and the note's undo history survives closing and reopening it."
+     "v": " undoes inside the note, and the note's undo history survives closing and reopening it. Right after a colour, font, size or "
+    },
+    {
+     "t": "strong",
+     "v": "Center in the box",
+     "children": [
+      {
+       "t": "text",
+       "v": "Center in the box"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " from the toolbar, "
+    },
+    {
+     "t": "code",
+     "v": "⌘Z"
+    },
+    {
+     "t": "text",
+     "v": " takes that back first."
     }
    ]
   },
@@ -10849,7 +10940,81 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Pasting from Google Docs, Word or a web page brings the words, structure and emphasis but not the source's font, size or background, so pasted text matches the rest of the note."
+     "v": "Lists come from the toolbar. In a bulleted or numbered list, "
+    },
+    {
+     "t": "code",
+     "v": "Tab"
+    },
+    {
+     "t": "text",
+     "v": " tucks an item under the one above and "
+    },
+    {
+     "t": "code",
+     "v": "⇧Tab"
+    },
+    {
+     "t": "text",
+     "v": " brings it back out; outside a list, "
+    },
+    {
+     "t": "code",
+     "v": "Tab"
+    },
+    {
+     "t": "text",
+     "v": " types two spaces. Neither key takes you out of the note."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Typing "
+    },
+    {
+     "t": "code",
+     "v": "- "
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": ">"
+    },
+    {
+     "t": "text",
+     "v": " at the start of a line, or backticks around a word, leaves them as you typed them: nothing turns into a list, a quote or code. A line that starts with "
+    },
+    {
+     "t": "code",
+     "v": "- "
+    },
+    {
+     "t": "text",
+     "v": " starts the next one with a dash too when you press "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": ". Quotes and code already in older notes stay, drawn quietly in the note's own font."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pasting from Google Docs, Word or a web page brings the words, structure and emphasis but not the source's font, size or background, so pasted text matches the rest of the note. Blank lines between paragraphs stay, and linked words keep their link."
     }
    ]
   },
@@ -10918,6 +11083,35 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Start a line with a checkbox from the toolbar to make a task list. Boxes are clickable directly on the canvas without entering edit mode, so a note can serve as a live shot list or a packing list that anyone on the board can tick off."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " starts the next item unticked, even after a ticked one; at the very start of a ticked item it opens a new, unticked item above. Checklists don't nest, so "
+    },
+    {
+     "t": "code",
+     "v": "Tab"
+    },
+    {
+     "t": "text",
+     "v": " does nothing in one, and "
+    },
+    {
+     "t": "code",
+     "v": "⇧Tab"
+    },
+    {
+     "t": "text",
+     "v": " turns the item back into a plain line. On a phone or tablet each box takes a fingertip, and a tap never ticks the box next to it."
     }
    ]
   },
@@ -10991,7 +11185,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Paste or type a URL into a note and it becomes a link, with a preview card on hover. You do not have to do anything to make this happen."
+     "v": "Paste or type a URL into a note and it becomes a link, with a preview card on hover. You do not have to do anything to make this happen. Words pasted with a link — from a web page, an email or a document — keep their address, so they stay clickable."
     }
    ]
   },
@@ -11101,7 +11295,16 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Browser spellcheck and Grammarly are switched off inside notes on purpose. Their injected markup conflicted with the collaborative editor and could corrupt formatting mid-sentence. This is not a setting."
+     "v": "On a computer, browser spellcheck and Grammarly are switched off inside notes on purpose. Their injected markup conflicted with the collaborative editor and could corrupt formatting mid-sentence."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone or tablet, a note types the way everything else on the device does: the keyboard's autocorrect, automatic capitals and spellcheck are on. Grammarly stays off there too. Neither is a setting."
     }
    ]
   }
@@ -48034,13 +48237,41 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
+       "v": "Tap a selected note"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Type where you tapped, with the keyboard up"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
        "v": "Double tap"
       }
      ],
      [
       {
        "t": "text",
-       "v": "Add menu at that point"
+       "v": "On empty canvas, the add menu at that point; on a note, type where you tapped"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Tap outside the note you are typing in"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Finish; the keyboard goes down"
       }
      ]
     ],
@@ -48193,6 +48424,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " keeps the selection; a tap on empty canvas drops it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "While you type in a note, the board glides to keep your line above the keyboard and the note's toolbar, and the page doesn't zoom in on an iPhone or iPad. The keyboard's autocorrect, automatic capitals and spellcheck work in notes, as in any text field."
     }
    ]
   },

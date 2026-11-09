@@ -115,7 +115,13 @@ export const CEILINGS = {
   // of the whole wait. They show before the app arrives, so they ship in the
   // entry. A CI-style build measured entryJs 172,325 B on main d2b3c2f0 and
   // 172,806 B with it.
-  entryJs: 173_100,
+  // 2026-11-09: +0.4 KB for note cards on phones and tablets: Safari no
+  // longer zooms in when a note takes the focus (lib/iosViewport.js, run by
+  // main.jsx before the app), and a note editor that can't load offline
+  // leaves the note readable with a toast instead of reloading the page
+  // (lib/lazyWithReload.js, components/AppFeedback.jsx). A CI-style build
+  // measured entryJs 172,813 B on main 6f5abd23 and 173,124 B with it.
+  entryJs: 173_500,
   // 2026-11-09: +0.2 KB for d2b3c2f0's rules in styles.css, over this
   // ceiling in the same run: 96,166 B on 1c770b58, 96,291 B on d2b3c2f0.
   // 2026-11-09: +0.1 KB for where those words sit and fade in under the sun
@@ -124,7 +130,11 @@ export const CEILINGS = {
   // 2026-11-09: +0.1 KB for the film grain (styles.css, PANEL GRAIN): the frosted
   // panels of the current look carry the grain, and screens that scroll themselves
   // carry it as a background. 96,390 B on main 8fab397a, 96,587 B with it.
-  entryCss: 96_600,
+  // 2026-11-09: +0.2 KB for note cards (styles.css): the quiet look for
+  // quotes and inline code in older notes, centred text that stays put as a
+  // note opens, and a checklist box and Show all sized for a finger on touch.
+  // 96,587 B on main 6f5abd23, 96,771 B with it.
+  entryCss: 96_800,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
   // they draw (vite.config.js iconSplit), from 687 KB.
@@ -327,7 +337,17 @@ export const CEILINGS = {
   // CI-style builds on the shared node_modules (about 0.6 KB low, as above)
   // measured appJs 709,975 B on main d2b3c2f0 and 731,592 B with it; the
   // ceiling moves by the difference, 21,617 B.
-  appJs: 732_600,
+  // 2026-11-09: +3.3 KB for note cards on phones and tablets, the part the
+  // canvas runs before a note's editor arrives: the keyboard keeper that
+  // raises the keyboard inside the tap and hands what was typed to the
+  // editor (lib/touchKeyboard.js); the typing attributes, the glide that
+  // keeps the line above the keyboard and the keeper's capitals
+  // (lib/noteTouchTyping.js); where a click or tap puts the caret
+  // (lib/noteEntryPoint.js); and the wiring in cards.jsx, CanvasSurface.jsx
+  // and App.jsx. The editor stays a chunk of its own. CI-style builds on the
+  // shared node_modules measured appJs 731,600 B on main 6f5abd23 and
+  // 734,815 B with it; the ceiling moves by the difference, 3,215 B.
+  appJs: 735_900,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).

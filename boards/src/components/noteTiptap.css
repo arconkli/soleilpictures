@@ -2,15 +2,48 @@
    EditorContent inserts a wrapper div around the contenteditable, so the wrapper
    must carry the flex:1 that .note-body relied on as a direct child of .note. */
 
-.note-edit-wrap {
+/* .note-edit-stack (NoteTiptapSurface) holds the editor's wrapper and, under
+   it, the note's link-preview cards, and fills the note as the read-only
+   .note-body does. The editor inside is content-height, so its text sits
+   exactly where the read-only text sat: at the top of a normal note, and in
+   the middle of a centred one (Center in the box), where new lines grow the
+   block from the middle, as in Freeform or Keynote. When the text is taller
+   than the note the editor shrinks to the box and scrolls (min-height: 0);
+   the previews give way first. A press in the empty band becomes a caret at
+   the nearest position (onStackPointerDown). */
+.note-edit-stack {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
+  flex-direction: column;
+  cursor: text;
 }
-.note-edit-wrap > .note-body {
-  flex: 1 1 auto;
+.note-edit-wrap {
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.note-edit-stack > .note-edit-wrap > .note-body {
+  flex: 0 1 auto;
   min-height: 0;
 }
+.note-edit-previews {
+  flex: 0 1000 auto;
+  min-height: 0;
+  overflow: hidden;
+  cursor: default;
+  /* In read mode the previews sit inside .note-body and take its type. */
+  font-size: var(--note-font-size, 15px);
+  line-height: 1.5;
+  letter-spacing: -0.002em;
+}
+/* Centred: the editor (and the previews under it) take the slack equally
+   above and below, as .note.is-balanced .note-body does in read mode. Auto
+   margins drop to 0 when there is no slack, so a long note still scrolls from
+   its top. */
+.note.is-balanced .note-edit-stack > .note-edit-wrap { margin-top: auto; }
+.note.is-balanced .note-edit-stack > :last-child { margin-bottom: auto; }
 
 /* ProseMirror defaults that would diverge from the legacy contenteditable. */
 .note-body.ProseMirror {
