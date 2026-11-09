@@ -8,7 +8,7 @@ import {
   tilesView, heatAlpha, HEAT_RAMP, heatTable, TOOLS, BANDS,
   FILTER_GROUPS, SORTS, KINDS, HAS_KINDS, NO_FILTERS, hasActiveFilters, setFilter, outlineParams,
   ageText, levelName, titleLine, legendView, holdsText, gridDims, outlineRects,
-  storedRowLines, jsonRuns, footText, countText, neighbour,
+  storedRowLines, jsonRuns, footText, countText, neighbour, returnView, returnReadyDate, returnSpan, whoTag,
 } from './outlinesView.js';
 
 const outline = (extra = {}) => ({
@@ -45,13 +45,13 @@ test('weeks: labels, cleaning and stepping (newest first)', () => {
   assert.equal(weekLabel('2027-02-01'), 'Week of 1 Feb 2027');
   assert.equal(weekLabel('nope'), '—');
   const weeks = weeksView([
-    { week: '2027-03-01', outlines: 5, stats: true },
+    { week: '2027-03-01', outlines: 5, stats: true, return: true },
     { week: 'bad', outlines: 1, stats: false },
     { week: '2027-02-22', outlines: '3', stats: false },
   ]);
   assert.deepEqual(weeks, [
-    { week: '2027-03-01', outlines: 5, stats: true },
-    { week: '2027-02-22', outlines: 3, stats: false },
+    { week: '2027-03-01', outlines: 5, stats: true, return: true },
+    { week: '2027-02-22', outlines: 3, stats: false, return: false },
   ]);
   assert.deepEqual(weeksView(null), []);
   assert.equal(stepWeek(weeks, '2027-03-01', -1), '2027-02-22');
@@ -116,13 +116,17 @@ test('heat table: spec row order, missing cells hidden, no stats = all hidden', 
 });
 
 test('filter pills: the groups, their RPC values and the sort options', () => {
-  assert.deepEqual(FILTER_GROUPS.map((g) => g.id), ['cards', 'sections', 'level', 'age']);
+  assert.deepEqual(FILTER_GROUPS.map((g) => g.id), ['cards', 'sections', 'level', 'who', 'age']);
   const by = Object.fromEntries(FILTER_GROUPS.map((g) => [g.id, g.pills.map((p) => p.v)]));
   assert.deepEqual(by.cards, [null, '3-9', '10-29', '30-99', '100+']);
   assert.deepEqual(by.sections, [null, 'with', 'without']);
   assert.deepEqual(by.level, [null, 'top', '2', '3+']);
   assert.deepEqual(by.age, [null, 'w1', 'w4', 'm3', 'old']);
-  assert.deepEqual(FILTER_GROUPS[3].pills.map((p) => p.label), ['Any', 'First week', '1–4 weeks', '1–3 months', 'Over 3 months']);
+  assert.deepEqual(by.who, [null, 'left', 'back', 'older']);
+  assert.deepEqual(FILTER_GROUPS[3].pills.map((p) => p.label), ['Any', 'New, left', 'New, came back', 'Not new']);
+  assert.equal(FILTER_GROUPS[3].label, 'Maker');
+  assert.equal(FILTER_GROUPS[3].note, 'New = made in the maker’s first week');
+  assert.deepEqual(FILTER_GROUPS[4].pills.map((p) => p.label), ['Any', 'First week', '1–4 weeks', '1–3 months', 'Over 3 months']);
   assert.deepEqual(SORTS.map((s) => s.v), ['newest', 'cards', 'sections']);
   assert.deepEqual(KINDS.map((k) => k.id), ['picture', 'note', 'link', 'doc', 'file', 'video', 'audio', 'palette', 'shape', 'grid', 'cluster', 'other']);
   assert.deepEqual(HAS_KINDS.map((k) => k.id), ['picture', 'note', 'link', 'doc', 'file', 'video', 'audio', 'palette', 'shape', 'grid', 'cluster']);
@@ -130,22 +134,25 @@ test('filter pills: the groups, their RPC values and the sort options', () => {
 
 test('filter state becomes the RPC arguments', () => {
   assert.deepEqual(outlineParams('2027-02-22', NO_FILTERS), {
-    p_week: '2027-02-22', p_cards: null, p_sections: null, p_level: null, p_age: null,
+    p_week: '2027-02-22', p_cards: null, p_sections: null, p_level: null, p_age: null, p_who: null,
     p_has: null, p_sort: 'newest', p_limit: 48, p_offset: 0,
   });
   let f = setFilter(NO_FILTERS, 'cards', '10-29');
   f = setFilter(f, 'sections', 'with');
   f = setFilter(f, 'level', '3+');
   f = setFilter(f, 'age', 'm3');
+  f = setFilter(f, 'who', 'back');
   f = setFilter(f, 'has', 'cluster');
   f = setFilter(f, 'has', 'picture');
   f = { ...f, sort: 'sections' };
   assert.deepEqual(outlineParams('2027-02-22', f, 96, 48), {
-    p_week: '2027-02-22', p_cards: '10-29', p_sections: 'with', p_level: '3+', p_age: 'm3',
+    p_week: '2027-02-22', p_cards: '10-29', p_sections: 'with', p_level: '3+', p_age: 'm3', p_who: 'back',
     p_has: ['picture', 'cluster'], p_sort: 'sections', p_limit: 48, p_offset: 96,
   });
   assert.equal(hasActiveFilters(NO_FILTERS), false);
   assert.equal(hasActiveFilters(f), true);
+  assert.equal(hasActiveFilters(setFilter(NO_FILTERS, 'who', 'older')), true);
+  assert.equal(hasActiveFilters(setFilter(setFilter(NO_FILTERS, 'who', 'older'), 'who', null)), false);
   assert.equal(hasActiveFilters({ ...NO_FILTERS, sort: 'cards' }), false);
   const off = setFilter(setFilter(NO_FILTERS, 'has', 'note'), 'has', 'note');
   assert.deepEqual(off.has, []);
@@ -254,4 +261,83 @@ test('gallery text and drawer neighbours', () => {
   assert.equal(neighbour(rows, 'a', -1), null);
   assert.equal(neighbour(rows, 'c', 1), null);
   assert.equal(neighbour(rows, 'zzz', 1), null);
+});
+
+const tools = (over = {}) => TOOLS.map((t) => ({ tool: t.id, left: { value: 0.2, people_n: 90 }, back: { value: 0.37, people_n: 60 }, ...(over[t.id] || {}) }));
+
+test('returnView: tiles, rows, foot', () => {
+  const v = returnView({
+    week: '2027-02-22',
+    tiles: {
+      people: { left: { value: 153, people_n: 153 }, back: { value: 94, people_n: 94 } },
+      cards_d1: { left: { value: 4, people_n: 153 }, back: { value: 17.5, people_n: 94 } },
+      ten_d1: { left: { value: 0.12, people_n: 153 }, back: { value: 0.49, people_n: 94 } },
+    },
+    tools: tools({ undo: { left: { value: 0.5, people_n: 90 }, back: { value: 0.47, people_n: 60 } }, pen: { left: null }, rotate: { left: { value: 0.3, people_n: 9 }, back: { value: 0.3, people_n: 9 } } }),
+  });
+  assert.equal(v.empty, false);
+  assert.deepEqual(v.tiles.map((t) => [t.label, t.value, t.sub]), [
+    ['Came back', '38%', '94 of 247 people'],
+    ['Cards on day one', '4 vs 17.5', 'median, left vs came back'],
+    ['10+ cards on day one', '12% vs 49%', 'left vs came back'],
+  ]);
+  assert.deepEqual(v.rows.map((r) => r.id), TOOLS.map((t) => t.id));
+  assert.equal(v.rows[0].label, 'Move cards');
+  assert.deepEqual([v.rows[0].left.text, v.rows[0].back.text, v.rows[0].gap], ['20%', '37%', '+17 pts']);
+  assert.equal(v.rows[0].left.alpha, heatAlpha(0.2));
+  assert.equal(v.rows[0].back.alpha, heatAlpha(0.37));
+  const undo = v.rows.find((r) => r.id === 'undo');
+  assert.equal(undo.gap, '−3 pts');
+  assert.equal(v.rows.find((r) => r.id === 'rotate').gap, '0 pts');
+  const pen = v.rows.find((r) => r.id === 'pen');
+  assert.deepEqual([pen.left.text, pen.left.na, pen.left.alpha, pen.gap], ['—', true, null, '—']);
+  assert.deepEqual(v.foot, ['Left: 153 people', 'Came back: 94 people', '“Came back” is a second real visit within 7 days of the first, the rule the tests use.']);
+});
+
+test('returnView: missing sides, missing tools, nothing at all', () => {
+  const one = returnView({
+    tiles: { people: { left: { value: 30, people_n: 30 }, back: null }, cards_d1: { left: { value: 3, people_n: 30 }, back: null }, ten_d1: { left: null, back: null } },
+    tools: [{ tool: 'undo', left: { value: 0.5, people_n: 30 }, back: null }, { tool: 'bogus', left: null, back: null }],
+  });
+  assert.equal(one.empty, false);
+  assert.deepEqual(one.tiles.map((t) => [t.value, t.sub]), [
+    ['—', 'Each side needs 20 people'], ['3 vs —', 'median, left vs came back'], ['— vs —', 'left vs came back'],
+  ]);
+  assert.deepEqual(one.rows.map((r) => r.id), ['undo']);
+  assert.equal(one.rows[0].gap, '—');
+  assert.deepEqual(one.foot, ['Left: 30 people', '“Came back” is a second real visit within 7 days of the first, the rule the tests use.']);
+  for (const raw of [null, undefined, {}, { tiles: { people: { left: null, back: null } }, tools: [] }]) {
+    const v = returnView(raw);
+    assert.equal(v.empty, true);
+    assert.equal(v.tiles[0].value, '—');
+    assert.deepEqual(v.rows, []);
+    assert.equal(v.foot.length, 1);
+  }
+});
+
+test('returnSpan is the days the people joined, in words', () => {
+  assert.equal(returnSpan('2026-11-09', null), '19 Oct to 15 Nov 2026');
+  assert.equal(returnSpan('2027-01-04', null), '14 Dec 2026 to 10 Jan 2027');
+  assert.equal(returnSpan('2026-11-23', '2026-11-12'), '12 Nov to 29 Nov 2026');
+  assert.equal(returnSpan('2026-11-23', 'junk'), '2 Nov to 29 Nov 2026');
+  assert.equal(returnSpan('nope', null), null);
+});
+
+test('returnReadyDate is the Monday two weeks on', () => {
+  assert.equal(returnReadyDate('2027-02-22'), '8 Mar 2027');
+  assert.equal(returnReadyDate('2026-12-28'), '11 Jan 2027');
+  assert.equal(returnReadyDate('nope'), null);
+  assert.equal(returnReadyDate(null), null);
+});
+
+test('whoTag: first-week outlines say whether the maker came back', () => {
+  const at = (iso) => Date.parse(iso);
+  assert.equal(whoTag({ first_week: false, came_back: true, week: '2027-02-22' }), '');
+  assert.equal(whoTag(null), '');
+  assert.equal(whoTag({ first_week: true, came_back: true, week: '2027-02-22' }), 'First week · came back');
+  assert.equal(whoTag({ first_week: true, came_back: false, week: '2027-02-22' }), 'First week · left');
+  const o = { first_week: true, came_back: null, week: '2027-02-22' };
+  assert.equal(whoTag(o, at('2027-03-08T04:59:59Z')), 'First week · not known yet');
+  assert.equal(whoTag(o, at('2027-03-08T05:00:00Z')), 'First week · not known');
+  assert.equal(whoTag({ ...o, week: null }, at('2027-03-01T00:00:00Z')), 'First week · not known');
 });

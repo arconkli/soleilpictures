@@ -34,6 +34,7 @@ import { AdminTaggingTab } from '../pages/admin/AdminTaggingTab.jsx';
 import { AdminDiscoverTab } from '../pages/admin/AdminDiscoverTab.jsx';
 import { AdminEmailsTab } from '../pages/admin/AdminEmailsTab.jsx';
 import { AdminBoardsTab } from '../pages/admin/AdminBoardsTab.jsx';
+import { AdminOutlinesTab } from '../pages/admin/AdminOutlinesTab.jsx';
 import { FeedbackProvider } from '../components/AppFeedback.jsx';
 import { AdminPhonePanel } from '../pages/admin/phone/AdminPhonePanel.jsx';
 import { makePhonePostsApi } from './adminPhoneFixtures.js';
@@ -265,6 +266,7 @@ const TABS = [
   { id: 'emails',    label: 'Emails',    Component: AdminEmailsTab },
   { id: 'discover',  label: 'Discover',  Component: DiscoverQaTab },
   { id: 'boards',    label: 'Boards',    Component: BoardsQaTab },
+  { id: 'outlines',  label: 'Outlines',  Component: AdminOutlinesTab },
   { id: 'universe',  label: 'Universe',  Component: UniverseQaTab },
   { id: 'command',   label: 'Command',   Component: CommandCenterQaTab },
 ];

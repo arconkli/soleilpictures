@@ -12,7 +12,11 @@
 //                                     (App.jsx's `mySettings` from useResolvedDefaults)
 //   settingsLoaded    boolean         App.jsx's `mySettingsLoaded`; the ask never
 //                                     arms before the profile has loaded
-//   accountCreatedAt  string | null   user.created_at (ISO)
+//   cards             number | null   how many cards the person has placed
+//                                     (App.jsx's `myTier.demoCardCount`); null
+//                                     means unreadable (see accountCreatedAt)
+//   accountCreatedAt  string | null   user.created_at (ISO); with fewer than 3
+//                                     cards the ask waits until a day after this
 //   onAsked(nextAsks) function        called once, after the ask has been on a
 //                                     live screen for 4 s, with { n, last }
 //
@@ -22,6 +26,7 @@
 //       userId={user?.id || null}
 //       settings={mySettings}
 //       settingsLoaded={mySettingsLoaded}
+//       cards={myTier.demoCardCount}
 //       accountCreatedAt={user?.created_at || null}
 //       onAsked={handleLayoutAsked}
 //     />
@@ -41,13 +46,20 @@
 //   layout_outlines: { ok } into its local copy so a later render does not ask.
 //
 // WHAT KEEPS IT FROM BEING A NAG (modelled on ReturnReasonAsk)
-//   • 20 s of VISIBLE time first, then quiet() for 1.5 s (or 8 s, then quiet),
-//     giving up after 90 s without counting an ask
+//   • 20 s of VISIBLE time first, restarted whenever the card count changes
+//     (so the ask comes in a pause after the latest card, never mid-flow),
+//     then quiet() for 1.5 s (or 8 s, then quiet), giving up after 90 s
+//     without counting an ask
+//   • quiet() also waits out a hint, the tour and the import guide, as
+//     BoardMoreNudge does
 //   • routed through the shared upsell slot ('layout-ask', an ambient kind)
 //   • counts as asked only after 4 s actually on screen (not hidden by clean or
 //     focus mode, not in a background tab)
-//   • at most three asks, on different days, never in the first 24 h, and never
-//     again once answered (shouldAskLayoutOutlines)
+//   • not before the person has placed 3 cards in a workspace of their own or,
+//     failing that, until a day after signing up (an invited teammate's cards
+//     sit in someone else's workspace, which the count leaves out); at most
+//     three asks, on different days, never again once answered
+//     (shouldAskLayoutOutlines)
 //   • no close X and no icon: "No thanks" and "Sure" are the two answers
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -55,6 +67,8 @@ import { reportError } from '../lib/errorReporting.js';
 import { getOwnProfile } from '../lib/boardsApi.js';
 import { claimUpsellSlot } from '../lib/upsellSlot.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
+import { hintUp, tourShowing } from '../lib/hints.js';
+import { isImportGuideOpen } from '../lib/importGuide.js';
 import { isEditablePointerTarget } from '../lib/isEditableTarget.js';
 import {
   LAYOUT_OUTLINES_DOC, LAYOUT_OUTLINES_EVENT, layoutOutlinesAsks, localDateKey,
@@ -75,7 +89,7 @@ const DELIVERED_MS = 4_000;
 // Matches .fv-banner.is-leaving (180 ms).
 const LEAVE_MS = 190;
 
-export function LayoutOutlinesAsk({ userId = null, settings = null, settingsLoaded = false, accountCreatedAt = null, onAsked } = {}) {
+export function LayoutOutlinesAsk({ userId = null, settings = null, settingsLoaded = false, cards = null, accountCreatedAt = null, onAsked } = {}) {
   const [open, setOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
   // Answered (or its event seen) in this session: stays hidden even if the
@@ -91,7 +105,7 @@ export function LayoutOutlinesAsk({ userId = null, settings = null, settingsLoad
   const answeredRef = useRef(false);
   // The latest props, read by the timers without re-arming them.
   const liveRef = useRef({});
-  liveRef.current = { settings, accountCreatedAt, onAsked, userId };
+  liveRef.current = { settings, cards, accountCreatedAt, onAsked, userId };
   // The settings read fresh from the account just before showing: another tab
   // or device may have asked today, and this copy would not know.
   const freshRef = useRef(null);
@@ -122,6 +136,8 @@ export function LayoutOutlinesAsk({ userId = null, settings = null, settingsLoad
     if (document.hidden) return false;
     if (pointerDownRef.current) return false;
     if (anyModalOpen()) return false;
+    // The ask has no hint of its own, so any hint up means not quiet.
+    if (hintUp() || tourShowing() || isImportGuideOpen()) return false;
     if (document.querySelector('.is-dragging')) return false;
     if (isEditablePointerTarget({ target: document.activeElement })) return false;
     return true;
@@ -129,13 +145,15 @@ export function LayoutOutlinesAsk({ userId = null, settings = null, settingsLoad
 
   const eligible = useCallback(() => {
     if (answeredRef.current || askedRef.current) return false;
-    const { settings: s, accountCreatedAt: born } = liveRef.current;
-    return shouldAskLayoutOutlines({ settings: s, today: localDateKey(), accountCreatedAt: born, now: Date.now() });
+    const { settings: s, cards: c, accountCreatedAt: born } = liveRef.current;
+    return shouldAskLayoutOutlines({
+      settings: s, today: localDateKey(), cards: c, accountCreatedAt: born, now: Date.now(),
+    });
   }, []);
 
   // Arm once the profile has loaded and the person is still eligible.
   const armed = settingsLoaded && !!userId && shouldAskLayoutOutlines({
-    settings, today: localDateKey(), accountCreatedAt, now: Date.now(),
+    settings, today: localDateKey(), cards, accountCreatedAt, now: Date.now(),
   });
 
   useEffect(() => {
@@ -143,6 +161,7 @@ export function LayoutOutlinesAsk({ userId = null, settings = null, settingsLoad
 
     let tries = 0;
     let visible = 0;
+    let seenCards = liveRef.current.cards;
     let settled = 0;
     let waited = 0;
 
@@ -165,7 +184,10 @@ export function LayoutOutlinesAsk({ userId = null, settings = null, settingsLoad
       try { fresh = await getOwnProfile({ userId: liveRef.current.userId }); } catch (_) { timerRef.current = null; return; }
       if (cancelled) return;
       const s = fresh?.settings || null;
-      if (!shouldAskLayoutOutlines({ settings: s, today: localDateKey(), accountCreatedAt: liveRef.current.accountCreatedAt, now: Date.now() })) {
+      const live = liveRef.current;
+      if (!shouldAskLayoutOutlines({
+        settings: s, today: localDateKey(), cards: live.cards, accountCreatedAt: live.accountCreatedAt, now: Date.now(),
+      })) {
         timerRef.current = null;
         return;
       }
@@ -194,6 +216,8 @@ export function LayoutOutlinesAsk({ userId = null, settings = null, settingsLoad
     const tick = () => {
       timerRef.current = setTimeout(() => {
         if (!eligible()) { timerRef.current = null; return; }
+        // A new card restarts the clock: the ask waits for a pause.
+        if (liveRef.current.cards !== seenCards) { seenCards = liveRef.current.cards; visible = 0; }
         if (!document.hidden) visible += TICK_MS;
         if (visible >= VISIBLE_MS) { timerRef.current = null; settle(); return; }
         tick();

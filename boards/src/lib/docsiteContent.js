@@ -43946,7 +43946,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ": plain boxes showing where cards sit and how big they are, never what's in them, and not linked to you. It is off until you say yes; see "
+     "v": ": plain boxes showing where cards sit and how big they are, never what's in them, and not linked to you, except for up to 8 days after your first week. It is off until you say yes; see "
     },
     {
      "t": "link",
@@ -49791,6 +49791,31 @@ export const DOCS_CONTENT = {
        "v": "400 days, then deleted"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "link",
+       "v": "Which first-week outlines are yours",
+       "href": "#layout-outlines",
+       "children": [
+        {
+         "t": "text",
+         "v": "Which first-week outlines are yours"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", if you said yes"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Up to 8 days, then deleted"
+      }
+     ]
     ]
    ]
   },
@@ -50617,6 +50642,15 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
+     "v": "Outlines made in the week you sign up are the one exception. To learn why some people stop using Clusters, each is marked with whether you came back within 7 days of your first visit: yes, no, or not known. Until it is marked, for up to 8 days, a separate note says it is yours. Then the note is deleted, and the outline keeps only that answer."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
      "v": "Some clusters are always left out:"
     }
    ]
@@ -50670,7 +50704,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Turning it off leaves your clusters out of every outline made after that. Outlines already made are not removed early: nothing in them points back to you, so we keep no way to pick out yours."
+     "v": ". Turning it off leaves your clusters out of every outline made after that, and at once deletes any outline from the week you signed up that is still noted as yours. Other outlines already made are not removed early: nothing in them points back to you, so we keep no way to pick out yours."
     }
    ]
   },
@@ -50680,6 +50714,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Separately, a few weekly totals are counted across every cluster that changed that week, whether or not anyone said yes: how many changed, how many cards a cluster usually holds, how many use sections, hold another cluster or are mostly pictures, and which tools people use in a cluster's first minutes, first day and first week. Only totals covering at least 20 people are kept, never a cluster or a person."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It also takes the people who joined over four weeks and compares those who came back within 7 days of their first visit with those who didn't: how many cards each side added on its first day, and which tools it used. Each side must cover at least 20 people, and nothing about one person is kept."
     }
    ]
   },
@@ -51192,7 +51235,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". It asks at most three times, on different days, never on the day you sign up, and stops once you answer. "
+     "v": ". It asks in a pause once you have 3 cards, or from your second day if you don't: at most three times, on different days, and it stops once you answer. "
     },
     {
      "t": "strong",

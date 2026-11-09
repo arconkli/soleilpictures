@@ -36,7 +36,8 @@ the device you're using; **Remove** takes one away, with a moment to undo.
 
 **Privacy** holds one switch, **Keep outlines of how my clusters are laid
 out**: plain boxes showing where cards sit and how big they are, never what's
-in them, and not linked to you. It is off until you say yes; see
+in them, and not linked to you, except for up to 8 days after your
+first week. It is off until you say yes; see
 [layout outlines](/docs/account/data-and-privacy#layout-outlines).
 
 **Deleting your account** lives at the foot of this tab. It is the one thing in

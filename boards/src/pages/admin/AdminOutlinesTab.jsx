@@ -4,7 +4,7 @@
 // place, size, section) and nothing that says what is on them or whose they are.
 // This tab reads the weeks (admin_layout_weeks), the week's figures for all
 // clusters (admin_layout_stats) and the outlines themselves
-// (admin_cluster_outlines), and draws them.
+// (admin_cluster_outlines), who came back (admin_layout_return) and draws them.
 //
 // Every rule about what shows (the tiles, the heat cells and their colours, the
 // pills and the RPC arguments they become, the wireframe's rects) lives in
@@ -20,7 +20,7 @@ import {
   weeksView, weekLabel, stepWeek, weekStepState, tilesView, heatTable, HEAT_RAMP, BANDS,
   FILTER_GROUPS, SORTS, KINDS, HAS_KINDS, NO_FILTERS, hasActiveFilters, setFilter, outlineParams, PAGE_SIZE,
   titleLine, ageText, legendView, holdsText, outlineRects, storedRowLines, jsonRuns,
-  footText, countText, neighbour,
+  footText, countText, neighbour, returnView, returnReadyDate, returnSpan, whoTag,
 } from '../../lib/outlinesView.js';
 import { useAdminData } from './useAdminData.js';
 import { AdminAsync, AdminSkeleton, AdminError } from './AdminStates.jsx';
@@ -114,6 +114,20 @@ export function AdminOutlinesTab() {
     if (error) throw error;
     return data || null;
   }, [week, hasStats]);
+
+  // People who joined over the four weeks to this one, split by whether they came back. Nothing is
+  // stored until the weekly run, 14 days after that Monday.
+  const hasReturn = !!(weekRow && weekRow.return);
+  const returnQ = useAdminData(async () => {
+    if (!week || !hasReturn) return null;
+    const { data, error } = await supabase.rpc('admin_layout_return', { p_week: week });
+    if (error) throw error;
+    return data || null;
+  }, [week, hasReturn]);
+  const returnData = returnQ.hasData ? returnQ.data : null;
+  const ret = useMemo(() => returnView(returnData), [returnData]);
+  const readyOn = week ? Date.parse(`${week}T00:00:00Z`) + 14 * 86400000 : null;
+  const notReady = readyOn != null && Date.now() < readyOn;
 
   // Only data that came from the current week; the previous week's numbers never sit under a new heading.
   const statsData = statsQ.hasData ? statsQ.data : null;
@@ -265,6 +279,64 @@ export function AdminOutlinesTab() {
           </>
         )}
 
+        <section className="lo-sec">
+          <h2 className="admin-section-title">Who came back</h2>
+          <div className="admin-section-sub">People who joined {returnSpan(week, returnData && returnData.joined_from) || 'over four weeks'} and did something, split by whether they came back within 7 days of their first visit. What each side did on their first day. Four weeks at a time, so each side can reach the 20 people it needs.</div>
+          {returnQ.error && !returnQ.hasData ? (
+            <AdminError error={errText(returnQ.error)} onRetry={returnQ.refresh} />
+          ) : ret.empty ? (
+            <div className="ab-empty lo-empty">
+              {returnQ.loading
+                ? <span>Loading…</span>
+                : notReady
+                  ? <span>{`Ready ${returnReadyDate(week)}: we wait a week to see who came back.`}</span>
+                  : <span>Each side needs 20 people. Fewer joined in these weeks, or their tools weren’t recorded yet.</span>}
+            </div>
+          ) : (
+            <>
+              <div className="admin-stat-grid lo-ret-tiles" aria-busy={returnQ.loading || undefined}>
+                {ret.tiles.map((t) => (
+                  <div key={t.id} className="admin-stat-card">
+                    <div className="admin-stat-label">{t.label}</div>
+                    <div className="admin-stat-value">{t.value.split(' vs ').flatMap((part, i) => (i ? [<span key={i} className="lo-vs">vs</span>, part] : [part]))}</div>
+                    <div className="admin-stat-sub">{t.sub}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="admin-chart-panel lo-heat-panel">
+                <table className="admin-table lo-heat lo-ret">
+                  <thead>
+                    <tr>
+                      <th>Used on day one</th>
+                      <th className="num">Left</th>
+                      <th className="num">Came back</th>
+                      <th className="num">Difference</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ret.rows.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.label}</td>
+                        {[row.left, row.back].map((c, i) => (
+                          <td key={i}>
+                            {c.na
+                              ? <span className="lo-hc lo-hc-na" title="Fewer than 20 people">{c.text}</span>
+                              : <span className="lo-hc" style={{ '--a': `${c.alpha}%` }}>{c.text}</span>}
+                          </td>
+                        ))}
+                        <td className="lo-gap">{row.gap}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="lo-heat-foot">
+                  {ret.foot.map((f) => <span key={f}>{f}</span>)}
+                </div>
+              </div>
+            </>
+          )}
+        </section>
+
         <section className="lo-sec lo-grp-b" aria-labelledby="lo-grp-b-title">
           <div className="lo-gal-head">
             <div>
@@ -310,6 +382,7 @@ export function AdminOutlinesTab() {
                       );
                     })}
                   </div>
+                  {g.note && <span className="lo-maker-note">{g.note}</span>}
                 </div>
               ))}
               <div className="lo-has" role="group" aria-label="Has">
@@ -346,7 +419,7 @@ export function AdminOutlinesTab() {
                       <article key={o.outline_id} className={`ab-tile${current && o.outline_id === current.outline_id && showDrawer ? ' is-sel' : ''}`}>
                         <button type="button" className="ab-tile-main" aria-label={t} onClick={() => pick(o.outline_id)}>
                           <span className="ab-thumb lo-thumb"><Wireframe outline={o} label={`Outline: ${t}`} /></span>
-                          <span className="ab-tmeta"><span className="ab-t lo-t">{t}</span><span className="ab-m">{ageText(o.stats && o.stats.age)}</span></span>
+                          <span className="ab-tmeta"><span className="ab-t lo-t">{t}</span><span className="ab-m">{ageText(o.stats && o.stats.age)}</span>{whoTag({ ...o, week: o.week || week }) && <span className="ab-m lo-who">{whoTag({ ...o, week: o.week || week })}</span>}</span>
                         </button>
                       </article>
                     );
@@ -372,6 +445,7 @@ export function AdminOutlinesTab() {
                       <div className="admin-detail-idtext">
                         <h3 className="admin-detail-name">{`Outline ${position} of ${rows.length}`}</h3>
                         <div className="lo-d-meta">{`${titleLine(current)} · ${weekLabel(current.week || week).toLowerCase()}`}</div>
+                        {whoTag({ ...current, week: current.week || week }) && <div className="lo-who">{whoTag({ ...current, week: current.week || week })}</div>}
                       </div>
                       <button type="button" className="admin-detail-close" aria-label="Close" onClick={() => setOpen(false)}><Icon as={X} size={16} /></button>
                     </div>

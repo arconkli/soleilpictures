@@ -4,6 +4,20 @@
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
 
+## 2026-11-10 — Help improve Clusters
+
+Clusters may ask whether it can keep plain outlines of how your clusters are laid out. Just the boxes, never what is in them, and only if you say yes.
+
+### Help improve Clusters?
+
+- Clusters may ask **Help improve Clusters?** once you have 3 cards (or
+  from your second day), three times at most, on different days. Say **Sure**
+  and it keeps a weekly outline of the clusters you make from now on: a plain
+  box for each card, where it sits and how big it is, never what's in it, and
+  not linked to you, except for up to 8 days after your first week, to note
+  whether you came back. See [Layout outlines](/docs/account/data-and-privacy#layout-outlines).
+- Change your answer any time in **Settings → Profile**.
+
 ## 2026-11-09 — Any language, notes that feel right, and one tray for everything that moves
 
 Write, search, tag and name things in any language, right to left included. Notes behave on every screen, and one activity tray shows uploads, downloads, imports and exports.

@@ -60,6 +60,7 @@ yourself, through the API or MCP, still reads what you ask it to.
 | Files no longer referenced by any board | Eligible for cleanup after a grace period |
 | Resolved [comments](/docs/collaborate/comments) | Archived, not deleted |
 | [Layout outlines](#layout-outlines), if you said yes | 400 days, then deleted |
+| [Which first-week outlines are yours](#layout-outlines), if you said yes | Up to 8 days, then deleted |
 
 Restoring a cluster within the trash window restores its images with it.
 
@@ -256,6 +257,12 @@ file names or sizes. It is stored on its own, with nothing that links it to
 you, your workspace or the cluster, and we never try to link one back.
 Outlines are deleted after 400 days.
 
+Outlines made in the week you sign up are the one exception. To learn why some
+people stop using Clusters, each is marked with whether you came back within 7
+days of your first visit: yes, no, or not known. Until it is marked, for up to 8
+days, a separate note says it is yours. Then the note is deleted, and the
+outline keeps only that answer.
+
 Some clusters are always left out:
 
 - a shared cluster, if anyone who can edit it has said no
@@ -264,8 +271,9 @@ Some clusters are always left out:
 - clusters made before 10 November 2026
 
 Change your answer at any time in **Settings → Profile**. Turning it off leaves
-your clusters out of every outline made after that. Outlines already made are
-not removed early: nothing in them points back to you, so we keep no way to
+your clusters out of every outline made after that, and at once deletes any
+outline from the week you signed up that is still noted as yours. Other outlines
+already made are not removed early: nothing in them points back to you, so we keep no way to
 pick out yours.
 
 Separately, a few weekly totals are counted across every cluster that changed
@@ -274,6 +282,11 @@ cluster usually holds, how many use sections, hold another cluster or are
 mostly pictures, and which tools people use in a cluster's first minutes, first
 day and first week. Only totals covering at least 20 people are kept, never a
 cluster or a person.
+
+It also takes the people who joined over four weeks and compares those who came
+back within 7 days of their first visit with those who didn't: how many cards
+each side added on its first day, and which tools it used. Each side must cover
+at least 20 people, and nothing about one person is kept.
 
 ## When Clusters asks you a question
 
@@ -366,8 +379,9 @@ along with everything else.
 ### Help improve Clusters?
 
 Clusters may ask **Help improve Clusters?**, with **Learn more** under it,
-leading to [Layout outlines](#layout-outlines). It asks at most three times, on
-different days, never on the day you sign up, and stops once you answer.
+leading to [Layout outlines](#layout-outlines). It asks in a pause once
+you have 3 cards, or from your second day if you don't: at most three times, on
+different days, and it stops once you answer.
 **Sure** turns layout outlines on; **No thanks** leaves them off, which is also
 where they start. Your answer is stored with your account, and you can change
 it any time in **Settings → Profile**.

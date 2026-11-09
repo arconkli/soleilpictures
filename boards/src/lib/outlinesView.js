@@ -56,7 +56,7 @@ export function weeksView(raw) {
   if (!Array.isArray(raw)) return [];
   return raw
     .filter((w) => w && weekDay(w.week))
-    .map((w) => ({ week: String(w.week).slice(0, 10), outlines: Number(w.outlines) || 0, stats: !!w.stats }));
+    .map((w) => ({ week: String(w.week).slice(0, 10), outlines: Number(w.outlines) || 0, stats: !!w.stats, return: !!w.return }));
 }
 
 // The week a stepper lands on. `dir` -1 is the previous (older) week, +1 the
@@ -66,6 +66,36 @@ export function stepWeek(weeks, current, dir) {
   if (i < 0) return weeks.length ? weeks[0].week : null;
   const to = i - dir;
   return to < 0 || to >= weeks.length ? current : weeks[to].week;
+}
+
+// The Monday `days` after a plain date, as 'YYYY-MM-DD' (UTC, so no clock skew).
+function addDays(iso, days) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  if (!m) return null;
+  const t = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) + days * 86400000;
+  return new Date(t).toISOString().slice(0, 10);
+}
+
+// When "Who came back" has figures for a week: 14 days after that Monday, in
+// the same words as a week label. null for anything that is not a plain date.
+export function returnReadyDate(weekIso) {
+  return weekDay(addDays(weekIso, 14));
+}
+
+// The days the "Who came back" people joined, in words: 'from to to', the year
+// shown once when both ends share it. `joinedFromIso` is the RPC's first day (a
+// shorter span at first); without one it is 21 days before the week. null for
+// a week that is not a plain date.
+export function returnSpan(weekIso, joinedFromIso) {
+  const to = addDays(weekIso, 6);
+  if (!to) return null;
+  const from = /^\d{4}-\d{2}-\d{2}/.test(String(joinedFromIso || '')) && weekDay(joinedFromIso)
+    ? String(joinedFromIso).slice(0, 10)
+    : addDays(weekIso, -21);
+  const a = weekDay(from);
+  const b = weekDay(to);
+  if (!a || !b) return null;
+  return `${from.slice(0, 4) === to.slice(0, 4) ? a.slice(0, -5) : a} to ${b}`;
 }
 
 export function weekStepState(weeks, current) {
@@ -164,6 +194,59 @@ export function heatTable(stats) {
   }));
 }
 
+// ── Who came back ────────────────────────────────────────────────────────
+
+const MINUS = '−';
+
+// admin_layout_return as what the tab draws: three tiles, one row per tool
+// (left and back shares with their heat tint, and the gap in points), the foot.
+// A side the server hid (under 20 people) is null and shows as an em dash.
+export function returnView(raw) {
+  const r = raw && typeof raw === 'object' ? raw : {};
+  const tl = r.tiles && typeof r.tiles === 'object' ? r.tiles : {};
+  const side = (t, k) => (t && t[k] && isNum(t[k].value) ? t[k] : null);
+  const pl = side(tl.people, 'left');
+  const pb = side(tl.people, 'back');
+  const total = pl && pb ? pl.value + pb.value : 0;
+  const both = !!(pl && pb && total > 0);
+  const vs = (id, fmt) => `${fmt(side(tl[id], 'left') && side(tl[id], 'left').value)} vs ${fmt(side(tl[id], 'back') && side(tl[id], 'back').value)}`;
+
+  const tiles = [
+    {
+      id: 'came_back',
+      label: 'Came back',
+      value: both ? fmtShare(pb.value / total) : NA,
+      sub: both ? `${fmtCount(pb.value)} of ${fmtCount(total)} people` : 'Each side needs 20 people',
+    },
+    { id: 'cards_d1', label: 'Cards on day one', value: vs('cards_d1', fmtMedian), sub: 'median, left vs came back' },
+    { id: 'ten_d1', label: '10+ cards on day one', value: vs('ten_d1', fmtShare), sub: 'left vs came back' },
+  ];
+
+  const byTool = new Map();
+  if (Array.isArray(r.tools)) for (const t of r.tools) if (t) byTool.set(t.tool, t);
+  const cell = (c) => (c && isNum(c.value)
+    ? { text: fmtShare(c.value), alpha: heatAlpha(c.value), na: false }
+    : { text: NA, alpha: null, na: true });
+  const rows = TOOLS.filter((t) => byTool.has(t.id)).map((t) => {
+    const x = byTool.get(t.id);
+    const left = cell(x.left);
+    const back = cell(x.back);
+    let gap = NA;
+    if (!left.na && !back.na) {
+      const d = Math.round((x.back.value - x.left.value) * 100);
+      gap = d === 0 ? '0 pts' : `${d > 0 ? '+' : MINUS}${Math.abs(d)} pts`;
+    }
+    return { id: t.id, label: t.label, left, back, gap };
+  });
+
+  const foot = [];
+  if (pl) foot.push(`Left: ${plural(pl.value, 'person', 'people')}`);
+  if (pb) foot.push(`Came back: ${plural(pb.value, 'person', 'people')}`);
+  foot.push('“Came back” is a second real visit within 7 days of the first, the rule the tests use.');
+
+  return { empty: !(pl || pb), tiles, rows, foot };
+}
+
 // ── Filters and sort ─────────────────────────────────────────────────────
 
 // Each filter group: its label and its pills. A pill's `v` is the RPC value
@@ -185,6 +268,13 @@ export const FILTER_GROUPS = [
     pills: [
       { v: null, label: 'Any' }, { v: 'top', label: 'Top level' },
       { v: '2', label: 'Level 2' }, { v: '3+', label: 'Level 3+' },
+    ],
+  },
+  {
+    id: 'who', label: 'Maker', note: 'New = made in the maker’s first week',
+    pills: [
+      { v: null, label: 'Any' }, { v: 'left', label: 'New, left' },
+      { v: 'back', label: 'New, came back' }, { v: 'older', label: 'Not new' },
     ],
   },
   {
@@ -222,10 +312,10 @@ export const KINDS = [
 // The kinds that get a Has pill ('other' is a catch-all, not something to look for).
 export const HAS_KINDS = KINDS.filter((k) => k.pill !== false);
 
-export const NO_FILTERS = Object.freeze({ cards: null, sections: null, level: null, age: null, has: Object.freeze([]), sort: 'newest' });
+export const NO_FILTERS = Object.freeze({ cards: null, sections: null, level: null, age: null, who: null, has: Object.freeze([]), sort: 'newest' });
 
 export function hasActiveFilters(f) {
-  return !!(f && (f.cards || f.sections || f.level || f.age || (f.has && f.has.length)));
+  return !!(f && (f.cards || f.sections || f.level || f.age || f.who || (f.has && f.has.length)));
 }
 
 // Turn or flip one filter. Returns a new state; `has` is a toggle on a kind.
@@ -250,6 +340,7 @@ export function outlineParams(week, f, offset = 0, limit = PAGE_SIZE) {
     p_sections: s.sections || null,
     p_level: s.level || null,
     p_age: s.age || null,
+    p_who: s.who || null,
     p_has: s.has && s.has.length ? [...s.has] : null,
     p_sort: s.sort || 'newest',
     p_limit: limit,
@@ -281,6 +372,21 @@ export function titleLine(o) {
   const s = o.stats || {};
   const sections = Array.isArray(o.sections) ? o.sections.length : 0;
   return `${plural(Number(s.cards) || 0, 'card')} · ${sectionsText(sections)} · ${levelName(s.depth)}`;
+}
+
+// A small line about the maker of an outline: '' unless it is from their first
+// week. Whether they came back is only known 14 days after that Monday (the
+// weekly run), so until then (plus 5 hours) null reads "not known yet".
+export function whoTag(o, now = Date.now()) {
+  if (!o || !o.first_week) return '';
+  if (o.came_back === true) return 'First week · came back';
+  if (o.came_back === false) return 'First week · left';
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(o.week || ''));
+  if (m) {
+    const at = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) + 14 * 86400000 + 5 * 3600000;
+    if (now < at) return 'First week · not known yet';
+  }
+  return 'First week · not known';
 }
 
 // The legend of the drawer: one entry per kind the outline holds, then sections.

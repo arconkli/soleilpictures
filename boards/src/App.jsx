@@ -12742,13 +12742,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             .catch(() => {});
         }} />
       {/* "Help improve Clusters?": a yes or no to layout outlines. Waits for the
-          profile, then at most three asks on different days; it shares the
-          ambient ask's one turn per visit (lib/upsellSlot.js). */}
+          profile and 3 placed cards (or, without them, a day after sign-up),
+          then a pause (20 s after the latest card); at most three asks on
+          different days; it shares the ambient ask's one turn per visit
+          (lib/upsellSlot.js). */}
       {user?.email && (
         <LayoutOutlinesAsk
           userId={user?.id || null}
           settings={mySettings}
           settingsLoaded={mySettingsLoaded}
+          cards={myTier.demoCardCount}
           accountCreatedAt={user?.created_at || null}
           onAsked={(nextAsks) => {
             // merge_profile_settings replaces the key whole: nextAsks is the full { n, last }.

@@ -64,6 +64,14 @@ test('the privacy policy states how long layout outlines are kept', () => {
   assertPolicyHas(`Layout outlines: ${days} days.`);
 });
 
+test('the privacy policy states how long the first-week outline note is kept', () => {
+  // The purge runs hourly and deletes notes older than 7 days, so none outlives
+  // the 8 days the policy states.
+  assert.equal(scheduledDays('purge_layout_outline_pending'), 7);
+  assertPolicyHas('for up to 8 days, a separate note says it is yours');
+  assertPolicyHas('The note of which layout outlines from the week you sign up are yours: up to 8 days.');
+});
+
 test('the privacy policy states the Trash window the purge functions run', () => {
   const fns = ['purge_old_deleted_boards', 'purge_old_deleted_comments', 'purge_old_deleted_tags', 'purge_old_deleted_vote_cards'];
   const days = fns.map(trashDays);

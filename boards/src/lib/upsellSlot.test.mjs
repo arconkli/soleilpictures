@@ -304,6 +304,24 @@ assert(claimUpsellSlot('power-reveal', T, 'v7'), 'a tip');
 assert(claimUpsellSlot('cap-hit', W, 'v7'), 'then the wall');
 assertEq(claimUpsellSlot('share-ask', W + 5_000, 'v7'), false, 'the share ask never lands on the wall');
 
+// The layout-outlines ask is the second kind that may follow a tip in the same
+// visit: a new person's first visit may be their only one.
+__resetUpsellSlot();
+assert(claimUpsellSlot('power-reveal', T, 'v8'), 'a feature tip owns the visit');
+assertEq(claimUpsellSlot('layout-ask', T + 5_000, 'v8'), false, 'the layout ask still waits out the minute');
+assert(claimUpsellSlot('layout-ask', W, 'v8'), 'then comes, though the tip had the visit');
+assertEq(claimUpsellSlot('power-reveal', W + UPSELL_STACK_WINDOW_MS + 1, 'v8'), false, 'and owns the visit after it: no second tip');
+__resetUpsellSlot();
+assert(claimUpsellSlot('mix-prompt', T, 'v9a'), 'the mix prompt owns the visit');
+assert(claimUpsellSlot('layout-ask', W, 'v9a'), 'the layout ask comes after it too');
+__resetUpsellSlot();
+assert(claimUpsellSlot('layout-ask', T, 'v9b'), 'the layout ask owns a visit');
+assertEq(claimUpsellSlot('power-reveal', W, 'v9b'), false, 'nothing else gets past it');
+__resetUpsellSlot();
+assert(claimUpsellSlot('power-reveal', T, 'v9c'), 'a tip');
+assert(claimUpsellSlot('cap-hit', W, 'v9c'), 'then the wall');
+assertEq(claimUpsellSlot('layout-ask', W + 5_000, 'v9c'), false, 'the layout ask never lands on the wall');
+
 // --- who holds the moment (for up_suppressed winner) -----------------------
 __resetUpsellSlot();
 assertEq(upsellSlotHolder(T, 'h1'), null, 'a free slot has no holder');
