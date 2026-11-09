@@ -4068,6 +4068,8 @@ Below that: profile picture, display name and your presence colour — the colou
 
 Passkeys lists the passkeys you can sign in with instead of an emailed code, with when each was added and last used. Add a passkey saves one on the device you're using; Remove takes one away, with a moment to undo.
 
+Privacy holds one switch, Keep outlines of how my clusters are laid out: plain boxes showing where cards sit and how big they are, never what's in them, and not linked to you. It is off until you say yes; see layout outlines.
+
 Deleting your account lives at the foot of this tab. It is the one thing in Settings with no undo — see Data and privacy.
 
 Appearance
@@ -4660,7 +4662,7 @@ A: Nothing that matters is removed, but dense surfaces like long documents are m
 ========================================================================
 # Data and privacy
 URL: https://clusters.soleilpictures.com/docs/account/data-and-privacy
-Updated: 2026-11-04
+Updated: 2026-11-10
 
 Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 
@@ -4696,6 +4698,7 @@ Deleted cluster | 30 days in the trash, then purged
 Board version snapshots | For rollback and workspace recovery
 Files no longer referenced by any board | Eligible for cleanup after a grace period
 Resolved comments | Archived, not deleted
+Layout outlines, if you said yes | 400 days, then deleted
 
 Restoring a cluster within the trash window restores its images with it.
 
@@ -4759,7 +4762,7 @@ Records are deleted after 90 days. What stays after that is when each kind of pr
 
 What the app records as you use it
 
-Clusters records what you do, not what you make: that a card was placed, a cluster opened, a message sent or a search run, with counts and timings. It never records the words, file names or search terms inside your clusters. Messages are measured the same way: roughly how long a message was, in one of four sizes, how many attachments and mentions it had, whether it was a reply, and whether it was delivered. Never what it said or who it mentioned. Videos are measured the same way: that one started playing, for how many seconds, and roughly how far into it, never which video it was.
+Clusters records what you do, not what you make: that a card was placed, a tool used, a cluster opened, a message sent or a search run, with counts and timings. It never records the words, file names or search terms inside your clusters. Messages are measured the same way: roughly how long a message was, in one of four sizes, how many attachments and mentions it had, whether it was a reply, and whether it was delivered. Never what it said or who it mentioned. Videos are measured the same way: that one started playing, for how many seconds, and roughly how far into it, never which video it was.
 
 Once per visit, one record describes the setup you are using, so we know which devices and conditions the app has to work well on:
 
@@ -4784,9 +4787,35 @@ Global Privacy Control
 
 If your browser sends Global Privacy Control, Clusters treats it as a request not to share what it learns about you for advertising, wherever you are. Meta's pixel is not loaded, and your sign-up, a purchase or the start of a checkout is not sent to Meta's Conversions API. What Clusters records for itself, described above, is the same either way.
 
+Layout outlines
+
+If you say yes to Help improve Clusters?, or turn on Keep outlines of how my clusters are laid out in Settings → Profile, Clusters keeps an outline of each cluster you made from 10 November 2026 on: once in the week you say yes, then once in each week the cluster changes. It is how we learn how people lay out their clusters, so we can make the tools fit.
+
+An outline is a drawing of plain boxes:
+
+one box per card: where it sits, how big it is, how far it is turned, what kind of card it is (picture, note, link, document and so on) and the order the cards were added
+the box around each section, and which cards are in it
+for a grid, how many boxes it has
+how many cards the cluster holds, how deeply it is nested, how many clusters sit inside it, and roughly how old it is (first week, first month, first three months, older)
+
+Positions and sizes are rounded to steps of half a percent across the cluster, and turns to steps of 5°.
+
+It never holds what is in a card: no pictures, words, names, colours, links, file names or sizes. It is stored on its own, with nothing that links it to you, your workspace or the cluster, and we never try to link one back. Outlines are deleted after 400 days.
+
+Some clusters are always left out:
+
+a shared cluster, if anyone who can edit it has said no
+a cluster that is published or has a public link, and the clusters inside it
+clusters in a Team workspace
+clusters made before 10 November 2026
+
+Change your answer at any time in Settings → Profile. Turning it off leaves your clusters out of every outline made after that. Outlines already made are not removed early: nothing in them points back to you, so we keep no way to pick out yours.
+
+Separately, a few weekly totals are counted across every cluster that changed that week, whether or not anyone said yes: how many changed, how many cards a cluster usually holds, how many use sections, hold another cluster or are mostly pictures, and which tools people use in a cluster's first minutes, first day and first week. Only totals covering at least 20 people are kept, never a cluster or a person.
+
 When Clusters asks you a question
 
-Clusters asks two questions, each once per account, and Send feedback is there whenever you want it. Every one of them shows you what will be sent with your answer before you send it.
+Clusters asks two questions, each once per account, and Send feedback is there whenever you want it. Every one of them shows you what will be sent with your answer before you send it. A third, Help improve Clusters?, is a plain yes or no that sends nothing but your answer.
 
 What brings you back today?
 
@@ -4829,6 +4858,10 @@ A tap is recorded as one of the fixed answers above, together with the length of
 Nothing you type into your own clusters — card contents, notes, documents, search terms — is ever collected this way. Search is measured by shape only (how many results, whether any were opened), never by content.
 
 If you would rather none of it had been asked, deleting your account removes it along with everything else.
+
+Help improve Clusters?
+
+Clusters may ask Help improve Clusters?, with Learn more under it, leading to Layout outlines. It asks at most three times, on different days, never on the day you sign up, and stops once you answer. Sure turns layout outlines on; No thanks leaves them off, which is also where they start. Your answer is stored with your account, and you can change it any time in Settings → Profile.
 
 Legal
 
@@ -12239,13 +12272,26 @@ Full plan and billing documentation: https://clusters.soleilpictures.com/docs/ac
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/changelog
-Updated: 2026-10-28
+Updated: 2026-11-10
 
 # Changelog
 
 > Soleil Clusters ships continuously; this page lists every user-visible change, newest first, with the date it went live. Each entry covers one week. Fixes and additions are described in the same list rather than split apart, because the distinction rarely matters to the person reading.
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
+
+## 2026-11-10 — Help improve Clusters
+
+Clusters may ask whether it can keep plain outlines of how your clusters are laid out. Just the boxes, never what is in them, and only if you say yes.
+
+### Help improve Clusters?
+
+- Clusters may ask **Help improve Clusters?**, three times at most, on
+  different days. Say **Sure** and it keeps a weekly outline of the clusters
+  you make from now on: a plain box for each card, where it sits and how big it
+  is, never what's in it, and not linked to you. See
+  [Layout outlines](/docs/account/data-and-privacy#layout-outlines).
+- Change your answer any time in **Settings → Profile**.
 
 ## 2026-10-28 — The board, in the chat
 

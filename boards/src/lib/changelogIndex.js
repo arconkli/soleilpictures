@@ -11,6 +11,13 @@ export const CHANGELOG_META = {
 
 export const CHANGELOG_ENTRIES = [
   {
+    "date": "2026-11-10",
+    "anchor": "2026-11-10",
+    "title": "Help improve Clusters",
+    "summary": "Clusters may ask whether it can keep plain outlines of how your clusters are laid out. Just the boxes, never what is in them, and only if you say yes.",
+    "headings": []
+  },
+  {
     "date": "2026-10-28",
     "anchor": "2026-10-28",
     "title": "The board, in the chat",

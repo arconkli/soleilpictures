@@ -5,8 +5,16 @@
     <link>https://clusters.soleilpictures.com/changelog</link>
     <description>Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly.</description>
     <language>en</language>
-    <lastBuildDate>Wed, 28 Oct 2026 00:00:00 GMT</lastBuildDate>
+    <lastBuildDate>Tue, 10 Nov 2026 00:00:00 GMT</lastBuildDate>
     <atom:link href="https://clusters.soleilpictures.com/changelog.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>Help improve Clusters</title>
+      <link>https://clusters.soleilpictures.com/changelog#2026-11-10</link>
+      <guid isPermaLink="false">clusters-changelog-2026-11-10</guid>
+      <pubDate>Tue, 10 Nov 2026 00:00:00 GMT</pubDate>
+      <description>Clusters may ask whether it can keep plain outlines of how your clusters are laid out. Just the boxes, never what is in them, and only if you say yes.</description>
+      <content:encoded><![CDATA[<h3>Help improve Clusters?</h3><ul><li>Clusters may ask <b>Help improve Clusters?</b>, three times at most, on different days. Say <b>Sure</b> and it keeps a weekly outline of the clusters you make from now on: a plain box for each card, where it sits and how big it is, never what&#39;s in it, and not linked to you. See <a href="https://clusters.soleilpictures.com/docs/account/data-and-privacy#layout-outlines">Layout outlines</a>.</li><li>Change your answer any time in <b>Settings → Profile</b>.</li></ul>]]></content:encoded>
+    </item>
     <item>
       <title>The board, in the chat</title>
       <link>https://clusters.soleilpictures.com/changelog#2026-10-28</link>

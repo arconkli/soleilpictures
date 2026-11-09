@@ -22740,6 +22740,31 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
  * place by the selected row; this is for someone who actually wrote to us. */
 .rr-receipt { max-width: 300px; }
 
+/* "Help improve Clusters?" (LayoutOutlinesAsk.jsx) rides the fv-banner frame as
+   the return question does (.rr-ask): a definite width, --shadow-3 only (no
+   gold glow), no spark, and a neutral Sure. Gold stays for focus. */
+.lo-ask { width: min(340px, calc(100vw - 24px)); box-shadow: var(--shadow-3); align-items: center; }
+@media (max-width: 640px) { .lo-ask { flex-wrap: nowrap; } .lo-ask .fv-banner-actions { width: auto; } }
+.lo-ask-link { color: var(--ink-1); text-decoration: underline; text-decoration-color: currentColor; text-underline-offset: 2px; cursor: pointer; white-space: nowrap; }
+.lo-ask-link:hover { color: var(--ink-0); }
+.lo-ok {
+  height: 30px;
+  padding: 0 14px;
+  background: var(--ink-0);
+  color: var(--bg-0);
+  border: 0;
+  border-radius: var(--radius);
+  font: 600 12px/1 var(--font-sans);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-base) var(--ease);
+}
+.lo-ok:hover { transform: translateY(-1px); box-shadow: var(--shadow-1); }
+.lo-ok:active { transform: translateY(0); box-shadow: none; }
+.lo-ok:focus-visible, .lo-ask .fv-banner-dismiss:focus-visible, .lo-ask-link:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+/* The link in a Settings switch's words reads like the app's other in-text links. */
+.settings-toggle-desc a { color: var(--ink-0); text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--line-1); }
+.settings-toggle-desc a:hover { text-decoration-color: currentColor; }
+
 @media (max-width: 640px) {
   .rr-ask { max-width: calc(100vw - 24px); }
 }

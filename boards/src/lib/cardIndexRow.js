@@ -260,6 +260,12 @@ export function buildCardIndexRow({ workspaceId, boardId, cardId, get, groupName
       w: Math.round(get('w') || 0), h: Math.round(get('h') || 0),
     };
   }
+  // Rotation, so the layout outline (cluster_outlines) can tell a tilted card
+  // from a straight one. Only a finite non-zero turn is projected: an
+  // unrotated card's row stays byte-identical, so the card.updated webhook
+  // (0222, `meta is distinct from`) does not fire for the whole index.
+  const rot = Number(get('rotation'));
+  if (Number.isFinite(rot) && rot !== 0) meta.rot = Math.round(rot);
   // Stored off the board (lib/placement.js): the sidebar's Not on board chip
   // and its counts read this. Only `true` is projected, and only the media
   // kinds gain a size, and only when the card has one: every other row stays

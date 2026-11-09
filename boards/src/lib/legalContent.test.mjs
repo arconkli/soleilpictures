@@ -58,6 +58,12 @@ test('the privacy policy states the retention the purge crons run', () => {
   assertPolicyHas(`Hashed network and browser records kept to prevent abuse: ${origins} days.`);
 });
 
+test('the privacy policy states how long layout outlines are kept', () => {
+  const days = scheduledDays('purge_old_cluster_outlines');
+  assert.equal(days, 400, 'layout outlines are kept 400 days');
+  assertPolicyHas(`Layout outlines: ${days} days.`);
+});
+
 test('the privacy policy states the Trash window the purge functions run', () => {
   const fns = ['purge_old_deleted_boards', 'purge_old_deleted_comments', 'purge_old_deleted_tags', 'purge_old_deleted_vote_cards'];
   const days = fns.map(trashDays);

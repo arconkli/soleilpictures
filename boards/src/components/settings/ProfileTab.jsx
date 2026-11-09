@@ -17,7 +17,10 @@ import { uploadImage } from '../../lib/uploads.js';
 import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { ColorPicker } from '../ColorPicker.jsx';
-import { Field, SwatchChip, AvatarUploadRow } from './fields.jsx';
+import { Field, SwatchChip, AvatarUploadRow, SettingsCategory, Toggle } from './fields.jsx';
+import {
+  LAYOUT_OUTLINES_DOC, LAYOUT_OUTLINES_EVENT, layoutOutlinesAnswer, setLayoutOutlines,
+} from '../../lib/layoutOutlines.js';
 import { useSettingsSave } from './saveState.jsx';
 import { DeleteAccount } from './DeleteAccount.jsx';
 import AccountBox from './AccountBox.jsx';
@@ -36,6 +39,9 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [pickerPos, setPickerPos] = useState(null);
   const chipRef = useRef(null);
+  // The layout-outlines answer (profiles.settings.layout_outlines.ok); only an
+  // explicit yes reads as on.
+  const [outlinesOk, setOutlinesOk] = useState(false);
   // What other people see when you haven't picked a presence color yourself.
   // Matches what cursors/avatars actually render on the board.
   const presenceFallback = pickPresenceColor(user?.id || user?.email || '');
@@ -54,6 +60,7 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
         const a = p?.avatar_url || '';
         setName(n); setColor(c); setAvatarUrl(a);
         setSaved({ name: n, color: c, avatarUrl: a });
+        setOutlinesOk(layoutOutlinesAnswer(p?.settings) === true);
       })
       .catch(() => {
         feedback.toast({ type: 'error', code: 'profile_load_failed', message: 'Could not load profile.' });
@@ -61,6 +68,21 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [user?.id]);
+
+  // An answer given elsewhere (the "Help improve Clusters?" ask) while Settings
+  // is open.
+  useEffect(() => {
+    const onAnswer = (e) => setOutlinesOk(e?.detail?.ok === true);
+    window.addEventListener(LAYOUT_OUTLINES_EVENT, onAnswer);
+    return () => window.removeEventListener(LAYOUT_OUTLINES_EVENT, onAnswer);
+  }, []);
+
+  // Optimistic, rolled back when the save fails (useSettingsSave toasts it).
+  const toggleOutlines = async (next) => {
+    setOutlinesOk(next);
+    const ok = await save(() => setLayoutOutlines(next));
+    if (!ok) setOutlinesOk(!next);
+  };
 
   // saveOwnProfile writes all three columns, so a patch has to be merged over
   // what the server already holds rather than sent alone.
@@ -178,6 +200,24 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
       {/* Ways back in without the emailed code (lib/passkeys.js). Hidden
           where passkeys can't work. */}
       {user?.email && <PasskeysSection />}
+      {/* Off until the person says yes (here or on the "Help improve
+          Clusters?" ask). The answer is written by set_layout_outlines. */}
+      {user?.email && (
+        <SettingsCategory title="Privacy">
+          <Toggle
+            label="Keep outlines of how my clusters are laid out"
+            desc={(
+              <>
+                Plain boxes showing where cards sit and how big they are. Never what's in them, and not linked to you. A shared cluster is left out if anyone on it says no.{' '}
+                <a href={LAYOUT_OUTLINES_DOC} target="_blank" rel="noopener noreferrer"
+                   onClick={(e) => e.stopPropagation()}>What's kept</a>
+              </>
+            )}
+            value={outlinesOk}
+            onChange={toggleOutlines}
+          />
+        </SettingsCategory>
+      )}
       {/* Last, and behind a click. Everything above autosaves; this is the one
           thing in the panel that asks twice and cannot be taken back. A Scout
           shell account has no address to re-type, so it gets nothing here —

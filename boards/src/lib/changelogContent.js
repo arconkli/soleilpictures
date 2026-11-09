@@ -2,6 +2,95 @@
 // Edit the markdown, then run: npm run docs:build
 
 export const CHANGELOG_CONTENT = {
+ "2026-11-10": [
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Help improve Clusters?",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Help improve Clusters?"
+    }
+   ],
+   "id": "2026-11-10-help-improve-clusters"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Clusters may ask "
+     },
+     {
+      "t": "strong",
+      "v": "Help improve Clusters?",
+      "children": [
+       {
+        "t": "text",
+        "v": "Help improve Clusters?"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", three times at most, on different days. Say "
+     },
+     {
+      "t": "strong",
+      "v": "Sure",
+      "children": [
+       {
+        "t": "text",
+        "v": "Sure"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and it keeps a weekly outline of the clusters you make from now on: a plain box for each card, where it sits and how big it is, never what's in it, and not linked to you. See "
+     },
+     {
+      "t": "link",
+      "v": "Layout outlines",
+      "href": "/docs/account/data-and-privacy#layout-outlines",
+      "children": [
+       {
+        "t": "text",
+        "v": "Layout outlines"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Change your answer any time in "
+     },
+     {
+      "t": "strong",
+      "v": "Settings → Profile",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings → Profile"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  }
+ ],
  "2026-10-28": [
   {
    "type": "heading",

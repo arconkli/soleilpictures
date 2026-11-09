@@ -34,6 +34,11 @@ selection halos appear in to everyone else.
 code, with when each was added and last used. **Add a passkey** saves one on
 the device you're using; **Remove** takes one away, with a moment to undo.
 
+**Privacy** holds one switch, **Keep outlines of how my clusters are laid
+out**: plain boxes showing where cards sit and how big they are, never what's
+in them, and not linked to you. It is off until you say yes; see
+[layout outlines](/docs/account/data-and-privacy#layout-outlines).
+
 **Deleting your account** lives at the foot of this tab. It is the one thing in
 Settings with no undo — see
 [Data and privacy](/docs/account/data-and-privacy#deleting-your-account).

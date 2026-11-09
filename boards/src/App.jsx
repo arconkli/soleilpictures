@@ -54,6 +54,7 @@ import {
 } from './lib/powerReveals.js';
 import { ReferralNudge } from './components/ReferralNudge.jsx';
 import { ReturnReasonAsk } from './components/ReturnReasonAsk.jsx';
+import { LayoutOutlinesAsk } from './components/LayoutOutlinesAsk.jsx';
 import { UpgradeReasonAsk } from './components/UpgradeReasonAsk.jsx';
 import { OFFER_DISMISSED } from './lib/offerEvents.js';
 import { getStarterCards, getStarterTutorialCard, isShowcaseCard } from './lib/onboardingStarter.js';
@@ -69,6 +70,7 @@ import { logEvent, logEventNow, logEventOnce, setEnrolledExperiments, getEnrolle
 import { resolveSurface, surfaceBoardId } from './lib/surface.js';
 import { createCollabTracker } from './lib/collabSession.js';
 import { EV, JOURNEY_PHASE } from './lib/analyticsEvents.js';
+import { logCanvasTool } from './lib/canvasToolEvents.js';
 import { reportError } from './lib/errorReporting.js';
 import { startPageLife } from './lib/pageLife.js';
 import { bootMark, bootAt, bootDetail, onBootMark } from './lib/bootMarks.js';
@@ -3895,6 +3897,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const boardIds = top?.meta?.get(BOARD_DELETE_META);
       const docIds = top?.meta?.get(DOC_CLEANUP_META);
       undoManager.undo(); // re-adds the board card to the Y.Doc
+      if (top) logCanvasTool('undo', { boardId });
       const r = undoManager.redoStack[undoManager.redoStack.length - 1];
       if (boardIds?.length) {
         // Carry the tag onto the freshly-created redo item so a later redo
@@ -3915,6 +3918,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const boardIds = top?.meta?.get(BOARD_DELETE_META);
       const docIds = top?.meta?.get(DOC_CLEANUP_META);
       undoManager.redo();
+      if (top) logCanvasTool('redo', { boardId });
       const u = undoManager.undoStack[undoManager.undoStack.length - 1];
       if (boardIds?.length) {
         try { u?.meta.set(BOARD_DELETE_META, boardIds); } catch (_) {}
@@ -12631,6 +12635,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             .then(() => myTier.refetch?.())
             .catch(() => {});
         }} />
+      {/* "Help improve Clusters?": a yes or no to layout outlines. Waits for the
+          profile, then at most three asks on different days; it shares the
+          ambient ask's one turn per visit (lib/upsellSlot.js). */}
+      {user?.email && (
+        <LayoutOutlinesAsk
+          userId={user?.id || null}
+          settings={mySettings}
+          settingsLoaded={mySettingsLoaded}
+          accountCreatedAt={user?.created_at || null}
+          onAsked={(nextAsks) => {
+            // merge_profile_settings replaces the key whole: nextAsks is the full { n, last }.
+            updateOwnSettings({ layout_outlines_asks: nextAsks })
+              .then(() => refreshSettings?.())
+              .catch(() => {});
+          }} />
+      )}
 
       {mobileShell && (() => {
         // The "+" appears only when a board canvas is the active surface and

@@ -151,7 +151,7 @@ for (const offer of ['cap-hit', 'first-value', 'cap-toast', 'storage-gate', 'pri
   assertEq(claimUpsellSlot('upgrade-reason', T + 5000), true, `the reason ask may follow ${offer}`);
   assertEq(claimUpsellSlot('share-ask', T + 6000), false, `and then holds the moment against ambient kinds (after ${offer})`);
 }
-for (const other of ['share-ask', 'mix-prompt', 'return-reason', 'invite-nudge', 'power-reveal']) {
+for (const other of ['share-ask', 'mix-prompt', 'return-reason', 'layout-ask', 'invite-nudge', 'power-reveal']) {
   __resetUpsellSlot();
   assertEq(claimUpsellSlot(other, T), true, `${other} shows`);
   assertEq(claimUpsellSlot('upgrade-reason', T + 5000), false, `the reason ask waits behind ${other}, which is not an offer`);

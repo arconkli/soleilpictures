@@ -43269,6 +43269,54 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
+     "v": "Privacy",
+     "children": [
+      {
+       "t": "text",
+       "v": "Privacy"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " holds one switch, "
+    },
+    {
+     "t": "strong",
+     "v": "Keep outlines of how my clusters are laid out",
+     "children": [
+      {
+       "t": "text",
+       "v": "Keep outlines of how my clusters are laid out"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ": plain boxes showing where cards sit and how big they are, never what's in them, and not linked to you. It is off until you say yes; see "
+    },
+    {
+     "t": "link",
+     "v": "layout outlines",
+     "href": "/docs/account/data-and-privacy#layout-outlines",
+     "children": [
+      {
+       "t": "text",
+       "v": "layout outlines"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
      "v": "Deleting your account",
      "children": [
       {
@@ -49013,6 +49061,31 @@ export const DOCS_CONTENT = {
        "v": "Archived, not deleted"
       }
      ]
+    ],
+    [
+     [
+      {
+       "t": "link",
+       "v": "Layout outlines",
+       "href": "#layout-outlines",
+       "children": [
+        {
+         "t": "text",
+         "v": "Layout outlines"
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": ", if you said yes"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "400 days, then deleted"
+      }
+     ]
     ]
    ]
   },
@@ -49573,7 +49646,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Clusters records what you do, not what you make: that a card was placed, a cluster opened, a message sent or a search run, with counts and timings. It never records the words, file names or search terms inside your clusters. Messages are measured the same way: roughly how long a message was, in one of four sizes, how many attachments and mentions it had, whether it was a reply, and whether it was delivered. Never what it said or who it mentioned. Videos are measured the same way: that one started playing, for how many seconds, and roughly how far into it, never which video it was."
+     "v": "Clusters records what you do, not what you make: that a card was placed, a tool used, a cluster opened, a message sent or a search run, with counts and timings. It never records the words, file names or search terms inside your clusters. Messages are measured the same way: roughly how long a message was, in one of four sizes, how many attachments and mentions it had, whether it was a reply, and whether it was delivered. Never what it said or who it mentioned. Videos are measured the same way: that one started playing, for how many seconds, and roughly how far into it, never which video it was."
     }
    ]
   },
@@ -49716,6 +49789,197 @@ export const DOCS_CONTENT = {
   },
   {
    "type": "heading",
+   "depth": 3,
+   "text": "Layout outlines",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Layout outlines"
+    }
+   ],
+   "id": "layout-outlines"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you say yes to "
+    },
+    {
+     "t": "strong",
+     "v": "Help improve Clusters?",
+     "children": [
+      {
+       "t": "text",
+       "v": "Help improve Clusters?"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", or turn on "
+    },
+    {
+     "t": "strong",
+     "v": "Keep outlines of how my clusters are laid out",
+     "children": [
+      {
+       "t": "text",
+       "v": "Keep outlines of how my clusters are laid out"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Profile",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Profile"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", Clusters keeps an outline of each cluster you made from 10 November 2026 on: once in the week you say yes, then once in each week the cluster changes. It is how we learn how people lay out their clusters, so we can make the tools fit."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "An outline is a drawing of plain boxes:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "one box per card: where it sits, how big it is, how far it is turned, what kind of card it is (picture, note, link, document and so on) and the order the cards were added"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the box around each section, and which cards are in it"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "for a grid, how many boxes it has"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "how many cards the cluster holds, how deeply it is nested, how many clusters sit inside it, and roughly how old it is (first week, first month, first three months, older)"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Positions and sizes are rounded to steps of half a percent across the cluster, and turns to steps of 5°."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "It never holds what is in a card: no pictures, words, names, colours, links, file names or sizes. It is stored on its own, with nothing that links it to you, your workspace or the cluster, and we never try to link one back. Outlines are deleted after 400 days."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Some clusters are always left out:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "a shared cluster, if anyone who can edit it has said no"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "a cluster that is published or has a public link, and the clusters inside it"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "clusters in a Team workspace"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "clusters made before 10 November 2026"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Change your answer at any time in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Profile",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Profile"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Turning it off leaves your clusters out of every outline made after that. Outlines already made are not removed early: nothing in them points back to you, so we keep no way to pick out yours."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Separately, a few weekly totals are counted across every cluster that changed that week, whether or not anyone said yes: how many changed, how many cards a cluster usually holds, how many use sections, hold another cluster or are mostly pictures, and which tools people use in a cluster's first minutes, first day and first week. Only totals covering at least 20 people are kept, never a cluster or a person."
+    }
+   ]
+  },
+  {
+   "type": "heading",
    "depth": 2,
    "text": "When Clusters asks you a question",
    "inline": [
@@ -49745,7 +50009,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", and Send feedback is there whenever you want it. Every one of them shows you what will be sent with your answer before you send it."
+     "v": ", and Send feedback is there whenever you want it. Every one of them shows you what will be sent with your answer before you send it. A third, "
+    },
+    {
+     "t": "strong",
+     "v": "Help improve Clusters?",
+     "children": [
+      {
+       "t": "text",
+       "v": "Help improve Clusters?"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", is a plain yes or no that sends nothing but your answer."
     }
    ]
   },
@@ -50146,6 +50424,112 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "If you would rather none of it had been asked, deleting your account removes it along with everything else."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Help improve Clusters?",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Help improve Clusters?"
+    }
+   ],
+   "id": "help-improve-clusters"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Clusters may ask "
+    },
+    {
+     "t": "strong",
+     "v": "Help improve Clusters?",
+     "children": [
+      {
+       "t": "text",
+       "v": "Help improve Clusters?"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", with "
+    },
+    {
+     "t": "strong",
+     "v": "Learn more",
+     "children": [
+      {
+       "t": "text",
+       "v": "Learn more"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " under it, leading to "
+    },
+    {
+     "t": "link",
+     "v": "Layout outlines",
+     "href": "#layout-outlines",
+     "children": [
+      {
+       "t": "text",
+       "v": "Layout outlines"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". It asks at most three times, on different days, never on the day you sign up, and stops once you answer. "
+    },
+    {
+     "t": "strong",
+     "v": "Sure",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sure"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " turns layout outlines on; "
+    },
+    {
+     "t": "strong",
+     "v": "No thanks",
+     "children": [
+      {
+       "t": "text",
+       "v": "No thanks"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " leaves them off, which is also where they start. Your answer is stored with your account, and you can change it any time in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Profile",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Profile"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
