@@ -750,12 +750,15 @@ function NoteRichTextBar({ paletteColors, openPickerAt, noteLook, onUpdateEditin
   const toggleBalanced = () => {
     if (cellStyleMode) {
       onCellStyle?.(balanced ? { align: 'left', vAlign: 'top' } : { align: 'center', vAlign: 'center' });
-    } else if (balanced) {
-      setAlignAllBlocks('left');
-      onUpdateEditingNote && onUpdateEditingNote({ vAlign: null });
     } else {
-      setAlignAllBlocks('center');
-      onUpdateEditingNote && onUpdateEditingNote({ vAlign: 'center' });
+      // The alignment (in the note's text) and vAlign (on the card) are one
+      // board undo step; apart, ⌘Z took the alignment off through the note's
+      // own undo and left vAlign for a second press on another stack.
+      const oneStep = getActiveNoteActions().asOneUndoStep || ((fn) => fn());
+      oneStep(() => {
+        setAlignAllBlocks(balanced ? 'left' : 'center');
+        onUpdateEditingNote && onUpdateEditingNote({ vAlign: balanced ? null : 'center' });
+      });
     }
   };
 

@@ -5,7 +5,7 @@ h1: Mobile and tablet
 navLabel: Mobile and tablet
 section: account
 order: 4
-updated: 2026-10-21
+updated: 2026-11-09
 answer: Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom, long-press menus and hold-then-drag to select, Files open with a tap, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 faq:
   - q: Is there a real app?
@@ -16,6 +16,8 @@ faq:
     a: Because a stylus was used on this device, so the finger became a pan gesture — that is how palm rejection works. Turn "Draw with finger" back on under Brush in the draw options.
   - q: How do I select several cards with a finger?
     a: Touch and hold empty canvas until the ring under your finger fills, then drag a box over them. Or hold, let go, and choose Select… — until you press Done, each tap adds a card or takes it out.
+  - q: How do I type in a note on a phone?
+    a: Tap the note to select it, then tap it again where you want to type, or double-tap it. The keyboard comes up with the caret where you tapped, and the board keeps the line you are typing above the keyboard. Tap outside the note when you are done.
   - q: Is anything unavailable on mobile?
     a: Nothing that matters is removed, but dense surfaces like long documents are much better on a large screen. On a phone or a touch tablet, Home shows your projects on their own, without the 3D workspace graph behind them.
 related:
@@ -34,7 +36,9 @@ added to your home screen. They are the same app.
 | One finger drag | Pan |
 | Pinch | Zoom |
 | Tap | Select a card; on empty canvas, clear the selection |
-| Double tap | Add menu at that point |
+| Tap a selected note | Type where you tapped, with the keyboard up |
+| Double tap | On empty canvas, the add menu at that point; on a note, type where you tapped |
+| Tap outside the note you are typing in | Finish; the keyboard goes down |
 | Touch and hold empty canvas, then drag | A selection box, as dragging one with a mouse draws |
 | Touch and hold empty canvas, then let go | The board's menu, with **Select…** in it |
 | Touch and hold a card | Pick it up to move it (on a cluster you can only view, its menu) |
@@ -51,6 +55,11 @@ as it was.
 **Done** in the bar that says "Tap cards to select", each tap adds a card or
 takes it out, and a hold-and-drag box adds to what is picked. **Done** keeps the
 selection; a tap on empty canvas drops it.
+
+While you type in a note, the board glides to keep your line above the keyboard
+and the note's toolbar, and the page doesn't zoom in on an iPhone or iPad. The
+keyboard's autocorrect, automatic capitals and spellcheck work in notes, as in
+any text field.
 
 With the draw tool active, one finger draws and two fingers still pinch-zoom.
 Starting a pinch part-way through a stroke discards that stroke rather than

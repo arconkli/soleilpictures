@@ -398,6 +398,7 @@ import { shellOf } from './lib/deviceShell.js';
 import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
 import { openableUrl } from './lib/openableUrl.js';
 import { holdNoteTypeAhead } from './lib/noteTypeAhead.js';
+import { dropUnclaimedTouchKeyboard } from './lib/touchKeyboard.js';
 
 // A cluster with nothing on its board but files in Files gets a cover of its
 // pictures (lib/coverMosaic.js). Stored covers reach every host, so only where
@@ -3341,7 +3342,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
       const y = clickPos ? Math.round(clickPos.y)       : 60;
       const id = `note-${Date.now()}`;
-      addCard({
+      const placed = addCard({
         id, kind: 'note', html: '',
         ...(d.bgColor ? { bgColor: d.bgColor } : null),
         ...(d.textColor ? { textColor: d.textColor } : null),
@@ -3349,6 +3350,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ...(d.fontSize ? noteFontSizePatch(d.fontSize) : null),
         x: Math.max(8, x), y: Math.max(8, y), w, h,
       });
+      // Refused (the card limit's wall is up): no note will come to take the
+      // keyboard the tap raised for it (lib/touchKeyboard.js) or the typing
+      // held for it, so neither waits.
+      if (!placed) { dropUnclaimedTouchKeyboard(); return; }
       setAutoFocusId(id);
       // Typing before its editor has the focus is the note's.
       holdNoteTypeAhead(id);

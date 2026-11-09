@@ -325,3 +325,36 @@ for (const [label, key, make] of PLUGINS) {
     }
   });
 }
+
+// Typing through an input method (iOS predictive text, Android keyboards, an
+// IME): ProseMirror marks those transactions "composition". The candidate
+// underline must not appear around the word being composed (re-rendering its
+// text node ends the composition), and must appear once it ends.
+test('candidate names: a word typed through an input method is underlined when the composition ends, not during it', () => {
+  const index = names('Ada', 'Bob');
+  const plugin = makeCandidateNamePlugin({ getIndex: () => index });
+  const words = (s) => CANDIDATE_NAME_KEY.getState(s).set.find().map((d) => s.doc.textBetween(d.from, d.to));
+  let state = EditorState.create({ schema: rich, doc: rich.node('doc', null, [para('Bob met '), para('Later.')]), plugins: [plugin] });
+  state = state.apply(state.tr.setMeta(CANDIDATE_NAME_KEY, true));
+  assert.deepEqual(words(state), ['Bob']);
+  for (const ch of 'Ada') state = state.apply(state.tr.insertText(ch, state.doc.child(0).nodeSize - 1).setMeta('composition', 1));
+  assert.equal(state.doc.child(0).textContent, 'Bob met Ada');
+  assert.deepEqual(words(state), ['Bob'], 'no new underline mid-composition');
+  assert.ok(CANDIDATE_NAME_KEY.getState(state).held, 'the composed span is held');
+  state = state.apply(state.tr.setMeta(CANDIDATE_NAME_KEY, { composed: true }));
+  assert.deepEqual(words(state).sort(), ['Ada', 'Bob']);
+  assert.equal(CANDIDATE_NAME_KEY.getState(state).held, null);
+  const fresh = EditorState.create({ schema: rich, doc: state.doc, plugins: [makeCandidateNamePlugin({ getIndex: () => index })] });
+  assert.deepEqual(words(fresh.apply(fresh.tr.setMeta(CANDIDATE_NAME_KEY, true))).sort(), words(state).sort());
+});
+
+test('candidate names: an ordinary edit after a composition also redraws the held span', () => {
+  const index = names('Ada');
+  const words = (s) => CANDIDATE_NAME_KEY.getState(s).set.find().map((d) => s.doc.textBetween(d.from, d.to));
+  let state = EditorState.create({ schema: rich, doc: rich.node('doc', null, [para('x '), para('y')]), plugins: [makeCandidateNamePlugin({ getIndex: () => index })] });
+  state = state.apply(state.tr.setMeta(CANDIDATE_NAME_KEY, true));
+  state = state.apply(state.tr.insertText('Ada', 3).setMeta('composition', 1));
+  assert.deepEqual(words(state), []);
+  state = state.apply(state.tr.insertText('!', state.doc.content.size - 1)); // typed in the other paragraph
+  assert.deepEqual(words(state), ['Ada']);
+});

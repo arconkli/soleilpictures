@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { arrowBar, pickArrowHead } from '../helpers/arrowBar.js';
 import { dockFromCard } from '../helpers/docFrame.js';
+import { hitBox } from './helpers.js';
 
 const tapOn = async (page, sel) => {
   const el = page.locator(sel).first();
@@ -609,3 +610,49 @@ for (const p of PAGES) {
     expect(bad, `${p.name} — controls a finger can't take:\n  ${bad.join('\n  ')}`).toEqual([]);
   });
 }
+
+// A note's checklist box and its Show all chip live inside a card, which the
+// page audit skips (ALLOW: card content is drawn at the board's zoom). Their
+// finger-sized hit areas (styles.css, pointer: coarse) are measured here at
+// 100%, on a note drawn with the app's own classes outside the board's
+// transform: two checklist items, the first as clipped by the note body as a
+// real one, and an overflowing note's chip in its corner.
+test("a note's checklist box and Show all take a finger, and a box never takes its neighbour's tap", async ({ page }) => {
+  await page.goto('/?local=1&reset=1');
+  await page.waitForSelector('.canvas-wrap .card', { timeout: 30000 });
+  await page.addStyleTag({ content: '.dev-banner, .twk-gear { display: none !important; }' });
+  await page.evaluate(() => {
+    const note = document.createElement('div');
+    note.className = 'note is-overflowing';
+    note.setAttribute('data-tt-probe', '');
+    Object.assign(note.style, { position: 'fixed', left: '40px', top: '140px', width: '240px', height: '160px', zIndex: '2147483000' });
+    const item = (t) => '<li class="ck"><span class="ck-box" role="checkbox" aria-checked="false"></span>'
+      + `<div class="ck-text"><p>${t}</p></div></li>`;
+    note.innerHTML = '<div class="note-body"><ul class="note-checklist">'
+      + item('Call the location scout') + item('Book the van')
+      + '</ul></div><button type="button" class="note-more-chip">Show all</button>';
+    document.body.appendChild(note);
+  });
+  const first = page.locator('[data-tt-probe] .ck-box').nth(0);
+  const box = await hitBox(first);
+  expect(box.covered, 'the first box is covered').toBe(false);
+  // 22 wide: the note body's scroll clip stops it at the box's left edge.
+  expect(box.w, `box hit area ${box.w}×${box.h}`).toBeGreaterThanOrEqual(22);
+  expect(box.h, `box hit area ${box.w}×${box.h}`).toBeGreaterThanOrEqual(24);
+  // No overlap: just below box 1 is still box 1, just above box 2 is box 2.
+  const probe = await page.evaluate(() => {
+    const boxes = [...document.querySelectorAll('[data-tt-probe] .ck-box')];
+    const at = (b, dy) => {
+      const r = b.getBoundingClientRect();
+      const el = document.elementFromPoint(r.left + r.width / 2, dy > 0 ? r.bottom + dy : r.top + dy);
+      return boxes.indexOf(el?.closest('.ck-box'));
+    };
+    return { belowFirst: at(boxes[0], 4), aboveSecond: at(boxes[1], -4) };
+  });
+  expect(probe.belowFirst, 'a tap just under box 1 lands on box 1').toBe(0);
+  expect(probe.aboveSecond, 'a tap just above box 2 lands on box 2').toBe(1);
+  const chip = await hitBox(page.locator('[data-tt-probe] .note-more-chip'));
+  expect(chip.covered, 'Show all is covered').toBe(false);
+  // The audit's pixel of slack (a half-pixel edge measures 39).
+  expect(Math.min(chip.w, chip.h), `Show all hit area ${chip.w}×${chip.h}`).toBeGreaterThanOrEqual(39);
+});

@@ -158,6 +158,7 @@ const SECTIONS = [
       [['Double-click'], 'Edit a note or title'],
       [[`${CMD}Z`, `${CMD}⇧Z`], 'Undo · redo text (history survives closing the note)'],
       [[`${CMD}B`, `${CMD}I`, `${CMD}U`], 'Bold · italic · underline'],
+      [['Tab', '⇧Tab'], 'Nest · un-nest a list item'],
       [['@'], 'Mention a board, doc, or card'],
     ],
   },

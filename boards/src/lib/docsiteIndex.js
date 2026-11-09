@@ -241,7 +241,7 @@ export const DOCS_PAGES = [
     "answer": "Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.",
     "section": "start",
     "order": 3,
-    "updated": "2026-10-29",
+    "updated": "2026-11-09",
     "navLabel": "Keyboard shortcuts",
     "headings": [
       {
@@ -588,7 +588,7 @@ export const DOCS_PAGES = [
     "answer": "A note is a rich-text card you can put anywhere on a canvas. Press N to add one. Notes support formatting, checklists and @-mentions of other boards, docs and cards, they auto-link URLs into previews, and two people can type in the same note at once and see each other's cursors.",
     "section": "canvas",
     "order": 3,
-    "updated": "2026-10-21",
+    "updated": "2026-11-09",
     "navLabel": "Notes",
     "headings": [
       {
@@ -632,11 +632,11 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Why is there no spellcheck underline?",
-        "a": "Browser and Grammarly spellcheck are deliberately disabled inside notes. Their injected markup fought with the collaborative editor and corrupted formatting."
+        "a": "On a computer, browser and Grammarly spellcheck are deliberately disabled inside notes. Their injected markup fought with the collaborative editor and corrupted formatting. On a phone or tablet, notes use the keyboard's own autocorrect, automatic capitals and spellcheck. Grammarly stays off everywhere."
       },
       {
         "q": "How do I resize a note?",
-        "a": "Drag its corner. Notes also grow downward on their own as you type past the bottom edge."
+        "a": "Drag its corner. Notes also grow downward on their own as you type past the bottom edge, and shrink back as you delete."
       }
     ]
   },
@@ -3007,7 +3007,7 @@ export const DOCS_PAGES = [
     "answer": "Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom, long-press menus and hold-then-drag to select, Files open with a tap, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.",
     "section": "account",
     "order": 4,
-    "updated": "2026-10-21",
+    "updated": "2026-11-09",
     "navLabel": "Mobile and tablet",
     "headings": [
       {
@@ -3060,6 +3060,10 @@ export const DOCS_PAGES = [
       {
         "q": "How do I select several cards with a finger?",
         "a": "Touch and hold empty canvas until the ring under your finger fills, then drag a box over them. Or hold, let go, and choose Select… — until you press Done, each tap adds a card or takes it out."
+      },
+      {
+        "q": "How do I type in a note on a phone?",
+        "a": "Tap the note to select it, then tap it again where you want to type, or double-tap it. The keyboard comes up with the caret where you tapped, and the board keeps the line you are typing above the keyboard. Tap outside the note when you are done."
       },
       {
         "q": "Is anything unavailable on mobile?",

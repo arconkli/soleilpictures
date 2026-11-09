@@ -9,8 +9,9 @@
 // on every edit. So the fragment is the collaborative source of truth and
 // card.html is its cache.
 
-import { scrubPastedHtml } from '../lib/pasteScrub.js';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { isInternalPaste, scrubPastedHtml } from '../lib/pasteScrub.js';
+import { noteTextSlice, dropEmptyTextStyle } from '../lib/notePaste.js';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -36,21 +37,37 @@ import {
   noteCommentScope,
   getNoteUndoManager,
   noteFragmentIsBlank,
+  stripNoteChromeForSeed,
 } from '../lib/noteDocState.js';
-import { bodyHasText } from '../lib/noteBody.js';
+import { bodyHasText, htmlHasContent, htmlHasText } from '../lib/noteBody.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { CommentInlinePopover } from './CommentInlinePopover.jsx';
 import { linkifyNoteHtml } from '../lib/noteLinkify.js';
-import { cardHeightForBody } from '../lib/noteMeasure.js';
+import { cardHeightForBody, cardHeightForContent } from '../lib/noteMeasure.js';
+import { ySyncPluginKey } from 'y-prosemirror';
 import { sanitizeNoteHtml } from '../lib/sanitizeNoteHtml.js';
 import { ensureFontsFromHtml } from '../lib/googleFonts.js';
-import { setActiveNoteEditor } from '../lib/noteEditorRegistry.js';
+import { setActiveNoteEditor, ensureClientRectVisible } from '../lib/noteEditorRegistry.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
+import { coarsePointer, noteTypingAttrs, typingBand, clampToBox } from '../lib/noteTouchTyping.js';
 import { startTouchScrollGesture } from '../lib/touchScroll.js';
 import { takeNoteTypeAhead } from '../lib/noteTypeAhead.js';
+import { releaseTouchKeyboard, touchKeyboardHeld } from '../lib/touchKeyboard.js';
+import { createNoteUndoRoute } from '../lib/noteUndoRoute.js';
+import { noteEntryRange } from '../lib/noteEntryPoint.js';
+import { inertContainer } from '../lib/inertHtml.js';
+import { TextSelection } from '@tiptap/pm/state';
 import './noteTiptap.css';
 
 const NOTE_AUTOSIZE_MAX = 480;
+// The "Show all" ceiling (the chip in cards.jsx NoteCardCollab). A note that
+// was already taller than NOTE_AUTOSIZE_MAX when it opened grows up to this
+// instead, so editing never cuts a note shown in full back to 480.
+const NOTE_SHOW_ALL_MAX = 1600;
+// A co-editor's typing arrives here through y-sync. Their own client writes
+// the html cache at once; this one re-derives it only after they pause, so
+// some client always leaves html matching the merged note.
+const REMOTE_CACHE_DEBOUNCE_MS = 400;
 
 // UI that belongs to this editing session, wherever it is portaled: focus or a
 // click landing in any of these is still "in the note", not leaving it. The
@@ -86,7 +103,133 @@ function displayHeightWithPreviews(editorDom, html) {
   try { return cardHeightForBody(probe); } finally { probe.remove(); }
 }
 
-export function NoteTiptapSurface({
+// The link-preview cards of the note's cached html (linkify appends them; the
+// fragment never holds them), drawn under the editor so a note keeps them while
+// it is edited instead of opening a blank band where they were. Parsed inert,
+// then sanitized like every other render of note html.
+function previewBlocksHtml(html) {
+  if (!html || html.indexOf('note-link-preview') < 0) return '';
+  const root = inertContainer(html);
+  const blocks = Array.from(root.querySelectorAll('.note-link-preview')).map((n) => n.outerHTML).join('');
+  return blocks ? sanitizeNoteHtml(blocks) : '';
+}
+
+function selectRange(view, r) {
+  const { doc } = view.state;
+  view.dispatch(view.state.tr.setSelection(TextSelection.between(doc.resolve(r.from), doc.resolve(r.to))));
+  // EditorView.focus() focuses with preventScroll, and the transaction above
+  // never asked for scrollIntoView: nothing on the canvas or in the note moves.
+  view.focus();
+}
+
+// Put the selection where the gesture that opened the note landed (see
+// lib/noteEntryPoint.js). The end when the point maps to nothing.
+function placeAtEntry(ed, entry, tries = 0, done = null) {
+  if (!ed || ed.isDestroyed) return;
+  const view = ed.view;
+  if (!view.dom.isConnected && tries < 3) {
+    requestAnimationFrame(() => placeAtEntry(ed, entry, tries + 1, done));
+    return;
+  }
+  try {
+    if (entry.scrollTop) view.dom.scrollTop = entry.scrollTop;
+    const r = noteEntryRange(view, entry);
+    if (r) { selectRange(view, r); done?.(); return; }
+  } catch (_) { /* fall through to the end */ }
+  ed.commands.focus('end');
+  done?.();
+}
+
+// Text typed before the editor came, put in at the caret as if typed there.
+// A line break is the Enter key itself, run through the editor's own key
+// handling, so in a list or a checklist it starts the next item as Enter does
+// there (a bare splitBlock left a second paragraph inside the item).
+function pressEnter(ed) {
+  const event = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true });
+  ed.view.someProp('handleKeyDown', (f) => f(ed.view, event));
+}
+function replayTyped(ed, text) {
+  text.split('\n').forEach((line, i) => {
+    if (i) pressEnter(ed);
+    if (line) ed.commands.insertContent({ type: 'text', text: line });
+  });
+}
+
+// A finger opened this note, and the keyboard keeper (lib/touchKeyboard.js)
+// has held the keyboard since the tap. The editor takes the focus first, then
+// the keeper goes: iOS keeps the keyboard up for a move from one editable to
+// another, never for one through the page. What was typed into the keeper
+// goes in at the caret as if typed there (replayTyped), as the desktop
+// type-ahead does.
+// It hands over once the editor really has the focus (until then the keeper
+// keeps both), or after ten frames without it.
+function handOffTouchKeyboard(ed, cardId, tries = 0) {
+  if (!ed || ed.isDestroyed || !touchKeyboardHeld(cardId)) return;
+  if (!ed.view.hasFocus() && ed.view.dom.isConnected) ed.view.focus();
+  if (!ed.view.hasFocus()) {
+    // Not on screen yet: the keeper keeps the keyboard and the typing until
+    // it is. If the editor still can't take the focus after ten frames, it
+    // takes the typing anyway and the keeper goes (the keyboard with it; a
+    // tap on the note brings it back), so nothing typed is ever lost.
+    if (tries < 10) {
+      requestAnimationFrame(() => handOffTouchKeyboard(ed, cardId, tries + 1));
+      return;
+    }
+  }
+  const typed = releaseTouchKeyboard(cardId);
+  if (typed) replayTyped(ed, typed);
+}
+
+// Where the caret goes as a note opens, then the hand-over from whatever held
+// the typing meanwhile (lib/noteTypeAhead.js for a keyboard, the keeper for a
+// finger). Runs once the editor is on screen (the open effect).
+function openEditor(ed, cardId, entry) {
+  if (!ed || ed.isDestroyed) return;
+  const ahead = takeNoteTypeAhead(cardId);
+  // Opened by a double-click or tap: the caret (or, for a mouse, the word)
+  // goes where it landed. Not Tiptap's focus() there: it scrolls the
+  // selection into view, which jumped a long note to its last line.
+  if (!ahead && entry) {
+    placeAtEntry(ed, entry, 0, () => handOffTouchKeyboard(ed, cardId));
+    return;
+  }
+  // A new note, or typed-ahead text: the caret at the end, as the legacy
+  // editor did.
+  ed.commands.focus('end');
+  ed.view.focus();
+  if (ahead) replayTyped(ed, ahead);
+  // Never leave a keeper behind (a touch-and-trackpad iPad can have both).
+  handOffTouchKeyboard(ed, cardId);
+}
+
+// Seeding the note's fragment and creating its comment map write to the
+// board's Y.Doc, and the canvas re-renders from its Y.Doc observers. Done in
+// render (the useMemos below used to do it on a note's first open), that
+// update reached the parent mid-render: React's "Cannot update a component
+// while rendering a different component". So it happens here, in a layout
+// effect, before the editor is built. The render it schedules runs before the
+// browser paints, so nothing flickers, and the editor's own calls below
+// (ensureNoteFragment, seedNoteFragmentFromHtml, noteCommentScope,
+// getNoteUndoManager) then find the work done and write nothing.
+export function NoteTiptapSurface(props) {
+  const { ydoc, cardYMap, html, body } = props;
+  const [ready, setReady] = useState(false);
+  useLayoutEffect(() => {
+    if (ydoc && cardYMap) {
+      try {
+        seedNoteFragmentFromHtml(ydoc, cardYMap, html, body);
+        noteCommentScope(ydoc, cardYMap);
+      } catch (_) { /* the editor's own calls below retry it */ }
+    }
+    setReady(true);
+    // Once per editing session, like the fragment memo below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ydoc, cardYMap]);
+  if (!ready) return <div className="note-body" />;
+  return <NoteTiptapEditing {...props} />;
+}
+
+function NoteTiptapEditing({
   ydoc,
   cardYMap,
   html,
@@ -97,6 +240,11 @@ export function NoteTiptapSurface({
   awareness = null,
   manuallyResized = false,
   autoFocus = false,
+  // Where editing started: { x, y, mode, scrollTop } (lib/noteEntryPoint.js),
+  // or null for the end.
+  entry = null,
+  // Remove a link preview by url (NoteCardCollab's removePreview).
+  onRemovePreview = null,
   onExitEdit,
 }) {
   const { workspaceId } = useEntityTrie();
@@ -120,6 +268,14 @@ export function NoteTiptapSurface({
     () => (ydoc && cardYMap ? getNoteUndoManager(ydoc, cardYMap) : null),
     [ydoc, cardYMap]
   );
+  // Who answers ⌘Z: the board after a whole-note style from the note bar, the
+  // text otherwise (lib/noteUndoRoute.js). One per editing session.
+  const undoRouteRef = useRef(null);
+  useEffect(() => {
+    const route = createNoteUndoRoute(noteUndoManager);
+    undoRouteRef.current = route;
+    return () => { route.destroy(); if (undoRouteRef.current === route) undoRouteRef.current = null; };
+  }, [noteUndoManager]);
 
   // Word-level comments, same stack as the doc editor: the CommentMark carries
   // the anchor (inside the fragment, so the range survives concurrent edits)
@@ -131,7 +287,14 @@ export function NoteTiptapSurface({
   );
   const [openThread, setOpenThread] = useState(null); // { id, anchor } | null
 
-  const writeRaf = useRef(0);
+  // Preview cards under the editor, from the live html cache (the write-through
+  // below refreshes card.html, and the parent passes it back down).
+  const previewHtml = useMemo(() => previewBlocksHtml(html), [html]);
+
+  // A local edit flushes in a microtask, a co-editor's after a debounce.
+  const localQueuedRef = useRef(false);
+  const remoteTimerRef = useRef(0);
+  const remotePendingRef = useRef(false);
   const editorRef = useRef(null);
   const manualRef = useRef(manuallyResized);
   manualRef.current = manuallyResized;
@@ -212,22 +375,80 @@ export function NoteTiptapSurface({
   // refuses: a blank fragment over a card that still has body text, before
   // this session ever saw the fragment hold anything. That is a failed seed,
   // not an edit, and saving it is how body-only notes were wiped (NOTES-01).
+  // A blank fragment over a cache that still shows something (body text, or
+  // html text or a picture) before this session saw any content is a failed
+  // seed, not an edit.
   const sawContentRef = useRef(false);
-  const writeTextCache = () => {
-    if (!fragment) return;
+  // A local change to the note this session (typing, undo, a paste), and a
+  // link preview removed while editing whose new size is still to measure.
+  const dirtyRef = useRef(false);
+  const needsMeasureRef = useRef(false);
+  // The note as this session found it. Opening writes nothing; these only bound
+  // the auto-height once a real edit happens. A note holding text at open
+  // counts as seen (the open-time flush used to set this), so deleting all of
+  // it is saved rather than refused as a failed seed.
+  const openRef = useRef(null);
+  if (openRef.current === null) {
+    const h0 = Number(cardYMap?.get?.('h'));
+    const blank0 = fragment ? noteFragmentIsBlank(fragment) : true;
+    if (!blank0) sawContentRef.current = true;
+    openRef.current = { h: Number.isFinite(h0) && h0 > 0 ? h0 : 0, blank: blank0 };
+  }
+  // The html cache for the fragment as it is now, or null to leave the cache.
+  const textCacheHtml = () => {
+    if (!fragment) return null;
     const blank = noteFragmentIsBlank(fragment);
     if (!blank) sawContentRef.current = true;
-    else if (!sawContentRef.current && bodyHasText(cardYMap?.get?.('body'))) return;
+    else if (!sawContentRef.current && (bodyHasText(cardYMap?.get?.('body')) || htmlHasContent(cardYMap?.get?.('html')))) return null;
     const serialized = noteFragmentToHtml(fragment);
     // noteFragmentToHtml answers '' when it can't serialize (a node or mark
     // this build's schema doesn't know, say from a newer peer). From a
     // fragment that holds text that is a failure, not an edit: keep the cache.
-    if (!serialized && !blank) return;
+    if (!serialized && !blank) return null;
     // Previews the user removed stay removed (the card's hiddenPreviews).
-    const html = linkifyNoteHtml(serialized, cardYMap?.get?.('hiddenPreviews'));
-    writeCache({ html, body: null });
-    return html;
+    return linkifyNoteHtml(serialized, cardYMap?.get?.('hiddenPreviews'));
   };
+
+  // Card height after a local edit, or null to leave it (a hand-resized note
+  // never auto-sizes). Measured from the content, not the flex:1 body that
+  // fills the card, so the note shrinks as text is deleted. Growth stops at
+  // 480, or at the Show all ceiling when the note was already taller than 480
+  // at open. A note that was empty at open (a new note) keeps the size it was
+  // placed at as its floor; any other note fits its text, never below the card
+  // minimum (40, inside cardHeightForContent).
+  const autoHeight = (html) => {
+    const dom = editorRef.current?.view?.dom;
+    if (manualRef.current || !dom) return null;
+    const { h: openH, blank } = openRef.current;
+    const cap = openH > NOTE_AUTOSIZE_MAX ? Math.max(NOTE_SHOW_ALL_MAX, openH) : NOTE_AUTOSIZE_MAX;
+    const floor = blank ? openH : 0;
+    const need = Math.max(cardHeightForContent(dom), displayHeightWithPreviews(dom, html));
+    return Math.round(Math.min(cap, Math.max(floor, need)));
+  };
+
+  // html + body + h in ONE setNoteCacheFields call (one Y transaction), which
+  // also drops unchanged keys, so a no-op writes nothing. `measure` is true
+  // only for this session's own edits: a co-editor's client sizes the note.
+  const flush = (measure) => {
+    if (!fragment) return;
+    let html = null;
+    try { html = textCacheHtml(); } catch (_) { html = null; }
+    const patch = html != null ? { html, body: null } : {};
+    if (measure) {
+      try { const h = autoHeight(html); if (h != null) patch.h = h; } catch (_) { /* noop */ }
+    }
+    if (Object.keys(patch).length) writeCache(patch);
+  };
+
+  // A preview removed while editing: once the html without it comes back
+  // (cards.jsx removePreview writes it), size the note to what is left. The
+  // removal is this session's own edit, so it measures here.
+  useEffect(() => {
+    if (!needsMeasureRef.current) return;
+    needsMeasureRef.current = false;
+    try { flush(true); } catch (_) { /* noop */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewHtml]);
 
   // @-mention picker state, driven by the suggestion plugin.
   const [mention, setMention] = useState(null); // { range, query, clientRect } | null
@@ -258,27 +479,25 @@ export function NoteTiptapSurface({
         ...(noteUndoManager ? { yUndoOptions: { undoManager: noteUndoManager } } : {}),
       })] : []),
     ],
-    // The surface mounts ONLY to edit (double-click / tap / new card), so always
-    // place the caret at the end on mount — matching the legacy editor, which
-    // focused + collapsed-to-end on entry. (autoFocus prop kept for callers.)
-    autofocus: 'end',
+    // The surface mounts ONLY to edit. The caret and the focus are set once
+    // the editor is on screen (the open effect below), not by Tiptap's
+    // autofocus or onCreate. (autoFocus prop kept for callers.)
+    autofocus: false,
     editable: true,
-    // What was typed while a new note waited for this editor (its chunk is
-    // fetched at the session's first edit): the caret is at the end by now.
-    onCreate: ({ editor: ed }) => {
-      const ahead = takeNoteTypeAhead(cardId);
-      if (!ahead) return;
-      const chain = ed.chain().focus('end');
-      ahead.split('\n').forEach((line, i) => {
-        if (i) chain.splitBlock();
-        if (line) chain.insertContent({ type: 'text', text: line });
-      });
-      chain.run();
-    },
     editorProps: {
       // Foreign pastes lose their typography so the note's own font + size
-      // hold. See pasteScrub.
-      transformPastedHTML: scrubPastedHtml,
+      // hold (see pasteScrub), and read like an older note's html: preview
+      // cards dropped, a link whose words are its own address left as plain
+      // text (linkify links it, with its preview, on save), h4–h6 made h3,
+      // and a block's last <br> dropped. A copy from a note editor
+      // (ProseMirror's data-pm-slice) is already in the note's shape.
+      transformPastedHTML: (h) => (isInternalPaste(h) ? h : stripNoteChromeForSeed(scrubPastedHtml(h))),
+      // Plain text keeps its blank lines (ProseMirror's own parser collapses
+      // them): a line per paragraph, an empty line an empty one. notePaste.js.
+      clipboardTextParser: (text, $context, _plain, view) => noteTextSlice(text, view.state.schema, $context.marks()),
+      // The bare <span> Google Docs wraps text in becomes a textStyle mark with
+      // no attribute once pasteScrub takes its typography: drop it.
+      transformPasted: (slice) => dropEmptyTextStyle(slice),
       attributes: {
         // The measurer (cardHeightForBody) and the note CSS both key off
         // .note-body — Tiptap must render INTO it.
@@ -286,16 +505,19 @@ export function NoteTiptapSurface({
         // Grammarly OFF on notes. Grammarly paints its underlines via its own
         // absolutely-positioned overlay, which does NOT follow the canvas's
         // `transform: scale(zoom)` — so at any zoom ≠ 100% its squiggles drift
-        // left of the words (the "spellcheck misalignment" bug). Native
+        // left of the words (the "spellcheck misalignment" bug). On a computer native
         // spellcheck is OFF too: Chromium paints its squiggles at untransformed
         // glyph coordinates (they do NOT follow an ancestor transform:scale),
         // so they misalign exactly the same way at any zoom ≠ 100%. Docs keep
         // native spellcheck because DocPageEditor scales via CSS `zoom`, which
-        // the squiggle painter does follow.
+        // the squiggle painter does follow. A phone or tablet types with its
+        // keyboard's autocorrect, capitals and spellcheck on
+        // (lib/noteTouchTyping.js): that is how people type there, and a
+        // mistyped word left uncorrected is worse than a squiggle a little off.
         'data-gramm': 'false',
         'data-gramm_editor': 'false',
         'data-enable-grammarly': 'false',
-        spellcheck: 'false',
+        ...noteTypingAttrs(),
       },
       // Toggle a checklist item by clicking its box, even mid-edit.
       handleClickOn: (view, pos, _node, _nodePos, event) => {
@@ -312,9 +534,21 @@ export function NoteTiptapSurface({
         }
         return false;
       },
-      // Tab inserts two spaces (legacy note behaviour); Shift-Tab falls through
-      // to the checklist lift keymap.
+      // Tab / Shift-Tab: see the Tab branch below. Enter: plain-dash lists.
       handleKeyDown: (view, event) => {
+        // ⌘Z / ⇧⌘Z (Ctrl-Z, Ctrl-Y, Ctrl-Shift-Z too) right after a whole-note
+        // style from the note bar take back that style, which is on the
+        // board's undo; every other press stays the text's (noteUndoRoute).
+        if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.isComposing) {
+          const k = (event.key || '').toLowerCase();
+          const route = undoRouteRef.current;
+          const undo = k === 'z' && !event.shiftKey;
+          const redo = (k === 'z' && event.shiftKey) || (k === 'y' && !event.shiftKey);
+          if (route && ((undo && route.undo()) || (redo && route.redo()))) {
+            event.preventDefault();
+            return true;
+          }
+        }
         // Plain-dash lists: Enter on a top-level paragraph that starts with
         // "- " continues the prefix on the next line; Enter on a bare "- "
         // clears it and ends the run (the usual editor convention). Top-level
@@ -337,9 +571,31 @@ export function NoteTiptapSurface({
             }
           }
         }
-        if (event.key === 'Tab' && !event.shiftKey) {
+        // Tab. editorProps.handleKeyDown runs BEFORE every plugin keymap
+        // (prosemirror-view someProp: direct props first), so ListItem's own
+        // Tab/Shift-Tab (sink/lift) never ran: handle lists here. Tab never
+        // deletes text and never moves focus out of the note: every plain
+        // Tab / Shift-Tab is prevented. Composition (IME) is left alone.
+        if (event.key === 'Tab' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+          if (event.isComposing || view.composing) return false;
           event.preventDefault();
-          view.dispatch(view.state.tr.insertText('  '));
+          const ed = editorRef.current;
+          const { $from, empty } = view.state.selection;
+          let item = null; // the innermost list item the caret is in
+          for (let d = $from.depth; d > 0 && !item; d--) {
+            const name = $from.node(d).type.name;
+            if (name === 'listItem' || name === 'noteChecklistItem') item = name;
+          }
+          if (item === 'listItem') {
+            if (event.shiftKey) ed?.commands.liftListItem('listItem');
+            else ed?.commands.sinkListItem('listItem');
+          } else if (item === 'noteChecklistItem') {
+            // Checklists don't nest (paragraph+ content): Tab does nothing;
+            // Shift-Tab keeps lifting the item back to a paragraph.
+            if (event.shiftKey) ed?.commands.liftListItem('noteChecklistItem');
+          } else if (!event.shiftKey && empty) {
+            view.dispatch(view.state.tr.insertText('  '));
+          }
           return true;
         }
         return false;
@@ -351,11 +607,109 @@ export function NoteTiptapSurface({
 
   editorRef.current = editor;
 
+  // Open the editor in the frame after it mounts, once its DOM is on screen.
+  // Not in Tiptap's onCreate: that runs a tick after the editor is built,
+  // which can be before React has put it on screen (and, in dev, for editors
+  // StrictMode builds and throws away), and a focus() there does nothing: the
+  // keyboard keeper let go, and what was typed next reached the canvas as
+  // shortcuts. StrictMode's rehearsal unmount cancels the first frame here;
+  // a focus before it was blurred by that unmount, which closed the note.
+  useEffect(() => {
+    if (!editor) return undefined;
+    let raf = 0;
+    let tries = 0;
+    const open = () => {
+      raf = 0;
+      if (editor.isDestroyed) return;
+      if (!editor.view.dom.isConnected && tries++ < 30) {
+        raf = requestAnimationFrame(open);
+        return;
+      }
+      // Still not on screen after 30 frames: open it anyway, at the end, so
+      // whatever held the typing meanwhile hands it over and lets go (the
+      // keeper has no timer of its own).
+      openEditor(editor, cardId, editor.view.dom.isConnected ? entry : null);
+    };
+    raf = requestAnimationFrame(open);
+    return () => { if (raf) cancelAnimationFrame(raf); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor]);
+
   // Register as the active note editor so the bottom toolbar drives it.
   useEffect(() => {
     if (!editor) return undefined;
-    setActiveNoteEditor(editor, { openAddComment: addComment.open });
+    setActiveNoteEditor(editor, {
+      openAddComment: addComment.open,
+      // A whole-note style written to the board (CanvasSurface's
+      // onUpdateEditingNote), so ⌘Z here can find it.
+      noteStyleWrite: (board, write) => {
+        const route = undoRouteRef.current;
+        if (route) route.styleWrite(board, write); else write();
+      },
+      // Several writes as one board undo step: Yjs nests transactions and the
+      // outer origin wins, so the fragment, its html cache and card fields all
+      // land in one 'local' step (as cards.jsx's checklist toggle does). The
+      // cache is written inside so a canvas ⌘Z restores what read mode shows.
+      asOneUndoStep: (fn) => {
+        if (!ydoc) { fn(); return; }
+        ydoc.transact(() => {
+          fn();
+          try { flush(false); } catch (_) { /* noop */ }
+        }, 'local');
+      },
+    });
     return () => setActiveNoteEditor(null);
+  }, [editor]);
+
+  // Phones and tablets: the line being typed is never under the keyboard or
+  // the note bar. The keyboard is laid over the page and shrinks the visual
+  // viewport, so on each change to it, each caret move and each change in the
+  // note's size, the board glides just enough to show the caret (CanvasSurface,
+  // through the registry; the sums are in lib/noteTouchTyping.js). Never while
+  // a finger is down: that is the person moving the board or dragging a
+  // selection handle.
+  useEffect(() => {
+    if (!editor || !coarsePointer()) return undefined;
+    const vv = window.visualViewport || null;
+    const noteEl = editor.view.dom.closest?.('.note') || null;
+    let fingers = 0;
+    let raf = 0;
+    const reveal = () => {
+      raf = 0;
+      if (editor.isDestroyed || !editor.isFocused || fingers > 0) return;
+      const { view } = editor;
+      const band = typingBand(window, view.dom.closest('.canvas-wrap'), document.querySelector('.tob'));
+      if (!band) return;
+      let caret;
+      try { caret = view.coordsAtPos(view.state.selection.head); } catch (_) { return; }
+      ensureClientRectVisible(view.dom, clampToBox(caret, noteEl?.getBoundingClientRect() || null), band);
+    };
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(reveal); };
+    const onTouch = (e) => { fingers = e.touches ? e.touches.length : 0; };
+    const opts = { capture: true, passive: true };
+    editor.on('selectionUpdate', schedule);
+    editor.on('focus', schedule);
+    vv?.addEventListener('resize', schedule);
+    vv?.addEventListener('scroll', schedule);
+    document.addEventListener('touchstart', onTouch, opts);
+    document.addEventListener('touchend', onTouch, opts);
+    document.addEventListener('touchcancel', onTouch, opts);
+    // The note grows as it is typed into (its h lands a frame or two after
+    // the keystroke): show the line once it has.
+    const ro = noteEl && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
+    ro?.observe(noteEl);
+    schedule();
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      editor.off('selectionUpdate', schedule);
+      editor.off('focus', schedule);
+      vv?.removeEventListener('resize', schedule);
+      vv?.removeEventListener('scroll', schedule);
+      document.removeEventListener('touchstart', onTouch, opts);
+      document.removeEventListener('touchend', onTouch, opts);
+      document.removeEventListener('touchcancel', onTouch, opts);
+      ro?.disconnect();
+    };
   }, [editor]);
 
   // Deleting a thread must also strip its highlight, or the note keeps a dead
@@ -371,35 +725,56 @@ export function NoteTiptapSurface({
     return () => window.removeEventListener('soleil-remove-comment-mark', onRemove);
   }, [editor]);
 
-  // Write-through card.html + auto-size on every edit (rAF-coalesced).
+  // Write-through card.html (+ auto-size) after real changes only. Nothing is
+  // written on open: the open-time measure cut every "Show all" note back to
+  // 480 and rewrote html nobody had edited.
+  //  - This session's edits (y-sync meta absent, or a Y.UndoManager undo/redo):
+  //    mark dirty and flush in a microtask. The fragment's own Y update has
+  //    already queued useYBoard's frame refresh, so the cache write lands in
+  //    that same refresh: one canvas render per keystroke, not two.
+  //  - A co-editor's change (isChangeOrigin, not undo): their client writes
+  //    the cache; here it is re-derived 400ms after they pause, html only.
+  //  - y-prosemirror drawing the fragment into the view (meta carries
+  //    `binding`): not a change at all.
   useEffect(() => {
     if (!editor) return undefined;
-    const flush = () => {
-      writeRaf.current = 0;
-      if (!fragment) return;
-      let html = null;
-      try { html = writeTextCache(); } catch (_) { /* noop */ }
-      if (!manualRef.current && editor?.view?.dom) {
-        try {
-          const h = Math.min(NOTE_AUTOSIZE_MAX, Math.max(
-            cardHeightForBody(editor.view.dom),
-            displayHeightWithPreviews(editor.view.dom, html),
-          ));
-          writeCache({ h: Math.round(h) });
-        } catch (_) { /* noop */ }
+    const onUpdate = ({ transaction } = {}) => {
+      const sync = transaction?.getMeta?.(ySyncPluginKey);
+      if (sync?.binding) return;
+      if (sync?.isChangeOrigin && !sync.isUndoRedoOperation) {
+        remotePendingRef.current = true;
+        if (remoteTimerRef.current) clearTimeout(remoteTimerRef.current);
+        remoteTimerRef.current = setTimeout(() => {
+          remoteTimerRef.current = 0;
+          if (!remotePendingRef.current) return;
+          remotePendingRef.current = false;
+          flush(false);
+        }, REMOTE_CACHE_DEBOUNCE_MS);
+        return;
       }
-    };
-    const onUpdate = () => {
-      if (writeRaf.current) cancelAnimationFrame(writeRaf.current);
-      writeRaf.current = requestAnimationFrame(flush);
+      dirtyRef.current = true;
+      remotePendingRef.current = false; // the local flush serializes the merged note
+      if (localQueuedRef.current) return;
+      localQueuedRef.current = true;
+      queueMicrotask(() => {
+        if (!localQueuedRef.current) return;
+        localQueuedRef.current = false;
+        flush(true);
+      });
     };
     editor.on('update', onUpdate);
     try { ensureFontsFromHtml(editor.getHTML()); } catch (_) { /* noop */ }
-    onUpdate(); // one measure on open so a seeded note sizes correctly
     return () => {
       editor.off('update', onUpdate);
-      if (writeRaf.current) cancelAnimationFrame(writeRaf.current);
+      if (remoteTimerRef.current) { clearTimeout(remoteTimerRef.current); remoteTimerRef.current = 0; }
+      // Unmounted without exitEdit (the board went away): keep a pending text write.
+      if (localQueuedRef.current || remotePendingRef.current) {
+        localQueuedRef.current = false;
+        remotePendingRef.current = false;
+        try { flush(false); } catch (_) { /* noop */ }
+      }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, fragment]);
 
   // Exit edit on blur — unless focus is moving into the formatting toolbar /
@@ -414,9 +789,32 @@ export function NoteTiptapSurface({
   const commentUiOpen = !!addComment.node || !!openThread;
   const commentUiOpenRef = useRef(false);
   commentUiOpenRef.current = commentUiOpen;
+  // Leaving re-derives the text cache only when there is a reason: a change
+  // this session (or one still waiting in its microtask or a co-editor's
+  // debounce), a preview removed while editing, or a cache with no text beside
+  // a fragment that has some (a note the API made, which has only a body, or
+  // one an old seed blanked). A note opened and closed untouched keeps its
+  // html byte for byte, whatever this build's serializer would write, even on
+  // its first open: the fragment is seeded from the html, but only an edit
+  // rewrites the html (a table, or anything else the note's schema can't hold,
+  // stays in it until then). setNoteCacheFields drops unchanged keys, so a
+  // re-derive that matches writes nothing. h is measured only for a local edit
+  // still waiting in its microtask, or a removed preview.
   const exitEdit = () => {
-    if (writeRaf.current) { cancelAnimationFrame(writeRaf.current); writeRaf.current = 0; }
-    try { writeTextCache(); } catch (_) {}
+    const localPending = localQueuedRef.current;
+    localQueuedRef.current = false;
+    const remotePending = remotePendingRef.current;
+    if (remoteTimerRef.current) { clearTimeout(remoteTimerRef.current); remoteTimerRef.current = 0; }
+    remotePendingRef.current = false;
+    const measure = localPending || needsMeasureRef.current;
+    needsMeasureRef.current = false;
+    let heal = false;
+    try {
+      heal = !!fragment && !noteFragmentIsBlank(fragment) && !htmlHasText(cardYMap?.get?.('html'));
+    } catch (_) { /* noop */ }
+    if (localPending || remotePending || dirtyRef.current || measure || heal) {
+      try { flush(measure); } catch (_) { /* noop */ }
+    }
     onExitRef.current?.();
   };
   useEffect(() => {
@@ -443,7 +841,9 @@ export function NoteTiptapSurface({
       if (editor.isDestroyed || editor.isFocused) return;
       if (mentionOpenRef.current || commentUiOpenRef.current || anyModalOpen()) return;
       const t = e.target;
-      if (editor.view.dom.contains(t) || inEditSessionUi(t)) return;
+      // The stack around the editor (its empty band, the preview cards) is the note too.
+      const inNote = editor.view.dom.closest?.('.note-edit-stack') || editor.view.dom;
+      if (inNote.contains(t) || inEditSessionUi(t)) return;
       const a = document.activeElement;
       if (a && a !== document.body && inEditSessionUi(a)) { try { a.blur(); } catch (_) {} }
       exitEdit();
@@ -527,23 +927,65 @@ export function NoteTiptapSurface({
     setMention(null);
   };
 
+  // The empty band of the content-height editor (a centred note's slack above
+  // and below its text, the space under a short note's last line) is outside
+  // the contenteditable. A press there keeps the focus and puts the caret at
+  // the nearest position, as a press inside a text box would; it never reaches
+  // the canvas (a drag) or moves the focus to the page (which ends editing).
+  const onStackPointerDown = (e) => {
+    if (e.target !== e.currentTarget || e.button > 0) return;
+    e.stopPropagation();
+    const view = editorRef.current?.view;
+    if (!view || editorRef.current.isDestroyed) return;
+    const r = noteEntryRange(view, { x: e.clientX, y: e.clientY, mode: 'caret' });
+    if (r) selectRange(view, r);
+  };
+  const onStackMouseDown = (e) => {
+    if (e.target !== e.currentTarget) return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  // Preview cards: a press keeps the focus in the editor (a click on the
+  // remove button would otherwise blur it and end editing before the click
+  // landed); the remove button works as it does on the read-only note.
+  const onPreviewsClick = (e) => {
+    e.stopPropagation();
+    const btn = e.target.closest?.('.note-preview-remove');
+    if (!btn) return;
+    e.preventDefault();
+    needsMeasureRef.current = true;
+    onRemovePreview?.(btn.closest('.note-link-preview')?.dataset?.url);
+  };
+
   if (!editor) return <div className="note-body" />;
   return (
     <>
-      <EditorContent
-        editor={editor}
-        className="note-edit-wrap"
-        onKeyDown={onKeyDown}
-        onClick={onEditorClick}
-        // While editing we stop propagation so canvas drags can't hijack
-        // typing — which also means CanvasSurface's touch-scroll branch never
-        // sees this gesture. Drive the note's own overflow scroll here instead
-        // (`.canvas-wrap { touch-action: none }` rules out a native scroll).
-        // No preventDefault: a tap must still place the caret.
-        onPointerDown={(e) => { startTouchScrollGesture(e); e.stopPropagation(); }}
-        onMouseDown={(e) => e.stopPropagation()}
-        onDoubleClick={(e) => e.stopPropagation()}
-      />
+      <div className="note-edit-stack"
+           onPointerDown={onStackPointerDown}
+           onMouseDown={onStackMouseDown}
+           onDoubleClick={(e) => e.stopPropagation()}>
+        <EditorContent
+          editor={editor}
+          className="note-edit-wrap"
+          onKeyDown={onKeyDown}
+          onClick={onEditorClick}
+          // While editing we stop propagation so canvas drags can't hijack
+          // typing — which also means CanvasSurface's touch-scroll branch never
+          // sees this gesture. Drive the note's own overflow scroll here instead
+          // (`.canvas-wrap { touch-action: none }` rules out a native scroll).
+          // No preventDefault: a tap must still place the caret.
+          onPointerDown={(e) => { startTouchScrollGesture(e); e.stopPropagation(); }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+        />
+        {previewHtml && (
+          <div className="note-edit-previews"
+               onPointerDown={(e) => e.stopPropagation()}
+               onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+               onClick={onPreviewsClick}
+               dangerouslySetInnerHTML={{ __html: previewHtml }} />
+        )}
+      </div>
       {addComment.node}
       {openThread && commentScope && (
         <CommentInlinePopover

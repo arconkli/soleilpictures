@@ -81,3 +81,72 @@ test('note html round-trips through the note schema, preserving the contract', a
     expect(result[k].idempotent, `${k} round-trip is idempotent`).toBe(true);
   }
 });
+
+test("a block's last <br> reads back as the line it showed, and a closing break saves as two", async ({ page }) => {
+  await page.goto('/?local=1&reset=1');
+  await expect(page.locator('.canvas-wrap')).toBeVisible();
+
+  const result = await page.evaluate(async () => {
+    const mod = await import('/src/lib/noteDocState.js');
+    const cases = [
+      '<p>a<br><br></p>',
+      '<p>a<br></p>',
+      '<p><br></p>',
+      'a<div><br></div><div>b</div>',
+      '<p>a<br>b</p>',
+      '<p><strong>a<br></strong></p>',
+      '<h2>T<br><br></h2>',
+      '<ul><li>x<br></li></ul>',
+    ];
+    return cases.map((html) => {
+      const json = mod.noteHtmlToJSON(html);
+      const out = mod.noteJSONToHtml(json);
+      const again = mod.noteJSONToHtml(mod.noteHtmlToJSON(out));
+      return {
+        html,
+        types: json.content.map((b) => (b.content || []).map((c) => c.type)),
+        itemTypes: json.content[0]?.content?.[0]?.content?.[0]?.content?.map((c) => c.type) || null,
+        out,
+        stable: again === out,
+      };
+    });
+  });
+
+  const expected = [
+    [[['text', 'hardBreak']], '<p>a<br><br></p>'],
+    [[['text']], '<p>a</p>'],
+    [[[]], '<p></p>'],
+    [[['text'], [], ['text']], '<p>a</p><p></p><p>b</p>'],
+    [[['text', 'hardBreak', 'text']], '<p>a<br>b</p>'],
+    [[['text']], '<p><strong>a</strong></p>'],
+    [[['text', 'hardBreak']], '<h2>T<br><br></h2>'],
+  ];
+  expected.forEach(([types, out], i) => {
+    expect(result[i].types, result[i].html).toEqual(types);
+    expect(result[i].out, result[i].html).toBe(out);
+    expect(result[i].stable, `${result[i].html} is stable`).toBe(true);
+  });
+  // The list item's paragraph: bulletList > listItem > paragraph.
+  expect(result[7].itemTypes).toEqual(['text']);
+  expect(result[7].stable).toBe(true);
+});
+
+test('a paragraph ending in a hard break is saved with a filler break', async ({ page }) => {
+  await page.goto('/?noteqa=1');
+  await expect(page.locator('#noteqa-ready')).toHaveText('noteqa ready', { timeout: 15000 });
+  await page.evaluate(() => {
+    const t = window.__soleilNoteTest;
+    const frag = t.getNoteFragment(t.cardB);
+    t.docB.transact(() => {
+      frag.delete(0, frag.length);
+      const p = new t.Y.XmlElement('paragraph');
+      frag.insert(0, [p]);
+      const text = new t.Y.XmlText();
+      p.insert(0, [text]);
+      text.insert(0, 'a');
+      p.insert(1, [new t.Y.XmlElement('hardBreak')]);
+    }, 'local');
+  });
+  await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.getFragHtmlA()))
+    .toBe('<p>a<br><br></p>');
+});

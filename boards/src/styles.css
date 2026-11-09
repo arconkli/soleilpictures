@@ -5251,10 +5251,14 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
    margins absorb the slack equally top/bottom, so a one-line note used as a
    header sits with even space around it. When the text is taller than the note,
    the margins collapse to 0 and the body scrolls normally (avoids the
-   flexbox+overflow "can't scroll to the top" trap). Display-only: while editing,
-   the body is nested under .note-edit-wrap, so live vertical centering can't
-   shift the caret line — it snaps in on blur. */
-.note.is-balanced:not(.is-editing) .note-body {
+   flexbox+overflow "can't scroll to the top" trap). The live editor is centred
+   the same way inside .note-edit-stack (noteTiptap.css), so opening a centred
+   note leaves its text where it was. The second selector keeps the read-only
+   body that shows while the editor's chunk loads (the Suspense fallback, a
+   direct child of the editing note) centred too. The legacy editor's own
+   contenteditable body is left uncentred while it edits. */
+.note.is-balanced:not(.is-editing) .note-body,
+.note.is-balanced.is-editing > .note-body:not([contenteditable="true"]) {
   flex: 0 1 auto;
   margin-block: auto;
 }
@@ -5326,6 +5330,32 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
 .note-body h2 { font-size: 1.18em; }
 .note-body h3 { font-size: 1.05em; }
 .note-body > :is(h1, h2, h3):first-child { margin-top: 0; }
+/* Quotes and inline code in a note. Typing no longer makes them
+   (noteExtensions.js), but older notes and pastes hold some. A thin rule and
+   a faint tint drawn from the note's own ink, in its own font, so they read
+   on every note colour and in both themes. No monospace, and no gold:
+   --soleil is for selection and focus. One rule for both the editor and
+   the read-only note (both are .note-body). */
+.note-body blockquote {
+  margin: 6px 0;
+  padding: 0 0 0 10px;
+  border-left: 2px solid color-mix(in srgb, currentColor 28%, transparent);
+  color: color-mix(in srgb, currentColor 72%, transparent);
+}
+.note-body code,
+.note-body pre {
+  font-family: inherit;
+  font-size: inherit;
+}
+.note-body code {
+  padding: 0 .25em;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 9%, transparent);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.note-body pre { margin: 6px 0; white-space: pre-wrap; }
+.note-body pre code { padding: 0; background: none; }
 
 /* Checklist inside a note. Hairline checkbox; warm-gold check on toggle.
    Uses a click handler on .ck-box (RichNoteEditor.onBodyClick) to flip
@@ -5364,6 +5394,30 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
 [data-theme='light'] .note-checklist .ck-box.is-checked + .ck-text { color: rgba(28,28,31,.4); }
 .note.is-light-bg .note-checklist .ck-box { border-color: rgba(28,28,31,.45); }
 .note.is-light-bg .note-checklist .ck-box.is-checked + .ck-text { color: rgba(28,28,31,.45); }
+/* Phones and tablets: the checklist box and Show all take a finger. Each gets
+   an invisible hit area, a pseudo-element that changes neither its size, its
+   look nor the text around it (insets are from the padding box, inside the
+   1px border). The box sits at the note body's left edge, and the body's
+   scroll clip cuts anything further left, so the box's reaches right across
+   the gap to the item's words (a tap on the words still selects the note or
+   places the caret), and up and down to halfway to the next item's box, so a
+   tap never ticks a neighbour: about 22 by 26 at 100%. Show all's stops at the
+   note's edge on the right and below. Both are card content, scaled with the
+   board. ::before, because .ck-box.is-checked::after draws the tick. */
+@media (pointer: coarse) {
+  .note-checklist .ck-box::before {
+    content: ""; position: absolute;
+    left: -1px; right: -9px;
+    /* .ck rows are 1lh + 4px apart and the box is 14px, so half the space
+       between two boxes is (1lh - 10px) / 2; the extra 1px is the border. */
+    top: -7px; bottom: -7px;
+    top: calc((10px - 1lh) / 2 - 1px); bottom: calc((10px - 1lh) / 2 - 1px);
+  }
+  .note-more-chip::before {
+    content: ""; position: absolute;
+    top: -14px; bottom: -7px; left: -9px; right: -9px;
+  }
+}
 .note-link-preview {
   margin-top: 10px;
   border: 1px solid var(--line-2);

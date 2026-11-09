@@ -45,6 +45,9 @@ export const NoteChecklistItem = Node.create({
     return {
       checked: {
         default: false,
+        // Enter after a ticked item makes an unticked one (Apple Notes):
+        // splitListItem copies only keepOnSplit attributes onto the new item.
+        keepOnSplit: false,
         // Read the toggle state off the .ck-box child (aria-checked or the
         // legacy .is-checked class).
         parseHTML: (el) => {
@@ -82,9 +85,26 @@ export const NoteChecklistItem = Node.create({
 
   addKeyboardShortcuts() {
     return {
-      // Enter splits into a new item (empty item → exits the list, matching the
-      // legacy checklist behaviour). Shift-Tab lifts an item back to a paragraph.
-      Enter: () => this.editor.commands.splitListItem('noteChecklistItem'),
+      // Enter splits into a new, unticked item (empty item → exits the list,
+      // matching the legacy checklist behaviour). Shift-Tab lifts an item back
+      // to a paragraph (called from NoteTiptapSurface's Tab handling, which
+      // runs before this keymap). At the very start of a ticked item, a plain
+      // split would leave the tick on an empty line above and untick the
+      // words; Apple Notes instead opens an empty unticked item above and the
+      // line keeps its tick, so do that.
+      Enter: () => {
+        const { $from, empty } = this.editor.state.selection;
+        const item = $from.depth >= 2 ? $from.node(-1) : null;
+        if (empty && item?.type === this.type && item.attrs.checked
+            && $from.parentOffset === 0 && $from.index(-1) === 0 && $from.parent.content.size > 0) {
+          const at = $from.before(-1);
+          return this.editor.commands.command(({ tr, dispatch }) => {
+            if (dispatch) tr.insert(at, this.type.createAndFill({ checked: false })).scrollIntoView();
+            return true;
+          });
+        }
+        return this.editor.commands.splitListItem('noteChecklistItem');
+      },
       'Shift-Tab': () => this.editor.commands.liftListItem('noteChecklistItem'),
     };
   },

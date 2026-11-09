@@ -9,6 +9,13 @@ import { reportToast } from '../lib/errorReporting.js';
 // createPortal. Lazy-load it and only render it when there's something to show,
 // so the signed-out landing never downloads Phosphor.
 const FeedbackOverlay = lazyWithReload(() => import('./FeedbackOverlay.jsx'));
+// Fetch it ahead of the first toast, so a toast that says the connection
+// dropped (the note editor's) can still be drawn once it has. cards.jsx calls
+// this with the editor's own prefetch, never at boot: main.jsx loads this file
+// on every page, and the signed-out ones never fetch the overlay.
+export function warmFeedbackOverlay() {
+  FeedbackOverlay.warm();
+}
 
 const TOAST_EXIT_MS = 200;
 

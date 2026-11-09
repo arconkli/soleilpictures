@@ -245,7 +245,7 @@ A: No. A personal workspace is created for you the first time you need one, incl
 ========================================================================
 # Keyboard shortcuts
 URL: https://clusters.soleilpictures.com/docs/keyboard-shortcuts
-Updated: 2026-10-29
+Updated: 2026-11-09
 
 Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 
@@ -425,10 +425,14 @@ Notes
 
 Key | Action
 Double-click | Edit a note or a title
-⌘Z / ⌘⇧Z | Undo · redo text — history survives closing the note
+⌘Z / ⌘⇧Z | Undo · redo text — history survives closing the note; right after a colour, font, size or Center in the box from the note bar, that change first
 ⌘B / ⌘I / ⌘U | Bold · italic · underline
 ⌘\ | Clear formatting — links and comments stay
+Tab / ⇧Tab | In a bulleted or numbered list, nest · un-nest the item. In a checklist, nothing · back to a plain line. Elsewhere Tab types two spaces. Neither leaves the note
+Enter | In a checklist, the next item, unticked — at the very start of a ticked item, a new unticked one above it
 @ | Mention a board, doc, or card
+
+In a note, - , > and backticks stay as you type them, and there are no quote or code keys: lists come from the note's toolbar.
 
 Document
 
@@ -903,7 +907,7 @@ A: Yes. A camera's raw files (.arw, .cr2, .cr3, .nef, .raf, .dng and the rest) a
 ========================================================================
 # Notes
 URL: https://clusters.soleilpictures.com/docs/canvas/notes
-Updated: 2026-10-21
+Updated: 2026-11-09
 
 A note is a rich-text card you can put anywhere on a canvas. Press N to add one. Notes support formatting, checklists and @-mentions of other boards, docs and cards, they auto-link URLs into previews, and two people can type in the same note at once and see each other's cursors.
 
@@ -913,11 +917,15 @@ For anything longer than a few paragraphs, use a document instead — it has pag
 
 Writing
 
-Double-click a note to start editing. Click away — or press Esc — to finish; your edits are shared live with collaborators as you type, so there is no separate "cancel". ⌘Z undoes inside the note, and the note's undo history survives closing and reopening it.
+Double-click a note to start editing; the caret lands where you clicked. On a phone or tablet, tap the note to select it, then tap it again where you want to type, or double-tap it, and the keyboard comes up. Click or tap away — or press Esc — to finish; your edits are shared live with collaborators as you type, so there is no separate "cancel". ⌘Z undoes inside the note, and the note's undo history survives closing and reopening it. Right after a colour, font, size or Center in the box from the toolbar, ⌘Z takes that back first.
 
 Formatting works as you would expect: ⌘B, ⌘I, ⌘U for bold, italic and underline. A toolbar appears at the bottom of the canvas while a note is focused, carrying colour, size, font and alignment, and Tx — clear formatting (⌘\), which strips the selection back to the note's own font and size while keeping links and comments. ⌥F10 (Alt+F10 on Windows) takes you from the note's text to that toolbar, and Esc brings you back.
 
-Pasting from Google Docs, Word or a web page brings the words, structure and emphasis but not the source's font, size or background, so pasted text matches the rest of the note.
+Lists come from the toolbar. In a bulleted or numbered list, Tab tucks an item under the one above and ⇧Tab brings it back out; outside a list, Tab types two spaces. Neither key takes you out of the note.
+
+Typing -  or > at the start of a line, or backticks around a word, leaves them as you typed them: nothing turns into a list, a quote or code. A line that starts with -  starts the next one with a dash too when you press Enter. Quotes and code already in older notes stay, drawn quietly in the note's own font.
+
+Pasting from Google Docs, Word or a web page brings the words, structure and emphasis but not the source's font, size or background, so pasted text matches the rest of the note. Blank lines between paragraphs stay, and linked words keep their link.
 
 With the caret merely placed in a note and nothing selected, formatting applies to the whole note rather than doing nothing. This is deliberate — it is almost always what you meant.
 
@@ -927,6 +935,8 @@ Checklists
 
 Start a line with a checkbox from the toolbar to make a task list. Boxes are clickable directly on the canvas without entering edit mode, so a note can serve as a live shot list or a packing list that anyone on the board can tick off.
 
+Enter starts the next item unticked, even after a ticked one; at the very start of a ticked item it opens a new, unticked item above. Checklists don't nest, so Tab does nothing in one, and ⇧Tab turns the item back into a plain line. On a phone or tablet each box takes a fingertip, and a tap never ticks the box next to it.
+
 Mentions
 
 Type @ to mention another cluster, document, card, tag or person. The mention becomes a real link with a hover preview, and it registers as a backlink on the thing you mentioned — so that item's panel can show everywhere it is referenced.
@@ -935,7 +945,7 @@ See Links and mentions.
 
 Automatic links
 
-Paste or type a URL into a note and it becomes a link, with a preview card on hover. You do not have to do anything to make this happen.
+Paste or type a URL into a note and it becomes a link, with a preview card on hover. You do not have to do anything to make this happen. Words pasted with a link — from a web page, an email or a document — keep their address, so they stay clickable.
 
 Names that match an existing tag or entity are also detected and quietly underlined, so a note that says "Diner" connects itself to the Diner entity you already created elsewhere.
 
@@ -951,7 +961,9 @@ To stop setting the same thing every time, Settings → Card defaults sets the b
 
 Spellcheck
 
-Browser spellcheck and Grammarly are switched off inside notes on purpose. Their injected markup conflicted with the collaborative editor and could corrupt formatting mid-sentence. This is not a setting.
+On a computer, browser spellcheck and Grammarly are switched off inside notes on purpose. Their injected markup conflicted with the collaborative editor and could corrupt formatting mid-sentence.
+
+On a phone or tablet, a note types the way everything else on the device does: the keyboard's autocorrect, automatic capitals and spellcheck are on. Grammarly stays off there too. Neither is a setting.
 
 ## Frequently asked questions
 
@@ -959,10 +971,10 @@ Q: Can two people edit the same note at once?
 A: Yes. Notes are collaborative in real time, with visible carets for whoever else is typing. Edits merge rather than overwriting each other.
 
 Q: Why is there no spellcheck underline?
-A: Browser and Grammarly spellcheck are deliberately disabled inside notes. Their injected markup fought with the collaborative editor and corrupted formatting.
+A: On a computer, browser and Grammarly spellcheck are deliberately disabled inside notes. Their injected markup fought with the collaborative editor and corrupted formatting. On a phone or tablet, notes use the keyboard's own autocorrect, automatic capitals and spellcheck. Grammarly stays off everywhere.
 
 Q: How do I resize a note?
-A: Drag its corner. Notes also grow downward on their own as you type past the bottom edge.
+A: Drag its corner. Notes also grow downward on their own as you type past the bottom edge, and shrink back as you delete.
 
 
 ========================================================================
@@ -4573,7 +4585,7 @@ A: Settings, under Invite and earn — friends joined, how many got started, car
 ========================================================================
 # Mobile and tablet
 URL: https://clusters.soleilpictures.com/docs/account/mobile
-Updated: 2026-10-21
+Updated: 2026-11-09
 
 Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom, long-press menus and hold-then-drag to select, Files open with a tap, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 
@@ -4585,7 +4597,9 @@ Gesture | Does
 One finger drag | Pan
 Pinch | Zoom
 Tap | Select a card; on empty canvas, clear the selection
-Double tap | Add menu at that point
+Tap a selected note | Type where you tapped, with the keyboard up
+Double tap | On empty canvas, the add menu at that point; on a note, type where you tapped
+Tap outside the note you are typing in | Finish; the keyboard goes down
 Touch and hold empty canvas, then drag | A selection box, as dragging one with a mouse draws
 Touch and hold empty canvas, then let go | The board's menu, with Select… in it
 Touch and hold a card | Pick it up to move it (on a cluster you can only view, its menu)
@@ -4595,6 +4609,8 @@ Touch and hold anything else | Its menu: a group label's, an arrow's, a tag's, t
 While you hold empty canvas, a ring fills under your finger; once it is full, the press is a hold, and moving draws the box instead of panning. The menu opens when you let go, never under a box you were about to draw. A second finger at any point hands it to the pinch: no box, no menu, and the selection as it was.
 
 Select… is for picking cards a box can't reach together: until you press Done in the bar that says "Tap cards to select", each tap adds a card or takes it out, and a hold-and-drag box adds to what is picked. Done keeps the selection; a tap on empty canvas drops it.
+
+While you type in a note, the board glides to keep your line above the keyboard and the note's toolbar, and the page doesn't zoom in on an iPhone or iPad. The keyboard's autocorrect, automatic capitals and spellcheck work in notes, as in any text field.
 
 With the draw tool active, one finger draws and two fingers still pinch-zoom. Starting a pinch part-way through a stroke discards that stroke rather than smearing it across the board as the canvas moves underneath — the failure that makes drawing on touch unusable.
 
@@ -4664,6 +4680,9 @@ A: Because a stylus was used on this device, so the finger became a pan gesture 
 
 Q: How do I select several cards with a finger?
 A: Touch and hold empty canvas until the ring under your finger fills, then drag a box over them. Or hold, let go, and choose Select… — until you press Done, each tap adds a card or takes it out.
+
+Q: How do I type in a note on a phone?
+A: Tap the note to select it, then tap it again where you want to type, or double-tap it. The keyboard comes up with the caret where you tapped, and the board keeps the line you are typing above the keyboard. Tap outside the note when you are done.
 
 Q: Is anything unavailable on mobile?
 A: Nothing that matters is removed, but dense surfaces like long documents are much better on a large screen. On a phone or a touch tablet, Home shows your projects on their own, without the 3D workspace graph behind them.

@@ -17,12 +17,19 @@ import { useEffect, useRef, useState } from 'react';
 
 const TYPING_FADE_MS = 1500;
 
-// Note-body content-space coords from a viewport rect (undo the canvas zoom).
+// Note-body content-space coords from a viewport rect: undo the canvas zoom
+// and add the body's own scroll, so the point names a spot in the TEXT, not in
+// the box. A peer whose note is scrolled to a different line still draws the
+// caret on the right one.
 function toLocal(bodyEl, rect) {
   const br = bodyEl.getBoundingClientRect();
   const scale = bodyEl.offsetWidth ? br.width / bodyEl.offsetWidth : 1;
   const s = scale || 1;
-  return { x: (rect.left - br.left) / s, y: (rect.top - br.top) / s, scale: s };
+  return {
+    x: (rect.left - br.left) / s + bodyEl.scrollLeft,
+    y: (rect.top - br.top) / s + bodyEl.scrollTop,
+    scale: s,
+  };
 }
 
 export function NotePresence({ editor, awareness, boardId, cardId }) {
@@ -73,6 +80,16 @@ export function NotePresence({ editor, awareness, boardId, cardId }) {
     return () => clearInterval(id);
   }, [peers.length]);
 
+  // Scrolling this note moves the text under the peers' carets: redraw them.
+  const hasPeers = peers.length > 0;
+  useEffect(() => {
+    const body = editor?.view?.dom;
+    if (!body || !hasPeers) return undefined;
+    const onScroll = () => tick(n => (n + 1) | 0);
+    body.addEventListener('scroll', onScroll, { passive: true });
+    return () => body.removeEventListener('scroll', onScroll);
+  }, [editor, hasPeers]);
+
   // ── Write our caret + selection (note-body-local coords) ────────────────
   const lastSigRef = useRef('');
   useEffect(() => {
@@ -120,30 +137,42 @@ export function NotePresence({ editor, awareness, boardId, cardId }) {
   }, [awareness, editor, boardId, cardId]);
 
   // ── Render peer overlays (inside .note; offset by the body's box) ───────
+  // Coords are the body's content space (toLocal). The layer sits outside the
+  // scroller, so an inner origin moves by the body's scroll (no transition, so
+  // carets track the text while scrolling) and anything scrolled out of the
+  // body's visible band is left out instead of drawn over the padding.
   const body = editor?.view?.dom;
   const offX = body?.offsetLeft || 0;
   const offY = body?.offsetTop || 0;
+  const scrollX = body?.scrollLeft || 0;
+  const scrollY = body?.scrollTop || 0;
+  const viewH = body?.clientHeight || Infinity;
+  const CARET_H = 18; // ~1.2em at the default 15px
   const now = (typeof performance !== 'undefined' ? performance.now() : 0);
   return (
     <div className="note-presence-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 50 }}>
+      <div style={{ position: 'absolute', left: offX - scrollX, top: offY - scrollY, width: 0, height: 0 }}>
       {peers.map((p) => {
         const els = [];
         const color = p.user.color || '#4f8df8';
         const sinceMove = now - (lastCaretChangeRef.current.get(p.user.id) || 0);
         const typing = !!p.caret && sinceMove < TYPING_FADE_MS;
         (p.selRects || []).forEach((rc, i) => {
+          const top = Math.max(rc.top, scrollY);
+          const bottom = Math.min(rc.top + rc.height, scrollY + viewH);
+          if (bottom <= top) return;
           els.push(
             <div key={`sel-${p.clientId}-${i}`} style={{
-              position: 'absolute', left: rc.left + offX, top: rc.top + offY,
-              width: rc.width, height: rc.height, background: color, opacity: 0.22,
+              position: 'absolute', left: rc.left, top,
+              width: rc.width, height: bottom - top, background: color, opacity: 0.22,
               borderRadius: 1, pointerEvents: 'none',
             }} />
           );
         });
-        if (p.caret) {
+        if (p.caret && p.caret.y + CARET_H > scrollY && p.caret.y < scrollY + viewH) {
           els.push(
             <div key={`caret-${p.clientId}`} style={{
-              position: 'absolute', left: p.caret.x + offX, top: p.caret.y + offY,
+              position: 'absolute', left: p.caret.x, top: p.caret.y,
               borderLeft: `2px solid ${color}`, height: '1.2em', pointerEvents: 'none',
               opacity: typing ? 1 : 0.55, transition: 'left 90ms linear, top 90ms linear, opacity 250ms linear',
             }}>
@@ -156,6 +185,7 @@ export function NotePresence({ editor, awareness, boardId, cardId }) {
         }
         return els;
       })}
+      </div>
     </div>
   );
 }

@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import * as Y from 'yjs';
 import { getSchema } from '@tiptap/core';
 import { prosemirrorJSONToYXmlFragment, yXmlFragmentToProsemirrorJSON } from 'y-prosemirror';
-import { htmlHasText, bodyHasText, noteBodyToHtml, noteSourceHtml } from './noteBody.js';
+import { htmlHasText, htmlHasContent, bodyHasText, noteBodyToHtml, noteSourceHtml } from './noteBody.js';
 import {
   NOTE_SEEDED_KEY, ensureNoteFragment, getNoteFragment,
   noteFragmentIsBlank, toggleNoteChecklistItem, seedNoteFragmentFromHtml,
@@ -22,6 +22,15 @@ test('htmlHasText ignores tags and non-breaking spaces', () => {
   assert.equal(htmlHasText('<p></p>'), false);
   assert.equal(htmlHasText('<p>&nbsp;</p>'), false);
   assert.equal(htmlHasText('<p> x </p>'), true);
+});
+
+test('htmlHasContent counts a picture, a rule or a table as content', () => {
+  for (const h of ['<p>a</p>', '<p><img src="x.png"></p>', '<hr>', '<table><tr><td></td></tr></table>']) {
+    assert.equal(htmlHasContent(h), true, h);
+  }
+  for (const h of ['', null, '<p></p>', '<p>&nbsp;</p>', '<p><br></p>']) {
+    assert.equal(htmlHasContent(h), false, String(h));
+  }
 });
 
 test('bodyHasText', () => {
