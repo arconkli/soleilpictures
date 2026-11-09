@@ -1,0 +1,52 @@
+/* PanelWait (components/PanelWait.jsx): the frame of a panel whose code is
+   still loading. The spinner and words fade in after 300 ms so a fast open
+   never flashes. Neutral ink only. */
+.panel-wait-scrim {
+  position: fixed; inset: 0; z-index: 200;
+  display: grid; place-items: center;
+  background: rgba(0,0,0,.45);
+}
+[data-theme='light'] .panel-wait-scrim { background: rgba(28,28,31,.28); }
+.panel-wait { display: flex; flex-direction: column; color: var(--ink-0); }
+.panel-wait-modal {
+  width: 420px; max-width: 92vw; height: 200px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  box-shadow: var(--shadow-2);
+}
+/* It takes focus only so the page behind stops getting keys; it is not a control. */
+.panel-wait-modal:focus { outline: none; }
+.panel-wait-dock {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 60;
+  width: 380px; max-width: 100vw;
+  background: var(--bg-1);
+  border-left: 1px solid var(--line-1);
+}
+.panel-wait-page {
+  position: fixed; inset: 0; z-index: 60;
+  background: var(--bg-0);
+}
+.panel-wait-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+}
+.panel-wait-title { font: 600 15px/1.3 var(--font-sans); color: var(--ink-0); }
+.panel-wait-close {
+  display: grid; place-items: center;
+  width: 28px; height: 28px; padding: 0;
+  background: transparent; border: 0; border-radius: 6px;
+  color: var(--ink-2); cursor: pointer;
+}
+.panel-wait-close:hover { background: var(--bg-hov); }
+.panel-wait-body {
+  flex: 1 1 auto;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  opacity: 0;
+  animation: panel-wait-in .2s ease-out 300ms both;
+}
+.panel-wait-say { font: 400 13px/1.4 var(--font-sans); color: var(--ink-2); }
+@keyframes panel-wait-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .panel-wait-body { animation-duration: .001s; }
+}

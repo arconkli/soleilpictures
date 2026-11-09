@@ -47,6 +47,7 @@ const AdminPage = lazyWithReload(() => import('../pages/AdminPage.jsx').then(m =
 const WorkspaceSetup = lazyWithReload(() => import('../components/setup/WorkspaceSetup.jsx'));
 import { UpgradeChip } from '../components/UpgradeChip.jsx';
 import { SoleilMark } from '../components/primitives.jsx';
+import { LoadingScreen } from '../components/LoadingScreen.jsx';
 
 export function TierRouter({ children }) {
   const { user, signOut } = useAuth();
@@ -249,14 +250,7 @@ export function TierRouter({ children }) {
 }
 
 function Splash() {
-  return (
-    <div className="auth-screen">
-      <div className="auth-glow" aria-hidden="true" />
-      <div className="auth-loading">
-        <SoleilMark size={32} color="var(--soleil)" glow />
-      </div>
-    </div>
-  );
+  return <LoadingScreen />;
 }
 
 function Suspended({ onSignOut }) {

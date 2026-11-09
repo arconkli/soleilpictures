@@ -14,18 +14,23 @@ import { supabase } from './supabase.js';
 export async function assembleGraph({ workspaceId, options = {} }) {
   if (!supabase || !workspaceId) return { nodes: [], links: [] };
 
-  const { data: rawBoards = [] } = await supabase.from('boards')
+  // A read that errors throws, so a failure is never drawn as an empty
+  // workspace; HomeGraph says "Couldn't load" and offers Retry.
+  const { data: rawBoards = [], error: boardsError } = await supabase.from('boards')
     .select('id,name,parent_board_id,workspace_id')
     .eq('workspace_id', workspaceId)
     .is('deleted_at', null);
+  if (boardsError) throw boardsError;
 
-  const { data: cards = [] } = await supabase.from('card_index')
+  const { data: cards = [], error: cardsError } = await supabase.from('card_index')
     .select('board_id,card_id,kind,title,body,meta')
     .eq('workspace_id', workspaceId);
+  if (cardsError) throw cardsError;
 
-  const { data: bls = [] } = await supabase.from('doc_backlinks')
+  const { data: bls = [], error: blsError } = await supabase.from('doc_backlinks')
     .select('*')
     .eq('source_workspace_id', workspaceId);
+  if (blsError) throw blsError;
 
   return graphFromRows(rawBoards, cards, bls, options);
 }

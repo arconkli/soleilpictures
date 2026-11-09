@@ -19,7 +19,7 @@ faq:
   - q: What happens if I drop a screenplay file?
     a: A .fountain or .fdx file becomes a new script document, formatted and ready to edit, with its title page filled in. That is free on every plan.
   - q: What happens if the page closes while photos are still uploading?
-    a: Photos upload from your device while the page is open. If it closes first — on a phone, switching to another app can do that — a photo that had not finished cannot be completed. Once it clearly is not still uploading, it stops counting toward your card limit. Later still — long enough that no upload anywhere could be finishing it — it is removed the next time someone who can edit that cluster opens it on the canvas, with a note saying how many, so they can be added again. A photo that did finish uploading is kept. One that finished after you had switched to another cluster is put back in place once it is clearly not still uploading, the next time that cluster is opened on the canvas.
+    a: Photos upload from your device while the page is open. While anything is still going up, the browser asks before the tab closes. If it closes first — on a phone, switching to another app can do that — a photo that had not finished cannot be completed. Once it clearly is not still uploading, it stops counting toward your card limit. Later still — long enough that no upload anywhere could be finishing it — it is removed the next time someone who can edit that cluster opens it on the canvas, with a note saying how many, so they can be added again. A photo that did finish uploading is kept. One that finished after you had switched to another cluster is put back in place once it is clearly not still uploading, the next time that cluster is opened on the canvas.
   - q: How do I upload a new version of a file?
     a: Drop the new file onto the old one — on the board or in Files — and it becomes the next version, with the old one kept. Or right-click the file and choose Upload new version…. Info lists every version, and any of them can be made current again.
 related:
@@ -128,6 +128,23 @@ resume rather than starting over.
 
 Batches upload a few at a time so one huge file does not block eleven small ones
 behind it.
+
+## While files upload
+
+A tray in the corner of the board shows every batch as it goes: how many files
+are in, how much is left and roughly how long, with each file's own progress
+underneath. Fold it and it becomes a small chip; on a phone it is a slim bar
+along the bottom that opens into the list. The tab's title carries the count
+too, so you can follow it from another tab.
+
+A file that didn't upload stays in the tray with what went wrong and **Retry**.
+When the connection drops, the tray says **Offline** and how many uploads are
+paused, and the ones the drop stopped try again by themselves when you're back
+online.
+
+Downloads, exports and copies show in the same tray while they're prepared: a
+zip of many files counts them as they're gathered and can be cancelled, and a
+finished copy offers **Open**.
 
 ## Storage
 

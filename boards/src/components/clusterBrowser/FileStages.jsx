@@ -23,6 +23,7 @@ import {
   TEXT_STAGE_MAX_BYTES, TABLE_STAGE_MAX_ROWS, TABLE_STAGE_MAX_CELLS, MAIL_MAX_BYTES,
 } from '../../lib/fileFaceLimits.js';
 import { Icon } from '../Icon.jsx';
+import { WaitNote } from '../WaitNote.jsx';
 import { Info, Download, EyeOff, BoundingBox } from '../../lib/icons.js';
 import './fileStages.css';
 
@@ -190,13 +191,19 @@ function FontStage({ font, sizeBytes }) {
   );
 }
 
+// An empty page while its file is read: on the dark ground, in words.
+function PageWait({ item }) {
+  const name = item.card?.fileName || item.name || 'this file';
+  return <div className="qpage-wait" aria-busy="true"><WaitNote label={`Opening ${name}…`} /></div>;
+}
+
 function FontFamily({ item, fallback }) {
   const p = item.preview || {};
   const sizeBytes = item.sizeBytes ?? item.card?.sizeBytes ?? null;
   const font = useFont(p.src, sizeBytes, item.card?.fileName || item.name || '');
   // Too big, broken, or refused: Quick look's own card.
   if (font === null) return fallback;
-  if (font === undefined) return <div className="qpage fst-font" aria-busy="true" />;
+  if (font === undefined) return <PageWait item={item} />;
   return <FontStage font={font} sizeBytes={sizeBytes} />;
 }
 
@@ -206,7 +213,7 @@ function TextFamily({ family, item, onDownload, fallback }) {
   const got = useHeadText(p.src, TEXT_STAGE_MAX_BYTES, sizeBytes);
   // Not text after all (a .txt full of NULs): Quick look's own card.
   if (got === null) return fallback;
-  if (got === undefined) return <div className={`qpage fst-${family === 'table' ? 'table' : 'text'}`} aria-busy="true" />;
+  if (got === undefined) return <PageWait item={item} />;
   const Stage = TEXT_STAGES[family];
   const top = got.complete ? null : <CutNotice sizeBytes={sizeBytes} onDownload={onDownload ? () => onDownload(item) : null} />;
   return <Stage got={got} ext={p.ext} top={top} />;
@@ -399,7 +406,7 @@ function MailFamily({ item, onDownload, canPut, onClose, fallback }) {
   const p = item.preview || {};
   const sizeBytes = item.sizeBytes ?? item.card?.sizeBytes ?? null;
   const got = useMail(p.src, sizeBytes);
-  if (got === undefined) return <div className="qpage fst-mail" aria-busy="true" />;
+  if (got === undefined) return <PageWait item={item} />;
   if (got?.big) {
     return (
       <div className="fst-big">

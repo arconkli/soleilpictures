@@ -15,7 +15,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLongPress } from '../../hooks/useLongPress.js';
 import { Icon } from '../Icon.jsx';
-import { ArrowsOutSimple, ChevronRight, GridFour, Scribble, Check } from '../../lib/icons.js';
+import { ArrowClockwise, ArrowsOutSimple, ChevronRight, GridFour, Scribble, Check } from '../../lib/icons.js';
 import { R2Image } from '../R2Image.jsx';
 import { KindIcon } from '../cards.jsx';
 import { humanSize, extOf, iconForFile } from '../cards/FileCard.jsx';
@@ -31,8 +31,8 @@ const ROW_PAD = 8;
 // Row heights for the list, in step with clusterSidebar.css: one 30px rhythm
 // (44px to a finger), a shelf's label with a little air above it.
 const LIST_HEIGHTS = {
-  fine: { shelf: 36, file: 30, more: 30, loading: 30, empty: 44 },
-  coarse: { shelf: 44, file: 44, more: 44, loading: 44, empty: 52 },
+  fine: { shelf: 36, file: 30, more: 30, loading: 30, empty: 44, error: 34 },
+  coarse: { shelf: 44, file: 44, more: 44, loading: 44, empty: 52, error: 44 },
 };
 const EMPTY_NOTE = 'No files here yet. Drop some in, or press Upload.';
 
@@ -193,7 +193,7 @@ export function SidebarItemRow({ item, depth = 0, indent = null, onClick, onOpen
 // sit in normal flow. The same row component draws both.
 function Row({ row, depth, ctx }) {
   const pad = { paddingLeft: ROW_PAD };
-  const { onItem, onItemOpen, onMore, onLess, onShelf, onOpenShelf, starred, selected, onDragItem, onItemMenu, emptyNote, checks } = ctx;
+  const { onItem, onItemOpen, onMore, onLess, onShelf, onOpenShelf, starred, selected, onDragItem, onItemMenu, emptyNote, checks, onRetry, moreFailed } = ctx;
 
   if (row.type === 'shelf') {
     const label = row.label || row.shelfId;
@@ -239,7 +239,7 @@ function Row({ row, depth, ctx }) {
       <div className="sbf-more" style={pad}>
         {row.count > 0 && (
           <button type="button" className="sbf-more-btn" tabIndex={-1} onClick={() => onMore(row)}>
-            Show {row.count} more
+            {row.expanded && moreFailed?.(row.shelfId) ? 'Couldn’t load more · Retry' : `Show ${row.count} more`}
           </button>
         )}
         {row.expanded && (
@@ -252,6 +252,16 @@ function Row({ row, depth, ctx }) {
   }
   if (row.type === 'loading') {
     return <div className="sbf-note" style={pad} aria-busy="true">Loading…</div>;
+  }
+  if (row.type === 'error') {
+    return (
+      <div className="sbf-note is-error" style={pad} role="alert">
+        <span>Couldn’t load your files</span>
+        <button type="button" className="sbf-more-btn" tabIndex={-1} onClick={() => onRetry?.(row.boardId)}>
+          <Icon as={ArrowClockwise} size={13} weight="regular" /> Retry
+        </button>
+      </div>
+    );
   }
   if (row.type === 'empty') {
     return <div className="sbf-note is-empty" style={pad}>{emptyNote}</div>;
@@ -301,7 +311,7 @@ function useWindow(scrollRef, blockRef, layout, active) {
 // they found.
 export function ClusterShelves({
   boardId, depth = 0, contents, coarse = false, emptyNote = EMPTY_NOTE, foldMinor = true,
-  shelfState, onToggleShelf, onLoadMore, canLoadMore,
+  shelfState, onToggleShelf, onLoadMore, canLoadMore, moreFailed = null, onRetry = null,
   onItem, onItemOpen, onOpenShelf, isStarred, scrollRef,
   isSelected = null, onDragItem = null, onItemMenu = null,
   checks = false,   // Select is picking several (a hold's menu, on touch)
@@ -329,7 +339,7 @@ export function ClusterShelves({
       if (canLoadMore?.(boardId, row.shelfId)) onLoadMore?.(boardId, row.shelfId);
     },
     onLess: (row) => onToggleShelf?.(boardId, row.shelfId, 'expanded'),
-    emptyNote,
+    emptyNote, onRetry, moreFailed: moreFailed ? (shelfId) => moreFailed(boardId, shelfId) : null,
     onShelf: (row) => onToggleShelf?.(boardId, row.shelfId, row.toggle),
     onOpenShelf,
     starred: (item) => !!isStarred?.(item.boardId, item.cardId),

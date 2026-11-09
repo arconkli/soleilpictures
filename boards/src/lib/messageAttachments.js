@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { publicAttachmentUrl } from './messageAttachmentUrls.js';
+import { buildStorageUpload, sendStorageUpload, retype } from './storageUploadXhr.js';
 
 // Content types we are willing to have a browser RENDER inline straight off the
 // storage domain. Everything else uploads as application/octet-stream, which
@@ -18,6 +19,10 @@ import { publicAttachmentUrl } from './messageAttachmentUrls.js';
 // itself in place. The bucket's allowed_mime_types is this list plus
 // application/octet-stream, so by construction every upload here is accepted —
 // keep the two in step if you edit either.
+//
+// The remap only reaches the bucket because the File itself is retyped before
+// upload (retype in storageUploadXhr.js): storage-js puts a File in a form and
+// ignores its contentType option, so the server would see the File's own type.
 const INLINE_SAFE_TYPES = new Set([
   'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif',
   'application/pdf',
@@ -33,7 +38,11 @@ export function safeUploadContentType(mime) {
 
 // Upload a File to the message-attachments bucket. Returns the attachment
 // record shape ready to push into messages.attachments.
-export async function uploadMessageFile(file, { workspaceId, userId }) {
+// `onProgress(fraction 0..1)` makes the bytes go by XMLHttpRequest, which has
+// upload progress and storage-js (fetch) has not; the request is the one
+// storage-js sends (storageUploadXhr.js, pinned by its test). Without it, or
+// where there is no real storage client (the QA harness), storage-js sends it.
+export async function uploadMessageFile(file, { workspaceId, userId, onProgress = null }) {
   if (!supabase || !file) return null;
   const ext = (file.name.split('.').pop() || '').toLowerCase();
   const id  = crypto.randomUUID();
@@ -42,10 +51,7 @@ export async function uploadMessageFile(file, { workspaceId, userId }) {
   // uploader, so changing this shape silently breaks read AND write authz.
   const path = `${workspaceId}/${userId}/${id}.${ext || 'bin'}`;
   const served = safeUploadContentType(file.type);
-  const { error } = await supabase.storage.from('message-attachments').upload(path, file, {
-    contentType: served,
-    upsert: false,
-  });
+  const { error } = await putMessageFile(path, retype(file, served), served, onProgress);
   if (error) { console.warn('upload failed', error); return null; }
   // Derive `kind` from what will actually be SERVED, not from what was picked.
   // An SVG is image/* but gets remapped to octet-stream above, so calling it an
@@ -63,6 +69,22 @@ export async function uploadMessageFile(file, { workspaceId, userId }) {
     size: file.size,
     ...(isImage ? await readImageDims(file) : {}),
   };
+}
+
+async function putMessageFile(path, file, served, onProgress) {
+  const st = supabase.storage;
+  if (!onProgress || !st?.url || typeof XMLHttpRequest === 'undefined') {
+    return st.from('message-attachments').upload(path, file, { contentType: served, upsert: false });
+  }
+  // The session's access token, as supabase-js's fetch adds it (getSession
+  // refreshes an expired one); the anon key when signed out.
+  let token = null;
+  try { token = (await supabase.auth.getSession())?.data?.session?.access_token || null; } catch (_) { /* anon key below */ }
+  const req = buildStorageUpload({
+    storageUrl: st.url, bucket: 'message-attachments', path, file,
+    headers: st.headers || {}, apikey: supabase.supabaseKey, token,
+  });
+  return sendStorageUpload(req, { onProgress });
 }
 
 async function readImageDims(file) {

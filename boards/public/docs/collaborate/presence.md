@@ -55,5 +55,11 @@ two people editing the same note produce a note containing both edits.
 
 ## Working offline
 
-Changes made while briefly disconnected are reconciled on reconnect. The status
-in the header reports what has actually saved rather than assuming.
+When the connection drops, the corner of the board says **Offline**, with how
+many uploads are paused, and whether the changes you make are kept on this
+device or need this tab to stay open until you're back. Changes made while
+disconnected are reconciled on reconnect: the corner says **Reconnecting…**,
+then **Saved** once everything you changed is stored. If a save is refused it
+says **Couldn't save**, with **Retry**. On a board the status is in that corner
+and in a [document](/docs/documents) it is in the header; either way it reports
+what has actually saved rather than assuming.

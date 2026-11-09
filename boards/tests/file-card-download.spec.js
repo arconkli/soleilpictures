@@ -7,8 +7,8 @@
 // (and window.open, the helper's last resort) are stubbed to hold or fail it.
 import { expect, test } from '@playwright/test';
 
-async function fileCard(page) {
-  await page.goto('/?local=1&reset=1&blank=1');
+async function fileCard(page, query = '') {
+  await page.goto(`/?local=1&reset=1&blank=1${query}`);
   await expect(page.locator('.canvas-wrap')).toBeVisible();
   await page.mouse.move(640, 420);
   await page.evaluate(() => {
@@ -19,6 +19,17 @@ async function fileCard(page) {
   const card = page.locator('.filec').first();
   await expect(card).toBeVisible();
   return card;
+}
+
+// Hold every blob: fetch until window.__release() is called.
+async function holdBlobFetches(page) {
+  await page.evaluate(() => {
+    const real = window.fetch;
+    window.__release = null;
+    window.fetch = (url, opts) => (String(url).startsWith('blob:')
+      ? new Promise((resolve) => { window.__release = () => resolve(real.call(window, url, opts)); })
+      : real(url, opts));
+  });
 }
 
 test('the download chip shows a busy state while the file is being prepared', async ({ page }) => {
@@ -57,20 +68,33 @@ test('a download that fails says so instead of doing nothing', async ({ page }) 
 });
 
 // The canvas's own Download (context menu) has no control left to show a
-// spinner on once the menu closes, so a held download gets one toast.
+// spinner on once the menu closes. With no activity tray on the page (the
+// local shell has none; the app's loads just after boot) a held download gets
+// one toast.
 test('a slow Download from the card menu says "Preparing download…" until it lands', async ({ page }) => {
   const card = await fileCard(page);
-  await page.evaluate(() => {
-    const real = window.fetch;
-    window.__release = null;
-    window.fetch = (url, opts) => (String(url).startsWith('blob:')
-      ? new Promise((resolve) => { window.__release = () => resolve(real.call(window, url, opts)); })
-      : real(url, opts));
-  });
+  await holdBlobFetches(page);
   await card.click({ button: 'right' });
   await page.locator('.ctx-item', { hasText: /^Download$/ }).first().click();
   const busy = page.locator('.toast', { hasText: 'Preparing download…' });
   await expect(busy).toBeVisible();
+  await expect.poll(() => page.evaluate(() => typeof window.__release)).toBe('function');
+  await page.evaluate(() => window.__release());
+  await expect(busy).toHaveCount(0);
+});
+
+// With the tray up, as in the signed-in app (?activity=1 mounts it in the
+// local shell), the wait is a row in the tray instead: a chip, since it is
+// one file, after the tray's one-second beat. No toast.
+test('with the activity tray up, a slow card-menu Download is a "Preparing <name>…" chip until it lands', async ({ page }) => {
+  const card = await fileCard(page, '&activity=1');
+  await expect(page.locator('.atr-col')).toBeAttached();
+  await holdBlobFetches(page);
+  await card.click({ button: 'right' });
+  await page.locator('.ctx-item', { hasText: /^Download$/ }).first().click();
+  const busy = page.locator('.atr-chip', { hasText: /Preparing reference-pack\.zip…/ });
+  await expect(busy).toBeVisible();
+  await expect(page.locator('.toast', { hasText: 'Preparing download…' })).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => typeof window.__release)).toBe('function');
   await page.evaluate(() => window.__release());
   await expect(busy).toHaveCount(0);

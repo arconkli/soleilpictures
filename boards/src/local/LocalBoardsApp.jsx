@@ -41,7 +41,11 @@ import { aspectSpec } from '../lib/captureAspect.js';
 import { guardCaptureMutators } from '../lib/captureMutatorGuard.js';
 import { CaptureHud } from '../components/capture/CaptureHud.jsx';
 import { ReturnReasonAsk } from '../components/ReturnReasonAsk.jsx';
-import { isReturnQaMode, isUpgradeReasonQaMode, upgradeReasonQaAutoFire } from '../lib/localMode.js';
+import { isReturnQaMode, isUpgradeReasonQaMode, upgradeReasonQaAutoFire, isLocalActivityTrayMode } from '../lib/localMode.js';
+// Lazy as in the app; the literal DEV leaves it out of a production build.
+const LocalActivityTray = import.meta.env.DEV
+  ? React.lazy(() => import('../components/ActivityTray.jsx').then((m) => ({ default: m.ActivityTray })))
+  : null;
 import { UpgradeReasonAsk } from '../components/UpgradeReasonAsk.jsx';
 import { OFFER_DISMISSED } from '../lib/offerEvents.js';
 import { AspectMask } from '../components/capture/AspectMask.jsx';
@@ -2014,6 +2018,10 @@ export function LocalBoardsApp({ user, signOut }) {
           at all and stay that way. The literal import.meta.env.DEV drops this
           from production along with the component's own harness branch. */}
       {import.meta.env.DEV && isReturnQaMode() && <ReturnReasonAsk />}
+      {/* Dev-only, ?activity=1: the activity tray, as the signed-in app mounts it. */}
+      {import.meta.env.DEV && isLocalActivityTrayMode() && (
+        <React.Suspense fallback={null}><LocalActivityTray /></React.Suspense>
+      )}
       {/* Dev-only, ?upgradereasonqa=1: the ask that follows a closed offer. The
           local shell never shows an offer, so this fires the one event the real
           one would — after mount, so the listener is there to hear it. */}

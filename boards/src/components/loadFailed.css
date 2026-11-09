@@ -1,0 +1,27 @@
+/* "Couldn’t load …" + Retry — neutral ink; the button is the Messages
+   .msg-retry-btn look. */
+.load-failed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 12px;
+  color: var(--ink-1);
+  font: 400 13px/1.4 var(--font-sans);
+}
+.load-failed.is-compact { padding: 8px 10px; gap: 8px; }
+.load-failed-btn {
+  appearance: none;
+  background: none;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  color: var(--ink-1);
+  font: 500 12px/1.4 var(--font-sans);
+  padding: 4px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.load-failed-btn:hover { color: var(--ink-0); border-color: var(--line-3); }

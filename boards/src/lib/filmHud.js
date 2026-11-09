@@ -27,6 +27,7 @@ export function hudText(event, ctx = {}) {
     case 'copied': return `Copied ${ctx.tc}`;
     case 'copiedLink': return `Link to ${ctx.tc} copied`;
     case 'buffering': return 'Buffering…';
+    case 'bufferingOffline': return 'Offline · it resumes when you’re back online';
     case 'mutedAutoplay': return 'Playing muted — press M for sound';
     case 'noPrevComment': return 'No comment before this frame';
     case 'noNextComment': return 'No comment after this frame';

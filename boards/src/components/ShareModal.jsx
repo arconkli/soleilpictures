@@ -34,6 +34,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from './Modal.jsx';
+import { useRetry } from '../hooks/useRetry.js';
 import { supabase } from '../lib/supabase.js';
 import {
   shareBoard, unshareBoard, restoreBoardShare, listBoardShares, listInheritedBoardShares,
@@ -161,6 +162,19 @@ export function ShareModal({
   // people can open this one too. Listed read-only, "via <parent>" (0405).
   const [inheritedShares, setInheritedShares] = useState([]);
   const [loadingShares, setLoadingShares] = useState(false);
+  // The direct share list failed to load: not "Just you so far".
+  const [sharesFailed, setSharesFailed] = useState(false);
+  const [sharesTick, retryShares] = useRetry(sharesFailed);
+  const sharesFor = useRef(null);
+  // A re-read after an invite or a role change: a good list replaces the shown
+  // one and clears the failure line; a failed read keeps the list and says so.
+  const rereadShares = async () => {
+    try {
+      const rows = await listBoardShares(board.id);
+      if (Array.isArray(rows)) { setShares(rows); setSharesFailed(false); return; }
+    } catch (_) {}
+    setSharesFailed(true);
+  };
   // Pending invites = rows in pending_invites (email-only, no account yet).
   // Board-scoped pending list renders alongside `shares`; the workspace-scoped
   // list renders as "gets access when they sign up" rows in the same list.
@@ -286,10 +300,16 @@ export function ShareModal({
   useEffect(() => {
     if (!canInvite || !board?.id) {
       setShares([]); setInheritedShares([]); setPendingBoardInvites([]); setPendingWorkspaceInvites([]);
+      setSharesFailed(false);
       return;
     }
     let cancelled = false;
     setLoadingShares(true);
+    // Another cluster's list must not stand in for this one's after a failure.
+    if (sharesFor.current !== board.id) {
+      sharesFor.current = board.id;
+      setShares([]); setInheritedShares([]); setPendingBoardInvites([]); setPendingWorkspaceInvites([]);
+    }
     Promise.all([
       listBoardShares(board.id),
       listPendingInvitesForBoard(board.id).catch(() => []),
@@ -301,6 +321,7 @@ export function ShareModal({
     ])
       .then(([shareRows, pendingBoard, pendingWs, inheritedRows]) => {
         if (cancelled) return;
+        setSharesFailed(false);
         setShares(shareRows);
         setInheritedShares(inheritedRows);
         setPendingBoardInvites(pendingBoard);
@@ -310,11 +331,12 @@ export function ShareModal({
       })
       .catch(e => {
         console.warn('[share] list failed', e);
-        if (!cancelled) { setShares([]); setInheritedShares([]); setPendingBoardInvites([]); setPendingWorkspaceInvites([]); }
+        // The last good list stays; the failure is said, not shown as "Just you".
+        if (!cancelled) setSharesFailed(true);
       })
       .finally(() => { if (!cancelled) setLoadingShares(false); });
     return () => { cancelled = true; };
-  }, [board?.id, canInvite, isManager, workspace?.id]);
+  }, [board?.id, canInvite, isManager, workspace?.id, sharesTick]);
 
   // The picture a pasted link shows (lib/shareCard.js): made here, in the
   // sender's browser, and uploaded for the Worker to serve. Made when the panel
@@ -793,11 +815,10 @@ export function ShareModal({
     }
     if (!isWorkspaceInvite && (granted.length > 0 || pending.length > 0)) {
       try {
-        const [shareRows, pendingRows] = await Promise.all([
-          listBoardShares(board.id),
+        const [, pendingRows] = await Promise.all([
+          rereadShares(),
           listPendingInvitesForBoard(board.id).catch(() => []),
         ]);
-        setShares(shareRows);
         setPendingBoardInvites(pendingRows);
       } catch (_) {}
       onSharesChanged?.();
@@ -933,7 +954,7 @@ export function ShareModal({
       setAsks((rows) => rows.filter((r) => r.request_id !== id));
       if (yes && data === 'yes') {
         setShares((rows) => rows.map((x) => (x.user_id === req.requester_id ? { ...x, role: 'editor' } : x)));
-        try { setShares(await listBoardShares(board.id)); } catch (_) {}
+        await rereadShares();
         onSharesChanged?.();
         editorLimit.refresh();
       }
@@ -948,8 +969,7 @@ export function ShareModal({
     try {
       // share_board upserts so re-issuing with a different role updates.
       await shareBoard({ boardId: board.id, email: share.email, role: newRole });
-      const rows = await listBoardShares(board.id);
-      setShares(rows);
+      await rereadShares();
       onSharesChanged?.();
     } catch (e) {
       const full = editorLimitRefusal(e);
@@ -1115,7 +1135,7 @@ export function ShareModal({
       let unshared = true;
       try { await unshareBoard({ boardId: board.id, userId: share.user_id }); } catch (_) { unshared = false; }
       // Re-read rather than assume: the list shows what the server holds.
-      try { setShares(await listBoardShares(board.id)); } catch (_) {}
+      await rereadShares();
       onMembersChanged?.();
       onSharesChanged?.();
       feedback.toast(unshared
@@ -1477,7 +1497,12 @@ export function ShareModal({
         <div className="share-section">
           <h3 className="share-section-title">Who has access · {accessCount}</h3>
           <div className="share-list">
-            {loadingShares && accessCount === 0 ? (
+            {sharesFailed && !loadingShares ? (
+              <div className="share-empty" role="alert">
+                Couldn’t load who has access{' '}
+                <button type="button" className="tb-btn tb-btn-sm" onClick={retryShares}>Retry</button>
+              </div>
+            ) : loadingShares && accessCount === 0 ? (
               <div className="share-empty">Loading…</div>
             ) : accessCount === 0 ? (
               <div className="share-empty">

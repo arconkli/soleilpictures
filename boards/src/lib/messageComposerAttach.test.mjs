@@ -10,6 +10,11 @@ import { readFileSync } from 'node:fs';
 
 const src = readFileSync(new URL('../components/MessageComposer.jsx', import.meta.url), 'utf8');
 
+test('the chip stops at 99% while the server answers', () => {
+  assert.match(src, /Math\.min\(99, Math\.floor\(f \* 100\)\)/);
+  assert.doesNotMatch(src, /Math\.min\(100, Math\.floor\(f \* 100\)\)/);
+});
+
 test('a failed upload says so, on its own chip, with Retry', () => {
   assert.match(src, /att \? \{ \.\.\.i, status: 'done', att, file: null \} : \{ \.\.\.i, status: 'failed' \}/);
   assert.match(src, /item\.status === 'failed' && \(/);
@@ -22,7 +27,7 @@ test('a failed upload says so, on its own chip, with Retry', () => {
 test('uploads run beside the typing: the field is never disabled, Send waits for them', () => {
   const field = src.slice(src.indexOf('<GrowingTextarea'), src.indexOf('/>', src.indexOf('<GrowingTextarea')));
   assert.doesNotMatch(field, /disabled=/);
-  assert.match(src, /uploadQueue\.run\(\(\) => uploadMessageFile\(item\.file, \{ workspaceId, userId \}\)\)/);
+  assert.match(src, /uploadQueue\.run\(\(\) => uploadMessageFile\(item\.file, \{ workspaceId, userId, onProgress \}\)\)/);
   assert.match(src, /const uploading = items\.some\(\(i\) => i\.status === 'uploading'\);/);
   assert.match(src, /if \(isBusy\) return;/);
 });
@@ -38,4 +43,10 @@ test('a send takes what it sent out of the draft at once, and leaves a failed fi
   const send = src.slice(src.indexOf('const send = async'), src.indexOf('// Insert a URL chip'));
   assert.match(send, /const sent = items\.filter\(\(i\) => i\.status === 'done'\);/);
   assert.match(send, /\{ now: true \}\);/);
+});
+
+test('the upload percent is shown but not announced; a static live region names the file', () => {
+  assert.match(src, /<span className="msg-composer-att-state" aria-hidden="true">\{Number\.isFinite\(item\.pct\)/);
+  assert.match(src, /<span className="sr-only" role="status">Uploading \{label\}<\/span>/);
+  assert.doesNotMatch(src, /msg-composer-att-state" role="status"/);
 });

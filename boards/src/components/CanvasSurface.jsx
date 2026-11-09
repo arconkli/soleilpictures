@@ -10,7 +10,11 @@ import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey
 import { todayISO as schedTodayISO } from '../lib/schedDates.js';
 import { scheduleCreationAllowed, templateStoreAllowed, fileSharesAllowed, clusterNudgesAllowed, bulkImportAllowed, touchPassAllowed } from '../lib/appHost.js';
 import { isZipFile } from '../lib/importZips.js';
-import { uploadFailedWords, downloadFailedWords } from '../lib/transferWords.js';
+import { uploadFailedWords, downloadFailedWords, isNetworkUploadFailure } from '../lib/transferWords.js';
+import { startBatch, addTransfer, updateTransfer, removeTransfer, activitySnapshot, subscribeActivity, slotFree, inLimiterUnlessPaused, setCardCanceller, resumeBatch } from '../lib/activity.js';
+import { useTransferCardIds } from '../hooks/useActivity.js';
+import { createPeerUploadsStore, createUploadPublisher } from '../lib/peerUploads.js';
+import { CardTransferState } from './cards/CardTransferState.jsx';
 import { createGroundPainter, cameraFromTransform, parseColor, isWheelClick, glideZoom } from '../lib/canvasGround.js';
 import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
 import { secondIdeaDue } from '../lib/secondIdea.js';
@@ -55,6 +59,7 @@ import {
 } from './cards.jsx';
 import { RichDocCard as RichDocCardView } from './DocCard.jsx';
 import { Spinner } from './Spinner.jsx';
+import { WaitNote } from './WaitNote.jsx';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { lazyPanel } from '../lib/lazyPanel.jsx';
 import { toListItem } from '../lib/listItem.js';
@@ -64,11 +69,15 @@ const PdfViewer = lazyWithReload(() => import('./PdfViewer.jsx'));
 // What's up while its code loads: a layer of its own (lib/modalGuard.js), so
 // Escape cancels the open, rather than reaching nothing and the viewer opening
 // a moment later anyway.
-function PdfViewerLoading({ onClose }) {
+function PdfViewerLoading({ onClose, name }) {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   useEffect(() => registerModalOpen({ onEscape: () => { closeRef.current(); return true; } }), []);
-  return <div className="pdfv pdfv-loading"><Spinner size={28} tone="on-dark" label="Loading PDF" /></div>;
+  return (
+    <div className="pdfv pdfv-loading">
+      <WaitNote label={`Opening ${name || 'this PDF'}…`} spinnerLabel="Loading PDF" onClose={onClose} />
+    </div>
+  );
 }
 // A file with no viewer of its own opens here (Download + Share).
 const QuickLook = lazyWithReload(() => import('./clusterBrowser/QuickLook.jsx'));
@@ -135,7 +144,11 @@ import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
 import { uploadImage, uploadVideo, uploadAudio, uploadPdf, uploadFile, readVideoMeta, readAudioMeta, makeBoundedPreview, captureAndUploadPoster } from '../lib/uploads.js';
 import { analyzeAudioFile, analyzable } from '../lib/audioAnalysis.js';
-import { downloadCardAsset, DOWNLOADABLE } from '../lib/cardDownload.js';
+import { downloadCardAsset, DOWNLOADABLE, assetFilename, bulkDownloadSupported } from '../lib/cardDownload.js';
+import { wantsDirectDownload } from '../lib/downloadPlan.js';
+import { getDeviceInfo } from '../lib/device.js';
+import { trackOp, opsHaveTray } from '../lib/activityOps.js';
+import { exportWords } from '../lib/activityWords.js';
 import * as audioBus from '../lib/audioBus.js';
 import { parseLoopMeta, canonicalKey } from '../lib/loopMeta.js';
 import { makeLimiter } from '../lib/asyncPool.js';
@@ -548,6 +561,25 @@ function readImageDims(file) {
 // decoding all at once froze iOS Safari. 2 on memory-constrained clients, 4
 // elsewhere — mirrors the backfillGate cap for the same reason.
 const imageDecodeLimiter = makeLimiter(lowMemoryDevice() ? 2 : 4);
+// Canvas uploads go three at a time; the rest wait on their cards (lib/activity.js
+// shows them as Waiting) instead of all splitting the connection at once.
+const canvasUploadLimiter = makeLimiter(3);
+// Run `task` in a canvas upload slot once `go()` (called when the turn comes)
+// says so, and hand the slot on as soon as the task ends OR its transfer stops
+// needing it: every byte is in ("Making a preview…") or nothing moved for a
+// minute (lib/activity.js slotFree). Still waits for the task itself: resolves
+// true when it ran (rejecting with its error), false when `go()` declined.
+function runInUploadSlot(tid, go, task) {
+  let run = null;
+  const slot = inLimiterUnlessPaused(tid, canvasUploadLimiter, async () => {
+    if (!go()) return;
+    run = Promise.resolve().then(task);
+    const lend = slotFree(tid);
+    try { await Promise.race([run.then(() => {}, () => {}), lend.promise]); }
+    finally { lend.cancel(); }
+  });
+  return slot.then(() => (run ? run.then(() => true) : false));
+}
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 
@@ -693,6 +725,7 @@ export function CanvasSurface({
   useLocalImages = false,
   peersHereByBoard,        // Map<boardId, Peer[]>  — workspace presence
   peersBelowByBoard,       // Map<boardId, Peer[]>  — descendants
+  uploadingElsewhere = null, // userId → { name, color, boards: Set } still uploading from a tab elsewhere (App, workspace presence)
   wsPeers = [],            // Workspace peers — passed into doc cards so the
                            // doc-card overlay can render its own peer
                            // avatars + page-tree dots scoped to that card.
@@ -1382,46 +1415,6 @@ export function CanvasSurface({
   const [arrowCursor, setArrowCursor] = useState(null); // canvas-space {x,y}
   const [activeStroke, setActiveStroke] = useState(null);
   const [activeFreeArrow, setActiveFreeArrow] = useState(null); // { from:{x,y}, to:{x,y} }
-  // Per-card upload progress (cardId → 0..1). Threaded into ImageCard so
-  // the spinner overlay can show a percentage while uploading.
-  const [uploadProgressById, setUploadProgressById] = useState({});
-  // XHR progress fires many times a second per upload, each in its own task,
-  // and a 30-photo drop runs them all at once: setting this top-level state
-  // on every event re-rendered the whole canvas hundreds of times a second
-  // while you panned. Reports are coalesced into one update per frame, and
-  // only a change in the whole percent the card shows is worth a render.
-  const progressPendingRef = useRef(null);   // Map(cardId → frac) awaiting the next frame
-  const reportUploadProgress = useCallback((id, frac) => {
-    let pend = progressPendingRef.current;
-    if (!pend) {
-      pend = progressPendingRef.current = new Map();
-      const flush = () => {
-        const batch = progressPendingRef.current;
-        progressPendingRef.current = null;
-        if (!batch || !batch.size) return;
-        setUploadProgressById((prev) => {
-          let next = null;
-          for (const [cid, f] of batch) {
-            if (prev[cid] != null && Math.round(prev[cid] * 100) === Math.round(f * 100)) continue;
-            if (!next) next = { ...prev };
-            next[cid] = f;
-          }
-          return next || prev;
-        });
-      };
-      if (typeof requestAnimationFrame === 'function') requestAnimationFrame(flush);
-      else setTimeout(flush, 16);
-    }
-    pend.set(id, frac);
-  }, []);
-  const clearUploadProgress = useCallback((id) => {
-    progressPendingRef.current?.delete(id);   // a queued report must not bring it back
-    setUploadProgressById((prev) => {
-      if (!(id in prev)) return prev;
-      const { [id]: _drop, ...rest } = prev;
-      return rest;
-    });
-  }, []);
   // IDs of cards/boards currently highlighted because the user is hovering
   // an EntityLink that points at them. Drives the .is-link-target class
   // so the canvas reflects what the link will navigate to.
@@ -4101,6 +4094,18 @@ export function CanvasSurface({
     if (m) return m.has(id);
     return (allCardsRef.current || []).some((c) => c.id === id);
   }, []);
+  // Does the doc in front of us hold the server's copy of `boardId`? Only then
+  // may a card missing from it be called gone: a cluster still loading (the
+  // instant cache paint, a switch on its way) shows an old or empty doc.
+  // boardSynced is the snapshot load (App: ready AND the doc is this board's);
+  // a live, synced room says the same for a cluster that has no saved snapshot
+  // yet, whose load never sets it.
+  const boardSyncedRef = useRef(!!boardSynced);
+  boardSyncedRef.current = !!boardSynced;
+  const docReadyFor = useCallback((boardId) => {
+    if (!boardId || boardIdRef.current !== boardId || !ydocRef.current) return false;
+    return boardSyncedRef.current || ydocRef.current._soleilRoom?.synced === true;
+  }, []);
   // Hand an upload's result to its card: patched in place when that card is on
   // the board in front of us, otherwise held until it is (a cluster switch, or
   // a delete that Undo may reverse — lib/abandonedUploads.js, late results).
@@ -4148,10 +4153,239 @@ export function CanvasSurface({
   // defined further down, hence the ref.
   const failedUploadsRef = useRef({ at: 0, items: [] });
   const ingestFilesRef = useRef(null);
+  // Uploads that failed on the network with their card kept on the open
+  // cluster, card id → { tid, batch, dropBoardId, retry, cleanup,
+  // retryWhenOpen }: the card says "Didn’t upload" and offers Retry and Remove
+  // (lib/activity.js actions). retryWhenOpen: tried again the next time its
+  // cluster is open with the server's copy in and the browser online.
+  // dispatchIngestOne and doDeleteIds are defined further down, hence the refs.
+  const keptUploadsRef = useRef(new Map());
+  const dispatchIngestOneRef = useRef(null);
+  const doDeleteIdsRef = useRef(null);
+  // The tray's "Cancel this upload" deletes the card (with its Undo toast),
+  // which already cancels or parks the upload behind it.
+  useEffect(() => {
+    if (!board?.id) return undefined;
+    return setCardCanceller(board.id, (cardId) => doDeleteIdsRef.current?.([cardId]));
+  }, [board?.id]);
+  const keepAgainRef = useRef(null);
+  const boardNameRef = useRef(board?.name || null);
+  boardNameRef.current = board?.name || null;
+  // A transfer of its own, for an upload that starts outside a drop's batch
+  // (a paste, or Undo bringing back a card whose upload was cancelled).
+  const soloTransferJob = useCallback((file, dropBoardId, cardId = null) => {
+    const batch = startBatch({ kind: 'upload', boardId: dropBoardId || null, boardName: boardNameRef.current });
+    const tid = addTransfer({ batch, label: file?.name || 'File', boardId: dropBoardId || null, cardId, bytesTotal: file?.size || 0, mime: file?.type || '', cancellable: true });
+    return { tid, batch };
+  }, []);
+  // Where a card stands now, else `fallback`.
+  const cardRectOr = useCallback((id, fallback = null) => {
+    const card = (allCardsRef.current || []).find((c) => c.id === id);
+    return card && Number.isFinite(card.x) && Number.isFinite(card.y)
+      ? { x: card.x, y: card.y, w: card.w, h: card.h }
+      : fallback;
+  }, []);
+  // Send `retry.file` back through its route into a new card where card `id`
+  // stood (that card goes, silently), under transfer `job`.
+  const resendInto = useCallback((id, retry, rect, job) => {
+    if (cardIsLive(id)) sweepMutatorsRef.current?.deleteCardsSilent?.([id]);
+    inflightUploadsRef.current.delete(id);
+    const { file, route, kind, cx, cy } = retry;
+    const at = rect && rect.w > 0 && rect.h > 0 ? { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 } : { x: cx, y: cy };
+    dispatchIngestOneRef.current?.({ file, route, kind }, at.x, at.y, rect, job);
+  }, [cardIsLive]);
 
-  // `retry` — { file, cx, cy } — what Retry on the failure toast needs to put
+  // Retry on a kept card: the card goes (silently) and the file goes back
+  // through its route into a new card where the old one stood, under the same
+  // transfer, so the tray counts it once. On a cluster that isn't open, or
+  // whose server copy isn't in yet (the card can't be found to replace, and a
+  // second one would appear), it retries once it is (retryWhenOpen).
+  const retryKeptUpload = useCallback((id) => {
+    const k = keptUploadsRef.current.get(id);
+    if (!k) return;
+    if (!docReadyFor(k.dropBoardId)) { k.retryWhenOpen = true; return; }
+    keptUploadsRef.current.delete(id);
+    const rect = cardRectOr(id, k.retry.rect || null);
+    k.cleanup?.();
+    updateTransfer(k.tid, { state: 'waiting', cardId: null, actions: null, parked: false });
+    resendInto(id, k.retry, rect, { tid: k.tid, batch: k.batch });
+  }, [docReadyFor, cardRectOr, resendInto]);
+
+  // A person's Retry (the tray row, the card): the item's batch, if paused,
+  // resumes first so the retry isn't held behind the pause. The automatic retry
+  // when back online (retryWhenOpenNow) goes straight to retryKeptUpload.
+  const retryKeptByPerson = useCallback((id) => {
+    const bid = keptUploadsRef.current.get(id)?.batch;
+    if (bid && activitySnapshot().batches.some((b) => b.id === bid && b.paused)) resumeBatch(bid);
+    retryKeptUpload(id);
+  }, [retryKeptUpload]);
+
+  // A card deleted while its upload waited for a slot and brought back by
+  // Undo (the late results, below): the placeholder is replaced by a new card
+  // under a fresh transfer, as Retry does.
+  const requeueUpload = useCallback((id, retry, dropBoardId) => {
+    if (!retry?.file || boardIdRef.current !== dropBoardId) return;
+    resendInto(id, retry, cardRectOr(id, retry.rect || null), soloTransferJob(retry.file, dropBoardId));
+  }, [resendInto, cardRectOr, soloTransferJob]);
+
+  // A kept card that left its cluster (Remove, or deleted any other way): its
+  // transfer goes, and an Undo of that delete brings it back as it was —
+  // "Didn’t upload" with Retry and Remove (keepAgain).
+  const dropKept = useCallback((id, k) => {
+    keptUploadsRef.current.delete(id);
+    removeTransfer(k.tid);
+    inflightUploadsRef.current.delete(id);
+    k.cleanup?.();
+    stashLateUpload(k.dropBoardId, id, { retry: () => keepAgainRef.current?.(id, k) });
+  }, []);
+
+  // Remove on a kept card: the ordinary delete, with its undo toast.
+  const removeKeptUpload = useCallback((id) => {
+    const k = keptUploadsRef.current.get(id);
+    if (!k) return;
+    if (boardIdRef.current === k.dropBoardId && cardIsLive(id)) {
+      dropKept(id, k);
+      doDeleteIdsRef.current?.([id]);
+      return;
+    }
+    keptUploadsRef.current.delete(id);
+    removeTransfer(k.tid);
+    inflightUploadsRef.current.delete(id);
+    k.cleanup?.();
+    stashLateUpload(k.dropBoardId, id, { remove: true });
+  }, [cardIsLive, dropKept]);
+
+  // Undo brought a removed kept card back: kept again, under a new failed
+  // transfer of its own (a batch of one), with the same file to retry.
+  const keepAgain = useCallback((id, k) => {
+    if (keptUploadsRef.current.has(id) || boardIdRef.current !== k.dropBoardId || !cardIsLive(id)) return;
+    const batch = startBatch({ kind: 'upload', boardId: k.dropBoardId, boardName: boardNameRef.current });
+    const tid = addTransfer({
+      batch, label: k.retry.file?.name || 'File', boardId: k.dropBoardId, cardId: id,
+      bytesTotal: k.retry.file?.size || 0, state: 'failed', mime: k.retry.file?.type || '', cancellable: true,
+    });
+    keptUploadsRef.current.set(id, { ...k, tid, batch, cleanup: null, retryWhenOpen: false });
+    inflightUploadsRef.current.add(id);
+    updateTransfer(tid, {
+      error: 'Didn’t upload',
+      actions: { retry: () => retryKeptByPerson(id), remove: () => removeKeptUpload(id) },
+    });
+  }, [cardIsLive, retryKeptByPerson, removeKeptUpload]);
+  keepAgainRef.current = keepAgain;
+
+  // A network failure on the cluster in front of us keeps its card: nothing
+  // is deleted and nothing is toasted, the card itself says what happened.
+  // True when kept; handleUploadReject then has nothing left to do.
+  const keepFailedUpload = useCallback((err, id, dropBoardId, retry, tid) => {
+    if (!tid || !retry?.file || boardIdRef.current !== dropBoardId || !cardIsLive(id)) return false;
+    const online = typeof navigator === 'undefined' || navigator.onLine !== false;
+    if (!isNetworkUploadFailure(err, { online })) return false;
+    const batch = activitySnapshot().items.find((it) => it.id === tid)?.batch || null;
+    keptUploadsRef.current.set(id, { tid, batch, dropBoardId, retry, cleanup: null, retryWhenOpen: false });
+    updateTransfer(tid, {
+      state: 'failed', error: 'Didn’t upload', retryOnline: true,
+      actions: { retry: () => retryKeptByPerson(id), remove: () => removeKeptUpload(id) },
+    });
+    return true;
+  }, [cardIsLive, retryKeptByPerson, removeKeptUpload]);
+
+  // Teammates' uploads (presence) and ours going out to them, for the open
+  // cluster only. The awareness is asked for again at each use: the room is
+  // replaced when the socket is rebuilt.
+  const getAwarenessRef = useRef(getAwareness);
+  getAwarenessRef.current = getAwareness;
+  // People whose tab is elsewhere but still uploading to clusters
+  // (workspace presence, App: userId → { name, color, boards }): their cards
+  // here say "Lena is uploading", not "didn't finish".
+  const uploadingElsewhereRef = useRef(uploadingElsewhere);
+  uploadingElsewhereRef.current = uploadingElsewhere;
+  const [peerUploads, setPeerUploads] = useState(null);
+  useEffect(() => {
+    if (!board?.id) return undefined;
+    const aw = () => getAwarenessRef.current?.() || null;
+    const store = createPeerUploadsStore({
+      getAwareness: aw, getRoom: () => ydocRef.current?._soleilRoom, boardId: board.id, me: currentUser?.id || null,
+    });
+    store.setAway(uploadingElsewhereRef.current || null);
+    const publisher = createUploadPublisher({ getAwareness: aw, boardId: board.id });
+    const feed = () => publisher.push(activitySnapshot().items);
+    feed();
+    const off = subscribeActivity(feed);
+    setPeerUploads(store);
+    return () => { off(); publisher.dispose(); store.dispose(); setPeerUploads(null); };
+  }, [board?.id, currentUser?.id]);
+  useEffect(() => { peerUploads?.setAway(uploadingElsewhere || null); }, [peerUploads, uploadingElsewhere]);
+  const transferCardIds = useTransferCardIds();
+
+  // The card's own buttons. Stable: the overlay is memoised per card.
+  const retryKeptRef = useRef(null);
+  const removeKeptRef = useRef(null);
+  retryKeptRef.current = retryKeptByPerson;
+  removeKeptRef.current = removeKeptUpload;
+  const onTransferRetry = useCallback((id) => retryKeptRef.current?.(id), []);
+  // Remove: a kept failed card goes through its transfer; an unfinished one
+  // (nobody is sending it) is the ordinary delete.
+  const onTransferRemove = useCallback((id) => {
+    if (keptUploadsRef.current.has(id)) removeKeptRef.current?.(id);
+    else doDeleteIdsRef.current?.([id]);
+  }, []);
+  // Replace: the stuck card goes (silently) and the chosen file takes its place.
+  const onTransferReplace = useCallback((id, file) => {
+    const c = (allCardsRef.current || []).find((x) => x.id === id);
+    if (!c || !file) return;
+    const cx = c.x + c.w / 2;
+    const cy = c.y + c.h / 2;
+    sweepMutatorsRef.current?.deleteCardsSilent?.([id]);
+    inflightUploadsRef.current.delete(id);
+    ingestFilesRef.current?.([file], cx, cy, 'picker');
+  }, []);
+  // One file picker for every card's Replace (the overlay has none of its
+  // own): it remembers which card asked, and checks that card is still on the
+  // cluster when the file comes back.
+  const replaceInputRef = useRef(null);
+  const replaceForRef = useRef(null);
+  const onPickReplace = useCallback((id) => {
+    const input = replaceInputRef.current;
+    if (!input || !id) return;
+    replaceForRef.current = id;
+    input.value = '';
+    input.click();
+  }, []);
+  const onReplaceFileChange = useCallback((e) => {
+    const input = e.target;
+    const file = input.files?.[0] || null;
+    const id = replaceForRef.current;
+    replaceForRef.current = null;
+    input.value = '';   // so the same file can be picked again
+    if (!file || !id || !cardIsLive(id)) return;
+    onTransferReplace(id, file);
+  }, [cardIsLive, onTransferReplace]);
+
+  // One upload's network part, in its turn (runInUploadSlot: the slot is lent
+  // on once its bytes are in or it has stalled). The card is asked first: one
+  // deleted while it waited is not uploaded, and an Undo of that delete sends
+  // it again (requeueUpload, through the late results). Asked only of a
+  // cluster open with the server's copy in; anywhere else it goes ahead, as
+  // before (settleUpload keeps the result for the card). `retry` — { file,
+  // cx, cy, route, kind, rect }. Resolves true when `task` ran.
+  const requeueRef = useRef(null);
+  requeueRef.current = requeueUpload;
+  const inUploadSlot = useCallback((id, tid, dropBoardId, task, retry = null) => runInUploadSlot(tid, () => {
+    if (docReadyFor(dropBoardId) && !cardIsLive(id)) {
+      removeTransfer(tid);
+      if (retry?.file) stashLateUpload(dropBoardId, id, { retry: () => requeueRef.current?.(id, retry, dropBoardId) });
+      return false;
+    }
+    updateTransfer(tid, { state: 'running', parked: false });
+    return true;
+  }, task), [cardIsLive, docReadyFor]);
+
+  // `retry` — { file, cx, cy, route, kind, rect } — what Retry needs to put
   // the file back through the same drop route; null where there is none.
-  const handleUploadReject = useCallback((err, id, dropBoardId, retry = null) => {
+  // `tid` is the upload's transfer (lib/activity.js). Returns true when the
+  // card was kept (keepFailedUpload).
+  const handleUploadReject = useCallback((err, id, dropBoardId, retry = null, tid = null) => {
+    if (keepFailedUpload(err, id, dropBoardId, retry, tid)) return true;
     // Silent (off-stack) rollback: the failed upload is not a user action,
     // so Cmd+Z must not resurrect the dead card. A card that isn't in front of
     // us (another cluster is open, or it was deleted and Undo may bring it
@@ -4160,6 +4394,8 @@ export function CanvasSurface({
     if (boardIdRef.current === dropBoardId && cardIsLive(id)) sweepMutatorsRef.current?.deleteCardsSilent?.([id]);
     else stashLateUpload(dropBoardId, id, { remove: true });
     const upsell = onRequestStorageUpgrade || onRequestUpgrade;
+    // The card is gone; what the tray keeps is the reason it didn't upload.
+    const refused = () => updateTransfer(tid, { state: 'failed', error: uploadFailedWords(err), actions: null, cardId: null });
     if (err?.code === 402 || err?.code === 403) {
       try {
         logEvent(EV.UPLOAD_BLOCKED, {
@@ -4208,8 +4444,11 @@ export function CanvasSurface({
           at: { x: retry.cx, y: retry.cy }, tier: planTier,
         });
         if (held) storageRoom(dropBoardId).then((r) => setHeldBaseline(held, r?.quota));
-      }
+        // Held, and shown with what is held, not as a failure.
+        removeTransfer(tid);
+      } else refused();
     } else if (err?.code === 403) {
+      refused();
       // Since 0413 no plan refuses a file for its size, so a 403 from the
       // upload party means the write itself was refused — edit access ended.
       feedback.toast({
@@ -4217,6 +4456,7 @@ export function CanvasSurface({
         message: "That upload was refused — you may no longer be able to edit this cluster.",
       });
     } else if (err?.code === 'video_too_long') {
+      refused();
       // The free clip-length cap is a paid limit like the two above, and only
       // ever applies to an owner on the free plan (a shared cluster attempts
       // any length), so it pitches the same way instead of a dead-end error.
@@ -4241,17 +4481,20 @@ export function CanvasSurface({
         });
       }, 1000);
     } else if (String(err?.message) !== 'aborted') {
+      refused();
       const TTL = 8000;
       const now = Date.now();
       const failed = failedUploadsRef.current;
       // The toast this would join has expired: start a fresh list with it.
       if (now - failed.at > TTL) failed.items = [];
       failed.at = now;
-      if (retry?.file) failed.items.push({ ...retry, boardId: dropBoardId });
+      if (retry?.file) failed.items.push({ ...retry, boardId: dropBoardId, tid });
       const retryAll = () => {
         // Only onto the cluster they were dropped on, and only if it is still
         // the one open: the files are re-laid out around the first drop point.
         const items = failed.items.splice(0).filter((r) => r.boardId === boardIdRef.current);
+        // The failures they were go: the drop makes new transfers for them.
+        for (const r of items) removeTransfer(r.tid);
         if (items.length) ingestFilesRef.current?.(items.map((r) => r.file), items[0].cx, items[0].cy, 'retry');
       };
       feedback.toast({
@@ -4264,8 +4507,9 @@ export function CanvasSurface({
         ...(failed.items.length ? { action: { label: 'Retry', onClick: retryAll } } : {}),
         onDismiss: () => { failed.items = []; },
       });
-    }
-  }, [onRequestUpgrade, onRequestStorageUpgrade, feedback, ownsWorkspace, isPaidPlan, planTier, cardIsLive]);
+    } else removeTransfer(tid);
+    return false;
+  }, [onRequestUpgrade, onRequestStorageUpgrade, feedback, ownsWorkspace, isPaidPlan, planTier, cardIsLive, keepFailedUpload]);
 
   // Place the drop rect (w×h) centered on (cx, cy), clamped to the viewport.
   //
@@ -4288,10 +4532,12 @@ export function CanvasSurface({
     return clampDropRect({ x: cx - w / 2, y: cy - h / 2, w, h }, bounds);
   }, [clientToCanvas]);
 
-  const optimisticDropImage = useCallback(async (file, cx, cy, rect = null) => {
-    if (!file) return;
+  const optimisticDropImage = useCallback(async (file, cx, cy, rect = null, job = null) => {
+    const tid = job?.tid || null;
+    if (!file) { removeTransfer(tid); return; }
     const dropBoardId = board?.id;
     if (useLocalImages) {
+      removeTransfer(tid);
       // Local QA path — no upload. Just add the card directly.
       try {
         const dims = await readImageDims(file);
@@ -4342,9 +4588,13 @@ export function CanvasSurface({
     if (blobUrl) setLocalImagePreview(prev => ({ ...prev, [id]: blobUrl }));
     // Keep the whole card on-screen even when dropped near the right/bottom edge.
     const placed = placeDropRect(cx, cy, w, h, rect);
+    const dropPreview = () => {
+      setLocalImagePreview(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+      if (blobUrl) { try { URL.revokeObjectURL(blobUrl); } catch (_) {} }
+    };
     // src omitted here — blob URLs aren't useful to peers, so we keep the
     // doc clean and let localImagePreview drive the local view.
-    mutators.addCard?.({
+    const placedId = mutators.addCard?.({
       id, kind: 'image',
       x: placed.x, y: placed.y,
       w, h,
@@ -4352,32 +4602,43 @@ export function CanvasSurface({
       // The file's own name, when it has a real one (not a paste's "image.png").
       ...fileMetaFor(file),
     });
+    if (!placedId) { removeTransfer(tid); dropPreview(); return; }
+    updateTransfer(tid, { cardId: id, thumb: blobUrl || null });
+    inflightUploadsRef.current.add(id);
+    const retry = { file, cx, cy, route: job?.route || 'image', kind: job?.kind || 'image', rect };
+    let kept = false;
     try {
-      const onProgress = (frac) => reportUploadProgress(id, frac);
-      const up = await uploadImage({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
-      // If the user navigated to a different board mid-upload, the active
-      // mutators no longer target the board this card lives on, so the patch
-      // waits for that board (settleUpload). The upload has landed with the
-      // card id on its images row too, so the abandoned-upload sweep below
-      // recovers the src for anyone else on the board's next open.
-      // Silent (origin 'upload'): the async src patch must not be its own
-      // undo step, or Cmd+Z first "peels" the image back to pending before a
-      // second Cmd+Z removes the card.
-      settleUpload(dropBoardId, id, { src: up.src, pending: false });
-    } catch (err) {
-      console.error('image upload failed', err);
-      // Shared handler: rolls the optimistic card back AND, for 402/403, opens
-      // the upgrade prompt and logs upload_blocked. This used to be a bespoke
-      // error toast, so an over-quota image drop — the one upload failure that
-      // is actually a sales moment — showed a red "failed" message with no
-      // upgrade path and no telemetry.
-      handleUploadReject(err, id, dropBoardId, { file, cx, cy });
+      await inUploadSlot(id, tid, dropBoardId, async () => {
+        try {
+          const onProgress = (frac) => updateTransfer(tid, { fraction: frac });
+          const up = await uploadImage({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
+          // If the user navigated to a different board mid-upload, the active
+          // mutators no longer target the board this card lives on, so the patch
+          // waits for that board (settleUpload). The upload has landed with the
+          // card id on its images row too, so the abandoned-upload sweep below
+          // recovers the src for anyone else on the board's next open.
+          // Silent (origin 'upload'): the async src patch must not be its own
+          // undo step, or Cmd+Z first "peels" the image back to pending before a
+          // second Cmd+Z removes the card.
+          settleUpload(dropBoardId, id, { src: up.src, pending: false });
+          updateTransfer(tid, { state: 'done' });
+        } catch (err) {
+          console.error('image upload failed', err);
+          // Shared handler: rolls the optimistic card back AND, for 402/403, opens
+          // the upgrade prompt and logs upload_blocked. This used to be a bespoke
+          // error toast, so an over-quota image drop — the one upload failure that
+          // is actually a sales moment — showed a red "failed" message with no
+          // upgrade path and no telemetry.
+          kept = handleUploadReject(err, id, dropBoardId, retry, tid) === true;
+        }
+      }, retry);
     } finally {
-      clearUploadProgress(id);
-      setLocalImagePreview(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
-      if (blobUrl) { try { URL.revokeObjectURL(blobUrl); } catch (_) {} }
+      // A kept card keeps its picture until it is retried or removed.
+      const k = kept ? keptUploadsRef.current.get(id) : null;
+      if (k) k.cleanup = dropPreview;
+      else { inflightUploadsRef.current.delete(id); dropPreview(); }
     }
-  }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, onDropFileImage, handleUploadReject, settleUpload]);
+  }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, onDropFileImage, handleUploadReject, settleUpload, inUploadSlot]);
 
   // Abandoned uploads (lib/abandonedUploads.js): photo cards saved without
   // their file by a page that went away mid-upload. Writers only, a few seconds
@@ -4550,8 +4811,9 @@ export function CanvasSurface({
   // page-1 thumbnail in the background (same optimistic pattern as images).
   // Distinct `pdf-` id prefix so card_index's `img-` src-recovery heuristics
   // don't mistake it for an image.
-  const optimisticDropPdf = useCallback(async (file, cx, cy, rect = null) => {
-    if (!file) return;
+  const optimisticDropPdf = useCallback(async (file, cx, cy, rect = null, job = null) => {
+    const tid = job?.tid || null;
+    if (!file) { removeTransfer(tid); return; }
     const dropBoardId = board?.id;
     const id = `pdf-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     let w = 300, h = 388; // portrait fallback; corrected from real page-1 dims
@@ -4564,30 +4826,39 @@ export function CanvasSurface({
       try { blobUrl = URL.createObjectURL(file); } catch (_) {}
       mutators.addCard?.({ id, kind: 'pdf', pdfSrc: blobUrl, src: null, name: file.name || 'PDF',
                            x: placed.x, y: placed.y, w, h });
+      removeTransfer(tid);
       return;
     }
 
-    mutators.addCard?.({ id, kind: 'pdf', name: file.name || 'PDF',
+    const placedId = mutators.addCard?.({ id, kind: 'pdf', name: file.name || 'PDF',
                          x: placed.x, y: placed.y, w, h, pending: true });
+    if (!placedId) { removeTransfer(tid); return; }
+    updateTransfer(tid, { cardId: id });
+    inflightUploadsRef.current.add(id);
+    const retry = { file, cx, cy, route: job?.route || 'pdf', kind: job?.kind || 'pdf', rect };
+    let kept = false;
     try {
-      const onProgress = (frac) => reportUploadProgress(id, frac);
-      inflightUploadsRef.current.add(id);
-      const up = await uploadPdf({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
-      settleUpload(dropBoardId, id, {
-        src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount,
-        name: up.name, w: up.w, h: up.h, pending: false,
-      });
-    } catch (err) {
-      console.error('pdf upload failed', err);
-      // Same shared handler as the image path — PDFs presign through the same
-      // route, so they hit the same over-quota rejection and need the same
-      // upgrade prompt rather than a dead-end error toast.
-      handleUploadReject(err, id, dropBoardId, { file, cx, cy });
+      await inUploadSlot(id, tid, dropBoardId, async () => {
+        try {
+          const onProgress = (frac) => updateTransfer(tid, { fraction: frac });
+          const up = await uploadPdf({ file, workspaceId, boardId: board?.id, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
+          settleUpload(dropBoardId, id, {
+            src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount,
+            name: up.name, w: up.w, h: up.h, pending: false,
+          });
+          updateTransfer(tid, { state: 'done' });
+        } catch (err) {
+          console.error('pdf upload failed', err);
+          // Same shared handler as the image path — PDFs presign through the same
+          // route, so they hit the same over-quota rejection and need the same
+          // upgrade prompt rather than a dead-end error toast.
+          kept = handleUploadReject(err, id, dropBoardId, retry, tid) === true;
+        }
+      }, retry);
     } finally {
-      inflightUploadsRef.current.delete(id);
-      clearUploadProgress(id);
+      if (!kept) inflightUploadsRef.current.delete(id);
     }
-  }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, clientToCanvas, handleUploadReject, settleUpload]);
+  }, [useLocalImages, workspaceId, board?.id, userId, feedback, mutators, clientToCanvas, handleUploadReject, settleUpload, inUploadSlot]);
 
   // Run a multipart upload into a pending card, cancellable by deleting it.
   // `upload(signal)` does the transfer and `done(up)` applies the result. A
@@ -4595,43 +4866,63 @@ export function CanvasSurface({
   // — the bytes were only going to count against storage for a card that's
   // gone — and leaves a retry behind, so if Undo brings the card back the
   // upload starts again into it instead of spinning "Uploading" for ever.
-  const runCancellableUpload = useCallback((id, dropBoardId, upload, done, label, retry = null) => {
+  // `track.tid` is its transfer (lib/activity.js), read by the caller's
+  // onProgress; a run restarted by Undo gets a new one, since the cancel took
+  // the first away.
+  const runCancellableUpload = useCallback((id, dropBoardId, upload, done, label, retry = null, track = { tid: null }) => {
     const run = async () => {
+      if (!track.tid) track.tid = soloTransferJob(retry?.file, dropBoardId, id).tid;
+      const t = track.tid;
       const ctrl = new AbortController();
-      let settled = false, cancelled = false;
+      let settled = false, cancelled = false, kept = false;
       const unwatch = watchCardGone(id, () => { if (settled) return; cancelled = true; ctrl.abort(); });
       inflightUploadsRef.current.add(id);
       let up;
       try {
-        up = await upload(ctrl.signal);
+        // In its turn (the slot lent on once its bytes are in). A card
+        // deleted while it waited, on its open, loaded cluster, isn't sent;
+        // Undo starts it again (the late results).
+        const ran = await runInUploadSlot(t, () => {
+          if (cancelled || (docReadyFor(dropBoardId) && !cardIsLive(id))) return false;
+          updateTransfer(t, { state: 'running', parked: false, abortable: true });
+          return true;
+        }, async () => { up = await upload(ctrl.signal); });
+        if (!ran) {
+          settled = true;
+          removeTransfer(t); track.tid = null;
+          stashLateUpload(dropBoardId, id, { retry: run });
+          return;
+        }
       } catch (err) {
         // Settled before the rollback below deletes the card: that delete is
         // ours, and must not read as a cancel.
         settled = true;
         unwatch();
+        if (cancelled) { removeTransfer(t); track.tid = null; }
         if (cancelled) { stashLateUpload(dropBoardId, id, { retry: run }); return; }
         console.error(`${label} upload failed`, err);
-        handleUploadReject(err, id, dropBoardId, retry);
+        kept = handleUploadReject(err, id, dropBoardId, retry, t) === true;
         return;
       } finally {
         settled = true;
         unwatch();
-        inflightUploadsRef.current.delete(id);
-        clearUploadProgress(id);
+        if (!kept) inflightUploadsRef.current.delete(id);
       }
       // The file is in: anything that fails after this is a missing extra (a
       // poster, a waveform), never a reason to take the card away.
       try { await done(up); } catch (err) { console.warn(`${label} upload: finishing touches failed`, err); }
+      updateTransfer(t, { state: 'done' });
     };
     return run();
-  }, [watchCardGone, handleUploadReject]);
+  }, [watchCardGone, handleUploadReject, soloTransferJob, cardIsLive, docReadyFor]);
 
   // Any file type → a generic, downloadable file card. Uploads via multipart
   // (boards/src/lib/uploads.js uploadFile), which gates on paid-owner + storage
   // quota server-side. Mirrors optimisticDropPdf's optimistic add → update → roll
   // back on failure.
-  const optimisticDropFile = useCallback(async (file, cx, cy, rect = null) => {
-    if (!file) return;
+  const optimisticDropFile = useCallback(async (file, cx, cy, rect = null, job = null) => {
+    const tid = job?.tid || null;
+    if (!file) { removeTransfer(tid); return; }
     const dropBoardId = board?.id;
     const id = `file-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const ext = (file.name?.split('.').pop() || '').toLowerCase();
@@ -4644,48 +4935,59 @@ export function CanvasSurface({
       let blobUrl = null; try { blobUrl = URL.createObjectURL(file); } catch (_) {}
       mutators.addCard?.({ id, kind: 'file', fileSrc: blobUrl, fileName: file.name,
                            mime: file.type, sizeBytes: file.size, ext, x: placed.x, y: placed.y, w, h });
+      removeTransfer(tid);
       return;
     }
 
-    mutators.addCard?.({ id, kind: 'file', fileName: file.name, mime: file.type,
+    const placedId = mutators.addCard?.({ id, kind: 'file', fileName: file.name, mime: file.type,
                          sizeBytes: file.size, ext, x: placed.x, y: placed.y, w, h, pending: true });
-    const onProgress = (frac) => reportUploadProgress(id, frac);
+    if (!placedId) { removeTransfer(tid); return; }
+    updateTransfer(tid, { cardId: id });
+    const track = { tid };
+    const onProgress = (frac) => updateTransfer(track.tid, { fraction: frac });
     await runCancellableUpload(id, dropBoardId,
       (signal) => uploadFile({ file, workspaceId, boardId: dropBoardId, cardId: id, userId, onProgress, signal, originalName: meaningfulFileName(file) }),
       (up) => settleUpload(dropBoardId, id, {
         fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false,
       }),
-      'file', { file, cx, cy });
+      'file', { file, cx, cy, route: job?.route || 'file', kind: job?.kind || 'file', rect }, track);
   }, [useLocalImages, workspaceId, board?.id, userId, mutators, placeDropRect, runCancellableUpload, settleUpload]);
 
   // Over-cap video/audio (paid only) → still an inline media card, but uploaded
   // via multipart so big files upload reliably + count against the quota.
-  const dropLargeMedia = useCallback(async (file, kind, cx, cy, rect = null) => {
-    if (!file) return;
+  const dropLargeMedia = useCallback(async (file, kind, cx, cy, rect = null, job = null) => {
+    const tid = job?.tid || null;
+    if (!file) { removeTransfer(tid); return; }
     const dropBoardId = board?.id;
     let w, h, extra = {};
-    if (kind === 'video') {
-      const meta = await readVideoMeta(file);
-      w = Math.max(240, Math.min(560, meta.w || 360));
-      const aspect = meta.h && meta.w ? (meta.h / meta.w) : 9 / 16;
-      h = Math.max(160, Math.round(w * aspect));
-      extra = { ...fileMetaFor(file), sizeBytes: file.size || null, mime: file.type || null };
-    } else {
-      const meta = await readAudioMeta(file);
-      ({ w, h } = FALLBACK_DIMS.audio);
-      // Same fileName/ext/mime/sizeBytes contract as dropAudioFile — `title` is
-      // the editable display name, `fileName` is what downloads are named from.
-      extra = {
-        title: file.name || 'Audio', duration: meta.duration || null,
-        fileName: file.name || null, mime: file.type || null, sizeBytes: file.size || null,
-        ext: (file.name?.split('.').pop() || '').toLowerCase(),
-        ...parseLoopMeta(file.name),
-      };
-    }
+    // The card's shape comes from the file; a file that can't be read leaves nothing to track.
+    try {
+      if (kind === 'video') {
+        const meta = await readVideoMeta(file);
+        w = Math.max(240, Math.min(560, meta.w || 360));
+        const aspect = meta.h && meta.w ? (meta.h / meta.w) : 9 / 16;
+        h = Math.max(160, Math.round(w * aspect));
+        extra = { ...fileMetaFor(file), sizeBytes: file.size || null, mime: file.type || null };
+      } else {
+        const meta = await readAudioMeta(file);
+        ({ w, h } = FALLBACK_DIMS.audio);
+        // Same fileName/ext/mime/sizeBytes contract as dropAudioFile — `title` is
+        // the editable display name, `fileName` is what downloads are named from.
+        extra = {
+          title: file.name || 'Audio', duration: meta.duration || null,
+          fileName: file.name || null, mime: file.type || null, sizeBytes: file.size || null,
+          ext: (file.name?.split('.').pop() || '').toLowerCase(),
+          ...parseLoopMeta(file.name),
+        };
+      }
+    } catch (err) { removeTransfer(tid); throw err; }
     const id = `${kind === 'video' ? 'vid' : 'aud'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const placed = placeDropRect(cx, cy, w, h, rect);
-    mutators.addCard?.({ id, kind, x: placed.x, y: placed.y, w, h, pending: true, ...extra });
-    const onProgress = (frac) => reportUploadProgress(id, frac);
+    const placedId = mutators.addCard?.({ id, kind, x: placed.x, y: placed.y, w, h, pending: true, ...extra });
+    if (!placedId) { removeTransfer(tid); return; }
+    updateTransfer(tid, { cardId: id });
+    const track = { tid };
+    const onProgress = (frac) => updateTransfer(track.tid, { fraction: frac });
     await runCancellableUpload(id, dropBoardId,
       (signal) => uploadFile({ file, workspaceId, boardId: dropBoardId, cardId: id, userId, onProgress, signal, originalName: meaningfulFileName(file) }),
       async (up) => {
@@ -4709,7 +5011,7 @@ export function CanvasSurface({
             : { analyzed: analyzable({ sizeBytes: file.size || 0, lowMemory: lowMemoryDevice() }) ? 1 : null });
         }
       },
-      'large media', { file, cx, cy });
+      'large media', { file, cx, cy, route: job?.route || 'largeMedia', kind, rect }, track);
   }, [workspaceId, board?.id, userId, mutators, placeDropRect, runCancellableUpload, settleUpload]);
 
   // Upload a video file and place a video card centered on (cx, cy).
@@ -4720,8 +5022,9 @@ export function CanvasSurface({
   // either, a multi-file drop waited on each clip in turn, and a cluster switch
   // mid-upload wrote the card into the destroyed doc of the board you had left
   // — the video landed in storage and appeared on neither cluster.
-  const dropVideoFile = useCallback(async (file, cx, cy, allowLong = false, rect = null) => {
-    if (!workspaceId || !file) return;
+  const dropVideoFile = useCallback(async (file, cx, cy, allowLong = false, rect = null, job = null) => {
+    const tid = job?.tid || null;
+    if (!workspaceId || !file) { removeTransfer(tid); return; }
     const dropBoardId = board?.id;
     // ingestFiles measures the clip before layout and hands over its rect; a
     // lone call measures here so the placeholder already has the clip's shape.
@@ -4734,41 +5037,49 @@ export function CanvasSurface({
     }
     const id = `vid-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const placed = placeDropRect(cx, cy, w, h, rect);
-    mutators.addCard?.({ id, kind: 'video', ...fileMetaFor(file), sizeBytes: file.size || null, mime: file.type || null, x: placed.x, y: placed.y, w, h, pending: true });
+    const placedId = mutators.addCard?.({ id, kind: 'video', ...fileMetaFor(file), sizeBytes: file.size || null, mime: file.type || null, x: placed.x, y: placed.y, w, h, pending: true });
+    if (!placedId) { removeTransfer(tid); return; }
+    updateTransfer(tid, { cardId: id });
     inflightUploadsRef.current.add(id);
+    const retry = { file, cx, cy, route: job?.route || 'video', kind: job?.kind || 'video', rect };
+    let kept = false;
     try {
-      const onProgress = (frac) => reportUploadProgress(id, frac);
-      // Paid uploads (allowLong) drop the free-tier 60s clip cap; the byte cap is
-      // moot here (this path only handles ≤ the free byte cap — larger goes
-      // through dropLargeMedia/multipart).
-      const up = await uploadVideo({ file, workspaceId, boardId: dropBoardId, cardId: id, userId, onProgress,
-                                     originalName: meaningfulFileName(file),
-                                     ...(allowLong ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
-      settleUpload(dropBoardId, id, { src: up.src, ...(up.poster ? { poster: up.poster } : {}), pending: false });
-      // Frame rate, codec, start timecode… read from the local File's own
-      // container (lib/mediaProbe.js) — Info and the film player count frames by it.
-      probeFile(file).then((media) => { if (media) settleUpload(dropBoardId, id, { media }); });
-    } catch (e) {
-      // The free-tier length cap is a paid limit like the others, and the only
-      // one that never wrote a row: record it beside the rest of upload_blocked.
-      if (e?.code === 'video_too_long') {
+      await inUploadSlot(id, tid, dropBoardId, async () => {
         try {
-          logEvent(EV.UPLOAD_BLOCKED, {
-            reason: 'video_too_long', surface: 'canvas', n: 1,
-            ext: (String(file?.name || '').split('.').pop() || '').toLowerCase().slice(0, 12) || null,
-            size_bucket: sizeBucket(file?.size || 0),
-            duration_s: e.durationSec ?? null, max_s: e.maxSec ?? null,
-          });
-        } catch (_) {}
-      } else {
-        console.error('video upload failed', e);
-      }
-      handleUploadReject(e, id, dropBoardId, { file, cx, cy });
+          const onProgress = (frac) => updateTransfer(tid, { fraction: frac });
+          // Paid uploads (allowLong) drop the free-tier 60s clip cap; the byte cap is
+          // moot here (this path only handles ≤ the free byte cap — larger goes
+          // through dropLargeMedia/multipart).
+          const up = await uploadVideo({ file, workspaceId, boardId: dropBoardId, cardId: id, userId, onProgress,
+                                         originalName: meaningfulFileName(file),
+                                         ...(allowLong ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
+          settleUpload(dropBoardId, id, { src: up.src, ...(up.poster ? { poster: up.poster } : {}), pending: false });
+          updateTransfer(tid, { state: 'done' });
+          // Frame rate, codec, start timecode… read from the local File's own
+          // container (lib/mediaProbe.js) — Info and the film player count frames by it.
+          probeFile(file).then((media) => { if (media) settleUpload(dropBoardId, id, { media }); });
+        } catch (e) {
+          // The free-tier length cap is a paid limit like the others, and the only
+          // one that never wrote a row: record it beside the rest of upload_blocked.
+          if (e?.code === 'video_too_long') {
+            try {
+              logEvent(EV.UPLOAD_BLOCKED, {
+                reason: 'video_too_long', surface: 'canvas', n: 1,
+                ext: (String(file?.name || '').split('.').pop() || '').toLowerCase().slice(0, 12) || null,
+                size_bucket: sizeBucket(file?.size || 0),
+                duration_s: e.durationSec ?? null, max_s: e.maxSec ?? null,
+              });
+            } catch (_) {}
+          } else {
+            console.error('video upload failed', e);
+          }
+          kept = handleUploadReject(e, id, dropBoardId, retry, tid) === true;
+        }
+      }, retry);
     } finally {
-      inflightUploadsRef.current.delete(id);
-      clearUploadProgress(id);
+      if (!kept) inflightUploadsRef.current.delete(id);
     }
-  }, [workspaceId, board?.id, userId, mutators, placeDropRect, handleUploadReject, settleUpload]);
+  }, [workspaceId, board?.id, userId, mutators, placeDropRect, handleUploadReject, settleUpload, inUploadSlot]);
 
   // Audio file → audio card centered on (cx, cy). Default size matches a
   // compact waveform; the card carries the duration for instant later renders.
@@ -4783,15 +5094,16 @@ export function CanvasSurface({
   // renames the card to "Kick 1" the original extension is gone, and every
   // download path downstream produces an extensionless file. `title` is the
   // display name; `fileName` is the download authority.
-  const dropAudioFile = useCallback(async (file, cx, cy, rect = null) => {
-    if (!workspaceId || !file) return;
+  const dropAudioFile = useCallback(async (file, cx, cy, rect = null, job = null) => {
+    const tid = job?.tid || null;
+    if (!workspaceId || !file) { removeTransfer(tid); return; }
     const dropBoardId = board?.id;
     const id = `aud-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const { w, h } = FALLBACK_DIMS.audio;
     const placed = placeDropRect(cx, cy, w, h, rect);
     const ext = (file.name?.split('.').pop() || '').toLowerCase();
 
-    mutators.addCard?.({
+    const placedId = mutators.addCard?.({
       id, kind: 'audio', title: file.name || 'Audio',
       fileName: file.name || null, mime: file.type || null, sizeBytes: file.size || null, ext,
       // Packs are named by machine — SFL_120_Gmin_Loop.wav — so the tempo and
@@ -4799,27 +5111,35 @@ export function CanvasSurface({
       ...parseLoopMeta(file.name),
       x: placed.x, y: placed.y, w, h, pending: true,
     });
+    if (!placedId) { removeTransfer(tid); return; }
+    updateTransfer(tid, { cardId: id });
+    inflightUploadsRef.current.add(id);
+    const retry = { file, cx, cy, route: job?.route || 'audio', kind: job?.kind || 'audio', rect };
+    let kept = false;
     try {
-      const onProgress = (frac) => reportUploadProgress(id, frac);
-      inflightUploadsRef.current.add(id);
-      const up = await uploadAudio({ file, workspaceId, boardId: dropBoardId, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
-      settleUpload(dropBoardId, id, {
-        src: up.src, duration: up.duration || null, pending: false,
-        peaks: up.peaks || null, sampleRate: up.sampleRate || null,
-        channels: up.channels || null, analyzed: up.analyzed || null,
-        // Only when the file carried one. Never overwrites a cover the user
-        // chose by hand — an audio card added here has none yet, but the
-        // same rule holds for the backfill path.
-        ...(up.cover ? { cover: up.cover } : {}),
-      });
-    } catch (err) {
-      console.error('audio upload failed', err);
-      handleUploadReject(err, id, dropBoardId, { file, cx, cy });
+      await inUploadSlot(id, tid, dropBoardId, async () => {
+        try {
+          const onProgress = (frac) => updateTransfer(tid, { fraction: frac });
+          const up = await uploadAudio({ file, workspaceId, boardId: dropBoardId, cardId: id, userId, onProgress, originalName: meaningfulFileName(file) });
+          settleUpload(dropBoardId, id, {
+            src: up.src, duration: up.duration || null, pending: false,
+            peaks: up.peaks || null, sampleRate: up.sampleRate || null,
+            channels: up.channels || null, analyzed: up.analyzed || null,
+            // Only when the file carried one. Never overwrites a cover the user
+            // chose by hand — an audio card added here has none yet, but the
+            // same rule holds for the backfill path.
+            ...(up.cover ? { cover: up.cover } : {}),
+          });
+          updateTransfer(tid, { state: 'done' });
+        } catch (err) {
+          console.error('audio upload failed', err);
+          kept = handleUploadReject(err, id, dropBoardId, retry, tid) === true;
+        }
+      }, retry);
     } finally {
-      inflightUploadsRef.current.delete(id);
-      clearUploadProgress(id);
+      if (!kept) inflightUploadsRef.current.delete(id);
     }
-  }, [workspaceId, board?.id, userId, mutators, placeDropRect, handleUploadReject, settleUpload]);
+  }, [workspaceId, board?.id, userId, mutators, placeDropRect, handleUploadReject, settleUpload, inUploadSlot]);
 
   // Send ONE classified file down its route. Extracted from ingestFiles so the
   // PASTE handler can reach the same dispatch: paste used to send everything
@@ -4827,28 +5147,34 @@ export function CanvasSurface({
   // a generic file card — paid-gated for a free owner — while the identical
   // file dropped two inches away became a free audio card. Drop, the picker and
   // paste now all agree because they all end up here.
-  const dispatchIngestOne = useCallback(async ({ file, route, kind }, cx, cy, rect = null) => {
+  //
+  // `transfer` — { tid, batch } — is the file's place in its drop's batch
+  // (lib/activity.js, made by ingestFiles); a call without one (a paste) is a
+  // batch of one.
+  const dispatchIngestOne = useCallback(async ({ file, route, kind }, cx, cy, rect = null, transfer = null) => {
+    const job = { ...(transfer?.tid ? transfer : soloTransferJob(file, board?.id)), route, kind };
     if (route === 'image') {
       // Optimistic — adds the card and uploads in the background so
       // multi-file drops aren't blocked one at a time.
-      optimisticDropImage(file, cx, cy, rect);
+      optimisticDropImage(file, cx, cy, rect, job);
     } else if (route === 'video') {
       // Optimistic too — not awaited, so the rest of a drop never queues
       // behind a clip's upload.
-      dropVideoFile(file, cx, cy, canAttemptFiles, rect);
+      dropVideoFile(file, cx, cy, canAttemptFiles, rect, job);
     } else if (route === 'audio') {
-      dropAudioFile(file, cx, cy, rect);
+      dropAudioFile(file, cx, cy, rect, job);
     } else if (route === 'pdf') {
-      optimisticDropPdf(file, cx, cy, rect);
+      optimisticDropPdf(file, cx, cy, rect, job);
     } else if (route === 'largeMedia') {
       // Over-cap clip — still an inline media card, uploaded via multipart.
-      dropLargeMedia(file, kind, cx, cy, rect);
+      dropLargeMedia(file, kind, cx, cy, rect, job);
     } else {
       // PDFs over the inline cap + every other type → downloadable file card.
-      optimisticDropFile(file, cx, cy, rect);
+      optimisticDropFile(file, cx, cy, rect, job);
     }
   }, [canAttemptFiles, optimisticDropImage, dropVideoFile, dropAudioFile,
-      optimisticDropPdf, dropLargeMedia, optimisticDropFile]);
+      optimisticDropPdf, dropLargeMedia, optimisticDropFile, soloTransferJob, board?.id]);
+  dispatchIngestOneRef.current = dispatchIngestOne;
 
   // Route a FileList onto the canvas, centered at (cx, cy). Shared by drag-drop,
   // the right-click "Add → File" entry, and the toolbar "+" menu so all three
@@ -4962,6 +5288,13 @@ export function CanvasSurface({
     if (source !== 'held') armSecondIdeaRef.current?.(accepted.length + scripts.length);
 
     if (accepted.length) {
+      // One batch for the drop and one transfer per file, Waiting from now
+      // (lib/activity.js): the tray and the cards read them.
+      const batch = startBatch({ kind: 'upload', boardId: board?.id || null, boardName: board?.name || null });
+      const transfers = accepted.map((it) => ({
+        tid: addTransfer({ batch, label: it.file.name || 'File', boardId: board?.id || null, bytesTotal: it.file.size || 0, mime: it.file.type || '', cancellable: true }),
+        batch,
+      }));
       // Real dimensions before layout, not after: laying out at the fallback
       // size and then letting each card resize itself is what makes a drop
       // visibly jump. Same measurement the list path uses, so the two agree.
@@ -5008,8 +5341,9 @@ export function CanvasSurface({
       for (let i = 0; i < accepted.length; i++) {
         const rect = rects[i];
         try {
-          await dispatchIngestOne(accepted[i], rect.x + rect.w / 2, rect.y + rect.h / 2, rect);
+          await dispatchIngestOne(accepted[i], rect.x + rect.w / 2, rect.y + rect.h / 2, rect, transfers[i]);
         } catch (err) {
+          removeTransfer(transfers[i].tid);
           console.error(err);
           feedback.toast({ type: 'error', code: 'file_upload_failed', message: uploadFailedWords(err) });
         }
@@ -5047,6 +5381,63 @@ export function CanvasSurface({
   }, [ownsWorkspace, isPaidPlan, canAttemptFiles, dispatchIngestOne, onRequestStorageUpgrade,
       onRequestUpgrade, feedback, board?.id, mutators, markViewSettled, canEdit]);
   ingestFilesRef.current = ingestFiles;
+
+  // A kept failed card that left the board some other way (a person deleted
+  // it, a teammate removed it): its transfer goes too, and an Undo brings it
+  // back kept (dropKept). Judged on the live doc once the server's copy is in
+  // (docReadyFor), so a cluster still loading never reads as "gone".
+  useEffect(() => {
+    const boardId = board?.id;
+    if (!boardId || !docReadyFor(boardId)) return;
+    for (const [id, k] of [...keptUploadsRef.current]) {
+      if (k.dropBoardId !== boardId || cardIsLive(id)) continue;
+      dropKept(id, k);
+    }
+  }, [board?.id, boardSynced, everyCard, cardIsLive, docReadyFor, dropKept]);
+
+  // A card deleted while its upload waits for a slot: its transfer is parked
+  // (out of the tray's counts, the tab title and the guards) and unparked if
+  // Undo brings the card back before its turn. Same judge as above.
+  useEffect(() => {
+    const boardId = board?.id;
+    if (!boardId || !docReadyFor(boardId)) return;
+    for (const it of activitySnapshot().items) {
+      if (it.boardId !== boardId || !it.cardId || it.state !== 'waiting') continue;
+      const gone = !cardIsLive(it.cardId);
+      if (gone !== !!it.parked) updateTransfer(it.id, { parked: gone });
+    }
+  }, [board?.id, boardSynced, everyCard, cardIsLive, docReadyFor]);
+
+  // Kept failures marked to try again (back online, or Retry from the tray
+  // while their cluster was elsewhere) go once their cluster is open with the
+  // server's copy in and the browser is online: on any change of cluster or
+  // cards, on `online`, and on a slow poll while any wait (a room that syncs
+  // without changing a card says so to nothing else).
+  const retryWhenOpenNow = useCallback(() => {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    for (const [id, k] of [...keptUploadsRef.current]) {
+      if (!k.retryWhenOpen || !docReadyFor(k.dropBoardId) || !cardIsLive(id)) continue;
+      k.retryWhenOpen = false;
+      retryKeptUpload(id);
+    }
+  }, [docReadyFor, cardIsLive, retryKeptUpload]);
+  useEffect(() => { retryWhenOpenNow(); }, [board?.id, boardSynced, everyCard, retryWhenOpenNow]);
+  // Back online: every network-failed upload kept, on any cluster, tries
+  // again once, as its Retry would — now if its cluster is open, else when it is.
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const back = () => {
+      for (const k of keptUploadsRef.current.values()) k.retryWhenOpen = true;
+      retryWhenOpenNow();
+    };
+    const poll = setInterval(() => {
+      for (const k of keptUploadsRef.current.values()) {
+        if (k.retryWhenOpen) { retryWhenOpenNow(); return; }
+      }
+    }, 2000);
+    window.addEventListener('online', back);
+    return () => { clearInterval(poll); window.removeEventListener('online', back); };
+  }, [retryWhenOpenNow]);
   // Quick look's "Put both on board" (an email's attachments, FileStages.jsx)
   // lands its files here as a drop does, in the middle of the view; offered
   // only while this board is on screen and can be changed (lib/fileActions.js).
@@ -5279,6 +5670,24 @@ export function CanvasSurface({
   // cardDownload shares the promise.)
   const downloadBusyRef = useRef({ n: 0, timer: null, close: null });
   const runDownload = useCallback(async (card, kind) => {
+    // With the activity tray on the page the wait is a tray row instead of the toast.
+    if (!isPublic && opsHaveTray()) {
+      const name = assetFilename(card, kind);
+      let ios = false;
+      try { ios = getDeviceInfo().os === 'iOS'; } catch (_) {}
+      // A hand-off the browser takes over: nothing says when it lands.
+      const direct = wantsDirectDownload(card, kind, { native: !bulkDownloadSupported(), ios });
+      try {
+        await trackOp({
+          kind: 'download', label: name, boardId: board?.id || null, boardName: board?.name || null,
+          key: `download:${card.id}`,
+          doneLabel: (r) => (r === false ? null : direct ? 'Download started' : `Downloaded ${name}`),
+        }, () => downloadCardAsset(card, kind, { surface: 'canvas' }));
+      } catch (err) {
+        feedback.toast({ type: 'error', code: 'file_download_failed', message: downloadFailedWords(err) });
+      }
+      return;
+    }
     const busy = downloadBusyRef.current;
     if (busy.n++ === 0) {
       busy.timer = setTimeout(() => {
@@ -5298,7 +5707,7 @@ export function CanvasSurface({
         busy.close = null;
       }
     }
-  }, [feedback, isPublic]);
+  }, [feedback, isPublic, board?.id, board?.name]);
 
   useEffect(() => {
     const onMove = (e) => {
@@ -5901,6 +6310,7 @@ export function CanvasSurface({
       onUndo: () => mutators.undo?.(),
     });
   }, [buildDeleteMessage, feedback, mutators, ydoc, board?.id, sessionId, userId]);
+  doDeleteIdsRef.current = doDeleteIds;
 
   // Delete-selected handles cards, strokes, AND arrows.
   const doDeleteSelected = useCallback(async () => {
@@ -10443,14 +10853,25 @@ export function CanvasSurface({
   // working, as a download's does.
   const exportBoardAs = async (format) => {
     let closeBusy = null;
-    const beat = setTimeout(() => {
+    const useTray = !isPublic && opsHaveTray();
+    const beat = useTray ? null : setTimeout(() => {
       closeBusy = feedback.toast({ type: 'info', message: 'Preparing export…', ttl: 120000 });
     }, 400);
     try {
       const picture = { cards, strokes, arrows, boards, bgColor: board?.bg_color || null };
-      const done = format === 'pdf'
-        ? await exportBoardAsPdf(picture, board?.name || 'board')
-        : await exportBoardAsPng(picture, board?.name || 'board');
+      const run = () => (format === 'pdf'
+        ? exportBoardAsPdf(picture, board?.name || 'board')
+        : exportBoardAsPng(picture, board?.name || 'board'));
+      // The tray row (PNG: Exported <name>.png; PDF: gone once the print dialog opens).
+      const fileBase = (board?.name || 'board').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 80);
+      const done = useTray
+        ? await trackOp({
+          kind: 'export', label: exportWords({ name: board?.name || 'board', format }),
+          boardId: board?.id || null, boardName: board?.name || null,
+          key: `export:${board?.id}:${format}`,
+          doneLabel: format === 'pdf' ? null : (r) => (r ? `Exported ${fileBase}.png` : null),
+        }, run)
+        : await run();
       if (!done) feedback.toast({ type: 'error', code: 'export_empty', message: 'Nothing to export.' });
     } catch (err) {
       const message = 'Export failed: ' + (err?.message || err);
@@ -11704,7 +12125,6 @@ export function CanvasSurface({
                                                      editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                      editCaptionAt={editFieldSignal.id === c.id && editFieldSignal.field === 'caption' ? editFieldSignal.n : 0}
                                                      pending={!!c.pending}
-                                                     uploadProgress={uploadProgressById[c.id] ?? null}
                                                      onExpand={() => openImageLightbox(c)}
                                                      onEdit={onUpdate && c.src ? (rect) => setImageEdit({ cardId: c.id, anchorRect: rect }) : null}
                                                      onDownload={c.src ? () => runDownload(c, 'image') : null}
@@ -11726,7 +12146,7 @@ export function CanvasSurface({
     else if (c.kind === 'palette')   inner = <PaletteCard title={c.title} swatches={c.swatches} hideHex={c.hideHex} hideLabels={c.hideLabels} chipsOnly={c.chipsOnly} w={Math.round(w)} h={Math.round(h)} onUpdate={onUpdate} autoFocus={af}
                                                           editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />;
     else if (c.kind === 'video')     inner = <VideoCard src={c.src} playSrc={c.playSrc} poster={c.poster} title={c.title}
-                                                        pending={!!c.pending} uploadProgress={uploadProgressById[c.id] ?? null}
+                                                        pending={!!c.pending}
                                                         autoplay={!!c.autoplay} loop={!!c.loop} onUpdate={onUpdate} autoFocus={af}
                                                         syncBoardId={c.autoplay ? board.id : null}
                                                         syncStart={c.autoplay ? (c.syncStart ?? null) : null}
@@ -11750,7 +12170,6 @@ export function CanvasSurface({
                                                       cardId={c.id} backfillEnabled={canEdit} boardId={board.id}
                                                       editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                       pending={!!c.pending}
-                                                      uploadProgress={uploadProgressById[c.id] ?? null}
                                                       onExpand={() => c.pdfSrc && setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF', cardId: c.id })}
                                                       onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
     else if (c.kind === 'doc') {
@@ -11837,7 +12256,6 @@ export function CanvasSurface({
                                                        w={Math.round(c.w)} h={Math.round(c.h)}
                                                        editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0}
                                                        pending={!!c.pending}
-                                                       uploadProgress={uploadProgressById[c.id] ?? null}
                                                        opensOnBoard
                                                        onAfterEdit={() => { setSelected(new Set()); clearAutoFocus?.(); }} />;
     else if (c.kind === 'shortcut')  inner = <ShortcutCard shareToken={c.shareToken} isPublic={isPublic}
@@ -11916,6 +12334,12 @@ export function CanvasSurface({
     const cardEl = (
       <div {...wrapper} data-tour={c.kind === 'board' ? 'cluster-card' : undefined}>
         {inner}
+        {(c.pending || transferCardIds.has(c.id)) && (
+          <CardTransferState cardId={c.id} kind={c.kind} w={w} h={h} pending={!!c.pending}
+                             createdBy={c.createdBy || null} createdAt={c.createdAt || null}
+                             canEdit={canEdit} me={currentUser?.id || null} peers={peerUploads}
+                             onRetry={onTransferRetry} onRemove={onTransferRemove} onPickReplace={onPickReplace} />
+        )}
         <CardStrokesOverlay card={c} w={w} h={h} />
         {/* A file with more than one version says which is on show; the
             chip opens Info at its Versions. */}
@@ -12334,7 +12758,7 @@ export function CanvasSurface({
   const versionEnv = () => ({
     mutators, feedback, userId: currentUser?.id || userId || null,
     getCard: (id) => (allCardsRef.current || []).find((x) => x.id === id) || null,
-    ctx: uploadContext({ workspaceId, boardId: board?.id, userId: currentUser?.id || userId || null, allowLong: !!isPaidPlan, canAttemptFiles, ...(useLocalImages ? { local: true } : {}) }),
+    ctx: uploadContext({ workspaceId, boardId: board?.id, boardName: board?.name || null, userId: currentUser?.id || userId || null, allowLong: !!isPaidPlan, canAttemptFiles, ...(useLocalImages ? { local: true } : {}) }),
   });
   const handleDragOver = (e) => {
     const types = e.dataTransfer.types;
@@ -15194,6 +15618,10 @@ export function CanvasSurface({
           (opened from the card's right-click "Upload custom thumbnail…"). */}
       <input ref={thumbInputRef} type="file" accept="image/*"
              style={{ display: 'none' }} onChange={onThumbFileChange} />
+      {/* Replace on an upload that didn't finish (CardTransferState): one
+          picker for every card, opened by onPickReplace. */}
+      <input ref={replaceInputRef} type="file" tabIndex={-1} aria-hidden="true"
+             style={{ display: 'none' }} onChange={onReplaceFileChange} />
       {thumbCropFor && (
         <ThumbnailCropModal
           file={thumbCropFor.file}
@@ -15526,7 +15954,7 @@ export function CanvasSurface({
         );
       })()}
       {pdfViewer && (
-        <Suspense fallback={<PdfViewerLoading onClose={() => setPdfViewer(null)} />}>
+        <Suspense fallback={<PdfViewerLoading name={pdfViewer?.name} onClose={() => setPdfViewer(null)} />}>
           {(() => {
             const shareCard = pdfViewer.cardId ? cards.find(x => x.id === pdfViewer.cardId) : null;
             const shareTarget = (canEdit && !isPublic && fileSharesAllowed() && isShareableCard(shareCard))

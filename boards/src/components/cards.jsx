@@ -5,7 +5,6 @@ import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { ImagePlaceholder, Avatar, COVER_TINTS } from './primitives.jsx';
 import { R2Image } from './R2Image.jsx';
 import { useImageSeen } from '../lib/imageSeen.js';
-import { Spinner } from './Spinner.jsx';
 import { resolveSrc } from '../lib/r2.js';
 import { knownCopy } from '../lib/playCopy.js';
 import { usePlayCopy } from '../hooks/usePlayCopy.js';
@@ -651,7 +650,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
                             editTitleAt = 0, editCaptionAt = 0,
                             onAfterEdit, onExpand, onEdit, onDownload,
                             adjust = null, editing = false,
-                            pending = false, uploadProgress = null,
+                            pending = false,
                             backfillEnabled = false, boardId = null, cardId = null }) {
   // Non-destructive photo adjustments → CSS filter/transform on the image.
   // useMemo keyed on the (identity-stable) adjust object so unchanged cards
@@ -712,14 +711,6 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
                      progressive backfillEnabled={backfillEnabled} boardId={boardId} cardId={cardId} />
           : <ImagePlaceholder label={label} tone={tone} aspect={aspect} />}
         {src && seen && <span className="sr-only">{seen}</span>}
-        {pending && (
-          <div className="ic-upload-overlay" aria-label="Uploading image">
-            <Spinner size={22} tone="on-dark" label="Uploading image" />
-            {uploadProgress != null && (
-              <div className="ic-upload-progress">{Math.round(uploadProgress * 100)}%</div>
-            )}
-          </div>
-        )}
         {showCaption && onUpdate && (
           <EditableText
             className="ic-cap editable-overlay"
@@ -803,7 +794,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
 // the same way images are. For brevity, this component plays whatever
 // `src` was stamped on the card (works for r2: and external https).
 function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdate, autoFocus = false, editTitleAt = 0, onDownload = null,
-                     pending = false, uploadProgress = null, mediaJson = null, onExpand = null,
+                     pending = false, mediaJson = null, onExpand = null,
                      cardId = null, selected = false, tapToPlay = false, playSrc = null, syncBoardId = null, syncStart = null }) {
   // The clip's own facts (lib/mediaProbe.js), as a string so memo can compare it.
   const media = useMemo(() => { try { return mediaJson ? JSON.parse(mediaJson) : null; } catch (_) { return null; } }, [mediaJson]);
@@ -1099,16 +1090,6 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
                    muted controls preload="metadata" playsInline />
           : facade}
         {durText && !autoplay && <span className="vc-dur" aria-hidden="true">{durText}</span>}
-        {/* A dropped clip is placed at once and uploads in the background —
-            same overlay as a photo's, so it never looks finished early. */}
-        {pending && !src && (
-          <div className="ic-upload-overlay" aria-label="Uploading video">
-            <Spinner size={22} tone="on-dark" label="Uploading video" />
-            {uploadProgress != null && (
-              <div className="ic-upload-progress">{Math.round(uploadProgress * 100)}%</div>
-            )}
-          </div>
-        )}
       </div>
       {showTitle && onUpdate && (
         <EditableText

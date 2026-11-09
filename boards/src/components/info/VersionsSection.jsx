@@ -10,6 +10,16 @@ import { relativeTimeShort } from '../../lib/relativeTime.js';
 import { Icon } from '../Icon.jsx';
 import { Upload, Download, MoreHorizontal } from '../../lib/icons.js';
 import { CardContextMenu } from '../CardContextMenu.jsx';
+import { transferForCard } from '../../lib/activity.js';
+import { useCardTransferKey } from '../../hooks/useActivity.js';
+
+// "8 of 19 MB": the unit once when both sides share it.
+function sizeProgress(sent, total) {
+  const a = formatSize(sent).replace(/\.0 /, ' ');
+  const b = formatSize(total).replace(/\.0 /, ' ');
+  const ua = String(a).split(' ')[1];
+  return ua && ua === String(b).split(' ')[1] ? `${String(a).split(' ')[0]} of ${b}` : `${a} of ${b}`;
+}
 
 export function VersionsSection({
   card, canEdit = false, personName = (id) => id, getMeta = null,
@@ -17,6 +27,10 @@ export function VersionsSection({
 }) {
   const [menu, setMenu] = useState(null);       // { x, y, v }
   const [showDeleted, setShowDeleted] = useState(false);
+  // A version this tab is uploading: a row on top until it lands (the count in the head stays the landed ones).
+  useCardTransferKey(card?.id);
+  const up = card?.id ? transferForCard(card.id) : null;
+  const upload = up?.version?.n && up.state !== 'done' ? up : null;
   const live = liveVersions(card);
   const deleted = versionsOf(card).filter((v) => v.del);
   const cur = currentOf(card);
@@ -72,6 +86,30 @@ export function VersionsSection({
     canEdit && live.length > 1 && { id: 'del', label: 'Delete version', danger: true, run: () => onDelete?.(v) },
   ].filter(Boolean);
 
+  const uploadRow = () => {
+    const failed = upload.state === 'failed';
+    const pct = Math.min(99, Math.floor((upload.fraction || 0) * 100));
+    const words = failed ? 'Didn’t upload'
+      : upload.state === 'finishing' ? `Version ${upload.version.n} · making a preview…`
+        : upload.state === 'waiting' ? `Version ${upload.version.n} · waiting`
+          : `Version ${upload.version.n} · uploading ${pct}%`;
+    const meta = ['You', upload.bytesTotal > 0 ? sizeProgress(upload.sentBytes || 0, upload.bytesTotal) : ''].filter(Boolean).join(' · ');
+    return (
+      <li key="uploading" className="cbd-ver is-uploading" data-version-uploading={upload.version.n}>
+        <button type="button" className="cbd-ver-main" disabled aria-label={`${words}. ${meta}`}>
+          <span className="cbd-ver-n">{`v${upload.version.n}`}</span>
+          <span className="cbd-ver-text">
+            <span className="cbd-ver-name">{words}</span>
+            <span className="cbd-ver-meta">{meta}</span>
+          </span>
+        </button>
+        {failed && upload.actions?.retry && (
+          <button type="button" className="cbd-ver-act" onClick={() => upload.actions.retry()}>Retry</button>
+        )}
+      </li>
+    );
+  };
+
   return (
     <section className="cbd-section cbd-versions" aria-label="Versions">
       <div className="cbd-section-head">
@@ -82,7 +120,7 @@ export function VersionsSection({
           </button>
         )}
       </div>
-      <ol className="cbd-ver-list">{[...live].reverse().map((v) => row(v))}</ol>
+      <ol className="cbd-ver-list">{upload && uploadRow()}{[...live].reverse().map((v) => row(v))}</ol>
       {deleted.length > 0 && (
         <div className="cbd-ver-deleted">
           <button type="button" className="cbd-linkbtn" onClick={() => setShowDeleted((s) => !s)} aria-expanded={showDeleted}>

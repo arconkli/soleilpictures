@@ -105,8 +105,23 @@ export const CEILINGS = {
   // (SIGN_IN_EVENTS and signInAgo, moved into lib/errorCrumbs.js, which the
   // entry's errorReporting.js reads). A CI-style build measured entryJs
   // 171,856 B on main 555b2260 and 172,053 B with it.
-  entryJs: 172_300,
-  entryCss: 96_200,
+  // 2026-11-09: +0.3 KB for d2b3c2f0 (layout outlines and Admin › Outlines),
+  // which landed without raising this and put CI's bundle job over (run
+  // 42593951681). A CI-style build measured entryJs 172,045 B on 1c770b58
+  // and 172,325 B on d2b3c2f0.
+  // 2026-11-09: +0.5 KB for the boot screen's words (components/LoadingScreen.jsx,
+  // hooks/useStall.js, lib/stall.js): "Still loading…" at 8 s, then "This is
+  // taking longer than usual" with Reload page at 15 s, counted from the start
+  // of the whole wait. They show before the app arrives, so they ship in the
+  // entry. A CI-style build measured entryJs 172,325 B on main d2b3c2f0 and
+  // 172,806 B with it.
+  entryJs: 173_100,
+  // 2026-11-09: +0.2 KB for d2b3c2f0's rules in styles.css, over this
+  // ceiling in the same run: 96,166 B on 1c770b58, 96,291 B on d2b3c2f0.
+  // 2026-11-09: +0.1 KB for where those words sit and fade in under the sun
+  // (styles.css .loading-words); the old upload overlay's rules left.
+  // 96,291 B on main d2b3c2f0, 96,390 B with it.
+  entryCss: 96_500,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
   // they draw (vite.config.js iconSplit), from 687 KB.
@@ -215,10 +230,6 @@ export const CEILINGS = {
   // A clean npm ci build with CI's environment measured 692,901 B on
   // production e6108312 and 693,078 with the change (CI read 693.1, OVER, on
   // main b7ab128f).
-  // 2026-10-29 (production only): +0.2 KB for the passkey picks, App.jsx's lazy
-  // hook for the save-a-passkey offer. A local build with CI's environment
-  // measured 693,360 B on production f3a66607 + 1821d772 + e329670a. Main
-  // carries its own, higher ceiling for the grid refinements.
   // 2026-10-29: +4.2 KB of JS and +0.6 KB of CSS for the grid refinements:
   // the Boxes bar and Even out under a selected grid, filling several boxes
   // from one drop in reading order (lib/gridLayout.js planCellFill), moving
@@ -260,17 +271,12 @@ export const CEILINGS = {
   // measured appJs 703,161 B on main 4fd7a43f and 704,188 B with it
   // (CanvasSurface +623 B, AppShell +365 B); the entry grew 163 B, inside
   // its ceiling.
-  // 2026-11-04 (production only): +0.2 KB for the tests re-aim (1f4fcf28):
-  // the share ask's skip reason, the upsell slot holder, the trial offer's
-  // fields and the plan tab's view event. A CI-style build measured appJs
-  // 704,468 B on production bae43980 with it.
   // 2026-11-04: +1.2 KB of JS for the workspace limit (0856): New workspace
   // counts your own workspaces before it asks for a name and opens the
   // "You have 10 workspaces" box (lazy) at the limit or on the server's
   // refusal, and the switcher shows the quiet count from 8
   // (lib/workspaceLimit.js, 434 B). A CI-style build measured appJs
   // 704,405 B on main e233d0aa (already 105 B over) and 705,454 B with it.
-  // On production (release-nov-04-0318) the same +1.2 KB lands on 704_500.
   // 2026-11-04: +1.6 KB of JS for working live together: the socket reads the
   // room's together message and stamps `here` on real input (yPartyKit.js,
   // with liveTogether.js and togetherClock.js, which it now imports), the
@@ -298,8 +304,32 @@ export const CEILINGS = {
   // is remembered (lib/thumbFailMemory.js); name suggestions reload at most
   // every ten seconds. A CI-style build measured appJs 707,267 B on main
   // 555b2260 (CI read it a few bytes OVER) and 708,357 B with it.
-  appJs: 708_600,
-  appCss: 21_900,
+  // 2026-11-09: +2.3 KB for d2b3c2f0 (layout outlines: the ask, drawn by
+  // App.jsx, and the canvas tool counts, lib/canvasToolEvents.js), which
+  // landed without raising this; CI read 710.8 KB on it, OVER. CI-style
+  // builds here (about 0.6 KB low, as above) measured appJs 707,768 B on
+  // 1c770b58 and 709,975 B on d2b3c2f0.
+  // 2026-11-09: +21.7 KB so people can tell what is going on while something
+  // loads or uploads (the owner's ask). It is what the canvas draws at once:
+  // an uploading card's state (its progress, waiting its turn, making a
+  // preview, "Didn't upload" with Retry) and the store behind it
+  // (lib/activity.js, activityWords.js, activityOps.js,
+  // cards/CardTransferState.jsx), a teammate's upload on the same card
+  // (lib/peerUploads.js), the cluster's connection (lib/canvasConnection.js,
+  // on the doc save tracker: docSaveStatus.js and roomAck.js, now shared), a
+  // picture that couldn't load, with Retry (cards/CardCouldntLoad.jsx), the
+  // cluster-opening stall (BoardOpening.jsx) and the leave-page warning
+  // (hooks/useActivityGuards.js). The activity tray, its model and its styles
+  // load just after the app (ActivityTray in LAZY_IN_APP, about 8 KB). Two
+  // CI-style builds on the shared node_modules (about 0.6 KB low, as above)
+  // measured appJs 709,975 B on main d2b3c2f0 and 731,592 B with it; the
+  // ceiling moves by the difference, 21,617 B.
+  appJs: 732_600,
+  // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
+  // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
+  // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).
+  // 21,857 B on main d2b3c2f0, 23,351 B with it.
+  appCss: 23_400,
 };
 
 // Chunks that must never be in the app's critical closure. Matched against the
@@ -323,6 +353,8 @@ export const LAZY_IN_APP = [
   'TogetherChip',
   // App.jsx: the save-a-passkey offer after a code sign-in (lib/passkeyOffer.js)
   'passkeyOffer',
+  // App.jsx: the activity tray, drawn once the app is up
+  'ActivityTray',
   // TierRouter.jsx: one route's page each
   'PricingPage', 'TeamPlanCard', 'TeamDomainNote', 'TeamSetup', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
   // the canvas: cards.jsx, CanvasSurface.jsx, info/InfoHost.jsx

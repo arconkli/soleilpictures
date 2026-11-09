@@ -24,18 +24,19 @@ const served = (typeof document !== 'undefined') ? document.title : null;
 
 let base = null;   // current cluster / tag name, or null for "no name here"
 let badge = '';    // '(3) ' / '(@2) ' / ''
+let activity = ''; // '(6/12) ' while uploads are moving / ''
 
 // The whole rule, in one place. A named surface gets "<name> — Soleil Clusters";
 // an unnamed one keeps the served marketing title, which is still the right
 // thing for a tab someone parked on the home graph.
-export function composeTitle({ base: b, badge: g, served: s } = {}) {
+export function composeTitle({ base: b, badge: g, activity: a, served: s } = {}) {
   const body = b ? `${b} — ${SUFFIX}` : (s || SUFFIX);
-  return `${g || ''}${body}`;
+  return `${a || ''}${g || ''}${body}`;
 }
 
 function apply() {
   if (typeof document === 'undefined') return;
-  document.title = composeTitle({ base, badge, served });
+  document.title = composeTitle({ base, badge, activity, served });
 }
 
 // null / '' / whitespace all mean "this surface has no name" — collapsing them
@@ -51,5 +52,12 @@ export function setTitleBadge(next) {
   const v = next || '';
   if (v === badge) return;
   badge = v;
+  apply();
+}
+
+export function setTitleActivity(next) {
+  const v = next || '';
+  if (v === activity) return;
+  activity = v;
   apply();
 }

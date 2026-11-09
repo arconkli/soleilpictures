@@ -211,6 +211,14 @@ function scheduleFlush() {
 // past ~1000 keys, "No access" locks (MEDIA-05). Same cap as imageMeta.js.
 export const SIGN_READS_MAX = 200;
 
+// Why a key did not sign, so R2Image can tell a hiccup from a lock:
+// 'network' = no session token, a fetch that threw, or a non-OK answer (the
+// party's 503 included); 'denied' = the party answered 200 and left the key
+// out (the rows read says this user may not read it). Cleared when it signs.
+// Public viewers (the _override resolver) and scoped resolvers never set one.
+const signReasons = new Map();       // key → 'network' | 'denied'
+export function signFailure(key) { return signReasons.get(key) || null; }
+
 async function flush() {
   pendingTimer = null;
   if (pendingResolvers.size === 0) return;
@@ -221,7 +229,8 @@ async function flush() {
     for (const key of chunk) {
       const url = (urls && urls[key]) || null;
       // Clamp to the URL's real signature window so we never serve a dead URL.
-      if (url) cache.set(key, { url, expiresAt: cacheExpiryFor(url, ttlMs) });
+      if (url) { cache.set(key, { url, expiresAt: cacheExpiryFor(url, ttlMs) }); signReasons.delete(key); }
+      else signReasons.set(key, urls ? 'denied' : 'network');
       for (const cb of resolvers.get(key) || []) cb(url);
     }
   };

@@ -18,7 +18,8 @@
 //              un-backfilled image is seen.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { cachedUrl, resolveSrc, getSignedUrl, notifyImageAuthError, CACHE_TTL_MS } from '../lib/r2.js';
+import { cachedUrl, resolveSrc, getSignedUrl, notifyImageAuthError, signFailure, CACHE_TTL_MS } from '../lib/r2.js';
+import { CardCouldntLoad } from './cards/CardCouldntLoad.jsx';
 import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
 import { isAnimatedImageKey } from '../lib/fileIngest.js';
 import { viewKindOfKey, isViewKey, drawsNowhere } from '../lib/fileView.js';
@@ -41,6 +42,12 @@ const REFRESH_BEFORE_MS = 30 * 1000; // re-presign 30s before client cache expir
 // so a momentary miss never strands an image the viewer can actually access.
 const MAX_SIGN_RETRIES = 4;
 const SIGN_RETRY_BASE_MS = 800; // backoff: 0.8s, 1.6s, 3.2s, 6.4s
+// After those, a picture that failed for want of a network asks again in 30 s,
+// then 1, 2, 4 and every 5 min, so a long outage doesn't have every failed
+// picture on the page asking every half minute. Coming back online asks at once.
+const REARM_MS = 30000;
+const REARM_MAX_MS = 300000;
+const rearmDelay = (n) => Math.min(REARM_MS * 2 ** n, REARM_MAX_MS);
 
 // One-backfill-attempt-per-key dedupe lives in previewBackfill.js
 // (backfillAttempted) — shared with the whole-board sweep so the two paths
@@ -301,6 +308,8 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
   const initial = blockOriginal ? null : cachedUrl(shown);
   const [url, setUrl] = useState(initial);
   const [failed, setFailed] = useState(false);
+  // Retry on the "Couldn't load" tile: a new run of the sign effect.
+  const [retryTick, setRetryTick] = useState(0);
   // After a couple of failed presign attempts, surface a quiet "still
   // trying" cue so the shimmer doesn't read as hung during the backoff.
   const [slowRetry, setSlowRetry] = useState(false);
@@ -315,12 +324,17 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
   // One failed→retry re-arm per src, as the progressive flavor has: without it
   // a ~12 s sign-reads outage (a laptop waking, captive Wi-Fi) left cluster
   // thumbnails and Files previews padlocked until the user navigated away
-  // (MEDIA-14). Re-arms after 30 s, or at once when the browser comes online.
+  // (MEDIA-14). Re-arms after rearmDelay (30 s, doubling to 5 min), or at
+  // once when the browser comes online.
+  // A failure that is the network's (signFailure 'network') re-arms every time;
+  // a 'denied' one re-locks after the one extra cycle and stays.
   const rearmedRef = useRef(false);
+  // Network re-arms since the last good sign (rearmDelay).
+  const rearmsRef = useRef(0);
   // The key whose view this is waiting on (see noPicture).
   const viewForRef = useRef(null);
   const [awaitingView, setAwaitingView] = useState(false);
-  useEffect(() => { resignedRef.current = false; rearmedRef.current = false; setUnavailable(false); }, [src]);
+  useEffect(() => { resignedRef.current = false; rearmedRef.current = false; rearmsRef.current = 0; setUnavailable(false); }, [src]);
   // A new file starts on its own view, when it has one, and waits on nothing.
   useEffect(() => {
     viewForRef.current = null; setAwaitingView(false); setViaPreview(serverView(srcKey));
@@ -397,7 +411,7 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
         }
         setFailed(true);
         // Genuine loss of access re-locks after this one extra cycle and stays.
-        if (isR2 && !rearmedRef.current) {
+        if (isR2 && (signFailure(key) === 'network' || !rearmedRef.current)) {
           rearmedRef.current = true;
           const rearm = () => {
             if (cancelled) return;
@@ -408,7 +422,7 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
             setFailed(false);
             tick();
           };
-          retryTimer = setTimeout(rearm, 30000);
+          retryTimer = setTimeout(rearm, rearmDelay(rearmsRef.current++));
           onOnline = rearm;
           try { window.addEventListener('online', onOnline); } catch (_) {}
         }
@@ -418,6 +432,7 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
       // failure retries the bust next time instead of silently skipping it.
       if (wantBust) markBust(key, bust);
       attempt = 0;
+      rearmsRef.current = 0;
       setSlowRetry(false);
       setUrl(resolved);
       setFailed(false);
@@ -431,9 +446,23 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
     };
     tick();
     return () => { cancelled = true; dropOnline(); if (refreshTimer) clearTimeout(refreshTimer); if (retryTimer) clearTimeout(retryTimer); };
-  }, [shown, visible, bust]);
+  }, [shown, visible, bust, retryTick]);
 
-  if (failed) return <BlockedPlaceholder {...rest} />;
+  if (failed) {
+    const failKey = typeof shown === 'string' && shown.startsWith('r2:') ? shown.slice(3) : null;
+    if (failKey && signFailure(failKey) === 'network') {
+      const retry = () => {
+        rearmedRef.current = false;
+        rearmsRef.current = 0;
+        resignedRef.current = false;
+        setSlowRetry(false);
+        setFailed(false);
+        setRetryTick((t) => t + 1);
+      };
+      return <CardCouldntLoad rootRef={rootRef} onRetry={retry} {...rest} />;
+    }
+    return <BlockedPlaceholder {...rest} />;
+  }
   if (unavailable) return <UnavailablePlaceholder alt={alt} {...rest} />;
 
   if (!url || awaitingView || blockOriginal) {
@@ -474,6 +503,8 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
                // load any better than it just did.
                if (fresh && fresh === failedUrl) noPicture();
                else if (fresh) setUrl(fresh);
+               // A network failure goes back through the sign effect, so its retries, back-off and `online` re-arm apply.
+               else if (signFailure(shown.slice(3)) === 'network') setRetryTick((t) => t + 1);
                else setFailed(true);
              });
              // Public viewers resolve from a static presigned map, so the
@@ -515,6 +546,8 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   const initialUrl = cachedUrl(activeSrc);
   const [url, setUrl] = useState(initialUrl);
   const [failed, setFailed] = useState(false);
+  // Retry on the "Couldn't load" tile: a new run of the sign effect.
+  const [retryTick, setRetryTick] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [visible, setVisible] = useState(() => eager || !!initialUrl);
   // The blur placeholder is a real <img> layer behind every card. It USED to
@@ -539,6 +572,8 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // One failed→retry re-arm per mount (see the resolve effect) so a transient
   // sign-reads outage doesn't brick the card until reload.
   const rearmedRef = useRef(false);
+  // Network re-arms since the last good sign (rearmDelay).
+  const rearmsRef = useRef(0);
   // The tier src whose <img> error already bought one forced re-sign (see the
   // img onError). A second error on the same tier means the browser cannot
   // show these bytes, so the card says so instead of re-downloading forever.
@@ -597,6 +632,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     hitMarkedRef.current = false;
     fellBackRef.current = false;
     rearmedRef.current = false;
+    rearmsRef.current = 0;
     resignedForRef.current = null;
     originalBrokenRef.current = drawsNowhere(originalKey);
     fastLoadRef.current = false;
@@ -656,7 +692,11 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     let cancelled = false;
     let refreshTimer = null;
     let retryTimer = null;
+    let onOnline = null;
     let attempt = 0;
+    const dropOnline = () => {
+      if (onOnline) { try { window.removeEventListener('online', onOnline); } catch (_) {} onOnline = null; }
+    };
     const tick = async () => {
       const resolved = await resolveSrc(activeSrc);
       if (cancelled) return;
@@ -679,23 +719,31 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
           return;
         }
         setFailed(true);
-        // One slow re-arm per mount: a transient sign-reads outage must not
-        // brick the card until reload (the lock renders no <img>, so even the
-        // onError force-resign path can never fire). Genuine loss of access
-        // re-locks after this one extra cycle and stays locked.
-        if (!rearmedRef.current) {
+        // Re-arm after rearmDelay (30 s, doubling to 5 min while the failure
+        // stays the network's), or at once when the browser comes back
+        // online: a transient sign-reads outage must not brick the card until
+        // reload (the lock renders no <img>, so even the onError force-resign
+        // path can never fire). A failure that is the network's re-arms every
+        // time; genuine loss of access re-locks after one extra cycle and stays.
+        if ((typeof activeSrc === 'string' && signFailure(activeSrc.slice(3)) === 'network') || !rearmedRef.current) {
           rearmedRef.current = true;
-          retryTimer = setTimeout(() => {
+          const rearm = () => {
             if (cancelled) return;
+            dropOnline();
+            clearTimeout(retryTimer);
             fellBackRef.current = false;
             attempt = 0;
             setFailed(false);
             tick();
-          }, 30000);
+          };
+          retryTimer = setTimeout(rearm, rearmDelay(rearmsRef.current++));
+          onOnline = rearm;
+          try { window.addEventListener('online', onOnline); } catch (_) {}
         }
         return;
       }
       attempt = 0;
+      rearmsRef.current = 0;
       urlSetAtRef.current = performance.now();
       setUrl(resolved);
       setFailed(false);
@@ -708,8 +756,8 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
       }
     };
     tick();
-    return () => { cancelled = true; if (refreshTimer) clearTimeout(refreshTimer); if (retryTimer) clearTimeout(retryTimer); };
-  }, [activeSrc, visible, blockOriginal]);
+    return () => { cancelled = true; dropOnline(); if (refreshTimer) clearTimeout(refreshTimer); if (retryTimer) clearTimeout(retryTimer); };
+  }, [activeSrc, visible, blockOriginal, retryTick]);
 
   // Warm the Tier-2 signed URL as soon as the upgrade is predictable — the card
   // is already displayed near/above the preview's native size — instead of
@@ -945,7 +993,21 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   };
 
   const stand = (state) => <div ref={rootRef} className={`r2p ${className || ''}`} style={style} {...rest}>{placeholder(state)}</div>;
-  if (failed) return placeholder ? stand('none') : <BlockedPlaceholder {...rest} />;
+  if (failed) {
+    if (placeholder) return stand('none');
+    if (typeof activeSrc === 'string' && activeSrc.startsWith('r2:') && signFailure(activeSrc.slice(3)) === 'network') {
+      const retry = () => {
+        rearmedRef.current = false;
+        rearmsRef.current = 0;
+        fellBackRef.current = false;
+        resignedForRef.current = null;
+        setFailed(false);
+        setRetryTick((t) => t + 1);
+      };
+      return <CardCouldntLoad rootRef={rootRef} onRetry={retry} {...rest} />;
+    }
+    return <BlockedPlaceholder {...rest} />;
+  }
   if (unavailable) {
     if (placeholder) return stand('none');
     return <UnavailablePlaceholder rootRef={rootRef} className={className || ''} style={style} alt={alt}
@@ -1010,6 +1072,8 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
                    // bundle refresh below, which remounts the canvas anyway.
                    if (fresh && fresh === failedUrl) giveUp();
                    else if (fresh) setUrl(fresh);
+                   // A network failure goes back through the sign effect, so its retries, back-off and `online` re-arm apply.
+                   else if (signFailure(activeSrc.slice(3)) === 'network') setRetryTick((t) => t + 1);
                    else setFailed(true);
                  });
                  // Public viewers resolve from a static presigned map → the

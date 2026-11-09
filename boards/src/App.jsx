@@ -38,6 +38,7 @@ import { useBoardCapacity } from './hooks/useBoardCapacity.js';
 import { useAppTrace } from './hooks/useAppTrace.js';
 import { UpgradeModal } from './components/UpgradeModal.jsx';
 import { SurfaceErrorBoundary } from './components/SurfaceErrorBoundary.jsx';
+import { QuietBoundary } from './components/QuietBoundary.jsx';
 import { DocPaneFrame } from './components/DocPaneFrame.jsx';
 import { DocOpening } from './components/DocOpening.jsx';
 import { openBesideDock, mainPaneMoved, sidebarShown, toggleSidebar } from './lib/docPanes.js';
@@ -138,7 +139,7 @@ import { putRefusal, putFailToast } from './lib/putRefusal.js';
 import { getViewCenter } from './lib/viewCenter.js';
 import { filesCountOf, isViewSwitchKey, nextView, overlayOpen } from './lib/viewSwitch.js';
 import { anyModalOpen, registerModalOpen, registerBackLayer } from './lib/modalGuard.js';
-import { Avatar, SoleilMark } from './components/primitives.jsx';
+import { Avatar } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
 import { tlTip } from './lib/looks.js';
@@ -229,6 +230,13 @@ import { ImportCapDialog } from './components/ImportCapDialog.jsx';
 import { storageRoom } from './lib/storageRoom.js';
 import { holdDrop, claimReady, setHeldBaseline, subscribeHeld, announceBillingChange, heldEntries, discardHeld, listenBillingChange } from './lib/heldUploads.js';
 import { useHeldUploads } from './hooks/useHeldUploads.js';
+import { useActivityGuards } from './hooks/useActivityGuards.js';
+import { useUploadingBoardIds } from './hooks/useActivity.js';
+import { startBatch, addTransfer, updateTransfer, removeTransfer, inLimiterUnlessPaused } from './lib/activity.js';
+import { trackOp, opsHaveTray } from './lib/activityOps.js';
+import { copyWords, copyDoneWords } from './lib/activityWords.js';
+import { useCanvasConnection } from './hooks/useCanvasConnection.js';
+import { uploadFailedWords } from './lib/transferWords.js';
 import { HeldUploadsBar } from './components/HeldUploadsBar.jsx';
 import { claimUpsellSlot, upsellSlotBusy } from './lib/upsellSlot.js';
 import { publishOwnWork } from './lib/ownWork.js';
@@ -297,6 +305,13 @@ import { ScoutClaimBanner } from './components/ScoutClaimBanner.jsx';
 import { useFeedback } from './components/AppFeedback.jsx';
 import { lazyWithReload, importWithReload } from './lib/lazyWithReload.js';
 import { lazyPanel } from './lib/lazyPanel.jsx';
+import { PanelWait } from './components/PanelWait.jsx';
+import { BoardOpening } from './components/BoardOpening.jsx';
+import { LoadingScreen } from './components/LoadingScreen.jsx';
+// The activity tray (uploads, downloads, the connection, held files,
+// imports) loads just after the app: nothing in it draws the first board,
+// and until it is up an op keeps its toast (opsHaveTray).
+const ActivityTray = lazyWithReload(() => import('./components/ActivityTray.jsx').then((m) => ({ default: m.ActivityTray })));
 // Lazy: HomeGraph pulls in three.js + react-force-graph-3d (~365KB gz) but only
 // renders on the Home view. Keeping it out of the eager App bundle means a board
 // canvas no longer downloads the 3D-graph libs.
@@ -337,11 +352,11 @@ const ListSurface = lazyWithReload(() => import('./components/ListSurface.jsx').
 // of it is downloaded before then. The panels kept mounted behind an `open`
 // prop mount at their first open and stay (lib/lazyPanel.jsx); the rest mount
 // when they're wanted, under their own Suspense.
-const SettingsPanel = lazyPanel(() => import('./components/SettingsPanel.jsx').then(m => ({ default: m.SettingsPanel })));
-const CommandPalette = lazyPanel(() => import('./components/CommandPalette.jsx').then(m => ({ default: m.CommandPalette })));
-const TrashModal = lazyPanel(() => import('./components/TrashModal.jsx').then(m => ({ default: m.TrashModal })));
-const VersionHistoryModal = lazyPanel(() => import('./components/VersionHistoryModal.jsx').then(m => ({ default: m.VersionHistoryModal })));
-const WorkspaceRecoveryModal = lazyPanel(() => import('./components/WorkspaceRecoveryModal.jsx').then(m => ({ default: m.WorkspaceRecoveryModal })));
+const SettingsPanel = lazyPanel(() => import('./components/SettingsPanel.jsx').then(m => ({ default: m.SettingsPanel })), { title: 'Settings' });
+const CommandPalette = lazyPanel(() => import('./components/CommandPalette.jsx').then(m => ({ default: m.CommandPalette })), { title: 'Search' });
+const TrashModal = lazyPanel(() => import('./components/TrashModal.jsx').then(m => ({ default: m.TrashModal })), { title: 'Deleted clusters' });
+const VersionHistoryModal = lazyPanel(() => import('./components/VersionHistoryModal.jsx').then(m => ({ default: m.VersionHistoryModal })), { title: 'Version history' });
+const WorkspaceRecoveryModal = lazyPanel(() => import('./components/WorkspaceRecoveryModal.jsx').then(m => ({ default: m.WorkspaceRecoveryModal })), { title: 'Workspace recovery' });
 const TeamPage = lazyWithReload(() => import('./components/team/TeamPage.jsx'));
 const TeamPageLive = lazyWithReload(() => import('./components/team/TeamPageLive.jsx'));
 const NewWorkspaceDialog = lazyWithReload(() => import('./components/team/NewWorkspaceDialog.jsx'));
@@ -652,6 +667,7 @@ export function App() {
   const storedWsPending = !!activeWorkspaceId && wsListLoading
     && activeWorkspaceId !== personalWorkspace?.id
     && !workspaces.some((w) => w.id === activeWorkspaceId);
+  loadingShellName = storedWsPending ? null : (activeWorkspace?.name || workspaces.find((w) => w.id === activeWorkspaceId)?.name || null);
   if (wsLoading || (!activeWorkspaceId && wsListLoading) || storedWsPending || !activeWorkspace || !activeRoot || activeRoot.workspace_id !== activeWorkspace.id) return <LoadingShell />;
 
   return (
@@ -1618,6 +1634,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return () => { cancelled = true; };
   }, [tweak.showMessages, currentBoard?.id]);
   const currentYDoc = yb.ready && yb.boardId === currentBoard.id ? yb.ydoc : null;
+  const canvasConn = useCanvasConnection(currentYDoc, currentBoard.id);
+  // Uploads in this tab keep the page busy until they land, and leaving with
+  // work only this tab holds asks first (hooks/useActivityGuards.js).
+  useActivityGuards({ conn: canvasConn });
 
   // Side-by-side: when set, the workspace splits 50/50 with a draggable
   // divider. The split pane runs its own Y.Doc / surface independently.
@@ -3400,8 +3420,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           x: Math.max(8, Math.round((clickPos?.x ?? 200) - w / 2)),
           y: Math.max(8, Math.round((clickPos?.y ?? 200) - h / 2)), w, h,
         });
+        // One solo batch in the activity store, so the card, the tab title
+        // and other open tabs (presence uploadingTo) know it is on its way.
+        const boardName = boardsRef.current?.[boardId]?.name || '';
+        const batch = startBatch({ kind: 'upload', boardId, boardName });
+        const tid = addTransfer({
+          batch, kind: 'upload', label: f.name || 'PDF', boardId, cardId,
+          bytesTotal: f.size || 0, state: 'running', mime: 'application/pdf',
+        });
         try {
-          const up = await uploadPdf({ file: f, workspaceId: workspace.id, boardId, cardId, userId: user.id, originalName: meaningfulFileName(f) });
+          const up = await uploadPdf({
+            file: f, workspaceId: workspace.id, boardId, cardId, userId: user.id, originalName: meaningfulFileName(f),
+            onProgress: (p) => updateTransfer(tid, { fraction: p }),
+          });
           // Silent (origin 'upload'): the async src patch must not become its
           // own undo step, or Cmd+Z "peels" the PDF back to pending before
           // removing the card.
@@ -3411,8 +3442,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount,
             name: up.name, w: up.w, h: up.h, pending: false,
           });
+          updateTransfer(tid, { state: 'done', fraction: 1 });
         } catch (e) {
           console.error(e);
+          // The card goes, so its transfer goes with it; the toast says why.
+          removeTransfer(tid);
           feedback.toast({ type: 'error', code: 'pdf_upload_failed', message: 'PDF upload failed: ' + (e.message || e) });
           deleteCardsSilent([cardId]);
         }
@@ -3638,15 +3672,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ...(offerBoard ? { action: { label: 'Open beside board', onClick: () => { if (fullFilesBoardRef.current === boardId) applyFilesEventRef.current?.('shrink', 'toast'); } } } : {}),
       });
 
+      // One batch in the activity store for the whole drop, one item per file,
+      // so the tray, the cards, the tab title and other tabs (presence
+      // uploadingTo) all see what is still on its way.
+      const batch = startBatch({ kind: 'upload', boardId, boardName: boardsRef.current?.[boardId]?.name || '' });
+      const tids = new Map(live.map(({ it, id }) => [id, addTransfer({
+        batch, kind: 'upload', label: it.file?.name || '', boardId, cardId: id,
+        bytesTotal: it.file?.size || 0, state: 'waiting', mime: it.file?.type || '',
+      })]));
+
       // 6) Background uploads (bounded concurrency). Patch via updateCardMeta (unstamped: finishing an upload isn't an edit)
       //    so the async src writes stay OFF the undo stack; roll back on failure.
-      await Promise.all(live.map(({ it, id }) => listUploadLimiter(async () => {
+      await Promise.all(live.map(({ it, id }) => inLimiterUnlessPaused(tids.get(id), listUploadLimiter, async () => {
+        const tid = tids.get(id);
+        updateTransfer(tid, { state: 'running', parked: false });
+        const onProgress = (p) => updateTransfer(tid, { fraction: p });
+        let wasHeld = false;
         try {
           if (it.route === 'image') {
-            const up = await uploadImage({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file) });
+            const up = await uploadImage({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file), onProgress });
             updateCardMeta(id, { src: up.src, pending: false });
           } else if (it.route === 'pdf') {
-            const up = await uploadPdf({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file) });
+            const up = await uploadPdf({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file), onProgress });
             updateCardMeta(id, { src: up.src, pdfSrc: up.pdfSrc, pageCount: up.pageCount, name: up.name, w: up.w, h: up.h, pending: false });
           } else if (it.route === 'video') {
             // canAttemptFiles mirrors CanvasSurface's allowLong semantics
@@ -3654,10 +3701,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             // cardId on the images row, as for every kind: if this patch is
             // lost, the abandoned sweep recovers the card from it instead of
             // removing a clip that landed as "didn't finish uploading".
-            const up = await uploadVideo({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file), ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
+            const up = await uploadVideo({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file), onProgress, ...(canAttemptFiles ? { maxDurationSec: Number.POSITIVE_INFINITY } : {}) });
             updateCardMeta(id, { src: up.src, ...(up.poster ? { poster: up.poster } : {}), pending: false });
           } else if (it.route === 'audio') {
-            const up = await uploadAudio({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file) });
+            const up = await uploadAudio({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file), onProgress });
             updateCardMeta(id, {
               src: up.src, duration: up.duration || null, pending: false,
               peaks: up.peaks || null, sampleRate: up.sampleRate || null,
@@ -3666,7 +3713,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             });
           } else {
             // 'largeMedia' (over-cap video/audio) + 'file' → multipart upload.
-            const up = await uploadFile({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file) });
+            const up = await uploadFile({ file: it.file, workspaceId: workspace.id, boardId, cardId: id, userId: user.id, originalName: meaningfulFileName(it.file), onProgress });
             if (it.kind === 'audio') {
               // The canvas path reads audio duration before uploading; this one
               // patched only { src, pending } and silently dropped it, so an
@@ -3687,6 +3734,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             }
             else updateCardMeta(id, { fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext, pending: false });
           }
+          updateTransfer(tid, { state: 'done' });
         } catch (err) {
           console.error('list drop upload failed', err);
           if (err?.code === 402 || err?.code === 403) {
@@ -3725,6 +3773,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               if (csFiles.own && it.file) {
                 const held = holdDrop({ boardId, via: 'list', limit: 'storage', files: [it.file], tier: (myTierRef.current || myTier).tier || null });
                 if (held) storageRoom(boardId).then((r) => setHeldBaseline(held, r?.quota));
+                wasHeld = !!held;
               }
             }
             logEvent(EV.UPLOAD_BLOCKED, {
@@ -3734,6 +3783,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             });
           }
           else if (String(err?.message) !== 'aborted') feedback.toast({ type: 'error', code: 'file_upload_failed', message: 'Upload failed: ' + (err?.message || err) });
+          // An abort, or a file now waiting in the held-uploads bar, leaves
+          // nothing to say here; anything else stays in the tray as failed.
+          if (wasHeld || String(err?.message) === 'aborted' || err?.name === 'AbortError') removeTransfer(tid);
+          else updateTransfer(tid, { state: 'failed', error: uploadFailedWords(err), cardId: null });
           // Silent rollback: a failed upload is not a user action — it must
           // not leave a Cmd+Z step that resurrects the dead card.
           deleteCardsSilent([id]);
@@ -5052,28 +5105,46 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     });
     if (!ok) return;
     try {
-      // Create the new board under personal root
-      const personalRootBoard = await getRootBoard(personalWorkspaceId);
-      const newBoard = await createBoard({
-        workspaceId: personalWorkspaceId,
-        parentBoardId: personalRootBoard?.id || null,
-        name: sourceBoard.name + ' (copy)',
-        view: sourceBoard.view, cover: sourceBoard.cover, meta: sourceBoard.meta,
-        userId: user.id,
+      // A row in the activity tray while it copies; its done row opens the copy.
+      let newId = null;
+      const hadTray = opsHaveTray();   // trackOp decides at its start
+      await trackOp({
+        kind: 'copy', label: copyWords({ name: sourceBoard.name }),
+        boardId: sourceBoardId, boardName: sourceBoard.name,
+        doneLabel: copyDoneWords({ personal: true }), lingerMs: 8000,
+        open: () => { if (newId) openBoardAnywhere(newId); },
+      }, async ({ progress }) => {
+        // Create the new board under personal root
+        const personalRootBoard = await getRootBoard(personalWorkspaceId);
+        const newBoard = await createBoard({
+          workspaceId: personalWorkspaceId,
+          parentBoardId: personalRootBoard?.id || null,
+          name: sourceBoard.name + ' (copy)',
+          view: sourceBoard.view, cover: sourceBoard.cover, meta: sourceBoard.meta,
+          userId: user.id,
+        });
+        newId = newBoard?.id || null;
+        try {
+          logEvent(EV.CLUSTER_CREATE, { via: 'copy_to_personal', parent_depth: 0, opened: false, board_id: newBoard?.id || null });
+        } catch (_) {}
+        // Clone the Y.Doc snapshot
+        const snap = await loadBoardSnapshot(sourceBoardId);
+        if (snap) {
+          const tmp = boardDoc(sourceBoardId);
+          Y.applyUpdate(tmp, b64ToBytes(snap));
+          let n = 0;
+          tmp.getMap('cards').forEach((v) => {
+            const kind = v?.get ? v.get('kind') : v?.kind;
+            if (kind !== 'board' && kind !== 'boardlink') n++;
+          });
+          if (n) progress({ label: copyWords({ count: n }) });
+          await saveBoardSnapshot(newBoard.id, tmp);
+          tmp.destroy();
+        }
+        await onWorkspacesChanged?.();
       });
-      try {
-        logEvent(EV.CLUSTER_CREATE, { via: 'copy_to_personal', parent_depth: 0, opened: false, board_id: newBoard?.id || null });
-      } catch (_) {}
-      // Clone the Y.Doc snapshot
-      const snap = await loadBoardSnapshot(sourceBoardId);
-      if (snap) {
-        const tmp = boardDoc(sourceBoardId);
-        Y.applyUpdate(tmp, b64ToBytes(snap));
-        await saveBoardSnapshot(newBoard.id, tmp);
-        tmp.destroy();
-      }
-      await onWorkspacesChanged?.();
-      feedback.toast({ type: 'success', message: 'Copied to your personal workspace.' });
+      // With the tray on the page its done row says it; without one the toast does.
+      if (!hadTray) feedback.toast({ type: 'success', message: 'Copied to your personal workspace.' });
     } catch (e) {
       console.error('cloneBoardToPersonal failed', e);
       feedback.toast({ type: 'error', code: 'cluster_copy_failed', message: 'Copy failed: ' + (e.message || e) });
@@ -5295,12 +5366,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       return;
     }
     try {
+      let newId = null;
+      const hadTray = opsHaveTray();   // trackOp decides at its start
+      const made = await trackOp({
+        kind: 'copy', label: copyWords({ name: clip.name || 'Cluster' }),
+        boardId: clip.boardId, boardName: clip.name || null,
+        doneLabel: (id) => (id ? copyDoneWords({ personal: false }) : null), lingerMs: 8000,
+        open: () => { if (newId) openBoardAt(newId); },
+      }, async ({ progress }) => {
       // What the copy will cost — its card on the target, plus every card it
       // carries, by what the index counts — asked before anything is made. A
       // paste at the limit used to make the cluster anyway, its contents and its
       // card kept on the board uncounted.
       const snap = await loadBoardSnapshot(clip.boardId);
       let carried = 0;
+      let n = 0;   // plain cards, for the tray's "Copying 24 cards…"
       if (snap) {
         const peek = new Y.Doc();
         try {
@@ -5311,11 +5391,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             if (kind === 'board' || kind === 'boardlink') return;   // dropped from the copy below
             if (isSeedCard({ id, seed: get('seed') }) || isAbandonedUpload(get)) return;
             carried += cardIndexWeight(kind, get);
+            n++;
           });
         } finally { peek.destroy(); }
+        if (n) progress({ label: copyWords({ count: n }) });
       }
       const ask = askCapFor(targetId, CLUSTER_CARD_COST + carried);
-      if (!ask.ok) return;
+      if (!ask.ok) return null;
       const newBoard = await createBoard({
         workspaceId: target.workspace_id,
         parentBoardId: targetId,
@@ -5323,6 +5405,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         view: clip.view, cover: clip.cover, meta: clip.meta,
         userId: user.id,
       });
+      newId = newBoard?.id || null;
       try {
         logEvent(EV.CLUSTER_CREATE, {
           via: 'paste_copy', parent_depth: boardDepth(boards, targetId), opened: false, board_id: newBoard?.id || null,
@@ -5346,7 +5429,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       if (ask.cs.own) myTier.notePlaced?.(CLUSTER_CARD_COST + carried);
       await refreshBoards();
-      feedback.toast({ type: 'success', message: 'Pasted cluster.' });
+      return newId;
+      });
+      // With the tray on the page its done row says it; without one the toast does.
+      if (made && !hadTray) feedback.toast({ type: 'success', message: 'Pasted cluster.' });
     } catch (e) {
       console.error('pasteBoardInto failed', e);
       feedback.toast({ type: 'error', code: 'cluster_paste_failed', message: 'Paste failed: ' + (e.message || e) });
@@ -9382,7 +9468,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
-  const { peers: wsPeers, status: wsStatus } = useWorkspacePresence({
+  // Clusters this tab is still uploading to, so that cluster's open tabs say
+  // "still uploading" on its cards even once this tab has moved on. The hook
+  // returns a joined string (stable between progress ticks); split it once.
+  const uploadingKey = useUploadingBoardIds();
+  const uploadingTo = useMemo(() => (uploadingKey ? uploadingKey.split(',') : []), [uploadingKey]);
+  const { peers: wsPeers, status: wsStatus, uploadingElsewhere } = useWorkspacePresence({
     workspaceId: workspace.id,
     // Broadcast the user's CHOSEN color (from Account settings). The
     // pickPresenceColor hash was a fallback when no custom color was
@@ -9413,6 +9504,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // (peer has Board X open but is currently viewing Board Y → only
       // Y shows their dot).
       isActive: tabVisible && currentSurface === 'board',
+      uploadingTo,
     },
   });
   // Rendered beside the faces in both top bars. Free accounts only: paid tiers
@@ -10863,6 +10955,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                            peersHereByBoard={peersHereByBoard}
                            peersBelowByBoard={peersBelowByBoard}
                            wsPeers={wsPeers}
+                           uploadingElsewhere={uploadingElsewhere}
                            onJumpToPeer={jumpToPeer}
                            canEdit={paneCanEdit}
                            boardPermission={isMain ? currentBoardPerm : splitBoardPerm}
@@ -10952,16 +11045,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             no data — without this, the user stares at an empty canvas with
             zero visual feedback for ~500ms-2s on cold loads. */}
         {!ready && (
-          <div className="board-loading-overlay" aria-hidden="true">
-            {/* Ghost cards: the page reads as "a board is coming" instead
-                of a bare mark on an empty void. */}
-            <div className="board-loading-ghosts">
-              <span className="board-loading-ghost" />
-              <span className="board-loading-ghost" />
-              <span className="board-loading-ghost" />
-            </div>
-            <SoleilMark size={36} color="var(--soleil)" glow />
-          </div>
+          <BoardOpening
+            key={board.id}
+            name={board.name}
+            backLabel={isMain ? 'Go back' : 'Close'}
+            onBack={isMain ? (stack.length > 1 ? () => goTo(stack.length - 2) : null) : () => setSplitId(null)}
+          />
         )}
       </div>
     );
@@ -12055,27 +12144,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       {/* The admin preview's test team page (look only): lazy, over the board
           column and beside the sidebar. */}
       {team && teamPage && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<PanelWait title="Team" variant="page" />}>
           <TeamPage key={`${team.me.id}:${team.status}`} team={team} initialTab={teamPage.tab} onClose={closeTeamPage}
                     onToast={(message) => feedback.toast({ type: 'info', message })} />
         </Suspense>
       )}
 
       {!team && realTeam && teamPage && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<PanelWait title="Team" variant="page" />}>
           <TeamPageLive key={realTeam.org_id} orgId={realTeam.org_id} initialTab={teamPage.tab} onClose={closeRealTeamPage}
                         onToast={(message) => feedback.toast({ type: 'info', message })} />
         </Suspense>
       )}
 
       {wsLimitAsk && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<PanelWait title="Workspaces" onClose={() => setWsLimitAsk(null)} />}>
           <WorkspaceLimitDialog {...wsLimitAsk} onClose={() => setWsLimitAsk(null)} />
         </Suspense>
       )}
 
       {newWsAsk && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<PanelWait title="New workspace" onClose={() => setNewWsAsk(null)} />}>
           <NewWorkspaceDialog team={newWsAsk.team}
                               userName={user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || ''}
                               defaultFor={workspace?.org_id === newWsAsk.team.org_id ? 'team' : 'me'}
@@ -12254,7 +12343,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // With the files sidebar Messages wears its card (messagesLook.js).
         <MessagesLookContext.Provider value={filesSidebar ? 'card' : null}>
         <MessagesBoardsContext.Provider value={msgBoardInfo}>
-        <Suspense fallback={null}>
+        <Suspense fallback={<PanelWait title="Messages" variant="dock" onClose={() => setTweak('showMessages', false)} />}>
         <MessagesPanel
           workspaceId={workspace.id}
           currentUser={userInfo}
@@ -12304,7 +12393,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           created_by: null,
         };
         return (
-          <Suspense fallback={null}>
+          <Suspense fallback={<PanelWait title="Share" onClose={() => { setShareOpen(false); setShareInitialSection(null); setShareScope('cluster'); setShareBoardId(null); }} />}>
           <ShareModal
             board={shareTarget}
             workspace={shareWs}
@@ -12411,9 +12500,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         </div>
       )}
 
-      {/* A bulk import (lib/importStart.js): the tray, or its corner chip. */}
-      {bulkImportAllowed() && <ImportTray aboveNav={mobileShell} guide={importGuideProps()}
-                                          besideMessages={floatingChrome && !!tweak.showMessages} />}
+      {/* Everything this tab is moving, held or waiting on, in one corner
+          (components/ActivityTray.jsx): uploads, the connection, held files, imports. */}
+      <QuietBoundary logKind="tray">
+        <Suspense fallback={null}>
+          <ActivityTray
+            phone={mobileShell}
+            besideMessages={floatingChrome && !!tweak.showMessages}
+            conn={currentSurface === 'board' ? canvasConn : null}
+            retryConnection={currentYDoc?._soleilRoom?.retryNow ? () => currentYDoc?._soleilRoom?.retryNow?.() : null}
+          >
+            {/* Files a drop kept in this tab until there is room (lib/heldUploads.js). */}
+            <HeldUploadsBar
+              openBoardIds={currentSurface === 'board' ? [currentId, splitId] : []}
+              boardName={(id) => boards?.[id]?.name || null}
+              onOpenBoard={(id) => openBoardRef.current?.(id)}
+              toast={feedback.toast}
+            />
+            {/* A bulk import (lib/importStart.js). */}
+            {bulkImportAllowed() && <ImportTray guide={importGuideProps()} />}
+          </ActivityTray>
+        </Suspense>
+      </QuietBoundary>
       {bulkAsk && (
         <ImportAskDialog
           model={bulkAsk.model}
@@ -12426,16 +12534,6 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onChoose={(id) => { zipAsk.resolve(id); setZipAsk(null); }}
         />
       )}
-
-      {/* Files a drop kept in this tab until there is room (lib/heldUploads.js). */}
-      <HeldUploadsBar
-        openBoardIds={currentSurface === 'board' ? [currentId, splitId] : []}
-        boardName={(id) => boards?.[id]?.name || null}
-        onOpenBoard={(id) => openBoardRef.current?.(id)}
-        toast={feedback.toast}
-        raised={Boolean(folderImport)}
-        aboveNav={mobileShell}
-      />
 
       {importAsk && (
         <ImportCapDialog
@@ -12848,12 +12946,11 @@ function rowButtonProps(onActivate) {
   };
 }
 
+// The workspace being opened, for the words under the sun. Set by App just
+// before it returns the shell (the call site stays a bare <LoadingShell />).
+let loadingShellName = null;
 function LoadingShell() {
-  return (
-    <div className="auth-screen">
-      <div className="auth-loading"><SoleilMark size={28} color="var(--ink-0)" /></div>
-    </div>
-  );
+  return <LoadingScreen name={loadingShellName} />;
 }
 
 // Migration 0854: ensure_workspace_root refuses a sign-in that doesn't count

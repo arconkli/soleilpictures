@@ -341,3 +341,23 @@ test('waitRowCopy: the Files row of a cluster whose files wait for room, with th
   assert.deepEqual(waitRowCopy({ waiting: 5, name: 'A', reason: 'cards', own: true, plan: 'free', trialOffer: true }).action, { id: 'upgrade', label: CTA.tryCreatorShort });
   assert.equal(waitRowCopy({ waiting: 0, name: 'A', own: true, plan: 'free' }), null);
 });
+
+test('the tray offline: no stuck bar or ETA, a clock chip, and the same tray when online is left out', () => {
+  for (const status of ['idle', 'creating', 'running']) {
+    const e = { phase: 'job', title: 'Night Shift', snap: snap({ status }) };
+    const off = trayCopy(e, { online: false });
+    assert.equal(off.meta, 'Offline · it continues when you’re back online', status);
+    assert.equal(off.bar.still, true);
+    assert.deepEqual([off.chip.kind, off.chip.icon, off.chip.text], ['glyph', 'clock', 'Offline']);
+    assert.equal(off.title, trayCopy(e).title);
+    assert.deepEqual(off.foot, trayCopy(e).foot, 'Pause and Cancel stay');
+    assert.equal(trayCopy(e, { online: true }).meta.includes('Offline'), false);
+    assert.equal(trayCopy(e).bar.still, undefined);
+  }
+  // A paused, finished or failed import has nothing to say about the network.
+  for (const status of ['paused', 'done', 'failed', 'waiting', 'cancelled']) {
+    const e = { phase: 'job', title: 'Night Shift', snap: snap({ status }) };
+    assert.deepEqual(trayCopy(e, { online: false }), trayCopy(e), status);
+  }
+  assert.deepEqual(trayCopy({ phase: 'reading', title: 'x', reading: {} }, { online: false }), trayCopy({ phase: 'reading', title: 'x', reading: {} }));
+});

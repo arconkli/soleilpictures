@@ -75,7 +75,7 @@ import { arrangementOf, frameVars, toggledLayout, withFilesHidden } from '../../
 import { initialExpandState, expandReducer, isExpanded, persistManual, shelfKey, toggleShelf } from '../../lib/sidebarExpand.js';
 import { cardFromItem } from '../../lib/indexRowCard.js';
 import { toListItem } from '../../lib/listItem.js';
-import { downloadCardAsset, downloadCardAssets } from '../../lib/cardDownload.js';
+import { downloadOneTracked, downloadManyTracked } from '../../lib/downloadOps.js';
 import { FILES_DRAG_MIME, buildFilesPayload, parseFilesPayload } from '../../lib/filesDrag.js';
 import { moveFiles, appendCards, removeCards, failureMessage } from '../../lib/clustersApi.js';
 import { undoToast } from '../../lib/undoToast.js';
@@ -840,8 +840,12 @@ export function ClusterSidebar({
       { header: SECTION.EDIT, items: [
         { id: 'download', label: many ? `Download ${group.length}` : 'Download', run: () => {
           const cards = group.map((x) => cardFromItem(x));
-          if (cards.length === 1) downloadCardAsset(cards[0], cards[0].kind, { surface: 'sidebar' });
-          else downloadCardAssets(cards, { zipName: 'files.zip', surface: 'sidebar' });
+          // Name the cluster on the tray row only when the whole group is from one.
+          const from = new Set(group.map((x) => x.boardId));
+          const one = from.size === 1 ? [...from][0] : null;
+          const where = { boardId: one, boardName: one ? nameOf(one) : null, surface: 'sidebar', toast };
+          if (cards.length === 1) downloadOneTracked(cards[0], cards[0].kind, where);
+          else downloadManyTracked(cards.map((c) => ({ card: c, kind: c.kind })), { ...where, zipName: 'files.zip' });
         } },
         ...(shareable ? [{ id: 'share', label: 'Share file…', run: () => openFileShare({
           boardId: m.item.boardId, cardId: m.item.cardId, card, boardName: nameOf(m.item.boardId), surface: 'sidebar',
@@ -955,6 +959,13 @@ export function ClusterSidebar({
   // and the grouping too (it replaced a row of chips and a ⇅ button).
   const chipLabel = chip === 'all' ? 'All files' : (FILTER_CHIPS.find((c) => c.id === chip)?.label || 'All files');
   const nothing = !contents.loading && !(contents.shelves || []).some((sh) => sh.total > 0 || sh.items?.length);
+  // A read that failed says so, instead of "Nothing added lately." or "Nothing
+  // matches": only when there is nothing from an earlier read to show.
+  const failedLine = !nothing ? null
+    : query.trim() && view === 'cluster' && files.searchFailed ? { say: 'Couldn’t load search results', retry: files.retrySearch }
+      : !query.trim() && view === 'recent' && files.recentFailed ? { say: 'Couldn’t load your files', retry: files.retryRecent }
+        : !query.trim() && view === 'starred' && files.starredFailed && starredClusters.length === 0 ? { say: 'Couldn’t load your files', retry: files.retryStarred }
+          : null;
   // The search's last settled shape, kept until it ends (endSearch above).
   const resultsN = (contents.shelves || []).reduce((sum, sh) => sum + (Number(sh.total) || sh.items?.length || 0), 0);
   useEffect(() => {
@@ -1159,7 +1170,12 @@ export function ClusterSidebar({
               ))}
             </div>
           )}
-          {nothing && view !== 'cluster' ? (
+          {failedLine ? (
+            <div className="sbf-note is-error" role="alert">
+              <span>{failedLine.say}</span>
+              <button type="button" className="sbf-more-btn" onClick={failedLine.retry}>Retry</button>
+            </div>
+          ) : nothing && view !== 'cluster' ? (
             starredClusters.length > 0 ? null : (
               <div className="sbf-files-empty">
                 {query.trim() ? `Nothing in ${title.toLowerCase()} matches “${query.trim()}”. Press Enter to search everywhere.`
@@ -1178,6 +1194,8 @@ export function ClusterSidebar({
               foldMinor={view !== 'starred' && chip === 'all' && !query.trim()}
               shelfState={shelfState} onToggleShelf={onToggleShelf}
               onLoadMore={files.loadMore} canLoadMore={view === 'cluster' ? files.canLoadMore : () => false}
+              moreFailed={view === 'cluster' ? files.loadMoreFailed : null}
+              onRetry={files.ensure}
               onItem={onItem}
               isSelected={isSelected}
               checks={selecting}
@@ -1240,7 +1258,7 @@ export function ClusterSidebar({
             onIndex={(i) => setQl((q) => (q ? { ...q, index: i } : q))}
             onClose={() => setQl(null)}
             onShowOnBoard={(it) => { setQl(null); onShowFile?.(it.boardId, it.id, { unplaced: !!it.unplaced }); }}
-            onDownload={(it) => downloadCardAsset(it.card, it.kind, { surface: 'sidebar' })}
+            onDownload={(it) => downloadOneTracked(it.card, it.kind, { boardId: it.boardId ?? null, boardName: it.boardId ? nameOf(it.boardId) : null, surface: 'sidebar', toast })}
             boards={allBoards}
             canEditItem={(it) => !!boardsSectionProps?.canEditBoard?.(it.boardId)}
           />

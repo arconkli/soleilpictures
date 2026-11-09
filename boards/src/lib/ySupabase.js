@@ -52,6 +52,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       name: user.name || user.email?.split('@')[0] || 'Someone',
       color: user.color || pickColor(user.id || CLIENT_ID),
     });
+    awareness.setLocalStateField('uploading', null);   // lib/peerUploads.js; set with `user`, as yPartyKit.js does
   }
 
   let destroyed = false;

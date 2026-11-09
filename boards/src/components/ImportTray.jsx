@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   CaretDown, X, Pause, Play, Check, Warning, Clock, ArrowSquareOut,
   GoogleDriveLogo, GooglePhotosLogo, DropboxLogo, Cloud, AppleLogo, DotsThreeOutline,
@@ -14,6 +14,8 @@ import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useMatchMedia } from '../hooks/useMatchMedia.js';
 import { useScreenAwake } from '../hooks/useScreenAwake.js';
+import { useOnline } from '../hooks/useOnline.js';
+import { ActivityTrayContext } from './activityTrayContext.js';
 import './importTray.css';
 
 // The bulk import's tray (the owner's pick A, 2026-10-19): bottom-right, just
@@ -26,7 +28,8 @@ const RING_C = 2 * Math.PI * 6;
 const GLYPHS = { clock: Clock, pause: Pause, check: Check, warning: Warning, x: X };
 
 // A rich line is strings and { b } runs: text and <b>, never markup from strings.
-function Rich({ parts }) {
+// The activity tray (ActivityTray.jsx) draws its words with these too.
+export function Rich({ parts }) {
   return (parts || []).map((p, i) => (typeof p === 'string' ? p : <b key={i}>{p.b}</b>));
 }
 
@@ -43,7 +46,7 @@ const APP_ICONS = {
 const ZIP_ACCEPT = '.zip,application/zip,application/x-zip-compressed';
 const hasFiles = (e) => Array.from(e.dataTransfer?.types || []).includes('Files');
 
-function Guide({ app, guide, aboveNav }) {
+function Guide({ app, guide, aboveNav, inTray = false }) {
   const target = guide?.target || null;
   const canFolder = !!guide?.canFolder && typeof document !== 'undefined' && 'webkitdirectory' in document.createElement('input');
   const m = guideApp(app, { target, canFolder });
@@ -94,7 +97,7 @@ function Guide({ app, guide, aboveNav }) {
   };
 
   return (
-    <section className={'imptray is-guide' + (aboveNav ? ' is-above-nav' : '') + (over ? ' is-over' : '')}
+    <section className={'imptray is-guide' + (inTray ? ' atr is-static' : aboveNav ? ' is-above-nav' : '') + (over ? ' is-over' : '')}
              aria-labelledby="imptray-guide-title"
              onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); closeImportGuide(); } }}
              onDragEnter={(e) => { if (!hasFiles(e) || !guide?.onImport) return; depth.current += 1; setOver(true); }}
@@ -154,20 +157,25 @@ function Guide({ app, guide, aboveNav }) {
   );
 }
 
+// The chip's 16px progress ring; a quarter arc that spins while pct is null.
+export function Ring({ pct }) {
+  const dash = pct === null ? RING_C / 4 : (RING_C * pct) / 100;
+  return (
+    <svg className={pct === null ? 'is-spin' : undefined} width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" style={{ display: 'block', flex: 'none' }}>
+      <circle className="imptray-ring-track" cx="8" cy="8" r="6" fill="none" strokeWidth="2" />
+      <circle className="imptray-ring-arc" cx="8" cy="8" r="6" fill="none" strokeWidth="2" strokeLinecap="round"
+              strokeDasharray={`${dash} ${RING_C}`} transform="rotate(-90 8 8)" />
+    </svg>
+  );
+}
+
 function Chip({ m, onOpen, aboveNav, besideMessages }) {
   const { chip } = m;
-  const dash = chip.pct === null ? RING_C / 4 : (RING_C * chip.pct) / 100;
   const Glyph = GLYPHS[chip.icon];
   return (
     <button type="button" className={'imptray-chip' + (aboveNav ? ' is-above-nav' : '') + (besideMessages ? ' is-beside-msg' : '')}
             aria-label={chip.label} title={chip.label} onClick={onOpen}>
-      {chip.kind === 'ring' ? (
-        <svg className={chip.pct === null ? 'is-spin' : undefined} width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" style={{ display: 'block' }}>
-          <circle className="imptray-ring-track" cx="8" cy="8" r="6" fill="none" strokeWidth="2" />
-          <circle className="imptray-ring-arc" cx="8" cy="8" r="6" fill="none" strokeWidth="2" strokeLinecap="round"
-                  strokeDasharray={`${dash} ${RING_C}`} transform="rotate(-90 8 8)" />
-        </svg>
-      ) : Glyph ? <Icon as={Glyph} size={14} weight="regular" /> : null}
+      {chip.kind === 'ring' ? <Ring pct={chip.pct} /> : Glyph ? <Icon as={Glyph} size={14} weight="regular" /> : null}
       <span>{chip.text}</span>
     </button>
   );
@@ -182,7 +190,11 @@ const isGoing = (e) => e.phase === 'reading' || (e.phase === 'job' && GOING.has(
 // drop goes into, the room line's numbers, and how the guide's drops and
 // picks start an import. besideMessages: the Messages card is open at the
 // right edge, so the tray folds to its chip and both sit left of the card.
+// Inside the activity tray (ActivityTray.jsx) it is one of its panels: the tray
+// places it, folds it and speaks for it with its own chip; on its own
+// (ImportQaHarness) it is the corner tray it always was.
 export function ImportTray({ aboveNav = false, initialMinimized = false, guide = null, besideMessages = false }) {
+  const tray = useContext(ActivityTrayContext);
   const { list } = useSyncExternalStore(subscribeImportJobs, importJobsSnapshot, importJobsSnapshot);
   const g = useSyncExternalStore(subscribeImportGuide, importGuideSnapshot, importGuideSnapshot);
   const { lead, more } = trayEntries(list);
@@ -190,6 +202,7 @@ export function ImportTray({ aboveNav = false, initialMinimized = false, guide =
   // A phone or a tablet that locks itself stops the import: while files are
   // moving it stays awake, and the words ask for the tab to stay in front.
   const touch = useMatchMedia('(hover: none) and (pointer: coarse)');
+  const online = useOnline();
   useScreenAwake(touch && list.some(isGoing));
   // Messages opening is where the attention went: out of its way, still live.
   useEffect(() => { if (besideMessages) setMinimized(true); }, [besideMessages]);
@@ -218,16 +231,19 @@ export function ImportTray({ aboveNav = false, initialMinimized = false, guide =
   useEffect(() => {
     if (g.open) logEvent(EV.IMPORT_JOB, { phase: 'guide_open', source: 'bulk_guide', app: importGuideSnapshot().app });
   }, [g.open]);
-  if (g.open) return <Guide app={g.app} guide={guide} aboveNav={aboveNav} />;
+  if (tray?.folded) return null;
+  if (g.open) return <Guide app={g.app} guide={guide} aboveNav={aboveNav} inTray={!!tray} />;
   if (!lead) return null;
 
-  const m = trayCopy(lead, { touch });
+  const m = trayCopy(lead, { touch, online });
   const act = (id) => lead.act?.(id);
-  if (minimized) return <Chip m={m} aboveNav={aboveNav} besideMessages={besideMessages} onOpen={() => setMinimized(false)} />;
+  if (!tray && minimized) return <Chip m={m} aboveNav={aboveNav} besideMessages={besideMessages} onOpen={() => setMinimized(false)} />;
+  const fold = tray ? tray.fold : () => setMinimized(true);
+  const place = tray ? ' atr is-static' : (aboveNav ? ' is-above-nav' : '') + (besideMessages ? ' is-beside-msg' : '');
 
   const fin = m.finished;
   return (
-    <section className={'imptray' + (aboveNav ? ' is-above-nav' : '') + (besideMessages ? ' is-beside-msg' : '')} aria-label="Imports">
+    <section className={'imptray' + place} aria-label="Imports">
       <header className="imptray-head">
         <span className="imptray-title"><span aria-live="polite">{m.title}</span></span>
         {m.close === 'close' ? (
@@ -235,7 +251,7 @@ export function ImportTray({ aboveNav = false, initialMinimized = false, guide =
             <Icon as={X} size={13} weight="regular" />
           </button>
         ) : (
-          <button type="button" className="imptray-ib" aria-label="Minimize" onClick={() => setMinimized(true)}>
+          <button type="button" className="imptray-ib" aria-label="Minimize" onClick={fold}>
             <Icon as={CaretDown} size={14} weight="regular" />
           </button>
         )}
@@ -245,7 +261,7 @@ export function ImportTray({ aboveNav = false, initialMinimized = false, guide =
         <div className="imptray-line"><Rich parts={m.line} /></div>
         {m.bar && (
           <div className={'imptray-bar' + (m.bar.reading ? ' is-reading' : '')} aria-hidden="true">
-            <span style={m.bar.reading ? undefined : { width: `${m.bar.pct}%` }} />
+            <span style={m.bar.reading ? undefined : { width: `${m.bar.pct}%`, ...(m.bar.still ? { transition: 'none', animation: 'none' } : null) }} />
           </div>
         )}
         {m.meta && <div className="imptray-meta">{m.meta}</div>}

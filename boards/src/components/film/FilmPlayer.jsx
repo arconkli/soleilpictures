@@ -43,6 +43,8 @@ import { ShortcutSheet } from './ShortcutSheet.jsx';
 import { PlayGlyph, PauseGlyph, FrameBack, FrameFwd, AspectThumb } from './glyphs.jsx';
 import './filmFacade.css';
 import './film.css';
+import '../waitNote.css';
+import { useOnline } from '../../hooks/useOnline.js';
 import { useFilmClock } from './useFilmClock.js';
 import { usePlayCopy } from '../../hooks/usePlayCopy.js';
 import { Icon } from '../Icon.jsx';
@@ -202,6 +204,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
   const [hudP, setHudP] = useState(null);             // persistent text (shuttle, buffering)
   const [flash, setFlash] = useState(null);
   const [buffering, setBuffering] = useState(false);
+  const online = useOnline();
   const [failure, setFailure] = useState(null);
   const [idle, setIdle] = useState(false);
   // A failure the copy can fix goes to it first; the copy, when it comes, starts clean.
@@ -1273,7 +1276,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
   const hasAudio = !(media?.probed && !media?.audio);
   const shuttleLabel = shuttleView.dir && !(shuttleView.dir > 0 && shuttleView.rate === 1) ? shuttleText(shuttleView) : null;
   const hudView = hudT ? { text: hudT.text, id: hudT.id } : (hudP ? { text: hudP, id: 'p', persist: true }
-    : (buffering && !compact ? { text: hudText('buffering'), id: 'b', persist: true } : null));
+    : (buffering && !compact ? { text: hudText(online ? 'buffering' : 'bufferingOffline'), id: 'b', persist: true } : null));
   const err = (failure && !pc.handles(failure.reason) ? failure : null)
     || (signError ? { title: 'Couldn’t load the video', body: 'The link to the file couldn’t be made. Check your connection and try again.', retry: true } : null);
   const preparing = pc.preparing && !err;
@@ -1336,6 +1339,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
         )}
         {loading && posterUrl && <img className="film-poster" src={posterUrl} alt="" />}
         {(loading || (buffering && !compact)) && !err && !preparing && <span className="film-spinner"><Spinner size={compact ? 20 : 28} tone="on-dark" label={loading ? 'Loading video' : 'Buffering'} /></span>}
+        {loading && !err && !preparing && !compact && <p className="film-opening">{`Opening ${title || 'this video'}…`}</p>}
         {!compact && guideDef && guideDef.id !== 'off' && picture.w > 0 && <FramingGuide guide={guideDef} picture={picture} />}
         {!compact && (guideOpts.thirds || guideOpts.cross) && picture.w > 0 && <GuideExtras opts={guideOpts} picture={picture} />}
         {!compact && overlay && picture.w > 0 && (

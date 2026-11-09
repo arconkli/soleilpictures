@@ -23,6 +23,7 @@
 import { chromium } from '@playwright/test';
 
 const LAZY_MODULES = [
+  'components/ActivityTray.jsx',
   'components/ListSurface.jsx', 'components/MessagesPanel.jsx', 'components/SettingsPanel.jsx',
   'components/ShareModal.jsx', 'components/CommandPalette.jsx', 'components/TagDetailView.jsx',
   'components/TrashModal.jsx', 'components/VersionHistoryModal.jsx', 'components/WorkspaceRecoveryModal.jsx',

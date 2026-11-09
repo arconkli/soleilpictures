@@ -351,14 +351,17 @@ export async function startBulkImport(input, env) {
       },
       remove: async () => {
         const topIds = job.state.tops.map((t) => t.boardId).filter(Boolean);
+        const s = job.state;
         removed = true;
-        if (['idle', 'creating', 'running', 'paused', 'waiting'].includes(job.state.status)) await job.cancel();
-        else if (job.state.status === 'failed' && job.state.id) await Promise.resolve(deps.setJob(job.state.id, { status: 'cancelled' })).catch(() => {});
+        // Let go of the entry at once: offline, the cancel's clean-up and the
+        // clusters' removal wait for the connection.
         unhold();
         watch(false);
-        letGo(job.state.id);
+        letGo(s.id);
         controllers.delete(key);
         env.drop(key);
+        if (['idle', 'creating', 'running', 'paused', 'waiting'].includes(s.status)) await job.cancel();
+        else if (s.status === 'failed' && s.id) await Promise.resolve(deps.setJob(s.id, { status: 'cancelled' })).catch(() => {});
         if (topIds.length) await env.removeImport({ topIds, title });
         logRun(EV.IMPORT_JOB, { ...base, phase: 'removed', landed: job.state.landed.files });
       },

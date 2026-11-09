@@ -6,7 +6,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { R2Image } from '../R2Image.jsx';
-import { Spinner } from '../Spinner.jsx';
 import { EditableText } from '../EditableText.jsx';
 import { Icon } from '../Icon.jsx';
 import { FilePdf } from '../../lib/icons.js';
@@ -14,7 +13,7 @@ import { FilePdf } from '../../lib/icons.js';
 export function PdfCard({ src, name, pageCount, title,
                           w, h, onUpdate, autoFocus = false,
                           editTitleAt = 0, onExpand, onAfterEdit,
-                          pending = false, uploadProgress = null,
+                          pending = false,
                           backfillEnabled = false, boardId = null, cardId = null }) {
   const [editingTitle, setEditingTitle] = useState(false);
   useEffect(() => { if (editTitleAt > 0) setEditingTitle(true); }, [editTitleAt]);
@@ -41,14 +40,6 @@ export function PdfCard({ src, name, pageCount, title,
               <Icon as={FilePdf} size={42} />
             </div>
           )}
-        {pending && (
-          <div className="ic-upload-overlay" aria-label="Uploading PDF">
-            <Spinner size={22} tone="on-dark" label="Uploading PDF" />
-            {uploadProgress != null && (
-              <div className="ic-upload-progress">{Math.round(uploadProgress * 100)}%</div>
-            )}
-          </div>
-        )}
         {!pending && onExpand && (
           <button type="button" className="ic-expand" title="Open PDF"
                   onPointerDown={(e) => e.stopPropagation()}

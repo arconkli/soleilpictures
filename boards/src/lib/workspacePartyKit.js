@@ -112,7 +112,7 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
     if (msg?.type === 'roster' && Array.isArray(msg.peers)) {
       peers.clear();
       for (const p of msg.peers) {
-        if (!p?.tabId || !p?.user) continue;
+        if (!p?.tabId || p.tabId === TAB_ID || !p?.user) continue;
         peers.set(p.tabId, {
           key: `${p.user.id}:${p.tabId}`,
           tabId: p.tabId,
@@ -122,7 +122,7 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
         });
       }
       onPeers?.([...peers.values()]);
-    } else if (msg?.type === 'here' && msg?.from && msg?.user) {
+    } else if (msg?.type === 'here' && msg?.from && msg.from !== TAB_ID && msg?.user) {
       peers.set(msg.from, {
         key: `${msg.user.id}:${msg.from}`,
         tabId: msg.from,

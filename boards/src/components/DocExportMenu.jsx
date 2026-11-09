@@ -23,6 +23,8 @@ import { docPrintCSS } from '../lib/docTypography.js';
 import { getTitlePage, setTitlePage, getSceneNumbersShow } from '../lib/docState.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { logEvent } from '../lib/analytics.js';
+import { trackOp } from '../lib/activityOps.js';
+import { exportWords } from '../lib/activityWords.js';
 import { EV } from '../lib/analyticsEvents.js';
 
 // Inside the iOS / Android app the WebView has no window.print(): a print
@@ -62,16 +64,27 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
   // The shared delivery funnel for html / md / fountain / fdx — so those four
   // formats are counted in one place rather than at four call sites. The PDF
   // paths don't come through here (they branch on docMode) and log their own.
+  // Returns the file name it delivered, or null when it failed (and said so).
   const saveFile = async (blob, ext) => {
     try {
-      await deliverFile(blob, `${sanitizeName(currentDocTitle())}.${ext}`);
+      const fileName = `${sanitizeName(currentDocTitle())}.${ext}`;
+      await deliverFile(blob, fileName);
       logEvent(EV.EXPORT_RUN, { format: ext === 'md' ? 'markdown' : ext, surface: 'doc', doc_mode: docMode });
+      return fileName;
     } catch (err) {
       console.error('[export] delivery failed', err);
       logEvent(EV.EXPORT_ERROR, { format: ext, surface: 'doc', reason: 'delivery_failed' });
       feedback.toast({ type: 'error', code: 'doc_export_failed', message: 'Export failed — please try again.' });
+      return null;
     }
   };
+
+  // The tray row for an export that ends in a file (lib/activityOps.js): a
+  // failed one leaves no row, its own toast has said so.
+  const inTray = (format, run) => trackOp({
+    kind: 'export', label: exportWords({ name: sanitizeName(currentDocTitle()), format }),
+    doneLabel: (fileName) => (fileName ? `Exported ${fileName}` : null),
+  }, run);
 
   // WYSIWYG: the exported HTML / printed PDF uses the SAME typography as the
   // on-screen editor (docPrintCSS is the white-paper twin of the .tt-editor
@@ -92,8 +105,10 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
     if (busy) return;
     setBusy(true);
     try {
-      const bodyHTML = await fullBodyHtml();
-      await saveFile(new Blob([printableHTML(bodyHTML)], { type: 'text/html' }), 'html');
+      await inTray('html', async () => {
+        const bodyHTML = await fullBodyHtml();
+        return saveFile(new Blob([printableHTML(bodyHTML)], { type: 'text/html' }), 'html');
+      });
       onDone?.();
     } finally { setBusy(false); }
   };
@@ -102,9 +117,11 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
     if (busy) return;
     setBusy(true);
     try {
-      const md = ydoc ? await collectFullDocMarkdown(ydoc, scope)
-                      : (editor ? jsonToMarkdown(editor.getJSON()) : '');
-      await saveFile(new Blob([md], { type: 'text/markdown' }), 'md');
+      await inTray('md', async () => {
+        const md = ydoc ? await collectFullDocMarkdown(ydoc, scope)
+                        : (editor ? jsonToMarkdown(editor.getJSON()) : '');
+        return saveFile(new Blob([md], { type: 'text/markdown' }), 'md');
+      });
       onDone?.();
     } finally { setBusy(false); }
   };
@@ -125,8 +142,13 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
         // be exporting as the author.)
         const titlePage = (stored && stored.enabled) ? stored : null;
         const sceneNumbers = ydoc ? getSceneNumbersShow(ydoc, scope) : false;
-        const blob = await buildScreenplayPdfBlob(docJSONToBlocks(scriptBlocks()), { title: docTitle, titlePage, sceneNumbers });
-        await deliverFile(blob, `${sanitizeName(docTitle)}.pdf`);
+        await trackOp({
+          kind: 'export', label: exportWords({ name: sanitizeName(docTitle), format: 'pdf' }),
+          doneLabel: `Exported ${sanitizeName(docTitle)}.pdf`,
+        }, async () => {
+          const blob = await buildScreenplayPdfBlob(docJSONToBlocks(scriptBlocks()), { title: docTitle, titlePage, sceneNumbers });
+          await deliverFile(blob, `${sanitizeName(docTitle)}.pdf`);
+        });
       } else if (inNativeApp()) {
         // No print dialog in the app: hand over the same printable page
         // through the share sheet (Files / Safari can print it or save a

@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { Search, X, Check, LayoutGrid, FileText, StickyNote, Image as ImageIcon, Palette, Calendar, Link as LinkIcon, User, Tag as TagIcon } from '../lib/icons.js';
 import { searchEntities } from '../lib/entitySearch.js';
+import { LoadFailed } from './LoadFailed.jsx';
+import { useRetry } from '../hooks/useRetry.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { ENTITY_REF_MIME, ENTITY_REF_LIST_MIME } from '../lib/dragMimes.js';
 import { useListboxNav } from '../hooks/useListboxNav.js';
@@ -86,6 +88,13 @@ export function EntityPicker({
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
+  // A search that failed is not "No matches."
+  const [searchFailed, setSearchFailed] = useState(false);
+  const [retryTick, retrySearch] = useRetry(searchFailed);
+  // The query the shown results answered: a failed search for another one must
+  // not leave them standing as if they matched it.
+  const resultsFor = useRef(null);
+
   // Debounced search.
   useEffect(() => {
     let cancelled = false;
@@ -95,10 +104,13 @@ export function EntityPicker({
         kinds: filter,
         limit: 30,
       });
-      if (!cancelled) setResults(rows);
+      if (cancelled) return;
+      setSearchFailed(rows == null);
+      if (rows) { setResults(rows); resultsFor.current = query; }
+      else if (resultsFor.current !== query) { setResults([]); resultsFor.current = null; }
     }, 200);
     return () => { cancelled = true; clearTimeout(id); };
-  }, [workspaceId, query, JSON.stringify(filter)]);
+  }, [workspaceId, query, JSON.stringify(filter), retryTick]);
 
   const grouped = useMemo(() => {
     const m = new Map();
@@ -174,7 +186,10 @@ export function EntityPicker({
             <span className="entity-picker-row-name">Link to {query}</span>
           </button>
         )}
-        {grouped.length === 0 && (
+        {grouped.length === 0 && searchFailed && (
+          <LoadFailed compact what="search results" onRetry={retrySearch} />
+        )}
+        {grouped.length === 0 && !searchFailed && (
           <div className="entity-picker-empty t-meta">{query ? 'No matches.' : 'Start typing.'}</div>
         )}
         {grouped.map(([kind, rows]) => (

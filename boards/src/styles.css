@@ -5863,7 +5863,27 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .auth-sent  { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .auth-sent-title { color: var(--ink-0); }
 .auth-sent-sub   { color: var(--ink-1); }
-.auth-loading { display: grid; place-items: center; }
+.auth-loading { position: relative; display: grid; place-items: center; }
+/* The words under the boot sun (components/LoadingScreen.jsx): absolutely
+   positioned so the sun never moves. */
+.loading-words {
+  position: absolute;
+  top: calc(100% + 20px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 86vw;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  text-align: center;
+  font: 400 13px/1.4 var(--font-sans);
+  color: var(--ink-2);
+}
+.loading-words-line { animation: loading-words-in .3s ease-out both; }
+.loading-words .surface-error-btn { animation: loading-words-in .3s ease-out both; }
+@keyframes loading-words-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .loading-words-line, .loading-words .surface-error-btn { animation: none; }
+}
 
 /* OTP code step: collapsed email row + numeric code field. */
 .auth-email-row {
@@ -6004,7 +6024,7 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
   height: 18px;
   border-radius: 50%;
   border: 2px solid color-mix(in srgb, var(--ink-2) 30%, transparent);
-  border-top-color: var(--soleil);
+  border-top-color: var(--ink-2);
   animation: payment-spinner-rot 720ms linear infinite;
 }
 @keyframes payment-spinner-rot {
@@ -8953,24 +8973,6 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
   image-rendering: -webkit-optimize-contrast;
 }
 .ic .img-ph { width: 100%; height: 100%; }
-/* Upload-in-progress overlay — sits on top of the local blob preview
-   while the file uploads to R2. Subtle scrim + soleil-tinted spinner
-   so it reads as "this is happening" rather than "this is broken". */
-.ic-upload-overlay {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 8px;
-  background: rgba(0,0,0,.34);
-  pointer-events: none;
-}
-.ic-upload-spinner {
-  width: 22px; height: 22px;
-  border-radius: 50%;
-  border: 2px solid rgba(255,255,255,.22);
-  border-top-color: var(--soleil, #ffa500);
-  animation: ic-upload-spin .9s linear infinite;
-}
-
 /* Shared spinner primitive (components/Spinner.jsx). Single canonical
    keyframe; on-dark tone for media overlays. */
 .spinner {
@@ -8978,19 +8980,12 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
   flex: 0 0 auto;
   border-radius: 50%;
   border: 2px solid var(--line-2);
-  border-top-color: var(--soleil);
+  border-top-color: var(--ink-2);
   animation: spin .8s linear infinite;
 }
-.spinner-on-dark { border-color: rgba(255,255,255,.22); border-top-color: var(--soleil); }
+.spinner-on-dark { border-color: rgba(255,255,255,.22); border-top-color: var(--ink-1); }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
-.ic-upload-progress {
-  font-family: var(--font-mono, monospace);
-  font-size: 10px; letter-spacing: .12em;
-  color: rgba(255,255,255,.92);
-  text-shadow: 0 1px 2px rgba(0,0,0,.4);
-}
-@keyframes ic-upload-spin { to { transform: rotate(360deg); } }
 /* Title below image — primary */
 .ic .ic-title {
   padding: 8px 12px;
@@ -14741,7 +14736,8 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   background: var(--bg-0);
   animation: board-loading-fade-in var(--dur-base) var(--ease, ease-out) both;
 }
-.board-loading-overlay > svg {
+.board-loading-overlay > .board-loading-mark { display: block; line-height: 0; }
+.board-loading-overlay > .board-loading-mark > svg {
   animation: board-loading-breathe 1.6s ease-in-out infinite;
   transform-origin: 50% 50%;
 }
@@ -14766,6 +14762,26 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 @media (prefers-reduced-motion: reduce) {
   .board-loading-ghost { animation: none; }
 }
+.board-loading-ghosts { transition: opacity .3s ease; }
+.board-loading-overlay.is-stalled .board-loading-ghosts { opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .board-loading-ghosts { transition: none; }
+}
+/* After the stall (components/BoardOpening.jsx): the ghosts are gone and the
+   words sit under the sun, which does not move. The overlay ignores the
+   pointer; the buttons do not. */
+.board-loading-words {
+  position: absolute;
+  top: calc(50% + 40px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content; max-width: 86%;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+.board-loading-overlay.is-stalled .board-loading-words { animation: board-loading-fade-in var(--dur-base) var(--ease, ease-out) both; }
+.board-loading-overlay .doc-opening-actions { pointer-events: auto; }
 /* Quiet "still trying" cue while image presign retries back off. */
 .r2-img-retrying { position: relative; }
 .r2-img-retrying::after {

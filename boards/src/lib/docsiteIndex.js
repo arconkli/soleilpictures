@@ -1103,6 +1103,10 @@ export const DOCS_PAGES = [
         "text": "Large uploads"
       },
       {
+        "id": "while-files-upload",
+        "text": "While files upload"
+      },
+      {
         "id": "storage",
         "text": "Storage"
       },
@@ -1151,7 +1155,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "What happens if the page closes while photos are still uploading?",
-        "a": "Photos upload from your device while the page is open. If it closes first — on a phone, switching to another app can do that — a photo that had not finished cannot be completed. Once it clearly is not still uploading, it stops counting toward your card limit. Later still — long enough that no upload anywhere could be finishing it — it is removed the next time someone who can edit that cluster opens it on the canvas, with a note saying how many, so they can be added again. A photo that did finish uploading is kept. One that finished after you had switched to another cluster is put back in place once it is clearly not still uploading, the next time that cluster is opened on the canvas."
+        "a": "Photos upload from your device while the page is open. While anything is still going up, the browser asks before the tab closes. If it closes first — on a phone, switching to another app can do that — a photo that had not finished cannot be completed. Once it clearly is not still uploading, it stops counting toward your card limit. Later still — long enough that no upload anywhere could be finishing it — it is removed the next time someone who can edit that cluster opens it on the canvas, with a note saying how many, so they can be added again. A photo that did finish uploading is kept. One that finished after you had switched to another cluster is put back in place once it is clearly not still uploading, the next time that cluster is opened on the canvas."
       },
       {
         "q": "How do I upload a new version of a file?",

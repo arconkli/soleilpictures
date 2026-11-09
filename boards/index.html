@@ -273,6 +273,27 @@
        rule hides the splash for non-JS visitors so they fall through to the
        real, crawlable SEO content underneath. -->
   <style>html,body{margin:0;background:#0a0a0c;}</style>
+  <!-- The splash's two stall lines. No timers, no script: animation-delay does
+       the counting (8 s, then 15 s). The words are CSS content, so the served
+       HTML for crawlers carries none of them; the reload link is an empty
+       <a href=""> (same URL = a reload) with its text drawn here. -->
+  <style>
+    #boot-words{position:absolute;left:0;right:0;top:calc(50% + 36px);display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;font:400 13px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#888890;pointer-events:none;}
+    #boot-say,#boot-slow{margin:0;opacity:0;}
+    #boot-say::before{content:'Still loading\2026';}
+    #boot-slow::before{content:'This is taking longer than usual';}
+    #boot-say{animation:boot-say 15s linear both;}
+    #boot-slow{animation:boot-in .3s ease-out 15s both;}
+    #boot-reload{display:inline-block;margin:0;color:#d0d0d4;text-decoration:underline;opacity:0;visibility:hidden;pointer-events:auto;cursor:pointer;animation:boot-in .3s ease-out 15s both;}
+    #boot-reload::before{content:'Reload page';}
+    @keyframes boot-say{0%,53.3%{opacity:0}55.3%,99.9%{opacity:1}100%{opacity:0}}
+    @keyframes boot-in{from{opacity:0;visibility:hidden}to{opacity:1;visibility:visible}}
+    @media (prefers-reduced-motion:reduce){
+      #boot-say{animation-name:boot-say-still}
+      #boot-slow,#boot-reload{animation-duration:.001s}
+    }
+    @keyframes boot-say-still{0%,53.3%{opacity:0}53.4%,99.9%{opacity:1}100%{opacity:0}}
+  </style>
   <noscript><style>#boot-splash{display:none!important;}</style></noscript>
 </head>
 <body>
@@ -289,10 +310,10 @@
          clears ALL of #root on its first commit, removing this splash and the
          SEO block together — no manual teardown. Hidden for no-JS via the
          <noscript> rule in <head>. -->
-    <div id="boot-splash" aria-hidden="true"
+    <div id="boot-splash"
          style="position:fixed;inset:0;z-index:10;display:grid;place-items:center;background:#0a0a0c;overflow:hidden;">
-      <div style="position:absolute;inset:0;background:radial-gradient(ellipse 800px 600px at 50% 45%, rgba(255,165,0,.10) 0%, transparent 60%);"></div>
-      <svg width="32" height="32" viewBox="0 0 24 24"
+      <div aria-hidden="true" style="position:absolute;inset:0;background:radial-gradient(ellipse 800px 600px at 50% 45%, rgba(255,165,0,.10) 0%, transparent 60%);"></div>
+      <svg width="32" height="32" viewBox="0 0 24 24" aria-hidden="true"
            style="display:block;filter:drop-shadow(0 0 12px rgba(255,165,0,.35));">
         <circle cx="12" cy="12" r="2.6" fill="#ffa500"/>
         <g stroke="#ffa500" stroke-width="1" stroke-linecap="round">
@@ -310,6 +331,7 @@
           <line x1="16.763" y1="9.25" x2="20.66" y2="7"/>
         </g>
       </svg>
+      <div id="boot-words"><p id="boot-say"></p><p id="boot-slow"></p><a id="boot-reload" href="" aria-label="Reload page"></a></div>
     </div>
     <!-- SEO + no-JS fallback. Real, indexable content for search crawlers and
          visitors without JavaScript. Stays in the served HTML for everyone (not

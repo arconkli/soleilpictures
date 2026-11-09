@@ -55,6 +55,17 @@ test('sameUserLoc compares identity and the rendered location bits only', () => 
   assert.equal(sameUserLoc(a, { ...b, user: { ...ann, color: '#000' } }), false);
 });
 
+test('a tab starting or finishing an upload elsewhere is announced, the same list is not', () => {
+  const a = here('s1', 't1', { location: { boardId: 'b1', surface: 'canvas', uploadingTo: ['b2'] } });
+  const same = here('s1', 't1', { location: { boardId: 'b1', surface: 'canvas', uploadingTo: ['b2'] } });
+  assert.equal(sameUserLoc(a, same), true);
+  assert.equal(sameUserLoc(a, { ...same, location: { ...same.location, uploadingTo: ['b2', 'b3'] } }), false);
+  assert.equal(sameUserLoc(a, { ...same, location: { ...same.location, uploadingTo: [] } }), false);
+  assert.equal(sameUserLoc(here('s1', 't1'), { ...here('s1', 't1'), location: { boardId: 'b1', surface: 'canvas', uploadingTo: [] } }), true,
+    'no list and an empty list are the same');
+  assert.equal(shouldAnnounce(a, { ...same, location: { ...same.location, uploadingTo: [] } }), true);
+});
+
 test('a closing socket announces `leave` only when no other live socket still carries its tab', () => {
   const old = here('s1', 't1');
   const reconnected = here('s2', 't1');

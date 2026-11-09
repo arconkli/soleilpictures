@@ -39,6 +39,14 @@ export function isReturnQaMode() {
   return new URLSearchParams(window.location.search).get('returnqa') === '1';
 }
 
+// Dev-only, ?local=1&activity=1: the local shell mounts the activity tray, as
+// the signed-in app does, so a spec can drive a canvas download into it.
+// Without it the local shell has no tray, and downloads keep their toast.
+export function isLocalActivityTrayMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('activity') === '1';
+}
+
 // Dev-only harness for "What's holding you back?". Active ONLY in a DEV build
 // with ?upgradereasonqa=1 (same trust boundary as isReturnQaMode). The real ask
 // opens only when a free-plan owner closes an offer, which the local shell
@@ -120,6 +128,20 @@ export function isGridQaMode() {
 export function isImportQaMode() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return false;
   return new URLSearchParams(window.location.search).get('importqa') === '1';
+}
+
+// Dev-only card-upload QA page (?uploadqa=1): CardTransferState in every state
+// over fake cards, no backend. See ../local/UploadQaHarness.jsx.
+export function isUploadQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('uploadqa') === '1';
+}
+
+// Dev-only loading-screens QA page (?loadqa=<state>): the loading, failed-list
+// and failed-picture surfaces by themselves. See ../local/LoadingQaHarness.jsx.
+export function isLoadQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return !!new URLSearchParams(window.location.search).get('loadqa');
 }
 
 // Dev-only Schedule QA bridge. Active ONLY in a DEV build with ?schedqa=1
@@ -268,13 +290,13 @@ const QA_MODE_PARAMS = [
   'local', 'adminpreview', 'docqa', 'noteqa', 'thumbqa', 'dndqa', 'arrowqa',
   'alignqa', 'gridqa', 'schedqa', 'tourqa', 'revealqa', 'imgeditqa',
   'presenceqa', 'shareqa', 'roqa', 'msgqa', 'setupqa', 'sidebarqa', 'importqa',
-  'toolbarqa', 'togetherqa',
+  'uploadqa', 'toolbarqa', 'togetherqa', 'loadqa',
 ];
 export function isAnyQaMode() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return false;
   try {
     const q = new URLSearchParams(window.location.search);
-    return QA_MODE_PARAMS.some((k) => q.get(k) === '1') || !!q.get('fileshareqa');
+    return QA_MODE_PARAMS.some((k) => q.get(k) === '1') || !!q.get('fileshareqa') || !!q.get('loadqa');
   } catch (_) { return false; }
 }
 

@@ -140,6 +140,7 @@ export {
   ArrowsLeftRight,
   ArrowsHorizontal,
   Clock,
+  ArrowClockwise,
   Triangle,
   Circle,
   Diamond as DiamondShape,
@@ -256,4 +257,7 @@ export {
   Monitor,
   // A zip in Quick look: Unpack into clusters (components/clusterBrowser/ZipStage.jsx).
   Package,
+  // The activity tray (components/ActivityTray.jsx): offline, and an audio file's row.
+  WifiSlash,
+  Waveform,
 } from '@phosphor-icons/react';

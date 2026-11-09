@@ -100,12 +100,13 @@ test('the backfill, hotlink and sweep timers key on stable signatures, not on ca
 
 // MEDIA-13: every XHR progress event set top-level canvas state, so a
 // multi-file upload re-rendered the whole canvas hundreds of times a second.
-test('upload progress is coalesced per frame and only on a whole-percent change', () => {
-  const fx = between('const reportUploadProgress = useCallback(', 'const clearUploadProgress = useCallback(');
-  assert.match(fx, /requestAnimationFrame\(flush\)/);
-  assert.match(fx, /Math\.round\(prev\[cid\] \* 100\) === Math\.round\(f \* 100\)\) continue;/);
-  assert.match(fx, /return next \|\| prev;/);
-  assert.equal((canvas.match(/setUploadProgressById\(/g) || []).length, 2, 'only the coalescer and the clear touch the state');
+// Progress now goes to lib/activity.js, which notifies on a 250 ms window
+// (activity.test.mjs), and the canvas holds no progress state at all.
+test('upload progress goes to the activity store, not canvas state', () => {
+  assert.doesNotMatch(canvas, /setUploadProgressById|reportUploadProgress|uploadProgress=/);
+  const uploads = between('const optimisticDropImage = useCallback(', 'const dispatchIngestOne = useCallback(');
+  const reports = uploads.match(/const onProgress = \(frac\) => updateTransfer\((tid|track\.tid), \{ fraction: frac \}\);/g) || [];
+  assert.equal(reports.length, 6, 'every route reports to its transfer');
 });
 
 // CARDS-01 / CARDS-02: the PDF viewer, the lightbox and a schedule card's own

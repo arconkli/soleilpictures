@@ -3,7 +3,7 @@
 //   node --test src/lib/transferWords.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { uploadFailedWords, downloadFailedWords } from './transferWords.js';
+import { uploadFailedWords, downloadFailedWords, isNetworkUploadFailure } from './transferWords.js';
 import { ZipReadError } from './zipRead.js';
 
 test('machine talk becomes one plain sentence', () => {
@@ -70,4 +70,27 @@ test('an upload refused to a view-only person says so', () => {
   const words = "You can't add files to this cluster.";
   assert.equal(uploadFailedWords(new Error('Presign failed: 403 {"error":"Not allowed to upload to this board","reason":"not_writer"}')), words);
   assert.equal(uploadFailedWords(new Error('Presign failed: 403 Not allowed to upload to this board')), words);
+});
+
+test('isNetworkUploadFailure: only a dropped connection is worth keeping the card for', () => {
+  const net = (m, extra) => Object.assign(new Error(m), extra);
+  for (const m of ['Failed to fetch', 'Load failed', 'NetworkError when attempting to fetch resource.', 'Upload network error',
+    'Upload stalled', 'Request timed out', 'timeout', 'Part upload failed: 500 Internal Server Error', 'Presign failed: 503', 'weird']) {
+    assert.equal(isNetworkUploadFailure(net(m)), true, m);
+  }
+  assert.equal(isNetworkUploadFailure(net('anything'), { online: false }), true, 'offline');
+  for (const e of [
+    null, undefined,
+    net('aborted'), net('Upload aborted'), Object.assign(new Error('x'), { name: 'AbortError' }),
+    net('Storage is full for this cluster’s owner — …', { code: 402 }), net('x', { code: 403 }), net('x', { code: 'video_too_long' }),
+    net('Upload stalled', { noRetry: true }),
+    net('Video too large (900 MB; max 500 MB)'), net('Could not finish saving the PDF — please try again.'), net('Not signed in'),
+    net('Presign failed: 403 Not allowed to upload to this board'), net('not_writer'),
+    net('Storage returned 404'),
+    new ZipReadError('truncated', 'x'),
+    net('Presign failed: 403 forbidden'), net('Presign failed: 413 too big'),
+  ]) assert.equal(isNetworkUploadFailure(e), false, String(e?.message ?? e));
+  assert.equal(isNetworkUploadFailure(net('Upload aborted'), { online: false }), false, 'an abort stays an abort offline');
+  assert.equal(isNetworkUploadFailure(net('Not allowed to upload'), { online: false }), false, 'a refusal stays a refusal offline');
+  assert.equal(isNetworkUploadFailure(net('x', { code: 503 })), true, 'a numeric code is the status');
 });

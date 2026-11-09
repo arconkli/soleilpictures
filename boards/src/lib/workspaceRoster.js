@@ -29,7 +29,13 @@ export function sameUserLoc(a, b) {
       && al.surface === bl.surface
       && al.pageId === bl.pageId
       && al.docCardId === bl.docCardId
-      && al.isActive === bl.isActive;
+      && al.isActive === bl.isActive
+      && upKey(al.uploadingTo) === upKey(bl.uploadingTo);
+}
+
+// The clusters a tab is uploading to, as one comparable string.
+function upKey(list) {
+  return Array.isArray(list) ? list.join(',') : '';
 }
 
 export function isFresh(p, now, staleMs = STALE_MS) {

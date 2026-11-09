@@ -10287,6 +10287,43 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If a picture can't be fetched — the connection dropped, or storage didn't answer — its card says "
+    },
+    {
+     "t": "strong",
+     "v": "Couldn't load",
+     "children": [
+      {
+       "t": "text",
+       "v": "Couldn't load"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " with "
+    },
+    {
+     "t": "strong",
+     "v": "Retry",
+     "children": [
+      {
+       "t": "text",
+       "v": "Retry"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and tries again by itself a little later. A padlock instead means you don't have access to the file."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Adjustments",
@@ -16422,6 +16459,87 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "While files upload",
+   "inline": [
+    {
+     "t": "text",
+     "v": "While files upload"
+    }
+   ],
+   "id": "while-files-upload"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A tray in the corner of the board shows every batch as it goes: how many files are in, how much is left and roughly how long, with each file's own progress underneath. Fold it and it becomes a small chip; on a phone it is a slim bar along the bottom that opens into the list. The tab's title carries the count too, so you can follow it from another tab."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A file that didn't upload stays in the tray with what went wrong and "
+    },
+    {
+     "t": "strong",
+     "v": "Retry",
+     "children": [
+      {
+       "t": "text",
+       "v": "Retry"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". When the connection drops, the tray says "
+    },
+    {
+     "t": "strong",
+     "v": "Offline",
+     "children": [
+      {
+       "t": "text",
+       "v": "Offline"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and how many uploads are paused, and the ones the drop stopped try again by themselves when you're back online."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Downloads, exports and copies show in the same tray while they're prepared: a zip of many files counts them as they're gathered and can be cancelled, and a finished copy offers "
+    },
+    {
+     "t": "strong",
+     "v": "Open",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Storage",
    "inline": [
     {
@@ -19973,7 +20091,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", and folds into a small chip when you minimize it. Uploads run in the open tab, so keep it open — on a phone, keep it on screen. One import runs at a time; a second one you drop waits its turn."
+     "v": ", and folds into a small chip when you minimize it. Uploads run in the open tab, so keep it open — on a phone, keep it on screen. One import runs at a time; a second one you drop waits its turn. If the connection drops, the tray says so and the import waits, then carries on by itself when you're back online."
     }
    ]
   },
@@ -39114,7 +39232,92 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Changes made while briefly disconnected are reconciled on reconnect. The status in the header reports what has actually saved rather than assuming."
+     "v": "When the connection drops, the corner of the board says "
+    },
+    {
+     "t": "strong",
+     "v": "Offline",
+     "children": [
+      {
+       "t": "text",
+       "v": "Offline"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", with how many uploads are paused, and whether the changes you make are kept on this device or need this tab to stay open until you're back. Changes made while disconnected are reconciled on reconnect: the corner says "
+    },
+    {
+     "t": "strong",
+     "v": "Reconnecting…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Reconnecting…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", then "
+    },
+    {
+     "t": "strong",
+     "v": "Saved",
+     "children": [
+      {
+       "t": "text",
+       "v": "Saved"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " once everything you changed is stored. If a save is refused it says "
+    },
+    {
+     "t": "strong",
+     "v": "Couldn't save",
+     "children": [
+      {
+       "t": "text",
+       "v": "Couldn't save"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", with "
+    },
+    {
+     "t": "strong",
+     "v": "Retry",
+     "children": [
+      {
+       "t": "text",
+       "v": "Retry"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". On a board the status is in that corner and in a "
+    },
+    {
+     "t": "link",
+     "v": "document",
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "document"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " it is in the header; either way it reports what has actually saved rather than assuming."
     }
    ]
   }
