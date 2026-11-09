@@ -1495,16 +1495,20 @@ const PAGES = [
   {
     path: '/vs/pureref',
     kind: 'compare',
-    // "What it costs" is ON (owner, 2026-10-20), as kind:'compare' implies.
-    // It was held from 2026-10-01 until two weeks after the copy corrected on
-    // 2026-10-02 was live on production, so that the page that pays changes one
-    // thing at a time. The block went on as this page's only change.
-    //   Read: planBlock.js's pre-registered read, window +3d to +31d from the
-    //     PRODUCTION deploy of this change, never inside 3 days of it; and
-    //     signups / sessions by first landing on this path at +14 days.
-    //   Hold: no other edit to this page sooner than +14 days after that
-    //     deploy (the PureRef FAQs and the video page link wait for it).
+    // "What it costs" is OFF again (owner, 2026-11-09). It went on 2026-10-20
+    // as this page's only change and reached production 2026-10-22; the next
+    // day the page slid from page one to page two for the bare query "pureref"
+    // and stayed there for 16 days while its other queries held. Taking the
+    // block off is again the page's only change, so it grades cleanly.
+    //   Target: query = 'pureref' on this path, search_type 'web'.
+    //   Window: +3d to +31d from the PRODUCTION deploy of this change, never
+    //     inside 3 days of it, ±7/±14 day buckets, impression-weighted position.
+    //   Floor: at least 200 page-level web impressions after the change.
+    //   Win: back on page one for "pureref". No recovery by +31d means the
+    //     block was not the cause; it may then come back.
+    //   Hold: no other edit to this page until that read is done.
     //   Baselines are in the project notes, not in this public file.
+    planBlock: false,
     // 2026-08-23 INTENT SPLIT. The 2026-08-04 experiment (lead with the
     // film-studio credential) worked: 0 clicks → 10 and position 11.3 → 8.9
     // across the pivot, on real per-day data (seo_page_daily, 0254). This is
