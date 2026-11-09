@@ -10,11 +10,12 @@ Clusters may ask whether it can keep plain outlines of how your clusters are lai
 
 ### Help improve Clusters?
 
-- Clusters may ask **Help improve Clusters?**, three times at most, on
-  different days. Say **Sure** and it keeps a weekly outline of the clusters
-  you make from now on: a plain box for each card, where it sits and how big it
-  is, never what's in it, and not linked to you. See
-  [Layout outlines](/docs/account/data-and-privacy#layout-outlines).
+- Clusters may ask **Help improve Clusters?** once you have 3 cards (or
+  from your second day), three times at most, on different days. Say **Sure**
+  and it keeps a weekly outline of the clusters you make from now on: a plain
+  box for each card, where it sits and how big it is, never what's in it, and
+  not linked to you, except for up to 8 days after your first week, to note
+  whether you came back. See [Layout outlines](/docs/account/data-and-privacy#layout-outlines).
 - Change your answer any time in **Settings → Profile**.
 
 ## 2026-10-28 — The board, in the chat

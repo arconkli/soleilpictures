@@ -4102,7 +4102,7 @@ Below that: profile picture, display name and your presence colour — the colou
 
 Passkeys lists the passkeys you can sign in with instead of an emailed code, with when each was added and last used. Add a passkey saves one on the device you're using; Remove takes one away, with a moment to undo.
 
-Privacy holds one switch, Keep outlines of how my clusters are laid out: plain boxes showing where cards sit and how big they are, never what's in them, and not linked to you. It is off until you say yes; see layout outlines.
+Privacy holds one switch, Keep outlines of how my clusters are laid out: plain boxes showing where cards sit and how big they are, never what's in them, and not linked to you, except for up to 8 days after your first week. It is off until you say yes; see layout outlines.
 
 Deleting your account lives at the foot of this tab. It is the one thing in Settings with no undo — see Data and privacy.
 
@@ -4740,6 +4740,7 @@ Board version snapshots | For rollback and workspace recovery
 Files no longer referenced by any board | Eligible for cleanup after a grace period
 Resolved comments | Archived, not deleted
 Layout outlines, if you said yes | 400 days, then deleted
+Which first-week outlines are yours, if you said yes | Up to 8 days, then deleted
 
 Restoring a cluster within the trash window restores its images with it.
 
@@ -4843,6 +4844,8 @@ Positions and sizes are rounded to steps of half a percent across the cluster, a
 
 It never holds what is in a card: no pictures, words, names, colours, links, file names or sizes. It is stored on its own, with nothing that links it to you, your workspace or the cluster, and we never try to link one back. Outlines are deleted after 400 days.
 
+Outlines made in the week you sign up are the one exception. To learn why some people stop using Clusters, each is marked with whether you came back within 7 days of your first visit: yes, no, or not known. Until it is marked, for up to 8 days, a separate note says it is yours. Then the note is deleted, and the outline keeps only that answer.
+
 Some clusters are always left out:
 
 a shared cluster, if anyone who can edit it has said no
@@ -4850,9 +4853,11 @@ a cluster that is published or has a public link, and the clusters inside it
 clusters in a Team workspace
 clusters made before 10 November 2026
 
-Change your answer at any time in Settings → Profile. Turning it off leaves your clusters out of every outline made after that. Outlines already made are not removed early: nothing in them points back to you, so we keep no way to pick out yours.
+Change your answer at any time in Settings → Profile. Turning it off leaves your clusters out of every outline made after that, and at once deletes any outline from the week you signed up that is still noted as yours. Other outlines already made are not removed early: nothing in them points back to you, so we keep no way to pick out yours.
 
 Separately, a few weekly totals are counted across every cluster that changed that week, whether or not anyone said yes: how many changed, how many cards a cluster usually holds, how many use sections, hold another cluster or are mostly pictures, and which tools people use in a cluster's first minutes, first day and first week. Only totals covering at least 20 people are kept, never a cluster or a person.
+
+It also takes the people who joined over four weeks and compares those who came back within 7 days of their first visit with those who didn't: how many cards each side added on its first day, and which tools it used. Each side must cover at least 20 people, and nothing about one person is kept.
 
 When Clusters asks you a question
 
@@ -4902,7 +4907,7 @@ If you would rather none of it had been asked, deleting your account removes it 
 
 Help improve Clusters?
 
-Clusters may ask Help improve Clusters?, with Learn more under it, leading to Layout outlines. It asks at most three times, on different days, never on the day you sign up, and stops once you answer. Sure turns layout outlines on; No thanks leaves them off, which is also where they start. Your answer is stored with your account, and you can change it any time in Settings → Profile.
+Clusters may ask Help improve Clusters?, with Learn more under it, leading to Layout outlines. It asks in a pause once you have 3 cards, or from your second day if you don't: at most three times, on different days, and it stops once you answer. Sure turns layout outlines on; No thanks leaves them off, which is also where they start. Your answer is stored with your account, and you can change it any time in Settings → Profile.
 
 Legal
 
@@ -12311,11 +12316,12 @@ Clusters may ask whether it can keep plain outlines of how your clusters are lai
 
 ### Help improve Clusters?
 
-- Clusters may ask **Help improve Clusters?**, three times at most, on
-  different days. Say **Sure** and it keeps a weekly outline of the clusters
-  you make from now on: a plain box for each card, where it sits and how big it
-  is, never what's in it, and not linked to you. See
-  [Layout outlines](/docs/account/data-and-privacy#layout-outlines).
+- Clusters may ask **Help improve Clusters?** once you have 3 cards (or
+  from your second day), three times at most, on different days. Say **Sure**
+  and it keeps a weekly outline of the clusters you make from now on: a plain
+  box for each card, where it sits and how big it is, never what's in it, and
+  not linked to you, except for up to 8 days after your first week, to note
+  whether you came back. See [Layout outlines](/docs/account/data-and-privacy#layout-outlines).
 - Change your answer any time in **Settings → Profile**.
 
 ## 2026-10-28 — The board, in the chat

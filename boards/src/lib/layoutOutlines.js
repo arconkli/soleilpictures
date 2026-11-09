@@ -22,8 +22,18 @@ export const LAYOUT_OUTLINES_EVENT = 'soleil:layout-outlines';
 // At most this many asks, on different days.
 export const MAX_ASKS = 3;
 
-// Never on the day someone signs up, nor within a day of it.
+// Asks once the person has placed this many cards.
+export const MIN_CARDS = 3;
+
+// Failing 3 cards, the ask comes a day after sign-up, as it always did. The
+// card count covers only workspaces the person made, so a teammate invited into
+// someone else's workspace would otherwise never be asked.
 export const MIN_ACCOUNT_AGE_MS = 24 * 60 * 60 * 1000;
+
+// The version of the words the person answered. 2 = the words that include the
+// first-week note (migration 0882 stores it; a yes given under terms 1 is never
+// linked).
+export const LAYOUT_OUTLINES_TERMS = 2;
 
 // true = said yes, false = said no, null = never answered.
 export function layoutOutlinesAnswer(settings) {
@@ -47,19 +57,19 @@ export function layoutOutlinesAsks(settings) {
   };
 }
 
-// Should the question be put to this person now? An account whose age we
-// cannot read is not asked: failing closed costs one ask, failing open asks
-// someone on their first day.
-export function shouldAskLayoutOutlines({ settings, today, accountCreatedAt, now = Date.now() } = {}) {
+// Should the question be put to this person now? Not until they have placed
+// MIN_CARDS cards or, failing that, the account is a day old. An unreadable
+// count AND an unreadable age never asks (failing closed costs one ask, failing
+// open asks someone with an empty cluster).
+export function shouldAskLayoutOutlines({ settings, today, cards, accountCreatedAt, now = Date.now() } = {}) {
   if (layoutOutlinesAnswer(settings) !== null) return false;
   const { n, last } = layoutOutlinesAsks(settings);
   if (n >= MAX_ASKS) return false;
   if (last && last === today) return false;
+  if (Number.isFinite(cards) && cards >= MIN_CARDS) return true;
   const born = accountCreatedAt ? new Date(accountCreatedAt).getTime() : NaN;
-  if (!Number.isFinite(born)) return false;
   const at = now instanceof Date ? now.getTime() : Number(now);
-  if (at - born < MIN_ACCOUNT_AGE_MS) return false;
-  return true;
+  return Number.isFinite(born) && Number.isFinite(at) && at - born >= MIN_ACCOUNT_AGE_MS;
 }
 
 // Record the answer. The supabase-js builder resolves with { data, error } and
@@ -67,7 +77,7 @@ export function shouldAskLayoutOutlines({ settings, today, accountCreatedAt, now
 // .catch() the builder itself.
 export async function setLayoutOutlines(ok) {
   const { supabase } = await import('./supabase.js');
-  const { data, error } = await supabase.rpc('set_layout_outlines', { p_ok: !!ok });
+  const { data, error } = await supabase.rpc('set_layout_outlines', { p_ok: !!ok, p_terms: LAYOUT_OUTLINES_TERMS });
   if (error) throw error;
   try {
     window.dispatchEvent(new CustomEvent(LAYOUT_OUTLINES_EVENT, { detail: { ok: !!ok } }));

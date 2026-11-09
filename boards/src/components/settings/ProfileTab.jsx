@@ -211,7 +211,7 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
             label="Keep outlines of how my clusters are laid out"
             desc={(
               <>
-                Plain boxes showing where cards sit and how big they are. Never what's in them, and not linked to you. A shared cluster is left out if anyone on it says no.{' '}
+                Plain boxes showing where cards sit and how big they are. Never what's in them, and not linked to you, except for up to 8 days after your first week. A shared cluster is left out if anyone on it says no.{' '}
                 <a href={LAYOUT_OUTLINES_DOC} target="_blank" rel="noopener noreferrer"
                    onClick={(e) => e.stopPropagation()}>What's kept</a>
               </>

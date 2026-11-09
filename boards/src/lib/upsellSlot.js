@@ -130,8 +130,14 @@ const AMBIENT = new Set(['invite-nudge', 'share-ask', 'mix-prompt', 'layout-ask'
 // ask waited for a next visit that often never came, and about half the people
 // reaching ten were never asked. It still spends the visit (nothing ambient
 // follows it), still waits out the minute, never lands on the wall, and comes at
-// most once a week per account. Only 'share-ask': no other kind gets this.
-const PAST_THE_VISIT = new Set(['share-ask']);
+// most once a week per account.
+//
+// 'layout-ask' (Help improve Clusters?) joins it, since it now comes on day one,
+// after the person's third card: a new person's first visit may be their only
+// one, and a tip earlier in that visit would otherwise push the ask to a visit
+// that never comes. It still spends the visit and still waits out the minute
+// after any other claim. No other kind gets this.
+const PAST_THE_VISIT = new Set(['share-ask', 'layout-ask']);
 
 let visitAsk = { visit: null, kind: null };
 
