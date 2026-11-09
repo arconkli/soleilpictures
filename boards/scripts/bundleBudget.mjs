@@ -105,8 +105,14 @@ export const CEILINGS = {
   // (SIGN_IN_EVENTS and signInAgo, moved into lib/errorCrumbs.js, which the
   // entry's errorReporting.js reads). A CI-style build measured entryJs
   // 171,856 B on main 555b2260 and 172,053 B with it.
-  entryJs: 172_300,
-  entryCss: 96_200,
+  // 2026-11-09: +0.3 KB for d2b3c2f0 (layout outlines and Admin › Outlines),
+  // which landed without raising this and put CI's bundle job over (run
+  // 42593951681). A CI-style build measured entryJs 172,045 B on 1c770b58
+  // and 172,325 B on d2b3c2f0.
+  entryJs: 172_600,
+  // 2026-11-09: +0.2 KB for d2b3c2f0's rules in styles.css, over this
+  // ceiling in the same run: 96,166 B on 1c770b58, 96,291 B on d2b3c2f0.
+  entryCss: 96_400,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
   // they draw (vite.config.js iconSplit), from 687 KB.
@@ -289,7 +295,12 @@ export const CEILINGS = {
   // is remembered (lib/thumbFailMemory.js); name suggestions reload at most
   // every ten seconds. A CI-style build measured appJs 707,267 B on main
   // 555b2260 (CI read it a few bytes OVER) and 708,357 B with it.
-  appJs: 708_600,
+  // 2026-11-09: +2.3 KB for d2b3c2f0 (layout outlines: the ask, drawn by
+  // App.jsx, and the canvas tool counts, lib/canvasToolEvents.js), which
+  // landed without raising this; CI read 710.8 KB on it, OVER. CI-style
+  // builds here (about 0.6 KB low, as above) measured appJs 707,768 B on
+  // 1c770b58 and 709,975 B on d2b3c2f0.
+  appJs: 710_900,
   appCss: 21_900,
 };
 
