@@ -16,6 +16,7 @@ import {
 import { Icon } from '../Icon.jsx';
 import { ChevronLeft, ChevronRight } from '../../lib/icons.js';
 import { swallowContextMenu } from '../../lib/contextMenuGuard.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 const PAD = 10;
 const GAP = 6;
@@ -40,6 +41,7 @@ export function SchedDatePopover({ anchorRect, anchor, onPick, onClose }) {
   // the card selection underneath while the popover eats the press.
   useEffect(() => {
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key !== 'Escape') return;
       e.stopPropagation();
       onClose?.();

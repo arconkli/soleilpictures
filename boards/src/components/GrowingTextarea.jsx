@@ -17,5 +17,5 @@ export const GrowingTextarea = forwardRef(function GrowingTextarea({ value, maxL
     try { el.setSelectionRange(end, end); } catch (_) {}
     el.scrollTop = el.scrollHeight;
   }, [focusAtEnd]);
-  return <textarea ref={inner} rows={1} value={value} {...props} />;
+  return <textarea ref={inner} rows={1} dir="auto" value={value} {...props} />;
 });

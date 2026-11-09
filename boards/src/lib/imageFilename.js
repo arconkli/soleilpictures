@@ -1,6 +1,8 @@
 // Filenames for downloaded images. Pure, split out of imageExport.js (which
 // reaches Supabase through r2.js) so node tests can pin it.
 
+import { safeFileName } from './safeFileName.js';
+
 export const IMAGE_EXT_RE = /\.(jpe?g|jfif|png|gif|webp|avif|heic|heif|bmp|svg|tiff?|jxl)$/i;
 
 // Safe download filename. `forceExt` overrides the extension (used when the
@@ -11,7 +13,7 @@ export function filenameFor(s, t, forceExt) {
     const m = String(s || '').match(/([^/?#]+)(?:[?#]|$)/);
     base = m ? decodeURIComponent(m[1]) : 'image';
   }
-  base = base.replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
+  base = safeFileName(base, { fallback: 'image', maxChars: 80 });
   // Kept files arrive with their own extension (fileIngest keeps the real
   // name), so the list covers what cameras and scanners write — a scan.tif
   // must not come down as scan.tif.jpg.

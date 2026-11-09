@@ -29,6 +29,7 @@ import { enqueueVariant, dequeueVariant } from './variantQueue.js';
 import { PARTY_HOST as PARTYKIT_HOST, PARTY_PROTOCOL as PARTYKIT_PROTOCOL } from './partyHost.js';
 import { pdfCardHeight } from './pdfThumb.js';
 import { noteRequest, reportError } from './errorReporting.js';
+import { safeFileName } from './safeFileName.js';
 
 
 // Tier-1 preview spec (progressive image loading). The canvas shows this
@@ -719,7 +720,7 @@ export async function captureAndUploadPoster({ file, workspaceId, boardId, userI
   try {
     const blob = await captureVideoPoster(file);
     if (!blob) return null;
-    const base = (file.name || 'video').replace(/\.[a-z0-9]+$/i, '').replace(/[^a-z0-9-_ ]/gi, '_').slice(0, 60) || 'video';
+    const base = safeFileName((file.name || 'video').replace(/\.[a-z0-9]+$/i, ''), { fallback: 'video', maxChars: 60 });
     const posterFile = new File([blob], `${base}.webp`, { type: 'image/webp' });
     const up = await uploadImage({ file: posterFile, workspaceId, boardId, userId });
     return up?.src || null;
@@ -786,7 +787,7 @@ export async function extractAndUploadCover({ file, workspaceId, boardId, userId
   try {
     const cover = await readEmbeddedCover(file);
     if (!cover) return null;
-    const base = (file.name || 'cover').replace(/\.[a-z0-9]+$/i, '').replace(/[^a-z0-9-_ ]/gi, '_').slice(0, 60) || 'cover';
+    const base = safeFileName((file.name || 'cover').replace(/\.[a-z0-9]+$/i, ''), { fallback: 'cover', maxChars: 60 });
     const coverFile = new File([cover.bytes], `${base}.${cover.ext}`, { type: cover.mime });
     const up = await uploadImage({ file: coverFile, workspaceId, boardId, userId });
     return up?.src || null;
@@ -988,7 +989,7 @@ export async function uploadPdfPageOne({ source, name, workspaceId, boardId, car
     try { doc.destroy?.(); } catch (_) {}
   }
   if (blob) {
-    const base = (name || 'document').replace(/\.pdf$/i, '').replace(/[^a-z0-9-_ ]/gi, '_').slice(0, 60) || 'pdf';
+    const base = safeFileName((name || 'document').replace(/\.pdf$/i, ''), { fallback: 'pdf', maxChars: 60 });
     try {
       const up = await uploadImage({ file: new File([blob], `${base}.webp`, { type: 'image/webp' }), workspaceId, boardId, cardId, userId });
       out.src = up.src || null;

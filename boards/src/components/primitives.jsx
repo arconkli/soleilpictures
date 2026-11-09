@@ -1,6 +1,7 @@
 // Small visual primitives — image stub, avatar, live cursor, soleil mark.
 
 import React from 'react';
+import { initialsOf } from '../lib/graphemes.js';
 
 export function ImagePlaceholder({ label, tone = 'neutral', aspect = '4/3' }) {
   const tones = {
@@ -30,7 +31,7 @@ export function ImagePlaceholder({ label, tone = 'neutral', aspect = '4/3' }) {
 }
 
 export function Avatar({ name, color, size = 22, ring }) {
-  const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const initials = initialsOf(name, '');
   return (
     <div className="avatar" style={{
       width: size, height: size, background: color,

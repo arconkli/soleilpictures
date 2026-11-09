@@ -15,12 +15,14 @@ import { readHead, decodeText } from '../../lib/fileHead.js';
 import { headLines, sniffSep, parseDelimited, parseCues } from '../../lib/textPages.js';
 import { CARD_HEAD_BYTES, MAIL_CARD_MAX_BYTES, MAIL_HEAD_BYTES } from '../../lib/fileFaceLimits.js';
 import { loadFontFile } from '../../lib/fontLoad.js';
+import { directedHtml } from '../../lib/textDirection.js';
 import { Icon } from '../Icon.jsx';
 import { humanSize } from './FileCard.jsx';
 import {
   FileMd, FileTxt, FileCsv, Subtitles, CodeIcon, Type, EnvelopeSimple, FileImage, FilePdf, FileIcon, SketchLogo, FigmaLogo,
   PaintBrush, PenNib,
 } from '../../lib/icons.js';
+import { cutGraphemes } from '../../lib/graphemes.js';
 import './familyFace.css';
 
 const GLYPHS = { markdown: FileMd, text: FileTxt, table: FileCsv, subtitles: Subtitles, code: CodeIcon, font: Type, mail: EnvelopeSimple };
@@ -157,10 +159,12 @@ export async function markdownHtml(text) {
   if (!toHtml) {
     const [{ default: MarkdownIt }, { default: DOMPurify }] = await Promise.all([import('markdown-it'), import('dompurify')]);
     const md = new MarkdownIt({ html: false, linkify: false });
-    toHtml = (t) => DOMPurify.sanitize(md.render(t), {
+    // dir="auto" goes on after sanitizing (lib/textDirection.js), so an Arabic
+    // or Hebrew file reads right to left in both the card face and the stage.
+    toHtml = (t) => directedHtml(DOMPurify.sanitize(md.render(t), {
       FORBID_TAGS: ['img', 'video', 'audio', 'source', 'picture', 'iframe', 'form', 'style', 'svg', 'math', 'input', 'button'],
       FORBID_ATTR: ['style'],
-    });
+    }));
   }
   return toHtml(text);
 }
@@ -175,7 +179,7 @@ function MarkdownPage({ text }) {
   return html == null ? null : <div className="fpg-md" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-const cut = (s, n) => (s.length > n ? s.slice(0, n) : s);
+const cut = (s, n) => cutGraphemes(s, n);
 
 function TablePage({ text, ext, complete }) {
   const { rows } = parseDelimited(text, { sep: sniffSep(text, ext), maxRows: 40, complete });

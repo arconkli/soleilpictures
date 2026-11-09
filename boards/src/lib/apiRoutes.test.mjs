@@ -1271,7 +1271,7 @@ test('search finds the words inside a doc\'s pages and says which doc, page and 
   assert.ok(page.excerpt.length <= 302);
   assert.equal(page.url, `https://clusters.test/?to=c:${B1}:d1`);
   const asked = calls.find((c) => c.path === 'doc_page_index');
-  assert.equal(asked.query.get('or'), '(page_title.ilike."%reel of film%",page_text.ilike."%reel of film%")');
+  assert.equal(asked.query.get('or'), '(page_title.ilike."%reel of film%",page_text.ilike."%reel of film%",fold.ilike."%reel of film%")');
   const boardsOnly = await api('GET', '/search?q=reel%20of%20film&kind=board');
   assert.deepEqual(boardsOnly.body.pages.items, []);
 });

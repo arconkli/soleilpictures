@@ -155,6 +155,7 @@ export async function handleAiRoute(url, request, env) {
 const CLASSIFY_SYSTEM = [
   'You classify candidate "entities" surfaced from a creative-writing / film & TV production app (Soleil Clusters). Users write screenplays, character bios, world-building docs, and moodboard notes.',
   'Each candidate is a recurring capitalized word plus a short snippet of the prose it appears in ("context") and how many times it occurs ("count").',
+  'Candidates may be in any language written with capital letters (accented Latin, Cyrillic, Greek and others). Judge each one in its own language. Copy every "name" back exactly as given, character for character: never translate, transliterate or change its case.',
   'For EACH candidate decide two things:',
   '1) keep — true if it is a genuine STORY ENTITY worth turning into a tag: a specific character, place/setting, organization/group, named thing, or a meaningful recurring concept in the user\'s fiction or project. false if it is generic noise: a common word, a form-field label (e.g. "Status", "Religion", "Fears"), a sentence-starting verb, a screenplay/UI term (e.g. "Scene", "Cut"), a day/month, or anything too generic to be a useful tag.',
   '2) type — the best single category:',
@@ -190,7 +191,7 @@ async function handleClassifyCandidates(request, env, token) {
   for (const c of (Array.isArray(body.candidates) ? body.candidates : [])) {
     const name = typeof c?.name === 'string' ? c.name.trim() : '';
     if (!name) continue;
-    const name_lc = name.toLowerCase();
+    const name_lc = name.normalize('NFC').toLowerCase();
     if (byLc.has(name_lc)) continue;
     const sample = String(c.sample || '').slice(0, SAMPLE_MAXLEN);
     byLc.set(name_lc, {
@@ -258,7 +259,7 @@ async function handleClassifyCandidates(request, env, token) {
   const aiByName = new Map();
   if (Array.isArray(aiArr)) {
     for (const a of aiArr) {
-      if (a && typeof a.name === 'string') aiByName.set(a.name.trim().toLowerCase(), a);
+      if (a && typeof a.name === 'string') aiByName.set(a.name.trim().normalize('NFC').toLowerCase(), a);
     }
   }
 

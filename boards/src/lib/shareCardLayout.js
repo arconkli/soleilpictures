@@ -7,6 +7,8 @@
 // name big on the left. The card carries the NAME and pictures only: never a
 // note's or a doc's words.
 
+import { graphemes, dropLastGrapheme } from './graphemes.js';
+
 export const CARD_W = 1200;
 export const CARD_H = 630;
 export const MAX_PICTURES = 4;
@@ -54,7 +56,7 @@ function wrap(text, fontPx, maxW, measure) {
     if (measure(tryLine, fontPx) <= maxW) { line = tryLine; continue; }
     push();
     if (measure(word, fontPx) <= maxW) { line = word; continue; }
-    for (const ch of word) {
+    for (const ch of graphemes(word)) {
       if (line && measure(line + ch, fontPx) > maxW) push();
       line += ch;
     }
@@ -69,7 +71,7 @@ function ellipsize(line, fontPx, maxW, measure) {
   let s = line.replace(/\s+$/, '');
   while (s && measure(`${s}…`, fontPx) > maxW) {
     const at = s.lastIndexOf(' ');
-    s = (at > 0 ? s.slice(0, at) : s.slice(0, -1)).replace(/\s+$/, '');
+    s = (at > 0 ? s.slice(0, at) : dropLastGrapheme(s)).replace(/\s+$/, '');
   }
   return `${s}…`;
 }

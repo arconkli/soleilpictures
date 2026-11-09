@@ -49,6 +49,7 @@ function TitleField({ value, placeholder, onCommit, className, ariaLabel, editab
   return (
     <textarea
       ref={ref}
+      dir="auto"
       className={`sp-tp-field ${className || ''}`}
       rows={1}
       spellCheck={false}

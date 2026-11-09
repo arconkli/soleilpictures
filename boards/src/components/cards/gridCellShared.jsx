@@ -14,6 +14,7 @@ import { useEffect, useMemo, useReducer, useState } from 'react';
 import { resolveTagText, hasLabelTag } from '../../lib/gridSequence.js';
 import { readableOn, remapHtmlColors } from '../../lib/readableColor.js';
 import { sanitizeNoteHtml } from '../../lib/sanitizeNoteHtml.js';
+import { directedHtml } from '../../lib/textDirection.js';
 import { readableInk } from '../../lib/paletteLayout.js';
 import { resolveSrc } from '../../lib/r2.js';
 import { buildImgStyle } from '../../lib/imageAdjust.js';
@@ -92,7 +93,7 @@ export function CellText({ html, seqIndex, seqFormat, style, effBg }) {
   // html reaches us over the CRDT exactly like note html does, so it gets the
   // same treatment — see lib/sanitizeNoteHtml.js.
   const recolored = effBg ? remapHtmlColors(resolved, effBg) : resolved;
-  const clean = useMemo(() => sanitizeNoteHtml(recolored), [recolored]);
+  const clean = useMemo(() => directedHtml(sanitizeNoteHtml(recolored)), [recolored]);
   return <div className="gc-text" style={style} dangerouslySetInnerHTML={{ __html: clean }} />;
 }
 

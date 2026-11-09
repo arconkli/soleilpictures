@@ -59,6 +59,8 @@ test('the attachment header survives any filename', () => {
   assert.equal((evil.match(/"/g) || []).length, 2, 'only the two quotes it adds');
   assert.match(attachmentDisposition('Café (draft)*.mov'), /filename="Caf_ \(draft\)\*\.mov"; filename\*=UTF-8''Caf%C3%A9%20%28draft%29%2A\.mov$/);
   assert.equal(attachmentDisposition('   '), null);
+  // A cut that lands inside an emoji used to leave a lone surrogate and throw URIError.
+  assert.doesNotThrow(() => attachmentDisposition('x'.repeat(149) + '😀.mov'));
   assert.equal(attachmentDisposition('x'.repeat(400)).length < 400, true);
 });
 

@@ -72,6 +72,7 @@ import { RENDER_VERSION as THUMB_RENDER_VERSION } from '../lib/renderThumbnail.j
 import { paletteLayout, readableInk, hasCustomName, surfaceTone } from '../lib/paletteLayout.js';
 import { readableOn, remapHtmlColors } from '../lib/readableColor.js';
 import { sanitizeNoteHtml } from '../lib/sanitizeNoteHtml.js';
+import { directedHtml } from '../lib/textDirection.js';
 import { noteSourceHtml } from '../lib/noteBody.js';
 import { noteFontStyle } from '../lib/noteFontSize.js';
 import { useThemeAttr } from '../lib/useThemeAttr.js';
@@ -112,6 +113,8 @@ function prefetchFilmPlayer() {
 import { registerCardPlayer } from '../lib/playerBus.js';
 import { driftFix, getBoardEpoch, serverNow, SEEK_LEAD_S, SEEK_OVER_S, subscribeBoardEpoch, syncTarget, timeDiff } from '../lib/videoSync.js';
 import { probeCardVideo } from '../hooks/useMediaFacts.js';
+import { isComposingKey } from '../lib/composerKeys.js';
+import { initialOf, cutGraphemes, exceedsGraphemes } from '../lib/graphemes.js';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
 
 // Display-mode renderer for note cards: walks the saved HTML and
@@ -125,7 +128,7 @@ function NoteAutoLinkBody({ html }) {
   // board can author it — see lib/sanitizeNoteHtml.js and
   // tests/note-html-xss.spec.js. Memoized because this runs on every render of
   // a note card and the html itself changes rarely.
-  const clean = useMemo(() => sanitizeNoteHtml(html), [html]);
+  const clean = useMemo(() => directedHtml(sanitizeNoteHtml(html)), [html]);
   if (!clean) return null;
   if (!trie) {
     return <div className="note-body" dangerouslySetInnerHTML={{ __html: clean }} />;
@@ -152,10 +155,10 @@ export const KIND_DOTS = {
 };
 function htmlToText(html, max = 80) {
   if (!html) return '';
-  if (typeof document === 'undefined') return html.slice(0, max);
+  if (typeof document === 'undefined') return cutGraphemes(html, max);
   const tmp = inertContainer(html);
   const txt = (tmp.textContent || '').replace(/\s+/g, ' ').trim();
-  return txt.length > max ? txt.slice(0, max - 1) + '…' : txt;
+  return exceedsGraphemes(txt, max) ? cutGraphemes(txt, max - 1) + '…' : txt;
 }
 // Phosphor-thin glyphs used in list-board rows. Sized to fill a 22px tile by
 // default; the cluster browser passes its own size, and the files sidebar its
@@ -300,7 +303,7 @@ function describeListItem(card, boards = {}) {
              name: card.title || card.label || card.fileName || 'image', meta: 'image' };
   }
   if (card.kind === 'note') {
-    const text = htmlToText(card.html, 80) || (card.body || '').toString().slice(0, 80);
+    const text = htmlToText(card.html, 80) || cutGraphemes((card.body || '').toString(), 80);
     return { ...base, name: text || 'Empty note', meta: 'note' };
   }
   if (card.kind === 'link') {
@@ -1578,7 +1581,7 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
   // phase + stopPropagation so it doesn't also trigger the canvas Escape.
   useEffect(() => {
     if (!embedActive) return;
-    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); setEmbedActive(false); } };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.stopPropagation(); setEmbedActive(false); } };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [embedActive]);
@@ -2047,7 +2050,7 @@ function DocCard({ title, lines, author, date, html = null, body = null, onUpdat
   // preview, sanitized like a note (the html rides the CRDT unchecked).
   const hasLines = Array.isArray(lines) && lines.length > 0;
   const textHtml = useMemo(
-    () => (hasLines ? '' : sanitizeNoteHtml(noteSourceHtml(html, body))),
+    () => (hasLines ? '' : directedHtml(sanitizeNoteHtml(noteSourceHtml(html, body)))),
     [hasLines, html, body],
   );
   return (
@@ -2204,7 +2207,7 @@ function BoardCardPresence({ peers = [] }) {
   return (
     <div className="bc-presence" aria-label={`${peers.length} ${peers.length === 1 ? 'person' : 'people'} here`}>
       {visible.map(p => {
-        const initial = (p.user.name || p.user.email || '?')[0].toUpperCase();
+        const initial = initialOf(p.user.name || p.user.email);
         const where = p.location?.boardName || 'this board';
         const tip = p.exact
           ? `${p.user.name || p.user.email} is here`
@@ -2294,6 +2297,7 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
       }
     };
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key === 'Escape') {
         // Isolate from the canvas Escape so it only exits cover-drop, then
         // return focus to the card.

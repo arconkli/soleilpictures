@@ -6,7 +6,9 @@ import {
   Search, X, LayoutGrid, FileText, StickyNote, Image as ImageIcon,
   Palette, Calendar, Link as LinkIcon, User, Tag as TagIcon, ChevronRight,
 } from '../lib/icons.js';
-import { searchEntities, searchDocPages } from '../lib/entitySearch.js';
+import { searchEntities, searchDocPages, searchPicturesByWords } from '../lib/entitySearch.js';
+import { queryLanguage, translateQuery, pictureWords } from '../lib/searchTranslate.js';
+import { readWorkspaceAiEnabled } from '../hooks/useWorkspaceAiEnabled.js';
 import { foundOnlyInPicture } from '../lib/entitySearchFilter.js';
 import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
 import { R2Image } from './R2Image.jsx';
@@ -18,6 +20,8 @@ import { EV } from '../lib/analyticsEvents.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
 import { LoadFailed } from './LoadFailed.jsx';
 import { useRetry } from '../hooks/useRetry.js';
+import { isComposingKey } from '../lib/composerKeys.js';
+import { searchKey, minSearchLength, searchLength } from '../lib/textFold.js';
 
 // Global search + ⌘K command palette.
 //
@@ -78,7 +82,13 @@ function highlightMatch(text, q) {
   const s = String(text || '');
   const needle = (q || '').trim();
   if (!needle) return s;
-  const i = s.toLowerCase().indexOf(needle.toLowerCase());
+  let i = s.toLowerCase().indexOf(needle.toLowerCase());
+  if (i < 0) {
+    // "cafe" in "Café": mark it only where the folded text lines up letter for letter.
+    const ks = searchKey(s);
+    const kn = searchKey(needle);
+    i = ks.length === s.length && kn.length === needle.length ? ks.indexOf(kn) : -1;
+  }
   if (i < 0) return s;
   return [
     s.slice(0, i),
@@ -89,7 +99,7 @@ function highlightMatch(text, q) {
 
 // exact > prefix > contains; ties broken by recency-boost then updated_at.
 function boardRank(name, lq) {
-  const t = (name || '').toLowerCase();
+  const t = searchKey(name);
   if (t === lq) return 0;
   if (t.startsWith(lq)) return 1;
   if (t.includes(lq)) return 2;
@@ -103,7 +113,7 @@ function boardRank(name, lq) {
 // is read as help or as noise.
 function EmptySearchHelp({ q, emptyHelp, onClose }) {
   const loggedRef = useRef(false);
-  const short = q.trim().length <= 2;
+  const short = searchLength(q) <= Math.max(2, minSearchLength(q));
   useEffect(() => {
     if (loggedRef.current) return;
     loggedRef.current = true;
@@ -167,6 +177,9 @@ export function CommandPalette({
   const [pageHits, setPageHits] = useState([]);
   // `#name`: the tag it names, and everything carrying it.
   const [tagHits, setTagHits] = useState(null); // { tag, rows } | null
+  // Pictures found through the English translation of a query in another
+  // language (searchTranslate.js): { english, rows } | null.
+  const [translatedPics, setTranslatedPics] = useState(null);
   const [loading, setLoading] = useState(false);
   // The search itself failed (null from searchEntities), which is not "No results".
   const [searchFailed, setSearchFailed] = useState(false);
@@ -180,6 +193,7 @@ export function CommandPalette({
     setQuery(initialQuery || '');
     setAsyncRows([]);
     setPageHits([]);
+    setTranslatedPics(null);
     setLoading(false);
     setSearchFailed(false);
     searchedRef.current = false;
@@ -188,13 +202,13 @@ export function CommandPalette({
   }, [open]);
 
   const q = query.trim();
-  const lq = q.toLowerCase();
+  const lq = searchKey(q);
 
   // Debounced content search (cards/notes/docs/tags + boards-by-meta). Last
   // query wins via the cancelled flag. No-op without a workspace (local shell).
   useEffect(() => {
     if (!open) return;
-    if (!workspaceId || !q) { setAsyncRows([]); setPageHits([]); setTagHits(null); setLoading(false); setSearchFailed(false); return; }
+    if (!workspaceId || !q) { setAsyncRows([]); setPageHits([]); setTagHits(null); setTranslatedPics(null); setLoading(false); setSearchFailed(false); return; }
     let cancelled = false;
     setLoading(true);
     // `#name` lists everything carrying the tag it names (the tag page's
@@ -215,12 +229,14 @@ export function CommandPalette({
         setSearchFailed(failed);
         setAsyncRows([]);
         setPageHits([]);
+        setTranslatedPics(null);
         setTagHits(tag ? { tag, rows } : null);
         setLoading(false);
       }, 200);
       return () => { cancelled = true; clearTimeout(id); };
     }
     setTagHits(null);
+    setTranslatedPics(null);
     const id = setTimeout(async () => {
       const [rows, pages] = await Promise.all([
         searchEntities({ workspaceId, query: q, limit: 30, kinds: isPick ? ['board'] : undefined }).catch(() => null),
@@ -257,6 +273,28 @@ export function CommandPalette({
           });
         } catch (_) {}
       }
+      // A query in another language: the pictures whose English description
+      // holds every word of its translation (picture descriptions are English).
+      // Last, so the word results and the search event never wait on a model,
+      // and only where the workspace and this browser allow AI, since the query
+      // goes to one. Any failure leaves the word results as they are.
+      const lang = isPick ? null : queryLanguage(q);
+      if (lang) {
+        try {
+          if (!(await readWorkspaceAiEnabled(workspaceId)) || cancelled) return;
+          const english = await translateQuery(q, lang, { workspaceId });
+          if (cancelled) return;
+          const words = pictureWords(english);
+          const found = words.length ? await searchPicturesByWords({ workspaceId, words, limit: CAP.cards }) : [];
+          if (cancelled) return;
+          const have = new Set((rows || []).map((r) => r.id));
+          const pics = (found || []).filter((r) => isStoredPicture(r) && !have.has(r.id));
+          if (pics.length) {
+            setTranslatedPics({ english: words.join(' '), rows: pics });
+            primeImageMeta(pics.map((r) => r.meta.src.slice(3))).catch(() => {});
+          }
+        } catch (_) {}
+      }
     }, 250);
     return () => { cancelled = true; clearTimeout(id); };
   }, [open, q, workspaceId, isPick, retryTick]);
@@ -266,7 +304,7 @@ export function CommandPalette({
     if (!open || !q) return [];
     const recentSet = new Set(recents);
     return Object.values(boards || {})
-      .filter(b => b.id !== rootId && !excludeIds.includes(b.id) && b.name && b.name.toLowerCase().includes(lq))
+      .filter(b => b.id !== rootId && !excludeIds.includes(b.id) && b.name && searchKey(b.name).includes(lq))
       .sort((a, b) => {
         const ra = boardRank(a.name, lq), rb = boardRank(b.name, lq);
         if (ra !== rb) return ra - rb;
@@ -282,7 +320,7 @@ export function CommandPalette({
     if (!open || !q || isPick) return [];
     return commands.filter(c => {
       if (c.available === false) return false;
-      const hay = `${c.label} ${(c.keywords || []).join(' ')}`.toLowerCase();
+      const hay = searchKey(`${c.label} ${(c.keywords || []).join(' ')}`);
       return hay.includes(lq);
     });
   }, [open, q, lq, commands, isPick]);
@@ -447,6 +485,17 @@ export function CommandPalette({
       }),
     });
 
+    if (translatedPics?.rows?.length) {
+      const items = translatedPics.rows.filter(r => !r.board_id || !!boards?.[r.board_id]).map(r => ({
+        key: r.id, kind: r.kind, icon: KIND_ICON[r.kind] || FileText,
+        title: r.title || r.meta?.fileName || 'Untitled',
+        sub: ['In the picture: ' + translatedPics.english, boards?.[r.board_id]?.name].filter(Boolean).join(' · '),
+        picture: r.meta.src,
+        activate: () => { close(); onNavigateRef?.(rowToTarget(r)); },
+      }));
+      if (items.length) out.push({ id: 'pictures-translated', label: 'Pictures', items });
+    }
+
     if (asyncGroups.tags.length) out.push({
       id: 'tags', label: 'Tags',
       items: asyncGroups.tags.map(r => ({
@@ -478,7 +527,7 @@ export function CommandPalette({
     });
 
     return out;
-  }, [isPick, allBoardsList, onPickBoard, boards, commandHits, recentBoards, localBoards, asyncGroups, pageHits, tagHits, q, onClose, onOpenBoard, onNavigateRef]);
+  }, [isPick, allBoardsList, onPickBoard, boards, commandHits, recentBoards, localBoards, asyncGroups, translatedPics, pageHits, tagHits, q, onClose, onOpenBoard, onNavigateRef]);
 
   const flat = useMemo(() => sections.flatMap(s => s.items), [sections]);
   const flatIndexByKey = useMemo(() => {
@@ -522,6 +571,7 @@ export function CommandPalette({
   if (!open) return null;
 
   const handleKeyDown = (e) => {
+    if (isComposingKey(e)) return;
     if (e.key === 'Escape') { e.preventDefault(); onClose?.(); return; }
     onKeyDown(e);
   };
@@ -543,6 +593,7 @@ export function CommandPalette({
           <input
             ref={inputRef}
             className="cmdk-input"
+            dir="auto"
             placeholder={placeholder || (isPick ? 'Search boards to link…' : 'Search boards, cards, tags — or run a command')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -615,9 +666,9 @@ export function CommandPalette({
                       <span className="cmdk-row-icon"><Icon as={item.icon || LayoutGrid} size={16} /></span>
                     )}
                     <span className="cmdk-row-text">
-                      <span className="cmdk-row-name">{highlightMatch(item.title, q)}</span>
+                      <span className="cmdk-row-name" dir={item.kind === 'command' ? undefined : 'auto'}>{highlightMatch(item.title, q)}</span>
                       {item.sub ? (
-                        <span className="cmdk-row-sub">{item.picture ? item.sub : highlightMatch(item.sub, q)}</span>
+                        <span className="cmdk-row-sub" dir={item.kind === 'command' ? undefined : 'auto'}>{item.picture ? item.sub : highlightMatch(item.sub, q)}</span>
                       ) : null}
                     </span>
                     {item.kind === 'command' ? (

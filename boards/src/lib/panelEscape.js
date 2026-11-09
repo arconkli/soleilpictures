@@ -9,6 +9,8 @@
 // that holds words keeps the panel open, because a slip would cost the
 // reader their place.
 
+import { isComposingKey } from './composerKeys.js';
+
 function isTextField(t) {
   if (!t) return false;
   if (t.isContentEditable) return true;
@@ -17,7 +19,7 @@ function isTextField(t) {
 
 // e — the keydown event; selector — the panel's root class (".msg-panel").
 export function escapeClosesPanel(e, selector) {
-  if (!e || e.key !== 'Escape' || e.defaultPrevented || e.isComposing) return false;
+  if (!e || e.key !== 'Escape' || e.defaultPrevented || isComposingKey(e)) return false;
   const t = e.target;
   if (!t?.closest?.(selector)) return false;
   if (isTextField(t) && String(t.value ?? t.textContent ?? '').trim()) return false;

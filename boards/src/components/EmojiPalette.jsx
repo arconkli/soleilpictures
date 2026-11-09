@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // The quick reactions: this palette, and the row along the top of a
 // message's press-and-hold sheet.
@@ -32,7 +33,7 @@ export function EmojiPalette({ anchor, trigger = null, onPick, onClose }) {
     };
     // Claim Escape (preventDefault) so whatever the palette opened over (the
     // Messages panel, a comment) doesn't close on the same press.
-    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);

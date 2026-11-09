@@ -20,6 +20,7 @@ import { tagDocRange } from './tagsApi.js';
 import { isDebug } from './aiTaggerLog.js';
 import { cosineDist, NO_MATCH_DIST } from './clusterMath.js';
 import { AUTO_RANGE_SOURCES, planRangeReconcile } from './docRangeReconcile.js';
+import { locateAnchor } from './anchorLocate.js';
 
 // Verdict cache: skip the /apply round-trip when we've already
 // scored a (paragraph, tag) pair for this content. Keyed by
@@ -218,22 +219,10 @@ async function runParagraphCascadeOnce({
             // occurrence of the claimed word, then pick the one closest
             // to the AI's guess.
             const aiStart = Number(w.start_offset);
-            const escaped = claimed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const re = new RegExp(escaped, 'gi');
-            let bestStart = -1;
-            let bestLen = 0;
-            let bestDist = Infinity;
-            let m;
-            while ((m = re.exec(c.p.text)) !== null) {
-              const dist = Number.isFinite(aiStart) ? Math.abs(m.index - aiStart) : 0;
-              if (dist < bestDist) {
-                bestDist = dist;
-                bestStart = m.index;
-                bestLen = m[0].length;
-              }
-              if (m[0].length === 0) re.lastIndex++;
-            }
-            if (bestStart < 0) continue;
+            const hit = locateAnchor(c.p.text, claimed, aiStart);
+            if (!hit) continue;
+            const bestStart = hit.start;
+            const bestLen = hit.length;
             validWords.push({ startOffset: bestStart, length: bestLen, confidence: ta.confidence });
             const contextText = buildContextSnippet(c.p.text, bestStart, bestStart + bestLen);
             tierResults.push({

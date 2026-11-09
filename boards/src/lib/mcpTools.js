@@ -641,7 +641,7 @@ export const TOOLS = [
     annotations: READS,
     peoplesText: true,
     inputSchema: schema({
-      query: str('Words to look for', { minLength: 2 }),
+      query: str('Words to look for (CJK: 1 character ok)', { minLength: 1 }),
       kind: str('Only boards, or only cards', { enum: ['board', 'card'] }),
       workspace_id: uuid('Only this workspace'),
       limit: int(`Per kind: default ${SEARCH_DEFAULT}, max ${SEARCH_MAX}`, { minimum: 1, maximum: SEARCH_MAX }),

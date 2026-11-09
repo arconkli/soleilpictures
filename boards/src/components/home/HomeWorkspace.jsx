@@ -17,6 +17,8 @@ import { ChevronDown } from '../../lib/icons.js';
 import { WorkspaceMenu } from '../WorkspaceMenu.jsx';
 import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { workspaceMenuPlacement } from '../../lib/projectsHome.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
+import { initialOf } from '../../lib/graphemes.js';
 
 export function HomeWorkspace({
   workspace, workspaces, personalWorkspaceId, selfUserId, wsPeers,
@@ -98,7 +100,7 @@ export function HomeWorkspace({
           <span className="ch-ws-avatar is-img" aria-hidden="true"><R2Image src={iconSrc} alt="" /></span>
         ) : (
           <span className="ch-ws-avatar" style={{ background: pickPresenceColor(workspace.id) }} aria-hidden="true">
-            {name.charAt(0).toUpperCase()}
+            {initialOf(name, '')}
           </span>
         )}
         {renaming ? (
@@ -106,7 +108,7 @@ export function HomeWorkspace({
             <input ref={inputRef} value={draft} maxLength={120} aria-label="Workspace name"
                    onChange={(e) => setDraft(e.target.value)}
                    onBlur={commit}
-                   onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); } }} />
+                   onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); } }} />
           </form>
         ) : (
           <h1 className="ch-ws-name" title={name}>{name}</h1>

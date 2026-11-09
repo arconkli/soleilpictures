@@ -5,7 +5,7 @@ h1: Search and the command palette
 navLabel: Search
 section: organize
 order: 2
-updated: 2026-10-27
+updated: 2026-11-09
 answer: Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
 faq:
   - q: Does search look inside my notes and documents?
@@ -41,6 +41,12 @@ related:
   each opened in place
 - **Docs** — by title, and by the words on every page: a match shows the line
   it came from, under **Inside docs**, and opens the document at that page
+
+Search ignores accents, so `cafe` finds `Café` and `strasse` finds `Straße`, and
+one character is enough to search Chinese, Japanese and Korean.
+Search a picture in your own language too, say `바다`: the words are put into
+English to match the descriptions. They go to an AI model for that, so it is off
+in a workspace whose AI suggestions are off.
 
 A document written before search learned to read it is indexed the next time it,
 or anything else in its cluster, is edited. Inside one long document, `⌘F` finds

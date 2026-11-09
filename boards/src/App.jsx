@@ -399,6 +399,8 @@ import { MobileBottomNav } from './components/shell/MobileBottomNav.jsx';
 import { openableUrl } from './lib/openableUrl.js';
 import { holdNoteTypeAhead } from './lib/noteTypeAhead.js';
 import { dropUnclaimedTouchKeyboard } from './lib/touchKeyboard.js';
+import { isComposingKey } from './lib/composerKeys.js';
+import { initialOf } from './lib/graphemes.js';
 
 // A cluster with nothing on its board but files in Files gets a cover of its
 // pictures (lib/coverMosaic.js). Stored covers reach every host, so only where
@@ -1077,6 +1079,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       try { aside?.querySelector('.sb-ws-trigger')?.focus({ preventScroll: true }); } catch (_) {}
     });
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       // The workspace menu inside the drawer closes first, on its own.
       if (wsMenuOpenRef.current) return;
@@ -6471,7 +6474,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       workspaces: rows.map((w) => ({
         id: w.id,
         name: w.name,
-        letter: (w.name || '').trim().charAt(0).toUpperCase() || realTeam.letter,
+        letter: initialOf(w.name, realTeam.letter),
         color: realTeam.color || pickPresenceColor(w.id),
         private: w.org_visibility === 'private',
       })),
@@ -11149,7 +11152,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             // The files sidebar's is neutral: the name beside it says
             // which workspace, and gold and colour are kept for data.
             <span className="sb-ws-avatar" style={filesSidebar ? undefined : { background: pickPresenceColor(workspace.id) }}>
-              {(workspace.name || '?').trim().charAt(0).toUpperCase()}
+              {initialOf(workspace.name)}
             </span>
           );
         })()}
@@ -11678,7 +11681,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     <React.Fragment key={`${c.id}-${i}`}>
                       {i > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
                       <span className={`crumb ${i === activeCrumbs.length - 1 ? 'here' : 'clk'}`}
-                            title={c.name} onClick={() => onActiveCrumb(i)}>{c.name}</span>
+                            title={c.name} dir="auto" onClick={() => onActiveCrumb(i)}>{c.name}</span>
                     </React.Fragment>
                   ))}
                 </div>
@@ -11810,7 +11813,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 <React.Fragment key={`${c.id}-${i}`}>
                   {i > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
                   <span className={`crumb ${i === activeCrumbs.length - 1 ? 'here' : 'clk'}`}
-                        title={c.name} onClick={() => onActiveCrumb(i)}>{c.name}</span>
+                        title={c.name} dir="auto" onClick={() => onActiveCrumb(i)}>{c.name}</span>
                 </React.Fragment>
               ))}
             </div>
@@ -12927,7 +12930,7 @@ function TopbarAddMenu({ onAddBoard, onAddDoc, onLinkBoard }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!open) return;
-    const onKey = (event) => { if (event.key === 'Escape') setOpen(false); };
+    const onKey = (event) => { if (isComposingKey(event)) return; if (event.key === 'Escape') setOpen(false); };
     const onDown = (event) => { if (!event.target.closest?.('.topbar-add')) setOpen(false); };
     window.addEventListener('keydown', onKey);
     // pointerdown (capture) + mousedown so a tap-away closes it on touch.

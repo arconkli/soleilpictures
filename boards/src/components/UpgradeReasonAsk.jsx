@@ -36,6 +36,7 @@ import { buildFeedbackContext, describeFeedbackContext } from '../lib/feedbackCo
 import { feedbackEnv } from '../lib/feedbackEnv.js';
 import { OFFER_DISMISSED } from '../lib/offerEvents.js';
 import { useAuth } from '../auth/AuthGate.jsx';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // The server's closed list (submit_upgrade_reason, 0348) and its labels
 // (_upgrade_reason_label). feedbackContract.test.mjs compares both, in order.
@@ -274,9 +275,11 @@ export function UpgradeReasonAsk() {
   };
 
   const onKeyDown = (e) => {
+    if (isComposingKey(e)) return;
     if (e.key === 'Escape') { e.stopPropagation(); dismiss('esc'); }
   };
   const onNoteKeyDown = (e) => {
+    if (isComposingKey(e)) return;
     touchedRef.current = true;
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); send(); }
   };
@@ -315,6 +318,7 @@ export function UpgradeReasonAsk() {
         {picked && (
           <textarea
             className="rr-note"
+            dir="auto"
             rows={2}
             value={note}
             maxLength={500}

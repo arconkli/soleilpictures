@@ -29,6 +29,8 @@ import { ChevronDown, ChevronUp, DownloadSimple, Minus, Plus, X } from '../lib/i
 import { tlTip } from '../lib/looks.js';
 import { ariaKeys } from '../lib/ariaKeys.js';
 import { reportError } from '../lib/errorReporting.js';
+import { isComposingKey } from '../lib/composerKeys.js';
+import { safeFileName } from '../lib/safeFileName.js';
 
 // A portal still bubbles through the React tree to the card and canvas
 // handlers that rendered it; presses on the viewer are the viewer's own.
@@ -292,6 +294,7 @@ export function PdfViewer({ src, name, onClose, embedded = false, onPageChange =
   // A dialog opened over the viewer owns the keys while it is on top.
   useEffect(() => {
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (guardRef.current && !isTopModal(guardRef.current)) return;
       // Embedded, the host is the registered layer, so the check above can't
       // see a dialog opened over it (the share dialog over Quick look): a key
@@ -310,9 +313,7 @@ export function PdfViewer({ src, name, onClose, embedded = false, onPageChange =
   }, [status, current, scrollToPage, onClose, embedded, zoom]);
 
   const filename = useCallback(() => {
-    let b = (name || 'document').toString().trim().replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80);
-    if (!/\.pdf$/i.test(b)) b += '.pdf';
-    return b;
+    return safeFileName(name || 'document', { ext: 'pdf', fallback: 'document' });
   }, [name]);
 
   const onDownload = useCallback(async (e) => {

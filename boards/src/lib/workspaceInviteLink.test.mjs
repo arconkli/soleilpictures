@@ -2,8 +2,10 @@
 // migration definition, so a later rewrite cannot quietly drop a check.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { latestDefinition, latestMatch } from './migrationText.mjs';
+import { readFileSync } from 'node:fs';
+import { latestDefinition, latestMatch, MIGRATIONS_DIR } from './migrationText.mjs';
 import { NAME_MAX } from './workspaceSetup.js';
+import { JOINING_SCRIPTS, VIRAMAS } from '../../../supabase/functions/_shared/email/safeLabel.mjs';
 
 const body = (name) => {
   const d = latestDefinition(name);
@@ -87,10 +89,41 @@ test('the member email trigger stays quiet for a link join and still skips servi
 
 test('_safe_label writes its special characters as \\x escapes, in plain ASCII', () => {
   const b = body('_safe_label');
-  assert.ok(b.includes("normalize(coalesce(p_value, ''), NFKC)"));
+  assert.ok(b.includes("left(normalize(coalesce(p_value, ''), NFKC), 1000)"));
   assert.ok(b.includes('chr(8230)'));
-  assert.doesNotMatch(b, /\\u[0-9a-f]{4}/i, 'tooling rewrites \\u escapes into invisible characters');
-  for (const ch of b) assert.ok(ch.codePointAt(0) < 128, `non-ASCII character U+${ch.codePointAt(0).toString(16)}`);
+  assert.ok(b.includes('s := public._safe_label_scrub(s);'));
+  // The hand-written bodies use \x escapes. Only the generated helpers (0881:
+  // _safe_label_marks_a and _b, _numbers, _cjk, _tlds_cjk, _tlds_other_a
+  // and _b, _picto and _modifiers, from boards/scripts/gen-idn-tlds.mjs) use
+  // fixed-width \u and \U escapes, each in a body that is nothing but the one
+  // string it returns; safeLabelSql.test.mjs decodes and checks them, and the
+  // ASCII check below catches a tool that rewrites one into the character
+  // itself.
+  const generated = ['marks_a', 'marks_b', 'numbers', 'cjk', 'tlds_cjk', 'tlds_other_a', 'tlds_other_b', 'picto', 'modifiers'];
+  for (const g of generated) {
+    assert.match(body('_safe_label_' + g), new RegExp(`^create or replace function public\\._safe_label_${g}\\(\\)\\nreturns text\\nlanguage sql immutable parallel safe\\nset search_path = ''\\nas \\$\\$ select '[^']*'::text \\$\\$;$`));
+  }
+  const file = readFileSync(MIGRATIONS_DIR + latestDefinition('_safe_label').file, 'utf8');
+  const handWritten = file.replace(/\nas \$\$ select '[^']*'::text \$\$;\n/g, '\n');
+  assert.equal(file.length - handWritten.length > 10000, true, 'the generated bodies were not found');
+  assert.equal((file.match(/\nas \$\$ select '[^']*'::text \$\$;\n/g) || []).length, generated.length);
+  assert.doesNotMatch(handWritten, /\\u[0-9a-f]{4}/i, 'tooling rewrites \\u escapes into invisible characters');
+  assert.doesNotMatch(body('_safe_label_scrub'), /\\u[0-9a-f]{4}/i);
+  for (const ch of file) assert.ok(ch.codePointAt(0) < 128, `non-ASCII character U+${ch.codePointAt(0).toString(16)}`);
+});
+
+// The SQL copy of safeLabel keeps the joining scripts the .mjs does: the class
+// J in the latest definition of its scrub step is JOINING_SCRIPTS written as
+// \x ranges.
+test('_safe_label names the same joining scripts as safeLabel.mjs', () => {
+  assert.ok(latestDefinition('_safe_label').file >= '0881', 'the latest _safe_label predates 0881');
+  const d = latestDefinition('_safe_label_scrub');
+  assert.ok(d && d.file >= '0881', `the latest _safe_label_scrub is ${d?.file}`);
+  const hex = (n) => n.toString(16).padStart(4, '0');
+  const j = JOINING_SCRIPTS.map(([a, b]) => `\\x${hex(a)}-\\x${hex(b)}`).join('');
+  assert.ok(d.body.includes(`[${j}]`), 'class J (JOINING_SCRIPTS) is missing or out of step');
+  const v = [...VIRAMAS].map((c) => `\\x${hex(c)}`).join('');
+  assert.ok(d.body.includes(`[${v}]`), 'class V (VIRAMAS) is missing or out of step');
 });
 
 test('only the preview is callable signed out; the helpers are not callable by clients', () => {

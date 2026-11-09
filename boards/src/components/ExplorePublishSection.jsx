@@ -142,6 +142,7 @@ export function ExplorePublishSection({ board, canManage, collapsible = false })
         <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
           <input
             className="share-input"
+            dir="auto"
             placeholder={board?.name || 'Public title'}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -149,6 +150,7 @@ export function ExplorePublishSection({ board, canManage, collapsible = false })
           />
           <textarea
             className="share-input"
+            dir="auto"
             placeholder="One-line description (optional)"
             value={desc}
             onChange={(e) => setDesc(e.target.value)}

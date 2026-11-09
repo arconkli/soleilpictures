@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom';
 import { addRecentColor, addSavedColor, removeSavedColor, isColorSaved } from '../lib/recentColors.js';
 import { useRecentColors, useSavedColors } from '../hooks/useRecentColors.js';
 import { swallowContextMenu } from '../lib/contextMenuGuard.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const PRESETS = [
   '#ffffff', '#0a0a0c', '#f5f5f6', '#5b5c61',
@@ -126,7 +127,7 @@ export function ColorPicker({
       if (!armed) return;
       if (ref.current && !ref.current.contains(e.target)) onCloseRef.current?.();
     };
-    const onKey = (e) => { if (e.key === 'Escape') onCloseRef.current?.(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onCloseRef.current?.(); };
     // Capture phase + both mouse and pointer so card stopPropagation can't
     // swallow it. Pointer events fire before mouse on most platforms.
     document.addEventListener('pointerdown', onDocDown, true);
@@ -502,7 +503,7 @@ function PaletteSearch({ palettes, currentHex, onPick, onClose }) {
     const onDown = (e) => {
       if (ref.current && !ref.current.contains(e.target)) onClose();
     };
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onClose(); };
     document.addEventListener('pointerdown', onDown, true);
     window.addEventListener('keydown', onKey);
     return () => {

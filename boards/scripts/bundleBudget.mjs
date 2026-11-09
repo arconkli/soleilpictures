@@ -121,7 +121,15 @@ export const CEILINGS = {
   // leaves the note readable with a toast instead of reloading the page
   // (lib/lazyWithReload.js, components/AppFeedback.jsx). A CI-style build
   // measured entryJs 172,813 B on main 6f5abd23 and 173,124 B with it.
-  entryJs: 173_500,
+  // 2026-11-09: +0.9 KB for names and titles in any script on the pages that
+  // show before the app: a shared cluster's title is cut at 40 whole
+  // characters, never inside an emoji or an accented letter
+  // (lib/shareRoutes.js), and the public top bar's and the sign-in join
+  // card's letter is a name's first character whole (PublicTopbar.jsx,
+  // auth/AuthGate.jsx). All three read lib/graphemes.js, so it ships in the
+  // entry. A CI-style build on this worktree's own npm ci (which reads what
+  // CI reads) measured entryJs 173,117 B on main ba2e6e95 and 173,932 B with it.
+  entryJs: 174_400,
   // 2026-11-09: +0.2 KB for d2b3c2f0's rules in styles.css, over this
   // ceiling in the same run: 96,166 B on 1c770b58, 96,291 B on d2b3c2f0.
   // 2026-11-09: +0.1 KB for where those words sit and fade in under the sun
@@ -134,7 +142,13 @@ export const CEILINGS = {
   // quotes and inline code in older notes, centred text that stays put as a
   // note opens, and a checklist box and Show all sized for a finger on touch.
   // 96,587 B on main 6f5abd23, 96,771 B with it.
-  entryCss: 96_800,
+  // 2026-11-09: +0.4 KB for writing right to left (styles.css): list indents
+  // and markers on the side a Hebrew or Arabic line starts (notes, docs,
+  // comments, messages), fields that follow the direction of what is typed
+  // (dir=auto), links that keep their own direction, and Impact named for
+  // Latin only, so a title in another script draws in a font that has it.
+  // 96,771 B on main ba2e6e95, 97,135 B with it.
+  entryCss: 97_200,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
   // they draw (vite.config.js iconSplit), from 687 KB.
@@ -347,7 +361,21 @@ export const CEILINGS = {
   // and App.jsx. The editor stays a chunk of its own. CI-style builds on the
   // shared node_modules measured appJs 731,600 B on main 6f5abd23 and
   // 734,815 B with it; the ceiling moves by the difference, 3,215 B.
-  appJs: 735_900,
+  // 2026-11-09: +8.0 KB for writing in any language, the part the app runs at
+  // once: Hebrew and Arabic laid out right to left as they are typed and
+  // shown (lib/textDirection.js); tags found in text in any script
+  // (lib/tagWordMatch.js, entityNameTrie.js); a zip's file names from older
+  // Windows and Japanese tools read right (lib/zipRead.js); search that
+  // ignores accents (lib/textFold.js, entitySearchFilter.js); pictures found
+  // from a query in another language (lib/searchTranslate.js, which asks a
+  // model only where AI is on); file names that keep their own letters
+  // (lib/safeFileName.js); and emoji kept whole in names and cut labels
+  // (lib/joiners.js, truncateToWidth.js). The editor's direction plugin, the
+  // screenplay's font plan, the AI tagger's word finder and the PDF viewer's
+  // character maps load only where they are used. A CI-style build on this
+  // worktree's own npm ci measured appJs 735,343 B on main ba2e6e95 and
+  // 743,320 B with it; the ceiling moves by the difference, 7,977 B.
+  appJs: 743_900,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).

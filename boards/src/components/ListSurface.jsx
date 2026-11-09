@@ -97,6 +97,8 @@ import {
 // app has from ClusterSidebar and a shared link from PublicBoardView
 // (clusterBrowser/filesPagePublic.css), never from here.
 import './clusterBrowser/filesPage.css';
+import { isComposingKey } from '../lib/composerKeys.js';
+import { searchKey } from '../lib/textFold.js';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 
@@ -1320,6 +1322,7 @@ export function ListSurface({
   // arbitration. A second listener would have fired in both panes.
   useEffect(() => {
     const onKey = async (e) => {
+      if (isComposingKey(e)) return;
       if (anyModalOpen()) return; // dialogs own the keyboard (lib/modalGuard)
       // So does an open menu — right-click, View, the path ▾, sort: Escape
       // closes the menu alone and arrows stay in it.
@@ -2136,7 +2139,7 @@ export function ListSurface({
       ...subBoards.map((b) => ({ kind: 'sub', b, name: b.name || '' })),
       ...linkedCards.map((c) => ({ kind: 'link', c, name: boards[c.target]?.name || c.name || '' })),
     ];
-    return q ? all.filter((f) => f.name.toLowerCase().includes(q)) : all;
+    return q ? all.filter((f) => searchKey(f.name).includes(searchKey(q))) : all;
   })();
   const folderShelf = sb
     ? { count: shownFolders.length, nodes: shownFolders.map((f) => (f.kind === 'sub' ? renderSubFolder(f.b) : renderLinkedFolder(f.c))) }

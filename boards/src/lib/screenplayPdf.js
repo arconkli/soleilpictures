@@ -21,6 +21,7 @@
 // paginator counts in. It is lazy-imported so it never touches the main bundle.
 
 import { paginate, wrapLines } from './screenplayPaginate.js';
+import { ScreenplayNeedsHtml, screenplayPdfRoute, screenplayTexts, missingGlyphs } from './scriptFontPlan.js';
 import { elementIndent, elementWidth, elementSpacing, dualElementWidth, PAGE_LINES, TEXT_HEIGHT_IN } from './screenplayMetrics.js';
 import { computeAutoContd, characterCueDisplay, computeSceneNumbers } from '../components/docExtensions/screenplay/screenplayFlow.js';
 
@@ -184,12 +185,53 @@ function drawTitlePage(doc, tp) {
   drawFoot([tp.draftDate, tp.notes], RIGHT, 'right');
 }
 
+export const SCREENPLAY_FONT = { url: '/fonts/Cousine-Regular.ttf', vfs: 'Cousine-Regular.ttf', family: 'Cousine' };
+
+export { ScreenplayNeedsHtml, screenplayPdfRoute, screenplayTexts };
+
+async function fetchFontBase64(url) {
+  const res = await fetch(new URL(url, window.location.href));
+  if (!res.ok) throw new Error(`font ${res.status}`);
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+
 // blocks: [{ element, text, dual?, sceneNumber? }]. Returns a PDF Blob.
-export async function buildScreenplayPdfBlob(blocks, { title = 'Screenplay', titlePage = null, sceneNumbers = false } = {}) {
+//
+// Which font draws it depends on the script (scriptFontPlan.js): Courier when
+// every character is WinAnsi, Cousine (a Courier New metric twin, fetched on
+// demand) for Greek, Cyrillic and extended Latin, and ScreenplayNeedsHtml for
+// anything jsPDF can't shape (RTL, CJK, Thai, Indic, emoji, ...): the caller
+// then prints the HTML version instead. `loadFont(url)` → base64, injectable.
+export async function buildScreenplayPdfBlob(blocks, { title = 'Screenplay', titlePage = null, sceneNumbers = false, loadFont = fetchFontBase64 } = {}) {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'in', format: 'letter', orientation: 'portrait' });
   doc.setProperties({ title });
-  doc.setFont('courier', 'normal');     // plain (non-bold) — sluglines included
+  const texts = screenplayTexts(blocks, titlePage && titlePage.enabled ? titlePage : null);
+  const route = screenplayPdfRoute(texts);
+  if (route === 'html') throw new ScreenplayNeedsHtml();
+  if (route === 'font') {
+    // A font that fails to load (offline, a 404) must not fail the export:
+    // the browser prints the same pages with its own fonts instead.
+    let fontData;
+    try { fontData = await loadFont(SCREENPLAY_FONT.url); } catch (err) {
+      throw new ScreenplayNeedsHtml(`font failed to load: ${err?.message || err}`);
+    }
+    doc.addFileToVFS(SCREENPLAY_FONT.vfs, fontData);
+    doc.addFont(SCREENPLAY_FONT.vfs, SCREENPLAY_FONT.family, 'normal');
+    doc.setFont(SCREENPLAY_FONT.family, 'normal');
+    // A script the font only half covers (Armenian, Georgian, ...) would print
+    // blanks: let the browser typeset it.
+    if (missingGlyphs(texts, (cp) => !!doc.getFont().metadata?.cmap?.unicode?.codeMap?.[cp]).length) {
+      throw new ScreenplayNeedsHtml();
+    }
+  } else {
+    doc.setFont('courier', 'normal');   // plain (non-bold) — sluglines included
+  }
   doc.setFontSize(FONT_SIZE);
   doc.setTextColor(0, 0, 0);
 

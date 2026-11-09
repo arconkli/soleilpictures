@@ -60,7 +60,7 @@ function DoneFold({ r, touch }) {
       {open && r.done.map((d) => (
         <div key={d.key} className={'atr-row is-done' + t}>
           <span className="atr-th is-kind is-ok" aria-hidden="true"><Icon as={Check} size={12} weight="regular" /></span>
-          <span className="n">{d.name}</span>
+          <span className="n" dir="auto">{d.name}</span>
         </div>
       ))}
     </>
@@ -88,7 +88,7 @@ function Row({ r, item, touch, gap }) {
     return (
       <div className={'atr-row is-fail' + t}>
         <Thumb thumb={r.thumb} mime={r.mime} name={r.name} dim />
-        <span className="atr-two"><span className="n" title={r.name}>{r.name}</span><span className="w">{r.why}</span></span>
+        <span className="atr-two"><span className="n" dir="auto" title={r.name}>{r.name}</span><span className="w">{r.why}</span></span>
         {r.retry && (
           <button type="button" className="imptray-btn is-sm atr-retry" aria-label={`Retry ${r.name}`} onClick={() => item?.actions?.retry?.()}>
             <Icon as={ArrowClockwise} size={12} weight="regular" />Retry
@@ -102,7 +102,7 @@ function Row({ r, item, touch, gap }) {
   return (
     <div className={'atr-row' + cls + t}>
       <Thumb thumb={r.thumb} mime={r.mime} name={r.name} dim={r.state === 'later'} />
-      <span className="n" title={r.name}>{r.name}</span>
+      <span className="n" dir="auto" title={r.name}>{r.name}</span>
       {r.pct != null && <Minibar pct={r.pct} />}
       <span className="c">{r.c}</span>
       {button}

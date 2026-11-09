@@ -28,6 +28,7 @@
 //                       (showcase_library, 0820), showcase/ prefix only.
 
 import { handleTagsRoute } from './worker-tags.js';
+import { handleSearchRoute } from './worker-search.js';
 import { pickOgImage } from './lib/ogImagePick.js';
 import { isUnlistedBoard, postBoardRobots } from './lib/postBoardRobots.js';
 import { handleClustersRoute } from './worker-clusters.js';
@@ -814,6 +815,7 @@ const worker = {
       // Supabase's confirmation flow rather than written here.
       if (url.pathname === '/api/scout/claim') return await handleScoutClaim(request, env);
       if (url.pathname.startsWith('/api/tags/')) return await handleTagsRoute(url, request, env);
+      if (url.pathname.startsWith('/api/search/')) return await handleSearchRoute(url, request, env);
       if (url.pathname.startsWith('/api/clusters/')) return await handleClustersRoute(url, request, env);
       if (url.pathname.startsWith('/api/team/')) return await handleTeamRoute(url, request, env);
       if (url.pathname.startsWith('/api/seo/')) return await handleSeoRoute(url, request, env);

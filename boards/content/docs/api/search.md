@@ -6,12 +6,14 @@ navLabel: Search
 section: developers
 order: 9
 updated: 2026-11-04
-answer: GET /search finds boards and cards by text across everything your account can see, the words inside docs, and pictures by what is in them. Pass q with at least two characters, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.
+answer: GET /search finds boards and cards by text across everything your account can see, the words inside docs, and pictures by what is in them. Pass q with at least two characters (one is enough for Chinese, Japanese and Korean), ignoring accents, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.
 faq:
   - q: What does search look at?
     a: Board names, card titles and text, the pages of docs, and what is in a picture, once a picture you brought in has been described. It is the programmatic equivalent of the Cmd-K palette in the app.
   - q: Why does a one-character query fail?
-    a: A single character matches most of a workspace and costs a full scan to say so. The minimum is two characters, and shorter queries get 400.
+    a: A single Latin, Cyrillic or other alphabetic character matches most of a workspace and costs a full scan to say so. The minimum is two characters, and shorter queries get 400. One character is allowed for Chinese, Japanese (Hiragana, Katakana and Han) and Korean, where a single character is a word.
+  - q: Does search ignore accents?
+    a: Yes, for card text (a picture's title and file name included) and doc pages, both ways. "cafe" finds "Café", "Lodz" finds "Łódź" and "strasse" finds "Straße"; Hebrew points and Arabic vowel marks are ignored too. Letters that are different letters stay different, so Cyrillic й is not и, and Japanese voiced kana (ガ) is not カ. A board's name and what is in a picture are matched as typed or with your accents removed, so "Café" finds "Cafe", but "cafe" does not find "Café".
   - q: Can I search someone else's boards?
     a: Only ones shared with you. Search runs under your permissions like every other call.
 related:
@@ -26,7 +28,7 @@ The programmatic equivalent of [`⌘K`](/docs/organize/search).
 
 | Parameter | Meaning |
 |---|---|
-| `q` | The query. **Minimum two characters** — shorter gets `400`. |
+| `q` | The query. **Minimum two characters** (counted as characters, so an emoji is one) — shorter gets `400`. **One character is enough for Chinese, Japanese and Korean.** Accents are ignored both ways in card text (a picture's title and file name included) and doc pages: `cafe` finds `Café` and `Café` finds `cafe`. A board's name and what is in a picture are matched as typed or with your accents removed, so `Café` finds `Cafe`, but `cafe` does not find `Café`. |
 | `kind` | `board` or `card`. Omit for both. |
 | `workspace` | UUID, to scope to one workspace |
 | `limit` | Page size, default {{fact:defaultPage}}, max {{fact:maxPage}} |
@@ -79,7 +81,8 @@ appear, and there is no mode that searches beyond what your account can see.
 
 ## Notes for agents
 
-- **Two characters minimum.** A one-character query is rejected rather than scanning a workspace to return everything.
+- **Two characters minimum,** except one character of Chinese, Japanese or Korean. Any other one-character query is rejected rather than scanning a workspace to return everything.
+- **Accents do not matter** in card text (a picture's title and file name included) and doc pages: search `cafe` or `Café`; both find both. A board's name and what is in a picture are matched as typed or with your accents removed, so `Café` finds `Cafe` but `cafe` does not find `Café`.
 - **Narrow with `kind`** when you know what you are after; it halves the work.
 - **Paginate.** The result set is capped per page like every list endpoint — follow `next_offset` rather than assuming one page is everything.
 - **Search then act.** The usual loop is `GET /search` to find a card, then [`PATCH /boards/:id/cards/:cardId`](/docs/api/cards) to change it.

@@ -80,11 +80,13 @@ test('toolbar bullet list still works and its markers are visible (indented)', a
 
   const ul = page.locator(`${A_EDIT} ul`);
   await expect(ul).toHaveCount(1);
-  // The reset used to leave padding-left at 0, clipping the outside markers.
+  // The reset used to leave the indent at 0, clipping the outside markers. The
+  // indent is the item's start margin now (not the list's padding), so each
+  // item's marker sits on its own start side in right-to-left text.
   const style = await ul.evaluate((el) => {
     const s = getComputedStyle(el);
-    return { paddingLeft: s.paddingLeft, listStyleType: s.listStyleType };
+    return { itemIndent: getComputedStyle(el.querySelector('li')).marginLeft, listStyleType: s.listStyleType };
   });
-  expect(style.paddingLeft).not.toBe('0px');
+  expect(style.itemIndent).not.toBe('0px');
   expect(style.listStyleType).toBe('disc');
 });

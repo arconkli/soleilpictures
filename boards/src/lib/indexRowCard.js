@@ -12,6 +12,7 @@
 
 import { buildCardIndexRow } from './cardIndexRow.js';
 import { shelfOf } from './sidebarShelves.js';
+import { cutGraphemes } from './graphemes.js';
 
 const SNIPPET_MAX = 160;
 const NAME_MAX = 80;
@@ -73,7 +74,7 @@ export function nameSortKey(item) {
       || name === firstLine(snippet).slice(0, NAME_MAX);
     title = derived ? '' : name;
   }
-  return (title || str(m.fileName) || str(m.name) || snippet.slice(0, 120) || '')
+  return (title || str(m.fileName) || str(m.name) || cutGraphemes(snippet, 120) || '')
     .trim().toLowerCase();
 }
 
@@ -88,7 +89,7 @@ function ms(v) {
 
 function build({ boardId, cardId, kind, shelf, title, snippet, meta, createdAt, updatedAt, seq }) {
   const m = meta && typeof meta === 'object' ? meta : {};
-  const snip = String(snippet || '').slice(0, SNIPPET_MAX);
+  const snip = cutGraphemes(String(snippet || ''), SNIPPET_MAX);
   const bytes = Number(m.sizeBytes);
   return {
     key: `${boardId}:${cardId}`,
@@ -144,7 +145,7 @@ export function itemFromCard(card, { boardId, workspaceId, groupNameById = null 
     kind: row.kind,
     shelf,
     title: row.title,
-    snippet: row.body.slice(0, SNIPPET_MAX),
+    snippet: cutGraphemes(row.body, SNIPPET_MAX),
     meta: row.meta,
     createdAt: card.createdAt,
     updatedAt: card.updatedAt,

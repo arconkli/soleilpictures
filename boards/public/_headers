@@ -45,6 +45,10 @@ https://:worker.:subdomain.workers.dev/*
 # Self-hosted fonts (Courier Prime for screenplay mode) — content-stable.
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
+# pdf.js character maps and standard fonts (vite.config.js pdfjsAssets), under the pdfjs-dist version: content-stable per URL.
+/pdfjs/*
+  Cache-Control: public, max-age=31536000, immutable
+  X-Robots-Tag: noindex
 # Machine-readable documentation: the raw markdown mirror of every /docs page
 # (/docs/api/cards.md), plus the llms.txt corpus files. Short cache — an agent
 # reading these should get today's docs, and they change on deploy rather than

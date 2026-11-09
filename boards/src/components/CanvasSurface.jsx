@@ -221,6 +221,7 @@ import { fetchLinkPreview, previewPatch } from '../lib/linkPreview.js';
 import { detectEmbed } from '../lib/oembed.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { exportBoardAsPng, exportBoardAsPdf } from '../lib/exportBoard.js';
+import { safeFileName } from '../lib/safeFileName.js';
 import { CanvasCommentLayer, CommentArchivePopover } from './CanvasComment.jsx';
 import { useCanvasComments } from '../hooks/useCanvasComments.js';
 import { CanvasVoteLayer } from './CanvasVoteCard.jsx';
@@ -2091,6 +2092,7 @@ export function CanvasSurface({
     return () => cancelAnimationFrame(raf);
   }, [addMenuOpen]);
   const onAddMenuKeyDown = (e) => {
+    if (isComposingKey(e)) return;
     // ← too: the menu opens to the right of the rail, on →.
     if (e.key === 'Escape' || e.key === 'Tab' || e.key === 'ArrowLeft') {
       e.preventDefault();
@@ -6850,6 +6852,7 @@ export function CanvasSurface({
   const boxKeyRef = useRef(null);
   useEffect(() => {
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       // A dialog is open (Trash, Version history, Settings, a confirm, the
       // sketch pad): every canvas shortcut stands down. A focused button in
       // a dialog is not an "editable target", so without this Backspace in
@@ -7274,7 +7277,7 @@ export function CanvasSurface({
   // Escape exits eyedropper mode without sampling.
   useEffect(() => {
     if (!eyedropFor) return;
-    const onKey = (e) => { if (e.key === 'Escape') setEyedropFor(null); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') setEyedropFor(null); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [eyedropFor]);
@@ -10945,13 +10948,14 @@ export function CanvasSurface({
         ? exportBoardAsPdf(picture, board?.name || 'board')
         : exportBoardAsPng(picture, board?.name || 'board'));
       // The tray row (PNG: Exported <name>.png; PDF: gone once the print dialog opens).
-      const fileBase = (board?.name || 'board').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 80);
+      // Named exactly as exportBoardAsPng names the file, so the row says the real name.
+      const pngName = safeFileName(board?.name || 'board', { ext: 'png', fallback: 'board' });
       const done = useTray
         ? await trackOp({
           kind: 'export', label: exportWords({ name: board?.name || 'board', format }),
           boardId: board?.id || null, boardName: board?.name || null,
           key: `export:${board?.id}:${format}`,
-          doneLabel: format === 'pdf' ? null : (r) => (r ? `Exported ${fileBase}.png` : null),
+          doneLabel: format === 'pdf' ? null : (r) => (r ? `Exported ${pngName}` : null),
         }, run)
         : await run();
       if (!done) feedback.toast({ type: 'error', code: 'export_empty', message: 'Nothing to export.' });
@@ -11009,7 +11013,7 @@ export function CanvasSurface({
     // named handler (not {once:true}) so it (a) keeps working across repeated
     // opens and (b) is actually removed on cleanup instead of leaking until
     // some unrelated Escape fires.
-    const onKey = (e) => { if (e.key === 'Escape') setTagChipMenu(null); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') setTagChipMenu(null); };
     // pointerdown too so a tap-away closes it on touch (mousedown may not fire).
     window.addEventListener('pointerdown', onAway, { capture: true });
     window.addEventListener('mousedown', onAway, { capture: true });
@@ -11181,6 +11185,7 @@ export function CanvasSurface({
   useEffect(() => {
     if (!spotlightTagId) return undefined;
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key !== 'Escape' || e.defaultPrevented || isEditableTarget(e.target)) return;
       if (document.querySelector('.ctx-menu, .sb-tag-menu, .tag-picker, .modal-bg, [role="dialog"]')) return;
       e.preventDefault();
@@ -12390,7 +12395,7 @@ export function CanvasSurface({
                   setTagChipMenu({ x: e.clientX, y: e.clientY, kind: 'card', targetId: c.id, tag: t });
                 }}>
             <span className="card-tag-chip-dot" />
-            <span className="card-tag-chip-name">{t.name}</span>
+            <span className="card-tag-chip-name" dir="auto">{t.name}</span>
           </span>
         ))}
         {cardTags.length > 4 && (
@@ -12405,7 +12410,7 @@ export function CanvasSurface({
                 title={`Suggested from ${String(cardSugg.origin || '').startsWith('vision') ? 'the picture' : 'the text'}: ${suggTag.name}. ✓ keeps it, × never suggests it here.`}
                 onPointerDown={(e) => e.stopPropagation()}>
             <Icon as={Sparkle} size={9} className="card-tag-chip-sparkle" />
-            <span className="card-tag-chip-name">{suggTag.name}</span>
+            <span className="card-tag-chip-name" dir="auto">{suggTag.name}</span>
             <span className="card-tag-chip-acts">
               <button type="button" className="card-tag-chip-act" aria-label={`Keep ${suggTag.name}`}
                       onClick={(e) => { e.stopPropagation(); acceptSuggestion(c.id, suggTag); }}>
@@ -13923,7 +13928,7 @@ export function CanvasSurface({
                                 onPointerDown={(e) => e.stopPropagation()}
                                 onClick={(e) => { e.stopPropagation(); toggleSpotlight(t.id, 'group_chip'); }}>
                           <span className="card-tag-chip-dot" />
-                          <span className="card-tag-chip-name">{t.name}</span>
+                          <span className="card-tag-chip-name" dir="auto">{t.name}</span>
                         </button>
                       ))}
                     </span>
@@ -14087,6 +14092,7 @@ export function CanvasSurface({
                   style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
                   title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source}) — right-click to confirm` : ''} — click to light it up on this cluster`}
                   onKeyDown={(e) => {
+                    if (isComposingKey(e)) return;
                     // The cluster's own chips are few, so they take the keyboard.
                     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); }
                   }}
@@ -14102,7 +14108,7 @@ export function CanvasSurface({
                     setTagChipMenu({ x: e.clientX, y: e.clientY, kind: 'board', targetId: board.id, tag: t });
                   }}>
               <span className="card-tag-chip-dot" />
-              <span className="card-tag-chip-name">{t.name}</span>
+              <span className="card-tag-chip-name" dir="auto">{t.name}</span>
             </span>
           ))}
         </div>
@@ -14116,7 +14122,7 @@ export function CanvasSurface({
                   title={`Open ${spotlightTag.name}'s page: everything carrying it, everywhere`}
                   onClick={() => openTagPage(spotlightTag.id, 'spotlight')}>
             <span className="card-tag-chip-dot" />
-            <span className="card-tag-chip-name">{spotlightTag.name}</span>
+            <span className="card-tag-chip-name" dir="auto">{spotlightTag.name}</span>
           </button>
           <span className="tag-spotlight-count">{spotMatched?.size || 0} of {(cards || []).length} cards</span>
           <span className="tag-spotlight-rule" aria-hidden="true" />
@@ -15118,6 +15124,7 @@ export function CanvasSurface({
             aria-haspopup="menu"
             aria-expanded={addMenuOpen}
             onKeyDown={(e) => {
+              if (isComposingKey(e)) return;
               // → opens it, toward where it opens; ↓ is the rail's.
               if (e.key === 'Enter' || e.key === ' ' || (e.key === 'ArrowRight' && !addMenuOpen)) {
                 e.preventDefault();
@@ -15223,6 +15230,7 @@ export function CanvasSurface({
                  aria-pressed={active}
                  aria-expanded={isTpl ? tplPanelOpen : undefined}
                  onKeyDown={(e) => {
+                   if (isComposingKey(e)) return;
                    // Escape is deliberately NOT handled here. The window-level
                    // ladder owns it, and a local handler double-steps: keydown
                    // is a discrete event, so React flushes this setState
@@ -15281,6 +15289,7 @@ export function CanvasSurface({
              tabIndex={0}
              aria-label="Keyboard shortcuts"
              onKeyDown={(e) => {
+               if (isComposingKey(e)) return;
                if (e.key === 'Enter' || e.key === ' ') {
                  e.preventDefault();
                  document.dispatchEvent(new CustomEvent('soleil-open-help'));

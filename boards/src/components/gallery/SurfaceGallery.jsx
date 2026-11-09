@@ -36,6 +36,7 @@ import { useGalleryState } from '../../hooks/useGalleryState.js';
 import { useListboxNav } from '../../hooks/useListboxNav.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { AVAILABLE, RENDERERS } from './entries.jsx';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 const KIND_LABEL = {
   overlay: 'Overlay',
@@ -109,7 +110,7 @@ function GalleryList() {
             className="gal-input"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); closeGallery(); } else onKeyDown(e); }}
+            onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); closeGallery(); } else onKeyDown(e); }}
             placeholder="Search every surface — trial, cap wall, toast, 404…"
             aria-label="Search surfaces"
             spellCheck={false}
@@ -178,7 +179,7 @@ function GalleryRow({ entry, active, innerRef, onHover, onActivate, param, onPar
           aria-label={`${entry.label} ${entry.param}`}
           spellCheck={false}
           onChange={(e) => onParam(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onActivate(); } e.stopPropagation(); }} />
+          onKeyDown={(e) => { e.stopPropagation(); if (isComposingKey(e)) return; if (e.key === 'Enter') { e.preventDefault(); onActivate(); } }} />
       )}
       {insitu && <p className="gal-row-note">{entry.note}</p>}
     </div>
@@ -209,6 +210,7 @@ function GalleryPreview({ entryId }) {
   // swallow it first and leave the gallery stuck behind its own preview.
   useEffect(() => {
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key !== 'Escape') return;
       e.preventDefault();
       e.stopPropagation();

@@ -10,6 +10,7 @@
 // uses. Multi-tab presences collapse to one entry per user.
 
 import { useEffect, useRef, useState } from 'react';
+import { initialOf } from '../lib/graphemes.js';
 
 const MAX_AVATARS = 4;
 
@@ -80,7 +81,7 @@ export function PresenceStack({ getAwareness, selfId = null }) {
           <span key={p.id} className="presence-dot"
                 style={{ background: p.color }}
                 title={p.name}>
-            {p.name?.[0]?.toUpperCase() || '?'}
+            {initialOf(p.name)}
           </span>
         ))}
         {overflow > 0 && (
@@ -95,7 +96,7 @@ export function PresenceStack({ getAwareness, selfId = null }) {
           {peers.map(p => (
             <div key={p.id} className="presence-roster-row" role="listitem">
               <span className="presence-dot presence-roster-dot" style={{ background: p.color }}>
-                {p.name?.[0]?.toUpperCase() || '?'}
+                {initialOf(p.name)}
               </span>
               <span className="presence-roster-name">{p.name}</span>
             </div>

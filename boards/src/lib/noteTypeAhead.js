@@ -19,6 +19,8 @@
 // Not under a finger: a phone raises its keyboard for whichever field has the
 // focus, and a note's touch entry focuses its editor inside the tap.
 
+import { isComposingKey } from './composerKeys.js';
+
 const HOLD_MS = 5000;
 
 let field = null;
@@ -48,6 +50,7 @@ export function holdNoteTypeAhead(cardId) {
     }, 0);
   });
   onKey = (e) => {
+    if (isComposingKey(e)) return;
     if (field !== el) return;
     if (e.key === 'Escape') { dropNoteTypeAhead(); return; }
     if (e.target === el || typesHere(e.target)) return;

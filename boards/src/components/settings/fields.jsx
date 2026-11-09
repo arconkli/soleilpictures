@@ -8,6 +8,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { ColorPicker } from '../ColorPicker.jsx';
 import { R2Image } from '../R2Image.jsx';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 // ── Fonts ───────────────────────────────────────────────────────────────
 // Curated quick-pick fonts + a "Custom…" escape hatch that pulls from
@@ -126,7 +127,7 @@ export function FontField({ value, onChange, disabled }) {
                disabled={disabled}
                onChange={(e) => setCustom(e.target.value)}
                onBlur={commitCustom}
-               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitCustom(); } }} />
+               onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Enter') { e.preventDefault(); commitCustom(); } }} />
       )}
     </div>
   );

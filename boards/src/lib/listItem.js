@@ -12,8 +12,10 @@ import { liveVersions, currentOf, versionLabel } from './cardVersions.js';
 import { computeCellRects } from './gridLayout.js';
 import { schedItems, schedLegacyRows } from './schedLayout.js';
 import { monthTitle } from './schedDates.js';
+import { searchKey } from './textFold.js';
 import { formatLabel, audioMetaLine, keyOrder } from './loopMeta.js';
 import { viewKindOfKey, isCardViewKind, fileFamily } from './fileView.js';
+import { cutGraphemes, exceedsGraphemes } from './graphemes.js';
 
 // Cap the grid schematic: past this many cells the subdivision is unreadable at
 // thumb size and re-tiling wastes work, so we draw the raw box instead.
@@ -67,7 +69,7 @@ function stripTags(html, max = 90) {
   if (!html) return '';
   const txt = decodeEntities(String(html).replace(/<[^>]*>/g, ' '))
     .replace(/\s+/g, ' ').trim();
-  return txt.length > max ? txt.slice(0, max - 1) + '…' : txt;
+  return exceedsGraphemes(txt, max) ? cutGraphemes(txt, max - 1) + '…' : txt;
 }
 
 // A note's first block is its title, the rest its body — the canvas shows
@@ -411,14 +413,14 @@ export function filterItems(items, buckets, { unplacedOnly = false } = {}) {
 
 // Case-insensitive substring match over name + sub + typeLabel + ext.
 export function matchItems(items, query) {
-  const q = String(query || '').trim().toLowerCase();
+  const q = searchKey(String(query || '').trim());
   if (!q) return items || [];
   return (items || []).filter(it => {
     // `sub` already carries the assembled tempo/key/format line for audio, so
     // typing "128", "amin" or "wav" filters a pack without a query syntax.
     // A note's body counts too — its name is only its first line.
     const body = it.kind === 'note' ? it.preview?.text || '' : '';
-    const hay = `${it.name || ''} ${it.sub || ''} ${body} ${it.typeLabel || ''} ${it.preview?.ext || ''}`.toLowerCase();
-    return hay.includes(q);
+    const hay = `${it.name || ''} ${it.sub || ''} ${body} ${it.typeLabel || ''} ${it.preview?.ext || ''}`;
+    return searchKey(hay).includes(q);
   });
 }

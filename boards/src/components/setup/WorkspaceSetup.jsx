@@ -27,13 +27,14 @@ import {
 import { firstBoardCopy } from '../../lib/firstBoardCopy.js';
 import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { InviteStep } from './InviteStep.jsx';
+import { initialOf } from '../../lib/graphemes.js';
 
 const TEAM_ICONS = { solo: User, few: Users, team: UsersThree };
 const WORK_ICONS = {
   film: FilmSlate, photo: Camera, design: PenNib, ads: Megaphone, music: MusicNotes, school: GraduationCap, personal: Heart, other: DotsThree,
 };
 const iso = () => new Date().toISOString();
-const initial = (s) => (String(s || '').trim().charAt(0) || '?').toUpperCase();
+const initial = (s) => initialOf(s);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // The workspace behind the card, out of focus. A brand-new workspace is a

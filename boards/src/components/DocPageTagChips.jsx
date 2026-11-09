@@ -13,6 +13,7 @@ import { isDeleteEvent } from '../lib/tagSurface.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
   const navigate = useEntityNavigate();
@@ -102,7 +103,7 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
     };
     // Claimed: the open doc is a layer (lib/modalGuard) that would close on
     // the same Escape at the window.
-    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); setMenuFor(null); } };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); setMenuFor(null); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
@@ -156,7 +157,7 @@ export function DocPageTagChips({ workspaceId, docCardId, pageId }) {
                     setMenuFor({ tagId: c.id, name: c.name, x: e.clientX, y: e.clientY });
                   }}>
             <span className="doc-page-tag-dot" aria-hidden="true" />
-            <span className="doc-page-tag-name">{c.name}</span>
+            <span className="doc-page-tag-name" dir="auto">{c.name}</span>
           </button>
         ))}
       </div>

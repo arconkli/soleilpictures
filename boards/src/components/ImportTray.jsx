@@ -17,6 +17,7 @@ import { useScreenAwake } from '../hooks/useScreenAwake.js';
 import { useOnline } from '../hooks/useOnline.js';
 import { ActivityTrayContext } from './activityTrayContext.js';
 import './importTray.css';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // The bulk import's tray (the owner's pick A, 2026-10-19): bottom-right, just
 // above the zoom control, showing the import that is going now and folding to
@@ -99,7 +100,7 @@ function Guide({ app, guide, aboveNav, inTray = false }) {
   return (
     <section className={'imptray is-guide' + (inTray ? ' atr is-static' : aboveNav ? ' is-above-nav' : '') + (over ? ' is-over' : '')}
              aria-labelledby="imptray-guide-title"
-             onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); closeImportGuide(); } }}
+             onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.stopPropagation(); closeImportGuide(); } }}
              onDragEnter={(e) => { if (!hasFiles(e) || !guide?.onImport) return; depth.current += 1; setOver(true); }}
              onDragOver={(e) => { if (!hasFiles(e) || !guide?.onImport) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
              onDragLeave={() => { depth.current = Math.max(0, depth.current - 1); if (!depth.current) setOver(false); }}
@@ -283,7 +284,7 @@ export function ImportTray({ aboveNav = false, initialMinimized = false, guide =
           {m.rows.map((r) => (
             <div key={r.key} className={'imptray-row' + (r.state === 'now' ? ' is-now' : r.state === 'later' ? ' is-later' : r.state === 'part' ? ' is-part' : '')}>
               <span className="ok">{r.state === 'done' && <Icon as={Check} size={12} weight="regular" />}</span>
-              <span className="n">{r.name}</span>
+              <span className="n" dir="auto">{r.name}</span>
               {r.state === 'now' && <span className="imptray-minibar" aria-hidden="true"><span style={{ width: `${r.pct}%` }} /></span>}
               <span className="c">{r.count}</span>
             </div>

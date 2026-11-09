@@ -2,6 +2,7 @@
 // payment, seats, and what happens when seats run out.
 import { useState } from 'react';
 import { Icon } from '../Icon.jsx';
+import { isComposingKey } from '../../lib/composerKeys.js';
 import { Plus, Minus, CreditCard } from '../../lib/icons.js';
 import {
   teamCan, seatsUsed, seatsFree, money, seatPrice, seatAddLine, sizeLabel, dateLabel, TEAM_SEAT_MIN,
@@ -183,7 +184,7 @@ export default function TeamBilling({ t, now, viewOnly, onAction, onToast, onClo
                         const res = await go('monthlyLimit', { value: limitDraft, current: whenFull });
                         if (res.ok) setLimitDraft(null);
                       } : undefined}
-                      onKeyDown={live ? (e) => { if (e.key === 'Enter') e.currentTarget.blur(); } : undefined}
+                      onKeyDown={live ? (e) => { if (isComposingKey(e)) return; if (e.key === 'Enter') e.currentTarget.blur(); } : undefined}
                     />
                     <span>new seats, then ask first. Any number you like; leave it empty for no limit.</span>
                   </span>

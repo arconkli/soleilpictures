@@ -15,7 +15,9 @@ import { collectFullDocHtml, collectFullDocMarkdown, jsonToMarkdown, collectFull
 import {
   jsonToFountain, jsonToFdx, blocksToDocJSON, docJSONToBlocks,
 } from '../lib/screenplayIO.js';
-import { buildScreenplayPdfBlob } from '../lib/screenplayPdf.js';
+import { buildScreenplayPdfBlob, ScreenplayNeedsHtml } from '../lib/screenplayPdf.js';
+import { screenplayDirection } from '../lib/scriptFontPlan.js';
+import { safeFileName } from '../lib/safeFileName.js';
 import { parseScriptText } from '../lib/scriptImport.js';
 import { deliverFile } from '../lib/exportDelivery.js';
 import { Capacitor } from '@capacitor/core';
@@ -26,6 +28,7 @@ import { logEvent } from '../lib/analytics.js';
 import { trackOp } from '../lib/activityOps.js';
 import { exportWords } from '../lib/activityWords.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { directedHtml } from '../lib/textDirection.js';
 
 // Inside the iOS / Android app the WebView has no window.print(): a print
 // never opens a dialog and afterprint never fires.
@@ -55,8 +58,7 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
     const fromTitlePage = (tp && tp.enabled && tp.title && tp.title.trim()) ? tp.title.trim() : '';
     return fromTitlePage || (docName && docName.trim()) || (docMode === 'screenplay' ? 'Screenplay' : 'document');
   };
-  const sanitizeName = (s) => (String(s || 'document').replace(/[^a-z0-9-_ ]/gi, '_').trim().slice(0, 80) || 'document');
-  const safeName = sanitizeName(currentDocTitle());
+  const safeName = safeFileName(currentDocTitle(), { fallback: 'document' });
 
   // Deliver a generated blob: a download on web, the native share sheet inside
   // the app (where <a download> doesn't save). Surfaces a toast on failure.
@@ -67,7 +69,7 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
   // Returns the file name it delivered, or null when it failed (and said so).
   const saveFile = async (blob, ext) => {
     try {
-      const fileName = `${sanitizeName(currentDocTitle())}.${ext}`;
+      const fileName = safeFileName(currentDocTitle(), { ext, fallback: 'document' });
       await deliverFile(blob, fileName);
       logEvent(EV.EXPORT_RUN, { format: ext === 'md' ? 'markdown' : ext, surface: 'doc', doc_mode: docMode });
       return fileName;
@@ -82,7 +84,7 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
   // The tray row for an export that ends in a file (lib/activityOps.js): a
   // failed one leaves no row, its own toast has said so.
   const inTray = (format, run) => trackOp({
-    kind: 'export', label: exportWords({ name: sanitizeName(currentDocTitle()), format }),
+    kind: 'export', label: exportWords({ name: safeFileName(currentDocTitle(), { fallback: 'document' }), format }),
     doneLabel: (fileName) => (fileName ? `Exported ${fileName}` : null),
   }, run);
 
@@ -92,7 +94,7 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
   // marks render as inline styles from generateHTML and sit on top of this.
   const printableHTML = (bodyHTML) => `<!doctype html>
 <html><head><meta charset="utf-8"><title>${escapeHtml(safeName)}</title>
-<style>${docPrintCSS}</style></head><body>${bodyHTML}</body></html>`;
+<style>${docPrintCSS}</style></head><body>${directedHtml(bodyHTML, { markers: false })}</body></html>`;
 
   // Whole-doc body HTML (all pages × sheets, assets resolved). Falls back to
   // the focused editor only when doc state isn't available.
@@ -142,18 +144,43 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
         // be exporting as the author.)
         const titlePage = (stored && stored.enabled) ? stored : null;
         const sceneNumbers = ydoc ? getSceneNumbersShow(ydoc, scope) : false;
+        const blocks = docJSONToBlocks(scriptBlocks());
+        // Courier covers Western text, Cousine (fetched on demand) covers Greek,
+        // Cyrillic and extended Latin; anything else (Hebrew, Arabic, CJK, Thai,
+        // Indic, emoji) is typeset by the browser, which shapes it and falls
+        // back to system fonts. That one opens the print dialog (a page to
+        // share, in the app), and the dialog is its own sign: no tray row.
         await trackOp({
-          kind: 'export', label: exportWords({ name: sanitizeName(docTitle), format: 'pdf' }),
-          doneLabel: `Exported ${sanitizeName(docTitle)}.pdf`,
+          kind: 'export', label: exportWords({ name: safeFileName(docTitle, { fallback: 'Screenplay' }), format: 'pdf' }),
+          doneLabel: (fileName) => (fileName ? `Exported ${fileName}` : null),
         }, async () => {
-          const blob = await buildScreenplayPdfBlob(docJSONToBlocks(scriptBlocks()), { title: docTitle, titlePage, sceneNumbers });
-          await deliverFile(blob, `${sanitizeName(docTitle)}.pdf`);
+          let blob = null;
+          try { blob = await buildScreenplayPdfBlob(blocks, { title: docTitle, titlePage, sceneNumbers }); }
+          catch (err) { if (!(err instanceof ScreenplayNeedsHtml)) throw err; }
+          if (blob) {
+            const fileName = safeFileName(docTitle, { ext: 'pdf', fallback: 'Screenplay' });
+            await deliverFile(blob, fileName);
+            return fileName;
+          }
+          // Loaded only when a script needs it, like jsPDF.
+          const { screenplayPrintHTML } = await import('../lib/screenplayPrint.js');
+          const html = screenplayPrintHTML(blocks, {
+            title: docTitle, titlePage, sceneNumbers,
+            fontBaseUrl: window.location.origin, dir: screenplayDirection(blocks),
+          });
+          if (inNativeApp()) {
+            const fileName = safeFileName(docTitle, { ext: 'html', fallback: 'Screenplay' });
+            await deliverFile(new Blob([html], { type: 'text/html' }), fileName);
+            return fileName;
+          }
+          printHtmlViaIframe(html);
+          return null;
         });
       } else if (inNativeApp()) {
         // No print dialog in the app: hand over the same printable page
         // through the share sheet (Files / Safari can print it or save a
         // PDF) instead of a tap that did nothing and locked the menu for 60s.
-        await deliverFile(new Blob([printableHTML(await fullBodyHtml())], { type: 'text/html' }), `${sanitizeName(currentDocTitle())}.html`);
+        await deliverFile(new Blob([printableHTML(await fullBodyHtml())], { type: 'text/html' }), safeFileName(currentDocTitle(), { ext: 'html', fallback: 'document' }));
       } else {
         // Prose docs print through a hidden same-origin iframe → the system
         // "Save as PDF". Avoids the popup path (popup blockers + the

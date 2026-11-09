@@ -12,6 +12,8 @@ import { EV } from '../../lib/analyticsEvents.js';
 import { WORKSPACE_LIMIT } from '../../lib/workspaceLimit.js';
 import { justMeLimitLine } from '../../lib/workspaceLimitCopy.js';
 import './newWorkspaceDialog.css';
+import { isComposingKey } from '../../lib/composerKeys.js';
+import { initialOf } from '../../lib/graphemes.js';
 
 export default function NewWorkspaceDialog({ team, userName, defaultFor = 'team', personalCount = 0, onCancel, onCreate }) {
   const [name, setName] = useState('');
@@ -42,7 +44,7 @@ export default function NewWorkspaceDialog({ team, userName, defaultFor = 'team'
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    const onKey = (e) => { if (e.key === 'Escape') onCancel?.(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onCancel?.(); };
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
@@ -50,8 +52,8 @@ export default function NewWorkspaceDialog({ team, userName, defaultFor = 'team'
     };
   }, [onCancel]);
 
-  const teamLetter = (team.letter || team.name || '?').trim().charAt(0).toUpperCase() || '?';
-  const myLetter = (userName || 'Y').trim().charAt(0).toUpperCase() || 'Y';
+  const teamLetter = initialOf(team.letter || team.name);
+  const myLetter = initialOf(userName, 'Y');
   const canPrivate = forTeam && (team.role === 'owner' || team.role === 'admin');
   const trimmed = name.trim();
 

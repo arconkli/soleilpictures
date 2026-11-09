@@ -154,6 +154,7 @@ function OverlayShell({ children, wide = false, doc = false, action = null, onCl
   }, []);
   useEffect(() => {
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key !== 'Escape') return;
       if (modalGuard.isTopModal && !modalGuard.isTopModal(modalRef.current)) return;
       if (doc && (e.defaultPrevented || isComposingKey(e) || isEditableTarget(e))) return;

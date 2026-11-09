@@ -84,12 +84,15 @@ import { openapiDocument } from './lib/apiOpenapi.js';
 import { embedCards } from './lib/serverEmbed.js';
 import { clientEmbedsKind } from './lib/embedText.js';
 import { buildCardIndexRow } from './lib/cardIndexRow.js';
+import { foldForSearch, minSearchLength, searchLength } from './lib/textFold.js';
+import { isMissingColumn } from './lib/entitySearchFilter.js';
 import { boardToOmc } from './lib/omcExport.js';
 import {
   GALLERY, boardPictures, pickRendition, encodeCursor, decodeCursor, boardUrl, cardUrl,
   makeInlineBudget, bytesToBase64,
 } from './lib/gallery.js';
 import { planCanvas, canvasAnswer } from './lib/canvasView.js';
+import { wellFormed, cutToLimits } from './lib/safeFileName.js';
 import { imageSecret, signImageKey, SIGNED_IMAGE_PATH, SIGNED_IMAGE_TTL_S } from './lib/signedImage.js';
 import {
   webhookUrlProblem, runWebhooks, deliverOne, hasPendingWork, WEBHOOK_EVENTS,
@@ -261,7 +264,7 @@ const textOf = (c) => (c.kind === 'image'
 // Content-Disposition for a file served under its own name (RFC 6266 / 5987):
 // a quoted ASCII fallback for old clients, and filename* with the exact UTF-8.
 export function contentDisposition(name) {
-  const clean = String(name).replace(/[\r\n"\\]/g, '').slice(0, 200);
+  const clean = cutToLimits(wellFormed(name).replace(/[\r\n"\\]/g, ''), { maxChars: 200 });
   const ascii = clean.replace(/[^\x20-\x7e]/g, '_');
   // encodeURIComponent leaves ' ( ) * ! alone; RFC 5987 does not allow them,
   // and an apostrophe would end the charset''value prefix early.
@@ -2513,14 +2516,35 @@ async function dispatch(url, request, env, ctx) {
   // list, `pictures`, each with `in_picture`: what the model saw, never shown
   // to people in the app, data for the program reading it.
   if (head === 'search' && method === 'GET') {
-    const q = (url.searchParams.get('q') || '').trim();
-    if (q.length < 2) throw fail(400, 'bad_request', 'q must be at least 2 characters');
+    const q = (url.searchParams.get('q') || '').trim().normalize('NFC');
+    // Code points, not UTF-16 units; one character is a word in Chinese,
+    // Japanese and Korean (lib/textFold.js).
+    if (searchLength(q) < minSearchLength(q)) throw fail(400, 'bad_request', 'q must be at least 2 characters (1 for Chinese, Japanese and Korean)');
     const { limit, offset } = pageParams(url);
     const ws = url.searchParams.get('workspace');
     if (ws && !isUuid(ws)) throw fail(400, 'bad_request', 'workspace must be a uuid');
     const kind = url.searchParams.get('kind');           // 'board' | 'card' | null
     const wsFilter = ws ? `&workspace_id=eq.${ws}` : '';
     const value = pgLikeValue(q);
+    // The accent-folded query against `fold` (0879): "cafe" finds "Café". Before
+    // 0879 has run PostgREST answers 42703 and the read repeats on the raw words.
+    // Folding works both ways: when the fold differs from what was typed
+    // ("café" -> "cafe") the raw columns are also matched against the folded
+    // query, since `fold` is NULL on a row the fold leaves alone. Those terms
+    // need no `fold` column, so they stay on the retry.
+    const folded = foldForSearch(q);
+    const foldValue = folded ? pgLikeValue(folded) : null;
+    const foldedDiffers = !!foldValue && folded !== q;
+    const orTerms = (cols, fold) => [
+      ...cols.map((c) => `${c}.ilike.${value}`),
+      ...(foldedDiffers ? cols.map((c) => `${c}.ilike.${foldValue}`) : []),
+      ...(fold && foldValue ? [`fold.ilike.${foldValue}`] : []),
+    ].join(',');
+    const withFold = async (table, cols, tail) => {
+      const read = (fold) => userSelect(env, token, table,
+        `or=${encodeURIComponent(`(${orTerms(cols, fold)})`)}${tail}`);
+      try { return await read(true); } catch (e) { if (isMissingColumn(e)) return read(false); throw e; }
+    };
 
     const wantBoards = kind !== 'card';
     const wantCards = kind !== 'board';
@@ -2528,19 +2552,23 @@ async function dispatch(url, request, env, ctx) {
     const [boardRows, cardRows, pictureRows, pageRows, undescribedRows] = await Promise.all([
       wantBoards
         ? userSelect(env, token, 'boards',
-          `or=${encodeURIComponent(`(name.ilike.${value})`)}&deleted_at=is.null${wsFilter}`
+          // entity_search's board branch has no parent_board_id or view, and the
+          // boards table has no fold column (rows read from it are spread into
+          // writes), so a name is matched raw plus against the folded query:
+          // an accented query finds a plain name. "cafe" does not find "Café".
+          `or=${encodeURIComponent(`(${orTerms(['name'], false)})`)}&deleted_at=is.null${wsFilter}`
           + `&select=id,name,workspace_id,parent_board_id,view,created_at,updated_at,deleted_at`
           + `&order=created_at.desc&limit=${limit + 1}&offset=${offset}`)
         : Promise.resolve([]),
       wantCards
-        ? userSelect(env, token, 'card_index',
-          `or=${encodeURIComponent(`(title.ilike.${value},body.ilike.${value})`)}${wsFilter}`
+        ? withFold('card_index', ['title', 'body', 'meta->>fileName'],
+          `${wsFilter}`
           + `&select=board_id,card_id,kind,title,body,workspace_id,updated_at`
           + `&order=updated_at.desc&limit=${limit + 1}&offset=${offset}`)
         : Promise.resolve([]),
       wantCards
         ? userSelect(env, token, 'entity_search',
-          `kind=eq.image&or=${encodeURIComponent(`(seen.ilike.${value})`)}${wsFilter}`
+          `kind=eq.image&or=${encodeURIComponent(`(${orTerms(['seen'], false)})`)}${wsFilter}`
           + `&select=board_id,card_id,title,seen,workspace_id,updated_at`
           + `&order=updated_at.desc&limit=${limit + 1}&offset=${offset}`)
           // Words still find words when pictures can't be searched.
@@ -2550,8 +2578,8 @@ async function dispatch(url, request, env, ctx) {
       // title, so without this a treatment written with write_doc was found
       // by its name and never by what it says.
       wantCards
-        ? userSelect(env, token, 'doc_page_index',
-          `or=${encodeURIComponent(`(page_title.ilike.${value},page_text.ilike.${value})`)}${wsFilter}`
+        ? withFold('doc_page_index', ['page_title', 'page_text'],
+          `${wsFilter}`
           + `&select=doc_card_id,page_id,page_title,page_text,workspace_id,updated_at`
           + `&order=updated_at.desc&limit=${limit + 1}&offset=${offset}`)
           .catch(() => [])

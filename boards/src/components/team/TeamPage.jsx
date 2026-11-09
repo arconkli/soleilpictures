@@ -17,6 +17,7 @@ import { TeamConfirm } from './TeamConfirm.jsx';
 import TeamPeople from './TeamPeople.jsx';
 import TeamBilling from './TeamBilling.jsx';
 import TeamJoining from './TeamJoining.jsx';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 const FROZEN = 'The team is view-only until it’s paid';
 // A confirm stays open after these, so a retry reuses the same preview.
@@ -52,7 +53,7 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
 
   // Esc closes the page; an open menu takes it first (TeamMenu stops it).
   useEffect(() => {
-    const key = (e) => { if (e.key === 'Escape') onClose?.(); };
+    const key = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onClose?.(); };
     document.addEventListener('keydown', key);
     return () => document.removeEventListener('keydown', key);
   }, [onClose]);
@@ -173,16 +174,18 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
                 <input
                   className="tp-title-input"
                   aria-label="Team name"
+                  dir="auto"
                   value={draft}
                   autoFocus
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => {
+                    if (isComposingKey(e)) return;
                     if (e.key === 'Enter') saveRename();
                     if (e.key === 'Escape') { e.stopPropagation(); setRenaming(false); titleRef.current?.focus(); }
                   }}
                 />
               ) : (
-                <h2 className="tp-title" ref={titleRef} tabIndex={-1}>{t.name}</h2>
+                <h2 className="tp-title" ref={titleRef} tabIndex={-1} dir="auto">{t.name}</h2>
               )}
               {t.sample && <span className="tp-badge">Test team</span>}
               {viewOnly && <span className="tp-badge"><Icon as={Eye} size={11} weight="regular" />View-only</span>}

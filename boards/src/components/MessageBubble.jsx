@@ -18,6 +18,7 @@ import { publicAttachmentUrl } from '../lib/messageAttachmentUrls.js';
 import { RelTime } from './RelTime.jsx';
 import { useMinuteNow } from '../hooks/useMinuteNow.js';
 import { MessageThings } from './MessageThings.jsx';
+import { initialOf } from '../lib/graphemes.js';
 
 // One message row in a thread.
 //   msg              — full row from messages table
@@ -195,7 +196,7 @@ export const MessageBubble = memo(function MessageBubble({
           <button type="button" className="msg-reply-quote" title={`Go to ${parentName}'s message`}
                   onClick={(e) => { e.stopPropagation(); onJumpToMessage?.(parent.id); }}>
             {!inDm && <span className="msg-reply-quote-who">{parent.sender_id === selfId ? 'You' : parentName}</span>}
-            <span className="msg-reply-quote-text">{parentExcerpt || 'Attachment'}</span>
+            <span className="msg-reply-quote-text" dir="auto">{parentExcerpt || 'Attachment'}</span>
           </button>
         ))}
         {hasText && body}
@@ -206,7 +207,7 @@ export const MessageBubble = memo(function MessageBubble({
            data-msg-id={msg.id}
            id={`msg-${msg.id}`}
            onContextMenu={onContext}>
-        {showAuthor && <div className="msg-bubble-author">{senderName}</div>}
+        {showAuthor && <div className="msg-bubble-author" dir="auto">{senderName}</div>}
         {bubble ? (
           <>
             <div className="msg-bubble-line">{bubble}{more}</div>
@@ -272,16 +273,16 @@ export const MessageBubble = memo(function MessageBubble({
                 onClick={() => openDm(msg.sender_id)}
                 title={`Message ${senderName}`}
               >
-                {senderName.charAt(0).toUpperCase()}
+                {initialOf(senderName, '')}
               </button>
             ) : (
               <span className="msg-bubble-avatar"
                     aria-hidden="true"
                     style={{ background: senderColor }}>
-                {senderName.charAt(0).toUpperCase()}
+                {initialOf(senderName, '')}
               </span>
             )}
-            <span className="msg-bubble-author">{senderName}</span>
+            <span className="msg-bubble-author" dir="auto">{senderName}</span>
             {sendState ? (
               <span className="msg-bubble-time">{sendState === 'sending' ? 'Sending…' : ''}</span>
             ) : (
@@ -352,7 +353,7 @@ export const MessageBubble = memo(function MessageBubble({
                    target="_blank" rel="noopener noreferrer"
                    title={`Download ${att.name || 'file'}`}>
                   <Icon as={Download} size={12} />
-                  <span className="msg-attachment-file-name">{att.name || 'file'}</span>
+                  <span className="msg-attachment-file-name" dir="auto">{att.name || 'file'}</span>
                   {attachmentMetaLabel(att) && <span className="msg-attachment-file-meta">{attachmentMetaLabel(att)}</span>}
                 </a>
               ) : (

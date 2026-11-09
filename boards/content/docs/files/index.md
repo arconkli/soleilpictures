@@ -5,7 +5,7 @@ h1: Files and uploads
 navLabel: Overview
 section: files
 order: 0
-updated: 2026-10-27
+updated: 2026-11-09
 answer: Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; documents (Word, PowerPoint, Excel) show their first page, design files (Sketch, Figma, Procreate) the picture saved inside and zips what's inside them; anything else becomes a file card with a download. There is no per-file size limit on any plan: the free plan has a {{fact:freeStorage}} drive and Creator a {{fact:creatorStorage}} one, and the drive is the only limit.
 faq:
   - q: What file types can I upload on the free plan?
@@ -234,7 +234,9 @@ Every version is a stored file, so every version counts toward your
 
 Every file card has a download. [Images](/docs/canvas/images) additionally offer
 a version with adjustments applied. [PDFs](/docs/files/pdf) can be downloaded
-from the viewer.
+from the viewer. A downloaded or exported file keeps the letters of its name, in
+any language; only characters Windows or macOS refuse in a file name (such as `/`
+or `:`) are replaced.
 
 To send someone one file on its own — a page with just that file, its player
 and its comments, and nothing else from the cluster — use **Share file…**

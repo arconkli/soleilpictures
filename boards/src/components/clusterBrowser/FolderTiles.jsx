@@ -70,7 +70,7 @@ export const FolderTile = memo(function FolderTile({
         <div className="ft-line">
           {rename
             ? <InlineRename value={label} onCommit={rename.onCommit} onCancel={rename.onCancel} label="Cluster name" />
-            : <div className="ft-name">{label}</div>}
+            : <div className="ft-name" dir="auto">{label}</div>}
           {linked && (
             <span className="ft-link" role="img" aria-label="Linked cluster" title="Linked cluster">
               <Icon as={LinkIcon} size={12} weight="light" />
@@ -122,7 +122,7 @@ export const FolderRow = memo(function FolderRow({
         <div className="ct-name-wrap">
           {rename
             ? <InlineRename value={label} onCommit={rename.onCommit} onCancel={rename.onCancel} label="Cluster name" className="ct-row-rename" />
-            : <div className="ct-name">{label}</div>}
+            : <div className="ct-name" dir="auto">{label}</div>}
         </div>
         {linked && (
           <span className="ct-folder-link" role="img" aria-label="Linked cluster" title="Linked cluster">

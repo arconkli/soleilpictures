@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from 'react';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { qaSharePromptMs } from '../lib/localMode.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const DISMISS_KEY = 'soleil.share.prompt.dismissedAt';
 const DISMISS_TTL_MS = 14 * 24 * 60 * 60 * 1000;
@@ -103,7 +104,7 @@ export function SharePrompt({ href, onCtaClick, subboardOpened, ctaClickedRef })
   // Escape dismisses while visible.
   useEffect(() => {
     if (!shown || closed) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') dismiss(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') dismiss(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps

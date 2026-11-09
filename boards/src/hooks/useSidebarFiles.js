@@ -19,6 +19,7 @@ import { itemFromIndexRow, itemFromCard } from '../lib/indexRowCard.js';
 import { sortItems, groupItems, filterItems } from '../lib/sidebarSort.js';
 import { countsFromRows, countsFromItems, rollupCounts, withLive } from '../lib/sidebarCounts.js';
 import { searchEntities } from '../lib/entitySearch.js';
+import { searchKey } from '../lib/textFold.js';
 import { STARS_CHANGED, announceStars } from '../lib/starsChanged.js';
 
 const PEEK_PER_SHELF = 12;
@@ -396,7 +397,7 @@ export function useSidebarFiles({
     const needle = q.toLowerCase();
     const ids = new Set(searchHits.keys());
     if (liveBoardId && liveItems && filterItems(liveItems, { query: q }).length) ids.add(liveBoardId);
-    for (const b of boards) if ((b.name || '').toLowerCase().includes(needle)) ids.add(b.id);
+    for (const b of boards) if (searchKey(b.name).includes(searchKey(needle))) ids.add(b.id);
     return ids;
   }, [q, searchHits, liveBoardId, liveItems, boards]);
 

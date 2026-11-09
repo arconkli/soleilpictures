@@ -9,6 +9,7 @@ import { CheckCircle, WarningCircle, Warning, Info, X } from '@phosphor-icons/re
 import { Icon } from './Icon.jsx';
 import { registerModalOpen } from '../lib/modalGuard.js';
 import './feedbackLook.css';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // `warning` was missing here and had no CSS either, so both cap toasts — the
 // approaching-limit warning and the cards-did-not-fit one — fell through to the
@@ -114,6 +115,7 @@ function FeedbackDialog({ dialog, onClose }) {
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = (event) => {
+      if (isComposingKey(event)) return;
       if (event.key === 'Escape') { onClose(dialog.kind === 'confirm' ? false : null); return; }
       // Trap Tab within the dialog so keyboard focus can't wander behind it.
       if (event.key === 'Tab') {

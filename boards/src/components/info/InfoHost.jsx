@@ -17,6 +17,7 @@ import { planPutOnBoard } from '../../lib/placement.js';
 import { getViewCenter } from '../../lib/viewCenter.js';
 import { undoToast } from '../../lib/undoToast.js';
 import { uploadContext } from '../../lib/uploadContext.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 // The drawer's panel is its own chunk, fetched the first time Info opens: the
 // host is mounted with every app shell, the panel only when something asks.
@@ -154,7 +155,7 @@ export function InfoHost({ boards = {}, resolveBoard, selfId = null, onOpenClust
   useEffect(() => {
     const el = hostRef.current;
     if (!el) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape' && !e.defaultPrevented) { e.stopPropagation(); close(); } };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape' && !e.defaultPrevented) { e.stopPropagation(); close(); } };
     el.addEventListener('keydown', onKey);
     return () => el.removeEventListener('keydown', onKey);
   }, [close, open]);

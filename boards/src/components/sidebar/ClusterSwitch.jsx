@@ -25,6 +25,7 @@ import { Search, Check, XCircle } from '../../lib/icons.js';
 import { useScrollEdges } from '../../hooks/useScrollEdges.js';
 import { clustersInTreeOrder, findClusters } from '../../lib/clusterSwitchList.js';
 import { keyboardInset } from '../../lib/keyboardInset.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 const STEP = 16;          // a level of nesting, as in the tree
 const SHEET_STEP = 18;
@@ -140,6 +141,7 @@ export function ClusterSwitch({
   }, [activeId, byKeys]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const onKeyDown = (e) => {
+    if (isComposingKey(e)) return;
     const k = e.key;
     if (k === 'ArrowDown' || k === 'ArrowUp') {
       e.preventDefault();
@@ -178,7 +180,7 @@ export function ClusterSwitch({
   const findRow = (
     <label className="sbf-switch-find">
       <Icon as={Search} size={sheet ? 16 : 14} weight="regular" />
-      <input ref={inputRef} type="text" role="combobox" aria-expanded="true" aria-controls={listId}
+      <input ref={inputRef} dir="auto" type="text" role="combobox" aria-expanded="true" aria-controls={listId}
              aria-autocomplete="list" aria-activedescendant={activeId ? optId(activeId) : undefined}
              value={find} placeholder="Find a cluster" aria-label="Find a cluster" autoComplete="off" spellCheck={false}
              onChange={(e) => { setFind(e.target.value); setActive(null); setByKeys(false); }} />

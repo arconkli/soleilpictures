@@ -183,7 +183,7 @@ test('0595 reads only what a signed-in reader may select from image_descriptions
 });
 
 test('the search filter looks in seen', () => {
-  assert.match(entitySearchFilter('red car'), /,seen\.ilike\.%red car%$/);
+  assert.match(entitySearchFilter('red car'), /,seen\.ilike\.%red car%,fold\.ilike\.%red car%$/);
 });
 
 // ── 0596: what a described picture shows, read by the people who can see it ─

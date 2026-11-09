@@ -6,6 +6,8 @@
 // shortcuts overlay (ShortcutsOverlay 'Player') and the docs page are checked
 // against (playerKeysDocs.test.mjs). `future` rows belong to frame comments,
 // which haven't shipped: nothing lists them yet.
+import { isComposingKey } from './composerKeys.js';
+
 export const PLAYER_KEYS = [
   { group: 'Transport', keys: ['Space'], label: 'Play · pause' },
   { group: 'Transport', keys: ['J', 'K', 'L'], label: 'Play backward · stop · forward — again to go faster' },
@@ -107,11 +109,11 @@ export const actionName = (a) => (a && typeof a === 'object' ? a.action : a);
 // held key repeats only the actions that are meant to repeat.
 export function shouldHandleKey(e, action) {
   if (!e || !action) return false;
+  if (isComposingKey(e)) return false;
   const t = e.target;
   const tag = t?.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t?.isContentEditable) return false;
   if (tag === 'BUTTON' && (e.key === ' ' || e.key === 'Enter')) return false;
-  if (e.isComposing) return false;
   if (e.repeat && !REPEATABLE.has(actionName(action))) return false;
   return true;
 }

@@ -28,6 +28,7 @@ import { CommentMark } from '../docExtensions/CommentMark.js';
 import { NoteMention } from './NoteMention.js';
 import { NoteChecklist, NoteChecklistItem } from './NoteChecklist.js';
 import { ClearFormatting } from '../docExtensions/ClearFormatting.js';
+import { TextDirection } from '../../lib/textDirectionExtension.js';
 
 // Whether html anchors (a seeded older note, a paste) become link marks in
 // the note fragment. ON since 2026-11 (phase 2). y-prosemirror meets a mark
@@ -119,4 +120,6 @@ export const noteExtensions = [
   NoteMention,
   NoteChecklist,
   NoteChecklistItem,
+  // dir="auto" drawn on the view only (lib/textDirection.js): nothing in the note.
+  TextDirection,
 ];

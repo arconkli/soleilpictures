@@ -9,6 +9,7 @@
 // pulls them in.
 
 import { Capacitor } from '@capacitor/core';
+import { safeFileName } from './safeFileName.js';
 
 // Classic web download. Exported so callers that are explicitly web-only (or
 // want to bypass the native sheet) can reuse it.
@@ -47,6 +48,9 @@ const isNative = () => {
 // caller can surface a toast. `filename` MUST carry the extension — the OS uses
 // it to pick the file type for the share sheet.
 export async function deliverFile(blob, filename) {
+  // The one funnel for every export, zip entry and mail attachment: names that
+  // are sender-controlled get the same cleaning, and natively this is a path.
+  filename = safeFileName(filename, { fallback: 'download', maxChars: 120 });
   if (isNative()) {
     const [{ Filesystem, Directory }, { Share }] = await Promise.all([
       import('@capacitor/filesystem'),

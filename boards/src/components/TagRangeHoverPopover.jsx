@@ -39,6 +39,7 @@ import { shareTargetForRef } from '../lib/fileShareBus.js';
 import { entityTypeLabel } from '../lib/entityTypes.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const PAD = 8;
 const W = 320;
@@ -126,6 +127,7 @@ export function TagRangeHoverPopover({
 
   useEffect(() => {
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (lightboxIdx != null) {
         // While the lightbox is open it owns the keyboard: Escape
         // closes it, ←/→ flip through the popover's image list.

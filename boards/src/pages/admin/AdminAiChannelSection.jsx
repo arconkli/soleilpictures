@@ -31,6 +31,7 @@ import { Warning } from '../../lib/icons.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { AdminTimeRange } from './AdminTimeRange.jsx';
 import { Spark, RateCell, PanelNote } from './SmallN.jsx';
+import { cutGraphemes, exceedsGraphemes } from '../../lib/graphemes.js';
 
 // The probe runs weekly (pg_cron). Past this many days the newest run is not
 // late, it is missing.
@@ -67,7 +68,7 @@ function num(v) { return Number(v) || 0; }
 
 function truncate(s, n) {
   const t = String(s ?? '').trim();
-  return t.length > n ? `${t.slice(0, n - 1)}…` : t;
+  return exceedsGraphemes(t, n) ? `${cutGraphemes(t, n - 1)}…` : t;
 }
 
 // `sources` is a jsonb array on aeo_retrieval_results; tolerate a count too.

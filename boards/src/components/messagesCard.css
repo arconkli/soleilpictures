@@ -321,7 +321,7 @@ body[data-sb-files] .msg-reply-quote {
 body[data-sb-files] .msg-bubble--mine .msg-reply-quote { background: var(--mc-quote-own); }
 body[data-sb-files] .msg-reply-quote-who { font: 600 12px/1.25 var(--font-sans); }
 body[data-sb-files] .msg-reply-quote-text {
-  font: 400 12.5px/1.3 var(--font-sans); opacity: .82;
+  font: 400 12.5px/1.3 var(--font-sans); opacity: .82; text-align: start;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 body[data-sb-files] .msg-reply-quote.is-gone { display: block; cursor: default; font: italic 400 12.5px/1.3 var(--font-sans); opacity: .8; }

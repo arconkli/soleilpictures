@@ -22,6 +22,8 @@ import { useEffect, useState } from 'react';
 import { peekTeamLink, claimTeamLink } from '../lib/teamsApi.js';
 import { teamJoinLine } from '../lib/teamCopy.js';
 import { TEAMJOIN_PARAM, TEAMINVITE_PARAM, teamLinkFromSearch, stashTeamLink, readTeamLink, clearTeamLink, stashTeamNote } from '../lib/teamLinks.js';
+import { isComposingKey } from '../lib/composerKeys.js';
+import { initialOf } from '../lib/graphemes.js';
 
 const DEAD_SUB = 'It was turned off or reset. Ask the team for a new one.';
 
@@ -46,7 +48,7 @@ function JoinCard({ token, onClose }) {
   }, [token]);
 
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onClose?.(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
@@ -151,7 +153,7 @@ function TeamSignInNote({ link, onDead }) {
   }
   return (
     <div className="auth-wsjoin" role="note">
-      <span className="auth-wsjoin-av" aria-hidden="true">{(peek.name || '?').trim().charAt(0).toUpperCase()}</span>
+      <span className="auth-wsjoin-av" aria-hidden="true">{initialOf(peek.name)}</span>
       <span className="auth-wsjoin-t">
         <b>{peek.name ? `Join ${peek.name}` : 'Join a team'}</b>
         <span>Sign in or sign up to join the team.</span>

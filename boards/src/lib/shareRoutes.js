@@ -5,6 +5,8 @@
 // profile's Sharing section and Analytics › Sharing say the same thing the
 // same way. Text only: no React, no icons, so it is node-tested.
 
+import { cutGraphemes, exceedsGraphemes } from './graphemes.js';
+
 export const ROUTES = {
   view_link:      { label: 'View link',            short: 'view link' },
   edit_link:      { label: 'Edit link',            short: 'edit link' },
@@ -102,7 +104,7 @@ export function titleOf(o, kind = o?.kind) {
   if (o.deleted && !o.title) return `a deleted ${noun}`;
   const t = (o.title || '').trim();
   if (!t) return `an untitled ${noun}`;
-  return t.length > 40 ? `${t.slice(0, 39)}…` : t;
+  return exceedsGraphemes(t, 40) ? `${cutGraphemes(t, 39)}…` : t;
 }
 
 // The line under a shared thing's title on a profile:

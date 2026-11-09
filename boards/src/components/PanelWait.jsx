@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Icon } from './Icon.jsx';
 import { X } from '../lib/icons.js';
 import { Spinner } from './Spinner.jsx';
+import { isComposingKey } from '../lib/composerKeys.js';
 import './panelWait.css';
 
 // What a panel shows while its code loads (the Suspense fallback of lazyPanel
@@ -13,7 +14,7 @@ import './panelWait.css';
 export function PanelWait({ title, onClose = null, variant = 'modal' }) {
   useEffect(() => {
     if (variant !== 'modal' || !onClose) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [variant, onClose]);
@@ -26,7 +27,7 @@ export function PanelWait({ title, onClose = null, variant = 'modal' }) {
 
   const head = (
     <div className="panel-wait-head">
-      <span className="panel-wait-title">{title}</span>
+      <span className="panel-wait-title" dir="auto">{title}</span>
       {onClose && variant !== 'page' && (
         <button type="button" className="panel-wait-close" aria-label="Close" onClick={onClose}>
           <Icon as={X} size={16} />
@@ -37,7 +38,7 @@ export function PanelWait({ title, onClose = null, variant = 'modal' }) {
   const body = (
     <div className="panel-wait-body">
       <Spinner size={18} />
-      <span className="panel-wait-say" role="status">Opening {title}…</span>
+      <span className="panel-wait-say" role="status">Opening <bdi>{title}</bdi>…</span>
     </div>
   );
   if (variant === 'modal') {

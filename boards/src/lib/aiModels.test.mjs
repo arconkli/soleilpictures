@@ -50,7 +50,7 @@ test('every model id the code calls is listed, with the files that call it', () 
 });
 
 test('the list says how to test each model, and the canaries read answers the way production does', () => {
-  assert.deepEqual(WATCHED_TASKS, ['Text Embeddings', 'Text Generation', 'Image-to-Text', 'Automatic Speech Recognition']);
+  assert.deepEqual(WATCHED_TASKS, ['Text Embeddings', 'Text Generation', 'Image-to-Text', 'Automatic Speech Recognition', 'Translation']);
   for (const m of AI_MODELS) {
     assert.ok(TASK_OF_KIND[m.kind], `${m.id}: unknown kind ${m.kind}`);
     assert.ok(m.uses && m.files.length, `${m.id}: say what it runs and where`);
@@ -249,6 +249,7 @@ function answers(overrides = {}) {
         ? { choices: [{ index: 0, message: { role: 'assistant', content: 'A small orange square.' } }] }
         : { response: 'A small orange square.' };
       case 'speech': return m.audio === 'base64' ? { text: 'Thank you.', transcription_info: { language: 'en' } } : { text: '', vtt: 'WEBVTT' };
+      case 'translation': return { translated_text: 'dog' };
       default: throw new Error(`5007: No such model ${id}`);
     }
   };

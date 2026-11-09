@@ -33,10 +33,10 @@ const CONTROL = /[\u0000-\u001f\u007f]/;
 
 // A tag's name as given: each run of spaces one space, trimmed, and a leading
 // '#' taken off (⌘K writes a tag as #name, and people copy it that way). Null
-// when nothing is left.
+// when nothing is left. Written in NFC, as the database stores it (0880).
 export function cleanTagName(raw) {
   if (typeof raw !== 'string') return null;
-  const name = raw.replace(/\s+/g, ' ').trim().replace(/^#+\s*/, '');
+  const name = raw.normalize('NFC').replace(/\s+/g, ' ').trim().replace(/^#+\s*/, '');
   return name || null;
 }
 

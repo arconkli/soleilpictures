@@ -58,6 +58,7 @@ import { noteEntryRange } from '../lib/noteEntryPoint.js';
 import { inertContainer } from '../lib/inertHtml.js';
 import { TextSelection } from '@tiptap/pm/state';
 import './noteTiptap.css';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const NOTE_AUTOSIZE_MAX = 480;
 // The "Show all" ceiling (the chip in cards.jsx NoteCardCollab). A note that
@@ -891,6 +892,7 @@ function NoteTiptapEditing({
   // Escape exits edit mode (collaborative edits are already shared — there is
   // no "revert" like the legacy note had).
   const onKeyDown = (e) => {
+    if (isComposingKey(e)) return;
     if (e.key === 'Escape' && !mention) {
       e.preventDefault();
       editor?.commands.blur();

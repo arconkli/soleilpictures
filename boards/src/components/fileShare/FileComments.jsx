@@ -14,6 +14,8 @@ import { logEvent, logEventNow } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { useOptionalFeedback } from '../AppFeedback.jsx';
 import { undoToast } from '../../lib/undoToast.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
+import { initialOf } from '../../lib/graphemes.js';
 
 const POLL_MS = 15000;
 const COUNTER_FROM = 1800;
@@ -25,7 +27,7 @@ const safeColor = (c) => (typeof c === 'string' && /^#[0-9a-f]{3,8}$/i.test(c) ?
 export function Avatar({ name, url, color, size = 24 }) {
   const [broken, setBroken] = useState(false);
   const src = broken ? null : safeAvatar(url);
-  const initial = String(name || '?').trim().charAt(0).toUpperCase() || '?';
+  const initial = initialOf(name);
   return (
     <span className="fsc-avatar" style={{ width: size, height: size, ...(safeColor(color) ? { background: safeColor(color) } : {}) }} aria-hidden="true">
       {src
@@ -89,6 +91,7 @@ function Composer({ kind, reply = null, getAnchor, currentPage, onFocusCompose, 
   };
 
   const onKeyDown = (e) => {
+    if (isComposingKey(e)) return;
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); }
     else if (e.key === 'Escape' && reply) { e.preventDefault(); onCancel?.(); }
   };
@@ -102,6 +105,7 @@ function Composer({ kind, reply = null, getAnchor, currentPage, onFocusCompose, 
       <textarea
         ref={ref}
         className="fsc-input"
+        dir="auto"
         value={body}
         maxLength={FILE_COMMENT_MAX_CHARS}
         rows={reply ? 2 : 3}

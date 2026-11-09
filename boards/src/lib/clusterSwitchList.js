@@ -9,6 +9,7 @@
 // keeps it, so a cluster sits where the tree above has it.
 
 import { boardRecency } from './projectsHome.js';
+import { searchKey } from './textFold.js';
 
 // Sorts one parent's children in place, and returns them.
 export function sortSiblings(arr, parentId, rootId) {
@@ -40,7 +41,7 @@ export function clustersInTreeOrder(list, rootId) {
 }
 
 // Accents and case don't matter when finding a cluster by name.
-export const plainText = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+export const plainText = searchKey;
 
 // Found by name: flat, the names that start with it first (the tree's order
 // otherwise), each with where the match is, to show it, and the cluster it's

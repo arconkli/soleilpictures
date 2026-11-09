@@ -5,6 +5,7 @@ import { getMeta } from '../lib/imageMeta.js';
 import { readCoverFromBuffer } from '../lib/audioTags.js';
 import { uploadImage } from '../lib/uploads.js';
 import { lowMemoryDevice } from '../lib/device.js';
+import { safeFileName } from '../lib/safeFileName.js';
 
 // One-shot, best-effort backfill: give EXISTING audio cards a real waveform.
 // New uploads analyze their File eagerly; this catches the ones from before
@@ -104,7 +105,7 @@ export function useAudioPeaksBackfill({
           if (!c.cover && workspaceId && userId) {
             const cover = readCoverFromBuffer(buf);
             if (cover && !cancelled()) {
-              const base = (c.fileName || c.title || 'cover').replace(/\.[a-z0-9]+$/i, '').replace(/[^a-z0-9-_ ]/gi, '_').slice(0, 60) || 'cover';
+              const base = safeFileName((c.fileName || c.title || 'cover').replace(/\.[a-z0-9]+$/i, ''), { fallback: 'cover', maxChars: 60 });
               const file = new File([cover.bytes], `${base}.${cover.ext}`, { type: cover.mime });
               const up = await uploadImage({ file, workspaceId, boardId, userId });
               const live = !cancelled() && liveCard(c.id);

@@ -8,6 +8,7 @@ import { seatsFree, joinUrl } from '../../lib/teamModel.js';
 import { parseEmails } from '../../lib/inviteSubmit.js';
 import { refusalLine, domainCheckLine } from '../../lib/teamCopy.js';
 import { TeamMenu } from './TeamMenu.jsx';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 const FROZEN = 'The team is view-only until it’s paid';
 const ROLE_ITEMS = [
@@ -255,6 +256,7 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
                 autoFocus
                 onChange={(e) => setDomainText(e.target.value)}
                 onKeyDown={(e) => {
+                  if (isComposingKey(e)) return;
                   if (e.key === 'Enter') addDomain();
                   if (e.key === 'Escape') { e.stopPropagation(); setAddingDomain(false); setDomainText(''); }
                 }}

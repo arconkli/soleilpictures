@@ -117,9 +117,12 @@ export function peopleCounts(people) {
 
 // show: 'all' lists everyone who can edit and every invite, with the viewers
 // folded into one row below (viewersFolded); a search finds viewers too.
-export function filterPeople(people, { query = '', show = 'all' } = {}) {
-  const q = query.trim().toLowerCase();
-  const hit = (p) => !q || p.name.toLowerCase().includes(q) || (p.email || '').toLowerCase().includes(q);
+// `fold` is what a name and the query are compared as: TeamPeople passes
+// textFold's searchKey, so "nunez" finds Núñez. It is passed in rather than
+// imported so this model stays a leaf (teamPreviewWiring.test.mjs).
+export function filterPeople(people, { query = '', show = 'all', fold = (s) => String(s ?? '').toLowerCase() } = {}) {
+  const q = fold(query.trim());
+  const hit = (p) => !q || fold(p.name).includes(q) || fold(p.email).includes(q);
   const isViewer = (p) => !p.invited && p.role === 'viewer';
   const inShow = (p) => {
     if (show === 'edit') return !p.invited && p.role !== 'viewer';
@@ -224,6 +227,22 @@ function trim(n) {
   return String(Math.round(n * 100) / 100);
 }
 
+// The team letter: the name's first grapheme, uppercased (the sharp s stays itself).
+// Inlined, not imported from graphemes.js: this file stays a leaf. Same rule as initialOf.
+function firstLetter(name) {
+  const s = String(name || '');
+  let g = '';
+  if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+    for (const x of new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(s)) { g = x.segment; break; }
+  } else {
+    for (const ch of s) {
+      if (!g || !/[\p{M}\u{200c}\u{200d}\u{fe0f}\u{1f3fb}-\u{1f3ff}\u{e0020}-\u{e007f}]/u.test(ch)) { if (g) break; g = ch; } else g += ch;
+    }
+  }
+  const u = g.toUpperCase();
+  return [...u].length === [...g].length ? u : g;
+}
+
 export function dateLabel(ms) {
   return new Date(ms).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
@@ -324,7 +343,7 @@ export function teamReducer(team, action) {
     }
     case 'rename': {
       const name = String(action.name || '').trim();
-      return name ? { ...team, name, letter: name.charAt(0).toUpperCase() } : team;
+      return name ? { ...team, name, letter: firstLetter(name) } : team;
     }
     default:
       return team;

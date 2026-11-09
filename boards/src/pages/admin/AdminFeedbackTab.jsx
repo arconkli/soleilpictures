@@ -32,6 +32,8 @@ import { FeedbackKindPill, FeedbackChoicePill } from './AdminPills.jsx';
 import { MessageSquare, Image as ImageIcon } from '../../lib/icons.js';
 import { describeFeedbackContext } from '../../lib/feedbackContext.js';
 import { safeExternalHref } from '../../lib/safeExternalHref.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
+import { cutGraphemes, exceedsGraphemes } from '../../lib/graphemes.js';
 
 // Asserted against the table's CHECK by src/lib/feedbackContract.test.mjs — a
 // kind the database can store and this array cannot ask for is a row written
@@ -174,8 +176,8 @@ export function AdminFeedbackTab() {
             {rows.map((r) => {
               const isExpanded = expanded.has(r.id);
               const message = r.message || '';
-              const isLong = message.length > CLAMP;
-              const preview = message.slice(0, CLAMP);
+              const isLong = exceedsGraphemes(message, CLAMP);
+              const preview = cutGraphemes(message, CLAMP);
               // A row with only a screenshot has no long message, so gating the
               // expand affordance on message length alone left the image
               // unreachable even once the RPC started returning it.
@@ -190,6 +192,7 @@ export function AdminFeedbackTab() {
                   aria-expanded={canOpen ? isExpanded : undefined}
                   onClick={() => canOpen && toggle(r)}
                   onKeyDown={(e) => {
+                    if (isComposingKey(e)) return;
                     if (canOpen && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(r); }
                   }}
                 >

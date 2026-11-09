@@ -11,6 +11,9 @@
 // admin's session, so the page gets links that are already signed. Keep this and
 // the migration in lockstep; workerShowcase.test.mjs pins both to one value.
 
+import { attachmentDisposition } from './lib/attachmentDisposition.js';
+import { safeFileName } from './lib/safeFileName.js';
+
 const BOARD_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const FILE_RE = /^[a-z0-9][a-z0-9._-]{0,80}$/;
 
@@ -50,13 +53,15 @@ function sameText(a, b) {
   return diff === 0;
 }
 
-// A download name the browser can't be tricked by: letters, digits, dot, dash,
-// underscore; the shot's own extension kept.
+// A download name the browser can't be tricked by: no path separators, quotes
+// or controls, whole characters, the shot's own extension kept. It goes out
+// through attachmentDisposition, which adds the UTF-8 form for non-ASCII names.
 export function downloadName(asked, file) {
-  const ext = extOf(file);
-  const base = String(asked || '').replace(/\.[A-Za-z0-9]+$/, '').replace(/[^A-Za-z0-9._-]+/g, '-')
-    .replace(/^[-.]+|[-.]+$/g, '').slice(0, 100);
-  return `${base || file.replace(/\.[a-z0-9]+$/, '')}.${ext}`;
+  return safeFileName(String(asked || '').replace(/\.[A-Za-z0-9]+$/, ''), {
+    ext: extOf(file),
+    fallback: file.replace(/\.[a-z0-9]+$/, ''),
+    maxChars: 100,
+  });
 }
 
 const plain = (status, text) => new Response(text, {
@@ -88,7 +93,7 @@ export async function handleShowcaseShot(url, request, env, deps) {
     'x-content-type-options': 'nosniff',
   };
   if (url.searchParams.has('dl')) {
-    headers['content-disposition'] = `attachment; filename="${downloadName(url.searchParams.get('dl'), at.file)}"`;
+    headers['content-disposition'] = attachmentDisposition(downloadName(url.searchParams.get('dl'), at.file));
   }
   if (request.headers.get('if-none-match') === obj.httpEtag) {
     return new Response(null, { status: 304, headers });

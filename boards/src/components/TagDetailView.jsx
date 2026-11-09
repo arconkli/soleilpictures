@@ -44,6 +44,8 @@ import { EV } from '../lib/analyticsEvents.js';
 import { openInfo } from '../lib/infoBus.js';
 import { shareTargetForRef } from '../lib/fileShareBus.js';
 import { TagActionSheet } from './TagActionSheet.jsx';
+import { isComposingKey } from '../lib/composerKeys.js';
+import { cutGraphemes, exceedsGraphemes } from '../lib/graphemes.js';
 
 // Patch missing meta.src on image-kind card_index rows by looking up
 // `images.storage_path` via card_id. card_index.meta.src is populated
@@ -101,7 +103,7 @@ function itemExcerpt(it) {
   const title = (it.title || '').trim();
   if (title) return title;
   const body = (it.body || it.card_body || '').trim();
-  if (body) return body.length > 100 ? body.slice(0, 97) + '…' : body;
+  if (body) return exceedsGraphemes(body, 100) ? cutGraphemes(body, 97) + '…' : body;
   return null;
 }
 
@@ -161,7 +163,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
   useEffect(() => {
     if (!menu) return;
     const onAway = (e) => { if (!e.target.closest?.('.tag-detail-menu')) setMenu(null); };
-    const onKey = (e) => { if (e.key === 'Escape') setMenu(null); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') setMenu(null); };
     window.addEventListener('pointerdown', onAway, { capture: true });
     window.addEventListener('mousedown', onAway, { capture: true });
     window.addEventListener('keydown', onKey);
@@ -963,6 +965,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
   useEffect(() => {
     if (lightboxIdx == null) return;
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key === 'Escape') {
         e.stopPropagation();
         setLightboxIdx(null);
@@ -1282,9 +1285,9 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
                           title={navTarget ? 'Open page' : ''}>
                     <span className="tag-detail-mention-head">
                       <Icon as={FileText} size={11} />
-                      <span className="tag-detail-mention-title">{title}</span>
+                      <span className="tag-detail-mention-title" dir="auto">{title}</span>
                       {m.page_title && m.doc_title && m.doc_title !== m.page_title && (
-                        <span className="tag-detail-mention-crumb">{m.doc_title}</span>
+                        <span className="tag-detail-mention-crumb" dir="auto">{m.doc_title}</span>
                       )}
                     </span>
                     {m.context_text && (
@@ -1344,7 +1347,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
                 <span className={`card-tag-chip tag-sheet-chip${auto ? ' is-auto' : ''}`}
                       style={{ '--tag-c': resolveTagColor(tag) }}>
                   <span className="card-tag-chip-dot" />
-                  <span className="card-tag-chip-name">{tag.name}</span>
+                  <span className="card-tag-chip-name" dir="auto">{tag.name}</span>
                 </span>
                 {auto && 'added automatically'}
               </>

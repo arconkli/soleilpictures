@@ -56,6 +56,7 @@ import { UsedBy } from '../components/public/UsedBy.jsx';
 import { bootMark } from '../lib/bootMarks.js';
 import { preloadSignedInApp } from '../lib/preloadApp.js';
 import { startBootPrefetch, bootPrefetchPersonal, clearBootPrefetch } from '../lib/bootPrefetch.js';
+import { initialOf } from '../lib/graphemes.js';
 
 // Localstorage key holding an in-flight invite token between the
 // pre-signup landing (?invite=…) and the post-signup claim hook.
@@ -1299,7 +1300,7 @@ function SignIn({ warmApp = null }) {
         </div>
       ) : (
         <div className="auth-wsjoin" role="note">
-          <span className="auth-wsjoin-av" aria-hidden="true">{(wsJoinHint.name || '?').trim().charAt(0).toUpperCase()}</span>
+          <span className="auth-wsjoin-av" aria-hidden="true">{initialOf(wsJoinHint.name)}</span>
           <span className="auth-wsjoin-t">
             <b>{wsJoinHint.name ? `Join ${wsJoinHint.name}` : 'Join a workspace'}</b>
             <span>{wsJoinHint.inviter ? `${wsJoinHint.inviter} invited you. ` : ''}Sign in or sign up to join.</span>

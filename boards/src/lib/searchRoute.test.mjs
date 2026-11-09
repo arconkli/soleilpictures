@@ -237,3 +237,93 @@ test('MCP search finds a board by name', async () => {
   assert.equal(first.kind, 'board');
   assert.equal(first.title, 'Lookbook');
 });
+
+const cardRow = (id, title, body, fold = null) => ({
+  board_id: B1, card_id: id, kind: 'note', title, body, fold, workspace_id: W1, updated_at: '2026-10-03T00:00:00Z',
+});
+
+// Every card_index / doc_page_index read the route makes, decoded.
+function recordReads() {
+  const reads = [];
+  const inner = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const u = new URL(typeof input === 'string' ? input : input.url);
+    const path = u.pathname.replace(/^\/rest\/v1\//, '');
+    if (['card_index', 'doc_page_index', 'boards'].includes(path) && u.searchParams.has('or')) {
+      reads.push({ path, or: u.searchParams.get('or') });
+    }
+    return inner(input, init);
+  };
+  return reads;
+}
+
+test('folding works both ways: "café" finds plain "cafe", "cafe" finds "Café" through fold', async () => {
+  db.card_index.push(
+    cardRow(C1, 'Plain', 'we met at the cafe'),                    // fold NULL: nothing to fold
+    cardRow(C2, 'Café notes', null, 'Cafe notes'),            // stored accented, folded
+  );
+  const accented = await api('GET', `/search?q=${encodeURIComponent('café')}&kind=card`);
+  assert.deepEqual(accented.body.cards.items.map((c) => c.card_id).sort(), [C1, C2].sort());
+  const plain = await api('GET', '/search?q=cafe&kind=card');
+  assert.deepEqual(plain.body.cards.items.map((c) => c.card_id).sort(), [C1, C2].sort());
+});
+
+test('the fold terms are in the or-tree in both directions', async () => {
+  const reads = recordReads();
+  await api('GET', `/search?q=${encodeURIComponent('café')}&kind=card`);
+  const card = reads.find((r) => r.path === 'card_index').or;
+  assert.ok(card.includes('title.ilike.'), card);
+  for (const col of ['title', 'body', 'meta->>fileName']) assert.ok(card.includes(`${col}.ilike."%cafe%"`), `${col} against the folded query`);
+  assert.ok(card.includes('fold.ilike."%cafe%"'));
+  const pages = reads.find((r) => r.path === 'doc_page_index').or;
+  for (const col of ['page_title', 'page_text', 'fold']) assert.ok(pages.includes(`${col}.ilike."%cafe%"`), col);
+});
+
+test('a database without the fold column is retried once, on the raw words and the folded query', async () => {
+  const inner = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (input, init) => {
+    const u = new URL(typeof input === 'string' ? input : input.url);
+    const path = u.pathname.replace(/^\/rest\/v1\//, '');
+    if (path === 'card_index') {
+      const or = u.searchParams.get('or') || '';
+      calls.push(or);
+      if (or.includes('fold.ilike')) {
+        return reply({ code: '42703', message: 'column card_index.fold does not exist' }, 400);
+      }
+    }
+    return inner(input, init);
+  };
+  db.card_index.push(cardRow(C1, 'Plain', 'we met at the cafe'));
+  const r = await api('GET', `/search?q=${encodeURIComponent('café')}&kind=card`);
+  assert.equal(r.status, 200);
+  assert.equal(calls.length, 2, 'one try with fold, one retry without');
+  assert.ok(!calls[1].includes('fold.ilike'));
+  assert.ok(calls[1].includes('body.ilike."%cafe%"'), 'the folded query still reaches the raw columns');
+  assert.deepEqual(r.body.cards.items.map((c) => c.card_id), [C1]);
+});
+
+test('only a missing column (42703) is retried', async () => {
+  const inner = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async (input, init) => {
+    const u = new URL(typeof input === 'string' ? input : input.url);
+    if (u.pathname.endsWith('/card_index')) {
+      calls += 1;
+      return reply({ code: '42501', message: 'permission denied' }, 403);
+    }
+    return inner(input, init);
+  };
+  const r = await api('GET', '/search?q=cafe&kind=card');
+  assert.equal(calls, 1, 'no retry on another error');
+  assert.notEqual(r.status, 200);
+});
+
+test('a board name: an accented query finds a plain name; the plain query does not find an accented one', async () => {
+  db.boards.push(board(B1, 'Cafe lookbook'), board(B2, 'Café stills'));
+  const accented = await api('GET', `/search?q=${encodeURIComponent('café')}&kind=board`);
+  assert.deepEqual(accented.body.boards.items.map((b) => b.id).sort(), [B1, B2].sort());
+  const plain = await api('GET', '/search?q=cafe&kind=board');
+  assert.deepEqual(plain.body.boards.items.map((b) => b.id), [B1], 'boards have no fold column, so this direction is documented as not matched');
+  assert.deepEqual(quotedPlain, []);
+});

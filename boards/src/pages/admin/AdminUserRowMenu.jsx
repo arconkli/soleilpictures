@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon.jsx';
 import { DotsThreeVertical, Lock, Trash2, ArrowsClockwise } from '../../lib/icons.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 export function AdminUserRowMenu({ row, disabled, busy, onBan, onUnban, onResync, onDelete }) {
   const [open, setOpen] = useState(false);
@@ -16,7 +17,7 @@ export function AdminUserRowMenu({ row, disabled, busy, onBan, onUnban, onResync
   useEffect(() => {
     if (!open) return;
     const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('mousedown', onDoc);
     document.addEventListener('keydown', onKey);
     return () => {

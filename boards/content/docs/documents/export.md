@@ -5,7 +5,7 @@ h1: Exporting documents
 navLabel: Exporting documents
 section: documents
 order: 2
-updated: 2026-10-25
+updated: 2026-11-09
 answer: Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.
 faq:
   - q: Is the PDF selectable text or an image?
@@ -43,6 +43,11 @@ Real text, not a rendered image — selectable and searchable.
 For screenplays it is vector output in Courier at correct industry metrics, and
 the page breaks match what you saw while writing, because
 [pagination is computed the same way for both](/docs/documents/screenplay).
+
+A script in Russian, Greek or another Latin-based or Cyrillic alphabet is set in a
+matching typewriter font, so every letter prints. A script in Hebrew, Arabic,
+Chinese, Japanese or Korean opens the print dialog instead; choose **Save as PDF**
+there.
 
 ## Markdown
 

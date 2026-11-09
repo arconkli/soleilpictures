@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { LayoutGrid, FileText, StickyNote, Link as LinkIcon } from '../lib/icons.js';
 import { COVER_TINTS } from './primitives.jsx';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const TILE_KIND_ICON = {
   board: LayoutGrid,
@@ -43,7 +44,7 @@ export function LinkPopover({ anchor, link, onNavigate, onClose }) {
     const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
     // Claimed: an open doc is a layer (lib/modalGuard) that would close on
     // the same Escape at the window.
-    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);

@@ -51,6 +51,14 @@ Right-clicking while you are editing gives you the **browser's** text menu —
 Paste, Copy, Look Up, Emoji & Symbols — not the card menu. A right-click on a
 note you are not editing gives the card menu as usual.
 
+## Right to left
+
+Arabic, Hebrew, Persian and Urdu run right to left on their own, line by line,
+in notes, [documents](/docs/documents), [comments](/docs/collaborate/comments)
+and [messages](/docs/collaborate/messages). One note can hold an English line
+and an Arabic line, each running its own way. Menus and buttons stay as they
+are, and a [screenplay](/docs/documents/screenplay) keeps its layout.
+
 ## Checklists
 
 Start a line with a checkbox from the toolbar to make a task list. Boxes are

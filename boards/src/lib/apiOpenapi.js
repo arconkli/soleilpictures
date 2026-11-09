@@ -240,7 +240,7 @@ export function openapiDocument(origin) {
             + 'about something without listing every board and reading each one.',
           operationId: 'search',
           parameters: [
-            { name: 'q', in: 'query', required: true, schema: { type: 'string', minLength: 2 } },
+            { name: 'q', in: 'query', required: true, schema: { type: 'string', minLength: 1 }, description: 'At least 2 characters, or 1 for Chinese, Japanese and Korean. Accents are ignored.' },
             {
               name: 'kind', in: 'query', required: false,
               schema: { type: 'string', enum: ['board', 'card'] },

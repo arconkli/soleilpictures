@@ -45,6 +45,7 @@ import {
   fetchKeepBundle, firstClusterOf, firstCardOf, keepPath, hostName, keepFailure, roomLeft, deleteDay,
   signInWords, signupFirstSource, keepFailReason,
 } from '../lib/keepDraft.js';
+import { initialOf } from '../lib/graphemes.js';
 import './keepPage.css';
 
 const EMPTY = [];
@@ -704,7 +705,7 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
 // The top bar's right side: DRAFT and "view only" until it's kept; the
 // signed-in person's initial.
 function KeepTopbarEnd({ kept, me }) {
-  const initial = (me?.email || '').trim().charAt(0).toUpperCase();
+  const initial = initialOf(me?.email, '');
   return (
     <>
       {!kept && <span className="keep-badge">Draft</span>}

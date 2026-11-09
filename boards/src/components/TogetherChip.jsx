@@ -9,6 +9,8 @@ import {
   groupHint, arrivalNote,
 } from '../lib/liveTogether.js';
 import './togetherChip.css';
+import { isComposingKey } from '../lib/composerKeys.js';
+import { initialOf } from '../lib/graphemes.js';
 
 const RING = 40.84;   // 2 * PI * 6.5
 const NOTE_KEY = 'soleil:together-note-day';
@@ -94,6 +96,7 @@ export default function TogetherChip({ state, peers, selfId, compact = false, on
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       const tabOut = e.key === 'Tab' && popRef.current?.contains(document.activeElement);
       if (e.key !== 'Escape' && !tabOut) return;
       if (tabOut) e.preventDefault();
@@ -151,7 +154,7 @@ export default function TogetherChip({ state, peers, selfId, compact = false, on
             {people.map((p) => (
               <span key={p.id} className="presence-dot" title={p.name || undefined}
                     style={{ background: p.color || 'var(--ink-3)' }}>
-                {(p.name || '?')[0].toUpperCase()}
+                {initialOf(p.name)}
               </span>
             ))}
           </div>

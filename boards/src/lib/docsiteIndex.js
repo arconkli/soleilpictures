@@ -596,6 +596,10 @@ export const DOCS_PAGES = [
         "text": "Writing"
       },
       {
+        "id": "right-to-left",
+        "text": "Right to left"
+      },
+      {
         "id": "checklists",
         "text": "Checklists"
       },
@@ -1087,7 +1091,7 @@ export const DOCS_PAGES = [
     "answer": "Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; documents (Word, PowerPoint, Excel) show their first page, design files (Sketch, Figma, Procreate) the picture saved inside and zips what's inside them; anything else becomes a file card with a download. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.",
     "section": "files",
     "order": 0,
-    "updated": "2026-10-27",
+    "updated": "2026-11-09",
     "navLabel": "Overview",
     "headings": [
       {
@@ -1171,7 +1175,7 @@ export const DOCS_PAGES = [
     "answer": "Drop a PDF onto a canvas and you get a card showing its first page and how many pages it has. Click it to open a full-screen viewer that scrolls through the whole document and offers a download. PDFs up to 50 MB open in the viewer; a larger one lands as a file card with a download. There is no PDF size limit on any plan.",
     "section": "files",
     "order": 1,
-    "updated": "2026-10-22",
+    "updated": "2026-11-09",
     "navLabel": "PDFs",
     "headings": [
       {
@@ -1279,7 +1283,7 @@ export const DOCS_PAGES = [
     "answer": "A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no limit on how many clusters you make, and a cluster costs none of your cards: its card on the parent's canvas is free on every plan, and only what you put inside it counts. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.",
     "section": "clusters",
     "order": 0,
-    "updated": "2026-10-27",
+    "updated": "2026-11-09",
     "navLabel": "Overview",
     "headings": [
       {
@@ -1817,7 +1821,7 @@ export const DOCS_PAGES = [
     "answer": "Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.",
     "section": "documents",
     "order": 2,
-    "updated": "2026-10-25",
+    "updated": "2026-11-09",
     "navLabel": "Exporting documents",
     "headings": [
       {
@@ -1937,7 +1941,7 @@ export const DOCS_PAGES = [
     "answer": "A tag cuts across everything — put one on a card, a whole cluster or a passage of a document, and the tag's page gathers all of them from anywhere in the workspace. Tags can be typed as a character, setting, organization, topic or thing. A tag is applied on its own only where its exact name appears; beyond that the AI suggests tags and underlines clear mentions in documents, everything it does is marked auto, and the workspace owner can turn it off.",
     "section": "organize",
     "order": 0,
-    "updated": "2026-10-25",
+    "updated": "2026-11-09",
     "navLabel": "Tags",
     "headings": [
       {
@@ -2057,7 +2061,7 @@ export const DOCS_PAGES = [
     "answer": "Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.",
     "section": "organize",
     "order": 2,
-    "updated": "2026-10-27",
+    "updated": "2026-11-09",
     "navLabel": "Search",
     "headings": [
       {
@@ -4208,7 +4212,7 @@ export const DOCS_PAGES = [
     "title": "Search API — Soleil Clusters",
     "metaDescription": "Search Soleil Clusters boards and cards by text over REST. Query parameters, kind and workspace filters, pagination and result shape.",
     "h1": "Search API",
-    "answer": "GET /search finds boards and cards by text across everything your account can see, the words inside docs, and pictures by what is in them. Pass q with at least two characters, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.",
+    "answer": "GET /search finds boards and cards by text across everything your account can see, the words inside docs, and pictures by what is in them. Pass q with at least two characters (one is enough for Chinese, Japanese and Korean), ignoring accents, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.",
     "section": "developers",
     "order": 9,
     "updated": "2026-11-04",
@@ -4247,7 +4251,11 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Why does a one-character query fail?",
-        "a": "A single character matches most of a workspace and costs a full scan to say so. The minimum is two characters, and shorter queries get 400."
+        "a": "A single Latin, Cyrillic or other alphabetic character matches most of a workspace and costs a full scan to say so. The minimum is two characters, and shorter queries get 400. One character is allowed for Chinese, Japanese (Hiragana, Katakana and Han) and Korean, where a single character is a word."
+      },
+      {
+        "q": "Does search ignore accents?",
+        "a": "Yes, for card text (a picture's title and file name included) and doc pages, both ways. \"cafe\" finds \"Café\", \"Lodz\" finds \"Łódź\" and \"strasse\" finds \"Straße\"; Hebrew points and Arabic vowel marks are ignored too. Letters that are different letters stay different, so Cyrillic й is not и, and Japanese voiced kana (ガ) is not カ. A board's name and what is in a picture are matched as typed or with your accents removed, so \"Café\" finds \"Cafe\", but \"cafe\" does not find \"Café\"."
       },
       {
         "q": "Can I search someone else's boards?",

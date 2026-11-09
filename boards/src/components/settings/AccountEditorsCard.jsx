@@ -19,6 +19,7 @@ import {
 } from '../../lib/editorLimit.js';
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
+import { initialOf } from '../../lib/graphemes.js';
 
 const EXAMPLE_TITLE = 'An example person, for the preview';
 
@@ -107,7 +108,7 @@ export function AccountEditorsCard({ cap, editors = [], ownerName = null, selfId
               <li key={row.slot_key} className={`settings-editor-row${busy === row.slot_key ? ' is-busy' : ''}`}>
                 <span className={`settings-editor-av${pending ? ' is-neutral' : ''}`}
                       style={pending ? undefined : { background: pickPresenceColor(row.user_id || row.email) }}
-                      aria-hidden="true">{name.charAt(0).toUpperCase()}</span>
+                      aria-hidden="true">{initialOf(name, '')}</span>
                 <span className="settings-editor-who">
                   <span className="settings-editor-name">{name}{row.user_id && row.user_id === selfId ? ' (you)' : ''}</span>
                   <span className="settings-editor-sub">{accountEditorSub(row)}</span>

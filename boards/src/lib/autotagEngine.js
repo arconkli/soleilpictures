@@ -24,6 +24,8 @@
 // easy to relocate to a server-side runtime later if browser
 // memory becomes an issue.
 
+import { isNoSpaceChar, slugWordRegex } from './tagWordMatch.js';
+
 const STOP_WORDS = new Set([
   'a','an','and','any','are','as','at','be','been','being','but','by','can',
   'could','did','do','does','doing','done','for','from','had','has','have',
@@ -37,19 +39,34 @@ const STOP_WORDS = new Set([
   'with','would','you','your','yours','yourself','yourselves','about',
 ]);
 
-// HTML-strip + word-tokenize. Keeps short numeric tokens (Q1, V2),
-// drops 1-char letters and pure punctuation. Produces unigrams and
-// bigrams.
+// HTML-strip + word-tokenize, in any script. Keeps short numeric tokens
+// (Q1, V2), drops 1-character tokens and pure punctuation. A run of
+// Chinese, Japanese or Thai (written without spaces) is split into
+// dictionary words by Intl.Segmenter. Produces unigrams and bigrams.
+// On ASCII text the tokens are exactly what the old [a-z0-9] tokenizer gave.
+const WORD_RUN = /[\p{L}\p{N}\p{M}][\p{L}\p{N}\p{M}_-]*/gu;
+let segmenter;
+function splitNoSpace(tok) {
+  if (![...tok].some(isNoSpaceChar)) return [tok];
+  if (segmenter === undefined) {
+    try { segmenter = new Intl.Segmenter(undefined, { granularity: 'word' }); } catch { segmenter = null; }
+  }
+  if (!segmenter) return [tok];
+  const out = [];
+  for (const s of segmenter.segment(tok)) if (s.isWordLike) out.push(s.segment);
+  return out;
+}
 export function tokenize(input) {
   if (!input) return [];
   const text = String(input)
     .replace(/<[^>]+>/g, ' ')      // strip HTML
     .replace(/&[a-z]+;/gi, ' ')   // strip HTML entities
+    .normalize('NFC')
     .toLowerCase();
-  const raw = text.match(/[a-z0-9][a-z0-9_-]*/g) || [];
+  const raw = (text.match(WORD_RUN) || []).flatMap(splitNoSpace);
   const unigrams = [];
   for (const tok of raw) {
-    if (tok.length < 2 && !/^\d+$/.test(tok)) continue;
+    if ([...tok].length < 2 && !/^\d+$/.test(tok)) continue;
     if (STOP_WORDS.has(tok)) continue;
     unigrams.push(tok);
   }
@@ -132,14 +149,13 @@ function squash(cosine) {
   return 1 - Math.exp(-cosine * 6);
 }
 
-// Word-boundary check — avoids matching "art" inside "smart" or
-// "design" inside "designation". Slugs may contain punctuation, so
-// we escape regex specials. Used for both single- and multi-word
-// slugs (the latter not in tokenSet for slugs ≥ 3 words).
+// "design" inside "designation" is not a match; "кино" inside "кинотеатр"
+// isn't either, while "東京" inside "東京駅" and "서울" in "서울에서" are.
+// Same rule as the database (tagWordMatch.js mirrors 0880). Callers pass
+// lowercased text.
 function hasWord(haystack, needle) {
   if (!needle) return false;
-  const esc = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp('(^|[^a-z0-9])' + esc + '($|[^a-z0-9])', 'i').test(haystack);
+  return slugWordRegex(needle).test(haystack);
 }
 
 // Main entry point.
@@ -157,7 +173,7 @@ export function scoreContent({ tags, index, content, ignoredTagIds }) {
   const out = [];
   const text = String(content || '').trim();
   if (!text) return out;
-  const lower = text.toLowerCase();
+  const lower = text.normalize('NFC').toLowerCase();
   const tokens = tokenize(text);
   const tokenSet = new Set(tokens);
   const ignored = ignoredTagIds || new Set();
@@ -165,7 +181,7 @@ export function scoreContent({ tags, index, content, ignoredTagIds }) {
   for (const tag of (tags || [])) {
     if (!tag || !tag.id) continue;
     if (ignored.has(tag.id)) continue;
-    const slug = (tag.slug || tag.name || '').toLowerCase().trim();
+    const slug = (tag.slug || tag.name || '').normalize('NFC').toLowerCase().trim();
     if (!slug) continue;
     let bestScore = 0;
     let bestReason = null;
@@ -191,7 +207,7 @@ export function scoreContent({ tags, index, content, ignoredTagIds }) {
     // 2. Alias match — same thing for any alias.
     if (Array.isArray(tag.aliases)) {
       for (const a of tag.aliases) {
-        const al = (a || '').toLowerCase().trim();
+        const al = (a || '').normalize('NFC').toLowerCase().trim();
         if (!al) continue;
         if (tokenSet.has(al) || hasWord(lower, al)) {
           if (0.9 > bestScore) { bestScore = 0.9; bestReason = 'alias'; }

@@ -10,7 +10,7 @@
 //
 // Font-load layout fix: Brandon Grotesque loads async from Adobe Typekit
 // with the default font-display: swap. The initial layout pass uses the
-// fallback chain (Impact, sans-serif) — Impact is materially narrower
+// fallback chain (soleil-impact, sans-serif; Impact for Latin) — Impact is materially narrower
 // than Brandon — and when the webfont swaps in, Chrome and Safari do NOT
 // re-flow inline-flex children. The span's layout width stays at the
 // fallback's narrower value while the painted glyphs render at Brandon's

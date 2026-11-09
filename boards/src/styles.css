@@ -5,6 +5,16 @@
 
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap');
 
+/* Impact covers Greek and Cyrillic, so in the old stack brandon-grotesque -> Impact,
+   Russian and Greek display text fell into Impact. This alias exposes Impact only for the
+   characters the brandon-grotesque kit (qtd2rwk, default subset) also serves: Latin keeps
+   the exact old look, and every other script falls through to sans-serif. */
+@font-face {
+  font-family: 'soleil-impact';
+  src: local('Impact');
+  unicode-range: U+0020-007E, U+00A0-00FF, U+0152-0153, U+0178, U+02DC, U+2013-2014, U+2018-2019, U+201C-201E, U+2022, U+2026, U+2039-203A, U+20AC, U+2122;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* Clusters mark — show the dark-bg variant by default, swap to the
@@ -142,7 +152,7 @@
   --grid-dot:  rgba(245,245,247,.05);
 
   --font-sans: aileron, -apple-system, system-ui, sans-serif;
-  --font-display: brandon-grotesque, Impact, sans-serif;
+  --font-display: brandon-grotesque, soleil-impact, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
   --shadow-1:    0 1px 0 rgba(0,0,0,.4), 0 2px 6px rgba(0,0,0,.25);
@@ -251,7 +261,13 @@ body {
      was shifting layout off-center on iOS even though insets read 0
      in portrait. Per-surface safe-area handling lives where it
      matters (.topbar, .auth-card, .mb-nav, .sheet-panel). */
+  /* Menus stay left-to-right, so a label stays where its icon put it. A
+     label that shows someone's own words carries dir="auto": it reads, and
+     is cut with its ellipsis, from its own start, but keeps this alignment.
+     Fields that take those words follow their text instead (rule below). */
+  text-align: left;
 }
+:where(input[dir=auto], textarea[dir=auto]) { text-align: start; }
 
 /* The film grain on a workspace ground (canvas, home graph, tag detail,
    Universe). Mounted INSIDE each surface so it sits on the ground only:
@@ -4737,6 +4753,7 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
 .comment-archive-tag.is-resolved { color: #10b981; background: rgba(16,185,129,.14); }
 .comment-archive-tag.is-hidden   { color: var(--ink-3); background: var(--bg-2); }
 .comment-archive-body-text {
+  text-align: start;
   font: 400 12.5px/1.4 var(--font-sans);
   color: var(--ink-1);
   white-space: pre-wrap;
@@ -5224,6 +5241,7 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
      (lib/noteFontSize.js): older stored sizes were fitted at 15px. */
   font-size: var(--note-font-size, 15px); line-height: 1.5; color: inherit;
   letter-spacing: -0.002em;
+  text-align: start;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -5311,9 +5329,18 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
    invisible bullets. Restore the indent (mirrors .tt-editor in Docs).
    ul.note-checklist keeps its own list-style:none + zero padding. */
 .note-body ul:not(.note-checklist),
-.note-body ol { padding-left: 24px; margin: 6px 0; list-style-position: outside; }
+.note-body ol { padding-inline-start: 0; margin: 6px 0; list-style-position: outside; }
 .note-body ul:not(.note-checklist) > li,
-.note-body ol > li { margin: 2px 0; }
+.note-body ol > li { margin: 2px 0; margin-inline-start: 24px; }
+/* An item that reads the other way from the item it sits in (an English sub-item
+   under an Arabic one) takes twice the step, so it still steps in from its
+   parent: its margin is on the side it starts from, and the side the parent's
+   text starts from is the other. A same-direction sub-item keeps the normal step.
+   Matched by resolved direction (:dir), not by a dir attribute: the read-only
+   pass puts dir=auto on every item, English ones included, and an all-English
+   note must not change. */
+.note-body :is(li:dir(rtl)) > :is(ul:not(.note-checklist), ol) > li:dir(ltr),
+.note-body :is(li:dir(ltr)) > :is(ul:not(.note-checklist), ol) > li:dir(rtl) { margin-inline-start: 48px; }
 .note-body li::marker { color: currentColor; }
 /* Note headings (# / ## / ###). With no rule they fell to the UA's 2em /
    1.5em / 1.17em — a 30px H1 in a 15px note — with the global reset's zero
@@ -5336,10 +5363,12 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
    on every note colour and in both themes. No monospace, and no gold:
    --soleil is for selection and focus. One rule for both the editor and
    the read-only note (both are .note-body). */
+/* Logical sides: a right-to-left quote keeps its rule on the side its text starts. */
 .note-body blockquote {
   margin: 6px 0;
-  padding: 0 0 0 10px;
-  border-left: 2px solid color-mix(in srgb, currentColor 28%, transparent);
+  padding: 0;
+  padding-inline-start: 10px;
+  border-inline-start: 2px solid color-mix(in srgb, currentColor 28%, transparent);
   color: color-mix(in srgb, currentColor 72%, transparent);
 }
 .note-body code,
@@ -5668,10 +5697,14 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
 .doc-bullet { color: var(--ink-3); }
 /* A doc made through the API (title + body/html, no doc store): its text as a
    read-only preview, sized like the legacy lines above. */
-.doc-body-html { display: block; font-size: 11.5px; color: var(--ink-1); line-height: 1.45; overflow-wrap: anywhere; }
+.doc-body-html { display: block; font-size: 11.5px; color: var(--ink-1); line-height: 1.45; overflow-wrap: anywhere; text-align: start; }
 .doc-body-html > * { margin: 0 0 4px; }
 .doc-body-html h1, .doc-body-html h2, .doc-body-html h3 { font-size: 13px; font-weight: 600; color: var(--ink-0); }
-.doc-body-html ul, .doc-body-html ol { padding-left: 18px; }
+.doc-body-html ul, .doc-body-html ol { padding-inline-start: 0; }
+.doc-body-html li { margin-inline-start: 18px; }
+/* An item reading the other way from its parent item takes twice the step. */
+.doc-body-html :is(li:dir(rtl)) > :is(ul, ol) > li:dir(ltr),
+.doc-body-html :is(li:dir(ltr)) > :is(ul, ol) > li:dir(rtl) { margin-inline-start: 36px; }
 .doc-ft {
   margin-top: 8px; padding-top: 8px;
   border-top: 1px solid var(--line-1);
@@ -11945,6 +11978,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 
 .canvas-comment-body {
+  text-align: start;
   font: 400 14px/1.5 var(--font-sans);
   color: var(--ink-1);
   letter-spacing: -0.005em;
@@ -12016,6 +12050,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .canvas-comment-line-x:hover { color: #ef4444; }
 .canvas-comment-line-body {
+  text-align: start;
   font: 400 14px/1.5 var(--font-sans);
   color: var(--ink-1);
   white-space: pre-wrap;
@@ -13713,6 +13748,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   line-height: 1.6;
   color: #d8d8dc;
   letter-spacing: 0;
+  text-align: start;
   caret-color: var(--soleil);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -13849,14 +13885,25 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   margin: 1.1em 0 .3em;
 }
 .tt-editor p { margin: .55em 0; }
-.tt-editor ul, .tt-editor ol { margin: .55em 0; padding-left: 26px; }
-.tt-editor li { margin: .2em 0; }
+.tt-editor ul, .tt-editor ol { margin: .55em 0; padding-inline-start: 0; }
+.tt-editor li { margin: .2em 0; margin-inline-start: 26px; }
+/* An item that reads the other way from the item it sits in takes twice the
+   step, so an English sub-item under an Arabic item still steps in. By resolved
+   direction (:dir), so an English doc never matches. A task item holds its
+   sub-list in a div, and its own step is the 4px of its list (doubled). */
+.tt-editor :is(li:dir(rtl)) > :is(ul, ol):not([data-type='taskList']) > li:dir(ltr),
+.tt-editor :is(li:dir(ltr)) > :is(ul, ol):not([data-type='taskList']) > li:dir(rtl),
+.tt-editor :is(li:dir(rtl)) > div > :is(ul, ol):not([data-type='taskList']) > li:dir(ltr),
+.tt-editor :is(li:dir(ltr)) > div > :is(ul, ol):not([data-type='taskList']) > li:dir(rtl) { margin-inline-start: 52px; }
+.tt-editor :is(li:dir(rtl)) > div > ul[data-type='taskList'] > li:dir(ltr),
+.tt-editor :is(li:dir(ltr)) > div > ul[data-type='taskList'] > li:dir(rtl) { margin-inline-start: 8px; }
 .tt-editor li > p { margin: 0; }
 .tt-editor li::marker { color: var(--ink-3); }
 .tt-editor blockquote {
   margin: .8em 0;
-  padding: .15em 0 .15em 24px;
-  border-left: 1px solid color-mix(in oklab, var(--ink-3) 30%, transparent);
+  padding: .15em 0;
+  padding-inline-start: 24px;
+  border-inline-start: 1px solid color-mix(in oklab, var(--ink-3) 30%, transparent);
   color: var(--ink-1);
   font-style: italic;
 }
@@ -13963,8 +14010,11 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   border-radius: 2px;
 }
 [data-theme='light'] .tt-editor mark { background: #fff09a; }
-.tt-editor ul[data-type='taskList'] { list-style: none; padding-left: 4px; }
+.tt-editor ul[data-type='taskList'] { list-style: none; padding-inline-start: 0; }
 .tt-editor ul[data-type='taskList'] li { display: flex; align-items: flex-start; gap: 8px; }
+/* Only the task item takes the 4px: a bullet list nested in it keeps the 26px
+   of .tt-editor li (and, as before, the flex that hides its markers). */
+.tt-editor ul[data-type='taskList'] > li { margin-inline-start: 4px; }
 .tt-editor ul[data-type='taskList'] li > label { margin-top: 5px; flex-shrink: 0; }
 .tt-editor ul[data-type='taskList'] li > div { flex: 1 1 auto; min-width: 0; }
 .tt-editor ul[data-type='taskList'] li[data-checked='true'] > div { color: var(--ink-3); text-decoration: line-through; }
@@ -14502,6 +14552,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   text-decoration: none;
   font-family: var(--font-sans);
   user-select: none;
+  /* Interface tile (dir="ltr" in BoardEmbed's view): a right-to-left name keeps
+     its place under the kicker, beside the icon, like any label. */
+  text-align: left;
   transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 .tt-embed:hover { border-color: #4f8df8; background: var(--bg-3); }
@@ -15710,7 +15763,7 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 }
 .comment-inline-x:hover { background: var(--bg-hov); color: var(--ink-0); }
 .comment-inline-viewonly { font: 500 11px/1 var(--font-sans); color: var(--ink-2); padding: 4px; }
-.comment-inline-body { font: 400 13px/1.5 var(--font-sans); color: var(--ink-1); }
+.comment-inline-body { font: 400 13px/1.5 var(--font-sans); color: var(--ink-1); text-align: start; }
 .comment-inline-reply {
   background: var(--bg-3);
   border-radius: var(--radius);
@@ -16651,6 +16704,7 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
   color: var(--ink-1);
   white-space: pre-wrap;
   padding-left: 32px;  /* align under the author name (avatar 24 + gap 8) */
+  text-align: start;
   word-break: break-word;
 }
 .msg-bubble-mark {
@@ -16744,15 +16798,16 @@ body[data-doc-overlay='1'] .msg-group-menu { z-index: 2147483603; }
 }
 .msg-bubble-body .msg-quote {
   margin: 6px 0;
-  padding: 4px 0 4px 10px;
-  border-left: 3px solid var(--soleil-soft);
+  padding: 4px 0;
+  padding-inline-start: 10px;
+  border-inline-start: 3px solid var(--soleil-soft);
   color: var(--ink-2);
   font-style: italic;
 }
 .msg-bubble-body .msg-list {
-  margin: 4px 0; padding-left: 20px;
+  margin: 4px 0; padding-inline-start: 0;
 }
-.msg-bubble-body .msg-list li { margin: 2px 0; }
+.msg-bubble-body .msg-list li { margin: 2px 0; margin-inline-start: 20px; }
 .msg-bubble-body .msg-link {
   color: var(--ink-0);
   text-decoration: underline;
@@ -17279,6 +17334,9 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
   padding: 0 4px;
   border-radius: var(--radius);
   font-weight: 600;
+  /* The pill is inline-block, so this is its own paragraph: the name inside
+     reads in its own direction whatever the message around it does. */
+  unicode-bidi: plaintext;
 }
 .msg-pill-user { background: var(--bg-act); color: var(--ink-0); }
 
@@ -17473,6 +17531,16 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
   color: color-mix(in oklab, currentColor 78%, var(--soleil) 22%);
   font-weight: 530;
 }
+/* A name chip (a note's mention, an entity link) is one element that reads in its
+   own direction and does not pull the sentence around it: a Hebrew name in an
+   English line stays whole. Set here, not as a dir in the stored html. A doc's
+   link mark is drawn as one decoration per text node (LinkRenderer), so a link
+   with partly bold text is several pieces: isolating each would reorder "Marcus
+   Webb" inside an Arabic line. Those get none. Inside an editor only the note's
+   mention chip (span[data-entity-ref]) matches: a pasted <a href> becomes a link
+   mark with no linkId, so its pieces carry no data-link-id either. */
+.tt-link-manual:not(.ProseMirror *),
+.ProseMirror .tt-link-manual[data-entity-ref] { unicode-bidi: plaintext; }
 .tt-link-auto {
   color: color-mix(in oklab, currentColor 90%, var(--soleil) 10%);
   font-weight: 510;
@@ -22177,6 +22245,10 @@ button, [role="button"], a {
 .doc-paper.is-screenplay .sp-el { white-space: pre-wrap; margin: 0; }
 .doc-paper.is-screenplay [data-screenplay-element] {
   white-space: pre-wrap; max-width: 60ch; margin-left: 0; margin-right: 0;
+  /* The layout stays left to right (no dir from the RTL plugin); each line's own
+     text runs and starts in its own direction, so Hebrew/Arabic punctuation lands
+     right and text-align's default (start) follows it. */
+  unicode-bidi: plaintext;
   /* Non-dual blocks clear any dual-dialogue floats above them (no wrapper). */
   clear: both;
 }

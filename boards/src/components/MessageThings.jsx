@@ -61,7 +61,7 @@ function Thing({ att, workspaceId, onDragStart }) {
       <>
         <span className="msg-thing-icon"><Icon as={/pdf/i.test(att.mime || name) ? FilePdf : FileIcon} size={18} weight="regular" /></span>
         <span className="msg-thing-text">
-          <span className="msg-thing-name">{name}</span>
+          <span className="msg-thing-name" dir="auto">{name}</span>
           {meta && <span className="msg-thing-meta">{meta}</span>}
         </span>
       </>
@@ -84,7 +84,7 @@ function Thing({ att, workspaceId, onDragStart }) {
         <a className="msg-thing-body" href={href || undefined} target="_blank" rel="noopener noreferrer" title={att.href}>
           <span className="msg-thing-icon"><Icon as={LinkIcon} size={18} weight="regular" /></span>
           <span className="msg-thing-text">
-            <span className="msg-thing-name">{title}</span>
+            <span className="msg-thing-name" dir="auto">{title}</span>
             {host && host !== title && <span className="msg-thing-meta">{host}</span>}
           </span>
         </a>
@@ -99,7 +99,7 @@ function Thing({ att, workspaceId, onDragStart }) {
       <EntityLink refs={[ref].filter(Boolean)} workspaceId={workspaceId} asTag="span" className="msg-thing-body">
         <span className="msg-thing-icon"><Icon as={isDoc ? FileText : StickyNote} size={18} weight="regular" /></span>
         <span className="msg-thing-text">
-          <span className="msg-thing-name">{String(att.title || att.name || (isDoc ? 'Document' : 'Card'))}</span>
+          <span className="msg-thing-name" dir="auto">{String(att.title || att.name || (isDoc ? 'Document' : 'Card'))}</span>
           <span className="msg-thing-meta">{isDoc ? 'Document' : 'Card'}</span>
         </span>
       </EntityLink>
@@ -123,7 +123,7 @@ function ClusterThing({ att, onDragStart }) {
           ? <span className="msg-thing-cover"><R2Image src={info.thumbKey} bust={info.bust} alt="" /></span>
           : <span className="msg-thing-icon"><Icon as={LayoutGrid} size={18} weight="regular" /></span>}
         <span className="msg-thing-text">
-          <span className="msg-thing-name">{name}</span>
+          <span className="msg-thing-name" dir="auto">{name}</span>
           <span className="msg-thing-meta">{[where, cards].filter(Boolean).join(' · ')}</span>
         </span>
       </button>

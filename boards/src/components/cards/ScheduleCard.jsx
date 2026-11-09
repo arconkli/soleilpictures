@@ -64,6 +64,7 @@ import { startTouchScrollGesture } from '../../lib/touchScroll.js';
 import './gridCard.css';
 import './scheduleCard.css';
 import { safeExternalHref } from '../../lib/safeExternalHref.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 const stop = (e) => e.stopPropagation();
 // Same as `stop`, but first lets a one-finger drag scroll the clipped editor
@@ -389,6 +390,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
     if (!full) return undefined;
     const onResize = () => setVp({ w: window.innerWidth, h: window.innerHeight });
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key !== 'Escape') return;
       if (document.querySelector('.gridc-cell-menu, .schedc-peekpanel, .schedc-range')) return;
       e.stopPropagation();

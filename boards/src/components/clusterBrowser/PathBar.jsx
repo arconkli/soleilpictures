@@ -121,7 +121,7 @@ export function PathBar({
               <span className="pb-menu-ico" aria-hidden="true">
                 <span className="pb-menu-dot" style={{ background: COVER_TINTS[b.cover === 'sun' ? 'sand' : b.cover] || COVER_TINTS.neutral }} />
               </span>
-              <span className="pb-menu-name">{b.name || 'Untitled cluster'}</span>
+              <span className="pb-menu-name" dir="auto">{b.name || 'Untitled cluster'}</span>
               {Number.isFinite(b.card_count) && <span className="cbt-count">{b.card_count}</span>}
             </button>
           ))}

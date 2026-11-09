@@ -38,6 +38,7 @@ import { reportError } from '../../lib/errorReporting.js';
 import { viewKindOfKey, isDrawnFamily } from '../../lib/fileView.js';
 import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import './filesPage.css';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 const FileStages = lazyWithReload(() => import('./FileStages.jsx'));
 const ZipStage = lazyWithReload(() => import('./ZipStage.jsx'));
@@ -304,6 +305,7 @@ export default function QuickLook({
   // standing.
   useEffect(() => {
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       // Anything layered above — the player's menu, the review player, a
       // confirm — owns the keyboard, wherever the focus happens to be.
       if (modalGuard.isTopModal && !modalGuard.isTopModal(modalRef.current)) return;
@@ -413,7 +415,7 @@ export default function QuickLook({
          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="ql-bar">
         <div className="ql-title">
-          <span className="ql-name" title={item.name}>{item.name}</span>
+          <span className="ql-name" dir="auto" title={item.name}>{item.name}</span>
           <span className="ql-meta">{item.typeLabel}{n > 1 && !detour ? ` · ${index + 1} of ${n}` : ''}</span>
         </div>
         {sb ? (

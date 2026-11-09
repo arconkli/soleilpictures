@@ -10,6 +10,8 @@
 // what lets cards predating the `fileName` field download correctly with NO
 // migration.
 
+import { safeFileName } from './safeFileName.js';
+
 // Kinds that have bytes behind them. Matches the set DetailPanel has used.
 export const DOWNLOADABLE = new Set(['image', 'pdf', 'video', 'audio', 'file']);
 
@@ -20,11 +22,6 @@ export function assetSrcFor(card, kind) {
   if (kind === 'pdf') return card.pdfSrc || card.src || null;
   return card.src || card.fileSrc || card.pdfSrc || null;
 }
-
-// Characters that cannot appear in a filename on Windows or macOS, plus the
-// C0 control range (written as an escape - a literal control byte in a
-// character class is invisible in a diff and impossible to review).
-const ILLEGAL = /[\\/:*?"<>|\x00-\x1f]+/g;
 
 function extFromMime(mime) {
   const m = String(mime || '').toLowerCase();
@@ -74,8 +71,7 @@ export function assetFilename(card, kind, { fallback = 'download' } = {}) {
   // pasted a path into ("../../etc/passwd") cannot survive as a relative path
   // in a zip entry or a Downloads folder.
   base = base.split(/[\\/]/).filter(Boolean).pop() || '';
-  base = base.replace(ILLEGAL, '-').replace(/^\.+/, '').trim().slice(0, 80);
-  if (!base) base = fallback;
+  base = safeFileName(base, { fallback, maxChars: 80 });
 
   if (!wanted) return base;
   const has = new RegExp(`\\.${wanted.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i').test(base);
@@ -87,6 +83,5 @@ export function assetFilename(card, kind, { fallback = 'download' } = {}) {
 
 // "Loop Pack" → "Loop Pack.zip", with the same illegal-character rule.
 export function zipNameFor(label) {
-  const base = String(label || 'download').replace(ILLEGAL, '-').replace(/^\.+/, '').trim().slice(0, 60);
-  return `${base || 'download'}.zip`;
+  return safeFileName(label, { ext: 'zip', fallback: 'download', maxChars: 60 });
 }

@@ -16,6 +16,7 @@
 
 import * as Y from 'yjs';
 import { mergePageEntries, placeStrays } from './docPageEntries.js';
+import { findFolded } from './textFold.js';
 
 export function fragmentText(node) {
   const out = [];
@@ -74,15 +75,19 @@ export function docSignature(pages) {
 
 // The words around the first match, for a search result. Whole words at the
 // edges, an ellipsis where the text was cut.
+//
+// A page found only through the search fold ("cafe" for "Café") is located the
+// same way (findFolded, textFold.js).
 export function snippetAround(text, query, radius = 60) {
-  const s = String(text || '');
-  const q = String(query || '').trim().toLowerCase();
+  const s = String(text || '').normalize('NFC');
   if (!s) return '';
-  const i = q ? s.toLowerCase().indexOf(q) : -1;
+  const hit = findFolded(s, query);
+  const i = hit ? hit.start : -1;
+  const len = hit ? hit.end - hit.start : 0;
   if (i < 0) return s.length > radius * 2 ? `${s.slice(0, radius * 2).replace(/\s+\S*$/, '')}…` : s;
   let a = Math.max(0, i - radius);
-  let b = Math.min(s.length, i + q.length + radius);
+  let b = Math.min(s.length, i + len + radius);
   if (a > 0) { const sp = s.indexOf(' ', a); if (sp > -1 && sp < i) a = sp + 1; }
-  if (b < s.length) { const sp = s.lastIndexOf(' ', b); if (sp > i + q.length) b = sp; }
+  if (b < s.length) { const sp = s.lastIndexOf(' ', b); if (sp > i + len) b = sp; }
   return `${a > 0 ? '…' : ''}${s.slice(a, b)}${b < s.length ? '…' : ''}`;
 }

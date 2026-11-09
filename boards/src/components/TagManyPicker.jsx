@@ -17,6 +17,7 @@ import { tagCards, untagCards, restoreCardTagRows } from '../lib/tagCardsBatch.j
 import { undoToast } from '../lib/undoToast.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { searchKey } from '../lib/textFold.js';
 
 const POP_W = 320;
 
@@ -42,7 +43,7 @@ export function TagManyPicker({
     .sort((a, b) => (counts.get(b.id) || 0) - (counts.get(a.id) || 0) || (a.name || '').localeCompare(b.name || '')),
   [tags, counts]);
   const matching = useMemo(() => (q
-    ? tags.filter(t => !(counts.get(t.id) > 0) && (t.name || '').toLowerCase().includes(q)).slice(0, 8)
+    ? tags.filter(t => !(counts.get(t.id) > 0) && searchKey(t.name).includes(searchKey(q))).slice(0, 8)
     : []), [tags, counts, q]);
   const hasExact = q.length > 0 && tags.some(t => (t.name || '').trim().toLowerCase() === q);
   const rows = [
@@ -99,7 +100,7 @@ export function TagManyPicker({
           {st === 'some' && <Icon as={Minus} size={11} weight="bold" />}
         </span>
         <span className="tag-many-dot" style={{ background: resolveTagColor(t) }} />
-        <span className="tag-many-name">{t.name}</span>
+        <span className="tag-many-name" dir="auto">{t.name}</span>
         {t.entity_type && <span className="tag-many-meta">{entityTypeLabel(t.entity_type)}</span>}
         <span className="tag-many-meta tag-many-count">{counts.get(t.id) || 0}/{total}</span>
       </button>

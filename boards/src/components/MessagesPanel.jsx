@@ -20,7 +20,8 @@ import { usePanelPresence } from './MessagesPresence.jsx';
 import { useLongPress } from '../hooks/useLongPress.js';
 import { useKeyboardInset } from '../hooks/useKeyboardInset.js';
 import { swallowNextClick } from '../lib/swallowClick.js';
-import { touchKeyboard } from '../lib/composerKeys.js';
+import { touchKeyboard, isComposingKey } from '../lib/composerKeys.js';
+import { initialOf, cutGraphemes } from '../lib/graphemes.js';
 
 const NO_PARTICIPANTS = [];
 
@@ -313,6 +314,7 @@ export function MessagesPanel({
           <input type="search" value={find} placeholder="Find a conversation" aria-label="Find a conversation"
                  onChange={(e) => setFind(e.target.value)}
                  onKeyDown={(e) => {
+                   if (isComposingKey(e)) return;
                    // Esc clears a find first; the panel closes on the next one.
                    if (e.key === 'Escape' && find) { e.preventDefault(); setFind(''); }
                  }} />
@@ -470,27 +472,27 @@ function ConversationRow({ card = false, conv, participants, unreadCount, curren
             className="msg-row-avatar-chip"
             style={{ background: p.color }}
           >
-            {(p.name || 'M').charAt(0).toUpperCase()}
+            {initialOf(p.name, 'M')}
           </span>
         ))}
       </span>
       {card ? (
         <span className="msg-row-text">
           <span className="msg-row-line">
-            <span className="msg-row-name">{title}</span>
+            <span className="msg-row-name" dir="auto">{title}</span>
             <span className="msg-row-time t-meta">{relTime(conv.last_message_at)}</span>
           </span>
           <span className="msg-row-line">
-            <span className="msg-row-preview">{preview.slice(0, 80)}</span>
+            <span className="msg-row-preview">{cutGraphemes(preview, 80)}</span>
             {isUnread && <span className="msg-row-count" aria-label={`${unreadCount} unread`}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
           </span>
         </span>
       ) : (
         <>
           <span className="msg-row-text">
-            <span className="msg-row-name">{title}</span>
+            <span className="msg-row-name" dir="auto">{title}</span>
             {preview && (
-              <span className="msg-row-preview">{preview.slice(0, 60)}</span>
+              <span className="msg-row-preview">{cutGraphemes(preview, 60)}</span>
             )}
           </span>
           {isUnread
@@ -517,7 +519,7 @@ function ConversationRowMenu({ x, y, isGroup, onPick, onClose }) {
   useEffect(() => {
     const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
     // Claim Escape so the panel underneath stays open.
-    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('keydown', onKey);
     return () => {

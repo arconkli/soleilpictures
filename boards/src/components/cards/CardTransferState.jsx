@@ -15,6 +15,7 @@ import { cardTransferWords, awayWords } from '../../lib/activityWords.js';
 import { useCardTransferKey } from '../../hooks/useActivity.js';
 import { useCanvasSettleTick } from '../../hooks/useCanvasSettleTick.js';
 import { getCanvasScale } from '../../lib/canvasScale.js';
+import { initialOf } from '../../lib/graphemes.js';
 import './cardTransferState.css';
 
 const noopSubscribe = () => () => {};
@@ -40,7 +41,7 @@ function mateWords(v) {
 
 const Avatar = ({ name, color }) => (
   <span className="presence-dot cts-av" style={{ background: color }} aria-hidden="true">
-    {String(name || '?')[0].toUpperCase()}
+    {initialOf(name)}
   </span>
 );
 

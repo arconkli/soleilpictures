@@ -43,6 +43,7 @@ import { useMatchMedia } from '../../hooks/useMatchMedia.js';
 import { useKeyboardInset } from '../../hooks/useKeyboardInset.js';
 import { useToolbarRoving } from '../../hooks/useToolbarRoving.js';
 import './clustersHome.css';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 const cardsOf = (b) => Number(b?.card_count) || 0;
 const whenOf = (b) => {
@@ -121,16 +122,16 @@ function StarCard({
 
   return (
     <section className="ch-card" aria-label={name}
-             onKeyDown={(e) => { if (e.key === 'Escape' && !renaming) { e.stopPropagation(); onClose?.(); } }}>
+             onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape' && !renaming) { e.stopPropagation(); onClose?.(); } }}>
       <button type="button" className="ch-x" aria-label="Close" title="Close (Esc)" onClick={onClose}>
         <Icon as={X} size={14} weight="regular" />
       </button>
       <Cover board={board} photos={photos} />
       {renaming ? (
         <form className="ch-card-rename" onSubmit={(e) => { e.preventDefault(); commit(); }}>
-          <input ref={inputRef} value={draft} maxLength={120} aria-label="Cluster name"
+          <input ref={inputRef} dir="auto" value={draft} maxLength={120} aria-label="Cluster name"
                  onChange={(e) => setDraft(e.target.value)} onBlur={commit}
-                 onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); } }} />
+                 onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); } }} />
         </form>
       ) : (
         <h2 className="ch-card-name">{name}</h2>
@@ -266,6 +267,7 @@ export function ClustersHome({
   // Escape puts things down, the latest first: naming, the card, the search.
   useEffect(() => {
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key !== 'Escape' || e.defaultPrevented || anyModalOpen()) return;
       // Only Home's own Escape: one that closes a window opened from here (the
       // cluster picker for Move, the Share window) leaves the card where it is.
@@ -328,9 +330,9 @@ export function ClustersHome({
     <form className="ch-naming" aria-label="New cluster" onSubmit={(e) => { e.preventDefault(); makeCluster(); }}>
       <label className="ch-naming-field">
         <span className="ch-sr">Name the new cluster</span>
-        <input ref={namingRef} autoFocus value={draft} maxLength={120} placeholder="Name it" aria-label="Name the new cluster"
+        <input ref={namingRef} dir="auto" autoFocus value={draft} maxLength={120} placeholder="Name it" aria-label="Name the new cluster"
                onChange={(e) => setDraft(e.target.value)}
-               onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setNaming(false); } }} />
+               onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); setNaming(false); } }} />
       </label>
       <p className="ch-naming-sub">At the top of {wsName} · Enter to make it and go in</p>
       <div className="ch-card-acts">
@@ -349,7 +351,7 @@ export function ClustersHome({
         <div className="ch-find-row">
           <label className="ch-find">
             <Icon as={Search} size={15} weight="regular" />
-            <input ref={findRef} type="search" placeholder="Find a cluster" aria-label="Find a cluster"
+            <input ref={findRef} dir="auto" type="search" placeholder="Find a cluster" aria-label="Find a cluster"
                    value={query} onChange={(e) => setQuery(e.target.value)} />
           </label>
           {canCreate && (
@@ -427,10 +429,11 @@ export function ClustersHome({
           <div className="ch-bar" ref={barRef} role="toolbar" aria-label="Your clusters" onKeyDown={barKeys}>
             <label className="ch-find">
               <Icon as={Search} size={15} weight="regular" />
-              <input ref={findRef} type="search" placeholder="Find a cluster" aria-label="Find a cluster"
+              <input ref={findRef} dir="auto" type="search" placeholder="Find a cluster" aria-label="Find a cluster"
                      value={query} onChange={(e) => setQuery(e.target.value)}
                      onFocus={() => setFindFocused(true)} onBlur={() => setFindFocused(false)}
                      onKeyDown={(e) => {
+                       if (isComposingKey(e)) return;
                        if (e.key === 'Enter' && found.length) { e.preventDefault(); setSelectedId(found[0]); }
                        // The card a search opened goes first, then the search.
                        if (e.key === 'Escape') {

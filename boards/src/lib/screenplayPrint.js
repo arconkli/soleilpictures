@@ -50,8 +50,10 @@ function fontFaceCss(base) {
 
 // blocks: [{ element, text }]. opts.titlePage: { enabled, title, ... }.
 // opts.fontBaseUrl: app origin so the print window can load Courier Prime.
+// opts.dir: 'rtl' for a script written right to left; the indent columns are
+// logical properties, so the whole page mirrors (one direction per document).
 // Returns a full printable HTML document string.
-export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = null, fontBaseUrl = '', sceneNumbers = false } = {}) {
+export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = null, fontBaseUrl = '', sceneNumbers = false, dir = 'ltr' } = {}) {
   const { pages } = paginate(blocks);
   const contdSet = computeAutoContd(blocks);
   const sceneNums = computeSceneNumbers(blocks);
@@ -71,6 +73,8 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
       // The first element on each page sits at the 1in top margin (no space-before)
       // — matches the paginator zeroing space-before for the first block on a page.
       const firstCls = (fi === 0 || fi < leadingDualEnd) ? ' sp-page-first' : '';
+      // No per-row dir: the boxes stay on the document direction; unicode-bidi:
+      // plaintext (CSS below) lets each row's text run and align on its own.
       return `${contd}<div class="sp-${f.element}${firstCls}"${numAttr}${dualAttr}>${esc(text) || '&nbsp;'}</div>${more}`;
     }).join('');
     // Page numbers top-right, omitted on page 1 (industry convention).
@@ -79,7 +83,7 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
   }).join('\n');
 
   return `<!doctype html>
-<html><head><meta charset="utf-8"><title>${esc(title)}</title>
+<html dir="${dir === 'rtl' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><title>${esc(title)}</title>
 <style>${fontFaceCss(fontBaseUrl)}
   /* Geometry identical to the on-screen editor (styles.css .is-screenplay):
      a fixed monospace ch-grid + --sp-line vertical rhythm, so the PDF's pages,
@@ -91,10 +95,10 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
   body { font-family: 'Courier Prime', 'Courier New', Courier, monospace; font-size: 12pt; line-height: var(--sp-line); color: #000; }
   /* Each page is a real 8.5×11 sheet carrying the 1.5"/1.0" left/right margins
      itself (so screen-preview == print; @page margin is 0). */
-  .sp-page { position: relative; width: 8.5in; min-height: 11in; box-sizing: border-box; padding: 1in 1in 1in 1.5in; margin: 0 auto 24px; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.2); break-after: page; }
+  .sp-page { position: relative; width: 8.5in; min-height: 11in; box-sizing: border-box; padding-block: 1in; padding-inline: 1.5in 1in; margin: 0 auto 24px; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.2); break-after: page; }
   .sp-page:last-child { break-after: auto; }
   @media print { .sp-page { margin: 0; box-shadow: none; } }
-  .sp-pageno { position: absolute; top: 0.5in; right: 1in; }
+  .sp-pageno { position: absolute; top: 0.5in; inset-inline-end: 1in; }
   /* Sluglines: UPPERCASE but NOT bold (Final Draft default / strict spec). */
   .sp-scene { text-transform: uppercase; font-weight: 400; margin-top: calc(2 * var(--sp-line)); white-space: pre-wrap; max-width: 60ch; position: relative; }
   /* Scene numbers in both gutters (only when enabled). */
@@ -104,36 +108,42 @@ export function screenplayPrintHTML(blocks, { title = 'Screenplay', titlePage = 
   body.sp-show-nums .sp-scene[data-scene-number]::after { right: -0.5in; }
   .sp-action { margin-top: var(--sp-line); white-space: pre-wrap; max-width: 60ch; }
   .sp-shot { text-transform: uppercase; margin-top: calc(2 * var(--sp-line)); white-space: pre-wrap; max-width: 60ch; }
-  .sp-character { text-transform: uppercase; margin-top: var(--sp-line); margin-left: 22ch; max-width: 38ch; white-space: pre-wrap; }
-  .sp-parenthetical { margin-left: 16ch; max-width: 25ch; white-space: pre-wrap; }
-  .sp-dialogue { margin-left: 10ch; max-width: 35ch; white-space: pre-wrap; }
+  .sp-character { text-transform: uppercase; margin-top: var(--sp-line); margin-inline-start: 22ch; max-width: 38ch; white-space: pre-wrap; }
+  .sp-parenthetical { margin-inline-start: 16ch; max-width: 25ch; white-space: pre-wrap; }
+  .sp-dialogue { margin-inline-start: 10ch; max-width: 35ch; white-space: pre-wrap; }
+  /* Physical, not end: under unicode-bidi: plaintext, end follows each line's own
+     text, so "CUT TO:" in a Hebrew script would land on the page's start side. */
   .sp-transition { text-transform: uppercase; text-align: right; margin-top: var(--sp-line); white-space: pre-wrap; max-width: 60ch; }
+  html[dir="rtl"] .sp-transition { text-align: left; }
   .sp-centered { text-align: center; margin-top: var(--sp-line); white-space: pre-wrap; max-width: 60ch; }
   /* First element on a page starts at the 1in top margin (no leading blank lines). */
   .sp-page-first { margin-top: 0; }
+  /* Each row's text takes its own direction (first strong letter) and aligns to
+     its own start, while the row boxes keep the document's direction. */
+  .sp-scene, .sp-action, .sp-character, .sp-parenthetical, .sp-dialogue, .sp-transition, .sp-centered, .sp-shot, .sp-contd, .sp-more { unicode-bidi: plaintext; }
   /* (MORE) / (CONT'D) align under the character cue column (22ch). */
-  .sp-contd { text-transform: uppercase; margin-left: 22ch; }
-  .sp-more { margin-left: 22ch; }
+  .sp-contd { text-transform: uppercase; margin-inline-start: 22ch; }
+  .sp-more { margin-inline-start: 22ch; }
   /* Dual dialogue — two side-by-side ~29ch columns. LEFT floats; RIGHT stays
      in-flow with a left margin so it top-aligns beside the float (a right float
      would be forced below). Non-dual blocks clear. */
   .sp-page > div:not([data-dual]) { clear: both; }
   .sp-page [data-dual] { box-sizing: border-box; width: 29ch; max-width: 29ch; margin-top: var(--sp-line); }
-  .sp-page [data-dual="left"] { float: left; clear: left; margin-left: 0; }
-  .sp-page [data-dual="right"] { float: none; clear: none; margin-left: 31ch; }
+  .sp-page [data-dual="left"] { float: inline-start; clear: inline-start; margin-inline-start: 0; }
+  .sp-page [data-dual="right"] { float: none; clear: none; margin-inline-start: 31ch; }
   .sp-page .sp-character[data-dual] { text-align: center; }
-  .sp-page .sp-parenthetical[data-dual="left"] { margin-left: 4ch; max-width: 21ch; }
-  .sp-page .sp-parenthetical[data-dual="right"] { margin-left: 35ch; max-width: 21ch; }
+  .sp-page .sp-parenthetical[data-dual="left"] { margin-inline-start: 4ch; max-width: 21ch; }
+  .sp-page .sp-parenthetical[data-dual="right"] { margin-inline-start: 35ch; max-width: 21ch; }
   /* Page-first must beat the dual margin rule above (higher specificity), or a
      page that starts with a dual group prints one line lower than the editor. */
   .sp-page [data-dual].sp-page-first { margin-top: 0; }
   /* Title page — full-page flex layout matching the on-screen editor. The title
      page uses symmetric 1in margins so it centers on the sheet. */
-  .sp-title-page { display: flex; flex-direction: column; text-align: center; padding-left: 1in; }
+  .sp-title-page { display: flex; flex-direction: column; text-align: center; padding-inline-start: 1in; }
   .sp-title-page .sp-tp-center { margin-top: 2.5in; } /* matches the on-screen title page */
   .sp-title-page .sp-tp-foot { margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
-  .sp-title-page .sp-tp-foot-left { text-align: left; }
-  .sp-title-page .sp-tp-foot-right { text-align: right; }
+  .sp-title-page .sp-tp-foot-left { text-align: start; }
+  .sp-title-page .sp-tp-foot-right { text-align: end; }
   .sp-tp-credit { margin-top: 1.5em; }
   .sp-tp-source { margin-top: 1.5em; }
   .sp-tp-copyright { margin-top: 1em; }

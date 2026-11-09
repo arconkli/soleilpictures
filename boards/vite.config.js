@@ -2,6 +2,41 @@ import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { appPreloadList, withoutList, preloadScript, WORKSPACE_SETUP_MODULE } from './src/lib/appPreloadList.mjs';
+import { PDFJS_ASSET_DIRS, pdfjsAssetBase } from './src/lib/pdfAssets.js';
+import { existsSync, createReadStream, readdirSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+// pdf.js's own character maps and standard fonts (pdfjs-dist/cmaps,
+// standard_fonts), emitted under /pdfjs/<pdfjs-dist version>/ and served from
+// there in dev. Without them pdf.js can't read text in a CJK PDF that doesn't
+// embed its fonts. Generated at build from node_modules, not committed: the
+// URL carries the version, so a stale copy can't be served. Checked
+// vite-plugin-static-copy; not needed for one directory pair.
+function pdfjsAssets() {
+  const root = fileURLToPath(new URL('./node_modules/pdfjs-dist/', import.meta.url));
+  const version = JSON.parse(readFileSync(root + 'package.json', 'utf8')).version;
+  const prefix = pdfjsAssetBase(version).slice(1); // 'pdfjs/<version>/'
+  return {
+    name: 'soleil-pdfjs-assets',
+    generateBundle() {
+      for (const dir of PDFJS_ASSET_DIRS) {
+        for (const name of readdirSync(root + dir)) {
+          this.emitFile({ type: 'asset', fileName: `${prefix}${dir}/${name}`, source: readFileSync(`${root}${dir}/${name}`) });
+        }
+      }
+    },
+    configureServer(server) {
+      server.middlewares.use('/' + prefix, (req, res, next) => {
+        let path;
+        try { path = decodeURIComponent((req.url || '').split('?')[0]); } catch { return next(); }
+        const [dir, file] = path.replace(/^\//, '').split('/');
+        if (!PDFJS_ASSET_DIRS.includes(dir) || !file || file.includes('..') || !existsSync(`${root}${dir}/${file}`)) return next();
+        res.setHeader('Content-Type', 'application/octet-stream');
+        createReadStream(`${root}${dir}/${file}`).pipe(res);
+      });
+    },
+  };
+}
 
 // Build-time release tag stamped onto first-party client error logs
 // (public.client_errors via errorReporting.js, which reads VITE_RELEASE). The
@@ -102,7 +137,7 @@ function iconSplit() {
 }
 
 export default defineConfig({
-  plugins: [react(), appPreload(), iconSplit()],
+  plugins: [react(), appPreload(), iconSplit(), pdfjsAssets()],
   define: {
     'import.meta.env.VITE_RELEASE': JSON.stringify(release),
   },

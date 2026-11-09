@@ -30,6 +30,8 @@ import { ColorPicker } from './ColorPicker.jsx';
 import { tagFallbackColor, resolveTagColor } from '../lib/tagColor.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { isComposingKey } from '../lib/composerKeys.js';
+import { searchKey, minSearchLength, searchLength } from '../lib/textFold.js';
 
 const EXPAND_KEY = 'soleil.tags.sb.expanded';
 function loadExpanded(workspaceId) {
@@ -48,11 +50,11 @@ function saveExpanded(workspaceId, open) {
 // text. Returns up to 4 matches sorted best-first. Considers exact
 // substring (highest), prefix match, and edit-distance-≤2.
 function findSimilarTags(draft, existingTags, max = 4) {
-  const q = (draft || '').trim().toLowerCase();
-  if (q.length < 2) return [];
+  const q = searchKey((draft || '').trim());
+  if (searchLength(q) < minSearchLength(q)) return [];
   const out = [];
   for (const t of existingTags) {
-    const name = (t.name || '').toLowerCase();
+    const name = searchKey(t.name);
     if (!name || name === q) continue;
     let score = 0;
     if (name.startsWith(q)) score = 100 - (name.length - q.length);
@@ -195,7 +197,7 @@ export function SidebarTags({
       if (e.target.closest && e.target.closest('.sb-tag-menu')) return;
       setMenuFor(null);
     };
-    const onKey = (e) => { if (e.key === 'Escape') setMenuFor(null); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') setMenuFor(null); };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
@@ -424,8 +426,8 @@ export function SidebarTags({
   const tagQuery = tagFilter.trim().toLowerCase();
   const filtered = tagQuery
     ? sorted.filter(t =>
-        (t.name || '').toLowerCase().includes(tagQuery) ||
-        (t.slug || '').toLowerCase().includes(tagQuery))
+        searchKey(t.name).includes(searchKey(tagQuery)) ||
+        searchKey(t.slug).includes(searchKey(tagQuery)))
     : sorted;
 
   // Group the index by what each entity IS (Character/Setting/Organization/
@@ -453,6 +455,7 @@ export function SidebarTags({
       <div className="sb-eyebrow sb-tags-head"
            onClick={toggle}
            onKeyDown={(e) => {
+             if (isComposingKey(e)) return;
              if (e.target !== e.currentTarget) return;
              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
            }}
@@ -480,6 +483,7 @@ export function SidebarTags({
                   <span className="sb-dot" style={{ background: tagFallbackColor(draftName) }} />
                   <input ref={inputRef}
                          className="sb-tag-create-input"
+                         dir="auto"
                          placeholder="New tag…"
                          value={draftName}
                          onChange={(e) => setDraftName(e.target.value)}
@@ -493,6 +497,7 @@ export function SidebarTags({
                            }, 120);
                          }}
                          onKeyDown={(e) => {
+                           if (isComposingKey(e)) return;
                            if (e.key === 'Escape') { e.preventDefault(); setCreating(false); setDraftName(''); }
                          }} />
                 </form>
@@ -527,10 +532,11 @@ export function SidebarTags({
           {!creating && sorted.length >= 8 && (
             <input
               className="sb-tag-filter-input"
+              dir="auto"
               placeholder="Filter tags…"
               value={tagFilter}
               onChange={(e) => setTagFilter(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setTagFilter(''); e.currentTarget.blur(); } }}
+              onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); setTagFilter(''); e.currentTarget.blur(); } }}
             />
           )}
 
@@ -561,6 +567,7 @@ export function SidebarTags({
                        onContextMenu={(e) => onContextMenuRow(e, tag)}
                        role="treeitem" tabIndex={-1} aria-selected={isActive}
                        onKeyDown={(e) => {
+                         if (isComposingKey(e)) return;
                          if (e.key === 'Enter') { e.preventDefault(); onOpenTag?.(tag); return; }
                          if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
                            e.preventDefault();
@@ -570,7 +577,7 @@ export function SidebarTags({
                        }}
                        title={`${tag.name}${c ? ` · ${c} applied` : ''} · right-click to manage`}>
                     <span className="sb-dot" style={{ background: dot }} />
-                    <span className="sb-row-label sb-tag-row-label">{tag.name}</span>
+                    <span className="sb-row-label sb-tag-row-label" dir="auto">{tag.name}</span>
                     {c > 0 && <span className="sb-tag-row-count">{c}</span>}
                     <button type="button" className="sb-tag-row-more" tabIndex={-1}
                             aria-label={`${tag.name}: actions`}
@@ -702,7 +709,7 @@ function MergePicker({ fromTag, tags = [], counts, onPick, onCancel }) {
       if (ref.current?.contains(e.target)) return;
       onCancel?.();
     };
-    const onKey = (e) => { if (e.key === 'Escape') onCancel?.(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onCancel?.(); };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
@@ -717,7 +724,7 @@ function MergePicker({ fromTag, tags = [], counts, onPick, onCancel }) {
   }, []);
   const q = query.trim().toLowerCase();
   const matches = q
-    ? tags.filter(t => (t.slug || t.name || '').toLowerCase().includes(q))
+    ? tags.filter(t => searchKey(t.slug || t.name).includes(searchKey(q)))
     : tags;
   const fromColor = resolveTagColor(fromTag);
   return (
@@ -735,11 +742,12 @@ function MergePicker({ fromTag, tags = [], counts, onPick, onCancel }) {
           <span className="merge-picker-arrow">→</span>
           <span className="merge-picker-into-label">into…</span>
         </div>
-        <input className="merge-picker-input"
+        <input className="merge-picker-input" dir="auto"
                placeholder="Search tags…"
                value={query}
                onChange={(e) => { setQuery(e.target.value); setHover(0); }}
                onKeyDown={(e) => {
+                 if (isComposingKey(e)) return;
                  if (e.key === 'Enter') {
                    e.preventDefault();
                    const m = matches[hover];

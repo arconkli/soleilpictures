@@ -203,7 +203,7 @@ function Tile({ t, sel, url, saving, onPick, onOpen, onSave, onBroke }) {
             : <Icon as={glyphOf(t)} size={t.kind === 'folder' ? 46 : 40} />}
           {t.kind === 'folder' && <em>{count(t.count, 'item', 'items')}</em>}
         </span>
-        <span className="qzip-nm">{t.name}</span>
+        <span className="qzip-nm" dir="auto">{t.name}</span>
         <span className="qzip-sz">{t.kind === 'folder' ? 'Folder' : humanSize(t.size)}</span>
       </button>
       {sel && savable(t) && (

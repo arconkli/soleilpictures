@@ -6,12 +6,13 @@
 // Lazy: teamBoot.js mounts it in a root of its own, so App holds nothing for it.
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { initialOf } from '../../lib/graphemes.js';
 import './teamDomainNote.css';
 
 export function TeamDomainNote({ offer, onAnswer }) {
   const [busy, setBusy] = useState(null);   // 'join' | 'no'
   const name = offer?.name || 'Your company’s team';
-  const mark = (offer?.letter || name[0] || '?').toUpperCase();
+  const mark = offer?.letter ? offer.letter.toUpperCase() : initialOf(name);
   const answer = (join) => {
     if (busy) return;
     setBusy(join ? 'join' : 'no');
