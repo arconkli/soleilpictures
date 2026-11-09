@@ -48,6 +48,7 @@ import {
 import { BEFORE_LAUNCH, RETURN_HORIZON_DAYS, RETURN_WEEKS } from '../../../../lib/growthSeries.js';
 import { DEFINITION_BREAKS } from '../../../../lib/adminDefinitionBreaks.js';
 import { CHANGELOG_ENTRIES } from '../../../../lib/changelogIndex.js';
+import { cachedReport, forgetReports } from '../../../../lib/slowReportCache.js';
 import { undoToast } from '../../../../lib/undoToast.js';
 import { isAdminPreviewMode } from '../../../../lib/localMode.js';
 import { useFeedback } from '../../../../components/AppFeedback.jsx';
@@ -256,7 +257,12 @@ export function OverviewView() {
       // disagreed with every window figure beside them.
       supabase.rpc('admin_lifetime_totals', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       // The chart worth looking at rather than reading.
-      supabase.rpc('admin_activity_heatmap', { p_days: 30, p_tz: TZ, p_exclude_internal: f.excludeInternal }),
+      // A slow read whose numbers move once a day: reused for an hour, outside
+      // the poll and the focus refetch (lib/slowReportCache.js).
+      (() => {
+        const args = { p_days: 30, p_tz: TZ, p_exclude_internal: f.excludeInternal };
+        return cachedReport('admin_activity_heatmap', args, () => supabase.rpc('admin_activity_heatmap', args));
+      })(),
     ]);
 
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
@@ -294,13 +300,17 @@ export function OverviewView() {
     const startedAt = Date.now();
     const [growth, returns] = await Promise.allSettled([
       supabase.rpc('admin_growth_series', { p_weeks: 104, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
-      supabase.rpc('admin_return_fixed_horizon', {
-        p_since: BEFORE_LAUNCH,
-        p_horizon_days: RETURN_HORIZON_DAYS,
-        p_exclude_internal: f.excludeInternal,
-        p_verified_only: f.verifiedOnly,
-        p_weeks: RETURN_WEEKS,
-      }),
+      // Slow and daily: reused for an hour, outside the poll and the focus refetch.
+      (() => {
+        const args = {
+          p_since: BEFORE_LAUNCH,
+          p_horizon_days: RETURN_HORIZON_DAYS,
+          p_exclude_internal: f.excludeInternal,
+          p_verified_only: f.verifiedOnly,
+          p_weeks: RETURN_WEEKS,
+        };
+        return cachedReport('admin_return_fixed_horizon', args, () => supabase.rpc('admin_return_fixed_horizon', args));
+      })(),
     ]);
     const ok = (r) => r.status === 'fulfilled' && !r.value.error;
     if (!ok(growth)) {
@@ -408,7 +418,8 @@ export function OverviewView() {
   // The toolbar's one refresh re-reads both: the band is on this page too.
   const refreshQ = q.refresh;
   const refreshG = g.refresh;
-  const refresh = useCallback(() => { refreshQ(); refreshG(); }, [refreshQ, refreshG]);
+  // The manual refresh is the one way past the hour's reuse of the slow reads.
+  const refresh = useCallback(() => { forgetReports(); refreshQ(); refreshG(); }, [refreshQ, refreshG]);
   useRegisterViewRuntime({
     refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing || g.refreshing, status, stream: pulse.status,
   });

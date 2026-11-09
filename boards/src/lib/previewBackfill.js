@@ -19,6 +19,9 @@ import { variantsSettled } from './imageVariantPick.js';
 import { getSignedUrl } from './r2.js';
 import { runGated } from './backfillGate.js';
 import { importWithReload } from './lazyWithReload.js';
+import { isRemembered, remember } from './thumbFailMemory.js';
+import { reportError } from './errorReporting.js';
+import { unwatchedFetch } from './netWatch.js';
 import { listPendingVariants, dequeueVariant, recordVariantFailure } from './variantQueue.js';
 
 // One attempt per image key per session (success OR definitive failure),
@@ -35,6 +38,7 @@ const MAX_PER_SWEEP = 40;     // heal a board faster per open — variant gen is
 const MAX_DRAIN = 25;         // durable-queue items to resume per session (see drainVariantQueue)
 const START_DELAY_MS = 10000;
 const MAX_BYTES = 25 * 1024 * 1024;
+const GONE_FOR_GOOD = new Set([400, 403, 404, 410]);   // statuses that mean the original can't be read
 // Raster only: svg/audio/video rows also live in the images table (it doubles
 // as the sign-reads allowlist), and a static preview would freeze a gif card.
 const RASTER_RE = /\.(png|jpe?g|webp)$/i;
@@ -50,7 +54,11 @@ let _fetchBlocked = false;
 // Returns true when the image now has variants, false on a retryable failure —
 // drainVariantQueue uses this to dequeue vs. count a retry.
 async function backfillOne(key, boardId) {
-  const url = await getSignedUrl(key);
+  // An original that would not fetch on an earlier visit: don't try (and
+  // report) again until thumbFailMemory lets it go. true so the durable queue
+  // drops it rather than counting a retry.
+  if (isRemembered(key)) return true;
+  let url = await getSignedUrl(key);
   if (!url) return false;
   // priority:'low' keeps the multi-MB original download behind the user's
   // visible image fetches (Chromium honors it; other engines ignore unknown
@@ -62,14 +70,40 @@ async function backfillOne(key, boardId) {
   // A cors-mode fetch that reuses it fails "No ACAO header present" even
   // though the bucket CORS policy is fine (classic CORS cache poisoning;
   // can't cache-bust via URL either, the query string is signed).
-  let res;
-  try {
-    res = await fetch(url, { priority: 'low', cache: 'no-store' });
-  } catch (_) {
-    _fetchBlocked = true;
+  //
+  // unwatchedFetch: netWatch would file a refused original as an error. A
+  // picture that can't be fetched is expected here (a signed address that
+  // expired, a deleted object), so the final failure is reported below as a
+  // warning instead.
+  const get = async (u) => {
+    try {
+      return await unwatchedFetch()(u, { priority: 'low', cache: 'no-store' });
+    } catch (_) {
+      _fetchBlocked = true;
+      return null;
+    }
+  };
+  let res = await get(url);
+  if (!res) return false;
+  // 400/403 is a signed address that expired: sign once more and try once more.
+  if ((res.status === 400 || res.status === 403)) {
+    const fresh = await getSignedUrl(key, { force: true });
+    if (fresh && fresh !== url) {
+      url = fresh;
+      res = await get(url);
+      if (!res) return false;
+    }
+  }
+  if (!res.ok) {
+    // A 400 or 403 after a fresh signature, a 404 or a 410 won't heal by
+    // retrying on every visit; a 408, a 429 or a 5xx might, so those are not
+    // remembered.
+    if (GONE_FOR_GOOD.has(res.status)) {
+      remember(key);
+      reportError(new Error(`preview original fetch ${res.status}`), { kind: 'backfill', severity: 'warning', op: 'original_fetch', context: { code: String(res.status) } });
+    }
     return false;
   }
-  if (!res.ok) return false;
   const len = parseInt(res.headers.get('content-length') || '0', 10);
   if (len > MAX_BYTES) { try { res.body?.cancel(); } catch (_) {} return false; }
   const blob = await res.blob();

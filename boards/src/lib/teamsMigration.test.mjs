@@ -161,9 +161,12 @@ test('0530: every choke point and per-user helper is re-emitted with the team br
     assert.equal(d.file, ACCESS, `${fn}'s latest definition must be 0530`);
     assert.ok(code(d.body).includes('_org_ws_role_for('), `${fn} must ask _org_ws_role_for`);
   }
+  // 0874 restates the directory with a prefilter on the caller's own and team
+  // workspaces (same rows, measured); its 0530 line must survive the restatement.
+  const RESTATED = { workspace_user_directory: '0874_workspace_user_directory_prefilter.sql' };
   for (const [fn, re] of INVARIANTS) {
     const d = def(fn);
-    assert.equal(d.file, ACCESS, `${fn}'s latest definition must be 0530`);
+    assert.equal(d.file, RESTATED[fn] || ACCESS, `${fn}'s latest definition must be ${RESTATED[fn] || '0530'}`);
     assert.match(code(d.body), re, `${fn} lacks its 0530 line`);
   }
 });

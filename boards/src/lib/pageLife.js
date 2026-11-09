@@ -10,6 +10,12 @@
 // died there. A hidden one was likelier the system reclaiming a tab in the
 // background, which nobody saw.
 //
+// The note also outlives a browser restart that restores the tab, and a tab
+// reopened hours later, and then the next load "finds" a page that died long
+// ago. So it counts only when the new page starts on screen too, and its last
+// look was under RESTORED_MS ago: a page alive on screen looks every LOOK_MS.
+// The gap goes to report as its third argument.
+//
 // The note holds two times, a word, and the id of the cluster on screen (its id,
 // never its name), nothing else. Pure apart from what it
 // is handed, so node tests it (pageLife.test.mjs). App.jsx starts it as its
@@ -20,6 +26,9 @@ import { isUuid } from './uuid.js';
 
 export const PAGE_NOTE_KEY = 'soleil.page';
 const LOOK_MS = 60_000;
+// A page alive on screen looks every minute; a note older than this by the next
+// load is a restored tab's, not a crash someone just saw.
+export const RESTORED_MS = 5 * 60_000;
 
 // How long the page before had lived, to its last look, when its note says it
 // died on screen; otherwise null.
@@ -39,6 +48,7 @@ export function startPageLife({ store, doc, win, report, now = () => Date.now() 
   let before = null;
   try { before = store.getItem(PAGE_NOTE_KEY); } catch (_) { return; }
   const since = now();
+  const startedVisible = doc.visibilityState === 'visible';
   let cluster = '';
   const look = () => { try { store.setItem(PAGE_NOTE_KEY, `${since} ${now()} ${doc.visibilityState}${cluster ? ' ' + cluster : ''}`); } catch (_) {} };
   look();
@@ -48,7 +58,10 @@ export function startPageLife({ store, doc, win, report, now = () => Date.now() 
   win.addEventListener('pageshow', (e) => { if (e.persisted) look(); });
   win.setInterval(() => { if (doc.visibilityState === 'visible') look(); }, LOOK_MS);
   const lived = diedOnScreen(before);
-  if (lived != null) report(lived, whereItDied(before));
+  if (lived != null && startedVisible) {
+    const gap = since - Number(String(before).split(' ')[1]);
+    if (gap >= 0 && gap < RESTORED_MS) report(lived, whereItDied(before), gap);
+  }
   return {
     noteCluster(boardId) {
       const next = isUuid(boardId) ? boardId.toLowerCase() : '';

@@ -88,7 +88,7 @@ let pageLife = null;
 if (typeof window !== 'undefined') {
   try {
     pageLife = startPageLife({ store: window.sessionStorage, doc: document, win: window,
-      report: (ms, boardId) => reportError(new Error('Page died on screen'), { kind: 'page_crash', severity: 'crash', context: { ms, board_id: boardId } }) });
+      report: (ms, boardId, gapMs) => reportError(new Error('Page died on screen'), { kind: 'page_crash', severity: 'crash', context: { ms, board_id: boardId, gap_ms: gapMs } }) });
   } catch (_) { /* no session storage here: nothing to keep a note in */ }
 }
 import { applyThemeNow, resolveTheme, currentTheme } from './lib/theme.js';
@@ -134,6 +134,7 @@ import { NewClusterButton } from './components/NewClusterButton.jsx';
 import { FilesDockLayout, FilesPane } from './components/FilesDock.jsx';
 import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs, dockHintSeen, markDockHintSeen, viewWrite } from './lib/filesDock.js';
 import { placedOf, positionUnplaced, isUnplaced, planPutOnBoard, layoutForPut, PUT_ON_BOARD_MAX, canStore } from './lib/placement.js';
+import { putRefusal, putFailToast } from './lib/putRefusal.js';
 import { getViewCenter } from './lib/viewCenter.js';
 import { filesCountOf, isViewSwitchKey, nextView, overlayOpen } from './lib/viewSwitch.js';
 import { anyModalOpen, registerModalOpen, registerBackLayer } from './lib/modalGuard.js';
@@ -199,13 +200,13 @@ import { trackRegistration } from './lib/metaPixel.js';
 import { holdReload } from './lib/buildWatch.js';
 import { ownPersonalCount, isWorkspaceLimitError, workspaceCountFromError, WORKSPACE_LIMIT } from './lib/workspaceLimit.js';
 import { rewardCardsBeyondTogether } from './lib/liveTogether.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listPublicLinks, createCollabLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, getMyTogetherStats, syncCardIndex, getProfilesByIds } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listPublicLinks, createCollabLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, getMyTogetherStats, syncCardIndex, getProfilesByIds, forgetIndexRefusals } from './lib/boardsApi.js';
 import { rewardToastMessage } from './lib/inviteReward.js';
 import { undoToast } from './lib/undoToast.js';
 import { failMove } from './lib/moveFailure.js';
 import { cardIndexWeight } from './lib/cardIndexRow.js';
 import { isAbandonedUpload } from './lib/abandonedUploads.js';
-import { forceBoardThumbnail, boardDoc, loadYBoard } from './lib/yboard.js';
+import { forceBoardThumbnail, boardDoc, loadYBoard, forgetCanWrite } from './lib/yboard.js';
 import { ancestorPath, boardDepth, collectDescendantIds, planReparent } from './lib/boardTree.js';
 import { isTopLevelProject, projectList, projectOfferDue, spotBesideContent } from './lib/projectsHome.js';
 import * as Y from 'yjs';
@@ -291,6 +292,7 @@ import { makeLimiter } from './lib/asyncPool.js';
 import { unopenableClusterNotice, waitUntil } from './lib/clusterOpen.js';
 import { ShortcutsHost } from './components/ShortcutsOverlay.jsx';
 import { WorkspaceAlertBanner } from './components/WorkspaceAlertBanner.jsx';
+import { workspaceForChild } from './lib/subClusterWorkspace.js';
 import { ScoutClaimBanner } from './components/ScoutClaimBanner.jsx';
 import { useFeedback } from './components/AppFeedback.jsx';
 import { lazyWithReload, importWithReload } from './lib/lazyWithReload.js';
@@ -3759,8 +3761,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       let madeId = null;
       try {
+        const childWs = workspaceForChild(boardsRef.current, boardId, workspace.id);
         const b = await createBoard({
-          workspaceId: workspace.id,
+          workspaceId: childWs,
           parentBoardId: boardId,
           name: defaultName, view, userId: user.id,
           cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
@@ -3785,6 +3788,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           } catch (_) {}
         }
         await refreshBoards();
+        // A sub-cluster of a cluster shared from another workspace lives in that
+        // workspace, so only the shared list brings it in; openBoard and
+        // setAutoFocusId below need it in the map.
+        if (childWs !== workspace.id) { try { await refreshSharedBoards?.(); } catch (_) {} }
         // opts.focusName: focus the name even when one was suggested — a
         // suggestion is a starting point, and most clusters that kept
         // "Untitled cluster" were never renamed.
@@ -4691,7 +4698,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       label: 'Put on board',
       onClick: () => {
         onPutOnBoard(targetId, landed)
-          .catch((e) => feedback.toast({ type: 'error', code: 'files_put_failed', message: e?.message || 'Those files couldn’t be put on the board.' }))
+          .catch((e) => feedback.toast(putFailToast(e)))
           .finally(() => setSidebarRefresh((k) => k + 1));
       },
     } : null;
@@ -5650,6 +5657,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // cluster, or one inside it, is remounted through the board-reset signal;
   // the new socket asks the server again.
   const refreshEditAccess = useCallback(async (grantedBoardId) => {
+    forgetIndexRefusals(); forgetCanWrite();
     try { await refreshSharedBoards?.(); } catch (_) {}
     if (!grantedBoardId) return;
     const map = boardsRef.current || {};
@@ -6080,6 +6088,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           ttl: 8000,
           message: `${n.detail || 'They'} said yes: you can edit “${grantedName}”.`,
         });
+        forgetIndexRefusals(); forgetCanWrite();
         refreshSharedBoards?.();
         continue;
       }
@@ -6208,16 +6217,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [putTick, setPutTick] = useState(0);
   const putFilesOnBoard = (boardId, cardIds) => new Promise((resolve, reject) => {
     const ids = [...new Set((cardIds || []).filter(Boolean))];
-    if (!boardId || !boards[boardId]) { reject(new Error('That cluster isn’t here any more.')); return; }
+    if (!boardId || !boards[boardId]) { reject(putRefusal('gone', 'That cluster isn’t here any more.')); return; }
     const name = boards[boardId].name || 'That cluster';
-    if (!canEditBoard(boardId)) { reject(new Error(`${name} is view-only for you.`)); return; }
+    if (!canEditBoard(boardId)) { reject(putRefusal('view_only', `${name} is view-only for you.`)); return; }
     if (!ids.length) { resolve({ placed: 0, left: 0 }); return; }
     const was = pendingPutRef.current;
-    if (was) { clearTimeout(was.timer); was.reject(new Error('Another Put on board took its place.')); }
+    if (was) { clearTimeout(was.timer); was.reject(putRefusal('replaced', 'Another Put on board took its place.')); }
     const timer = setTimeout(() => {
       if (pendingPutRef.current?.timer !== timer) return;
       pendingPutRef.current = null;
-      reject(new Error(`${name} didn’t open, so nothing was put on its board.`));
+      reject(putRefusal('not_open', `${name} didn’t open, so nothing was put on its board.`));
     }, PUT_OPEN_MS);
     pendingPutRef.current = { boardId, ids, resolve, reject, timer };
     if (mobileShell) setMobileNavOpen(false);
@@ -6249,7 +6258,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (p.boardId !== currentBoard.id) {
       pendingPutRef.current = null;
       clearTimeout(p.timer);
-      p.reject(new Error(`Another cluster opened before ${boards[p.boardId]?.name || 'that cluster'} did, so nothing was put on its board.`));
+      p.reject(putRefusal('other_opened', `Another cluster opened before ${boards[p.boardId]?.name || 'that cluster'} did, so nothing was put on its board.`));
       return;
     }
     // The first paint is the cache's, which can be behind: wait for the
@@ -6259,7 +6268,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     pendingPutRef.current = null;
     clearTimeout(p.timer);
     const muts = mainMutatorsGuarded;
-    if (muts.captureGuarded) { p.reject(new Error('The board is showing a capture layout. Put them on once it’s closed.')); return; }
+    if (muts.captureGuarded) { p.reject(putRefusal('capture', 'The board is showing a capture layout. Put them on once it’s closed.')); return; }
     const asked = new Set(p.ids);
     const waiting = live.filter((c) => asked.has(c.id) && isUnplaced(c));
     const take = waiting.slice(0, PUT_ON_BOARD_MAX);
@@ -7104,6 +7113,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const deleteCluster = (id) => deleteBoard(id);
     const removeTopCard = (id) => muts.deleteCardsSilent?.([id]);
 
+    // The clusters this import made -> their workspace: a sub-folder's parent
+    // was made moments ago and isn't in the boards list yet.
+    const madeWs = {};
+    const intoOtherWorkspace = workspaceForChild(boardsRef.current, targetBoardId, workspace.id) !== workspace.id;
     let res;
     try {
       res = await runFolderImport(nodes, {
@@ -7113,7 +7126,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // stays canvas: a Files-mode cluster draws on its parent as a list of
         // names, and a folder of pictures should keep its thumbnail there.
         createCluster: async ({ parentBoardId, name }) => {
-          const b = await createBoard({ workspaceId: workspace.id, parentBoardId, name, view: 'canvas', userId: user.id });
+          const ws = madeWs[parentBoardId] || workspaceForChild(boardsRef.current, parentBoardId, workspace.id);
+          const b = await createBoard({ workspaceId: ws, parentBoardId, name, view: 'canvas', userId: user.id });
+          madeWs[b.id] = ws;
           setViewOverride(o => ({ ...o, [b.id]: 'list' }));
           // A dropped folder is a door too, and the busiest one for people
           // who arrive with their work already sorted. A sub-folder's parent
@@ -7133,6 +7148,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         placeTopCard: (card) => {
           const placed = muts.addCard?.(card);   // null = refused by the cap
           Promise.resolve(refreshBoards()).catch(() => {});
+          if (intoOtherWorkspace) Promise.resolve(refreshSharedBoards?.()).catch(() => {});
           return placed ?? null;
         },
         upload, writeCluster,
@@ -11530,7 +11546,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       <main className="main">
         <WorkspaceAlertBanner
           workspaceId={workspace?.id}
-          onOpenRecovery={() => setWorkspaceRecoveryOpen(true)}
+          onOpenRecovery={workspaceRole === 'owner' ? () => setWorkspaceRecoveryOpen(true) : undefined}
         />
         {/* Only renders for a Scout shell account — see the component header;
             the check is a string test on the session email, not a round trip. */}

@@ -139,14 +139,28 @@ export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
       : (id) => clearTimeout(id);
     const initialIdleId = scheduleIdle(() => { if (!cancelled) reload(); });
 
-    // Coalesce rapid changes into one rebuild — entity_search is
-    // updated card-by-card during a board save, so we'd otherwise
-    // burn cycles on each row.
+    // Coalesce changes into at most one rebuild per RELOAD_EVERY_MS (trailing):
+    // entity_search is updated card-by-card during a board save, and a busy
+    // workspace changes all day, each change reloading the whole name list.
+    // A hidden page doesn't reload; if something changed meanwhile, it reloads
+    // once when the page is visible again.
+    const RELOAD_EVERY_MS = 10_000;
     let pending = null;
+    let lastReloadAt = -Infinity;
+    let changedWhileHidden = false;
+    const hidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden';
+    const run = () => { pending = null; lastReloadAt = Date.now(); reload(); };
     const schedule = () => {
+      if (hidden()) { changedWhileHidden = true; return; }
       if (pending) return;
-      pending = setTimeout(() => { pending = null; reload(); }, 800);
+      pending = setTimeout(run, Math.max(800, RELOAD_EVERY_MS - (Date.now() - lastReloadAt)));
     };
+    const onVisible = () => {
+      if (hidden() || !changedWhileHidden) return;
+      changedWhileHidden = false;
+      schedule();
+    };
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisible);
 
     // Per-mount unique suffix — Supabase de-dupes channels by name,
     // so a re-mount with the same name returns the previously-
@@ -166,6 +180,7 @@ export function useEntityNameTrie(workspaceId, { ignoredTerms = [] } = {}) {
     return () => {
       cancelled = true;
       if (pending) clearTimeout(pending);
+      try { document.removeEventListener('visibilitychange', onVisible); } catch (_) {}
       try { cancelIdle(initialIdleId); } catch (_) {}
       try { supabase.removeChannel(ch); } catch (_) {}
     };

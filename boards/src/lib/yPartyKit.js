@@ -39,6 +39,7 @@ import { getGestureActiveUntil } from './perfReport.js';
 import * as perf from './perf.js';
 import { PARTY_HOST } from './partyHost.js';
 import { socketLooksDead } from './partyKeepalive.js';
+import { stuckVerdict } from './stuckSync.js';
 import { parkWhileHidden, parkWhileIdle } from './partyPark.js';
 import { pageBusy } from './buildWatch.js';
 import { logClientError } from './errorReporting.js';
@@ -248,10 +249,25 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
         armStuck();
         return;
       }
+      // The timer fired far later than it was set for: the device slept or the
+      // tab was frozen, and the elapsed time is the sleep. Start the count over.
+      if (stuckVerdict(performance.now() - downSince, STUCK_MS) === 'rearm') {
+        downSince = performance.now();
+        armStuck();
+        return;
+      }
       stuckReported = true;
       reportSync('Live sync stuck connecting', 'connect_stuck', { ms: performance.now() - downSince });
     }, STUCK_MS);
   };
+  // Back on screen after hidden time: whatever was waited out asleep doesn't
+  // count towards a stuck connect.
+  const onVisibleAgain = () => {
+    if (document.visibilityState !== 'visible' || !downSince || stuckReported || provider.wsconnected) return;
+    downSince = performance.now();
+    armStuck();
+  };
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibleAgain);
 
   let connectStartedAt = performance.now();
   provider.on('status', ({ status }) => {
@@ -387,6 +403,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       if (ydoc._soleilRoom === provider) ydoc._soleilRoom = null;
       clearInterval(keepalive);
       clearTimeout(stuckTimer);
+      try { document.removeEventListener('visibilitychange', onVisibleAgain); } catch (_) {}
       parking.dispose();
       try { ydoc.off('update', onRemoteUpdate); } catch (_) {}
       try { awareness.off('change', onAwarenessChange); } catch (_) {}

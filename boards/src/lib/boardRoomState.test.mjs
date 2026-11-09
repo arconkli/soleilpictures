@@ -23,11 +23,13 @@ function fakeTable() {
   const stamp = () => new Date(clock += 1000).toISOString().replace('Z', '+00:00');
   const calls = [];
   let failNext = 0;
+  let refuse = null;   // { status, body } for every write until cleared
   const fetchImpl = async (url, init = {}) => {
     const u = new URL(url);
     const method = init.method || 'GET';
     calls.push({ method, url, headers: init.headers || {}, body: init.body });
     if (failNext > 0) { failNext--; return new Response('boom', { status: 503 }); }
+    if (refuse && method !== 'GET') return new Response(refuse.body, { status: refuse.status });
     const q = u.searchParams;
     if (method === 'GET' && u.pathname.endsWith('/board_state_version')) {
       const id = q.get('board_id').replace(/^eq\./, '');
@@ -61,6 +63,7 @@ function fakeTable() {
     rows, versions, calls, fetchImpl,
     blind(id, doc) { rows.set(id, { doc: bytesToB64(Y.encodeStateAsUpdate(doc)), updated_at: stamp() }); },
     failNext(n = 1) { failNext = n; },
+    refuseWrites(status, body) { refuse = { status, body }; },
     writes() { return calls.filter((c) => c.method !== 'GET'); },
     bumpVersion(id) { versions.set(id, (versions.get(id) ?? 1) + 1); },
   };
@@ -506,4 +509,31 @@ test('a board that cannot be read when its room starts is reported, and a report
   t2.failNext(3);
   for (let i = 0; i < 3; i++) assert.equal(await s2.flush(), false);
   assert.equal(await s2.flush(), true);
+});
+
+test('a board deleted for good (23503) stops the room: no retries, no timers, one warning, onGone once', async () => {
+  const table = fakeTable();
+  table.blind(BOARD, docWith({ a: '1' }));
+  const timers = fakeTimers();
+  const doc = { current: new Y.Doc({ gc: false }) };
+  let gone = 0;
+  const s = room(table, timers, doc, { onGone: () => { gone++; } });
+  await s.loadInto(doc.current);
+  doc.current.getMap('cards').set('b', '2');
+  table.refuseWrites(409, '{"code":"23503","message":"violates foreign key constraint"}');
+  const warn = console.warn;
+  const warned = [];
+  console.warn = (...a) => warned.push(a.join(' '));
+  try {
+    assert.equal(await s.flush(), false);
+  } finally { console.warn = warn; }
+  assert.equal(warned.length, 1);
+  assert.equal(gone, 1);
+  assert.equal(s.stopped, true);
+  assert.equal(s.dirty, false);
+  assert.equal(timers.size, 0);
+  const before = table.calls.length;
+  assert.equal(await s.flush({ force: true }), false);
+  await s.retryIfDirty();
+  assert.equal(table.calls.length, before, 'nothing more is sent for this room');
 });

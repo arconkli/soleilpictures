@@ -28,6 +28,7 @@
 //                       (showcase_library, 0820), showcase/ prefix only.
 
 import { handleTagsRoute } from './worker-tags.js';
+import { pickOgImage } from './lib/ogImagePick.js';
 import { isUnlistedBoard, postBoardRobots } from './lib/postBoardRobots.js';
 import { handleClustersRoute } from './worker-clusters.js';
 import { handleTeamRoute, runTeamDomainRecheck } from './worker-team.js';
@@ -3687,13 +3688,16 @@ function parseOg(html, sourceUrl) {
     try { return new URL(rel, sourceUrl).href; } catch (_) { return null; }
   };
 
-  const ogImage = meta('og:image') || meta('og:image:url') || meta('og:image:secure_url') || meta('twitter:image') || meta('twitter:image:src');
+  const image = pickOgImage({
+    'og:image:secure_url': meta('og:image:secure_url'), 'og:image': meta('og:image'), 'og:image:url': meta('og:image:url'),
+    'twitter:image': meta('twitter:image'), 'twitter:image:src': meta('twitter:image:src'),
+  }, sourceUrl);
   const fav = linkHref('icon') || linkHref('shortcut icon') || linkHref('apple-touch-icon') || '/favicon.ico';
 
   return {
     title: meta('og:title') || meta('twitter:title') || titleText,
     description: meta('og:description') || meta('twitter:description') || meta('description'),
-    image: abs(ogImage),
+    image,
     favicon: abs(fav),
     url: meta('og:url') || sourceUrl,
   };

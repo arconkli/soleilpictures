@@ -47,6 +47,7 @@
 
 import { Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { lazyWithReload } from '../../lib/lazyWithReload.js';
+import { putFailReason, putFailToast } from '../../lib/putRefusal.js';
 import { createPortal } from 'react-dom';
 import { CardContextMenu } from '../CardContextMenu.jsx';
 import { composeMenuSections, SECTION } from '../../lib/contextMenuSections.js';
@@ -517,8 +518,8 @@ export function ClusterSidebar({
         Promise.resolve(onPutOnBoard(to, landed))
           .then(() => logEvent(EV.FILES_PUT, { from: 'toast', n: landed.length, ok: true }))
           .catch((e) => {
-            logEvent(EV.FILES_PUT, { from: 'toast', n: landed.length, ok: false });
-            toast({ type: 'error', code: 'files_put_failed', message: e?.message || 'Those files couldn’t be put on the board.' });
+            logEvent(EV.FILES_PUT, { from: 'toast', n: landed.length, ok: false, reason: putFailReason(e) });
+            toast(putFailToast(e));
           })
           .finally(() => files.refresh());
       },
@@ -748,8 +749,8 @@ export function ClusterSidebar({
       logEvent(EV.FILES_PUT, { from: via, n: list.length, ok: true });
       clearSelection();
     } catch (e) {
-      logEvent(EV.FILES_PUT, { from: via, n: list.length, ok: false });
-      toast({ type: 'error', code: 'files_put_failed', message: e?.message || 'Those files couldn’t be put on the board.' });
+      logEvent(EV.FILES_PUT, { from: via, n: list.length, ok: false, reason: putFailReason(e) });
+      toast(putFailToast(e));
     } finally {
       putting.current = false;
       files.refresh();

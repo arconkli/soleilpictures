@@ -18,7 +18,7 @@
 // setErrorUser() is called from analytics.js's single onAuthStateChange so
 // rows attribute to the signed-in user (id only — no email/PII).
 
-import { crumb, crumbsSnapshot } from './errorCrumbs.js';
+import { crumb, crumbsSnapshot, signInAgo } from './errorCrumbs.js';
 import { installNetWatch, unwatchedFetch } from './netWatch.js';
 
 const REST_URL   = (import.meta.env.VITE_SUPABASE_URL || '') + '/rest/v1/client_errors';
@@ -182,7 +182,14 @@ export function installErrorWatch() {
   // React clears #boot-splash on its first render, and .auth-loading is the
   // splash every loading step after that shows (AuthGate, TierRouter, App).
   // The sender says how far the boot got (lib/bootMarks.js).
-  setTimeout(() => {
-    if (document.querySelector('#boot-splash, .auth-loading')) hand({ t: 'boot', m: moment(), after: BOOT_STUCK_MS });
-  }, BOOT_STUCK_MS);
+  // Signing in starts the clock again (someone who types their code at second
+  // 44 is booting, not stuck), so the check waits until BOOT_STUCK_MS after the
+  // newest sign-in step, a few times at most, before it calls the boot stuck.
+  const bootCheck = (tries) => {
+    if (!document.querySelector('#boot-splash, .auth-loading')) return;
+    const ago = signInAgo(crumbsSnapshot());
+    if (ago !== null && ago < BOOT_STUCK_MS && tries < 6) { setTimeout(() => bootCheck(tries + 1), BOOT_STUCK_MS - ago); return; }
+    hand({ t: 'boot', m: moment(), after: BOOT_STUCK_MS });
+  };
+  setTimeout(() => bootCheck(0), BOOT_STUCK_MS);
 }

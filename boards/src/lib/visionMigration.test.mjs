@@ -189,16 +189,37 @@ test('the search filter looks in seen', () => {
 // ── 0596: what a described picture shows, read by the people who can see it ─
 const sql96 = readFileSync(join(MIGRATIONS_DIR, '0596_picture_reads.sql'), 'utf8').replace(/--[^\n]*/g, '');
 
-test('0596 reads run as the reader, never as their definer, and are closed to anon', () => {
-  for (const [name, args] of [['image_seen_for_board', '(uuid)'], ['similar_pictures', '(uuid, text, integer)']]) {
-    const head = sql96.slice(sql96.indexOf(`function public.${name}(`), sql96.indexOf('as $$', sql96.indexOf(`function public.${name}(`)));
+// 0873 restates image_seen_for_board for speed (the cluster's picture cards
+// first); similar_pictures is still 0596's. Each is checked in the file that
+// defines it last, so a later restatement can't drop invoker, grants or proof.
+const PICTURE_READS = {
+  image_seen_for_board: { args: '(uuid)', file: '0873_image_seen_for_board_fast.sql', tag: '0873' },
+  similar_pictures: { args: '(uuid, text, integer)', file: '0596_picture_reads.sql', tag: '0596' },
+};
+const sql873 = readFileSync(join(MIGRATIONS_DIR, PICTURE_READS.image_seen_for_board.file), 'utf8').replace(/--[^\n]*/g, '');
+
+test('0596 / 0873 reads run as the reader, never as their definer, and are closed to anon', () => {
+  for (const [name, { args, file, tag }] of Object.entries(PICTURE_READS)) {
+    assert.equal(latestDefinition(name)?.file, file, `${name}: no later migration restates it`);
+    const src = readFileSync(join(MIGRATIONS_DIR, file), 'utf8').replace(/--[^\n]*/g, '');
+    const head = src.slice(src.indexOf(`function public.${name}(`), src.indexOf('as $$', src.indexOf(`function public.${name}(`)));
     assert.match(head, /security invoker/, name);
     assert.doesNotMatch(head, /security definer/, name);
     assert.match(head, /set search_path = public/, name);
-    assert.ok(sql96.includes(`revoke execute on function public.${name}${args} from public, anon;`), name);
-    assert.ok(sql96.includes(`grant execute on function public.${name}${args} to authenticated, service_role;`), name);
+    assert.ok(src.includes(`revoke execute on function public.${name}${args} from public, anon;`), name);
+    assert.ok(src.includes(`grant execute on function public.${name}${args} to authenticated, service_role;`), name);
+    assert.match(src, new RegExp(`prosecdef\\) then\\s+raise exception '${tag}: a picture read runs as its definer`), name);
   }
-  assert.match(sql96, /prosecdef\) then\s+raise exception '0596: a picture read runs as its definer/);
+});
+
+test('0873 still reads one cluster, live pictures and finished descriptions only', () => {
+  const body = latestDefinition('image_seen_for_board').body;
+  assert.match(body, /with pics as materialized \(/);
+  assert.match(body, /where ci\.board_id = p_board and ci\.kind = 'image' and \(ci\.meta->>'src'\) like 'r2:%'/);
+  assert.match(body, /join public\.images i on i\.storage_path = p\.storage_path and i\.deleted_at is null/);
+  assert.match(body, /join public\.image_descriptions d on d\.image_id = i\.id/);
+  assert.match(body, /where d\.description is not null/);
+  assert.doesNotMatch(sql873, /d\.(status|lease_token|tokens_in)/, 'only the columns a reader may select');
 });
 
 test('0596 hands out only finished descriptions and never likens a picture to itself', () => {

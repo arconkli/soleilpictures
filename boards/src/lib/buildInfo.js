@@ -3,7 +3,7 @@
 // exists so a bare checkout compiles; 'dev' means "not a stamped build".
 // Served by the Worker at /api/build-info for the SEO health/drift detector:
 // "is production actually running the code we shipped?"
-export const BUILD_DATE = '2026-07-07';
-export const BUILD_SHA = 'c298460';
+export const BUILD_DATE = '2026-11-07';
+export const BUILD_SHA = '555b2260';
 // The party host this build's bundle uses (lib/buildWatch.js). '' = unstamped.
-export const PARTY_HOST = '';
+export const PARTY_HOST = 'soleil-boards-party.arconkli.workers.dev';

@@ -128,6 +128,14 @@ export class BoardParty extends YServer<Env> {
       fenceUntil,
       onRestore: () => { void this.resetRoom("restore marker"); },
       report: (kind: string, info: Record<string, unknown>) => { void reportParty({ kind, ...info }, this.ctx); },
+      // The board was deleted for good (its board_state write hit 23503), so no
+      // save can land: close everyone with 4401, which the client stops
+      // reconnecting on, as when access ends.
+      onGone: () => {
+        for (const c of this.getConnections()) {
+          try { c.close(4401, "board deleted"); } catch (_) { /* already gone */ }
+        }
+      },
     });
 
     // onLoad runs inside this; YServer then wires the broadcast and the

@@ -13,7 +13,7 @@
 // errorCore.test.mjs holds the two identical.
 export const ERROR_CONTEXT_KEYS = Object.freeze([
   'op', 'code', 'surface', 'vis', 'net', 'tag', 'host', 'phase', 'group',
-  'board_id', 'online', 'attempt', 'ms', 'http',
+  'board_id', 'online', 'attempt', 'ms', 'gap_ms', 'http',
 ]);
 export const ERROR_HTTP_KEYS = Object.freeze(['method', 'svc', 'route', 'pg', 'status', 'ms']);
 
@@ -48,7 +48,7 @@ export function errorContext(ctx) {
     let kept;
     if (k === 'board_id') kept = typeof v === 'string' && UUID_ONLY.test(v) ? v.toLowerCase() : undefined;
     else if (k === 'online') kept = typeof v === 'boolean' ? v : undefined;
-    else if (k === 'attempt' || k === 'ms') kept = ctxInt(v);
+    else if (k === 'attempt' || k === 'ms' || k === 'gap_ms') kept = ctxInt(v);
     else if (k === 'http') kept = httpContext(v) || undefined;
     else kept = ctxStr(v);
     if (kept !== undefined) out[k] = kept;
@@ -87,6 +87,7 @@ const PG_NAMES = {
   '53300': 'too many connections', '53400': 'over a configured limit', 'P0001': 'raised',
   'PGRST116': 'no rows', 'PGRST202': 'no such function', 'PGRST204': 'no such column',
   'PGRST301': 'bad token', 'PGRST303': 'token expired',
+  no_grant: 'no execute grant',
 };
 const STATUS_NAMES = {
   0: 'network failure', 400: 'bad request', 401: 'unauthorized', 403: 'forbidden', 404: 'not found',
@@ -188,6 +189,11 @@ export function bodyCode(text) {
   let j;
   try { j = JSON.parse(text); } catch (_) { return null; }
   if (!j || typeof j !== 'object') return null;
+  // The free card limit: the database refuses with 42501 and says so in its
+  // message. The code word stands in for the message, which is never kept.
+  if (j.code === '42501' && typeof j.message === 'string' && j.message.startsWith('Demo accounts are limited to')) return 'card_cap';
+  // A function nobody granted EXECUTE on: its own word, so the RPCs whose own 42501 is expected (claim_pending_invite below) still report it.
+  if (j.code === '42501' && typeof j.message === 'string' && j.message.startsWith('permission denied for function')) return 'no_grant';
   for (const v of [j.code, j.error_code, j.error]) {
     if (typeof v === 'string' && /^[A-Za-z0-9_]{2,40}$/.test(v)) return v;
   }
@@ -221,6 +227,13 @@ export function classifyHttpFailure(f, hosts = {}) {
   const online = f.online !== false;
   if (status === 0 && !online) return null;
   const pg = typeof f.pg === 'string' ? f.pg : null;
+  // The free card limit's wall tells the person; there is nothing to fix.
+  if (pg === 'card_cap') return null;
+  // That RPC says 42501 only to someone not signed in, suspended, or holding an
+  // invite for another email, and the invite screen says which.
+  if (r.svc === 'rpc' && r.route === 'claim_pending_invite' && pg === '42501') return null;
+  // The new-version check on a flaky network; a 5xx of it still counts.
+  if (r.svc === 'worker' && r.route === 'api/build-info' && status === 0) return null;
   const method = String(f.method || 'GET').toUpperCase().slice(0, 7);
   const lost = r.svc === 'auth' && r.route === 'token/refresh_token' && status >= 400 && status < 500 && SESSION_LOST.has(pg);
   // A quiet tab (errorSender.js quietTab: hidden, offline, or back from
@@ -231,7 +244,12 @@ export function classifyHttpFailure(f, hosts = {}) {
   // still count.
   if (f.quiet && !lost && (status === 0 || f.slow || f.stalled || status === 401)) return null;
   let severity;
+  // A link preview whose site failed, or media from a site that didn't answer:
+  // someone else's failure, as the Worker counts it (worker.js theirFailure).
+  const theirs = r.svc === 'worker' && status >= 500
+    && (r.route === 'api/og' || (status === 502 && (r.route === 'api/media' || r.route.startsWith('api/media/'))));
   if (f.slow) severity = 'warning';
+  else if (theirs) severity = 'warning';
   else if (status === 0 || status >= 500 || pg === '57014') severity = 'error';
   else if (r.svc === 'auth') {
     if (status !== 429 && !lost) return null;
@@ -294,3 +312,5 @@ export function channelLabel(name) {
 export function timersRanAhead(firedAt, delay) {
   return Number.isFinite(firedAt) && Number.isFinite(delay) && firedAt < delay;
 }
+
+// ── The trail ───────────────────────────────────────────────────────────────
