@@ -219,6 +219,10 @@ export function forceBoardThumbnail(boardId, ydoc, { workspaceId, userId } = {})
 // null when the ask itself failed — falsy, so the thumbnail fails closed (it is
 // never data), while a caller about to DROP data can tell "no" from "unknown".
 const _canWriteBoard = new Map();   // boardId -> Promise<boolean|null>
+// Access changed (a yes to an ask to edit, another account): a board that was
+// read-only before may take writes now, and version saves depend on this answer.
+export function forgetCanWrite() { _canWriteBoard.clear(); }
+try { supabase?.auth?.onAuthStateChange((event) => { if (event === 'SIGNED_OUT') _canWriteBoard.clear(); }); } catch (_) { /* no supabase in the local harness */ }
 function canWriteBoardOnce(boardId) {
   if (!supabase || !boardId) return Promise.resolve(null);
   if (!_canWriteBoard.has(boardId)) {
@@ -362,6 +366,11 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
   let periodicTimer = null;
   let periodicCount = 0;
   let dirty = false;
+  // Whether this person can write the cluster (null until known). Peer updates
+  // set dirty too, so a viewer's tab would otherwise try a version save on
+  // every timer and at close, and each one is refused. Asked the first time
+  // dirty turns true; the close path reads it without awaiting.
+  let canWrite = null;
   let destroyed = false;
   // Set when this board's doc is deemed corrupt (Yjs threw). A poisoned handle
   // must NOT write its state anywhere — persisting the corrupt doc would
@@ -514,7 +523,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
     if (idleTimer) clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
       idleTimer = null;
-      if (destroyed || !dirty) return;
+      if (destroyed || !dirty || canWrite === false) return;
       saveBoardVersion(boardId, ydoc, {
         label: 'session',
         userId,
@@ -529,7 +538,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
     if (periodicCount >= PERIODIC_VERSIONS_PER_SESSION) return;
     periodicTimer = setTimeout(() => {
       periodicTimer = null;
-      if (destroyed || !dirty) return;
+      if (destroyed || !dirty || canWrite === false) return;
       if (periodicCount >= PERIODIC_VERSIONS_PER_SESSION) return;
       periodicCount += 1;
       saveBoardVersion(boardId, ydoc, {
@@ -564,7 +573,10 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
       draftSoon();
       return;
     }
-    dirty = true;
+    if (!dirty) {
+      dirty = true;
+      canWriteBoardOnce(boardId).then((ok) => { canWrite = ok; });
+    }
     armIdleVersion();
     armPeriodicVersion();
     if (!isLocal) return;
@@ -815,7 +827,15 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
             invalidateBoardPreview(boardId);
             invalidatePrefetch(`board:${boardId}`);
           })
-          .catch((e) => reportSaveFailure(e, 'board_snapshot_close'));
+          .catch((e) => {
+            // Signing out with the cluster open sends this save without a
+            // session and it is refused; the edits are already in the local
+            // draft, so only report when a session still exists.
+            supabase.auth.getSession().then(
+              ({ data }) => { if (data?.session) reportSaveFailure(e, 'board_snapshot_close'); },
+              () => {},
+            );
+          });
       } else {
         // Nothing of ours to save (a viewer, or a writer who only watched).
         // The prefetch cache may still hold board_state from before the peer
@@ -823,7 +843,7 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
         try { invalidatePrefetch(`board:${boardId}`); } catch (_) {}
       }
       if (dirty) {
-        saveBoardVersion(boardId, ydoc, {
+        if (canWrite !== false) saveBoardVersion(boardId, ydoc, {
           label: 'close',
           userId,
           sessionId,

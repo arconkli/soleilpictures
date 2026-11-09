@@ -36,11 +36,16 @@ test('every admin RPC in 0322 is granted to authenticated only and proven', () =
   assert.match(src, /has_function_privilege\('authenticated',\s*'public\._admin_visits\(/, 'helper proof');
 });
 
+// 0876 restates admin_return_fixed_horizon with a narrower day-one device step
+// (the same answer without the sort that spilled to disk); nothing else of
+// 0322's may be redefined.
+const RESTATED = { admin_return_fixed_horizon: '0876_admin_return_reports_lighter.sql' };
+
 test('0322 owns the latest definition of every function it touches', () => {
   for (const fn of ['admin_survival_curve', 'admin_return_gap', 'admin_return_fixed_horizon']) {
     const def = latestDefinition(fn);
     assert.ok(def, `${fn}: no definition found in any migration`);
-    assert.equal(def.file, FILE, `${fn} is last defined in ${def.file}`);
+    assert.equal(def.file, RESTATED[fn] || FILE, `${fn} is last defined in ${def.file}`);
   }
 });
 

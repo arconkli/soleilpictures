@@ -12,6 +12,7 @@
 
 import { isNoise, isBotUA } from './errorNoise.js';
 import { classifyHttpFailure, bodyCode, routeOf, dedupeKey, crumbNames, errorContext, scrubUrls, channelFailure, channelLabel, timersRanAhead } from './errorCore.js';
+import { signInAgo } from './errorCrumbs.js';
 import { describeReason } from './describeReason.js';
 import { unwatchedFetch } from './netWatch.js';
 import { eventEnv } from './eventEnv.js';
@@ -174,12 +175,16 @@ export function take(it) {
       // Not when the tab was hidden or the network went at any point: then it is
       // slow because nobody was looking, or there was nothing to load from.
       // Nor once a board painted: a splash then is a later step's, not the boot's.
+      // Nor when a sign-in step came less than the boot window before the
+      // report: signing in starts the clock again, so typing a code is the
+      // person's, not the boot's.
       // Nor when the page's own clock says the timer went off early: a renderer
       // running the page with its timers fast-forwarded, nobody waiting (0583
       // doesn't count one either).
       if (isBotUA(ua()) || m.vis !== 'visible' || !m.online || timersRanAhead(m.at, it.after)
           || bootAt('paint') != null || bootAt('enter') != null) return;
-      if ((m.crumbs || []).some((c) => c.k === 'vis' || c.k === 'net')) return;
+      const signedInAgo = signInAgo(m.crumbs);
+      if ((m.crumbs || []).some((c) => c.k === 'vis' || c.k === 'net') || (signedInAgo !== null && signedInAgo < (m.after || 45_000))) return;
       const step = ['workspace', 'tier', 'shell', 'session'].find((s) => bootAt(s) != null) || 'start';
       push({ ...base(m, 'stuck', { op: 'boot', phase: step, ms: m.at }), severity: 'error', name: 'Stuck',
         message: `Boot stuck after ${step}` });

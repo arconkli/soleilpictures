@@ -38,6 +38,7 @@
 // home masks them on screen.
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../../lib/supabase.js';
+import { cachedReport, forgetReports } from '../../../lib/slowReportCache.js';
 import { createCache } from '../../../lib/phoneCache.js';
 import { RETURN_SINCE } from '../../../lib/phonePanel.js';
 
@@ -161,7 +162,16 @@ export function fetchCall(key, { force = false } = {}) {
   if (!call) return Promise.resolve({ data: null, error: new Error(`unknown call ${key}`), at: null, stale: false });
   return cache.get(key, async () => {
     // Never `.catch()` the builder: it is a thenable, not a promise.
-    const { data, error } = await supabase.rpc(call.rpc, call.args);
+    // The two slowest reports are also held for an hour (lib/slowReportCache.js);
+    // a forced refresh drops that too.
+    let res;
+    if (call.rpc === 'admin_return_fixed_horizon' || call.rpc === 'admin_activity_heatmap') {
+      if (force) forgetReports();
+      res = await cachedReport(call.rpc, call.args, () => supabase.rpc(call.rpc, call.args));
+    } else {
+      res = await supabase.rpc(call.rpc, call.args);
+    }
+    const { data, error } = res;
     if (error) return { error };
     return { data: call.pick ? call.pick(data) : data };
   }, { ttl: call.slow ? SLOW_TTL : 0, force });

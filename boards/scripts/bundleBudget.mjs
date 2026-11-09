@@ -100,7 +100,12 @@ export const CEILINGS = {
   // lib/homeFactNotes.js as literals so billingCopy.js stays out of the entry
   // (importing it cost 7.4 KB). A CI-style build read 171,066 B on main
   // 0e775ca4 and 171,792 B with them, 8 B under the old ceiling.
-  entryJs: 172_000,
+  // 2026-11-08: +0.3 KB for the boot watchdog, which now waits until 45 s
+  // after the newest sign-in step before it calls a boot stuck
+  // (SIGN_IN_EVENTS and signInAgo, moved into lib/errorCrumbs.js, which the
+  // entry's errorReporting.js reads). A CI-style build measured entryJs
+  // 171,856 B on main 555b2260 and 172,053 B with it.
+  entryJs: 172_300,
   entryCss: 96_200,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
@@ -274,7 +279,17 @@ export const CEILINGS = {
   // (the commit's short SHA, in the entry via errorReporting.js) renames the
   // entry chunk, which AppShell and CanvasSurface import by name, so appJs
   // moves a few bytes with every commit and 1 B of room can't hold.
-  appJs: 707_300,
+  // 2026-11-08: +1.3 KB of JS for the second error sweep: a drop that can't
+  // go on a cluster says why (lib/putRefusal.js); a sub-cluster made inside a
+  // shared cluster takes that cluster's workspace (lib/subClusterWorkspace.js)
+  // and the shared list refreshes; renames go through rename_board; index
+  // syncs remember a refusal and version saves skip someone who can't write,
+  // both forgotten when access changes; a throttled tab's late live-sync timer
+  // re-arms (lib/stuckSync.js); a thumbnail re-signs once and one that is gone
+  // is remembered (lib/thumbFailMemory.js); name suggestions reload at most
+  // every ten seconds. A CI-style build measured appJs 707,267 B on main
+  // 555b2260 (CI read it a few bytes OVER) and 708,357 B with it.
+  appJs: 708_600,
   appCss: 21_900,
 };
 

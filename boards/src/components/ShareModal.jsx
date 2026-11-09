@@ -293,7 +293,9 @@ export function ShareModal({
     Promise.all([
       listBoardShares(board.id),
       listPendingInvitesForBoard(board.id).catch(() => []),
-      workspace?.id ? listPendingInvitesForWorkspace(workspace.id).catch(() => []) : Promise.resolve([]),
+      // Owner or co-owner only: the server refuses everyone else (42501), and
+      // canInvite also lets editors in.
+      workspace?.id && isManager ? listPendingInvitesForWorkspace(workspace.id).catch(() => []) : Promise.resolve([]),
       // A failure here only hides the inherited rows; the direct list still renders.
       listInheritedBoardShares(board.id).catch((e) => { console.warn('[share] inherited list failed', e); return []; }),
     ])
@@ -312,7 +314,7 @@ export function ShareModal({
       })
       .finally(() => { if (!cancelled) setLoadingShares(false); });
     return () => { cancelled = true; };
-  }, [board?.id, canInvite, workspace?.id]);
+  }, [board?.id, canInvite, isManager, workspace?.id]);
 
   // The picture a pasted link shows (lib/shareCard.js): made here, in the
   // sender's browser, and uploaded for the Worker to serve. Made when the panel

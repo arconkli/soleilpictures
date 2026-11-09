@@ -20544,6 +20544,11 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   gap: 6px;
   flex-shrink: 0;
 }
+/* In place of Open recovery, for everyone but the owner. */
+.ws-alert-banner-actions .ws-alert-banner-meta {
+  align-self: center;
+  margin-top: 0;
+}
 
 /* A bordered aside inside a settings section — for the thing that is the
    right answer for most readers and lets them skip the rest of the screen.

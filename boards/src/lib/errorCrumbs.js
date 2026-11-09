@@ -30,3 +30,23 @@ export function crumbsSnapshot(at = performance.now()) {
 }
 
 export function __resetCrumbsForTest() { ring.length = 0; }
+
+// Analytics events that say the landing page, the sign-in screen or the code
+// step is on show (analyticsEvents.js EV). Time spent there is the person's
+// own, not a boot that hung.
+const SIGN_IN_EVENTS = new Set([
+  'landing_view', 'landing_field_engage', 'landing_invite_prefill_seen', 'landing_join_prefill_seen',
+  'email_submit', 'email_submit_error', 'otp_verify', 'otp_verify_error', 'landing_edit_email',
+  'auth_code_restored', 'auth_mailbox_open', 'lp_view',
+]);
+
+// How many ms ago the newest sign-in step happened, over a crumbsSnapshot()
+// (each t is ms before the snapshot, <= 0); null when the trail has none.
+export function signInAgo(crumbs) {
+  let ago = null;
+  for (const c of crumbs || []) {
+    if (!c || c.k !== 'ev' || !SIGN_IN_EVENTS.has(c.n) || typeof c.t !== 'number' || !Number.isFinite(c.t)) continue;
+    if (ago === null || -c.t < ago) ago = -c.t;
+  }
+  return ago;
+}

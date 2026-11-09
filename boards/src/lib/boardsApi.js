@@ -1027,11 +1027,10 @@ async function logMetaChanges(boardId, patch, { userId = null, sessionId = null 
 }
 
 export async function renameBoard(boardId, name, opts = {}) {
-  await logMetaChanges(boardId, { name }, opts);
-  const { error } = await supabase
-    .from('boards')
-    .update({ name, updated_at: new Date().toISOString() })
-    .eq('id', boardId);
+  // Through the rename_board RPC, not a PATCH on boards: an invited editor
+  // can write the cluster but not the row. The RPC records the rename in the
+  // meta history itself, so logMetaChanges is no longer called here.
+  const { error } = await supabase.rpc('rename_board', { p_board_id: boardId, p_name: name });
   if (error) throw error;
 }
 
@@ -1394,6 +1393,20 @@ export function clearCapAnnounced(boardId = null) {
 // not two.
 const _boardWsCache = new Map();
 
+// Boards whose card_index or group_index write the database refused for a
+// reason that won't change this page load (someone who can only view a
+// cluster would otherwise send a refused write on every save). The card-limit
+// refusal is also 42501 but can change after an upgrade, so it is not kept.
+const _indexWriteRefused = new Set();
+// Access changed (a yes to an ask to edit, another account): a board refused
+// before may take writes now.
+export function forgetIndexRefusals() { _indexWriteRefused.clear(); }
+function _noteIndexRefusal(boardId, err) {
+  if (err?.code !== '42501') return;
+  if (/^Demo accounts are limited to/i.test(err.message || '')) return;
+  _indexWriteRefused.add(boardId);
+}
+
 // One-tab account switches must not leak one account's sync machinery into
 // the next: a pending flush scheduled under user A would otherwise fire up to
 // 10s later under B's token (misattributed telemetry; a cap refusal would land
@@ -1408,6 +1421,7 @@ try {
     for (const st of _syncState.values()) { try { if (st.pending) clearTimeout(st.pending); } catch (_) {} }
     for (const st of _groupSyncState.values()) { try { if (st.pending) clearTimeout(st.pending); } catch (_) {} }
     _syncState.clear();
+    _indexWriteRefused.clear();
     _cardIndexCache.clear();
     _capAnnounced.clear();
     _placements.clear();
@@ -1419,6 +1433,7 @@ try {
 
 export async function syncCardIndex({ boardId, ydoc }) {
   if (!supabase || !boardId || !ydoc) return;
+  if (_indexWriteRefused.has(boardId)) return;
   const state = _syncState.get(boardId) || { last: 0, pending: null };
   state.latestYdoc = ydoc;
   _syncState.set(boardId, state);
@@ -1684,6 +1699,7 @@ async function _doSyncCardIndex(boardId, ydoc) {
       // refused card used to return here every sync, so its cache was rebuilt
       // (every card re-sent) each time. The orphan cleanup now runs first.
     } else if (ups.error) {
+      _noteIndexRefusal(boardId, ups.error);
       console.warn('syncCardIndex upsert', ups.error);
       return;
     } else {
@@ -1784,11 +1800,13 @@ export async function saveBoardVersion(boardId, ydoc, {
     if (triggerKind) row.trigger_kind = triggerKind;
     if (opSummary) row.op_summary = opSummary;
     if (parentVersionId) row.parent_version_id = parentVersionId;
-    const { data, error } = await supabase
-      .from('board_versions')
-      .insert(row)
-      .select('id')
-      .single();
+    // The id is made here and the insert asks for nothing back: reading the
+    // new row needs SELECT, and board_versions is readable by workspace
+    // members only, so an invited editor's insert was refused (42501) at the
+    // read-back even though writing is allowed.
+    const id = crypto.randomUUID();
+    row.id = id;
+    const { error } = await supabase.from('board_versions').insert(row);
     if (error) {
       console.warn('[saveBoardVersion] insert failed', error);
       return null;
@@ -1798,7 +1816,7 @@ export async function saveBoardVersion(boardId, ydoc, {
       () => {},
       (e) => console.warn('[saveBoardVersion] prune failed', e),
     );
-    return data?.id || null;
+    return id;
   } catch (e) {
     console.warn('[saveBoardVersion] threw', e);
     return null;
@@ -2081,6 +2099,7 @@ const _groupSigCache = new Map();    // boardId → fingerprint of last successf
 
 export async function syncGroupIndex({ boardId, ydoc }) {
   if (!supabase || !boardId || !ydoc) return;
+  if (_indexWriteRefused.has(boardId)) return;
   const state = _groupSyncState.get(boardId) || { last: 0, pending: null };
   state.latestYdoc = ydoc;
   _groupSyncState.set(boardId, state);
@@ -2141,7 +2160,7 @@ async function _doSyncGroupIndex(boardId, ydoc) {
 
     if (rows.length > 0) {
       const ups = await supabase.from('group_index').upsert(rows, { onConflict: 'board_id,group_id' });
-      if (ups.error) { console.warn('group_index upsert', ups.error); return; }
+      if (ups.error) { _noteIndexRefusal(boardId, ups.error); console.warn('group_index upsert', ups.error); return; }
     }
 
     // Drop rows for groups deleted from the Y.Doc.

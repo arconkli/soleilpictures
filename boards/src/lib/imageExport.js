@@ -161,7 +161,8 @@ async function bakeAdjustedBlob(img, adjust) {
 async function fetchImageBlob(src, url) {
   const attempt = async (u) => {
     try {
-      const res = await fetch(u);
+      // no-store: an <img> may have cached this without CORS headers (see corsImage.js).
+      const res = await fetch(u, { cache: 'no-store' });
       return res.ok ? await res.blob() : null;
     } catch (_) { return null; }
   };

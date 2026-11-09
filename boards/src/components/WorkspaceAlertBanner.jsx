@@ -103,9 +103,15 @@ export function WorkspaceAlertBanner({ workspaceId, onOpenRecovery }) {
         <div className="ws-alert-banner-meta">{metaFor(primary)}</div>
       </div>
       <div className="ws-alert-banner-actions">
-        <button type="button" className="tb-btn tb-btn-primary" onClick={onOpenRecovery}>
-          Open recovery
-        </button>
+        {onOpenRecovery ? (
+          <button type="button" className="tb-btn tb-btn-primary" onClick={onOpenRecovery}>
+            Open recovery
+          </button>
+        ) : (
+          // Only the owner can run the rewind; offering it to anyone else
+          // ends in a refusal.
+          <span className="ws-alert-banner-meta">The workspace owner can rewind this.</span>
+        )}
         <button type="button" className="tb-btn" onClick={() => onDismiss(primary)}>
           Dismiss
         </button>

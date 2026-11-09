@@ -199,6 +199,10 @@ export class BoardRoomState {
     // the browser's kind, so 0581's saves rule counts a room's failed saves,
     // its board standing in for the person.
     report = null,
+    // Called, once, when board_state refuses the write because the board is
+    // deleted for good (23503). The room closes its sockets with 4401, which
+    // the client treats as "this cluster is gone" and stops reconnecting on.
+    onGone = null,
   }) {
     this.boardId = boardId;
     this.cfg = { boardId, supabaseUrl, serviceRoleKey, fetchImpl, ...(now ? { now } : {}) };
@@ -223,6 +227,7 @@ export class BoardRoomState {
     this.forceNext = false;       // ...and that ask was a forced one
     this.foreignTimer = null;     // the pending, deferred merge of a foreign write
     this.onRestore = onRestore;
+    this.onGone = onGone;
     this.fenceUntil = fenceUntil;
     this.clock = clock;
     // board_state_version.version at load: a number, null (no row), or
@@ -345,6 +350,16 @@ export class BoardRoomState {
     if (res.conflict) {
       // Someone else wrote. Merge it after the grace window, never now.
       this.deferForeign();
+      return false;
+    }
+    // 23503 (foreign key): the board row is gone for good, so no write can
+    // ever land. Retrying forever only spams the database; stop and let go.
+    if (res.status === 409 && String(res.reason || '').includes('23503')) {
+      this.stop();
+      this.dirty = false;
+      this.dirtySince = null;
+      console.warn(`[boardRoomState ${this.boardId}] board was deleted; room stopped saving`);
+      try { this.onGone?.(); } catch (_) { /* the room logs its own failure */ }
       return false;
     }
     this.log(`[boardRoomState ${this.boardId}] flush failed status=${res.status} ${res.reason || ''}`);

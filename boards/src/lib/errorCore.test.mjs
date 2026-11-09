@@ -19,7 +19,7 @@ import {
   routeOf, bodyCode, classifyHttpFailure, scrubUrls, channelFailure, channelLabel, timersRanAhead,
 } from './errorCore.js';
 import { isNoise, isBotUA } from './errorNoise.js';
-import { crumb, crumbsSnapshot, __resetCrumbsForTest } from './errorCrumbs.js';
+import { crumb, crumbsSnapshot, signInAgo, __resetCrumbsForTest } from './errorCrumbs.js';
 import { latestDefinition } from './migrationText.mjs';
 
 const HOSTS = { app: 'clusters.soleilpictures.com', supabase: 'abc.supabase.co' };
@@ -343,7 +343,7 @@ test('a watchdog that went off before its time is a renderer\'s, never a person\
   const delay = Number(reporting.match(/const BOOT_STUCK_MS = ([\d_]+);/)[1].replace(/_/g, ''));
   assert.equal(delay, 45_000);
   assert.match(reporting, /hand\(\{ t: 'boot', m: moment\(\), after: BOOT_STUCK_MS \}\)/);
-  assert.match(reporting, /\}, BOOT_STUCK_MS\);/);
+  assert.match(reporting, /setTimeout\(\(\) => bootCheck\(0\), BOOT_STUCK_MS\);/);
   const sender = readFileSync(new URL('./errorSender.js', import.meta.url), 'utf8');
   assert.ok(sender.includes('const message = `Live updates ${what}`;'));
   assert.ok(sender.includes('quiet: quietTab(m)'));
@@ -352,4 +352,66 @@ test('a watchdog that went off before its time is a renderer\'s, never a person\
   // 0583 drops the rows builds already out still send, at the same 45 seconds.
   const sql = latestDefinition('_breaking_candidates').body;
   assert.match(sql, new RegExp(`message like 'Boot stuck after %'\\s+and coalesce\\(\\(e\\.context->>'ms'\\)::numeric, ${delay}\\) < ${delay}\\)`));
+});
+
+// ── The error sweep: failures that are someone else's, or the person's own ──
+
+test('a link preview whose site failed, and media that did not answer, are warnings', () => {
+  const og = fail({ url: '/api/og?url=x', status: 502 });
+  assert.equal(og.severity, 'warning');
+  assert.equal(og.message, 'GET worker/api/og: bad gateway');
+  assert.equal(fail({ url: '/api/og?url=x', status: 500 }).severity, 'warning');
+  assert.equal(fail({ url: '/api/media/copy/source?key=a', status: 502 }).severity, 'warning');
+  // Other 5xx of the media routes, and of other Worker routes, are still ours.
+  assert.equal(fail({ url: '/api/media/copy/source?key=a', status: 500 }).severity, 'error');
+  assert.equal(fail({ url: '/api/search', status: 502 }).severity, 'error');
+});
+
+test('a function nobody granted EXECUTE on is its own code word', () => {
+  assert.equal(bodyCode('{"code":"42501","message":"permission denied for function claim_pending_invite"}'), 'no_grant');
+});
+
+test('the free card limit is a code word, never the message, and is nobody\'s fault', () => {
+  const cap = '{"code":"42501","details":null,"hint":null,"message":"Demo accounts are limited to 25 cards (row x)"}';
+  assert.equal(bodyCode(cap), 'card_cap');
+  assert.equal(bodyCode('{"code":"42501","message":"new row violates row-level security policy for table card_index"}'), '42501');
+  assert.equal(bodyCode('{"code":"23505","message":"Demo accounts are limited to 25 cards"}'), '23505');
+  const rest = `${SB}/rest/v1/card_index`;
+  assert.equal(fail({ url: rest, method: 'POST', status: 403, pg: bodyCode(cap) }), null);
+  const refused = fail({ url: rest, method: 'POST', status: 403, pg: '42501' });
+  assert.equal(refused.severity, 'error', 'a card_index 42501 without the limit message is still an error');
+  assert.equal(refused.message, 'POST rest/card_index: permission denied (42501)');
+});
+
+test('claiming an invite refused by 42501 is the invite screen\'s to tell', () => {
+  const url = `${SB}/rest/v1/rpc/claim_pending_invite`;
+  assert.equal(fail({ url, method: 'POST', status: 403, pg: '42501' }), null);
+  assert.equal(fail({ url, method: 'POST', status: 500 }).severity, 'error');
+  assert.equal(fail({ url: `${SB}/rest/v1/rpc/other_rpc`, method: 'POST', status: 403, pg: '42501' }).severity, 'error');
+  assert.notEqual(fail({ url, method: 'POST', status: 403, pg: 'no_grant' }), null, 'a lost EXECUTE grant is still reported');
+});
+
+test('the new-version check failing on a flaky network says nothing, but a 5xx of it counts', () => {
+  assert.equal(fail({ url: '/api/build-info', status: 0 }), null);
+  assert.equal(fail({ url: '/api/build-info', status: 500 }).severity, 'error');
+});
+
+test('signInAgo says how long ago the newest sign-in step was', () => {
+  assert.equal(signInAgo([]), null);
+  assert.equal(signInAgo(undefined), null);
+  assert.equal(signInAgo(null), null);
+  assert.equal(signInAgo([{ t: -5000, k: 'ev', n: 'app_open' }]), null, 'another event');
+  assert.equal(signInAgo([{ t: -5000, k: 'nav', n: 'landing_view' }]), null, 'only an event crumb counts');
+  assert.equal(signInAgo([{ t: -9000, k: 'ev', n: 'landing_view' }, { t: -900, k: 'ev', n: 'otp_verify' }, { t: -100, k: 'ev', n: 'app_open' }]), 900);
+  const sender = readFileSync(new URL('./errorSender.js', import.meta.url), 'utf8');
+  const boot = sender.slice(sender.indexOf("it.t === 'boot'"), sender.indexOf("it.t === 'perf'"));
+  assert.match(boot, /signInAgo\(m\.crumbs\)/);
+  const reporting = readFileSync(new URL('./errorReporting.js', import.meta.url), 'utf8');
+  assert.ok(reporting.includes('signInAgo(crumbsSnapshot())'));
+});
+
+test('gap_ms is kept as an integer, like ms, and nothing else is', () => {
+  assert.ok(ERROR_CONTEXT_KEYS.includes('gap_ms'));
+  assert.deepEqual(errorContext({ gap_ms: 2500.6, op: 'page' }), { op: 'page', gap_ms: 2501 });
+  assert.equal(errorContext({ gap_ms: 'soon' }), null);
 });

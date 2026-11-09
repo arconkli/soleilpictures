@@ -79,7 +79,8 @@ export class AssetFetchError extends Error {
 }
 
 async function fetchBlob(url, signal) {
-  const res = await fetch(url, signal ? { signal } : undefined);
+  // no-store: an <img> may have cached this without CORS headers (see corsImage.js).
+  const res = await fetch(url, signal ? { signal, cache: 'no-store' } : { cache: 'no-store' });
   if (!res.ok) throw new AssetFetchError(`Storage returned ${res.status}`, { unreachable: false });
   return res.blob();
 }

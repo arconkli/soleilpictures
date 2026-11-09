@@ -7,7 +7,8 @@ export async function readHead(url, max, { signal, fetchImpl = fetch, size } = {
   if (size === 0) return { bytes: new Uint8Array(0), complete: true };
   const known = Number.isFinite(size) && size >= 0;
   const headers = known && size <= max ? undefined : { Range: `bytes=0-${max - 1}` };
-  const res = await fetchImpl(url, { headers, signal });
+  // no-store: an <img> may have cached this without CORS headers (see corsImage.js).
+  const res = await fetchImpl(url, { headers, signal, cache: 'no-store' });
   if (res.status === 416) return { bytes: new Uint8Array(0), complete: true };
   if (!res.ok) throw new Error(`head ${res.status}`);
   const reader = res.body.getReader();

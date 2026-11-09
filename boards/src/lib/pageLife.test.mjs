@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PAGE_NOTE_KEY, diedOnScreen, whereItDied, startPageLife } from './pageLife.js';
+import { PAGE_NOTE_KEY, RESTORED_MS, diedOnScreen, whereItDied, startPageLife } from './pageLife.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -33,7 +33,7 @@ function page(store, { vis = 'visible', at = 1000 } = {}) {
     win: { addEventListener: listen('win'), setInterval: (fn) => { p.tick = fn; return 1; } },
     fire(where, name, e = {}) { for (const fn of on[where][name] || []) fn(e); },
   };
-  p.life = startPageLife({ store, doc: p.doc, win: p.win, now: () => p.clock, report: (ms, id) => p.reports.push([ms, id]) });
+  p.life = startPageLife({ store, doc: p.doc, win: p.win, now: () => p.clock, report: (ms, id, gap) => p.reports.push([ms, id, gap]) });
   return p;
 }
 
@@ -54,7 +54,7 @@ test('a page that died on screen is noticed by the next load, with how long it h
   first.tick();                     // a minute's look, while on screen
   first.clock = 45_000;             // and then it's gone: no pagehide
   const next = page(store, { at: 50_000 });
-  assert.deepEqual(next.reports, [[30_000, null]]);
+  assert.deepEqual(next.reports, [[30_000, null, 19_000]]);
   assert.match(store.getItem(PAGE_NOTE_KEY), /^50000 50000 visible$/, 'the new page keeps its own note');
 });
 
@@ -72,6 +72,25 @@ test('a page that left as pages leave, or died hidden, is nobody\'s crash', () =
   hidden.tick();                    // a hidden page doesn't look
   assert.match(store.getItem(PAGE_NOTE_KEY), / hidden$/);
   assert.deepEqual(page(store).reports, [], 'reclaimed in the background, as a phone does');
+});
+
+test('a tab restored hours later, or started hidden, is not a crash; a fresh visible crash reports its gap', () => {
+  const HOUR = 3_600_000;
+  const restored = tab();
+  restored.setItem(PAGE_NOTE_KEY, '1000 31000 visible');
+  assert.deepEqual(page(restored, { at: 31_000 + 3 * HOUR }).reports, [], 'restored hours later');
+
+  const edge = tab();
+  edge.setItem(PAGE_NOTE_KEY, '1000 31000 visible');
+  assert.deepEqual(page(edge, { at: 31_000 + RESTORED_MS }).reports, [], 'five minutes is already too long');
+
+  const hiddenStart = tab();
+  hiddenStart.setItem(PAGE_NOTE_KEY, '1000 31000 visible');
+  assert.deepEqual(page(hiddenStart, { vis: 'hidden', at: 40_000 }).reports, [], 'a page that starts hidden');
+
+  const fresh = tab();
+  fresh.setItem(PAGE_NOTE_KEY, '1000 31000 visible');
+  assert.deepEqual(page(fresh, { at: 33_500 }).reports, [[30_000, null, 2_500]]);
 });
 
 test('back from the back-forward cache, a page keeps its note again', () => {
@@ -98,7 +117,7 @@ test('App.jsx starts it as its chunk loads, and reports a crash with nothing in 
   const src = readFileSync(join(here, '..', 'App.jsx'), 'utf8');
   const start = src.indexOf('startPageLife({');
   assert.ok(start > 0 && start < src.indexOf('\nfunction '), 'at module scope, before the first function');
-  assert.match(src.slice(start, start + 400), /reportError\(new Error\('Page died on screen'\), \{ kind: 'page_crash', severity: 'crash', context: \{ ms, board_id: boardId \} \}\)/);
+  assert.match(src.slice(start, start + 400), /report: \(ms, boardId, gapMs\) => reportError\(new Error\('Page died on screen'\), \{ kind: 'page_crash', severity: 'crash', context: \{ ms, board_id: boardId, gap_ms: gapMs \} \}\)/);
   for (const bit of ['pageLife = startPageLife({', "const crashNoteBoardId = currentSurface === 'board' ? ", 'useEffect(() => { pageLife?.noteCluster(crashNoteBoardId); return () => pageLife?.noteCluster(null); }, [crashNoteBoardId]);']) {
     assert.ok(src.includes(bit), bit);
   }
@@ -137,10 +156,10 @@ test('a crash reports the cluster the page before had open, when its note says',
   const id = ID.toLowerCase();
   const store = tab();
   store.setItem(PAGE_NOTE_KEY, `1000 31000 visible ${id}`);
-  assert.deepEqual(page(store).reports, [[30_000, id]]);
+  assert.deepEqual(page(store, { at: 40_000 }).reports, [[30_000, id, 9_000]]);
   const old = tab();
   old.setItem(PAGE_NOTE_KEY, '1000 31000 visible');
-  assert.deepEqual(page(old).reports, [[30_000, null]]);
+  assert.deepEqual(page(old, { at: 40_000 }).reports, [[30_000, null, 9_000]]);
 });
 
 test('storage that refuses leaves startPageLife returning nothing', () => {
