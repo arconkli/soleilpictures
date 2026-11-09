@@ -485,3 +485,354 @@ test('a failed file is counted by a word, never by its name', () => {
   assert.equal(importFailCode(Object.assign(new Error('locked'), { name: 'NotReadableError' })), 'unreadable');
   assert.equal(importFailCode(null), 'other');
 });
+
+// A fake transfer store (lib/activity.js's shape) that keeps what it was told.
+function fakeActivity() {
+  const items = new Map();
+  const batches = [];
+  let n = 0;
+  return {
+    items, batches,
+    startBatch: (b) => { batches.push(b); return `b${batches.length}`; },
+    addTransfer: (t) => { const id = `t${++n}`; items.set(id, { ...t, states: [t.state] }); return id; },
+    updateTransfer: (id, patch) => {
+      const it = items.get(id);
+      if (!it) return;
+      Object.assign(it, patch);
+      if (patch.state && it.states.at(-1) !== patch.state) it.states.push(patch.state);
+    },
+    removeTransfer: (id) => { items.delete(id); },
+  };
+}
+
+test('each file is a transfer in a hidden batch: waiting, running, finishing, done once its card has the file', async () => {
+  const h = harness();
+  const act = fakeActivity();
+  const end = await createImportJob({ plan: planFor(0), deps: { ...h.deps, activity: act }, clusterCost: 0, title: 'Shoot' }).start();
+  assert.equal(end.status, 'done');
+  assert.ok(act.batches.length >= 1 && act.batches.every((b) => b.hidden === true && b.label === 'Shoot'), 'hidden: the import tray words it');
+  assert.equal(act.items.size, 6);
+  for (const it of act.items.values()) {
+    assert.deepEqual(it.states, ['waiting', 'running', 'finishing', 'done']);
+    assert.ok(it.boardId && it.cardId?.startsWith('c-'));
+  }
+});
+
+test('a failed file, a full drive and a cancel leave no transfer behind', async () => {
+  const failing = harness({ failOn: ['Night/b.jpg'] });
+  const a1 = fakeActivity();
+  await createImportJob({ plan: planFor(0), deps: { ...failing.deps, activity: a1 }, clusterCost: 0 }).start();
+  assert.equal([...a1.items.values()].filter((it) => it.cardId === 'c-Night/b.jpg').length, 0, 'the failed file is gone from the store');
+  assert.ok([...a1.items.values()].every((it) => it.state === 'done'));
+
+  const full = harness({ drive: 25 });
+  const a2 = fakeActivity();
+  const mid = await createImportJob({ plan: planFor(0), deps: { ...full.deps, activity: a2 }, clusterCost: 0, limits: { uploads: 1 } }).start();
+  assert.equal(mid.status, 'waiting');
+  assert.ok([...a2.items.values()].every((it) => it.state === 'done'), 'what waits for room is not still "uploading"');
+
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const slow = harness({ uploadGate: async (item, signal) => {
+    await Promise.race([gate, new Promise((_, rej) => signal.addEventListener('abort', () => rej(new DOMException('x', 'AbortError'))))]);
+  } });
+  const a3 = fakeActivity();
+  const job = createImportJob({ plan: planFor(0), deps: { ...slow.deps, activity: a3 }, clusterCost: 0, limits: { uploads: 1 } });
+  const run = job.start();
+  for (let i = 0; i < 20 && ![...a3.items.values()].some((it) => it.state === 'running'); i++) await new Promise((r) => setTimeout(r, 0));
+  assert.ok([...a3.items.values()].some((it) => it.state === 'running'));
+  await job.cancel();
+  release();
+  await run;
+  assert.equal(a3.items.size, 0, 'a cancel removes every transfer it started');
+});
+
+// ── Offline (deps.whenOnline, deps.onConnection; no real timers) ───────────
+const connection = () => {
+  let cb = null;
+  return { onConnection: (f) => { cb = f; return () => { cb = null; }; }, send: (online) => cb?.(online) };
+};
+const settle = async (job, status) => {
+  for (let i = 0; i < 50 && job.state.status !== status; i++) await new Promise((r) => setTimeout(r, 0));
+  return job.state.status;
+};
+
+test('offline, call() waits for the connection and spends none of its retries', async () => {
+  const h = harness({ flaky: 8 });
+  let waits = 0;
+  const end = await createImportJob({
+    plan: planFor(0), clusterCost: 0,
+    deps: { ...h.deps, whenOnline: async (_signal) => { waits++; return true; } },
+  }).start();
+  assert.equal(end.status, 'done', 'eight failures in a row would have run out the five retries');
+  assert.equal(waits, 8);
+  assert.equal(h.s.clock, 0, 'no backoff sleep was spent');
+});
+
+test('online as far as the browser says, call() keeps its backoff', async () => {
+  const h = harness({ flaky: 1 });
+  const end = await createImportJob({
+    plan: planFor(0), clusterCost: 0, deps: { ...h.deps, whenOnline: async () => false },
+  }).start();
+  assert.equal(end.status, 'done');
+  assert.ok(h.s.clock >= 1000);
+});
+
+test('the job pauses itself when the connection drops and goes on when it returns', async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const h = harness({ uploadGate: () => gate });
+  const net = connection();
+  const job = createImportJob({ plan: planFor(0), clusterCost: 0, limits: { uploads: 1 }, deps: { ...h.deps, onConnection: net.onConnection } });
+  const run = job.start();
+  await new Promise((r) => setTimeout(r, 0));
+  net.send(false);
+  release();
+  assert.equal((await run).status, 'paused');
+  net.send(true);
+  assert.equal(await settle(job, 'done'), 'done');
+  assert.equal(job.state.landed.files, 6);
+});
+
+test('a connection that comes back before the pause took hold just carries on', async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const h = harness({ uploadGate: () => gate });
+  const net = connection();
+  const job = createImportJob({ plan: planFor(0), clusterCost: 0, limits: { uploads: 1 }, deps: { ...h.deps, onConnection: net.onConnection } });
+  const run = job.start();
+  await new Promise((r) => setTimeout(r, 0));
+  net.send(false);
+  net.send(true);
+  release();
+  assert.equal((await run).status, 'done');
+});
+
+test('a person\'s own Pause stays paused through a drop and a return', async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const h = harness({ uploadGate: () => gate });
+  const net = connection();
+  const job = createImportJob({ plan: planFor(0), clusterCost: 0, limits: { uploads: 1 }, deps: { ...h.deps, onConnection: net.onConnection } });
+  const run = job.start();
+  await new Promise((r) => setTimeout(r, 0));
+  job.pause();
+  net.send(false);
+  net.send(true);
+  release();
+  assert.equal((await run).status, 'paused');
+  net.send(false);
+  net.send(true);
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal(job.state.status, 'paused', 'it never resumes what it did not pause');
+});
+
+test('a person pausing after the connection dropped takes the pause over', async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const h = harness({ uploadGate: () => gate });
+  const net = connection();
+  const job = createImportJob({ plan: planFor(0), clusterCost: 0, limits: { uploads: 1 }, deps: { ...h.deps, onConnection: net.onConnection } });
+  const run = job.start();
+  await new Promise((r) => setTimeout(r, 0));
+  net.send(false);
+  job.pause();
+  net.send(true);
+  release();
+  assert.equal((await run).status, 'paused');
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal(job.state.status, 'paused');
+});
+
+// The browser fires `online` before the pending fetch retries resolve, so a
+// pause lifted while the loop is already inside its closing flush must still
+// run the files the batch held.
+test('a connection that returns while the closing flush waits does not end the job with files held', async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const h = harness({ uploadGate: () => gate });
+  let offline = false;
+  let goOnline;
+  const online = new Promise((r) => { goOnline = r; });
+  const net = connection();
+  const patchCards = h.deps.patchCards;
+  const job = createImportJob({
+    plan: planFor(0), clusterCost: 0, limits: { uploads: 1 },
+    deps: {
+      ...h.deps,
+      onConnection: net.onConnection,
+      patchCards: async (...a) => {
+        if (offline) throw new TypeError('Failed to fetch');
+        return patchCards(...a);
+      },
+      whenOnline: () => online.then(() => true),
+    },
+  });
+  const run = job.start();
+  await new Promise((r) => setTimeout(r, 0));
+  offline = true;
+  net.send(false);
+  release();
+  await new Promise((r) => setTimeout(r, 5));
+  offline = false;
+  net.send(true);
+  goOnline();
+  const end = await run;
+  assert.equal(end.status, 'done');
+  assert.equal(uploads(h.log).length, 6, 'every file landed');
+});
+
+test('the connection listener is dropped when the job is done or cancelled, and taken again on a re-run', async () => {
+  let subs = 0;
+  let unsubs = 0;
+  const onConnection = () => { subs++; return () => { unsubs++; }; };
+  const h = harness();
+  const job = createImportJob({ plan: planFor(0), clusterCost: 0, deps: { ...h.deps, onConnection } });
+  assert.equal(subs, 0, 'nothing listens before the job runs');
+  assert.equal((await job.start()).status, 'done');
+  assert.equal(subs, 1);
+  assert.equal(unsubs, 1);
+
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const h3 = harness({ uploadGate: () => gate });
+  subs = 0; unsubs = 0;
+  const j2 = createImportJob({ plan: planFor(0), clusterCost: 0, limits: { uploads: 1 }, deps: { ...h3.deps, onConnection } });
+  const run = j2.start();
+  await new Promise((r) => setTimeout(r, 0));
+  j2.cancel();
+  release();
+  await run;
+  assert.equal(j2.state.status, 'cancelled');
+  assert.equal(subs, 1);
+  assert.equal(unsubs, 1);
+});
+
+// ── A cancel can land in any await, not only in a batch ───────────────────
+const pendingCardsLeft = (h) => [...h.boards.values()].flatMap((b) => [...b.cards.values()]).filter((c) => c.pending);
+const removedIds = (h) => h.log.filter((e) => e[0] === 'remove').flatMap((e) => e[1]);
+const hand = () => { let go; const p = new Promise((r) => { go = r; }); return { p, go }; };
+
+test('a cancel while the closing flush waits offline ends cancelled and removes the held files\' cards', async () => {
+  const gate = hand();
+  const h = harness({ uploadGate: () => gate.p });
+  let offline = false;
+  const back = hand();   // the browser's `online` event
+  // As the browser's: offline, the wait ends when the connection is back or
+  // the job aborts it (both true); online it is over at once (false).
+  const whenOnline = (signal) => (offline
+    ? new Promise((resolve) => { back.p.then(() => resolve(true)); signal?.addEventListener('abort', () => resolve(true)); })
+    : Promise.resolve(false));
+  const net = (fn) => async (...a) => { if (offline) throw new TypeError('Failed to fetch'); return fn(...a); };
+  const job = createImportJob({
+    plan: planFor(0), clusterCost: 0, limits: { uploads: 1 },
+    deps: {
+      ...h.deps, whenOnline,
+      putItems: net(h.deps.putItems), patchCards: net(h.deps.patchCards),
+      removeCards: net(h.deps.removeCards), setJob: net(h.deps.setJob),
+    },
+  });
+  const run = job.start();
+  await new Promise((r) => setTimeout(r, 0));
+  job.pause();
+  offline = true;
+  gate.go();
+  await new Promise((r) => setTimeout(r, 5));   // the closing flush is now waiting offline
+  assert.notEqual(job.state.status, 'cancelled');
+  const cancelling = job.cancel();
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal(job.state.status, 'cancelled', 'the tray says stopped at once, offline or not');
+  assert.ok(!h.log.some((e) => e[0] === 'job' && e[1].status === 'cancelled'), 'the job row waits for the connection');
+  offline = false;
+  back.go();
+  const cancelled = await cancelling;
+  await run;
+  assert.equal(cancelled.status, 'cancelled');
+  assert.equal(job.state.status, 'cancelled', 'not failed');
+  const landed = h.log.find((e) => e[0] === 'upload')[2];
+  assert.ok(h.log.some((e) => e[0] === 'patch' && e[1].includes(landed)), 'the landed file\'s card got its patch');
+  assert.ok([...h.boards.values()].some((b) => b.cards.has(landed) && !b.cards.get(landed).pending), 'and is no longer pending');
+  assert.ok(removedIds(h).includes('c-Night/b.jpg'), 'a held file\'s card was taken off');
+  assert.equal(pendingCardsLeft(h).length, 0, 'no pending card stays on the board');
+  assert.deepEqual(h.log.filter((e) => e[0] === 'job').at(-1)[1], { status: 'cancelled' });
+  const before = h.log.length;
+  await job.resume();
+  await job.release();
+  await job.retryFailed();
+  assert.equal(job.state.status, 'cancelled');
+  assert.equal(uploads(h.log).length, 1, 'only the file that landed before the pause');
+  assert.equal(h.log.length, before, 'a cancelled job never runs again');
+});
+
+test('a flush that fails for good keeps what it had not sent, and the next flush sends it', async () => {
+  const h = harness();
+  let thrown = false;
+  const patchCards = h.deps.patchCards;
+  const job = createImportJob({
+    plan: planFor(0), clusterCost: 0, limits: { uploads: 1 },
+    deps: {
+      ...h.deps,
+      patchCards: async (...a) => {
+        if (!thrown) { thrown = true; throw Object.assign(new Error('bad request'), { status: 400 }); }
+        return patchCards(...a);
+      },
+    },
+  });
+  const end = await job.start();
+  assert.equal(end.status, 'failed');
+  const landedIds = uploads(h.log).map((e) => e[2]);
+  assert.ok(landedIds.length > 0);
+  for (const id of landedIds) {
+    const card = [...h.boards.values()].map((b) => b.cards.get(id)).find(Boolean);
+    assert.equal(card.pending, false, `${id} has its patch`);
+  }
+});
+
+test('a cancel during the paused setJob ends cancelled', async () => {
+  const gate = hand();
+  const slow = hand();
+  const h = harness({ uploadGate: () => gate.p });
+  const setJob = h.deps.setJob;
+  const job = createImportJob({
+    plan: planFor(0), clusterCost: 0, limits: { uploads: 1 },
+    deps: { ...h.deps, setJob: async (j, f) => { if (f.status === 'paused') await slow.p; return setJob(j, f); } },
+  });
+  const run = job.start();
+  await new Promise((r) => setTimeout(r, 0));
+  job.pause();
+  gate.go();
+  await new Promise((r) => setTimeout(r, 5));   // waiting inside setJob({ status: 'paused' })
+  const cancelling = job.cancel();
+  slow.go();
+  await cancelling;
+  await run;
+  assert.equal(job.state.status, 'cancelled');
+  assert.ok(removedIds(h).includes('c-Night/b.jpg'));
+  assert.equal(pendingCardsLeft(h).length, 0);
+  assert.deepEqual(h.log.filter((e) => e[0] === 'job').at(-1)[1], { status: 'cancelled' });
+});
+
+test('a cancel during the closing flush online ends cancelled', async () => {
+  const slow = hand();
+  let armed = false;
+  const gate = hand();
+  const h2 = harness({ uploadGate: () => gate.p });
+  const patch2 = h2.deps.patchCards;
+  const job2 = createImportJob({
+    plan: planFor(0), clusterCost: 0, limits: { uploads: 1 },
+    deps: { ...h2.deps, patchCards: async (...a) => { if (armed) await slow.p; return patch2(...a); } },
+  });
+  const run2 = job2.start();
+  await new Promise((r) => setTimeout(r, 0));
+  job2.pause();
+  armed = true;
+  gate.go();
+  await new Promise((r) => setTimeout(r, 5));   // the closing flush waits on its patch
+  const cancelling = job2.cancel();
+  slow.go();
+  await cancelling;
+  await run2;
+  assert.equal(job2.state.status, 'cancelled');
+  assert.ok(removedIds(h2).includes('c-Night/b.jpg'));
+  assert.equal(pendingCardsLeft(h2).length, 0);
+});

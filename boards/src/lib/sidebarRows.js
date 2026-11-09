@@ -10,8 +10,8 @@
 // A shelf header's height includes the air above its label (it is what
 // separates one shelf from the next).
 export const ROW_HEIGHTS = {
-  fine: { cluster: 36, shelf: 28, file: 28, more: 28, loading: 28, empty: 28 },
-  coarse: { cluster: 44, shelf: 36, file: 44, more: 44, loading: 44, empty: 44 },
+  fine: { cluster: 36, shelf: 28, file: 28, more: 28, loading: 28, empty: 28, error: 34 },
+  coarse: { cluster: 44, shelf: 36, file: 44, more: 44, loading: 44, empty: 44, error: 44 },
 };
 
 // One level of the tree, in px: cluster rows step in by it (SidebarBoardTree),
@@ -65,6 +65,12 @@ export function contentRows(b, depth, {
   const shelves = (c && c.shelves) || [];
   if (!c || (c.loading && !shelves.length)) {
     push('loading', `l:${b}`, {});
+    return rows;
+  }
+  // A read that failed with nothing to show is not an empty cluster, and
+  // counts without items are no shelves to draw.
+  if (c.failed && !shelves.some((s) => s.items?.length)) {
+    push('error', `r:${b}`, {});
     return rows;
   }
   if (!hasChildren && !shelves.some((s) => s.total > 0 || (s.items && s.items.length))) {

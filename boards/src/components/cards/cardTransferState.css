@@ -1,0 +1,109 @@
+/* What a card says while its file is on its way (CardTransferState.jsx): a
+   soft strip at its bottom with words and a 2px line, or, for an upload that
+   never finished, centred words and buttons. Neutral ink, never gold. The
+   strip and the block are counter-scaled in the component, so every size
+   here is a screen pixel at any zoom. */
+.cts {
+  --cts-track: rgba(245, 245, 247, .16);
+  --cts-fill: #a4a4ac;
+  --cts-ink: var(--ink-0);
+  --cts-ink-2: var(--ink-1);
+  position: absolute; inset: 0;
+  pointer-events: none;
+  color: var(--cts-ink);
+}
+[data-theme="light"] .cts {
+  --cts-track: rgba(10, 10, 12, .12);
+  --cts-fill: #6a6a70;
+}
+/* Over a picture: light words on a dark scrim in either theme. */
+.cts.is-pic,
+[data-theme="light"] .cts.is-pic {
+  --cts-track: rgba(245, 245, 247, .16);
+  --cts-fill: #a4a4ac;
+  --cts-ink: #fff;
+  --cts-ink-2: rgba(255, 255, 255, .82);
+}
+.cts-scrim { position: absolute; inset: 0; }
+
+.cts-strip, .cts-gone, .cts-ibwrap { position: absolute; }
+.cts-strip {
+  left: 0; bottom: 0;
+  transform-origin: left bottom;
+  display: flex; flex-direction: column; gap: 4px;
+  box-sizing: border-box;
+  padding: 16px 7px 6px;
+  font: 600 10.5px/1.2 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+.cts.is-pic .cts-strip {
+  background: linear-gradient(to top, rgba(8, 8, 10, .88) 0%, rgba(8, 8, 10, .7) 55%, rgba(8, 8, 10, 0) 100%);
+}
+.cts.is-pic .cts-strip.is-fail {
+  background: linear-gradient(to top, rgba(26, 8, 8, .9) 0%, rgba(24, 9, 9, .72) 55%, rgba(8, 8, 10, 0) 100%);
+}
+.cts-strip.is-fail { padding-top: 14px; }
+.cts-strip.is-compact { padding: 10px 7px 6px; gap: 3px; }
+.cts:not(.is-pic) .cts-strip.is-compact {
+  background: linear-gradient(to top, var(--bg-3) 0%, var(--bg-3) 70%, color-mix(in srgb, var(--bg-3) 0%, transparent) 100%);
+}
+.cts-strip.is-mate { padding-top: 8px; }
+.cts-strip.is-bare { padding: 0 7px 6px; }
+.cts-txt { min-width: 0; }
+.cts-txt > span, .cts-line1, .cts-gone-txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cts-sub { display: block; margin-top: 2px; color: var(--cts-ink-2); font-weight: 500; }
+.cts-ic { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.cts-line1 { min-width: 0; }
+.cts-ic svg { flex: none; }
+.cts-err { color: var(--msg-err); }
+.cts.is-pic .cts-err { color: #e08b8b; }
+.cts-line { display: block; height: 2px; border-radius: 1px; background: var(--cts-track); overflow: hidden; }
+.cts-line.is-idle { background: var(--cts-track); }
+.cts-line.is-fail { background: color-mix(in srgb, var(--msg-err) 35%, transparent); }
+.cts-line.is-fail i { background: var(--msg-err); }
+.cts.is-pic .cts-line.is-fail i { background: #e08b8b; }
+.cts-line i { display: block; height: 100%; background: var(--cts-fill); transition: width .25s linear; }
+.cts-av { width: 15px; height: 15px; font-size: 8.5px; border-width: 1px; flex: none; }
+
+.cts-ibwrap { top: 0; right: 0; height: 0; transform-origin: right top; }
+.cts-ib {
+  position: absolute; top: 5px; right: 5px;
+  display: grid; place-items: center;
+  width: 22px; height: 22px; padding: 0;
+  border: 0; border-radius: 6px;
+  background: rgba(17, 17, 20, .78);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1);
+  color: #f5f5f7;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.cts-ib.is-2 { right: 31px; }
+.cts-ib:hover { background: rgba(17, 17, 20, .92); }
+
+.cts-gone {
+  left: 0; top: 0;
+  transform-origin: left top;
+  box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 9px; padding: 8px;
+  text-align: center;
+  color: var(--cts-ink-2);
+  font: 500 11px/1.3 var(--font-sans);
+}
+.cts-strip.is-gone .cts-line1 { color: var(--cts-ink-2); font-weight: 500; }
+.cts-gone-txt { max-width: 100%; }
+.cts-gone-btns { display: flex; gap: 6px; flex: none; }
+.cts-tb.is-icon { display: grid; place-items: center; width: 22px; height: 22px; padding: 0; }
+.cts-tb {
+  border: 0; border-radius: 6px; padding: 5px 8px;
+  background: rgba(245, 245, 247, .1);
+  color: var(--cts-ink);
+  font: 600 10.5px/1 var(--font-sans);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.cts-tb:hover { background: rgba(245, 245, 247, .18); }
+[data-theme="light"] .cts-tb { background: rgba(10, 10, 12, .07); }
+[data-theme="light"] .cts-tb:hover { background: rgba(10, 10, 12, .12); }
+.cts-ib:focus-visible, .cts-tb:focus-visible { outline: 2px solid var(--cts-ink); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { .cts-line i { transition: none; } }

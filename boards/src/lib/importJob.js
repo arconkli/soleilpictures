@@ -47,11 +47,23 @@
 //   upload(item, file, { boardId, cardId, signal, onProgress(0..1) }) → up
 //   placeTops([{ key, id, name }])?        indexClusterCards([{ boardId, cards }])?
 //   newId() → uuid · cardId(item, n) · encodeDoc(cards) → base64 · now() · sleep(ms)
+//   whenOnline(signal)? → resolves true once the browser is back online if it
+//     had to wait, false at once when it already is (call() waits here instead
+//     of spending its retries while offline); onConnection(cb(online))? →
+//     unsubscribe: the job pauses itself when the connection drops and goes
+//     on when it returns. Both default to navigator.onLine and the window's
+//     online / offline events.
 //   stamp()? → { createdBy, createdAt, updatedBy, updatedAt } for new cards
 //   cover(boardId, { files, cardCount })? — files: the pictures to draw it
 //     from, in order, or null for the count alone
+//   activity? — { startBatch, addTransfer, updateTransfer, removeTransfer },
+//     the tab's transfer store (lib/activity.js) unless a test passes fakes.
+//     Each batch is a hidden batch there (the import tray already words it),
+//     so its cards show their state and presence carries the clusters, but no
+//     second tray lists the files.
 
 import { buildClusterCards } from './folderImport.js';
+import * as activityStore from './activity.js';
 import { cardFromUpload, cardKindFor, measuredSize } from './cardFromUpload.js';
 import { fileMetaFor } from './fileIngest.js';
 import { parseLoopMeta } from './loopMeta.js';
@@ -142,12 +154,49 @@ export function spotFor(clusterCards, n) {
   return { x: 80 + (n % FILE_COLS) * FILE_CELL, y: top + Math.floor(n / FILE_COLS) * FILE_CELL };
 }
 
+// The browser's own word on the connection (navigator.onLine and the window's
+// online / offline events); where there is no window, always online.
+function browserWhenOnline(signal) {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined' || navigator.onLine !== false) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const done = () => { window.removeEventListener('online', done); signal?.removeEventListener?.('abort', done); resolve(true); };
+    window.addEventListener('online', done);
+    signal?.addEventListener?.('abort', done);
+  });
+}
+function browserOnConnection(cb) {
+  if (typeof window === 'undefined') return () => {};
+  const up = () => cb(true);
+  const down = () => cb(false);
+  window.addEventListener('online', up);
+  window.addEventListener('offline', down);
+  return () => { window.removeEventListener('online', up); window.removeEventListener('offline', down); };
+}
+
 // seed (resuming after a reload): { jobId, created: [[key, boardId]],
 // landed: [relPath], cardIds: [[relPath, cardId]] } from the 0430 ledger.
 export function createImportJob({
   plan, title = 'Import', deps, clusterCost = CLUSTER_CARD_COST, limits = {}, seed = null, onChange = () => {},
 }) {
   const L = { ...JOB_LIMITS, ...limits };
+  // The activity store's items for this job's files: relPath → item id while
+  // a file is on its way, card id → item id once it has landed and waits for
+  // its patch. Every way out of a batch removes or finishes them.
+  const act = deps.activity || activityStore;
+  const tidOf = new Map();
+  const landedTid = new Map();
+  const dropTid = (rel) => {
+    const tid = tidOf.get(rel);
+    if (tid == null) return;
+    tidOf.delete(rel);
+    try { act.removeTransfer(tid); } catch (_) { /* the store never stops the import */ }
+  };
+  const touchTid = (tid, patch) => { if (tid != null) { try { act.updateTransfer(tid, patch); } catch (_) { /* as above */ } } };
+  const clearTids = () => {
+    for (const rel of [...tidOf.keys()]) dropTid(rel);
+    for (const tid of landedTid.values()) { try { act.removeTransfer(tid); } catch (_) { /* as above */ } }
+    landedTid.clear();
+  };
   const clusters = plan.clusters || [];
   const byKey = new Map(clusters.map((c) => [c.key, c]));
   const parentOf = new Map(clusters.map((c) => [c.key, c.parentKey]));
@@ -213,6 +262,7 @@ export function createImportJob({
   let error = null;
   let errorCode = null;            // importFailCode(): what it was, never whose
   let stopFlag = null;              // 'pause' | 'cancel'
+  let cleaning = false;             // finishCancel's clean-up: its writes wait for the connection instead of quitting
   let busy = false;
   let current = null;
   let seq = 0;
@@ -311,11 +361,23 @@ export function createImportJob({
     sampled = { t, bytes: sent() };
   };
 
+  const whenOnline = deps.whenOnline || ((signal) => browserWhenOnline(signal));
   const call = async (fn) => {
+    // A cancel quits a write in flight, except the cancel's own clean-up
+    // (cleaning), which goes on once the connection is back: the cards and
+    // the job must end tidy.
+    const quit = () => stopFlag === 'cancel' && !cleaning;
     for (let i = 0; ; i++) {
       try { return await fn(); }
       catch (e) {
-        if (!isRetryable(e) || i >= 5 || stopFlag === 'cancel') throw e;
+        if (!isRetryable(e) || i >= 5 || quit()) throw e;
+        // Offline, a retry would only fail again: wait for the connection,
+        // and the wait costs none of the retries.
+        if (await whenOnline(cleaning ? null : abort.signal)) {
+          if (quit()) throw e;
+          i--;
+          continue;
+        }
         await deps.sleep(Math.min(30000, 1000 * 2 ** i));
       }
     }
@@ -329,6 +391,7 @@ export function createImportJob({
   let flushing = null;
   let flushAgain = false;
   let lastFlush = deps.now();
+  let countsOwed = false;
   const patchCount = () => [...patches.values()].reduce((s, l) => s + l.length, 0);
 
   async function flushNow() {
@@ -337,15 +400,53 @@ export function createImportJob({
       const rows = ledger; ledger = [];
       const p = [...patches.entries()]; patches.clear();
       const r = [...removals.entries()]; removals.clear();
-      for (let i = 0; i < rows.length; i += L.ledgerBatch) await call(() => deps.putItems(jobId, rows.slice(i, i + L.ledgerBatch)));
-      for (const [boardId, list] of p) {
-        for (let i = 0; i < list.length; i += L.patchBatch) await call(() => deps.patchCards(boardId, list.slice(i, i + L.patchBatch)));
-      }
-      for (const [boardId, ids] of r) {
-        for (let i = 0; i < ids.length; i += 500) await call(() => deps.removeCards(boardId, ids.slice(i, i + 500)));
-      }
-      if (rows.length || p.length || r.length) {
-        await call(() => deps.setJob(jobId, { done: { files: done.files, bytes: done.bytes, failed: failed.length } }));
+      let rowsSent = 0;
+      const patchSent = new Map();    // boardId → how many of its patches went
+      const removeSent = new Map();   // boardId → how many of its removals went
+      try {
+        for (let i = 0; i < rows.length; i += L.ledgerBatch) {
+          await call(() => deps.putItems(jobId, rows.slice(i, i + L.ledgerBatch)));
+          rowsSent = Math.min(rows.length, i + L.ledgerBatch);
+        }
+        for (const [boardId, list] of p) {
+          for (let i = 0; i < list.length; i += L.patchBatch) {
+            const chunk = list.slice(i, i + L.patchBatch);
+            await call(() => deps.patchCards(boardId, chunk));
+            patchSent.set(boardId, i + chunk.length);
+            // The card has its file now: its transfer is done.
+            for (const { id } of chunk) {
+              const tid = landedTid.get(id);
+              if (tid == null) continue;
+              landedTid.delete(id);
+              touchTid(tid, { state: 'done' });
+            }
+          }
+        }
+        for (const [boardId, ids] of r) {
+          for (let i = 0; i < ids.length; i += 500) {
+            await call(() => deps.removeCards(boardId, ids.slice(i, i + 500)));
+            removeSent.set(boardId, Math.min(ids.length, i + 500));
+          }
+        }
+        if (rows.length || p.length || r.length) countsOwed = true;
+        if (countsOwed) {
+          await call(() => deps.setJob(jobId, { done: { files: done.files, bytes: done.bytes, failed: failed.length } }));
+          countsOwed = false;
+        }
+      } catch (e) {
+        // Put back what didn't go, ahead of anything queued since, for the
+        // next flush. Sending it twice is harmless: the ledger upserts by
+        // path, a patch sets fields, and removing a removed card does nothing.
+        ledger = rows.slice(rowsSent).concat(ledger);
+        for (const [boardId, list] of p) {
+          const left = list.slice(patchSent.get(boardId) || 0);
+          if (left.length) patches.set(boardId, left.concat(patches.get(boardId) || []));
+        }
+        for (const [boardId, ids] of r) {
+          const left = ids.slice(removeSent.get(boardId) || 0);
+          if (left.length) removals.set(boardId, left.concat(removals.get(boardId) || []));
+        }
+        throw e;
       }
       lastFlush = deps.now();
     } while (flushAgain);
@@ -481,6 +582,17 @@ export function createImportJob({
       onBoard.set(it.file.relPath, { boardId, id: idOf(it) });
       batchOpen.add(it);
     }
+    // One hidden batch per batch of cards, so each run's items sit in a batch
+    // that still exists (a batch whose items all finish leaves on its own).
+    try {
+      const tb = act.startBatch({ kind: 'upload', boardId, boardName: byKey.get(key)?.name || null, label: title, hidden: true });
+      for (const it of inBatch) {
+        dropTid(it.file.relPath);
+        tidOf.set(it.file.relPath, act.addTransfer({
+          batch: tb, kind: 'upload', label: it.file.name || '', boardId, cardId: idOf(it), bytesTotal: it.bytes || 0, state: 'waiting',
+        }));
+      }
+    } catch (_) { /* the store never stops the import */ }
     emit();
 
     let driveFull = false;
@@ -489,7 +601,7 @@ export function createImportJob({
     const worker = async () => {
       while (next < inBatch.length) {
         const it = inBatch[next++];
-        if (driveFull || stopFlag) { held.push(it); continue; }
+        if (driveFull || stopFlag) { dropTid(it.file.relPath); held.push(it); continue; }
         await uploadOne(it, boardId, idOf(it)).then((outcome) => {
           if (outcome === 'full') { driveFull = true; held.push(it); }
           else if (outcome === 'held') held.push(it);
@@ -514,10 +626,22 @@ export function createImportJob({
       // Cancelled while it waited: nothing to inflate.
       if (release && stopFlag === 'cancel') throw new DOMException('Cancelled', 'AbortError');
       const file = await it.file.open();
+      const tid = tidOf.get(rel);
+      touchTid(tid, { state: 'running', parked: false });
       const up = await deps.upload(it, file, {
         boardId, cardId: id, signal: abort.signal,
-        onProgress: (p) => { inflight.set(rel, Math.max(0, Math.min(1, Number(p) || 0)) * it.bytes); sample(); emitSoon(); },
+        onProgress: (p) => {
+          const f = Math.max(0, Math.min(1, Number(p) || 0));
+          inflight.set(rel, f * it.bytes); sample(); emitSoon();
+          touchTid(tid, { fraction: f });
+        },
       });
+      // The bytes are in; the card gets its file at the next flush.
+      if (tid != null) {
+        tidOf.delete(rel);
+        landedTid.set(id, tid);
+        touchTid(tid, { state: 'finishing', fraction: 1 });
+      }
       inflight.delete(rel);
       batchOpen.delete(it);
       onBoard.delete(rel);
@@ -535,6 +659,8 @@ export function createImportJob({
     } catch (e) {
       inflight.delete(rel);
       batchOpen.delete(it);
+      // Held, refused for room or failed: the import tray says which.
+      dropTid(rel);
       if (isAbort(e) || stopFlag === 'cancel') return 'held';
       if (isDriveFull(e)) return 'full';
       onBoard.delete(rel);
@@ -563,7 +689,8 @@ export function createImportJob({
   }
 
   async function fail(e) {
-    if (status === 'failed' || status === 'cancelled') return;
+    // A cancel under way ends the job cancelled, not failed: its own clean-up runs.
+    if (status === 'failed' || status === 'cancelled' || stopFlag === 'cancel') return;
     stopFlag = stopFlag || 'fail';   // the batch in hand starts nothing new
     status = 'failed';
     error = messageOf(e);
@@ -571,22 +698,32 @@ export function createImportJob({
     current = null;
     emit();
     try { await flush(); } catch (_) { /* the ledger catches up on resume */ }
+    clearTids();
     try { await deps.setJob(jobId, { status: 'failed' }); } catch (_) { /* best effort */ }
   }
 
   async function loop() {
+    if (abort.signal.aborted) return finishCancel();   // only cancel() aborts: a cancelled job never runs again
     status = 'running';
     waitingReason = null;
     emit();
     await call(() => deps.setJob(jobId, { status: 'running', waiting_reason: null }));
-    while (queue.length && !stopFlag) {
-      await runBatch();
+    watchConnection();
+    for (;;) {
+      while (queue.length && !stopFlag) {
+        await runBatch();
+        if (status !== 'running') return;
+      }
+      current = null;
+      if (stopFlag === 'cancel') return finishCancel();
       if (status !== 'running') return;
+      await flush();
+      if (stopFlag === 'cancel') return finishCancel();
+      // A pause lifted while the flush waited (the connection came back
+      // first) leaves the held files in the queue: run them, don't end.
+      if (!stopFlag && queue.length) continue;
+      break;
     }
-    current = null;
-    if (stopFlag === 'cancel') return finishCancel();
-    if (status !== 'running') return;
-    await flush();
     if (stopFlag === 'pause') {
       status = 'paused';
       await call(() => deps.setJob(jobId, { status: 'paused' }));
@@ -595,11 +732,13 @@ export function createImportJob({
     if (rest.length) return stop(plannedStop || 'cards');
     status = 'done';
     coverFiles.clear();
+    unwatchConnection();
     await call(() => deps.setJob(jobId, { status: 'done' }));
     emit();
   }
 
   async function finishCancel() {
+    cleaning = true;
     for (const { boardId, id } of onBoard.values()) push(removals, boardId, id);
     onBoard.clear();
     coverFiles.clear();
@@ -607,21 +746,69 @@ export function createImportJob({
     queue = [];
     status = 'cancelled';
     current = null;
+    unwatchConnection();
     emit();
-    await flush();
+    try {
+      // A flush already under way may have quit on the cancel, putting back
+      // what it hadn't sent; this one sends that too, once the connection is back.
+      if (flushing) await flushing.catch(() => {});
+      await flush();
+    } catch (_) {
+      // What didn't go stays queued. A card left pending says by itself that
+      // its upload didn't finish (the stale-upload note), so the job still ends.
+    } finally { clearTids(); }
     await call(() => deps.setJob(jobId, { status: 'cancelled' }));
   }
 
   let running = null;   // the guarded run in progress, for cancel() to wait on
+  // A cancel can land in any await, not only inside runBatch (the paused
+  // setJob, stop(), the closing flush, a flush waiting offline): whatever
+  // fn() was doing, a cancel that arrived meanwhile ends the job cancelled.
   const guarded = (fn) => {
     if (busy) return Promise.resolve(snapshot());
     busy = true;
+    const cancelPending = () => stopFlag === 'cancel' && status !== 'cancelled' && status !== 'done';
     running = (async () => {
-      try { await fn(); } catch (e) { await fail(e); } finally { busy = false; running = null; }
+      try {
+        await fn();
+        if (cancelPending()) await finishCancel();
+      } catch (e) {
+        if (cancelPending()) { try { await finishCancel(); } catch (e2) { await fail(e2); } } else await fail(e);
+      } finally { busy = false; running = null; }
       return snapshot();
     })();
     return running;
   };
+
+  const resume = () => guarded(async () => {
+    if (status !== 'paused' && status !== 'failed') return;
+    stopFlag = null;
+    error = null;
+    errorCode = null;
+    await loop();
+  });
+
+  // Offline: pause, once, and remember it was this that paused. Back online:
+  // go on, but only from that pause; a person's own Pause stays paused.
+  let pausedBySelf = false;
+  const onConnection = deps.onConnection || browserOnConnection;
+  // Subscribed while the job can still run (loop() starts it, done and
+  // cancelled end it), so a finished job doesn't keep window listeners and
+  // its whole closure alive.
+  let unsubscribe = null;
+  const watchConnection = () => { if (!unsubscribe) unsubscribe = onConnection(onNet) || (() => {}); };
+  const unwatchConnection = () => { const off = unsubscribe; unsubscribe = null; off?.(); };
+  function onNet(online) {
+    if (!online) {
+      if (status === 'running' && !stopFlag) { pausedBySelf = true; stopFlag = 'pause'; emit(); }
+      return;
+    }
+    if (!pausedBySelf) return;
+    pausedBySelf = false;
+    if (status === 'running' && stopFlag === 'pause') { stopFlag = null; emit(); return; }
+    const again = () => { if (status === 'paused') resume(); };
+    if (running) running.then(again, again); else again();
+  }
 
   return {
     get state() { return snapshot(); },
@@ -633,16 +820,10 @@ export function createImportJob({
       await refill();
       await loop();
     }),
-    pause() { if (status === 'running') { stopFlag = 'pause'; emit(); } },
+    pause() { if (status === 'running') { pausedBySelf = false; stopFlag = 'pause'; emit(); } },
     // After a pause, or a failure (the network, a room that stayed down):
     // the queue is where it was, and re-adding a card it already has is a no-op.
-    resume: () => guarded(async () => {
-      if (status !== 'paused' && status !== 'failed') return;
-      stopFlag = null;
-      error = null;
-      errorCode = null;
-      await loop();
-    }),
+    resume: () => { pausedBySelf = false; return resume(); },
     // The plan or the drive grew: fill again from where the import stopped.
     release: () => guarded(async () => {
       if (status !== 'waiting') return;

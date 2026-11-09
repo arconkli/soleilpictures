@@ -75,6 +75,10 @@ export function HomeGraph({
   // Loaded turns true the first time assembleGraph resolves. Used to suppress
   // a brief empty-state flash before the data lands.
   const [loaded, setLoaded] = useState(false);
+  // The first load failed: not an empty workspace. Retry bumps loadTick.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadTick, setLoadTick] = useState(0);
+  const loadFailedRef = useRef(false);
   // Structural edges (board↔child-board, board↔card) on by default so the
   // graph reveals workspace hierarchy without requiring explicit doc links.
   const structural = true;
@@ -344,7 +348,8 @@ export function HomeGraph({
   const fittedRef = useRef(false);
   useEffect(() => {
     let cancelled = false;
-    const refresh = shownWsRef.current === workspaceId;
+    // After a failed first load there is nothing on screen to keep.
+    const refresh = shownWsRef.current === workspaceId && !loadFailedRef.current;
     shownWsRef.current = workspaceId;
     if (!refresh) { setLoaded(false); fittedRef.current = false; }
     // Local QA workspaces don't have rows in Supabase; skip the (hanging) fetch.
@@ -357,6 +362,8 @@ export function HomeGraph({
     const settle = (g) => {
       if (cancelled) return;
       setData((prev) => (refresh ? keepPlaces(prev, g) : g));
+      loadFailedRef.current = false;
+      setLoadFailed(false);
       setLoaded(true);
     };
     if (fixture?.graph) { settle(copyGraph(fixture.graph)); return () => { cancelled = true; }; }
@@ -368,11 +375,18 @@ export function HomeGraph({
         // A refresh that fails keeps the universe on screen; only a first
         // load falls back to an empty one.
         if (refresh) { if (!cancelled) setLoaded(true); return; }
+        if (!cancelled) {
+          loadFailedRef.current = true;
+          setLoadFailed(true);
+          setData({ nodes: [], links: [] });
+          setLoaded(true);
+        }
+        return;
       }
       settle(g);
     })();
     return () => { cancelled = true; };
-  }, [workspaceId, structural, refreshKey, fixture]);
+  }, [workspaceId, structural, refreshKey, fixture, loadTick]);
 
   // Reveal after the simulation has had time to settle. With the bumped
   // warmupTicks=200 + d3AlphaDecay=0.04 below, the layout converges
@@ -661,7 +675,9 @@ export function HomeGraph({
   if (loaded && filtered.nodes.length === 0) {
     return (
       <div className="home-graph-wrap" ref={setContainer}>
-        {!backdrop && <HomeEmptyState />}
+        {!backdrop && (loadFailed
+          ? <HomeEmptyState failed onRetry={() => setLoadTick((n) => n + 1)} />
+          : <HomeEmptyState />)}
       </div>
     );
   }

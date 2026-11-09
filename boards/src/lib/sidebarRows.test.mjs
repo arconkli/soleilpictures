@@ -42,6 +42,24 @@ test('loading and empty rows', () => {
   assert.equal(e[1].depth, 1);
 });
 
+test('a failed read is an error row, never the empty row', () => {
+  const r = build({ contentsOf: () => ({ loading: false, shelves: [], failed: true }) });
+  assert.deepEqual(types(r), ['cluster', 'error']);
+  assert.equal(r[1].key, 'r:A');
+  assert.equal(r[1].height, 34);
+  assert.equal(build({ coarse: true, contentsOf: () => ({ loading: false, shelves: [], failed: true }) })[1].height, 44);
+  // With files on screen the failure is not shown over them.
+  const c = () => ({ loading: false, failed: true, shelves: [photos('A', 2)] });
+  assert.deepEqual(types(build({ contentsOf: c })), ['cluster', 'shelf', 'file', 'file']);
+});
+
+test('a failed read whose counts loaded but no items is the error row alone, with no empty shelf headers', () => {
+  const empty = { id: 'photos', label: 'Photos', layout: 'rows', items: [], total: 5 };
+  const r = build({ contentsOf: () => ({ loading: false, failed: true, shelves: [empty] }) });
+  assert.deepEqual(types(r), ['cluster', 'error']);
+  assert.ok(!types(r).includes('shelf'));
+});
+
 test('photos list as rows, like everything else: 12 peek 5 then Show 7 more; open, all 12', () => {
   const c = () => ({ loading: false, shelves: [photos('A', 12)] });
   let r = build({ contentsOf: c });

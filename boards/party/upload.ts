@@ -1099,6 +1099,13 @@ export class UploadParty {
       `images?storage_path=${encodeURIComponent(inClause)}&select=storage_path`,
       accessToken,
     );
+    // supabaseGet answers null on any non-OK (a Supabase 5xx, a timeout, an
+    // expired token). That is not "no access": say so, so the client shows
+    // "Couldn't load" + Retry instead of the padlock. A successful read with
+    // a key missing stays 200 with the key absent.
+    if (rows === null) {
+      return Response.json({ error: "unavailable" }, { status: 503, headers: corsHeaders(origin) });
+    }
     const allowedKeys = new Set<string>(
       Array.isArray(rows) ? rows.map((r: any) => r.storage_path) : []
     );

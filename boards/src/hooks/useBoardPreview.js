@@ -52,6 +52,11 @@ function _lsClear(boardId) {
   } catch (_) {}
 }
 
+// A failed read is held a few seconds, not the usual minute: the next look at
+// this cluster asks again.
+const FAILED_TTL = 5000;
+const ttlFor = (d) => (d && d.failed ? FAILED_TTL : TTL);
+
 function notifyListeners(boardId, data) {
   const entry = cache.get(boardId);
   if (!entry) return;
@@ -169,7 +174,11 @@ async function fetchPreview(boardId) {
     return data;
   } catch (e) {
     console.warn('useBoardPreview fetch failed', e);
-    return { cards: [], arrows: [], strokes: [], docPages: [], docText: '' };
+    // A refetch that fails keeps what the last good read showed; a first read
+    // that fails says so (`failed`) instead of passing for an empty cluster.
+    const prev = cache.get(boardId)?.data;
+    if (prev && !prev.failed) return prev;
+    return { cards: [], arrows: [], strokes: [], docPages: [], docText: '', failed: true };
   } finally {
     _releaseSlot();
   }
@@ -241,7 +250,7 @@ export function useBoardPreview(boardId, enabled = true) {
         const cur = cache.get(boardId);
         if (!cur || cur.promise !== promise) return; // superseded by invalidate
         cur.data = d;
-        cur.expiresAt = Date.now() + TTL;
+        cur.expiresAt = Date.now() + ttlFor(d);
         cur.promise = null;
         notifyListeners(boardId, d);
       });
@@ -280,7 +289,7 @@ export function invalidateBoardPreview(boardId) {
     const cur = cache.get(boardId);
     if (!cur || cur.promise !== promise) return; // superseded
     cur.data = d;
-    cur.expiresAt = Date.now() + TTL;
+    cur.expiresAt = Date.now() + ttlFor(d);
     cur.promise = null;
     notifyListeners(boardId, d);
   });

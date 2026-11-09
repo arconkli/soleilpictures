@@ -71,7 +71,12 @@ export function useSidebarFiles({
   const [contents, setContents] = useState({});   // boardId → { status, byShelf, key, gen }
   const [recentRows, setRecentRows] = useState([]);
   const [starredRows, setStarredRows] = useState([]);
-  const [search, setSearch] = useState({ q: '', rows: [], loading: false });
+  const [search, setSearch] = useState({ q: '', rows: [], loading: false, failed: false });
+  // A read that failed is told apart from one that came back empty.
+  const [recentFailed, setRecentFailed] = useState(false);
+  const [starredFailed, setStarredFailed] = useState(false);
+  const [moreFailed, setMoreFailed] = useState({});   // `${boardId}:${shelfId}` → true
+  const [searchTick, setSearchTick] = useState(0);
   const contentsRef = useRef(contents);
   contentsRef.current = contents;
   // Answers can come back in any order. Each load takes a generation, and
@@ -105,13 +110,17 @@ export function useSidebarFiles({
   const fetchRecent = useCallback(async () => {
     if (!enabled || !workspaceId) return;
     const rows = await call('sidebar_recent', { p_workspace_id: workspaceId, p_limit: 8 });
-    if (rows && wsRef.current === workspaceId) setRecentRows(rows);
+    if (wsRef.current !== workspaceId) return;
+    setRecentFailed(!rows);
+    if (rows) setRecentRows(rows);
   }, [enabled, workspaceId, call]);
 
   const fetchStarred = useCallback(async () => {
     if (!enabled || !workspaceId) return;
     const rows = await call('sidebar_starred', { p_workspace_id: workspaceId });
-    if (rows && wsRef.current === workspaceId) setStarredRows(rows);
+    if (wsRef.current !== workspaceId) return;
+    setStarredFailed(!rows);
+    if (rows) setStarredRows(rows);
   }, [enabled, workspaceId, call]);
 
   // One cluster's shelves: the peek, or — on a refresh — as deep as the person
@@ -168,7 +177,9 @@ export function useSidebarFiles({
     const { gen } = cur;
     const have = cur.byShelf?.[shelfId]?.items?.length || 0;
     const rows = await call('sidebar_cluster_items', params(boardId, { p_shelf: shelfId, p_offset: have, p_limit: PAGE }));
-    if (!rows) return;
+    const failKey = `${boardId}:${shelfId}`;
+    if (!rows) { setMoreFailed((m) => (m[failKey] ? m : { ...m, [failKey]: true })); return; }
+    setMoreFailed((m) => { if (!m[failKey]) return m; const { [failKey]: _gone, ...rest } = m; return rest; });
     setContents((c) => {
       const entry = c[boardId];
       // A refresh or a new sort replaced this cluster while the page was out,
@@ -221,6 +232,9 @@ export function useSidebarFiles({
     setSearch({ q: '', rows: [], loading: false });
     setRecentRows([]);
     setStarredRows([]);
+    setRecentFailed(false);
+    setStarredFailed(false);
+    setMoreFailed({});
     latestGen.current = {};
     asked.current = {};
   }, [workspaceId]);
@@ -244,16 +258,18 @@ export function useSidebarFiles({
   // ── Search ────────────────────────────────────────────────────────────────
   const q = (query || '').trim();
   useEffect(() => {
-    if (!enabled || !workspaceId || !q) { setSearch({ q: '', rows: [], loading: false }); return undefined; }
+    if (!enabled || !workspaceId || !q) { setSearch({ q: '', rows: [], loading: false, failed: false }); return undefined; }
     setSearch((s) => ({ ...s, loading: true }));
     let alive = true;
     const t = setTimeout(async () => {
-      let rows = [];
-      try { rows = await find({ workspaceId, query: q, limit: 80 }); } catch (_) { rows = []; }
-      if (alive) setSearch({ q, rows: rows || [], loading: false });
+      let rows = null;
+      try { rows = await find({ workspaceId, query: q, limit: 80 }); } catch (_) { rows = null; }
+      // null is a search that failed; [] is one that found nothing.
+      if (alive) setSearch({ q, rows: rows || [], loading: false, failed: rows == null });
     }, SEARCH_DEBOUNCE_MS);
     return () => { alive = false; clearTimeout(t); };
-  }, [enabled, workspaceId, q, find]);
+  }, [enabled, workspaceId, q, find, searchTick]);
+  const retrySearch = useCallback(() => setSearchTick((n) => n + 1), []);
 
   const searchHits = useMemo(() => {
     const out = new Map();
@@ -351,6 +367,8 @@ export function useSidebarFiles({
         const items = Object.values(entry.byShelf).flatMap((sh) => sh.items);
         out = {
           loading: entry.status === 'loading',
+          // The read failed and there is nothing from an earlier one to show.
+          failed: entry.status === 'error' && !items.length,
           shelves: shelve(items, (shelfId, shownCount) => {
             // Whole clusters know their own totals; a peek takes them from
             // the counts, and a shelf chip shows its own shelf and nothing else.
@@ -451,7 +469,10 @@ export function useSidebarFiles({
     counts, countOf, totalOf, ownTotalOf, ownCountOf, ownCountsOf, contentsOfItems,
     contentsOf, ensure, loadMore, canLoadMore, refresh,
     searching: !!q, searchLoading: search.loading, searchClusterIds,
+    searchFailed: !!q && search.failed, retrySearch,
+    recentFailed, starredFailed, retryRecent: fetchRecent, retryStarred: fetchStarred,
+    loadMoreFailed: (boardId, shelfId) => !!moreFailed[`${boardId}:${shelfId}`],
     recent, starred, isStarred, toggleStar,
   }), [counts, countOf, totalOf, ownTotalOf, ownCountOf, ownCountsOf, contentsOfItems, contentsOf, ensure, loadMore, canLoadMore, refresh,
-    q, search.loading, searchClusterIds, recent, starred, isStarred, toggleStar]);
+    q, search.loading, search.failed, retrySearch, recentFailed, starredFailed, fetchRecent, fetchStarred, moreFailed, searchClusterIds, recent, starred, isStarred, toggleStar]);
 }

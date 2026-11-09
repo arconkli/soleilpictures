@@ -109,10 +109,19 @@ export const CEILINGS = {
   // which landed without raising this and put CI's bundle job over (run
   // 42593951681). A CI-style build measured entryJs 172,045 B on 1c770b58
   // and 172,325 B on d2b3c2f0.
-  entryJs: 172_600,
+  // 2026-11-09: +0.5 KB for the boot screen's words (components/LoadingScreen.jsx,
+  // hooks/useStall.js, lib/stall.js): "Still loading…" at 8 s, then "This is
+  // taking longer than usual" with Reload page at 15 s, counted from the start
+  // of the whole wait. They show before the app arrives, so they ship in the
+  // entry. A CI-style build measured entryJs 172,325 B on main d2b3c2f0 and
+  // 172,806 B with it.
+  entryJs: 173_100,
   // 2026-11-09: +0.2 KB for d2b3c2f0's rules in styles.css, over this
   // ceiling in the same run: 96,166 B on 1c770b58, 96,291 B on d2b3c2f0.
-  entryCss: 96_400,
+  // 2026-11-09: +0.1 KB for where those words sit and fade in under the sun
+  // (styles.css .loading-words); the old upload overlay's rules left.
+  // 96,291 B on main d2b3c2f0, 96,390 B with it.
+  entryCss: 96_500,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
   // they draw (vite.config.js iconSplit), from 687 KB.
@@ -300,8 +309,27 @@ export const CEILINGS = {
   // landed without raising this; CI read 710.8 KB on it, OVER. CI-style
   // builds here (about 0.6 KB low, as above) measured appJs 707,768 B on
   // 1c770b58 and 709,975 B on d2b3c2f0.
-  appJs: 710_900,
-  appCss: 21_900,
+  // 2026-11-09: +21.7 KB so people can tell what is going on while something
+  // loads or uploads (the owner's ask). It is what the canvas draws at once:
+  // an uploading card's state (its progress, waiting its turn, making a
+  // preview, "Didn't upload" with Retry) and the store behind it
+  // (lib/activity.js, activityWords.js, activityOps.js,
+  // cards/CardTransferState.jsx), a teammate's upload on the same card
+  // (lib/peerUploads.js), the cluster's connection (lib/canvasConnection.js,
+  // on the doc save tracker: docSaveStatus.js and roomAck.js, now shared), a
+  // picture that couldn't load, with Retry (cards/CardCouldntLoad.jsx), the
+  // cluster-opening stall (BoardOpening.jsx) and the leave-page warning
+  // (hooks/useActivityGuards.js). The activity tray, its model and its styles
+  // load just after the app (ActivityTray in LAZY_IN_APP, about 8 KB). Two
+  // CI-style builds on the shared node_modules (about 0.6 KB low, as above)
+  // measured appJs 709,975 B on main d2b3c2f0 and 731,592 B with it; the
+  // ceiling moves by the difference, 21,617 B.
+  appJs: 732_600,
+  // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
+  // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
+  // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).
+  // 21,857 B on main d2b3c2f0, 23,351 B with it.
+  appCss: 23_400,
 };
 
 // Chunks that must never be in the app's critical closure. Matched against the
@@ -325,6 +353,8 @@ export const LAZY_IN_APP = [
   'TogetherChip',
   // App.jsx: the save-a-passkey offer after a code sign-in (lib/passkeyOffer.js)
   'passkeyOffer',
+  // App.jsx: the activity tray, drawn once the app is up
+  'ActivityTray',
   // TierRouter.jsx: one route's page each
   'PricingPage', 'TeamPlanCard', 'TeamDomainNote', 'TeamSetup', 'PricingSuccess', 'WelcomePage', 'WaitlistConfirm',
   // the canvas: cards.jsx, CanvasSurface.jsx, info/InfoHost.jsx

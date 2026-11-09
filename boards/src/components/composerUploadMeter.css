@@ -1,0 +1,8 @@
+/* A file's chip in the message composer while it uploads: its size beside the
+   name, and a thin neutral meter along the chip's bottom edge, from the real
+   upload progress. */
+.msg-composer-att-size { flex-shrink: 0; color: var(--ink-3); font-weight: 400; }
+.msg-composer-att-chip.is-uploading { position: relative; overflow: hidden; }
+.msg-composer-att-meter { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: color-mix(in srgb, var(--ink-3) 25%, transparent); pointer-events: none; }
+.msg-composer-att-meter > span { display: block; height: 100%; background: var(--ink-2); transition: width .2s linear; }
+@media (prefers-reduced-motion: reduce) { .msg-composer-att-meter > span { transition: none; } }

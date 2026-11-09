@@ -1,0 +1,208 @@
+/* The activity tray (components/ActivityTray.jsx), mockup a-tray: the import
+   tray's glass panels (importTray.css) stacked in one column above the zoom
+   control, its rows and chips, and on a phone a slim bar and a sheet above the
+   bottom nav. Neutral ink throughout: gold only on focus rings (importTray.css)
+   and the import's paid step. */
+
+/* The column. Padded so the panels' shadows aren't cut by its scroll, and
+   pulled out by the same amount so the panels sit where the import tray sat. */
+.atr-col {
+  --atr-pad: 16px;
+  position: fixed;
+  right: calc(14px - var(--atr-pad) + var(--files-dock-w, 0px) + var(--info-drawer-w, 0px));
+  bottom: calc(54px - var(--atr-pad) + env(safe-area-inset-bottom, 0px));
+  z-index: 1150;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  box-sizing: border-box;
+  max-height: calc(100vh - 120px + 2 * var(--atr-pad));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--atr-pad);
+  pointer-events: none;
+  scrollbar-width: none;
+}
+.atr-col::-webkit-scrollbar { display: none; }
+.atr-col > * { pointer-events: auto; flex: none; }
+/* Left of the Messages card, as .imptray.is-beside-msg. */
+.atr-col.is-beside-msg { right: calc(14px - var(--atr-pad) + 368px + var(--files-dock-w, 0px) + var(--info-drawer-w, 0px)); }
+.atr-col .imptray { width: 372px; max-width: calc(100vw - 16px); max-height: none; }
+/* Above the zoom control, which is a finger's size here (importTray.css). */
+@media (hover: none) and (pointer: coarse) {
+  .atr-col { bottom: calc(68px - var(--atr-pad) + env(safe-area-inset-bottom, 0px)); }
+}
+/* The zoom pill shows while pinching on a touch screen, in this corner; a
+   computer's zoom clicks (the buttons, the wheel) leave the column where it is. */
+.atr-col, .atr-slim { transition: opacity 220ms var(--ease); }
+body[data-zooming='1'] .atr-slim { opacity: 0; pointer-events: none; }
+@media (hover: none) and (pointer: coarse) {
+  body[data-zooming='1'] .atr-col { opacity: 0; pointer-events: none; }
+}
+
+/* Over a full-screen surface or the phone's drawer / tips: out of the way
+   (visibility, so nothing reflows). The z-index stays where it is. */
+body:has(.ql, .sidebar.is-mobile-open, .wn-hint.is-phone, .su-tip.is-phone) :is(.atr-col, .atr-chip, .atr-slim, .atr-sheet, .atr-scrim) {
+  visibility: hidden;
+}
+
+/* The batch line: its segments (the bold runs and the plain ones) don't break
+   mid-phrase; the line wraps between them. */
+.atr-seg { white-space: nowrap; }
+
+/* A download, export or copy: head only, a meter under it when the progress is known. */
+.atr-op .imptray-title.atr-op-t { flex: 1; min-width: 0; line-height: 1.3; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.atr-op-sum { padding-top: 0; }
+
+/* Rows: the import tray's 28px rhythm, with a thumb. */
+.atr-list { gap: 0; }
+.atr-row {
+  flex: none; display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 2px 0 6px; border-radius: 6px;
+  box-sizing: border-box; color: var(--ink-1); font: 400 13px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+}
+.atr-row .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.atr-row .c { flex: none; color: var(--ink-2); font-size: 12px; white-space: nowrap; }
+.atr-row .imptray-minibar { flex: 0 0 36px; }
+.atr-row.is-now { color: var(--ink-0); }
+.atr-row.is-now .c { color: var(--ink-1); }
+.atr-row.is-later { color: var(--ink-2); }
+.atr-row.is-later .c { color: var(--ink-3); }
+.atr-row.is-fail { height: 44px; }
+.atr-row.is-done { color: var(--ink-2); }
+button.atr-row-btn {
+  width: 100%; border: 0; background: transparent; text-align: left; cursor: pointer;
+}
+@media (hover: hover) {
+  button.atr-row-btn:hover { background: var(--bg-hov); color: var(--ink-1); }
+}
+button.atr-row-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.atr-two { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.atr-two .n { flex: none; color: var(--ink-0); }
+.atr-two .w { color: var(--msg-err); font-size: 12px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.atr-th {
+  flex: none; width: 22px; height: 22px; border-radius: 4px; background-size: cover; background-position: 50% 50%;
+  background-color: var(--bg-3); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06);
+}
+[data-theme='light'] .atr-th { box-shadow: inset 0 0 0 1px rgba(10, 10, 12, .08); }
+.atr-th.is-dim { opacity: .45; }
+.atr-th.is-kind { display: grid; place-items: center; color: var(--ink-2); }
+.atr-th.is-ok { background: transparent; box-shadow: none; color: var(--ink-3); }
+.imptray-ib.atr-ib { width: 24px; height: 24px; color: var(--ink-3); }
+.imptray-ib.atr-ib:hover { color: var(--ink-0); }
+.atr-ib-gap { flex: none; width: 24px; }
+.imptray-btn.atr-retry { padding: 5px 9px; gap: 5px; }
+.atr-caret { display: grid; place-items: center; color: var(--ink-3); margin-right: 6px; }
+
+.atr-hic { display: grid; place-items: center; color: var(--ink-2); margin-right: 2px; }
+.atr-hic.is-err { color: var(--msg-err); }
+
+/* The folded chip, in the column's corner (not at the screen's, as the
+   import tray's own chip is). */
+.imptray-chip.atr-chip { position: relative; right: auto; bottom: auto; left: auto; }
+.atr-chip .atr-chev { display: grid; place-items: center; color: var(--ink-3); margin-left: 2px; }
+.atr-chip.is-quiet { color: var(--ink-2); }
+.atr-chip[aria-disabled='true'] { cursor: default; }
+.atr-chip[aria-disabled='true']:hover { background: var(--sbf-glass); }
+.atr-glyph { display: grid; place-items: center; }
+.atr-glyph.is-err { color: var(--msg-err); }
+.atr-glyph.is-turn svg { animation: imptray-spin 1.4s linear infinite; }
+.atr-chip-t { white-space: nowrap; }
+.atr-chip-t b { color: inherit; font-weight: inherit; }
+/* Couldn't save · Retry: one pill, two buttons. */
+.atr-chip.is-group { padding-right: 4px; cursor: default; }
+.atr-chip.is-group:hover { background: var(--sbf-glass); }
+.atr-chip-main,
+.atr-chip-act {
+  display: inline-flex; align-items: center; gap: 6px; height: 100%; padding: 0; border: 0; background: transparent;
+  color: inherit; font: inherit; cursor: pointer; white-space: nowrap;
+}
+.atr-chip-act { margin-left: 4px; padding: 0 9px; border-left: 1px solid var(--line-2); border-radius: 0 15px 15px 0; height: 18px; color: var(--ink-0); }
+.atr-chip-act:hover { text-decoration: underline; text-underline-offset: 3px; }
+.atr-chip-main:focus-visible,
+.atr-chip-act:focus-visible,
+.atr-slim-main:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; border-radius: 6px; }
+
+/* Phone, folded: a slim bar above the bottom nav (as .imptray.is-above-nav). */
+.atr-phone { display: contents; }
+.atr-slim {
+  position: fixed; left: 8px; right: 8px; bottom: calc(68px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  z-index: 1150; height: 40px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 4px 0 14px;
+  border-radius: 12px; overflow: hidden;
+  background: var(--sbf-glass); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: inset 0 0 0 1px var(--sbf-glass-line), var(--sbf-glass-shadow), 0 10px 28px rgba(0, 0, 0, .32);
+  color: var(--ink-1); font-family: var(--font-sans);
+}
+/* The draw tool's options bar (.tob, styles.css mobile block) sits at 68px on a
+   phone, 54px tall (6px padding, 40px controls, 1px border): the bar goes above it. */
+body:has(.tob) .atr-slim { bottom: calc(68px + 54px + 8px + var(--safe-bottom, env(safe-area-inset-bottom, 0px))); }
+[data-theme='light'] .atr-slim {
+  box-shadow: inset 0 0 0 1px var(--sbf-glass-line), var(--sbf-glass-shadow), 0 8px 22px rgba(10, 10, 12, .1);
+}
+.atr-slim-main {
+  flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: 7px; padding: 0; border: 0;
+  background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.atr-slim-t {
+  flex: 1; min-width: 0; color: var(--ink-1); font: 400 13px/1 var(--font-sans); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums;
+}
+.atr-slim-t b { color: var(--ink-0); font-weight: 600; }
+.atr-slim.is-quiet .atr-slim-t { color: var(--ink-2); }
+.atr-slim svg.is-spin { animation: imptray-spin 1s linear infinite; }
+/* The action fills the bar's height (a 22px target in a 40px bar missed), its
+   separator drawn inside so the whole right part triggers it. */
+.atr-slim-act {
+  align-self: stretch; height: auto; min-height: 36px; margin-left: 0; padding: 0 12px; border-left: 0; border-radius: 0;
+  position: relative; font: 600 13px/1 var(--font-sans);
+}
+.atr-slim-act::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 1px; background: var(--line-2); }
+.imptray-ib.atr-slim-ib { width: 34px; height: 34px; color: var(--ink-2); }
+.atr-slim-line {
+  position: absolute; left: 14px; right: 14px; bottom: 5px; height: 2px; border-radius: 1px;
+  background: var(--sbf-meter); overflow: hidden; pointer-events: none;
+}
+.atr-slim-line i { display: block; height: 100%; background: var(--sbf-meter-fill); transition: width 300ms var(--ease); }
+
+/* Phone, open: a scrim and a sheet sitting on the bottom nav's top edge
+   (.mb-nav: 56px tabs and a 1px rule, over the safe area). */
+.atr-scrim { position: fixed; inset: 0; z-index: 1149; background: rgba(0, 0, 0, .28); }
+.atr-sheet {
+  position: fixed; left: 0; right: 0; bottom: calc(57px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  z-index: 1150; box-sizing: border-box; max-height: min(70vh, 560px); overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; padding-bottom: 4px;
+  border-radius: 16px 16px 0 0;
+  background: color-mix(in oklab, var(--bg-1) 94%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: inset 0 0 0 1px var(--sbf-glass-line), 0 -12px 40px rgba(0, 0, 0, .45);
+  font-family: var(--font-sans);
+}
+[data-theme='light'] .atr-sheet { box-shadow: inset 0 0 0 1px var(--sbf-glass-line), 0 -10px 32px rgba(10, 10, 12, .12); }
+.atr-grab { flex: none; width: 36px; height: 4px; border-radius: 2px; background: var(--line-3); margin: 8px auto 0; touch-action: none; }
+.atr-sheet .imptray-head { touch-action: none; }
+/* The panels give their glass to the sheet. */
+.atr-sheet .imptray {
+  flex: none; width: auto; max-width: none; max-height: none;
+  background: none; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; border-radius: 0;
+}
+.atr-sheet .imptray + .imptray { border-top: 1px solid var(--line-1); }
+.atr-sheet .imptray-list { max-height: none; }
+.atr-sheet .imptray-ib { width: 40px; height: 40px; }
+.atr-sheet .imptray-btn.is-sm { min-height: 36px; }
+.atr-row.is-touch { height: 40px; }
+.atr-row.is-touch.is-fail { height: 50px; }
+.atr-row.is-touch .imptray-ib.atr-ib { width: 36px; height: 36px; }
+.atr-row.is-touch .atr-ib-gap { width: 36px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .atr-glyph.is-turn svg,
+  .atr-chip svg.is-spin,
+  .atr-slim svg.is-spin { animation: none; }
+  .atr-slim-line i,
+  .atr-col .imptray-bar span,
+  .atr-sheet .imptray-bar span { transition: none; }
+}
+/* A panel takes focus when its own row was taken away by itself (ActivityTray). */
+.atr-col .atr:focus-visible, .atr-sheet .atr:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.atr:focus:not(:focus-visible) { outline: none; }

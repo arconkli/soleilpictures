@@ -17,7 +17,7 @@ import { DOCK, canDock, clampWidth, dragPreview, releaseDock, previewOwnedBy } f
 import { getActivePane, setActivePane, subscribeActivePane } from '../lib/activePane.js';
 import { ancestorPath } from '../lib/boardTree.js';
 import { onBoardIndex, fileKeyOf } from '../lib/filesDrag.js';
-import { useBoardPreview } from '../hooks/useBoardPreview.js';
+import { useBoardPreview, invalidateBoardPreview } from '../hooks/useBoardPreview.js';
 import { onDragSession } from '../lib/springLoad.js';
 
 export function FilesDockLayout({
@@ -313,6 +313,9 @@ export function FilesPane({
     childBoards: childBoards || [],
     // Its snapshot is still on the way: not "no files" yet.
     loading: !cardsFor && preview == null,
+    // Its snapshot could not be read: not "no files" either.
+    failed: !cardsFor && !!preview?.failed,
+    onRetry: () => invalidateBoardPreview(browseId),
     canEdit: false,
     mutators: {},
     onDropFilesToCluster: undefined,

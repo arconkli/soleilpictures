@@ -17,9 +17,9 @@ import { useFeedback } from '../AppFeedback.jsx';
 import { Icon } from '../Icon.jsx';
 import { X, Download, ArrowsOutSimple, Link as LinkIcon, BoundingBox } from '../../lib/icons.js';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
-import { downloadFailedWords } from '../../lib/transferWords.js';
 import { getMeta as getMetaDefault, primeFileFacts, subscribeMeta } from '../../lib/imageMeta.js';
-import { DOWNLOADABLE, downloadCardAsset, isPublicSurface } from '../../lib/cardDownload.js';
+import { DOWNLOADABLE, isPublicSurface } from '../../lib/cardDownload.js';
+import { downloadOneTracked } from '../../lib/downloadOps.js';
 import * as userProfiles from '../../lib/userProfiles.js';
 import { describeCard, describeCluster, describeSelection, describeGroup, fileKeyOf, formatSize, formatWhen } from '../../lib/cardInfo.js';
 import { useMediaFacts } from '../../hooks/useMediaFacts.js';
@@ -211,14 +211,11 @@ export function DetailPanel({
   // `card.fileName || card.name || item.name`, which for an audio card meant
   // the user-editable TITLE — so renaming a loop to "Kick 1" downloaded a file
   // called "Kick 1", with no extension and no application willing to open it.
-  const doDownload = async () => {
-    try {
-      await downloadCardAsset(card, item.kind, { surface: 'cluster_browser' });
-    } catch (err) {
-      feedback?.toast?.({ type: 'error', code: 'file_download_failed', message: downloadFailedWords(err) });
-    }
-  };
   const location = boards[item.boardId]?.name || null;
+  const doDownload = () => downloadOneTracked(card, item.kind, {
+    boardId: item.boardId ?? null, boardName: location, surface: 'cluster_browser',
+    toast: (t) => feedback?.toast?.(t),
+  });
   const size = info.details.find((r) => r.k === 'Size')?.v || (item.sizeBytes != null ? formatSize(item.sizeBytes) : '');
   const sub = [info.details.find((r) => r.k === 'Kind')?.v || item.typeLabel, size].filter(Boolean).join(' · ');
 
@@ -244,7 +241,12 @@ export function DetailPanel({
             onRestore={versionEnv ? (v) => restoreVersion(versionEnv, card.id, v.id) : null}
             onLabel={versionEnv ? (v) => labelVersion(versionEnv, card.id, v.id) : null}
             onOpen={item.kind === 'video' && item.boardId && !isPublicSurface() ? (v) => openPlayer({ boardId: item.boardId, cardId: card.id, versionId: v.id, card }) : null}
-            onDownload={(v) => downloadCardAsset({ ...card, src: v.src ?? card.src, fileSrc: v.fileSrc ?? card.fileSrc, pdfSrc: v.pdfSrc ?? card.pdfSrc, fileName: v.fileName || card.fileName, name: v.name || card.name }, item.kind, { surface: 'cluster_browser' }).catch(() => {})}
+            onDownload={(v) => downloadOneTracked(
+              { ...card, src: v.src ?? card.src, fileSrc: v.fileSrc ?? card.fileSrc, pdfSrc: v.pdfSrc ?? card.pdfSrc, fileName: v.fileName || card.fileName, name: v.name || card.name },
+              item.kind,
+              // Its own key: same card id, a different file than the card's download.
+              { key: `download:${card.id}:${v.id}`, boardId: item.boardId ?? null, boardName: location, surface: 'cluster_browser', toast: (t) => feedback?.toast?.(t) },
+            )}
           />
         )}
       </div>

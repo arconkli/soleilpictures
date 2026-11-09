@@ -76,7 +76,10 @@ test.describe('bulk import entry wiring', () => {
     // A tablet's browser can't pick a folder either: iPadOS reports
     // webkitdirectory and still opens a file picker.
     expect(props).toContain('canFolder: !mobileShell && !isTouch,');
-    expect(s).toMatch(/\{bulkImportAllowed\(\) && <ImportTray aboveNav=\{mobileShell\} guide=\{importGuideProps\(\)\}\s+besideMessages=\{floatingChrome && !!tweak\.showMessages\} \/>\}/);
+    // Inside the activity tray (components/ActivityTray.jsx), which places,
+    // folds and moves it beside Messages.
+    expect(s).toContain('{bulkImportAllowed() && <ImportTray guide={importGuideProps()} />}');
+    expect(s).toMatch(/<ActivityTray\s+phone=\{mobileShell\}\s+besideMessages=\{floatingChrome && !!tweak\.showMessages\}/);
     // The tray reads a drop on the guide while it is being dispatched.
     const tray = read('src/components/ImportTray.jsx');
     const drop = tray.slice(tray.indexOf('const onDrop = (e) => {'), tray.indexOf('return (', tray.indexOf('const onDrop = (e) => {')));

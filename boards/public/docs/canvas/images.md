@@ -82,6 +82,11 @@ of images this is the difference between usable and not.
 Full resolution is fetched as you zoom in, and released again as you zoom out,
 so a board stays responsive no matter how much is on it.
 
+If a picture can't be fetched — the connection dropped, or storage didn't
+answer — its card says **Couldn't load** with **Retry**, and tries again by
+itself a little later. A padlock instead means you don't have access to the
+file.
+
 ## Adjustments
 
 Every image card has a full set of non-destructive adjustments — the kind you

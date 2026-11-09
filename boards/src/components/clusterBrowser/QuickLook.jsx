@@ -29,7 +29,8 @@ import { fileSharesAllowed } from '../../lib/appHost.js';
 import { isShareableCard } from '../../lib/fileShares.js';
 import { FileShareButton } from '../fileShare/FileShareButton.jsx';
 import { X, Download, ChevronLeft, ChevronRight, Info, BoundingBox, ArrowSquareOut, ArrowsOutSimple } from '../../lib/icons.js';
-import { FilmPlayer } from '../film/FilmPlayer.jsx';
+import { FilmPlayer, useResolvedMedia } from '../film/FilmPlayer.jsx';
+import { WaitNote } from '../WaitNote.jsx';
 import { probeCardVideo } from '../../hooks/useMediaFacts.js';
 import { openPlayer } from '../../lib/playerBus.js';
 import { usePlayCopy } from '../../hooks/usePlayCopy.js';
@@ -69,7 +70,14 @@ function Media({ kind, src, poster, title, playSrc = null }) {
   const pc = usePlayCopy({ src, playSrc });
   const pcFailedRef = useRef(pc.failed);
   pcFailedRef.current = pc.failed;
-  const url = useResolved(pc.source);
+  // A sign that fails or comes back empty says so, with Retry (the nonce),
+  // rather than spinning for ever.
+  const [nonce, setNonce] = useState(0);
+  const res = useResolvedMedia(pc.source, nonce);
+  const url = res.url;
+  useEffect(() => {
+    if (res.error) reportError(new Error('Quick look: no link to the file'), { kind: 'viewer', severity: 'warning', op: 'quicklook' });
+  }, [res.error, nonce]);
   const posterUrl = useResolved(poster);
   const ref = useRef(null);
   useEffect(() => {
@@ -93,7 +101,17 @@ function Media({ kind, src, poster, title, playSrc = null }) {
     };
   }, [url]);
   if (pc.preparing) return <p className="ql-audio-status" role="status">Making a version this browser can play…</p>;
-  if (!url || pc.busy) return <div className="ql-wait" aria-label="Loading" />;
+  if (!url && res.error && !pc.busy) {
+    return (
+      <div className="wait-note" role="alert">
+        <p className="wait-note-line wait-note-slow">{`Couldn’t open ${title || 'this file'}`}</p>
+        <div className="wait-note-btns"><button type="button" className="wait-note-btn" onClick={() => setNonce((n) => n + 1)}>Retry</button></div>
+      </div>
+    );
+  }
+  if (!url || pc.busy) {
+    return <WaitNote key={nonce} label={`Opening ${title || 'this file'}…`} onRetry={() => setNonce((n) => n + 1)} />;
+  }
   if (kind === 'video') {
     return <video ref={ref} className="ql-video" src={url} poster={posterUrl || undefined} controls autoPlay playsInline aria-label={title} />;
   }

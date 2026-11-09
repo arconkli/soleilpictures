@@ -21,7 +21,7 @@ import { createPortal } from 'react-dom';
 import { resolveSrc } from '../lib/r2.js';
 import { downloadCardAsset } from '../lib/cardDownload.js';
 import { loadPdfDocument, getPageCount, renderPageToCanvas, getPageViewport } from '../lib/pdfEngine.js';
-import { Spinner } from './Spinner.jsx';
+import { WaitNote } from './WaitNote.jsx';
 import { registerModalOpen, isTopModal } from '../lib/modalGuard.js';
 import { FileShareButton } from './fileShare/FileShareButton.jsx';
 import { Icon } from './Icon.jsx';
@@ -377,7 +377,10 @@ export function PdfViewer({ src, name, onClose, embedded = false, onPageChange =
 
       <div className="pdfv-scroll" ref={scrollRef} onClick={(e) => e.stopPropagation()}>
         {status === 'loading' && (
-          <div className="pdfv-state"><Spinner size={28} tone="on-dark" label="Loading PDF" /></div>
+          <div className="pdfv-state">
+            <WaitNote key={reloadKey} label={`Opening ${name || 'this PDF'}…`} spinnerLabel="Loading PDF"
+                      onRetry={() => setReloadKey((k) => k + 1)} retryLabel="Try again" onClose={embedded ? null : onClose} />
+          </div>
         )}
         {status === 'error' && (
           <div className="pdfv-state pdfv-error">

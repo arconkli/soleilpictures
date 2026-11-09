@@ -5,7 +5,9 @@ import { snippetAround } from './docText.js';
 // Workspace-scoped entity search backed by the entity_search Postgres view.
 // Returns rows shaped { id, kind, workspace_id, board_id, card_id, title,
 // body, updated_at } sorted: exact-match first, then prefix-match, then
-// contains, then by updated_at desc. Limit defaults to 30.
+// contains, then by updated_at desc. Limit defaults to 30. A search that
+// failed returns null (not []), so a caller can say "Couldn’t load" instead of
+// "No results".
 export async function searchEntities({ workspaceId, query, kinds, limit = 30 }) {
   if (!supabase || !workspaceId) return [];
   const q = (query || '').trim();
@@ -21,7 +23,7 @@ export async function searchEntities({ workspaceId, query, kinds, limit = 30 }) 
     if (filter) req = req.or(filter);
   }
   const { data, error } = await req;
-  if (error) { console.warn('entity search failed', error); return []; }
+  if (error) { console.warn('entity search failed', error); return null; }
   if (q) {
     const lq = q.toLowerCase();
     return [...data].sort((a, b) => entitySearchRank(a, lq) - entitySearchRank(b, lq));
@@ -32,7 +34,8 @@ export async function searchEntities({ workspaceId, query, kinds, limit = 30 }) 
 // Pages of documents whose text or page title matches — the words INSIDE docs,
 // which entity_search does not hold (a page-based doc's card row has a title
 // and no body). Returns { docCardId, pageId, pageTitle, docTitle, boardId,
-// snippet }, newest first. Each hit names its doc and cluster from card_index,
+// snippet }, newest first (null when the search failed). Each hit names its
+// doc and cluster from card_index,
 // which is also what drops a page whose doc no longer exists.
 export async function searchDocPages({ workspaceId, query, limit = 8 }) {
   if (!supabase || !workspaceId) return [];
@@ -44,13 +47,15 @@ export async function searchDocPages({ workspaceId, query, limit = 8 }) {
     .or(filter)
     .order('updated_at', { ascending: false })
     .limit(limit * 2);
-  if (error || !data?.length) { if (error) console.warn('doc page search failed', error); return []; }
+  if (error) { console.warn('doc page search failed', error); return null; }
+  if (!data?.length) return [];
   const ids = [...new Set(data.map((r) => r.doc_card_id))];
-  const { data: docs } = await supabase.from('card_index')
+  const { data: docs, error: docsError } = await supabase.from('card_index')
     .select('card_id,board_id,title')
     .eq('workspace_id', workspaceId)
     .eq('kind', 'doc')
     .in('card_id', ids);
+  if (docsError) { console.warn('doc page search failed', docsError); return null; }
   const byId = new Map((docs || []).map((d) => [d.card_id, d]));
   const term = cleanSearchTerm(query);
   return data

@@ -2,6 +2,8 @@ import { forwardRef, useEffect, useImperativeHandle, useState, useRef } from 're
 import { Icon } from './Icon.jsx';
 import { Paperclip, Smile, Link as LinkIcon, Reply, X, Plus, ArrowUp, Check, Edit } from '../lib/icons.js';
 import { uploadMessageFile } from '../lib/messageAttachments.js';
+import { formatSize } from '../lib/cardInfo.js';
+import './composerUploadMeter.css';
 import { publicAttachmentUrl } from '../lib/messageAttachmentUrls.js';
 import { caretRect } from '../lib/caretRect.js';
 import { EntityPicker } from './EntityPicker.jsx';
@@ -40,7 +42,19 @@ function stageUploads(draftKey, files, ctx) {
 }
 
 function runUpload(draftKey, item, { workspaceId, userId }) {
-  uploadQueue.run(() => uploadMessageFile(item.file, { workspaceId, userId }))
+  // Real progress from the request, written to this chip by key a whole
+  // percent at a time (the draft saves on every write).
+  let lastPct = -1;
+  const onProgress = (f) => {
+    // Stop at 99: the bytes are sent at 100 but the server is still answering,
+    // and the chip turns into the attachment when the request finishes.
+    const pct = Math.max(0, Math.min(99, Math.floor(f * 100)));
+    if (pct === lastPct) return;
+    lastPct = pct;
+    updateDraft(draftKey, (d) => (d.items.some((i) => i.key === item.key && i.status === 'uploading')
+      ? { ...d, items: d.items.map((i) => (i.key === item.key ? { ...i, pct } : i)) } : d));
+  };
+  uploadQueue.run(() => uploadMessageFile(item.file, { workspaceId, userId, onProgress }))
     .then((att) => att, () => null)
     .then((att) => updateDraft(draftKey, (d) => {
       if (!d.items.some((i) => i.key === item.key)) return d;
@@ -157,7 +171,7 @@ export const MessageComposer = forwardRef(function MessageComposer({
   };
   const retryItem = (item) => {
     if (!item.file) return;
-    update((d) => ({ ...d, items: d.items.map((i) => (i.key === item.key ? { ...i, status: 'uploading' } : i)) }));
+    update((d) => ({ ...d, items: d.items.map((i) => (i.key === item.key ? { ...i, status: 'uploading', pct: undefined } : i)) }));
     runUpload(key, item, { workspaceId, userId });
   };
   const removeItem = (item) => {
@@ -388,7 +402,17 @@ export const MessageComposer = forwardRef(function MessageComposer({
               <div key={item.key} className={`msg-composer-att-chip is-${item.status}`} title={label}>
                 {thumb && <img className="msg-composer-att-thumb" src={thumb} alt="" draggable={false} />}
                 <span className="msg-composer-att-name">{label}</span>
-                {item.status === 'uploading' && <span className="msg-composer-att-state" role="status">Uploading…</span>}
+                {item.status === 'uploading' && item.size != null && <span className="msg-composer-att-size">{formatSize(item.size)}</span>}
+                {item.status === 'uploading' && (
+                  <>
+                    {/* The percent changes every tick: shown, not announced. */}
+                    <span className="msg-composer-att-state" aria-hidden="true">{Number.isFinite(item.pct) ? `Uploading · ${item.pct}%` : 'Uploading…'}</span>
+                    <span className="sr-only" role="status">Uploading {label}</span>
+                  </>
+                )}
+                {item.status === 'uploading' && Number.isFinite(item.pct) && (
+                  <span className="msg-composer-att-meter" aria-hidden="true"><span style={{ width: `${item.pct}%` }} /></span>
+                )}
                 {item.status === 'failed' && (
                   <>
                     <span className="msg-composer-att-state" role="alert">Couldn't upload</span>

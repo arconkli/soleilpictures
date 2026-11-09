@@ -1114,7 +1114,7 @@ export async function isBoardThumbCustom(boardId) {
   return !!data?.thumb_custom;
 }
 
-// History of metadata changes for a board, newest first.
+// History of metadata changes for a board, newest first; null when the read failed.
 export async function listBoardMetaHistory(boardId, limit = 200) {
   const { data, error } = await supabase
     .from('board_meta_history')
@@ -1122,7 +1122,7 @@ export async function listBoardMetaHistory(boardId, limit = 200) {
     .eq('board_id', boardId)
     .order('changed_at', { ascending: false })
     .limit(limit);
-  if (error) { console.warn('[listBoardMetaHistory]', error); return []; }
+  if (error) { console.warn('[listBoardMetaHistory]', error); return null; }
   return data || [];
 }
 

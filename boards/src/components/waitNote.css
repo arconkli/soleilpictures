@@ -1,0 +1,20 @@
+/* WaitNote: a spinner and a line or two on a viewer's dark ground. Neutral ink. */
+.wait-note { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 0 16px; }
+.wait-note-line { margin: 0; color: #888890; font: 400 13px/1.4 var(--font-sans, system-ui, sans-serif); }
+.wait-note-slow { color: rgba(255, 255, 255, 0.72); }
+.wait-note-btns { display: flex; gap: 8px; margin-top: 4px; }
+.wait-note-btn {
+  padding: 8px 16px; border-radius: 8px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(255, 255, 255, 0.08); color: #fff;
+  font: 500 13px/1 var(--font-sans, system-ui, sans-serif);
+}
+.wait-note-btn:hover { background: rgba(255, 255, 255, 0.16); }
+.wait-note-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+/* The film player's opening line, under its centred spinner. */
+.film-opening {
+  position: absolute; left: 50%; top: calc(50% + 28px); transform: translateX(-50%);
+  margin: 0; max-width: 80%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: #888890; font: 400 13px/1.4 var(--font-sans, system-ui, sans-serif); pointer-events: none;
+}
+/* Quick look's pages while their file is read (FileStages.jsx PageWait). */
+.ql .qpage-wait { align-self: center; margin: auto; }

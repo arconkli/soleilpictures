@@ -844,6 +844,8 @@ An image appears in three stages: a tiny blurred placeholder that arrives almost
 
 Full resolution is fetched as you zoom in, and released again as you zoom out, so a board stays responsive no matter how much is on it.
 
+If a picture can't be fetched — the connection dropped, or storage didn't answer — its card says Couldn't load with Retry, and tries again by itself a little later. A padlock instead means you don't have access to the file.
+
 Adjustments
 
 Every image card has a full set of non-destructive adjustments — the kind you would expect in a photo tool, applied live on the canvas.
@@ -1596,6 +1598,14 @@ Files beyond roughly a gigabyte upload in parts automatically, so a big video or
 
 Batches upload a few at a time so one huge file does not block eleven small ones behind it.
 
+While files upload
+
+A tray in the corner of the board shows every batch as it goes: how many files are in, how much is left and roughly how long, with each file's own progress underneath. Fold it and it becomes a small chip; on a phone it is a slim bar along the bottom that opens into the list. The tab's title carries the count too, so you can follow it from another tab.
+
+A file that didn't upload stays in the tray with what went wrong and Retry. When the connection drops, the tray says Offline and how many uploads are paused, and the ones the drop stopped try again by themselves when you're back online.
+
+Downloads, exports and copies show in the same tray while they're prepared: a zip of many files counts them as they're gathered and can be cancelled, and a finished copy offers Open.
+
 Storage
 
 Uploads count against your account's storage quota: 5GB on the free plan, 1TB on Creator. The meter is in Settings → Plan & billing. When it is full, new uploads stop until you delete files or upgrade — nothing already there is touched. Files you drop in the meantime wait in the tab: they go on by themselves when you upgrade or add storage, or when you press Upload now after deleting. On Creator you can also add more storage, 1TB at a time.
@@ -1662,7 +1672,7 @@ Q: What happens if I drop a screenplay file?
 A: A .fountain or .fdx file becomes a new script document, formatted and ready to edit, with its title page filled in. That is free on every plan.
 
 Q: What happens if the page closes while photos are still uploading?
-A: Photos upload from your device while the page is open. If it closes first — on a phone, switching to another app can do that — a photo that had not finished cannot be completed. Once it clearly is not still uploading, it stops counting toward your card limit. Later still — long enough that no upload anywhere could be finishing it — it is removed the next time someone who can edit that cluster opens it on the canvas, with a note saying how many, so they can be added again. A photo that did finish uploading is kept. One that finished after you had switched to another cluster is put back in place once it is clearly not still uploading, the next time that cluster is opened on the canvas.
+A: Photos upload from your device while the page is open. While anything is still going up, the browser asks before the tab closes. If it closes first — on a phone, switching to another app can do that — a photo that had not finished cannot be completed. Once it clearly is not still uploading, it stops counting toward your card limit. Later still — long enough that no upload anywhere could be finishing it — it is removed the next time someone who can edit that cluster opens it on the canvas, with a note saying how many, so they can be added again. A photo that did finish uploading is kept. One that finished after you had switched to another cluster is put back in place once it is clearly not still uploading, the next time that cluster is opened on the canvas.
 
 Q: How do I upload a new version of a file?
 A: Drop the new file onto the old one — on the board or in Files — and it becomes the next version, with the old one kept. Or right-click the file and choose Upload new version…. Info lists every version, and any of them can be made current again.
@@ -1914,7 +1924,7 @@ A phone's or a tablet's browser can't pick or drag a folder, so there you choose
 
 While it runs
 
-Before anything uploads, the import counts what you gave it. If all of it fits your plan it starts at once; if not, you are asked first (see below). While it runs, a tray in the corner shows how many files are in and roughly how long is left, with Pause and Cancel, and folds into a small chip when you minimize it. Uploads run in the open tab, so keep it open — on a phone, keep it on screen. One import runs at a time; a second one you drop waits its turn.
+Before anything uploads, the import counts what you gave it. If all of it fits your plan it starts at once; if not, you are asked first (see below). While it runs, a tray in the corner shows how many files are in and roughly how long is left, with Pause and Cancel, and folds into a small chip when you minimize it. Uploads run in the open tab, so keep it open — on a phone, keep it on screen. One import runs at a time; a second one you drop waits its turn. If the connection drops, the tray says so and the import waits, then carries on by itself when you're back online.
 
 If the page reloads or the tab closes part-way, the tray offers the stopped import the next time you open the app: Resume where the browser kept the folder (it asks to read it again first), or drop the same folder or zip on the same cluster again — either way, files already in are skipped.
 
@@ -3584,7 +3594,7 @@ Concurrent edits merge. There is no locking and no last-write-wins overwrite —
 
 Working offline
 
-Changes made while briefly disconnected are reconciled on reconnect. The status in the header reports what has actually saved rather than assuming.
+When the connection drops, the corner of the board says Offline, with how many uploads are paused, and whether the changes you make are kept on this device or need this tab to stay open until you're back. Changes made while disconnected are reconciled on reconnect: the corner says Reconnecting…, then Saved once everything you changed is stored. If a save is refused it says Couldn't save, with Retry. On a board the status is in that corner and in a document it is in the header; either way it reports what has actually saved rather than assuming.
 
 ## Frequently asked questions
 

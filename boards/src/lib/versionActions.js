@@ -6,10 +6,11 @@
 //   env: { mutators, feedback, userId, getCard(id) → the LIVE card, ctx (versionUpload) }
 import {
   addVersionPatch, setCurrentPatch, deleteVersionPatch, restoreVersionPatch, labelVersionPatch,
-  pruneDeletedPatch, separateCardFrom, versionLabel, liveVersions, canVersion, VERSION_LIMIT,
+  pruneDeletedPatch, separateCardFrom, versionLabel, liveVersions, versionsOf, canVersion, VERSION_LIMIT,
 } from './cardVersions.js';
 import { uploadVersion, canBeVersionOf, versionKindOf } from './versionUpload.js';
 import { undoToast } from './undoToast.js';
+import { startBatch, addTransfer, updateTransfer, removeTransfer, trayMounted } from './activity.js';
 
 const KIND_WORD = { image: 'an image', video: 'a video', audio: 'an audio file', pdf: 'a PDF', file: 'a file' };
 const nameOf = (c) => c?.title || c?.fileName || c?.name || 'this file';
@@ -43,23 +44,41 @@ export async function addVersionFromFile(env, cardId, file) {
   const card = getCard(cardId);
   const refusal = versionRefusal(card, file, ctx);
   if (refusal) { feedback?.toast?.({ type: 'error', code: 'version_refused', message: refusal }); return null; }
+  // The upload shows in the tray and on the card as "Uploading version N".
+  const n = 1 + Math.max(0, ...versionsOf(card).map((v) => v.n || 0));
+  const batch = startBatch({ kind: 'upload', boardId: ctx.boardId || null, boardName: ctx.boardName || null });
+  const tid = addTransfer({
+    batch, kind: 'upload', label: file.name, boardId: ctx.boardId || null, cardId, bytesTotal: file.size || 0,
+    mime: file.type || '', state: 'running', version: { n },
+  });
   let fields;
   try {
-    fields = await uploadVersion(file, card, ctx);
+    fields = await uploadVersion(file, card, {
+      ...ctx,
+      onProgress: (f) => { ctx.onProgress?.(f); updateTransfer(tid, { state: 'running', fraction: f }); },
+    });
   } catch (err) {
-    feedback?.toast?.({ type: 'error', code: 'version_upload_failed', message: `Couldn’t upload the new version: ${err?.message || err}` });
+    // Kept as a failed item: Retry uploads the same file again; the × only clears the row.
+    updateTransfer(tid, {
+      state: 'failed',
+      actions: { retry: () => { removeTransfer(tid); return addVersionFromFile(env, cardId, file); }, remove: () => removeTransfer(tid) },
+    });
+    // With a tray, the failed row and the card's own strip already say so
+    // (with Retry); the toast is for a surface that has neither.
+    if (!trayMounted()) feedback?.toast?.({ type: 'error', code: 'version_upload_failed', message: `Couldn’t upload the new version: ${err?.message || err}` });
     return null;
   }
   // The card as it is NOW — it may have changed while the file uploaded.
   const live = getCard(cardId);
-  if (!live) { feedback?.toast?.({ type: 'error', code: 'version_card_deleted', message: 'The card was deleted while its new version uploaded.' }); return null; }
+  if (!live) { removeTransfer(tid); feedback?.toast?.({ type: 'error', code: 'version_card_deleted', message: 'The card was deleted while its new version uploaded.' }); return null; }
   const { _top, ...entryFields } = fields;
   const pruned = pruneDeletedPatch(live);
   const base = pruned ? { ...live, ...pruned } : live;
   const r = addVersionPatch(base, entryFields, { by: userId || null });
-  if (!r) { feedback?.toast?.({ type: 'error', code: 'version_add_failed', message: versionRefusal(live, file, ctx) || 'Couldn’t add the version.' }); return null; }
+  if (!r) { removeTransfer(tid); feedback?.toast?.({ type: 'error', code: 'version_add_failed', message: versionRefusal(live, file, ctx) || 'Couldn’t add the version.' }); return null; }
   const patch = { ...r.patch, ...(_top || {}) };
   const step = commit(mutators, cardId, patch);
+  updateTransfer(tid, { state: 'done' });
   const um = mutators?.undoManager;
   const stillTop = () => !um || !step || topStack(mutators) === step;
   feedback?.toast?.({

@@ -275,7 +275,7 @@ test('a cluster made from the sidebar or pasted asks the cap first, and restored
     const fn = app.slice(app.indexOf(from), app.indexOf(to, app.indexOf(from)));
     const ask = fn.search(/const ask = askCapFor\(/);
     assert.ok(ask > 0 && ask < fn.indexOf('await createBoard('), `${from}: the cap is asked before the cluster exists`);
-    assert.match(fn, /if \(!ask\.ok\) return;/);
+    assert.match(fn, /if \(!ask\.ok\) return( null)?;/);
     assert.match(fn, /if \(ask\.cs\.own\) myTier\.notePlaced\?\.\(/);
   }
   assert.match(app, /mainMutators\.addCards\?\.\(newCards, \{ restore: true, untracked: true \}\);\s*expectIndexChange\(\);/);

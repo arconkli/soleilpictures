@@ -81,6 +81,10 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       name: user.name || user.email?.split('@')[0] || 'Someone',
       color: user.color || pickColor(user.id || ''),
     });
+    // What this tab is uploading (lib/peerUploads.js), set with `user` so the
+    // first state the room sees already carries the key: a state with `user`
+    // and no `uploading` is a build from before.
+    awareness.setLocalStateField('uploading', null);
   }
 
   let destroyed = false;
@@ -366,6 +370,15 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   if (user && typeof window !== 'undefined') {
     for (const ev of HERE_EVENTS) window.addEventListener(ev, onHereInput, hereOpts);
   }
+
+  // The tray's Retry on "Couldn't save": open the socket again now rather than at
+  // the next backoff step. Not while parked or after access ended.
+  provider.retryNow = () => {
+    if (destroyed || accessEnded || parkedFor.size > 0) return;
+    closeSocket('retry');
+    try { provider.disconnect(); } catch (_) {}
+    try { Promise.resolve(provider.connect()).catch(() => {}); } catch (_) {}
+  };
 
   // A doc's save line asks this room whether a change is stored.
   ydoc._soleilRoom = provider;

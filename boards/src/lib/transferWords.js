@@ -14,6 +14,8 @@
 // "Part upload failed: 500 …", "workspaceId required"). Those become one plain
 // sentence. The toast's code still names the failure in Admin › Issues, and
 // the callers still log the raw error.
+import { uploadErrorStatus } from './uploadRetry.js';
+
 const FOR_PEOPLE = /^(?:Storage is full\b|(?:Audio|PDF|Video|Image|File) too (?:large|long)\b|Could not (?:finish|read)\b|Not signed in$)/;
 
 const ZIP_WORDS = {
@@ -44,4 +46,24 @@ export function uploadFailedWords(err, plain = "Couldn't upload that file. Try a
 export function downloadFailedWords(err, plain = "Couldn't download that file. Try again.") {
   const raw = rawText(err);
   return ownWords(err, raw) || (FOR_PEOPLE.test(raw) ? `Download failed: ${raw}` : plain);
+}
+
+const NETWORKY = /network error|stalled|failed to fetch|load failed|networkerror|timed? ?out/i;
+
+// Did this upload fail because the connection did, so that trying again later
+// is the right answer? Refusals (storage full, not allowed, a file too big or
+// too long, a zip that can't be read, a file storage lost) and aborts fail the
+// same way every time.
+export function isNetworkUploadFailure(err, { online = true } = {}) {
+  if (err == null) return false;
+  const raw = rawText(err);
+  if (raw === 'aborted' || /\baborted\b/i.test(raw) || err.name === 'AbortError') return false;
+  if (err.code === 402 || err.code === 403 || err.code === 'video_too_long') return false;
+  if (err.noRetry === true) return false;
+  if (FOR_PEOPLE.test(raw) || /Not allowed to upload|not_writer/.test(raw)) return false;
+  if (/^Storage returned 404\b/.test(raw) || err.name === 'ZipReadError') return false;
+  if (!online) return true;
+  if (NETWORKY.test(raw)) return true;
+  const status = uploadErrorStatus(err);
+  return status === 0 || status >= 500;
 }

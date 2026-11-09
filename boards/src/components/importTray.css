@@ -38,6 +38,9 @@
 @media (max-width: 640px) {
   .imptray { left: 8px; right: 8px; width: auto; }
 }
+/* Inside the activity tray (ActivityTray.jsx) the column places the panels:
+   in its flow, never at the screen's corner, at any width. */
+.imptray.is-static { position: relative; right: auto; bottom: auto; left: auto; }
 
 .imptray-head { flex: none; display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 8px 0 16px; }
 .imptray-title {

@@ -58,9 +58,3 @@
   animation: filec-making-in .2s ease-out .8s forwards;
 }
 @keyframes filec-making-in { to { opacity: 1; } }
-
-/* Uploading in the light theme: the card isn't greyed, and the spinner and
-   the percentage read on it. */
-[data-theme="light"] .filec .ic-upload-overlay { background: transparent; }
-[data-theme="light"] .filec .ic-upload-overlay .spinner-on-dark { border-color: var(--line-2); border-top-color: var(--soleil); }
-[data-theme="light"] .filec .ic-upload-progress { color: var(--ink-2); text-shadow: none; }

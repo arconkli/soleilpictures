@@ -59,3 +59,31 @@ test('composing is idempotent — no badge stacking on repeat calls', () => {
   assert.equal(once, twice);
   assert.equal(once, '(1) A — Soleil Clusters');
 });
+
+test('the activity part comes first, then the badge, then the name', () => {
+  assert.equal(
+    composeTitle({ base: 'Costume', badge: '(3) ', activity: '(6/12) ', served: SERVED }),
+    '(6/12) (3) Costume — Soleil Clusters',
+  );
+  assert.equal(composeTitle({ base: null, badge: '', activity: '(6/12) ', served: SERVED }), `(6/12) ${SERVED}`);
+});
+
+test('an offline tab leads with Offline, before the name', () => {
+  assert.equal(
+    composeTitle({ base: 'Halcyon', badge: '', activity: 'Offline · ', served: SERVED }),
+    'Offline · Halcyon — Soleil Clusters',
+  );
+});
+
+test('offline with an unread badge: Offline first, then the badge', () => {
+  assert.equal(
+    composeTitle({ base: 'Halcyon', badge: '(3) ', activity: 'Offline · ', served: SERVED }),
+    'Offline · (3) Halcyon — Soleil Clusters',
+  );
+});
+
+test('no activity gives exactly today’s title', () => {
+  assert.equal(composeTitle({ base: 'A', badge: '(1) ', served: SERVED }), '(1) A — Soleil Clusters');
+  assert.equal(composeTitle({ base: 'A', badge: '', activity: '', served: SERVED }), 'A — Soleil Clusters');
+  assert.equal(composeTitle({ activity: '(1/2) ' }), '(1/2) Soleil Clusters');
+});

@@ -238,7 +238,25 @@ const FAILS_SHOWN = 5;
 //          targetName }
 // touch: a phone or a tablet, where a locked screen or another app in front
 // suspends the page (ImportTray keeps the screen awake while it uploads).
-export function trayCopy(entry, { touch = false } = {}) {
+// online: false while the browser says it is offline. A tray that is making
+// clusters or uploading then says so, instead of a bar and an ETA that look
+// stuck (importJob.js waits for the connection; nothing is spent).
+export function trayCopy(entry, { touch = false, online = true } = {}) {
+  const t = trayCopyBase(entry, { touch });
+  const s = entry.snap || {};
+  const moving = !['queued', 'stopped', 'reading'].includes(entry.phase)
+    && (s.status === 'idle' || s.status === 'creating' || s.status === 'running');
+  if (online !== false || !moving) return t;
+  const title = entry.title || 'Import';
+  return {
+    ...t,
+    meta: 'Offline · it continues when you’re back online',
+    bar: t.bar ? { ...t.bar, still: true } : t.bar,
+    chip: { kind: 'glyph', icon: 'clock', text: 'Offline', label: `${title} is offline and continues when you’re back online. Open the import` },
+  };
+}
+
+function trayCopyBase(entry, { touch = false } = {}) {
   const title = entry.title || 'Import';
   const keepOpen = touch ? 'keep this tab on screen' : 'keep this tab open';
   const KeepOpen = keepOpen[0].toUpperCase() + keepOpen.slice(1);

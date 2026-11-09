@@ -81,7 +81,7 @@ export function iconForFile(ext, mime) {
 
 export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
                           onUpdate, autoFocus = false, editTitleAt = 0, onAfterEdit,
-                          pending = false, uploadProgress = null,
+                          pending = false,
                           // On a board, double-click belongs to the board (it
                           // opens the file full screen); elsewhere it downloads.
                           opensOnBoard = false,
@@ -184,14 +184,6 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
           faces && <faces.default family={drawnFamily} src={fileSrc} ext={e} name={fileName} sizeBytes={sizeBytes} w={w} h={h}
                                   fallback={glyph} onMeta={setFaceMeta} />
         ) : glyph}
-        {pending && (
-          <div className="ic-upload-overlay" aria-label="Uploading file">
-            <Spinner size={22} tone="on-dark" label="Uploading file" />
-            {uploadProgress != null && (
-              <div className="ic-upload-progress">{Math.round(uploadProgress * 100)}%</div>
-            )}
-          </div>
-        )}
         {!pending && fileSrc && (
           <button type="button" className={`ic-expand${busy ? ' is-busy' : ''}`}
                   title={busy ? 'Preparing download…' : `Download ${label}`}

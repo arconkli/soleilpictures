@@ -26,7 +26,7 @@ function peerKey(p) {
   if (!p) return '';
   const u = p.user || {};
   const l = p.location || {};
-  return `${u.id || ''}|${u.name || ''}|${u.color || ''}|${l.boardId || ''}|${l.surface || ''}|${l.isActive === false ? 0 : 1}|${l.docCardId || ''}|${l.pageId || ''}|${p.tabId || ''}`;
+  return `${u.id || ''}|${u.name || ''}|${u.color || ''}|${l.boardId || ''}|${l.surface || ''}|${l.isActive === false ? 0 : 1}|${l.docCardId || ''}|${l.pageId || ''}|${Array.isArray(l.uploadingTo) ? l.uploadingTo.join(",") : ''}|${p.tabId || ''}`;
 }
 
 function peersFingerprint(peers) {
@@ -84,9 +84,12 @@ export function useWorkspacePresence({ workspaceId, user, location }) {
   // open/close are visible to peers within ~50ms (vs the 5s heartbeat).
   // isActive is included so tab-foreground/background changes propagate
   // immediately to consumers that hide background-tab presence dots.
+  // uploadingTo too, so a tab starting or finishing an upload to another
+  // cluster tells that cluster's open tabs at once.
+  const uploadingKey = Array.isArray(location?.uploadingTo) ? location.uploadingTo.join(',') : '';
   useEffect(() => {
     handleRef.current?.ping?.();
-  }, [location?.boardId, location?.surface, location?.pageId, location?.docCardId, location?.isActive]);
+  }, [location?.boardId, location?.surface, location?.pageId, location?.docCardId, location?.isActive, uploadingKey]);
 
   // Filter own-user out of the peer list. Multi-tab and stale-after-
   // close scenarios used to make the user appear as a peer in boards
@@ -99,5 +102,27 @@ export function useWorkspacePresence({ workspaceId, user, location }) {
     [rawPeers, user?.id]
   );
 
-  return { peers, status, ping: () => handleRef.current?.ping?.() };
+  // People whose tab is still uploading to some cluster: userId ->
+  // { name, color, boards: Set<boardId> }. Built from rawPeers, so the user's
+  // own other tabs count too (a picture dropped in tab A still arriving while
+  // tab B shows its cluster). rawPeers only changes identity when a peer's
+  // fingerprint (uploadingTo included) does, so this stays stable between.
+  const uploadingElsewhere = useMemo(() => {
+    let out = null;
+    for (const p of rawPeers) {
+      const list = p?.location?.uploadingTo;
+      const uid = p?.user?.id;
+      if (!uid || !Array.isArray(list) || list.length === 0) continue;
+      out = out || new Map();
+      let entry = out.get(uid);
+      if (!entry) {
+        entry = { name: p.user.name || '', color: p.user.color || '', boards: new Set() };
+        out.set(uid, entry);
+      }
+      for (const b of list) if (typeof b === 'string' && b) entry.boards.add(b);
+    }
+    return out;
+  }, [rawPeers]);
+
+  return { peers, status, uploadingElsewhere, ping: () => handleRef.current?.ping?.() };
 }

@@ -73,7 +73,9 @@ your plan it starts at once; if not, you are asked first (see below). While it
 runs, a tray in the corner shows how many files are in and roughly how long is
 left, with **Pause** and **Cancel**, and folds into a small chip when you
 minimize it. Uploads run in the open tab, so keep it open — on a phone, keep it
-on screen. One import runs at a time; a second one you drop waits its turn.
+on screen. One import runs at a time; a second one you drop waits its turn. If
+the connection drops, the tray says so and the import waits, then carries on by
+itself when you're back online.
 
 If the page reloads or the tab closes part-way, the tray offers the stopped
 import the next time you open the app: **Resume** where the browser kept the

@@ -49,7 +49,7 @@ import { usesPassword } from '../lib/passwordSignIn.js';
 import { passkeysMayWork } from '../lib/passkeyGate.js';
 import { mailboxFor, isConsumerAddress } from '../lib/mailboxLink.js';
 import { lpCtaClick } from '../hooks/useLandingEngagement.js';
-import { SoleilMark } from '../components/primitives.jsx';
+import { LoadingScreen } from '../components/LoadingScreen.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { SignInBackdrop } from './SignInBackdrop.jsx';
 import { UsedBy } from '../components/public/UsedBy.jsx';
@@ -1524,14 +1524,7 @@ function humanError(e, { resent = false } = {}) {
 // saw the dark boot splash, then this one in light grey while the page chunk
 // loaded, then the dark page: a dark-white-dark flicker on every landing page.
 export function SplashLoading({ dark = false }) {
-  return (
-    <div className={dark ? 'auth-screen public-dark' : 'auth-screen'}>
-      <div className="auth-glow" aria-hidden="true" />
-      <div className="auth-loading">
-        <SoleilMark size={32} color="var(--soleil)" glow />
-      </div>
-    </div>
-  );
+  return <LoadingScreen dark={dark} />;
 }
 
 function DevBanner({ label = 'DEV MODE — Supabase not configured. Boards are local-only and reset on reload.' }) {

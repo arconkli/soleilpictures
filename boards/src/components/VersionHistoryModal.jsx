@@ -22,6 +22,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as Y from 'yjs';
 import { Modal } from './Modal.jsx';
+import { useRetry } from '../hooks/useRetry.js';
 import {
   listBoardVersions, loadBoardVersionDoc, bulletproofRestore, saveBoardVersion,
   loadBoardSnapshot, listBoardMetaHistory, renameBoard, updateBoardMeta,
@@ -113,6 +114,10 @@ export function VersionHistoryModal({
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState([]);
   const [loading, setLoading] = useState(false);
+  // A list that failed to load is not an empty list.
+  const [versionsFailed, setVersionsFailed] = useState(false);
+  const [metaFailed, setMetaFailed] = useState(false);
+  const [reloadTick, retryLoad] = useRetry(versionsFailed || metaFailed);
   const [selectedId, setSelectedId] = useState(null);
   const [preview, setPreview] = useState(null);   // { id, cards, arrows, strokes, titles[] }
   const [expanded, setExpanded] = useState(() => new Set());
@@ -121,24 +126,30 @@ export function VersionHistoryModal({
   // The row whose preview we want. Downloads can resolve out of order, and
   // an older one landing last left the selected row on "loading preview…".
   const previewReq = useRef(null);
+  const loadedFor = useRef(null);
 
   useEffect(() => {
     if (!open || !boardId) return;
     let cancelled = false;
     setLoading(true);
+    // Another cluster's history must not stand in for this one's after a failure.
+    if (loadedFor.current !== boardId) { loadedFor.current = boardId; setRows([]); setMeta([]); }
     setSelectedId(null);
     setPreview(null);
     previewReq.current = null;
     Promise.all([
-      listBoardVersions(boardId).catch(() => []),
-      listBoardMetaHistory(boardId).catch(() => []),
+      listBoardVersions(boardId).catch(() => null),
+      listBoardMetaHistory(boardId).catch(() => null),
     ]).then(([v, m]) => {
       if (cancelled) return;
-      setRows(v);
-      setMeta(m);
+      setVersionsFailed(v == null);
+      setMetaFailed(m == null);
+      // What an earlier read showed stays on screen when a retry fails.
+      if (v) setRows(v);
+      if (m) setMeta(m);
     }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; previewReq.current = null; };
-  }, [open, boardId]);
+  }, [open, boardId, reloadTick]);
 
   const groups = useMemo(() => groupBySession(rows), [rows]);
   // card-count delta vs the next-older row — a cheap "what changed" signal.
@@ -255,7 +266,7 @@ export function VersionHistoryModal({
       }
       feedback.toast({ type: 'success', message: `Reverted ${row.field}.` });
       onRestored?.();
-      setMeta(await listBoardMetaHistory(boardId).catch(() => meta));
+      setMeta((await listBoardMetaHistory(boardId).catch(() => null)) || meta);
     } catch (e) {
       feedback.toast({ type: 'error', code: 'version_revert_failed', message: 'Revert failed: ' + (e?.message || e) });
     } finally {
@@ -331,7 +342,13 @@ export function VersionHistoryModal({
       <div className="modal-body">
         {loading && <div className="modal-empty">Loading…</div>}
 
-        {!loading && tab === 'versions' && rows.length === 0 && (
+        {!loading && tab === 'versions' && versionsFailed && rows.length === 0 && (
+          <div className="modal-empty" role="alert">
+            Couldn’t load version history{' '}
+            <button type="button" className="tb-btn tb-btn-sm" onClick={retryLoad}>Retry</button>
+          </div>
+        )}
+        {!loading && tab === 'versions' && !versionsFailed && rows.length === 0 && (
           <div className="modal-empty">No snapshots yet — they accumulate as you edit.</div>
         )}
         {!loading && tab === 'versions' && groups.length > 0 && (
@@ -356,7 +373,13 @@ export function VersionHistoryModal({
           </div>
         )}
 
-        {!loading && tab === 'changes' && meta.length === 0 && (
+        {!loading && tab === 'changes' && metaFailed && meta.length === 0 && (
+          <div className="modal-empty" role="alert">
+            Couldn’t load version history{' '}
+            <button type="button" className="tb-btn tb-btn-sm" onClick={retryLoad}>Retry</button>
+          </div>
+        )}
+        {!loading && tab === 'changes' && !metaFailed && meta.length === 0 && (
           <div className="modal-empty">No name or appearance changes recorded.</div>
         )}
         {!loading && tab === 'changes' && meta.length > 0 && (

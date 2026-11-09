@@ -1,0 +1,24 @@
+/* A picture that could not load (CardCouldntLoad.jsx). Rides .r2-img-blocked's
+   neutral tile; the inner box is counter-scaled on the canvas, so every size
+   here is a screen pixel. Neutral ink, never gold. */
+.ccl { position: relative; overflow: hidden; }
+.ccl-in {
+  position: absolute; left: 0; top: 0;
+  transform-origin: 0 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 7px;
+}
+.ccl-txt { font: 400 11px/1.25 var(--font-sans); color: var(--ink-1); }
+.ccl-btn {
+  height: 22px; padding: 0 9px;
+  border: 0; border-radius: 6px;
+  background: rgba(245, 245, 247, .1);
+  color: var(--ink-0);
+  font: 500 11px/1 var(--font-sans);
+  cursor: pointer;
+}
+.ccl-btn:hover { background: rgba(245, 245, 247, .18); }
+[data-theme="light"] .ccl-btn { background: rgba(10, 10, 12, .07); }
+[data-theme="light"] .ccl-btn:hover { background: rgba(10, 10, 12, .12); }
+.ccl-btn.is-icon { display: grid; place-items: center; width: 22px; padding: 0; }
+.ccl-btn:focus-visible { outline: 2px solid var(--ink-0); outline-offset: 1px; }

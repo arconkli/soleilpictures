@@ -30,6 +30,8 @@ import { toListItem, sortItems, filterItems, matchItems } from '../lib/listItem.
 import { defaultFilesLayout, readFilesLayout, writeFilesLayout } from '../lib/filesLayout.js';
 import { formatDuration } from '../lib/loopMeta.js';
 import { searchEntities } from '../lib/entitySearch.js';
+import { LoadFailed } from './LoadFailed.jsx';
+import { useRetry } from '../hooks/useRetry.js';
 import { getMeta, primeImageMetaForBoard } from '../lib/imageMeta.js';
 import { usePeerSelections } from '../hooks/usePeerSelections.js';
 import { ClusterBrowserToolbar, StorageUpsell } from './clusterBrowser/ClusterBrowserToolbar.jsx';
@@ -74,7 +76,7 @@ import { kindFromMime, canBeVersionOf } from '../lib/versionUpload.js';
 import { uploadContext } from '../lib/uploadContext.js';
 import { openPlayer } from '../lib/playerBus.js';
 import { resolveSrc } from '../lib/r2.js';
-import { downloadFailedWords } from '../lib/transferWords.js';
+import { downloadOneTracked, downloadManyTracked } from '../lib/downloadOps.js';
 import { Icon, IconWeightContext } from './Icon.jsx';
 import { useFilesLook } from './clusterBrowser/filesLook.js';
 import { FilesPageHead, FilesPageTools } from './clusterBrowser/FilesPageHead.jsx';
@@ -87,8 +89,8 @@ import { SORTS } from '../lib/sidebarSort.js';
 import { shellOf } from '../lib/deviceShell.js';
 import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload, Folder, Copy, DownloadSimple, UploadSimple, FolderSimplePlus } from '../lib/icons.js';
 import {
-  DOWNLOADABLE, downloadCardAsset, downloadCardAssets, zipNameFor, bulkDownloadSupported,
-  AssetFetchError, isPublicSurface,
+  DOWNLOADABLE, zipNameFor, bulkDownloadSupported,
+  isPublicSurface,
 } from '../lib/cardDownload.js';
 // The page in the files sidebar's look is built from the sidebar's controls
 // (the search, "All files ⌄", the tabs, the shelves) and materials, which the
@@ -223,6 +225,10 @@ export function ListSurface({
   browsingFrom = null,
   // A browsed cluster whose snapshot hasn't arrived — not "no files" yet.
   loading = false,
+  // A browsed cluster whose snapshot failed to load (not "no files"), and the
+  // Retry that asks for it again.
+  failed = false,
+  onRetry = null,
   // "Not on board" marks, count and filter: the owner's view of their own
   // board. A visitor on a public link isn't looking at that board, and the
   // waiting files are just files to them. PublicBoardView says so outright;
@@ -828,25 +834,29 @@ export function ListSurface({
   // sub-cluster rather than as full preview rows. Debounced; in-cluster search
   // stays instant + local above.
   const [descHits, setDescHits] = useState([]);
+  // The sub-cluster search itself failed: told apart from finding nothing.
+  const [descFailed, setDescFailed] = useState(false);
+  const [descTick, retryDesc] = useRetry(descFailed);
   useEffect(() => {
     const q = query.trim();
-    if (!q || !workspaceId || descendantIds.length === 0) { setDescHits([]); return; }
+    if (!q || !workspaceId || descendantIds.length === 0) { setDescHits([]); setDescFailed(false); return; }
     const descSet = new Set(descendantIds);
     let cancelled = false;
     const t = setTimeout(async () => {
       try {
         const rows = await searchEntities({ workspaceId, query: q, limit: 40 });
         if (cancelled) return;
+        setDescFailed(rows == null);
         const hits = (rows || [])
           .filter(r => r.board_id && descSet.has(r.board_id) && r.card_id)
           .slice(0, 12)
           .map(r => ({ id: r.card_id || r.id, name: r.title || r.meta?.fileName || 'Untitled', kind: r.kind, boardId: r.board_id, clusterName: boards[r.board_id]?.name || 'Sub-cluster' }));
         setDescHits(hits);
-      } catch (_) { if (!cancelled) setDescHits([]); }
+      } catch (_) { if (!cancelled) { setDescHits([]); setDescFailed(true); } }
     }, 250);
     return () => { cancelled = true; clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, workspaceId, descendantIds.join(','), boards]);
+  }, [query, workspaceId, descendantIds.join(','), boards, descTick]);
 
   // Selection — strings: board ids and card ids share an id namespace.
   const [selectedBoards, setSelectedBoards] = useState(() => new Set());
@@ -1903,64 +1913,27 @@ export function ListSurface({
   // only half of it, and before this the only way to take a file out of a
   // cluster was one at a time through the detail popout.
   const [zipping, setZipping] = useState(false);
-  const downloadOne = useCallback(async (it) => {
-    try {
-      await downloadCardAsset(it.card, it.kind, { surface: 'list' });
-    } catch (err) {
-      feedback?.toast?.({ type: 'error', code: 'file_download_failed', message: downloadFailedWords(err) });
-    }
-  }, [feedback]);
+  const downloadOne = useCallback(
+    (it) => downloadOneTracked(it.card, it.kind, {
+      boardId: board?.id || null, boardName: board?.name || null,
+      surface: 'list', toast: feedback?.toast,
+    }),
+    [feedback, board?.id, board?.name]);
 
   const downloadMany = useCallback(async (chosen) => {
     if (!chosen.length) return;
     if (chosen.length === 1) { await downloadOne(chosen[0]); return; }
-    if (!bulkDownloadSupported()) {
-      // deliverFile writes through a FileReader as base64 on native; a
-      // half-gigabyte zip becomes ~667 MB of string and takes the app out.
-      feedback?.toast?.({ type: 'warning', message: 'Download files one at a time in the app.' });
-      return;
-    }
     setZipping(true);
     try {
-      const { count, skipped, failed } = await downloadCardAssets(
-        chosen.map(it => ({ card: it.card, kind: it.kind })),
-        { zipName: zipNameFor(board?.name || 'cluster'), surface: 'list' });
-      // Say what was left out rather than quietly shipping a smaller archive
-      // than the one that was asked for — and distinguish "there was nothing
-      // behind it" (a note, an empty card) from "storage would not give it
-      // back", which is the one worth telling someone about.
-      const left = [];
-      if (skipped) left.push(`${skipped} had no file`);
-      if (failed) left.push(`${failed} could not be read from storage`);
-      if (!count) {
-        feedback?.toast?.({ type: 'warning', message: 'Nothing there could be downloaded.' });
-      } else if (left.length) {
-        feedback?.toast?.({
-          type: 'warning',
-          message: `Downloaded ${count} file${count === 1 ? '' : 's'} — ${left.join(', ')}.`,
-        });
-      }
-    } catch (err) {
-      if (err?.code === 'zip_too_large') {
-        feedback?.toast?.({ type: 'error', code: 'zip_too_large', message: err.message });
-      } else if (err instanceof AssetFetchError && err.unreachable) {
-        // R2 returns no CORS header on an error response, so the browser
-        // cannot tell us whether the signature died or this origin is simply
-        // not on the bucket's allowlist. Naming the origin is what makes the
-        // difference checkable by whoever reads the message.
-        const origin = (typeof window !== 'undefined' && window.location?.origin) || 'this address';
-        feedback?.toast?.({
-          type: 'error',
-          code: 'zip_storage_blocked',
-          message: `Storage would not hand those files back to ${origin}. Downloading one at a time still works.`,
-        });
-      } else {
-        feedback?.toast?.({ type: 'error', code: 'zip_download_failed', message: downloadFailedWords(err, "Couldn't download those files. Try again.") });
-      }
+      await downloadManyTracked(chosen, {
+        zipName: zipNameFor(board?.name || 'cluster'),
+        boardId: board?.id || null, boardName: board?.name || null,
+        surface: 'list', toast: feedback?.toast,
+      });
     } finally {
       setZipping(false);
     }
-  }, [downloadOne, feedback, board?.name]);
+  }, [downloadOne, feedback, board?.id, board?.name]);
 
   const downloadableSelected = useMemo(
     () => items.filter(it => selectedCards.has(it.id) && DOWNLOADABLE.has(it.kind)),
@@ -1977,11 +1950,11 @@ export function ListSurface({
     () => visibleItems.filter(it => DOWNLOADABLE.has(it.kind)),
     [visibleItems]);
   const narrowed = !!query || filters.size > 0 || unplacedOnly;
-  const emptyHere = sb && visibleItems.length === 0 && !loading && !narrowed;
+  const emptyHere = sb && visibleItems.length === 0 && !loading && !failed && !narrowed;
   const canDownloadAll = downloadableVisible.length > 1 && bulkDownloadSupported();
   // Full Files' page header: what's in the cluster, in one line.
   const pageMeta = [
-    sb && !otherCards.length ? (loading ? null : 'No files')
+    sb && !otherCards.length ? (loading || failed ? null : 'No files')
       : `${otherCards.length} ${otherCards.length === 1 ? 'file' : 'files'}`,
     subBoards.length ? `${subBoards.length} ${subBoards.length === 1 ? 'cluster' : 'clusters'}` : null,
     unplacedTotal ? `${unplacedTotal} not on board` : null,
@@ -2678,6 +2651,8 @@ export function ListSurface({
                 )}
                 {visibleItems.length === 0 && (loading ? (
                   <div className="fp-loading" role="status">Loading files…</div>
+                ) : failed ? (
+                  <LoadFailed what="this cluster’s files" onRetry={onRetry} />
                 ) : narrowed ? (
                   descHits.length === 0 && shownFolders.length === 0 && (
                     <div className="fp-nomatch">
@@ -2710,6 +2685,7 @@ export function ListSurface({
                     ) : null}
                   </div>
                 ))}
+                {descFailed && <LoadFailed compact what="search results" onRetry={retryDesc} />}
                 {/* Hits in clusters under this one aren't loaded cards: rows
                     that open the cluster they're in. */}
                 {descHits.length > 0 && (
@@ -2747,6 +2723,8 @@ export function ListSurface({
                 {visibleItems.length === 0 && descHits.length === 0 ? (
                   loading ? (
                     <div className="list-loading" role="status">Loading files…</div>
+                  ) : failed ? (
+                    <LoadFailed what="this cluster’s files" onRetry={onRetry} />
                   ) : query || filters.size || unplacedOnly ? (
                     <div className="cluster-browser-empty">
                       <div>No files match.</div>
@@ -2773,6 +2751,7 @@ export function ListSurface({
                 ) : (
                   <ClusterTable {...tableProps} items={displayItems} />
                 )}
+                {descFailed && <LoadFailed compact what="search results" onRetry={retryDesc} />}
                 {descHits.length > 0 && (
                   <div className="cb-descendants">
                     <div className="cb-desc-label">In sub-clusters</div>

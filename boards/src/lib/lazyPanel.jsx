@@ -12,17 +12,26 @@
 //
 // lazyWithReload underneath, so a chunk a deploy has replaced reloads the page
 // once instead of failing.
+//
+// While the chunk loads, and the panel is open, the person sees its frame and
+// title at once (PanelWait; its spinner fades in after 0.3 s):
+//   lazyPanel(factory, { title: 'Settings', variant: 'modal' })
+// It closes with the panel's own `onClose`.
 
 import { Suspense, useState } from 'react';
 import { lazyWithReload } from './lazyWithReload.js';
+import { PanelWait } from '../components/PanelWait.jsx';
 
-export function lazyPanel(factory) {
+export function lazyPanel(factory, { title = null, variant = 'modal' } = {}) {
   const Panel = lazyWithReload(factory);
   function LazyPanel(props) {
     const [opened, setOpened] = useState(!!props.open);
     if (props.open && !opened) setOpened(true);
     if (!opened) return null;
-    return <Suspense fallback={null}><Panel {...props} /></Suspense>;
+    const wait = title && props.open
+      ? <PanelWait title={title} variant={variant} onClose={props.onClose || null} />
+      : null;
+    return <Suspense fallback={wait}><Panel {...props} /></Suspense>;
   }
   LazyPanel.warm = Panel.warm;
   return LazyPanel;

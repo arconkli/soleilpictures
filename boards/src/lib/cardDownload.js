@@ -242,7 +242,7 @@ export function bulkDownloadSupported() {
 // something in the selection had no bytes behind it (a note, an empty card) or
 // could not be read back out of storage, rather than silently shipping a
 // smaller archive than they asked for.
-export async function downloadCardAssets(cards, { zipName = 'download.zip', onProgress = null, surface = null } = {}) {
+export async function downloadCardAssets(cards, { zipName = 'download.zip', onProgress = null, surface = null, signal = null } = {}) {
   const items = (cards || []).filter(it => it && DOWNLOADABLE.has(it.kind) && assetSrcFor(it.card, it.kind));
   const skipped = (cards || []).length - items.length;
   if (!items.length) return { count: 0, skipped };
@@ -275,8 +275,13 @@ export async function downloadCardAssets(cards, { zipName = 'download.zip', onPr
   let fetchedBytes = 0;
   let over = false;
   const abort = typeof AbortController === 'function' ? new AbortController() : null;
+  // The caller's own Cancel (the activity tray) stops the requests still in flight too.
+  const onCallerAbort = () => { try { abort?.abort(); } catch (_) {} };
+  if (signal) { if (signal.aborted) onCallerAbort(); else signal.addEventListener('abort', onCallerAbort, { once: true }); }
+  const cancelled = () => !!signal?.aborted;
+  try {
   await Promise.all(items.map((it, i) => limit(async () => {
-    if (over) return;
+    if (over || cancelled()) return;
     // Per item, NOT one Promise.all that rejects on the first throw. That was
     // the old shape, and it meant a single unreadable object — one expired
     // signature, one key deleted out from under a card — turned "download
@@ -295,7 +300,9 @@ export async function downloadCardAssets(cards, { zipName = 'download.zip', onPr
     fetched++;
     onProgress?.({ phase: 'fetch', done: fetched, total: items.length });
   })));
+  } finally { signal?.removeEventListener?.('abort', onCallerAbort); }
 
+  if (cancelled()) throw new DOMException('Download cancelled', 'AbortError');
   if (over) assertZipFits(fetchedBytes, { entries: items.length, atLeast: true });
 
   const entries = slots.filter(Boolean);
@@ -315,6 +322,7 @@ export async function downloadCardAssets(cards, { zipName = 'download.zip', onPr
   const zip = await createStoreZip(entries, {
     onProgress: (p) => onProgress?.({ phase: 'pack', ...p }),
   });
+  if (cancelled()) throw new DOMException('Download cancelled', 'AbortError');
   logEvent(EV.FILE_DOWNLOAD, {
     kind: 'zip', is_public: isPublicSurface(), surface, bulk: true, n: entries.length,
   });

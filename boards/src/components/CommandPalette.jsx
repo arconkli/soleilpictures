@@ -16,6 +16,8 @@ import { useListboxNav } from '../hooks/useListboxNav.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
+import { LoadFailed } from './LoadFailed.jsx';
+import { useRetry } from '../hooks/useRetry.js';
 
 // Global search + ⌘K command palette.
 //
@@ -166,6 +168,9 @@ export function CommandPalette({
   // `#name`: the tag it names, and everything carrying it.
   const [tagHits, setTagHits] = useState(null); // { tag, rows } | null
   const [loading, setLoading] = useState(false);
+  // The search itself failed (null from searchEntities), which is not "No results".
+  const [searchFailed, setSearchFailed] = useState(false);
+  const [retryTick, retrySearch] = useRetry(searchFailed);
   const inputRef = useRef(null);
   const searchedRef = useRef(false);
 
@@ -176,6 +181,7 @@ export function CommandPalette({
     setAsyncRows([]);
     setPageHits([]);
     setLoading(false);
+    setSearchFailed(false);
     searchedRef.current = false;
     const id = setTimeout(() => inputRef.current?.focus(), 0);
     return () => clearTimeout(id);
@@ -188,7 +194,7 @@ export function CommandPalette({
   // query wins via the cancelled flag. No-op without a workspace (local shell).
   useEffect(() => {
     if (!open) return;
-    if (!workspaceId || !q) { setAsyncRows([]); setPageHits([]); setTagHits(null); setLoading(false); return; }
+    if (!workspaceId || !q) { setAsyncRows([]); setPageHits([]); setTagHits(null); setLoading(false); setSearchFailed(false); return; }
     let cancelled = false;
     setLoading(true);
     // `#name` lists everything carrying the tag it names (the tag page's
@@ -196,14 +202,17 @@ export function CommandPalette({
     if (!isPick && q.startsWith('#') && q.length > 1) {
       const id = setTimeout(async () => {
         const name = q.slice(1).trim().toLowerCase();
-        const found = await searchEntities({ workspaceId, query: name, limit: 6, kinds: ['tag'] }).catch(() => []);
+        const found = await searchEntities({ workspaceId, query: name, limit: 6, kinds: ['tag'] }).catch(() => null);
+        let failed = found == null;
         const tag = (found || []).find(t => (t.title || '').toLowerCase() === name) || (found || [])[0] || null;
         let rows = [];
         if (tag) {
           const { data, error } = await supabase.rpc('get_things_tagged', { p_tag_id: tag.id, p_limit: 40 });
           if (!error && Array.isArray(data)) rows = data;
+          else failed = true;
         }
         if (cancelled) return;
+        setSearchFailed(failed);
         setAsyncRows([]);
         setPageHits([]);
         setTagHits(tag ? { tag, rows } : null);
@@ -214,10 +223,13 @@ export function CommandPalette({
     setTagHits(null);
     const id = setTimeout(async () => {
       const [rows, pages] = await Promise.all([
-        searchEntities({ workspaceId, query: q, limit: 30, kinds: isPick ? ['board'] : undefined }),
-        isPick ? Promise.resolve([]) : searchDocPages({ workspaceId, query: q, limit: CAP.docPages }).catch(() => []),
+        searchEntities({ workspaceId, query: q, limit: 30, kinds: isPick ? ['board'] : undefined }).catch(() => null),
+        isPick ? Promise.resolve([]) : searchDocPages({ workspaceId, query: q, limit: CAP.docPages }).catch(() => null),
       ]);
       if (cancelled) return;
+      // null is a search that failed, [] one that found nothing.
+      const failed = rows == null || pages == null;
+      setSearchFailed(failed);
       setAsyncRows(rows || []);
       setPageHits(pages || []);
       setLoading(false);
@@ -231,7 +243,8 @@ export function CommandPalette({
       // fixes that without storing a word of what anyone typed: length, term
       // count and result count. The query TEXT would be more useful still and is
       // deliberately not collected.
-      if (!searchedRef.current) {
+      // A failed search is not a zero-result search: it would poison that rate.
+      if (!searchedRef.current && !failed) {
         searchedRef.current = true;
         const n = (rows || []).length + (pages || []).length;
         try {
@@ -246,7 +259,7 @@ export function CommandPalette({
       }
     }, 250);
     return () => { cancelled = true; clearTimeout(id); };
-  }, [open, q, workspaceId, isPick]);
+  }, [open, q, workspaceId, isPick, retryTick]);
 
   // Instant local board-name matches from the in-memory map.
   const localBoards = useMemo(() => {
@@ -514,7 +527,8 @@ export function CommandPalette({
   };
 
   const hasResults = flat.length > 0;
-  const showEmpty = !!q && !hasResults && !loading;
+  const showFailed = !!q && searchFailed && !hasResults && !loading;
+  const showEmpty = !!q && !hasResults && !loading && !searchFailed;
 
   return createPortal(
     <div className="cmdk-bg" onClick={onClose}>
@@ -559,6 +573,9 @@ export function CommandPalette({
         </div>
 
         <div className="cmdk-list">
+          {showFailed && (
+            <LoadFailed className="cmdk-empty" what="search results" onRetry={() => { retrySearch(); inputRef.current?.focus(); }} />
+          )}
           {showEmpty && (
             <div className="cmdk-empty">{isPick ? 'No clusters match.' : `No results for “${q}”.`}</div>
           )}
