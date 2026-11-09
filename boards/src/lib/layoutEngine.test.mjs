@@ -13,7 +13,7 @@ import {
   arrange, rearrange, relativeLayout, justifiedRows, naturalWidth, isLayout, layoutDrop,
   alignCards, distributeCards, ALIGNMENTS, AXES,
   LAYOUTS, DEFAULT_LAYOUT, LAYOUT_GAP, TARGET_ROW_HEIGHT,
-  relativeLayoutByGroup, placeGrouped, GROUP_OUTLINE_PAD, GROUP_LABEL_ROOM,
+  relativeLayoutByGroup, placeGrouped, GROUP_OUTLINE_PAD, GROUP_LABEL_ROOM, GROUP_GAP, topSlot,
 } from './layoutEngine.js';
 
 // A deliberately awkward corpus: portrait, panorama, square, tall, and one with
@@ -626,4 +626,32 @@ test('the outline and name room match what the canvas draws', () => {
   const above = Number(body.match(/const labelTop\s*=\s*minY - PAD - (\d+);/)?.[1]);
   assert.equal(pad, GROUP_OUTLINE_PAD, 'the outline pad moved');
   assert.equal(pad + above, GROUP_LABEL_ROOM, 'the name moved');
+});
+
+test('topSlot: above loose cards by the gap, left with the leftmost', () => {
+  const cards = [{ x: 40, y: 100, w: 50, h: 50 }, { x: 10, y: 300, w: 50, h: 50 }];
+  assert.deepEqual(topSlot(cards, 80), { x: 10, y: 100 - 24 - 80 });
+  assert.deepEqual(topSlot(cards, 80, 10), { x: 10, y: 100 - 10 - 80 });
+});
+
+test('topSlot: clear of a section\'s outline and name', () => {
+  const cards = [{ x: 80, y: 80, w: 240, h: 160, groupId: 'g1' }, { x: 400, y: 400, w: 50, h: 50 }];
+  const at = topSlot(cards, 200);
+  assert.equal(at.y + 200, 80 - GROUP_LABEL_ROOM - GROUP_GAP);
+  assert.equal(at.x, 80 - GROUP_OUTLINE_PAD);
+});
+
+test('topSlot: a loose card above a section sets the height when it is higher', () => {
+  const cards = [{ x: 80, y: 80, w: 240, h: 160, groupId: 'g1' }, { x: 100, y: 0, w: 50, h: 50 }];
+  const at = topSlot(cards, 100);
+  assert.equal(at.y + 100, -24);
+  assert.equal(at.x, 80 - GROUP_OUTLINE_PAD);
+});
+
+test('topSlot: ignores cards without a position and size; null when none have one', () => {
+  const bad = [{ x: 0, y: 0 }, { x: 1, y: 1, w: 5, h: NaN }, null, { w: 5, h: 5 }];
+  assert.equal(topSlot(bad, 50), null);
+  assert.equal(topSlot([], 50), null);
+  assert.equal(topSlot(undefined, 50), null);
+  assert.deepEqual(topSlot([...bad, { x: 5, y: 10, w: 1, h: 1 }], 50), { x: 5, y: 10 - 24 - 50 });
 });

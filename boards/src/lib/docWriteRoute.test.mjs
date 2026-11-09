@@ -14,6 +14,7 @@ import * as syncProtocol from 'y-protocols/sync';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import { handleApiRoute } from '../worker-api.js';
+import { GROUP_OUTLINE_PAD, GROUP_LABEL_ROOM, GROUP_GAP } from './layoutEngine.js';
 import { cardToYMap, readCards } from './yhelpers.js';
 import { cardScope, initCardDocStore, setDocMode, readPages } from './docState.js';
 
@@ -364,4 +365,28 @@ test('write_doc, fetch and edit_doc_page over MCP', async () => {
   const wrong = await tool('write_doc', { board_id: B1, card_id: cardId, title: 'x', pages: [{ markdown: 'y' }] });
   assert.equal(wrong.isError, true);
   assert.match(wrong.content[0].text, /update_cards renames/);
+});
+
+test('position "top" puts the doc above a section\'s outline and name, not on them', async () => {
+  room(B1, {
+    cards: [
+      { id: 'n1', kind: 'note', html: '<p>Sodium light</p>', x: 80, y: 80, w: 240, h: 160, groupId: 'g1' },
+      { id: 'n2', kind: 'note', html: '<p>Wet neon</p>', x: 344, y: 80, w: 240, h: 160, groupId: 'g1' },
+      { id: 'n3', kind: 'note', html: '<p>Golden Gai</p>', x: 80, y: 400, w: 240, h: 160 },
+    ],
+  });
+  const r = await api('POST', `/boards/${B1}/docs`, { ...TREATMENT, position: 'top' });
+  assert.equal(r.status, 201);
+  const c = docCard(r.body.card.id);
+  assert.ok(c.y + c.h <= 80 - GROUP_LABEL_ROOM, 'clear of the section name');
+  assert.equal(c.y + c.h, 80 - GROUP_LABEL_ROOM - GROUP_GAP);
+  assert.equal(c.x, 80 - GROUP_OUTLINE_PAD);
+
+  // Loose cards only: just above them, as before.
+  room(B1, { cards: [{ id: 'n1', kind: 'note', html: '<p>hi</p>', x: 0, y: 0, w: 100, h: 100 }] });
+  const r2 = await api('POST', `/boards/${B1}/docs`, { ...TREATMENT, position: 'top' });
+  assert.equal(r2.status, 201);
+  const c2 = docCard(r2.body.card.id);
+  assert.equal(c2.y + c2.h, -24);
+  assert.equal(c2.x, 0);
 });

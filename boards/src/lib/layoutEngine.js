@@ -243,7 +243,7 @@ export function relativeLayout(items, opts = {}) {
 export const GROUP_OUTLINE_PAD = 12;
 export const GROUP_LABEL_ROOM = GROUP_OUTLINE_PAD + 22;
 // Between two groups' blocks, outline to outline.
-const GROUP_GAP = 48;
+export const GROUP_GAP = 48;
 
 const groupOf = (c) => (c?.groupId ? String(c.groupId) : null);
 
@@ -268,6 +268,26 @@ function frameOf(b) {
     w: b.right - b.x + 2 * GROUP_OUTLINE_PAD,
     h: b.bottom - b.y + GROUP_LABEL_ROOM + GROUP_OUTLINE_PAD,
   };
+}
+
+// Where a card set "at the top" of a board goes (write_doc's position "top"):
+// left with the leftmost card or section outline, above everything, and set
+// out the way arrange's blocks are: `gap` above a loose card, GROUP_GAP above
+// a section's outline and name (frameOf), so it never lands on a section's
+// name. null when nothing on the board has a position and size.
+export function topSlot(cards, h, gap = 24) {
+  let x = Infinity; let bottom = Infinity;
+  for (const c of cards || []) {
+    if (![c?.x, c?.y, c?.w, c?.h].every(Number.isFinite)) continue;
+    if (groupOf(c)) {
+      x = Math.min(x, c.x - GROUP_OUTLINE_PAD);
+      bottom = Math.min(bottom, c.y - GROUP_LABEL_ROOM - GROUP_GAP);
+    } else {
+      x = Math.min(x, c.x);
+      bottom = Math.min(bottom, c.y - gap);
+    }
+  }
+  return Number.isFinite(x) ? { x, y: bottom - h } : null;
 }
 
 const overlapping = (a, b) =>
