@@ -135,7 +135,7 @@ function WorkspaceHeader({
       const rect = triggerRef.current?.getBoundingClientRect();
       if (rect) setPlace((p) => (p ? workspaceMenuPlacement(rect, { width: window.innerWidth }) : p));
     };
-    const scroller = triggerRef.current?.closest('.ph-panel');
+    const scroller = triggerRef.current?.closest('.ph-panel-scroll');
     const root = triggerRef.current?.closest('.ph-root');
     window.addEventListener('resize', follow);
     scroller?.addEventListener('scroll', close, { passive: true });
@@ -267,55 +267,57 @@ export function ProjectsHome({
         </button>
       ) : (
         <section className="ph-panel surface-frosted" aria-label="Your clusters">
-          <WorkspaceHeader
-            workspace={workspace}
-            workspaces={workspaces}
-            personalWorkspaceId={personalWorkspaceId}
-            selfUserId={selfUserId}
-            wsPeers={wsPeers}
-            onSwitch={onSwitchWorkspace}
-            onNew={onNewWorkspace}
-            onRemove={onRemoveWorkspace}
-            onOpenSettings={onOpenWorkspaceSettings}
-            onShare={onShareWorkspace}
-          />
-          {jump.length > 0 && (
+          <div className="ph-panel-scroll">
+            <WorkspaceHeader
+              workspace={workspace}
+              workspaces={workspaces}
+              personalWorkspaceId={personalWorkspaceId}
+              selfUserId={selfUserId}
+              wsPeers={wsPeers}
+              onSwitch={onSwitchWorkspace}
+              onNew={onNewWorkspace}
+              onRemove={onRemoveWorkspace}
+              onOpenSettings={onOpenWorkspaceSettings}
+              onShare={onShareWorkspace}
+            />
+            {jump.length > 0 && (
+              <div className="ph-section">
+                <div className="ph-eyebrow">Jump back in</div>
+                <div className="ph-jump">
+                  {jump.map((b) => (
+                    <button key={b.id} type="button" className="ph-jump-item"
+                            onClick={() => onOpenBoard?.(b.id, 'jump')} title={displayName(b)}>
+                      <Thumb board={b} label={b.id === rootId ? 'Studio' : displayName(b)} />
+                      <span className="ph-jump-name">{b.id === rootId ? (root?.name || 'Studio') : displayName(b)}</span>
+                      <span className="ph-jump-when">{relativeTimeShort(boardRecency(b))}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="ph-section">
-              <div className="ph-eyebrow">Jump back in</div>
-              <div className="ph-jump">
-                {jump.map((b) => (
-                  <button key={b.id} type="button" className="ph-jump-item"
-                          onClick={() => onOpenBoard?.(b.id, 'jump')} title={displayName(b)}>
-                    <Thumb board={b} label={b.id === rootId ? 'Studio' : displayName(b)} />
-                    <span className="ph-jump-name">{b.id === rootId ? (root?.name || 'Studio') : displayName(b)}</span>
-                    <span className="ph-jump-when">{relativeTimeShort(boardRecency(b))}</span>
-                  </button>
+              <div className="ph-eyebrow">Your clusters</div>
+              <div className="ph-grid">
+                {root && (
+                  <Tile board={root} label={root.name || 'Studio'}
+                        onOpen={() => onOpenBoard?.(root.id, 'studio')} />
+                )}
+                {projects.map((b) => (
+                  <Tile key={b.id} board={b}
+                        label={UNTITLED_RE.test(b.name || '') ? 'Untitled cluster' : displayName(b)}
+                        onOpen={() => onOpenBoard?.(b.id, 'tile')} />
                 ))}
+                <NewProjectTile disabled={!canCreate} onCreate={onNewProject} />
               </div>
             </div>
-          )}
 
-          <div className="ph-section">
-            <div className="ph-eyebrow">Your clusters</div>
-            <div className="ph-grid">
-              {root && (
-                <Tile board={root} label={root.name || 'Studio'}
-                      onOpen={() => onOpenBoard?.(root.id, 'studio')} />
-              )}
-              {projects.map((b) => (
-                <Tile key={b.id} board={b}
-                      label={UNTITLED_RE.test(b.name || '') ? 'Untitled cluster' : displayName(b)}
-                      onOpen={() => onOpenBoard?.(b.id, 'tile')} />
-              ))}
-              <NewProjectTile disabled={!canCreate} onCreate={onNewProject} />
-            </div>
+            {graph && (
+              <button type="button" className="ph-explore" onClick={() => onExplore?.(true)}>
+                Explore universe →
+              </button>
+            )}
           </div>
-
-          {graph && (
-            <button type="button" className="ph-explore" onClick={() => onExplore?.(true)}>
-              Explore universe →
-            </button>
-          )}
         </section>
       )}
     </div>

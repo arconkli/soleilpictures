@@ -137,35 +137,43 @@ loadPixelLater({ signedIn: hasCachedSession() });
   document.head.appendChild(s);
 })();
 
-// Diagnostic: confirm the panel grain is actually rendering on each
-// dark surface. Logs once after first paint with each surface's
-// computed background-image + blend mode. Toggle off via
-// window.__SOLEIL_GRAIN_DEBUG__ = false. Dev builds only (the house rule for
-// QA harnesses): in production it logged ~30 lines, fetched /grain.gif and
-// forced style recalcs 1.5s into every page load, often mid hero animation.
+// Diagnostic: confirm the film grain is actually rendering on each surface.
+// Logs once after first paint with each surface's grain layer (its ::after).
+// Toggle off via window.__SOLEIL_GRAIN_DEBUG__ = false. Dev builds only (the
+// house rule for QA harnesses): in production it logged ~30 lines, fetched
+// /grain.gif and forced style recalcs 1.5s into every page load, often mid
+// hero animation.
 if (import.meta.env.DEV && typeof window !== 'undefined' && window.__SOLEIL_GRAIN_DEBUG__ !== false) {
   setTimeout(() => {
     const surfaces = ['.topbar', '.sidebar', '.sb-mid', '.rail', '.share-modal', '.modal', '.twk-panel',
-      '.bc', '.cnv-tools', '.tob', '.sketchpad-toolbar', '.sketchpad-frame',
+      '.cnv-tools', '.tob', '.sketchpad-toolbar', '.sketchpad-frame',
       '.ctx-menu', '.ctx-submenu', '.cp-pop', '.ws-menu', '.cnv-add-menu', '.topbar-add-menu',
       '.entity-picker', '.entity-hover-popover', '.link-popover', '.link-hover-card',
       '.account-modal', '.settings-modal', '.home-graph-drawer', '.tag-detail', '.inbox'];
     const head = '%c[grain]';
     const headStyle = 'color:#ffa500;font-weight:600';
-    // Sanity: try to load grain.gif directly so we know the asset exists.
-    const probe = new Image();
-    probe.onload  = () => console.log(head, headStyle, `/grain.gif loaded ok: ${probe.naturalWidth}×${probe.naturalHeight}`);
-    probe.onerror = () => console.warn(head, headStyle, '/grain.gif FAILED to load — check public/ asset path');
-    probe.src = '/grain.gif';
+    // Sanity: load the tile --grain-url names, so we know the asset exists.
+    const tokenValue = getComputedStyle(document.documentElement).getPropertyValue('--grain-url');
+    const found = /url\(\s*(['"]?)(.*?)\1\s*\)/.exec(tokenValue);
+    if (!found) {
+      console.warn(head, headStyle, `--grain-url has no url: ${tokenValue}`);
+    } else {
+      const src = found[2];
+      const probe = new Image();
+      probe.onload  = () => console.log(head, headStyle, `grain tile loaded ok: ${probe.naturalWidth}×${probe.naturalHeight} (${src})`);
+      probe.onerror = () => console.warn(head, headStyle, `grain tile FAILED to load (${src}): check src/assets/grain`);
+      probe.src = src;
+    }
     for (const sel of surfaces) {
       const el = document.querySelector(sel);
       if (!el) { console.log(head, headStyle, `${sel} — not in DOM yet`); continue; }
       const cs = getComputedStyle(el);
+      const g = getComputedStyle(el, '::after');
       console.log(head, headStyle, sel, {
-        bgImage: cs.backgroundImage,
+        bgImage: g.backgroundImage,
+        bgSize:  g.backgroundSize,
+        opacity: g.opacity,
         bgColor: cs.backgroundColor,
-        blend:   cs.backgroundBlendMode,
-        opacity: cs.opacity,
       });
     }
   }, 1500);

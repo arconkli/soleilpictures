@@ -121,7 +121,10 @@ export const CEILINGS = {
   // 2026-11-09: +0.1 KB for where those words sit and fade in under the sun
   // (styles.css .loading-words); the old upload overlay's rules left.
   // 96,291 B on main d2b3c2f0, 96,390 B with it.
-  entryCss: 96_500,
+  // 2026-11-09: +0.1 KB for the film grain (styles.css, PANEL GRAIN): the frosted
+  // panels of the current look carry the grain, and screens that scroll themselves
+  // carry it as a background. 96,390 B on main 8fab397a, 96,587 B with it.
+  entryCss: 96_600,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
   // they draw (vite.config.js iconSplit), from 687 KB.

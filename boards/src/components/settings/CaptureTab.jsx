@@ -66,7 +66,7 @@ export function CaptureTab() {
 
         <Toggle
           label="Drop the film grain"
-          desc="The grain is an animated texture. It’s invisible in a still and ruinous in a video — pure noise compresses terribly — so a shoot is better without it."
+          desc="The grain is a fine film texture on the backgrounds. It barely shows in a still, but a video spends bits on noise, so a shoot is better without it."
           value={cap.freeze}
           onChange={(v) => set({ freeze: v })} />
 

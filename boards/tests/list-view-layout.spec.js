@@ -80,9 +80,12 @@ test('the grain is painted on the scrollable surface, not on a one-screen pseudo
       afterImage: after.backgroundImage,
     };
   });
-  // `local` is the whole point: it tiles across scrollHeight instead of the
-  // one-viewport padding box an inset:0 ::after is sized to.
-  expect(bg.attachment).toContain('local');
+  // The grain is the scroller's own background, which stays on its box and
+  // so covers whatever is in view at any scroll. Not `local`: a local,
+  // see-through, tiled background is repainted on every scroll frame (the
+  // .doc-paper judder), and not an inset:0 ::after, which is one viewport
+  // tall and scrolls away with the rows.
+  expect(bg.attachment).not.toContain('local');
   expect(bg.image).toContain('grain');
   // And it must NOT also be coming from the shared ::after tier, which is what
   // the drag-over rule turned into a 60%-opacity veil by raising the same

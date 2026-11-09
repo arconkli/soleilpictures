@@ -35,11 +35,16 @@
 .app.sb-files.is-files-page .split-pane,
 .app.sb-files.is-files-page .surface-wrap:not(.is-canvas),
 .app.sb-files.is-files-page .fdl-files { background: transparent; }
+/* The ground's grain: around the sheet it is .surface-wrap's (styles.css PANEL GRAIN). Under the sidebar a
+   board runs its own grain on (clusterSidebar.css); this page has none there, so the sidebar lays it, or that
+   strip would read bare beside the rest. */
+.app.is-floating-chrome.is-files-page > .sidebar::after { display: block; }
 
 /* ── The sheet ───────────────────────────────────────────────────────────── */
 /* The list's own scroller, inset as the sidebar's cards are (8px), with
-   their radius and hairline. Opaque: the files sit on it, not on glass. The
-   hairline is an outline, drawn over what scrolls under it. */
+   their radius and hairline. Opaque: the files sit on it, not on glass. It
+   carries the grain as the sidebar's cards do, as a background because it
+   scrolls. The hairline is an outline, drawn over what scrolls under it. */
 .list-wrap[data-look='sb'] {
   --files-floor: var(--bg-1);
   --files-gutter: 16px;
@@ -54,7 +59,6 @@
   padding: 0 var(--files-gutter);
   border-radius: 12px;
   background-color: var(--bg-1);
-  background-image: none;
   box-shadow: var(--sbf-glass-shadow);
   outline: 1px solid var(--sbf-glass-line);
   outline-offset: -1px;
@@ -526,12 +530,16 @@
 .ql[data-look='sb'] .ql-nav:hover { background: var(--bg-4); color: var(--ink-0); }
 .ql[data-look='sb'] .lightbox-stage img,
 .ql[data-look='sb'] .ql-video { border-radius: 8px; }
-/* Info inside Quick look: the card beside the stage, in the islands' glass. */
+/* Info inside Quick look: the card beside the stage, in the islands' glass. Relative: it hosts the grain.
+   Info's body scrolls rather than the whole card, as in the drawer, so the card's grain covers all of it and
+   its head and actions stay put. */
 .ql[data-look='sb'] .cb-detail.is-inline {
+  position: relative; overflow: hidden;
   align-self: flex-start; max-height: 100%; border: 1px solid var(--line-1); border-radius: 12px;
   background: color-mix(in oklab, var(--bg-1) 86%, transparent);
   -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
 }
+.ql[data-look='sb'] .cb-detail.is-inline .cbd-body { flex: 1; min-height: 0; }
 @media (max-width: 720px) {
   .ql[data-look='sb'] .ql-btn { width: 32px; padding: 0; justify-content: center; }
   /* The name over where it is in the walk, in the room the actions leave. */

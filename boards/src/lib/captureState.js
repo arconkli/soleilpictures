@@ -1,7 +1,7 @@
 // captureState.js — the admin Capture Mode flag store.
 //
 // Capture Mode stages the app for marketing screenshots and screen recordings:
-// hides chrome, mutes toasts, freezes the grain, reframes a board to a phone
+// hides chrome, mutes toasts, drops the grain, reframes a board to a phone
 // shape, swaps in a persona and populates the canvas with synthetic peers.
 //
 // Shaped after perf.js on purpose. Every reader on a hot path (toast(), the
@@ -34,7 +34,7 @@ const DEFAULTS = Object.freeze({
   on: false,          // master switch
   clean: false,       // hide chrome (body[data-capture-clean])
   silence: false,     // mute toasts
-  freeze: false,      // stop the grain + idle animation
+  freeze: false,      // drop the grain + stop idle animation
   spotlight: false,   // own-cursor vignette + click ripples
   reframe: false,     // ephemeral phone-shaped re-layout
   width: 0,           // reframe target width in board units; 0 = auto
