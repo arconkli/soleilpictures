@@ -532,7 +532,8 @@ body[data-sb-files] .msg-composer {
   gap: 8px; margin: 0; padding: 6px 8px 8px;
   border: 0; border-radius: 0; background: transparent;
 }
-body[data-sb-files] .msg-composer::after { border-radius: inherit; }
+/* The composer is see-through here, so .msg-panel's grain already covers it. */
+body[data-sb-files] .msg-composer::after { content: none; }
 body[data-sb-files] .msg-composer-field {
   display: flex; align-items: flex-end; gap: 2px; box-sizing: border-box;
   min-height: 40px; padding: 4px; border-radius: 12px; background: var(--sbf-field);

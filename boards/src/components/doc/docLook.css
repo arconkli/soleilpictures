@@ -101,8 +101,7 @@
 }
 
 /* The header, the footer and the side panel wear the page list's grain, as
-   the header and footer they stand in for do (styles.css PANEL GRAIN, tier 1,
-   its dial). */
+   the header and footer they stand in for do (styles.css PANEL GRAIN). */
 .dl-head, .dl-foot, .dl-panel { isolation: isolate; }
 .dl-foot { position: relative; }
 .dl-head::after, .dl-foot::after, .dl-panel::after {
@@ -112,8 +111,8 @@
   pointer-events: none;
   background-image: var(--grain-url);
   background-repeat: repeat;
-  background-size: 320px 240px;
-  opacity: 0.025;
+  background-size: var(--grain-size);
+  opacity: var(--grain-o);
   z-index: -1;
   border-radius: inherit;
 }
@@ -603,11 +602,11 @@ button.dl-drow { cursor: pointer; }
   background-color: var(--bg-0);
   background-image:
     linear-gradient(
-      color-mix(in srgb, var(--bg-0) 97%, transparent),
-      color-mix(in srgb, var(--bg-0) 97%, transparent)
+      color-mix(in srgb, var(--bg-0) var(--grain-keep), transparent),
+      color-mix(in srgb, var(--bg-0) var(--grain-keep), transparent)
     ),
     var(--grain-url);
-  background-size: auto, 320px 240px;
+  background-size: auto, var(--grain-size);
   background-position: 0 0, 0 100%;
 }
 .dl-cap > .tl-bar { max-width: 100%; }

@@ -75,7 +75,8 @@
   animation: sb-orbit-in 2.2s cubic-bezier(.16,.84,.3,1) both; }
 @keyframes sb-orbit-in { from { opacity: 0; transform: rotate(-18deg) scale(.94); } to { opacity: 1; transform: none; } }
 .sb-grain { position: absolute; inset: 0; z-index: 1; pointer-events: none;
-  background-image: url('/grain.gif'); background-size: 320px 240px; opacity: .03; }
+  background-image: var(--grain-url); background-repeat: repeat; background-size: var(--grain-size);
+  opacity: var(--grain-o); }
 
 /* layer 1 — moodboard cards */
 .sb-cards { position: absolute; inset: 0; z-index: 2; }

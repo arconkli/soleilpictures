@@ -9,7 +9,11 @@
 .legal-screen {
   position: fixed;
   inset: 0;
-  background: var(--bg-0);
+  /* A background stays put while the screen scrolls; an ::after would scroll away. */
+  --screen-wash: color-mix(in srgb, var(--bg-0) var(--grain-keep), transparent);
+  background-color: var(--bg-0);
+  background-image: linear-gradient(var(--screen-wash), var(--screen-wash)), var(--grain-url);
+  background-size: auto, var(--grain-size);
   color: var(--ink-1);
   overflow-y: auto;
   overflow-x: hidden;

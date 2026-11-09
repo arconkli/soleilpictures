@@ -25,7 +25,7 @@ test('local studio shell — desktop baseline', async ({ page }) => {
   // visible at this viewport. This anchors the shot to a known-good frame.
   await expect(page.locator('.canvas-wrap')).toBeVisible();
   await page.waitForTimeout(800);
-  // Mask the grain layer — it animates and would cause every diff to fail.
+  // Mask the grain layers. The grain is a still tile, but the masks keep the shot independent of it.
   await expect(page).toHaveScreenshot('studio-shell.png', {
     fullPage: false,
     mask: [page.locator('.grain-canvas, .grain-surface')],

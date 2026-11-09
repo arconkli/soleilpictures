@@ -44,12 +44,22 @@
 [data-theme="light"] .public-dark .clusters-mark-light { display: none; }
 
 :root {
-  /* The film grain, as one token rather than five copies of a url().
-     It is an ANIMATED gif, which makes it the single biggest obstacle to a
-     deterministic capture: it is why tests/visual/desktop-baseline.spec.js has
-     to mask .grain-canvas before it can diff anything. Capture Mode's freeze
-     sets this to `none` on <body> and every surface inherits it at once. */
-  --grain-url: url('/grain.gif');
+  /* The film grain: one still, fine, seamless tile (src/assets/grain, made by
+     scripts/grain/gen-grain.py) drawn at one strength on every surface that
+     carries it: grounds, bars, panels, menus, dialogs, toasts. Cards and
+     pictures stay clean. Each pixel of the tile is white or black with its own
+     alpha, so it textures a ground without tinting it. Every site reads the
+     picture, its size and its strength (--grain-o) from here; a site that
+     paints the grain under a wash of its own floor keeps --grain-keep
+     (100% minus --grain-o) of the floor, which comes to the same thing. Light
+     theme turns it down a touch in its own token block. Capture Mode's freeze
+     sets --grain-url to none on <body> and every surface follows. Every engine
+     reads -webkit-image-set (CSS Images 4 keeps it as a required alias), so
+     one spelling is enough. */
+  --grain-url: -webkit-image-set(url('./assets/grain/grain-1x.webp') 1x, url('./assets/grain/grain-2x.webp') 2x);
+  --grain-size: 192px 192px;
+  --grain-o: .03;
+  --grain-keep: 97%;
 
   /* Native controls (date pickers, selects, checkboxes, scrollbars) follow the
      app theme. Without it they render light-scheme inside the dark UI: the
@@ -154,6 +164,9 @@
 
 [data-theme='light'] {
   color-scheme: light;
+  /* The grain reads a touch stronger on a light ground. */
+  --grain-o: .027;
+  --grain-keep: 97.3%;
   --bg-0:   #f5f5f7;
   --bg-1:   #fafafc;
   --bg-2:   #ededf0;
@@ -240,24 +253,21 @@ body {
      matters (.topbar, .auth-card, .mb-nav, .sheet-panel). */
 }
 
-/* Animated grain texture — ARC browser vibe. Mounted INSIDE each
-   workspace surface (canvas, home graph, tag detail) so it sits
-   on the surface only. Cards, headers, menus, popovers, modals
-   all stack ABOVE it. pointer-events:none so it never blocks
-   input. .grain-canvas is the legacy alias kept so older callers
-   still work. */
+/* The film grain on a workspace ground (canvas, home graph, tag detail,
+   Universe). Mounted INSIDE each surface so it sits on the ground only:
+   cards, headers, menus, popovers and modals all stack ABOVE it, and
+   pointer-events:none keeps it out of the way of input. .grain-canvas is the
+   legacy alias kept so older callers still work. */
 .grain-canvas, .grain-surface {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background-image: var(--grain-url);
   background-repeat: repeat;
-  background-size: 320px 240px;
-  opacity: 0.03;
+  background-size: var(--grain-size);
+  opacity: var(--grain-o);
   z-index: 0;
 }
-[data-theme='light'] .grain-canvas,
-[data-theme='light'] .grain-surface { opacity: 0.025; }
 /* The board's ground drawn on a canvas in step with the camera (CanvasSurface
    drawGround, lib/canvasGround.js; held to the preview). Under the grain and
    everything else, and never in the way of a press. Its script sets the left
@@ -4063,15 +4073,16 @@ body {
 
 /* List surface */
 /* The list is its own scroll container, which is why the film grain is painted
-   HERE rather than through the shared `::after` tier near the bottom of this
-   file. An absolutely-positioned ::after inside an `overflow: auto` element is
-   sized to the PADDING BOX — one viewport tall — and scrolls away with the
-   content, so everything past the first screenful was ungrained.
-   `background-attachment: local` tiles across the full scrollHeight instead:
-   the same fix .doc-paper already carries, for the same reason.
-
-   The 97.5% wash over the grain reproduces tier 1's `opacity: 0.025` dial
-   exactly, and rides --bg-2 so it follows the theme.
+   on its own background rather than through the shared `::after` in PANEL
+   GRAIN: an absolutely-positioned ::after inside an `overflow: auto` element
+   is sized to the PADDING BOX, one viewport tall, and scrolls away with the
+   content. A background stays on the scroller's box, so it covers whatever is
+   in view at any scroll, and the grain holds still behind the scrolling rows
+   as it does on the canvas and the doc page. Not `background-attachment:
+   local`: a local, see-through, tiled background is repainted on every scroll
+   frame (.doc-paper dropped it for the judder it caused). The wash over the
+   grain keeps --grain-keep of the floor, the app's one grain strength, and
+   rides the floor so it follows the theme.
 
    Lifting it out of the tier also fixes the drag-over state, which was never
    reported because it reads as "the drop zone looks odd":
@@ -4087,8 +4098,7 @@ body {
   background-color: var(--files-floor);
   background-image: var(--files-floor-paint);
   background-repeat: repeat, repeat;
-  background-size: auto, 320px 240px;
-  background-attachment: local, local;
+  background-size: auto, var(--grain-size);
   /* Gutters scale with the viewport. A flat 40px each side spent a fifth of a
      phone screen on nothing, on the one surface whose whole job is a list.
 
@@ -4109,7 +4119,7 @@ body {
 .ql { --files-floor: #08080a; }
 .list-wrap, .ql {
   --files-gutter: clamp(14px, 4vw, 40px);
-  --files-wash: color-mix(in srgb, var(--files-floor) 97.5%, transparent);
+  --files-wash: color-mix(in srgb, var(--files-floor) var(--grain-keep), transparent);
   --files-floor-paint: linear-gradient(var(--files-wash), var(--files-wash)), var(--grain-url);
   --files-paper: color-mix(in srgb, var(--ink-0) 5%, var(--files-floor));
   --files-paper-hi: color-mix(in srgb, var(--ink-0) 8%, var(--files-floor));
@@ -5928,7 +5938,11 @@ a.auth-btn { display: inline-flex; align-items: center; justify-content: center;
 .pricing-screen {
   position: fixed;
   inset: 0;
-  background: var(--bg-0);
+  /* A background stays put while the screen scrolls; an ::after would scroll away. */
+  --screen-wash: color-mix(in srgb, var(--bg-0) var(--grain-keep), transparent);
+  background-color: var(--bg-0);
+  background-image: linear-gradient(var(--screen-wash), var(--screen-wash)), var(--grain-url);
+  background-size: auto, var(--grain-size);
   overflow: auto;
   display: flex;
   flex-direction: column;
@@ -13341,21 +13355,22 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
      for it per call. */
   background-color: var(--bg-0);
   /* Grain texture on the scroller's box. The translucent top layer is the
-     base color at 97% opacity, so the grain shows through at ~3% — same look
-     as the canvas's separate <div class="grain-canvas">. It used to be
+     base colour at --grain-keep, so the grain shows through at the app's one
+     strength (--grain-o), the same look as the canvas's separate
+     <div class="grain-canvas">. It used to be
      `background-attachment: local` so the grain scrolled with the sheets, but
      a local-attached, translucent, tiled background has to be repainted on
      every scroll frame (Safari in particular gives up composited scrolling),
-     which is what made long docs judder. The grain at 3% reads the same
+     which is what made long docs judder. The grain reads the same
      standing still behind the sheets. */
   background-image:
     linear-gradient(
-      color-mix(in srgb, var(--bg-0) 97%, transparent),
-      color-mix(in srgb, var(--bg-0) 97%, transparent)
+      color-mix(in srgb, var(--bg-0) var(--grain-keep), transparent),
+      color-mix(in srgb, var(--bg-0) var(--grain-keep), transparent)
     ),
     var(--grain-url);
   background-repeat: repeat, repeat;
-  background-size: auto, 320px 240px;
+  background-size: auto, var(--grain-size);
   display: flex; flex-direction: column;
   align-items: center;
   padding: 32px 24px 96px;
@@ -15686,12 +15701,21 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   transform: translate(-50%, -50%);
   width: min(760px, calc(100% - 48px));
   max-height: calc(100% - 64px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: phPanelIn var(--dur-base) var(--ease);
+}
+/* The panel itself does not scroll, so its grain ::after covers all of it;
+   the content scrolls here. */
+.ph-panel-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
-  padding: 22px 24px 18px;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  animation: phPanelIn var(--dur-base) var(--ease);
+  padding: 22px 24px 18px;
 }
 @keyframes phPanelIn {
   from { opacity: 0; transform: translate(-50%, calc(-50% + 6px)); }
@@ -15710,9 +15734,9 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   border-radius: 0;
   border: none;
   box-shadow: none;
-  padding: 18px 16px 24px;
   animation: none;
 }
+.ph-root.no-graph .ph-panel-scroll { padding: 18px 16px 24px; }
 .ph-section { display: flex; flex-direction: column; gap: 10px; }
 /* The workspace these projects belong to, at the top of the panel: the same
    switcher the sidebar has (WorkspaceMenu, portalled — the panel scrolls and
@@ -18741,10 +18765,9 @@ body[data-capture-clean='1'] .lc-open {
   display: none !important;
 }
 
-/* Freeze. The grain is an animated gif at 0.03 opacity — invisible in a still,
-   ruinous in a video (it is pure noise, so it defeats interframe compression)
-   and the reason the visual baseline spec has to mask it before diffing.
-   Dropping the token to `none` reaches all five surfaces that paint it. */
+/* Freeze. The grain is a still texture at a few percent: invisible in a still
+   frame, but a video spends bits on noise. Dropping the token to none reaches
+   every surface that paints it. */
 body[data-capture-freeze='1'] { --grain-url: none; }
 
 /* ── Capture HUD ───────────────────────────────────────────────────────
@@ -19683,34 +19706,49 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 }
 
 /* ──────────────────────────── PANEL GRAIN ─────────────────────────────
-   Two tiers, both implemented as `::after` pseudo-elements with a
-   straight `opacity` dial — no blend modes. Blend modes (overlay /
-   multiply) mathematically annihilate greyscale grain on near-black
-   backdrops; straight opacity is bg-luminance-agnostic and gives a
-   linear, predictable dial.
+   Surfaces that carry the film grain on an ::after behind their content:
+   chrome (topbar, sidebar, rail, the doc shell…) and floating pieces
+   (modals, toolbars, menus, popovers, toasts). One strength for all of
+   them, --grain-o, as a straight opacity: no blend modes, which
+   (overlay / multiply) annihilate greyscale grain on near-black grounds,
+   while straight opacity is linear and the same on any ground.
 
-     Tier 1 — deep dark chrome (topbar, sidebar, rail, doc shell, etc.).
-              Single opacity dial below.
-     Tier 2 — floating pieces (modals, toolbars, popovers, cards,
-              dropdowns). Single opacity dial below.
+   Cards are not here, wherever they appear (a cluster, Files, a doc): they
+   and their pictures stay clean. Their grain lived in the zoomed world, so
+   it grew and shrank with the camera, and only some kinds had it. Nor are
+   small pieces that sit inside a grained surface (message bubbles, comment
+   rows, chips, the presence stack): a see-through one showed the grain
+   twice. They keep the position/isolation below, which their insides
+   lean on.
 
-   The mounted `<div class="grain-canvas" />` mechanism inside
-   .canvas-wrap and .doc-paper is separate and untouched.
+   Frosted-glass panels carry the grain too (the Home panel, the welcome
+   card, the nudges, the inline composer and comment pop, the entity hover
+   card), because their blur wipes out the ground's grain beneath them. The
+   Home panel scrolls on an inner .ph-panel-scroll, so its grain covers the
+   whole panel rather than only its first screenful. Every frosted panel of
+   the current look (the activity tray, ⌘K, the notifications panel, the
+   floating sidebar cards, Files' Info, Quick look, Home's find bar and New
+   cluster card) carries its own for the same reason. .cmdk, .ntf-panel and .mlt were static and are made
+   relative here. The floating sidebar cards draw theirs on ::before,
+   because their ::after is the hairline. Screens that scroll themselves
+   (welcome / pricing, legal) paint it from a wash background instead, since
+   an ::after would scroll away.
 
-   Declared LAST in the file so any earlier `background:` shorthand
-   leaves things intact. */
-/* ── Tier 1 — opacity is the dial. ── */
-/* .canvas-wrap and .home-graph-wrap are NOT in tier 1 — they already
-   have a mounted <div class="grain-canvas/grain-surface" /> that covers
-   their interior. Adding the tier ::after on top would double-grain. */
+   Known gaps: the phone activity sheet's grab strip, and menus that scroll
+   only when very long (their grain covers the first screenful). Cards and
+   small islands (chips, pills, the canvas tool rail) stay smooth.
+
+   The grounds paint their own: the mounted .grain-canvas / .grain-surface
+   layers (.canvas-wrap and .home-graph-wrap are NOT here for that reason),
+   and the scrollers that paint it on their own background (.list-wrap,
+   .doc-paper). Declared LAST in the file so any earlier background:
+   shorthand leaves things intact. */
 .topbar,
 .sidebar,
 .rail,
 .public-shell,
 .public-topbar,
 .auth-screen,
-.pricing-screen,
-.welcome-screen,
 .app-error-panel,
 .app-error-stack,
 .surface-wrap,
@@ -19721,37 +19759,17 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .doc-center,
 /* .list-wrap is NOT in this tier — it is a scroll container, so an inset:0
    ::after only ever covers its first screenful. It paints the grain on its own
-   background with `background-attachment: local` instead; see the .list-wrap
-   block near the top of this file. */
+   background instead; see the .list-wrap block near the top of this file. */
 .inbox,
 .list-files {
   position: relative;
   isolation: isolate;
 }
-.topbar::after, .sidebar::after, .rail::after,
-.public-shell::after, .public-topbar::after,
-.auth-screen::after, .pricing-screen::after, .welcome-screen::after,
-.app-error-panel::after, .app-error-stack::after,
-.surface-wrap::after, .doc-card-modal::after,
-.doc-card-foot::after, .doc-surface::after, .doc-rail::after, .doc-center::after,
-.inbox::after, .list-files::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: var(--grain-url);
-  background-repeat: repeat;
-  background-size: 320px 240px;
-  opacity: 0.025;
-  z-index: -1;
-  border-radius: inherit;
-}
 
-/* ── Tier 2 — opacity is the dial. ──
-   .doc-editor-wrap (the actual page you type on), .bc-doc-page,
-   .bc-doc-stack, .doc-tpl-mini, and .doc-tpl-card-mini are
-   intentionally NOT in either tier — they are the actual page /
-   preview surfaces that should stay clean. */
+/* Floating pieces, and cards (host rules only, see above). .doc-editor-wrap
+   (the actual page you type on), .bc-doc-page, .bc-doc-stack, .doc-tpl-mini
+   and .doc-tpl-card-mini are the page / preview surfaces themselves and stay
+   clean. */
 .modal,
 .upgrade-modal,
 .share-modal,
@@ -19834,7 +19852,8 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
 .lightbox,
 .iep-pop,
 .iem-rail,
-.msg-panel {
+.msg-panel,
+.cmdk, .ntf-panel, .mlt {
   position: relative;
   isolation: isolate;
 }
@@ -19864,7 +19883,7 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
   .tob { position: fixed; }
 }
 
-.auth-screen, .pricing-screen, .welcome-screen,
+.auth-screen,
 .doc-card-modal, .ctx-menu, .ctx-submenu, .cp-pop,
 .entity-picker, .link-popover, .emoji-palette,
 .doc-ctx, .ent-backlinks-panel, .lightbox { position: fixed; }
@@ -19874,46 +19893,55 @@ body[data-tour-active] .cnv-tools:has(.cnv-tool.tour-target) .cnv-tool:not(.tour
    source order at equal specificity and the action bar scrolls away again. */
 .ws-menu-section, .list-selbar { position: sticky; }
 
-.modal::after, .upgrade-modal::after, .share-modal::after, .twk-panel::after, .tweaks-panel::after,
-.bc::after, .bc-child::after, .bc-list-cover::after, .bc-list-slot::after, .blc::after,
-.cnv-tools::after, .cnv-hint::after, .cnv-zoom::after,
-.tob::after,
-.doc::after, .doc-card::after, .doc-embed-picker::after,
-.doc-tpl::after, .doc-tpl-card::after,
-.doc-comments::after, .doc-comment::after, .doc-find::after,
-.doc-link-picker::after, .doc-outline::after,
-.note::after, .note-toolbar::after, .pc::after, .sched::after,
-.tt-embed::after, .tt-img-tb::after,
-.sketchpad-toolbar::after, .sketchpad-frame::after,
-.ctx-menu::after, .ctx-submenu::after, .cp-pop::after,
-.ws-menu::after, .ws-menu-row-pop::after, .ws-menu-section::after,
-.cnv-add-menu::after, .topbar-add-menu::after,
-.entity-picker::after, .entity-hover-popover::after,
-.link-popover::after, .link-hover-card::after,
-.account-modal::after, .settings-modal::after,
-.home-graph-drawer::after, .home-graph-hud::after,
-.tag-detail-menu::after, .tag-detail-head::after,
-.tag-detail-block-attr::after, .tag-detail-block-open::after, .tag-detail-group-block::after,
-.tag-picker::after, .surface-card::after,
-.sb-tags-suggestions::after, .sb-tag-menu::after, .sb-tag-suggest-list::after,
-.merge-picker::after, .ws-presence-audit::after,
-.picker::after, .public-card::after, .rb-swatch-pop::after,
-.folder-body::after, .folder-slot::after, .folder-tab::after, .hist-comment-card::after,
-.list-selbar::after, .split-bar::after, .toast::after,
-.emoji-palette::after, .msg-bubble::after, .msg-composer::after,
-.msg-pinned-strip::after, .presence-stack::after,
-.cfont::after, .doc-ctx::after,
-.ent-backlinks-panel::after, .feedback-dialog::after, .lightbox::after,
-.iep-pop::after, .iem-rail::after,
-.msg-panel::after {
+/* Frosted-glass panels and the phone bottom bar: already positioned by their
+   own rules (so no `position` here, which would override theirs wherever
+   they come earlier), they only need their own stacking context so the
+   z-index:-1 grain sits above their background and below their content. */
+.ph-panel, .welcome-request-card, .inline-composer, .comment-inline-pop,
+.onboarding-coachmark, .ent-pop, .fv-banner, .mb-nav,
+.imptray, .atr-slim, .tpladd, .sbf-upmenu, .ch-bar, .ch-naming, .cb-detail,
+.ql[data-look='sb'], .legal-topbar, .app.is-floating-chrome .sbf-card { isolation: isolate; }
+
+.topbar::after, .sidebar::after, .rail::after, .public-shell::after,
+.public-topbar::after, .auth-screen::after, .app-error-panel::after,
+.app-error-stack::after,
+.surface-wrap::after, .doc-card-modal::after, .doc-card-foot::after,
+.doc-surface::after, .doc-rail::after, .doc-center::after, .inbox::after,
+.list-files::after, .modal::after, .upgrade-modal::after, .share-modal::after,
+.twk-panel::after, .tweaks-panel::after, .cnv-tools::after, .cnv-hint::after,
+.cnv-zoom::after, .tob::after, .doc-embed-picker::after, .doc-tpl::after,
+.doc-comments::after, .doc-find::after, .doc-link-picker::after,
+.doc-outline::after, .note-toolbar::after, .tt-img-tb::after,
+.sketchpad-toolbar::after, .sketchpad-frame::after, .ctx-menu::after,
+.ctx-submenu::after, .cp-pop::after, .ws-menu::after, .ws-menu-row-pop::after,
+.ws-menu-section::after, .cnv-add-menu::after, .topbar-add-menu::after,
+.entity-picker::after, .entity-hover-popover::after, .link-popover::after,
+.link-hover-card::after, .account-modal::after, .settings-modal::after,
+.home-graph-drawer::after, .home-graph-hud::after, .tag-detail-menu::after,
+.tag-detail-head::after, .tag-picker::after, .sb-tags-suggestions::after,
+.sb-tag-menu::after, .sb-tag-suggest-list::after, .merge-picker::after,
+.ws-presence-audit::after, .picker::after, .public-card::after,
+.rb-swatch-pop::after, .list-selbar::after, .split-bar::after, .toast::after,
+.emoji-palette::after, .msg-composer::after, .msg-pinned-strip::after,
+.cfont::after, .doc-ctx::after, .ent-backlinks-panel::after,
+.feedback-dialog::after, .lightbox::after, .iep-pop::after, .iem-rail::after,
+.msg-panel::after,
+.ph-panel::after, .welcome-request-card::after, .inline-composer::after,
+.comment-inline-pop::after, .onboarding-coachmark::after, .ent-pop::after,
+.fv-banner::after, .mb-nav::after,
+.imptray::after, .atr-slim::after, .tpladd::after, .sbf-upmenu::after,
+.ch-bar::after, .ch-naming::after, .cb-detail:not(.is-inline)::after,
+.ql[data-look='sb'] .cb-detail.is-inline::after, .ql[data-look='sb']::after,
+.legal-topbar::after, .cmdk::after, .ntf-panel::after, .mlt::after,
+.app.is-floating-chrome .sbf-card::before {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
   background-image: var(--grain-url);
   background-repeat: repeat;
-  background-size: 320px 240px;
-  opacity: 0.012;
+  background-size: var(--grain-size);
+  opacity: var(--grain-o);
   z-index: -1;
   border-radius: inherit;
 }
@@ -22305,14 +22333,15 @@ button, [role="button"], a {
   position: relative;
   isolation: isolate;
 }
-/* Film-grain wash — same texture the canvas hero above carries, so the page
-   reads as one continuous surface (matches the .public-shell grain tier). */
+/* Film grain: the same grain the canvas hero above carries, so the page
+   reads as one continuous surface. */
 .pa-wrap::after {
   content: '';
   position: absolute; inset: 0; z-index: -1;
-  background: var(--grain-url);
-  background-size: 320px 240px;
-  opacity: 0.025;
+  background-image: var(--grain-url);
+  background-repeat: repeat;
+  background-size: var(--grain-size);
+  opacity: var(--grain-o);
   pointer-events: none;
 }
 .pa-scroll-hint {
@@ -23210,7 +23239,7 @@ body.fdl-resizing iframe, body.fdl-resizing .canvas-wrap { pointer-events: none;
   background-color: var(--files-floor);
   background-image: var(--files-floor-paint);
   background-repeat: repeat;
-  background-size: auto, 320px 240px;
+  background-size: auto, var(--grain-size);
 }
 .lp-head {
   position: sticky; top: 0; z-index: 8;
@@ -23649,7 +23678,7 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 @media (max-width: 640px) { .list-wrap:not(.is-panel) .ct-table { margin-inline: -10px; } }
 .list-wrap:not(.is-panel) .ct-head {
   background-color: var(--files-floor); background-image: var(--files-floor-paint);
-  background-size: auto, 320px 240px; border-bottom: 1px solid var(--line-1);
+  background-size: auto, var(--grain-size); border-bottom: 1px solid var(--line-1);
 }
 .list-wrap .ct-th { font: 700 10px/1 var(--font-display); letter-spacing: .14em; text-transform: uppercase; color: var(--files-label); }
 .list-wrap .ct-th:hover, .list-wrap .ct-th.is-sorted { color: var(--ink-1); }

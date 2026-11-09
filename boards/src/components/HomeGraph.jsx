@@ -675,6 +675,7 @@ export function HomeGraph({
   if (loaded && filtered.nodes.length === 0) {
     return (
       <div className="home-graph-wrap" ref={setContainer}>
+        <div className="grain-surface" aria-hidden="true" style={{ zIndex: 1 }} />
         {!backdrop && (loadFailed
           ? <HomeEmptyState failed onRetry={() => setLoadTick((n) => n + 1)} />
           : <HomeEmptyState />)}
@@ -686,7 +687,9 @@ export function HomeGraph({
   if (!loaded) {
     return (
       <div className="home-graph-wrap" ref={setContainer}
-           style={{ background: BG_FOR[theme] }} />
+           style={{ background: BG_FOR[theme] }}>
+        <div className="grain-surface" aria-hidden="true" style={{ zIndex: 1 }} />
+      </div>
     );
   }
 
@@ -712,6 +715,7 @@ export function HomeGraph({
   if (!supportsWebGL) {
     return (
       <div className="home-graph-wrap" ref={setContainer}>
+        <div className="grain-surface" aria-hidden="true" style={{ zIndex: 1 }} />
         <HomeGraph2DFallback data={filtered} width={size.w} height={size.h}
                              backgroundColor={BG_FOR[theme]}
                              onNodeClick={setSelected}

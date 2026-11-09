@@ -318,7 +318,7 @@ body.sbf-sizing .app,
 .app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas > .board-loading-overlay::before {
   content: ''; position: absolute; top: 0; bottom: 0; left: -100vw; width: 100vw; background: inherit;
 }
-/* The canvas's grain lies over its ground (3%; lighter in dark, darker in light),
+/* The canvas's grain lies over its ground (styles.css --grain-o),
    so ground drawn under the sidebar without it read as a darker strip in every
    gap (owner, 2026-10-19). One layer, run on under the sidebar: no seam. */
 .app.is-floating-chrome .split-pane:first-child > .surface-wrap.is-canvas .fdl > .fdl-canvas > .canvas-wrap > .grain-canvas {
