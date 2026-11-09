@@ -33,7 +33,7 @@ test('the block is on every comparison page and every flagged page — and nowhe
   // stray `planBlock: false` coming back would quietly end planBlock.js's read.
   const pureref = SEO_LANDING_PAGES.find((s) => s.path === '/vs/pureref');
   assert.equal(pureref?.kind, 'compare');
-  assert.equal(hasPlanBlock(pureref), true, '/vs/pureref carries the block — see planBlock.js');
+  assert.equal(hasPlanBlock(pureref), false, '/vs/pureref is held without the block again (2026-11-09) — see seoLanding.js');
   // And an explicit false beats kind:'compare' in the predicate itself.
   assert.equal(hasPlanBlock({ kind: 'compare', planBlock: false }), false);
   assert.equal(hasPlanBlock({ kind: 'compare' }), true);

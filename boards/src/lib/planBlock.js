@@ -60,7 +60,8 @@ export const PLAN_BLOCK_HEADING = 'What it costs';
 
 // Which pages carry it. One predicate, shared by every renderer and the tests.
 // An explicit `planBlock: false` wins over kind:'compare' — that is how a
-// comparison page is held back (/vs/pureref was, until 2026-10-20).
+// comparison page is held back (/vs/pureref: held 2026-10-01..10-20, and again
+// from 2026-11-09 after it lost page one for "pureref" the day the block went live).
 export function hasPlanBlock(spec) {
   if (!spec || spec.storefront || spec.planBlock === false) return false;
   return spec.kind === 'compare' || spec.planBlock === true;
