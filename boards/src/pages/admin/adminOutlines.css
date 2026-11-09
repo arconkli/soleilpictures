@@ -1,0 +1,130 @@
+/* adminOutlines.css - Admin > Outlines (AdminOutlinesTab.jsx). Every rule hangs
+ * off .lo-root, so nothing here reaches the rest of the app. The look is the
+ * admin-outlines mockup's; the buttons, chips, tiles and panels are adminBoards.css
+ * (ab-*) and admin.css.
+ *
+ * Gold (--soleil) is not used here directly: the active pill, segment and tile
+ * take it from the ab-* rules, and focus rings from .ab. The kind tints are the
+ * named section colours of lib/boardStyle.js.
+ */
+
+.lo-root .lo-k-picture{--tone:#3f7ab5;--tint:#cae2fd}
+.lo-root .lo-k-note{--tone:#af6440;--tint:#fbd8c9}
+.lo-root .lo-k-link{--tone:#008686;--tint:#bce7e7}
+.lo-root .lo-k-doc{--tone:#9864a4;--tint:#efd8f5}
+.lo-root .lo-k-file{--tone:#6d7889;--tint:#dbe0e7}
+.lo-root .lo-k-video{--tone:#b25e6c;--tint:#fdd6da}
+.lo-root .lo-k-audio{--tone:#6d7e2b;--tint:#dae4c2}
+.lo-root .lo-k-palette{--tone:#3d8550;--tint:#c9e6ce}
+.lo-root .lo-k-shape{--tone:#7a7064;--tint:#e8e1d8}
+.lo-root .lo-k-other{--tone:#8a8f96;--tint:#e9ebee}
+/* The wireframe wells: a darker well in dark, a grey one in light, the frame a step off it. */
+.lo-root{--lo-well:var(--bg-1);--lo-frame:var(--bg-0)}
+[data-theme='light'] .lo-root{--lo-well:var(--bg-2);--lo-frame:var(--bg-3)}
+
+.lo-root .lo-sec{margin-top:6px}
+.lo-root .lo-sec > .admin-section-title{margin:46px 0 6px}
+.lo-root .admin-section-sub{margin:0 0 16px}
+.lo-root .lo-tb{margin-top:18px;margin-bottom:12px}
+.lo-root .lo-week{display:inline-flex;align-items:center;gap:8px}
+.lo-root .lo-week-label{font:600 13px/1 var(--font-sans);color:var(--ink-0);min-width:158px;text-align:center;font-variant-numeric:tabular-nums}
+.lo-root .lo-week .ab-btn{padding:6px 8px}
+.lo-root .lo-count{display:inline-flex;align-items:center;gap:9px;color:var(--ink-2);font-size:13px;white-space:nowrap}
+.lo-root .lo-count b{color:var(--ink-0);font-weight:600;font-variant-numeric:tabular-nums}
+.lo-root .lo-sample{display:inline-block;margin:0;font:500 11.5px/1.5 var(--font-sans);color:var(--ink-1);background:var(--bg-4);border:1px solid var(--adm-line-strong);border-radius:5px;padding:1px 7px}
+.lo-root .lo-grp-label{margin:30px 0 14px}
+.lo-root .lo-grp-b{margin-top:46px;padding-top:2px;border-top:1px solid var(--adm-line)}
+.lo-root .lo-grp-b .admin-section-title{margin-top:30px}
+.lo-root .lo-filters{display:flex;flex-direction:column;gap:12px;margin-bottom:22px}
+.lo-root .lo-frow{display:flex;flex-wrap:wrap;align-items:center;gap:10px 26px}
+.lo-root .lo-fg{display:inline-flex;align-items:center;gap:10px}
+.lo-root .lo-fl{color:var(--ink-2);font:500 12px/1 var(--font-sans);white-space:nowrap}
+.lo-root .lo-fg .ab-chip{padding:4px 10px}
+.lo-root .ab-btn svg{flex:none}
+
+/* ── Tools, by when ───────────────────────────────────────────────── */
+.lo-root .lo-heat-panel{margin-bottom:0;padding:14px 18px 16px}
+.lo-root .lo-heat{table-layout:fixed}
+.lo-root .lo-heat thead th{position:static;background:transparent;border-bottom:1px solid var(--adm-line-strong);padding:6px 4px 9px}
+.lo-root .lo-heat th:first-child, .lo-root .lo-heat td:first-child{width:190px;padding-left:2px}
+.lo-root .lo-heat th.num{text-align:center}
+.lo-root .lo-heat td{padding:2px 4px;border-bottom:0;vertical-align:middle}
+.lo-root .lo-heat tbody tr:hover{background:transparent}
+.lo-root .lo-heat td:first-child{color:var(--ink-0);font-weight:500;font-size:13px}
+.lo-root .lo-hc{display:block;text-align:center;padding:6px 0;border-radius:4px;font:500 13px/1.2 var(--font-sans);font-variant-numeric:tabular-nums;color:var(--ink-0);background:color-mix(in srgb,var(--ink-0) var(--a),transparent)}
+.lo-root .lo-hc-na{background:transparent;border:1px dashed var(--adm-line-strong);color:var(--ink-3);cursor:help}
+.lo-root .lo-heat-foot{display:flex;align-items:center;gap:16px;margin-top:10px;padding-left:2px;color:var(--ink-3);font:400 11.5px/1.2 var(--font-sans)}
+.lo-root .lo-ramp{display:flex;align-items:center;gap:4px}
+.lo-root .lo-ramp i{width:22px;height:12px;border-radius:3px;display:block}
+
+/* ── Gallery + drawer ─────────────────────────────────────────────── */
+.lo-root .lo-split{display:grid;grid-template-columns:minmax(0,1fr) 480px;gap:16px;align-items:stretch}
+.lo-root .lo-split.is-closed{grid-template-columns:minmax(0,1fr)}
+.lo-root .lo-gal{min-width:0}
+.lo-root .lo-gal-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.lo-root .lo-gal-head .lo-count{margin-bottom:16px}
+.lo-root .lo-sortbox{display:inline-flex;align-items:center;gap:10px;margin-left:auto}
+.lo-root .lo-has{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.lo-root .lo-has .lo-fl{margin-right:4px}
+.lo-root .lo-has .ab-chip{display:inline-flex;align-items:center;gap:7px;padding:4px 10px}
+.lo-root .lo-sw{display:inline-block;width:12px;height:12px;border-radius:3px;flex:none;box-sizing:border-box;
+  background:color-mix(in srgb,var(--tone,#8a8f96) 35%,var(--lo-frame));border:1px solid var(--tone,#8a8f96)}
+[data-theme='light'] .lo-root .lo-sw{background:var(--tint,#e9ebee)}
+.lo-root .lo-sw-grid{background:transparent!important;border:1px dashed var(--ink-2)!important;background-image:linear-gradient(var(--ink-2),var(--ink-2)),linear-gradient(var(--ink-2),var(--ink-2))!important;background-size:1px 100%,100% 1px!important;background-position:center,center!important;background-repeat:no-repeat!important}
+.lo-root .lo-sw-cluster{background:var(--bg-3)!important;border:1px solid var(--ink-1)!important;box-shadow:inset 0 0 0 1.5px var(--bg-3),inset 0 0 0 2.5px var(--ink-1)}
+.lo-root .lo-sw-sec{background:transparent!important;border:1px dashed var(--line-3)!important;border-radius:3px}
+
+.lo-root .ab-grid.lo-grid{grid-template-columns:repeat(auto-fill,minmax(196px,1fr));gap:14px}
+.lo-root .lo-thumb{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1;padding:12px;box-sizing:border-box;background:var(--lo-well)}
+.lo-root .ab-tile-main:hover .lo-thumb{background:color-mix(in srgb,var(--lo-well) 92%,var(--ink-0))}
+.lo-root .lo-t{font-size:12.5px;white-space:nowrap}
+.lo-root .ab-tmeta{padding:9px 11px 11px;gap:3px}
+.lo-root .ab-tile{border-radius:10px}
+.lo-root .lo-empty{grid-column:1/-1}
+.lo-root .lo-foot{margin-top:14px;color:var(--ink-3);font-size:12px}
+
+/* The wireframe */
+.lo-root .lo-svg{display:block;max-width:100%;max-height:100%;overflow:hidden}
+.lo-root .lo-svg .fr{fill:var(--lo-frame);stroke:var(--line-2);stroke-width:1}
+.lo-root .lo-svg .sec{fill:none;stroke:var(--line-3);stroke-width:1;stroke-dasharray:3 2.5}
+.lo-root .lo-svg .tag{fill:var(--ink-2);font:600 6.4px var(--font-sans)}
+.lo-root .lo-svg .c{fill:color-mix(in srgb,var(--tone,#8a8f96) 35%,var(--lo-frame));stroke:var(--tone,#8a8f96);stroke-width:1}
+[data-theme='light'] .lo-root .lo-svg .c{fill:var(--tint,#e9ebee)}
+.lo-root .lo-svg .hd{stroke:var(--tone,#8a8f96);stroke-width:2;stroke-linecap:butt}
+.lo-root .lo-svg .gr{fill:none;stroke:var(--ink-2);stroke-width:1;stroke-dasharray:3 2.5}
+.lo-root .lo-svg .gl{stroke:var(--ink-2);stroke-width:1;stroke-dasharray:2 2.5;opacity:.7}
+.lo-root .lo-svg .cl{fill:var(--bg-3);stroke:var(--ink-1);stroke-width:1}
+.lo-root .lo-svg .cl2{fill:none;stroke:var(--ink-1);stroke-width:1}
+.lo-root .lo-svg .cg{fill:none;stroke:var(--ink-1);stroke-width:1}
+
+/* The drawer: the Users tab's detail pane, docked beside the list. */
+.lo-root .lo-drawer-wrap{position:relative;min-width:0}
+.lo-root .lo-drawer-wrap[hidden]{display:none}
+.lo-root .lo-drawer{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;background:var(--adm-surface);border:1px solid var(--adm-line);border-radius:var(--adm-radius);display:flex;flex-direction:column}
+.lo-root .lo-drawer .admin-detail-header{padding:16px 18px 14px;gap:10px}
+.lo-root .lo-d-top{display:flex;align-items:flex-start;gap:12px}
+.lo-root .lo-d-top .admin-detail-idtext{flex:1 1 auto}
+.lo-root .lo-drawer .admin-detail-name{font-size:17px;letter-spacing:0}
+.lo-root .lo-d-meta{margin-top:4px;color:var(--ink-2);font:500 12.5px/1.35 var(--font-sans)}
+.lo-root .lo-drawer .admin-detail-close{display:inline-flex;margin:-4px -6px 0 0}
+.lo-root .lo-d-nav{display:flex;align-items:center;gap:6px}
+.lo-root .lo-d-nav .ab-btn{padding:5px 10px 5px 8px}
+.lo-root .lo-d-nav #lo-d-next{padding:5px 8px 5px 10px}
+.lo-root .lo-drawer .admin-detail-body{padding:16px 18px 22px;gap:20px}
+.lo-root .lo-big{display:flex;align-items:center;justify-content:center;height:268px;padding:14px;box-sizing:border-box;background:var(--lo-well);border:1px solid var(--adm-line);border-radius:8px}
+.lo-root .lo-legend{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px 16px;font:500 12.5px/1 var(--font-sans);color:var(--ink-1)}
+.lo-root .lo-legend li{display:inline-flex;align-items:center;gap:7px}
+.lo-root .lo-legend em{font-style:normal;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.lo-root .lo-p{margin:0;font:400 13px/1.55 var(--font-sans);color:var(--ink-1)}
+.lo-root .lo-disc{border:1px solid var(--adm-line);border-radius:8px;background:var(--adm-surface-sunk);overflow:hidden}
+.lo-root .lo-disc summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;padding:9px 12px;font:500 12.5px/1 var(--font-sans);color:var(--ink-1);user-select:none}
+.lo-root .lo-disc summary::-webkit-details-marker{display:none}
+.lo-root .lo-disc summary::before{content:'';width:6px;height:6px;border-right:1.5px solid var(--ink-2);border-bottom:1.5px solid var(--ink-2);transform:rotate(-45deg);transition:transform .12s;margin:0 2px 0 1px}
+.lo-root .lo-disc[open] summary::before{transform:rotate(45deg)}
+.lo-root .lo-disc summary:hover{color:var(--ink-0)}
+.lo-root .lo-json{margin:0;padding:10px 12px 12px;border-top:1px solid var(--adm-line);max-height:236px;overflow:auto;font:500 10.5px/1.55 var(--font-mono);color:var(--ink-1);white-space:pre;tab-size:2}
+.lo-root .lo-json .jk{color:var(--ink-2)}
+.lo-root .lo-json .jv{color:var(--ink-0)}
+
+@media (prefers-reduced-motion:reduce){.lo-root .lo-disc summary::before{transition:none}}
+

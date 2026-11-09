@@ -75,6 +75,10 @@ const AdminPostsTab = lazyWithReload(() => import('./admin/AdminPostsTab.jsx').t
 
 const AdminBoardsTab = lazyWithReload(() => import('./admin/AdminBoardsTab.jsx').then((m) => ({ default: m.AdminBoardsTab })));
 
+// Outlines (how clusters are laid out, boxes only) draws wireframes and carries
+// its own stylesheet, so it loads when its tab opens.
+const AdminOutlinesTab = lazyWithReload(() => import('./admin/AdminOutlinesTab.jsx').then((m) => ({ default: m.AdminOutlinesTab })));
+
 // Overview and Analytics were two tabs showing the same numbers: both led with
 // total users, signups and MRR, and neither was authoritative. They are one tab
 // now, with four question-shaped views inside it (Overview / Funnel / Retention /
@@ -91,6 +95,7 @@ const TABS = [
   { id: 'discover',  label: 'Discover' },
   { id: 'approvals', label: 'Approvals' },
   { id: 'boards',    label: 'Boards' },
+  { id: 'outlines',  label: 'Outlines' },
   { id: 'templates', label: 'Templates' },
   { id: 'waitlist',  label: 'Waitlist' },
   { id: 'feedback',  label: 'Feedback' },
@@ -109,7 +114,7 @@ const STORAGE_KEY = 'admin.tab';
 // The header shows only the daily/frequent sections as pills; the rarely-touched
 // long tail folds into a single "More" overflow so the bar isn't 11 items wide.
 // PRIMARY_IDS is the one knob — reorder/trim it and the overflow recomputes.
-const PRIMARY_IDS = ['overview', 'users', 'posts', 'approvals', 'boards'];
+const PRIMARY_IDS = ['overview', 'users', 'posts', 'approvals', 'boards', 'outlines'];
 // Overflow order is triage-first, then rare/config, split by a single divider.
 // The waitlist has been switched off since 2026-06-15, so Waitlist sits with
 // Campaign among the rarely opened rather than in the pills.
@@ -364,6 +369,11 @@ export function AdminPage() {
         {tab === 'boards' && (
           <Suspense fallback={null}>
             <AdminBoardsTab onWaitingChange={setPendingBoards} />
+          </Suspense>
+        )}
+        {tab === 'outlines' && (
+          <Suspense fallback={null}>
+            <AdminOutlinesTab />
           </Suspense>
         )}
         {tab === 'posts' && (

@@ -5,7 +5,7 @@ h1: Data and privacy
 navLabel: Data and privacy
 section: account
 order: 5
-updated: 2026-11-04
+updated: 2026-11-10
 answer: Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 faq:
   - q: How do I delete my account?
@@ -78,6 +78,7 @@ yourself, through the API or MCP, still reads what you ask it to.
 | Board version snapshots | For rollback and workspace recovery |
 | Files no longer referenced by any board | Eligible for cleanup after a grace period |
 | Resolved [comments](/docs/collaborate/comments) | Archived, not deleted |
+| [Layout outlines](#layout-outlines), if you said yes | 400 days, then deleted |
 
 Restoring a cluster within the trash window restores its images with it.
 
@@ -194,7 +195,7 @@ attached.
 ## What the app records as you use it
 
 Clusters records what you do, not what you make: that a card was placed, a
-cluster opened, a message sent or a search run, with counts and timings. It
+tool used, a cluster opened, a message sent or a search run, with counts and timings. It
 never records the words, file names or search terms inside your clusters.
 Messages are measured the same way: roughly how long a message was, in one of
 four sizes, how many attachments and mentions it had, whether it was a reply,
@@ -247,11 +248,58 @@ are. Meta's pixel is not loaded, and your sign-up, a purchase or the start of a
 checkout is not sent to Meta's Conversions API. What Clusters records for
 itself, described above, is the same either way.
 
+### Layout outlines
+
+If you say yes to **Help improve Clusters?**, or turn on **Keep outlines of how
+my clusters are laid out** in **Settings → Profile**, Clusters keeps an outline
+of each cluster you made from 10 November 2026 on: once in the week you say
+yes, then once in each week the cluster changes. It is how we learn how people
+lay out their clusters, so we can make the tools fit.
+
+An outline is a drawing of plain boxes:
+
+- one box per card: where it sits, how big it is, how far it is turned, what
+  kind of card it is (picture, note, link, document and so on) and the order the
+  cards were added
+- the box around each section, and which cards are in it
+- for a grid, how many boxes it has
+- how many cards the cluster holds, how deeply it is nested, how many clusters
+  sit inside it, and roughly how old it is (first week, first month, first
+  three months, older)
+
+Positions and sizes are rounded to steps of half a percent across the cluster,
+and turns to steps of 5°.
+
+It never holds what is in a card: no pictures, words, names, colours, links,
+file names or sizes. It is stored on its own, with nothing that links it to
+you, your workspace or the cluster, and we never try to link one back.
+Outlines are deleted after 400 days.
+
+Some clusters are always left out:
+
+- a shared cluster, if anyone who can edit it has said no
+- a cluster that is published or has a public link, and the clusters inside it
+- clusters in a Team workspace
+- clusters made before 10 November 2026
+
+Change your answer at any time in **Settings → Profile**. Turning it off leaves
+your clusters out of every outline made after that. Outlines already made are
+not removed early: nothing in them points back to you, so we keep no way to
+pick out yours.
+
+Separately, a few weekly totals are counted across every cluster that changed
+that week, whether or not anyone said yes: how many changed, how many cards a
+cluster usually holds, how many use sections, hold another cluster or are
+mostly pictures, and which tools people use in a cluster's first minutes, first
+day and first week. Only totals covering at least 20 people are kept, never a
+cluster or a person.
+
 ## When Clusters asks you a question
 
 Clusters asks two questions, each **once per account**, and Send feedback is
 there whenever you want it. Every one of them shows you what will be sent with
-your answer before you send it.
+your answer before you send it. A third, **Help improve Clusters?**, is a plain
+yes or no that sends nothing but your answer.
 
 ### What brings you back today?
 
@@ -333,6 +381,15 @@ attach.
 
 If you would rather none of it had been asked, deleting your account removes it
 along with everything else.
+
+### Help improve Clusters?
+
+Clusters may ask **Help improve Clusters?**, with **Learn more** under it,
+leading to [Layout outlines](#layout-outlines). It asks at most three times, on
+different days, never on the day you sign up, and stops once you answer.
+**Sure** turns layout outlines on; **No thanks** leaves them off, which is also
+where they start. Your answer is stored with your account, and you can change
+it any time in **Settings → Profile**.
 
 ## Legal
 

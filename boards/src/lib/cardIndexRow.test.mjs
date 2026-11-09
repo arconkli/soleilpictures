@@ -263,6 +263,16 @@ const plainRow = (card) => buildCardIndexRow({
   workspaceId: WS, boardId: BOARD, cardId: card.id, get: (k) => card[k],
 });
 
+test('a tilted card carries its rotation; a straight one has no rot key', () => {
+  const tilted = { id: 'r1', kind: 'image', src: 'r2:a', x: 0, y: 0, w: 100, h: 80, rotation: 12.4 };
+  assert.equal(plainRow(tilted).meta.rot, 12);
+  assert.deepEqual(rowFromYMap(tilted), rowFromPlain(tilted), 'both readers agree on rot');
+  for (const rotation of [undefined, null, 0, NaN]) {
+    const r = plainRow({ id: 'r2', kind: 'image', src: 'r2:a', x: 0, y: 0, rotation });
+    assert.equal('rot' in r.meta, false, `rotation ${rotation} must not add a key`);
+  }
+});
+
 test('a file stored off the board says so; a placed one says nothing', () => {
   const stored = plainRow({ id: 'f1', kind: 'image', src: 'r2:a', x: 0, y: 900, unplaced: true });
   assert.equal(stored.meta.unplaced, true);

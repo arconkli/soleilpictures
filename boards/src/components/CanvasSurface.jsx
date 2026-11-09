@@ -180,6 +180,7 @@ import { openInfo, closeInfo, reportSelection, clearSelection, inInfoDrawer } fr
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, clipboardCopiedAt, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent, logEventOnce, noteSessionCounter } from '../lib/analytics.js';
+import { logCanvasTool } from '../lib/canvasToolEvents.js';
 import { storageFullMessage, CREATOR_STORAGE_LABEL } from '../lib/billingCopy.js';
 import { storageAddonAction } from '../lib/storageAddon.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
@@ -307,6 +308,7 @@ const EMPTY_TILES = [
 // slot. Deliberately NOT autofocused: the panel's whole ask is "paste or drag
 // images in", and a focused text input would swallow that paste. Untitled
 // shows as an empty field with the ask as its placeholder.
+const KEY_TOOL = Object.freeze({ v: 'select', h: 'pan', n: 'text', g: 'grid', d: 'draw', a: 'arrow', c: 'board' });
 const UNTITLED_RE = /^Untitled (cluster|list)$/i;
 function ProjectNameField({ board, onRename }) {
   const named = board?.name && !UNTITLED_RE.test(board.name) ? board.name : '';
@@ -3189,14 +3191,16 @@ export function CanvasSurface({
       : ids.slice().sort((a, b) => zOf(a) - zOf(b));
     const fn = op === 'forward' ? mutators.bringForward : mutators.sendBackward;
     order.forEach(id => fn?.(id));
-  }, [selected, mutators]);
+    logCanvasTool('zorder', { how: op === 'forward' ? 'forward' : 'backward', boardId: board?.id });
+  }, [selected, mutators, board?.id]);
 
   // Group the current selection (Cmd+G). Uses a default name — the context
   // menu still offers the named-group prompt.
   const groupSelected = useCallback(() => {
     if (selected.size < 2) return;
     mutators.createGroup?.({ name: 'Group', cardIds: [...selected] });
-  }, [selected, mutators]);
+    logCanvasTool('section_add', { n: selected.size, boardId: board?.id });
+  }, [selected, mutators, board?.id]);
 
   useEffect(() => { setArrowFrom(null); setArrowHoverCardId(null); setArrowCursor(null); setActiveStroke(null); setActiveFreeArrow(null); setAnnotPlacing(null); setTouchSelecting(false); }, [selectedTool, board.id]);
   useEffect(() => {
@@ -6419,6 +6423,7 @@ export function CanvasSurface({
     if (items.length === 0) return;
     setClipboard(items, board.id);
     noteCopiedGroups(items, ydoc);
+    logCanvasTool('copy', { n: items.length, boardId: board.id });
   }, [selected, cardById, board.id, ydoc]);
 
   const doCut = useCallback(async () => {
@@ -6431,6 +6436,7 @@ export function CanvasSurface({
     noteCopiedGroups(items, ydoc);   // before the delete takes the groups' cards
     mutators.breakUndo?.();
     await doDeleteIds(items.map((c) => c.id));
+    logCanvasTool('cut', { n: items.length, boardId: board.id });
   }, [selected, cardById, board.id, doDeleteIds, mutators, ydoc]);
 
   const doPaste = useCallback(async (atCanvas) => {
@@ -6508,6 +6514,7 @@ export function CanvasSurface({
     }
 
     mutators.addCards?.(newCards);
+    logCanvasTool('paste', { n: newCards.length, boardId: board?.id });
     setSelected(new Set(newCards.map(c => c.id)));
 
     // Cross-cluster CUT-paste keeps standard clipboard semantics — the cut
@@ -6602,8 +6609,8 @@ export function CanvasSurface({
     const ids = [...selected];
     if (!ids.length) return;
     const newIds = mutators.duplicateCards?.(ids) || [];
-    if (newIds.length) setSelected(new Set(newIds));
-  }, [selected, mutators]);
+    if (newIds.length) { setSelected(new Set(newIds)); logCanvasTool('duplicate', { n: newIds.length, boardId: board?.id }); }
+  }, [selected, mutators, board?.id]);
 
   const selectAll = useCallback(() => {
     setSelected(new Set((cards || []).map(c => c.id)));
@@ -6920,6 +6927,8 @@ export function CanvasSurface({
       // Bare-key tool + arrange shortcuts (no Cmd/Ctrl/Alt). The isEditorTarget
       // guard above already suppresses these while typing.
       if (!cmd && !e.altKey) {
+        const keyTool = e.key.length === 1 ? KEY_TOOL[e.key.toLowerCase()] : undefined;
+        if (keyTool && (keyTool !== 'board' || clusterNudgesAllowed())) logCanvasTool('pick', { tool: keyTool, via: 'key', boardId: board?.id });
         if (e.key === 'v' || e.key === 'V') { e.preventDefault(); setSelectedTool('select'); return; }
         if (e.key === 'h' || e.key === 'H') { e.preventDefault(); setSelectedTool('pan'); return; }
         if (e.key === 'n' || e.key === 'N') { e.preventDefault(); setSelectedTool('text'); return; }
@@ -8388,6 +8397,7 @@ export function CanvasSurface({
         // content; an unsupported kind (doc/shape/palette/…) falls through and
         // repositions normally instead of silently snapping back.
         if (moved.length === 1 && routeCardIntoCell(moved[0], cellTarget.gridId, cellTarget.cellId)) {
+          logCanvasTool('grid_fill', { via: 'drop', boardId: board?.id });
           setDrag(null);
           return;
         }
@@ -8419,6 +8429,7 @@ export function CanvasSurface({
             }
             mutators.breakUndo?.();
             if (consumed.size) {
+              logCanvasTool('grid_fill', { via: 'drop', boardId: board?.id });
               setDrag(null);
               return;
             }
@@ -8498,7 +8509,10 @@ export function CanvasSurface({
             }
           } : null;
         }).filter(Boolean);
-        if (updates.length) mutators.updateCards?.(updates);
+        if (updates.length) {
+          mutators.updateCards?.(updates);
+          logCanvasTool('move', { n: updates.length, boardId: board?.id });
+        }
       } else if (openOnClick && !touchHold) {
         // Touch board-open happens on tap (onUp tap branch) / double-tap, not
         // here — a deliberate lift released in place must not open the board.
@@ -8717,6 +8731,7 @@ export function CanvasSurface({
         // scales as one unit (unlinked Grids just resize themselves).
         if (c.kind === 'grid' && mutators.resizeLinkedGrids) mutators.resizeLinkedGrids(c.id, newW, newH);
         else mutators.updateCard?.(c.id, patch);
+        logCanvasTool('resize', { n: 1, boardId: board?.id });
       }
       noteMeasurer?.destroy();
       noteMeasurer = null;
@@ -8831,7 +8846,10 @@ export function CanvasSurface({
         if (start.kind === 'note' && !start.manuallyResized) patch.manuallyResized = true;
         updates.push({ id, patch });
       }
-      if (updates.length) mutators.updateCards?.(updates);
+      if (updates.length) {
+        mutators.updateCards?.(updates);
+        logCanvasTool('resize', { n: updates.length, boardId: board?.id });
+      }
       setMultiResize(null);
     };
     // Escape / pointercancel: revert to committed bounds (setMultiResize(null)).
@@ -8865,6 +8883,7 @@ export function CanvasSurface({
     const onUp = (ev) => {
       const rot = compute(ev);
       mutators.updateCard?.(c.id, { rotation: Math.round(rot) || null });
+      logCanvasTool('rotate', { boardId: board?.id });
       setRotateState(null);
     };
     // Escape / pointercancel: revert to the committed rotation.
@@ -9597,6 +9616,7 @@ export function CanvasSurface({
         op === 'forward'  ? mutators.bringForward :
         /* backward */      mutators.sendBackward;
       order.forEach(id => fn?.(id));
+      logCanvasTool('zorder', { how: op, boardId: board?.id });
     };
     arrangeItems.push({ id: 'arrange', label: 'Arrange', submenu: [
       { id: 'front',    label: 'Bring to front', run: () => arrangeRun('front') },
@@ -9627,11 +9647,16 @@ export function CanvasSurface({
       // justified is the only layout that resizes, so it is the only one whose
       // patch may carry w/h.
       applyMoves(rearrange(all, ids, { layout: name }), name === 'justified');
+      logCanvasTool('tidy', { how: name, n: ids.length, boardId: board?.id });
     };
-    const alignRun = (edge) =>
+    const alignRun = (edge) => {
       applyMoves(alignCards([...selected].map(geometryOf).filter(Boolean), edge), false);
-    const distributeRun = (axis) =>
+      logCanvasTool('align', { how: edge, n: selected.size, boardId: board?.id });
+    };
+    const distributeRun = (axis) => {
       applyMoves(distributeCards([...selected].map(geometryOf).filter(Boolean), axis), false);
+      logCanvasTool('distribute', { how: axis, n: selected.size, boardId: board?.id });
+    };
 
     arrangeItems.push({
       id: 'tidy',
@@ -9685,6 +9710,7 @@ export function CanvasSurface({
         });
         if (name == null) return;
         mutators.createGroup?.({ name: name || 'Group', cardIds: [...selected] });
+        logCanvasTool('section_add', { n: selected.size, boardId: board?.id });
       }});
     }
     // Always offer "Add to group…" when at least one existing group is on
@@ -9744,7 +9770,7 @@ export function CanvasSurface({
         ...(clusterNudgesAllowed() ? [{ id: 'group-to-cluster', label: 'Turn into cluster…',
           run: () => createClusterFrom((cardsByGroup.get(g.id) || []).map(m => m.id), { via: 'from_group' }) }] : []),
         { divider: true },
-        { id: 'ungroup', label: 'Ungroup', danger: true, run: () => mutators.ungroup?.(g.id) },
+        { id: 'ungroup', label: 'Ungroup', danger: true, run: () => { mutators.ungroup?.(g.id); logCanvasTool('section_remove', { boardId: board?.id }); } },
       ]});
     }
 
@@ -9974,6 +10000,7 @@ export function CanvasSurface({
         setSelectedArrows(new Set());
       }
       setMarquee(null);
+      if (caught >= 2) logCanvasTool('select_many', { n: caught, boardId: board?.id });
       return caught;
     };
     return { sample, end, abort };
@@ -10411,6 +10438,7 @@ export function CanvasSurface({
             } else {
               mutators.addStroke?.(newStroke(points));
             }
+            logCanvasTool('draw', { boardId: board?.id });
             // Surface the just-used color in recents so the swatch
             // strip in the draw tool options updates as the user works.
             addRecentColor(color);
@@ -10673,7 +10701,7 @@ export function CanvasSurface({
     // — nothing exists yet to have intended. It lives in the registry so the
     // mobile "+" sheet can reach it at all: that sheet renders every action in
     // this list, and Draw's absence meant the puck simply dead-ended for it.
-    { id: 'draw',    group: 'tool', label: 'Draw',    icon: Scribble,      run: () => setSelectedTool('draw') },
+    { id: 'draw',    group: 'tool', label: 'Draw',    icon: Scribble,      run: () => { logCanvasTool('pick', { tool: 'draw', via: 'menu', boardId: board?.id }); setSelectedTool('draw'); } },
     { id: 'palette', group: 'card', label: 'Color palette', icon: Palette, run: () => { noteCreateIntent(method, 'palette'); mutators.addPalette?.(pos); } },
     // Held while the calendar is rebuilt (lib/appHost.js). sub() and
     // addFromRegistry both resolve through this list, so dropping the entry
@@ -10768,7 +10796,7 @@ export function CanvasSurface({
         }
         items.push({ divider: true });
         items.push({ id: 'group-ungroup', label: 'Ungroup', danger: true,
-          run: () => mutators.ungroup?.(gid) });
+          run: () => { mutators.ungroup?.(gid); logCanvasTool('section_remove', { boardId: board?.id }); } });
       }
       return items;
     }
@@ -10861,7 +10889,7 @@ export function CanvasSurface({
       { divider: true },
       { header: 'Annotate' },
       sub('comment'), sub('vote'),
-      { id: 'arrow', label: 'Arrow', run: settled(() => setSelectedTool('arrow')) },
+      { id: 'arrow', label: 'Arrow', run: settled(() => { logCanvasTool('pick', { tool: 'arrow', via: 'menu', boardId: board?.id }); setSelectedTool('arrow'); }) },
     ].filter(Boolean);
     return [
       { id: 'add', label: 'Add', submenu: addSubmenu },
@@ -11845,6 +11873,7 @@ export function CanvasSurface({
         const up = await uploadFile({ file: f, workspaceId, boardId: board?.id, cardId: gridId, userId, onProgress, originalName: meaningfulFileName(f) });
         mutators.setGridCellContent?.(gridId, cellId, { type: 'file', fileSrc: up.src, fileName: up.fileName, mime: up.mime, sizeBytes: up.sizeBytes, ext: up.ext });
       }
+      logCanvasTool('grid_fill', { via: 'upload', boardId: board?.id });
     } catch (e) { feedback.toast({ type: 'error', code: 'cell_upload_failed', message: uploadFailedWords(e) }); }
     finally { setCellUploads((p) => { const n = { ...p }; delete n[key]; return n; }); }
   }, [mutators, workspaceId, board?.id, userId, feedback, guardCellFill, resolveCellWriteKey, canAttemptFiles]);
@@ -11872,6 +11901,7 @@ export function CanvasSurface({
       const patch = { type: 'link', source: url, link: url, title };
       if (embed) patch.embed = embed;
       mutators.setGridCellContent?.(gridId, cellId, patch);
+      logCanvasTool('grid_fill', { via: 'paste', boardId: board?.id });
       if (!embed) fetchLinkPreview(url).then((p) => { const { description: _d, ...np } = previewPatch(p, liveCell(gridId, cellId), patch); if (Object.keys(np).length) mutators.setGridCellContent?.(gridId, cellId, np); });
       return true;
     }
@@ -11879,10 +11909,11 @@ export function CanvasSurface({
       const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const html = text.split(/\r?\n/).map((l) => `<div>${esc(l) || '<br>'}</div>`).join('');
       mutators.setGridCellContent?.(gridId, cellId, { type: 'text', html });
+      logCanvasTool('grid_fill', { via: 'paste', boardId: board?.id });
       return true;
     }
     return false;
-  }, [fillCellFromFiles, mutators, guardCellFill, resolveCellWriteKey]);
+  }, [fillCellFromFiles, mutators, guardCellFill, resolveCellWriteKey, board?.id]);
 
   const gridActions = useMemo(() => ({
     focusCell,
@@ -11894,10 +11925,13 @@ export function CanvasSurface({
     pinCell: (gridId, cellId) => mutators.pinCellStyle?.(gridId, cellId),
     unpinCell: (gridId, cellId) => mutators.unpinCellStyle?.(gridId, cellId),
     resizeDivider: (gridId, path, ci, df) => mutators.resizeGridDivider?.(gridId, path, ci, df),
-    splitCell: (gridId, cellId, orientation) => mutators.splitGridCell?.(gridId, cellId, orientation),
-    mergeCell: (gridId, cellId) => mutators.mergeGridCell?.(gridId, cellId),
+    splitCell: (gridId, cellId, orientation) => { mutators.splitGridCell?.(gridId, cellId, orientation); logCanvasTool('grid_split', { boardId: board?.id }); },
+    mergeCell: (gridId, cellId) => { mutators.mergeGridCell?.(gridId, cellId); logCanvasTool('grid_merge', { boardId: board?.id }); },
     removeDivider: (gridId, path, childIndex) => mutators.removeGridDivider?.(gridId, path, childIndex),
-    setCellContent: (gridId, cellId, patch) => mutators.setGridCellContent?.(gridId, cellId, patch),
+    setCellContent: (gridId, cellId, patch) => {
+      mutators.setGridCellContent?.(gridId, cellId, patch);
+      if (patch && typeof patch.type === 'string' && patch.type !== 'empty' && cardByIdRef.current[gridId]?.kind === 'grid') logCanvasTool('grid_fill', { via: 'set', boardId: board?.id });
+    },
     clearCellContent: (gridId, cellId) => mutators.clearGridCellContent?.(gridId, cellId),
     // True key delete — schedule item chips remove entirely (a {type:'empty'}
     // tombstone would linger as a ghost entry in a multi-item slot).
@@ -13591,9 +13625,9 @@ export function CanvasSurface({
     { title: 'Tools', items: [
       // On touch Draw sits on the rail itself, so listing it here too would put
       // the same tool two taps apart in the same strip.
-      ...(isTouch ? [] : [{ id: 'draw', label: 'Draw', icon: Scribble, tip: 'Free-draw', keys: getWasdPan() ? undefined : 'D', action: () => setSelectedTool('draw') }]),
-      { id: 'shape',   label: 'Shape',   icon: Square,   tip: 'Draw a shape',    action: () => setSelectedTool('shape') },
-      { id: 'palette', label: 'Palette', icon: Palette,  tip: 'Color palette',   action: () => setSelectedTool('palette') },
+      ...(isTouch ? [] : [{ id: 'draw', label: 'Draw', icon: Scribble, tip: 'Free-draw', keys: getWasdPan() ? undefined : 'D', action: () => { logCanvasTool('pick', { tool: 'draw', via: 'menu', boardId: board?.id }); setSelectedTool('draw'); } }]),
+      { id: 'shape',   label: 'Shape',   icon: Square,   tip: 'Draw a shape',    action: () => { logCanvasTool('pick', { tool: 'shape', via: 'menu', boardId: board?.id }); setSelectedTool('shape'); } },
+      { id: 'palette', label: 'Palette', icon: Palette,  tip: 'Color palette',   action: () => { logCanvasTool('pick', { tool: 'palette', via: 'menu', boardId: board?.id }); setSelectedTool('palette'); } },
     ]},
     { title: 'Create', items: [
       { id: 'file',          label: 'File',           icon: Paperclip,      tip: 'Upload any file',         action: () => addFromRegistry('file') },
@@ -15170,8 +15204,8 @@ export function CanvasSurface({
           // the canvas, get a grid. The panel is a refinement — choose a shape
           // before you click and that shape is what lands — not a gate.
           const arm = isTpl
-            ? () => { const next = !tplPanelOpen; setTplPanelOpen(next); setSelectedTool(next ? 'grid' : 'select'); }
-            : () => setSelectedTool(t.id);
+            ? () => { const next = !tplPanelOpen; setTplPanelOpen(next); if (next) logCanvasTool('pick', { tool: 'grid', via: 'rail', boardId: board?.id }); setSelectedTool(next ? 'grid' : 'select'); }
+            : () => { logCanvasTool('pick', { tool: t.id, via: 'rail', boardId: board?.id }); setSelectedTool(t.id); };
           // The Cluster tool keeps its slot and its size; it teaches instead
           // of shouting. A pause on it opens a card saying what a cluster IS
           // (the plain tip said only "Add cluster"), and picking it shows the

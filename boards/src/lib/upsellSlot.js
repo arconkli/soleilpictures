@@ -82,7 +82,7 @@ const ALWAYS_WINS = 'cap-hit';
 // asks nothing, so it is not AMBIENT and spends no visit; it claims so the
 // ambient asks stand down while it is up, and it waits behind anything that
 // already holds the minute, since it lands on a return visit, when they do.
-const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'power-reveal', 'cap-toast', 'storage-gate', 'upgrade-reason', 'pricing-intent', 'resume', 'whats-new']);
+const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'layout-ask', 'power-reveal', 'cap-toast', 'storage-gate', 'upgrade-reason', 'pricing-intent', 'resume', 'whats-new']);
 
 // The surfaces that put an offer on screen. Only these may be followed. (The
 // wall is listed last on purpose: upsellPacing.test reads "ALWAYS_WINS then
@@ -121,7 +121,7 @@ const FOLLOWS = Object.freeze({
 // lose exactly the visits it exists for — the second, the uncertain one — and
 // its answers would drift toward the stickiest people. It neither waits on the
 // budget nor spends it; the window above still keeps it off any other surface.
-const AMBIENT = new Set(['invite-nudge', 'share-ask', 'mix-prompt', 'power-reveal']);
+const AMBIENT = new Set(['invite-nudge', 'share-ask', 'mix-prompt', 'layout-ask', 'power-reveal']);
 
 // The share ask is the one ambient kind that may take a visit another ambient
 // ask already had (owner's pick #35, 2026-10-29). Since that day it comes only

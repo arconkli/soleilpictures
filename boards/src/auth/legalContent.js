@@ -31,7 +31,7 @@ export const DOC_LABELS = {
 const privacy = {
   slug: 'privacy',
   title: 'Privacy Policy',
-  updated: 'November 5, 2026',
+  updated: 'November 10, 2026',
   intro:
     "This Privacy Policy explains how Soleil Pictures (\"Soleil,\" \"we,\" \"us,\" or \"our\") collects, uses, and shares information when you use Soleil Clusters (the \"Service\"), available at clusters.soleilpictures.com, including through our API, our MCP server, and the AI assistants and other apps you connect to it. By using the Service, you agree to this Policy.",
   sections: [
@@ -50,6 +50,7 @@ const privacy = {
             'Email activity. When we email you, our email provider tells us whether the message was delivered or bounced, and whether it was opened or a link in it was clicked. We use this to keep our email reaching people and to understand which messages are useful.',
             'Answers you choose to give. The app occasionally asks a short, optional question — such as what brings you back, what best describes you, your age range, or what is holding you back from upgrading — and stores the answer you pick, and anything you choose to write, with your account. We ask for an age range (such as 25–34), never your date of birth.',
             'Usage and device information. Pages and features used, actions taken, approximate time spent, referring and exit pages, browser and device type and version, operating system, language and time zone, IP address, and the approximate location derived from it (country and region, such as a state or province — never a city). Once per visit we also record your device’s general setup: screen and window size, whether it has touch or a mouse, the display and accessibility preferences your browser shares (such as dark mode or reduced motion), its approximate memory, processor count and connection type, whether you are using the installed app, and the kind of network you connect from — a home or mobile provider, a university or research network, a VPN or relay service, or a data center — never the network’s name. To recognize a returning browser we keep a random identifier in your browser’s storage, and to prevent abuse we keep one-way hashes of the network and browser a request came from. When something in the Service fails, we record what failed, where, and the names of the steps just before it — never the content you create. We collect this through our own logging and analytics and through the advertising tools described below.',
+            'Layout outlines, if you agree. If you say yes when the app asks “Help improve Clusters?”, or turn on Settings › Profile › Keep outlines of how my clusters are laid out, we keep an outline of each cluster you made on or after November 10, 2026: once in the week you say yes, then once in each week the cluster changes. An outline is a set of plain boxes, one for each card, showing where it sits, how big it is, how far it is turned, what kind of card it is and the order the cards were added, plus the boxes of its sections, how many boxes a grid card has, how many cards the cluster holds, how deeply it is nested, how many clusters sit inside it and roughly how old it is. An outline holds nothing that is in your cards (no pictures, words, names, colors, links, file names or sizes). It is stored without anything that links it to you, your workspace or the cluster, and we never try to link one back. A shared cluster is left out if anyone who can edit it says no, and clusters that are published or have a public link (and the clusters inside them) and clusters in Team workspaces are always left out.',
             'Marketing and attribution information. When you arrive from a link or advertisement, we collect campaign parameters (such as UTM tags), referral codes, and ad-click identifiers from advertising networks — for example Google, Meta, Microsoft (Bing), TikTok, Reddit, X, LinkedIn, Pinterest, and Snapchat — so we can understand how you found us and measure the effectiveness of our marketing.',
             'Scout text messages (where offered). If you sign up to send things to Clusters by text message, we collect your phone number, your consent and the version of the wording you agreed to, your country, a one-way hash of your IP address, and the campaign that brought you. The pictures, links, notes and voice notes you send become cards in your account; voice notes are transcribed, and a photo keeps the time and place it was taken if the photo carries them. Your number is used only to run Scout. It is never sold or shared for marketing. Reply STOP at any time to stop receiving messages.',
             'Cookies and similar technologies. We and our partners use cookies, local storage, and similar identifiers. See our Cookie Policy for details.',
@@ -71,6 +72,7 @@ const privacy = {
             'provide customer support and respond to your requests;',
             'send you transactional and service messages and, where permitted, lifecycle and product or marketing emails that you can unsubscribe from at any time;',
             'understand how the Service is used so we can improve it;',
+            'if you agree to layout outlines, learn from them how people lay out their clusters, so we can improve the Service;',
             'measure and optimize our marketing and advertising;',
             'detect, prevent, and address fraud, abuse, and security issues; and',
             'comply with legal obligations and enforce our Terms.',
@@ -156,6 +158,7 @@ const privacy = {
             'Webhook delivery records: 30 days.',
             'Records of errors in the Service: 90 days.',
             'Usage events and visit records: 400 days.',
+            'Layout outlines: 400 days.',
             'Hashed network and browser records kept to prevent abuse: 365 days.',
           ],
         },
@@ -182,6 +185,7 @@ const privacy = {
             'Disconnect apps. Settings › Connections › Connected apps.',
             'Drafts. A draft cluster an assistant made that nobody keeps is deleted on its own; email us to remove one sooner.',
             'Turn off AI features. Settings › Workspace › AI suggestions (workspace owner or co-owner).',
+            'Layout outlines. Say yes or no when the app asks, or change your answer at any time in Settings › Profile. Turning it off leaves your clusters out of every outline made after that. Outlines already made are not removed early: nothing in them points back to you, so we keep no way to pick out yours. Like every outline, they are deleted after 400 days.',
             'Email. Use the unsubscribe link in any lifecycle or activity email.',
             'Advertising. Send the Global Privacy Control signal, or use the controls in our Cookie Policy.',
             'Scout. Reply STOP.',
@@ -224,7 +228,7 @@ const privacy = {
 const terms = {
   slug: 'terms',
   title: 'Terms of Service',
-  updated: 'November 5, 2026',
+  updated: 'November 10, 2026',
   intro:
     "These Terms of Service (\"Terms\") are a binding agreement between you and Soleil Pictures (\"Soleil,\" \"we,\" \"us,\" or \"our\") and govern your use of Soleil Clusters (the \"Service\"), including through our API, our MCP server, and any app or AI assistant you connect to it. By creating an account or using the Service, you agree to these Terms and to our Privacy Policy. If you do not agree, do not use the Service.",
   sections: [
@@ -261,7 +265,7 @@ const terms = {
     {
       heading: '4. Your Content',
       blocks: [
-        'You retain all ownership rights to the content you create or upload (“Your Content”). You grant Soleil a worldwide, non-exclusive, royalty-free license to host, store, reproduce, modify (for example, to create thumbnails or to format media for display), and distribute Your Content solely as needed to operate and provide the Service to you, to the collaborators you choose, and to the apps you connect. This includes processing it with the automated and AI features described in our Privacy Policy.',
+        'You retain all ownership rights to the content you create or upload (“Your Content”). You grant Soleil a worldwide, non-exclusive, royalty-free license to host, store, reproduce, modify (for example, to create thumbnails or to format media for display), and distribute Your Content solely as needed to operate and provide the Service to you, to the collaborators you choose, and to the apps you connect. This includes processing it with the automated and AI features described in our Privacy Policy. If you agree to layout outlines, it also includes making plain outlines of how your clusters are laid out, to improve the Service, as our Privacy Policy describes; an outline holds none of Your Content’s words, pictures or files.',
         'Publishing. When you publish a cluster to Explore or share it with a public link, you also allow us to display it publicly, list it, let search engines index it (for Explore), make link previews and thumbnails of it, and let visitors view it and, where you allow, download its files. This lasts until you unpublish it or turn off the link, except for copies others already made.',
         'You are responsible for Your Content. You represent that you have the rights necessary to upload and share it and that it does not infringe or violate the rights of any third party or any law.',
       ],
