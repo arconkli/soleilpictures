@@ -107,7 +107,7 @@ import {
 import { makeEdgeLimiter } from './lib/edgeLimits.js';
 import { DEMO_CARD_LIMIT, PRIOR_DEMO_CARD_LIMIT } from './lib/demoCardCap.js';
 import {
-  arrange, rearrange, placeGrouped, DEFAULT_LAYOUT,
+  arrange, rearrange, placeGrouped, topSlot, DEFAULT_LAYOUT,
 } from './lib/layoutEngine.js';
 import {
   normalizeImportItems, cardSpecFor, kindForContentType, noteFor, mapWithConcurrency,
@@ -4313,11 +4313,12 @@ async function dispatch(url, request, env, ctx) {
       buildCards: async (existing, prepared) => {
         images = dw.placeableImages(existing, null);
         if (sections) sections.assign(card, 0, prepared);
-        // position "top": the top-left of the cluster, just above what is there,
-        // ahead of the sections (arrange_board's order puts a card there too).
+        // position "top": the top-left of the cluster, above what is there and
+        // ahead of the sections, clear of a section's outline and name
+        // (topSlot; arrange_board's order puts a card there too).
         if (wantsTop) {
-          const box = blockBounds(existing.filter((c) => [c.x, c.y, c.w, c.h].every(Number.isFinite)));
-          if (box) { card.x = box.x; card.y = box.y - card.h - 24; }
+          const at = topSlot(existing, card.h);
+          if (at) { card.x = at.x; card.y = at.y; }
         }
         return layoutCards([card], existing, null, { order: prepared?.order });
       },
