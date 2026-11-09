@@ -8,6 +8,8 @@
 // into the open space, and the line under the workspace's name — so node can
 // test them.
 
+import { searchKey } from './textFold.js';
+
 const UNTITLED_RE = /^Untitled (cluster|list)$/i;
 
 /** A cluster's name as Home shows it. */
@@ -39,7 +41,7 @@ export function starLabels(boards, rootId, { workspaceId = null } = {}) {
 }
 
 // Accents and case don't decide a match: "cafe" finds "Café".
-const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const fold = (s) => searchKey(s).trim();
 
 /**
  * What a search finds: clusters whose name holds the query, those that start

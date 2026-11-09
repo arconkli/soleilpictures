@@ -223,7 +223,7 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
                         onContextMenu={(e) => { e.preventDefault(); openMenu(withMeMenu(item))(e.clientX, e.clientY); }}>
                   <Thumb item={item} url={shared.thumbs[item.token]?.url || null} />
                   <span className="shp-main">
-                    <span className="shp-name">{item.name || 'File'}</span>
+                    <span className="shp-name" dir="auto">{item.name || 'File'}</span>
                     <span className="shp-sub">
                       {item.source === 'link' ? 'Opened from a link' : `Shared by ${item.shared_by?.name || 'someone'}`}
                       {item.shared_at ? ` · ${relativeTimeShort(item.shared_at)}` : ''}
@@ -244,7 +244,7 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
                         onContextMenu={(e) => { e.preventDefault(); openMenu(byMeMenu(row))(e.clientX, e.clientY); }}>
                   <Thumb item={row} url={shared.thumbs[row.token]?.url || null} />
                   <span className="shp-main">
-                    <span className="shp-name">{row.name || 'File'}</span>
+                    <span className="shp-name" dir="auto">{row.name || 'File'}</span>
                     <span className="shp-sub">{[row.board_name, accessSummary(row)].filter(Boolean).join(' · ')}</span>
                   </span>
                 </button>

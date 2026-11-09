@@ -109,7 +109,7 @@ export function SidebarSharedBoards({
                              title={`${row.board_name} · ${row.role === 'viewer' ? 'view only' : 'editor'}`}>
                           <span className="sb-dot"
                                 style={{ background: isActive ? 'var(--soleil)' : tint }} />
-                          <span className="sb-row-label">{row.board_name}</span>
+                          <span className="sb-row-label" dir="auto">{row.board_name}</span>
                           {row.role === 'viewer' && (
                             <span className="sb-shared-ro" title="View only">View</span>
                           )}

@@ -21,6 +21,7 @@ import { readableOn } from '../lib/readableColor.js';
 import { useThemeAttr } from '../lib/useThemeAttr.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { sanitizeNoteHtml } from '../lib/sanitizeNoteHtml.js';
+import { directedHtml, htmlWithoutDirection, markTextDirection, unsettleTextDirection } from '../lib/textDirection.js';
 import { inertContainer } from '../lib/inertHtml.js';
 import { takeNoteTypeAhead } from '../lib/noteTypeAhead.js';
 
@@ -133,7 +134,11 @@ export function RichNoteEditor({
     // blank and the user overwrites it (the grid text-cell "text disappears on
     // re-entry" bug). After the first seed, subsequent html changes are skipped
     // while editing, exactly as before.
-    if (editing && seededRef.current) return;
+    if (editing && seededRef.current) {
+      // A dir="rtl" settled while reading would hold typed English right to left.
+      unsettleTextDirection(ref.current);
+      return;
+    }
     // Receiver: prefer the peer's in-flight html if a peer is editing this
     // note right now (peerLiveHtml from awareness), otherwise the committed
     // html from Y.Doc. peerLiveHtml clears on the peer's blur and falls
@@ -141,9 +146,11 @@ export function RichNoteEditor({
     // Both arrive from other people (the doc, or a peer's live edit), so they
     // go through the same sanitizer as the read-only note before the editor
     // shows them.
-    const next = sanitizeNoteHtml(peerLiveHtml ?? (html || (body ? `<div>${escapeHtml(body)}</div>` : '')));
+    // dir="auto" is drawn on this DOM only (lib/textDirection.js); every read
+    // of it back into stored html goes through htmlWithoutDirection.
+    const next = directedHtml(sanitizeNoteHtml(peerLiveHtml ?? (html || (body ? `<div>${escapeHtml(body)}</div>` : ''))), { settle: !editing });
     if (ref.current.innerHTML !== next) ref.current.innerHTML = next;
-    initialRef.current = ref.current.innerHTML;
+    initialRef.current = htmlWithoutDirection(ref.current);
     seededRef.current = true;
     // Any inline `font-family: 'X', ...` referring to a Google catalog font
     // needs its stylesheet injected on cold load — otherwise the browser
@@ -299,7 +306,7 @@ export function RichNoteEditor({
     liveTimerRef.current = setTimeout(() => {
       liveTimerRef.current = null;
       if (!ref.current) return;
-      const cur = ref.current.innerHTML;
+      const cur = htmlWithoutDirection(ref.current);
       if (awareness && cardId && boardId) {
         awareness.setLocalStateField('noteEdit', { boardId, cardId, html: cur });
       }
@@ -319,8 +326,9 @@ export function RichNoteEditor({
     }
     if (liveTimerRef.current) { clearTimeout(liveTimerRef.current); liveTimerRef.current = null; }
     setEditing(false);
-    const newHtml = linkifyNoteHtml(ref.current?.innerHTML || '');
-    if (ref.current && ref.current.innerHTML !== newHtml) ref.current.innerHTML = newHtml;
+    const newHtml = linkifyNoteHtml(htmlWithoutDirection(ref.current));
+    if (ref.current && htmlWithoutDirection(ref.current) !== newHtml) ref.current.innerHTML = newHtml;
+    if (ref.current) markTextDirection(ref.current);
     // Release focus + drop selection so the caret stops blinking inside
     // the now read-only note.
     ref.current?.blur?.();
@@ -332,7 +340,7 @@ export function RichNoteEditor({
   };
 
   const cancel = () => {
-    if (ref.current) ref.current.innerHTML = initialRef.current;
+    if (ref.current) { ref.current.innerHTML = initialRef.current; markTextDirection(ref.current); }
     setEditing(false);
     ref.current?.blur?.();
     try { window.getSelection?.()?.removeAllRanges(); } catch (_) {}
@@ -449,7 +457,7 @@ export function RichNoteEditor({
       const checked = !box.classList.contains('is-checked');
       box.classList.toggle('is-checked', checked);
       box.setAttribute('aria-checked', checked ? 'true' : 'false');
-      onChangeHTML(ref.current.innerHTML);
+      onChangeHTML(htmlWithoutDirection(ref.current));
       return;
     }
     const remove = e.target.closest?.('.note-preview-remove');
@@ -466,7 +474,7 @@ export function RichNoteEditor({
       marker.hidden = true;
       ref.current.appendChild(marker);
     }
-    onChangeHTML(ref.current.innerHTML);
+    onChangeHTML(htmlWithoutDirection(ref.current));
   };
 
   // While editing, stop the pointerdown from bubbling to the canvas (which
@@ -630,7 +638,7 @@ export function RichNoteEditor({
       sel.addRange(r);
       // Persist immediately so a refresh shows the chip even if the
       // user doesn't blur — and so the entity_links row is written.
-      const newHtml = ref.current.innerHTML;
+      const newHtml = htmlWithoutDirection(ref.current);
       if (cardId && workspaceId) {
         recordEntityLinks({
           source: { kind: 'note', id: cardId, workspace: workspaceId, boardId },

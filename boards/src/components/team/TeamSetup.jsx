@@ -37,6 +37,7 @@ import { refusalLine } from '../../lib/teamCopy.js';
 import { loadOwnPersonalWorkspaces, seatFloor, checkoutPlan } from '../../lib/teamSetupData.js';
 import { logEvent, logEventNow, logEventOnce } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
+import { initialOf } from '../../lib/graphemes.js';
 
 const SEAT_MAX = 100;
 const STEPS = ['team', 'seats', 'people'];
@@ -213,14 +214,14 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
       <Behind name={shown} />
       <div className="su-shell">
         <div className="su-strip" aria-label="Your team, as you set it up">
-          <span className="su-strip-av tm-mark" aria-hidden="true">{shown.charAt(0).toUpperCase()}</span>
+          <span className="su-strip-av tm-mark" aria-hidden="true">{initialOf(shown, '')}</span>
           <span className="su-strip-text">
             <span className={`su-strip-name${typed ? '' : ' is-empty'}`}>{shown}</span>
             <span className="su-strip-line">{stripLine}</span>
           </span>
           {!real && (
           <span className="su-strip-faces" aria-hidden="true">
-            {people.map((p) => <span key={p.id} className="su-face" style={{ background: p.color }}>{p.name.charAt(0)}</span>)}
+            {people.map((p) => <span key={p.id} className="su-face" style={{ background: p.color }}>{initialOf(p.name, '', { upper: false })}</span>)}
             {seats > people.length && <span className="su-face tm-more">+{seats - people.length}</span>}
           </span>
           )}
@@ -247,7 +248,7 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
               <p className="su-sub">A team owns its workspaces and pays one bill. Everyone who can edit uses a seat; viewers are free.</p>
               <div className="su-field">
                 <label className="su-label" htmlFor="tm-name">Team name</label>
-                <input id="tm-name" className="su-input" type="text" autoComplete="off" maxLength={60} value={name} onChange={(e) => setName(e.target.value)} />
+                <input id="tm-name" className="su-input" dir="auto" type="text" autoComplete="off" maxLength={60} value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div className="su-field">
                 <div className="su-label tm-label">Which workspaces move in?<em>{picked.length} of {real ? (own || []).length : SAMPLE_SETUP_WORKSPACES.length}</em></div>
@@ -255,7 +256,7 @@ export default function TeamSetup({ user, navigate = (url) => window.location.as
                   <p className="tm-hint">You have no personal workspaces to move in. The team starts empty, and you can make team workspaces in it.</p>
                 ) : (
                 <div className="tm-wsl" role="group" aria-label="Workspaces that move in">
-                  {(real ? (own || []).map((w) => ({ id: w.id, name: w.name, color: pickPresenceColor(w.id), letter: (w.name || '?').trim().charAt(0).toUpperCase() || '?', sub: 'Personal workspace' }))
+                  {(real ? (own || []).map((w) => ({ id: w.id, name: w.name, color: pickPresenceColor(w.id), letter: initialOf(w.name), sub: 'Personal workspace' }))
                     : SAMPLE_SETUP_WORKSPACES.map((w) => ({ ...w, sub: w.editors.length > 1 ? `${w.editors.length} people who can edit` : 'Just you' }))).map((w) => {
                     const on = picked.includes(w.id);
                     return (

@@ -53,7 +53,7 @@ export function useArrowPopover({ arrow, arrowIndex, midPoint, canvasToViewport,
 
   // Close on Escape.
   useEffect(() => {
-    const onKey = (ev) => { if (ev.key === 'Escape') onClose?.(); };
+    const onKey = (ev) => { if (isComposingKey(ev)) return; if (ev.key === 'Escape') onClose?.(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);

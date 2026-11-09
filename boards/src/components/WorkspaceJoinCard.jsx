@@ -15,6 +15,7 @@ import { logEvent, logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { peekWorkspaceInviteLink, claimWorkspaceInviteLink } from '../lib/inviteApi.js';
 import { markJoined } from '../lib/workspaceLink.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // The ?wsjoin= param is already gone from the address (AuthGate strips it on
 // arrival), so reloading the page as it stands opens the app afresh.
@@ -46,7 +47,7 @@ export default function WorkspaceJoinCard({ token, userId, onClose }) {
   }, [token]);
 
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onClose?.(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);

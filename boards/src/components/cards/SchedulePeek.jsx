@@ -21,6 +21,7 @@ import { placeBeside } from './GridCellMenu.jsx';
 import { Icon } from '../Icon.jsx';
 import { ChevronLeft, ChevronRight, ArrowLeft, X } from '../../lib/icons.js';
 import { swallowContextMenu } from '../../lib/contextMenuGuard.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 const stop = (e) => e.stopPropagation();
 
@@ -44,6 +45,7 @@ export function SchedulePeek({ cardId, title, sourceRect, contentH, hourMode = f
 
   useEffect(() => {
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key !== 'Escape') return;
       if (document.querySelector('.gridc-cell-menu')) return; // menu's own hook closes it
       e.stopPropagation();

@@ -24,7 +24,7 @@ import {
 import { MessageBubble } from './MessageBubble.jsx';
 import { RelTime } from './RelTime.jsx';
 import { MessageComposer } from './MessageComposer.jsx';
-import { finePointer } from '../lib/composerKeys.js';
+import { finePointer, isComposingKey } from '../lib/composerKeys.js';
 import { lastEditableMessage, withinEditWindow } from '../lib/messageEdit.js';
 import { snippetParts } from '../lib/messageSearchSnippet.js';
 import { useDraftValue } from '../hooks/useDraft.js';
@@ -50,6 +50,8 @@ import { MessagesFixtureContext } from '../lib/messagesFixture.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { sendShape, errorCode } from '../lib/messageEvents.js';
+import { searchKey } from '../lib/textFold.js';
+import { initialOf } from '../lib/graphemes.js';
 
 // Dragging an attachment out of a message onto a canvas makes it a card.
 function attachmentDragStart(e, att) {
@@ -432,6 +434,7 @@ export function MessageThread({
   const [focusedId, setFocusedId] = useState(null);
   useEffect(() => {
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (!e.target?.closest?.('.msg-panel')) return;
       const inField = ['INPUT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable;
 
@@ -446,7 +449,7 @@ export function MessageThread({
         // (the edit box, rename, the link field, the ⋯ menu, the emoji
         // palette) has claimed it with preventDefault; closing the whole
         // panel on the same press threw away what you were in (COMMS-10).
-        if (e.defaultPrevented || e.isComposing) return;
+        if (e.defaultPrevented || isComposingKey(e)) return;
         if (searchOpen) { closeSearch(); return; }
         if (replyTo) { setReplyTo(null); return; }
         if (escapeClosesPanel(e, '.msg-panel')) onClose?.();
@@ -989,10 +992,12 @@ export function MessageThread({
           {renaming ? (
             <input
               className="msg-panel-name-input"
+              dir="auto"
               autoFocus
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => {
+                if (isComposingKey(e)) return;
                 if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
                 // Claim the key: cancelling the rename must not close the panel.
                 if (e.key === 'Escape') { e.preventDefault(); setRenaming(false); }
@@ -1003,6 +1008,7 @@ export function MessageThread({
           ) : (
             <button
               className="msg-panel-name"
+              dir="auto"
               title={titleText}
               onClick={!isDm ? beginRename : undefined}
             >
@@ -1164,7 +1170,7 @@ export function MessageThread({
                 <button key={m.id} type="button" className="msg-search-result" onClick={() => { endSearch(true); jumpTo(m.id); }}>
                   {card && <MessageFaces people={[faceOf(m.sender_id)]} size={26} />}
                   <span className="msg-search-result-head">
-                    <span className="msg-search-result-who">{senderName(m)}</span>
+                    <span className="msg-search-result-who" dir="auto">{senderName(m)}</span>
                     <RelTime className="msg-search-result-time" iso={m.created_at} />
                   </span>
                   <span className="msg-search-result-body">
@@ -1394,7 +1400,7 @@ function GroupChatMenu({ anchor, onRename, onAdd, onLeave, canLeave, onClose }) 
     const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
     // Claim Escape (preventDefault) so the layer beneath — the Messages panel —
     // doesn't close on the same press.
-    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
@@ -1454,7 +1460,7 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
     const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
     // Claim Escape (preventDefault) so the layer beneath — the Messages panel —
     // doesn't close on the same press.
-    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
@@ -1480,7 +1486,7 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
           color: p?.color || m.color || pickPresenceColor(m.user_id),
         };
       })
-      .filter(m => !q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q))
+      .filter(m => !q || searchKey(m.name).includes(searchKey(q)) || searchKey(m.email).includes(searchKey(q)))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [members, existingIds, query]);
 
@@ -1552,10 +1558,10 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
               onClick={() => setPicked(p => sel ? p.filter(x => x !== m.user_id) : [...p, m.user_id])}
             >
               <span className="msg-row-avatar" style={{ background: m.color }}>
-                {(m.name || 'M').charAt(0).toUpperCase()}
+                {initialOf(m.name, 'M')}
               </span>
               <span className="msg-row-text">
-                <span className="msg-row-name">{m.name}</span>
+                <span className="msg-row-name" dir="auto">{m.name}</span>
                 {m.email && m.email !== m.name && <span className="msg-row-preview t-meta">{m.email}</span>}
               </span>
             </button>

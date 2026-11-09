@@ -5,6 +5,7 @@
 // quoted, for every page, open in the editor or not.
 
 import { docPageOrder, pageFragments, textblocksOf } from './docBlocks.js';
+import { cutGraphemes, exceedsGraphemes } from './graphemes.js';
 
 // y-prosemirror files a mark as a text attribute named after it, and a mark
 // that can overlap itself, as a comment can, under its name plus a hash of
@@ -51,7 +52,7 @@ export function commentAnchors(ydoc, scope, { max = 280 } = {}) {
   }
   for (const a of out.values()) {
     const q = a.quote.replace(/\s+/g, ' ').trim();
-    a.quote = q.length > max ? `${q.slice(0, max).replace(/\s+\S*$/, '')}…` : q;
+    a.quote = exceedsGraphemes(q, max) ? `${cutGraphemes(q, max).replace(/\s+\S*$/, '')}…` : q;
   }
   return out;
 }

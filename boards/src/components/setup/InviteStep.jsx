@@ -22,6 +22,7 @@ import { parseEmails, runInvitesByRole, inviteLimitKind } from '../../lib/invite
 import { editorLimitRefusalMessage } from '../../lib/editorLimit.js';
 import { inviteRewardCopy } from '../../lib/inviteReward.js';
 import { MAX_INVITE_ROWS, linkTermsLine } from '../../lib/workspaceSetup.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 let rowSeq = 0;
 const newRow = () => ({ id: `r${(rowSeq += 1)}`, email: '', role: 'editor' });
@@ -254,7 +255,7 @@ export function InviteStep({ workspaceId, workspaceName, surface, isPhone, onOut
               aria-label={i === 0 ? 'Email address' : `Email address ${i + 1}`} placeholder={i === 0 ? 'name@studio.com' : 'another@studio.com'}
               value={r.email} disabled={sending}
               onChange={(e) => setRow(r.id, { email: e.target.value })}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); send(); } }} />
+              onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Enter') { e.preventDefault(); send(); } }} />
             <button type="button" className="su-role" aria-label={`Access: ${ROLE_LABEL[r.role]}`} disabled={sending}
               onClick={() => setRow(r.id, { role: r.role === 'editor' ? 'viewer' : 'editor' })}>
               <span>{ROLE_LABEL[r.role]}</span><Icon as={CaretDown} size={10} weight="bold" />

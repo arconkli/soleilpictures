@@ -21,6 +21,7 @@ import {
   commentReplyKey, commentStateKey, parseCommentKey, isPlainEntry, isFiledReply, isFiledState,
 } from './commentKeys.js';
 import { convertFragmentDocMode } from '../components/docExtensions/screenplay/screenplayModeSwitch.js';
+import { cutGraphemes, exceedsGraphemes } from './graphemes.js';
 
 // Origin for doc STRUCTURAL ops (add/rename/delete page·sheet·bookmark·comment,
 // mode). Deliberately NOT 'local' so the board-level Y.UndoManager (which
@@ -942,7 +943,7 @@ export function pageFragmentToText(fragment, max = 240, { lines = false } = {}) 
   out = lines
     ? out.replace(/[ \t]+/g, ' ').replace(/\n{2,}/g, '\n').trim()
     : out.replace(/\s+/g, ' ').trim();
-  return out.length > max ? out.slice(0, max - 1) + '…' : out;
+  return exceedsGraphemes(out, max) ? cutGraphemes(out, max - 1) + '…' : out;
 }
 
 export function readDocSummary(ydoc, max = 240, scope, { lines = false } = {}) {

@@ -25,6 +25,8 @@ import { EditableText } from './EditableText.jsx';
 import { createDocFrame } from '../lib/docFrame.js';
 import { Icon } from './Icon.jsx';
 import { CornersOut, NotePencil, PanelRight } from '../lib/icons.js';
+import { isComposingKey } from '../lib/composerKeys.js';
+import { initialOf } from '../lib/graphemes.js';
 
 // DocSurface drags the entire TipTap/ProseMirror editor stack (vendor-editor,
 // ~400KB raw) into whichever chunk imports it statically — which used to be
@@ -350,7 +352,7 @@ export function RichDocCard({
                       style={{ background: p.user?.color || '#4f8df8' }}
                       title={`${p.user?.name || 'Someone'} — jump to their page`}
                       onClick={(e) => { e.stopPropagation(); onJumpToPeer?.(p.location); }}>
-                {(p.user?.name || p.user?.email || '?')[0].toUpperCase()}
+                {initialOf(p.user?.name || p.user?.email)}
               </button>
             ))}
             {peersOnCard.length > 3 && (
@@ -579,6 +581,7 @@ export function DocCardOverlay({
   useEffect(() => {
     if (inPane || isFull) return;
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       if (isEditableTarget(e)) return;
       onClose();

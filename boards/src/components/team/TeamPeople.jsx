@@ -6,7 +6,9 @@ import {
   teamCan, peopleCounts, filterPeople, roleChoices, whereLabel, lastHereLabel, approveLine,
   seatsFree, seatsUsed, adminNames, ROLE_LABEL,
 } from '../../lib/teamModel.js';
+import { searchKey } from '../../lib/textFold.js';
 import { TeamMenu } from './TeamMenu.jsx';
+import { initialOf } from '../../lib/graphemes.js';
 
 const FROZEN = 'The team is view-only until it’s paid';
 
@@ -28,7 +30,7 @@ export default function TeamPeople({ t, now, viewOnly, onAction, onToast, live, 
   const [show, setShow] = useState('all');
   const [menu, setMenu] = useState(null); // `role:<id>` | `dots:<id>`
   const counts = peopleCounts(t.people);
-  const { rows, viewersFolded } = filterPeople(t.people, { query, show });
+  const { rows, viewersFolded } = filterPeople(t.people, { query, show, fold: searchKey });
   const lock = viewOnly ? { disabled: true, title: FROZEN } : {};
 
   const approve = (r) => {
@@ -74,7 +76,7 @@ export default function TeamPeople({ t, now, viewOnly, onAction, onToast, live, 
     <>
       {manager && (t.requests || []).map((r) => (
         <div className="tp-req" key={r.id}>
-          <span className="tp-av" style={{ background: r.color }}>{r.name.charAt(0)}</span>
+          <span className="tp-av" style={{ background: r.color }}>{initialOf(r.name, '', { upper: false })}</span>
           <span className="tp-req-t">
             <b>{r.name} asked to edit {r.workspace}</b>
             <span>{firstName(r.name)} can view it now. {live ? liveApproveLine(t) : approveLine(t, now)}</span>
@@ -124,7 +126,7 @@ export default function TeamPeople({ t, now, viewOnly, onAction, onToast, live, 
             <div className="tp-tr" role="row" key={p.id}>
               <span className="tp-who">
                 <span className={`tp-av${p.invited ? ' is-neutral' : ''}`} style={p.invited ? undefined : { background: p.color }}>
-                  {(p.invited ? (p.email || p.name) : p.name).charAt(0).toUpperCase()}
+                  {initialOf(p.invited ? (p.email || p.name) : p.name, '')}
                 </span>
                 <span className="tp-who-t">
                   <span className="tp-nm">{p.name}{isMe ? ' (you)' : ''}</span>

@@ -18,6 +18,7 @@
 // makes this tab the default choice, so it is one confirmation, not a hunt.
 
 import { cropRectFor } from './captureAspect.js';
+import { safeFileName } from './safeFileName.js';
 
 // mp4/h264 FIRST, because the file has to be editable. A webm drops straight
 // out of most timelines — Premiere and Final Cut either refuse it or need a
@@ -358,7 +359,7 @@ export function captureFilename(name, ext, now = new Date()) {
   const p = (n) => String(n).padStart(2, '0');
   const stamp = `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}`
               + `-${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
-  const slug = (name || 'capture').replace(/[^a-z0-9-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase()
+  const slug = safeFileName(name || '', { fallback: '', maxChars: 60 }).replace(/[\s-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase()
             || 'capture';
   return `soleil-${slug}-${stamp}.${ext}`;
 }

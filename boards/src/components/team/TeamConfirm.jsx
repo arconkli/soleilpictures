@@ -3,6 +3,7 @@
 // Sticks to the top of the page body; Esc cancels and goes no further, so the
 // page stays open. A danger confirm puts focus on Cancel.
 import { useEffect, useRef } from 'react';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 export function TeamConfirm({ message, confirmLabel = 'Confirm', danger = false, busy = false, onConfirm, onCancel }) {
   const ref = useRef(null);
@@ -11,6 +12,7 @@ export function TeamConfirm({ message, confirmLabel = 'Confirm', danger = false,
     const sel = danger ? '[data-cancel]' : '[data-confirm]';
     ref.current?.querySelector(sel)?.focus();
     const key = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key !== 'Escape') return;
       e.stopPropagation();
       onCancel?.();

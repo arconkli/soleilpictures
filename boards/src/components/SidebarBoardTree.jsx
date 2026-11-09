@@ -22,6 +22,7 @@ import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { INDENT } from '../lib/sidebarRows.js';
 import { Icon } from './Icon.jsx';
 import { ChevronRight } from '../lib/icons.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const HOVER_PREFETCH_MS = 80;
 const expandedKey = (workspaceId) => `soleil.boards.sb.expanded.${workspaceId}`;
@@ -521,6 +522,7 @@ export function SidebarBoardTree({
              aria-selected={isSelected || isActive}
              aria-current={isActive ? 'page' : undefined}
              onKeyDown={(e) => {
+               if (isComposingKey(e)) return;
                if (e.target !== e.currentTarget) return;
                if (e.key === 'Enter' || e.key === ' ') {
                  // A click leaves focus on the row, and Space is also the
@@ -567,9 +569,11 @@ export function SidebarBoardTree({
           {isRenaming ? (
             <input ref={renameInputRef}
                    className="sb-tree-rename-input"
+                   dir="auto"
                    value={renaming.draft}
                    onChange={(e) => setRenaming(r => r ? { ...r, draft: e.target.value } : r)}
                    onKeyDown={(e) => {
+                     if (isComposingKey(e)) return;
                      if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
                      if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
                    }}
@@ -577,7 +581,7 @@ export function SidebarBoardTree({
                    onClick={(e) => e.stopPropagation()}
                    onDoubleClick={(e) => e.stopPropagation()} />
           ) : (
-            <span className="sb-row-label">{board.name || 'Untitled'}</span>
+            <span className="sb-row-label" dir="auto">{board.name || 'Untitled'}</span>
           )}
           {filesView && !isRenaming && (() => {
             const status = filesView.statusOf?.(board.id);

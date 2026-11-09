@@ -2,6 +2,7 @@
 // list of every board in the workspace; click one to insert as an embed.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 export function DocBoardEmbedPicker({ boards, onPick, onClose }) {
   const [q, setQ] = useState('');
@@ -11,7 +12,7 @@ export function DocBoardEmbedPicker({ boards, onPick, onClose }) {
     const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
     // On document, claimed: the open doc is a layer (lib/modalGuard) that
     // would close on the same Escape at the window.
-    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose(); } };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); onClose(); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('keydown', onKey);
     return () => {

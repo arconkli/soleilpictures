@@ -4,6 +4,7 @@ import { Icon } from './Icon.jsx';
 import { LayoutGrid, FileText, StickyNote, Image as ImageIcon, Palette, Calendar, Link as LinkIcon } from '../lib/icons.js';
 import { COVER_TINTS } from './primitives.jsx';
 import { supabase } from '../lib/supabase.js';
+import { cutGraphemes, exceedsGraphemes } from '../lib/graphemes.js';
 
 const TILE_KIND_ICON = {
   board: LayoutGrid,
@@ -123,7 +124,7 @@ function TargetPreview({ target }) {
       <div className="link-hover-meta">
         <div className="t-eyebrow link-hover-kind">{(meta?.sub || target.kind).toUpperCase()}</div>
         <div className="link-hover-title">{meta?.title || target.name || 'Untitled'}</div>
-        {meta?.body && <div className="link-hover-sub t-meta">{meta.body.slice(0, 140)}{meta.body.length > 140 ? '…' : ''}</div>}
+        {meta?.body && <div className="link-hover-sub t-meta">{cutGraphemes(meta.body, 140)}{exceedsGraphemes(meta.body, 140) ? '…' : ''}</div>}
       </div>
     </div>
   );

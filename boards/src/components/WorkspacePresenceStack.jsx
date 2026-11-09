@@ -11,6 +11,8 @@ import { useEffect, useRef, useState } from 'react';
 import { listCommentsByAuthor } from '../lib/commentsApi.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { useOpenDm } from '../hooks/useOpenDm.js';
+import { isComposingKey } from '../lib/composerKeys.js';
+import { initialOf } from '../lib/graphemes.js';
 
 const STATUS_LABEL = {
   connecting: 'Connecting…',
@@ -52,7 +54,7 @@ export function WorkspacePresenceStack({ peers, status, selfId, onJumpTo, worksp
     <div className="ws-presence" aria-label={`${list.length} ${list.length === 1 ? 'person' : 'people'} online`}>
       <span className={`ws-presence-status ${dotClass}`} title={STATUS_LABEL[status] || status} />
       {visible.map(p => {
-        const initial = (p.user.name || p.user.email || '?')[0].toUpperCase();
+        const initial = initialOf(p.user.name || p.user.email);
         const inactive = p.location?.isActive === false;
         const baseLabel = p.location?.boardName
           ? `${p.user.name || p.user.email} · in ${p.location.boardName}`
@@ -111,7 +113,7 @@ function PeerCommentsAudit({ peer, anchorRect, workspaceId, onClose, onJumpTo })
       if (ref.current.contains(e.target)) return;
       onClose?.();
     };
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onClose?.(); };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);

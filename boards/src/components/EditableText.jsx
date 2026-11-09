@@ -159,6 +159,7 @@ export function EditableText({
   return (
     <Tag
       ref={ref}
+      dir="auto"
       className={`editable ${className} ${editing ? 'is-editing' : ''} ${showPlaceholder ? 'is-placeholder' : ''}`}
       contentEditable={editing}
       suppressContentEditableWarning

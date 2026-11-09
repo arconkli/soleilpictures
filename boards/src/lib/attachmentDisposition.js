@@ -6,11 +6,12 @@
 // name is client input signed into a response header, so quotes, backslashes,
 // control characters and path separators are stripped and the length capped:
 // nothing in it can end the quoted value or start another header.
+import { wellFormed, cutToLimits } from './safeFileName.js';
+
 export function attachmentDisposition(name) {
-  const clean = String(name || '')
-    .replace(/[\u0000-\u001f\u007f"\\/]+/g, '')
-    .trim()
-    .slice(0, 150);
+  // Cut by whole characters: slice() cut UTF-16 units, and a lone surrogate
+  // made encodeURIComponent throw (a 500 on /sign-reads).
+  const clean = cutToLimits(wellFormed(name).replace(/[\u0000-\u001f\u007f"\\/]+/g, '').trim(), { maxChars: 150 }).trim();
   if (!clean) return null;
   const ascii = clean.replace(/[^\x20-\x7e]+/g, '_');
   // RFC 5987 attr-chars exclude ' ( ) * , which encodeURIComponent leaves alone.

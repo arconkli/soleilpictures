@@ -263,6 +263,8 @@ G | Add a grid
 C | Add a cluster — click where it goes
 Esc | Back to select · close whatever is on top — a menu, a dialog, Settings
 
+With a Japanese, Chinese or Korean input method, Enter picks the word from the candidate list first. It never sends a message, saves a title or starts a new card until the word is settled.
+
 Navigate
 
 Key | Action
@@ -931,6 +933,10 @@ With the caret merely placed in a note and nothing selected, formatting applies 
 
 Right-clicking while you are editing gives you the browser's text menu — Paste, Copy, Look Up, Emoji & Symbols — not the card menu. A right-click on a note you are not editing gives the card menu as usual.
 
+Right to left
+
+Arabic, Hebrew, Persian and Urdu run right to left on their own, line by line, in notes, documents, comments and messages. One note can hold an English line and an Arabic line, each running its own way. Menus and buttons stay as they are, and a screenplay keeps its layout.
+
 Checklists
 
 Start a line with a checkbox from the toolbar to make a task list. Boxes are clickable directly on the canvas without entering edit mode, so a note can serve as a live shot list or a packing list that anyone on the board can tick off.
@@ -1557,7 +1563,7 @@ A: Share a link if the recipient might need to see updates. An export is a snaps
 ========================================================================
 # Files and uploads
 URL: https://clusters.soleilpictures.com/docs/files
-Updated: 2026-10-27
+Updated: 2026-11-09
 
 Drag any file onto a canvas and it becomes a card. Images (camera raws and Photoshop documents included), video, audio and PDFs get real players and viewers; documents (Word, PowerPoint, Excel) show their first page, design files (Sketch, Figma, Procreate) the picture saved inside and zips what's inside them; anything else becomes a file card with a download. There is no per-file size limit on any plan: the free plan has a 5GB drive and Creator a 1TB one, and the drive is the only limit.
 
@@ -1662,7 +1668,7 @@ Every version is a stored file, so every version counts toward your storage. Cop
 
 Downloading
 
-Every file card has a download. Images additionally offer a version with adjustments applied. PDFs can be downloaded from the viewer.
+Every file card has a download. Images additionally offer a version with adjustments applied. PDFs can be downloaded from the viewer. A downloaded or exported file keeps the letters of its name, in any language; only characters Windows or macOS refuse in a file name (such as / or :) are replaced.
 
 To send someone one file on its own — a page with just that file, its player and its comments, and nothing else from the cluster — use Share file… (Sharing a single file), or Share wherever the file is open full screen: the player, the image and PDF viewers, and Quick look from the sidebar or the file list.
 
@@ -1693,7 +1699,7 @@ A: Drop the new file onto the old one — on the board or in Files — and it be
 ========================================================================
 # PDFs
 URL: https://clusters.soleilpictures.com/docs/files/pdf
-Updated: 2026-10-22
+Updated: 2026-11-09
 
 Drop a PDF onto a canvas and you get a card showing its first page and how many pages it has. Click it to open a full-screen viewer that scrolls through the whole document and offers a download. PDFs up to 50 MB open in the viewer; a larger one lands as a file card with a download. There is no PDF size limit on any plan.
 
@@ -1710,6 +1716,8 @@ The card behaves like any other — move, resize, group, tag, comment, put it in
 The viewer
 
 Click the card to open full screen. The viewer scrolls the whole document and renders pages as you reach them, so a long PDF opens immediately rather than after processing every page.
+
+PDFs in Japanese, Chinese and Korean show their text too.
 
 Download is in the viewer, and gives you the original file untouched.
 
@@ -1902,7 +1910,7 @@ A: Any video or audio file. H.264 in an MP4 or MOV, MP3 and WAV play as they are
 ========================================================================
 # Clusters
 URL: https://clusters.soleilpictures.com/docs/clusters
-Updated: 2026-10-27
+Updated: 2026-11-09
 
 A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no limit on how many clusters you make, and a cluster costs none of your cards: its card on the parent's canvas is free on every plan, and only what you put inside it counts. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
 
@@ -1922,7 +1930,7 @@ Importing folders and zips
 
 Drag a folder from your computer onto a canvas and it becomes a cluster there, named after the folder. Each folder inside it becomes a cluster nested inside that one, the same shape your folders had, and every file goes to the Files of the cluster it was in, under its own name and with its own modified date. Nothing is laid out on a board for you: the canvas of each new cluster holds only the clusters nested in it.
 
-A zip comes in the same way. Drop one and you are asked first: Unpack into clusters turns every folder in it into a cluster, or Add as a zip file keeps it whole, as one file in Files. A Google Takeout or Google Drive export that arrives in several parts becomes one tree when you drop all the parts at once.
+A zip comes in the same way. Drop one and you are asked first: Unpack into clusters turns every folder in it into a cluster, or Add as a zip file keeps it whole, as one file in Files. A Google Takeout or Google Drive export that arrives in several parts becomes one tree when you drop all the parts at once. File names keep their own letters. An older zip made on a computer set to another language doesn't record how its names were written, so Clusters works it out: Japanese and Korean names in any browser, and Chinese, Russian and other Cyrillic, Greek, Hebrew, Arabic, Persian, Thai or Vietnamese names when that language is one of your browser's languages.
 
 You can start an import from:
 
@@ -2816,7 +2824,7 @@ A: Yes. The scene navigator lists every scene heading with its number, and click
 ========================================================================
 # Exporting documents
 URL: https://clusters.soleilpictures.com/docs/documents/export
-Updated: 2026-10-25
+Updated: 2026-11-09
 
 Documents export as PDF, Markdown or HTML, and screenplays additionally as Final Draft .fdx and Fountain. Screenplay PDFs are real vector output in Courier with page breaks matching what you saw on screen. On a phone or tablet the export is a browser download you can send on with the device's share sheet.
 
@@ -2838,6 +2846,8 @@ PDF
 Real text, not a rendered image — selectable and searchable.
 
 For screenplays it is vector output in Courier at correct industry metrics, and the page breaks match what you saw while writing, because pagination is computed the same way for both.
+
+A script in Russian, Greek or another Latin-based or Cyrillic alphabet is set in a matching typewriter font, so every letter prints. A script in Hebrew, Arabic, Chinese, Japanese or Korean opens the print dialog instead; choose Save as PDF there.
 
 Markdown
 
@@ -2949,7 +2959,7 @@ A: Yes. The owner or a co-owner can turn AI suggestions off in Settings → Work
 ========================================================================
 # Tags and entities
 URL: https://clusters.soleilpictures.com/docs/organize/tags
-Updated: 2026-10-25
+Updated: 2026-11-09
 
 A tag cuts across everything — put one on a card, a whole cluster or a passage of a document, and the tag's page gathers all of them from anywhere in the workspace. Tags can be typed as a character, setting, organization, topic or thing. A tag is applied on its own only where its exact name appears; beyond that the AI suggests tags and underlines clear mentions in documents, everything it does is marked auto, and the workspace owner can turn it off.
 
@@ -2992,7 +3002,7 @@ Automatic tagging
 
 Automatic tagging works from text — card titles, notes, documents, and the names of groups and clusters — and only uses tags you have already made, so a workspace with no tags gets none. Pictures are read too, but they only ever get suggestions (see below).
 
-An exact name match is applied, marked auto. Make a Diner tag, and a note that mentions the diner picks it up, as does a group called "Diner stills". Creating a tag applies it straight away to what already says its name.
+An exact name match is applied, marked auto. Tag names can be in any script: where the script puts spaces between words a name matches whole words only, in Korean it also matches with a particle after it (서울 in 서울에서), and in Chinese, Japanese and Thai it is found inside running text. Make a Diner tag, and a note that mentions the diner picks it up, as does a group called "Diner stills". Creating a tag applies it straight away to what already says its name.
 In documents, clear mentions are underlined, marked auto: the AI underlines words that clearly refer to one of your tags, even when they are not its exact name.
 Anything looser is only suggested. The AI compares what a card says with your tags, and the closest suggestion shows on the card as a hollow chip with a sparkle: ✓ keeps it, × means never suggest it there. The rest wait on the tag's page, under Manage.
 Pictures are suggested, never tagged. Each picture added to a cluster is described by an AI model. When the description names one of your tags, or means something close to it, the picture gets that tag as a suggestion, a few minutes after it lands, without a reload; hover the chip and it says it came from the picture. A picture is never tagged on its own.
@@ -3103,7 +3113,7 @@ A: Yes. Copy link on any card gives a URL that opens the board with that card se
 ========================================================================
 # Search and the command palette
 URL: https://clusters.soleilpictures.com/docs/organize/search
-Updated: 2026-10-27
+Updated: 2026-11-09
 
 Press Cmd-K or forward slash to open the command palette. It searches cluster names, card titles and text, notes, the words inside documents, files by name, and tags, and it also runs commands — create a cluster, share this one, open messages, toggle the theme, open trash, sign out. It is the fastest route to almost anything in the app.
 
@@ -3118,6 +3128,8 @@ Files — by the name the file was uploaded with, so a photo nobody captioned is
 Pictures — by what is in them. Each picture is described by an AI model a few minutes after it lands, so red car or night exterior finds the photo even when nobody named or captioned it. A picture found this way shows a small preview and says In the picture. Not in a workspace whose AI suggestions are off
 Tags — by name. Type # and a tag's name, as in #diner, to list everything carrying it instead: cards, groups, clusters and document pages, each opened in place
 Docs — by title, and by the words on every page: a match shows the line it came from, under Inside docs, and opens the document at that page
+
+Search ignores accents, so cafe finds Café and strasse finds Straße, and one character is enough to search Chinese, Japanese and Korean. Search a picture in your own language too, say 바다: the words are put into English to match the descriptions. They go to an AI model for that, so it is off in a workspace whose AI suggestions are off.
 
 A document written before search learned to read it is indexed the next time it, or anything else in its cluster, is edited. Inside one long document, ⌘F finds every occurrence on the page you are on.
 
@@ -7245,14 +7257,14 @@ A: Not yet. They are stored, queryable and exportable today; surfacing them on t
 URL: https://clusters.soleilpictures.com/docs/api/search
 Updated: 2026-11-04
 
-GET /search finds boards and cards by text across everything your account can see, the words inside docs, and pictures by what is in them. Pass q with at least two characters, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.
+GET /search finds boards and cards by text across everything your account can see, the words inside docs, and pictures by what is in them. Pass q with at least two characters (one is enough for Chinese, Japanese and Korean), ignoring accents, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.
 
 The programmatic equivalent of ⌘K.
 
 GET /search
 
 Parameter | Meaning
-q | The query. Minimum two characters — shorter gets 400.
+q | The query. Minimum two characters (counted as characters, so an emoji is one) — shorter gets 400. One character is enough for Chinese, Japanese and Korean. Accents are ignored both ways in card text (a picture's title and file name included) and doc pages: cafe finds Café and Café finds cafe. A board's name and what is in a picture are matched as typed or with your accents removed, so Café finds Cafe, but cafe does not find Café.
 kind | board or card. Omit for both.
 workspace | UUID, to scope to one workspace
 limit | Page size, default 100, max 500
@@ -7281,7 +7293,8 @@ Everything runs under your permissions. Boards you cannot open do not appear, an
 
 Notes for agents
 
-Two characters minimum. A one-character query is rejected rather than scanning a workspace to return everything.
+Two characters minimum, except one character of Chinese, Japanese or Korean. Any other one-character query is rejected rather than scanning a workspace to return everything.
+Accents do not matter in card text (a picture's title and file name included) and doc pages: search cafe or Café; both find both. A board's name and what is in a picture are matched as typed or with your accents removed, so Café finds Cafe but cafe does not find Café.
 Narrow with kind when you know what you are after; it halves the work.
 Paginate. The result set is capped per page like every list endpoint — follow next_offset rather than assuming one page is everything.
 Search then act. The usual loop is GET /search to find a card, then PATCH /boards/:id/cards/:cardId to change it.
@@ -7292,7 +7305,10 @@ Q: What does search look at?
 A: Board names, card titles and text, the pages of docs, and what is in a picture, once a picture you brought in has been described. It is the programmatic equivalent of the Cmd-K palette in the app.
 
 Q: Why does a one-character query fail?
-A: A single character matches most of a workspace and costs a full scan to say so. The minimum is two characters, and shorter queries get 400.
+A: A single Latin, Cyrillic or other alphabetic character matches most of a workspace and costs a full scan to say so. The minimum is two characters, and shorter queries get 400. One character is allowed for Chinese, Japanese (Hiragana, Katakana and Han) and Korean, where a single character is a word.
+
+Q: Does search ignore accents?
+A: Yes, for card text (a picture's title and file name included) and doc pages, both ways. "cafe" finds "Café", "Lodz" finds "Łódź" and "strasse" finds "Straße"; Hebrew points and Arabic vowel marks are ignored too. Letters that are different letters stay different, so Cyrillic й is not и, and Japanese voiced kana (ガ) is not カ. A board's name and what is in a picture are matched as typed or with your accents removed, so "Café" finds "Cafe", but "cafe" does not find "Café".
 
 Q: Can I search someone else's boards?
 A: Only ones shared with you. Search runs under your permissions like every other call.
@@ -7607,7 +7623,7 @@ Orientation and finding things
 
 Tool | Input
 whoami | — · the account, its scopes (read, write, delete), whether it is a service account (confined to one workspace), and the workspaces it can see, with the ids workspace_id takes
-search | query (min 2 chars), kind? (board|card), workspace_id?, limit? (default 20 of each kind, up to 100), offset? · boards and cards by their words, and pictures by what is in them, boards first, each result { id, title, url } with, for a card, an excerpt (for a picture found by what is in it, in_picture) and the name of its board — the shape ChatGPT asks of a search tool; each id is one fetch reads. Pictures added in the last couple of hours have no description yet and are found by title until it is ready: when some are waiting, the answer carries undescribed_pictures (the count, capped at 50, which then means "or more") and a note saying to try again in a few minutes or look with view_board
+search | query (min 2 chars; 1 for Chinese, Japanese and Korean; accents are ignored both ways in card text (a picture's title and file name included) and doc pages, so cafe finds Café; a board's name and what is in a picture are matched as typed or with accents removed, so Café finds Cafe but not the other way round), kind? (board|card), workspace_id?, limit? (default 20 of each kind, up to 100), offset? · boards and cards by their words, and pictures by what is in them, boards first, each result { id, title, url } with, for a card, an excerpt (for a picture found by what is in it, in_picture) and the name of its board — the shape ChatGPT asks of a search tool; each id is one fetch reads. Pictures added in the last couple of hours have no description yet and are found by title until it is ready: when some are waiting, the answer carries undescribed_pictures (the count, capped at 50, which then means "or more") and a note saying to try again in a few minutes or look with view_board
 fetch | id — board:<board id>, card:<board id>:<card id>, doc:<board id>:<card id> (:<page id> for one page), or a link from the app · one board, card or doc as text to read, { id, title, text, url, metadata }, up to 40,000 characters; a doc's metadata.pages carry each page's hash, and a described picture says what is in it
 list_boards | workspace_id?, parent? ("root" for top level), since?, cursor?, paging, response_format? · one level at a time, each board with its link; with depth? (up to 20) a whole hierarchy in one call, at most 500 boards; with deleted? the boards that can still be restored
 resolve_identifier | scope, value — find something by an id from another system

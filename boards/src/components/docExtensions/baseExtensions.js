@@ -26,6 +26,7 @@ import { BoardEmbed } from './BoardEmbed.js';
 import { CommentMark } from './CommentMark.js';
 import { ScreenplayBlock } from './screenplay/ScreenplayBlock.js';
 import { ClearFormatting } from './ClearFormatting.js';
+import { TextDirection } from '../../lib/textDirectionExtension.js';
 
 // StarterKit's list, except a stored start below 2 renders no attribute, so a
 // start of 0 (written before 2026-11-04) shows as 1. Only renderHTML differs.
@@ -61,6 +62,8 @@ export const baseDocExtensions = [
   BoardEmbed,
   CommentMark,
   ClearFormatting,
+  // dir="auto" drawn on the view only (lib/textDirection.js): nothing in the doc.
+  TextDirection,
   // Always in the schema so parse/serialize works everywhere; harmless for
   // prose docs (never instantiated unless screenplay mode is on).
   ScreenplayBlock,

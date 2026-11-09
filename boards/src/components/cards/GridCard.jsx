@@ -40,6 +40,7 @@ import { startTouchScrollGesture } from '../../lib/touchScroll.js';
 import { PerCardFilter } from '../ImageAdjustFilters.jsx';
 import { useCardCellsVersion, cellTextStyle, CellContent } from './gridCellShared.jsx';
 import './gridCard.css';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 // The move grip's six dots, drawn here rather than as a Phosphor icon: the
 // grip sits on every filled box, so its icon would join the app's first
@@ -300,7 +301,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
     };
     const up = (ev) => end(true, ev);
     const cancel = () => end(false);
-    const key = (ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); ev.preventDefault(); end(false); } };
+    const key = (ev) => { if (isComposingKey(ev)) return; if (ev.key === 'Escape') { ev.stopPropagation(); ev.preventDefault(); end(false); } };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', cancel);

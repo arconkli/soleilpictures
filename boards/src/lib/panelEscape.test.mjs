@@ -23,6 +23,8 @@ test('an unclaimed Escape with focus in the panel closes it', () => {
 test('an Escape a nested control claimed does not', () => {
   assert.equal(escapeClosesPanel(esc(target(), { defaultPrevented: true }), '.msg-panel'), false);
   assert.equal(escapeClosesPanel(esc(target(), { isComposing: true }), '.msg-panel'), false);
+  // Safari ends the composition before its keydown: isComposing is already false.
+  assert.equal(escapeClosesPanel(esc(target(), { keyCode: 229, isComposing: false }), '.msg-panel'), false);
 });
 
 test('a field holding words keeps the panel open', () => {
@@ -54,7 +56,7 @@ test('the nested controls claim Escape', () => {
   assert.match(thread, /if \(e\.key === 'Escape'\) \{ e\.preventDefault\(\); setRenaming\(false\); \}/, 'rename');
   // GroupChatMenu and AddParticipantsPicker
   assert.equal((thread.match(/if \(e\.key === 'Escape'\) \{ e\.preventDefault\(\); onClose\?\.\(\); \}/g) || []).length, 2);
-  assert.match(thread, /if \(e\.defaultPrevented \|\| e\.isComposing\) return;/);
+  assert.match(thread, /if \(e\.defaultPrevented \|\| isComposingKey\(e\)\) return;/);
   assert.match(thread, /escapeClosesPanel\(e, '\.msg-panel'\)/);
   assert.match(read('../components/EmojiPalette.jsx'), /if \(e\.key === 'Escape'\) \{ e\.preventDefault\(\); onClose\?\.\(\); \}/);
   assert.match(read('../components/NewConversationPicker.jsx'), /if \(e\.key === 'Escape'\) \{ e\.preventDefault\(\); onClose\?\.\(\); \}/);

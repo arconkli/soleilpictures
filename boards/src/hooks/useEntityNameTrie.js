@@ -12,6 +12,7 @@
 import { useEffect, useRef, useState, useContext, createContext } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { createNameIndex } from '../lib/entityNameTrie.js';
+import { isCompactScriptName, longEnoughToSpread } from '../lib/tagWordMatch.js';
 import * as perf from '../lib/perf.js';
 
 // Context lets any surface read the workspace-scoped trie without
@@ -62,7 +63,8 @@ function buildTrie(rows, aliases, ignored) {
 function addToTrie(trie, row, name, ignoredSet, seen) {
   const n = (name || '').trim();
   const low = n.toLowerCase();
-  if (!n || n.length < MIN_LEN) return;
+  // Chinese, Japanese and Korean names are short: two Han/Katakana/Hangul characters count (東京, 서울), as for tags in 0880.
+  if (!n || (isCompactScriptName(n) ? !longEnoughToSpread(n) : n.length < MIN_LEN)) return;
   if (STOP_TERMS.has(low)) return;
   if (ignoredSet.has(low)) return;
   // Dedupe (kind,id,name) so the trie node has one record per entity.

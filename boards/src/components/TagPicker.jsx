@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { tagFallbackColor, resolveTagColor } from '../lib/tagColor.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { searchKey } from '../lib/textFold.js';
 
 const POP_W = 280;
 
@@ -28,7 +29,7 @@ export function TagPicker({
   const q = query.trim().toLowerCase();
   const matches = useMemo(() => {
     if (!q) return tags;
-    return tags.filter(t => (t.slug || t.name || '').includes(q));
+    return tags.filter(t => searchKey(t.slug || t.name).includes(searchKey(q)));
   }, [tags, q]);
   const hasExact = q.length > 0 && tags.some(t => (t.slug || '') === q);
 
@@ -75,7 +76,7 @@ export function TagPicker({
                     onMouseEnter={() => setHover(i)}
                     onClick={() => { onToggle?.(t); }}>
               <span className="tag-picker-dot" style={{ background: resolveTagColor(t) }} />
-              <span className="tag-picker-name">{t.name}</span>
+              <span className="tag-picker-name" dir="auto">{t.name}</span>
               {t.kind !== 'user' && <span className={`tag-picker-kind tag-picker-kind-${t.kind}`}>{t.kind}</span>}
               {applied && <span className="tag-picker-check">✓</span>}
             </button>
@@ -86,7 +87,7 @@ export function TagPicker({
                   title="Press Enter to create this tag"
                   onClick={() => { onCreate?.(query.trim()); onClose?.(); }}>
             <span className="tag-picker-dot tag-picker-dot-new" style={{ background: tagFallbackColor(q) }}>+</span>
-            <span className="tag-picker-name">Create "<b>{query.trim()}</b>"</span>
+            <span className="tag-picker-name" dir="auto">Create "<b>{query.trim()}</b>"</span>
             <span className="tag-picker-kind tag-picker-kind-new">new</span>
           </button>
         )}

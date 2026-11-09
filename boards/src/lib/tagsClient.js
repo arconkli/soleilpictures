@@ -20,7 +20,7 @@ const COOLDOWN_MS = 60_000;
 const BUDGET_COOLDOWN_MS = 60 * 60_000;
 const _cooldownUntil = new Map(); // path -> Date.now() until which to skip
 
-async function authedFetch(path, body) {
+export async function authedFetch(path, body) {
   if (!supabase) return null;
   const until = _cooldownUntil.get(path) || 0;
   if (until && Date.now() < until) return null;

@@ -24,6 +24,8 @@
 // that layer instead of leaving the app. Closing it any other way consumes
 // the entry again, and puts back a URL the app changed in the meantime.
 
+import { isComposingKey } from './composerKeys.js';
+
 const stack = [];
 
 function topEntry() { return stack[stack.length - 1] || null; }
@@ -32,6 +34,7 @@ function topEntry() { return stack[stack.length - 1] || null; }
 // controls inside a layer (a rename field, a colour picker) see Escape first
 // and can claim it with preventDefault / stopPropagation.
 export function handleEscapeKey(e) {
+  if (isComposingKey(e)) return false;
   if (!e || e.key !== 'Escape' || e.defaultPrevented || e.isComposing) return false;
   const top = topEntry();
   if (!top || !top.onEscape) return false;

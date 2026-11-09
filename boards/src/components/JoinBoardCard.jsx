@@ -18,6 +18,7 @@ import { EV } from '../lib/analyticsEvents.js';
 import { editorLimitAllowed } from '../lib/appHost.js';
 import { SenderAvatar } from './PublicTopbar.jsx';
 import './shareJoin.css';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const NARROW = '(max-width: 640px)';
 
@@ -65,7 +66,7 @@ export function JoinBoardCard({
   const visible = ready && waited && !closed;
   useEffect(() => {
     if (!visible) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') setClosed(true); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') setClosed(true); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [visible]);

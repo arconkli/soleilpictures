@@ -31,6 +31,7 @@ import {
 import { paletteLayout, readableInk, hasCustomName } from './paletteLayout.js';
 import { parseISO as schedParseISO, todayISO as schedTodayISO, daysInMonth as schedDaysInMonth, firstWeekdayOfMonth as schedFirstWeekday, monthTitle as schedMonthTitle } from './schedDates.js';
 import { dayTypesFor, dayTypeColor } from './dayTypes.js';
+import { truncateToWidth as truncateToMeasure } from './truncateToWidth.js';
 // The item-key test used to be hand-copied into drawScheduleCalendarInterior as
 // an inline /\/i:[^/]+$/, which silently stopped matching the moment rundown
 // rows arrived. One owner, imported.
@@ -73,7 +74,7 @@ const T = {
   gridDot: 'rgba(245,245,247,.05)',
 };
 const FONT_SANS = 'aileron, -apple-system, system-ui, sans-serif';
-const FONT_DISPLAY = 'brandon-grotesque, Impact, sans-serif';
+const FONT_DISPLAY = 'brandon-grotesque, soleil-impact, sans-serif';
 const FONT_MONO = '"JetBrains Mono", ui-monospace, SFMono-Regular, monospace';
 // Note cards expose a fontFamily option; map the stored keys to stacks.
 function noteFontStack(fam) {
@@ -332,17 +333,7 @@ function wrapText(ctx, text, maxWidth) {
 // Trim `text` with a measured ellipsis so it fits in maxWidth at the
 // ctx's current font. Replaces the old `w/(fontSize*0.55)` guess that
 // caused labels to spill outside their cards.
-function truncateToWidth(ctx, text, maxWidth) {
-  if (!text) return '';
-  if (ctx.measureText(text).width <= maxWidth) return text;
-  let lo = 0, hi = text.length;
-  while (lo < hi) {
-    const mid = Math.ceil((lo + hi) / 2);
-    if (ctx.measureText(text.slice(0, mid) + '…').width <= maxWidth) lo = mid;
-    else hi = mid - 1;
-  }
-  return lo > 0 ? text.slice(0, lo) + '…' : '…';
-}
+const truncateToWidth = (ctx, text, maxWidth) => truncateToMeasure((t) => ctx.measureText(t).width, text, maxWidth);
 
 // Draw wrapped text clipped to a box, ellipsizing the last visible line
 // instead of clipping glyphs mid-row. Assumes ctx.font/fillStyle are set
@@ -1177,6 +1168,7 @@ async function planToBlob(plan, { width, height, allowImages, bgColor, type = 'i
   // Wait for webfonts once so the first thumbnails don't bake fallback
   // glyphs (resolved instantly after initial page load).
   try { await document.fonts.ready; } catch (_) {}
+  try { await document.fonts.load('700 10px soleil-impact', 'A'); } catch (_) {}
 
   const ss = SUPERSAMPLE;
   const canvas = document.createElement('canvas');
@@ -1450,6 +1442,7 @@ function drawMosaic(ctx, W, H, { images = null, docs = null }) {
 // fetched for a tile).
 async function mosaicToBlob(picks, { width, height, allowImages }) {
   try { await document.fonts.ready; } catch (_) {}
+  try { await document.fonts.load('700 10px soleil-impact', 'A'); } catch (_) {}
   const canvas = frameCanvas(width, height);
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;

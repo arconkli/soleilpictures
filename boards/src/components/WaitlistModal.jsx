@@ -15,6 +15,7 @@ import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { getFbCookies, gpcOn } from '../lib/metaPixel.js';
 import { useAuth } from '../auth/AuthGate.jsx';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const EDGE_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/submit-waitlist';
 
@@ -87,7 +88,7 @@ export function WaitlistModal({ onClose }) {
   busyRef.current = busy;
   useEffect(() => {
     lockScroll();
-    const onKey = (e) => { if (e.key === 'Escape' && !busyRef.current) handleCloseRef.current(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape' && !busyRef.current) handleCloseRef.current(); };
     window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('keydown', onKey); unlockScroll(); };
   }, []);

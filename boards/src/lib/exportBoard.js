@@ -14,10 +14,11 @@
 
 import { renderBoardPng } from './renderThumbnail.js';
 import { deliverFile } from './exportDelivery.js';
+import { safeFileName } from './safeFileName.js';
 import { logEvent } from './analytics.js';
 import { EV } from './analyticsEvents.js';
 
-const safeName = (boardName) => (boardName || 'board').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 80);
+const safeName = (boardName) => safeFileName(boardName, { fallback: 'board' });
 
 // board: { cards, strokes, arrows, boards, bgColor } → its PNG, or null when
 // nothing is on it.
@@ -35,7 +36,7 @@ async function drawBoard(board, format) {
 export async function exportBoardAsPng(board, boardName) {
   const blob = await drawBoard(board, 'png');
   if (!blob) return false;
-  await deliverFile(blob, `${safeName(boardName)}.png`);
+  await deliverFile(blob, safeFileName(boardName, { ext: 'png', fallback: 'board' }));
   logEvent(EV.EXPORT_RUN, { format: 'png', surface: 'canvas' });
   return true;
 }

@@ -54,6 +54,7 @@ import { isEditablePointerTarget } from '../lib/isEditableTarget.js';
 import { isReturnQaMode } from '../lib/localMode.js';
 import { buildFeedbackContext, describeFeedbackContext } from '../lib/feedbackContext.js';
 import { feedbackEnv } from '../lib/feedbackEnv.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // VISIBLE time, not wall time. The old 45s was a plain setTimeout, so it ran
 // while the tab was backgrounded — opening the app and walking away spent the
@@ -600,10 +601,12 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
   // Only while focus is inside the banner. A window-level handler would eat
   // Escape from the canvas, where it clears a selection.
   const onKeyDown = (e) => {
+    if (isComposingKey(e)) return;
     if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); }
   };
 
   const onNoteKeyDown = (e) => {
+    if (isComposingKey(e)) return;
     touchedRef.current = true;
     // Plain Enter inserts a newline — this is a textarea because people write
     // two sentences, and a form that eats the second one is not asking honestly.
@@ -687,6 +690,7 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
         {picked && (
           <textarea
             className="rr-note"
+            dir="auto"
             rows={2}
             value={note}
             maxLength={500}

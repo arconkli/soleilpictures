@@ -373,6 +373,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     // handler (the capture keydown below can't intercept paste events).
     const unregisterModal = registerModalOpen();
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (isEditableTarget(e)) return;
       // Dialogs (the discard confirm) and popovers (ColorPicker) stack ABOVE
       // the pad and own their own keys — never intercept inside them.

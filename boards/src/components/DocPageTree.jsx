@@ -239,7 +239,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
           </button>
           <Icon as={FileText} size={16} className="doc-tree-ico" />
           {renaming === p.id ? (
-            <input className="doc-tree-rename"
+            <input className="doc-tree-rename" dir="auto"
                    autoFocus
                    aria-label="Page name"
                    value={draftName}
@@ -254,7 +254,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
                    }}
                    onClick={(e) => e.stopPropagation()} />
           ) : (
-            <span className="doc-tree-name">{p.name || 'Untitled'}</span>
+            <span className="doc-tree-name" dir="auto">{p.name || 'Untitled'}</span>
           )}
           {pagePeers.length > 0 && (
             <span className="doc-tree-peers">

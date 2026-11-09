@@ -62,6 +62,9 @@ const ALLOWED_TAGS = [
 
 const ALLOWED_ATTR = [
   'class', 'style', 'href', 'target', 'rel', 'type', 'aria-label',
+  // Reading direction (lib/textDirection.js); values are held to ltr/rtl/auto
+  // in the hook below.
+  'dir',
   // The checklist box's checkbox semantics (NoteChecklist.js): without them a
   // screen reader met an unlabelled span, and the checked state lived only in
   // a class name.
@@ -95,6 +98,9 @@ function installHook() {
   DOMPurify.addHook('afterSanitizeAttributes', (node) => {
     if (node.tagName === 'A' && node.hasAttribute('target')) {
       node.setAttribute('rel', 'noopener noreferrer');
+    }
+    if (node.hasAttribute?.('dir') && !/^(ltr|rtl|auto)$/i.test(node.getAttribute('dir'))) {
+      node.removeAttribute('dir');
     }
   });
   hookInstalled = true;

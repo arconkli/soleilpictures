@@ -40,6 +40,7 @@ import { signInWords, signupFirstSource, keepFailReason } from '../lib/keepDraft
 import { parseMakeFragment, parseMakeText, MAKE_PATH } from '../lib/makeLink.js';
 import { composeMakeBoard } from '../lib/makeBoard.js';
 import './keepPage.css';
+import { initialOf } from '../lib/graphemes.js';
 import './makePage.css';
 
 const EMPTY = [];
@@ -297,7 +298,7 @@ function MakeTopbar({ children = null }) {
 }
 
 function MakeTopbarEnd({ kept, me }) {
-  const initial = (me?.email || '').trim().charAt(0).toUpperCase();
+  const initial = initialOf(me?.email, '');
   return (
     <>
       {!kept && <span className="keep-badge">Not saved</span>}

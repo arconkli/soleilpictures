@@ -135,7 +135,7 @@ export function JustifiedGallery({
             <span className="ct-group-badge">{g.count}</span>
           </div>
           <div className="ct-tile-meta">
-            <div className="ct-tile-name" title={g.name}>{g.name}</div>
+            <div className="ct-tile-name" dir="auto" title={g.name}>{g.name}</div>
           </div>
         </div>,
       );

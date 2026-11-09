@@ -13,6 +13,9 @@ import { R2Image } from './R2Image.jsx';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { ownPersonalCount, workspaceCountLine } from '../lib/workspaceLimit.js';
 import { teamsAllowed } from '../lib/appHost.js';
+import { isComposingKey } from '../lib/composerKeys.js';
+import { searchKey } from '../lib/textFold.js';
+import { initialOf } from '../lib/graphemes.js';
 
 // Show the filter input once we have more workspaces than this — on
 // small lists it's just visual clutter.
@@ -60,7 +63,7 @@ export function WorkspaceMenu({
       if (triggerSelector && e.target.closest?.(triggerSelector)) return;
       onClose?.();
     };
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onClose?.(); };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
@@ -74,7 +77,7 @@ export function WorkspaceMenu({
   const list = workspaces || [];
   const showFilter = list.length > FILTER_THRESHOLD;
   const q = filter.trim().toLowerCase();
-  const matches = (w) => !q || (w.name || '').toLowerCase().includes(q);
+  const matches = (w) => !q || searchKey(w.name).includes(searchKey(q));
   // A real team's workspaces show once, in the team section, while not filtering.
   const teamIds = !q && team?.ids ? new Set(team.ids) : null;
   const inTeam = (w) => !!teamIds && teamIds.has(w.id);
@@ -110,7 +113,7 @@ export function WorkspaceMenu({
                   : isOwner    ? 'You own this'
                   : isCoowner  ? 'You co-own this'
                   :              'Shared with you';
-    const initial = (w.name || '?').trim().charAt(0).toUpperCase() || '?';
+    const initial = initialOf(w.name);
     const tint = pickPresenceColor(w.id);
     const iconSrc = w.settings?.icon_url || '';
     // Personal workspace is the user's home — not removable. Owners
@@ -205,7 +208,7 @@ export function WorkspaceMenu({
                  placeholder="Filter workspaces…"
                  value={filter}
                  onChange={(e) => setFilter(e.target.value)}
-                 onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } }} />
+                 onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } }} />
         </div>
       )}
       <div className="ws-menu-scroll">

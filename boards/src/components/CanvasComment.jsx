@@ -22,6 +22,7 @@ import { relativeTimeShort } from '../lib/relativeTime.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { initialOf } from '../lib/graphemes.js';
 
 export function CanvasCommentLayer({
   comments, boardId, workspaceId, userId, wsPeers = [],
@@ -161,7 +162,7 @@ function CanvasCommentDraft({ canvasPos, onSubmit, onCancel }) {
       if (ref.current?.contains(e.target)) return;
       onCancel?.();
     };
-    const onKey = (e) => { if (e.key === 'Escape') onCancel?.(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onCancel?.(); };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
@@ -184,7 +185,7 @@ function CanvasCommentDraft({ canvasPos, onSubmit, onCancel }) {
          onPointerDown={(e) => e.stopPropagation()}>
       <form className="canvas-comment-card canvas-comment-card-draft"
             onSubmit={(e) => { e.preventDefault(); post(); }}>
-        <textarea className="canvas-comment-draft-input"
+        <textarea className="canvas-comment-draft-input" dir="auto"
                   autoFocus
                   rows={2}
                   value={body}
@@ -454,7 +455,7 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
       if (wrapRef.current?.contains(e.target)) return;
       setOpen(false);
     };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
@@ -607,13 +608,13 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
           <span className="canvas-comment-avatar"
                 style={{ background: authorColor }}
                 aria-hidden="true">
-            {(author || '?')[0].toUpperCase()}
+            {initialOf(author)}
           </span>
           <span className="canvas-comment-author">{author}</span>
           <span className="canvas-comment-when">{relativeTimeShort(comment.created_at)}</span>
           {comment.resolved && <span className="canvas-comment-tag">resolved</span>}
         </span>
-        <span className="canvas-comment-body" title={comment.body}>
+        <span className="canvas-comment-body" dir="auto" title={comment.body}>
           {comment.body}
         </span>
         {replyCount > 0 && (
@@ -803,7 +804,7 @@ export function CommentArchivePopover({
       if (ref.current?.contains(e.target)) return;
       onClose?.();
     };
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onClose?.(); };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
@@ -883,13 +884,13 @@ export function CommentArchivePopover({
               <div className="comment-archive-row-head">
                 <span className="canvas-comment-avatar canvas-comment-avatar-sm"
                       style={{ background: color }}>
-                  {(name || '?')[0].toUpperCase()}
+                  {initialOf(name)}
                 </span>
                 <span className="canvas-comment-author">{name}</span>
                 <span className="canvas-comment-when">{relativeTimeShort(c.created_at)}</span>
                 <span className={`comment-archive-tag is-${status}`}>{status}</span>
               </div>
-              <div className="comment-archive-body-text" title={c.body}>{c.body}</div>
+              <div className="comment-archive-body-text" dir="auto" title={c.body}>{c.body}</div>
               {(c.author === userId || canEdit) && (
                 <div className="comment-archive-row-actions">
                   {c.resolved
@@ -913,9 +914,9 @@ function CommentLine({ c, authorName, authorColor, canManage, onDelete }) {
         <span className="canvas-comment-avatar canvas-comment-avatar-sm"
               style={{ background: authorColor }}
               aria-hidden="true">
-          {(authorName || '?')[0].toUpperCase()}
+          {initialOf(authorName)}
         </span>
-        <span className="canvas-comment-line-name">{authorName}</span>
+        <span className="canvas-comment-line-name" dir="auto">{authorName}</span>
         <span className="canvas-comment-line-when">{relativeTimeShort(c.created_at)}</span>
         {canManage && (
           <button type="button"
@@ -924,7 +925,7 @@ function CommentLine({ c, authorName, authorColor, canManage, onDelete }) {
                   onClick={onDelete}>×</button>
         )}
       </span>
-      <div className="canvas-comment-line-body">{c.body}</div>
+      <div className="canvas-comment-line-body" dir="auto">{c.body}</div>
     </div>
   );
 }

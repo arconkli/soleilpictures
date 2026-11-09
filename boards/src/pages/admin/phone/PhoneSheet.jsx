@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePhoneData } from './phoneData.js';
 import { measureSheet } from '../../../lib/phoneInsights.js';
 import { Segmented, Section, WeekLine, DeltaText } from './phoneCharts.jsx';
+import { isComposingKey } from '../../../lib/composerKeys.js';
 
 const RANGES = [{ id: '12w', label: '12 weeks' }, { id: '26w', label: '6 months' }];
 const KEYS = ['kpi', 'weeks', 'growth'];
@@ -34,6 +35,7 @@ export function PhoneSheet({ id, refresh, onClose }) {
     const sheet = sheetRef.current;
     sheet?.querySelector('.ap-done')?.focus({ preventScroll: true });
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key === 'Escape') { e.preventDefault(); closeRef.current?.(); return; }
       if (e.key !== 'Tab' || !sheet) return;
       const els = [...sheet.querySelectorAll(FOCUSABLE)];

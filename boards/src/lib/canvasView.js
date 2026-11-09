@@ -12,6 +12,7 @@
 import { htmlToText } from './cardIndexRow.js';
 import { pickRendition, readingOrder } from './gallery.js';
 import { noteHtmlLead } from './noteCompose.js';
+import { cutGraphemes, exceedsGraphemes } from './graphemes.js';
 
 export const CANVAS = {
   // Cards drawn, in reading order; past it the rest are counted in `hidden`.
@@ -41,7 +42,7 @@ const round1 = (v) => Math.round(v * 10) / 10;
 function clip(s, n) {
   const t = String(s ?? '').replace(/\s+/g, ' ').trim();
   if (!t) return null;
-  return t.length > n ? `${t.slice(0, n - 1)}…` : t;
+  return exceedsGraphemes(t, n) ? `${cutGraphemes(t, n - 1)}…` : t;
 }
 
 // Only a plain hex colour goes out: these end up in a style attribute.

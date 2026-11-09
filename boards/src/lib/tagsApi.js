@@ -50,7 +50,7 @@ export async function listWorkspaceTags(workspaceId) {
 // (when no board is mounted to drive the autotag worker) sits
 // at zero applications until the user opens each board manually.
 export async function ensureTag({ workspaceId, name, color = null, kind = 'user', createdBy = null }) {
-  const cleaned = (name || '').trim();
+  const cleaned = (name || '').normalize('NFC').trim();
   if (!cleaned) throw new Error('Tag name required');
   const slug = cleaned.toLowerCase();
   const found = await supabase.from('tags').select('*')
@@ -119,7 +119,7 @@ export async function recolorTag(tagId, color) {
 }
 
 export async function renameTag(tagId, name) {
-  const trimmed = (name || '').trim();
+  const trimmed = (name || '').normalize('NFC').trim();
   if (!trimmed) throw new Error('Tag name required');
   const { error } = await supabase.from('tags').update({ name: trimmed }).eq('id', tagId);
   if (error) throw error;

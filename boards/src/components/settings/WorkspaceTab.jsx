@@ -21,6 +21,8 @@ import { SHAPES, DASH_STYLES } from '../../lib/shapeOptions.js';
 import { Field, SettingsCategory, SwatchInput, FontField, AvatarUploadRow, Toggle } from './fields.jsx';
 import { useSettingsSave } from './saveState.jsx';
 import { canManageWorkspace, canWriteWorkspace } from '../../lib/workspaceRoles.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
+import { initialOf } from '../../lib/graphemes.js';
 
 const ROLE_COPY = {
   owner:   'Owner — you can rename it, change the icon, and delete it.',
@@ -120,13 +122,14 @@ export function WorkspaceGeneralTab({
 
       <SettingsCategory title="Identity" desc="Shows in the sidebar and the workspace switcher">
         <Field label="Name">
-          <input className="settings-input"
+          <input className="settings-input" dir="auto"
                  value={name}
                  placeholder="e.g. Soleil Studio"
                  disabled={!canManage}
                  onChange={(e) => setName(e.target.value)}
                  onBlur={commitName}
                  onKeyDown={(e) => {
+                   if (isComposingKey(e)) return;
                    if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
                    if (e.key === 'Escape') { e.preventDefault(); setName(workspaceName || ''); }
                  }} />
@@ -135,7 +138,7 @@ export function WorkspaceGeneralTab({
           <AvatarUploadRow
             src={iconSrc}
             fallbackColor={pickPresenceColor(workspaceId || '')}
-            fallbackInitial={((name || workspaceName || '?').trim().charAt(0) || '?').toUpperCase()}
+            fallbackInitial={initialOf(name || workspaceName)}
             uploading={uploadingIcon}
             disabled={!canManage}
             shape="square"

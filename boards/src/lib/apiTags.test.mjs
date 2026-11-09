@@ -142,3 +142,11 @@ test('the MCP tools\' limits are the API\'s', () => {
   assert.equal(tool('tag_cards').remove.maxItems, TAGS.maxNames);
   assert.equal(tool('list_tags').limit.maximum, TAGS.maxItems);
 });
+
+test('names are read in NFC, slugs lowercase in any script', () => {
+  const c = cleanTagName('Café');
+  assert.equal(c.length, 4);
+  assert.equal(c, 'Café');
+  assert.equal(cleanTagName('  서울  '), '서울');
+  assert.equal(tagSlug('КИНО'), 'кино');
+});

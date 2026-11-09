@@ -2,6 +2,8 @@
 // cluster picked on the files sidebar's Home (components/home/ClustersHome.jsx,
 // preview only). Pure: App hands in workspace presence and the board map.
 
+import { initialOf } from './graphemes.js';
+
 // Who is in the workspace right now and where: one row a person, you left
 // out, a tab that isn't in front skipped (as the sidebar's presence dots skip
 // it). where is "In <cluster>" when they're on one the map knows.
@@ -21,7 +23,7 @@ export function hereNow(peers, boards, { selfId = null, nameOf = () => '' } = {}
     out.push({
       id,
       name,
-      initial: name.charAt(0).toUpperCase(),
+      initial: initialOf(name, ''),
       where: board ? `In ${(board.name && board.name.trim()) || 'Untitled cluster'}` : 'Here now',
       loc: p.location || null,
     });

@@ -5,6 +5,7 @@
 import React from 'react';
 import { Settings } from './../lib/icons.js';
 import { Icon } from './Icon.jsx';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const __TWEAKS_STORAGE_KEY = 'soleil-boards-tweaks';
 
@@ -148,6 +149,7 @@ export function TweaksPanel({ title = 'Tweaks', children }) {
 
   React.useEffect(() => {
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if ((e.metaKey || e.ctrlKey) && e.key === '.') {
         e.preventDefault();
         setOpen(o => !o);

@@ -18,6 +18,7 @@
 
 // Vite resolves this to the emitted worker asset's URL string (cheap — no code).
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { pdfAssetParams } from './pdfAssets.js';
 
 let _pdfjsPromise = null;
 
@@ -47,7 +48,9 @@ export async function loadPdfDocument(source) {
   } else {
     params = source; // already a getDocument params object
   }
-  const task = pdfjs.getDocument(params);
+  // Character maps + standard fonts, served from /pdfjs/<version>/ (see pdfAssets.js).
+  const href = typeof window !== 'undefined' ? window.location?.href : null;
+  const task = pdfjs.getDocument(href ? { ...pdfAssetParams(href, pdfjs.version), ...params } : params);
   return task.promise; // PDFDocumentProxy
 }
 

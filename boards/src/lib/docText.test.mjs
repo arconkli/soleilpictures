@@ -85,3 +85,28 @@ test('a snippet shows the words around the match', () => {
   assert.ok(text[at + inner.length] === ' ', 'and ends at the end of one');
   assert.equal(snippetAround('short', 'x'), 'short');
 });
+
+test('snippetAround finds a match the fold makes (final sigma, full-width brackets)', () => {
+  const filler = 'lorem ipsum dolor sit amet '.repeat(12);
+  const greek = snippetAround(`${filler}ΟΔΟΣ ΑΘΗΝΑ ${filler}`, 'οδός');
+  assert.ok(greek.includes('ΟΔΟΣ'), greek);
+  assert.ok(greek.startsWith('…'), greek);
+  const act = snippetAround(`${filler}Act II rev ${filler}`, 'Act（II）');
+  assert.ok(act.includes('Act II'), act);
+  assert.ok(act.startsWith('…'), act);
+});
+
+test('a snippet centres on the real words when the page was found through the fold', () => {
+  const pad = 'lorem ipsum dolor sit amet '.repeat(6);
+  const cafe = snippetAround(`${pad}the Café on the corner ${pad}`, 'cafe', 20);
+  assert.ok(cafe.includes('Café'), cafe);
+  assert.ok(cafe.startsWith('…'), 'not the start of the page');
+  const strasse = snippetAround(`${pad}die Straße nach Hause ${pad}`, 'strasse', 20);
+  assert.ok(strasse.includes('Straße'), strasse);
+  // folds that change lengths before the match: each ß is two letters folded
+  const shifted = snippetAround(`${pad}Fußmaße Große Straße ${pad}naïve café here ${pad}`, 'cafe', 20);
+  assert.ok(shifted.includes('café'), shifted);
+  assert.ok(!shifted.includes('Fußma'), 'the early ß did not shift the window');
+  // typed decomposed in the page, still found
+  assert.ok(snippetAround(`${pad}Café noir ${pad}`, 'cafe', 20).includes('Café'));
+});

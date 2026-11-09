@@ -20,6 +20,7 @@
 
 import { parseJsonLoose, responseText } from '../worker-llm.js';
 import { visionRequest } from './vision.js';
+import { cutGraphemes, exceedsGraphemes } from './graphemes.js';
 
 export const AI_MODELS = [
   {
@@ -73,6 +74,11 @@ export const AI_MODELS = [
     uses: 'Scout\'s voice-memo transcripts, when the turbo model fails',
     files: ['scout/src/transcribe.js'],
   },
+  {
+    id: '@cf/meta/m2m100-1.2b', kind: 'translation',
+    uses: 'picture search in any language: a query is put into English to match the picture descriptions (/api/search/translate)',
+    files: ['boards/src/worker-search.js'],
+  },
 ];
 
 // The catalog's name for each kind's task.
@@ -82,6 +88,7 @@ export const TASK_OF_KIND = {
   vision: 'Image-to-Text',
   'vision-chat': 'Text Generation',
   speech: 'Automatic Speech Recognition',
+  translation: 'Translation',
 };
 export const WATCHED_TASKS = [...new Set(AI_MODELS.map((m) => TASK_OF_KIND[m.kind]))];
 
@@ -295,6 +302,9 @@ export function canaryRequest(model) {
       const wav = silentWav();
       return { audio: model.audio === 'base64' ? base64Of(wav) : [...wav] };
     }
+    case 'translation':
+      // Production's request shape (worker-search.js), one word.
+      return { text: 'perro', source_lang: 'es', target_lang: 'en' };
     default:
       throw new Error(`no canary for a ${model.kind} model`);
   }
@@ -320,6 +330,9 @@ export function canaryProblem(model, out) {
       return responseText(out).trim() ? null : 'answered with no text';
     case 'speech':
       return typeof (out?.text ?? out?.transcription_info?.text) === 'string' ? null : 'answered with no text';
+    case 'translation':
+      // Read as worker-search.js reads it: a non-empty translated_text.
+      return typeof out?.translated_text === 'string' && out.translated_text.trim() ? null : 'answered with no translation';
     default:
       return `no canary for a ${model.kind} model`;
   }
@@ -401,7 +414,7 @@ export function digestAlert(fresh) {
   const lines = fresh.slice(0, LISTED).map((m) => {
     const price = priceText(m);
     const d = String(m.description ?? '').replace(/\s+/g, ' ').trim();
-    const about = d.length > 160 ? d.slice(0, 160).replace(/\s+\S*$/, '') + '…' : d;
+    const about = exceedsGraphemes(d, 160) ? cutGraphemes(d, 160).replace(/\s+\S*$/, '') + '…' : d;
     return `- ${m.name}: ${m.task?.name}, added ${String(m.created_at).slice(0, 10)}${price ? `, ${price}` : ''}${about ? `\n  ${about}` : ''}`;
   });
   if (fresh.length > LISTED) lines.push(`- and ${fresh.length - LISTED} more`);

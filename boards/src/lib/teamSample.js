@@ -10,6 +10,7 @@
 // Dates are relative to `now`, so a renewal is always ahead and the prorated
 // price of a seat is always real arithmetic.
 import { storageQuota } from './teamModel.js';
+import { initialOf } from './graphemes.js';
 
 const DAY = 864e5;
 const C = ['#5b8def', '#6b8090', '#9a6b88', '#c9a577', '#6b9088', '#b88958'];
@@ -84,7 +85,7 @@ export function sampleTeam(as = 'owner', now = Date.now(), { name } = {}) {
   const team = {
     id: SAMPLE_TEAM_ID,
     name: teamName,
-    letter: teamName.charAt(0).toUpperCase(),
+    letter: initialOf(teamName, ''),
     color: '#c9a577',
     sample: true,
     status: unpaid ? 'view_only' : 'active',

@@ -73,6 +73,8 @@ import {
   X as XIcon, Link as LinkIcon, UserPlus as UserPlusIcon, Globe as GlobeIcon, Lock as LockIcon,
 } from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
+import { isComposingKey } from '../lib/composerKeys.js';
+import { initialOf } from '../lib/graphemes.js';
 
 // Turn an expiry choice into a timestamp. 'never' is an explicit null, which
 // the RPCs read as "no expiry" — undefined would take the server default.
@@ -1277,7 +1279,7 @@ export function ShareModal({
       {avatar}
       <div className="share-row-text">
         <div className="share-row-name has-dot">
-          <span className="share-row-name-text">{name}</span>
+          <span className="share-row-name-text" dir="auto">{name}</span>
           {online && <span className="share-online" title="Online" />}
         </div>
         {sub && <div className="share-row-sub">{sub}</div>}
@@ -1288,7 +1290,7 @@ export function ShareModal({
   const avatarFor = (seed, text, neutral = false) => (
     <span className="share-avatar"
           style={neutral ? { background: 'var(--bg-4)', color: 'var(--ink-1)' } : { background: pickPresenceColor(seed) }}>
-      {(text || '?').charAt(0).toUpperCase()}
+      {initialOf(text)}
     </span>
   );
   const accessLabel = (text) => <span className="share-access-label">{text}</span>;
@@ -1303,7 +1305,7 @@ export function ShareModal({
           <h2 className="share-title" id="share-title">
             <span className="share-title-verb">{workspaceScope ? 'Share workspace' : 'Share'}</span>{' '}
             <span className="share-title-name">
-              “{workspaceScope ? (workspace?.name || 'Workspace') : (board?.name || 'Untitled cluster')}”
+              “<bdi>{workspaceScope ? (workspace?.name || 'Workspace') : (board?.name || 'Untitled cluster')}</bdi>”
             </span>
           </h2>
           <button className="share-close" onClick={onClose} aria-label="Close">
@@ -1438,7 +1440,7 @@ export function ShareModal({
                      placeholder="Add people by email"
                      value={inviteEmail}
                      onChange={(e) => setInviteEmail(e.target.value)}
-                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitInvite(); } }} />
+                     onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Enter') { e.preventDefault(); submitInvite(); } }} />
               <button className={'share-invite-btn' + goldIf('invite')}
                       onClick={submitInvite}
                       disabled={!inviteEmail.trim() || inviting || (seatFor.length > 0 && !quoteOk)}>

@@ -2,7 +2,7 @@
 
 > Drop a PDF onto a canvas and you get a card showing its first page and how many pages it has. Click it to open a full-screen viewer that scrolls through the whole document and offers a download. PDFs up to 50 MB open in the viewer; a larger one lands as a file card with a download. There is no PDF size limit on any plan.
 
-_Source: https://clusters.soleilpictures.com/docs/files/pdf · Updated 2026-10-22_
+_Source: https://clusters.soleilpictures.com/docs/files/pdf · Updated 2026-11-09_
 
 A PDF on a board is a real document, not a download link.
 
@@ -24,6 +24,8 @@ The card behaves like any other — move, resize, group, tag, comment, put it in
 Click the card to open full screen. The viewer scrolls the whole document and
 renders pages as you reach them, so a long PDF opens immediately rather than
 after processing every page.
+
+PDFs in Japanese, Chinese and Korean show their text too.
 
 **Download** is in the viewer, and gives you the original file untouched.
 

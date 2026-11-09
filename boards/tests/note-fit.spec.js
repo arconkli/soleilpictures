@@ -36,8 +36,8 @@ body { font-family: var(--font-sans); font-size: 13px; font-variant-numeric: tab
 }
 .note-body p:empty::before { content: "\\00a0"; }
 .note-body a { text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; word-break: break-word; }
-.note-body ul:not(.note-checklist), .note-body ol { padding-left: 24px; margin: 6px 0; list-style-position: outside; }
-.note-body ul:not(.note-checklist) > li, .note-body ol > li { margin: 2px 0; }
+.note-body ul:not(.note-checklist), .note-body ol { padding-inline-start: 0; margin: 6px 0; list-style-position: outside; }
+.note-body ul:not(.note-checklist) > li, .note-body ol > li { margin: 2px 0; margin-inline-start: 24px; }
 .note-body h1, .note-body h2, .note-body h3 { font-weight: 650; line-height: 1.25; letter-spacing: -0.012em; margin: .5em 0 .2em; }
 .note-body h1 { font-size: 1.35em; }
 .note-body h2 { font-size: 1.18em; }

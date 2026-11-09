@@ -10,6 +10,7 @@ import {
   approveLine, storageQuota, sizeLabel, teamReducer, teamHeroLine, TEAM_SEAT_MIN,
 } from './teamModel.js';
 import { sampleTeam } from './teamSample.js';
+import { searchKey } from './textFold.js';
 
 const NOW = new Date('2026-10-21T15:00:00').getTime();
 const DAY = 864e5;
@@ -65,6 +66,12 @@ test('People: All lists editors and invites with the viewers folded; a search fi
   assert.deepEqual(lena.rows.map((p) => p.id), ['p-lena']);
   assert.equal(lena.viewersFolded, 0);
   assert.equal(filterPeople(t.people, { query: 'vidal.studio' }).rows[0].id, 'p-rosa');
+});
+
+test('People: a fold option lets "nunez" find "Jos\u{E9} N\u{FA}\u{F1}ez"', () => {
+  const people = [{ id: 'p-jose', name: 'Jos\u{E9} N\u{FA}\u{F1}ez', email: 'jose@example.com', role: 'edit' }];
+  assert.deepEqual(filterPeople(people, { query: 'nunez', fold: searchKey }).rows.map((p) => p.id), ['p-jose']);
+  assert.equal(filterPeople(people, { query: 'nunez' }).rows.length, 0);
 });
 
 test('labels: where, last here, and the names a member is pointed to', () => {

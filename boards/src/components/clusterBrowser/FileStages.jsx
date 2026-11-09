@@ -25,6 +25,7 @@ import {
 import { Icon } from '../Icon.jsx';
 import { WaitNote } from '../WaitNote.jsx';
 import { Info, Download, EyeOff, BoundingBox } from '../../lib/icons.js';
+import { initialOf, initialsOf, cutGraphemes, exceedsGraphemes } from '../../lib/graphemes.js';
 import './fileStages.css';
 
 const CAP = `${TEXT_STAGE_MAX_BYTES / (1024 * 1024)} MB`;
@@ -63,7 +64,7 @@ function Sheet({ kind, top = null, className = '', children }) {
   );
 }
 
-const cut = (s, n) => (s.length > n ? `${s.slice(0, n)}…` : s);
+const cut = (s, n) => (exceedsGraphemes(s, n) ? `${cutGraphemes(s, n)}…` : s);
 
 // The lines as the file has them, with their numbers in the margin. A file
 // that is one long line or a few (minified JSON) wraps instead, without
@@ -178,7 +179,7 @@ function FontStage({ font, sizeBytes }) {
             <output>{px} px</output>
           </span>
         </div>
-        <textarea id={id} ref={field} className="fst-font-field" rows={1} spellCheck={false}
+        <textarea id={id} ref={field} className="fst-font-field" dir="auto" rows={1} spellCheck={false}
                   style={{ ...face, fontSize: px }} value={text} onChange={(e) => setText(e.target.value)} />
       </div>
       <div className="fst-font-fall">
@@ -303,9 +304,9 @@ function frameDoc(page, shown) {
 
 // The sender's initials, for the round mark beside their name.
 function initials(p) {
-  const words = String(p?.name || '').match(/[\p{L}\p{N}]+/gu) || [];
-  if (words.length) return (words[0][0] + (words.length > 1 ? words[words.length - 1][0] : '')).toUpperCase();
-  return String(p?.address || '?')[0].toUpperCase();
+  const words = String(p?.name || '').match(/[\p{L}\p{M}\p{N}]+/gu) || [];
+  if (words.length) return initialsOf(words.length > 1 ? `${words[0]} ${words[words.length - 1]}` : words[0]);
+  return initialOf(p?.address);
 }
 
 // The attachments: each to download, and all of them onto the board at once
@@ -330,7 +331,7 @@ function Attachments({ letter, mail, item, canPut, onClose }) {
           return (
             <div className="fst-mail-att" key={i}>
               <span className="fst-mail-thumb"><Icon as={attachmentGlyph(a.mimeType)} size={22} /></span>
-              <span className="fst-mail-att-txt"><span className="fst-mail-nm">{name}</span><span className="fst-mail-sz">{humanSize(a.size)}</span></span>
+              <span className="fst-mail-att-txt"><span className="fst-mail-nm" dir="auto">{name}</span><span className="fst-mail-sz">{humanSize(a.size)}</span></span>
               <button type="button" className="fst-mail-dl" aria-label={`Download ${name}`} title={`Download ${name}`} onClick={() => save(a, i)}>
                 <Icon as={Download} size={15} />
               </button>

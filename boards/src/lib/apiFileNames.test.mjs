@@ -14,6 +14,7 @@ const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => readFileSync(resolve(SRC, rel), 'utf8');
 
 test('Content-Disposition carries an ASCII fallback and the exact UTF-8 name', () => {
+  assert.doesNotThrow(() => contentDisposition('x'.repeat(199) + '😀.jpg'));
   assert.equal(contentDisposition('diner_ext_dusk_04.jpg'),
     'inline; filename="diner_ext_dusk_04.jpg"; filename*=UTF-8\'\'diner_ext_dusk_04.jpg');
   const accented = contentDisposition('caf\u00e9 (final).jpg');

@@ -18,6 +18,8 @@
 //
 // Pure, so the rules can be tested without a drag.
 
+import { cutGraphemes, exceedsGraphemes } from './graphemes.js';
+
 const NOUNS = {
   image: ['photo', 'photos'],
   video: ['video', 'videos'],
@@ -45,7 +47,7 @@ export function copyKeyName(mac = isMacPlatform()) {
 
 const clip = (s, n = 28) => {
   const t = String(s || '').trim();
-  return t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t;
+  return exceedsGraphemes(t, n) ? `${cutGraphemes(t, n - 1).trimEnd()}…` : t;
 };
 
 // "mara-callback-1.jpg", "3 photos", "2 files".

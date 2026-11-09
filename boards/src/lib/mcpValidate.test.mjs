@@ -113,8 +113,8 @@ test('too many items says to split the call, and ranges say what they allow', ()
   assert.match(problems[0], /^urls takes at most 100 items \(got 101\) — split it across calls$/);
   const range = checkArgs(tool('read_board'), { board_id: ID, limit: 9000 });
   assert.match(range.problems[0], /^limit must be at most 500 \(got 9000\)$/);
-  const short = checkArgs(tool('search'), { query: 'a' });
-  assert.match(short.problems[0], /^query must be at least 2 characters \(got 1\)$/);
+  const short = checkArgs(tool('search'), { query: '' });
+  assert.match(short.problems[0], /^query must not be empty$/);
 });
 
 test('free-form properties keep every key, nulls included — null is how a key is removed', () => {

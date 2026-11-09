@@ -93,6 +93,7 @@ import { createNameIndex } from '../lib/entityNameTrie.js';
 import { useEntityNameTrie } from '../hooks/useEntityNameTrie.js';
 import { CommentGutter } from './CommentGutter.jsx';
 import { CommentInlinePopover } from './CommentInlinePopover.jsx';
+import { isComposingKey } from '../lib/composerKeys.js';
 // DocPageTagChips intentionally not mounted — the margin dot
 // (DocTagGutter) is the canonical tag surface in the doc body now.
 // import { DocPageTagChips } from './DocPageTagChips.jsx';
@@ -1770,7 +1771,7 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
     };
     // On document, claimed: the open doc is a layer (lib/modalGuard) that
     // would close on the same Escape at the window.
-    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); setPos(null); } };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); setPos(null); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('keydown', onKey);
     return () => {

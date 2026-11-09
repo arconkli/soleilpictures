@@ -9,6 +9,7 @@ import { placeCommentPopover } from '../lib/commentPopoverPlace.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { detectMentionToken, matchMentions } from '../lib/commentMentionText.js';
+import { initialOf } from '../lib/graphemes.js';
 
 const W = 320;
 
@@ -85,6 +86,7 @@ export function CommentInlinePopover({
     // Claimed: an open doc is a layer (lib/modalGuard) that would close on
     // the same Escape at the window.
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key !== 'Escape' || confirmingRef.current) return;
       e.preventDefault();
       requestClose();
@@ -111,7 +113,7 @@ export function CommentInlinePopover({
     <div ref={popRef} className="comment-inline-pop surface-frosted" style={{ top: pos.top, left: pos.left, width: pos.width }}>
       <div className="comment-inline-head">
         <span className="comment-inline-author" style={{ background: thread.authorColor || 'var(--soleil)' }}>
-          {(thread.author || '?')[0]?.toUpperCase()}
+          {initialOf(thread.author)}
         </span>
         <span className="comment-inline-name">{thread.author}</span>
         {editable ? (<>
@@ -134,11 +136,11 @@ export function CommentInlinePopover({
           <span className="comment-inline-viewonly">View only</span>
         )}
       </div>
-      <div className="comment-inline-body">{thread.body}</div>
+      <div className="comment-inline-body" dir="auto">{thread.body}</div>
       {thread.replies.map((r, i) => (
         <div key={r.id || i} className="comment-inline-reply">
           <div className="comment-inline-name">{r.author}</div>
-          <div>{r.body}</div>
+          <div dir="auto">{r.body}</div>
         </div>
       ))}
       {editable && !thread.resolved && (

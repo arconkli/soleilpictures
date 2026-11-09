@@ -7,6 +7,7 @@
 // doesn't select, open or drag while you type.
 
 import { useEffect, useRef } from 'react';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 export function InlineRename({ value = '', onCommit, onCancel, className = '', label = 'Name' }) {
   const ref = useRef(null);
@@ -36,6 +37,7 @@ export function InlineRename({ value = '', onCommit, onCancel, className = '', l
     <input
       ref={ref}
       className={`editable ir-input ${className}`.trim()}
+      dir="auto"
       defaultValue={value}
       aria-label={label}
       spellCheck={false}
@@ -44,6 +46,7 @@ export function InlineRename({ value = '', onCommit, onCancel, className = '', l
       onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
       onKeyDown={(e) => {
         e.stopPropagation();
+        if (isComposingKey(e)) return;
         if (e.key === 'Enter') { e.preventDefault(); finish(true); }
         else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
       }}

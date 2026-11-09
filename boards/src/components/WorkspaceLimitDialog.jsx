@@ -8,6 +8,7 @@ import { logEvent, logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { teamsAllowed } from '../lib/appHost.js';
 import { limitBoxCopy } from '../lib/workspaceLimitCopy.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 export default function WorkspaceLimitDialog({ n, surface = 'menu', via = 'precheck', onTeam = false, onClose }) {
   const c = limitBoxCopy(n, { teams: teamsAllowed(), onTeam });
@@ -20,7 +21,7 @@ export default function WorkspaceLimitDialog({ n, surface = 'menu', via = 'prech
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onClose?.(); };
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);

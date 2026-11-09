@@ -6,6 +6,7 @@ import { MessageFaces } from './MessageFaces.jsx';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { dayLabel } from '../lib/messageFeed.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // A conversation's pinned messages, from the pin count in its header (the
 // card look): newest first, who and when, the words, and Unpin. A row goes to
@@ -43,7 +44,7 @@ export function MessagePinsPopover({ anchor, trigger = null, title, pinned, self
       onClose(false);
     };
     // Claimed, so the panel underneath stays open.
-    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose(true); } };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); onClose(true); } };
     // It's placed under the count, which the thread scrolling doesn't move:
     // only a resize leaves it.
     const onResize = () => onClose(false);
@@ -79,7 +80,7 @@ export function MessagePinsPopover({ anchor, trigger = null, title, pinned, self
                 <MessageFaces people={[{ id: m.sender_id, name: mine ? (p?.name || 'You') : name, color: p?.color || pickPresenceColor(m.sender_id || '') }]} size={26} />
                 <span className="msg-pins-text">
                   <span className="msg-pins-top">
-                    <span className="msg-pins-who">{name}</span>
+                    <span className="msg-pins-who" dir="auto">{name}</span>
                     <span className="msg-pins-when">{whenLabel(m.created_at)}</span>
                   </span>
                   <span className="msg-pins-body">{String(m.body || '').replace(/\s+/g, ' ').trim() || 'Attachment'}</span>

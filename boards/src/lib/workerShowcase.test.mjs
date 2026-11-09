@@ -144,9 +144,11 @@ test('a missing object is 404', async () => {
 
 test('dl names the download and keeps the shot\'s own extension', async () => {
   const a = await call({ extra: `&dl=${encodeURIComponent('Japandi Living Room!!')}` });
-  assert.equal(a.res.headers.get('content-disposition'), 'attachment; filename="Japandi-Living-Room.png"');
+  assert.equal(a.res.headers.get('content-disposition'), `attachment; filename="Japandi Living Room!!.png"; filename*=UTF-8''Japandi%20Living%20Room!!.png`);
   const b = await call({ extra: '&dl=x.exe' });
-  assert.equal(b.res.headers.get('content-disposition'), 'attachment; filename="x.png"');
+  assert.equal(b.res.headers.get('content-disposition'), `attachment; filename="x.png"; filename*=UTF-8''x.png`);
+  const c = await call({ extra: `&dl=${encodeURIComponent('東京の部屋')}` });
+  assert.equal(c.res.headers.get('content-disposition'), `attachment; filename="_.png"; filename*=UTF-8''%E6%9D%B1%E4%BA%AC%E3%81%AE%E9%83%A8%E5%B1%8B.png`);
   const plain = await call();
   assert.equal(plain.res.headers.get('content-disposition'), null);
   assert.equal(downloadName('', 'desk-light.png'), 'desk-light.png');

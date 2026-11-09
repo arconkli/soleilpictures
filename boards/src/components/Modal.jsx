@@ -18,6 +18,7 @@ import { Icon } from './Icon.jsx';
 // The Tab trap and the focusable query live in lib/modalGuard, shared with
 // Settings, which keeps its own shell and so cannot wrap in this component.
 import { registerModalOpen, isTopModal, focusablesIn as focusables, trapTabKey } from '../lib/modalGuard.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // Ref-counted body scroll lock so stacked modals don't unlock prematurely.
 let lockCount = 0;
@@ -101,12 +102,14 @@ export function Modal({
       const focusLost = !active || active === document.body;
       if (!focusLost && !panel.contains(active)) return;
 
+      // Tab stays inside even while a keyboard is composing; an Escape that
+      // is part of composing closes the candidate list, not this dialog.
+      if (e.key === 'Tab') { trapTabKey(e, panel); return; }
+      if (isComposingKey(e)) return;
       if (e.key === 'Escape' && closeOnEscape) {
         e.stopPropagation();
         onClose?.();
-        return;
       }
-      if (e.key === 'Tab') trapTabKey(e, panel);
     };
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);

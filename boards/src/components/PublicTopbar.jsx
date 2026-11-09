@@ -8,6 +8,7 @@
 // so it lives here, where the admin Surface Gallery can import it for the cost
 // of an icon and a wordmark.
 import { ClustersMark } from './SoleilWordmark.jsx';
+import { initialOf } from '../lib/graphemes.js';
 import './shareJoin.css';
 
 // Branded top bar — rendered in every viewer state (loading / invalid / ok)
@@ -82,7 +83,7 @@ export function senderColor(name) {
 // Small round avatar with the sender's initial.
 export function SenderAvatar({ name }) {
   const n = String(name || '').trim();
-  return <span className="public-av" aria-hidden="true" style={{ background: senderColor(n) }}>{n.charAt(0) || '?'}</span>;
+  return <span className="public-av" aria-hidden="true" style={{ background: senderColor(n) }}>{initialOf(n, '?', { upper: false })}</span>;
 }
 
 // The topbar's title block for a link someone sent: the cluster's name, and

@@ -89,3 +89,16 @@ test('a picture with no usable size is placed as a square rather than dropped', 
   assert.equal(L.pictures.length, 2);
   assert.ok(Math.abs(L.pictures[0].w - L.pictures[0].h) < 0.2);
 });
+
+test('a long name of family emoji is wrapped and ellipsized without splitting one', () => {
+  const fam = String.fromCodePoint(0x1f468, 0x200d, 0x1f469, 0x200d, 0x1f467);
+  const ell = String.fromCodePoint(0x2026);
+  const L = layoutShareCard({ name: fam.repeat(300), pictures: [], measure });
+  assert.equal(L.nameLines.length, 3);
+  for (const line of L.nameLines) {
+    const body = line.endsWith(ell) ? line.slice(0, -1) : line;
+    assert.equal(body.length % fam.length, 0, 'a family was cut in the middle');
+    assert.equal(body, fam.repeat(body.length / fam.length));
+  }
+  assert.ok(L.nameLines[2].endsWith(ell));
+});

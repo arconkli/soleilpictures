@@ -31,6 +31,8 @@ import { WorkspaceMenu } from './WorkspaceMenu.jsx';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { boardRecency, jumpBackIn, projectList, workspaceMenuPlacement } from '../lib/projectsHome.js';
+import { isComposingKey } from '../lib/composerKeys.js';
+import { initialOf } from '../lib/graphemes.js';
 
 const UNTITLED_RE = /^Untitled (cluster|list)$/i;
 const displayName = (b) => (b?.name && b.name.trim()) || 'Untitled cluster';
@@ -47,7 +49,7 @@ function Thumb({ board, label }) {
   // No render yet (a new or empty cluster): the cover tint and an initial, so
   // the tile is still recognisably THIS project rather than a grey box.
   const tint = COVER_TINTS[board?.cover] || COVER_TINTS.neutral;
-  const initial = (label || '?').trim().charAt(0).toUpperCase();
+  const initial = initialOf(label);
   return (
     <span className="ph-thumb ph-thumb-empty" style={{ '--ph-tint': tint }} aria-hidden="true">
       <span className="ph-thumb-initial">{initial}</span>
@@ -104,7 +106,7 @@ function NewProjectTile({ onCreate, disabled }) {
         <input ref={inputRef} className="ph-new-input" value={draft} maxLength={120}
                placeholder="Name it (optional)" aria-label="New cluster name"
                onChange={(e) => setDraft(e.target.value)}
-               onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setNaming(false); setDraft(''); } }} />
+               onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); setNaming(false); setDraft(''); } }} />
         <span className="ph-tile-sub">Enter to create</span>
       </span>
     </form>
@@ -189,7 +191,7 @@ function WorkspaceHeader({
           <span className="ph-ws-avatar ph-ws-avatar-img"><R2Image src={iconSrc} alt="" /></span>
         ) : (
           <span className="ph-ws-avatar" style={{ background: pickPresenceColor(workspace.id) }} aria-hidden="true">
-            {name.charAt(0).toUpperCase()}
+            {initialOf(name, '')}
           </span>
         )}
         <span className="ph-ws-text">

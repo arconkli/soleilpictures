@@ -22,6 +22,8 @@ import { useSettingsSave } from './saveState.jsx';
 import { DeleteAccount } from './DeleteAccount.jsx';
 import AccountBox from './AccountBox.jsx';
 import { PasskeysSection } from './PasskeysSection.jsx';
+import { isComposingKey } from '../../lib/composerKeys.js';
+import { initialOf } from '../../lib/graphemes.js';
 
 export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
   const feedback = useFeedback();
@@ -137,7 +139,7 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
         <AvatarUploadRow
           src={avatarUrl}
           fallbackColor={color || presenceFallback}
-          fallbackInitial={(name || user?.email || '?').trim().charAt(0).toUpperCase() || '?'}
+          fallbackInitial={initialOf(name || user?.email)}
           uploading={uploadingAvatar}
           disabled={loading}
           onPick={onAvatarPick}
@@ -145,12 +147,13 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
         />
       </Field>
       <Field label="Display name">
-        <input className="settings-input"
+        <input className="settings-input" dir="auto"
                value={name}
                placeholder={user?.email?.split('@')[0] || 'Your name'}
                onChange={(e) => setName(e.target.value)}
                onBlur={commitName}
                onKeyDown={(e) => {
+                 if (isComposingKey(e)) return;
                  if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
                  if (e.key === 'Escape') { e.preventDefault(); setName(saved.name); }
                }}

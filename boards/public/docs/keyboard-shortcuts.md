@@ -22,6 +22,10 @@ modifier key for your platform. On Windows and Linux, every `⌘` below is `Ctrl
 
 
 
+With a Japanese, Chinese or Korean input method, `Enter` picks the word from the
+candidate list first. It never sends a message, saves a title or starts a new
+card until the word is settled.
+
 ## Navigate
 
 | Key | Action |

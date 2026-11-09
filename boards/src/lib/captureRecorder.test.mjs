@@ -71,6 +71,8 @@ test('a name that is punctuation is still a usable filename', () => {
   assert.equal(captureFilename('', 'png', at), 'soleil-capture-20260909-000000.png');
   assert.equal(captureFilename('///', 'png', at), 'soleil-capture-20260909-000000.png');
   assert.equal(captureFilename(null, 'png', at), 'soleil-capture-20260909-000000.png');
+  // Letters of any script stay; they used to be dropped to a dash.
+  assert.equal(captureFilename('東京 ロケハン', 'png', at), 'soleil-東京-ロケハン-20260909-000000.png');
 });
 
 test('the two default names are the ones the buttons use', () => {

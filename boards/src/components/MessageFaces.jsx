@@ -3,6 +3,8 @@
 // face for a person, two overlapping for a group (the first two besides you).
 //   people — [{ id, name, color }]
 //   size   — one face's width in px; a pair draws smaller faces in the same box
+import { initialOf } from '../lib/graphemes.js';
+
 export function MessageFaces({ people, size = 28, className = '' }) {
   const shown = (people || []).slice(0, 2);
   const pair = shown.length > 1;
@@ -13,7 +15,7 @@ export function MessageFaces({ people, size = 28, className = '' }) {
         ? <span className="msg-face" />
         : shown.map((p) => (
           <span key={p.id} className="msg-face" style={{ background: p.color }}>
-            {String(p.name || '?').trim().charAt(0).toUpperCase()}
+            {initialOf(p.name)}
           </span>
         ))}
     </span>

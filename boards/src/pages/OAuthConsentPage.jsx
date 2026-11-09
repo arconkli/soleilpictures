@@ -31,6 +31,7 @@ import { connectEventProps } from '../lib/oauthConnect.js';
 import { consentTrust, consentScopes, scopeSentence, returnLabel, SCOPE_CHIPS } from '../lib/oauthTrust.js';
 import { logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { initialOf } from '../lib/graphemes.js';
 import './oauthConsent.css';
 
 // Direction D, "Trust banner" (the owner's pick, 2026-10-26): who vouches for
@@ -43,7 +44,6 @@ const BANNER_ICON = { verified: SealCheck, local: Monitor, unverified: Warning }
 
 // The first character of a name, for the app's tile and the account's avatar.
 // Never a remote logo: a registered client's logo_uri is whatever it typed.
-const initialOf = (s) => (Array.from(String(s || '').trim())[0] || '?').toUpperCase();
 
 function Shell({ children }) {
   return (

@@ -30,6 +30,7 @@ const REVIEWED = [
   ['components/NoteTiptapSurface.jsx', 'probe.innerHTML = sanitizeNoteHtml(html)', 'sanitized'],
   ['components/cards.jsx', 'root.innerHTML = source', 'a <template> (toggleChecklistInHtml)'],
   ['lib/googleFonts.js', 'tpl.innerHTML = String(html)', 'a <template>'],
+  ['lib/textDirection.js', 't.innerHTML = html', 'a <template> (directedHtml)'],
   ['components/RichNoteEditor.jsx', 'ref.current.innerHTML = next', 'next is sanitizeNoteHtml output'],
   ['components/RichNoteEditor.jsx', 'ref.current.innerHTML = newHtml', "the editor's own content, relinked"],
   ['components/RichNoteEditor.jsx', 'ref.current.innerHTML = initialRef.current', "the editor's own content as seeded"],

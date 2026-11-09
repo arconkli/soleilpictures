@@ -36,6 +36,23 @@ test('a name is trimmed, single-spaced and free of invisible characters', () => 
   assert.equal(normalizeWorkspaceName('Café'), 'Café', 'NFC');
 });
 
+test('a name keeps the joiners its script or emoji needs and drops the stray ones', () => {
+  const cp = (...c) => String.fromCodePoint(...c);
+  const ZWNJ = cp(0x200c), ZWJ = cp(0x200d), VS16 = cp(0xfe0f);
+  const keep = [
+    cp(0x67e, 0x631, 0x648, 0x698, 0x647) + ZWNJ + cp(0x647, 0x627),                       // Persian plural
+    cp(0x915, 0x94d) + ZWJ + cp(0x937),                                                       // Hindi conjunct
+    cp(0x1f468) + ZWJ + cp(0x1f469) + ZWJ + cp(0x1f467) + ' Crew',                            // family emoji
+    cp(0x2764) + VS16 + ' Films',                                                             // emoji presentation
+  ];
+  for (const s of keep) assert.equal(normalizeWorkspaceName(s), s);
+  // A stray joiner becomes a space, like the zero-width space above.
+  assert.equal(normalizeWorkspaceName('Lost' + ZWJ + 'Time'), 'Lost Time');
+  assert.equal(normalizeWorkspaceName(ZWNJ + 'Studio'), 'Studio');
+  assert.equal(normalizeWorkspaceName('a' + ZWNJ + 'b'), 'a b');
+  assert.equal(normalizeWorkspaceName('Lost' + VS16 + 'Time'), 'Lost Time');
+});
+
 test('a name is required and capped at the length emails show', () => {
   assert.deepEqual(validateWorkspaceName('Lost Time'), { ok: true, name: 'Lost Time', reason: null });
   assert.equal(validateWorkspaceName('   ').reason, 'empty');

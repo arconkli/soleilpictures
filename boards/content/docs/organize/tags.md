@@ -5,7 +5,7 @@ h1: Tags and entities
 navLabel: Tags
 section: organize
 order: 0
-updated: 2026-10-25
+updated: 2026-11-09
 answer: A tag cuts across everything — put one on a card, a whole cluster or a passage of a document, and the tag's page gathers all of them from anywhere in the workspace. Tags can be typed as a character, setting, organization, topic or thing. A tag is applied on its own only where its exact name appears; beyond that the AI suggests tags and underlines clear mentions in documents, everything it does is marked auto, and the workspace owner can turn it off.
 faq:
   - q: Do tags move things?
@@ -92,7 +92,10 @@ names of groups and clusters — and only uses tags you have already made, so a
 workspace with no tags gets none. Pictures are read too, but they only ever
 get suggestions (see below).
 
-- **An exact name match is applied**, marked *auto*. Make a Diner tag, and a
+- **An exact name match is applied**, marked *auto*. Tag names can be in any
+  script: where the script puts spaces between words a name matches whole words
+  only, in Korean it also matches with a particle after it (`서울` in `서울에서`),
+  and in Chinese, Japanese and Thai it is found inside running text. Make a Diner tag, and a
   note that mentions the diner picks it up, as does a group called "Diner
   stills". Creating a tag applies it straight away to what already says its
   name.

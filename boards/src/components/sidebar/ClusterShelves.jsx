@@ -180,7 +180,7 @@ export function SidebarItemRow({ item, depth = 0, indent = null, onClick, onOpen
             }}>
       {checks && <span className="row-check" aria-hidden="true"><Icon as={Check} size={10} weight="bold" /></span>}
       <ItemGlyph item={item} />
-      <span className="sbf-file-name">{item.name}</span>
+      <span className="sbf-file-name" dir="auto">{item.name}</span>
       {where && <span className="sbf-file-where">{where}</span>}
       {item.unplaced && <span className="sbf-stored-dot" aria-label="not on the board" />}
       {starred && <span className="sbf-star-mark" aria-label="starred">★</span>}

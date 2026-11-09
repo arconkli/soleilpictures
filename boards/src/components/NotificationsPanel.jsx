@@ -22,6 +22,7 @@ import { escapeClosesPanel } from '../lib/panelEscape.js';
 import { fileSharesAllowed, sharedFilesAllowed } from '../lib/appHost.js';
 import { openSharedFile } from '../lib/sharedFileBus.js';
 import { notificationTarget, placeUnderIsland, wantsNotificationSheet } from '../lib/notificationsBell.js';
+import { initialOf } from '../lib/graphemes.js';
 import './notificationsPanel.css';
 
 function agoLabel(ts) {
@@ -47,7 +48,7 @@ function EditRequestRow({ n, onAnswer, onMarkRead, nameOf }) {
   const requestId = n.data?.request_id || null;
   const who = (nameOf?.(n.data?.requester_id) || '').trim()
     || String(n.title || '').split(' asked to edit')[0].trim();
-  const initial = (who.charAt(0) || '?').toUpperCase();
+  const initial = initialOf(who);
 
   const answer = async (yes) => {
     if (busy || !requestId || !onAnswer) return;

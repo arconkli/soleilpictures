@@ -5,6 +5,7 @@
 import { useEffect, useRef } from 'react';
 import { Icon } from '../Icon.jsx';
 import { Check } from '../../lib/icons.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 export function TeamMenu({ items, onPick, onClose, align = 'left' }) {
   const ref = useRef(null);
@@ -19,6 +20,7 @@ export function TeamMenu({ items, onPick, onClose, align = 'left' }) {
     const down = (e) => { if (wrap && !wrap.contains(e.target)) onClose?.(); };
     // Esc closes the menu and goes no further, so the page stays open.
     const key = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key !== 'Escape') return;
       e.stopPropagation();
       onClose?.();

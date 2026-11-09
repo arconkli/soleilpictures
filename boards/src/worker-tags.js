@@ -95,7 +95,7 @@ export async function handleTagsRoute(url, request, env) {
 // 'ok' | 'over' | 'error'. 'error' (the RPC failed or timed out) is not a
 // spent budget: answered as 503, which the client retries in a minute,
 // rather than a 429, which parks it for an hour.
-async function takeEmbedBudget(env, request, chars) {
+export async function takeEmbedBudget(env, request, chars) {
   try {
     const r = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/tags_embed_budget_take`, {
       method: 'POST',
@@ -116,7 +116,7 @@ async function takeEmbedBudget(env, request, chars) {
   }
 }
 
-function budgetRefusal(verdict, what) {
+export function budgetRefusal(verdict, what) {
   return verdict === 'over'
     ? json({ error: `daily ${what} budget reached` }, 429)
     : json({ error: 'budget check unavailable, try again shortly' }, 503);
@@ -125,7 +125,7 @@ function budgetRefusal(verdict, what) {
 // The workspace's AI switch, read as the caller (members can read their
 // workspace). The client checks first; this is the backstop for a stale tab.
 // Only an explicit false refuses.
-async function workspaceAiOff(env, request, workspaceId) {
+export async function workspaceAiOff(env, request, workspaceId) {
   if (!workspaceId || !/^[0-9a-f-]{36}$/i.test(String(workspaceId))) return false;
   try {
     const r = await fetch(`${env.SUPABASE_URL}/rest/v1/workspaces?id=eq.${workspaceId}&select=ai_tagger_enabled`, {
@@ -341,15 +341,19 @@ Recognize creative-domain vocabulary as evidence for relevant tags:
   - Business: "MRR", "ARR", "runway", "burn", "raise", "term sheet", "SAFE"
 None of these are absolute — they're tilts toward "this card uses domain language that suggests the tag." The correlation check still wins.
 
+LANGUAGE
+Cards and tag names can be in any language or script — Korean, Japanese, Chinese, Russian, Arabic, Hebrew, Hindi, Thai and so on — and a tag can be in a different language from the card. Judge meaning in the card's own language: a tag applies when the sentence is about the tag's concept, whatever language either is written in (tag "Lighting", card "조명을 다시 세팅했다" → applies). The correlation check, named-entity guardrail and confidence levels above hold in every language.
+Answer in the language of the text: copy every anchor "text" and every "evidence_sentence" exactly as it appears in the card, character for character. Never translate, transliterate, romanize, add or remove spaces, or correct spelling. In Chinese, Japanese and Thai, which are written without spaces, the anchor is the shortest run of characters that names the concept (e.g. "照明" in "照明を調整した").
+
 ANCHOR RULES
 For EVERY "high" and "medium" verdict you MUST return at least one anchor:
-- "text": the EXACT substring as it appears (preserve case + punctuation, including any leading "$" or trailing punctuation).
+- "text": the EXACT substring as it appears in the card text, copied character for character (preserve case + punctuation, including any leading "$" or trailing punctuation; never translate, transliterate or re-space it).
 - "start_offset": 0-based character index in the card text.
 - "length": substring length in characters.
 Pick the SMALLEST meaningful anchor (one word or two-word phrase). Skip filler. Multiple anchors per tag are fine when the topic is reinforced.
 
 For EVERY verdict above "low" you MUST also return:
-- "evidence_sentence": the FULL sentence (or a ~120-char span if the sentence is very long) that contains the anchor and proves the correlation. The model is forced to articulate what it's relying on.
+- "evidence_sentence": the FULL sentence (or a ~120-char span if the sentence is very long) that contains the anchor and proves the correlation, copied exactly from the card text in its own language. The model is forced to articulate what it's relying on.
 
 For "low" verdicts, "words" must be an empty array and "evidence_sentence" must be null.
 
@@ -403,7 +407,7 @@ const APPLY_RESPONSE_SCHEMA = {
   },
 };
 
-function json(data, status = 200) {
+export function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {

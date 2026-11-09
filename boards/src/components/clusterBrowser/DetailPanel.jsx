@@ -149,7 +149,7 @@ export function DetailPanel({
   const head = (title, sub) => (
     <div className="cbd-head">
       <div className="cbd-titles">
-        <span className="cbd-title" title={title}>{title}</span>
+        <span className="cbd-title" dir="auto" title={title}>{title}</span>
         {sub && <span className="cbd-sub">{sub}</span>}
       </div>
       <button className="cbd-close" onClick={onClose} aria-label="Close info"><Icon as={X} size={16} weight="light" /></button>

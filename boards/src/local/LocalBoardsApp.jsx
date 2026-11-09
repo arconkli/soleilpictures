@@ -78,6 +78,7 @@ import { InfoHost } from '../components/info/InfoHost.jsx';
 import { PlayerHost } from '../components/film/PlayerHost.jsx';
 import { isReadOnlyQaMode, isFirstBoardQaMode, qaFirstBoardKind } from '../lib/localMode.js';
 import { holdNoteTypeAhead } from '../lib/noteTypeAhead.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const TWEAK_DEFAULTS = {
   theme: 'dark',
@@ -2108,7 +2109,7 @@ export function LocalBoardsApp({ user, signOut }) {
                    className={`sb-row sb-row-board ${isActive ? 'active' : ''}`}
                    onClick={() => { goTo(index); setCurrentSurface('board'); }}>
                 <span className="sb-dot" style={{ background: isActive ? 'var(--soleil)' : 'var(--ink-3)' }} />
-                <span className="sb-row-label">{boards[id]?.name || id}</span>
+                <span className="sb-row-label" dir="auto">{boards[id]?.name || id}</span>
               </div>
             );
           })}
@@ -2117,7 +2118,7 @@ export function LocalBoardsApp({ user, signOut }) {
                  className="sb-row sb-row-board"
                  onClick={() => { openBoard(board.id); setCurrentSurface('board'); }}>
               <span className="sb-dot" style={{ background: 'var(--ink-3)' }} />
-              <span className="sb-row-label">{board.name}</span>
+              <span className="sb-row-label" dir="auto">{board.name}</span>
             </div>
           ))}
           <div className="sb-row sb-row-all" onClick={() => openBoardLinkPicker()}>
@@ -2140,7 +2141,7 @@ export function LocalBoardsApp({ user, signOut }) {
               {crumbs.map((crumb, index) => (
                 <React.Fragment key={`${crumb.id}-${index}`}>
                   {index > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
-                  <span className={`crumb ${index === crumbs.length - 1 ? 'here' : 'clk'}`} onClick={() => goTo(index)}>{crumb.name}</span>
+                  <span className={`crumb ${index === crumbs.length - 1 ? 'here' : 'clk'}`} dir="auto" onClick={() => goTo(index)}>{crumb.name}</span>
                 </React.Fragment>
               ))}
             </div>
@@ -2475,7 +2476,7 @@ function LocalTopbarAddMenu({ onAddBoard, onLinkBoard }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!open) return;
-    const onKey = (event) => { if (event.key === 'Escape') setOpen(false); };
+    const onKey = (event) => { if (isComposingKey(event)) return; if (event.key === 'Escape') setOpen(false); };
     const onDown = (event) => { if (!event.target.closest?.('.topbar-add')) setOpen(false); };
     window.addEventListener('keydown', onKey);
     document.addEventListener('pointerdown', onDown, true);

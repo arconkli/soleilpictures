@@ -8,6 +8,9 @@ import { pickPresenceColor } from '../lib/presenceColor.js';
 import { findOrCreateDm, createGroupConversation } from '../lib/messages.js';
 import { startChatErrorMessage } from '../lib/messageAccess.js';
 import { useFeedback } from './AppFeedback.jsx';
+import { isComposingKey } from '../lib/composerKeys.js';
+import { searchKey } from '../lib/textFold.js';
+import { initialOf } from '../lib/graphemes.js';
 
 // 2-stage popover: pick people, then optionally name the group.
 //   workspaceId
@@ -69,7 +72,7 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
     const onDown = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose?.(); };
     // Claim Escape (preventDefault) so the layer beneath — the Messages panel —
     // doesn't close on the same press.
-    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } };
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('mousedown', onDown, true);
     document.addEventListener('keydown', onKey);
@@ -96,7 +99,7 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
           color: p?.color || m.color || pickPresenceColor(m.user_id),
         };
       })
-      .filter(m => !q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q))
+      .filter(m => !q || searchKey(m.name).includes(searchKey(q)) || searchKey(m.email).includes(searchKey(q)))
       .sort((a, b) => a.name.localeCompare(b.name));
     if (!sugg || sugg.size === 0) return { suggested: [], others: rows };
     const s = [], o = [];
@@ -155,10 +158,10 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
         onClick={() => togglePick(m.user_id)}
       >
         <span className="msg-row-avatar" style={{ background: m.color }}>
-          {(m.name || 'M').charAt(0).toUpperCase()}
+          {initialOf(m.name, 'M')}
         </span>
         <span className="msg-row-text">
-          <span className="msg-row-name">{m.name}</span>
+          <span className="msg-row-name" dir="auto">{m.name}</span>
           {m.email && m.email !== m.name && (
             <span className="msg-row-preview t-meta">{m.email}</span>
           )}
@@ -193,10 +196,11 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
             <input
               ref={inputRef}
               className="msg-newconv-input"
+              dir="auto"
               placeholder="Find people…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && picked.length > 0) { e.preventDefault(); handleContinue(); } }}
+              onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Enter' && picked.length > 0) { e.preventDefault(); handleContinue(); } }}
             />
           </div>
           {picked.length > 0 && (
@@ -245,10 +249,11 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
             <input
               ref={inputRef}
               className="msg-newconv-input"
+              dir="auto"
               placeholder="Leave blank to use member names"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateGroup(); } }}
+              onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Enter') { e.preventDefault(); handleCreateGroup(); } }}
               maxLength={80}
             />
             <div className="msg-newconv-members t-meta">

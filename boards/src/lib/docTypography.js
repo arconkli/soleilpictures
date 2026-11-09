@@ -49,19 +49,19 @@ export const docPrintCSS = `
   h1 + h2, h2 + h3, h3 + h4 { margin-top: .6em; }
   body > :first-child { margin-top: 0; }
   p { margin: .55em 0; }
-  ul, ol { margin: .55em 0; padding-left: 26px; }
-  li { margin: .2em 0; }
+  ul, ol { margin: .55em 0; padding-inline-start: 0; }
+  li { margin: .2em 0; margin-inline-start: 26px; }
   li > p { margin: 0; }
   blockquote {
-    margin: .9em 0; padding: .15em 0 .15em 22px;
-    border-left: 2px solid #c8c8cc; color: #45454c; font-style: italic;
+    margin: .9em 0; padding: .15em 0; padding-inline-start: 22px;
+    border-inline-start: 2px solid #c8c8cc; color: #45454c; font-style: italic;
   }
   hr { border: 0; border-top: 1px solid #dcdce0; margin: 1.7em 0; }
   /* De-boxed code: soft tint inline, soleil left-rule on blocks (matches screen). */
   code { font-family: ${DOC_MONO_FONT}; font-size: 0.87em; background: #f1f1f3; border-radius: 2px; padding: 1px 5px; }
   pre {
     font-family: ${DOC_MONO_FONT}; font-size: 13.5px; line-height: 1.5;
-    background: #f7f7f8; border-left: 4px solid ${SOLEIL};
+    background: #f7f7f8; border-inline-start: 4px solid ${SOLEIL};
     padding: 12px 14px; margin: .9em 0; overflow-x: auto; white-space: pre;
     page-break-inside: avoid; break-inside: avoid;
   }
@@ -76,13 +76,14 @@ export const docPrintCSS = `
     margin: 1em 0; border-top: 1px solid #b8b8be; border-bottom: 1px solid #b8b8be;
     page-break-inside: avoid; break-inside: avoid;
   }
-  td, th { border: 0; border-right: 1px solid #ececf0; padding: 6px 9px; text-align: left; vertical-align: top; }
+  td, th { border: 0; border-right: 1px solid #ececf0; padding: 6px 9px; text-align: start; vertical-align: top; }
   td:last-child, th:last-child { border-right: 0; }
   th { font-weight: 600; border-bottom: 1px solid #b8b8be; }
   a { color: #1a1a1f; text-decoration: underline; text-decoration-color: #b0b0b6; text-underline-offset: 3px; }
   mark { background: #fff3a0; color: #1a1300; padding: 0 2px; border-radius: 2px; }
-  ul[data-type="taskList"] { list-style: none; padding-left: 2px; }
+  ul[data-type="taskList"] { list-style: none; padding-inline-start: 0; }
   ul[data-type="taskList"] li { display: flex; gap: 8px; align-items: flex-start; }
+  ul[data-type="taskList"] > li { margin-inline-start: 2px; }
   ul[data-type="taskList"] li > label { margin-top: 4px; }
   ul[data-type="taskList"] li[data-checked="true"] > div { color: #8a8a90; text-decoration: line-through; }
 `;

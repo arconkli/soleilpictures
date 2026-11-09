@@ -24,6 +24,7 @@ import { ClusterPillCover } from '../components/MessageThings.jsx';
 import { coerceRef } from './entityRef.js';
 import { scanForAutoLinks } from './scanForAutoLinks.js';
 import { scanMentions, hasUnresolvedMention } from './messageMentions.js';
+import { cutGraphemes, exceedsGraphemes } from './graphemes.js';
 
 const URL_RE = /https?:\/\/[^\s<>]+/g;
 const FENCE_RE = /```([\s\S]*?)```/g;
@@ -33,8 +34,8 @@ const ITALIC_RE = /(^|[^*\w])\*([^*\n]+)\*(?!\w)/g;
 
 function escapeReg(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function truncateUrl(u, max = 50) {
-  if (u.length <= max) return u;
-  return u.slice(0, max - 1) + '…';
+  if (!exceedsGraphemes(u, max)) return u;
+  return cutGraphemes(u, max - 1) + '…';
 }
 
 // Inline-string → React nodes. Handles @mentions, inline code, bold,
@@ -69,7 +70,7 @@ function renderInline(str, ctx, keyPrefix = 'i') {
       const kind = seg.mention?.kind || 'user';
       const boardId = kind === 'board' ? coerceRef(seg.mention.ref)?.id : null;
       out.push(
-        <span key={`${keyPrefix}-mn${counter++}`} className={`msg-pill msg-pill-${kind}`}>
+        <span key={`${keyPrefix}-mn${counter++}`} className={`msg-pill msg-pill-${kind}`} dir="auto">
           {boardId && <ClusterPillCover boardId={boardId} />}{seg.text}
         </span>,
       );
@@ -240,7 +241,7 @@ export function renderMessageBody(body, ctx = {}) {
       if (buffer.length === 0) return;
       const text = buffer.join('\n');
       out.push(
-        <p key={`p-${counter++}`} className="msg-line">
+        <p key={`p-${counter++}`} className="msg-line" dir="auto">
           {renderInline(text, ctx, `p${counter}`)}
         </p>
       );
@@ -252,7 +253,7 @@ export function renderMessageBody(body, ctx = {}) {
       out.push(
         <Tag key={`list-${counter++}`} className="msg-list">
           {listAcc.items.map((it, idx) => (
-            <li key={idx}>{renderInline(it, ctx, `li${counter}-${idx}`)}</li>
+            <li key={idx} dir="auto">{renderInline(it, ctx, `li${counter}-${idx}`)}</li>
           ))}
         </Tag>
       );
@@ -261,7 +262,7 @@ export function renderMessageBody(body, ctx = {}) {
     const flushQuote = () => {
       if (!quoteAcc) return;
       out.push(
-        <blockquote key={`q-${counter++}`} className="msg-quote">
+        <blockquote key={`q-${counter++}`} className="msg-quote" dir="auto">
           {renderInline(quoteAcc.join('\n'), ctx, `q${counter}`)}
         </blockquote>
       );

@@ -17,6 +17,7 @@ import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { Icon } from '../Icon.jsx';
 import { ChevronDown } from '../../lib/icons.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 const FileSharePage = lazyWithReload(() => import('./FileSharePage.jsx').then((m) => ({ default: m.FileSharePage })));
 
@@ -35,6 +36,7 @@ function AddToCluster({ token, res, onSaveCopy, onAddShortcut }) {
     if (!open) return undefined;
     const unregister = modalGuard.registerModalOpen();
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen(false); btnRef.current?.focus(); }
     };
     const onDown = (e) => {

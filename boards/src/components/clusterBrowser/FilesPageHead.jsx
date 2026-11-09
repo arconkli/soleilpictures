@@ -21,6 +21,7 @@ import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { ClusterSwitch } from '../sidebar/ClusterSwitch.jsx';
 import { FilesShowMenu } from '../sidebar/FilesShowMenu.jsx';
 import { PathBar } from './PathBar.jsx';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 // The top of the tree the switch lists: the cluster's oldest ancestor here.
 function rootOf(boards, id) {
@@ -71,11 +72,11 @@ export function FilesPageHead({ board, boards, phone = false, meta = '', downloa
                     aria-haspopup="dialog" aria-expanded={open}
                     title={`${name} · press to see another cluster’s files`}
                     onClick={() => { if (open) closeSwitch(); else { dropSwitch(); setSwitchOpen(true); } }}>
-              <span className="fp-title-name">{name}</span>
+              <span className="fp-title-name" dir="auto">{name}</span>
               <span className="fp-title-caret" aria-hidden="true"><Icon as={ChevronDown} size={14} weight="regular" /></span>
             </button>
           ) : (
-            <span className="fp-title-text" title={name}>{name}</span>
+            <span className="fp-title-text" dir="auto" title={name}>{name}</span>
           )}
         </h1>
         {meta && <span className="fp-meta">{meta}</span>}
@@ -130,6 +131,7 @@ export function FilesPageTools({
         <input ref={searchRef} type="search" value={query} placeholder={placeholder} aria-label={placeholder}
                onChange={(e) => onQuery(e.target.value)}
                onKeyDown={(e) => {
+                 if (isComposingKey(e)) return;
                  if (e.key !== 'Escape') return;
                  e.preventDefault();
                  e.stopPropagation();

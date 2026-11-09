@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { useFitMenuToViewport } from '../lib/ctxMenuFit.js';
 import { CtxShortcut, CtxSubmenu, rowKeys, walkMenu } from './ctxMenuParts.jsx';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 export function CardContextMenu({ open, x, y, above = false, items, onClose, workspaceId, boardId, card }) {
   // Single-flight guard: one action per menu open. The menu closes on the
@@ -108,7 +109,7 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
       const inside = e.target.closest?.('.ctx-menu');
       if (!inside) onClose();
     };
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onClose(); };
     // Capture phase + both pointer and mouse so a card's stopPropagation can't
     // swallow the outside-tap on touch (pointerdown fires before mousedown).
     document.addEventListener('pointerdown', onDocDown, true);

@@ -1,6 +1,6 @@
 # Search API
 
-> GET /search finds boards and cards by text across everything your account can see, the words inside docs, and pictures by what is in them. Pass q with at least two characters, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.
+> GET /search finds boards and cards by text across everything your account can see, the words inside docs, and pictures by what is in them. Pass q with at least two characters (one is enough for Chinese, Japanese and Korean), ignoring accents, optionally narrow to boards or cards with kind, scope to one workspace, and paginate with limit and offset. Results respect your permissions, so nothing you cannot open appears.
 
 _Source: https://clusters.soleilpictures.com/docs/api/search · Updated 2026-11-04_
 
@@ -10,7 +10,7 @@ The programmatic equivalent of [`⌘K`](/docs/organize/search).
 
 | Parameter | Meaning |
 |---|---|
-| `q` | The query. **Minimum two characters** — shorter gets `400`. |
+| `q` | The query. **Minimum two characters** (counted as characters, so an emoji is one) — shorter gets `400`. **One character is enough for Chinese, Japanese and Korean.** Accents are ignored both ways in card text (a picture's title and file name included) and doc pages: `cafe` finds `Café` and `Café` finds `cafe`. A board's name and what is in a picture are matched as typed or with your accents removed, so `Café` finds `Cafe`, but `cafe` does not find `Café`. |
 | `kind` | `board` or `card`. Omit for both. |
 | `workspace` | UUID, to scope to one workspace |
 | `limit` | Page size, default 100, max 500 |
@@ -63,7 +63,8 @@ appear, and there is no mode that searches beyond what your account can see.
 
 ## Notes for agents
 
-- **Two characters minimum.** A one-character query is rejected rather than scanning a workspace to return everything.
+- **Two characters minimum,** except one character of Chinese, Japanese or Korean. Any other one-character query is rejected rather than scanning a workspace to return everything.
+- **Accents do not matter** in card text (a picture's title and file name included) and doc pages: search `cafe` or `Café`; both find both. A board's name and what is in a picture are matched as typed or with your accents removed, so `Café` finds `Cafe` but `cafe` does not find `Café`.
 - **Narrow with `kind`** when you know what you are after; it halves the work.
 - **Paginate.** The result set is capped per page like every list endpoint — follow `next_offset` rather than assuming one page is everything.
 - **Search then act.** The usual loop is `GET /search` to find a card, then [`PATCH /boards/:id/cards/:cardId`](/docs/api/cards) to change it.

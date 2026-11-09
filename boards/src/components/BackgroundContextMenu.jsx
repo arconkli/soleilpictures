@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { useFitMenuToViewport } from '../lib/ctxMenuFit.js';
 import { CtxShortcut, CtxSubmenu, rowKeys, walkMenu } from './ctxMenuParts.jsx';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId, boardId, boardName }) {
   // Combined count from BOTH manual entity_links targeting the board
@@ -47,7 +48,7 @@ export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId,
     const onDocDown = (e) => {
       if (!e.target.closest?.('.ctx-menu')) onClose();
     };
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onClose(); };
     // Capture phase + both pointer and mouse so a card's stopPropagation can't
     // swallow the outside-tap on touch (pointerdown fires before mousedown).
     document.addEventListener('pointerdown', onDocDown, true);

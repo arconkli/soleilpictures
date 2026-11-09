@@ -30,6 +30,7 @@ import {
 } from '../../lib/rundown.js';
 import { clockLabel, parseClock, formatClock } from '../../lib/schedDates.js';
 import { CellContent } from './gridCellShared.jsx';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 const stop = (e) => e.stopPropagation();
 
@@ -73,6 +74,7 @@ function DurationField({ value, editable, onCommit }) {
       }}
       onKeyDown={(e) => {
         e.stopPropagation();
+        if (isComposingKey(e)) return;
         if (e.key === 'Enter') { e.preventDefault(); ref.current?.blur(); }
         else if (e.key === 'Escape') { e.preventDefault(); setDraft(null); ref.current?.blur(); }
       }}
@@ -101,6 +103,7 @@ function TitleField({ value, onCommit, onCancel }) {
       onBlur={commit}
       onKeyDown={(e) => {
         e.stopPropagation();
+        if (isComposingKey(e)) return;
         if (e.key === 'Enter') { e.preventDefault(); commit(); }
         else if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
       }}
@@ -132,6 +135,7 @@ function TimeField({ value, onCommit }) {
       }}
       onKeyDown={(e) => {
         e.stopPropagation();
+        if (isComposingKey(e)) return;
         if (e.key === 'Enter') { e.preventDefault(); ref.current?.blur(); }
         else if (e.key === 'Escape') { e.preventDefault(); setDraft(null); ref.current?.blur(); }
       }}

@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { cutGraphemes, exceedsGraphemes } from './graphemes.js';
 
 // Assemble nodes + edges arrays for the home graph from boards + card_index +
 // doc_backlinks. Used by HomeGraph.
@@ -232,7 +233,7 @@ function hostFromUrl(url) {
 
 function clip(s, n = 60) {
   const t = (s || '').trim();
-  return t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t;
+  return exceedsGraphemes(t, n) ? cutGraphemes(t, n - 1).trimEnd() + '…' : t;
 }
 
 // Display name for a card_index row. Cards usually have no explicit title

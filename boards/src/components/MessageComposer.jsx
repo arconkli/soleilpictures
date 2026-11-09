@@ -476,6 +476,7 @@ export const MessageComposer = forwardRef(function MessageComposer({
             value={linkDraft}
             onChange={(e) => setLinkDraft(e.target.value)}
             onKeyDown={(e) => {
+              if (isComposingKey(e)) return;
               if (e.key === 'Enter') { e.preventDefault(); commitLink(); }
               if (e.key === 'Escape') { e.preventDefault(); cancelLink(); }
             }}

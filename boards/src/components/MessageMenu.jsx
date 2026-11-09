@@ -4,6 +4,7 @@ import { Icon } from './Icon.jsx';
 import { Reply, Copy, Link as LinkIcon, Pin, Edit, Trash2 } from '../lib/icons.js';
 import { QUICK_EMOJIS } from './EmojiPalette.jsx';
 import { withinEditWindow } from '../lib/messageEdit.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // A message's actions in one menu (the card look): the quick reactions along
 // its top (yours lit), then Reply, Copy text, Copy link, Pin, and Edit and
@@ -59,6 +60,7 @@ export function MessageMenu({
       onClose(false);
     };
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       // Claimed, so the panel underneath stays open.
       if (e.key === 'Escape') { e.preventDefault(); onClose(true); return; }
       if (e.key === 'Tab') { onClose(true); return; }

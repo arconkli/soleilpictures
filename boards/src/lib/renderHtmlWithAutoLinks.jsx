@@ -12,6 +12,7 @@ import React from 'react';
 import { EntityLink } from '../components/EntityLink.jsx';
 import { scanForAutoLinks } from './scanForAutoLinks.js';
 import { sanitizeNoteHtml } from './sanitizeNoteHtml.js';
+import { markTextDirection } from './textDirection.js';
 
 // 'button' is the link preview's remove (x): rendered as a classless span it
 // was no longer a .note-preview-remove, so the click found nothing (NOTES-08).
@@ -25,7 +26,7 @@ const ALLOWED_TAGS = new Set([
 // data-comment-id is what makes commented words in a note open their thread
 // (`.tt-comment[data-comment-id]`); without it a reader could never get there.
 const SAFE_ATTRS = new Set([
-  'class','style','href','target','rel','src','alt','title',
+  'class','style','dir','href','target','rel','src','alt','title',
   'data-link-id','data-records','data-entity-ref',
   'data-comment-id','data-url','aria-checked','role','aria-label','type',
 ]);
@@ -42,6 +43,7 @@ export function renderHtmlWithAutoLinks(html, ctx = {}) {
   // already-sanitized html (NoteAutoLinkBody does); this is the second lock,
   // because the function is exported and the next caller may not.
   wrapper.innerHTML = sanitizeNoteHtml(html);
+  markTextDirection(wrapper);
   return Array.from(wrapper.childNodes).map((n, i) => nodeToReact(n, ctx, `h${i}`));
 }
 
@@ -66,6 +68,8 @@ function nodeToReact(node, ctx, key) {
           workspaceId={ctx.workspaceId}
           asTag="span"
           className="tt-link tt-link-manual"
+          data-entity-ref={refJson}
+          dir={node.getAttribute('dir') || undefined}
         >
           {node.textContent}
         </EntityLink>

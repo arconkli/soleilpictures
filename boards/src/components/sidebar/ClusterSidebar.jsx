@@ -89,6 +89,7 @@ import { ClusterSwitch } from './ClusterSwitch.jsx';
 import { logEvent, noteSessionCounter } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import './clusterSidebar.css';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 const QuickLook = lazyWithReload(() => import('../clusterBrowser/QuickLook.jsx'));
 
@@ -891,6 +892,7 @@ export function ClusterSidebar({
   // files), in the order they appear; the rows keep their own Enter, →/←, F2
   // and menu keys.
   const onListKeyDown = (e) => {
+    if (isComposingKey(e)) return;
     // Typing in a box inside a row (renaming a cluster) is the box's business:
     // an arrow there moves the caret, and moving focus would commit the
     // half-typed name on blur.
@@ -1078,7 +1080,7 @@ export function ClusterSidebar({
                           if (!on) { t.select(); return; }
                           if (isCluster) { if (switchOpen && !switchClosing) closeSwitch(); else openSwitch(); }
                         }}>
-                  <span className="sbf-tab-label">{t.label}</span>
+                  <span className="sbf-tab-label" dir={isCluster ? 'auto' : undefined}>{t.label}</span>
                   {isCluster && <span className="sbf-tab-caret" aria-hidden="true"><Icon as={ChevronDown} size={10} weight="regular" /></span>}
                 </button>
               );
@@ -1124,11 +1126,12 @@ export function ClusterSidebar({
         <div className="sbf-files-tools">
           <div className="sbf-search">
             <Icon as={Search} size={14} weight="regular" />
-            <input type="search" value={query}
+            <input type="search" dir="auto" value={query}
                    placeholder={`Search ${title}`}
                    aria-label={`Search ${title}`}
                    onChange={(e) => setQuery(e.target.value)}
                    onKeyDown={(e) => {
+                     if (isComposingKey(e)) return;
                      if (e.key === 'Escape') { e.preventDefault(); setQuery(''); return; }
                      // Nothing here matches, or ⌘↵: search everywhere instead.
                      if (e.key === 'Enter' && (nothing || e.metaKey || e.ctrlKey)) { e.preventDefault(); endSearch('palette'); onOpenPalette?.(query); }
@@ -1165,7 +1168,7 @@ export function ClusterSidebar({
               {starredClusters.map((c) => (
                 <button type="button" key={c.id} className="sbf-file sbf-cluster-link" onClick={() => onOpenBoard?.(c.id)}
                         title={`Open ${c.name}`}>
-                  <span className="sbf-file-name">{c.name}</span>
+                  <span className="sbf-file-name" dir="auto">{c.name}</span>
                 </button>
               ))}
             </div>

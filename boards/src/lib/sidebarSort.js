@@ -9,6 +9,7 @@
 
 import { SHELVES, SHELF_IDS } from './sidebarShelves.js';
 import { nameSortKey } from './indexRowCard.js';
+import { searchKey } from './textFold.js';
 
 export const SORTS = ['newest', 'name', 'size', 'canvas'];
 export const DEFAULT_SORT = 'newest';
@@ -94,6 +95,6 @@ export function filterItems(items, { chip = 'all', query = '' } = {}) {
     else if (chip !== 'all' && SHELF_IDS.includes(chip)) { if (i.shelf !== chip) return false; }
     if (!q) return true;
     return [i.name, i.snippet, i.meta?.fileName]
-      .some((s) => typeof s === 'string' && s.toLowerCase().includes(q));
+      .some((s) => typeof s === 'string' && searchKey(s).includes(searchKey(q)));
   });
 }

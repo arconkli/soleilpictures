@@ -81,6 +81,7 @@ export function DocHeadA({
     <input className="doc-card-title-input dl-title"
            ref={setTitle}
            aria-label="Document title"
+           dir="auto"
            value={card.title || ''}
            placeholder="Untitled doc"
            readOnly={!canRename}

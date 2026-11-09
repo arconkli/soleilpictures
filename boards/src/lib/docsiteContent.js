@@ -2247,6 +2247,23 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "With a Japanese, Chinese or Korean input method, "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " picks the word from the candidate list first. It never sends a message, saves a title or starts a new card until the word is settled."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Navigate",
@@ -11068,6 +11085,87 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Right to left",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Right to left"
+    }
+   ],
+   "id": "right-to-left"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Arabic, Hebrew, Persian and Urdu run right to left on their own, line by line, in notes, "
+    },
+    {
+     "t": "link",
+     "v": "documents",
+     "href": "/docs/documents",
+     "children": [
+      {
+       "t": "text",
+       "v": "documents"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "link",
+     "v": "comments",
+     "href": "/docs/collaborate/comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "comments"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "link",
+     "v": "messages",
+     "href": "/docs/collaborate/messages",
+     "children": [
+      {
+       "t": "text",
+       "v": "messages"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". One note can hold an English line and an Arabic line, each running its own way. Menus and buttons stay as they are, and a "
+    },
+    {
+     "t": "link",
+     "v": "screenplay",
+     "href": "/docs/documents/screenplay",
+     "children": [
+      {
+       "t": "text",
+       "v": "screenplay"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " keeps its layout."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Checklists",
    "inline": [
     {
@@ -17451,7 +17549,23 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " can be downloaded from the viewer."
+     "v": " can be downloaded from the viewer. A downloaded or exported file keeps the letters of its name, in any language; only characters Windows or macOS refuse in a file name (such as "
+    },
+    {
+     "t": "code",
+     "v": "/"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "code",
+     "v": ":"
+    },
+    {
+     "t": "text",
+     "v": ") are replaced."
     }
    ]
   },
@@ -17633,6 +17747,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Click the card to open full screen. The viewer scrolls the whole document and renders pages as you reach them, so a long PDF opens immediately rather than after processing every page."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "PDFs in Japanese, Chinese and Korean show their text too."
     }
    ]
   },
@@ -20099,7 +20222,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " keeps it whole, as one file in Files. A Google Takeout or Google Drive export that arrives in several parts becomes one tree when you drop all the parts at once."
+     "v": " keeps it whole, as one file in Files. A Google Takeout or Google Drive export that arrives in several parts becomes one tree when you drop all the parts at once. File names keep their own letters. An older zip made on a computer set to another language doesn't record how its names were written, so Clusters works it out: Japanese and Korean names in any browser, and Chinese, Russian and other Cyrillic, Greek, Hebrew, Arabic, Persian, Thai or Vietnamese names when that language is one of your browser's languages."
     }
    ]
   },
@@ -31037,6 +31160,29 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A script in Russian, Greek or another Latin-based or Cyrillic alphabet is set in a matching typewriter font, so every letter prints. A script in Hebrew, Arabic, Chinese, Japanese or Korean opens the print dialog instead; choose "
+    },
+    {
+     "t": "strong",
+     "v": "Save as PDF",
+     "children": [
+      {
+       "t": "text",
+       "v": "Save as PDF"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " there."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Markdown",
@@ -32336,7 +32482,23 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": ". Make a Diner tag, and a note that mentions the diner picks it up, as does a group called \"Diner stills\". Creating a tag applies it straight away to what already says its name."
+      "v": ". Tag names can be in any script: where the script puts spaces between words a name matches whole words only, in Korean it also matches with a particle after it ("
+     },
+     {
+      "t": "code",
+      "v": "서울"
+     },
+     {
+      "t": "text",
+      "v": " in "
+     },
+     {
+      "t": "code",
+      "v": "서울에서"
+     },
+     {
+      "t": "text",
+      "v": "), and in Chinese, Japanese and Thai it is found inside running text. Make a Diner tag, and a note that mentions the diner picks it up, as does a group called \"Diner stills\". Creating a tag applies it straight away to what already says its name."
      }
     ],
     [
@@ -33538,6 +33700,55 @@ export const DOCS_CONTENT = {
       "v": ", and opens the document at that page"
      }
     ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Search ignores accents, so "
+    },
+    {
+     "t": "code",
+     "v": "cafe"
+    },
+    {
+     "t": "text",
+     "v": " finds "
+    },
+    {
+     "t": "code",
+     "v": "Café"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "strasse"
+    },
+    {
+     "t": "text",
+     "v": " finds "
+    },
+    {
+     "t": "code",
+     "v": "Straße"
+    },
+    {
+     "t": "text",
+     "v": ", and one character is enough to search Chinese, Japanese and Korean. Search a picture in your own language too, say "
+    },
+    {
+     "t": "code",
+     "v": "바다"
+    },
+    {
+     "t": "text",
+     "v": ": the words are put into English to match the descriptions. They go to an AI model for that, so it is off in a workspace whose AI suggestions are off."
+    }
    ]
   },
   {
@@ -71090,11 +71301,89 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " — shorter gets "
+       "v": " (counted as characters, so an emoji is one) — shorter gets "
       },
       {
        "t": "code",
        "v": "400"
+      },
+      {
+       "t": "text",
+       "v": ". "
+      },
+      {
+       "t": "strong",
+       "v": "One character is enough for Chinese, Japanese and Korean.",
+       "children": [
+        {
+         "t": "text",
+         "v": "One character is enough for Chinese, Japanese and Korean."
+        }
+       ]
+      },
+      {
+       "t": "text",
+       "v": " Accents are ignored both ways in card text (a picture's title and file name included) and doc pages: "
+      },
+      {
+       "t": "code",
+       "v": "cafe"
+      },
+      {
+       "t": "text",
+       "v": " finds "
+      },
+      {
+       "t": "code",
+       "v": "Café"
+      },
+      {
+       "t": "text",
+       "v": " and "
+      },
+      {
+       "t": "code",
+       "v": "Café"
+      },
+      {
+       "t": "text",
+       "v": " finds "
+      },
+      {
+       "t": "code",
+       "v": "cafe"
+      },
+      {
+       "t": "text",
+       "v": ". A board's name and what is in a picture are matched as typed or with your accents removed, so "
+      },
+      {
+       "t": "code",
+       "v": "Café"
+      },
+      {
+       "t": "text",
+       "v": " finds "
+      },
+      {
+       "t": "code",
+       "v": "Cafe"
+      },
+      {
+       "t": "text",
+       "v": ", but "
+      },
+      {
+       "t": "code",
+       "v": "cafe"
+      },
+      {
+       "t": "text",
+       "v": " does not find "
+      },
+      {
+       "t": "code",
+       "v": "Café"
       },
       {
        "t": "text",
@@ -71523,17 +71812,81 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Two characters minimum.",
+      "v": "Two characters minimum,",
       "children": [
        {
         "t": "text",
-        "v": "Two characters minimum."
+        "v": "Two characters minimum,"
        }
       ]
      },
      {
       "t": "text",
-      "v": " A one-character query is rejected rather than scanning a workspace to return everything."
+      "v": " except one character of Chinese, Japanese or Korean. Any other one-character query is rejected rather than scanning a workspace to return everything."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Accents do not matter",
+      "children": [
+       {
+        "t": "text",
+        "v": "Accents do not matter"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in card text (a picture's title and file name included) and doc pages: search "
+     },
+     {
+      "t": "code",
+      "v": "cafe"
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "code",
+      "v": "Café"
+     },
+     {
+      "t": "text",
+      "v": "; both find both. A board's name and what is in a picture are matched as typed or with your accents removed, so "
+     },
+     {
+      "t": "code",
+      "v": "Café"
+     },
+     {
+      "t": "text",
+      "v": " finds "
+     },
+     {
+      "t": "code",
+      "v": "Cafe"
+     },
+     {
+      "t": "text",
+      "v": " but "
+     },
+     {
+      "t": "code",
+      "v": "cafe"
+     },
+     {
+      "t": "text",
+      "v": " does not find "
+     },
+     {
+      "t": "code",
+      "v": "Café"
+     },
+     {
+      "t": "text",
+      "v": "."
      }
     ],
     [
@@ -74019,7 +74372,39 @@ export const DOCS_CONTENT = {
       },
       {
        "t": "text",
-       "v": " (min 2 chars), "
+       "v": " (min 2 chars; 1 for Chinese, Japanese and Korean; accents are ignored both ways in card text (a picture's title and file name included) and doc pages, so "
+      },
+      {
+       "t": "code",
+       "v": "cafe"
+      },
+      {
+       "t": "text",
+       "v": " finds "
+      },
+      {
+       "t": "code",
+       "v": "Café"
+      },
+      {
+       "t": "text",
+       "v": "; a board's name and what is in a picture are matched as typed or with accents removed, so "
+      },
+      {
+       "t": "code",
+       "v": "Café"
+      },
+      {
+       "t": "text",
+       "v": " finds "
+      },
+      {
+       "t": "code",
+       "v": "Cafe"
+      },
+      {
+       "t": "text",
+       "v": " but not the other way round), "
       },
       {
        "t": "code",

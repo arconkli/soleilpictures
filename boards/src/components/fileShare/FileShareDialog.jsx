@@ -38,6 +38,8 @@ import { notifyFileShareChanged } from '../../lib/fileShareBus.js';
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import './fileShareDialog.css';
+import { isComposingKey } from '../../lib/composerKeys.js';
+import { initialOf } from '../../lib/graphemes.js';
 
 const ROLE_LABEL = { view: 'Can view', comment: 'Can comment', edit: 'Can edit' };
 // The roles above "Can view", by what is being shared.
@@ -266,6 +268,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
   };
 
   const onDraftKey = (e) => {
+    if (isComposingKey(e)) return;
     if (e.key === 'Enter') {
       e.preventDefault();
       if (draft.trim()) commitDraft(draft);
@@ -371,7 +374,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
     ? <img className="fsd-avatar" src={p.avatarUrl} alt="" referrerPolicy="no-referrer" />
     : (
       <span className="fsd-avatar" aria-hidden="true" style={{ background: pickPresenceColor(p.email) }}>
-        {(p.name || p.email).charAt(0).toUpperCase()}
+        {initialOf(p.name || p.email, '')}
       </span>
     ));
 

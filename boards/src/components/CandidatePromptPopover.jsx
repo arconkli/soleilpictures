@@ -23,6 +23,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { ENTITY_TYPES } from '../lib/entityTypes.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const PAD = 8;
 const W = 264;
@@ -59,7 +60,7 @@ export function CandidatePromptPopover({ anchor, name, count, sample, suggestedT
   }, [anchor, sample]);
 
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose?.(); } };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.stopPropagation(); onClose?.(); } };
     const onDown = (e) => {
       if (!ref.current) return;
       if (ref.current.contains(e.target)) return;

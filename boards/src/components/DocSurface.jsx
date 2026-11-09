@@ -41,6 +41,7 @@ import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { IconWeightContext } from './Icon.jsx';
 import { readDocPanel, writeDocPanel } from '../lib/docFrame.js';
 import { openableUrl } from '../lib/openableUrl.js';
+import { cutGraphemes } from '../lib/graphemes.js';
 
 // The doc look's side panel, footer and one row of tools
 // (components/doc/DocFrameA.jsx): lazy, so a doc shared on its own
@@ -1244,7 +1245,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     try {
       const $pos = editor.state.doc.resolve(anchor);
       const para = $pos.parent;
-      suggested = para?.textContent?.slice(0, 40) || '';
+      suggested = cutGraphemes(para?.textContent || '', 40);
     } catch (_) {}
     const name = await feedback.prompt({
       title: 'Add bookmark',

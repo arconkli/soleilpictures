@@ -5,13 +5,14 @@ import { useEffect } from 'react';
 import './team.css';
 import TeamPage from './TeamPage.jsx';
 import { useTeam } from '../../hooks/useTeam.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 export default function TeamPageLive({ orgId, onToast, onClose, initialTab }) {
   const { team, loading, error, act, reload } = useTeam(orgId);
 
   useEffect(() => {
     if (team) return undefined;
-    const key = (e) => { if (e.key === 'Escape') onClose?.(); };
+    const key = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onClose?.(); };
     document.addEventListener('keydown', key);
     return () => document.removeEventListener('keydown', key);
   }, [team, onClose]);

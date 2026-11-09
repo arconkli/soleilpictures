@@ -17,6 +17,7 @@ import { relativeTimeCompact } from '../../lib/relativeTime.js';
 import { caretRect } from '../../lib/caretRect.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import { ArrowUp, Check, Trash2 } from '../../lib/icons.js';
+import { initialOf as initialOfName } from '../../lib/graphemes.js';
 
 // The side panel's Comments (the owner's pick of 2026-10-21, mockup dx
 // AC-comments): every thread of the doc, open and resolved, in the doc's
@@ -159,7 +160,7 @@ function ThreadCard({ thread, anchor, selected, ctx }) {
   ];
   const nameOf = (who) => (who.authorId && who.authorId === me ? 'You' : who.author || 'Someone');
   // A face is the person's own initial, yours too.
-  const initialOf = (who) => (String(who.author || '').trim() || nameOf(who))[0].toUpperCase();
+  const initialOf = (who) => initialOfName(String(who.author || '').trim() || nameOf(who));
   const resolver = !thread.resolved ? null
     : thread.resolvedBy && thread.resolvedBy === me ? 'you'
       : thread.resolvedByName
@@ -199,7 +200,7 @@ function ThreadCard({ thread, anchor, selected, ctx }) {
                 </button>
               )}
             </div>
-            <div className="dl-cm-t">{it.body}</div>
+            <div className="dl-cm-t" dir="auto">{it.body}</div>
           </div>
         </div>
       ))}

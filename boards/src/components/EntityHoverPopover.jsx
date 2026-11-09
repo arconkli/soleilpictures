@@ -31,6 +31,7 @@ import { tagFallbackColor } from '../lib/tagColor.js';
 import { entityTypeLabel } from '../lib/entityTypes.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const PAD = 8;
 const W = 380;
@@ -181,7 +182,7 @@ export function EntityHoverPopover({
 
   // Esc / click-outside close.
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onClose?.(); };
     const onDown = (e) => {
       if (!popRef.current) return;
       if (popRef.current.contains(e.target)) return;
@@ -435,6 +436,7 @@ function TagFeatureCard({ row, workspaceId, onOpenTag, onNavigate }) {
   useEffect(() => {
     if (lightboxIdx == null) return;
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key === 'Escape') { e.stopPropagation(); setLightboxIdx(null); return; }
       if (!allImages.length) return;
       if (e.key === 'ArrowLeft')  { e.preventDefault(); e.stopPropagation(); setLightboxIdx(i => (i - 1 + allImages.length) % allImages.length); }

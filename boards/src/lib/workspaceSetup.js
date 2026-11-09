@@ -20,6 +20,7 @@
 // Who sees the steps at all, and the accounts too old to: setupRule.js, light
 // enough for the entry chunk, which asks before the rest of this has arrived.
 export { SETUP_EPOCH, isSetupCandidate, workspaceSetupOn } from './setupRule.js';
+import { dropStrayJoiners } from './joiners.js';
 
 export const NAME_MAX = 60;           // the invite emails cut names here too (safeLabel)
 export const REASK_MIN_CARDS = 6;     // where day-one return stops climbing slowly
@@ -57,15 +58,17 @@ export function stepsForSetup({ invitee } = {}) {
 
 // ── The name ────────────────────────────────────────────────────────────────
 
-// Control characters (C0, DEL, C1) and the invisible ones (zero-width spaces
-// and joiners, bidi controls, the BOM). Written as code point ranges so no
-// tool rewrites them into the characters themselves.
+// Control characters (C0, DEL, C1) and the invisible ones (zero-width spaces,
+// bidi controls, the BOM). Written as code point ranges so no tool rewrites
+// them into the characters themselves. ZWNJ, ZWJ and VS16 are not here: the
+// scripts and emoji that spell with them keep them (joiners.js), and only a
+// stray one turns into a space.
 const INVISIBLE = new RegExp('[' + [
-  [0x00, 0x1f], [0x7f, 0x9f], [0xad, 0xad], [0x200b, 0x200f], [0x202a, 0x202e], [0x2060, 0x2064], [0xfeff, 0xfeff],
+  [0x00, 0x1f], [0x7f, 0x9f], [0xad, 0xad], [0x200b, 0x200b], [0x200e, 0x200f], [0x202a, 0x202e], [0x2060, 0x2064], [0xfeff, 0xfeff],
 ].map(([a, b]) => `\\u{${a.toString(16)}}-\\u{${b.toString(16)}}`).join('') + ']', 'gu');
 
 export function normalizeWorkspaceName(raw) {
-  return String(raw ?? '').normalize('NFC').replace(INVISIBLE, ' ').replace(/\s+/gu, ' ').trim();
+  return dropStrayJoiners(String(raw ?? '').normalize('NFC').replace(INVISIBLE, ' '), ' ').replace(/\s+/gu, ' ').trim();
 }
 
 // { ok, name, reason }: reason is 'empty' or 'too_long'. Length is counted in

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { EntityPicker } from './EntityPicker.jsx';
 import { caretRect } from '../lib/caretRect.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // Anchored popover for short-text input (comments, link rename, etc).
 // Positioning is viewport-aware: prefer below the anchor, flip above when
@@ -75,6 +76,7 @@ export function InlineComposer({
     // itself on the same keypress (useDismissOnOutside), and this used to
     // close the whole composer too and throw the typed comment away.
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key !== 'Escape' || mentionRef.current) return;
       onCancel?.();
     };
@@ -119,11 +121,13 @@ export function InlineComposer({
       <InputEl
         ref={inputRef}
         className="inline-composer-input"
+        dir="auto"
         placeholder={placeholder}
         value={value}
         disabled={busy}
         onChange={onValueChange}
         onKeyDown={(e) => {
+          if (isComposingKey(e)) return;
           // While the picker is open ⏎ selects a person; it must not post.
           if (e.key === 'Enter' && mention) return;
           if (e.key === 'Enter' && !(multiline && e.shiftKey)) {

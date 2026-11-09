@@ -22,6 +22,7 @@ import { useAdminData } from './useAdminData.js';
 import { AdminUserList } from './AdminUserList.jsx';
 import { AdminUserDetail } from './AdminUserDetail.jsx';
 import { takePendingUser } from './adminNav.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 const PAGE_SIZE = 50;
 
@@ -167,7 +168,7 @@ export function AdminUsersTab() {
   // Escape closes the mobile drawer.
   useEffect(() => {
     if (!(isNarrow && selectedUserId)) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') setSelectedUserId(null); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') setSelectedUserId(null); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [isNarrow, selectedUserId]);

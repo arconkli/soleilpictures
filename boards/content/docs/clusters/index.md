@@ -5,7 +5,7 @@ h1: Clusters
 navLabel: Overview
 section: clusters
 order: 0
-updated: 2026-10-27
+updated: 2026-11-09
 answer: A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no limit on how many clusters you make, and a cluster costs none of your cards: its card on the parent's canvas is free on every plan, and only what you put inside it counts. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
 faq:
   - q: Is there a limit on how many clusters I can make?
@@ -49,7 +49,11 @@ A zip comes in the same way. Drop one and you are asked first: **Unpack into
 clusters** turns every folder in it into a cluster, or **Add as a zip file**
 keeps it whole, as one file in Files. A Google Takeout or Google Drive export
 that arrives in several parts becomes one tree when you drop all the parts at
-once.
+once. File names keep their own letters. An older zip made on a computer set to
+another language doesn't record how its names were written, so Clusters works it
+out: Japanese and Korean names in any browser, and Chinese, Russian and other
+Cyrillic, Greek, Hebrew, Arabic, Persian, Thai or Vietnamese names when that
+language is one of your browser's languages.
 
 You can start an import from:
 

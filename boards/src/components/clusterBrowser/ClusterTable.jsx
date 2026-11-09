@@ -238,7 +238,7 @@ function GroupRow({ group, expanded, selected, active, registerRow, onGroupClick
         <span className={`ct-group-caret${expanded ? ' is-open' : ''}`} aria-hidden="true"><Icon as={ChevronRight} size={13} /></span>
         <div className="ct-thumb"><CardPreview item={group} size="row" /></div>
         <div className="ct-name-wrap">
-          <div className="ct-name" title={group.name}>{group.name}</div>
+          <div className="ct-name" dir="auto" title={group.name}>{group.name}</div>
           <div className="ct-sub">{group.count} grids</div>
         </div>
       </div>

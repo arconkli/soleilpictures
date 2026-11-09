@@ -36,6 +36,10 @@ export const BoardEmbed = Node.create({
       dom.className = 'tt-embed';
       dom.contentEditable = 'false';
       dom.draggable = false;
+      // Interface words (BOARD, CARD ON BOARD) stay left to right, like menus; the
+      // name below carries dir="auto" so it reads in its own direction. View-only:
+      // an owner's dir="auto" (lib/textDirection.js) skips a node with a dir.
+      dom.setAttribute('dir', 'ltr');
       const update = () => {
         const label = node.attrs.label || (node.attrs.cardId ? 'Card' : 'Board');
         dom.innerHTML = '';
@@ -49,6 +53,7 @@ export const BoardEmbed = Node.create({
         kicker.textContent = node.attrs.cardId ? 'CARD ON BOARD' : 'BOARD';
         const title = document.createElement('div');
         title.className = 'tt-embed-title';
+        title.setAttribute('dir', 'auto');
         title.textContent = label;
         body.appendChild(kicker); body.appendChild(title);
         const arrow = document.createElement('div');

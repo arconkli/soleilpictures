@@ -26,6 +26,7 @@ import {
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { AccountEditorsCard } from './AccountEditorsCard.jsx';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 // Holds an action slot a row does not have. It is the same element as the real
 // control (a <button>), so it gets the same UA box and text metrics and the
@@ -215,7 +216,7 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
             const changeable = canManage && !isOwnerRow && !self && ASSIGNABLE_ROLES.includes(m.role);
             return (
               <li key={m.user_id} className="settings-member-row">
-                <span className="settings-member-name">{label(m)}{self ? ' (you)' : ''}</span>
+                <span className="settings-member-name" dir="auto">{label(m)}{self ? ' (you)' : ''}</span>
                 {changeable ? (
                   <select className="settings-input" aria-label={`Role for ${label(m)}`}
                           value={m.role} onChange={(e) => changeRole(m, e.target.value)}>
@@ -268,7 +269,7 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
             <input className="settings-input" type="email" placeholder="Email address"
                    aria-label="Email address to invite"
                    value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)}
-                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); invite(); } }} />
+                   onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Enter') { e.preventDefault(); invite(); } }} />
             <select className="settings-input" aria-label="Role for the new member"
                     value={inviteLocked ? 'viewer' : inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
               <option value="editor" disabled={inviteLocked}>{inviteLocked ? 'Editor — full' : 'Editor'}</option>

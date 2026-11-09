@@ -51,7 +51,7 @@ export function useDismissOnOutside(ref, isOpen, onClose, options = {}) {
     };
     // An Escape mid-syllable is the input method's: it drops the syllable,
     // and the popover stays (lib/modalGuard.js stands down the same way).
-    const onKey = (e) => { if (e.key === 'Escape' && !isComposingKey(e)) onCloseRef.current?.(); };
+    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onCloseRef.current?.(); };
     document.addEventListener('pointerdown', onDocDown, true);
     document.addEventListener('mousedown', onDocDown, true);
     if (escape) window.addEventListener('keydown', onKey, escapeCapture);

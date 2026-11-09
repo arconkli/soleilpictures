@@ -8,6 +8,7 @@ import { pushFilmLayer } from '../../lib/filmLayers.js';
 import { PLAYER_KEYS } from '../../lib/playerKeys.js';
 import { Icon } from '../Icon.jsx';
 import { X } from '../../lib/icons.js';
+import { isComposingKey } from '../../lib/composerKeys.js';
 
 const GROUPS = ['Transport', 'Marking', 'View', 'Review'];
 
@@ -24,6 +25,7 @@ export function ShortcutSheet({ onClose }) {
     const room = ref.current?.parentElement?.closest('[role="dialog"]');
     ref.current?.focus({ preventScroll: true });
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key !== '?' && e.key !== 'Escape') return;
       e.preventDefault(); e.stopPropagation(); closeRef.current?.();
     };

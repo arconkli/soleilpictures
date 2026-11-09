@@ -36,6 +36,7 @@ import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { tlTip } from '../lib/looks.js';
 import './newClusterButton.css';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 // The longest name the from-selection prompt keeps (CanvasSurface).
 const NAME_MAX = 200;
@@ -162,11 +163,12 @@ export function NewClusterButton({ boardId, boardName = '', paneId = 'main', onU
         <div className="ncl-pop" role="dialog" aria-label="New cluster" ref={popRef}
              style={pos || { top: 0, left: 0, visibility: 'hidden' }}>
           <div className="ncl-pop-h"><Icon as={Folder} size={16} weight="regular" />Name this cluster</div>
-          <input ref={fieldRef} className="ncl-field" type="text" value={name} maxLength={NAME_MAX}
+          <input ref={fieldRef} className="ncl-field" dir="auto" type="text" value={name} maxLength={NAME_MAX}
                  placeholder="Name it, e.g. Short film" aria-label="Cluster name"
                  onChange={(e) => setName(e.target.value)}
                  onKeyDown={(e) => {
-                   if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); create(); }
+                   if (isComposingKey(e)) return;
+                   if (e.key === 'Enter') { e.preventDefault(); create(); }
                  }} />
           <div className="ncl-help">{help}</div>
           <div className="ncl-acts">

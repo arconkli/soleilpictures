@@ -5,6 +5,8 @@
 //
 // Pure, so App's sidebar top and the QA harness say the same thing.
 
+import { initialOf } from './graphemes.js';
+
 // The first word of a name, or what comes before the @ of an address.
 export function firstName(label) {
   const s = String(label || '').trim();
@@ -44,7 +46,7 @@ export function whoLine({ others = [], mine = true, sharedBy = '', coowner = fal
     return {
       kind: 'here',
       text: hereText(names),
-      faces: here.slice(0, 3).map((p, i) => ({ id: p.id, initial: (names[i] || '?').charAt(0).toUpperCase() })),
+      faces: here.slice(0, 3).map((p, i) => ({ id: p.id, initial: initialOf(names[i]) })),
     };
   }
   if (mine) return null;

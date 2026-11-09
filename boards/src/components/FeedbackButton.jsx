@@ -27,6 +27,7 @@ import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { buildFeedbackContext, describeFeedbackContext } from '../lib/feedbackContext.js';
 import { feedbackEnv } from '../lib/feedbackEnv.js';
+import { isComposingKey } from '../lib/composerKeys.js';
 
 const FEEDBACK_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/send-feedback';
 const SUPPORT_EMAIL = 'clusters@soleilpictures.com';
@@ -113,6 +114,7 @@ export function FeedbackButton({ as = 'floating' }) {
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = (e) => {
+      if (isComposingKey(e)) return;
       if (e.key === 'Escape') { e.preventDefault(); close(); return; }
       if (e.key === 'Tab') {
         const panel = panelRef.current;
@@ -219,6 +221,7 @@ export function FeedbackButton({ as = 'floating' }) {
   };
 
   const onTextareaKeyDown = (e) => {
+    if (isComposingKey(e)) return;
     // ⌘/Ctrl + Enter sends — the universal "submit this form" shortcut.
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canSend) { e.preventDefault(); submit(); }
   };
@@ -299,6 +302,7 @@ export function FeedbackButton({ as = 'floating' }) {
               <div className="feedback-field">
                 <textarea
                   className="feedback-textarea"
+                  dir="auto"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={onTextareaKeyDown}
