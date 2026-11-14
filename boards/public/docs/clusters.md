@@ -2,7 +2,7 @@
 
 > A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no limit on how many clusters you make, and a cluster costs none of your cards: its card on the parent's canvas is free on every plan, and only what you put inside it counts. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters · Updated 2026-11-09_
+_Source: https://clusters.soleilpictures.com/docs/clusters · Updated 2026-11-14_
 
 A cluster is the unit of work: a project, a scene, a pitch, a moodboard. The
 code and the [API](/docs/api/boards) call the same object a **board**.
@@ -154,10 +154,8 @@ and one undo puts them back and removes the cluster:
 
 When Studio has gathered a pile of loose cards, it offers once, on a later
 visit, to move them into a cluster: **Move them into a cluster** names one and
-moves the pile; the × dismisses the offer for good on that device. And when
-you paste or drop new things onto a board that already holds a pile from a few
-hours ago, the toast may ask **New idea?** — **New cluster** gives them a cluster
-of their own. Nothing moves until you ask.
+moves the pile; the × dismisses the offer for good on that device. Nothing
+moves until you ask.
 
 ## Nesting
 

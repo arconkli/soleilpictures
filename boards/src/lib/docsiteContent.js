@@ -21214,35 +21214,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " names one and moves the pile; the × dismisses the offer for good on that device. And when you paste or drop new things onto a board that already holds a pile from a few hours ago, the toast may ask "
-    },
-    {
-     "t": "strong",
-     "v": "New idea?",
-     "children": [
-      {
-       "t": "text",
-       "v": "New idea?"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " — "
-    },
-    {
-     "t": "strong",
-     "v": "New cluster",
-     "children": [
-      {
-       "t": "text",
-       "v": "New cluster"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " gives them a cluster of their own. Nothing moves until you ask."
+     "v": " names one and moves the pile; the × dismisses the offer for good on that device. Nothing moves until you ask."
     }
    ]
   },

@@ -15,18 +15,19 @@
 // Each is graded on its own conversion, hint_shown → hint_acted, and never on
 // return. The copy lives beside the surface that shows it.
 //
-// studio_bar and second_idea are not failure hints but offers — a pile on
-// Studio, from before today, can move into a cluster of its own; so can
-// something new dropped onto a pile from an earlier sitting (lib/secondIdea.js)
-// — and keep the same discipline: once per device, never over the tour, never
-// beside another hint. They are graded on cluster_nudge{surface} instead.
+// studio_bar is not a failure hint but an offer — a pile on Studio, from
+// before today, can move into a cluster of its own — and keeps the same
+// discipline: once per device, never over the tour, never beside another hint.
+// It is graded on cluster_nudge{surface} instead. (second_idea, a toast that
+// offered a cluster to something new dropped onto an older pile, was taken
+// out on 2026-11-14 under its retire rule.)
 
 // setup_tips and invite_reask are the first-run setup's (components/setup/
 // SetupInWorkspace.jsx): they only claim and release, so nothing else pops up
 // beside them; their once-only records are their own. whats_new is the same
 // shape for the accounts from before the files sidebar (lib/whatsNew.js).
 // board_more is the first-board test's third-card toast (lib/boardMore.js).
-export const HINT_KINDS = Object.freeze(['paste', 'name_cluster', 'studio_bar', 'second_idea', 'setup_tips', 'invite_reask', 'whats_new', 'board_more']);
+export const HINT_KINDS = Object.freeze(['paste', 'name_cluster', 'studio_bar', 'setup_tips', 'invite_reask', 'whats_new', 'board_more']);
 
 // A new cluster that still carries its default name a minute later is one
 // nobody will find again. A minute, not ten seconds: people often place the

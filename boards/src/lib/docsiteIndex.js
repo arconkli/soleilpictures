@@ -1283,7 +1283,7 @@ export const DOCS_PAGES = [
     "answer": "A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no limit on how many clusters you make, and a cluster costs none of your cards: its card on the parent's canvas is free on every plan, and only what you put inside it counts. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.",
     "section": "clusters",
     "order": 0,
-    "updated": "2026-11-09",
+    "updated": "2026-11-14",
     "navLabel": "Overview",
     "headings": [
       {
