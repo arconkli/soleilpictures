@@ -17,7 +17,6 @@ import { createPeerUploadsStore, createUploadPublisher } from '../lib/peerUpload
 import { CardTransferState } from './cards/CardTransferState.jsx';
 import { createGroundPainter, cameraFromTransform, parseColor, isWheelClick, glideZoom } from '../lib/canvasGround.js';
 import { planClusterFromSelection, suggestClusterName } from '../lib/clusterFromSelection.js';
-import { secondIdeaDue } from '../lib/secondIdea.js';
 import { openFileShare, docShareLabel } from '../lib/fileShareBus.js';
 import { openSharedFile } from '../lib/sharedFileBus.js';
 import { ShortcutCard } from './cards/ShortcutCard.jsx';
@@ -191,11 +190,11 @@ import {
 } from '../lib/wasdPan.js';
 import { wheelHintSeen, markWheelHintSeen, trackWheelFrustration, freshWheelState } from '../lib/wheelHint.js';
 import { canShowHint, claimHint, releaseHint, markHintSeen, hintSeen, isDefaultClusterName, NAME_CLUSTER_AFTER_MS } from '../lib/hints.js';
-import { genuineCards, hasGenuineCard, isSeedCard } from '../lib/firstValueTrigger.js';
+import { genuineCards, hasGenuineCard } from '../lib/firstValueTrigger.js';
 import { shouldShowDepthDock } from '../lib/depthDock.js';
 import { firstBoardCopy, FIRST_BOARD_WORDS, FIRST_BOARD_TILE_IDS } from '../lib/firstBoardCopy.js';
 import { shouldPromptMix, MIX_PROMPT_RETIRED } from '../lib/mixPrompt.js';
-import { claimUpsellSlot, upsellSlotBusy, UPSELL_STACK_WINDOW_MS } from '../lib/upsellSlot.js';
+import { claimUpsellSlot, UPSELL_STACK_WINDOW_MS } from '../lib/upsellSlot.js';
 import { getAppSessionId } from '../lib/appSession.js';
 import {
   dockVisitsKey, dockDismissCountKey, parseVisits, dockVisitAllowed, noteDockVisit,
@@ -3629,57 +3628,6 @@ export function CanvasSurface({
   useEffect(() => { cardsRef.current = cards; }, [cards]);
   useEffect(() => { selectedRef.current = selected; }, [selected]);
 
-  // ── The second idea ──
-  // Something new pasted or dropped onto a pile from an earlier sitting may be
-  // the start of something else (lib/secondIdea.js). Once it has all landed —
-  // a card still uploading can't move — a toast offers it a cluster of its
-  // own, named in the top bar's popover like the Studio bar's sweep. Once per
-  // device and never beside another hint (lib/hints.js), and never over an
-  // upgrade surface (lib/upsellSlot.js): then it waits for another sitting.
-  // Armed before the cards are added, so what was here already is known.
-  const SECOND_IDEA_SETTLE_MS = 8_000;   // how long a drop's cards may take to appear
-  const SECOND_IDEA_WAIT_MS = 60_000;    // an upload slower than this lets it go
-  const SECOND_IDEA_TOAST_MS = 9_000;
-  const secondIdeaRef = useRef(null);    // { boardId, prior: Set, expected, at }
-  const [secondIdeaArmed, setSecondIdeaArmed] = useState(0);
-  const armSecondIdeaRef = useRef(null);
-  const offerSecondIdeaRef = useRef(null);
-  armSecondIdeaRef.current = (expected) => {
-    if (!(expected > 0) || isPublic || !canEdit || !board?.id || !clusterNudgesAllowed()) return;
-    const w = secondIdeaRef.current;
-    // Another paste while the first is still landing joins it.
-    if (w && w.boardId === board.id) { w.expected += expected; return; }
-    const prior = cardsRef.current || [];
-    if (!canShowHint('second_idea') || !secondIdeaDue({ priorCards: prior, newCount: expected })) return;
-    secondIdeaRef.current = { boardId: board.id, prior: new Set(prior.map((c) => c.id)), expected, at: Date.now() };
-    setSecondIdeaArmed((n) => n + 1);
-  };
-  useEffect(() => {
-    const w = secondIdeaRef.current;
-    if (!w) return undefined;
-    if (w.boardId !== board?.id) { secondIdeaRef.current = null; return undefined; }
-    // A drop's cards appear one at a time and then upload: look once it is
-    // quiet, and again until they are all up.
-    let t = 0;
-    const look = () => {
-      if (secondIdeaRef.current !== w) return;
-      const me = currentUser?.id || null;
-      const fresh = (cardsRef.current || []).filter((c) => !w.prior.has(c.id)
-        && c.kind !== 'board' && c.kind !== 'boardlink' && !isSeedCard(c)
-        && (!me || !c.createdBy || c.createdBy === me));
-      const age = Date.now() - w.at;
-      const uploading = fresh.some(isStillUploading);
-      if ((uploading || (fresh.length < w.expected && age < SECOND_IDEA_SETTLE_MS)) && age < SECOND_IDEA_WAIT_MS) {
-        t = setTimeout(look, 900);
-        return;
-      }
-      secondIdeaRef.current = null;
-      if (!uploading && fresh.length) offerSecondIdeaRef.current?.(fresh.map((c) => c.id));
-    };
-    t = setTimeout(look, 900);
-    return () => clearTimeout(t);
-  }, [cards, secondIdeaArmed, board?.id, currentUser?.id]);
-
   // ── Capture Mode: the synthetic cast ─────────────────────────────────────
   // Collaboration is the hardest thing here to film, because it needs other
   // people on other machines doing something plausible at the moment you press
@@ -5319,7 +5267,6 @@ export function CanvasSurface({
         board_id: board?.id || null,
       });
     } catch (_) {}
-    if (source !== 'held') armSecondIdeaRef.current?.(accepted.length + scripts.length);
 
     if (accepted.length) {
       // One batch for the drop and one transfer per file, Waiting from now
@@ -6746,7 +6693,6 @@ export function CanvasSurface({
           }
           if (c.route === 'screenplay') {
             const { pos } = resolvePastePos();
-            armSecondIdeaRef.current?.(1);
             importDroppedScripts([file], {
               addScriptCard: mutators.addScriptCard, pos, source: 'paste', toast: feedback.toast,
             }).catch((err) => console.error(err));
@@ -6770,7 +6716,6 @@ export function CanvasSurface({
           }
           const { pos, clamped } = resolvePastePos();
           notePasteCreate(clamped);
-          armSecondIdeaRef.current?.(1);
           // Caught here rather than awaited: this is a window event handler, so
           // a rejection would be unhandled. The drop path already surfaces the
           // same failure through ingestFiles' try/catch.
@@ -6818,7 +6763,6 @@ export function CanvasSurface({
       if (urlMatch) {
         e.preventDefault();
         notePasteCreate(clamped);
-        armSecondIdeaRef.current?.(1);
         createLinkCardFromUrl(urlMatch[1], pos);
         return;
       }
@@ -6827,7 +6771,6 @@ export function CanvasSurface({
       if (text.trim().length > 0) {
         e.preventDefault();
         notePasteCreate(clamped);
-        armSecondIdeaRef.current?.(1);
         createNoteCardFromText(text, pos);
         return;
       }
@@ -7600,39 +7543,6 @@ export function CanvasSurface({
     }
     if (typed == null) return;
     await newClusterHereRef.current?.({ name: String(typed).trim().slice(0, 200) || null, via, sweep });
-  };
-  // The second idea's toast (armed above) and its answer: the new cards are
-  // picked, so the popover counts them and they are what moves.
-  const secondIdeaActRef = useRef(null);
-  secondIdeaActRef.current = (ids) => {
-    const live = ids.filter((id) => cardByIdRef.current[id]);
-    if (!live.length) return;
-    setSelected(new Set(live));
-    // Once the pick has reached the bar, so its field starts from the suggestion.
-    setTimeout(() => {
-      const d = { boardId: board?.id, paneId, via: 'second_idea', handled: false };
-      document.dispatchEvent(new CustomEvent('soleil-new-cluster-open', { detail: d }));
-      if (!d.handled) newClusterPrompted({ via: 'second_idea', surface: 'second_idea' });
-    }, 0);
-  };
-  offerSecondIdeaRef.current = (ids) => {
-    if (!canShowHint('second_idea') || upsellSlotBusy() || !claimHint('second_idea')) return;
-    markHintSeen('second_idea');
-    const n = ids.length;
-    const nudge = (action) => {
-      try { logEvent(EV.CLUSTER_NUDGE, { surface: 'second_idea', action, picked: n, board_id: board?.id || null }); } catch (_) {}
-    };
-    nudge('view');
-    // The hint slot is the toast's while it shows.
-    const release = setTimeout(() => releaseHint('second_idea'), SECOND_IDEA_TOAST_MS);
-    const done = () => { clearTimeout(release); releaseHint('second_idea'); };
-    feedback.toast({
-      message: n === 1 ? 'New idea? Give this card its own cluster.'
-        : `New idea? Give these ${n} cards their own cluster.`,
-      ttl: SECOND_IDEA_TOAST_MS,
-      action: { label: 'New cluster', onClick: () => { done(); secondIdeaActRef.current?.(ids); } },
-      onDismiss: () => { done(); nudge('dismiss'); },
-    });
   };
 
   const onCardPointerDown = (e, c) => {
@@ -13082,7 +12992,6 @@ export function CanvasSurface({
       // A drag from another tab is the one "bring material from elsewhere"
       // gesture that had no intent row, so it was invisible next to paste.
       noteCreateIntent('drag_in');
-      armSecondIdeaRef.current?.(1);
       // If the URL looks like an image (file extension or content-type
       // hint via the dragged element), drop as an image card so the
       // browser image-drag flow lands as a real image rather than a
@@ -13312,7 +13221,6 @@ export function CanvasSurface({
       if (!card) return;
       card.x = Math.max(8, Math.round(cx - card.w / 2));
       card.y = Math.max(8, Math.round(cy - card.h / 2));
-      armSecondIdeaRef.current?.(1);
       mutators.addCard?.(card);
       return;
     }
