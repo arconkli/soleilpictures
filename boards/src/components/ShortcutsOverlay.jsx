@@ -234,7 +234,7 @@ export function ShortcutsOverlay({ open, onClose }) {
           <section key={s.title} className="shortcuts-sec" aria-label={s.title}>
             <h3>{s.title}</h3>
             {s.rows.map(([keys, label]) => (
-              <div key={label} className="shortcuts-row">
+              <div key={`${label}:${keys.join(' ')}`} className="shortcuts-row">
                 <span className="shortcuts-keys">
                   {keys.map((k) => <kbd key={k}>{k}</kbd>)}
                 </span>

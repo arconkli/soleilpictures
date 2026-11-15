@@ -419,6 +419,13 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
 }
 .schedc-slot:hover .schedc-item-x { opacity: 1; }
 .schedc-item-x:hover { color: var(--ink-0, #f5f5f7); background: color-mix(in srgb, var(--bg-0, #0a0a0c) 85%, transparent); }
+/* A finger has no hover to bring these up, so they show: a chip's × takes
+   the chip's height and a finger's width, the corner × a finger's square.
+   (The month and week grids are read-only and carry neither.) */
+@media (hover: none) {
+  .schedc-chip-x { display: inline-flex; align-self: stretch; width: 32px; height: auto; margin-right: -6px; }
+  .schedc-item-x { opacity: 1; width: 32px; height: 32px; }
+}
 /* Sliver slots that can't fit a chip: a tiny count pip, click = open the day. */
 .schedc-count {
   position: absolute;
@@ -576,6 +583,23 @@ button.schedc-title > svg { flex: 0 0 auto; color: var(--ink-3, #5a5a60); }
   transform: translateY(-50%);
 }
 .schedc-mini { width: 16px; height: 16px; }
+/* Under a finger the tools are always there, a finger's size each. Two of
+   that size don't fit the 44px time gutter, where they'd also sit on the
+   hour for good, so a row's tools take its right end and its items stop
+   short of them (the tools' 66px and a gap; an all-day band has one tool). */
+@media (hover: none) {
+  .schedc-slot > .schedc-slottools { opacity: 1; pointer-events: auto; }
+  .schedc-slottools :is(.schedc-peek-btn, .schedc-mini) { width: 32px; height: 32px; }
+  .schedc-peekcontent .schedc-slot-hour:not(.is-band) > .schedc-slottools,
+  .schedc-peekcontent .schedc-slot-minute > .schedc-slottools,
+  .is-view-day .schedc-slot-hour:not(.is-band) > .schedc-slottools,
+  .is-view-hour .schedc-slot-minute > .schedc-slottools { left: auto; right: 2px; }
+  .schedc-peekcontent .schedc-slot-hour:not(.is-band) :is(.schedc-chips, .schedc-item-full),
+  .schedc-peekcontent .schedc-slot-minute :is(.schedc-chips, .schedc-item-full),
+  .is-view-day .schedc-slot-hour:not(.is-band) :is(.schedc-chips, .schedc-item-full),
+  .is-view-hour .schedc-slot-minute :is(.schedc-chips, .schedc-item-full) { right: 72px; }
+  .schedc-slot.is-band :is(.schedc-chips, .schedc-item-full) { right: 38px; }
+}
 /* Hide per-slot chrome while the card itself is being dragged (same rule
    family as the grid's drag-suppression). */
 .card.is-dragging .schedc-slottools { opacity: 0 !important; pointer-events: none !important; }

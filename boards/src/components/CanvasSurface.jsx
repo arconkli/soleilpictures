@@ -507,6 +507,9 @@ function railFitInset(wrapEl, wrapRect, margin) {
 // note or doc sits once the view has zoomed in to it, and the most that zoom
 // goes to (a portrait iPad would otherwise blow a 200px note up to 3x).
 const ADD_VIEW_MARGIN = 12;
+// How long the canvas's box keeps still before a switch of shell (an iPad
+// turned) counts as over (holdBoardStill).
+const SHELL_SETTLE_MS = 300;
 const ADD_ZOOM_TOP = 24;
 const ADD_ZOOM_SHARE = 0.8;
 const ADD_ZOOM_MAX = 1.5;
@@ -1372,21 +1375,81 @@ export function CanvasSurface({
   // with theirs mustn't carry the board along. The camera moves the other way
   // in the same frame (a ResizeObserver runs before paint) and is committed
   // once it settles. Only where the board runs on under the sidebar
-  // (--cnv-ground-bleed: the main pane, with the floating sidebar).
+  // (--cnv-ground-bleed: the main pane, with the floating sidebar), before and
+  // after: a switch of shell (an iPad turned) moves the left edge too, and
+  // there the board goes with it. Held against that one, every turn to
+  // landscape and back took the sidebar's width off the pan, and the note
+  // being typed went out of view.
   const wrapLeftRef = useRef(null);
+  const lastBleedRef = useRef(null);
   const holdStillTimerRef = useRef(0);
+  const commitHeldPan = () => {
+    clearTimeout(holdStillTimerRef.current);
+    holdStillTimerRef.current = setTimeout(() => setPan({ x: panRef.current.x, y: panRef.current.y }), 160);
+  };
+  // After a switch of shell, once it has settled, the note being typed in
+  // stays in view: a jump, at the zoom there is, and only when part of it is
+  // off the visible board.
+  const keepEditedCardInView = () => {
+    const id = editingNoteIdRef.current;
+    // Both declared further down, and read nothing but refs and the page.
+    const v = id ? visibleBoard() : null;
+    if (!v || touchCamOwnsPose()) return;
+    const el = wrapRef.current.querySelector(`.card[data-card-id="${CSS.escape(String(id))}"]`);
+    const b = el?.getBoundingClientRect();
+    if (!b || !(b.width > 0) || !(b.height > 0)) return;
+    const M = ADD_VIEW_MARGIN;
+    // How far to move along one axis: none when it fits where it is, else to
+    // the nearer edge, and its start where it is longer than the room.
+    const shift = (lo, size, from, room) => {
+      const min = from + M, max = from + room - M;
+      if (size > max - min) return min - lo;
+      if (lo < min - 0.5) return min - lo;
+      if (lo + size > max + 0.5) return max - (lo + size);
+      return 0;
+    };
+    // Its room starts under the floating chrome's band (the islands across the
+    // window's top; none in the phone shell) and ends at a finger's format
+    // bar, which is fixed over the board's foot.
+    const band = parseFloat(getComputedStyle(wrapRef.current).getPropertyValue('--chrome-band')) || 0;
+    const top = Math.max(v.top, band);
+    const bar = wrapRef.current.querySelector('.tob.tob-a.is-touch')?.getBoundingClientRect();
+    const foot = bar && bar.height > 0 ? Math.min(v.r.top + v.top + v.h, bar.top) : v.r.top + v.top + v.h;
+    const dx = shift(b.left, b.width, v.r.left + v.left, v.w);
+    const dy = shift(b.top, b.height, v.r.top + top, foot - (v.r.top + top));
+    if (!dx && !dy) return;
+    panRef.current = { x: panRef.current.x + dx, y: panRef.current.y + dy };
+    applyCanvasTransform();
+    commitHeldPan();
+  };
+  // A switch of shell isn't one step: the sidebar comes in at one width and
+  // eases to another over a few frames, each of them a resize here with the
+  // bleed already on. All of it is the switch, so the hold stands down until
+  // the canvas's box has kept still for SHELL_SETTLE_MS, and the look for the
+  // edited note waits for that too (its room isn't known before).
+  const shellSettleTimerRef = useRef(0);
   const holdBoardStill = () => {
     const wrap = wrapRef.current;
     if (!wrap) return;
     const left = wrap.getBoundingClientRect().left;
+    const bleed = getComputedStyle(wrap).getPropertyValue('--cnv-ground-bleed').trim() === '1';
     const was = wrapLeftRef.current;
+    const wasBleed = lastBleedRef.current;
     wrapLeftRef.current = left;
+    lastBleedRef.current = bleed;
+    if ((wasBleed != null && wasBleed !== bleed) || shellSettleTimerRef.current) {
+      clearTimeout(shellSettleTimerRef.current);
+      shellSettleTimerRef.current = setTimeout(() => {
+        shellSettleTimerRef.current = 0;
+        keepEditedCardInView();
+      }, SHELL_SETTLE_MS);
+      return;
+    }
     if (was == null || Math.abs(left - was) < 0.5 || boardIsEmptyRef.current) return;
-    if (getComputedStyle(wrap).getPropertyValue('--cnv-ground-bleed').trim() !== '1') return;
+    if (!bleed) return;
     panRef.current = { x: panRef.current.x - (left - was), y: panRef.current.y };
     applyCanvasTransform();
-    clearTimeout(holdStillTimerRef.current);
-    holdStillTimerRef.current = setTimeout(() => setPan({ x: panRef.current.x, y: panRef.current.y }), 160);
+    commitHeldPan();
   };
   // ResizeObserver on the wrap element so viewport recomputes when the
   // window or sidebar resizes (also seeds wrapWHRef with the initial size
@@ -1404,7 +1467,7 @@ export function CanvasSurface({
       measureGround();
     });
     ro.observe(el);
-    return () => { ro.disconnect(); clearTimeout(holdStillTimerRef.current); };
+    return () => { ro.disconnect(); clearTimeout(holdStillTimerRef.current); clearTimeout(shellSettleTimerRef.current); shellSettleTimerRef.current = 0; };
   }, [scheduleVisibleRecompute]);
   // The ground's colours follow the theme (<html data-theme>, or the system's
   // when it has none), and a window moved to another screen redraws it sharp.
@@ -2245,6 +2308,9 @@ export function CanvasSurface({
   const [arrowOptions, setArrowOptions] = useState({ straight: false, dashed: false });
   const [activeShape, setActiveShape] = useState(null); // { x, y, w, h } during shape drag
   const [editingNoteId, setEditingNoteId] = useState(null);
+  // For the resize observer's holdBoardStill, which is the first render's.
+  const editingNoteIdRef = useRef(null);
+  editingNoteIdRef.current = editingNoteId;
   const [ctx, setCtx] = useState({ open: false, x: 0, y: 0, cardId: null });
   const [bgCtx, setBgCtx] = useState({ open: false, x: 0, y: 0, canvasPos: null });
   // Cursor add-card menu opened by double-clicking bare canvas (replaces the
@@ -2364,6 +2430,9 @@ export function CanvasSurface({
   // gate the nav on this) — phones plus touch tablets and landscape phones. The
   // add sheet must render for all of them or the puck dead-ends there.
   const { mobileShell, coarse } = shellOf(breakpoint);
+  // Turned to landscape (an iPad's desktop layout), the + sheet closes: it
+  // used to hide there and come back on the turn to portrait.
+  useEffect(() => { if (!mobileShell) setMobileAdd(null); }, [mobileShell]);
   const [spaceDown, setSpaceDown] = useState(false);
   const lastMouseCanvasRef = useRef({ x: 200, y: 200 });
   // The same pointer in SCREEN space. A wheel or trackpad pan moves the camera

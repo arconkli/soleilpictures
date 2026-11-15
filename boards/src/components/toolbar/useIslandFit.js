@@ -2,6 +2,8 @@ import { useLayoutEffect, useRef, useState } from 'react';
 
 // The islands' inset from the canvas's edges, and the room between two.
 const EDGE = 12;
+// A finger's bar, from the canvas's edges.
+const TOUCH_EDGE = 8;
 
 // Where a bar of the toolbar look sits on a desktop canvas's bottom row (the
 // note bar, the draw bar, the shape bars: .tob-a), and how far it folds.
@@ -19,12 +21,35 @@ const EDGE = 12;
 //
 // `on` is false under a finger, where the bar keeps the place its CSS gives it
 // and the bar folds as far as its own rules say. Returns the fold.
-export function useIslandFit(barRef, { on, max }) {
+//
+// `touch` is a finger on a tablet: the bar is fixed to the window (the
+// keyboard lifts it) and folds by its own rules, so all it takes from here is
+// the canvas's edges in the window's terms (--tob-l, --tob-r), which centre it
+// on the canvas, clear of a sidebar beside it (a landscape iPad).
+export function useIslandFit(barRef, { on, max, touch = false }) {
   const [fold, setFold] = useState(0);
   const widths = useRef([]);
   const fitRef = useRef(null);
   useLayoutEffect(() => {
     const bar = barRef.current;
+    if (bar && touch && !on) {
+      const room = bar.closest('.canvas-wrap');
+      if (!room) { fitRef.current = null; return undefined; }
+      const fit = () => {
+        const box = room.getBoundingClientRect();
+        const vw = document.documentElement.clientWidth;
+        bar.style.setProperty('--tob-l', `${Math.max(0, Math.round(box.left)) + TOUCH_EDGE}px`);
+        bar.style.setProperty('--tob-r', `${Math.max(0, Math.round(vw - box.right)) + TOUCH_EDGE}px`);
+        bar.style.removeProperty('--tob-b');
+      };
+      fitRef.current = fit;
+      // The canvas's box moves when the window turns or a sidebar beside it
+      // changes size; either resizes the canvas.
+      const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => fitRef.current?.());
+      ro?.observe(room);
+      window.addEventListener('resize', fit);
+      return () => { ro?.disconnect(); window.removeEventListener('resize', fit); fitRef.current = null; };
+    }
     const room = bar?.offsetParent;
     if (!bar || !room || !on) { fitRef.current = null; return undefined; }
     const fit = () => {
@@ -63,7 +88,7 @@ export function useIslandFit(barRef, { on, max }) {
     const zoomEl = room.querySelector('.cnv-zoom');
     if (zoomEl) ro?.observe(zoomEl);
     return () => { ro?.disconnect(); fitRef.current = null; };
-  }, [barRef, on, fold, max]);
+  }, [barRef, on, fold, max, touch]);
   useLayoutEffect(() => { fitRef.current?.(); });
   return fold;
 }
