@@ -2,7 +2,7 @@
 
 > Soleil Clusters gives costume designers a mood board per character: research and inspiration, a grid of looks scene by scene, fabric and colour swatches, and fitting photos together. Assistants and buyers add to it live, the director comments on the image itself, and a typed character tag gathers every reference for that character across the project.
 
-_Source: https://clusters.soleilpictures.com/tools/costume-design-mood-board · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/tools/costume-design-mood-board · Updated 2026-11-04_
 
 A board per character, the looks laid out scene by scene, and the fabric, colour and fitting photos beside them — shared live with the director.
 

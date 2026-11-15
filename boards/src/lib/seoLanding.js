@@ -115,7 +115,7 @@ const PAGES = [
     // nobody reads. Anything over ~22 words has to be split at the source.
     answer:
       'Soleil Scout is a text-message ingest bot for film crews. You text photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. Scout is not running yet. Leave your number and we text you when your line is ready.',
-    updated: '2026-10-02',
+    updated: '2026-11-04',
     cta: { label: 'Join the Scout list — free', sub: 'Invite-only for now. Leave your number and we text you when your line is ready.' },
     stepsHeading: 'How Soleil Scout works once you are in',
     steps: [
@@ -193,7 +193,7 @@ const PAGES = [
       'Pull your references, colors, and notes onto one infinite canvas — then share the whole board with a single link.',
     answer:
       'Soleil Clusters is a free online mood board maker: drag images, links, video, color palettes and any other file onto an infinite canvas, arrange them freely, and share the finished board with one link. It runs in the browser with no download, supports real-time collaboration, and is built for film, photo, and design teams.',
-    updated: '2026-10-20',
+    updated: '2026-11-04',
     cta: { label: 'Start a mood board — free', sub: 'No credit card. Your first board in seconds.' },
     stepsHeading: 'How to make a mood board',
     steps: [
@@ -390,7 +390,7 @@ const PAGES = [
       'Lay your shots out in a grid, drop in frames and reference, and keep the shot list right beside them.',
     answer:
       'Soleil Clusters is an online storyboard maker: lay each shot out as a grid card, drop a still or sketch into the frame, write the action on the line beneath, and let each shot number itself by where it sits. Your director, DP, and AD edit the same storyboard live, and one link shares it.',
-    updated: '2026-10-02',
+    updated: '2026-11-04',
     cta: { label: 'Start a storyboard — free', sub: 'No credit card. Free to start.' },
     stepsHeading: 'How to make a storyboard',
     steps: [
@@ -440,7 +440,7 @@ const PAGES = [
       'Keep your shots, reference frames, and notes on one board — visual and organized, not buried in a spreadsheet.',
     answer:
       'Soleil Clusters is a visual shot list maker: every shot gets its own card with a reference frame, lens, and movement notes, and the board toggles between a freeform canvas and a clean list view. Link it to your storyboard and mood board, group shots into a cluster per shoot day, and share one live link with the crew.',
-    updated: '2026-10-20',
+    updated: '2026-11-04',
     cta: { label: 'Build a shot list — free', sub: 'Free to start. No install.' },
     stepsHeading: 'How to make a shot list',
     steps: [
@@ -506,7 +506,7 @@ const PAGES = [
       'Arrange looks, references, and color stories on one canvas — then send a polished, interactive link.',
     answer:
       'Soleil Clusters is an online look book maker: arrange imagery in clean grid spreads, unify the set with non-destructive photo adjustments, add color palettes for the season’s story, and send clients one link to the polished, interactive board itself — no account or download required to view it.',
-    updated: '2026-10-20',
+    updated: '2026-11-04',
     cta: { label: 'Make a look book — free', sub: 'Free to start. Share with one link.' },
     stepsHeading: 'How to make a look book',
     steps: [
@@ -671,7 +671,7 @@ const PAGES = [
       'Drop reference onto an infinite canvas in your browser. The same board follows you to every machine, and one link shows your art director exactly what you’re looking at.',
     answer:
       'Soleil Clusters is a free online reference board maker: drop images onto an infinite canvas, arrange and zoom them while you work, and open the same board from any device’s browser with nothing to install. One link shares it read-only. The tradeoff: it lives online — for offline reference, desktop PureRef still earns its place.',
-    updated: '2026-10-20',
+    updated: '2026-11-04',
     cta: { label: 'Make a reference board', sub: 'Free Demo tier — no credit card, no trial clock.' },
     stepsHeading: 'How to make a reference board',
     steps: [
@@ -768,7 +768,7 @@ const PAGES = [
       'Clips, GIFs and stills on one canvas in the browser: step to the exact frame, loop the move you are studying, and share the whole wall with one link.',
     answer:
       `Soleil Clusters is a free reference board that plays video: clips, GIFs and stills share one canvas in the browser, a clip steps frame by frame or loops like a GIF, and one link shares the board. PureRef’s format list is images and animated GIFs. The free plan holds ${freeLimitSentence()}.`,
-    updated: '2026-10-20',
+    updated: '2026-11-04',
     cta: { label: 'Make a video reference board', sub: 'Free to start. Nothing to install.' },
     stepsHeading: 'How to make a video reference board',
     steps: [
@@ -869,7 +869,7 @@ const PAGES = [
       'One live wall of reference for a concept, VFX, game or 3D team — added to by everyone, opened from one link, with notes pinned to the image they are about.',
     answer:
       'Soleil Clusters is a shared reference board for studio art teams: an infinite canvas in the browser where every artist drops reference into the same board live, the art director comments directly on the image, and one link opens a read-only view. One plan covers the whole workspace, so there are no per-seat licences.',
-    updated: '2026-10-20',
+    updated: '2026-11-04',
     cta: { label: 'Start a team board — free', sub: 'Free to start. Editors join free.' },
     stepsHeading: 'How a studio sets one up',
     steps: [
@@ -1032,7 +1032,7 @@ const PAGES = [
       'A cluster per set, with references, palettes, plans and notes in one place — built by the whole art department, live.',
     answer:
       'Soleil Clusters gives production designers a mood board per set: references, palettes, PDFs of plans and notes in one cluster, nested inside the project. Set decorators, props and the art director build it live, the director comments on the image itself, and one link shows it to anyone. Editors are free, so the department is not billed per seat.',
-    updated: '2026-10-02',
+    updated: '2026-11-04',
     cta: { label: 'Start a set board — free', sub: 'Free to start. The department joins free.' },
     stepsHeading: 'How an art department uses it',
     steps: [
@@ -1095,7 +1095,7 @@ const PAGES = [
       'A board per character, the looks laid out scene by scene, and the fabric, colour and fitting photos beside them — shared live with the director.',
     answer:
       'Soleil Clusters gives costume designers a mood board per character: research and inspiration, a grid of looks scene by scene, fabric and colour swatches, and fitting photos together. Assistants and buyers add to it live, the director comments on the image itself, and a typed character tag gathers every reference for that character across the project.',
-    updated: '2026-10-02',
+    updated: '2026-11-04',
     cta: { label: 'Start a costume board — free', sub: 'Free to start. Your team joins free.' },
     stepsHeading: 'How a costume department uses it',
     steps: [
@@ -1153,7 +1153,7 @@ const PAGES = [
       'Collect the frames, light and lensing you are after, check them in black and white, and keep the director, gaffer and colourist on the same board.',
     answer:
       'Soleil Clusters is a cinematography lookbook on a shared canvas: collect film frames and lighting references by scene, note lens and light beside each, check values in black and white, and sample palettes. The director, gaffer and colourist work in the same board live, and a view-only link shows it to anyone without an account.',
-    updated: '2026-10-02',
+    updated: '2026-11-04',
     cta: { label: 'Start a lookbook — free', sub: 'Free to start. Nothing to install.' },
     stepsHeading: 'How a DP builds one',
     steps: [
@@ -1509,7 +1509,7 @@ const PAGES = [
       'Eagle is the best private library for one person’s references. Clusters is the shared room a team builds in — live, in the browser, on any machine.',
     answer:
       'Soleil Clusters is an Eagle alternative for teams: a browser canvas where a crew builds reference boards together, live, and shares them with one link. Eagle is a one-time-purchase desktop library built around one person’s collection, strongest offline and at scale. Keep Eagle as the archive; use Clusters when a team needs the same board.',
-    updated: '2026-10-20',
+    updated: '2026-11-04',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     stepsHeading: 'How to bring an Eagle project into Clusters',
     steps: [
@@ -1830,7 +1830,7 @@ const PAGES = [
       'Miro is a whiteboard for everything. Clusters is a canvas built specifically for visual, reference-driven creative work.',
     answer:
       'Soleil Clusters is a Miro alternative purpose-built for creative reference work: image-first cards with photo adjustments, color palettes, docs and screenplay mode, and a relationship graph that ties a mood board to a storyboard to a shot list. Choose Miro for enterprise diagramming and workshops; choose Clusters for film, photo, and design pre-production.',
-    updated: '2026-10-20',
+    updated: '2026-11-04',
     cta: { label: 'Try Clusters free', sub: 'Free to start. No credit card.' },
     sections: [
       {

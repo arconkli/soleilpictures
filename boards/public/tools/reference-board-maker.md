@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a free online reference board maker: drop images onto an infinite canvas, arrange and zoom them while you work, and open the same board from any device’s browser with nothing to install. One link shares it read-only. The tradeoff: it lives online — for offline reference, desktop PureRef still earns its place.
 
-_Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-10-20_
+_Source: https://clusters.soleilpictures.com/tools/reference-board-maker · Updated 2026-11-04_
 
 Drop reference onto an infinite canvas in your browser. The same board follows you to every machine, and one link shows your art director exactly what you’re looking at.
 
