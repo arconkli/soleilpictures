@@ -5,7 +5,8 @@
 // dates only (the policy at the top of seoListicles.js): the date moves when
 // the words a reader sees move, and not otherwise. This script hashes those
 // words per page into src/lib/seoFreshness.json, and
-// src/lib/seoFreshness.test.mjs fails when a hash moved and `updated` did not.
+// src/lib/seoFreshness.test.mjs fails whenever a page's words or date differ
+// from the snapshot, so every change is re-snapshotted with a logged reason.
 //
 //   npm run seo:fresh                          what moved since the snapshot
 //   npm run seo:fresh:accept -- --reason "x"   re-snapshot, logging why
@@ -22,6 +23,11 @@ import { fileURLToPath } from 'node:url';
 
 export const SNAPSHOT_URL = new URL('../src/lib/seoFreshness.json', import.meta.url);
 
+// planBlock is a flag here, and the "What it costs" section it switches on is
+// left out on purpose: it is the same shared block (planBlock.js) on every
+// page that carries it, like a footer, so a price or free-plan change does not
+// re-date every comparison page. Those words belong to /pricing, whose hash
+// below is taken from its rendered body and moves with them.
 const SKIP_TOP = new Set([
   'path', 'kind', 'updated', 'published',
   'related', 'docsLinks', 'siblingListicle', 'exampleSlugs',

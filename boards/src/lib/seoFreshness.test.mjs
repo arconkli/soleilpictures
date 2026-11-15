@@ -4,24 +4,27 @@ import { currentPages, readSnapshot, diffPages } from '../../scripts/seo-freshne
 
 // A page's `updated` date (sitemap lastmod, JSON-LD dateModified) must move
 // with its words. scripts/seo-freshness.mjs hashes the words a reader sees on
-// each search page into seoFreshness.json. When a hash differs from the
-// snapshot while `updated` still equals the snapshot's date, the words changed
-// and the date did not: bump `updated` in the spec (to the day of the change).
-// If the change really was a typo, say so instead of faking freshness:
-//   npm run seo:fresh:accept -- --reason "typo in /tools/x"
-// After bumping a date, run the same command (reason: "bumped /tools/x") so
-// the snapshot follows. `npm run seo:fresh` prints what moved.
+// each search page into seoFreshness.json, and the snapshot must always match
+// the specs: a page whose words or date moved since the last snapshot fails
+// here until it is re-snapshotted, so a bumped date can never leave the
+// baseline behind and the next edit to the same page is caught too.
+//   Words changed: set `updated` to the day of the change, then
+//     npm run seo:fresh:accept -- --reason "bumped /tools/x: <what changed>"
+//   A typo, where a new date would fake freshness: keep the date, and
+//     npm run seo:fresh:accept -- --reason "typo in /tools/x"
+//   `npm run seo:fresh` prints what moved.
 
 const snap = readSnapshot().pages;
 const cur = await currentPages();
 const moved = diffPages(snap, cur);
 
-test('every page whose words changed carries a later updated date', () => {
-  const stale = moved.filter((m) => m.kind === 'words' && m.snap.updated === m.cur.updated);
-  assert.deepEqual(
-    stale.map((m) => m.path), [],
-    `words changed, so bump updated, or re-snapshot with a reason if the change was a typo (npm run seo:fresh:accept -- --reason "..."): ${stale.map((m) => m.path).join(', ')}`,
-  );
+test('the snapshot matches every page, words and date', () => {
+  const drift = moved.filter((m) => m.kind === 'words' || m.kind === 'date').map((m) => {
+    if (m.kind === 'date') return `${m.path}: updated moved ${m.snap.updated} -> ${m.cur.updated} with no change to its words`;
+    if (m.cur.updated > m.snap.updated) return `${m.path}: words changed and updated moved ${m.snap.updated} -> ${m.cur.updated}`;
+    return `${m.path}: words changed, updated still ${m.cur.updated}; if the change was not made that day, set updated to the day it was (a typo keeps its date)`;
+  });
+  assert.deepEqual(drift, [], `${drift.join('\n')}\nThen re-snapshot: npm run seo:fresh:accept -- --reason "..."`);
 });
 
 test('every spec is in the snapshot', () => {
