@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a Storyflow alternative for production teams: a free real-time canvas where mood boards, storyboards, shot lists and the screenplay live in one nested project, at a flat $25/mo with no AI allowance to run out. Storyflow is in paid early access and drafts boards from a prompt; Clusters is for building them with your crew.
 
-_Source: https://clusters.soleilpictures.com/vs/storyflow · Updated 2026-10-01_
+_Source: https://clusters.soleilpictures.com/vs/storyflow · Updated 2026-11-14_
 
 Storyflow drafts the board for you. Clusters is where a crew builds the real one together — free to start, flat-priced, on one canvas.
 
@@ -26,11 +26,11 @@ A production is not one board. In Clusters the mood board, the storyboard grid, 
 
 ## A free plan you can use today, and a flat price after it
 
-Storyflow’s pricing page says it plainly: it is paid-only during early access, and its Free plan launches before the end of 2026 — unless a paid member invites you, in which case you can join their boards free now. Its paid tiers run from $7.99 to $39 a month billed annually, each with its own AI allowance, and the coming free plan will cap file uploads at 20. Clusters’ Demo tier is free today with no credit card, covers 25 cards — the clusters you make cost none of them — or 5GB of files, whichever comes first. Creator is a flat $25 a month for unlimited cards, a 1TB drive, and everyone you invite edits free.
+Storyflow’s pricing page, read on 14 November 2026, says it plainly: it is paid-only during early access, and its Free plan is marked “Coming soon” — unless a paid member invites you, in which case you can join their boards free now. Its paid tiers run from $7.99 to $39 a month billed annually, each with its own AI allowance. The free plan the page describes holds 3 projects, 100 images, 10 file and video uploads, 10 links and 1 GB of storage, with no in-app AI. Clusters’ Demo tier is free today with no credit card, covers 25 cards — the clusters you make cost none of them — or 5GB of files, whichever comes first. Creator is a flat $25/mo for unlimited cards, a 1TB drive, and everyone you invite edits free.
 
 - Free today: 25 cards or 5GB of files (clusters themselves are free)
 - Creator is $25/mo flat — not per seat, not per AI call
-- Storyflow: paid early access; its Free plan is due before the end of 2026
+- Storyflow: paid early access; its Free plan is marked “Coming soon” (November 2026)
 
 ## Where Storyflow is still the right call
 
@@ -49,21 +49,21 @@ Both of these tools come from small teams, and you should weigh that either way.
 
 ## Soleil Clusters vs Storyflow
 
-How the two compare on the things production teams care about. Storyflow figures are from its own pricing page, September 2026:
+How the two compare on the things production teams care about. Storyflow figures are from its own pricing page, read 14 November 2026:
 
 | | Soleil Clusters | Storyflow |
 | --- | --- | --- |
-| Free plan available today | Yes — no credit card | Not yet; announced for before the end of 2026 |
+| Free plan available today | Yes — no credit card | Not yet — marked “Coming soon” |
 | Pricing model | Flat $25/mo Creator | $7.99–$39/mo billed annually, AI metered per tier |
-| AI usage allowance | None — connect your own assistant | Per plan; a one-time allowance on the coming free plan |
+| AI usage allowance | None — connect your own assistant | Per paid plan; no in-app AI on the planned free plan |
 | Drafts a board from a prompt | No | Yes |
 | Real-time multiplayer canvas | Yes | Yes |
-| Nested boards with a relationship graph | Yes | Not on its pricing page (September 2026) |
-| Screenplay mode (Final Draft and Fountain) | Yes | Not on its pricing page (September 2026) |
-| Files of any type, at any size | Yes — any size, on every plan | Unlimited uploads on paid plans; 20 on the coming free plan |
-| Free-plan card cap | 25 cards or 5GB of files | No object or board limit on any plan; uploads and AI are capped |
+| Nested boards with a relationship graph | Yes | Not on its pricing page (November 2026) |
+| Screenplay mode (Final Draft and Fountain) | Yes | Not on its pricing page (November 2026) |
+| Files of any type, at any size | Yes — any size, on every plan | Unlimited uploads on paid plans; 10 on the planned free plan |
+| Free-plan card cap | 25 cards or 5GB of files | Unlimited objects on paid plans; the planned free plan holds 3 projects, 100 images, 10 uploads, 10 links and 1 GB |
 | Template library | Growing (grid templates) | 200+ frameworks on paid plans |
-| Works with Claude and other MCP clients | Yes, one URL | No server listed in the MCP registry |
+| Works with Claude and other MCP clients | Yes, one URL | Yes — unlimited actions on paid plans; 25 a week on the planned free plan |
 
 ## What it costs
 
@@ -89,7 +89,7 @@ Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 
 ### Is Storyflow free?
 
-Not yet. Storyflow’s own pricing page says it is paid-only during early access and that its Free plan launches before the end of 2026; collaborators invited by a paid member can join free in the meantime. Soleil Clusters is free to start today, with no credit card.
+Not yet, as of 14 November 2026. Storyflow’s own pricing page says it is paid-only during early access and marks its Free plan “Coming soon”; collaborators invited by a paid member can join free in the meantime. Soleil Clusters is free to start today, with no credit card.
 
 ### Is Soleil Clusters a good Storyflow alternative?
 
@@ -101,11 +101,11 @@ Storyflow drafts a first pass for one person; Clusters is where the crew builds 
 
 ### Does Clusters generate boards with AI like Storyflow does?
 
-No. Clusters does not generate boards or images. It connects to Claude and any other MCP client with one URL, so your own assistant can create a board, bring in references from links and arrange them — working with images you already have. No Storyflow server is listed in the official Model Context Protocol registry at the time of writing.
+No. Clusters does not generate boards or images. It connects to Claude and any other MCP client with one URL, so your own assistant can create a board, bring in references from links and arrange them — working with images you already have. Storyflow’s pricing page lists a connection of the same kind for Claude, ChatGPT, Gemini and Grok: unlimited actions on its paid plans, 25 a week on the free plan it describes.
 
 ### How much does Storyflow cost?
 
-As of September 2026: Plus is $9.99/mo, or $7.99/mo billed annually ($95.88 once a year); Pro $19/mo, or $14/mo annually ($168); Max $49/mo, or $39/mo annually ($468). Each tier carries a different AI usage allowance. Clusters’ Creator plan is a flat $25 a month.
+As of 14 November 2026: Plus is $9.99/mo, or $7.99/mo billed annually ($95.88 once a year); Pro $19/mo, or $14/mo annually ($168); Max $49/mo, or $39/mo annually ($468). Each tier carries a different AI usage allowance. Clusters’ Creator plan is a flat $25/mo.
 
 ### Can I move my Storyflow boards to Clusters?
 
@@ -113,7 +113,7 @@ Storyflow exports boards as PNG, SVG or PDF. Bring the original images and files
 
 ### Does Clusters have a limit like Storyflow’s upload cap?
 
-Clusters’ free Demo tier caps cards at 25 or storage at 5GB — the clusters you make cost none — and takes files of any size; Creator ($25/mo) removes the card cap. Storyflow’s coming free plan caps file uploads at 20 and AI at a one-time allowance, with no object limit.
+Clusters’ free Demo tier caps cards at 25 or storage at 5GB — the clusters you make cost none — and takes files of any size; Creator ($25/mo) removes the card cap. The free plan Storyflow’s pricing page describes (November 2026) caps file and video uploads at 10, links at 10, images at 100 and projects at 3, with 1 GB of storage and no in-app AI.
 
 ### Can I use Clusters on an iPad or a phone?
 
