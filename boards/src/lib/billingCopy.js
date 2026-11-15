@@ -519,6 +519,19 @@ export const PRICING_PAGE = {
   // ten) and Air charges no seats on any plan. Say what we do; never say
   // nobody else does.
   workspaceNote: `One ${PLAN_NAME} plan covers the whole workspace — up to ${EDITOR_LIMIT} people who edit build at your limits, and there are no per-seat charges.`,
+  // Internal links, drawn by PricingPageView and by pricingCrawlable (the Worker's
+  // crawlable body and public/pricing.md) from this one object, so the three say
+  // the same words. Pages here are plain paths; none is a price claim.
+  teamSecurity: { lead: 'Wondering how a team\u2019s work is kept safe?', label: 'Read how Clusters handles security', href: '/docs/security' },
+  moreLinks: {
+    lead: 'See what the free plan makes, or how Clusters compares:',
+    links: [
+      { label: 'Free mood board maker', href: '/tools/free-mood-board-maker' },
+      { label: 'Mood board maker', href: '/tools/mood-board-maker' },
+      { label: 'Clusters vs Milanote', href: '/vs/milanote' },
+      { label: 'Mood board apps, ranked', href: '/best/mood-board-apps' },
+    ],
+  },
   // The free plan as a card, so the page can put the two side by side and let
   // someone compare them in one look. `price` is not a number from PRICING —
   // there is no free SKU and never will be — so it is stated here and the

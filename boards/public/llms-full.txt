@@ -12282,6 +12282,8 @@ Start a Team trial: 14 days free · card needed.
 
 Need SSO, invoices or more than 100 seats? [Talk to us](/pricing/talk-to-us).
 
+Wondering how a team’s work is kept safe? [Read how Clusters handles security](/docs/security).
+
 ## Every plan, line by line
 
 These are the only differences. Everything absent from this table is on every plan — files of any size, clusters, editing, sharing, exports, version history, the API.
@@ -12297,6 +12299,8 @@ These are the only differences. Everything absent from this table is on every pl
 | Join by company email | — | — | Yes |
 
 One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
+
+See what the free plan makes, or how Clusters compares: [Free mood board maker](/tools/free-mood-board-maker) · [Mood board maker](/tools/mood-board-maker) · [Clusters vs Milanote](/vs/milanote) · [Mood board apps, ranked](/best/mood-board-apps)
 
 ## Frequently asked questions
 

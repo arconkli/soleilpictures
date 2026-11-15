@@ -99,6 +99,8 @@ export function pricingModel() {
       rows: teamComparison(EDITOR_LIMIT).map((r) => ({ label: r.label, free: r.demo, creator: r.creator, team: r.team })),
       note: PRICING_PAGE.workspaceNote,
     },
+    teamSecurity: PRICING_PAGE.teamSecurity,
+    moreLinks: PRICING_PAGE.moreLinks,
     trust: [PRICING_PAGE.startFreeSub, PRICING_PAGE.trustLine],
     shot: { href: PRICING_PAGE.shot.href, caption: PRICING_PAGE.shot.caption },
     faq: PRICING_FAQ,
@@ -132,6 +134,7 @@ export function buildPricingCrawlableHtml() {
   for (const b of m.team.benefits) parts.push(`<li><b>${esc(b.title)}</b> — ${emph(b.body)}</li>`);
   parts.push(`</ul><p>${esc(m.team.start)}</p></section>`);
   parts.push(`<p>${esc(m.team.talk)} <a href="${m.team.talkHref}">${esc(m.team.talkLink)}</a>.</p>`);
+  parts.push(`<p>${esc(m.teamSecurity.lead)} <a href="${esc(m.teamSecurity.href)}" style="color:#FFA500;">${esc(m.teamSecurity.label)}</a>.</p>`);
 
   parts.push(`<p>${esc(m.trust.join(' '))}</p>`);
   parts.push(`<p><b>${esc(m.answer)}</b></p>`);
@@ -142,7 +145,8 @@ export function buildPricingCrawlableHtml() {
   for (const r of m.comparison.rows) {
     parts.push(`<tr><th>${esc(r.label)}</th><td>${esc(r.free)}</td><td>${esc(r.creator)}</td><td>${esc(r.team)}</td></tr>`);
   }
-  parts.push(`</tbody></table><p>${esc(m.comparison.note)}</p></section>`);
+  parts.push(`</tbody></table><p>${esc(m.comparison.note)}</p>`);
+  parts.push(`<p>${esc(m.moreLinks.lead)} ${m.moreLinks.links.map((l) => `<a href="${esc(l.href)}" style="color:#FFA500;">${esc(l.label)}</a>`).join(' · ')}</p></section>`);
 
   parts.push(`<section><h2 style="${H2}">Frequently asked questions</h2>`);
   for (const f of m.faq) parts.push(`<h3 style="font-size:1.05rem;margin:1em 0 .3em;">${esc(f.q)}</h3><p>${esc(f.a)}</p>`);
@@ -173,12 +177,14 @@ export function pricingMarkdown() {
     ...m.team.benefits.map((b) => `- **${b.title}** — ${b.body}`), '',
     m.team.start, '',
     `${m.team.talk} [${m.team.talkLink}](${m.team.talkHref}).`, '',
+    `${m.teamSecurity.lead} [${m.teamSecurity.label}](${m.teamSecurity.href}).`, '',
     `## ${m.comparison.heading}`, '',
     m.comparison.body, '',
     `| | ${m.free.name} | ${m.creator.name} | ${m.team.name} |`,
     '|---|---|---|---|',
     ...m.comparison.rows.map((r) => `| ${r.label} | ${r.free} | ${r.creator} | ${r.team} |`), '',
     m.comparison.note, '',
+    `${m.moreLinks.lead} ${m.moreLinks.links.map((l) => `[${l.label}](${l.href})`).join(' · ')}`, '',
     '## Frequently asked questions', '',
   ];
   for (const f of m.faq) out.push(`### ${f.q}`, '', f.a, '');
