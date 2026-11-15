@@ -33,9 +33,27 @@
 //                   rule added 2026-06-11 in uploads.js. Without it, ≤1280px
 //                   byte-heavy originals (most of the legacy corpus) only get
 //                   blur hashes and keep shipping multi-hundred-KB originals.
+//   --covers        only the cover pictures of published public clusters
+//                   (public_boards.og_image_key). /api/public-thumb/<slug>
+//                   serves a cover's preview in place of the original once it
+//                   has one (src/lib/publicCover.js, migration 0889), so this
+//                   is what makes link previews and the search pages' example
+//                   lists light. Safe to run again after new clusters are
+//                   published: a cover that already has a preview is skipped.
+//                   Without SUPABASE_SERVICE_ROLE_KEY, make --candidates with:
+//                     select coalesce(json_agg(c), '[]') from (
+//                       select i.id, i.storage_path, i.workspace_id, i.board_id,
+//                              i.width, i.height, i.preview_path, i.preview_w,
+//                              i.preview_h, i.preview_sm_path
+//                         from public_boards pb
+//                         join boards b on b.id = pb.board_id
+//                         join images i
+//                           on i.storage_path = regexp_replace(pb.og_image_key, '^r2:', '')
+//                        where pb.published_at is not null and b.deleted_at is null
+//                          and i.deleted_at is null) c;
 //
 // Candidates JSON shape (array): { id, storage_path, workspace_id, board_id,
-//   width, height, preview_path, preview_w, preview_h }
+//   width, height, preview_path, preview_w, preview_h, preview_sm_path }
 
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -77,6 +95,7 @@ const CONCURRENCY = 4;
 // --native-webp: keep the rule in lockstep with uploads.js
 // (NATIVE_WEBP_MIN_EDGE / NATIVE_WEBP_MAX_RATIO there).
 const NATIVE_WEBP = !!args['native-webp'];
+const COVERS = !!args.covers;
 const NATIVE_WEBP_MIN_EDGE = 320;
 const NATIVE_WEBP_MAX_RATIO = 0.8;
 
@@ -147,6 +166,32 @@ if (SERVICE_KEY) {
 // isn't frozen by a static preview.
 const RASTER_RE = /\.(png|jpe?g|webp)$/i;
 
+const CANDIDATE_COLUMNS = 'id, storage_path, workspace_id, board_id, width, height, preview_path, preview_w, preview_h, preview_sm_path';
+
+// --covers: the images rows behind published public clusters' covers. A cover
+// is read by its key alone, so it does not have to be referenced by a card.
+async function loadCoverCandidates() {
+  const { data: pubs, error: pubErr } = await db.from('public_boards')
+    .select('og_image_key, boards!inner(deleted_at)')
+    .not('published_at', 'is', null)
+    .not('og_image_key', 'is', null)
+    .is('boards.deleted_at', null);
+  if (pubErr) throw new Error(`cover query failed: ${pubErr.message}`);
+  const keys = [...new Set(pubs.map((p) => String(p.og_image_key).replace(/^r2:/, '')).filter(Boolean))];
+  const out = [];
+  for (let i = 0; i < keys.length; i += 50) {
+    const { data, error } = await db.from('images')
+      .select(CANDIDATE_COLUMNS)
+      .is('deleted_at', null)
+      .in('storage_path', keys.slice(i, i + 50));
+    if (error) throw new Error(`cover images query failed: ${error.message}`);
+    out.push(...data);
+  }
+  const missing = keys.length - out.length;
+  if (missing) console.log(`Covers: ${missing} cover key(s) have no images row and are left as they are.`);
+  return out;
+}
+
 async function loadCandidates() {
   if (args.candidates) {
     return JSON.parse(await readFile(args.candidates, 'utf8'));
@@ -155,8 +200,9 @@ async function loadCandidates() {
     console.error('No SUPABASE_SERVICE_ROLE_KEY and no --candidates=<json>. Provide one.');
     process.exit(1);
   }
+  if (COVERS) return loadCoverCandidates();
   const { data, error } = await db.from('images')
-    .select('id, storage_path, workspace_id, board_id, width, height, preview_path, preview_w, preview_h, preview_sm_path')
+    .select(CANDIDATE_COLUMNS)
     .is('deleted_at', null)
     .not('referenced_in_board_ids', 'eq', '{}')
     .not('referenced_in_board_ids', 'is', null)
