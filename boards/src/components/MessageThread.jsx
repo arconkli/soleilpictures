@@ -800,7 +800,7 @@ export function MessageThread({
   useLongPress(scrollRef, (x, y, e) => {
     const id = e?.target?.closest?.('[data-msg-id]')?.getAttribute('data-msg-id');
     const m = id ? messagesById.get(id) : null;
-    if (!m || m.sendState || m.kind === 'system') return;
+    if (!m || m.sendState || m.kind === 'system') return false;
     heldAtRef.current = Date.now();
     swallowNextClick({ held: true });
     setSheetId(id);

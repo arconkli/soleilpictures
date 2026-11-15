@@ -16,7 +16,7 @@ test('holding a message opens its actions; the click the hold ends with is eaten
   assert.match(thread, /useLongPress\(scrollRef, \(x, y, e\) => \{/);
   assert.match(thread, /\}, \{ ms: 480, tolerance: 8, pointerType: 'touch' \}\);/);
   assert.match(thread, /swallowNextClick\(\{ held: true \}\);\s*setSheetId\(id\);/);
-  assert.match(thread, /if \(!m \|\| m\.sendState \|\| m\.kind === 'system'\) return;/);
+  assert.match(thread, /if \(!m \|\| m\.sendState \|\| m\.kind === 'system'\) return false;/);
   assert.match(thread, /onContextMenu=\{onThreadContextMenu\}/);
   assert.match(thread, /const onThreadContextMenu = \(e\) => \{ if \(Date\.now\(\) - heldAtRef\.current < 1500\) e\.preventDefault\(\); \};/);
 });

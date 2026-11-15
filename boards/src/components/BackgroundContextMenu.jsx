@@ -6,6 +6,8 @@ import { supabase } from '../lib/supabase.js';
 import { useFitMenuToViewport } from '../lib/ctxMenuFit.js';
 import { CtxShortcut, CtxSubmenu, rowKeys, walkMenu } from './ctxMenuParts.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
+import HapticTap from './HapticTap.jsx';
+import { haptic } from '../lib/haptics.js';
 
 export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId, boardId, boardName }) {
   // Combined count from BOTH manual entity_links targeting the board
@@ -85,12 +87,13 @@ export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId,
             key={it.id || i}
             className={`ctx-item ${it.danger ? 'danger' : ''}`}
             disabled={it.disabled}
-            onClick={() => { onClose(); it.run && it.run(); }}
+            onClick={() => { if (it.danger) haptic('delete'); onClose(); it.run && it.run(); }}
             role="menuitem"
             {...rowKeys(it.shortcut)}
           >
             <span className="ctx-label">{it.label}</span>
             <CtxShortcut keys={it.shortcut} />
+            {it.danger && <HapticTap />}
           </button>
         );
       })}

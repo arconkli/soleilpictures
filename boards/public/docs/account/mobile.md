@@ -2,7 +2,7 @@
 
 > Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom, long-press menus and hold-then-drag to select, Files open with a tap, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 
-_Source: https://clusters.soleilpictures.com/docs/account/mobile · Updated 2026-11-09_
+_Source: https://clusters.soleilpictures.com/docs/account/mobile · Updated 2026-11-15_
 
 Two ways to run it on a phone or tablet: the mobile browser, or the same app
 added to your home screen. They are the same app.
@@ -43,6 +43,30 @@ With the draw tool active, one finger draws and two fingers still pinch-zoom.
 Starting a pinch part-way through a stroke discards that stroke rather than
 smearing it across the board as the canvas moves underneath — the failure that
 makes drawing on touch unusable.
+
+## Haptic feedback
+
+On a phone, Clusters gives a light tap at the moments where your finger needs
+confirming:
+
+- a hold picks up a card, or a cluster in the sidebar
+- a card you drag reaches a cluster, and you drop it in (or into a grid cell)
+- a snap guide catching
+- zoom passing 100% or reaching its limit
+- an arrow attaching to a card
+- ticking a checklist item
+- a hold opening a menu
+- choosing **Delete**, or another red option, in a menu
+- the card-limit notice
+
+On Android you feel all of them, in Chrome and most other browsers. In Safari
+on iPhone a website can only make the phone tap when you tap, so there you feel
+it on red menu options such as **Delete** and on checklist ticks, and not at
+the other moments. iPads have no vibration motor, so there is nothing to feel
+there, and it never happens with a mouse or trackpad.
+
+Switch it off for a device with **Vibration** in **Settings → Appearance**, under Canvas. The
+switch is kept on that device, not on your account.
 
 ## Layout differences
 

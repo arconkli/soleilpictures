@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { haptic } from '../lib/haptics.js';
 
 // Long-press detector that wires into a target element via ref.
 // Fires `onLongPress(clientX, clientY, originalEvent)` when the user
@@ -12,6 +13,9 @@ import { useEffect, useRef } from 'react';
 //     triggers if the user holds in place — never blocks normal drags.
 //   - The original onContextMenu (right-click) keeps working for mice;
 //     this hook only adds a touch equivalent.
+//
+// Return false from onLongPress when the hold does nothing there; any other
+// return gives the hold its haptic tap (lib/haptics.js).
 //
 // Usage:
 //   const longPressRef = useLongPress(wrapRef, (x, y, e) => {
@@ -45,7 +49,9 @@ export function useLongPress(targetRef, onLongPress, opts = {}) {
       armedEvent = e;
       timer = setTimeout(() => {
         if (!armedEvent) return;
-        handlerRef.current(startX, startY, armedEvent);
+        // Only a hold that opens something buzzes.
+        const acted = handlerRef.current(startX, startY, armedEvent);
+        if (acted !== false) haptic('lift');
         cancel();
       }, ms);
     };

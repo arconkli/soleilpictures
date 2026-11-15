@@ -9,6 +9,7 @@ import { pickPresenceColor } from './lib/presenceColor.js';
 import { useMyTeams } from './hooks/useMyTeams.js';
 import { readTeamReturn } from './lib/teamReturn.js';
 import * as perf from './lib/perf.js';
+import { haptic } from './lib/haptics.js';
 import { isEditableTarget, isEditablePointerTarget } from './lib/isEditableTarget.js';
 import { pushPane, climbPane, prunePane, restorePaneStack } from './lib/paneNav.js';
 import { setActivePane, getActivePane, subscribeActivePane } from './lib/activePane.js';
@@ -6886,6 +6887,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     capPitchedAtRef.current = limit;
     setCapWallCards(wall);
     setUpgradeReason('cap-hit');
+    haptic('warn');
   }, [feedback]);
 
   // Every DELIBERATE open of the cap wall — the import dialog's Upgrade, and

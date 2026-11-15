@@ -1,6 +1,7 @@
 import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import * as perf from '../lib/perf.js';
+import { haptic, createSnapTicker } from '../lib/haptics.js';
 import { fileDropSize } from '../lib/fileView.js';
 import { setFileActions } from '../lib/fileActions.js';
 import { setPerfContext, clearPerfContext, markGestureActiveUntil, bumpPerf } from '../lib/perfReport.js';
@@ -1549,6 +1550,8 @@ export function CanvasSurface({
   // before they release.
   const [boardDropHoverPos, setBoardDropHoverPos] = useState(null);
   const updateBoardDropTarget = useCallback((next, pos = null) => {
+    // Tick when the target becomes a (different) cluster, not when it clears.
+    if (next && next !== boardDropTargetRef.current) haptic('tick');
     boardDropTargetRef.current = next;
     setBoardDropTarget(next);
     setBoardDropHoverPos(next ? pos : null);
@@ -6077,6 +6080,9 @@ export function CanvasSurface({
   // Which two-finger gesture this was, counted once as it settles: a pinch
   // wins over the pan that rides along with it.
   const touchGestureRef = useRef(null);
+  // Pinch is sitting on the min or max zoom (the clamp tick fires once per visit).
+  const pinchClampedRef = useRef(false);
+  const pinch100ArmedRef = useRef(true);
   const scheduleTouchPanCommit = () => {
     if (touchPanCommitTimer.current) clearTimeout(touchPanCommitTimer.current);
     touchPanCommitTimer.current = setTimeout(() => {
@@ -6130,6 +6136,18 @@ export function CanvasSurface({
         // World-coord under the gesture origin should stay fixed.
         const cx = (ox - rect.left - start.panX) / start.zoom;
         const cy = (oy - rect.top  - start.panY) / start.zoom;
+        // Ticks: crossing 100% either way (re-armed once the zoom is 2% away,
+        // so a finger resting near 100% doesn't stutter), and reaching the min
+        // or max once.
+        const prevZoom = zoomRef.current;
+        if (Math.abs(prevZoom - 1) > 0.02) pinch100ArmedRef.current = true;
+        if (pinch100ArmedRef.current && ((prevZoom < 1 && targetZoom >= 1) || (prevZoom > 1 && targetZoom <= 1))) {
+          haptic('tick');
+          pinch100ArmedRef.current = false;
+        }
+        const atClamp = targetZoom === ZOOM_MIN || targetZoom === ZOOM_MAX;
+        if (atClamp && !pinchClampedRef.current) haptic('tick');
+        pinchClampedRef.current = atClamp;
         zoomRef.current = targetZoom;
         panRef.current = {
           x: ox - rect.left - cx * targetZoom,
@@ -6222,12 +6240,13 @@ export function CanvasSurface({
       if (cardEl) {
         const id = cardEl.getAttribute('data-card-id');
         const c = id ? cardById[id] : null;
-        if (!c) return;
+        if (!c) return false;
         // On editable boards with the select tool, a long-press on a card now
         // LIFTS it for dragging (handled per-gesture in onCardPointerDown) —
         // the card's "⋯" button opens the menu instead. View-only boards (no
-        // lift, no ⋯ button) keep the long-press context menu.
-        if (canEdit && selectedTool === 'select') return;
+        // lift, no ⋯ button) keep the long-press context menu. Returning false
+        // keeps useLongPress from buzzing: a lift buzzes itself, if it happens.
+        if (canEdit && selectedTool === 'select') return false;
         if (!selected.has(c.id)) setSelected(new Set([c.id]));
         setBgCtx(b => ({ ...b, open: false }));
         swallowNextClick({ held: true });
@@ -6235,13 +6254,13 @@ export function CanvasSurface({
         return;
       }
       // The selection's ⋯ and its resize corner sit outside every card.
-      if (e.target.closest?.('.cnv-tool, .cnv-zoom, .inbox, .sel-menu, .multi-resize')) return;
+      if (e.target.closest?.('.cnv-tool, .cnv-zoom, .inbox, .sel-menu, .multi-resize')) return false;
       // A finger on empty canvas decides this itself, on letting go
       // (startTouchCanvasPress): the hold may yet become a selection box.
-      if (touchPressRef.current) return;
+      if (touchPressRef.current) return false;
       // With a tool in hand a hold is part of using it: a finger that paused
       // at the start of a stroke opened the board's menu under itself.
-      if (selectedTool !== 'select' && selectedTool !== 'pan') return;
+      if (selectedTool !== 'select' && selectedTool !== 'pan') return false;
       const pos = clientToCanvas(x, y);
       swallowNextClick({ held: true });
       setBgCtx({ open: true, x, y, canvasPos: pos });
@@ -7916,7 +7935,7 @@ export function CanvasSurface({
       markRecentDrag(dragIds);
       setPressingCardId(null);            // the filling cue hands off to .is-lifted
       setLiftedCardId(c.id);
-      try { navigator.vibrate?.(8); } catch (_) {}
+      haptic('lift');
     };
     if (touchHold) {
       liftStartedAt = performance.now();
@@ -7963,6 +7982,7 @@ export function CanvasSurface({
     let lastRaw = { dx: 0, dy: 0 };
     let movedSettled = false;                               // last frame's settled state (for onUp)
     let settleTimer = 0;
+    const noteSnap = createSnapTicker();
     // Drop-target hover hit-test throttle. elementsFromPoint forces a
     // synchronous layout; a hover highlight doesn't need it every frame.
     let lastHitTestT = 0;
@@ -7972,6 +7992,7 @@ export function CanvasSurface({
       if (!dragArmed || aborted) return;
       const snap = computeSnap(lastRaw.dx, lastRaw.dy);
       setDrag({ ids: dragIds, dx: snap.dx, dy: snap.dy, startPositions });
+      noteSnap(snap.hints);
       setSnapHints(snap.hints);
       movedSettled = true;
     };
@@ -8166,6 +8187,7 @@ export function CanvasSurface({
       // show the matched guides. Either way (re)arm the settle timer so an abrupt
       // stop still resolves the snap a beat later.
       if (!settled) setDisplayedHints(null);
+      noteSnap(hints);
       setSnapHints(hints);
       lastRaw = { dx: rawDx, dy: rawDy };
       movedSettled = settled;
@@ -8308,6 +8330,7 @@ export function CanvasSurface({
         // repositions normally instead of silently snapping back.
         if (moved.length === 1 && routeCardIntoCell(moved[0], cellTarget.gridId, cellTarget.cellId)) {
           logCanvasTool('grid_fill', { via: 'drop', boardId: board?.id });
+          haptic('drop');
           setDrag(null);
           return;
         }
@@ -8340,6 +8363,7 @@ export function CanvasSurface({
             mutators.breakUndo?.();
             if (consumed.size) {
               logCanvasTool('grid_fill', { via: 'drop', boardId: board?.id });
+              haptic('drop');
               setDrag(null);
               return;
             }
@@ -8364,11 +8388,13 @@ export function CanvasSurface({
           document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
             detail: { childIds: draggedBoardIds, targetId: targetBoardId, sourceSurface: 'canvas' },
           }));
+          haptic('drop');
           setDrag(null);
           return;
         }
         if (movedCards.length) {
           moveCardsIntoBoard(dragIds, targetBoardId, movedCards);
+          haptic('drop');
           setDrag(null);
           return;
         }
@@ -8597,6 +8623,7 @@ export function CanvasSurface({
     };
 
     let prevResizeRaw = null; // last frame's raw (world) delta, for the fast clear
+    const noteResizeSnap = createSnapTicker();
     const onMove = (ev) => {
       const rawDwRaw = (ev.clientX - startClient.x) / zoomRef.current;   // live zoom, not render-time
       const rawDhRaw = (ev.clientY - startClient.y) / zoomRef.current;
@@ -8614,6 +8641,7 @@ export function CanvasSurface({
         setDisplayedHints(null);
       }
       prevResizeRaw = { dw: rawDw, dh: rawDh };
+      noteResizeSnap(hints);
       setSnapHints(hints);
     };
     const onUp = (ev) => {
@@ -9983,7 +10011,7 @@ export function CanvasSurface({
       timer = null;
       if (press.phase !== 'pending') return;
       press.phase = 'armed';
-      try { navigator.vibrate?.(8); } catch (_) {}
+      haptic('lift');
     }, TOUCH_LIFT_MS);
     const finish = () => {
       if (timer) { clearTimeout(timer); timer = null; }
@@ -14676,6 +14704,7 @@ export function CanvasSurface({
                   // 1) Card snap: pointer hovering a card → anchor the
                   //    endpoint to that card (the existing behavior).
                   const cardId = cardIdAt(mv.clientX, mv.clientY);
+                  if (cardId && cardId !== lastCardId) haptic('tick');
                   lastCardId = cardId;
                   if (cardId) {
                     mutators.updateArrow?.(idx, which === 'from' ? { from: cardId } : { to: cardId });
@@ -14704,6 +14733,7 @@ export function CanvasSurface({
                     if (!moved) return;
                     const cardId = cardIdAt(up.clientX, up.clientY);
                     if (cardId && cardId !== lastCardId) {
+                      haptic('tick');
                       mutators.updateArrow?.(idx, which === 'from' ? { from: cardId } : { to: cardId });
                     }
                   },

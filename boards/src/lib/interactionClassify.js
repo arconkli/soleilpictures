@@ -52,6 +52,14 @@ export function isInteractiveTarget(el) {
   return false;
 }
 
+// iPhone Safari's haptic tap (components/HapticTap.jsx) turns one tap into
+// three clicks: the invisible label, the hidden switch it toggles, and the
+// row's own click replayed a moment later. Only the last is the person's, so
+// click recorders skip the other two.
+export function isHapticEcho(el) {
+  try { return !!(el && el.closest && el.closest('label.haptic-tap, #soleil-haptic-switch')); } catch (_) { return false; }
+}
+
 // Same-target burst counter. Returns the burst size on the click that TIPS it
 // into rage (so the caller emits exactly one record per burst), else 0.
 export function createRageDetector(now = () => Date.now()) {

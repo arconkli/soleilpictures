@@ -12,6 +12,7 @@
 import { isInternalPaste, scrubPastedHtml } from '../lib/pasteScrub.js';
 import { noteTextSlice, dropEmptyTextStyle } from '../lib/notePaste.js';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { haptic } from '../lib/haptics.js';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -529,6 +530,7 @@ function NoteTiptapEditing({
           if (n.type.name === 'noteChecklistItem') {
             const itemPos = $pos.before(d);
             view.dispatch(view.state.tr.setNodeMarkup(itemPos, undefined, { ...n.attrs, checked: !n.attrs.checked }));
+            haptic('tick');
             event.preventDefault();
             return true;
           }

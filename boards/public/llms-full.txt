@@ -4444,7 +4444,7 @@ A: Not until more than 10 people edit. Free and Creator include up to 10 people 
 ========================================================================
 # Theme and defaults
 URL: https://clusters.soleilpictures.com/docs/account/theme-and-defaults
-Updated: 2026-10-19
+Updated: 2026-11-15
 
 Appearance covers the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, what a plain scroll wheel does, and whether W, A, S and D move you around a board. Card defaults set what new notes, docs and shapes start as, and whether new clusters open as a board or in Files. Appearance is personal and follows your account between devices; card defaults belong to the workspace.
 
@@ -4477,6 +4477,7 @@ Canvas
 
 Scroll wheel — Pan (the default: ⌘-scroll zooms) or Zoom (a plain scroll zooms at the pointer; ⌘, Alt or Shift pans)
 Move with W A S D — off by default. Hold W, A, S or D to move around a board and Q or E to zoom in or out, and add ⇧ to go faster. While it is on, A and D stop picking the Arrow and Free-draw tools; see keyboard shortcuts.
+Vibration — only on a phone or tablet that can vibrate. A light tap at key moments, such as picking up or dropping a card. It is kept on the device rather than your account, so it is set separately on each one. See haptic feedback.
 
 The wheel setting exists because the convention genuinely splits across the tools people arrive from — PureRef and Miro zoom on scroll, Figma and Milanote pan — so there is no default that is right for everyone. It follows your account like the rest of this tab, and pinching a trackpad zooms either way.
 
@@ -4601,7 +4602,7 @@ A: Settings, under Invite and earn — friends joined, how many got started, car
 ========================================================================
 # Mobile and tablet
 URL: https://clusters.soleilpictures.com/docs/account/mobile
-Updated: 2026-11-09
+Updated: 2026-11-15
 
 Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom, long-press menus and hold-then-drag to select, Files open with a tap, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.
 
@@ -4629,6 +4630,24 @@ Select… is for picking cards a box can't reach together: until you press Done 
 While you type in a note, the board glides to keep your line above the keyboard and the note's toolbar, and the page doesn't zoom in on an iPhone or iPad. The keyboard's autocorrect, automatic capitals and spellcheck work in notes, as in any text field.
 
 With the draw tool active, one finger draws and two fingers still pinch-zoom. Starting a pinch part-way through a stroke discards that stroke rather than smearing it across the board as the canvas moves underneath — the failure that makes drawing on touch unusable.
+
+Haptic feedback
+
+On a phone, Clusters gives a light tap at the moments where your finger needs confirming:
+
+a hold picks up a card, or a cluster in the sidebar
+a card you drag reaches a cluster, and you drop it in (or into a grid cell)
+a snap guide catching
+zoom passing 100% or reaching its limit
+an arrow attaching to a card
+ticking a checklist item
+a hold opening a menu
+choosing Delete, or another red option, in a menu
+the card-limit notice
+
+On Android you feel all of them, in Chrome and most other browsers. In Safari on iPhone a website can only make the phone tap when you tap, so there you feel it on red menu options such as Delete and on checklist ticks, and not at the other moments. iPads have no vibration motor, so there is nothing to feel there, and it never happens with a mouse or trackpad.
+
+Switch it off for a device with Vibration in Settings → Appearance, under Canvas. The switch is kept on that device, not on your account.
 
 Layout differences
 

@@ -2898,7 +2898,7 @@ export const DOCS_PAGES = [
     "answer": "Appearance covers the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, what a plain scroll wheel does, and whether W, A, S and D move you around a board. Card defaults set what new notes, docs and shapes start as, and whether new clusters open as a board or in Files. Appearance is personal and follows your account between devices; card defaults belong to the workspace.",
     "section": "account",
     "order": 2,
-    "updated": "2026-10-19",
+    "updated": "2026-11-15",
     "navLabel": "Theme and defaults",
     "headings": [
       {
@@ -3015,12 +3015,16 @@ export const DOCS_PAGES = [
     "answer": "Clusters works in a mobile browser and can be added to your home screen as a web app, where it opens without browser chrome. On touch devices the canvas gets pinch-zoom, long-press menus and hold-then-drag to select, Files open with a tap, a bottom navigation bar replaces the sidebar, and a focus view strips everything back to the board. Tablets with a stylus get pressure-sensitive drawing with palm rejection. There is no App Store or Play Store listing yet.",
     "section": "account",
     "order": 4,
-    "updated": "2026-11-09",
+    "updated": "2026-11-15",
     "navLabel": "Mobile and tablet",
     "headings": [
       {
         "id": "touch-on-the-canvas",
         "text": "Touch on the canvas"
+      },
+      {
+        "id": "haptic-feedback",
+        "text": "Haptic feedback"
       },
       {
         "id": "layout-differences",

@@ -1,5 +1,7 @@
 import { Sheet } from './shell/Sheet.jsx';
 import { Icon } from './Icon.jsx';
+import HapticTap from './HapticTap.jsx';
+import { haptic } from '../lib/haptics.js';
 import { Reply, Copy, Link as LinkIcon, Pin, Edit, Trash2 } from '../lib/icons.js';
 import { QUICK_EMOJIS } from './EmojiPalette.jsx';
 import { withinEditWindow } from '../lib/messageEdit.js';
@@ -38,7 +40,7 @@ export function MessageActionSheet({
         {onPin && <button type="button" onClick={run(onPin)}><Icon as={Pin} size={18} />{msg.is_pinned ? 'Unpin' : 'Pin'}</button>}
         {editable && <button type="button" onClick={run(onEdit)}><Icon as={Edit} size={18} />Edit</button>}
         {isMine && onDelete && (
-          <button type="button" className="is-danger" onClick={run(onDelete)}><Icon as={Trash2} size={18} />Delete</button>
+          <button type="button" className="is-danger" onClick={() => { haptic('delete'); run(onDelete)(); }}><Icon as={Trash2} size={18} />Delete<HapticTap /></button>
         )}
       </div>
     </Sheet>
