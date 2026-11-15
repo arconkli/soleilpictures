@@ -2595,6 +2595,13 @@ function playLive(kind) {
   return 0;
 }
 
+function rpcDelayMs() {
+  try {
+    const ms = Number(new URLSearchParams(window.location.search).get('rpcdelay'));
+    return Number.isFinite(ms) && ms > 0 ? Math.min(ms, 30_000) : 0;
+  } catch { return 0; }
+}
+
 // Monkeypatch the shared supabase singleton's data methods. Non-invasive: the
 // admin tabs import this same instance, so no tab / useAdminData / supabase.js
 // edits are needed. Returns false if the client is null (env not configured).
@@ -2609,8 +2616,24 @@ export function installAdminPreviewMocks(supabase) {
       const t = (window.__admRpcCalls ||= {});
       t[name] = (t[name] || 0) + 1;
       t.__total = (t.__total || 0) + 1;
+      // admin_report (lib/adminReport.js) carries one of the heavy reports:
+      // counted under the report's own name too, so a tally by report still
+      // reads the same, and under name:fresh when the refresh button asked.
+      if (name === 'admin_report' && params?.p_fn) {
+        t[params.p_fn] = (t[params.p_fn] || 0) + 1;
+        if (params.p_fresh) t[`${params.p_fn}:fresh`] = (t[`${params.p_fn}:fresh`] || 0) + 1;
+      }
     } catch { /* ignore */ }
-    return Promise.resolve({ data: rpcResult(name, params), error: null });
+    // The shared ten-minute report, answered as the database does: the named
+    // report's own fixture inside { data, at }.
+    const data = name === 'admin_report'
+      ? { data: rpcResult(params?.p_fn, params?.p_args || {}), at: new Date().toISOString() }
+      : rpcResult(name, params);
+    // ?rpcdelay=<ms> holds every answer back, so the numbers kept from the last
+    // visit (and "Updating…") can be looked at before fresh ones land.
+    const wait = rpcDelayMs();
+    if (wait > 0) return new Promise((resolve) => { setTimeout(() => resolve({ data, error: null }), wait); });
+    return Promise.resolve({ data, error: null });
   };
   supabase.from = (table) => makeBuilder(table);
   // The Command Center's live placement tape and its Pulse panel each subscribe

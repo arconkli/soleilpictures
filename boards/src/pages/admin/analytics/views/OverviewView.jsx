@@ -40,6 +40,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../../../lib/supabase.js';
 import { useAuth } from '../../../../auth/AuthGate.jsx';
+import { adminReport } from '../../../../lib/adminReport.js';
+import { isUpdating, overviewKeep, snapKey } from '../../../../lib/adminKeep.js';
 import { formatCount, formatCompact, formatMoney, relativeTime, fmtDateTime } from '../../../../lib/adminFormat.js';
 import { ALPHA_SOLID, DEFAULT_WINDOW, WEEKS_FETCHED, weekDelta, weeklyTrend } from '../../../../lib/trendStats.js';
 import {
@@ -53,9 +55,10 @@ import { undoToast } from '../../../../lib/undoToast.js';
 import { isAdminPreviewMode } from '../../../../lib/localMode.js';
 import { useFeedback } from '../../../../components/AppFeedback.jsx';
 import { useAdminData } from '../../useAdminData.js';
+import { useAdminUid } from '../../useAdminUid.js';
 import { useActivityPulse } from '../../useActivityPulse.js';
 import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
-import { useAnalyticsFilters, useRegisterViewRuntime, POLL_MS } from '../AnalyticsFiltersContext.jsx';
+import { useAnalyticsFilters, useRegisterViewRuntime, useReportUpdating, POLL_MS } from '../AnalyticsFiltersContext.jsx';
 import { useOverviewLive, fresher, mergeWeeks } from '../useOverviewLive.js';
 import { Metric, MetricGrid } from '../../viz/Metric.jsx';
 import { Rolling } from '../../viz/Rolling.jsx';
@@ -217,14 +220,20 @@ export function OverviewView() {
     pulse, excludeInternal: f.excludeInternal, verifiedOnly: f.verifiedOnly, viewerId: user?.id ?? null,
   });
   // The population every live figure counts. A change of it is a new baseline,
-  // never a rise (Metric's useLiveRise, useArrivalMarks).
-  const liveGen = `${f.excludeInternal ? 'ex' : 'in'}-${f.verifiedOnly ? 'ver' : 'all'}`;
+  // never a rise (Metric's useLiveRise, useArrivalMarks), and so is the swap
+  // from the numbers kept from the last visit to fresh ones (liveGen, bandGen
+  // below, once the reads are declared).
+  const pop = `${f.excludeInternal ? 'ex' : 'in'}-${f.verifiedOnly ? 'ver' : 'all'}`;
+  // Whose last-visit numbers the three reads below keep. Each is named by the
+  // toggles that change it, so one population never paints as another.
+  const uid = useAdminUid();
+  const population = [f.excludeInternal, f.verifiedOnly];
 
   const q = useAdminData(async () => {
     // When this read began: a note change answered after it may be missing from
     // the markers it brings back (see the notes below).
     const startedAt = Date.now();
-    const [kpi, hist, wk, mk, active, dorm, users, life, heat] = await Promise.allSettled([
+    const [kpi, hist, wk, mk, active, dorm, users, life] = await Promise.allSettled([
       // The headline figures, and the only call the view cannot do without. It
       // also carries work_users: presence and work are different things (a day
       // in the app often holds no work event at all), so "Did real work" is its
@@ -256,13 +265,6 @@ export function OverviewView() {
       // before, counts the team, so under "Internal: excluded" the totals here
       // disagreed with every window figure beside them.
       supabase.rpc('admin_lifetime_totals', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
-      // The chart worth looking at rather than reading.
-      // A slow read whose numbers move once a day: reused for an hour, outside
-      // the poll and the focus refetch (lib/slowReportCache.js).
-      (() => {
-        const args = { p_days: 30, p_tz: TZ, p_exclude_internal: f.excludeInternal };
-        return cachedReport('admin_activity_heatmap', args, () => supabase.rpc('admin_activity_heatmap', args));
-      })(),
     ]);
 
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
@@ -284,19 +286,43 @@ export function OverviewView() {
       activeNow: val(active),
       users: val(users) || [],
       lifetime: val(life) || null,
-      heatmap: val(heat) || [],
       // By signup age, never-opened accounts included: see stalledSignups.js.
       stalled: stalledSignups(val(dorm) || []),
     };
   }, [f.excludeInternal, f.verifiedOnly],
-     { pollIntervalMs: POLL_MS.overview, refetchOnFocus: true });
+     {
+       pollIntervalMs: POLL_MS.overview,
+       refetchOnFocus: true,
+       // Kept without the two people lists and the notes (lib/adminKeep.js):
+       // those come back null and draw as loading until this read lands.
+       keep: uid ? { uid, key: snapKey('overview.q', population), save: overviewKeep } : null,
+     });
+
+  // The chart worth looking at rather than reading. A read of its own: it is
+  // the slowest on the page, and the tiles used to wait for it. Its numbers
+  // move once a day, so it is reused for an hour, outside the poll and the
+  // focus refetch (lib/slowReportCache.js), and past that the server's shared
+  // ten-minute result answers (lib/adminReport.js). Only the refresh button
+  // computes it again. Counts by weekday and hour, so all of it is kept.
+  const heat = useAdminData(async ({ fresh }) => {
+    const args = { p_days: 30, p_tz: TZ, p_exclude_internal: f.excludeInternal };
+    const { data, error } = await cachedReport('admin_activity_heatmap', args,
+      () => adminReport(supabase, 'admin_activity_heatmap', args, { fresh }));
+    if (error) throw error;
+    return data || [];
+  }, [f.excludeInternal],
+     {
+       pollIntervalMs: POLL_MS.overview,
+       refetchOnFocus: true,
+       keep: uid ? { uid, key: snapKey('overview.heat', [f.excludeInternal, TZ]) } : null,
+     });
 
   // The long-run band: one row per UTC week since the first account (0460), and
   // week-one return by week of first visit (0322's week rows, as far back as the
   // read reaches). A read of its own so it never holds up the tiles above it,
   // and so a failure blanks the band and nothing else. The same population
   // flags as everything on the page.
-  const g = useAdminData(async () => {
+  const g = useAdminData(async ({ fresh }) => {
     const startedAt = Date.now();
     const [growth, returns] = await Promise.allSettled([
       supabase.rpc('admin_growth_series', { p_weeks: 104, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
@@ -309,7 +335,8 @@ export function OverviewView() {
           p_verified_only: f.verifiedOnly,
           p_weeks: RETURN_WEEKS,
         };
-        return cachedReport('admin_return_fixed_horizon', args, () => supabase.rpc('admin_return_fixed_horizon', args));
+        return cachedReport('admin_return_fixed_horizon', args,
+          () => adminReport(supabase, 'admin_return_fixed_horizon', args, { fresh }));
       })(),
     ]);
     const ok = (r) => r.status === 'fulfilled' && !r.value.error;
@@ -320,24 +347,37 @@ export function OverviewView() {
     // load instead of drawing every week as nobody.
     return { startedAt, growth: growth.value.data, returns: ok(returns) ? returns.value.data : null };
   }, [f.excludeInternal, f.verifiedOnly],
-     { pollIntervalMs: POLL_MS.overview, refetchOnFocus: true });
+     {
+       pollIntervalMs: POLL_MS.overview,
+       refetchOnFocus: true,
+       // Counts by week and by first source, device and depth: kept whole.
+       keep: uid ? { uid, key: snapKey('overview.g', population) } : null,
+     });
+  const liveGen = `${pop}-${q.stale ? 'kept' : 'live'}`;
+  const bandGen = `${pop}-${g.stale ? 'kept' : 'live'}`;
 
   // Each figure from whichever read began later: the backstop's, or the live
-  // one an event set off. The weekly strips, the heatmap, the markers and the
-  // history are the backstop's alone.
+  // one an event set off. The weekly strips, the markers and the history are
+  // the backstop's alone.
   const d0 = q.data;
   const d = useMemo(() => {
     if (!d0) return d0;
     const at = d0.startedAt;
     const dorm = live.dormancy;
+    // null only in the numbers kept from the last visit, which leave the two
+    // people lists out: they draw as loading until a read brings them.
+    const users = fresher(live, 'users', d0.users, at);
+    const stalled = dorm && dorm.value !== undefined && (at == null || dorm.at > at)
+      ? stalledSignups(dorm.value || []) : d0.stalled;
     return {
       ...d0,
       kpi: fresher(live, 'kpi', d0.kpi, at),
       lifetime: fresher(live, 'lifetime', d0.lifetime, at),
-      users: fresher(live, 'users', d0.users, at) || [],
+      users: users || [],
+      usersHeld: users === null,
       activeNow: fresher(live, 'activeNow', d0.activeNow, at),
-      stalled: dorm && dorm.value !== undefined && (at == null || dorm.at > at)
-        ? stalledSignups(dorm.value || []) : d0.stalled,
+      stalled,
+      stalledHeld: stalled === null,
     };
   }, [d0, live]);
   // This week's row of the band, from the live read, while it is the newer one.
@@ -415,14 +455,19 @@ export function OverviewView() {
   })), [trends, rows, breakList]);
 
   const status = useMemo(() => ({ weeks: completeWeeks, partialDays }), [completeWeeks, partialDays]);
-  // The toolbar's one refresh re-reads both: the band is on this page too.
-  const refreshQ = q.refresh;
-  const refreshG = g.refresh;
-  // The manual refresh is the one way past the hour's reuse of the slow reads.
-  const refresh = useCallback(() => { forgetReports(); refreshQ(); refreshG(); }, [refreshQ, refreshG]);
+  // The toolbar's one refresh re-reads all three: the band and the heatmap are
+  // on this page too.
+  const refreshQ = q.refreshFresh;
+  const refreshG = g.refreshFresh;
+  const refreshHeat = heat.refreshFresh;
+  // The manual refresh is the one way past the hour's reuse of the slow reads,
+  // and past the server's shared ten-minute result.
+  const refresh = useCallback(() => { forgetReports(); refreshQ(); refreshG(); refreshHeat(); }, [refreshQ, refreshG, refreshHeat]);
   useRegisterViewRuntime({
-    refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing || g.refreshing, status, stream: pulse.status,
+    refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing || g.refreshing || heat.refreshing, status, stream: pulse.status,
   });
+  // The toolbar's "Updating…", while any of the three shows the last visit.
+  useReportUpdating('overview', isUpdating(q, g, heat));
 
   // ── Markers, and the owner's notes ──────────────────────────────────────
   // Notes are local state so an add or a remove shows at once. They are seeded
@@ -750,7 +795,7 @@ export function OverviewView() {
             pins a note. */}
         <GrowthBand
           query={band}
-          liveGen={liveGen}
+          liveGen={bandGen}
           markers={mergedMarkers}
           breaks={DEFINITION_BREAKS}
           cutBreaks={breakList}
@@ -769,11 +814,21 @@ export function OverviewView() {
             meta="30d of events, folded onto one week, your timezone"
             foot="Daily totals are too small to have a shape. A month of them stacked on a week is."
           >
-            <Heatmap
-              markNow
-              cells={d?.heatmap || []}
-              formatValue={(v) => `${formatCount(v)} event${v === 1 ? '' : 's'}`}
-            />
+            {/* Its own read, so its own three states: the tiles above never wait
+                for it, and a failure here blanks this well and nothing else. */}
+            <AdminAsync
+              loading={heat.loading}
+              error={heat.error}
+              hasData={heat.hasData}
+              onRetry={heat.refresh}
+              skeleton={<div className="adm-well-skeleton" />}
+            >
+              <Heatmap
+                markNow
+                cells={heat.data || []}
+                formatValue={(v) => `${formatCount(v)} event${v === 1 ? '' : 's'}`}
+              />
+            </AdminAsync>
           </Well>
 
           <Well span={4} flush title="Live" meta="pushed, not polled">
@@ -786,12 +841,18 @@ export function OverviewView() {
           At this volume the individuals are legible, so read them rather than an average.
         </div>
         <Deck>
-          <Plate span={6} title="Just arrived" meta={`newest ${d?.users?.length || 0}`}>
-            <WhoArrived users={d?.users || []} gen={liveGen} />
+          {/* Who these people are is never kept from the last visit, so while
+              those numbers show, the two lists are still loading. */}
+          <Plate span={6} title="Just arrived" meta={d?.usersHeld ? null : `newest ${d?.users?.length || 0}`}>
+            {d?.usersHeld
+              ? <AdminSkeleton variant="list" rows={6} />
+              : <WhoArrived users={d?.users || []} gen={liveGen} />}
           </Plate>
           <Plate span={6} title="Arrived and stalled"
                  meta={`signed up ≤14d ago, no card ever${d?.stalled?.total > (d?.stalled?.rows?.length || 0) ? ` · ${formatCount(d.stalled.rows.length)} of ${formatCount(d.stalled.total)}` : ''}`}>
-            <WhoStalled rows={d?.stalled?.rows || []} />
+            {d?.stalledHeld
+              ? <AdminSkeleton variant="list" rows={6} />
+              : <WhoStalled rows={d?.stalled?.rows || []} />}
           </Plate>
         </Deck>
       </div>

@@ -3,19 +3,20 @@
 //
 // The five views mount lazily and remount by key on switch, so prop-drilling
 // the time range / funnel segment filters / internal-traffic toggle into them
-// is awkward; the shell provides them here instead. The shell also fetches the
-// two cheap, filter-light RPCs every view wants — admin_funnel_segments (to
-// populate the segment dropdowns) and admin_stats (live MRR/ARPU) — once, so
-// views don't each refetch them.
+// is awkward; the shell provides them here instead. The shell also fetches
+// admin_stats (live MRR/ARPU) once for the views that show it, and
+// admin_funnel_segments (the segment dropdowns) while the Funnel view is open.
 //
 // Persistence mirrors the AdminPage ?tab= idiom (history.replaceState, no
 // router remount): the time range + segment filters + internal toggle live in
 // the URL (shareable, deep-linkable) and — for range + toggle — localStorage
 // (survives reload). Internal-traffic exclusion defaults ON: honest by default.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../../lib/supabase.js';
+import { isUpdating, snapKey } from '../../../lib/adminKeep.js';
 import { useAdminData } from '../useAdminData.js';
+import { useAdminUid } from '../useAdminUid.js';
 
 const LS_RANGE    = 'admin.analytics.range';
 const LS_INTERNAL = 'admin.analytics.excludeInternal';
@@ -96,6 +97,20 @@ export function useRegisterViewRuntime({ refresh, lastUpdated, refreshing, statu
   }, [registerRuntime, refresh, lastUpdated, refreshing, stream, weeks, partialDays, since, running, looks]);
 }
 
+// A view tells the shell whether it is showing the last visit's numbers (a kept
+// read that has not come back yet), so the one toolbar can say "Updating…".
+// `on` is a boolean; the view's name keeps two views from clearing each other.
+export function useReportUpdating(id, on) {
+  const { reportUpdating } = useAnalyticsFilters();
+  useEffect(() => {
+    reportUpdating(id, !!on);
+    return () => reportUpdating(id, false);
+  }, [reportUpdating, id, on]);
+}
+
+// The views that draw admin_stats. On the others its snapshot is not on screen.
+const STATS_VIEWS = ['overview', 'money', 'system'];
+
 function getParam(name) {
   try { return new URLSearchParams(window.location.search).get(name); } catch { return null; }
 }
@@ -136,7 +151,8 @@ function initVerifiedOnly() {
   return true;  // honest by default — only email-confirmed + logged-in users count
 }
 
-export function AnalyticsFiltersProvider({ children }) {
+export function AnalyticsFiltersProvider({ view = null, children }) {
+  const uid = useAdminUid();
   const [days, setDaysState]                       = useState(initDays);
   const [source, setSourceState]                   = useState(() => getParam('src') || '');
   const [campaign, setCampaignState]               = useState(() => getParam('camp') || '');
@@ -165,20 +181,49 @@ export function AnalyticsFiltersProvider({ children }) {
   //   stats    — MRR/ARPU/tier counts. Overview renders these in a hero tile, so
   //              they keep the shell's poll and the focus refetch.
   //   segments — dropdown options only. Fetched once per filter change, never
-  //              polled, never refetched on focus.
+  //              polled, never refetched on focus, and only while the Funnel
+  //              view is open: nothing else draws them.
+  // The stats are kept from the last visit (counts and cents, nobody's name),
+  // so the hero tiles paint at once. A read that failed is not kept: null
+  // would paint as "no figure" on the next visit.
   const shell = useAdminData(async () => {
     const st = await supabase.rpc('admin_stats', { p_verified_only: verifiedOnly });
     return { stats: st.error ? null : st.data };
   }, [verifiedOnly],
-     { pollIntervalMs: POLL_MS.shell, refetchOnFocus: true });
+     {
+       pollIntervalMs: POLL_MS.shell,
+       refetchOnFocus: true,
+       keep: uid ? {
+         uid,
+         key: snapKey('analytics.stats', [verifiedOnly]),
+         save: (r) => (r?.stats ? r : undefined),
+       } : null,
+     });
 
+  const segmentsOn = view === 'funnel';
+  // The last answer, by its filters: coming back to Funnel with the same ones
+  // does not pay for the read again.
+  const segmentsHeld = useRef({ key: null, rows: [] });
   const segmentsQuery = useAdminData(async () => {
+    if (!segmentsOn) return segmentsHeld.current.rows;
+    const key = `${days}|${excludeInternal}`;
+    if (segmentsHeld.current.key === key) return segmentsHeld.current.rows;
     const sg = await supabase.rpc('admin_funnel_segments', { p_days: days, p_exclude_internal: excludeInternal });
-    return sg.error ? [] : (sg.data || []);
-  }, [days, excludeInternal]);
+    if (sg.error) return [];
+    segmentsHeld.current = { key, rows: sg.data || [] };
+    return segmentsHeld.current.rows;
+  }, [days, excludeInternal, segmentsOn]);
 
   const [runtime, setRuntime] = useState({ refresh: null, lastUpdated: null, refreshing: false, status: null, stream: null });
   const registerRuntime = useCallback((r) => setRuntime(r), []);
+
+  // Which views are showing the last visit's numbers (useReportUpdating).
+  const [updatingBy, setUpdatingBy] = useState({});
+  const reportUpdating = useCallback((id, on) => {
+    setUpdatingBy((m) => (!!m[id] === on ? m : { ...m, [id]: on }));
+  }, []);
+  const updating = (STATS_VIEWS.includes(view) && isUpdating(shell))
+    || Object.values(updatingBy).some(Boolean);
 
   const value = useMemo(() => ({
     days, setDays,
@@ -189,9 +234,11 @@ export function AnalyticsFiltersProvider({ children }) {
     stats: shell.data?.stats || null,
     refreshShell: shell.refresh,
     runtime, registerRuntime,
+    updating, reportUpdating,
   }), [days, setDays, source, setSource, campaign, setCampaign, content, setContent,
        excludeInternal, setExcludeInternal, verifiedOnly, setVerifiedOnly,
-       shell.data, shell.refresh, segmentsQuery.data, runtime, registerRuntime]);
+       shell.data, shell.refresh, segmentsQuery.data, runtime, registerRuntime,
+       updating, reportUpdating]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

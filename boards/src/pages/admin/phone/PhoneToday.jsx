@@ -6,7 +6,9 @@
 //
 // Two waves: FIRST (today's calls) draws the top of the page; SECOND (the
 // figures' calls) starts once the first has settled, so the first paint costs
-// what it always did. Each section shows a quiet placeholder until its own data
+// what it always did. What the last visit left (phoneData.js seedPhoneData) is
+// on screen from the first frame, and each read replaces its own part. Each
+// section shows a quiet placeholder until its own data
 // lands, and a "Couldn't load" line when its call failed with nothing to show.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FIRST, SECOND, usePhoneData } from './phoneData.js';
@@ -43,7 +45,7 @@ function Hold({ value, error, onRetry, h = 120, panel = true, children }) {
 
 const xlist = (bars, idx) => idx.filter((i) => bars[i]).map((i) => ({ i, text: String(bars[i].label).split(' –')[0] }));
 
-export function PhoneToday({ refresh, now, onLoaded, onRetry, onBoards, onOpen, onSheet }) {
+export function PhoneToday({ refresh, now, onLoaded, onUpdating, onRetry, onBoards, onOpen, onSheet }) {
   const first = usePhoneData(FIRST, refresh);
   const [wave2, setWave2] = useState(false);
   const seen = useRef(false);
@@ -53,15 +55,24 @@ export function PhoneToday({ refresh, now, onLoaded, onRetry, onBoards, onOpen, 
 
   // The first wave settling is what onLoaded reports and what starts the second.
   const settled = useRef(false);
-  const latest = useRef(v);
-  latest.current = v;
+  const latest = useRef(first);
+  latest.current = first;
   useEffect(() => {
     if (first.loading) { seen.current = true; return; }
     if (!seen.current) return;
     settled.current = true;
     setWave2(true);
-    onLoaded?.(latest.current.kpi != null || latest.current.signups != null);
+    // Good when the headline or the signups came back this time. A value still
+    // on screen from before (the last visit's, or the last refresh's) with a
+    // failed read behind it is not "updated".
+    const { values, errors: errs } = latest.current;
+    onLoaded?.((values.kpi != null && !errs.kpi) || (values.signups != null && !errs.signups));
   }, [first.loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The header says "Updating…" while anything on screen is the last visit's.
+  const updating = first.updating || second.updating;
+  useEffect(() => { onUpdating?.(updating); }, [updating]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { onUpdating?.(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const nowD = useMemo(() => new Date(now), [now]);
 

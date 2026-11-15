@@ -99,7 +99,10 @@ function useTick(ms) {
 // 'error'). While it is live, "updated 2m ago" would be the wrong thing to say
 // (it times the backstop read, not what is on screen), so the toolbar says Live,
 // and keeps the last full read in the hover.
-export function AdminToolbar({ onRefresh, refreshing, lastUpdated, live = false, stream = null, children }) {
+// `updating` is true while the view is showing the numbers from the last visit
+// and the fresh ones are on their way. It says so in words, and the stamp
+// beside it is when those numbers were read, never Live.
+export function AdminToolbar({ onRefresh, refreshing, lastUpdated, live = false, stream = null, updating = false, children }) {
   useTick(10_000);
   return (
     <div className={`admin-toolbar ${refreshing ? 'is-working' : ''}`}>
@@ -116,7 +119,10 @@ export function AdminToolbar({ onRefresh, refreshing, lastUpdated, live = false,
             aria-hidden="true"
           />
         )}
-        {stream === 'live' ? (
+        {updating && (
+          <span className="admin-toolbar-updated t-meta" role="status">Updating…</span>
+        )}
+        {stream === 'live' && !updating ? (
           <span
             className="admin-toolbar-updated admin-toolbar-live t-meta"
             title={`Figures update as things happen.${lastUpdated != null ? ` Last full read ${fmtDateTime(lastUpdated)}.` : ''}`}

@@ -8,14 +8,16 @@
 // the panel for the desktop admin. On Today, ?page=<id> opens one of the pages
 // behind it (PhonePages.jsx) and ?sheet=<measure id> a measure sheet over the
 // home or a page; each is one history entry, so Back closes it. Refreshes on open, on coming back to the
-// app, every 5 minutes while open, and on a pull down. While it is mounted the
+// app, every 5 minutes while open, and on a pull down. It opens on the last
+// visit's numbers (phoneData.js), under "Updating…" until the new ones land. While it is mounted the
 // manifest is /admin.webmanifest, so Add to Home Screen opens straight here.
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './adminPhone.css';
 import { PhoneToday } from './PhoneToday.jsx';
-import { PhonePosts } from './PhonePosts.jsx';
+import { PhonePosts, rememberedBadge, countUnposted } from './PhonePosts.jsx';
 import { PhoneSheet } from './PhoneSheet.jsx';
-import { PAGE_CALLS } from './phoneData.js';
+import { PAGE_CALLS, seedPhoneData } from './phoneData.js';
+import { useAdminUid } from '../useAdminUid.js';
 import { MEASURES } from '../../../lib/phonePanel.js';
 
 // The pages behind Today (Growth, Search, ...) load as their own chunk.
@@ -95,7 +97,8 @@ export function AdminPhonePanel({ boards, postsApi }) {
   const [refresh, setRefresh] = useState({ n: 0, force: false });
   const [updatedAt, setUpdatedAt] = useState(null);
   const [ok, setOk] = useState(true);
-  const [badge, setBadge] = useState(0);
+  const [badge, setBadge] = useState(rememberedBadge);
+  const [updating, setUpdating] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [pulling, setPulling] = useState(false);
   const scrollRef = useRef(null);
@@ -108,6 +111,39 @@ export function AdminPhonePanel({ boards, postsApi }) {
   const warmed = useRef(false);
   const prevPage = useRef(page);
   useAdminManifest();
+
+  // The last visit's numbers go into the cache before Today first renders, so
+  // its first frame has them. Only where nothing newer is held.
+  const uid = useAdminUid();
+  const seededFor = useRef(undefined);
+  if (seededFor.current !== uid) {
+    seededFor.current = uid;
+    seedPhoneData(uid);
+  }
+
+  // Posts mounts when it is first opened, and then stays: its day list, the
+  // posted marks and the slides are not downloaded for a visit that only reads
+  // Today. Until then the badge is the count Posts last left today.
+  const postsOpened = useRef(false);
+  if (tab === 'posts') postsOpened.current = true;
+
+  // Until Posts is opened, count its badge from the day list and the posted
+  // marks alone (no slide images): shortly after mount and on each refresh.
+  // Once Posts is mounted its own onBadge owns the badge.
+  useEffect(() => {
+    if (postsOpened.current) return undefined;
+    let live = true;
+    const run = () => {
+      if (!live || postsOpened.current) return;
+      countUnposted(postsApi).then((n) => { if (live && !postsOpened.current) setBadge(n); }, () => {});
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(run, { timeout: 3000 });
+      return () => { live = false; window.cancelIdleCallback?.(id); };
+    }
+    const t = setTimeout(run, 1500);
+    return () => { live = false; clearTimeout(t); };
+  }, [refresh.n, postsApi]);
 
   const doRefresh = useCallback((force) => {
     lastRefresh.current = Date.now();
@@ -272,7 +308,7 @@ export function AdminPhonePanel({ boards, postsApi }) {
           <div className="ap-mark">SOLEIL<small>{SUB[tab]}</small></div>
           {tab !== 'boards' && (
             <button type="button" className="ap-upd" onClick={forced} aria-label="Refresh">
-              <i className={ok ? '' : 'is-off'} />{ok ? updatedText(updatedAt, now) : 'Couldn’t refresh · tap to retry'}
+              <i className={ok ? '' : 'is-off'} />{!ok ? 'Couldn’t refresh · tap to retry' : (onToday && updating ? 'Updating…' : updatedText(updatedAt, now))}
             </button>
           )}
         </div>
@@ -283,6 +319,7 @@ export function AdminPhonePanel({ boards, postsApi }) {
               refresh={refresh}
               now={now}
               onLoaded={onLoaded}
+              onUpdating={setUpdating}
               onRetry={forced}
               onBoards={() => select('boards')}
               onOpen={openPage}
@@ -298,9 +335,11 @@ export function AdminPhonePanel({ boards, postsApi }) {
           </div>
         )}
         {/* Posts stays mounted once opened so its slides and badge survive a tab switch. */}
-        <div hidden={tab !== 'posts'}>
-          <PhonePosts refreshKey={refresh.n} api={postsApi} onBadge={setBadge} onLoaded={tab === 'posts' ? onLoaded : undefined} />
-        </div>
+        {postsOpened.current && (
+          <div hidden={tab !== 'posts'}>
+            <PhonePosts refreshKey={refresh.n} api={postsApi} onBadge={setBadge} onLoaded={tab === 'posts' ? onLoaded : undefined} />
+          </div>
+        )}
         {tab === 'boards' && <div className="ap-boards">{boards}</div>}
       </div>
       <nav className="ap-tabs" aria-label="Admin and Clusters">

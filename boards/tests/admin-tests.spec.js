@@ -27,14 +27,26 @@ function watchConsole(page) {
   return errors;
 }
 
-// Answers the named RPCs with `value` instead of the fixture.
+// Answers the named RPCs with `value` instead of the fixture. The view reads
+// admin_tests_read through admin_report (lib/adminReport.js), which answers
+// { data: { data, at }, error }, so an admin_report call whose p_fn is an
+// override name is answered the same way, wrapped.
 async function patchRpc(page, overrides) {
   await page.evaluate(async (ov) => {
     const { supabase } = await import('/src/lib/supabase.js');
     const orig = supabase.rpc;
-    supabase.rpc = (name, params) => (Object.prototype.hasOwnProperty.call(ov, name)
-      ? Promise.resolve(ov[name])
-      : orig(name, params));
+    supabase.rpc = (name, params) => {
+      if (Object.prototype.hasOwnProperty.call(ov, name)) return Promise.resolve(ov[name]);
+      const fn = params?.p_fn;
+      if (name === 'admin_report' && Object.prototype.hasOwnProperty.call(ov, fn)) {
+        const { data, error } = ov[fn];
+        return Promise.resolve({
+          data: error ? null : { data, at: new Date().toISOString() },
+          error: error ?? null,
+        });
+      }
+      return orig(name, params);
+    };
   }, overrides);
 }
 

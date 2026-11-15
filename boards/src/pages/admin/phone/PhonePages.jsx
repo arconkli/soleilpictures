@@ -10,6 +10,7 @@
    (phoneInsights.js, phoneGrowthModels.js, phonePageModels.js), never from
    arithmetic in the JSX. */
 import { PAGE_CALLS, usePhoneData } from './phoneData.js';
+import { PageUpdating } from './PhonePageShell.jsx';
 import { GrowthPage } from './PhoneGrowth.jsx';
 import { SearchPage } from './PhoneSearch.jsx';
 import { SourcesPage } from './PhoneSources.jsx';
@@ -42,9 +43,10 @@ export const PAGE_IDS = Object.keys(PAGES);
  */
 export function PhonePage({ id, refresh, now, onBack, onSheet, onRetry }) {
   const Page = PAGES[id];
-  const { values, errors, loading } = usePhoneData(PAGE_CALLS[id] || [], refresh, { enabled: !!Page });
+  const { values, errors, loading, updating } = usePhoneData(PAGE_CALLS[id] || [], refresh, { enabled: !!Page });
   if (!Page) return null;
   return (
+    <PageUpdating.Provider value={updating}>
     <Page
       data={values}
       errors={errors}
@@ -54,6 +56,7 @@ export function PhonePage({ id, refresh, now, onBack, onSheet, onRetry }) {
       onSheet={onSheet}
       onRetry={onRetry}
     />
+    </PageUpdating.Provider>
   );
 }
 

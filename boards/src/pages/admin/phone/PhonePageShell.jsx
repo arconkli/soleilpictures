@@ -2,7 +2,13 @@
    the eyebrow, the Brandon title, the intro, then the page's own tiles, chips
    and figures as children (class map in adminPhone.css). The props below are
    the contract the page files are written against. */
+import { createContext, useContext } from 'react';
 import { mastModel } from '../../../lib/phoneInsights.js';
+
+// True while the page shows the last visit's numbers and the new ones are on
+// their way (PhonePages.jsx sets it). The panel's header is hidden on a page,
+// so the time line says it.
+export const PageUpdating = createContext(false);
 
 const Back = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
@@ -15,11 +21,14 @@ const Back = () => (
  */
 export function PageShell({ id, kicker, title, intro, now, onBack, children }) {
   const m = mastModel(now);
+  const updating = useContext(PageUpdating);
   return (
     <article className="ap-page" data-testid={`ap-page-${id}`} aria-labelledby={`ap-pt-${id}`}>
       <div className="ap-nav">
         <button type="button" className="ap-bk" onClick={onBack}><Back />Today</button>
-        <span className="ap-nv">{m.clock}{m.clock && m.date ? ' · ' : ''}{m.date}</span>
+        <span className="ap-nv" role={updating ? 'status' : undefined}>
+          {updating ? 'Updating…' : <>{m.clock}{m.clock && m.date ? ' · ' : ''}{m.date}</>}
+        </span>
       </div>
       <p className="ap-kick ap-pk">{kicker}</p>
       <h1 className="ap-ptitle" id={`ap-pt-${id}`}>{title}</h1>

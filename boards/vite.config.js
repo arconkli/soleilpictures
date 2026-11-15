@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { appPreloadList, withoutList, preloadScript, WORKSPACE_SETUP_MODULE } from './src/lib/appPreloadList.mjs';
+import { appPreloadList, withoutList, adminPreloadLists, preloadScript, WORKSPACE_SETUP_MODULE } from './src/lib/appPreloadList.mjs';
 import { PDFJS_ASSET_DIRS, pdfjsAssetBase } from './src/lib/pdfAssets.js';
 import { existsSync, createReadStream, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -53,7 +53,8 @@ const release = (() => {
 // form calls when a code is sent (src/lib/appPreloadList.mjs says why, and how
 // the hrefs have to be spelled for Vite's helper to reuse them). `setup` is
 // what the held workspace setup adds on top, for a new account that opens on
-// it. A bundle without AppShell gets nothing, and neither does dev, where
+// it. `admin` and `adminPhone` are what a signed-in open of /admin adds
+// (adminPreloadLists). A bundle without AppShell gets nothing, and neither does dev, where
 // nothing is bundled to preload.
 function appPreload() {
   return {
@@ -66,7 +67,7 @@ function appPreload() {
         const app = appPreloadList(ctx.bundle);
         if (!app) return;
         const setup = withoutList(appPreloadList(ctx.bundle, WORKSPACE_SETUP_MODULE), app);
-        const script = preloadScript(setup ? { app, setup } : { app });
+        const script = preloadScript({ app, ...(setup ? { setup } : {}), ...adminPreloadLists(ctx.bundle, app) });
         // Right after <meta charset>, which must stay inside the first 1024
         // bytes, and above every stylesheet: an inline script waits for the
         // stylesheets before it to load, and this one has to run at once.
