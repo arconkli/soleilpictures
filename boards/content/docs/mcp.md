@@ -5,7 +5,7 @@ h1: MCP server
 navLabel: MCP
 section: developers
 order: 10
-updated: 2026-11-04
+updated: 2026-11-14
 answer: Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser; it signs you in over OAuth, so there is no token to paste. With no account, https://clusters.soleilpictures.com/mcp lets an assistant build a draft cluster you keep with a link. Run it locally with npx only for files on your machine. It holds no credentials of its own, so an agent reaches exactly what your account reaches.
 faq:
   - q: Do I have to install anything?
@@ -26,6 +26,8 @@ faq:
     a: In ChatGPT and Claude, yes. show_board draws the cluster inside the conversation, laid out as it is on its canvas; you can pick cards and ask about them, or open it in Clusters. Cursor, VS Code, Windsurf and other apps don't draw it: the assistant gives you the cluster's link instead.
   - q: Is it the same set of tools either way?
     a: Yes, apart from upload_file, which needs a filesystem. Both servers are built from one registry so they cannot drift apart, though the local package's 2.x releases still have the tool names from before 3.0.
+  - q: Does PureRef have an MCP server?
+    a: Not an official one, as of November 14, 2026. PureRef is a desktop program for Windows, Mac and Linux, and neither its site nor the official MCP registry lists a server for it. A community project on GitHub, PureRef MCP, writes .pur files from images on your computer for PureRef to open. Soleil Clusters is a web app with its own MCP server, at {{fact:siteOrigin}}/api/v1/mcp, so an assistant can build and arrange a reference board there directly.
 related:
   - /docs/api
   - /docs/api/oauth
