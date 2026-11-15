@@ -24,6 +24,7 @@ import { wouldCreateCycle, collectDescendantIds } from '../lib/boardTree.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { setActivePane, getActivePane } from '../lib/activePane.js';
 import { anyModalOpen } from '../lib/modalGuard.js';
+import { useBackLayer } from '../hooks/useBackLayer.js';
 import { undoToast } from '../lib/undoToast.js';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
@@ -908,6 +909,10 @@ export function ListSurface({
   const phoneShell = shellOf(bp).mobileShell;
   const lastPtrRef = useRef('mouse');
   const [selecting, setSelecting] = useState(false);
+  // Under a finger, the phone's Back leaves Select the way Done does.
+  useBackLayer(selecting, () => {
+    setSelecting(false); setSelectedCards(new Set()); setSelectedBoards(new Set()); setSelectedGroupId(null);
+  });
   const touchTap = (e) => touchPass && e?.type === 'click' && e.detail > 0 && lastPtrRef.current === 'touch';
 
   // Reset selection on board switch.

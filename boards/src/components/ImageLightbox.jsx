@@ -15,6 +15,7 @@ import { R2Image } from './R2Image.jsx';
 import { downloadImage } from '../lib/imageExport.js';
 import { buildFilterRef, buildTransform } from '../lib/imageAdjust.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
+import { useBackLayer } from '../hooks/useBackLayer.js';
 import { useOptionalFeedback } from './AppFeedback.jsx';
 import { FileShareButton } from './fileShare/FileShareButton.jsx';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
@@ -166,6 +167,8 @@ export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downlo
   // The canvas shortcuts stand down while this is open, and Escape closes it
   // only when it is the top layer.
   useEffect(() => registerModalOpen({ onEscape: () => { onCloseRef.current?.(); return true; } }), []);
+  // Under a finger, the phone's Back closes it too.
+  useBackLayer(true, onClose);
 
   const onDownload = async (e) => {
     e.stopPropagation();

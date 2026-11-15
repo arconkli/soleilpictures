@@ -13,6 +13,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as modalGuard from '../../lib/modalGuard.js';
+import { useBackLayer } from '../../hooks/useBackLayer.js';
 import { filmLayerOpen } from '../../lib/filmLayers.js';
 import { isPublicSurface } from '../../lib/cardDownload.js';
 import { resolveSrc } from '../../lib/r2.js';
@@ -285,6 +286,8 @@ export default function QuickLook({
     modalRef.current = unregister;
     return () => { modalRef.current = null; unregister(); };
   }, []);
+  // Under a finger, the phone's Back closes Quick look.
+  useBackLayer(true, onClose);
   const playerRef = useRef(null);
 
   // Focus moves in, and goes back where it was on close.

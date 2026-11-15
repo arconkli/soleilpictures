@@ -17,6 +17,7 @@ import { noteFontSizePatch } from './lib/noteFontSize.js';
 import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
 import { useSharedBoards } from './hooks/useSharedBoards.js';
 import { useScrollEdges } from './hooks/useScrollEdges.js';
+import { useBackLayer } from './hooks/useBackLayer.js';
 import * as userProfiles from './lib/userProfiles.js';
 import { OPEN_PROFILE_EVENT } from './lib/openProfile.js';
 import { useBoardPermission, computeBoardPermission } from './hooks/useBoardPermission.js';
@@ -148,7 +149,10 @@ import { placedOf, positionUnplaced, isUnplaced, planPutOnBoard, layoutForPut, P
 import { putRefusal, putFailToast } from './lib/putRefusal.js';
 import { getViewCenter } from './lib/viewCenter.js';
 import { filesCountOf, isViewSwitchKey, nextView, overlayOpen } from './lib/viewSwitch.js';
-import { anyModalOpen, registerModalOpen, registerBackLayer } from './lib/modalGuard.js';
+import {
+  anyModalOpen, registerModalOpen, registerBackLayer,
+  newNavId, setCurrentNav, setNavHandler, stampNavEntry, pushNavEntry, backLayerDepth,
+} from './lib/modalGuard.js';
 import { Avatar } from './components/primitives.jsx';
 import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
@@ -927,7 +931,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const u = new URL(window.location.href);
         u.searchParams.delete('m');
         u.searchParams.set('to', entityToken(linkRef || { kind: 'board', id }));
-        window.history.replaceState({}, '', u.pathname + u.search + u.hash);
+        window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash);
       } catch (_) {}
       onSwitchWorkspace?.(wsId);
       return 'switched';
@@ -1010,7 +1014,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const url = new URL(window.location.href);
       url.searchParams.delete('board'); url.searchParams.delete('card'); url.searchParams.delete('cards');
       url.searchParams.delete('t'); url.searchParams.delete('v');
-      window.history.replaceState({}, '', url.pathname + (url.search || ''));
+      window.history.replaceState(window.history.state, '', url.pathname + (url.search || ''));
     } catch (_) {}
   }, [boardsReady, sharedLoaded, boards, openBoardAt]);
   // Mirror of the guided-tour `fire` fn (the hook is defined far below, but the
@@ -1171,7 +1175,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (p.get('settings') === 'billing' || window.location.pathname === '/settings/billing') {
         setSettingsTab('billing');
         setSettingsOpen(true);
-        window.history.replaceState({}, '', '/');
+        window.history.replaceState(window.history.state, '', '/');
       }
     } catch (_) {}
   }, []);
@@ -1563,6 +1567,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // owns and arrive here through notificationBus — a second channel on that
   // topic would be handed the same object and throw on .on().
   const [notifOpen, setNotifOpen] = useState(false);
+  // Under a finger, the phone's Back closes the bell's panel or Messages
+  // before it goes anywhere (hooks/useBackLayer). Held here, not inside the
+  // panels: Messages stays mounted for its exit after it has closed.
+  useBackLayer(notifOpen, () => setNotifOpen(false));
+  useBackLayer(!!tweak.showMessages, () => setTweak('showMessages', false));
   const notifications = useNotifications({
     userId: user.id,
     feedback,
@@ -2067,21 +2076,43 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     split: { entries: [], index: -1, silent: false },
   });
   const [navCaps, setNavCaps] = useState({ main: { back: false, fwd: false }, split: { back: false, fwd: false } });
-  const recordNav = (pane, paneStack) => {
+  // Under a finger (a phone, an iPad in either shell) the main pane's history
+  // is also the browser's: each new entry adds one history entry, and the
+  // phone's Back, the iOS edge swipe and the Back/Forward buttons all walk the
+  // same list (lib/modalGuard.js, "Back closes the top layer, then goes where
+  // you were"). There a `place` rides along, so Home, Shared and a tag page
+  // are entries too and Back from a cluster opened on Home returns to Home.
+  // A mouse passes no place: its history is clusters only and writes nothing
+  // to the browser's.
+  const navTouchRef = useRef(isTouch);
+  navTouchRef.current = isTouch;
+  const recordNav = (pane, paneStack, place = null) => {
     const h = navHistRef.current[pane];
-    const key = paneStack.join('/');
+    const off = place && place.surface !== 'board';
+    const key = off ? `@${place.surface}${place.tag?.id ? `:${place.tag.id}` : ''}` : paneStack.join('/');
+    let added = false;
     if (h.silent) {
       h.silent = false;
     } else if (h.entries[h.index]?.key !== key) {
       h.entries = h.entries.slice(0, h.index + 1);
-      h.entries.push({ key, stack: [...paneStack] });
+      // The id, not the index, is what a browser history entry remembers: the
+      // 100 cap below shifts indexes.
+      h.entries.push({ id: newNavId(), key, stack: [...paneStack], surface: off ? place.surface : 'board', tag: off ? place.tag || null : null });
       h.index = h.entries.length - 1;
+      added = true;
       // Unbounded history would grow forever in long sessions.
       if (h.entries.length > 100) { h.entries.shift(); h.index -= 1; }
     }
+    if (place) {
+      const id = h.entries[h.index]?.id ?? null;
+      if (!added) setCurrentNav(id);
+      else if (h.entries.length === 1) stampNavEntry(id);   // where the app (or this workspace) started
+      else pushNavEntry(id);
+    }
     setNavCaps(c => ({ ...c, [pane]: { back: h.index > 0, fwd: h.index < h.entries.length - 1 } }));
   };
-  useEffect(() => { recordNav('main', stack); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [stack]);
+  // The touch twin of this effect sits below currentSurface's declaration.
+  useEffect(() => { if (!navTouchRef.current) recordNav('main', stack); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [stack]);
   // The split's history resets with the pane: closing it and pinning something
   // else should not let Back walk into the board you were comparing an hour ago.
   useEffect(() => {
@@ -2097,11 +2128,59 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const h = navHistRef.current[pane];
     const next = h.index + dir;
     if (next < 0 || next >= h.entries.length) return;
+    const to = h.entries[next];
+    // A place off the board (touch only) changes no stack; landing on the key
+    // already on screen changes nothing at all, so there is no record to skip.
+    const offBoard = pane !== 'split' && to.surface && to.surface !== 'board';
+    h.silent = !(offBoard && to.key === h.entries[h.index]?.key);
     h.index = next;
-    h.silent = true;
-    if (pane === 'split') setSplitStack(h.entries[next].stack);
-    else { setStack(h.entries[next].stack); setCurrentSurface('board'); }
+    if (pane === 'split') { setSplitStack(to.stack); return; }
+    if (navTouchRef.current) setCurrentNav(to.id);
+    if (offBoard) {
+      if (to.surface === 'tag') setActiveTag(to.tag);
+      setCurrentSurface(to.surface);
+    } else { setStack(to.stack); setCurrentSurface('board'); }
   };
+  // Back and Forward in the toolbar. Under a finger the main pane's go through
+  // the browser's history, so the buttons and the Back gesture never disagree.
+  const navHistStep = (dir, pane = 'main') => {
+    if (pane === 'main' && navTouchRef.current) {
+      // Back also steps over the entries of whatever panels are open (docked
+      // Messages, the bell, Files Select), so one tap closes them and goes.
+      try { window.history.go(dir < 0 ? -(1 + backLayerDepth()) : 1); return; } catch (_) { /* fall through */ }
+    }
+    navHistGo(dir, pane);
+  };
+  const navHistGoRef = useRef(navHistGo);
+  navHistGoRef.current = navHistGo;
+  // The browser moved (Back, Forward, the edge swipe) to an entry that isn't a
+  // layer's: follow it, silently. An entry with no id, or one this workspace's
+  // history doesn't hold (another workspace's, an earlier page load's), moves
+  // nothing: it never opens a cluster from somewhere else.
+  useEffect(() => {
+    if (!isTouch) return undefined;
+    setNavHandler((id) => {
+      const h = navHistRef.current.main;
+      const i = id == null ? -1 : h.entries.findIndex(e => e.id === id);
+      if (i < 0) {
+        // Stay put, but make the entry the browser now sits on stand for the
+        // place on screen, so the next cluster opened pushes on a known entry
+        // and Back returns here.
+        const cur = h.entries[h.index]?.id;
+        if (cur != null) stampNavEntry(cur);
+        return;
+      }
+      if (i === h.index) return;
+      navHistGoRef.current(i - h.index, 'main');
+    }, () => {
+      // A panel's entry was pushed: the browser has nothing forward now.
+      const h = navHistRef.current.main;
+      if (h.index >= h.entries.length - 1) return;
+      h.entries = h.entries.slice(0, h.index + 1);
+      setNavCaps(c => ({ ...c, main: { back: h.index > 0, fwd: false } }));
+    });
+    return () => { setNavHandler(null); setCurrentNav(null); };
+  }, [isTouch]);
 
   // Prune recents when boards are deleted so the sidebar list stays clean.
   useEffect(() => {
@@ -5785,6 +5864,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     setActiveTag(tag);
     setCurrentSurface('tag');
   };
+  // The in-app history under a finger: clusters AND the places off the board
+  // (see recordNav). A mouse records from the [stack] effect beside recordNav.
+  const activeTagId = activeTag?.id || null;
+  useEffect(() => {
+    if (isTouch) recordNav('main', stack, { surface: currentSurface, tag: currentSurface === 'tag' ? activeTag : null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTouch, stack, currentSurface, activeTagId]);
   // Workspace tags drive the sidebar Tags section. We pass the same
   // list down so the count badges + sort ordering line up with the
   // canvas chip surfaces.
@@ -6391,7 +6477,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const u = new URL(window.location.href);
       if (u.searchParams.get('asks') !== '1') return;
       u.searchParams.delete('asks');
-      window.history.replaceState({}, '', u.pathname + (u.search || '') + u.hash);
+      window.history.replaceState(window.history.state, '', u.pathname + (u.search || '') + u.hash);
       setCurrentSurface('board');
       setShareBoardId(null);
       setShareInitialSection(null);
@@ -6802,7 +6888,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const closeRealTeamPage = useCallback(() => {
     closeTeamPage();
     try {
-      if (/^\/team\/?$/.test(window.location.pathname)) window.history.replaceState({}, '', '/');
+      if (/^\/team\/?$/.test(window.location.pathname)) window.history.replaceState(window.history.state, '', '/');
     } catch (_) {}
     reloadMyTeams();
     onWorkspacesChanged?.();
@@ -6869,7 +6955,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     try { wanted = new URLSearchParams(window.location.search).get('settings') === 'security'; } catch (_) {}
     if (!wanted || myTier.loading) return;
     if (captureAllowed) openSettings('security');
-    try { window.history.replaceState({}, '', '/'); } catch (_) {}
+    try { window.history.replaceState(window.history.state, '', '/'); } catch (_) {}
   }, [captureAllowed, myTier.loading, openSettings]);
 
   // ?checkout=canceled is where Stripe sends someone who backs out of a
@@ -6887,7 +6973,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     try {
       const u = new URL(window.location.href);
       u.searchParams.delete('checkout');
-      window.history.replaceState({}, '', u.pathname + u.search + u.hash);
+      window.history.replaceState(window.history.state, '', u.pathname + u.search + u.hash);
     } catch (_) {}
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -8833,7 +8919,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         setStack([b.id]);
         if (tpl?.snapshot) feedback.toast({ type: 'success', message: tr`Showcase preview ready — delete this cluster when done.` });
         // strip the param so a reload doesn't make a second copy
-        try { const u = new URL(window.location.href); u.searchParams.delete('showcasepreview'); window.history.replaceState({}, '', u.toString()); } catch (_) {}
+        try { const u = new URL(window.location.href); u.searchParams.delete('showcasepreview'); window.history.replaceState(window.history.state, '', u.toString()); } catch (_) {}
       } catch (e) {
         console.error('[showcasepreview] failed', e);
         feedback.toast({ type: 'error', code: 'showcase_failed', message: tr`Showcase preview failed: ${ph({ reason: shownError(e) })}` });
@@ -12412,11 +12498,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                   <ClustersMark size={20} />
                 </button>
                 <button className="tb-icon tb-hist" {...tlTip(tr`Back`)} aria-label={tr`Back`}
-                        disabled={!activeNavCaps.back} onClick={() => navHistGo(-1, toolbarPane)}>
+                        disabled={!activeNavCaps.back} onClick={() => navHistStep(-1, toolbarPane)}>
                   <Icon as={ChevronLeft} size={15} />
                 </button>
                 <button className="tb-icon tb-hist" {...tlTip(tr`Forward`)} aria-label={tr`Forward`}
-                        disabled={!activeNavCaps.fwd} onClick={() => navHistGo(1, toolbarPane)}>
+                        disabled={!activeNavCaps.fwd} onClick={() => navHistStep(1, toolbarPane)}>
                   <Icon as={ChevronRight} size={15} />
                 </button>
                 <div className={`crumbs${toolbarPane === 'split' ? ' is-split-pane' : ''}`} data-tour="nav"
@@ -12543,11 +12629,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 </button>
                 <span className="tb-brand-sep" aria-hidden="true" />
                 <button className="tb-icon" title={tr`Back`} aria-label={tr`Back`}
-                        disabled={!activeNavCaps.back} onClick={() => navHistGo(-1, toolbarPane)}>
+                        disabled={!activeNavCaps.back} onClick={() => navHistStep(-1, toolbarPane)}>
                   <Icon as={ChevronLeft} size={15} />
                 </button>
                 <button className="tb-icon" title={tr`Forward`} aria-label={tr`Forward`}
-                        disabled={!activeNavCaps.fwd} onClick={() => navHistGo(1, toolbarPane)}>
+                        disabled={!activeNavCaps.fwd} onClick={() => navHistStep(1, toolbarPane)}>
                   <Icon as={ChevronRight} size={15} />
                 </button>
               </>

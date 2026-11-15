@@ -14,6 +14,7 @@ import { CtxShortcut, CtxStepView, CtxSubmenu, rowKeys, stepMenuKeys, useCtxStep
 import { isComposingKey } from '../lib/composerKeys.js';
 import HapticTap from './HapticTap.jsx';
 import { haptic } from '../lib/haptics.js';
+import { useBackLayer } from '../hooks/useBackLayer.js';
 import { t as tr, ph, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
@@ -23,6 +24,8 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
   // which used to double-fire async actions (double delete/duplicate).
   const firedRef = useRef(false);
   useEffect(() => { if (open) firedRef.current = false; }, [open]);
+  // Under a finger, the phone's Back closes the menu.
+  useBackLayer(open, onClose);
   const claimFire = () => {
     if (firedRef.current) return false;
     firedRef.current = true;

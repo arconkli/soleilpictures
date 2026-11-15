@@ -8,12 +8,15 @@ import { CtxShortcut, CtxStepView, CtxSubmenu, rowKeys, stepMenuKeys, useCtxStep
 import { isComposingKey } from '../lib/composerKeys.js';
 import HapticTap from './HapticTap.jsx';
 import { haptic } from '../lib/haptics.js';
+import { useBackLayer } from '../hooks/useBackLayer.js';
 import { t, plural } from '@lingui/core/macro';
 
 export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId, boardId, boardName }) {
   // Combined count from BOTH manual entity_links targeting the board
   // AND text occurrences of the board's name across the workspace.
   const [refCount, setRefCount] = useState(null);
+  // Under a finger, the phone's Back closes the menu.
+  useBackLayer(open, onClose);
 
   // Fetched when the menu OPENS (fresh each time). The menu is always mounted,
   // so this used to fire an entity_links count and a get_entity_mentions RPC

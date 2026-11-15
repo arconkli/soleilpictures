@@ -15,6 +15,7 @@ import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { Selection } from '@tiptap/pm/state';
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
+import { useBackLayer } from '../hooks/useBackLayer.js';
 import { PAGE_W } from './docExtensions/DocPagination.js';
 import { paperRoom, railRoom } from '../lib/docRoom.js';
 import { addBookmark, addPage, addPageSheet, deletePageSheet, getDocMode, switchDocMode, healDocMode, getTitlePage, setTitlePage, getSceneNumbersShow, setSceneNumbersShow, getPageless, setPageless, metaMap, getDocUndoManager, followTitle, pagesArray, healPages, readPageBlocks, getPageSheetIds } from '../lib/docState.js';
@@ -289,6 +290,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // On phone the rail is a slide-over drawer (the desktop rail + its only
   // toggle are display:none at <=640px, which stranded multi-page navigation).
   const [mobileRailOpen, setMobileRailOpen] = useState(false);
+  // The Pages drawer is a layer of its own on top of the doc's: under a
+  // finger, Back puts the drawer away and leaves the doc open.
+  useBackLayer(mobileRailOpen, () => setMobileRailOpen(false));
 
   // A mode or page-layout change remounts every sheet editor (see the
   // DocPageEditor key below). When a COLLABORATOR flips it, I may be mid-

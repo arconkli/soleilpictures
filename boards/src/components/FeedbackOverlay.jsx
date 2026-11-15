@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom';
 import { CheckCircle, WarningCircle, Warning, Info, X } from '@phosphor-icons/react';
 import { Icon } from './Icon.jsx';
 import { registerModalOpen } from '../lib/modalGuard.js';
+import { useBackLayer } from '../hooks/useBackLayer.js';
 import './feedbackLook.css';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { t } from '@lingui/core/macro';
@@ -108,6 +109,10 @@ function FeedbackDialog({ dialog, onClose }) {
     if (!dialog) return undefined;
     return registerModalOpen();
   }, [dialog]);
+
+  // Under a finger, Back answers the question the way Escape does (cancel),
+  // instead of navigating with it still up.
+  useBackLayer(!!dialog, () => onClose(dialog?.kind === 'confirm' ? false : null));
 
   useEffect(() => {
     if (!dialog) return undefined;

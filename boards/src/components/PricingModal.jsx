@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { lockScroll, unlockScroll } from './Modal.jsx';
 import { registerModalOpen } from '../lib/modalGuard.js';
+import { useBackLayer } from '../hooks/useBackLayer.js';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
@@ -288,6 +289,9 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
     const unregister = registerModalOpen({ onEscape: () => { handleCloseRef.current('esc'); return true; } });
     return () => { unregister(); unlockScroll(); };
   }, []);
+  // Under a finger, the phone's Back closes it: a bounce, counted with Escape
+  // (dismiss_method is a fixed set the admin's Money view reads).
+  useBackLayer(true, () => handleCloseRef.current('esc'));
 
   return createPortal(
     <div

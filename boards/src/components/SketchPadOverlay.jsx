@@ -27,7 +27,8 @@ import { useRecentColors } from '../hooks/useRecentColors.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { pushDocUndoTarget, removeDocUndoTarget } from '../lib/overlayRouting.js';
-import { registerModalOpen, isTopModal } from '../lib/modalGuard.js';
+import { registerModalOpen, isTopModal, registerBackLayer } from '../lib/modalGuard.js';
+import { fingerIsPointer } from '../hooks/useBackLayer.js';
 import { swallowContextMenu } from '../lib/contextMenuGuard.js';
 import { toPathD } from '../lib/strokeRender.js';
 import { trackStroke, coalescedOf } from '../lib/pointerStroke.js';
@@ -320,6 +321,23 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     discardingRef.current = false;
     return ok;
   };
+
+  // Under a finger, the phone's Back is Cancel: it asks before a drawing is
+  // lost. The pad takes a fresh layer at once, so a second Back while the
+  // question is up (or after a "keep drawing") still stops here instead of
+  // leaving the cluster with the pad open.
+  const onCloseLive = useRef(onClose);
+  onCloseLive.current = onClose;
+  const confirmDiscardLive = useRef(confirmDiscard);
+  confirmDiscardLive.current = confirmDiscard;
+  const [backArm, setBackArm] = useState(0);
+  useEffect(() => {
+    if (!open || !fingerIsPointer()) return undefined;
+    return registerBackLayer(async () => {
+      setBackArm((n) => n + 1);
+      if (await confirmDiscardLive.current()) onCloseLive.current?.();
+    });
+  }, [open, backArm]);
 
   // Reset on open. When the pad opens to edit an existing art canvas, seed
   // it with that card's strokes (already in card-local coords, which we

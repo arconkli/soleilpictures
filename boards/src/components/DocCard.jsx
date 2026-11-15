@@ -18,6 +18,7 @@ import { readDocOpenMode, writeDocOpenMode } from '../lib/docOpenMode.js';
 import { RELOAD_EVENT, noteReopen, reopenMode, clearReopen } from '../lib/docResets.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
+import { useBackLayer } from '../hooks/useBackLayer.js';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { SurfaceErrorBoundary } from './SurfaceErrorBoundary.jsx';
 import { DocOpening } from './DocOpening.jsx';
@@ -585,6 +586,8 @@ export function DocCardOverlay({
       },
     });
   }, [inPane, isFull]);
+  // Under a finger, the phone's Back closes the doc. Not in a pane, as above.
+  useBackLayer(!inPane, onClose);
   useEffect(() => {
     if (inPane || isFull) return;
     const onKey = (e) => {

@@ -23,6 +23,7 @@ import { downloadCardAsset } from '../lib/cardDownload.js';
 import { loadPdfDocument, getPageCount, renderPageToCanvas, getPageViewport } from '../lib/pdfEngine.js';
 import { WaitNote } from './WaitNote.jsx';
 import { registerModalOpen, isTopModal } from '../lib/modalGuard.js';
+import { useBackLayer } from '../hooks/useBackLayer.js';
 import { FileShareButton } from './fileShare/FileShareButton.jsx';
 import { Icon } from './Icon.jsx';
 import { ChevronDown, ChevronUp, DownloadSimple, Minus, Plus, X } from '../lib/icons.js';
@@ -289,6 +290,8 @@ export function PdfViewer({ src, name, onClose, embedded = false, onPageChange =
     guardRef.current = unregister;
     return () => { guardRef.current = null; unregister(); };
   }, [embedded]);
+  // Under a finger, the phone's Back closes the viewer (embedded: the host's).
+  useBackLayer(!embedded, onClose);
 
   // Keyboard. Capture-phase so this top-most modal owns Escape (and nav/zoom
   // keys) before the canvas's own handlers (e.g. selection-clear) can consume
