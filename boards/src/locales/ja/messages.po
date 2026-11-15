@@ -839,6 +839,16 @@ msgstr "{bn, plural, other {クラスター#件を含む{total}件のアイテ�
 #: src/components/CanvasSurface.jsx
 msgid "{bn, plural, one {Delete # board and all its content?\n"
 "\n"
+"You can undo this from the top bar. The board is fully recoverable for 30 days.} other {Delete # boards and all their content?\n"
+"\n"
+"You can undo this from the top bar. The boards are fully recoverable for 30 days.}}"
+msgstr "{bn, plural, other {#件のクラスターとその内容をすべて削除しますか？\n"
+"\n"
+"上部のバーから元に戻せます。クラスターは30日間、完全に復元できます。}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{bn, plural, one {Delete # board and all its content?\n"
+"\n"
 "You can undo this with Cmd+Z. The board is fully recoverable for 30 days.} other {Delete # boards and all their content?\n"
 "\n"
 "You can undo this with Cmd+Z. The boards are fully recoverable for 30 days.}}"
@@ -1466,6 +1476,14 @@ msgstr "{label}は「{name}」の共同オーナーになりました。"
 msgid "{label}, back to {label2}"
 msgstr "{label}、{label2}に戻る"
 
+#: src/components/ctxMenuParts.jsx
+msgid "{label}, back to the canvas menu"
+msgstr "{label}、キャンバスのメニューに戻る"
+
+#: src/components/ctxMenuParts.jsx
+msgid "{label}, back to the card menu"
+msgstr "{label}、カードのメニューに戻る"
+
 #: src/components/CanvasSurface.jsx
 msgid "{labelled, plural, one {Saved “{name}” with # label.} other {Saved “{name}” with # labels.}}"
 msgstr "{labelled, plural, other {「{name}」をラベル#件付きで保存しました。}}"
@@ -1821,12 +1839,28 @@ msgid "{n, plural, one {Copied # card from “{fromName}” · ⌘Z undoes} othe
 msgstr "{n, plural, other {「{fromName}」から#枚のカードをコピーしました · ⌘Zで元に戻せます}}"
 
 #: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Copied # card from “{fromName}”} other {Copied # cards from “{fromName}”}}"
+msgstr "{n, plural, other {「{fromName}」から#枚のカードをコピーしました}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Copied # card} other {Copied # cards}}"
+msgstr "{n, plural, other {#枚のカードをコピーしました}}"
+
+#: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Copied # note · ⌘Z undoes} other {Copied # notes · ⌘Z undoes}}"
 msgstr "{n, plural, other {#件のメモをコピーしました · ⌘Zで元に戻せます}}"
 
 #: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Copied # note from “{fromName}” · ⌘Z undoes} other {Copied # notes from “{fromName}” · ⌘Z undoes}}"
 msgstr "{n, plural, other {「{fromName}」から#件のメモをコピーしました · ⌘Zで元に戻せます}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Copied # note from “{fromName}”} other {Copied # notes from “{fromName}”}}"
+msgstr "{n, plural, other {「{fromName}」から#件のメモをコピーしました}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Copied # note} other {Copied # notes}}"
+msgstr "{n, plural, other {#件のメモをコピーしました}}"
 
 #: src/components/doc/DocFindTab.jsx
 msgid "{n, plural, one {Deleted # match on {pages} pages} other {Deleted # matches on {pages} pages}}"
@@ -2339,6 +2373,10 @@ msgstr "{person}があなたのワークスペースに参加しました。あ�
 #: src/App.jsx
 msgid "{person} said yes: you can edit “{grantedName}”."
 msgstr "{person}が承認しました。「{grantedName}」を編集できます。"
+
+#: src/components/CanvasSurface.jsx
+msgid "{picked, plural, one {Delete # selected} other {Delete # selected}}"
+msgstr "{picked, plural, other {選択した#件を削除}}"
 
 #: src/App.jsx
 msgid "{placed, plural, one {# file} other {# files}} in {nClusters, plural, one {# cluster} other {# clusters}}"
@@ -8065,6 +8103,14 @@ msgstr "{name}を削除しますか？"
 #: src/components/CanvasSurface.jsx
 msgid "Delete {total} items, including {bn, plural, one {# board} other {# boards}}?\n"
 "\n"
+"You can undo this from the top bar. Anything deleted is recoverable for 30 days."
+msgstr "クラスター{bn, plural, other {#件}}を含む{total}件のアイテムを削除しますか？\n"
+"\n"
+"上部のバーから元に戻せます。削除したものは30日間復元できます。"
+
+#: src/components/CanvasSurface.jsx
+msgid "Delete {total} items, including {bn, plural, one {# board} other {# boards}}?\n"
+"\n"
 "You can undo this with Cmd+Z. Anything deleted is recoverable for 30 days."
 msgstr "クラスター{bn, plural, other {#件}}を含む{total}件のアイテムを削除しますか？\n"
 "\n"
@@ -8078,6 +8124,14 @@ msgstr "アカウントを削除…"
 #: src/components/toolbar/CanvasBarsA.jsx
 msgid "Delete arrow"
 msgstr "矢印を削除"
+
+#: src/components/CanvasSurface.jsx
+msgid "Delete board \"{name}\" and all its content?\n"
+"\n"
+"You can undo this from the top bar. The board is fully recoverable for 30 days."
+msgstr "クラスター「{name}」とその内容をすべて削除しますか？\n"
+"\n"
+"上部のバーから元に戻せます。クラスターは30日間、完全に復元できます。"
 
 #: src/components/CanvasSurface.jsx
 msgid "Delete board \"{name}\" and all its content?\n"
@@ -8102,6 +8156,10 @@ msgstr "列を削除"
 #: src/components/CanvasComment.jsx
 msgid "Delete comment?"
 msgstr "コメントを削除しますか？"
+
+#: src/components/CanvasSurface.jsx
+msgid "Delete drawing"
+msgstr "描画を削除"
 
 #: src/components/CanvasComment.jsx
 msgid "Delete failed"
@@ -8595,6 +8653,10 @@ msgstr "ダブルクリックで操作"
 msgid "Double-sided arrow"
 msgstr "両矢印"
 
+#: src/components/cards.jsx
+msgid "Double-tap to play"
+msgstr "ダブルタップで再生"
+
 #: src/lib/activityTray.js
 msgid "download"
 msgstr "ダウンロード"
@@ -8802,6 +8864,7 @@ msgstr "ドラッグで移動"
 msgid "Drag to reposition · click to open"
 msgstr "ドラッグで移動 · クリックで開く"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/docExtensions/ImageResizable.js
 msgid "Drag to resize"
 msgstr "ドラッグしてサイズ変更"
@@ -8817,6 +8880,10 @@ msgstr "ドラッグしてサイズ変更・ダブルクリックでこの線を
 #: src/components/FilesDock.jsx
 msgid "Drag to resize · drag all the way to fill the screen · double-click to reset"
 msgstr "ドラッグでサイズ変更 · 端までドラッグで画面いっぱいに · ダブルクリックでリセット"
+
+#: src/components/CanvasSurface.jsx
+msgid "Drag to rotate"
+msgstr "ドラッグで回転"
 
 #: src/components/CanvasSurface.jsx
 msgid "Drag to rotate (shift = 15° steps)"
@@ -22993,6 +23060,7 @@ msgstr "クラスターの閲覧権限が共有されました。"
 msgid "View changed"
 msgstr "表示の変更"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 msgid "View full size"
 msgstr "フルサイズで表示"

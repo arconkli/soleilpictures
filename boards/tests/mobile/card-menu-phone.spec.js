@@ -83,7 +83,7 @@ async function expectStepped(page, name, root) {
   await expect(menu(page)).toHaveAttribute('aria-label', name);
   const rows = menu(page).getByRole('menuitem');
   await expect(rows.first()).toHaveClass(/is-back/);
-  await expect(rows.first()).toHaveAccessibleName(`${name}, back to ${root}`);
+  await expect(rows.first()).toHaveAccessibleName(`${name}, back to the ${root}`);
   await expect(menu(page).locator('.ctx-divider').first()).toBeVisible();
   expect(await menu(page).locator('.ctx-step-body button.ctx-item').count()).toBeGreaterThan(1);
   for (const r of await rows.all()) {

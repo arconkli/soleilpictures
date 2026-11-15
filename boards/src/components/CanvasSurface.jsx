@@ -10019,7 +10019,7 @@ export function CanvasSurface({
         // The corner Expand button shrinks with the zoom (a few px on a phone):
         // this is the way in that a finger can always hit.
         if (c.src) {
-          openItems.push({ id: 'image-view', label: 'View full size',
+          openItems.push({ id: 'image-view', label: tr`View full size`,
             run: () => openImageLightbox(c) });
         }
         if (canEdit && c.src) {
@@ -15150,14 +15150,14 @@ export function CanvasSurface({
               {showRotate && (
                 <div className="sel-handle"
                      style={{ left: rotX, top: rotY, transform: tf }}>
-                  <div className="card-rotate" onPointerDown={(e) => onRotatePointerDown(e, c)} title="Drag to rotate" />
+                  <div className="card-rotate" onPointerDown={(e) => onRotatePointerDown(e, c)} title={tr`Drag to rotate`} />
                 </div>
               )}
               {showResize && (
                 <div className="sel-handle"
                      style={{ left: cx + cos * w / 2 - sin * h / 2 + (cos - sin) * out,
                               top: cy + sin * w / 2 + cos * h / 2 + (sin + cos) * out, transform: tf }}>
-                  <div className="card-resize" onPointerDown={(e) => onResizePointerDown(e, c)} title="Drag to resize">
+                  <div className="card-resize" onPointerDown={(e) => onResizePointerDown(e, c)} title={tr`Drag to resize`}>
                     {SEL_HANDLE_GRIP}
                   </div>
                 </div>
