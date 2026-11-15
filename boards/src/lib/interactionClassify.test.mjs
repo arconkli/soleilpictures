@@ -10,7 +10,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  isInteractiveTarget, createRageDetector, createDeadClickWatcher,
+  isInteractiveTarget, isHapticEcho, createRageDetector, createDeadClickWatcher,
   domActivityFingerprint, RAGE_MIN_CLICKS, RAGE_WINDOW_MS,
 } from './interactionClassify.js';
 
@@ -146,4 +146,13 @@ test('dead watcher treats a probe that goes blind mid-flight as a click', () => 
 test('domActivityFingerprint returns null without a DOM instead of throwing', () => {
   assert.equal(typeof document, 'undefined', 'precondition: plain node, no DOM');
   assert.equal(domActivityFingerprint(), null);
+});
+
+test('isHapticEcho: only the iPhone haptic label and its switch', () => {
+  const at = (hit) => ({ closest: (sel) => (sel.split(',').map((s) => s.trim()).includes(hit) ? {} : null) });
+  assert.equal(isHapticEcho(at('label.haptic-tap')), true);
+  assert.equal(isHapticEcho(at('#soleil-haptic-switch')), true);
+  assert.equal(isHapticEcho(at('.ctx-item')), false);
+  assert.equal(isHapticEcho(null), false);
+  assert.equal(isHapticEcho({}), false);
 });

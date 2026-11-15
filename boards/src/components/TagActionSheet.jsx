@@ -7,6 +7,8 @@
 // sidebar lazy-loads it; the tag page is lazy itself).
 import { Sheet } from './shell/Sheet.jsx';
 import { Icon } from './Icon.jsx';
+import HapticTap from './HapticTap.jsx';
+import { haptic } from '../lib/haptics.js';
 import { Check, ChevronRight, Drop, Edit, GitMerge, Shapes, Trash2, X } from '../lib/icons.js';
 
 // By the action's id, so the callers import no icons of their own (the
@@ -27,7 +29,7 @@ export function TagActionSheet({ title, sub, lead = null, actions, onClose }) {
     const icon = ICONS[a.id];
     return (
       <button key={a.id} type="button" className={`tag-sheet-act${a.danger ? ' is-danger' : ''}`}
-              onClick={() => { onClose(); a.run(); }}>
+              onClick={() => { if (a.danger) haptic('delete'); onClose(); a.run(); }}>
         {icon && <Icon as={icon} size={18} weight="regular" className="tag-sheet-icon" />}
         <span className="tag-sheet-label">{a.label}</span>
         {(a.value || a.swatch || a.more) && (
@@ -37,6 +39,7 @@ export function TagActionSheet({ title, sub, lead = null, actions, onClose }) {
             {a.more && <Icon as={ChevronRight} size={16} weight="regular" />}
           </span>
         )}
+        {a.danger && <HapticTap />}
       </button>
     );
   };

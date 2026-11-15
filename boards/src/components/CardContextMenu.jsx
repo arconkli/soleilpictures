@@ -12,6 +12,8 @@ import { tagFallbackColor } from '../lib/tagColor.js';
 import { useFitMenuToViewport } from '../lib/ctxMenuFit.js';
 import { CtxShortcut, CtxSubmenu, rowKeys, walkMenu } from './ctxMenuParts.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
+import HapticTap from './HapticTap.jsx';
+import { haptic } from '../lib/haptics.js';
 
 export function CardContextMenu({ open, x, y, above = false, items, onClose, workspaceId, boardId, card }) {
   // Single-flight guard: one action per menu open. The menu closes on the
@@ -191,12 +193,13 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
             key={it.id || i}
             className={`ctx-item ${it.danger ? 'danger' : ''}`}
             disabled={it.disabled}
-            onClick={async () => { if (!claimFire()) return; onClose(); it.run && await it.run(); }}
+            onClick={async () => { if (!claimFire()) return; if (it.danger) haptic('delete'); onClose(); it.run && await it.run(); }}
             role="menuitem"
             {...rowKeys(it.shortcut)}
           >
             <span className="ctx-label">{it.label}</span>
             <CtxShortcut keys={it.shortcut} />
+            {it.danger && <HapticTap />}
           </button>
         );
       })}

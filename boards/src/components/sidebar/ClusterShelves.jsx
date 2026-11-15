@@ -136,7 +136,7 @@ function useHoldForMenu(item, onMenu) {
   const ref = useRef(null);
   const held = useRef(false);
   useLongPress(ref, (x, y) => {
-    if (!onMenu) return;
+    if (!onMenu) return false;
     held.current = true;
     onMenu(item, x, y, { viaTouch: true });
   }, { ms: 480, tolerance: 8, pointerType: 'touch' });

@@ -15,6 +15,7 @@
 import { useEffect } from 'react';
 import { logEvent, logEventNow } from '../lib/analytics.js';
 import { describeTarget, isJourneyOpen } from '../lib/journey.js';
+import { isHapticEcho } from '../lib/interactionClassify.js';
 import {
   setAppTraceSink, armAppTrace, disarmAppTrace, isAppTraceArmed,
   flushTrace, traceClick, traceKey, traceRoute, __TUNABLES,
@@ -53,7 +54,7 @@ export function useAppTrace(enabled) {
       }
     };
 
-    const onClick = (e) => { sync(); if (isAppTraceArmed()) traceClick(e.target, describeTarget); };
+    const onClick = (e) => { sync(); if (isAppTraceArmed() && !isHapticEcho(e.target)) traceClick(e.target, describeTarget); };
     const onKey = (e) => {
       if (!isAppTraceArmed()) return;
       // Commands only. A modifier combo is never prose — no one writes with Cmd

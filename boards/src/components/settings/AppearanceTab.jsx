@@ -12,6 +12,8 @@ import { EV } from '../../lib/analyticsEvents.js';
 import { applyThemeNow, osPrefersLight } from '../../lib/theme.js';
 import { WHEEL_MODES, getWheelMode, applyWheelModeNow } from '../../lib/wheelMode.js';
 import { getWasdPan, applyWasdPanNow } from '../../lib/wasdPan.js';
+import { useHapticsEnabled } from '../HapticTap.jsx';
+import { setHapticsEnabled, isTouchDevice, hapticsAvailable, usesSwitchTrick } from '../../lib/haptics.js';
 import { Field, Toggle, SettingsCategory, AccentPicker, FontField } from './fields.jsx';
 import { useSettingsSave } from './saveState.jsx';
 import { overlayPending, settlePending } from './pendingPatch.js';
@@ -75,6 +77,9 @@ export function AppearanceTab({ mySettings, refresh }) {
   const wheelMode = getWheelMode();
   // Same rule for W A S D movement: the canvas reads the module.
   const wasdPan = getWasdPan();
+  // Haptics are per device (localStorage in lib/haptics.js), not part of the
+  // account's ui settings.
+  const hapticsOn = useHapticsEnabled();
 
   return (
     <div className="settings-section">
@@ -174,6 +179,16 @@ export function AppearanceTab({ mySettings, refresh }) {
             setUi({ wasdPan: v });
             try { logEvent(EV.WASD_PAN_SET, { on: v }); } catch (_) {}
           }} />
+
+        {isTouchDevice() && hapticsAvailable() && (
+          <Toggle
+            label="Vibration"
+            desc={usesSwitchTrick()
+              ? 'A light tap when you tick a checklist box or choose Delete in a menu. That is all Safari on iPhone lets a website do.'
+              : 'A light tap when you pick up, drop or snap a card, open a hold menu or delete something.'}
+            value={hapticsOn}
+            onChange={(v) => setHapticsEnabled(v)} />
+        )}
       </SettingsCategory>
     </div>
   );

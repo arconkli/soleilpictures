@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
+import HapticTap from './HapticTap.jsx';
+import { haptic } from '../lib/haptics.js';
 import { ChevronRight } from '../lib/icons.js';
 import { shortcutAria, shortcutCaps } from '../lib/looks.js';
 
@@ -124,7 +126,7 @@ export function CtxSubmenu({ item, onClose, claimFire = () => true }) {
     }
     walkMenu(e);
   };
-  const choose = (sub) => { if (!claimFire()) return; onClose(); sub.run && sub.run(); };
+  const choose = (sub) => { if (!claimFire()) return; if (sub.danger) haptic('delete'); onClose(); sub.run && sub.run(); };
 
   return (
     <div ref={wrapRef} className="ctx-submenu-wrap" onMouseEnter={hover} onMouseLeave={handleLeave}>
@@ -170,6 +172,7 @@ export function CtxSubmenu({ item, onClose, claimFire = () => true }) {
                       onClick={() => choose(sub)}>
                 <span className="ctx-label">{sub.label}</span>
                 <CtxShortcut keys={sub.shortcut} />
+                {sub.danger && <HapticTap />}
               </button>
             );
           })}

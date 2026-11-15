@@ -47516,6 +47516,37 @@ export const DOCS_CONTENT = {
       "t": "text",
       "v": "."
      }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Vibration",
+      "children": [
+       {
+        "t": "text",
+        "v": "Vibration"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — only on a phone or tablet that can vibrate. A light tap at key moments, such as picking up or dropping a card. It is kept on the device rather than your account, so it is set separately on each one. See "
+     },
+     {
+      "t": "link",
+      "v": "haptic feedback",
+      "href": "/docs/account/mobile#haptic-feedback",
+      "children": [
+       {
+        "t": "text",
+        "v": "haptic feedback"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
     ]
    ]
   },
@@ -48724,6 +48755,161 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "With the draw tool active, one finger draws and two fingers still pinch-zoom. Starting a pinch part-way through a stroke discards that stroke rather than smearing it across the board as the canvas moves underneath — the failure that makes drawing on touch unusable."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Haptic feedback",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Haptic feedback"
+    }
+   ],
+   "id": "haptic-feedback"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone, Clusters gives a light tap at the moments where your finger needs confirming:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "a hold picks up a card, or a cluster in the sidebar"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "a card you drag reaches a cluster, and you drop it in (or into a grid cell)"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "a snap guide catching"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "zoom passing 100% or reaching its limit"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "an arrow attaching to a card"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "ticking a checklist item"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "a hold opening a menu"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "choosing "
+     },
+     {
+      "t": "strong",
+      "v": "Delete",
+      "children": [
+       {
+        "t": "text",
+        "v": "Delete"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", or another red option, in a menu"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "the card-limit notice"
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On Android you feel all of them, in Chrome and most other browsers. In Safari on iPhone a website can only make the phone tap when you tap, so there you feel it on red menu options such as "
+    },
+    {
+     "t": "strong",
+     "v": "Delete",
+     "children": [
+      {
+       "t": "text",
+       "v": "Delete"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and on checklist ticks, and not at the other moments. iPads have no vibration motor, so there is nothing to feel there, and it never happens with a mouse or trackpad."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Switch it off for a device with "
+    },
+    {
+     "t": "strong",
+     "v": "Vibration",
+     "children": [
+      {
+       "t": "text",
+       "v": "Vibration"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Appearance",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Appearance"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", under Canvas. The switch is kept on that device, not on your account."
     }
    ]
   },

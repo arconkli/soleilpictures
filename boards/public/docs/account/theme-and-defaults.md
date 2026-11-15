@@ -2,7 +2,7 @@
 
 > Appearance covers the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, what a plain scroll wheel does, and whether W, A, S and D move you around a board. Card defaults set what new notes, docs and shapes start as, and whether new clusters open as a board or in Files. Appearance is personal and follows your account between devices; card defaults belong to the workspace.
 
-_Source: https://clusters.soleilpictures.com/docs/account/theme-and-defaults · Updated 2026-10-19_
+_Source: https://clusters.soleilpictures.com/docs/account/theme-and-defaults · Updated 2026-11-15_
 
 ## Appearance
 
@@ -53,6 +53,10 @@ confused with "this is gold" on a colourful board.
   around a board and `Q` or `E` to zoom in or out, and add `⇧` to go faster.
   While it is on, `A` and `D` stop picking the Arrow and Free-draw tools; see
   [keyboard shortcuts](/docs/keyboard-shortcuts#moving-with-w-a-s-d).
+- **Vibration** — only on a phone or tablet that can vibrate. A light tap at
+  key moments, such as picking up or dropping a card. It is kept on the device
+  rather than your account, so it is set separately on each one. See
+  [haptic feedback](/docs/account/mobile#haptic-feedback).
 
 The wheel setting exists because the convention genuinely splits across the
 tools people arrive from — PureRef and Miro zoom on scroll, Figma and Milanote

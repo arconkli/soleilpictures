@@ -7,6 +7,7 @@
 // across canvas → list rows → sidebar tree.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { haptic } from '../lib/haptics.js';
 import { createPortal } from 'react-dom';
 import { COVER_TINTS } from './primitives.jsx';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
@@ -669,6 +670,8 @@ export function SidebarBoardTree({
       setTimeout(() => { dragGestureRef.current.dragged = false; }, 400);
     };
 
+    // One hold, one buzz (lib/haptics.js).
+    const buzzHold = (d) => { if (!d.buzzed) { d.buzzed = true; haptic('lift'); } };
     const reset = () => {
       if (!drag) return;
       clearTimeout(drag.timer);
@@ -691,9 +694,16 @@ export function SidebarBoardTree({
       const name = row.querySelector('.sb-row-label')?.textContent || boardId;
       const mine = {
         boardId, name, row, startX: e.clientX, startY: e.clientY, startAt: Date.now(),
-        armed: false, active: false, nativeMenu: false, ghost: null, timer: 0,
+        armed: false, active: false, nativeMenu: false, buzzed: false, ghost: null, timer: 0,
       };
-      mine.timer = setTimeout(() => { if (drag === mine) mine.armed = true; }, LONG_PRESS_MS);
+      // The buzz says the hold is done: at MENU_HOLD_MS, when letting go opens
+      // the menu, or as soon as an armed row starts to move. A buzz at the arm
+      // (LONG_PRESS_MS) told people to let go while letting go was still a tap.
+      mine.timer = setTimeout(() => {
+        if (drag !== mine) return;
+        mine.armed = true;
+        mine.timer = setTimeout(() => { if (drag === mine && !mine.active) buzzHold(mine); }, MENU_HOLD_MS - LONG_PRESS_MS);
+      }, LONG_PRESS_MS);
       drag = mine;
     };
     const onMove = (e) => {
@@ -708,6 +718,7 @@ export function SidebarBoardTree({
       }
       if (!drag.active && moved) {
         drag.active = true;
+        buzzHold(drag);
         dragGestureRef.current.dragged = true;
         drag.ghost = startGhost(drag.name);
         // Android may have opened the row menu on the hold; a drag wins.
@@ -725,7 +736,7 @@ export function SidebarBoardTree({
     };
     // Android fires a native contextmenu on the hold; the row's own handler
     // opens the menu from it, so the release must not open it a second time.
-    const onNativeMenu = () => { if (drag) drag.nativeMenu = true; };
+    const onNativeMenu = () => { if (drag) { drag.nativeMenu = true; buzzHold(drag); } };
     const onUp = (e) => {
       if (!drag) return;
       if (drag.active) {

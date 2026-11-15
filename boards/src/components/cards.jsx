@@ -114,6 +114,8 @@ import { registerCardPlayer } from '../lib/playerBus.js';
 import { driftFix, getBoardEpoch, serverNow, SEEK_LEAD_S, SEEK_OVER_S, subscribeBoardEpoch, syncTarget, timeDiff } from '../lib/videoSync.js';
 import { probeCardVideo } from '../hooks/useMediaFacts.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { haptic } from '../lib/haptics.js';
+import { useHapticLabels } from './HapticTap.jsx';
 import { initialOf, cutGraphemes, exceedsGraphemes } from '../lib/graphemes.js';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
 
@@ -1220,6 +1222,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
 
   const ref = useRef(null);
   const overflowing = useNoteOverflow(ref, [html, body, fontSize, fontSizeV, fontFamily, editing, manuallyResized]);
+  useHapticLabels(ref, '.note-body .ck-box');
   const lastTapRef = useRef({});
   // Tap it again: a finger or pen press on this note while it was already the
   // only selected card. Recorded at the press (the canvas selects a touched
@@ -1381,6 +1384,14 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
     }
     const box = e.target.closest?.('.ck-box');
     if (!box || !ref.current) return;
+    // iPhone Safari: the tap landed on the haptic label (useHapticLabels). Let
+    // its default action toggle the hidden switch, then tick the box on the
+    // next task, as HapticTap does. No preventDefault, or the switch won't move.
+    if (e.target.closest?.('label[data-haptic-label]')) {
+      e.stopPropagation();
+      setTimeout(() => { if (box.isConnected) box.click(); }, 0);
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     // Which box, by position. The display is a RENDERING of the note (sanitized,
@@ -1390,6 +1401,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
     // toggle is applied to the stored source instead, and the display follows.
     const index = Array.from(ref.current.querySelectorAll('.note-body .ck-box')).indexOf(box);
     if (index < 0) return;
+    haptic('tick');
     // Flip the item in the fragment (source of truth) and re-derive the html
     // cache from it, exactly as the editor's write-through does. The helpers
     // transact under NOTE_ORIGIN, but BOTH run inside one outer 'local'

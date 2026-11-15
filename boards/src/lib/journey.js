@@ -30,7 +30,7 @@
 
 import { EV, JOURNEY_PHASE } from './analyticsEvents.js';
 import {
-  isInteractiveTarget, createRageDetector, createDeadClickWatcher,
+  isInteractiveTarget, createRageDetector, createDeadClickWatcher, isHapticEcho,
 } from './interactionClassify.js';
 
 // ── Injected emitter (wired once from the vite-only consumer modules) ──────────
@@ -362,7 +362,7 @@ export function recordClick(el) {
   const n = rage(tgt);
   if (n) pushRec('rage', tgt, { n });
 }
-function onClick(e) { recordClick(e.target); }
+function onClick(e) { if (!isHapticEcho(e.target)) recordClick(e.target); }
 function onFocus(e)  { pushRec('focus', describeTarget(e.target)); }
 function onScroll(e) {
   if (!OPEN) return;

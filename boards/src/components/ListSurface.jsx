@@ -2270,7 +2270,8 @@ export function ListSurface({
     if (viaTouch) swallowNextClick({ held: true });
   };
   useLongPress(listInnerRef, (x, y, e) => {
-    if (touchPass && openListMenuAt(e.target, x, y, { viaTouch: true })) swallowNextClick({ held: true });
+    if (!touchPass || !openListMenuAt(e.target, x, y, { viaTouch: true })) return false;
+    swallowNextClick({ held: true });
   }, { ms: 480, tolerance: 8, pointerType: 'touch' });
   // Files copy (the rules); a cluster copies with its own Copy and Paste.
   const canCopyTo = !!onMoveFiles && !!onPickCluster && selectedCards.size > 0 && !selectedBoards.size
