@@ -27,8 +27,8 @@
 // referrals are the best-converting acquisition channel here, so "the crawlers
 // are blocked" is the one alarm nobody can afford to learn to ignore.
 //
-// So: every kind:'body' expectation whose `expected` string originates in this
-// repo gets a row here, and seoProbeContract.test.mjs asserts the string still
+// So: every kind:'body' or 'title' expectation whose `expected` string
+// originates in this repo gets a row here, as does each page's status row, and seoProbeContract.test.mjs asserts the string still
 // appears in the very artifact the Worker serves. Rewrite the prose and
 // `npm test` goes red naming the DB row to update — BEFORE it ships, instead of
 // six hours after.
@@ -49,6 +49,14 @@ export const PROBE_ORIGIN = 'https://clusters.soleilpictures.com';
 //   { kind: 'file',  path }          a committed file under boards/ served as-is
 //   { kind: 'route' }                a route path, not prose — asserted against
 //                                    the landing/listicle path registries
+//   { kind: 'title', path }          the <title> the Worker sets for that page: the
+//                                    landing or listicle spec's `title`
+//   { kind: 'status', path }         '200' while production lists the page (the
+//                                    sitemap's own registries), nothing once it
+//                                    is retired or held
+//
+// A row's own `kind` is the DB row's kind. It is left off for 'body', which is
+// what every row was before 0883; 'title' and 'status' rows say so.
 export const SEO_PROBE_CONTRACT = [
   // ── The sitemap carries the routes it should ──────────────────────────────
   // These assert route paths, not prose. They rot only if a page is renamed or
@@ -134,8 +142,8 @@ export const SEO_PROBE_CONTRACT = [
 
   // ── /vs/storyflow (0336, 2026-09-19) ──────────────────────────────────────
   // The mirror row asserts the h1 the .md carries (never the <title>); the
-  // sitemap row is a route path. Title/canonical rows (76, 77) need no mirror —
-  // they are not prose. Pre-registered as an AEO flank: see the comment above
+  // sitemap row is a route path. The title row (77) is with the other titles
+  // below; the canonical row (76) is the page's own URL and needs no mirror. Pre-registered as an AEO flank: see the comment above
   // the spec in seoLanding.js before touching its title.
   { id: 74, path: '/vs/storyflow.md', check: 'storyflow md mirror',
     expected: 'A Storyflow Alternative for Crews That Work Live', source: { kind: 'file', path: 'public/vs/storyflow.md' } },
@@ -157,11 +165,108 @@ export const SEO_PROBE_CONTRACT = [
   // ── /tools/video-reference-board (0866) ──────────────────────────────────
   // Ids pinned by the migration itself, so this mirror lands with it. The
   // mirror row asserts the h1 the .md carries (never the <title>); the sitemap
-  // row is a route path. Title/canonical rows (82, 83) need no mirror.
+  // row is a route path. The title row (82) is with the other titles below; the
+  // canonical row (83) is the page's own URL and needs no mirror.
   { id: 84, path: '/tools/video-reference-board.md', check: 'video reference board md mirror',
     expected: 'A Reference Board That Plays Video', source: { kind: 'file', path: 'public/tools/video-reference-board.md' } },
   { id: 85, path: '/sitemap.xml', check: 'sitemap has video reference board',
     expected: '/tools/video-reference-board', source: { kind: 'route' } },
+
+  // ── Page titles (the rows that predate 0883) ──────────────────────────────
+  // These were left out as "not prose". A title is prose: a retitle that drops
+  // the asserted words turns the live check red six hours after the ship, the
+  // same way the changelog headline did. Each asserts a substring, so a retitle
+  // that keeps the subject passes. /vs/milanote has a title test running and
+  // /tools/ai-mood-board-maker is being retitled: both keep the words below.
+  { id: 2,  path: '/tools/mood-board-maker', check: 'landing title', kind: 'title',
+    expected: 'Mood Board Maker', source: { kind: 'title', path: '/tools/mood-board-maker' } },
+  { id: 4,  path: '/vs/milanote', check: 'compare title', kind: 'title',
+    expected: 'Milanote Alternative', source: { kind: 'title', path: '/vs/milanote' } },
+  { id: 5,  path: '/use-cases', check: 'hub title', kind: 'title',
+    expected: 'What You Can Make', source: { kind: 'title', path: '/use-cases' } },
+  { id: 13, path: '/tools/reference-board-maker', check: 'reference-board-maker title', kind: 'title',
+    expected: 'Reference Board Maker', source: { kind: 'title', path: '/tools/reference-board-maker' } },
+  { id: 29, path: '/best/pureref-alternatives', check: 'listicle pureref title', kind: 'title',
+    expected: 'PureRef Alternatives', source: { kind: 'title', path: '/best/pureref-alternatives' } },
+  { id: 31, path: '/best/milanote-alternatives', check: 'listicle milanote title', kind: 'title',
+    expected: 'Milanote Alternatives', source: { kind: 'title', path: '/best/milanote-alternatives' } },
+  { id: 32, path: '/best/mood-board-apps', check: 'listicle moodboard title', kind: 'title',
+    expected: 'Mood Board Apps', source: { kind: 'title', path: '/best/mood-board-apps' } },
+  { id: 35, path: '/vs/pureref', check: 'pureref compare title', kind: 'title',
+    expected: 'PureRef Alternative', source: { kind: 'title', path: '/vs/pureref' } },
+  { id: 36, path: '/tools/ai-mood-board-maker', check: 'ai-mood-board-maker title', kind: 'title',
+    expected: 'AI Mood Board Maker', source: { kind: 'title', path: '/tools/ai-mood-board-maker' } },
+  { id: 52, path: '/best/storyboard-software', check: 'listicle storyboard title', kind: 'title',
+    expected: 'Best Storyboard Software', source: { kind: 'title', path: '/best/storyboard-software' } },
+  { id: 77, path: '/vs/storyflow', check: 'storyflow title', kind: 'title',
+    expected: 'Storyflow Alternative', source: { kind: 'title', path: '/vs/storyflow' } },
+  { id: 82, path: '/tools/video-reference-board', check: 'video reference board title', kind: 'title',
+    expected: 'Video Reference Board', source: { kind: 'title', path: '/tools/video-reference-board' } },
+
+  // ── The twelve pages nothing watched (0883) ───────────────────────────────
+  // Ids pinned by the migration itself, so this mirror lands with it. One
+  // status row (the page answers 200) and one title row each. A title row
+  // asserts the shortest distinctive substring: no plural, no typographic
+  // apostrophe, and none of & < > (the served <title> is HTML-escaped).
+  { id: 86, path: '/tools/storyboard-maker', check: 'storyboard maker loads', kind: 'status',
+    expected: '200', source: { kind: 'status', path: '/tools/storyboard-maker' } },
+  { id: 87, path: '/tools/storyboard-maker', check: 'storyboard maker title', kind: 'title',
+    expected: 'Storyboard Maker', source: { kind: 'title', path: '/tools/storyboard-maker' } },
+  { id: 88, path: '/tools/shot-list-maker', check: 'shot list maker loads', kind: 'status',
+    expected: '200', source: { kind: 'status', path: '/tools/shot-list-maker' } },
+  { id: 89, path: '/tools/shot-list-maker', check: 'shot list maker title', kind: 'title',
+    expected: 'Shot List Maker', source: { kind: 'title', path: '/tools/shot-list-maker' } },
+  { id: 90, path: '/tools/look-book-maker', check: 'look book maker loads', kind: 'status',
+    expected: '200', source: { kind: 'status', path: '/tools/look-book-maker' } },
+  { id: 91, path: '/tools/look-book-maker', check: 'look book maker title', kind: 'title',
+    expected: 'Look Book Maker', source: { kind: 'title', path: '/tools/look-book-maker' } },
+  { id: 92, path: '/tools/free-mood-board-maker', check: 'free mood board maker loads', kind: 'status',
+    expected: '200', source: { kind: 'status', path: '/tools/free-mood-board-maker' } },
+  { id: 93, path: '/tools/free-mood-board-maker', check: 'free mood board maker title', kind: 'title',
+    expected: 'Free Mood Board Maker', source: { kind: 'title', path: '/tools/free-mood-board-maker' } },
+  { id: 94, path: '/tools/shared-reference-board', check: 'shared reference board loads', kind: 'status',
+    expected: '200', source: { kind: 'status', path: '/tools/shared-reference-board' } },
+  { id: 95, path: '/tools/shared-reference-board', check: 'shared reference board title', kind: 'title',
+    expected: 'Shared Reference Board', source: { kind: 'title', path: '/tools/shared-reference-board' } },
+  { id: 96, path: '/tools/directors-treatment', check: 'directors treatment loads', kind: 'status',
+    expected: '200', source: { kind: 'status', path: '/tools/directors-treatment' } },
+  { id: 97, path: '/tools/directors-treatment', check: 'directors treatment title', kind: 'title',
+    expected: 'Treatment', source: { kind: 'title', path: '/tools/directors-treatment' } },
+  { id: 98, path: '/tools/production-design-mood-board', check: 'production design mood board loads', kind: 'status',
+    expected: '200', source: { kind: 'status', path: '/tools/production-design-mood-board' } },
+  { id: 99, path: '/tools/production-design-mood-board', check: 'production design mood board title', kind: 'title',
+    expected: 'Production Design Mood Board', source: { kind: 'title', path: '/tools/production-design-mood-board' } },
+  { id: 100, path: '/tools/costume-design-mood-board', check: 'costume design mood board loads', kind: 'status',
+    expected: '200', source: { kind: 'status', path: '/tools/costume-design-mood-board' } },
+  { id: 101, path: '/tools/costume-design-mood-board', check: 'costume design mood board title', kind: 'title',
+    expected: 'Costume Design Mood Board', source: { kind: 'title', path: '/tools/costume-design-mood-board' } },
+  { id: 102, path: '/tools/cinematography-lookbook', check: 'cinematography lookbook loads', kind: 'status',
+    expected: '200', source: { kind: 'status', path: '/tools/cinematography-lookbook' } },
+  { id: 103, path: '/tools/cinematography-lookbook', check: 'cinematography lookbook title', kind: 'title',
+    expected: 'Cinematography Lookbook', source: { kind: 'title', path: '/tools/cinematography-lookbook' } },
+  { id: 104, path: '/vs/eagle', check: 'eagle compare loads', kind: 'status',
+    expected: '200', source: { kind: 'status', path: '/vs/eagle' } },
+  { id: 105, path: '/vs/eagle', check: 'eagle compare title', kind: 'title',
+    expected: 'Eagle Alternative', source: { kind: 'title', path: '/vs/eagle' } },
+  { id: 106, path: '/vs/google-drive', check: 'google drive compare loads', kind: 'status',
+    expected: '200', source: { kind: 'status', path: '/vs/google-drive' } },
+  { id: 107, path: '/vs/google-drive', check: 'google drive compare title', kind: 'title',
+    expected: 'Google Drive Alternative', source: { kind: 'title', path: '/vs/google-drive' } },
+  { id: 108, path: '/vs/miro', check: 'miro compare loads', kind: 'status',
+    expected: '200', source: { kind: 'status', path: '/vs/miro' } },
+  { id: 109, path: '/vs/miro', check: 'miro compare title', kind: 'title',
+    expected: 'Miro Alternative', source: { kind: 'title', path: '/vs/miro' } },
+];
+
+// Search pages with no row in seo_health_expectations, each with its reason.
+// seoProbeContract.test.mjs fails for any path in SEO_LANDING_PAGES or
+// SEO_LISTICLE_PAGES that production lists and that is neither in the contract
+// above nor here, so a new page cannot ship unwatched by accident. An entry
+// here is a decision someone made, never a way to quiet the test: add the DB
+// rows and the mirror instead.
+export const SEO_PROBE_UNWATCHED = [
+  { path: '/scout',
+    why: 'not one of the twelve pages 0883 added; the page is live and listed, so it still needs a status row and a title row' },
 ];
 
 // Deliberately NOT pinned: their `expected` is live database content, not
