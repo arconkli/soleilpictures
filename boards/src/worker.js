@@ -2388,6 +2388,24 @@ export function buildLandingCrawlableHtml(spec, extra = null) {
       .toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
     parts.push(`<p style="color:#8a8a92;font-size:.85rem;"><time datetime="${escapeHtml(spec.updated)}">Updated ${escapeHtml(pretty)}</time></p>`);
   }
+  // The steps block, and under it the page's own words for its first example
+  // board when it has them (spec.exampleLinkLabel). A page whose steps ARE
+  // what the visitor came for (spec.stepsFirst: the treatment template's
+  // sections) prints them here, straight after the answer, instead of below
+  // the sections. React and the .md twin read the same two fields, so the
+  // order is one decision made in the registry.
+  const pushSteps = () => {
+    if (!Array.isArray(spec.steps) || !spec.steps.length) return;
+    parts.push(`<section><h2 style="${H2}">${escapeHtml(spec.stepsHeading || 'How it works')}</h2><ol>`);
+    for (const s of spec.steps) parts.push(`<li><b>${escapeHtml(s.t)}</b> — ${escapeHtml(s.d)}</li>`);
+    parts.push(`</ol>`);
+    const first = Array.isArray(spec.exampleSlugs) ? spec.exampleSlugs[0] : null;
+    if (spec.exampleLinkLabel && first) {
+      parts.push(`<p><a href="/c/${escapeHtml(first)}" style="color:#FFA500;">${escapeHtml(spec.exampleLinkLabel)}</a></p>`);
+    }
+    parts.push(`</section>`);
+  };
+  if (spec.stepsFirst) pushSteps();
   for (const s of spec.sections || []) {
     parts.push(`<section><h2 style="${H2}">${escapeHtml(s.heading)}</h2><p>${escapeHtml(s.body)}</p>`);
     if (Array.isArray(s.bullets) && s.bullets.length) {
@@ -2395,11 +2413,7 @@ export function buildLandingCrawlableHtml(spec, extra = null) {
     }
     parts.push(`</section>`);
   }
-  if (Array.isArray(spec.steps) && spec.steps.length) {
-    parts.push(`<section><h2 style="${H2}">${escapeHtml(spec.stepsHeading || 'How it works')}</h2><ol>`);
-    for (const s of spec.steps) parts.push(`<li><b>${escapeHtml(s.t)}</b> — ${escapeHtml(s.d)}</li>`);
-    parts.push(`</ol></section>`);
-  }
+  if (!spec.stepsFirst) pushSteps();
   if (spec.compare) {
     parts.push(`<section><h2 style="${H2}">Clusters vs ${escapeHtml(spec.compare.competitor)}</h2>`);
     if (spec.compare.intro) parts.push(`<p>${escapeHtml(spec.compare.intro)}</p>`);

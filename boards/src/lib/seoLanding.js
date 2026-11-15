@@ -33,6 +33,12 @@
 //                       lastmod). Honest dates only: fake freshness trains
 //                       Google to ignore the field.',
 //     steps?:          [{ t, d }] + stepsHeading,   // how-to block (tool pages)
+//     stepsFirst?:     true prints the steps straight after the answer instead
+//                      of below the sections (a page whose steps ARE the thing
+//                      searched for). All three renderers read it.
+//     exampleLinkLabel?: the words of a text link to the page's first example
+//                      board, printed under the steps. Same board as the hero;
+//                      it names no board of its own.
 //     sections:        [{ heading, body, bullets?: string[] }],   // 3–4 unique sections
 //     faq:             [{ q, a }],   // FAQPage JSON-LD — SERP rich results are dead
 //                                    // (May 2026); kept for AI-answer citation.
@@ -932,15 +938,46 @@ const PAGES = [
       'Develop the look with your team on a live board, write the treatment as a document with the images inline, and send it as a PDF.',
     answer:
       'A director’s treatment is the visual pitch for a commercial, music video or film: concept, tone, look, casting, wardrobe and locations. In Soleil Clusters you develop it on a live board with your team, write it as a document with images inline, and export a PDF to send. It is a document, not a designed slide deck.',
-    updated: '2026-10-02',
+    updated: '2026-11-14',
     cta: { label: 'Start a treatment — free', sub: 'Free to start. Nothing to install.' },
     stepsHeading: 'The treatment template, section by section',
     // The same sections the starter document is written from (starterDocs.js),
     // so the page and the document it hands over cannot disagree.
     steps: treatmentPageSteps(),
+    // The page is found for "director's treatment template", and the template
+    // was the last block on it. It is now the first thing after the answer
+    // (2026-11-14), with the example treatment linked under it in words that
+    // say what it is. The link goes to the page's first example board, the
+    // one the hero already shows; which board that is stays EXAMPLES_BY_PATH's
+    // decision.
+    stepsFirst: true,
+    exampleLinkLabel: 'Open the example treatment',
     // Its buttons ask for that document (starterIntent.js).
     starter: 'treatment',
     sections: [
+      // What this section may promise, checked in the code on 2026-11-14:
+      //   - The document: starterDocs.js STARTER_DOCS.treatment (a cover, then
+      //     a page per section with a heading and one line), written after
+      //     sign-in by useStarterIntentResume onto a cluster in the person's
+      //     own workspace, and opened. The request is kept on that device for
+      //     a day (starterIntent.js STARTER_INTENT_MAX_AGE_MS).
+      //   - It costs no card until it is changed (the 'seed' flag, App.jsx;
+      //     content/docs/documents/index.md "Starting from a treatment").
+      //   - The example cluster is NOT something a visitor can copy: a public
+      //     cluster offers "Use this template" only when it is flagged a
+      //     template (PublicBoardView.jsx, public_boards.is_template), and the
+      //     example is not flagged. So the section says to read it, and
+      //     promises no copy. The template store is closed; nothing here
+      //     links to it.
+      {
+        heading: 'Start from a template',
+        body: `The outline above is also a document you can have. Start from this page and, once you are signed in, a treatment document is added to a cluster in your own workspace and opens: a cover, then a page for each of the seven sections, headed and with one line on what goes there. Replace the lines with your own, bring in the frames the team agreed on, and export. Until you change something in it, the document uses none of your cards; your first change makes it one card, and each image you bring onto the board is a card of its own, out of ${DEMO_CARD_LIMIT} on the free plan. The example treatment is a finished one to read beside it: open it, pan around, and see how the sections sit together on a board.`,
+        bullets: [
+          'A cover and seven pages, one per section',
+          'Added to your own workspace when you sign in on the same device, within a day',
+          'Uses no card until you change it',
+        ],
+      },
       {
         heading: 'What a treatment has to do',
         body: 'A treatment wins or loses the job before anything is shot. For a commercial it answers a brief the agency already holds; for a music video it sells a world to an artist; for a short or a feature it shows financiers and heads of department the film you can see. Whatever the format, the reader should finish knowing what it will look and feel like — which is why the strongest treatments are mostly images, held together by a few confident paragraphs.',
@@ -974,6 +1011,7 @@ const PAGES = [
     ],
     faq: [
       { q: 'What should a director’s treatment include?', a: 'Concept; tone and references; look and lighting; casting; wardrobe and art direction; locations; and edit, music and pace — usually in that order, mostly images, with a short paragraph per section. The outline above works as a template.' },
+      { q: 'Is there a director’s treatment template I can start from?', a: 'Yes. Start from this page and, once you are signed in, a treatment document is added to a cluster in your workspace and opens: a cover and a page for each section, each with a line on what goes there. It is free, and it uses none of your cards until you change it.' },
       { q: 'How long should a treatment be?', a: 'As long as it takes to make the look unmistakable, and no longer — the reader is deciding quickly. Most of the length should be images, with the writing kept to what the pictures cannot say.' },
       { q: 'Can I export a treatment as a PDF?', a: 'Yes. Write it as a Clusters document with the images inline and export to PDF from the browser’s print dialog; the images are embedded, so the file stands alone. HTML and Markdown exports are there too.' },
       { q: 'Can my producer and DP work on it with me?', a: 'Yes. Invite them as editors — free on every plan — and you work in the same board at once. A view-only link shows it to anyone else without an account.' },

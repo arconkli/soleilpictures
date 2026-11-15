@@ -1471,17 +1471,26 @@ function landingMarkdown(spec, catalogue = null) {
       + 'each box labelled until you fill it; the labels are guidance and never '
       + 'become content.', '');
   }
+  // The steps, and under them the page's own link to its first example board
+  // (spec.exampleLinkLabel). spec.stepsFirst prints them here, straight after
+  // the answer, as the page and the Worker do.
+  function pushSteps() {
+    if (!spec.steps?.length) return;
+    out.push(`## ${spec.stepsHeading || 'How it works'}`, '');
+    spec.steps.forEach((s, i) => out.push(`${i + 1}. **${s.t}** — ${s.d}`));
+    out.push('');
+    if (spec.exampleLinkLabel && spec.exampleSlugs?.[0]) {
+      out.push(`[${spec.exampleLinkLabel}](${SITE_ORIGIN}/c/${spec.exampleSlugs[0]})`, '');
+    }
+  }
+  if (spec.stepsFirst) pushSteps();
   for (const s of spec.sections || []) {
     out.push(`## ${s.heading}`, '');
     if (s.body) out.push(s.body, '');
     for (const b of s.bullets || []) out.push(`- ${b}`);
     if (s.bullets?.length) out.push('');
   }
-  if (spec.steps?.length) {
-    out.push(`## ${spec.stepsHeading || 'How it works'}`, '');
-    spec.steps.forEach((s, i) => out.push(`${i + 1}. **${s.t}** — ${s.d}`));
-    out.push('');
-  }
+  if (!spec.stepsFirst) pushSteps();
   if (spec.compare?.rows?.length) {
     out.push(`## Soleil Clusters vs ${spec.compare.competitor}`, '');
     if (spec.compare.intro) out.push(spec.compare.intro, '');

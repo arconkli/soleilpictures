@@ -127,3 +127,55 @@ test('the landing JSON-LD names the free plan the way /pricing does', async () =
   for (const o of free) assert.equal(o.name, PRICING_PAGE.freeCardName);
   assert.ok(!offers.some((o) => /\bdemo\b/i.test(o.name || '')), 'no Offer may still be called Demo');
 });
+
+// A page whose steps are the thing it is found for (the treatment template's
+// sections) prints them straight after the answer, and names its example board
+// in its own words under them. Three renderers read spec.stepsFirst and
+// spec.exampleLinkLabel; this pins the two a node test can call (the Worker's
+// body and the committed .md twin) and checks the React page reads both fields.
+test('stepsFirst puts the steps before the sections, and exampleLinkLabel is the first link to the example board', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { TREATMENT_SECTIONS } = await import('./starterSections.js');
+  const jsx = readFileSync(new URL('../pages/SeoLandingPage.jsx', import.meta.url), 'utf8');
+  assert.match(jsx, /\{spec\.stepsFirst && stepsBlock\}/, 'React no longer places the steps by spec.stepsFirst');
+  assert.match(jsx, /\{!spec\.stepsFirst && stepsBlock\}/, 'React no longer keeps the default place for the steps');
+  assert.match(jsx, /\{spec\.exampleLinkLabel\}<\/a>/, 'React no longer prints spec.exampleLinkLabel');
+
+  let first = 0;
+  for (const spec of SEO_LANDING_PAGES) {
+    if (!spec.steps?.length || !spec.sections?.length) continue;
+    const html = buildLandingCrawlableHtml(spec);
+    const at = (t) => html.indexOf(`>${esc(t)}</h2>`);
+    const steps = at(spec.stepsHeading || 'How it works');
+    assert.ok(steps > 0, `${spec.path}: steps heading not rendered`);
+    const firstSection = at(spec.sections[0].heading);
+    const lastSection = at(spec.sections[spec.sections.length - 1].heading);
+    if (spec.stepsFirst) {
+      first += 1;
+      assert.ok(steps < firstSection, `${spec.path}: stepsFirst, but the steps come after a section`);
+    } else {
+      assert.ok(steps > lastSection, `${spec.path}: the steps moved above a section without stepsFirst`);
+    }
+    if (spec.exampleLinkLabel) {
+      assert.ok(spec.exampleSlugs?.[0], `${spec.path}: exampleLinkLabel with no example board`);
+      const link = html.slice(html.indexOf('href="/c/'));
+      assert.ok(
+        link.startsWith(`href="/c/${spec.exampleSlugs[0]}" style="color:#FFA500;">${esc(spec.exampleLinkLabel)}</a>`),
+        `${spec.path}: the first link to an example board is not "${spec.exampleLinkLabel}"`);
+    }
+  }
+  assert.ok(first >= 1, 'no page uses stepsFirst any more; drop the field or this test');
+
+  const spec = getLandingSpec('/tools/directors-treatment');
+  assert.equal(spec.stepsFirst, true);
+  assert.equal(spec.exampleLinkLabel, 'Open the example treatment');
+  assert.equal(spec.sections[0].heading, 'Start from a template');
+  // The page says "seven sections" in words; the document is written from this list.
+  assert.equal(TREATMENT_SECTIONS.length, 7, 'the treatment page says seven sections');
+  const md = readFileSync(new URL('../../public/tools/directors-treatment.md', import.meta.url), 'utf8');
+  const stepsAt = md.indexOf(`## ${spec.stepsHeading}`);
+  assert.ok(stepsAt > 0 && stepsAt < md.indexOf(`## ${spec.sections[0].heading}`), '.md twin: the template is not the first block');
+  assert.ok(
+    md.includes(`[${spec.exampleLinkLabel}](${ORIGIN}/c/${spec.exampleSlugs[0]})`),
+    '.md twin: the example treatment link is missing');
+});

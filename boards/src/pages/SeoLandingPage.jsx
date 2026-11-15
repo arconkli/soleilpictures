@@ -198,6 +198,28 @@ export function SeoLandingPage({ spec: specProp, path }) {
   const heroStage = hero && !spec.storefront && hasStage(hero.slug) ? stageMode(spec.path) : null;
   const nSec = (spec.sections || []).length;   // lp_section idx base for the tail sections
 
+  // The steps, and under them the page's own words for its first example board
+  // (spec.exampleLinkLabel). One block, placed by spec.stepsFirst: straight
+  // after the hero, or below the sections. The Worker's body and the .md twin
+  // read the same two fields, so all three keep one order. The section id and
+  // index stay 'steps' and 2 + nSec wherever it sits, so lp_section reads on.
+  const stepsBlock = Array.isArray(spec.steps) && spec.steps.length > 0 && (
+    <section className="seo-section" ref={lp.sectionRef('steps', 2 + nSec)}>
+      <h2 className="seo-h2">{spec.stepsHeading || 'How it works'}</h2>
+      <ol className="seo-steps">
+        {spec.steps.map((s, i) => (
+          <li key={i}>
+            <span className="seo-step-t">{s.t}</span>
+            <span className="seo-step-d">{s.d}</span>
+          </li>
+        ))}
+      </ol>
+      {spec.exampleLinkLabel && hero && (
+        <a className="seo-examples-more" href={`/c/${hero.slug}`} onClick={() => lp.exampleClick(hero.slug, 'steps')}>{spec.exampleLinkLabel}</a>
+      )}
+    </section>
+  );
+
   return (
     <div className="public-shell seo-shell public-dark">
       <div className="public-topbar">
@@ -257,6 +279,10 @@ export function SeoLandingPage({ spec: specProp, path }) {
             )}
           </header>
 
+          {/* A page whose steps are what the visitor came for (the treatment
+              template's sections) prints them straight after the answer. */}
+          {spec.stepsFirst && stepsBlock}
+
           {/* THE GOODS, immediately. This is the whole reordering: the store was
               shipping five prose sections above the catalogue, which made a shop
               read as a landing page. */}
@@ -310,19 +336,7 @@ export function SeoLandingPage({ spec: specProp, path }) {
           ))}
 
           {/* How-to steps (tool pages) — captures informational intent */}
-          {Array.isArray(spec.steps) && spec.steps.length > 0 && (
-            <section className="seo-section" ref={lp.sectionRef('steps', 2 + nSec)}>
-              <h2 className="seo-h2">{spec.stepsHeading || 'How it works'}</h2>
-              <ol className="seo-steps">
-                {spec.steps.map((s, i) => (
-                  <li key={i}>
-                    <span className="seo-step-t">{s.t}</span>
-                    <span className="seo-step-d">{s.d}</span>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          )}
+          {!spec.stepsFirst && stepsBlock}
 
           {/* Comparison table (alternative-to pages) */}
           {spec.compare && (

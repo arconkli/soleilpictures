@@ -9225,17 +9225,38 @@ Free for 25 cards or 5GB of files across the workspace — clusters themselves a
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/directors-treatment
-Updated: 2026-10-02
+Updated: 2026-11-14
 
 # Director’s Treatment Template
 
 > A director’s treatment is the visual pitch for a commercial, music video or film: concept, tone, look, casting, wardrobe and locations. In Soleil Clusters you develop it on a live board with your team, write it as a document with images inline, and export a PDF to send. It is a document, not a designed slide deck.
 
-_Source: https://clusters.soleilpictures.com/tools/directors-treatment · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/tools/directors-treatment · Updated 2026-11-14_
 
 Develop the look with your team on a live board, write the treatment as a document with the images inline, and send it as a PDF.
 
 Used by: Soleil Pictures · Universal Pictures · Blumhouse · NYU
+
+## The treatment template, section by section
+
+1. **Concept** — One paragraph: what the piece is and why it works. Write it first, at the top of the document.
+2. **Tone and references** — The frames, films and photographs that set the feel — gathered on the board, where the team argues them into agreement.
+3. **Look and light** — Palette, lensing, light and texture. Sample swatches off any reference image with the eyedropper and keep them beside the frames they came from.
+4. **Casting** — Faces and types, with a note on each. Tag each reference as a character so the tag gathers every image of them.
+5. **Wardrobe and art direction** — Silhouettes, fabrics, sets and props, each in its own nested cluster so each department can work in theirs.
+6. **Locations** — Scout photos and found references, a cluster per setting.
+7. **Edit, music and pace** — How it moves: reference clips as video cards, tracks as audio cards, and the rhythm you are after.
+8. **Export and send** — Lay the chosen images into the document, a page per section, and export a PDF from the browser’s print dialog.
+
+[Open the example treatment](https://clusters.soleilpictures.com/c/ardvane-light-lighthouse-keeper-short-drama-treatment)
+
+## Start from a template
+
+The outline above is also a document you can have. Start from this page and, once you are signed in, a treatment document is added to a cluster in your own workspace and opens: a cover, then a page for each of the seven sections, headed and with one line on what goes there. Replace the lines with your own, bring in the frames the team agreed on, and export. Until you change something in it, the document uses none of your cards; your first change makes it one card, and each image you bring onto the board is a card of its own, out of 25 on the free plan. The example treatment is a finished one to read beside it: open it, pan around, and see how the sections sit together on a board.
+
+- A cover and seven pages, one per section
+- Added to your own workspace when you sign in on the same device, within a day
+- Uses no card until you change it
 
 ## What a treatment has to do
 
@@ -9265,17 +9286,6 @@ Most treatments go through rounds. Send the board itself as a view-only link —
 
 It is not a deck designer. There are no slide templates, no presentation mode, and no branded or password-protected links, and the PDF is a well-set document rather than a magazine spread. If the treatment has to be art-directed page by page, finish the layout in InDesign or Keynote — plenty of directors do the thinking in Clusters and the final pass there.
 
-## The treatment template, section by section
-
-1. **Concept** — One paragraph: what the piece is and why it works. Write it first, at the top of the document.
-2. **Tone and references** — The frames, films and photographs that set the feel — gathered on the board, where the team argues them into agreement.
-3. **Look and light** — Palette, lensing, light and texture. Sample swatches off any reference image with the eyedropper and keep them beside the frames they came from.
-4. **Casting** — Faces and types, with a note on each. Tag each reference as a character so the tag gathers every image of them.
-5. **Wardrobe and art direction** — Silhouettes, fabrics, sets and props, each in its own nested cluster so each department can work in theirs.
-6. **Locations** — Scout photos and found references, a cluster per setting.
-7. **Edit, music and pace** — How it moves: reference clips as video cards, tracks as audio cards, and the rhythm you are after.
-8. **Export and send** — Lay the chosen images into the document, a page per section, and export a PDF from the browser’s print dialog.
-
 ## What it costs
 
 Start free. Pay when you outgrow it.
@@ -9301,6 +9311,10 @@ Compare the plans side by side: https://clusters.soleilpictures.com/pricing
 ### What should a director’s treatment include?
 
 Concept; tone and references; look and lighting; casting; wardrobe and art direction; locations; and edit, music and pace — usually in that order, mostly images, with a short paragraph per section. The outline above works as a template.
+
+### Is there a director’s treatment template I can start from?
+
+Yes. Start from this page and, once you are signed in, a treatment document is added to a cluster in your workspace and opens: a cover and a page for each section, each with a line on what goes there. It is free, and it uses none of your cards until you change it.
 
 ### How long should a treatment be?
 
