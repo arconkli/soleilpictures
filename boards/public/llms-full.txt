@@ -12338,7 +12338,7 @@ These are the only differences. Everything absent from this table is on every pl
 
 One Creator plan covers the whole workspace — up to 10 people who edit build at your limits, and there are no per-seat charges.
 
-See what the free plan makes, or how Clusters compares: [Free mood board maker](/tools/free-mood-board-maker) · [Mood board maker](/tools/mood-board-maker) · [Clusters vs Milanote](/vs/milanote) · [Mood board apps, ranked](/best/mood-board-apps)
+See what the free plan makes, or how Clusters compares: [Free mood board maker](/tools/free-mood-board-maker) · [Mood board maker](/tools/mood-board-maker) · [Mood board apps, ranked](/best/mood-board-apps)
 
 ## Frequently asked questions
 
