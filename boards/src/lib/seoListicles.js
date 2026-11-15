@@ -864,7 +864,7 @@ const PAGES = [
     "answer": `Soleil Clusters is the best Milanote alternative for production teams in 2026: a free tier that takes any file at any size, up to ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, where Milanote stops at 10 file uploads ever, plus a flat $25/mo where Milanote charges per person or $49/mo for a team, and real-time boards that carry a project from mood board to shot list. Miro is the runner-up for team whiteboarding, Obsidian Canvas for free offline work, Canva for polished deliverables.`,
     "disclosure": "Soleil Clusters is our app. We are Soleil Pictures, a working film studio, and we built Clusters because our own pre-production kept outgrowing tools like Milanote. We rank it first for one job only — taking a production team from mood board to shot list — and we say plainly where rivals beat us: Milanote's templates and mobile apps are better than ours, Miro's ecosystem is deeper, and Obsidian and PureRef work offline where we do not.",
     "published": "2026-08-04",
-    "updated": "2026-10-20",
+    "updated": "2026-11-14",
     "thesis": {
       "heading": "From mood board to shot list",
       "paras": [
@@ -1117,29 +1117,29 @@ const PAGES = [
         "bestFor": "Solo creators and small teams who want an AI that actually reads the whole board",
         "verdict": "The most interesting new idea on this list, from the smallest and riskiest vendor on it — both facts matter.",
         "paras": [
-          "Storyflow's thesis is that the canvas is the AI's context. The assistant reads everything on the active board, remembers the project across sessions on paid plans, and can be pointed at any element with an @-mention. One prompt can stage a complete working board — a storyboard, shot list, kanban, or mood board — as a proposal you accept or discard, and a library of 200+ 'Tactics' frameworks drops half-built structures onto the canvas. It courts filmmakers directly with AI storyboard and shot-list generators and script breakdowns, and the changelog shows near-daily shipping through late July 2026. A real product, moving fast.",
-          "Now the other side. There is no free plan yet: Storyflow is paid-only during early access, and its Free plan is announced for before the end of 2026 — capped at 20 file uploads and a one-time AI allowance, though anyone invited by a paid member can join free today. Meaningful AI use effectively starts at Pro, $14/mo annual. And the vendor is a 2-to-10-person operation, web-only, in a category that has buried several small tools in the last two years. We would happily sketch a pitch in it; we would not make it the system of record for a production's assets. Buy the vision, budget for the risk."
+          "Storyflow's thesis is that the canvas is the AI's context. The assistant reads everything on the active board, remembers the project across sessions on Pro and Max, and can be pointed at any element with an @-mention. One prompt can stage a complete working board — a storyboard, shot list, kanban, or mood board — as a proposal you accept or discard, and a library of 200+ 'Tactics' frameworks drops half-built structures onto the canvas. It courts filmmakers directly with AI storyboard and shot-list generators and script breakdowns, and the changelog shows near-daily shipping through late July 2026. A real product, moving fast.",
+          "Now the other side. There is no free plan yet: as of 14 November 2026 Storyflow is paid-only during early access, and its pricing page marks the Free plan 'Coming soon' — 3 projects, 100 images, 10 file and video uploads and 1 GB, with no in-app AI — though anyone invited by a paid member can join free today. Meaningful AI use effectively starts at Pro, $14/mo annual. And the vendor is a 2-to-10-person operation, web-only, in a category that has buried several small tools in the last two years. We would happily sketch a pitch in it; we would not make it the system of record for a production's assets. Buy the vision, budget for the risk."
         ],
         "features": [
-          "Whole-board AI context with cross-session project memory on paid plans",
+          "Whole-board AI context, with cross-session project memory on Pro and Max",
           "Prompt-to-board generation: storyboards, shot lists, moodboards, trackers",
-          "200+ 'Tactics' creative frameworks (3 available on the free plan)",
+          "200+ 'Tactics' creative frameworks (3 on the planned free plan)",
           "AI image generation on Pro and Max, with background removal and upscaling",
-          "No object or board limit on any plan, including the coming free one; comment-enabled share links; invited collaborators join free",
+          "Unlimited objects on every paid plan (the planned free plan holds 3 projects and 100 images); comment-enabled share links; invited collaborators join free",
           "Web only — no desktop or mobile apps"
         ],
         "pricing": {
-          "summary": "Paid-only during early access: Plus $9.99/mo ($7.99 annual); Pro $19/mo ($14 annual); Max $49/mo ($39 annual). A Free plan (20 uploads) is announced for before the end of 2026",
-          "asOf": "September 2026"
+          "summary": "Paid-only during early access: Plus $9.99/mo ($7.99 annual); Pro $19/mo ($14 annual); Max $49/mo ($39 annual). A Free plan (3 projects, 100 images, 10 uploads, 1 GB, no in-app AI) is listed as coming soon",
+          "asOf": "November 2026"
         },
         "pros": [
           "AI-reads-the-board is a genuine differentiator, not a bolted-on chat sidebar",
-          "No object or board limit on any plan, and invited collaborators join free",
+          "Unlimited objects and shared boards on every paid plan, and invited collaborators join free",
           "Visibly fast development: near-daily changelog entries through July 2026"
         ],
         "cons": [
-          "No free plan during early access; the one announced for late 2026 caps uploads at 20",
-          "Free's AI is a one-time allowance (up to 10 generations) and Plus renews at 6× that; real AI use starts at Pro",
+          "No free plan during early access; the one its pricing page describes caps uploads at 10 and images at 100",
+          "The planned free plan has no in-app AI, and Pro carries 10× the AI allowance of Plus; real AI use starts at Pro",
           "Tiny vendor (2-10 people), web-only — real longevity risk for a system of record"
         ],
         "rating": 7.8
@@ -1314,7 +1314,7 @@ const PAGES = [
         "rating": 8.2
       }
     ],
-    "tableIntro": "The full field at a glance. Prices are the vendors' own figures as of August 2026 (Storyflow re-verified September 2026); item caps are the walls you will actually hit.",
+    "tableIntro": "The full field at a glance. Prices are the vendors' own figures as of August 2026 (Storyflow re-verified November 2026); item caps are the walls you will actually hit.",
     "columns": [
       "Best for",
       "Price",
@@ -1368,8 +1368,8 @@ const PAGES = [
       "storyflow": [
         "AI-native canvas for solo creators",
         "Paid early access; Plus from $7.99/mo (annual)",
-        "Not yet — announced for late 2026",
-        "20 uploads on the coming free plan",
+        "Not yet — listed as coming soon",
+        "10 uploads and 100 images on the planned free plan",
         "7.8/10"
       ],
       "mural": [
