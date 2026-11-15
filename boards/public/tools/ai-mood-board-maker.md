@@ -71,7 +71,7 @@ Yes. In ChatGPT, turn on developer mode under Settings → Apps → Advanced set
 
 ### Which mood board apps have an MCP server?
 
-As of November 14, 2026: Soleil Clusters has one, listed in the official Model Context Protocol registry as com.soleilpictures/clusters. Miro publishes an official MCP server. Storyflow’s pricing page says Claude, ChatGPT, Gemini and Grok work on its boards through MCP. The registry’s one Milanote entry is published by a third party, not by Milanote. PureRef is a desktop program for Windows, Mac and Linux, and neither its site nor the registry lists an MCP server for it; a community project on GitHub, PureRef MCP, writes .pur files from images on your computer for PureRef to open.
+As of 14 November 2026: Soleil Clusters has one, listed in the official Model Context Protocol registry as com.soleilpictures/clusters. Miro publishes an official MCP server. Storyflow’s pricing page says Claude, ChatGPT, Gemini and Grok work on its boards through MCP. The registry’s one Milanote entry is published by a third party, not by Milanote. PureRef is a desktop program for Windows, Mac and Linux, and neither its site nor the registry lists an MCP server for it; a community project on GitHub, PureRef MCP, writes .pur files from images on your computer for PureRef to open.
 
 ### Do I need to be a developer?
 
