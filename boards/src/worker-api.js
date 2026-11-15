@@ -55,6 +55,7 @@ import {
 } from './lib/apiComments.js';
 import { addCommentThread, addCommentReply, resolveComment, deleteCommentThread } from './lib/docState.js';
 import { commentReplyKey } from './lib/commentKeys.js';
+import { isDefaultName } from './lib/defaultNames.js';
 import { findQuote, markQuote, unmarkThread } from './lib/docCommentAnchor.js';
 import {
   TAGS, TAG_FIELDS, readTagRequest, matchTags, isDeadTag, publicTag, boardTags, taggedItem,
@@ -4313,9 +4314,9 @@ async function dispatch(url, request, env, ctx) {
     // no title of its own takes the card's, as a new doc's first page does in
     // the app (docState.followTitle).
     const title = String(body.title ?? '').trim()
-      || (pages.length === 1 && pages[0].title !== 'Untitled' ? pages[0].title : '')
+      || (pages.length === 1 && !isDefaultName('Untitled', pages[0].title) ? pages[0].title : '')
       || 'Untitled doc';
-    if (pages[0].title === 'Untitled' && title !== 'Untitled doc') pages[0].title = title.slice(0, dw.DOC_WRITE.maxTitle);
+    if (isDefaultName('Untitled', pages[0].title) && !isDefaultName('Untitled doc', title)) pages[0].title = title.slice(0, dw.DOC_WRITE.maxTitle);
     // The section it goes in, by name (made if missing), as a card's group is.
     if (body.group != null && typeof body.group !== 'string') throw fail(400, 'bad_request', 'group must be a section name');
     if (body.position != null && body.position !== 'top') throw fail(400, 'bad_request', 'position must be "top" when given');

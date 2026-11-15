@@ -11,6 +11,9 @@ import { peaksFromBase64, peaksToPath, peaksPathWidth } from '../../lib/audioAna
 import { formatDuration, formatKey } from '../../lib/loopMeta.js';
 import { kindLabelOf, lengthLabelOf } from '../../lib/filesView.js';
 import { KindGlyph } from '../sidebar/ClusterShelves.jsx';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownAuthor } from '../../lib/commentAuthor.js';
 
 // The row's waveform, from the SAME stored peaks the card draws. Every other
 // bucket: at this width 96 bars is a smear.
@@ -75,6 +78,7 @@ export const ClusterRow = memo(function ClusterRow({
 }) {
   const words = bare || classic;
   const peer = peers && peers[0];
+  const peerFirst = peer ? ((shownAuthor(peer.user.name) || '').split(/\s+/)[0] || t`Someone`) : '';
   const dateVal = dateKey === 'created' ? item.createdAt : item.updatedAt;
   const canDownload = !!onDownload && !item.pending && DOWNLOADABLE.has(item.kind);
   const canAudition = !!onAudition && item.kind === 'audio' && !item.pending;
@@ -114,8 +118,8 @@ export const ClusterRow = memo(function ClusterRow({
           {item.pending && <span className="ct-thumb-spin" aria-hidden="true" />}
           {canAudition && (
             <button type="button" className="ct-play"
-                    aria-label={playing ? `Pause ${item.name}` : `Play ${item.name}`}
-                    title={playing ? 'Pause' : 'Play'}
+                    aria-label={playing ? t`Pause ${ph({ name: item.name })}` : t`Play ${ph({ name: item.name })}`}
+                    title={playing ? t`Pause` : t`Play`}
                     onClick={(e) => { e.stopPropagation(); onAudition(item); }}>
               {playing ? (
                 <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true">
@@ -133,7 +137,7 @@ export const ClusterRow = memo(function ClusterRow({
         <div className="ct-name-wrap">
           {rename
             ? <InlineRename value={item.name} onCommit={rename.onCommit} onCancel={rename.onCancel} className="ct-row-rename" />
-            : <div className="ct-name" dir="auto" title={item.name}>{item.name}{item.version && <span className="ct-version-chip" title="Versions are in Info">{item.version}</span>}</div>}
+            : <div className="ct-name" dir="auto" title={item.name}>{item.name}{item.version && <span className="ct-version-chip" title={t`Versions are in Info`}>{item.version}</span>}</div>}
           {/* In loop-browser mode these same values have their own columns, so
               the folded line is hidden on a wide screen — and it is the only
               way to show them on a phone, where four mono columns truncate
@@ -149,8 +153,8 @@ export const ClusterRow = memo(function ClusterRow({
               </div>
             )}
         </div>
-        {!words && onBoard && <span className="ct-onboard" title="A copy of this file is already on the board">On board</span>}
-        {!words && markUnplaced && item.unplaced && <span className="ct-onboard is-off" title="In this cluster, not on its board yet">Not on board</span>}
+        {!words && onBoard && <span className="ct-onboard" title={t`A copy of this file is already on the board`}><Trans>On board</Trans></span>}
+        {!words && markUnplaced && item.unplaced && <span className="ct-onboard is-off" title={t`In this cluster, not on its board yet`}><Trans>Not on board</Trans></span>}
         {item.kind === 'audio' && (
           // Scrubbing is live only while THIS row is the one sounding. The
           // waveform is 240px of a 620px name cell, so making it a transport
@@ -177,22 +181,22 @@ export const ClusterRow = memo(function ClusterRow({
           <div role="cell" className="ct-cell ct-c-size">{sizeText}</div>
         </>
       )}
-      <div role="cell" className="ct-cell ct-c-date">{item.pending ? 'Uploading…' : (dateVal ? relativeTimeShort(dateVal) : '')}</div>
+      <div role="cell" className="ct-cell ct-c-date">{item.pending ? t`Uploading…` : (dateVal ? relativeTimeShort(dateVal) : '')}</div>
       <div role="cell" className="ct-cell ct-c-presence">
         {words ? (peer ? (
           <>
             <Avatar name={peer.user.name} color={peer.user.color} size={18} ring />
-            <span className="ct-status">{(peer.user.name || '').split(/\s+/)[0] || 'Someone'} has it selected</span>
+            <span className="ct-status">{t`${peerFirst} has it selected`}</span>
           </>
         ) : markUnplaced && item.unplaced ? (
-          <><span className="ct-stored" aria-hidden="true" /><span className="ct-status">Not on board</span></>
-        ) : onBoard ? <span className="ct-status">On board</span> : null)
+          <><span className="ct-stored" aria-hidden="true" /><span className="ct-status"><Trans>Not on board</Trans></span></>
+        ) : onBoard ? <span className="ct-status"><Trans>On board</Trans></span> : null)
           : peers && peers.slice(0, 2).map((pp, i) => (
             <Avatar key={pp.user.id || i} name={pp.user.name} color={pp.user.color} size={18} ring />
           ))}
         {canDownload && !peer && (
-          <button type="button" className="ct-dl" title={`Download ${item.name}`}
-                  aria-label={`Download ${item.name}`}
+          <button type="button" className="ct-dl" title={t`Download ${ph({ name: item.name })}`}
+                  aria-label={t`Download ${ph({ name: item.name })}`}
                   onClick={(e) => { e.stopPropagation(); onDownload(item); }}>
             <Icon as={Download} size={13} />
           </button>

@@ -30,6 +30,7 @@ import { setMetaResolver, clearMetaResolver } from '../lib/imageMeta.js';
 import { EntityNavigateContext } from '../hooks/useEntityNavigate.js';
 import { OpenDmContext } from '../hooks/useOpenDm.js';
 import { supabase } from '../lib/supabase.js';
+import { signupLocale } from '../lib/uiLocale.js';
 import { getFirstSource, logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { placedOf } from '../lib/placement.js';
@@ -38,7 +39,7 @@ import { fitMargin } from '../lib/captureCamera.js';
 import { emailProblem } from '../lib/emailTypo.js';
 import { resendWait } from '../lib/pendingCode.js';
 import { captchaEnabled, captchaToken } from '../auth/turnstile.js';
-import { FREE_STORAGE_LABEL } from '../lib/billingCopy.js';
+import { freeStorageLabel } from '../lib/billingCopyWords.js';
 import { DEMO_CARD_LIMIT } from '../lib/demoCardCap.js';
 import { WORKSPACE_LIMIT, workspaceCountFromError } from '../lib/workspaceLimit.js';
 import {
@@ -47,6 +48,8 @@ import {
 } from '../lib/keepDraft.js';
 import { initialOf } from '../lib/graphemes.js';
 import './keepPage.css';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const EMPTY = [];
 const EMPTY_OBJ = {};
@@ -214,7 +217,7 @@ export function KeepPage({ token }) {
 
   useEffect(() => {
     const name = (cur?.board?.name || '').trim();
-    document.title = name ? `${name} — Soleil Clusters` : 'Your draft — Soleil Clusters';
+    document.title = name ? tr`${ph({ name })} — Soleil Clusters` : tr`Your draft — Soleil Clusters`;
   }, [cur]);
 
   // ── Fresh picture addresses: on a clock, and when one has run out ──
@@ -358,7 +361,7 @@ export function KeepPage({ token }) {
         <KeepTopbar />
         <div className="public-loading">
           <SoleilMark size={42} color="var(--soleil)" glow />
-          <div>Loading the draft…</div>
+          <div><Trans>Loading the draft…</Trans></div>
         </div>
       </div>
     );
@@ -377,10 +380,10 @@ export function KeepPage({ token }) {
     <div className="public-shell public-dark keep-shell" style={{ background: board.bg_color || 'var(--bg-0)' }}>
       <KeepTopbar busy={navBusy}>
         {showCrumbs ? (
-          <nav className="keep-crumbs" aria-label="Breadcrumb">
+          <nav className="keep-crumbs" aria-label={tr`Breadcrumb`}>
             {stack.map((id, i) => {
               const last = i === stack.length - 1;
-              const name = (last ? board.name : navBoards[id] || cache[id]?.board?.name) || 'Cluster';
+              const name = (last ? board.name : navBoards[id] || cache[id]?.board?.name) || tr`Cluster`;
               return (
                 <span key={id} className="keep-crumb-wrap">
                   {i > 0 && <span className="keep-crumb-sep" aria-hidden="true">›</span>}
@@ -394,7 +397,7 @@ export function KeepPage({ token }) {
             })}
           </nav>
         ) : (
-          <span className="keep-name">{board.name || 'Untitled'}</span>
+          <span className="keep-name">{board.name || tr`Untitled`}</span>
         )}
         <KeepTopbarEnd kept={!!kept} me={me} />
       </KeepTopbar>
@@ -443,9 +446,9 @@ export function KeepPage({ token }) {
 function KeepTopbar({ busy = false, children = null }) {
   return (
     <div className="public-topbar keep-topbar">
-      <a className="public-brand" href="/" title="Clusters home">
+      <a className="public-brand" href="/" title={tr`Clusters home`}>
         <ClustersMark size={20} />
-        <span className="public-brand-name">Clusters</span>
+        <span className="public-brand-name"><Trans context="brand">Clusters</Trans></span>
       </a>
       {children ? <span className="keep-topbar-rule" aria-hidden="true" /> : null}
       {children}
@@ -459,6 +462,7 @@ function KeepTopbar({ busy = false, children = null }) {
 // The steps: email → code → keeping → kept. Someone signed in keeps it with
 // "Keep it here" instead of the email and the code.
 function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
+  const FREE_STORAGE_LABEL = freeStorageLabel();
   const [step, setStep] = useState('email');      // email | code | keeping
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -495,19 +499,19 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
     if (why === 'kept' || why === 'expired' || why === 'unknown') { onGone(why); return; }
     setStep('email');
     setError(why === 'not_a_person'
-      ? 'Sign in with your own email address to keep a draft.'
+      ? tr`Sign in with your own email address to keep a draft.`
       : why === 'workspace_limit'
-        ? `You have ${workspaceCountFromError(e) ?? WORKSPACE_LIMIT} workspaces of your own, the most outside Team. Delete one you no longer need, then open this link again to keep the draft.`
+        ? tr`You have ${ph({ count: workspaceCountFromError(e) ?? WORKSPACE_LIMIT })} workspaces of your own, the most outside Team. Delete one you no longer need, then open this link again to keep the draft.`
       : why === 'suspended'
-        ? 'This account can’t keep drafts. Sign in with another email.'
-        : 'It couldn’t be kept just now. Try again in a moment.');
+        ? tr`This account can’t keep drafts. Sign in with another email.`
+        : tr`It couldn’t be kept just now. Try again in a moment.`);
   }, [token, draft?.host, onKept, onGone]);
 
   const sendCode = async (resending = false) => {
     setError(null);
     const address = email.trim().toLowerCase();
     if (emailProblem(address)) {
-      setError('That address is missing its ending, like .com — check the part after the @.');
+      setError(tr`That address is missing its ending, like .com — check the part after the @.`);
       return;
     }
     // The code step shows at once and the request runs under it, as on the
@@ -516,13 +520,18 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
     else { setStep('code'); setCode(''); }
     try {
       const firstSource = signupFirstSource(getFirstSource());
+      const locale = signupLocale();
+      const signupData = {
+        ...(firstSource ? { first_source: firstSource } : {}),
+        ...(locale !== 'en' ? { locale } : {}),
+      };
       const challenge = captchaEnabled() ? await captchaToken(captchaRef.current) : '';
       const { error: e } = await supabase.auth.signInWithOtp({
         email: address,
         options: {
           emailRedirectTo: window.location.origin,
           ...(challenge ? { captchaToken: challenge } : {}),
-          ...(firstSource ? { data: { first_source: firstSource } } : {}),
+          ...(Object.keys(signupData).length ? { data: signupData } : {}),
         },
       });
       if (e) throw e;
@@ -544,7 +553,7 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
   const verify = async (typed) => {
     const token6 = String(typed ?? code).replace(/\s+/g, '');
     if (busy) return;
-    if (token6.length < 6) { setError('Enter the 6-digit code from your email.'); return; }
+    if (token6.length < 6) { setError(tr`Enter the 6-digit code from your email.`); return; }
     setError(null);
     setBusy(true);
     try {
@@ -568,12 +577,12 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
     setError(null);
   };
 
-  const madeWith = host ? `Made with ${host}` : 'Made in an AI chat';
+  const madeWith = host ? tr`Made with ${host}` : tr`Made in an AI chat`;
   const day = deleteDay(draft?.expiresAt);
   const meta = [
     madeWith,
-    Number.isFinite(draft?.cardCount) ? `${draft.cardCount} ${draft.cardCount === 1 ? 'card' : 'cards'}` : null,
-    day ? `deleted ${day} unless you keep it` : null,
+    Number.isFinite(draft?.cardCount) ? plural(draft.cardCount, { one: '# card', other: '# cards' }) : null,
+    day ? tr`deleted ${day} unless you keep it` : null,
   ].filter(Boolean).join(' · ');
   // The sign-up line names what a new account gets, never the draft's own
   // limit (draft.cardLimit): a draft started before 0864 keeps 50, but keeping
@@ -586,21 +595,24 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
         <div className="keep-island-row">
           <span className="keep-kept-mark" aria-hidden="true"><CheckCircle size={22} weight="regular" /></span>
           <div className="keep-island-text">
-            <h2 className="keep-island-title">Kept. It’s yours.</h2>
+            <h2 className="keep-island-title"><Trans>Kept. It’s yours.</Trans></h2>
             <p className="keep-island-meta">
-              {name || 'It'} is in your Clusters
-              {room != null && room > 0 ? `, with room for ${room} more ${room === 1 ? 'card' : 'cards'} on the free plan.` : '.'}
-              {room === 0 && kept.limit != null ? ` It fills the free plan’s ${kept.limit} cards: adding more needs room or a plan.` : ''}
+              {room != null && room > 0
+                ? (name
+                  ? tr`${ph({ name })} is in your Clusters, with room for ${plural(room, { one: '# more card', other: '# more cards' })} on the free plan.`
+                  : tr`It is in your Clusters, with room for ${plural(room, { one: '# more card', other: '# more cards' })} on the free plan.`)
+                : (name ? tr`${ph({ name })} is in your Clusters.` : tr`It is in your Clusters.`)}
+              {room === 0 && kept.limit != null ? ` ${tr`It fills the free plan’s ${ph({ limit: kept.limit })} cards: adding more needs room or a plan.`}` : ''}
             </p>
           </div>
           <a className="public-cta keep-cta" href={kept.boardId ? `/?to=b:${kept.boardId}` : '/'}>
-            Open it <ArrowRight size={16} weight="bold" aria-hidden="true" />
+            <Trans>Open it</Trans> <ArrowRight size={16} weight="bold" aria-hidden="true" />
           </a>
         </div>
         <p className="keep-island-foot">
           {host
-            ? `Back in ${host}, keep asking for changes. The first time, ${host} asks you to connect Clusters: sign in with the same email.`
-            : 'Back in your AI chat, keep asking for changes. The first time, it asks you to connect Clusters: sign in with the same email.'}
+            ? tr`Back in ${host}, keep asking for changes. The first time, ${host} asks you to connect Clusters: sign in with the same email.`
+            : tr`Back in your AI chat, keep asking for changes. The first time, it asks you to connect Clusters: sign in with the same email.`}
         </p>
       </section>
     );
@@ -609,10 +621,10 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
   const signedIn = !!me;
   const asking = me === undefined;
   return (
-    <section className="keep-island" aria-label="Keep this draft">
+    <section className="keep-island" aria-label={tr`Keep this draft`}>
       <div className="keep-island-row">
         <div className="keep-island-text">
-          <h2 className="keep-island-title">{name || 'Your draft'}</h2>
+          <h2 className="keep-island-title">{name || tr`Your draft`}</h2>
           {meta && <p className="keep-island-meta">{meta}</p>}
         </div>
         {/* Each step keyed: reused, "edit"'s button would turn into the email
@@ -620,17 +632,17 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
             code again. */}
         {step === 'keeping' ? (
           <div key="keeping" className="keep-island-actions">
-            <button type="button" className="public-cta keep-cta" disabled>Keeping…</button>
+            <button type="button" className="public-cta keep-cta" disabled><Trans>Keeping…</Trans></button>
           </div>
         ) : signedIn && step === 'email' ? (
           <div key="here" className="keep-island-actions">
-            <button type="button" className="public-cta keep-cta" onClick={() => keep('signed_in')}>Keep it here</button>
+            <button type="button" className="public-cta keep-cta" onClick={() => keep('signed_in')}><Trans>Keep it here</Trans></button>
           </div>
         ) : step === 'code' ? (
           <form key="code" className="keep-island-form is-code" onSubmit={(e) => { e.preventDefault(); verify(); }}>
             <div className="keep-email-chip">
               <span className="keep-chip">{email.trim().toLowerCase()}</span>
-              <button type="button" className="keep-link" onClick={() => { setStep('email'); setCode(''); setError(null); }}>edit</button>
+              <button type="button" className="keep-link" onClick={() => { setStep('email'); setCode(''); setError(null); }}>{tr`edit`}</button>
             </div>
             <div className="keep-island-actions">
               <input
@@ -641,7 +653,7 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
                 pattern="[0-9]*"
                 maxLength={6}
                 placeholder="••••••"
-                aria-label="6-digit code"
+                aria-label={tr`6-digit code`}
                 value={code}
                 disabled={busy}
                 onChange={(e) => {
@@ -650,7 +662,7 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
                   if (v.length === 6) verify(v);
                 }}
               />
-              <button type="submit" className="public-cta keep-cta" disabled={busy}>{busy ? 'Checking…' : 'Keep it'}</button>
+              <button type="submit" className="public-cta keep-cta" disabled={busy}>{busy ? tr`Checking…` : tr`Keep it`}</button>
             </div>
           </form>
         ) : (
@@ -660,15 +672,15 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
                 className="keep-input"
                 type="email"
                 autoComplete="email"
-                placeholder="you@studio.com"
-                aria-label="Your email"
+                placeholder={tr`you@studio.com`}
+                aria-label={tr`Your email`}
                 value={email}
                 required
                 disabled={asking}
                 onChange={(e) => setEmail(e.target.value)}
               />
               <button type="submit" className="public-cta keep-cta" disabled={asking}>
-                Keep it free <ArrowRight size={16} weight="bold" aria-hidden="true" />
+                <Trans>Keep it free</Trans> <ArrowRight size={16} weight="bold" aria-hidden="true" />
               </button>
             </div>
           </form>
@@ -678,21 +690,19 @@ function KeepIsland({ token, name, draft, host, me, kept, onKept, onGone }) {
       <p className="keep-island-foot">
         {step === 'code' ? (
           <>
-            Check your inbox for the 6-digit code — and Spam or Promotions if it isn’t there.{' '}
+            <Trans>Check your inbox for the 6-digit code — and Spam or Promotions if it isn’t there.</Trans>{' '}
             {cooldown > 0
-              ? <span className="keep-wait">Resend in {cooldown}s</span>
-              : <button type="button" className="keep-link" disabled={busy} onClick={() => sendCode(true)}>Resend code</button>}
+              ? <span className="keep-wait"><Trans>Resend in {cooldown}s</Trans></span>
+              : <button type="button" className="keep-link" disabled={busy} onClick={() => sendCode(true)}><Trans>Resend code</Trans></button>}
           </>
         ) : signedIn && step !== 'keeping' ? (
           <>
-            Signed in as {me.email}. It comes into your Clusters as a workspace of its own.{' '}
-            <button type="button" className="keep-link" onClick={switchEmail}>Use another email</button>
+            <Trans>Signed in as {ph({ email: me.email })}. It comes into your Clusters as a workspace of its own.</Trans>{' '}
+            <button type="button" className="keep-link" onClick={switchEmail}><Trans>Use another email</Trans></button>
           </>
         ) : (
           <>
-            We’ll email you a 6-digit code.
-            {` Free up to ${DEMO_CARD_LIMIT} cards and ${FREE_STORAGE_LABEL}.`}
-            {' '}Already on Clusters? Use the email you sign in with.
+            <Trans>We’ll email you a 6-digit code. Free up to {DEMO_CARD_LIMIT} cards and {FREE_STORAGE_LABEL}. Already on Clusters? Use the email you sign in with.</Trans>
           </>
         )}
       </p>
@@ -708,12 +718,12 @@ function KeepTopbarEnd({ kept, me }) {
   const initial = initialOf(me?.email, '');
   return (
     <>
-      {!kept && <span className="keep-badge">Draft</span>}
+      {!kept && <span className="keep-badge"><Trans>Draft</Trans></span>}
       <span className="keep-topbar-spacer" />
       {me ? (
-        initial ? <span className="keep-avatar" title={me.email} aria-label={`Signed in as ${me.email}`}>{initial}</span> : null
+        initial ? <span className="keep-avatar" title={me.email} aria-label={tr`Signed in as ${ph({ email: me.email })}`}>{initial}</span> : null
       ) : me === null && !kept ? (
-        <span className="keep-viewonly"><Eye size={16} weight="regular" aria-hidden="true" /> View only until you keep it</span>
+        <span className="keep-viewonly"><Eye size={16} weight="regular" aria-hidden="true" /> <Trans>View only until you keep it</Trans></span>
       ) : null}
     </>
   );
@@ -722,31 +732,33 @@ function KeepTopbarEnd({ kept, me }) {
 // ── A draft that can't be shown ──────────────────────────────────────────────
 
 function KeepStateCard({ status, host, lifetimeDays, signedIn, onRetry }) {
-  const ai = host || 'the AI chat';
+  const ai = host || tr`the AI chat`;
   const home = signedIn
-    ? <a className="public-cta keep-cta" href="/">Open Clusters</a>
-    : <a className="public-cta keep-cta" href="/">Try Clusters free</a>;
+    ? <a className="public-cta keep-cta" href="/"><Trans>Open Clusters</Trans></a>
+    : <a className="public-cta keep-cta" href="/"><Trans>Try Clusters free</Trans></a>;
   let icon = <Hourglass size={20} weight="regular" />;
   let title;
   let body;
   let action = home;
   if (status === 'expired') {
-    title = 'This draft is gone';
-    body = `${lifetimeDays ? `Drafts are deleted ${lifetimeDays} days after their last change, and` : 'Drafts are deleted a while after their last change, and'} nobody kept this one. Ask ${ai} to make it again, then keep it.`;
+    title = tr`This draft is gone`;
+    body = lifetimeDays
+      ? tr`Drafts are deleted ${lifetimeDays} days after their last change, and nobody kept this one. Ask ${ai} to make it again, then keep it.`
+      : tr`Drafts are deleted a while after their last change, and nobody kept this one. Ask ${ai} to make it again, then keep it.`;
   } else if (status === 'kept') {
     icon = <CheckCircle size={20} weight="regular" />;
-    title = 'This draft was kept';
-    body = 'Whoever kept it has it in their Clusters now. If that was you, sign in to open it.';
-    action = <a className="public-cta keep-cta" href="/">{signedIn ? 'Open Clusters' : 'Sign in'}</a>;
+    title = tr`This draft was kept`;
+    body = tr`Whoever kept it has it in their Clusters now. If that was you, sign in to open it.`;
+    action = <a className="public-cta keep-cta" href="/">{signedIn ? tr`Open Clusters` : tr`Sign in`}</a>;
   } else if (status === 'unknown') {
     icon = <LinkBreak size={20} weight="regular" />;
-    title = 'This link doesn’t open a draft';
-    body = `It may have been cut short when it was copied. Ask ${ai} for the keep link again.`;
+    title = tr`This link doesn’t open a draft`;
+    body = tr`It may have been cut short when it was copied. Ask ${ai} for the keep link again.`;
   } else {
     icon = <SoleilMark size={22} color="var(--soleil)" />;
-    title = 'Couldn’t load this draft';
-    body = 'The connection dropped or the server didn’t answer in time. Nothing is wrong with the link — try again in a moment.';
-    action = <button type="button" className="btn-secondary keep-retry" onClick={onRetry}>Retry</button>;
+    title = tr`Couldn’t load this draft`;
+    body = tr`The connection dropped or the server didn’t answer in time. Nothing is wrong with the link — try again in a moment.`;
+    action = <button type="button" className="btn-secondary keep-retry" onClick={onRetry}><Trans>Retry</Trans></button>;
   }
   return (
     <div className="keep-state-wrap">

@@ -19,11 +19,15 @@ import {
   acknowledgeAlert,
 } from '../lib/boardsApi.js';
 import { useFeedback } from './AppFeedback.jsx';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { formatDate } from '../lib/intlFormat.js';
+import { shownError } from '../lib/errorWords.js';
 
 function fmtDate(iso) {
   if (!iso) return '';
   const d = new Date(iso);
-  return d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+  return formatDate(d, { dateStyle: 'short', timeStyle: 'short' });
 }
 
 function relTime(iso) {
@@ -31,14 +35,14 @@ function relTime(iso) {
   const t = new Date(iso).getTime();
   const diff = Date.now() - t;
   const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
+  if (s < 60) return tr`${s}s ago`;
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return tr`${m}m ago`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return tr`${h}h ago`;
   const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d ago`;
-  return new Date(iso).toLocaleDateString();
+  if (d < 7) return tr`${d}d ago`;
+  return formatDate(new Date(iso));
 }
 
 function ymdhmLocal(date) {
@@ -62,9 +66,9 @@ function deltaBadge(currentLen, targetLen) {
   if (targetLen == null || currentLen == null) return null;
   const delta = targetLen - currentLen;
   const pct = currentLen > 0 ? Math.round((delta / currentLen) * 100) : null;
-  if (delta === 0) return <span className="wsr-delta wsr-delta-same">no change</span>;
-  if (delta > 0) return <span className="wsr-delta wsr-delta-add">+{(delta / 1024).toFixed(1)}KB{pct ? ` (+${pct}%)` : ''}</span>;
-  return <span className="wsr-delta wsr-delta-sub">{(delta / 1024).toFixed(1)}KB{pct ? ` (${pct}%)` : ''}</span>;
+  if (delta === 0) return <span className="wsr-delta wsr-delta-same"><Trans>no change</Trans></span>;
+  if (delta > 0) return <span className="wsr-delta wsr-delta-add"><Trans>+{ph({ fixed: (delta / 1024).toFixed(1) })}KB{ph({ value: pct ? ` (+${pct}%)` : '' })}</Trans></span>;
+  return <span className="wsr-delta wsr-delta-sub"><Trans>{ph({ fixed: (delta / 1024).toFixed(1) })}KB{ph({ value: pct ? ` (${pct}%)` : '' })}</Trans></span>;
 }
 
 export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindComplete = null }) {
@@ -116,7 +120,7 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
   const runPreview = async (iso = localToIso(targetLocal)) => {
     if (!workspaceId) return;
     if (!iso) {
-      feedback.toast({ type: 'error', code: 'rewind_bad_time', message: 'Invalid timestamp' });
+      feedback.toast({ type: 'error', code: 'rewind_bad_time', message: tr`Invalid timestamp` });
       return;
     }
     const seq = ++previewSeq.current;
@@ -134,7 +138,7 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
       setSelectedIds(auto);
     } catch (e) {
       if (seq !== previewSeq.current) return;
-      setPreviewError(e?.message || String(e));
+      setPreviewError(shownError(e));
     } finally {
       if (seq === previewSeq.current) setPreviewLoading(false);
     }
@@ -157,13 +161,17 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
       .filter((r) => selectedIds.has(r.board_id) && r.target_snapshot_id != null)
       .map((r) => ({ board_id: r.board_id, snapshot_id: r.target_snapshot_id }));
     if (targets.length === 0) {
-      feedback.toast({ type: 'error', code: 'rewind_none_selected', message: 'No clusters selected for rewind' });
+      feedback.toast({ type: 'error', code: 'rewind_none_selected', message: tr`No clusters selected for rewind` });
       return;
     }
+    const rewindDate = fmtDate(previewIso);
     const ok = await feedback.confirm({
-      title: 'Rewind workspace',
-      message: `Atomically rewind ${targets.length} cluster${targets.length === 1 ? '' : 's'} to the state at ${fmtDate(previewIso)}? This is undoable per cluster (each gets a pre-restore snapshot), but it's a workspace-scale change.`,
-      confirmLabel: `Rewind ${targets.length} cluster${targets.length === 1 ? '' : 's'}`,
+      title: tr`Rewind workspace`,
+      message: plural(targets.length, {
+        one: `Atomically rewind # cluster to the state at ${rewindDate}? This is undoable per cluster (each gets a pre-restore snapshot), but it's a workspace-scale change.`,
+        other: `Atomically rewind # clusters to the state at ${rewindDate}? This is undoable per cluster (each gets a pre-restore snapshot), but it's a workspace-scale change.`,
+      }),
+      confirmLabel: plural(targets.length, { one: 'Rewind # cluster', other: 'Rewind # clusters' }),
     });
     if (!ok) return;
     setBusy(true);
@@ -173,7 +181,10 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
       });
       feedback.toast({
         type: 'success',
-        message: `Rewound ${result.targets_count} cluster${result.targets_count === 1 ? '' : 's'} to ${fmtDate(previewIso)}`,
+        message: plural(result.targets_count, {
+          one: `Rewound # cluster to ${rewindDate}`,
+          other: `Rewound # clusters to ${rewindDate}`,
+        }),
       });
       if (onRewindComplete) onRewindComplete();
       // Refresh alerts (the rewind itself logged one).
@@ -181,7 +192,7 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
       setAlerts(fresh);
     } catch (e) {
       console.error(e);
-      feedback.toast({ type: 'error', code: 'rewind_failed', message: 'Rewind failed: ' + (e?.message || e) });
+      feedback.toast({ type: 'error', code: 'rewind_failed', message: tr`Rewind failed: ${ph({ reason: shownError(e) })}` });
     } finally {
       setBusy(false);
     }
@@ -192,7 +203,7 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
       await acknowledgeAlert(alertId);
       setAlerts((prev) => prev.map((a) => a.id === alertId ? { ...a, acknowledged_at: new Date().toISOString() } : a));
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'alert_ack_failed', message: 'Could not acknowledge: ' + (e?.message || e) });
+      feedback.toast({ type: 'error', code: 'alert_ack_failed', message: tr`Could not acknowledge: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -217,8 +228,8 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
     <Modal open={open} onClose={onClose} className="modal modal-workspace-recovery"
            labelledBy="wsr-title" closeOnBackdrop={!busy} closeOnEscape={!busy}>
         <div className="modal-hd">
-          <div className="modal-title" id="wsr-title">Workspace recovery</div>
-          <button className="modal-x" onClick={onClose} aria-label="Close" disabled={busy}>✕</button>
+          <div className="modal-title" id="wsr-title"><Trans>Workspace recovery</Trans></div>
+          <button className="modal-x" onClick={onClose} aria-label={tr`Close`} disabled={busy}>✕</button>
         </div>
 
         <div className="wsr-body">
@@ -229,20 +240,20 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
                 <div key={a.id} className="wsr-alert wsr-alert-critical">
                   <div className="wsr-alert-icon">⚠</div>
                   <div className="wsr-alert-body">
-                    <div className="wsr-alert-title">{a.kind === 'mass_delete' ? 'Unusual deletion activity' : a.kind}</div>
+                    <div className="wsr-alert-title">{a.kind === 'mass_delete' ? tr`Unusual deletion activity` : a.kind}</div>
                     <div className="wsr-alert-meta">
                       {fmtDate(a.detected_at)} ({relTime(a.detected_at)}) ·
-                      {a.payload?.delete_count != null ? ` ${a.payload.delete_count} deletes` : ''}
-                      {a.payload?.window_seconds != null ? ` in ${a.payload.window_seconds}s` : ''}
-                      {a.board_ids?.length ? ` · ${a.board_ids.length} board${a.board_ids.length === 1 ? '' : 's'}` : ''}
+                      {a.payload?.delete_count != null ? plural(a.payload.delete_count, { one: ' # deletes', other: ' # deletes' }) : ''}
+                      {a.payload?.window_seconds != null ? tr` in ${ph({ window_seconds: a.payload.window_seconds })}s` : ''}
+                      {a.board_ids?.length ? plural(a.board_ids.length, { one: ' · # board', other: ' · # boards' }) : ''}
                     </div>
                   </div>
                   <div className="wsr-alert-actions">
                     <button type="button" className="tb-btn" onClick={() => onAlertRewindTo(a)}>
-                      One-click rewind
+                      <Trans>One-click rewind</Trans>
                     </button>
                     <button type="button" className="tb-btn" onClick={() => onAlertAcknowledge(a.id)}>
-                      Dismiss
+                      <Trans>Dismiss</Trans>
                     </button>
                   </div>
                 </div>
@@ -251,9 +262,9 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
           )}
 
           {/* Time picker + preview button */}
-          <div className="wsr-step-hint">Step 1 — pick a time, then preview which clusters would change.</div>
+          <div className="wsr-step-hint"><Trans>Step 1 — pick a time, then preview which clusters would change.</Trans></div>
           <div className="wsr-picker">
-            <label className="wsr-picker-label">Rewind to:</label>
+            <label className="wsr-picker-label"><Trans>Rewind to:</Trans></label>
             <input
               type="datetime-local"
               className="wsr-picker-input"
@@ -266,14 +277,14 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
               onClick={() => runPreview()}
               disabled={previewLoading}
             >
-              {previewLoading ? 'Computing…' : 'Preview impact'}
+              {previewLoading ? tr`Computing…` : tr`Preview impact`}
             </button>
           </div>
 
           {/* Preview table */}
-          {previewError && <div className="modal-empty">Preview failed: {previewError}</div>}
+          {previewError && <div className="modal-empty"><Trans>Preview failed: {previewError}</Trans></div>}
           {previewRows.length > 0 && (
-            <div className="wsr-step-hint">Step 2 — review the impact, check the clusters to rewind, then confirm below.</div>
+            <div className="wsr-step-hint"><Trans>Step 2 — review the impact, check the clusters to rewind, then confirm below.</Trans></div>
           )}
           {previewRows.length > 0 && (
             <div className="wsr-table-wrap">
@@ -293,9 +304,9 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
                         }}
                       />
                     </th>
-                    <th>Cluster</th>
-                    <th>Target snapshot</th>
-                    <th>Now</th>
+                    <th><Trans>Cluster</Trans></th>
+                    <th><Trans>Target snapshot</Trans></th>
+                    <th><Trans>Now</Trans></th>
                     <th>Δ</th>
                   </tr>
                 </thead>
@@ -327,12 +338,12 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
                               <div className="wsr-cell-sub">{r.target_kind}{r.target_label ? ` · ${r.target_label}` : ''}</div>
                             </>
                           ) : (
-                            <span className="wsr-cell-sub">No snapshot ≤ target time</span>
+                            <span className="wsr-cell-sub"><Trans>No snapshot ≤ target time</Trans></span>
                           )}
                         </td>
                         <td className="wsr-cell-now">
                           v{r.current_version}
-                          <div className="wsr-cell-sub">{(r.current_doc_len / 1024).toFixed(1)}KB</div>
+                          <div className="wsr-cell-sub"><Trans>{ph({ fixed: (r.current_doc_len / 1024).toFixed(1) })}KB</Trans></div>
                         </td>
                         <td>{hasTarget ? deltaBadge(r.current_doc_len, r.target_doc_len) : null}</td>
                       </tr>
@@ -346,12 +357,12 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
           {/* Recent workspace rewinds for context */}
           {recentRecovery.length > 0 && (
             <div className="wsr-recent">
-              <div className="wsr-recent-hd">Recent workspace rewinds</div>
+              <div className="wsr-recent-hd"><Trans>Recent workspace rewinds</Trans></div>
               {recentRecovery.map((a) => (
                 <div key={a.id} className="wsr-recent-row">
                   <span>{fmtDate(a.detected_at)}</span>
                   <span className="wsr-cell-sub">
-                    {a.payload?.targets_count || 0} boards · {a.payload?.reason || ''}
+                    {plural(ph({ count: a.payload?.targets_count || 0 }), { one: `# boards · ${ph({ reason: a.payload?.reason || '' })}`, other: `# boards · ${ph({ reason: a.payload?.reason || '' })}` })}
                   </span>
                 </div>
               ))}
@@ -360,19 +371,19 @@ export function WorkspaceRecoveryModal({ open, workspaceId, onClose, onRewindCom
         </div>
 
         <div className="modal-actions wsr-footer">
-          <button type="button" className="tb-btn" onClick={onClose} disabled={busy}>Cancel</button>
+          <button type="button" className="tb-btn" onClick={onClose} disabled={busy}><Trans>Cancel</Trans></button>
           <button
             type="button"
             className="tb-btn tb-btn-primary"
             onClick={runRewind}
             disabled={busy || !previewRows.length || selectedIds.size === 0}
             title={!previewRows.length
-              ? 'Run "Preview impact" first'
-              : (selectedIds.size === 0 ? 'Select at least one board in the preview' : undefined)}
+              ? tr`Run "Preview impact" first`
+              : (selectedIds.size === 0 ? tr`Select at least one board in the preview` : undefined)}
           >
             {busy
-              ? 'Rewinding…'
-              : `Rewind ${selectedIds.size} selected board${selectedIds.size === 1 ? '' : 's'}`}
+              ? tr`Rewinding…`
+              : plural(selectedIds.size, { one: 'Rewind # selected board', other: 'Rewind # selected boards' })}
           </button>
         </div>
     </Modal>

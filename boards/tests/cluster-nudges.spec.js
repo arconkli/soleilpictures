@@ -297,8 +297,8 @@ test.describe('cluster nudges', () => {
     const app = read('src/App.jsx');
     const drop = app.slice(app.indexOf('const onDrop = async (e) => {'), app.indexOf("document.addEventListener('soleil-card-into-board-drop', onDrop);"));
     expect(drop).toMatch(/createdBoardId = null, createdBoardName = null \} = e\.detail/);
-    expect(drop).toMatch(/const targetName = createdBoardName \|\| boards\[targetBoardId\]\?\.name \|\| 'cluster';/);
-    expect(drop).toMatch(/Made “\$\{targetName\}” from \$\{movedCards\.length\} cards/);
+    expect(drop).toMatch(/const targetName = createdBoardName \|\| boards\[targetBoardId\]\?\.name \|\| tr`cluster`;/);
+    expect(drop).toMatch(/plural\(movedCards\.length, \{ one: `Made “\$\{targetName\}” from # card`, other: `Made “\$\{targetName\}” from # cards` \}\)/);
     const undo = drop.slice(drop.indexOf('onUndo: async () => {'));
     const trash = undo.indexOf('await deleteBoard(createdBoardId);');
     expect(trash).toBeGreaterThan(-1);

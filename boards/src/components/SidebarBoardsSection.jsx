@@ -8,6 +8,8 @@ import { useState } from 'react';
 import { ChevronRight, Plus, MoreHorizontal } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { SidebarBoardTree } from './SidebarBoardTree.jsx';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const EXPAND_KEY = 'soleil.boards.sb.boards.expanded';
 function loadOpen(workspaceId) {
@@ -61,11 +63,11 @@ export function SidebarBoardsSection({
           <Icon as={ChevronRight} size={11} />
         </span>
         {/* Capitalised by .sb-eyebrow; the files sidebar shows it as written. */}
-        <span className="sb-boards-head-label">Clusters</span>
+        <span className="sb-boards-head-label"><Trans>Clusters</Trans></span>
         {count > 0 && <span className="sb-boards-count">{count}</span>}
         {onCreateBoard && (
           <button className="sb-boards-add"
-                  title="New project"
+                  title={t`New project`}
                   onClick={(e) => { e.stopPropagation(); onCreateBoard(); }}>
             <Icon as={Plus} size={11} />
           </button>
@@ -100,7 +102,7 @@ export function SidebarBoardsSection({
           />
           <div className="sb-row sb-row-all" onClick={onOpenPicker}>
             <Icon as={MoreHorizontal} size={14} />
-            <span className="sb-row-label">All clusters</span>
+            <span className="sb-row-label"><Trans>All clusters</Trans></span>
           </div>
         </>
       )}

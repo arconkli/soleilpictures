@@ -2,6 +2,9 @@
 // system rows, and runs of messages from one sender. Pure, so node --test can
 // pin it.
 
+import { t, ph } from '@lingui/core/macro';
+import { formatDate } from './intlFormat.js';
+
 // Consecutive messages from one sender read as one run while each is within
 // this of the message before it.
 export const RUN_WINDOW_MS = 5 * 60 * 1000;
@@ -41,15 +44,27 @@ export function dayKey(iso) {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
-export function dayLabel(iso, now = new Date()) {
+// Which day a message is from, by the calendar: 'today', 'yesterday', 'week'
+// (within the last seven days) or 'older'. '' with no time. A caller that
+// needs to know "today or yesterday" compares this, never the shown words.
+export function dayKind(iso, now = new Date()) {
   if (!iso) return '';
   const d = new Date(iso);
-  if (d.toDateString() === now.toDateString()) return 'Today';
+  if (d.toDateString() === now.toDateString()) return 'today';
   const yest = new Date(now); yest.setDate(yest.getDate() - 1);
-  if (d.toDateString() === yest.toDateString()) return 'Yesterday';
+  if (d.toDateString() === yest.toDateString()) return 'yesterday';
   const days = (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
-  if (days < 7) return d.toLocaleDateString(undefined, { weekday: 'long' });
-  return d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' });
+  return days < 7 ? 'week' : 'older';
+}
+
+export function dayLabel(iso, now = new Date()) {
+  const kind = dayKind(iso, now);
+  if (!kind) return '';
+  if (kind === 'today') return t`Today`;
+  if (kind === 'yesterday') return t`Yesterday`;
+  const d = new Date(iso);
+  if (kind === 'week') return formatDate(d, { weekday: 'long' });
+  return formatDate(d, { month: 'long', day: 'numeric', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' });
 }
 
 // rows → [{ kind: 'divider', key, label }
@@ -153,7 +168,7 @@ export function selectSeenMessageId(rows, { selfId, isDm, peerId, peerLastReadAt
 export function typingLabel(names) {
   const list = (names || []).filter(Boolean);
   if (list.length === 0) return '';
-  if (list.length === 1) return `${list[0]} is typing`;
-  if (list.length === 2) return `${list[0]} and ${list[1]} are typing`;
-  return 'Several people are typing';
+  if (list.length === 1) return t`${ph({ name: list[0] })} is typing`;
+  if (list.length === 2) return t`${ph({ name: list[0] })} and ${ph({ name2: list[1] })} are typing`;
+  return t`Several people are typing`;
 }

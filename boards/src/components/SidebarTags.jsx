@@ -24,7 +24,7 @@ import { useFeedback } from './AppFeedback.jsx';
 import { ENTITY_REF_MIME } from '../lib/dragMimes.js';
 import { useCandidateNames } from '../hooks/useCandidateNames.js';
 import { useClampedMenuPosition } from '../hooks/useClampedMenuPosition.js';
-import { ENTITY_TYPES, entityTypeLabel, guessEntityType } from '../lib/entityTypes.js';
+import { ENTITY_TYPES, entityTypeLabel, entityTypePluralLabel, guessEntityType } from '../lib/entityTypes.js';
 import { levenshtein } from '../lib/stringSim.js';
 import { ColorPicker } from './ColorPicker.jsx';
 import { tagFallbackColor, resolveTagColor } from '../lib/tagColor.js';
@@ -32,6 +32,9 @@ import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { searchKey, minSearchLength, searchLength } from '../lib/textFold.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../lib/errorWords.js';
 
 const EXPAND_KEY = 'soleil.tags.sb.expanded';
 function loadExpanded(workspaceId) {
@@ -134,7 +137,7 @@ export function SidebarTags({
       }
       onWorkspaceTagsChanged?.();
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_adopt_failed', message: 'Adopt failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_adopt_failed', message: tr`Adopt failed: ${ph({ reason: shownError(err) })}` });
     } finally {
       setAdopting('');
       document.dispatchEvent(new CustomEvent('soleil-candidates-changed'));
@@ -150,7 +153,7 @@ export function SidebarTags({
       });
       if (error && error.code !== '23505') throw error;
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_dismiss_failed', message: 'Dismiss failed' });
+      feedback.toast({ type: 'error', code: 'tag_dismiss_failed', message: tr`Dismiss failed` });
     } finally {
       try { logEvent(EV.TAG_CANDIDATE_DISMISS, { via: 'sidebar' }); } catch (_) {}
       document.dispatchEvent(new CustomEvent('soleil-candidates-changed'));
@@ -227,7 +230,7 @@ export function SidebarTags({
       await ensureTag({ workspaceId, name: cleaned, kind: 'user', createdBy: userId });
       onWorkspaceTagsChanged?.();
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_create_failed', message: 'Tag create failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_create_failed', message: tr`Tag create failed: ${ph({ reason: shownError(err) })}` });
     }
   };
 
@@ -251,8 +254,8 @@ export function SidebarTags({
   const promptRename = async (tag) => {
     setMenuFor(null);
     const name = await feedback.prompt({
-      title: 'Rename tag', label: 'Name',
-      defaultValue: tag.name || '', confirmLabel: 'Rename',
+      title: tr`Rename tag`, label: tr`Name`,
+      defaultValue: tag.name || '', confirmLabel: tr`Rename`,
     });
     if (name == null) return;
     try {
@@ -260,7 +263,7 @@ export function SidebarTags({
       onWorkspaceTagsChanged?.();
     } catch (err) {
       if (!isDuplicateTagName(err)) {
-        feedback.toast({ type: 'error', code: 'tag_rename_failed', message: 'Rename failed: ' + (err.message || err) });
+        feedback.toast({ type: 'error', code: 'tag_rename_failed', message: tr`Rename failed: ${ph({ reason: shownError(err) })}` });
         return;
       }
       // Names are unique per workspace, case-insensitively — and a deleted
@@ -272,14 +275,14 @@ export function SidebarTags({
         feedback.toast({
           type: 'error',
           code: 'tag_name_taken',
-          message: `A tag you deleted recently is still called “${clean}” (deleted tags are kept for 30 days so they can be restored). Pick another name.`,
+          message: tr`A tag you deleted recently is still called “${clean}” (deleted tags are kept for 30 days so they can be restored). Pick another name.`,
         });
         return;
       }
       const ok = await feedback.confirm({
-        title: 'That tag already exists',
-        message: `There's already a tag called “${existing.name}”. Merge “${tag.name}” into it? Everything tagged “${tag.name}” moves over.`,
-        confirmLabel: 'Merge',
+        title: tr`That tag already exists`,
+        message: tr`There's already a tag called “${ph({ name: existing.name })}”. Merge “${ph({ name2: tag.name })}” into it? Everything tagged “${ph({ name3: tag.name })}” moves over.`,
+        confirmLabel: tr`Merge`,
         danger: true,
       });
       if (ok) await runMerge(tag, existing);
@@ -299,7 +302,7 @@ export function SidebarTags({
       await recolorTag(colorPickerFor.tag.id, color);
       onWorkspaceTagsChanged?.();
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_recolor_failed', message: 'Recolor failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_recolor_failed', message: tr`Recolor failed: ${ph({ reason: shownError(err) })}` });
     }
   };
   const startMerge = (tag) => {
@@ -310,10 +313,15 @@ export function SidebarTags({
     if (!mergePicker?.fromTag || !intoTag) return;
     if (intoTag.id === mergePicker.fromTag.id) { setMergePicker(null); return; }
     const fromCount = counts.get(mergePicker.fromTag.id) || 0;
+    const fromName = mergePicker.fromTag.name;
+    const intoName = intoTag.name;
     const ok = await feedback.confirm({
-      title: 'Merge tags?',
-      message: `Merge "${mergePicker.fromTag.name}" into "${intoTag.name}". ${fromCount} application${fromCount === 1 ? ' moves' : 's move'} over and "${mergePicker.fromTag.name}" is deleted.`,
-      confirmLabel: 'Merge',
+      title: tr`Merge tags?`,
+      message: plural(fromCount, {
+        one: `Merge "${fromName}" into "${intoName}". # application moves over and "${fromName}" is deleted.`,
+        other: `Merge "${fromName}" into "${intoName}". # applications move over and "${fromName}" is deleted.`,
+      }),
+      confirmLabel: tr`Merge`,
       danger: true,
     });
     if (!ok) { setMergePicker(null); return; }
@@ -337,18 +345,18 @@ export function SidebarTags({
       // rewritten application, revives the merged-away tag, and resurrects
       // any collision rows the merge absorbed.
       undoToast(feedback, {
-        message: 'Merged into "' + intoTag.name + '"',
+        message: tr`Merged into "${intoName}"`,
         onUndo: async () => {
           try {
             await undoTagMerge(mergeId);
             onWorkspaceTagsChanged?.();
           } catch (err) {
-            feedback.toast({ type: 'error', code: 'tag_merge_undo_failed', message: 'Undo failed: ' + (err.message || err) });
+            feedback.toast({ type: 'error', code: 'tag_merge_undo_failed', message: tr`Undo failed: ${ph({ reason: shownError(err) })}` });
           }
         },
       });
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_merge_failed', message: 'Merge failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_merge_failed', message: tr`Merge failed: ${ph({ reason: shownError(err) })}` });
     }
   };
 
@@ -356,11 +364,14 @@ export function SidebarTags({
     setMenuFor(null);
     const count = counts.get(tag.id) || 0;
     const ok = await feedback.confirm({
-      title: 'Delete tag?',
+      title: tr`Delete tag?`,
       message: count > 0
-        ? `${count} item${count === 1 ? '' : 's'} are tagged with "${tag.name}". Delete the tag and all of its applications?\n\nYou can undo this — it's recoverable for 30 days.`
-        : `Delete "${tag.name}"? You can undo this — it's recoverable for 30 days.`,
-      confirmLabel: 'Delete',
+        ? plural(count, {
+          one: `# item are tagged with "${ph({ name: tag.name })}". Delete the tag and all of its applications?\n\nYou can undo this — it's recoverable for 30 days.`,
+          other: `# items are tagged with "${ph({ name: tag.name })}". Delete the tag and all of its applications?\n\nYou can undo this — it's recoverable for 30 days.`,
+        })
+        : tr`Delete "${ph({ name: tag.name })}"? You can undo this — it's recoverable for 30 days.`,
+      confirmLabel: tr`Delete`,
       danger: true,
     });
     if (!ok) return;
@@ -368,18 +379,18 @@ export function SidebarTags({
       await deleteTag(tag.id); // soft: definition + applications tombstoned (0240)
       onWorkspaceTagsChanged?.();
       undoToast(feedback, {
-        message: `Tag "${tag.name}" deleted`,
+        message: tr`Tag "${ph({ name: tag.name })}" deleted`,
         onUndo: async () => {
           try {
             await restoreTag(tag.id);
             onWorkspaceTagsChanged?.();
           } catch (err) {
-            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
+            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: tr`Restore failed: ${ph({ reason: shownError(err) })}` });
           }
         },
       });
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_delete_failed', message: 'Delete failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_delete_failed', message: tr`Delete failed: ${ph({ reason: shownError(err) })}` });
     }
   };
 
@@ -393,7 +404,7 @@ export function SidebarTags({
       try { logEvent(EV.TAG_SET_TYPE, { tag_id: tag.id, entity_type: next }); } catch (_) {}
       onWorkspaceTagsChanged?.();
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_type_failed', message: 'Could not set type' });
+      feedback.toast({ type: 'error', code: 'tag_type_failed', message: tr`Could not set type` });
     }
   };
 
@@ -445,7 +456,7 @@ export function SidebarTags({
     if (buckets.has('__untyped')) keys.push('__untyped');
     return keys.map(k => ({
       key: k,
-      label: k === '__untyped' ? 'Untyped' : `${entityTypeLabel(k)}s`,
+      label: k === '__untyped' ? tr`Untyped` : entityTypePluralLabel(k),
       rows: buckets.get(k),
     }));
   })();
@@ -463,10 +474,10 @@ export function SidebarTags({
         <span className={`sb-tags-chev ${open ? 'is-open' : ''}`} aria-hidden="true">
           <Icon as={ChevronRight} size={11} />
         </span>
-        <span className="sb-tags-head-label">Tags</span>
+        <span className="sb-tags-head-label"><Trans>Tags</Trans></span>
         {tags.length > 0 && <span className="sb-tags-head-count">{tags.length}</span>}
         <button className="sb-tags-add"
-                title="New tag"
+                title={tr`New tag`}
                 onClick={(e) => { e.stopPropagation(); startCreate(); }}>
           <Icon as={Plus} size={11} />
         </button>
@@ -484,7 +495,7 @@ export function SidebarTags({
                   <input ref={inputRef}
                          className="sb-tag-create-input"
                          dir="auto"
-                         placeholder="New tag…"
+                         placeholder={tr`New tag…`}
                          value={draftName}
                          onChange={(e) => setDraftName(e.target.value)}
                          onBlur={(e) => {
@@ -502,8 +513,8 @@ export function SidebarTags({
                          }} />
                 </form>
                 {draftSuggestions.length > 0 && (
-                  <div className="sb-tag-suggest-list" role="listbox" aria-label="Did you mean">
-                    <div className="sb-tag-suggest-head">Did you mean…</div>
+                  <div className="sb-tag-suggest-list" role="listbox" aria-label={tr`Did you mean`}>
+                    <div className="sb-tag-suggest-head"><Trans>Did you mean…</Trans></div>
                     {draftSuggestions.map(tag => {
                       const dot = resolveTagColor(tag);
                       return (
@@ -519,7 +530,7 @@ export function SidebarTags({
                                 }}>
                           <span className="sb-dot" style={{ background: dot }} />
                           <span className="sb-tag-suggest-name">{tag.name}</span>
-                          <span className="sb-tag-suggest-hint">use existing</span>
+                          <span className="sb-tag-suggest-hint"><Trans>use existing</Trans></span>
                         </button>
                       );
                     })}
@@ -533,7 +544,7 @@ export function SidebarTags({
             <input
               className="sb-tag-filter-input"
               dir="auto"
-              placeholder="Filter tags…"
+              placeholder={tr`Filter tags…`}
               value={tagFilter}
               onChange={(e) => setTagFilter(e.target.value)}
               onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); setTagFilter(''); e.currentTarget.blur(); } }}
@@ -542,12 +553,12 @@ export function SidebarTags({
 
           {sorted.length === 0 && !creating && (
             <div className="sb-tags-empty">
-              No tags yet — anything you tag will appear here.
+              <Trans>No tags yet — anything you tag will appear here.</Trans>
             </div>
           )}
 
           {filtered.length === 0 && tagQuery && (
-            <div className="sb-tags-empty">No tags match “{tagFilter.trim()}”.</div>
+            <div className="sb-tags-empty"><Trans>No tags match “{ph({ trim: tagFilter.trim() })}”.</Trans></div>
           )}
 
           {grouped.map(group => (
@@ -575,12 +586,12 @@ export function SidebarTags({
                            onContextMenuRow({ preventDefault() {}, stopPropagation() {}, clientX: r.left + 24, clientY: r.bottom }, tag);
                          }
                        }}
-                       title={`${tag.name}${c ? ` · ${c} applied` : ''} · right-click to manage`}>
+                       title={c ? tr`${ph({ name: tag.name })} · ${c} applied · right-click to manage` : tr`${ph({ name: tag.name })} · right-click to manage`}>
                     <span className="sb-dot" style={{ background: dot }} />
                     <span className="sb-row-label sb-tag-row-label" dir="auto">{tag.name}</span>
                     {c > 0 && <span className="sb-tag-row-count">{c}</span>}
                     <button type="button" className="sb-tag-row-more" tabIndex={-1}
-                            aria-label={`${tag.name}: actions`}
+                            aria-label={tr`${ph({ name: tag.name })}: actions`}
                             onClick={(e) => openRowActions(e, tag)}>
                       <Icon as={MoreHorizontal} size={14} />
                     </button>
@@ -593,25 +604,25 @@ export function SidebarTags({
           {emerging.length > 0 && (
             <div className="sb-tags-suggestions">
               <div className="sb-tags-suggestions-head">
-                <span>Emerging</span>
+                <span><Trans>Emerging</Trans></span>
                 <span className="sb-tags-suggestions-counter">{emerging.length}</span>
               </div>
               {emerging.map(c => (
                 <div key={c.name}
                      className="sb-tag-suggestion"
-                     title={`“${c.name}” — seen ${c.n}× in your prose. Adopt as an entity.`}>
+                     title={tr`“${ph({ name: c.name })}” — seen ${ph({ n: c.n })}× in your prose. Adopt as an entity.`}>
                   <span className="sb-dot is-emerging" style={{ background: tagFallbackColor(c.name) }} />
                   <span className="sb-tag-suggestion-name">{c.name}</span>
                   <span className="sb-tag-suggestion-count">{c.n}</span>
                   <button className="sb-tag-suggestion-add"
                           disabled={adopting === c.name}
                           onClick={() => adoptCandidate(c.name)}
-                          title={`Adopt "${c.name}" as an entity`}>
+                          title={tr`Adopt "${ph({ name: c.name })}" as an entity`}>
                     <Icon as={Plus} size={11} />
                   </button>
                   <button className="sb-tag-suggestion-x"
                           onClick={() => dismissCandidate(c.name)}
-                          title="Not a name — stop suggesting">
+                          title={tr`Not a name — stop suggesting`}>
                     ×
                   </button>
                 </div>
@@ -626,14 +637,14 @@ export function SidebarTags({
           <TagActionSheet
             title={sheetFor.name}
             lead={<span className="tag-sheet-dot" style={{ background: resolveTagColor(sheetFor) }} />}
-            sub={[entityTypeLabel(sheetFor.entity_type), counts.get(sheetFor.id) ? `${counts.get(sheetFor.id)} ${counts.get(sheetFor.id) === 1 ? 'thing' : 'things'}` : null].filter(Boolean).join(' · ') || null}
+            sub={[entityTypeLabel(sheetFor.entity_type), counts.get(sheetFor.id) ? plural(counts.get(sheetFor.id), { one: '# thing', other: '# things' }) : null].filter(Boolean).join(' · ') || null}
             onClose={() => setSheetFor(null)}
             actions={[
-              { id: 'rename', label: 'Rename', run: () => promptRename(sheetFor) },
-              { id: 'recolor', label: 'Recolor', swatch: resolveTagColor(sheetFor), more: true, run: () => promptRecolor(sheetFor) },
-              { id: 'merge', label: 'Merge into…', run: () => startMerge(sheetFor) },
-              { id: 'type', label: 'Type', value: entityTypeLabel(sheetFor.entity_type) || 'None', more: true, run: () => setTypeSheetFor(sheetFor) },
-              { id: 'delete', label: 'Delete tag', danger: true, run: () => promptDelete(sheetFor) },
+              { id: 'rename', label: tr`Rename`, run: () => promptRename(sheetFor) },
+              { id: 'recolor', label: tr`Recolor`, swatch: resolveTagColor(sheetFor), more: true, run: () => promptRecolor(sheetFor) },
+              { id: 'merge', label: tr`Merge into…`, run: () => startMerge(sheetFor) },
+              { id: 'type', label: tr`Type`, value: entityTypeLabel(sheetFor.entity_type) || tr`None`, more: true, run: () => setTypeSheetFor(sheetFor) },
+              { id: 'delete', label: tr`Delete tag`, danger: true, run: () => promptDelete(sheetFor) },
             ]}
           />
         </Suspense>
@@ -643,11 +654,11 @@ export function SidebarTags({
           <TagActionSheet
             title={typeSheetFor.name}
             lead={<span className="tag-sheet-dot" style={{ background: resolveTagColor(typeSheetFor) }} />}
-            sub="What kind of thing is it?"
+            sub={tr`What kind of thing is it?`}
             onClose={() => setTypeSheetFor(null)}
             actions={ENTITY_TYPES.map(t => ({
               id: t.value, label: t.label,
-              value: typeSheetFor.entity_type === t.value ? 'Current' : null,
+              value: typeSheetFor.entity_type === t.value ? tr({ message: 'Current', context: 'type' }) : null,
               run: () => setType(typeSheetFor, t.value),
             }))}
           />
@@ -658,20 +669,20 @@ export function SidebarTags({
              ref={menuRef}
              style={{ position: 'fixed', left: menuPos.left, top: menuPos.top }}
              role="menu">
-          <button className="sb-tag-menu-item" onClick={() => promptRename(menuFor.tag)}>Rename</button>
-          <button className="sb-tag-menu-item" onClick={() => promptRecolor(menuFor.tag)}>Recolor</button>
-          <button className="sb-tag-menu-item" onClick={() => startMerge(menuFor.tag)}>Merge into…</button>
-          <div className="sb-tag-menu-types" role="group" aria-label="Entity type">
+          <button className="sb-tag-menu-item" onClick={() => promptRename(menuFor.tag)}><Trans>Rename</Trans></button>
+          <button className="sb-tag-menu-item" onClick={() => promptRecolor(menuFor.tag)}><Trans>Recolor</Trans></button>
+          <button className="sb-tag-menu-item" onClick={() => startMerge(menuFor.tag)}><Trans>Merge into…</Trans></button>
+          <div className="sb-tag-menu-types" role="group" aria-label={tr`Entity type`}>
             {ENTITY_TYPES.map(t => (
               <button key={t.value}
                       className={`sb-tag-menu-type ${menuFor.tag.entity_type === t.value ? 'is-on' : ''}`}
-                      title={`Mark as ${t.label}`}
+                      title={tr`Mark as ${ph({ label: t.label })}`}
                       onClick={() => setType(menuFor.tag, t.value)}>
                 <Icon as={t.Icon} size={11} />
               </button>
             ))}
           </div>
-          <button className="sb-tag-menu-item danger" onClick={() => promptDelete(menuFor.tag)}>Delete tag</button>
+          <button className="sb-tag-menu-item danger" onClick={() => promptDelete(menuFor.tag)}><Trans>Delete tag</Trans></button>
         </div>
       )}
 
@@ -734,16 +745,16 @@ function MergePicker({ fromTag, tags = [], counts, onPick, onCancel }) {
            role="dialog"
            onMouseDown={(e) => e.stopPropagation()}>
         <div className="merge-picker-head">
-          <span className="merge-picker-eyebrow">MERGE TAG</span>
+          <span className="merge-picker-eyebrow"><Trans>MERGE TAG</Trans></span>
           <span className="merge-picker-from">
             <span className="sb-dot" style={{ background: fromColor }} />
             <span>{fromTag.name}</span>
           </span>
           <span className="merge-picker-arrow">→</span>
-          <span className="merge-picker-into-label">into…</span>
+          <span className="merge-picker-into-label"><Trans>into…</Trans></span>
         </div>
         <input className="merge-picker-input" dir="auto"
-               placeholder="Search tags…"
+               placeholder={tr`Search tags…`}
                value={query}
                onChange={(e) => { setQuery(e.target.value); setHover(0); }}
                onKeyDown={(e) => {
@@ -758,7 +769,7 @@ function MergePicker({ fromTag, tags = [], counts, onPick, onCancel }) {
                }} />
         <div className="merge-picker-list">
           {matches.length === 0 && (
-            <div className="merge-picker-empty">No other tags found.</div>
+            <div className="merge-picker-empty"><Trans>No other tags found.</Trans></div>
           )}
           {matches.map((t, i) => {
             const c = counts.get(t.id) || 0;

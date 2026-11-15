@@ -15,6 +15,8 @@ import { Icon } from '../Icon.jsx';
 import { Hand, RotateCcw, Search } from '../../lib/icons.js';
 import { ImageAdjustPanel } from '../ImageAdjustPanel.jsx';
 import { swallowContextMenu } from '../../lib/contextMenuGuard.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const PAD = 10;
 const GAP = 10;
@@ -77,20 +79,20 @@ export function GridCellPhotoPopover({ anchorRect, fit, zoom = 1, adjust, reposi
          onPointerDown={stop} onMouseDown={stop} onClick={stop}
          onDoubleClick={stop} onContextMenu={swallowContextMenu} onWheel={stop}>
       <div className="gcp-frame">
-        <div className="gcp-eyebrow">Fit to cell</div>
+        <div className="gcp-eyebrow"><Trans>Fit to cell</Trans></div>
         <div className="gcp-frame-row">
-          <div className="gcp-seg" role="group" aria-label="Image fit">
+          <div className="gcp-seg" role="group" aria-label={t`Image fit`}>
             <button type="button" className={`gcp-seg-btn ${!isContain ? 'is-on' : ''}`}
-                    aria-label="Fill" aria-pressed={!isContain} onClick={() => onFit?.({ fit: 'cover' })}>Fill</button>
+                    aria-label={t({ message: 'Fill', context: 'photo fit' })} aria-pressed={!isContain} onClick={() => onFit?.({ fit: 'cover' })}><Trans context="photo fit">Fill</Trans></button>
             <button type="button" className={`gcp-seg-btn ${isContain ? 'is-on' : ''}`}
-                    aria-label="Fit" aria-pressed={isContain} onClick={() => onFit?.({ fit: 'contain' })}>Fit</button>
+                    aria-label={t`Fit`} aria-pressed={isContain} onClick={() => onFit?.({ fit: 'contain' })}><Trans>Fit</Trans></button>
           </div>
           <button type="button" className={`gcp-tool ${repositionOn ? 'is-on' : ''}`}
-                  aria-label="Reposition" aria-pressed={repositionOn} title="Drag the image in the cell to reposition"
+                  aria-label={t`Reposition`} aria-pressed={repositionOn} title={t`Drag the image in the cell to reposition`}
                   onClick={onToggleReposition}>
-            <Icon as={Hand} size={15} /><span>Reposition</span>
+            <Icon as={Hand} size={15} /><span><Trans>Reposition</Trans></span>
           </button>
-          <button type="button" className="gcp-tool is-icon" aria-label="Reset framing" title="Reset framing"
+          <button type="button" className="gcp-tool is-icon" aria-label={t`Reset framing`} title={t`Reset framing`}
                   onClick={onResetFraming}>
             <Icon as={RotateCcw} size={14} />
           </button>
@@ -98,7 +100,7 @@ export function GridCellPhotoPopover({ anchorRect, fit, zoom = 1, adjust, reposi
         <div className="gcp-zoom" aria-disabled={isContain}>
           <Icon as={Search} size={14} />
           <input type="range" className="gcp-zoom-slider" min={1} max={3} step={0.01} value={z}
-                 aria-label="Zoom" disabled={isContain}
+                 aria-label={t`Zoom`} disabled={isContain}
                  onChange={(e) => onFit?.({ zoom: Number(e.target.value) })}
                  onDoubleClick={() => onFit?.({ zoom: 1 })} />
           <span className="gcp-zoom-val">{z.toFixed(1)}×</span>

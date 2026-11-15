@@ -5,6 +5,7 @@
 //
 // Pure, so App's sidebar top and the QA harness say the same thing.
 
+import { t, plural, ph } from '@lingui/core/macro';
 import { initialOf } from './graphemes.js';
 
 // The first word of a name, or what comes before the @ of an address.
@@ -20,11 +21,13 @@ export function firstName(label) {
 export function hereText(names) {
   const n = (names || []).filter(Boolean);
   if (n.length === 0) return '';
-  if (n.length === 1) return `${n[0]} is here`;
-  if (n.length === 2) return `${n[0]} and ${n[1]} are here`;
-  if (n.length === 3) return `${n[0]}, ${n[1]} and ${n[2]} are here`;
+  if (n.length === 1) return t`${ph({ first: n[0] })} is here`;
+  if (n.length === 2) return t`${ph({ first: n[0] })} and ${ph({ second: n[1] })} are here`;
+  if (n.length === 3) return t`${ph({ first: n[0] })}, ${ph({ second: n[1] })} and ${ph({ third: n[2] })} are here`;
+  const first = n[0];
+  const second = n[1];
   const rest = n.length - 2;
-  return `${n[0]}, ${n[1]} and ${rest} others are here`;
+  return plural(rest, { one: `${first}, ${second} and # others are here`, other: `${first}, ${second} and # others are here` });
 }
 
 // others: the people in this workspace now, not you — [{ id, name }], name
@@ -42,7 +45,7 @@ export function whoLine({ others = [], mine = true, sharedBy = '', coowner = fal
     here.push(p);
   }
   if (here.length) {
-    const names = here.map((p) => firstName(p.name) || 'Someone');
+    const names = here.map((p) => firstName(p.name) || t`Someone`);
     return {
       kind: 'here',
       text: hereText(names),
@@ -50,6 +53,6 @@ export function whoLine({ others = [], mine = true, sharedBy = '', coowner = fal
     };
   }
   if (mine) return null;
-  const by = String(sharedBy || '').trim() || 'someone';
-  return { kind: 'shared', text: coowner ? `Co-owner · shared by ${by}` : `Shared by ${by}` };
+  const by = String(sharedBy || '').trim() || t`someone`;
+  return { kind: 'shared', text: coowner ? t`Co-owner · shared by ${by}` : t`Shared by ${by}` };
 }

@@ -24,6 +24,9 @@ import {
   Headphones, Clapperboard, Database, CodeIcon, Download,
 } from '../../lib/icons.js';
 import './fileCard.css';
+import { t, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { sizeText } from '../../lib/intlFormat.js';
 
 // The pages of the families a card draws from the file live in their own
 // chunk (FamilyFace.jsx), loaded the first time a card needs one.
@@ -45,8 +48,11 @@ export function humanSize(bytes) {
   if (bytes == null) return '';
   const u = ['B', 'KB', 'MB', 'GB', 'TB'];
   let n = bytes, i = 0;
+  const units = ['byte', 'kilobyte', 'megabyte', 'gigabyte', 'terabyte'];
   while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
-  return `${n >= 10 || i === 0 ? Math.round(n) : n.toFixed(1)} ${u[i]}`;
+  const whole = n >= 10 || i === 0;
+  const shown = whole ? Math.round(n) : n.toFixed(1);
+  return sizeText(`${shown} ${u[i]}`, Number(shown), units[i], whole ? 0 : 1);
 }
 
 export function extOf(fileName, ext) {
@@ -100,7 +106,7 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
 
   const e = extOf(fileName, ext);
   const GlyphIcon = iconForFile(e, mime);
-  const label = title || fileName || 'File';   // a rename shows; the download keeps fileName
+  const label = title || fileName || t`File`;   // a rename shows; the download keeps fileName
   const sizeText = humanSize(sizeBytes);
   const showTitle = !!title || editingTitle;
 
@@ -121,15 +127,18 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
   const archiveKey = viewKind === 'archive' ? viewRef : '';
   const family = docKey ? docFamily(extOfKey(docKey)) : null;
   const pages = Number(pageCount) > 0 ? Math.floor(Number(pageCount)) : 0;
-  const unit = family === 'slides' ? (pages === 1 ? 'slide' : 'slides') : (pages === 1 ? 'page' : 'pages');
   const items = archiveKey && Number.isInteger(itemCount) && itemCount >= 0 ? itemCount : null;
   // The converter prints the first DOC_MAX_PAGES pages and no more.
-  const metaText = docKey && pages ? `${pages}${pages >= DOC_MAX_PAGES ? '+' : ''} ${unit}`
-    : items != null ? `${items} ${items === 1 ? 'file' : 'files'}` : sizeText;
+  const slides = family === 'slides';
+  const metaText = docKey && pages
+    ? (pages >= DOC_MAX_PAGES
+        ? (slides ? t`${pages}+ slides` : t`${pages}+ pages`)
+        : (slides ? plural(pages, { one: '# slide', other: '# slides' }) : plural(pages, { one: '# page', other: '# pages' })))
+    : items != null ? plural(items, { one: '# file', other: '# files' }) : sizeText;
   const docPlaceholder = (state) => (
     <div className={`filec-glyph${state === 'making' ? ' is-making' : ''}`}>
       <Icon as={designKey ? StripIcon : GlyphIcon} size={42} />
-      {state === 'making' && <span className="filec-making">Making a preview…</span>}
+      {state === 'making' && <span className="filec-making"><Trans>Making a preview…</Trans></span>}
     </div>
   );
 
@@ -186,12 +195,12 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
         ) : glyph}
         {!pending && fileSrc && (
           <button type="button" className={`ic-expand${busy ? ' is-busy' : ''}`}
-                  title={busy ? 'Preparing download…' : `Download ${label}`}
+                  title={busy ? t`Preparing download…` : t`Download ${label}`}
                   aria-busy={busy || undefined}
                   onPointerDown={(ev) => ev.stopPropagation()}
                   onClick={download}>
             {busy
-              ? <Spinner size={12} tone="on-dark" label="Preparing download…" />
+              ? <Spinner size={12} tone="on-dark" label={t`Preparing download…`} />
               : <Icon as={Download} size={12} />}
           </button>
         )}
@@ -205,7 +214,7 @@ export function FileCard({ fileSrc, fileName, mime, sizeBytes, ext, title,
         <EditableText
           className="ic-title editable"
           value={title || ''}
-          placeholder="Title"
+          placeholder={t`Title`}
           editing={editingTitle}
           setEditing={setEditingTitle}
           onChange={(v) => onUpdate({ title: v || null })}

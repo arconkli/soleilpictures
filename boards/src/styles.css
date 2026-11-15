@@ -8204,7 +8204,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   position: absolute; left: 50%; top: 14px; z-index: 25;
   transform: translateX(-50%);
   display: flex; align-items: center; gap: 12px;
-  max-width: calc(100% - 24px); box-sizing: border-box;
+  width: max-content; max-width: calc(100% - 24px); box-sizing: border-box;
   padding: 5px 5px 5px 12px;
   background: var(--bg-1);
   border: 1px solid var(--line-2);
@@ -8215,7 +8215,7 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
   white-space: nowrap;
   pointer-events: auto;
 }
-.cnv-studio-bar-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cnv-studio-bar-txt { min-width: 0; white-space: normal; }
 .cnv-studio-bar-go {
   flex-shrink: 0; height: 26px; padding: 0 11px;
   border-radius: 999px;
@@ -8240,7 +8240,16 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 .app.is-floating-chrome .cnv-studio-bar { top: calc(var(--chrome-band) + 14px); }
 body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
 /* A phone's width holds the count and the action, not where they are. */
-@media (max-width: 640px) { .cnv-studio-bar-where { display: none; } }
+/* On a phone the comments eye holds the canvas's top left corner (up to about
+   55px wide with its count): the bar centres in the room to its right. The
+   count never shrinks below its longest word; when the button doesn't fit
+   beside that, it goes to a second row. The close keeps the right edge. */
+@media (max-width: 640px) {
+  .cnv-studio-bar-where { display: none; }
+  .cnv-studio-bar { left: calc(50% + 32px); max-width: calc(100% - 88px); flex-wrap: wrap; row-gap: 6px; padding-right: 36px; }
+  .cnv-studio-bar-txt { flex: 1 1 0; min-width: auto; }
+  .cnv-studio-bar-x { position: absolute; right: 5px; top: 50%; margin-top: -13px; }
+}
 @media (hover: none) and (pointer: coarse) {
   .cnv-empty-tiles-sub-fine { display: none; }
   .cnv-empty-tiles-sub-coarse { display: inline; }
@@ -9943,6 +9952,7 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
 .cbd-meta-row:last-child { border-bottom: 0; }
 .cbd-meta-k { color: var(--ink-2); font: 400 12px/1.3 var(--font-sans); flex-shrink: 0; }
 .cbd-meta-v { color: var(--ink-0); min-width: 0; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cbd-meta-v.is-wrap { white-space: normal; }
 /* One row: the action that matters, then quiet icon buttons, then Delete as
    text at the far end — a hierarchy, not four equal slabs. */
 .cbd-actions { padding: 10px 12px; border-top: 1px solid var(--line-2); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
@@ -15261,7 +15271,8 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   padding: 2px 6px;
   border-radius: var(--radius);
 }
-.doc-card-meta { color: var(--ink-3); flex: 1 1 auto; }
+.doc-card-meta { color: var(--ink-3); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-card-act { flex: none; }
 /* The closed card in the doc look (mockup S-card, <html data-doc-look="a">):
    the title in the doc's serif over a hairline, an empty doc's Start writing,
    and Beside and Open in words. */
@@ -22031,6 +22042,11 @@ button, [role="button"], a {
 .onboarding-tour-kinds li { display: flex; align-items: center; gap: 6px; font: 500 12px/1.2 var(--font-sans); color: var(--ink-2); white-space: nowrap; }
 .onboarding-tour-kinds svg { width: 16px; height: 16px; flex: none; }
 @media (max-width: 359px) { .onboarding-tour-kinds { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* OnboardingTour.jsx sets data-cols to the most columns, three to one, in which every kind's label
+   fits: a translation can be too long for a third on a phone (ru Изображения, es Documentos). */
+.onboarding-tour-kinds[data-cols='3'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.onboarding-tour-kinds[data-cols='2'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.onboarding-tour-kinds[data-cols='1'] { grid-template-columns: minmax(0, 1fr); }
 .onboarding-tour-rule { flex: 1 0 100%; height: 1px; background: rgba(255, 255, 255, 0.08); margin: 2px 0; }
 [data-theme='light'] .onboarding-tour-rule { background: rgba(10, 9, 8, 0.08); }
 

@@ -6,8 +6,10 @@ navLabel: Theme and defaults
 section: account
 order: 2
 updated: 2026-11-15
-answer: Appearance covers the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, what a plain scroll wheel does, and whether W, A, S and D move you around a board. Card defaults set what new notes, docs and shapes start as, and whether new clusters open as a board or in Files. Appearance is personal and follows your account between devices; card defaults belong to the workspace.
+answer: Appearance covers your language, the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, what a plain scroll wheel does, and whether W, A, S and D move you around a board. Card defaults set what new notes, docs and shapes start as, and whether new clusters open as a board or in Files. Appearance is personal and follows your account between devices; card defaults belong to the workspace.
 faq:
+  - q: Can I use Clusters in another language?
+    a: Yes. Settings → Appearance → Language offers English, Spanish, French, Brazilian Portuguese, Russian, Japanese and Korean. Automatic, the default, follows your browser. Cards, clusters and comments stay in the language they were written in.
   - q: Does my theme follow me between devices?
     a: Yes. Theme is a per-user account setting, not a browser one, so it syncs everywhere you sign in.
   - q: Can I use any font?
@@ -24,7 +26,22 @@ related:
 
 **Settings → Appearance.** Personal — these change how Clusters looks and
 behaves for you, on every device you sign in on, and nobody else in the
-workspace sees them. Three sections.
+workspace sees them. Four sections.
+
+### Language
+
+Menus, dates and the emails we send you come in **English**, **Español**,
+**Français**, **Português (Brasil)**, **Русский**, **日本語** or **한국어**. Each
+language is listed in its own words, so anyone can find theirs.
+
+- **Automatic**, the default, follows your browser's language, and is English
+  when your browser asks for none of these.
+- A language you choose follows your account to every device you sign in on.
+- The emails we send you, checkout and the billing page come in the same
+  language.
+- What people make is never translated: cards, clusters, docs and comments stay
+  in the language they were written in.
+- This help site and the public pages stay in English.
 
 ### Theme
 

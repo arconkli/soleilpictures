@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom';
 import { Icon } from '../Icon.jsx';
 import { ChevronDown } from '../../lib/icons.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
+import { t } from '@lingui/core/macro';
 
 // Where the menu opens: under its button when it fits, else over it; fitting
 // neither, it slides up the window until it all shows (over its button, as
@@ -35,7 +36,7 @@ export function placeMenu(btn, menu, align = 'right') {
 
 export function FilesShowMenu({
   label, on = false, title, sections, extra = null,
-  ariaLabel = 'Show, sort and group', align = 'right', hidden = false,
+  ariaLabel = t`Show, sort and group`, align = 'right', hidden = false,
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);

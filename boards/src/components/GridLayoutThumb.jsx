@@ -1,5 +1,6 @@
 import { computeCellRects, readingOrder } from '../lib/gridLayout.js';
 import './gridLayoutThumb.css';
+import { t, ph, plural } from '@lingui/core/macro';
 
 // A layout, drawn the way the card actually draws it.
 //
@@ -122,11 +123,11 @@ export function GridLayoutThumb({ tree, title, size = null, labels = null, numbe
       height={SIZE.h}
       role="img"
       aria-label={[
-        title ? `${title} layout` : 'Layout preview',
-        `${rects.length} ${rects.length === 1 ? 'box' : 'boxes'}`,
+        title ? t`${title} layout` : t`Layout preview`,
+        plural(rects.length, { one: '# box', other: '# boxes' }),
         // role="img" hides the SVG's contents from assistive tech, so the cell
         // labels have to be in the accessible name or they are invisible to it.
-        labels?.length ? `labelled ${labels.filter(Boolean).join(', ')}` : null,
+        labels?.length ? t`labelled ${ph({ names: labels.filter(Boolean).join(', ') })}` : null,
       ].filter(Boolean).join(' — ')}
     >
       {rects.map((r) => {

@@ -23,12 +23,15 @@ import { useSettingsSave } from './saveState.jsx';
 import { canManageWorkspace, canWriteWorkspace } from '../../lib/workspaceRoles.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import { initialOf } from '../../lib/graphemes.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../../lib/errorWords.js';
 
 const ROLE_COPY = {
-  owner:   'Owner — you can rename it, change the icon, and delete it.',
-  coowner: 'Co-owner — you can rename it and change the icon. Only the owner can delete it or hand it over.',
-  editor:  'Editor — you can change what new cards start as, but not the name or icon.',
-  viewer: 'Viewer — you can see these settings but not change them.',
+  get owner()   { return t`Owner — you can rename it, change the icon, and delete it.`; },
+  get coowner() { return t`Co-owner — you can rename it and change the icon. Only the owner can delete it or hand it over.`; },
+  get editor()  { return t`Editor — you can change what new cards start as, but not the name or icon.`; },
+  get viewer()  { return t`Viewer — you can see these settings but not change them.`; },
 };
 
 export function WorkspaceGeneralTab({
@@ -107,7 +110,7 @@ export function WorkspaceGeneralTab({
       });
       await setIcon(src);
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'workspace_icon_failed', message: 'Upload failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'workspace_icon_failed', message: t`Upload failed: ${ph({ reason: shownError(err) })}` });
     } finally {
       setUploadingIcon(false);
     }
@@ -115,16 +118,16 @@ export function WorkspaceGeneralTab({
 
   return (
     <div className="settings-section">
-      <h3 className="settings-section-title">General</h3>
+      <h3 className="settings-section-title"><Trans>General</Trans></h3>
       <p className="settings-section-hint">
-        {ROLE_COPY[role] || 'These settings belong to the workspace, not to you — everyone in it sees the same values.'}
+        {ROLE_COPY[role] || t`These settings belong to the workspace, not to you — everyone in it sees the same values.`}
       </p>
 
-      <SettingsCategory title="Identity" desc="Shows in the sidebar and the workspace switcher">
-        <Field label="Name">
+      <SettingsCategory title={t`Identity`} desc={t`Shows in the sidebar and the workspace switcher`}>
+        <Field label={t`Name`}>
           <input className="settings-input" dir="auto"
                  value={name}
-                 placeholder="e.g. Soleil Studio"
+                 placeholder={t`e.g. Soleil Studio`}
                  disabled={!canManage}
                  onChange={(e) => setName(e.target.value)}
                  onBlur={commitName}
@@ -134,7 +137,7 @@ export function WorkspaceGeneralTab({
                    if (e.key === 'Escape') { e.preventDefault(); setName(workspaceName || ''); }
                  }} />
         </Field>
-        <Field label="Icon">
+        <Field label={t`Icon`}>
           <AvatarUploadRow
             src={iconSrc}
             fallbackColor={pickPresenceColor(workspaceId || '')}
@@ -148,19 +151,18 @@ export function WorkspaceGeneralTab({
         </Field>
       </SettingsCategory>
 
-      <SettingsCategory title="AI" desc="What may go to an AI model">
+      <SettingsCategory title={t`AI`} desc={t`What may go to an AI model`}>
         {canManage ? (
-          <Toggle label="AI suggestions"
-                  desc={'Suggests tags from what people write here, underlines likely ones in docs, '
-                    + 'and describes the pictures people add. The text and a small copy of each picture go '
-                    + 'to Cloudflare Workers AI. Off, Clusters sends nothing and picture descriptions are deleted; '
-                    + 'tags you add, and tags whose exact name appears in the text, still work.'}
+          <Toggle label={t`AI suggestions`}
+                  desc={t`Suggests tags from what people write here, underlines likely ones in docs, and describes the pictures people add. The text and a small copy of each picture go to Cloudflare Workers AI. Off, Clusters sends nothing and picture descriptions are deleted; tags you add, and tags whose exact name appears in the text, still work.`}
                   value={aiOn !== false}
                   onChange={changeAi} />
         ) : (
-          <Field label="AI suggestions">
+          <Field label={t`AI suggestions`}>
             <span className="settings-toggle-desc">
-              {aiOn === null ? '…' : aiOn ? 'On' : 'Off'} · only the owner or a co-owner can change this
+              {aiOn === null ? t`… · only the owner or a co-owner can change this`
+                : aiOn ? t`On · only the owner or a co-owner can change this`
+                  : t`Off · only the owner or a co-owner can change this`}
             </span>
           </Field>
         )}
@@ -168,10 +170,10 @@ export function WorkspaceGeneralTab({
 
       {isOwner && onOpenRecovery && (
         <SettingsCategory
-          title="Recovery"
-          desc="Rewinds every cluster in this workspace at once — for after an accidental mass-delete. The pre-rewind state is kept, so the rewind itself is reversible.">
+          title={t`Recovery`}
+          desc={t`Rewinds every cluster in this workspace at once — for after an accidental mass-delete. The pre-rewind state is kept, so the rewind itself is reversible.`}>
           <button type="button" className="settings-link-btn" onClick={onOpenRecovery}>
-            Open recovery →
+            <Trans>Open recovery →</Trans>
           </button>
         </SettingsCategory>
       )}
@@ -211,36 +213,36 @@ export function CardDefaultsTab({ workspaceId, role, workspaceSettings, refresh 
 
   return (
     <div className="settings-section">
-      <h3 className="settings-section-title">Card defaults</h3>
+      <h3 className="settings-section-title"><Trans>Card defaults</Trans></h3>
       <p className="settings-section-hint">
-        These set the starting look of every new card on this workspace.
+        <Trans>These set the starting look of every new card on this workspace.</Trans>{' '}
         {canEdit
-          ? ' Anything you create now will pick these up; existing cards aren’t changed.'
-          : ' You have viewer access — only editors, co-owners and owners can change them.'}
+          ? t`Anything you create now will pick these up; existing cards aren’t changed.`
+          : t`You have viewer access — only editors, co-owners and owners can change them.`}
       </p>
 
       {/* NOTES */}
-      <SettingsCategory title="Notes" desc="When you create a sticky note">
-        <Field label="Background">
+      <SettingsCategory title={t`Notes`} desc={t`When you create a sticky note`}>
+        <Field label={t`Background`}>
           <SwatchInput
             value={cat('note').bgColor ?? null}
             fallback={HARDCODED_FALLBACKS.note.bgColor}
             disabled={disabled}
             onChange={(v) => setKey('note', 'bgColor', v)} />
         </Field>
-        <Field label="Text color">
+        <Field label={t`Text color`}>
           <SwatchInput
             value={cat('note').textColor ?? null}
             fallback={HARDCODED_FALLBACKS.note.textColor}
             disabled={disabled}
             onChange={(v) => setKey('note', 'textColor', v)} />
         </Field>
-        <Field label="Font">
+        <Field label={t`Font`}>
           <FontField value={cat('note').fontFamily ?? null}
                      disabled={disabled}
                      onChange={(v) => setKey('note', 'fontFamily', v)} />
         </Field>
-        <Field label="Font size">
+        <Field label={t`Font size`}>
           <input type="number" min="8" max="36"
                  className="settings-input"
                  placeholder="12.5"
@@ -254,21 +256,21 @@ export function CardDefaultsTab({ workspaceId, role, workspaceSettings, refresh 
       </SettingsCategory>
 
       {/* BOARDS */}
-      <SettingsCategory title="Clusters" desc="When you create a new cluster">
-        <Field label="Default view">
+      <SettingsCategory title={t`Clusters`} desc={t`When you create a new cluster`}>
+        <Field label={t`Default view`}>
           <select className="settings-input"
                   value={cat('board').view ?? 'canvas'}
                   disabled={disabled}
                   onChange={(e) => setKey('board', 'view', e.target.value)}>
-            <option value="canvas">Board</option>
-            <option value="list">Files</option>
+            <option value="canvas">{t`Board`}</option>
+            <option value="list">{t`Files`}</option>
           </select>
         </Field>
       </SettingsCategory>
 
       {/* DOCS */}
-      <SettingsCategory title="Docs" desc="When you create a new doc">
-        <Field label="Font">
+      <SettingsCategory title={t`Docs`} desc={t`When you create a new doc`}>
+        <Field label={t`Font`}>
           <FontField value={cat('doc').fontFamily ?? null}
                      disabled={disabled}
                      onChange={(v) => setKey('doc', 'fontFamily', v)} />
@@ -278,8 +280,8 @@ export function CardDefaultsTab({ workspaceId, role, workspaceSettings, refresh 
       {/* SHAPES. Kind and line style are read by the add-shape mutator exactly
           like stroke/fill/width below — they just never had a control, so the
           workspace could set three of the five things a new shape starts as. */}
-      <SettingsCategory title="Shapes" desc="When you draw a shape">
-        <Field label="Shape">
+      <SettingsCategory title={t`Shapes`} desc={t`When you draw a shape`}>
+        <Field label={t`Shape`}>
           <select className="settings-input"
                   value={cat('shape').shape ?? HARDCODED_FALLBACKS.shape.shape}
                   disabled={disabled}
@@ -287,14 +289,14 @@ export function CardDefaultsTab({ workspaceId, role, workspaceSettings, refresh 
             {SHAPES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
         </Field>
-        <Field label="Stroke">
+        <Field label={t`Stroke`}>
           <SwatchInput
             value={cat('shape').stroke ?? null}
             fallback={HARDCODED_FALLBACKS.shape.stroke}
             disabled={disabled}
             onChange={(v) => setKey('shape', 'stroke', v)} />
         </Field>
-        <Field label="Fill">
+        <Field label={t`Fill`}>
           <SwatchInput
             value={cat('shape').fill ?? null}
             fallback={HARDCODED_FALLBACKS.shape.fill}
@@ -302,14 +304,14 @@ export function CardDefaultsTab({ workspaceId, role, workspaceSettings, refresh 
             disabled={disabled}
             onChange={(v) => setKey('shape', 'fill', v)} />
         </Field>
-        <Field label="Stroke width">
+        <Field label={t`Stroke width`}>
           <input type="number" min="1" max="12"
                  className="settings-input"
                  value={cat('shape').strokeWidth ?? HARDCODED_FALLBACKS.shape.strokeWidth}
                  disabled={disabled}
                  onChange={(e) => setKey('shape', 'strokeWidth', Number(e.target.value) || 2)} />
         </Field>
-        <Field label="Line style">
+        <Field label={t`Line style`}>
           <select className="settings-input"
                   value={cat('shape').dash ?? HARDCODED_FALLBACKS.shape.dash}
                   disabled={disabled}

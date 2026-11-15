@@ -161,6 +161,8 @@ test('a group and the kind breakdown', () => {
   assert.equal(info.title, 'Refs');
   assert.equal(rows(info).Members, '3');
   assert.equal(kindBreakdown([{ kind: 'audio' }, { kind: 'pdf' }, { kind: 'pdf' }]), '2 PDFs, 1 audio file');
+  // The list's joiner is the reader's: Japanese writes 、 between the counts.
+  assert.ok(inLocale('ja', () => kindBreakdown([{ kind: 'audio' }, { kind: 'pdf' }, { kind: 'pdf' }])).includes('、'));
 });
 
 test('sizeOf prefers the card, then the images row', () => {
@@ -185,4 +187,24 @@ test('a followed selection becomes the cards, a folder, or the cluster itself', 
   assert.deepEqual([two.cardIds, two.clusterIds, two.clusterId], [[], ['f', 'g'], null]);
   const mixed = targetForSelection({ boardId: 'b', ids: ['a'], clusterIds: ['f'], cards });
   assert.deepEqual([mixed.cardIds, mixed.clusterIds], [['a'], ['f']]);
+});
+
+// ── Sizes in the reader's language (16b) ──
+import { setUiLocale } from './uiLocale.js';
+import { sizeProgress } from './cardInfo.js';
+
+const nb = (s) => s.replace(/[\u00a0\u202f]/g, ' ');
+const inLocale = (l, fn) => { setUiLocale(l); try { return fn(); } finally { setUiLocale('en'); } };
+test('formatSize and sizeProgress: English as ever; fr and ru write the same numbers their way', () => {
+  const MB = 1024 ** 2;
+  assert.equal(formatSize(1536), '1.5 KB');
+  assert.equal(sizeProgress(1.2 * MB, 3.4 * MB), '1.2 of 3.4 MB');
+  assert.equal(sizeProgress(8 * MB, 19 * MB), '8 of 19 MB');
+  assert.equal(sizeProgress(MB, 3.4 * MB), '1 of 3.4 MB');
+  assert.equal(sizeProgress(0, 19 * MB), '0 B of 19 MB');
+  assert.equal(sizeProgress(500 * 1024, 19 * MB), '500 KB of 19 MB');
+  assert.equal(nb(inLocale('fr', () => formatSize(1536))), '1,5 ko');
+  assert.equal(nb(inLocale('fr', () => sizeProgress(1.2 * MB, 3.4 * MB))), '1,2 of 3,4 Mo');
+  assert.equal(nb(inLocale('ru', () => sizeProgress(8 * MB, 19 * MB))), '8 of 19 МБ');
+  assert.equal(nb(inLocale('ru', () => sizeProgress(500 * 1024, 19 * MB))), '500 кБ of 19 МБ');
 });

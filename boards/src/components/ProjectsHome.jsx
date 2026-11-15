@@ -33,9 +33,13 @@ import { relativeTimeShort } from '../lib/relativeTime.js';
 import { boardRecency, jumpBackIn, projectList, workspaceMenuPlacement } from '../lib/projectsHome.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { initialOf } from '../lib/graphemes.js';
+import { isDefaultName } from '../lib/defaultNames.js';
+import { t, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
-const UNTITLED_RE = /^Untitled (cluster|list)$/i;
-const displayName = (b) => (b?.name && b.name.trim()) || 'Untitled cluster';
+// 'Untitled list' is the older English name; isDefaultName knows the app's name in every language.
+const isUntitled = (name) => isDefaultName(['Untitled cluster', 'Untitled list'], name);
+const displayName = (b) => (b?.name && b.name.trim()) || t`Untitled cluster`;
 
 function Thumb({ board, label }) {
   if (board?.thumb_key) {
@@ -66,7 +70,7 @@ function Tile({ board, label, sub, onOpen }) {
       <span className="ph-tile-meta">
         <span className="ph-tile-name">{label}</span>
         <span className="ph-tile-sub">
-          {sub || [cards > 0 ? `${cards} card${cards === 1 ? '' : 's'}` : null, when || null].filter(Boolean).join(' · ')}
+          {sub || [cards > 0 ? plural(cards, { one: '# card', other: '# cards' }) : null, when || null].filter(Boolean).join(' · ')}
         </span>
       </span>
     </button>
@@ -90,8 +94,8 @@ function NewProjectTile({ onCreate, disabled }) {
       <button type="button" className="ph-tile ph-tile-new" onClick={() => setNaming(true)}>
         <span className="ph-thumb ph-thumb-new" aria-hidden="true"><Icon as={Plus} size={22} /></span>
         <span className="ph-tile-meta">
-          <span className="ph-tile-name">New cluster</span>
-          <span className="ph-tile-sub">At the top of your workspace</span>
+          <span className="ph-tile-name"><Trans>New cluster</Trans></span>
+          <span className="ph-tile-sub"><Trans>At the top of your workspace</Trans></span>
         </span>
       </button>
     );
@@ -104,10 +108,10 @@ function NewProjectTile({ onCreate, disabled }) {
       <span className="ph-thumb ph-thumb-new" aria-hidden="true"><Icon as={Plus} size={22} /></span>
       <span className="ph-tile-meta">
         <input ref={inputRef} className="ph-new-input" value={draft} maxLength={120}
-               placeholder="Name it (optional)" aria-label="New cluster name"
+               placeholder={t`Name it (optional)`} aria-label={t`New cluster name`}
                onChange={(e) => setDraft(e.target.value)}
                onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); setNaming(false); setDraft(''); } }} />
-        <span className="ph-tile-sub">Enter to create</span>
+        <span className="ph-tile-sub"><Trans>Enter to create</Trans></span>
       </span>
     </form>
   );
@@ -170,12 +174,12 @@ function WorkspaceHeader({
   if (!workspace) return null;
   const isPersonal = workspace.id === personalWorkspaceId;
   const isOwner = workspace.created_by === selfUserId;
-  const sub = isPersonal ? 'Your personal workspace'
-    : isOwner ? 'Your workspace'
-    : workspace._myRole === 'coowner' ? 'You co-own this'
-    : 'Shared with you';
+  const sub = isPersonal ? t`Your personal workspace`
+    : isOwner ? t`Your workspace`
+    : workspace._myRole === 'coowner' ? t`You co-own this`
+    : t`Shared with you`;
   const iconSrc = workspace.settings?.icon_url || '';
-  const name = (workspace.name || '').trim() || 'Workspace';
+  const name = (workspace.name || '').trim() || t`Workspace`;
 
   const toggle = () => {
     if (open) { setPlace(null); return; }
@@ -186,7 +190,7 @@ function WorkspaceHeader({
   return (
     <div className="ph-ws">
       <button ref={triggerRef} type="button" className="ph-ws-trigger" onClick={toggle}
-              title="Switch workspace" aria-haspopup="menu" aria-expanded={open}>
+              title={t`Switch workspace`} aria-haspopup="menu" aria-expanded={open}>
         {iconSrc ? (
           <span className="ph-ws-avatar ph-ws-avatar-img"><R2Image src={iconSrc} alt="" /></span>
         ) : (
@@ -203,10 +207,10 @@ function WorkspaceHeader({
         </svg>
       </button>
       {/* Labelled outright: on a phone the words collapse and only the + shows. */}
-      <button type="button" className="ph-ws-new" aria-label="New workspace" title="New workspace"
+      <button type="button" className="ph-ws-new" aria-label={t`New workspace`} title={t`New workspace`}
               onClick={() => { setPlace(null); onNew?.(); }}>
         <Icon as={Plus} size={14} />
-        <span>New workspace</span>
+        <span><Trans>New workspace</Trans></span>
       </button>
       {open && typeof document !== 'undefined' && createPortal(
         <div ref={popRef} className="ph-ws-pop" style={{ top: place.top, left: place.left, width: place.width }}>
@@ -265,10 +269,10 @@ export function ProjectsHome({
 
       {exploring ? (
         <button type="button" className="ph-projects-pill" onClick={() => onExplore?.(false)}>
-          Clusters
+          <Trans>Clusters</Trans>
         </button>
       ) : (
-        <section className="ph-panel surface-frosted" aria-label="Your clusters">
+        <section className="ph-panel surface-frosted" aria-label={t`Your clusters`}>
           <div className="ph-panel-scroll">
             <WorkspaceHeader
               workspace={workspace}
@@ -284,13 +288,13 @@ export function ProjectsHome({
             />
             {jump.length > 0 && (
               <div className="ph-section">
-                <div className="ph-eyebrow">Jump back in</div>
+                <div className="ph-eyebrow"><Trans>Jump back in</Trans></div>
                 <div className="ph-jump">
                   {jump.map((b) => (
                     <button key={b.id} type="button" className="ph-jump-item"
                             onClick={() => onOpenBoard?.(b.id, 'jump')} title={displayName(b)}>
-                      <Thumb board={b} label={b.id === rootId ? 'Studio' : displayName(b)} />
-                      <span className="ph-jump-name">{b.id === rootId ? (root?.name || 'Studio') : displayName(b)}</span>
+                      <Thumb board={b} label={b.id === rootId ? t`Studio` : displayName(b)} />
+                      <span className="ph-jump-name">{b.id === rootId ? (root?.name || t`Studio`) : displayName(b)}</span>
                       <span className="ph-jump-when">{relativeTimeShort(boardRecency(b))}</span>
                     </button>
                   ))}
@@ -299,15 +303,15 @@ export function ProjectsHome({
             )}
 
             <div className="ph-section">
-              <div className="ph-eyebrow">Your clusters</div>
+              <div className="ph-eyebrow"><Trans>Your clusters</Trans></div>
               <div className="ph-grid">
                 {root && (
-                  <Tile board={root} label={root.name || 'Studio'}
+                  <Tile board={root} label={root.name || t`Studio`}
                         onOpen={() => onOpenBoard?.(root.id, 'studio')} />
                 )}
                 {projects.map((b) => (
                   <Tile key={b.id} board={b}
-                        label={UNTITLED_RE.test(b.name || '') ? 'Untitled cluster' : displayName(b)}
+                        label={isUntitled(b.name || '') ? t`Untitled cluster` : displayName(b)}
                         onOpen={() => onOpenBoard?.(b.id, 'tile')} />
                 ))}
                 <NewProjectTile disabled={!canCreate} onCreate={onNewProject} />
@@ -316,7 +320,7 @@ export function ProjectsHome({
 
             {graph && (
               <button type="button" className="ph-explore" onClick={() => onExplore?.(true)}>
-                Explore universe →
+                <Trans>Explore universe →</Trans>
               </button>
             )}
           </div>

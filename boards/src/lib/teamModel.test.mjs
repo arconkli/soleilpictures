@@ -6,9 +6,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   teamCan, holdsSeat, seatsUsed, seatsFree, roleChoices, peopleCounts, filterPeople,
-  whereLabel, lastHereLabel, adminNames, money, seatPriceLabel, proratedToday, seatAddLine,
-  approveLine, storageQuota, sizeLabel, teamReducer, teamHeroLine, TEAM_SEAT_MIN,
+  money, proratedToday,
+  storageQuota, sizeLabel, teamReducer, teamHeroLine, TEAM_SEAT_MIN,
 } from './teamModel.js';
+// The sentences moved to the app-only words module (teamModelWords.js).
+import {
+  whereLabel, lastHereLabel, adminNames, seatPriceLabel, seatAddLine, approveLine,
+  teamHeroLine as teamHeroLineWords,
+} from './teamModelWords.js';
 import { sampleTeam } from './teamSample.js';
 import { searchKey } from './textFold.js';
 
@@ -94,6 +99,7 @@ test('money: whole dollars stay whole, a seat is prorated to the day', () => {
   assert.equal(money(9.5), '$9.50');
   assert.equal(money(0), '$0');
   assert.equal(teamHeroLine(10), 'Teams with more than 10 people who edit pay $25 a seat.');
+  assert.equal(teamHeroLineWords(10), teamHeroLine(10));
   const plan = { interval: 'year', renewsAt: NOW + 73 * DAY };
   assert.equal(seatPriceLabel(plan), '$240 a year');
   assert.equal(proratedToday(plan, NOW), 48);
@@ -194,4 +200,21 @@ test('the reducer: joining and the name', () => {
   assert.equal(t.name, 'lumen pictures');
   assert.equal(t.letter, 'L');
   assert.equal(teamReducer(t, { type: 'rename', name: '   ' }).name, 'lumen pictures');
+});
+
+// ── Money and sizes in the reader's language (16b) ──
+import { setUiLocale } from './uiLocale.js';
+import { money as moneyIn, sizeLabel as sizeLabelIn } from './teamModelWords.js';
+
+const nb = (s) => s.replace(/[\u00a0\u202f]/g, ' ');
+const inLocale = (l, fn) => { setUiLocale(l); try { return fn(); } finally { setUiLocale('en'); } };
+test('money and sizeLabel: English as ever; fr and ru write the same amount their way', () => {
+  assert.equal(moneyIn(25), '$25');
+  assert.equal(moneyIn(12.5), '$12.50');
+  assert.equal(sizeLabelIn(1e12), '1 TB');
+  assert.equal(sizeLabelIn(1.5e9), '1.5 GB');
+  assert.equal(nb(inLocale('fr', () => moneyIn(12.5))), '12,50 $US');
+  assert.equal(nb(inLocale('fr', () => moneyIn(25))), '25 $US');
+  assert.equal(nb(inLocale('fr', () => sizeLabelIn(1.5e9))), '1,5 Go');
+  assert.equal(nb(inLocale('ru', () => sizeLabelIn(1e12))), '1 ТБ');
 });

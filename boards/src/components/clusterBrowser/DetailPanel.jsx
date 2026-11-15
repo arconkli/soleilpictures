@@ -27,15 +27,17 @@ import { VersionsSection } from '../info/VersionsSection.jsx';
 import { openPlayer } from '../../lib/playerBus.js';
 import { canVersion } from '../../lib/cardVersions.js';
 import { pickVersionFile, makeCurrent, deleteVersion, restoreVersion, labelVersion } from '../../lib/versionActions.js';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const FILE_KINDS = new Set(['image', 'video', 'audio', 'pdf', 'file']);
 
-function MetaRow({ label, value, title }) {
+function MetaRow({ label, value, title, wrap }) {
   if (!value) return null;
   return (
     <div className="cbd-meta-row">
       <span className="cbd-meta-k">{label}</span>
-      <span className="cbd-meta-v" title={title || (typeof value === 'string' ? value : undefined)}>{value}</span>
+      <span className={wrap ? 'cbd-meta-v is-wrap' : 'cbd-meta-v'} title={title || (typeof value === 'string' ? value : undefined)}>{value}</span>
     </div>
   );
 }
@@ -62,9 +64,9 @@ function useProfiles(ids) {
 
 function personName(id, selfId) {
   if (!id) return null;
-  if (selfId && id === selfId) return 'You';
+  if (selfId && id === selfId) return tr`You`;
   const e = userProfiles.get(id);
-  return e?.name || e?.email || 'A teammate';
+  return e?.name || e?.email || tr`A teammate`;
 }
 
 function PersonRow({ k, by, at, selfId }) {
@@ -84,14 +86,14 @@ function PersonRow({ k, by, at, selfId }) {
 }
 
 function Rows({ details }) {
-  return details.map((r) => <MetaRow key={r.k} label={r.k} value={r.v} title={r.title} />);
+  return details.map((r) => <MetaRow key={r.k} label={r.k} value={r.v} title={r.title} wrap={r.id === 'kinds'} />);
 }
 
 function People({ people, selfId }) {
   people = people.filter((p) => p.by || formatWhen(p.at));
   if (!people.length) return null;
   return (
-    <Section label="History">
+    <Section label={tr`History`}>
       {people.map((p) => <PersonRow key={p.k} {...p} selfId={selfId} />)}
     </Section>
   );
@@ -145,14 +147,14 @@ export function DetailPanel({
   if (!target) return null;
   const cls = `cb-detail surface-frosted${inline ? ' is-inline' : ''}${variant === 'drawer' ? ' is-drawer' : ''}`;
   // The drawer takes focus when it opens (InfoHost), so Esc reaches it.
-  const asideProps = { className: cls, 'aria-label': 'Info', 'data-target': target.type, tabIndex: variant === 'drawer' ? -1 : undefined };
+  const asideProps = { className: cls, 'aria-label': tr`Info`, 'data-target': target.type, tabIndex: variant === 'drawer' ? -1 : undefined };
   const head = (title, sub) => (
     <div className="cbd-head">
       <div className="cbd-titles">
         <span className="cbd-title" dir="auto" title={title}>{title}</span>
         {sub && <span className="cbd-sub">{sub}</span>}
       </div>
-      <button className="cbd-close" onClick={onClose} aria-label="Close info"><Icon as={X} size={16} weight="light" /></button>
+      <button className="cbd-close" onClick={onClose} aria-label={tr`Close info`}><Icon as={X} size={16} weight="light" /></button>
     </div>
   );
 
@@ -161,17 +163,17 @@ export function DetailPanel({
     const g = target.group;
     return (
       <aside {...asideProps}>
-        {head(g.name, 'Grid family')}
+        {head(g.name, tr`Grid family`)}
         <div className="cbd-body">
           <div className="cbd-preview"><CardPreview key={g.id} item={g} size="tile" /></div>
-          <MetaRow label="Type" value="Grid family" />
-          <MetaRow label="Grids" value={`${g.count}`} />
+          <MetaRow label={tr`Type`} value="Grid family" />
+          <MetaRow label={tr`Grids`} value={`${g.count}`} />
           <div className="cbd-members">
-            <div className="cbd-members-label">Grids in this family</div>
+            <div className="cbd-members-label"><Trans>Grids in this family</Trans></div>
             {g.members.map((m, i) => (
               <button key={m.id} className="cbd-member" onClick={() => onReveal?.(m.id)} title={m.name}>
                 <span className="cbd-member-thumb"><CardPreview item={m} size="row" /></span>
-                <span className="cbd-member-name">{m.name || `Grid ${i + 1}`}</span>
+                <span className="cbd-member-name">{m.name || tr`Grid ${ph({ value: i + 1 })}`}</span>
                 <span className="cbd-member-open"><Icon as={ArrowsOutSimple} size={14} weight="light" /></span>
               </button>
             ))}
@@ -188,13 +190,13 @@ export function DetailPanel({
       <aside {...asideProps}>
         {head(info.title, info.subtitle)}
         <div className="cbd-body">
-          <Section label="Details"><Rows details={info.details} /></Section>
+          <Section label={tr`Details`}><Rows details={info.details} /></Section>
           <People people={info.people} selfId={selfId} />
         </div>
         {isCluster && onOpenCluster && (
           <div className="cbd-actions">
             <button className="cbd-act is-primary" onClick={() => onOpenCluster(target.board.id)}>
-              <Icon as={ArrowsOutSimple} size={16} weight="light" /><span>Open cluster</span>
+              <Icon as={ArrowsOutSimple} size={16} weight="light" /><span><Trans>Open cluster</Trans></span>
             </button>
           </div>
         )}
@@ -216,17 +218,17 @@ export function DetailPanel({
     boardId: item.boardId ?? null, boardName: location, surface: 'cluster_browser',
     toast: (t) => feedback?.toast?.(t),
   });
-  const size = info.details.find((r) => r.k === 'Size')?.v || (item.sizeBytes != null ? formatSize(item.sizeBytes) : '');
-  const sub = [info.details.find((r) => r.k === 'Kind')?.v || item.typeLabel, size].filter(Boolean).join(' · ');
+  const size = info.details.find((r) => r.id === 'size')?.v || (item.sizeBytes != null ? formatSize(item.sizeBytes) : '');
+  const sub = [info.details.find((r) => r.id === 'kind')?.v || item.typeLabel, size].filter(Boolean).join(' · ');
 
   return (
     <aside {...asideProps}>
       {head(item.name, sub)}
       <div className="cbd-body">
         {!inline && <div className="cbd-preview"><CardPreview key={item.id} item={item} size="tile" /></div>}
-        <Section label="Details">
+        <Section label={tr`Details`}>
           <Rows details={info.details} />
-          <MetaRow label="Location" value={location ? (item.unplaced ? `${location} · not on the board` : location) : null} />
+          <MetaRow label={tr`Location`} value={location ? (item.unplaced ? `${location} · not on the board` : location) : null} />
         </Section>
         <People people={info.people} selfId={selfId} />
         {FILE_KINDS.has(item.kind) && (card.src || card.fileSrc || card.pdfSrc) && (
@@ -260,26 +262,26 @@ export function DetailPanel({
             it can be put there instead. */}
         {item.unplaced ? (onPutOnBoard && (
           <button className="cbd-act is-primary" onClick={() => onPutOnBoard(item.id)}>
-            <Icon as={BoundingBox} size={16} weight="light" /><span>Put on board</span>
+            <Icon as={BoundingBox} size={16} weight="light" /><span><Trans>Put on board</Trans></span>
           </button>
         )) : onReveal && (
           <button className="cbd-act is-primary" onClick={() => onReveal(item.id)}>
-            <Icon as={BoundingBox} size={16} weight="light" /><span>Show on board</span>
+            <Icon as={BoundingBox} size={16} weight="light" /><span><Trans>Show on board</Trans></span>
           </button>
         )}
         {downloadable && (
-          <button className="cbt-iconbtn cbd-icon" onClick={() => doDownload()} aria-label="Download" title="Download">
+          <button className="cbt-iconbtn cbd-icon" onClick={() => doDownload()} aria-label={tr`Download`} title={tr`Download`}>
             <Icon as={Download} size={16} weight="light" />
           </button>
         )}
         {!isPublicSurface() && item.boardId && (
-          <button className="cbt-iconbtn cbd-icon" onClick={() => copyCardLink(item.id, item.boardId, feedback)} aria-label="Copy link" title="Copy link">
+          <button className="cbt-iconbtn cbd-icon" onClick={() => copyCardLink(item.id, item.boardId, feedback)} aria-label={tr`Copy link`} title={tr`Copy link`}>
             <Icon as={LinkIcon} size={16} weight="light" />
           </button>
         )}
         {canEdit && onDelete && (
           <button className="cbd-act cbd-act-danger" onClick={() => onDelete([item.id])}>
-            <span>Delete</span>
+            <span><Trans>Delete</Trans></span>
           </button>
         )}
       </div>

@@ -24,6 +24,8 @@ import { sanitizeNoteHtml } from '../lib/sanitizeNoteHtml.js';
 import { directedHtml, htmlWithoutDirection, markTextDirection, unsettleTextDirection } from '../lib/textDirection.js';
 import { inertContainer } from '../lib/inertHtml.js';
 import { takeNoteTypeAhead } from '../lib/noteTypeAhead.js';
+import { t as tr } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Tags kept when pasting rich content into a note. Everything else is unwrapped
 // (children preserved) and every attribute is stripped except a safe href on
@@ -704,13 +706,13 @@ export function RichNoteEditor({
         <button
           type="button"
           className="note-more-chip"
-          title="Show all text — fit the note to its content"
-          aria-label="Fit note height to its text"
+          title={tr`Show all text — fit the note to its content`}
+          aria-label={tr`Fit note height to its text`}
           onPointerDown={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onFitHeight(Math.min(1600, cardHeightForBody(ref.current))); }}
         >
-          Show all
+          <Trans>Show all</Trans>
         </button>
       )}
       {mention && workspaceId && (
@@ -849,7 +851,7 @@ function linkifyNoteHtml(html) {
     preview.className = 'note-link-preview';
     preview.dataset.url = url;
     const host = new URL(url).hostname.replace(/^www\./, '');
-    preview.innerHTML = `<div class="note-link-preview-meta"><span>LINK PREVIEW</span><strong>${escapeHtml(host)}</strong><small>${escapeHtml(label)}</small></div><button type="button" class="note-preview-remove" aria-label="Remove link preview">x</button>`;
+    preview.innerHTML = `<div class="note-link-preview-meta"><span>${escapeHtml(tr`LINK PREVIEW`)}</span><strong>${escapeHtml(host)}</strong><small>${escapeHtml(label)}</small></div><button type="button" class="note-preview-remove" aria-label="${escapeHtml(tr`Remove link preview`)}">x</button>`;
     root.appendChild(preview);
   });
 

@@ -80,3 +80,15 @@ test('the reward toast leads with the cards and tells an inviter from a newcomer
     'You earned 1 free card — a friend you invited just got started.',
   );
 });
+
+// ── Sizes in the reader's language (16b) ──
+import { setUiLocale } from './uiLocale.js';
+
+const nb = (s) => s.replace(/[\u00a0\u202f]/g, ' ');
+const inLocale = (l, fn) => { setUiLocale(l); try { return fn(); } finally { setUiLocale('en'); } };
+test('formatBonusBytes: English as ever; fr and ru write the same numbers their way', () => {
+  assert.equal(formatBonusBytes(INVITE_BONUS_STORAGE_BYTES), '0.5GB');
+  assert.equal(formatBonusBytes(1024 ** 4), '1TB');
+  assert.equal(nb(inLocale('fr', () => formatBonusBytes(INVITE_BONUS_STORAGE_BYTES))), '0,5 Go');
+  assert.equal(nb(inLocale('ru', () => formatBonusBytes(1024 ** 4))), '1 ТБ');
+});

@@ -8,6 +8,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t } from '@lingui/core/macro';
 
 export function useArrowPopover({ arrow, arrowIndex, midPoint, canvasToViewport, onChange, onClose, popRef }) {
   const [labelDraft, setLabelDraft] = useState(arrow?.label || '');
@@ -61,7 +62,7 @@ export function useArrowPopover({ arrow, arrowIndex, midPoint, canvasToViewport,
   const labelProps = {
     value: labelDraft,
     maxLength: 60,
-    'aria-label': 'Arrow label',
+    'aria-label': t`Arrow label`,
     onFocus: () => { setLabelEditing(true); labelTouchedRef.current = true; },
     onChange: (e) => setLabelDraft(e.target.value),
     onBlur: () => {

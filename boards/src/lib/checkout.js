@@ -14,6 +14,7 @@ import { logEvent, logEventNow } from './analytics.js';
 import { EV } from './analyticsEvents.js';
 import { getFbCookies, gpcOn, trackInitiateCheckout } from './metaPixel.js';
 import { PRICING } from './billingCopy.js';
+import { t as tr } from '@lingui/core/macro';
 import { checkoutErrorKind } from './checkoutErrors.js';
 import { isGalleryActive } from './galleryState.js';
 import { noteCheckoutStart, notePendingImport } from './checkoutReturn.js';
@@ -50,7 +51,7 @@ function openCheckoutTab() {
     const tab = window.open('', '_blank');
     if (!tab) return null;
     try { tab.opener = null; } catch (_) { /* Stripe's page has no use for us */ }
-    try { tab.document.title = 'Opening checkout…'; tab.document.body.textContent = 'Opening Stripe Checkout…'; } catch (_) {}
+    try { tab.document.title = tr`Opening checkout…`; tab.document.body.textContent = tr`Opening Stripe Checkout…`; } catch (_) {}
     return tab;
   } catch (_) { return null; }
 }

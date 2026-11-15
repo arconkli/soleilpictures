@@ -5,6 +5,7 @@
 // reads import.meta.env and cannot be loaded by `node --test`. Arithmetic that
 // decides how many clusters get created deserves a test, so it lives here.
 
+import { t as tr } from '@lingui/core/macro';
 import { addDays, weekdayOf, todayISO } from './schedDates.js';
 import { rundownKey, RUNDOWN_TUNING } from './rundown.js';
 import { sequence } from './fracIndex.js';
@@ -61,15 +62,16 @@ export function shootDayRundown(dateIso, startClock = '07:00') {
   // day that runs six hours without a break is a bad day in any industry.
   const meal = `${String((h + 6) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   return [
-    { type: 'text', title: 'Crew call', kind: 'item', ord: ord[0], dur: 30, pin: start },
-    { type: 'text', title: 'First setup', kind: 'item', ord: ord[1],
+    { type: 'text', title: tr`Crew call`, kind: 'item', ord: ord[0], dur: 30, pin: start },
+    { type: 'text', title: tr`First setup`, kind: 'item', ord: ord[1],
       dur: RUNDOWN_TUNING.DEFAULT_DUR * 4 },
-    { type: 'text', title: 'Lunch', kind: 'break', ord: ord[2], dur: 60, pin: meal },
+    { type: 'text', title: tr`Lunch`, kind: 'break', ord: ord[2], dur: 60, pin: meal },
   ];
 }
 
 export function shootDayCards(dayLabel, dateIso = null) {
   const t = Date.now();
+  const scriptPages = tr`Script pages`;
   // Rundown keys carry the date, so the seed can only be written when we know
   // it. Without a date the card is still created — it just opens empty, which
   // is what happens for a cluster that has not been dated yet.
@@ -89,12 +91,12 @@ export function shootDayCards(dayLabel, dateIso = null) {
       anchorMode: 'board', cells,
       x: 40, y: 40, w: 340, h: 460,
     },
-    { id: `doc-${t + 1}`, kind: 'doc', title: 'Call sheet', x: 412, y: 40, w: 360, h: 460 },
+    { id: `doc-${t + 1}`, kind: 'doc', title: tr`Call sheet`, x: 412, y: 40, w: 360, h: 460 },
     { id: `grid-${t + 2}`, kind: 'grid', x: 804, y: 40, w: 360, h: 300 },
     {
       id: `note-${t + 3}`, kind: 'note', sectionHeader: true, span: 'full',
-      sub: 'Drop the day’s pages here',
-      html: '<div>Script pages</div>', body: 'Script pages',
+      sub: tr`Drop the day’s pages here`,
+      html: `<div>${scriptPages.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</div>`, body: scriptPages,
       x: 804, y: 372, w: 360, h: 128,
     },
   ];

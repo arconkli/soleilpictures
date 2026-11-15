@@ -12,6 +12,7 @@
 // only while one does: its questions are messages the room is billed for.
 
 import * as Y from 'yjs';
+import { t, ph } from '@lingui/core/macro';
 import { ROOM_ANSWERS, ackAsk, readAck } from './roomAck.js';
 
 export const SAVE_TIMING = Object.freeze({
@@ -264,27 +265,38 @@ export function acquireSaveTracker(doc, { room = null, boardId = null } = {}) {
 // What the line says: `text` is the footer's, `short` the phone's line's.
 // `kept`: whether this device holds a draft of the changes (doc._soleilKept).
 export function saveLine(s, { online = true, now = Date.now(), kept = true } = {}) {
-  if (s.viewOnly) return { state: 'viewonly', text: "View only — changes aren't saved", short: 'View only' };
-  if (s.ended) return { state: 'ended', text: "Can't save — access ended", short: "Can't save" };
-  const held = kept ? ' — changes kept on this device' : ' — keep this tab open';
-  if (!online) return { state: 'offline', text: s.pending ? `Offline${held}` : 'Offline', short: 'Offline' };
+  if (s.viewOnly) return { state: 'viewonly', text: t`View only — changes aren't saved`, short: t`View only` };
+  if (s.ended) return { state: 'ended', text: t`Can't save — access ended`, short: t`Can't save` };
+  if (!online) {
+    const text = !s.pending ? t`Offline`
+      : kept ? t`Offline — changes kept on this device` : t`Offline — keep this tab open`;
+    return { state: 'offline', text, short: t`Offline` };
+  }
   const down = s.mode === 'room' && s.downLong;
   if (s.pending && s.failed && (s.mode !== 'room' || down || s.acks === false)) {
-    return { state: 'error', text: `Couldn't save${held}`, short: "Couldn't save" };
+    const text = kept ? t`Couldn't save — changes kept on this device` : t`Couldn't save — keep this tab open`;
+    return { state: 'error', text, short: t`Couldn't save` };
   }
   if (down) {
-    const word = s.everLive ? 'Reconnecting' : 'Connecting';
-    return { state: 'reconnecting', text: s.pending ? `${word}${held}` : `${word}…`, short: `${word}…` };
+    const live = !!s.everLive;
+    const short = live ? t`Reconnecting…` : t`Connecting…`;
+    let text = short;
+    if (s.pending) {
+      text = live
+        ? (kept ? t`Reconnecting — changes kept on this device` : t`Reconnecting — keep this tab open`)
+        : (kept ? t`Connecting — changes kept on this device` : t`Connecting — keep this tab open`);
+    }
+    return { state: 'reconnecting', text, short };
   }
-  if (s.pending) return { state: 'saving', text: 'Saving…', short: 'Saving…' };
-  return { state: 'saved', text: savedText(s.savedAt, now), short: 'Saved' };
+  if (s.pending) return { state: 'saving', text: t`Saving…`, short: t`Saving…` };
+  return { state: 'saved', text: savedText(s.savedAt, now), short: t`Saved` };
 }
 
 function savedText(savedAt, now) {
-  if (!savedAt) return 'All changes saved';
+  if (!savedAt) return t`All changes saved`;
   const ago = Math.max(0, Math.floor((now - savedAt) / 1000));
-  if (ago < 5) return 'Saved just now';
-  if (ago < 60) return `Saved ${ago}s ago`;
-  if (ago < 3600) return `Saved ${Math.floor(ago / 60)}m ago`;
-  return `Saved ${Math.floor(ago / 3600)}h ago`;
+  if (ago < 5) return t`Saved just now`;
+  if (ago < 60) return t`Saved ${ago}s ago`;
+  if (ago < 3600) return t`Saved ${ph({ minutes: Math.floor(ago / 60) })}m ago`;
+  return t`Saved ${ph({ hours: Math.floor(ago / 3600) })}h ago`;
 }

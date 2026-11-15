@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PUT_FAILED_WORDS, putRefusal, putFailReason, putFailToast } from './putRefusal.js';
+import { putFailedWords, putRefusal, putFailReason, putFailToast } from './putRefusal.js';
 
 test('putRefusal keeps the message and sets the reason', () => {
   const e = putRefusal('gone', 'That cluster isn’t here any more.');
@@ -31,6 +31,6 @@ test('a replaced put is info, with no code', () => {
 });
 
 test('a fault of ours says the plain sentence, not its own words', () => {
-  assert.deepEqual(putFailToast(new TypeError('x is undefined')), { type: 'error', code: 'files_put_failed', message: PUT_FAILED_WORDS });
-  assert.deepEqual(putFailToast(undefined), { type: 'error', code: 'files_put_failed', message: PUT_FAILED_WORDS });
+  assert.deepEqual(putFailToast(new TypeError('x is undefined')), { type: 'error', code: 'files_put_failed', message: putFailedWords() });
+  assert.deepEqual(putFailToast(undefined), { type: 'error', code: 'files_put_failed', message: putFailedWords() });
 });

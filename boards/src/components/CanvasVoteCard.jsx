@@ -19,6 +19,9 @@ import { bubbleLayout } from '../lib/bubbleLayout.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../lib/errorWords.js';
 
 const VOTE_W = 132;   // initial estimate — replaced by ResizeObserver measure
 const VOTE_H = 40;
@@ -111,7 +114,7 @@ function VoteCardBubble({ vote, userId, currentUser, zoom = 1, resolveCardBBox, 
       await castVote(vote.id, value);
     } catch (err) {
       setOptimistic(null); // roll back to the prop on failure
-      feedback.toast({ type: 'error', code: 'vote_cast_failed', message: 'Vote failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'vote_cast_failed', message: t`Vote failed: ${ph({ reason: shownError(err) })}` });
     }
   };
 
@@ -124,7 +127,7 @@ function VoteCardBubble({ vote, userId, currentUser, zoom = 1, resolveCardBBox, 
     const next = labelDraft.trim();
     if (next === (vote.label || '')) return;
     try { await updateVoteCard(vote.id, { label: next || null }); }
-    catch (err) { feedback.toast({ type: 'error', code: 'vote_save_failed', message: 'Save failed: ' + (err.message || err) }); }
+    catch (err) { feedback.toast({ type: 'error', code: 'vote_save_failed', message: t`Save failed: ${ph({ reason: shownError(err) })}` }); }
   };
 
   // ── Drag-to-reposition (author only) — copied from CanvasCommentBubble.
@@ -221,7 +224,7 @@ function VoteCardBubble({ vote, userId, currentUser, zoom = 1, resolveCardBBox, 
       try {
         await updateVoteCard(vote.id, patch);
       } catch (err) {
-        feedback.toast({ type: 'error', code: 'vote_move_failed', message: 'Move failed: ' + (err.message || err) });
+        feedback.toast({ type: 'error', code: 'vote_move_failed', message: t`Move failed: ${ph({ reason: shownError(err) })}` });
         baseRef.current = {
           ox: vote.offset_x || 0, oy: vote.offset_y || 0,
           ax: vote.anchor_x || 0, ay: vote.anchor_y || 0,
@@ -241,14 +244,14 @@ function VoteCardBubble({ vote, userId, currentUser, zoom = 1, resolveCardBBox, 
       await deleteVoteCard(vote.id);
       onLocallyRemoved?.(vote.id);
       undoToast(feedback, {
-        message: 'Vote deleted',
+        message: t`Vote deleted`,
         onUndo: async () => {
           try { await restoreVoteCard(vote.id); }
-          catch (err) { feedback.toast({ type: 'error', code: 'vote_restore_failed', message: 'Restore failed: ' + (err.message || err) }); }
+          catch (err) { feedback.toast({ type: 'error', code: 'vote_restore_failed', message: t`Restore failed: ${ph({ reason: shownError(err) })}` }); }
         },
       });
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'vote_delete_failed', message: 'Delete failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'vote_delete_failed', message: t`Delete failed: ${ph({ reason: shownError(err) })}` });
     }
   };
 
@@ -273,7 +276,7 @@ function VoteCardBubble({ vote, userId, currentUser, zoom = 1, resolveCardBBox, 
             stay clickable). */}
         {isAuthor && (
           <span className="canvas-vote-grip"
-                title="Drag to reposition"
+                title={t`Drag to reposition`}
                 onPointerDown={onDragStart}
                 aria-hidden="true">⠿</span>
         )}
@@ -282,7 +285,7 @@ function VoteCardBubble({ vote, userId, currentUser, zoom = 1, resolveCardBBox, 
           <input className="canvas-vote-label-input"
                  autoFocus
                  value={labelDraft}
-                 placeholder="Add a question…"
+                 placeholder={t`Add a question…`}
                  onChange={(e) => setLabelDraft(e.target.value)}
                  onBlur={commitLabel}
                  onKeyDown={(e) => {
@@ -292,24 +295,24 @@ function VoteCardBubble({ vote, userId, currentUser, zoom = 1, resolveCardBBox, 
                  }} />
         ) : (vote.label
           ? <span className={`canvas-vote-label ${isAuthor ? 'is-editable' : ''}`}
-                  title={isAuthor ? 'Click to edit' : undefined}
+                  title={isAuthor ? t`Click to edit` : undefined}
                   onClick={() => isAuthor && setEditingLabel(true)}>{vote.label}</span>
           : (isAuthor && (
               <button type="button" className="canvas-vote-label-add"
-                      onClick={() => setEditingLabel(true)}>+ question</button>
+                      onClick={() => setEditingLabel(true)}><Trans>+ question</Trans></button>
             ))
         )}
         <div className="canvas-vote-buttons">
           <button type="button"
                   className={`canvas-vote-btn up ${view.my_value === 1 ? 'is-active' : ''}`}
-                  title="Vote up"
+                  title={t`Vote up`}
                   onClick={() => onVote(1)}>
             <span className="canvas-vote-mark" aria-hidden="true">✓</span>
             <span className="canvas-vote-count">{view.up}</span>
           </button>
           <button type="button"
                   className={`canvas-vote-btn down ${view.my_value === -1 ? 'is-active' : ''}`}
-                  title="Vote down"
+                  title={t`Vote down`}
                   onClick={() => onVote(-1)}>
             <span className="canvas-vote-mark" aria-hidden="true">✗</span>
             <span className="canvas-vote-count">{view.down}</span>
@@ -317,7 +320,7 @@ function VoteCardBubble({ vote, userId, currentUser, zoom = 1, resolveCardBBox, 
         </div>
         {isAuthor && (
           <button type="button" className="canvas-vote-del"
-                  title="Delete vote" onClick={onDelete} aria-label="Delete vote">×</button>
+                  title={t`Delete vote`} onClick={onDelete} aria-label={t`Delete vote`}>×</button>
         )}
       </div>
     </div>
@@ -330,7 +333,7 @@ function VoteAnchorDot({ x, y, color }) {
   const SIZE = 6;
   return (
     <div className="canvas-vote-anchor-dot"
-         title="Vote"
+         title={t`Vote`}
          style={{
            position: 'absolute', left: x - SIZE / 2, top: y - SIZE / 2,
            width: SIZE, height: SIZE, borderRadius: '50%', background: color,

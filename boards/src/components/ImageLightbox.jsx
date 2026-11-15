@@ -18,6 +18,7 @@ import { registerModalOpen } from '../lib/modalGuard.js';
 import { useOptionalFeedback } from './AppFeedback.jsx';
 import { FileShareButton } from './fileShare/FileShareButton.jsx';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
+import { t } from '@lingui/core/macro';
 
 // More like this under the picture (MoreLikeThis.jsx, shared with Quick
 // look), lazy: only when the host hands `more`.
@@ -176,7 +177,7 @@ export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downlo
       // downloadImage resolves false rather than throwing; say so instead of
       // leaving the click to do nothing (audit MEDIA-15).
       const ok = await downloadImage({ src, title: downloadName || title, adjust });
-      if (!ok) feedback?.toast?.({ type: 'error', code: 'image_download_failed', message: 'Couldn’t download this image. Try again.' });
+      if (!ok) feedback?.toast?.({ type: 'error', code: 'image_download_failed', message: t`Couldn’t download this image. Try again.` });
     }
     finally { setDownloading(false); }
   };
@@ -187,12 +188,12 @@ export function ImageLightbox({ src, title, alt, adjust, cardId, onClose, downlo
          onPointerDown={stopBubble} onMouseDown={stopBubble}
          onDoubleClick={stopBubble} onContextMenu={stopBubble}
          role="dialog"
-         aria-label="Image preview">
-      <button className="lightbox-x" aria-label="Close"
+         aria-label={t`Image preview`}>
+      <button className="lightbox-x" aria-label={t`Close`}
               onClick={(e) => { e.stopPropagation(); onClose?.(); }}>×</button>
       <button className="lightbox-download"
-              aria-label="Download"
-              title="Download"
+              aria-label={t`Download`}
+              title={t`Download`}
               disabled={downloading}
               onClick={onDownload}>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"

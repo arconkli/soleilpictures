@@ -3,6 +3,7 @@
 // `card` is a snapshot for a cluster that isn't open in a pane.
 import { docSharesAllowed, fileSharesAllowed } from './appHost.js';
 import { isShareableCard, isShareableDoc } from './fileShares.js';
+import { t } from '@lingui/core/macro';
 
 export const FILE_SHARE_EVENT = 'soleil-open-file-share';
 
@@ -29,7 +30,7 @@ export function shareTargetForRef({ boardId, cardId, kind = 'image', src = null,
 // A doc card's menu row (the canvas and the list), held with the rest of doc
 // sharing: the label, or null when it can't be shared from here.
 export function docShareLabel(card) {
-  return docSharesAllowed() && isShareableDoc(card) ? 'Share doc…' : null;
+  return docSharesAllowed() && isShareableDoc(card) ? t`Share doc…` : null;
 }
 
 export function openFileShare(detail) {

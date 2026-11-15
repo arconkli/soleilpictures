@@ -5,6 +5,8 @@ import { LayoutGrid, FileText, StickyNote, Image as ImageIcon, Palette, Calendar
 import { COVER_TINTS } from './primitives.jsx';
 import { supabase } from '../lib/supabase.js';
 import { cutGraphemes, exceedsGraphemes } from '../lib/graphemes.js';
+import { t, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const TILE_KIND_ICON = {
   board: LayoutGrid,
@@ -64,11 +66,44 @@ export function LinkHoverCard({ anchor, link, onMouseEnter, onMouseLeave }) {
     >
       {primary && <TargetPreview target={primary} />}
       {more > 0 && (
-        <div className="link-hover-more t-meta">+ {more} more {more === 1 ? 'target' : 'targets'}</div>
+        <div className="link-hover-more t-meta">{plural(more, { one: '+ # more target', other: '+ # more targets' })}</div>
       )}
     </div>,
     document.body,
   );
+}
+
+// "canvas cluster", "list cluster": one whole message per view id; an unknown
+// view prints as it is.
+function viewSub(view) {
+  switch (view || 'canvas') {
+    case 'canvas': return t`canvas cluster`;
+    case 'list': return t`list cluster`;
+    default: return `${view} cluster`;
+  }
+}
+
+// A card's kind id as a word: one message per kind; an unknown id prints as it is.
+function kindSub(kind) {
+  switch (kind) {
+    case 'image': return t`image`;
+    case 'video': return t`video`;
+    case 'audio': return t`audio`;
+    case 'pdf': return t`pdf`;
+    case 'file': return t`file`;
+    case 'note': return t`note`;
+    case 'link': return t`link`;
+    case 'doc': return t`doc`;
+    case 'palette': return t`palette`;
+    case 'schedule': return t`schedule`;
+    case 'shape': return t`shape`;
+    case 'grid': return t`grid`;
+    case 'board': return t`board`;
+    case 'boardlink': return t`boardlink`;
+    case 'shortcut': return t`shortcut`;
+    case 'list': return t`list`;
+    default: return kind;
+  }
 }
 
 // One target's preview row. Fetches a tiny bit of metadata from Postgres
@@ -83,13 +118,13 @@ function TargetPreview({ target }) {
       try {
         if (target.kind === 'board') {
           const { data } = await supabase.from('boards').select('name,cover,view').eq('id', target.id).maybeSingle();
-          if (!cancelled && data) setMeta({ title: data.name, sub: `${data.view || 'canvas'} cluster`, cover: data.cover });
+          if (!cancelled && data) setMeta({ title: data.name, sub: viewSub(data.view), cover: data.cover });
         } else if (target.kind === 'card') {
           const { data } = await supabase.from('card_index').select('title,body,kind').eq('board_id', target.boardId).eq('card_id', target.cardId).maybeSingle();
-          if (!cancelled && data) setMeta({ title: data.title || 'Untitled card', sub: data.kind, body: data.body });
+          if (!cancelled && data) setMeta({ title: data.title || t`Untitled card`, sub: kindSub(data.kind), body: data.body });
         } else if (target.kind === 'doc' || target.kind === 'docPos') {
           const { data } = await supabase.from('card_index').select('title,body,kind').eq('card_id', target.docCardId).maybeSingle();
-          if (!cancelled && data) setMeta({ title: data.title || 'Untitled doc', sub: 'doc', body: data.body });
+          if (!cancelled && data) setMeta({ title: data.title || t`Untitled doc`, sub: t`doc`, body: data.body });
         }
       } catch (_) {}
     })();
@@ -107,7 +142,7 @@ function TargetPreview({ target }) {
           <img alt="" src={`https://www.google.com/s2/favicons?domain=${host}&sz=64`} width={28} height={28} />
         </div>
         <div className="link-hover-meta">
-          <div className="t-eyebrow link-hover-kind">URL</div>
+          <div className="t-eyebrow link-hover-kind"><Trans>URL</Trans></div>
           <div className="link-hover-title">{host}</div>
           <div className="link-hover-sub t-meta">{target.href}</div>
         </div>
@@ -123,7 +158,7 @@ function TargetPreview({ target }) {
       </div>
       <div className="link-hover-meta">
         <div className="t-eyebrow link-hover-kind">{(meta?.sub || target.kind).toUpperCase()}</div>
-        <div className="link-hover-title">{meta?.title || target.name || 'Untitled'}</div>
+        <div className="link-hover-title">{meta?.title || target.name || t`Untitled`}</div>
         {meta?.body && <div className="link-hover-sub t-meta">{cutGraphemes(meta.body, 140)}{exceedsGraphemes(meta.body, 140) ? '…' : ''}</div>}
       </div>
     </div>

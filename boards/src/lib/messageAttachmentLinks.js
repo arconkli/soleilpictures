@@ -6,6 +6,7 @@
 // object URL opens the file; `?download=` makes Supabase send it as an
 // attachment under its real name — the `download` attribute alone is ignored
 // for a cross-origin URL.
+import { sizeText } from './intlFormat.js';
 
 export function attachmentUrl(base, storagePath, { download = null } = {}) {
   if (!base || !storagePath) return '';
@@ -17,10 +18,15 @@ export function attachmentUrl(base, storagePath, { download = null } = {}) {
 export function formatAttachmentSize(bytes) {
   const n = Number(bytes);
   if (!Number.isFinite(n) || n <= 0) return '';
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
-  if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(n < 10 * 1024 * 1024 ? 1 : 0)} MB`;
-  return `${(n / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  if (n < 1024) return sizeText(`${n} B`, n, 'byte', 0);
+  if (n < 1024 * 1024) { const kb = Math.round(n / 1024); return sizeText(`${kb} KB`, kb, 'kilobyte', 0); }
+  if (n < 1024 * 1024 * 1024) {
+    const digits = n < 10 * 1024 * 1024 ? 1 : 0;
+    const mb = (n / (1024 * 1024)).toFixed(digits);
+    return sizeText(`${mb} MB`, Number(mb), 'megabyte', digits);
+  }
+  const gb = (n / (1024 * 1024 * 1024)).toFixed(1);
+  return sizeText(`${gb} GB`, Number(gb), 'gigabyte', 1);
 }
 
 // The box an image attachment takes BEFORE it loads, from the dimensions

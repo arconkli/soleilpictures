@@ -41,11 +41,15 @@ import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { supabase } from '../lib/supabase.js';
 import { Check } from '../lib/icons.js';
 import { Icon } from '../components/Icon.jsx';
-import { PLAN_NAME, CREATOR_TRIAL_DAYS, formatPeriodEnd } from '../lib/billingCopy.js';
+import { PLAN_NAME, CREATOR_TRIAL_DAYS } from '../lib/billingCopy.js';
+import { formatPeriodEnd } from '../lib/billingCopyWords.js';
 import { readCheckoutReturn, clearCheckoutReturn } from '../lib/checkoutReturn.js';
 import { askForHolder } from '../lib/heldUploads.js';
 import { trackPurchase } from '../lib/metaPixel.js';
 import { VERIFY_URL } from '../lib/checkout.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../lib/errorWords.js';
 
 const POLL_MS    = 2000;     // get_my_tier, pre-stall
 const SLOW_POLL_MS = 30000;  // get_my_tier once stalled — a tab left open must
@@ -69,8 +73,8 @@ const TERMINAL_REASONS = new Set([
 ]);
 
 function planLabel(plan) {
-  if (plan === 'annual')  return 'Annual';
-  if (plan === 'monthly') return 'Monthly';
+  if (plan === 'annual')  return tr`Annual`;
+  if (plan === 'monthly') return tr`Monthly`;
   return null;
 }
 
@@ -173,7 +177,7 @@ export function PricingSuccess({ onEnter = null }) {
         verifyFired.current.add('failed');
         logEvent(EV.CHECKOUT_VERIFY_RESULT, { result: 'failed', reason: 'network' });
       }
-      setVerifyErr(e?.message || String(e));
+      setVerifyErr(shownError(e));
       return null;
     }
   }, [sessionId]);
@@ -271,14 +275,14 @@ export function PricingSuccess({ onEnter = null }) {
       // Map raw verify reasons to copy a buyer can act on — the bare code
       // ("session_expired") read as a bug and didn't say what to do next.
       const REASON_COPY = {
-        session_expired: 'Your checkout session expired before activation. If your card was charged, the email receipt is your proof — write to support and we\'ll activate you right away.',
-        payment_failed: 'Your payment didn\'t go through — check your card details and try the checkout again.',
-        no_subscription: 'Stripe hasn\'t attached a subscription to this checkout — if your card was charged, email support below and we\'ll activate you right away.',
-        'subscription_not_live:canceled': 'This checkout belongs to a subscription that has since been canceled, so it can\'t activate your account. Start a fresh checkout from the pricing page.',
-        'subscription_not_live:incomplete': 'Your payment is still processing — bank payments can take a little while. We\'ll flip your account on the moment it clears.',
-        'subscription_not_live:incomplete_expired': 'The initial payment never completed, so this checkout can\'t activate. Start a fresh checkout from the pricing page.',
+        session_expired: tr`Your checkout session expired before activation. If your card was charged, the email receipt is your proof — write to support and we'll activate you right away.`,
+        payment_failed: tr`Your payment didn't go through — check your card details and try the checkout again.`,
+        no_subscription: tr`Stripe hasn't attached a subscription to this checkout — if your card was charged, email support below and we'll activate you right away.`,
+        'subscription_not_live:canceled': tr`This checkout belongs to a subscription that has since been canceled, so it can't activate your account. Start a fresh checkout from the pricing page.`,
+        'subscription_not_live:incomplete': tr`Your payment is still processing — bank payments can take a little while. We'll flip your account on the moment it clears.`,
+        'subscription_not_live:incomplete_expired': tr`The initial payment never completed, so this checkout can't activate. Start a fresh checkout from the pricing page.`,
       };
-      setVerifyErr(REASON_COPY[body.reason] || `Activation check came back with "${body.reason}" — if this persists, email support below.`);
+      setVerifyErr(REASON_COPY[body.reason] || tr`Activation check came back with "${ph({ reason: body.reason })}" — if this persists, email support below.`);
     }
   };
 
@@ -295,18 +299,22 @@ export function PricingSuccess({ onEnter = null }) {
           </div>
           <SoleilWordmark size="display" />
           <div className="welcome-eyebrow t-eyebrow">
-            Welcome to {PLAN_NAME}{isTrial ? ` · ${CREATOR_TRIAL_DAYS} days free` : plan ? ` · ${planLabel(plan)}` : ''}
+            {isTrial
+              ? tr`Welcome to ${PLAN_NAME} · ${CREATOR_TRIAL_DAYS} days free`
+              : plan
+                ? tr`Welcome to ${PLAN_NAME} · ${ph({ plan: planLabel(plan) })}`
+                : tr`Welcome to ${PLAN_NAME}`}
           </div>
           {isTrial && (
             <p className="welcome-copy t-body">
               {firstCharge
-                ? `Your trial has started. Nothing is charged until ${firstCharge.value}.`
-                : `Your trial has started. Nothing is charged for ${CREATOR_TRIAL_DAYS} days.`}
+                ? tr`Your trial has started. Nothing is charged until ${ph({ value: firstCharge.value })}.`
+                : tr`Your trial has started. Nothing is charged for ${CREATOR_TRIAL_DAYS} days.`}
             </p>
           )}
           {waitingFolder > 0 && !heldElsewhere && (
             <p className="welcome-copy t-body">
-              Drop those files again — all {waitingFolder} will fit.
+              <Trans>Drop those files again — all {waitingFolder} will fit.</Trans>
             </p>
           )}
           {heldElsewhere > 0 ? (
@@ -314,25 +322,26 @@ export function PricingSuccess({ onEnter = null }) {
               {/* What the answer proves, and no more: that tab has them. Whether
                   they all fit the new plan is decided there, when it looks. */}
               <p className="welcome-copy t-body">
-                {heldElsewhere === 1 ? 'The file you dropped is' : `The ${heldElsewhere} files you dropped are`} in
-                your other Clusters tab. Switch back to it to see {heldElsewhere === 1 ? 'it' : 'them'} go on —
-                you can close this one.
+                {plural(heldElsewhere, {
+                  one: 'The file you dropped is in your other Clusters tab. Switch back to it to see it go on — you can close this one.',
+                  other: 'The # files you dropped are in your other Clusters tab. Switch back to it to see them go on — you can close this one.',
+                })}
               </p>
               <div className="welcome-cta-row">
                 <button
                   className="welcome-cta welcome-cta-primary"
                   onClick={() => { logEventNow(EV.WELCOME_CTA, { target: 'app', from: 'checkout_held' }); enter(); }}
                 >
-                  Open Clusters here
+                  <Trans>Open Clusters here</Trans>
                 </button>
               </div>
             </>
           ) : (
             <>
               <p className="welcome-copy t-body">
-                You're all set. Taking you into Clusters…
+                <Trans>You're all set. Taking you into Clusters…</Trans>
               </p>
-              <div className="payment-spinner" aria-label="Entering" />
+              <div className="payment-spinner" aria-label={tr`Entering`} />
             </>
           )}
         </div>
@@ -347,25 +356,25 @@ export function PricingSuccess({ onEnter = null }) {
         <div className="auth-glow" aria-hidden="true" />
         <div className="welcome-card welcome-card-tight">
           <SoleilWordmark size="display" />
-          <div className="welcome-eyebrow t-eyebrow">HMM — NO CHECKOUT FOUND</div>
+          <div className="welcome-eyebrow t-eyebrow"><Trans>HMM — NO CHECKOUT FOUND</Trans></div>
           <p className="welcome-copy t-body">
-            We couldn't find a checkout session in this link. If you just paid,
+            <Trans>We couldn't find a checkout session in this link. If you just paid,
             your account will update automatically in a few seconds. Otherwise,
-            head back to pricing to start over.
+            head back to pricing to start over.</Trans>
           </p>
           <div className="welcome-cta-row">
             <button
               className="welcome-cta welcome-cta-primary"
               onClick={() => { logEventNow(EV.WELCOME_CTA, { target: 'pricing', from: 'checkout_missing' }); window.location.assign('/pricing'); }}
             >
-              Back to pricing
+              <Trans>Back to pricing</Trans>
             </button>
           </div>
           <p className="welcome-copy t-meta" style={{ color: 'var(--ink-3)' }}>
-            Already paid? <a className="auth-link" href={supportHref} onClick={() => logEvent(EV.CHECKOUT_SUPPORT_CLICK, { surface: 'missing_session' })}>Email support</a> and we'll sort it out.
+            <Trans>Already paid? <a className="auth-link" href={supportHref} onClick={() => logEvent(EV.CHECKOUT_SUPPORT_CLICK, { surface: 'missing_session' })}>Email support</a> and we'll sort it out.</Trans>
           </p>
           <button className="auth-link auth-foot-link t-meta" onClick={() => { logEvent(EV.PRICING_SIGNOUT); signOut(); }}>
-            Use a different email
+            <Trans>Use a different email</Trans>
           </button>
         </div>
       </div>
@@ -385,25 +394,25 @@ export function PricingSuccess({ onEnter = null }) {
         {!stalled && (
           <>
             <div className="welcome-eyebrow t-eyebrow">
-              Welcome to {PLAN_NAME}{plan ? ` · ${planLabel(plan)}` : ''}
+              <Trans>Welcome to {PLAN_NAME}{ph({ value: plan ? ` · ${planLabel(plan)}` : '' })}</Trans>
             </div>
             <p className="welcome-copy t-body">
               {isTrial
-                ? 'Your trial is starting — nothing was charged today. Activating your account…'
-                : 'Payment received. Activating your account…'}
+                ? tr`Your trial is starting — nothing was charged today. Activating your account…`
+                : tr`Payment received. Activating your account…`}
             </p>
-            <div className="payment-spinner" aria-label="Activating" />
+            <div className="payment-spinner" aria-label={tr`Activating`} />
           </>
         )}
 
         {stalled && (
           <>
-            <div className="welcome-eyebrow t-eyebrow">{isTrial ? 'TRIAL STARTED' : 'PAYMENT RECEIVED'}</div>
+            <div className="welcome-eyebrow t-eyebrow">{isTrial ? tr`TRIAL STARTED` : tr`PAYMENT RECEIVED`}</div>
             <p className="welcome-copy t-body">
               {isTrial
-                ? 'Stripe confirmed your trial — nothing was charged — but we haven\'t seen activation come through yet.'
-                : 'Stripe took the payment, but we haven\'t seen activation come through yet.'}
-              {' '}This is usually a temporary delay — give it one more try.
+                ? tr`Stripe confirmed your trial — nothing was charged — but we haven't seen activation come through yet.`
+                : tr`Stripe took the payment, but we haven't seen activation come through yet.`}
+              {' '}<Trans>This is usually a temporary delay — give it one more try.</Trans>
             </p>
             <div className="welcome-cta-row">
               <button
@@ -411,7 +420,7 @@ export function PricingSuccess({ onEnter = null }) {
                 onClick={onRetryClick}
                 disabled={verifying}
               >
-                {verifying ? 'Checking…' : 'Verify now'}
+                {verifying ? tr`Checking…` : tr`Verify now`}
               </button>
             </div>
             {verifyErr && (
@@ -420,13 +429,13 @@ export function PricingSuccess({ onEnter = null }) {
               </p>
             )}
             <p className="welcome-copy t-meta" style={{ color: 'var(--ink-3)' }}>
-              Still nothing? <a className="auth-link" href={supportHref} onClick={() => logEvent(EV.CHECKOUT_SUPPORT_CLICK, { surface: 'stalled' })}>Email support</a> — we'll sort it out.
+              <Trans>Still nothing? <a className="auth-link" href={supportHref} onClick={() => logEvent(EV.CHECKOUT_SUPPORT_CLICK, { surface: 'stalled' })}>Email support</a> — we'll sort it out.</Trans>
             </p>
           </>
         )}
 
         <button className="auth-link auth-foot-link t-meta" onClick={() => { logEvent(EV.PRICING_SIGNOUT); signOut(); }}>
-          Use a different email
+          <Trans>Use a different email</Trans>
         </button>
       </div>
     </div>

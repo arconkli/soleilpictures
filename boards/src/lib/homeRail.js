@@ -3,6 +3,7 @@
 // preview only). Pure: App hands in workspace presence and the board map.
 
 import { initialOf } from './graphemes.js';
+import { t, ph } from '@lingui/core/macro';
 
 // Who is in the workspace right now and where: one row a person, you left
 // out, a tab that isn't in front skipped (as the sidebar's presence dots skip
@@ -19,12 +20,12 @@ export function hereNow(peers, boards, { selfId = null, nameOf = () => '' } = {}
     seen.add(id);
     const bid = p?.location?.boardId;
     const board = bid ? boards?.[bid] : null;
-    const name = nameOf(p) || 'Someone';
+    const name = nameOf(p) || t`Someone`;
     out.push({
       id,
       name,
       initial: initialOf(name, ''),
-      where: board ? `In ${(board.name && board.name.trim()) || 'Untitled cluster'}` : 'Here now',
+      where: board ? t`In ${ph({ board: (board.name && board.name.trim()) || t`Untitled cluster` })}` : t`Here now`,
       loc: p.location || null,
     });
   }

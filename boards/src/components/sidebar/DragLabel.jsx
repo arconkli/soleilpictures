@@ -26,6 +26,7 @@ import { createPortal } from 'react-dom';
 import { Icon } from '../Icon.jsx';
 import { Prohibit } from '../../lib/icons.js';
 import { onDragSession } from '../../lib/springLoad.js';
+import { t } from '@lingui/core/macro';
 
 const QUIET_MS = 250;
 
@@ -38,7 +39,7 @@ export const BLANK_DRAG_IMAGE = typeof Image !== 'undefined'
 let mounted = 0;
 export const dragLabelShown = () => mounted > 0;
 
-export function DragLabel({ resolve, idle = 'Drop on a cluster or a board' }) {
+export function DragLabel({ resolve, idle = t`Drop on a cluster or a board` }) {
   const [shown, setShown] = useState(null);   // { x, y, label, thumbs, n }
   const resolveRef = useRef(resolve);
   resolveRef.current = resolve;

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { EntityPicker } from './EntityPicker.jsx';
 import { caretRect } from '../lib/caretRect.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t as tr } from '@lingui/core/macro';
 
 // Anchored popover for short-text input (comments, link rename, etc).
 // Positioning is viewport-aware: prefer below the anchor, flip above when
@@ -27,7 +28,7 @@ export function InlineComposer({
   placeholder = '',
   multiline = false,
   initialValue = '',
-  commitLabel = 'Post',
+  commitLabel = tr`Post`,
   busy = false,
   workspaceId = null,
   onCommit,
@@ -139,7 +140,7 @@ export function InlineComposer({
       />
       <div className="inline-composer-foot">
         <span className="inline-composer-hint t-meta">
-          {multiline ? 'Shift+⏎ for newline · ⏎ to post' : '⏎ to post · Esc to cancel'}
+          {multiline ? tr`Shift+⏎ for newline · ⏎ to post` : tr`⏎ to post · Esc to cancel`}
         </span>
         <button
           className="btn-primary"

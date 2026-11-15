@@ -4,117 +4,132 @@
 // numbers (teamBillingApi.previewTeamSeatsCost, in cents), never from
 // teamModel's client-side seatAddLine / proratedToday, which are the sample's.
 
-import { money, dateLabel } from './teamModel.js';
+import { t as tr, plural } from '@lingui/core/macro';
+import { dateLabel, money } from './teamModelWords.js';
 import { WORKSPACE_LIMIT } from './workspaceLimit.js';
 
-const REFUSAL = {
-  // TEAM_HINT (teamHints.js)
-  teams_closed: 'Teams aren’t open to this account yet.',
-  team_exists: 'You already have a team.',
-  team_seats_full: 'Every seat is in use. Add a seat first.',
-  team_seats_ceiling: 'That’s more seats than a team can have here. Talk to us for more.',
-  team_seats_ask_admin: 'Every seat is in use. Ask an admin to add one.',
-  team_seats_needed: 'That needs more seats than the team has.',
-  team_workspace: 'Only your own personal workspaces can move into a team.',
-  team_owner: 'The owner’s role and seat can’t be changed that way.',
-  team_domain_freemail: 'A free email domain can’t be a team’s.',
-  team_domain_taken: 'Another team has verified that domain.',
-  team_domain_invalid: 'That doesn’t look like a domain.',
-  team_domain_missing: 'That domain isn’t on this team.',
-  team_not_member: 'You’re not in this team.',
-  team_not_admin: 'Only the owner or an admin can do that.',
-  team_not_owner: 'Only the owner can do that.',
-  team_inbox_unproven: 'Sign in with a code sent to this address first.',
-  team_view_only: 'The team is view-only until it’s paid.',
-  team_checkout: 'A team starts at checkout.',
-  team_checkout_rate: 'Too many checkouts started today. Try again tomorrow.',
-  team_has_plan: 'This team has a plan. Manage it from billing.',
-  // new_account: _refuse_if_new (0375) refuses an account under 72 hours old.
-  new_account: 'That opens up once your account is three days old.',
-  // 0856: create_workspace_with_root at 10 workspaces of your own (workspaceLimit.js).
-  workspace_limit: `${WORKSPACE_LIMIT} workspaces of your own is the most outside a team.`,
-  // 0541: the daily invitation allowance (0358/0375) and a sending hold (0369).
-  invite_limit_reached: 'You’ve reached today’s invite limit. Try again tomorrow.',
-  sending_on_hold: 'Sending is paused on your account while we review unusual activity.',
-  // resend_team_invite (0541)
-  resend_too_soon: 'That invite went out in the last day. Try again tomorrow.',
-  invite_closed: 'That invite was used, withdrawn or has expired. Invite them again.',
-  // team-billing
-  not_available: 'That isn’t available yet.',
-  price_mismatch: 'The price changed. Check it and try again.',
-  stale_preview: 'That price is out of date. Check it and try again.',
-  stripe_error: 'Stripe couldn’t do that. Nothing was charged.',
-  no_plan: 'This team has no plan yet.',
-  no_seat_item: 'This team’s plan has no seats to change.',
-  retry: 'That’s still going through. Try again in a moment.',
-  network: 'Couldn’t reach the server. Check your connection and try again.',
-  'auth required': 'Sign in again to do that.',
-  not_yet: 'That isn’t ready yet.',
-  unsupported: 'That can’t be done from here yet.',
-  failed: 'That didn’t work. Try again.',
-  // the domain check
-  too_many: 'Too many checks. Try again in a few minutes.',
-};
+// The codes are the server's; the line each one gets is ours, read when it is
+// asked for, never at module scope.
+function refusalFor(code) {
+  switch (code) {
+    // TEAM_HINT (teamHints.js)
+    case 'teams_closed': return tr`Teams aren’t open to this account yet.`;
+    case 'team_exists': return tr`You already have a team.`;
+    case 'team_seats_full': return tr`Every seat is in use. Add a seat first.`;
+    case 'team_seats_ceiling': return tr`That’s more seats than a team can have here. Talk to us for more.`;
+    case 'team_seats_ask_admin': return tr`Every seat is in use. Ask an admin to add one.`;
+    case 'team_seats_needed': return tr`That needs more seats than the team has.`;
+    case 'team_workspace': return tr`Only your own personal workspaces can move into a team.`;
+    case 'team_owner': return tr`The owner’s role and seat can’t be changed that way.`;
+    case 'team_domain_freemail': return tr`A free email domain can’t be a team’s.`;
+    case 'team_domain_taken': return tr`Another team has verified that domain.`;
+    case 'team_domain_invalid': return tr`That doesn’t look like a domain.`;
+    case 'team_domain_missing': return tr`That domain isn’t on this team.`;
+    case 'team_not_member': return tr`You’re not in this team.`;
+    case 'team_not_admin': return tr`Only the owner or an admin can do that.`;
+    case 'team_not_owner': return tr`Only the owner can do that.`;
+    case 'team_inbox_unproven': return tr`Sign in with a code sent to this address first.`;
+    case 'team_view_only': return tr`The team is view-only until it’s paid.`;
+    case 'team_checkout': return tr`A team starts at checkout.`;
+    case 'team_checkout_rate': return tr`Too many checkouts started today. Try again tomorrow.`;
+    case 'team_has_plan': return tr`This team has a plan. Manage it from billing.`;
+    // new_account: _refuse_if_new (0375) refuses an account under 72 hours old.
+    case 'new_account': return tr`That opens up once your account is three days old.`;
+    // 0856: create_workspace_with_root at 10 workspaces of your own (workspaceLimit.js).
+    case 'workspace_limit': return tr`${WORKSPACE_LIMIT} workspaces of your own is the most outside a team.`;
+    // 0541: the daily invitation allowance (0358/0375) and a sending hold (0369).
+    case 'invite_limit_reached': return tr`You’ve reached today’s invite limit. Try again tomorrow.`;
+    case 'sending_on_hold': return tr`Sending is paused on your account while we review unusual activity.`;
+    // resend_team_invite (0541)
+    case 'resend_too_soon': return tr`That invite went out in the last day. Try again tomorrow.`;
+    case 'invite_closed': return tr`That invite was used, withdrawn or has expired. Invite them again.`;
+    // team-billing
+    case 'not_available': return tr`That isn’t available yet.`;
+    case 'price_mismatch': return tr`The price changed. Check it and try again.`;
+    case 'stale_preview': return tr`That price is out of date. Check it and try again.`;
+    case 'stripe_error': return tr`Stripe couldn’t do that. Nothing was charged.`;
+    case 'no_plan': return tr`This team has no plan yet.`;
+    case 'no_seat_item': return tr`This team’s plan has no seats to change.`;
+    case 'retry': return tr`That’s still going through. Try again in a moment.`;
+    case 'network': return tr`Couldn’t reach the server. Check your connection and try again.`;
+    case 'auth required': return tr`Sign in again to do that.`;
+    case 'not_yet': return tr`That isn’t ready yet.`;
+    case 'unsupported': return tr`That can’t be done from here yet.`;
+    case 'failed': return tr`That didn’t work. Try again.`;
+    // the domain check
+    case 'too_many': return tr`Too many checks. Try again in a few minutes.`;
+    default: return null;
+  }
+}
 
-const DEFAULT_LINE = 'That didn’t work. Try again.';
+const defaultLine = () => tr`That didn’t work. Try again.`;
 
 export function refusalLine(refusal) {
   const code = refusal && refusal.code;
-  if (code && Object.prototype.hasOwnProperty.call(REFUSAL, code)) {
+  if (code) {
     if (code === 'team_seats_needed' && Number(refusal.needed) > 0) {
       const n = Number(refusal.needed);
-      return `That needs ${n} more seat${n === 1 ? '' : 's'}.`;
+      return tr`${plural(n, { one: 'That needs # more seat.', other: 'That needs # more seats.' })}`;
     }
-    return REFUSAL[code];
+    const line = refusalFor(code);
+    if (line) return line;
   }
-  return DEFAULT_LINE;
+  return defaultLine();
 }
 
-const SUCCESS = {
-  rename: 'Renamed.',
-  role: 'Role changed.',
-  remove: 'Removed.',
-  revoke: 'Invite revoked.',
-  resend: 'Invite sent again.',
-  approve: 'Approved.',
-  keepViewer: 'Kept as a viewer.',
-  removeSeat: 'Seat removed.',
-  addSeats: 'Seats added.',
-  whenFull: 'Saved.',
-  monthlyLimit: 'Saved.',
-  invite: 'Invites sent.',
-  link: 'Saved.',
-  linkRole: 'Saved.',
-  newLink: 'New link made. The old one has stopped working.',
-  domainOn: 'Saved.',
-  addDomain: 'Domain added.',
-  removeDomain: 'Domain removed.',
-  close: 'The team is closed. Its workspaces are in your account.',
-  leave: 'You left the team.',
-  seatPerk: 'Saved.',
-};
-
 export function successLine(type) {
-  return SUCCESS[type] || 'Done.';
+  switch (type) {
+    case 'rename': return tr`Renamed.`;
+    case 'role': return tr`Role changed.`;
+    case 'remove': return tr`Removed.`;
+    case 'revoke': return tr`Invite revoked.`;
+    case 'resend': return tr`Invite sent again.`;
+    case 'approve': return tr`Approved.`;
+    case 'keepViewer': return tr`Kept as a viewer.`;
+    case 'removeSeat': return tr`Seat removed.`;
+    case 'addSeats': return tr`Seats added.`;
+    case 'whenFull':
+    case 'monthlyLimit':
+    case 'link':
+    case 'linkRole':
+    case 'domainOn':
+    case 'seatPerk': return tr`Saved.`;
+    case 'invite': return tr`Invites sent.`;
+    case 'newLink': return tr`New link made. The old one has stopped working.`;
+    case 'addDomain': return tr`Domain added.`;
+    case 'removeDomain': return tr`Domain removed.`;
+    case 'close': return tr`The team is closed. Its workspaces are in your account.`;
+    case 'leave': return tr`You left the team.`;
+    default: return tr`Done.`;
+  }
 }
 
 // A domain check's answer ({ verified, dns }) as one line.
 export function domainCheckLine(data, domain) {
-  if (data && data.verified) return `${domain} is verified.`;
-  return `${domain} isn’t verified yet. DNS can take a while to update.`;
+  if (data && data.verified) return tr`${domain} is verified.`;
+  return tr`${domain} isn’t verified yet. DNS can take a while to update.`;
+}
+
+// "$25 a month", "$25 a month each": the price of one seat for the interval.
+// 'month' and 'year' are the only intervals a team plan has; any other word the
+// server sent is said as it came.
+function seatUnit(price, interval, each) {
+  if (interval === 'month') return each ? tr`${price} a month each` : tr`${price} a month`;
+  if (interval === 'year') return each ? tr`${price} a year each` : tr`${price} a year`;
+  return each ? tr`${price} a ${interval} each` : tr`${price} a ${interval}`;
 }
 
 // The price of buying seats, from seats_preview's own answer (cents).
 export function seatPriceLine(preview) {
   const n = Math.max(1, (preview.seats | 0) - (preview.from_seats | 0));
-  const seats = `${n} seat${n === 1 ? '' : 's'}`;
-  const each = n === 1 ? '' : ' each';
-  const unit = `${money(preview.unit_amount / 100)} a ${preview.interval}${each}`;
+  const seats = tr`${plural(n, { one: '# seat', other: '# seats' })}`;
+  const unit = seatUnit(money(preview.unit_amount / 100), preview.interval, n !== 1);
   if (preview.trialing) {
-    const end = preview.trial_end ? dateLabel(trialMs(preview.trial_end)) : 'soon';
-    return `${seats} at ${unit}. Nothing today: your trial ends ${end}.`;
+    const end = preview.trial_end ? dateLabel(trialMs(preview.trial_end)) : tr`soon`;
+    return tr`${seats} at ${unit}. Nothing today: your trial ends ${end}.`;
   }
-  return `${seats} at ${unit}, ${money(preview.amount_today / 100)} today.`;
+  const today = money(preview.amount_today / 100);
+  return tr`${seats} at ${unit}, ${today} today.`;
 }
 
 // The share panel's line when a team's owner or an admin invites people to
@@ -123,13 +138,14 @@ export function seatPriceLine(preview) {
 // team-billing's seats_preview, as seatPriceLine's are.
 export function addSeatInviteLine(preview, who) {
   const n = Math.max(1, (preview.seats | 0) - (preview.from_seats | 0));
-  const adds = n === 1 ? 'a seat' : `${n} seats`;
-  const unit = `${money(preview.unit_amount / 100)} a ${preview.interval}${n === 1 ? '' : ' each'}`;
+  const adds = tr`${plural(n, { 1: 'a seat', other: '# seats' })}`;
+  const unit = seatUnit(money(preview.unit_amount / 100), preview.interval, n !== 1);
   if (preview.trialing) {
-    const end = preview.trial_end ? dateLabel(trialMs(preview.trial_end)) : 'soon';
-    return `Inviting ${who} to edit adds ${adds}: ${unit}, nothing until your trial ends ${end}.`;
+    const end = preview.trial_end ? dateLabel(trialMs(preview.trial_end)) : tr`soon`;
+    return tr`Inviting ${who} to edit adds ${adds}: ${unit}, nothing until your trial ends ${end}.`;
   }
-  return `Inviting ${who} to edit adds ${adds}: ${unit}, ${money(preview.amount_today / 100)} today.`;
+  const today = money(preview.amount_today / 100);
+  return tr`Inviting ${who} to edit adds ${adds}: ${unit}, ${today} today.`;
 }
 
 // trial_end is Stripe's epoch seconds, or an ISO string.
@@ -143,47 +159,48 @@ function trialMs(v) {
 
 // What a join answered, as one line; null for a status with nothing to say.
 export function teamJoinLine(status, teamName, role) {
-  const name = teamName || 'the team';
+  const name = teamName || tr`the team`;
   switch (status) {
     case 'joined':
       return role === 'viewer'
-        ? `You joined ${name} as a viewer. Its workspaces are in your workspace menu.`
-        : `You’re in ${name}. Its workspaces are in your workspace menu.`;
-    case 'requested': return `You’re in ${name} as a viewer for now. We asked its admins for a seat for you.`;
-    case 'already': return `You’re already in ${name}.`;
+        ? tr`You joined ${name} as a viewer. Its workspaces are in your workspace menu.`
+        : tr`You’re in ${name}. Its workspaces are in your workspace menu.`;
+    case 'requested': return tr`You’re in ${name} as a viewer for now. We asked its admins for a seat for you.`;
+    case 'already': return tr`You’re already in ${name}.`;
     case 'off':
-    case 'not_found': return 'That team link no longer works. Ask the team for a new one.';
-    case 'removed': return `This link can’t add you back to ${name}. Ask one of its admins to invite you.`;
-    case 'revoked': return 'That team invite was withdrawn. Ask the team for a new one.';
-    case 'expired': return 'That team invite has expired. Ask the team for a new one.';
+    case 'not_found': return tr`That team link no longer works. Ask the team for a new one.`;
+    case 'removed': return tr`This link can’t add you back to ${name}. Ask one of its admins to invite you.`;
+    case 'revoked': return tr`That team invite was withdrawn. Ask the team for a new one.`;
+    case 'expired': return tr`That team invite has expired. Ask the team for a new one.`;
     default: return null;
   }
 }
 
 // A company's team that admitted this account by its email domain.
 export function teamDomainJoinLine(teamName, domain) {
-  const name = teamName || 'the team';
+  const name = teamName || tr`the team`;
   return domain
-    ? `You joined ${name}, your company’s team, because you signed up with a ${domain} email. Its workspaces are in your workspace menu.`
-    : `You joined ${name}, your company’s team. Its workspaces are in your workspace menu.`;
+    ? tr`You joined ${name}, your company’s team, because you signed up with a ${domain} email. Its workspaces are in your workspace menu.`
+    : tr`You joined ${name}, your company’s team. Its workspaces are in your workspace menu.`;
 }
 
 // Why accept_team_invite refused.
 export function teamInviteRefusalLine(err) {
   if (err && err.hint === 'team_inbox_unproven') {
-    return 'To join that team, sign in again with a code sent to the address the invite went to.';
+    return tr`To join that team, sign in again with a code sent to the address the invite went to.`;
   }
   if (err && err.code === '42501' && /different email/i.test(String(err.message || ''))) {
-    return 'That team invite went to a different email address. Sign out, then sign in with that address to join.';
+    return tr`That team invite went to a different email address. Sign out, then sign in with that address to join.`;
   }
-  if (err && err.code === 'P0002') return 'That team invite no longer works. Ask the team for a new one.';
-  return DEFAULT_LINE;
+  if (err && err.code === 'P0002') return tr`That team invite no longer works. Ask the team for a new one.`;
+  return defaultLine();
 }
 
 // claim_my_team_invites joined this many teams.
 export function teamInvitesClaimedLine(n) {
   if (!(n >= 1)) return null;
-  return n === 1
-    ? 'You joined a team you were invited to. Its workspaces are in your workspace menu.'
-    : `You joined ${n} teams you were invited to. Their workspaces are in your workspace menu.`;
+  return tr`${plural(n, {
+    1: 'You joined a team you were invited to. Its workspaces are in your workspace menu.',
+    other: 'You joined # teams you were invited to. Their workspaces are in your workspace menu.',
+  })}`;
 }

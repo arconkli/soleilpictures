@@ -22,6 +22,7 @@ import { R2Image } from '../R2Image.jsx';
 import { FileCard } from './FileCard.jsx';
 import { safeExternalHref } from '../../lib/safeExternalHref.js';
 import { ensureFontForCss } from '../../lib/googleFonts.js';
+import { t } from '@lingui/core/macro';
 
 const stop = (e) => e.stopPropagation();
 
@@ -125,18 +126,18 @@ export function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoa
   if (type === 'board' && cell.boardId) {
     const b = boards?.[cell.boardId];
     const missing = !b;                                  // referenced cluster was deleted
-    const name = b?.name || cell.name || 'Cluster';      // cell.name = snapshot at drop
+    const name = b?.name || cell.name || t`Cluster`;      // cell.name = snapshot at drop
     return (
       <button type="button" className={`gc-board${missing ? ' is-missing' : ''}`} onPointerDown={stop}
         onClick={(e) => { e.stopPropagation(); if (!missing) onOpenBoard?.(cell.boardId); }}
         disabled={missing}
-        title={missing ? 'This cluster was removed' : `Open ${name}`}>
+        title={missing ? t`This cluster was removed` : t`Open ${name}`}>
         {b?.thumb_key
           ? <R2Image key={b.thumb_updated_at || b.thumb_key} src={b.thumb_key} bust={b.thumb_updated_at} w={Math.round(rect.w)} h={Math.round(rect.h)} className="gc-board-thumb" draggable="false" />
           : <span className="gc-board-ph" aria-hidden="true" />}
         <span className="gc-board-meta">
-          <span className="gc-board-badge">{missing ? 'REMOVED' : 'CLUSTER'}</span>
-          <span className="gc-board-name">{missing ? `${name} (removed)` : name}</span>
+          <span className="gc-board-badge">{missing ? t`REMOVED` : t`CLUSTER`}</span>
+          <span className="gc-board-name">{missing ? t`${name} (removed)` : name}</span>
         </span>
       </button>
     );

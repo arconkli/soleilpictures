@@ -7,6 +7,7 @@
 // reached and NOTHING was changed — safe to try again.
 
 import { supabase } from './supabase.js';
+import { t } from '@lingui/core/macro';
 
 async function sessionToken() {
   if (!supabase) return null;
@@ -18,7 +19,7 @@ async function sessionToken() {
 
 async function post(path, body) {
   const token = await sessionToken();
-  if (!token) return { ok: false, error: 'unauthorized', message: 'Sign in again to move files.' };
+  if (!token) return { ok: false, error: 'unauthorized', message: t`Sign in again to move files.` };
   try {
     const res = await fetch(`/api/clusters/${path}`, {
       method: 'POST',
@@ -28,7 +29,7 @@ async function post(path, body) {
     const json = await res.json().catch(() => ({}));
     return res.ok ? { ok: true, ...json } : { ok: false, status: res.status, ...json };
   } catch (e) {
-    return { ok: false, error: 'network', message: 'No connection, so nothing moved.', retry: true };
+    return { ok: false, error: 'network', message: t`No connection, so nothing moved.`, retry: true };
   }
 }
 
@@ -45,9 +46,18 @@ export const patchCards = (body) => post('patch', body);
 // The words a failed call leaves in a toast.
 export function failureMessage(r, verb = 'move') {
   if (!r || r.ok) return '';
-  if (r.error === 'limit_reached') return 'That would go past the card limit.';
-  if (r.error === 'cross_workspace') return 'Files move between clusters in the same workspace.';
-  if (r.error === 'forbidden') return 'You can’t edit that cluster.';
-  if (r.error === 'room_unavailable') return `Couldn’t reach that cluster, so nothing was ${verb === 'remove' ? 'removed' : verb === 'copy' ? 'copied' : 'moved'}. Try again.`;
-  return r.message || `Couldn’t ${verb} those files.`;
+  if (r.error === 'limit_reached') return t`That would go past the card limit.`;
+  if (r.error === 'cross_workspace') return t`Files move between clusters in the same workspace.`;
+  if (r.error === 'forbidden') return t`You can’t edit that cluster.`;
+  if (r.error === 'room_unavailable') {
+    if (verb === 'remove') return t`Couldn’t reach that cluster, so nothing was removed. Try again.`;
+    if (verb === 'copy') return t`Couldn’t reach that cluster, so nothing was copied. Try again.`;
+    return t`Couldn’t reach that cluster, so nothing was moved. Try again.`;
+  }
+  if (r.message) return r.message;
+  if (verb === 'move') return t`Couldn’t move those files.`;
+  if (verb === 'copy') return t`Couldn’t copy those files.`;
+  if (verb === 'remove') return t`Couldn’t remove those files.`;
+  if (verb === 'save') return t`Couldn’t save those files.`;
+  return `Couldn’t ${verb} those files.`;   // a verb nobody passes today
 }

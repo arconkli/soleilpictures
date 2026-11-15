@@ -11,12 +11,15 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import {
-  WEEKDAYS, monthMatrix, monthTitle, addMonths, todayISO, parseISO,
+  monthMatrix, addMonths, todayISO, parseISO,
 } from '../../lib/schedDates.js';
+import { weekdayShortNames, monthTitle } from '../../lib/schedDatesWords.js';
 import { Icon } from '../Icon.jsx';
 import { ChevronLeft, ChevronRight } from '../../lib/icons.js';
 import { swallowContextMenu } from '../../lib/contextMenuGuard.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const PAD = 10;
 const GAP = 6;
@@ -70,21 +73,21 @@ export function SchedDatePopover({ anchorRect, anchor, onPick, onClose }) {
   const cells = monthMatrix(viewMonth);
 
   const node = (
-    <div className="schedc-datepop" ref={ref} role="dialog" aria-label="Jump to date" style={style}
+    <div className="schedc-datepop" ref={ref} role="dialog" aria-label={t`Jump to date`} style={style}
          onPointerDown={stop} onWheel={stop} onContextMenu={swallowContextMenu}>
       <div className="schedc-dp-head">
-        <button type="button" className="schedc-dp-nav" title="Previous month" aria-label="Previous month"
+        <button type="button" className="schedc-dp-nav" title={t`Previous month`} aria-label={t`Previous month`}
           onClick={(e) => { e.stopPropagation(); setViewMonth((m) => addMonths(m, -1)); }}>
           <Icon as={ChevronLeft} size={12} />
         </button>
         <span className="schedc-dp-title">{monthTitle(viewMonth)}</span>
-        <button type="button" className="schedc-dp-nav" title="Next month" aria-label="Next month"
+        <button type="button" className="schedc-dp-nav" title={t`Next month`} aria-label={t`Next month`}
           onClick={(e) => { e.stopPropagation(); setViewMonth((m) => addMonths(m, 1)); }}>
           <Icon as={ChevronRight} size={12} />
         </button>
       </div>
       <div className="schedc-dp-grid">
-        {WEEKDAYS.map((w) => <span key={w} className="schedc-dp-wd">{w[0]}</span>)}
+        {weekdayShortNames().map((w) => <span key={w} className="schedc-dp-wd">{w[0]}</span>)}
         {cells.map((c) => (
           <button key={c.date} type="button"
             className={[
@@ -101,7 +104,7 @@ export function SchedDatePopover({ anchorRect, anchor, onPick, onClose }) {
       </div>
       <button type="button" className="schedc-dp-today"
         onClick={(e) => { e.stopPropagation(); onPick?.(today); }}>
-        Today
+        <Trans>Today</Trans>
       </button>
     </div>
   );

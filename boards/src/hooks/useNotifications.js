@@ -20,26 +20,33 @@ import { fileSharesAllowed, sharedFilesAllowed } from '../lib/appHost.js';
 import { editorLimitAllowed } from '../lib/appHost.js';
 import { openSharedFile } from '../lib/sharedFileBus.js';
 import { notificationTarget } from '../lib/notificationsBell.js';
+import { notificationText } from '../lib/notificationWords.js';
 import { refreshMyTier } from './useMyTier.js';
-import { noticeToastText, missedJoinedAsViewer } from '../lib/editorLimit.js';
+import { missedJoinedAsViewer } from '../lib/editorLimit.js';
+import { noticeToastText } from '../lib/editorLimitWords.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { t } from '@lingui/core/macro';
 
 // Notices already toasted on this page, by id: realtime can deliver a ping
 // twice, and the first load's look for missed ones can reach the same row.
 const toasted = new Set();
 
-export function useNotifications({ userId, feedback = null, onOpenBoard = null, onOpenSettings = null } = {}) {
+export function useNotifications({ userId, feedback = null, onOpenBoard = null, onOpenSettings = null, nameOf = null } = {}) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const onOpenRef = useRef(onOpenBoard);
   const onSettingsRef = useRef(onOpenSettings);
   const feedbackRef = useRef(feedback);
+  const nameOfRef = useRef(nameOf);
   const sweptFor = useRef(null);   // the userId whose first load was looked through
   useEffect(() => { onOpenRef.current = onOpenBoard; }, [onOpenBoard]);
   useEffect(() => { onSettingsRef.current = onOpenSettings; }, [onOpenSettings]);
   useEffect(() => { feedbackRef.current = feedback; }, [feedback]);
+  useEffect(() => { nameOfRef.current = nameOf; }, [nameOf]);
+  // The row as the person reads it: the stored English, or its words in their language.
+  const worded = useCallback((n) => ({ ...n, ...notificationText(n, { nameOf: nameOfRef.current }) }), []);
 
   // Optimistic: the badge should clear on click, not after a round trip. A
   // failed write reconciles on the next refresh rather than bouncing the UI.
@@ -66,7 +73,7 @@ export function useNotifications({ userId, feedback = null, onOpenBoard = null, 
           const missed = missedJoinedAsViewer(rows, { toasted });
           if (missed.length) {
             for (const n of missed) toasted.add(n.id);
-            try { feedbackRef.current?.toast({ type: 'info', message: noticeToastText(missed[0]), ttl: 12000 }); } catch (_) {}
+            try { feedbackRef.current?.toast({ type: 'info', message: noticeToastText(worded(missed[0])), ttl: 12000 }); } catch (_) {}
             markRead(missed.map((n) => n.id));
           }
         }
@@ -76,7 +83,7 @@ export function useNotifications({ userId, feedback = null, onOpenBoard = null, 
     } finally {
       setLoading(false);
     }
-  }, [userId, markRead]);
+  }, [userId, markRead, worded]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -108,20 +115,21 @@ export function useNotifications({ userId, feedback = null, onOpenBoard = null, 
       try {
         feedbackRef.current?.toast({
           type: 'info',
-          message: noticeToastText(payload),
+          message: noticeToastText(worded(payload)),
           ttl: 8000,
           action: fileToken
-            ? { label: 'Open', onClick: () => (sharedFilesAllowed()
+            ? { label: t`Open`, onClick: () => (sharedFilesAllowed()
                 ? openSharedFile({ token: fileToken, via: 'toast' })
                 : window.open('/f/' + encodeURIComponent(fileToken), '_blank', 'noopener')) }
-            : openSettings ? { label: 'See who can edit', onClick: openSettings }
-              : (payload.board_id ? { label: 'Open', onClick: openIt } : undefined),
+            : openSettings ? { label: t`See who can edit`, onClick: openSettings }
+              : (payload.board_id ? { label: t`Open`, onClick: openIt } : undefined),
         });
       } catch (_) {}
       // Only fires when the tab is hidden/unfocused and permission was granted.
-      maybeShowNotification({ title: payload.title, body: payload.body || '', tag: `ntf:${payload.id}`, onClick: openIt });
+      const shown = worded(payload);
+      maybeShowNotification({ title: shown.title, body: shown.body || '', tag: `ntf:${payload.id}`, onClick: openIt });
     });
-  }, [userId]);
+  }, [userId, worded]);
 
   const unread = items.reduce((n, x) => n + (x.read_at ? 0 : 1), 0);
 

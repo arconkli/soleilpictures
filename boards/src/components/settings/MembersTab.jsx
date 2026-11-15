@@ -20,13 +20,15 @@ import { useSettingsSave } from './saveState.jsx';
 import { WORKSPACE_ROLE_LABEL as ROLE_LABEL, ASSIGNABLE_ROLES, canManageWorkspace } from '../../lib/workspaceRoles.js';
 import { useEditorLimit } from '../../hooks/useEditorLimit.js';
 import { editorLimitAllowed } from '../../lib/appHost.js';
-import {
-  editorLimitFull, editorLimitRefusal, editorLimitRefusalMessage, firstName, holdsPlace,
-} from '../../lib/editorLimit.js';
+import { editorLimitFull, editorLimitRefusal, firstName, holdsPlace } from '../../lib/editorLimit.js';
+import { editorLimitRefusalMessage } from '../../lib/editorLimitWords.js';
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { AccountEditorsCard } from './AccountEditorsCard.jsx';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../../lib/errorWords.js';
 
 // Holds an action slot a row does not have. It is the same element as the real
 // control (a <button>), so it gets the same UA box and text metrics and the
@@ -72,7 +74,7 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
       ]);
       setMembers(m); setDirectory(d); setPending(p);
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'members_load_failed', message: 'Could not load members: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'members_load_failed', message: t`Could not load members: ${ph({ reason: shownError(e) })}` });
     } finally {
       setLoading(false);
     }
@@ -114,20 +116,20 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
   const remove = async (m) => {
     const who = label(m);
     const ok = await feedback.confirm({
-      title: `Remove ${who}?`,
-      message: `They'll lose access to "${workspaceName}" and all its clusters. Clusters shared to them directly in this workspace are unshared as well.`,
-      confirmLabel: 'Remove member',
+      title: t`Remove ${who}?`,
+      message: t`They'll lose access to "${workspaceName}" and all its clusters. Clusters shared to them directly in this workspace are unshared as well.`,
+      confirmLabel: t`Remove member`,
       danger: true,
     });
     if (!ok) return;
     try {
       await removeWorkspaceMember({ workspaceId, userId: m.user_id });
-      feedback.toast({ type: 'success', message: `Removed ${who}.` });
+      feedback.toast({ type: 'success', message: t`Removed ${who}.` });
       await load();
       editorLimit.refresh();
       await onWorkspacesChanged?.();
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'member_remove_failed', message: 'Could not remove: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'member_remove_failed', message: t`Could not remove: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -138,21 +140,21 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
     // keeps this plan paying — as the other answer. Never name the recipient's
     // plan: members don't see each other's.
     const ok = await feedback.confirm({
-      title: `Make ${who} the owner?`,
-      message: `Its cards, files and storage will count against ${who}'s plan instead of yours, and everyone in it will work within that plan's limits. To let them run it while your plan keeps covering it, make them a co-owner instead. If you transfer, you'll become an editor of "${workspaceName}" and only they can transfer it back.`,
-      confirmLabel: 'Transfer ownership',
-      altLabel: m.role === 'coowner' ? null : 'Make co-owner instead',
+      title: t`Make ${who} the owner?`,
+      message: t`Its cards, files and storage will count against ${who}'s plan instead of yours, and everyone in it will work within that plan's limits. To let them run it while your plan keeps covering it, make them a co-owner instead. If you transfer, you'll become an editor of "${workspaceName}" and only they can transfer it back.`,
+      confirmLabel: t`Transfer ownership`,
+      altLabel: m.role === 'coowner' ? null : t`Make co-owner instead`,
       danger: true,
     });
     if (ok === 'alt') { changeRole(m, 'coowner'); return; }
     if (!ok) return;
     try {
       await transferWorkspaceOwnership({ workspaceId, newOwnerId: m.user_id });
-      feedback.toast({ type: 'success', message: `${who} now owns this workspace.` });
+      feedback.toast({ type: 'success', message: t`${who} now owns this workspace.` });
       await load();
       await onWorkspacesChanged?.();
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'workspace_transfer_failed', message: 'Could not transfer: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'workspace_transfer_failed', message: t`Could not transfer: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -160,9 +162,9 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
   // there is nothing to undo, only a sign-up that will no longer get access.
   const revokePending = async (row) => {
     const ok = await feedback.confirm({
-      title: `Revoke invite to ${row.email}?`,
-      message: `They'll no longer get access if they sign up.`,
-      confirmLabel: 'Revoke',
+      title: t`Revoke invite to ${ph({ email: row.email })}?`,
+      message: t`They'll no longer get access if they sign up.`,
+      confirmLabel: t`Revoke`,
       danger: true,
     });
     if (!ok) return;
@@ -171,7 +173,7 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
       setPending(arr => arr.filter(x => x.id !== row.id));
       editorLimit.refresh();
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'invite_revoke_failed', message: 'Could not revoke: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'invite_revoke_failed', message: t`Could not revoke: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -183,9 +185,9 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
       const status = await inviteWorkspaceMember({ workspaceId, email, role });
       feedback.toast({
         type: status === 'already_member' ? 'warning' : 'success',
-        message: status === 'pending' ? `Invited ${email} — access is waiting for them when they sign up.`
-              : status === 'already_member' ? `${email} is already a member.`
-              : `Added ${email} as ${role}.`,
+        message: status === 'pending' ? t`Invited ${email} — access is waiting for them when they sign up.`
+              : status === 'already_member' ? t`${email} is already a member.`
+              : t`Added ${email} as ${role}.`,
       });
       setInviteEmail('');
       await load();
@@ -193,7 +195,7 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
     } catch (e) {
       const full = editorLimitRefusal(e);
       if (full) { feedback.toast({ type: 'warning', message: refused(full, 'workspace_invite'), ttl: 9000 }); return; }
-      feedback.toast({ type: 'error', code: 'invite_failed', message: 'Could not invite: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'invite_failed', message: t`Could not invite: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -204,11 +206,11 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
                             selfId={user?.id}
                             onChanged={async () => { await load(); await editorLimit.refresh(); }} />
       )}
-      <SettingsCategory title="People in this workspace"
+      <SettingsCategory title={t`People in this workspace`}
                         desc={canManage
-                          ? 'Co-owners run the workspace with you — people, sharing, the name and icon — but only the owner can delete it or hand it over. Editors can add and change content. Viewers can open and read, comment on the canvas, and vote; in a document they can read comments but not add them.'
-                          : 'Only the owner or a co-owner can change roles or remove members.'}>
-        {loading && members.length === 0 && <div className="settings-empty">Loading…</div>}
+                          ? t`Co-owners run the workspace with you — people, sharing, the name and icon — but only the owner can delete it or hand it over. Editors can add and change content. Viewers can open and read, comment on the canvas, and vote; in a document they can read comments but not add them.`
+                          : t`Only the owner or a co-owner can change roles or remove members.`}>
+        {loading && members.length === 0 && <div className="settings-empty"><Trans>Loading…</Trans></div>}
         <ul className="settings-member-list">
           {members.map(m => {
             const self = m.user_id === user?.id;
@@ -216,13 +218,13 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
             const changeable = canManage && !isOwnerRow && !self && ASSIGNABLE_ROLES.includes(m.role);
             return (
               <li key={m.user_id} className="settings-member-row">
-                <span className="settings-member-name" dir="auto">{label(m)}{self ? ' (you)' : ''}</span>
+                <span className="settings-member-name" dir="auto">{label(m)}{self ? t` (you)` : ''}</span>
                 {changeable ? (
-                  <select className="settings-input" aria-label={`Role for ${label(m)}`}
+                  <select className="settings-input" aria-label={t`Role for ${ph({ label: label(m) })}`}
                           value={m.role} onChange={(e) => changeRole(m, e.target.value)}>
                     {ASSIGNABLE_ROLES.map(r => {
                       const locked = r !== 'viewer' && lockedViewer(m);
-                      return <option key={r} value={r} disabled={locked}>{locked ? `${ROLE_LABEL[r]} — full` : ROLE_LABEL[r]}</option>;
+                      return <option key={r} value={r} disabled={locked}>{locked ? t`${ph({ value: ROLE_LABEL[r] })} — full` : ROLE_LABEL[r]}</option>;
                     })}
                   </select>
                 ) : (
@@ -235,11 +237,11 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
                 {canManage && (
                   <span className="settings-member-actions">
                     {isOwner && (!isOwnerRow && !self && m.role !== 'service' && m.role !== 'viewer'
-                      ? <button type="button" className="settings-link-btn" onClick={() => transfer(m)}>Make owner</button>
-                      : <SlotPlaceholder>Make owner</SlotPlaceholder>)}
+                      ? <button type="button" className="settings-link-btn" onClick={() => transfer(m)}><Trans>Make owner</Trans></button>
+                      : <SlotPlaceholder><Trans>Make owner</Trans></SlotPlaceholder>)}
                     {!isOwnerRow && !self && m.role !== 'service'
-                      ? <button type="button" className="settings-link-btn is-danger" onClick={() => remove(m)}>Remove</button>
-                      : <SlotPlaceholder>Remove</SlotPlaceholder>}
+                      ? <button type="button" className="settings-link-btn is-danger" onClick={() => remove(m)}><Trans>Remove</Trans></button>
+                      : <SlotPlaceholder><Trans>Remove</Trans></SlotPlaceholder>}
                   </span>
                 )}
               </li>
@@ -249,13 +251,13 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
             <li key={row.id} className="settings-member-row settings-member-pending">
               <span className="settings-member-name" title={row.email}>{row.email}</span>
               <span className="settings-member-role">
-                {ROLE_LABEL[row.role] || row.role} · invite sent, gets access when they sign up
+                <Trans>{ph({ value: ROLE_LABEL[row.role] || row.role })} · invite sent, gets access when they sign up</Trans>
               </span>
               {canManage && (
                 <span className="settings-member-actions">
-                  {isOwner && <SlotPlaceholder>Make owner</SlotPlaceholder>}
+                  {isOwner && <SlotPlaceholder><Trans>Make owner</Trans></SlotPlaceholder>}
                   <button type="button" className="settings-link-btn is-danger"
-                          onClick={() => revokePending(row)}>Revoke</button>
+                          onClick={() => revokePending(row)}><Trans>Revoke</Trans></button>
                 </span>
               )}
             </li>
@@ -263,19 +265,19 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
         </ul>
       </SettingsCategory>
       {canManage && (
-        <SettingsCategory title="Add someone"
-                          desc={editorLimitAllowed() ? 'They sign in to accept.' : 'They sign in to accept. Editors are free on every plan.'}>
+        <SettingsCategory title={t`Add someone`}
+                          desc={editorLimitAllowed() ? t`They sign in to accept.` : t`They sign in to accept. Editors are free on every plan.`}>
           <div className="settings-invite-row">
-            <input className="settings-input" type="email" placeholder="Email address"
-                   aria-label="Email address to invite"
+            <input className="settings-input" type="email" placeholder={t`Email address`}
+                   aria-label={t`Email address to invite`}
                    value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)}
                    onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Enter') { e.preventDefault(); invite(); } }} />
-            <select className="settings-input" aria-label="Role for the new member"
+            <select className="settings-input" aria-label={t`Role for the new member`}
                     value={inviteLocked ? 'viewer' : inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
-              <option value="editor" disabled={inviteLocked}>{inviteLocked ? 'Editor — full' : 'Editor'}</option>
-              <option value="viewer">Viewer</option>
+              <option value="editor" disabled={inviteLocked}>{inviteLocked ? t`Editor — full` : t`Editor`}</option>
+              <option value="viewer">{t`Viewer`}</option>
             </select>
-            <button type="button" className="settings-btn" onClick={invite} disabled={!inviteEmail.trim()}>Invite</button>
+            <button type="button" className="settings-btn" onClick={invite} disabled={!inviteEmail.trim()}><Trans>Invite</Trans></button>
           </div>
         </SettingsCategory>
       )}

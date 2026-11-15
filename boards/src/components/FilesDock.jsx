@@ -19,6 +19,7 @@ import { ancestorPath } from '../lib/boardTree.js';
 import { onBoardIndex, fileKeyOf } from '../lib/filesDrag.js';
 import { useBoardPreview, invalidateBoardPreview } from '../hooks/useBoardPreview.js';
 import { onDragSession } from '../lib/springLoad.js';
+import { t as tr } from '@lingui/core/macro';
 
 export function FilesDockLayout({
   mode,                 // 'off' | 'panel' | 'full'
@@ -175,9 +176,9 @@ export function FilesDockLayout({
       <div className="fdl-canvas">{canvas}</div>
       {mode === 'panel' ? (
         <div className={`fdl-divider${drag ? ' is-dragging' : ''}`}
-             role="separator" aria-orientation="vertical" aria-label="Resize Files"
+             role="separator" aria-orientation="vertical" aria-label={tr`Resize Files`}
              aria-valuenow={Math.round(panelW)} aria-valuemin={DOCK.MIN} aria-valuemax={widest} tabIndex={0}
-             title="Drag to resize · drag all the way to fill the screen · double-click to reset"
+             title={tr`Drag to resize · drag all the way to fill the screen · double-click to reset`}
              onPointerDown={onDividerDown}
              onDoubleClick={() => onResize?.(DOCK.DEFAULT)}
              onKeyDown={onDividerKey}>
@@ -187,7 +188,7 @@ export function FilesDockLayout({
       <div className={`fdl-files${entering ? ' is-entering' : ''}`} ref={filesRef} style={mode === 'panel' ? { width: panelW } : undefined}>{files}</div>
       {drag?.preview ? (
         <div className={`fdl-preview is-${drag.preview}`} aria-hidden="true">
-          {drag.preview === 'full' ? 'Release for full-screen Files' : 'Release to close Files'}
+          {drag.preview === 'full' ? tr`Release for full-screen Files` : tr`Release to close Files`}
         </div>
       ) : null}
     </div>

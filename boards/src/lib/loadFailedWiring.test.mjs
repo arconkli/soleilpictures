@@ -50,15 +50,15 @@ test('search reads return null on error, and every caller tells that from no res
   const palette = read('../components/CommandPalette.jsx');
   assert.match(palette, /const failed = rows == null \|\| pages == null;/);
   assert.match(palette, /!searchedRef\.current && !failed/);
-  assert.match(palette, /what="search results"/);
+  assert.match(palette, /what=\{tr`search results`\}/);
   assert.match(palette, /showEmpty = !!q && !hasResults && !loading && !searchFailed/);
   assert.doesNotMatch(palette, /searchDocPages\([^\n]*\.catch\(\(\) => \[\]\)/);
   const picker = read('../components/EntityPicker.jsx');
   assert.match(picker, /setSearchFailed\(rows == null\)/);
-  assert.match(picker, /what="search results"/);
+  assert.match(picker, /what=\{tr`search results`\}/);
   const list = read('../components/ListSurface.jsx');
   assert.match(list, /setDescFailed\(rows == null\)/);
-  assert.match(list, /descFailed && <LoadFailed compact what="search results"/);
+  assert.match(list, /descFailed && <LoadFailed compact what=\{tr`search results`\}/);
 });
 
 test('files dock: a snapshot that fails to read is marked failed, kept briefly, and offered a Retry', () => {
@@ -69,7 +69,7 @@ test('files dock: a snapshot that fails to read is marked failed, kept briefly, 
   assert.match(dock, /failed: !cardsFor && !!preview\?\.failed/);
   assert.match(dock, /invalidateBoardPreview\(browseId\)/);
   const list = read('../components/ListSurface.jsx');
-  const fails = list.match(/<LoadFailed what="this cluster’s files" onRetry=\{onRetry\} \/>/g) || [];
+  const fails = list.match(/<LoadFailed what=\{tr`this cluster’s files`\} onRetry=\{onRetry\} \/>/g) || [];
   assert.equal(fails.length, 2, 'both the fp-* and the list-* branch');
 });
 
@@ -106,5 +106,5 @@ test('home: assembleGraph throws on a read error and the map says so instead of 
   assert.match(home, /<HomeEmptyState failed onRetry=/);
   const empty = read('../components/HomeEmptyState.jsx');
   assert.match(empty, /Couldn’t load your workspace map/);
-  assert.doesNotMatch(empty, /^import /m, 'nothing new in the lazy 3D chunk');
+  assert.doesNotMatch(empty, /^import (?!\{ Trans \} from '@lingui\/react\/macro';)/m, 'nothing new in the lazy 3D chunk but the macro');
 });

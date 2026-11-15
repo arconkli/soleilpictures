@@ -19,6 +19,7 @@ import { Icon } from './Icon.jsx';
 // Settings, which keeps its own shell and so cannot wrap in this component.
 import { registerModalOpen, isTopModal, focusablesIn as focusables, trapTabKey } from '../lib/modalGuard.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t as tr } from '@lingui/core/macro';
 
 // Ref-counted body scroll lock so stacked modals don't unlock prematurely.
 let lockCount = 0;
@@ -136,7 +137,7 @@ export function Modal({
         tabIndex={-1}
       >
         {showClose && (
-          <button type="button" className="modal-shell-x" aria-label="Close" onClick={() => onClose?.()}>
+          <button type="button" className="modal-shell-x" aria-label={tr`Close`} onClick={() => onClose?.()}>
             <Icon as={X} size={18} />
           </button>
         )}

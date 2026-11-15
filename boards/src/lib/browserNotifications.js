@@ -11,6 +11,8 @@
 // flag lives in localStorage so a declined user isn't re-prompted on
 // every send.
 
+import { t } from '@lingui/core/macro';
+
 const ASKED_KEY = 'soleil.notif.askedOnce';
 
 function supported() {
@@ -58,7 +60,7 @@ export function maybeShowNotification({ title, body, tag, icon, onClick }) {
   if (Notification.permission !== 'granted') return null;
   if (tabIsActive()) return null;
   try {
-    const n = new Notification(title || 'New message', {
+    const n = new Notification(title || t`New message`, {
       body: body || '',
       tag: tag || undefined,
       icon: icon || '/icon-192.png',

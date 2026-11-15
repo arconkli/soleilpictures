@@ -19,6 +19,7 @@
 // the gap; the later of the two is the board's recency.
 
 import { ancestorPath } from './boardTree.js';
+import { t as tr } from '@lingui/core/macro';
 
 export const JUMP_BACK_MAX = 3;
 
@@ -137,7 +138,7 @@ export const MOVE_TARGETS_MAX = 50;
  * its own name.
  */
 export function cardMoveTargets(boards, { workspaceId = null, fromId = null, max = MOVE_TARGETS_MAX } = {}) {
-  const nameOf = (id) => boards?.[id]?.name || 'Untitled';
+  const nameOf = (id) => boards?.[id]?.name || tr`Untitled`;
   const label = (id) => {
     const path = ancestorPath(boards, id);
     const names = (path.length > 1 ? path.slice(1) : path).map(nameOf);

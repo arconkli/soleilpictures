@@ -6,6 +6,7 @@
 // editable unit, so users can backspace it as one chunk.
 
 import { Node, mergeAttributes } from '@tiptap/core';
+import { t } from '@lingui/core/macro';
 
 export const BoardEmbed = Node.create({
   name: 'boardEmbed',
@@ -41,7 +42,7 @@ export const BoardEmbed = Node.create({
       // an owner's dir="auto" (lib/textDirection.js) skips a node with a dir.
       dom.setAttribute('dir', 'ltr');
       const update = () => {
-        const label = node.attrs.label || (node.attrs.cardId ? 'Card' : 'Board');
+        const label = node.attrs.label || (node.attrs.cardId ? t`Card` : t`Board`);
         dom.innerHTML = '';
         const icon = document.createElement('div');
         icon.className = 'tt-embed-icon';
@@ -50,7 +51,7 @@ export const BoardEmbed = Node.create({
         body.className = 'tt-embed-body';
         const kicker = document.createElement('div');
         kicker.className = 'tt-embed-kicker';
-        kicker.textContent = node.attrs.cardId ? 'CARD ON BOARD' : 'BOARD';
+        kicker.textContent = node.attrs.cardId ? t`CARD ON BOARD` : t`BOARD`;
         const title = document.createElement('div');
         title.className = 'tt-embed-title';
         title.setAttribute('dir', 'auto');

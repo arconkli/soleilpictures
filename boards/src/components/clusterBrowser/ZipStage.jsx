@@ -38,6 +38,8 @@ import {
   Download, FolderSimple, Lock, ArrowLeft, Package, Image as ImagePh, Clapperboard, Headphones,
 } from '../../lib/icons.js';
 import './zipStage.css';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const AUDIO_RE = /\.(wav|aiff?|flac|m4a|aac|ogg|opus|mp3|caf)$/i;
 const TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' };
@@ -46,8 +48,8 @@ const AT_ONCE = 2;
 // Tiles drawn at once in one folder; a Takeout folder can hold thousands.
 const PAGE = 240;
 const FOLD_BYTES = 8 * 1024 * 1024;
-const LOCKED = 'This file is locked with a password.';
-const PACKED = "This file is packed in a way a browser can't open.";
+const lockedMsg = () => tr`This file is locked with a password.`;
+const packedMsg = () => tr`This file is packed in a way a browser can't open.`;
 
 const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const coarse = () => {
@@ -193,7 +195,7 @@ function Tile({ t, sel, url, saving, onPick, onOpen, onSave, onBroke }) {
   return (
     <div className={`qzip-t${sel ? ' is-sel' : ''}`} data-path={t.path}>
       <button type="button" className="qzip-hit" aria-pressed={sel}
-              title={t.locked ? LOCKED : t.packed ? PACKED : t.name}
+              title={t.locked ? lockedMsg() : t.packed ? packedMsg() : t.name}
               onClick={() => onPick(t)} onDoubleClick={() => onOpen(t)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onOpen(t); } }}>
         <span className={`qzip-pic${t.kind === 'folder' ? ' is-folder' : ''}`}
@@ -204,10 +206,10 @@ function Tile({ t, sel, url, saving, onPick, onOpen, onSave, onBroke }) {
           {t.kind === 'folder' && <em>{count(t.count, 'item', 'items')}</em>}
         </span>
         <span className="qzip-nm" dir="auto">{t.name}</span>
-        <span className="qzip-sz">{t.kind === 'folder' ? 'Folder' : humanSize(t.size)}</span>
+        <span className="qzip-sz">{t.kind === 'folder' ? tr`Folder` : humanSize(t.size)}</span>
       </button>
       {sel && savable(t) && (
-        <button type="button" className="qzip-chip" aria-label={`Download ${t.name}`} title={`Download ${t.name}`}
+        <button type="button" className="qzip-chip" aria-label={tr`Download ${ph({ name: t.name })}`} title={tr`Download ${ph({ name: t.name })}`}
                 disabled={saving} onClick={() => onSave(t)}>
           <Icon as={Download} size={13} />
         </button>
@@ -238,17 +240,17 @@ function Picture({ remote, t, saving, onBack, onSave }) {
     <>
       <div className="qzip-top">
         <button ref={backRef} type="button" className="qzip-btn" data-ql-back onClick={onBack}>
-          <Icon as={ArrowLeft} size={15} />Back
+          <Icon as={ArrowLeft} size={15} /><Trans>Back</Trans>
         </button>
         <div className="qzip-crumb"><b title={t.name}>{t.name}</b></div>
         <span className="qzip-m">{humanSize(t.size)}</span>
         <button type="button" className="qzip-btn" disabled={saving} onClick={() => onSave(t)}>
-          <Icon as={Download} size={15} />Download
+          <Icon as={Download} size={15} /><Trans>Download</Trans>
         </button>
       </div>
       <div className="qzip-view" aria-busy={url === null || undefined}>
         {url && <img src={url} alt={t.name} onError={() => setUrl('')} />}
-        {url === '' && <p className="qzip-empty" role="status">This picture couldn't be read.</p>}
+        {url === '' && <p className="qzip-empty" role="status"><Trans>This picture couldn't be read.</Trans></p>}
       </div>
     </>
   );
@@ -348,13 +350,13 @@ function ZipSheet({ zip, item, sizeBytes, canPut, onClose }) {
   const openTile = (t) => {
     if (t.kind === 'folder') { go(t.path); return; }
     setSel(t.path);
-    if (t.locked || t.packed) { setNote(t.locked ? LOCKED : PACKED); return; }
+    if (t.locked || t.packed) { setNote(t.locked ? lockedMsg() : packedMsg()); return; }
     if (drawable(t)) setOpen(t);
   };
   const pick = (t) => {
     if (sel === t.path && coarse()) { openTile(t); return; }
     setSel(t.path);
-    setNote(t.locked ? LOCKED : t.packed ? PACKED : null);
+    setNote(t.locked ? lockedMsg() : t.packed ? packedMsg() : null);
   };
   const back = () => {
     const was = open?.path;
@@ -401,7 +403,7 @@ function ZipSheet({ zip, item, sizeBytes, canPut, onClose }) {
     } catch (err) {
       if (ctl.signal.aborted) return;
       setPulling(null);
-      feedback?.toast({ type: 'error', code: 'zip_unpack_download_failed', message: downloadFailedWords(err, "Couldn't download the zip. Try again.") });
+      feedback?.toast({ type: 'error', code: 'zip_unpack_download_failed', message: downloadFailedWords(err, tr`Couldn't download the zip. Try again.`) });
     }
   };
 
@@ -419,7 +421,7 @@ function ZipSheet({ zip, item, sizeBytes, canPut, onClose }) {
   return (
     <div ref={sheetRef} className="qzip">
       <div className="qzip-top">
-        <nav className="qzip-crumb" aria-label="Where in the zip">
+        <nav className="qzip-crumb" aria-label={tr`Where in the zip`}>
           {trail.length
             ? <button type="button" onClick={() => go(model.root)}>{zipName}</button>
             : <b title={zipName}>{zipName}</b>}
@@ -439,7 +441,7 @@ function ZipSheet({ zip, item, sizeBytes, canPut, onClose }) {
         {canUnpack && (
           <button type="button" className="qzip-btn is-main" disabled={pulling != null} onClick={unpack}>
             <Icon as={Package} size={15} />
-            {pulling == null ? 'Unpack into clusters' : `Downloading… ${pulling}%`}
+            {pulling == null ? tr`Unpack into clusters` : tr`Downloading… ${pulling}%`}
           </button>
         )}
       </div>
@@ -455,12 +457,12 @@ function ZipSheet({ zip, item, sizeBytes, canPut, onClose }) {
             ))}
           </div>
         ) : (
-          <p className="qzip-empty">{trail.length ? 'This folder is empty.' : 'This zip is empty.'}</p>
+          <p className="qzip-empty">{trail.length ? tr`This folder is empty.` : tr`This zip is empty.`}</p>
         )}
         {more > 0 && (
           <div className="qzip-more">
             <button type="button" className="qzip-btn" onClick={() => setLimit((n) => n + PAGE)}>
-              Show {Math.min(PAGE, more)} more
+              <Trans>Show {ph({ min: Math.min(PAGE, more) })} more</Trans>
             </button>
           </div>
         )}

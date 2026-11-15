@@ -9,6 +9,7 @@
 // the clock and what is on screen. components/setup/SetupTips.jsx draws them.
 
 import { SETUP_EPOCH } from './workspaceSetup.js';
+import { t } from '@lingui/core/macro';
 
 export const TIPS_KEY = 'setup_tips';     // profiles.settings key; SetupInWorkspace is its one writer
 export const TIPS_QUIET_MS = 15_000;      // nothing added or uploading for this long
@@ -35,18 +36,19 @@ export const TIP_ANCHORS = Object.freeze({
 // asking for one yet (nested clusters on the first day go with fewer returns);
 // tip 2 names the paste-a-link habit, the one day-one behavior that still goes
 // with coming back once depth is accounted for.
+// Getters, so the words are read in the current language when a tip is shown, not at load.
 const COPY = {
   desk: {
-    clusters: { title: 'Your clusters live here', body: 'Each cluster is its own board. Once you’ve added a few things, start one for each project, scene or client.' },
-    files: { title: 'Drop any file, or paste a link', body: 'Scripts, PDFs, video and photos wait in Files until you put them on a board. Paste a link from any tab onto the board and it becomes a card.' },
-    import: { title: 'Coming from Google Drive or Dropbox?', body: 'Download the folder as a zip and drop it here. Its folders come in as clusters, with their files.' },
-    importPlain: { title: 'Coming from Google Drive or Dropbox?', body: 'Download the folder, unzip it, and drop its files here. They land in Files.' },
+    clusters: { get title() { return t`Your clusters live here`; }, get body() { return t`Each cluster is its own board. Once you’ve added a few things, start one for each project, scene or client.`; } },
+    files: { get title() { return t`Drop any file, or paste a link`; }, get body() { return t`Scripts, PDFs, video and photos wait in Files until you put them on a board. Paste a link from any tab onto the board and it becomes a card.`; } },
+    import: { get title() { return t`Coming from Google Drive or Dropbox?`; }, get body() { return t`Download the folder as a zip and drop it here. Its folders come in as clusters, with their files.`; } },
+    importPlain: { get title() { return t`Coming from Google Drive or Dropbox?`; }, get body() { return t`Download the folder, unzip it, and drop its files here. They land in Files.`; } },
   },
   phone: {
-    clusters: { title: 'Your clusters and files live here', body: 'Tap to see every cluster, and the files in each one.' },
-    files: { title: 'Every file lands in Files', body: 'Photos, video, PDFs, scripts. Tap Upload to add from your phone. Paste a link onto a board and it becomes a card.' },
-    import: { title: 'Coming from Google Drive or Dropbox?', body: 'Bring a whole folder in from a computer: download it as a zip and drop it on Clusters.' },
-    importPlain: { title: 'Coming from Google Drive or Dropbox?', body: 'Bring files in from a computer: download them, unzip, and drop them on Clusters.' },
+    clusters: { get title() { return t`Your clusters and files live here`; }, get body() { return t`Tap to see every cluster, and the files in each one.`; } },
+    files: { get title() { return t`Every file lands in Files`; }, get body() { return t`Photos, video, PDFs, scripts. Tap Upload to add from your phone. Paste a link onto a board and it becomes a card.`; } },
+    import: { get title() { return t`Coming from Google Drive or Dropbox?`; }, get body() { return t`Bring a whole folder in from a computer: download it as a zip and drop it on Clusters.`; } },
+    importPlain: { get title() { return t`Coming from Google Drive or Dropbox?`; }, get body() { return t`Bring files in from a computer: download them, unzip, and drop them on Clusters.`; } },
   },
 };
 

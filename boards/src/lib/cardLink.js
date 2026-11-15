@@ -2,6 +2,7 @@
 // ?board= & ?card= on load). Shared by Info and Files' right-click menu. It
 // only resolves for someone who can already open that board.
 
+import { t } from '@lingui/core/macro';
 export function cardLinkUrl(href, boardId, cardId) {
   const url = new URL(href);
   url.search = '';
@@ -14,8 +15,8 @@ export function cardLinkUrl(href, boardId, cardId) {
 export async function copyCardLink(cardId, boardId, feedback) {
   try {
     await navigator.clipboard.writeText(cardLinkUrl(window.location.href, boardId, cardId));
-    feedback?.toast?.({ type: 'success', message: 'Link copied' });
+    feedback?.toast?.({ type: 'success', message: t`Link copied` });
   } catch (_) {
-    feedback?.toast?.({ type: 'error', code: 'link_copy_failed', message: 'Could not copy link' });
+    feedback?.toast?.({ type: 'error', code: 'link_copy_failed', message: t`Could not copy link` });
   }
 }

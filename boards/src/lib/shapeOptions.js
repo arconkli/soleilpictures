@@ -10,19 +10,20 @@
 // alongside stroke, fill and strokeWidth; those three had controls and these
 // two did not.
 
+import { t } from '@lingui/core/macro';
 export const SHAPES = [
-  { id: 'rect', label: 'Rect' },
-  { id: 'ellipse', label: 'Ellipse' },
-  { id: 'line', label: 'Line' },
-  { id: 'arrow', label: 'Arrow' },
-  { id: 'diamond', label: 'Diamond' },
-  { id: 'triangle', label: 'Triangle' },
-  { id: 'hexagon', label: 'Hexagon' },
-  { id: 'star', label: 'Star' },
+  { id: 'rect', get label() { return t`Rect`; } },
+  { id: 'ellipse', get label() { return t`Ellipse`; } },
+  { id: 'line', get label() { return t`Line`; } },
+  { id: 'arrow', get label() { return t`Arrow`; } },
+  { id: 'diamond', get label() { return t`Diamond`; } },
+  { id: 'triangle', get label() { return t`Triangle`; } },
+  { id: 'hexagon', get label() { return t`Hexagon`; } },
+  { id: 'star', get label() { return t({ message: 'Star', context: 'shape' }); } },
 ];
 
 export const DASH_STYLES = [
-  { id: 'solid', label: 'Solid' },
-  { id: 'dashed', label: 'Dashed' },
-  { id: 'dotted', label: 'Dotted' },
+  { id: 'solid', get label() { return t`Solid`; } },
+  { id: 'dashed', get label() { return t`Dashed`; } },
+  { id: 'dotted', get label() { return t`Dotted`; } },
 ];

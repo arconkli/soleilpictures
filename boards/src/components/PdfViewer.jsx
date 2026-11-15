@@ -31,6 +31,8 @@ import { ariaKeys } from '../lib/ariaKeys.js';
 import { reportError } from '../lib/errorReporting.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { safeFileName } from '../lib/safeFileName.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // A portal still bubbles through the React tree to the card and canvas
 // handlers that rendered it; presses on the viewer are the viewer's own.
@@ -331,7 +333,7 @@ export function PdfViewer({ src, name, onClose, embedded = false, onPageChange =
 
   const node = (
     <div className={`pdfv${embedded ? ' pdfv--embedded' : ''}`}
-         role={embedded ? undefined : 'dialog'} aria-label={name || 'PDF preview'}
+         role={embedded ? undefined : 'dialog'} aria-label={name || t`PDF preview`}
          onClick={embedded ? undefined : (e) => { e.stopPropagation(); onClose?.(); }}
          onPointerDown={embedded ? undefined : stopBubble}
          onMouseDown={embedded ? undefined : stopBubble}
@@ -342,19 +344,19 @@ export function PdfViewer({ src, name, onClose, embedded = false, onPageChange =
         <span className="pdfv-spacer" />
         {status === 'ready' && (
           <span className="pdfv-nav">
-            <button className="pdfv-btn" aria-label="Previous page" aria-keyshortcuts="ArrowUp" {...tlTip('Previous page', 'ArrowUp')}
+            <button className="pdfv-btn" aria-label={t`Previous page`} aria-keyshortcuts="ArrowUp" {...tlTip(t`Previous page`, 'ArrowUp')}
                     onClick={() => scrollToPage(current - 1)} disabled={current <= 1}>{glyph(ChevronUp)}</button>
             <span className="pdfv-pageind">{current} / {numPages}</span>
-            <button className="pdfv-btn" aria-label="Next page" aria-keyshortcuts="ArrowDown" {...tlTip('Next page', 'ArrowDown')}
+            <button className="pdfv-btn" aria-label={t`Next page`} aria-keyshortcuts="ArrowDown" {...tlTip(t`Next page`, 'ArrowDown')}
                     onClick={() => scrollToPage(current + 1)} disabled={current >= numPages}>{glyph(ChevronDown)}</button>
           </span>
         )}
         {status === 'ready' && (
           <span className="pdfv-zoom">
-            <button className="pdfv-btn" aria-label="Zoom out" aria-keyshortcuts={ariaKeys('Mod+-')} {...tlTip('Zoom out', 'Mod+-')}
+            <button className="pdfv-btn" aria-label={t`Zoom out`} aria-keyshortcuts={ariaKeys('Mod+-')} {...tlTip(t`Zoom out`, 'Mod+-')}
                     onClick={() => zoom((z) => clampZoom(z - ZOOM_STEP))}>{glyph(Minus)}</button>
             <span className="pdfv-zoomind">{Math.round(scale * 100)}%</span>
-            <button className="pdfv-btn" aria-label="Zoom in" aria-keyshortcuts={ariaKeys('Mod+=')} {...tlTip('Zoom in', 'Mod+=')}
+            <button className="pdfv-btn" aria-label={t`Zoom in`} aria-keyshortcuts={ariaKeys('Mod+=')} {...tlTip(t`Zoom in`, 'Mod+=')}
                     onClick={() => zoom((z) => clampZoom(z + ZOOM_STEP))}>{glyph(Plus)}</button>
           </span>
         )}
@@ -365,13 +367,13 @@ export function PdfViewer({ src, name, onClose, embedded = false, onPageChange =
                            {...(shareTarget.api ? { api: shareTarget.api } : {})} />
         )}
         {!embedded && (
-          <button className="pdfv-btn" aria-label="Download" {...tlTip('Download')}
+          <button className="pdfv-btn" aria-label={t`Download`} {...tlTip(t`Download`)}
                   disabled={downloading} onClick={onDownload}>
             {glyph(DownloadSimple)}
           </button>
         )}
         {!embedded && (
-          <button className="pdfv-btn pdfv-x" aria-label="Close" aria-keyshortcuts="Escape" {...tlTip('Close', 'Escape')}
+          <button className="pdfv-btn pdfv-x" aria-label={t`Close`} aria-keyshortcuts="Escape" {...tlTip(t`Close`, 'Escape')}
                   onClick={(e) => { e.stopPropagation(); onClose?.(); }}>{glyph(X)}</button>
         )}
       </div>
@@ -379,15 +381,15 @@ export function PdfViewer({ src, name, onClose, embedded = false, onPageChange =
       <div className="pdfv-scroll" ref={scrollRef} onClick={(e) => e.stopPropagation()}>
         {status === 'loading' && (
           <div className="pdfv-state">
-            <WaitNote key={reloadKey} label={`Opening ${name || 'this PDF'}…`} spinnerLabel="Loading PDF"
-                      onRetry={() => setReloadKey((k) => k + 1)} retryLabel="Try again" onClose={embedded ? null : onClose} />
+            <WaitNote key={reloadKey} label={name ? t`Opening ${name}…` : t`Opening this PDF…`} spinnerLabel={t`Loading PDF`}
+                      onRetry={() => setReloadKey((k) => k + 1)} retryLabel={t`Try again`} onClose={embedded ? null : onClose} />
           </div>
         )}
         {status === 'error' && (
           <div className="pdfv-state pdfv-error">
-            <div className="pdfv-error-msg">Couldn’t load this PDF.</div>
+            <div className="pdfv-error-msg"><Trans>Couldn’t load this PDF.</Trans></div>
             <button className="pdfv-retry" onClick={(e) => { e.stopPropagation(); setReloadKey((k) => k + 1); }}>
-              Try again
+              <Trans>Try again</Trans>
             </button>
           </div>
         )}

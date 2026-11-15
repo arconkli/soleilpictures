@@ -10,6 +10,8 @@
 //                  the first time the registry loads.
 //   - 'url'     → user provided a font-file URL; we inject an @font-face.
 
+import { t } from '@lingui/core/macro';
+
 const STORAGE_KEY = 'soleil.customFonts';
 let cache = null;
 const listeners = new Set();
@@ -41,7 +43,7 @@ export function addCustomFont(entry) {
   const id = entry.id || ('font-' + Math.random().toString(36).slice(2, 9));
   const item = {
     id,
-    name: entry.name?.trim() || entry.css || 'Custom font',
+    name: entry.name?.trim() || entry.css || t`Custom font`,
     css: entry.css?.trim() || `'${entry.name?.trim()}', sans-serif`,
     source: entry.source || { kind: 'system' },
   };

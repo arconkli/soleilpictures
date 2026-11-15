@@ -9,7 +9,8 @@ import { useEffect, useReducer, useRef, useState } from 'react';
 import './team.css';
 import { Icon } from '../Icon.jsx';
 import { UserPlus, MoreHorizontal, X, Eye, Warning } from '../../lib/icons.js';
-import { teamReducer, teamCan, peopleCounts, dateLabel } from '../../lib/teamModel.js';
+import { teamReducer, teamCan, peopleCounts } from '../../lib/teamModel.js';
+import { dateLabel, dayLabel } from '../../lib/teamModelWords.js';
 import { refusalLine, successLine, seatPriceLine } from '../../lib/teamCopy.js';
 import { previewTeamSeatsCost, newSeatRequestId } from '../../lib/teamBillingApi.js';
 import { TeamMenu } from './TeamMenu.jsx';
@@ -18,12 +19,13 @@ import TeamPeople from './TeamPeople.jsx';
 import TeamBilling from './TeamBilling.jsx';
 import TeamJoining from './TeamJoining.jsx';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
-const FROZEN = 'The team is view-only until it’s paid';
+const frozenTip = () => tr`The team is view-only until it’s paid`;
 // A confirm stays open after these, so a retry reuses the same preview.
 const RETRYABLE = new Set(['retry', 'network']);
 
-const dayLabel = (ms) => new Date(ms).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 
 export default function TeamPage({ team, initialTab = 'people', onClose, onToast, live = null }) {
   const isLive = !!live;
@@ -90,12 +92,17 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
 
   // The price of buying up to `total` seats, from the server's own preview,
   // then `run(preview, requestId)` once confirmed. One request id per preview.
-  const priceThen = async (total, label, run, lead = '') => {
+  const priceThen = async (total, label, run, lead = '') => {   // lead: '' | 'send' | 'approve' | 'role'
     if (!t.plan) return;
     const p = await previewTeamSeatsCost(t.id, total);
     if (!p || p.ok === false) { onToast(refusalLine({ code: p && p.error })); return; }
     const requestId = newSeatRequestId();
-    ask({ message: `${lead}${seatPriceLine(p)}`, confirmLabel: label, run: () => run(p, requestId) });
+    const line = seatPriceLine(p);
+    const message = lead === 'send' ? tr`Sending needs more seats. ${line}`
+      : lead === 'approve' ? tr`Every seat is in use. Approving adds one. ${line}`
+      : lead === 'role' ? tr`Every seat is in use. This adds one. ${line}`
+      : line;
+    ask({ message, confirmLabel: label, run: () => run(p, requestId) });
   };
 
   const openPortal = async () => {
@@ -106,12 +113,12 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
 
   const closeTeamToast = () => {
     if (!isLive) {
-      onToast('Preview: closing is look-only. Its workspaces would move to your own account, and everyone in them keeps what they had.');
+      onToast(tr`Preview: closing is look-only. Its workspaces would move to your own account, and everyone in them keeps what they had.`);
       return;
     }
     ask({
-      message: `Close ${t.name}? Its workspaces move to your personal account and the plan ends.`,
-      confirmLabel: 'Close the team',
+      message: tr`Close ${ph({ name: t.name })}? Its workspaces move to your personal account and the plan ends.`,
+      confirmLabel: tr`Close the team`,
       danger: true,
       run: async () => {
         const res = await go('close');
@@ -122,12 +129,12 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
   };
   const leaveTeam = () => {
     if (!isLive) {
-      onToast('Preview: leaving is look-only. You’d keep your own workspaces and give back your seat.');
+      onToast(tr`Preview: leaving is look-only. You’d keep your own workspaces and give back your seat.`);
       return;
     }
     ask({
-      message: `Leave ${t.name}? You keep your own workspaces and give back your seat.`,
-      confirmLabel: 'Leave the team',
+      message: tr`Leave ${ph({ name: t.name })}? You keep your own workspaces and give back your seat.`,
+      confirmLabel: tr`Leave the team`,
       danger: true,
       run: async () => {
         const res = await go('leave');
@@ -138,9 +145,9 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
   };
 
   const menuItems = [];
-  if (teamCan(role, 'renameTeam')) menuItems.push({ id: 'renameTeam', label: 'Rename the team' });
-  if (teamCan(role, 'leaveTeam')) menuItems.push({ id: 'leaveTeam', label: 'Leave the team' });
-  if (teamCan(role, 'closeTeam')) menuItems.push({ id: 'closeTeam', label: 'Close the team', danger: true });
+  if (teamCan(role, 'renameTeam')) menuItems.push({ id: 'renameTeam', label: tr`Rename the team` });
+  if (teamCan(role, 'leaveTeam')) menuItems.push({ id: 'leaveTeam', label: tr`Leave the team` });
+  if (teamCan(role, 'closeTeam')) menuItems.push({ id: 'closeTeam', label: tr`Close the team`, danger: true });
   const pickMenu = (id) => {
     if (id === 'renameTeam') { setDraft(t.name); setRenaming(true); }
     else if (id === 'leaveTeam') leaveTeam();
@@ -155,9 +162,9 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
   };
 
   const common = { t, now, viewOnly, onAction, onToast, live: isLive, go, report, ask, priceThen, openPortal };
-  const tabLabels = { people: 'People', billing: 'Seats & billing', joining: 'Joining' };
+  const tabLabels = { people: tr`People`, billing: tr`Seats & billing`, joining: tr`Joining` };
   const unpaid = t.unpaid;
-  const failedOn = unpaid && unpaid.failedAt ? ` on ${dayLabel(unpaid.failedAt)}` : '';
+  const failedDay = unpaid && unpaid.failedAt ? dayLabel(unpaid.failedAt) : null;
   // The sample's banner shows while it is view-only; a real team's also covers
   // the grace period before that.
   const showBanner = !!unpaid && (isLive || viewOnly);
@@ -165,7 +172,7 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
 
   return (
     <div className="tp-ground" data-team-page>
-      <section className="tp-sheet" aria-label={`${t.name}, team`}>
+      <section className="tp-sheet" aria-label={tr`${ph({ name: t.name })}, team`}>
         <div className="tp-head">
           <span className="tp-mark" style={{ background: t.color }} aria-hidden="true">{t.letter}</span>
           <div className="tp-name">
@@ -173,7 +180,7 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
               {renaming ? (
                 <input
                   className="tp-title-input"
-                  aria-label="Team name"
+                  aria-label={tr`Team name`}
                   dir="auto"
                   value={draft}
                   autoFocus
@@ -187,13 +194,17 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
               ) : (
                 <h2 className="tp-title" ref={titleRef} tabIndex={-1} dir="auto">{t.name}</h2>
               )}
-              {t.sample && <span className="tp-badge">Test team</span>}
-              {viewOnly && <span className="tp-badge"><Icon as={Eye} size={11} weight="regular" />View-only</span>}
+              {t.sample && <span className="tp-badge"><Trans>Test team</Trans></span>}
+              {viewOnly && <span className="tp-badge"><Icon as={Eye} size={11} weight="regular" /><Trans>View-only</Trans></span>}
             </div>
             <span className="tp-sub">
               {manager
-                ? (t.plan ? `Team plan · ${t.plan.seats} seats · billed ${t.plan.interval === 'year' ? 'yearly' : 'monthly'}` : 'Team plan')
-                : 'Team · you’re a member'}
+                ? (t.plan
+                  ? (t.plan.interval === 'year'
+                    ? tr`Team plan · ${ph({ seats: t.plan.seats })} seats · billed yearly`
+                    : tr`Team plan · ${ph({ seats: t.plan.seats })} seats · billed monthly`)
+                  : tr`Team plan`)
+                : tr`Team · you’re a member`}
             </span>
           </div>
           {manager && (
@@ -202,17 +213,17 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
                 type="button"
                 className={`tp-btn${viewOnly ? '' : ' tp-btn-primary'}`}
                 disabled={viewOnly}
-                title={viewOnly ? FROZEN : undefined}
-                aria-label="Invite people"
+                title={viewOnly ? frozenTip() : undefined}
+                aria-label={tr`Invite people`}
                 onClick={inviteClick}
               >
-                <Icon as={UserPlus} size={14} weight="regular" /><span className="tp-btn-label">Invite people</span>
+                <Icon as={UserPlus} size={14} weight="regular" /><span className="tp-btn-label"><Trans>Invite people</Trans></span>
               </button>
               <span className="tp-acts-wrap">
                 <button
                   type="button"
                   className="tp-btn tp-btn-icon"
-                  aria-label="More"
+                  aria-label={tr`More`}
                   aria-haspopup="menu"
                   aria-expanded={menu}
                   onClick={() => setMenu(!menu)}
@@ -223,12 +234,12 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
               </span>
             </div>
           )}
-          <button type="button" className="tp-close" aria-label="Close the team page" onClick={() => onClose?.()}>
+          <button type="button" className="tp-close" aria-label={tr`Close the team page`} onClick={() => onClose?.()}>
             <Icon as={X} size={15} weight="regular" />
           </button>
         </div>
 
-        <div className="tp-tabs" role="tablist" aria-label="Team" onKeyDown={onTabKey}>
+        <div className="tp-tabs" role="tablist" aria-label={tr`Team`} onKeyDown={onTabKey}>
           {tabIds.map((id) => (
             <button
               key={id}
@@ -266,18 +277,25 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
                 {frozen ? (
                   <>
                     <span>
-                      <b>{t.name} is view-only.</b> The team’s payment didn’t go through{failedOn}. Opening, downloading and exporting still work, and paying turns editing back on.
+                      {failedDay
+                        ? <Trans><b>{ph({ name: t.name })} is view-only.</b> The team’s payment didn’t go through on {ph({ day: failedDay })}. Opening, downloading and exporting still work, and paying turns editing back on.</Trans>
+                        : <Trans><b>{ph({ name: t.name })} is view-only.</b> The team’s payment didn’t go through. Opening, downloading and exporting still work, and paying turns editing back on.</Trans>}
                     </span>
                     <small>
-                      Nothing has been deleted. If the team stays unpaid, its workspaces are deleted
-                      {unpaid.deleteAt ? ` on ${dateLabel(unpaid.deleteAt)}` : ' a year after it went view-only'}, and we’ll remind you before then.
+                      {unpaid.deleteAt
+                        ? tr`Nothing has been deleted. If the team stays unpaid, its workspaces are deleted on ${ph({ date: dateLabel(unpaid.deleteAt) })}, and we’ll remind you before then.`
+                        : tr`Nothing has been deleted. If the team stays unpaid, its workspaces are deleted a year after it went view-only, and we’ll remind you before then.`}
                     </small>
                   </>
                 ) : (
                   <>
                     <span>
-                      <b>{t.name}’s payment didn’t go through{failedOn}.</b> Editing keeps working
-                      {unpaid.graceEndsAt ? ` until ${dateLabel(unpaid.graceEndsAt)}` : ' for now'}; updating the card keeps it that way.
+                      <b>{failedDay
+                        ? tr`${ph({ name: t.name })}’s payment didn’t go through on ${ph({ day: failedDay })}.`
+                        : tr`${ph({ name: t.name })}’s payment didn’t go through.`}</b>{' '}
+                      {unpaid.graceEndsAt
+                        ? tr`Editing keeps working until ${ph({ date: dateLabel(unpaid.graceEndsAt) })}; updating the card keeps it that way.`
+                        : tr`Editing keeps working for now; updating the card keeps it that way.`}
                     </span>
                   </>
                 )}
@@ -286,9 +304,9 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
                 <button
                   type="button"
                   className="tp-btn tp-btn-primary"
-                  onClick={isLive ? openPortal : () => onToast('Preview: the card form comes with billing. Nothing was charged.')}
+                  onClick={isLive ? openPortal : () => onToast(tr`Preview: the card form comes with billing. Nothing was charged.`)}
                 >
-                  Update the card
+                  <Trans>Update the card</Trans>
                 </button>
               )}
             </div>

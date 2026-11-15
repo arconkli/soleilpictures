@@ -17,6 +17,8 @@ import { assetFilename } from './cardAssetName.js';
 import { wantsDirectDownload } from './downloadPlan.js';
 import { getDeviceInfo } from './device.js';
 import { downloadFailedWords } from './transferWords.js';
+import { formatList } from './intlFormat.js';
+import { t, ph, plural } from '@lingui/core/macro';
 
 export async function downloadOneTracked(card, kind, {
   boardId = null, boardName = null, surface, toast, key = `download:${card.id}`,
@@ -30,7 +32,7 @@ export async function downloadOneTracked(card, kind, {
     await trackOp({
       kind: 'download', label: name, boardId, boardName,
       key,
-      doneLabel: (r) => (r === false ? null : direct ? 'Download started' : `Downloaded ${name}`),
+      doneLabel: (r) => (r === false ? null : direct ? t`Download started` : t`Downloaded ${name}`),
     }, () => downloadCardAsset(card, kind, { surface }));
   } catch (err) {
     toast?.({ type: 'error', code: 'file_download_failed', message: downloadFailedWords(err) });
@@ -44,14 +46,14 @@ export async function downloadManyTracked(items, {
   if (!bulkDownloadSupported()) {
     // deliverFile writes through a FileReader as base64 on native; a
     // half-gigabyte zip becomes ~667 MB of string and takes the app out.
-    toast?.({ type: 'warning', message: 'Download files one at a time in the app.' });
+    toast?.({ type: 'warning', message: t`Download files one at a time in the app.` });
     return;
   }
   try {
     // The tray row: the fetch phase fills 0-0.9 by files done, packing the rest.
     const out = await trackOp({
       kind: 'download', label: zipName, boardId, boardName,
-      total: items.length, cancellable: true, doneLabel: `Downloaded ${zipName}`,
+      total: items.length, cancellable: true, doneLabel: t`Downloaded ${zipName}`,
     }, ({ signal, progress }) => downloadCardAssets(
       items.map(it => ({ card: it.card, kind: it.kind })),
       {
@@ -68,14 +70,15 @@ export async function downloadManyTracked(items, {
     // behind it" (a note, an empty card) from "storage would not give it
     // back", which is the one worth telling someone about.
     const left = [];
-    if (skipped) left.push(`${skipped} had no file`);
-    if (failed) left.push(`${failed} could not be read from storage`);
+    if (skipped) left.push(plural(skipped, { other: '# had no file' }));
+    if (failed) left.push(t`${failed} could not be read from storage`);
     if (!count) {
-      toast?.({ type: 'warning', message: 'Nothing there could be downloaded.' });
+      toast?.({ type: 'warning', message: t`Nothing there could be downloaded.` });
     } else if (left.length) {
+      const join = formatList(left, { type: 'conjunction', style: 'narrow' });
       toast?.({
         type: 'warning',
-        message: `Downloaded ${count} file${count === 1 ? '' : 's'} — ${left.join(', ')}.`,
+        message: t`${plural(count, { one: 'Downloaded # file', other: 'Downloaded # files' })} — ${ph({ join })}.`,
       });
     }
   } catch (err) {
@@ -86,14 +89,14 @@ export async function downloadManyTracked(items, {
       // cannot tell us whether the signature died or this origin is simply
       // not on the bucket's allowlist. Naming the origin is what makes the
       // difference checkable by whoever reads the message.
-      const origin = (typeof window !== 'undefined' && window.location?.origin) || 'this address';
+      const origin = (typeof window !== 'undefined' && window.location?.origin) || t`this address`;
       toast?.({
         type: 'error',
         code: 'zip_storage_blocked',
-        message: `Storage would not hand those files back to ${origin}. Downloading one at a time still works.`,
+        message: t`Storage would not hand those files back to ${origin}. Downloading one at a time still works.`,
       });
     } else {
-      toast?.({ type: 'error', code: 'zip_download_failed', message: downloadFailedWords(err, 'Couldn’t download those files. Try again.') });
+      toast?.({ type: 'error', code: 'zip_download_failed', message: downloadFailedWords(err, t`Couldn’t download those files. Try again.`) });
     }
   }
 }

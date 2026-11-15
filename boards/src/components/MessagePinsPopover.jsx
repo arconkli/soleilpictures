@@ -5,8 +5,11 @@ import { X } from '../lib/icons.js';
 import { MessageFaces } from './MessageFaces.jsx';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
-import { dayLabel } from '../lib/messageFeed.js';
+import { dayKind, dayLabel } from '../lib/messageFeed.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { formatDate } from '../lib/intlFormat.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // A conversation's pinned messages, from the pin count in its header (the
 // card look): newest first, who and when, the words, and Unpin. A row goes to
@@ -60,11 +63,11 @@ export function MessagePinsPopover({ anchor, trigger = null, title, pinned, self
 
   const rows = [...(pinned || [])].reverse();
   return createPortal((
-    <div ref={popRef} className="msg-pins-pop" role="dialog" aria-label="Pinned messages"
+    <div ref={popRef} className="msg-pins-pop" role="dialog" aria-label={t`Pinned messages`}
          style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden' }}>
       <div className="msg-pins-head">
-        <span className="msg-pins-title">{title ? `Pinned in ${title}` : 'Pinned'}</span>
-        <button type="button" className="msg-panel-icon" onClick={() => onClose(true)} aria-label="Close" title="Close (Esc)">
+        <span className="msg-pins-title">{title ? t`Pinned in ${title}` : t`Pinned`}</span>
+        <button type="button" className="msg-panel-icon" onClick={() => onClose(true)} aria-label={t`Close`} title={t`Close (Esc)`}>
           <Icon as={X} size={14} weight="regular" />
         </button>
       </div>
@@ -72,22 +75,22 @@ export function MessagePinsPopover({ anchor, trigger = null, title, pinned, self
         {rows.map((m) => {
           const mine = m.sender_id === selfId;
           const p = userProfiles.get(m.sender_id);
-          const name = mine ? 'You' : (p?.name || p?.email || m.sender_name || 'Member');
+          const name = mine ? t`You` : (p?.name || p?.email || m.sender_name || t`Member`);
           return (
             <div key={m.id} className="msg-pins-row">
               <button type="button" className="msg-pins-go" onClick={() => { onClose(true); onJump?.(m.id); }}
-                      title="Go to the message">
-                <MessageFaces people={[{ id: m.sender_id, name: mine ? (p?.name || 'You') : name, color: p?.color || pickPresenceColor(m.sender_id || '') }]} size={26} />
+                      title={t`Go to the message`}>
+                <MessageFaces people={[{ id: m.sender_id, name: mine ? (p?.name || t`You`) : name, color: p?.color || pickPresenceColor(m.sender_id || '') }]} size={26} />
                 <span className="msg-pins-text">
                   <span className="msg-pins-top">
                     <span className="msg-pins-who" dir="auto">{name}</span>
                     <span className="msg-pins-when">{whenLabel(m.created_at)}</span>
                   </span>
-                  <span className="msg-pins-body">{String(m.body || '').replace(/\s+/g, ' ').trim() || 'Attachment'}</span>
+                  <span className="msg-pins-body">{String(m.body || '').replace(/\s+/g, ' ').trim() || t`Attachment`}</span>
                 </span>
               </button>
               {onUnpin && (
-                <button type="button" className="msg-pins-unpin" onClick={() => onUnpin(m)}>Unpin</button>
+                <button type="button" className="msg-pins-unpin" onClick={() => onUnpin(m)}><Trans>Unpin</Trans></button>
               )}
             </div>
           );
@@ -101,6 +104,7 @@ export function MessagePinsPopover({ anchor, trigger = null, title, pinned, self
 function whenLabel(iso) {
   if (!iso) return '';
   const day = dayLabel(iso);
-  if (day !== 'Today' && day !== 'Yesterday') return day;
-  return `${day}, ${new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+  const kind = dayKind(iso);
+  if (kind !== 'today' && kind !== 'yesterday') return day;
+  return `${day}, ${formatDate(new Date(iso), { hour: 'numeric', minute: '2-digit' })}`;
 }

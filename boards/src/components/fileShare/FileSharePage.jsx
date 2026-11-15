@@ -56,6 +56,9 @@ import { ClustersMark } from '../SoleilWordmark.jsx';
 import { FileComments, Avatar } from './FileComments.jsx';
 import { FILE_SHARE_CHANGED_EVENT } from '../../lib/fileShareBus.js';
 import './fileShare.css';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { sizeText } from '../../lib/intlFormat.js';
 
 const FilmPlayer = lazyWithReload(() => import('../film/FilmPlayer.jsx').then((m) => ({ default: m.FilmPlayer })));
 const PdfViewer = lazyWithReload(() => import('../PdfViewer.jsx').then((m) => ({ default: m.PdfViewer })));
@@ -93,19 +96,23 @@ function formatBytes(n) {
   if (!Number.isFinite(v) || v < 0) return '';
   const u = ['B', 'KB', 'MB', 'GB', 'TB'];
   let x = v, i = 0;
+  const units = ['byte', 'kilobyte', 'megabyte', 'gigabyte', 'terabyte'];
   while (x >= 1024 && i < u.length - 1) { x /= 1024; i++; }
-  return `${x >= 10 || i === 0 ? Math.round(x) : x.toFixed(1)} ${u[i]}`;
+  const whole = x >= 10 || i === 0;
+  const shown = whole ? Math.round(x) : x.toFixed(1);
+  return sizeText(`${shown} ${u[i]}`, Number(shown), units[i], whole ? 0 : 1);
 }
 
-const KIND_LABEL = { video: 'Video', audio: 'Audio', image: 'Image', pdf: 'PDF', file: 'File' };
+// Called at render, so the words follow the current language.
+const kindLabel = (kind) => ({ video: tr`Video`, audio: tr`Audio`, image: tr`Image`, pdf: tr`PDF`, file: tr`File` })[kind];
 
 function factsLine(file) {
   const ext = file?.ext ? String(file.ext).toUpperCase() : '';
-  const kind = file?.kind === 'file' ? (ext ? `${ext} file` : 'File') : KIND_LABEL[file?.kind] || 'File';
+  const kind = file?.kind === 'file' ? (ext ? tr`${ext} file` : tr`File`) : kindLabel(file?.kind) || tr`File`;
   const parts = [kind];
   if (file?.size != null) parts.push(formatBytes(file.size));
   if ((file?.kind === 'video' || file?.kind === 'audio') && Number(file?.duration) > 0) parts.push(formatAt(Number(file.duration) * 1000));
-  if (file?.kind === 'pdf' && Number(file?.page_count) > 0) parts.push(`${file.page_count} ${Number(file.page_count) === 1 ? 'page' : 'pages'}`);
+  if (file?.kind === 'pdf' && Number(file?.page_count) > 0) parts.push(plural(Number(file.page_count), { one: '# page', other: '# pages' }));
   return parts.filter(Boolean).join(' · ');
 }
 
@@ -115,14 +122,14 @@ function Shell({ children, signedOut, token, wide = false, doc = false, action =
   return (
     <div className={doc ? 'fsp fsp--doc' : 'fsp public-dark'}>
       <header className="fsp-top">
-        <a className="fsp-brand" href="/" aria-label="Clusters home">
+        <a className="fsp-brand" href="/" aria-label={tr`Clusters home`}>
           <ClustersMark size={22} />
-          <span>Clusters</span>
+          <span><Trans context="brand">Clusters</Trans></span>
         </a>
         {action}
         {signedOut && (
           <a className="fsp-top-link" href={signInHrefFor(token)}
-             onClick={() => logEventNow(EV.FILE_SHARE_SIGNIN_CLICK, { surface: 'topbar' })}>Sign in</a>
+             onClick={() => logEventNow(EV.FILE_SHARE_SIGNIN_CLICK, { surface: 'topbar' })}><Trans>Sign in</Trans></a>
         )}
       </header>
       <main className={`fsp-main${wide ? ' is-wide' : ''}${doc ? ' is-doc' : ''}`}>{children}</main>
@@ -138,7 +145,7 @@ function Shell({ children, signedOut, token, wide = false, doc = false, action =
 // A doc's Escape is the doc's first, as in its cluster (DocCard.jsx): while
 // typing it's the text's, and a layer in the doc (its side panel, the find
 // bar, a menu) takes its own. Only one nothing in the doc took closes this.
-function OverlayShell({ children, wide = false, doc = false, action = null, onClose, label = 'Shared file', hostRef = null }) {
+function OverlayShell({ children, wide = false, doc = false, action = null, onClose, label = tr`Shared file`, hostRef = null }) {
   const ownRef = useRef(null);
   const modalRef = hostRef || ownRef;
   const rootRef = useRef(null);
@@ -169,10 +176,10 @@ function OverlayShell({ children, wide = false, doc = false, action = null, onCl
   return createPortal(
     <div ref={rootRef} tabIndex={-1} className={`fsp fsp--overlay ${doc ? 'fsp--doc' : 'public-dark'}`} role="dialog" aria-modal="true" aria-label={label}>
       <header className="fsp-top">
-        <button type="button" className="fsp-btn fsp-close" onClick={() => onClose?.()} aria-label="Close" title="Close (Esc)">
+        <button type="button" className="fsp-btn fsp-close" onClick={() => onClose?.()} aria-label={tr`Close`} title={tr`Close (Esc)`}>
           <Icon as={X} size={16} weight="regular" />
         </button>
-        <span className="fsp-top-label">Shared with you</span>
+        <span className="fsp-top-label"><Trans>Shared with you</Trans></span>
         {action}
       </header>
       <main className={`fsp-main${wide ? ' is-wide' : ''}${doc ? ' is-doc' : ''}`}>{children}</main>
@@ -198,11 +205,11 @@ function StatePanel({ title, body, children }) {
 }
 
 function FileCardView({ file }) {
-  const ext = (file?.ext || '').toString().slice(0, 6).toUpperCase() || 'FILE';
+  const ext = (file?.ext || '').toString().slice(0, 6).toUpperCase() || tr`FILE`;
   return (
     <div className="fsp-filecard">
       <span className="fsp-ext" aria-hidden="true">{ext}</span>
-      <span className="fsp-filecard-name">{file?.name || 'File'}</span>
+      <span className="fsp-filecard-name">{file?.name || tr`File`}</span>
       <span className="fsp-filecard-sub">{[formatBytes(file?.size), file?.mime || ''].filter(Boolean).join(' · ')}</span>
     </div>
   );
@@ -277,24 +284,24 @@ export function FileSharePage({
 
   if (status === 'loading') {
     if (overlay) {
-      return <Frame overlay={overlay} onClose={onClose} signedOut={false} token={token}><span className="fsp-spinner" aria-label="Loading" /></Frame>;
+      return <Frame overlay={overlay} onClose={onClose} signedOut={false} token={token}><span className="fsp-spinner" aria-label={tr`Loading`} /></Frame>;
     }
-    return <div className="fsp public-dark fsp--splash" aria-busy="true"><span className="fsp-spinner" aria-label="Loading" /></div>;
+    return <div className="fsp public-dark fsp--splash" aria-busy="true"><span className="fsp-spinner" aria-label={tr`Loading`} /></div>;
   }
   if (status === 'gone') {
     return (
       <Frame overlay={overlay} onClose={onClose} signedOut={false} token={token}>
-        <StatePanel title="This file isn't available anymore."
-                    body="It may have been deleted, or the person who shared it stopped sharing." />
+        <StatePanel title={tr`This file isn't available anymore.`}
+                    body={tr`It may have been deleted, or the person who shared it stopped sharing.`} />
       </Frame>
     );
   }
   if (status === 'sign_in') {
     return (
       <Frame overlay={overlay} onClose={onClose} signedOut={false} token={token}>
-        <StatePanel title="Sign in to open this file" body="Only people it was shared with can open it.">
+        <StatePanel title={tr`Sign in to open this file`} body={tr`Only people it was shared with can open it.`}>
           <a className="fsp-btn fsp-btn--primary" href={signInHref}
-             onClick={() => logEventNow(EV.FILE_SHARE_SIGNIN_CLICK, { surface: 'gate' })}>Sign in</a>
+             onClick={() => logEventNow(EV.FILE_SHARE_SIGNIN_CLICK, { surface: 'gate' })}><Trans>Sign in</Trans></a>
         </StatePanel>
       </Frame>
     );
@@ -308,9 +315,9 @@ export function FileSharePage({
     };
     return (
       <Frame overlay={overlay} onClose={onClose} signedOut={false} token={token}>
-        <StatePanel title="You need access"
-                    body={res.email ? `Ask the person who shared it to add ${res.email}.` : 'Ask the person who shared it to add you.'}>
-          <a className="fsp-btn" href={signInHref} onClick={switchAccount}>Use another account</a>
+        <StatePanel title={tr`You need access`}
+                    body={res.email ? tr`Ask the person who shared it to add ${ph({ email: res.email })}.` : tr`Ask the person who shared it to add you.`}>
+          <a className="fsp-btn" href={signInHref} onClick={switchAccount}><Trans>Use another account</Trans></a>
         </StatePanel>
       </Frame>
     );
@@ -318,8 +325,8 @@ export function FileSharePage({
   if (status !== 'ok') {
     return (
       <Frame overlay={overlay} onClose={onClose} signedOut={false} token={token}>
-        <StatePanel title="Couldn't load this file." body="Check your connection and try again.">
-          <button type="button" className="fsp-btn" onClick={() => { setRes({ status: 'loading' }); load(); }}>Try again</button>
+        <StatePanel title={tr`Couldn't load this file.`} body={tr`Check your connection and try again.`}>
+          <button type="button" className="fsp-btn" onClick={() => { setRes({ status: 'loading' }); load(); }}><Trans>Try again</Trans></button>
         </StatePanel>
       </Frame>
     );
@@ -515,7 +522,7 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
         id: c.id,
         frame: timeToFrame(c.at_ms / 1000, rate, t0),
         label: formatAt(c.at_ms),
-        author: c.author?.name || 'Someone',
+        author: (c.author?.name && c.author.name !== 'Someone') ? c.author.name : tr`Someone`,
         text: c.body || '',
         active: c.id === activeId,
       }));
@@ -558,12 +565,12 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
     }
   }, [kind]);
 
-  const sharedBy = res.shared_by?.name || 'Someone on Clusters';
+  const sharedBy = (res.shared_by?.name && res.shared_by.name !== 'Someone on Clusters') ? res.shared_by.name : tr`Someone on Clusters`;
 
   // On the page, someone signed in can take the file into the app, where
   // Save a copy and Add shortcut live (held with the Shared page).
   const openInApp = !overlay && signedIn && sharedFilesAllowed() ? (
-    <a className="fsp-btn fsp-open-app" href={`/?shared=${encodeURIComponent(token)}`}>Open in Clusters</a>
+    <a className="fsp-btn fsp-open-app" href={`/?shared=${encodeURIComponent(token)}`}><Trans>Open in Clusters</Trans></a>
   ) : null;
   const headerActions = (canManage || extraActions || openInApp) ? (
     <div className="fsp-top-actions">
@@ -571,7 +578,7 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
       {openInApp}
       {canManage && (
         <button type="button" className="fsp-btn fsp-manage" onClick={() => setManageOpen(true)}>
-          Manage sharing
+          <Trans>Manage sharing</Trans>
         </button>
       )}
     </div>
@@ -589,15 +596,15 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
   if (kind === 'doc') {
     return (
       <Frame overlay={overlay} onClose={onClose} signedOut={!signedIn} token={token} doc action={headerActions}
-             label="Shared doc">
+             label={tr`Shared doc`}>
         {manageDialog}
         {docSharesAllowed() ? (
-          <Suspense fallback={<div className="dsv-wait"><span className="fsp-spinner" aria-label="Loading" /></div>}>
+          <Suspense fallback={<div className="dsv-wait"><span className="fsp-spinner" aria-label={tr`Loading`} /></div>}>
             <DocShareView key={res.room || 'none'} token={token} res={res} onRefresh={onRefresh}
                           signInHref={signInHref} api={api} />
           </Suspense>
         ) : (
-          <StatePanel title="This doc isn't available here yet." body="Ask the person who shared it for another way to see it." />
+          <StatePanel title={tr`This doc isn't available here yet.`} body={tr`Ask the person who shared it for another way to see it.`} />
         )}
       </Frame>
     );
@@ -618,7 +625,7 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
       <div className="fsp-audio">
         {urls.poster && <img className="fsp-audio-art" src={urls.poster} alt="" />}
         <audio ref={audioRef} className="fsp-audio-el" controls preload="metadata" src={audioSrc || undefined}
-               onError={onAudioError} aria-label={file.name || 'Audio'} />
+               onError={onAudioError} aria-label={file.name || tr`Audio`} />
       </div>
     );
   } else if (kind === 'pdf') {
@@ -636,34 +643,34 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
       <div className={`fsp-layout${showRail ? ' has-rail' : ''}`}>
         <div className="fsp-col">
           <div ref={stageRef} className={`fsp-stage fsp-stage--${inline ? kind : 'file'}`}>
-            <Suspense fallback={<span className="fsp-spinner" aria-label="Loading" />}>{viewer}</Suspense>
+            <Suspense fallback={<span className="fsp-spinner" aria-label={tr`Loading`} />}>{viewer}</Suspense>
           </div>
           <div className="fsp-info">
-            <h1 className="fsp-name">{file.name || 'File'}</h1>
+            <h1 className="fsp-name">{file.name || tr`File`}</h1>
             <p className="fsp-facts">{factsLine(file)}</p>
             <div className="fsp-byline">
               <Avatar name={sharedBy} url={res.shared_by?.avatar_url} size={22} />
-              <span>Shared by <span className="fsp-by">{sharedBy}</span></span>
+              <span><Trans>Shared by</Trans> <span className="fsp-by">{sharedBy}</span></span>
             </div>
             {risky && (
               <p className="fsp-warn" role="note">
-                Files like this can run programs on your computer. Only download it if you trust the person who shared it.
+                <Trans>Files like this can run programs on your computer. Only download it if you trust the person who shared it.</Trans>
               </p>
             )}
             {urls.download && (
               <div className="fsp-actions">
                 <a className="fsp-btn fsp-btn--primary" href={urls.download} rel="noopener noreferrer"
                    onClick={() => logEvent(EV.FILE_SHARE_DOWNLOAD, { kind: kind || null, access: res.access || null })}>
-                  Download
+                  <Trans>Download</Trans>
                 </a>
               </div>
             )}
           </div>
           {!signedIn && !overlay && (
             <footer className="fsp-cta">
-              <span>Made with Clusters, one place for every file you make.</span>
+              <span><Trans>Made with Clusters, one place for every file you make.</Trans></span>
               <a className="fsp-btn" href={`/?utm_source=file_share&utm_medium=cta&utm_campaign=${encodeURIComponent(token)}`}
-                 onClick={() => logEventNow(EV.FILE_SHARE_CTA_CLICK, { surface: 'footer' })}>Try Clusters free</a>
+                 onClick={() => logEventNow(EV.FILE_SHARE_CTA_CLICK, { surface: 'footer' })}><Trans>Try Clusters free</Trans></a>
             </footer>
           )}
         </div>

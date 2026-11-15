@@ -451,12 +451,12 @@ function caseBlock(name) {
 test('every person-to-person template cleans the names it is handed', () => {
   assert.match(templates, /import \{ safeLabel, safePerson \} from "\.\/safeLabel\.mjs";/);
   const expect = {
-    workspace_invite:    ['safeLabel(data.workspaceName', 'safePerson(data.inviterName)'],
-    board_shared:        ['safeLabel(data.boardName', 'safePerson(data.sharerName)'],
-    invite_accepted:     ['safeLabel(data.boardName', 'safeLabel(data.workspaceName', 'safePerson(data.joinerName)'],
-    pending_invite:      ['safeLabel(data.boardName', 'safeLabel(data.workspaceName', 'safePerson(data.inviterName)'],
-    mention_email:       ['safeLabel(data.surfaceContext', 'safePerson(data.mentionerName)'],
-    comment_reply_email: ['safeLabel(data.boardName', 'safeLabel(data.workspaceName', 'safePerson(data.replierName)'],
+    workspace_invite:    ['safeLabel(data.workspaceName', 'safePerson(data.inviterName'],
+    board_shared:        ['safeLabel(data.boardName', 'safePerson(data.sharerName'],
+    invite_accepted:     ['safeLabel(data.boardName', 'safeLabel(data.workspaceName', 'safePerson(data.joinerName'],
+    pending_invite:      ['safeLabel(data.boardName', 'safeLabel(data.workspaceName', 'safePerson(data.inviterName'],
+    mention_email:       ['safeLabel(data.surfaceContext', 'safePerson(data.mentionerName'],
+    comment_reply_email: ['safeLabel(data.boardName', 'safeLabel(data.workspaceName', 'safePerson(data.replierName'],
     // An editor's day label, cluster name and note, mailed to the whole crew.
     schedule_update:     ['safeLabel(data.title', 'safeLabel(data.body', 'safeLabel(data.productionName'],
     // Server-written, but it quotes abusers' addresses and cluster names (0390).

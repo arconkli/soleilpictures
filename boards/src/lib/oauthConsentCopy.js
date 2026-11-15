@@ -15,59 +15,57 @@
 // actual question, and because it is true — every one of these fires BEFORE any
 // code is issued.
 
+import { t } from '@lingui/core/macro';
+
+// Getters, so the words are read in the current language when shown, not at load.
 const FALLBACK = {
-  title: 'This request cannot be approved',
-  body: 'Something about that link was not right. Nothing has been shared.',
+  get title() { return t`This request cannot be approved`; },
+  get body() { return t`Something about that link was not right. Nothing has been shared.`; },
 };
 
 const BY_CODE = {
   // Also a client named by its metadata document when that document could not
   // be read or failed its checks: the person can fix neither.
   invalid_client: {
-    title: 'We could not confirm that app',
-    body: 'The application that sent you here is no longer registered with Clusters, or its '
-      + 'published details could not be read. Try connecting again from the app you started in. '
-      + 'Nothing has been shared.',
+    get title() { return t`We could not confirm that app`; },
+    get body() { return t`The application that sent you here is no longer registered with Clusters, or its published details could not be read. Try connecting again from the app you started in. Nothing has been shared.`; },
   },
   invalid_request: {
-    title: 'That link is incomplete',
-    body: 'It is missing something it needs, so it cannot be approved. '
-      + 'Try connecting again from the app you started in. Nothing has been shared.',
+    get title() { return t`That link is incomplete`; },
+    get body() { return t`It is missing something it needs, so it cannot be approved. Try connecting again from the app you started in. Nothing has been shared.`; },
   },
   invalid_redirect_uri: {
-    title: 'That link cannot be trusted',
-    body: 'It asks to send you somewhere the application has not registered, so we have '
-      + 'not sent anything there. Nothing has been shared.',
+    get title() { return t`That link cannot be trusted`; },
+    get body() { return t`It asks to send you somewhere the application has not registered, so we have not sent anything there. Nothing has been shared.`; },
   },
   invalid_target: {
-    title: 'That link is for somewhere else',
-    body: 'It asks for access to a service this account does not cover. Nothing has been shared.',
+    get title() { return t`That link is for somewhere else`; },
+    get body() { return t`It asks for access to a service this account does not cover. Nothing has been shared.`; },
   },
   access_denied: {
-    title: 'That could not be approved',
-    body: 'Your account was not able to approve this request. Nothing has been shared.',
+    get title() { return t`That could not be approved`; },
+    get body() { return t`Your account was not able to approve this request. Nothing has been shared.`; },
   },
   server_error: {
-    title: 'Something went wrong on our end',
-    body: 'Not your doing, and nothing has been shared. Try again in a moment.',
+    get title() { return t`Something went wrong on our end`; },
+    get body() { return t`Not your doing, and nothing has been shared. Try again in a moment.`; },
   },
   // Our database, or the app's own published details, did not answer in time.
   temporarily_unavailable: {
-    title: 'We could not check that app just now',
-    body: 'Try again in a moment, or start again from the app you were in. Nothing has been shared.',
+    get title() { return t`We could not check that app just now`; },
+    get body() { return t`Try again in a moment, or start again from the app you were in. Nothing has been shared.`; },
   },
   // 0375 + 0704 + 0857: in an account's first days only ChatGPT, Claude and the
   // coding apps (Claude Code, Codex, Cursor, VS Code, Windsurf) connect.
   // consentError puts the database's own sentence first when there is one, so
   // how long the wait is lives in one place (_refuse_if_new).
   new_account: {
-    title: 'Not yet for a new account',
-    body: 'ChatGPT, Claude and coding apps like Claude Code, Cursor and VS Code can connect straight '
-      + 'away. Other apps open up once an account is a few days old. Nothing has been shared.',
+    get title() { return t`Not yet for a new account`; },
+    get body() { return t`ChatGPT, Claude and coding apps like Claude Code, Cursor and VS Code can connect straight away. Other apps open up once an account is a few days old. Nothing has been shared.`; },
   },
 };
 
-const NEW_ACCOUNT_REST = 'ChatGPT, Claude and coding apps like Claude Code, Cursor and VS Code can connect straight away. Nothing has been shared.';
+const newAccountRest = () => t`ChatGPT, Claude and coding apps like Claude Code, Cursor and VS Code can connect straight away. Nothing has been shared.`;
 
 /**
  * Pick the sentence to show for an OAuth failure.
@@ -79,11 +77,11 @@ const NEW_ACCOUNT_REST = 'ChatGPT, Claude and coding apps like Claude Code, Curs
  */
 export function consentError(code, description) {
   if (code === 'new_account' && usableSentence(description)) {
-    return { title: BY_CODE.new_account.title, body: `${description}. ${NEW_ACCOUNT_REST}` };
+    return { title: BY_CODE.new_account.title, body: `${description}. ${newAccountRest()}` };
   }
   if (code && Object.prototype.hasOwnProperty.call(BY_CODE, code)) return BY_CODE[code];
   if (usableSentence(description)) {
-    return { title: FALLBACK.title, body: `${description}. Nothing has been shared.` };
+    return { title: FALLBACK.title, body: `${description}. ${t`Nothing has been shared.`}` };
   }
   return FALLBACK;
 }

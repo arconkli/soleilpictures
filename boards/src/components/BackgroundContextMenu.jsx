@@ -8,6 +8,7 @@ import { CtxShortcut, CtxSubmenu, rowKeys, walkMenu } from './ctxMenuParts.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
 import HapticTap from './HapticTap.jsx';
 import { haptic } from '../lib/haptics.js';
+import { t, plural } from '@lingui/core/macro';
 
 export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId, boardId, boardName }) {
   // Combined count from BOTH manual entity_links targeting the board
@@ -110,7 +111,7 @@ export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId,
             }));
           }}>
             <span className="ctx-label">
-              {refCount === null ? 'Linked from…' : refCount === 0 ? 'Not linked anywhere' : `Linked from ${refCount} ${refCount === 1 ? 'place' : 'places'}`}
+              {refCount === null ? t`Linked from…` : refCount === 0 ? t`Not linked anywhere` : plural(refCount, { one: 'Linked from # place', other: 'Linked from # places' })}
             </span>
           </button>
         </>

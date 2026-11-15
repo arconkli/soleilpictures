@@ -153,7 +153,7 @@ test('the watcher reads the drive per cluster, never releases on an unset baseli
 });
 
 test('a canceled checkout stops the wait; a new build does not reload the files away', () => {
-  assert.match(app, /'Checkout canceled\. Nothing was charged\.' \}\);\s*\n(\s*\/\/[^\n]*\n)*\s*announceBillingChange\('canceled'\);/);
+  assert.match(app, /tr`Checkout canceled\. Nothing was charged\.` \}\);\s*\n(\s*\/\/[^\n]*\n)*\s*announceBillingChange\('canceled'\);/);
   assert.match(hook, /if \(msg\?\.kind === 'canceled'\) \{ clearAwaitingPayment\(\); return; \}/);
   assert.match(hook, /if \(hasHeld\(\) && !releaseReload\) releaseReload = holdReload\(\);/);
 });

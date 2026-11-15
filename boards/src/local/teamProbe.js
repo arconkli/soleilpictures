@@ -7,6 +7,8 @@
 // in no chunk and ships nowhere.
 import React from 'react';
 import * as ReactDOM from 'react-dom/client';
+import { I18nProvider } from '@lingui/react';
+import { i18n } from '../lib/i18n.js';
 
 import TeamPage from '../components/team/TeamPage.jsx';
 import { WorkspaceMenu } from '../components/WorkspaceMenu.jsx';
@@ -17,13 +19,16 @@ import { teamHeroLine } from '../lib/teamModel.js';
 import { EDITOR_LIMIT } from '../lib/editorLimit.js';
 import { writeTeamPreview } from '../lib/teamPreview.js';
 
+// The app's provider (main.jsx) is not here, so the wrapped components get one.
+const mountIn = (el, tree) => ReactDOM.createRoot(el).render(React.createElement(I18nProvider, { i18n }, tree));
+
 // Records what the page asked the app to do on window.__team.
 export function mountTeamPage({ as = 'owner', tab = 'people' } = {}) {
   window.__team = { closed: 0, toasts: [] };
   const el = document.createElement('div');
   el.className = 'team-probe-host';
   document.body.appendChild(el);
-  ReactDOM.createRoot(el).render(React.createElement(TeamPage, {
+  mountIn(el, React.createElement(TeamPage, {
     team: sampleTeam(as),
     initialTab: tab,
     onClose: () => { window.__team.closed += 1; },
@@ -43,7 +48,7 @@ export function mountTeamMenu({ as = 'owner' } = {}) {
   el.style.cssText = 'position:fixed;left:12px;top:12px;width:300px;height:0;z-index:9999';
   document.body.appendChild(el);
   const ws = (id, name) => ({ id, name, created_by: 'me', created_at: id });
-  ReactDOM.createRoot(el).render(React.createElement(WorkspaceMenu, {
+  mountIn(el, React.createElement(WorkspaceMenu, {
     workspaces: [ws('w1', 'Pitch decks'), ws('w2', 'Scratch')],
     activeWorkspaceId: 'w1',
     personalWorkspaceId: 'w1',
@@ -88,7 +93,7 @@ export function mountPricingTeam({ plan = 'monthly' } = {}) {
   const el = document.createElement('div');
   el.className = 'team-probe-host';
   document.body.appendChild(el);
-  ReactDOM.createRoot(el).render(React.createElement(PricingProbe, { initialPlan: plan }));
+  mountIn(el, React.createElement(PricingProbe, { initialPlan: plan }));
   return true;
 }
 
@@ -104,7 +109,7 @@ export function mountTeamSetup({ search = '' } = {}) {
   const el = document.createElement('div');
   el.className = 'team-probe-host';
   document.body.appendChild(el);
-  ReactDOM.createRoot(el).render(React.createElement(TeamSetup, {
+  mountIn(el, React.createElement(TeamSetup, {
     user: { email: 'alex@northlight.studio' },
     navigate: (u) => window.__teamBuy.nav.push(u),
   }));

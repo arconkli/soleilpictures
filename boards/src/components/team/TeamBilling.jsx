@@ -5,10 +5,13 @@ import { Icon } from '../Icon.jsx';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import { Plus, Minus, CreditCard } from '../../lib/icons.js';
 import {
-  teamCan, seatsUsed, seatsFree, money, seatPrice, seatAddLine, sizeLabel, dateLabel, TEAM_SEAT_MIN,
+  teamCan, seatsUsed, seatsFree, seatPrice, TEAM_SEAT_MIN, TEAM_STORAGE_PER_SEAT, TEAM_STORAGE_BLOCK_MONTHLY,
 } from '../../lib/teamModel.js';
+import { seatAddLine, dateLabel, money, sizeLabel } from '../../lib/teamModelWords.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
-const FROZEN = 'The team is view-only until it’s paid';
+const frozen = () => tr`The team is view-only until it’s paid`;
 
 export default function TeamBilling({ t, now, viewOnly, onAction, onToast, onCloseTeam, live, go, priceThen, openPortal }) {
   const role = t.me.role;
@@ -19,15 +22,15 @@ export default function TeamBilling({ t, now, viewOnly, onAction, onToast, onClo
   const [limitDraft, setLimitDraft] = useState(null);
   // A real owner's mirror of the plan can be a moment behind the team itself.
   if (!plan || !storage || !whenFull) {
-    return <p className="tp-card-t">The plan’s details haven’t arrived yet. Check back in a moment.</p>;
+    return <p className="tp-card-t"><Trans>The plan’s details haven’t arrived yet. Check back in a moment.</Trans></p>;
   }
   const used = seatsUsed(t.people);
   const free = seatsFree(t);
   const interval = plan.interval;
   const price = seatPrice(plan);
-  const lock = viewOnly ? { disabled: true, title: FROZEN } : {};
+  const lock = viewOnly ? { disabled: true, title: frozen() } : {};
   const canWhenFull = teamCan(role, 'setWhenFull');
-  const ownerFirst = String(t.admins[0]?.name || 'the owner').split(' ')[0];
+  const ownerFirst = t.admins[0]?.name ? String(t.admins[0].name).split(' ')[0] : null;
   const removeFloor = Math.max(TEAM_SEAT_MIN, used);
 
   return (
@@ -35,53 +38,61 @@ export default function TeamBilling({ t, now, viewOnly, onAction, onToast, onClo
       <div className="tp-cols">
         <div className="tp-stack">
           <div className="tp-card">
-            <span className="tp-card-k">Plan</span>
-            <span className="tp-card-big">Team, {interval === 'year' ? 'yearly' : 'monthly'}</span>
+            <span className="tp-card-k"><Trans>Plan</Trans></span>
+            <span className="tp-card-big">{interval === 'year' ? tr`Team, yearly` : tr`Team, monthly`}</span>
             <p className="tp-card-t">
               {live
-                ? `${plan.seats} seats, billed ${interval === 'year' ? 'yearly' : 'monthly'}${plan.renewsAt ? `, renewing ${dateLabel(plan.renewsAt)}` : ''}.`
-                : `${money(price)} a seat a ${interval}. ${plan.seats} seats, ${money(price * plan.seats)} a ${interval}, renewing ${dateLabel(plan.renewsAt)}.`}
+                ? (interval === 'year'
+                  ? (plan.renewsAt
+                    ? tr`${ph({ seats: plan.seats })} seats, billed yearly, renewing ${ph({ date: dateLabel(plan.renewsAt) })}.`
+                    : tr`${ph({ seats: plan.seats })} seats, billed yearly.`)
+                  : (plan.renewsAt
+                    ? tr`${ph({ seats: plan.seats })} seats, billed monthly, renewing ${ph({ date: dateLabel(plan.renewsAt) })}.`
+                    : tr`${ph({ seats: plan.seats })} seats, billed monthly.`))
+                : (interval === 'year'
+                  ? tr`${ph({ money: money(price) })} a seat a year. ${ph({ seats: plan.seats })} seats, ${ph({ total: money(price * plan.seats) })} a year, renewing ${ph({ date: dateLabel(plan.renewsAt) })}.`
+                  : tr`${ph({ money: money(price) })} a seat a month. ${ph({ seats: plan.seats })} seats, ${ph({ total: money(price * plan.seats) })} a month, renewing ${ph({ date: dateLabel(plan.renewsAt) })}.`)}
             </p>
             <div className="tp-card-acts">
               {teamCan(role, 'changePlan') && (
-                <button type="button" className="tp-btn tp-btn-sm" onClick={live ? openPortal : () => onToast('Preview: a switch starts at renewal. Nothing changed.')}>
-                  {interval === 'year' ? 'Switch to monthly' : 'Switch to yearly'}
+                <button type="button" className="tp-btn tp-btn-sm" onClick={live ? openPortal : () => onToast(tr`Preview: a switch starts at renewal. Nothing changed.`)}>
+                  {interval === 'year' ? tr`Switch to monthly` : tr`Switch to yearly`}
                 </button>
               )}
-              <button type="button" className="tp-link" aria-expanded={seatInfo} onClick={() => setSeatInfo(!seatInfo)}>What a seat is</button>
+              <button type="button" className="tp-link" aria-expanded={seatInfo} onClick={() => setSeatInfo(!seatInfo)}><Trans>What a seat is</Trans></button>
             </div>
             {seatInfo && (
               <p className="tp-card-t">
-                A seat is anyone who can edit, guests too. Viewers are free and never use one. A seat nobody uses stays free to give until renewal, then drops, never below 3.
+                <Trans>A seat is anyone who can edit, guests too. Viewers are free and never use one. A seat nobody uses stays free to give until renewal, then drops, never below 3.</Trans>
               </p>
             )}
           </div>
 
           <div className="tp-card">
-            <span className="tp-card-k">Storage</span>
-            <span className="tp-card-big">{sizeLabel(storage.usedBytes)}<small>of {sizeLabel(storage.quotaBytes)}</small></span>
+            <span className="tp-card-k"><Trans>Storage</Trans></span>
+            <span className="tp-card-big">{sizeLabel(storage.usedBytes)}<small>{tr`of ${ph({ quota: sizeLabel(storage.quotaBytes) })}`}</small></span>
             <div className="tp-meter"><span style={{ width: `${Math.min(100, (storage.usedBytes / storage.quotaBytes) * 100)}%` }} /></div>
-            <p className="tp-card-t">1 TB a seat, shared by the whole team.</p>
+            <p className="tp-card-t">{tr`${ph({ perSeat: sizeLabel(TEAM_STORAGE_PER_SEAT) })} a seat, shared by the whole team.`}</p>
             {!live && teamCan(role, 'addStorage') && (
               <div className="tp-card-acts">
-                <button type="button" className="tp-btn tp-btn-sm" onClick={() => onToast('Preview: nothing was charged.')}>
-                  <Icon as={Plus} size={12} weight="regular" />Add 1 TB · $25 a month
+                <button type="button" className="tp-btn tp-btn-sm" onClick={() => onToast(tr`Preview: nothing was charged.`)}>
+                  <Icon as={Plus} size={12} weight="regular" /><Trans>Add 1 TB · {ph({ price: money(TEAM_STORAGE_BLOCK_MONTHLY) })} a month</Trans>
                 </button>
               </div>
             )}
           </div>
 
           <div className="tp-card">
-            <span className="tp-card-k">Payment</span>
+            <span className="tp-card-k"><Trans>Payment</Trans></span>
             <div className="tp-pay">
               <span className="tp-pay-ic"><Icon as={CreditCard} size={16} weight="regular" /></span>
               <span className="tp-pay-t">
                 {live ? (
-                  <b>Card, invoices and receipts are in Stripe.</b>
+                  <b><Trans>Card, invoices and receipts are in Stripe.</Trans></b>
                 ) : (
                   <>
-                    <b>{plan.card.brand} ending {plan.card.last4}</b>
-                    <span>Expires {plan.card.exp} · receipts to {plan.receiptsTo}</span>
+                    <b><Trans>{ph({ brand: plan.card.brand })} ending {ph({ last4: plan.card.last4 })}</Trans></b>
+                    <span><Trans>Expires {ph({ exp: plan.card.exp })} · receipts to {ph({ receiptsTo: plan.receiptsTo })}</Trans></span>
                   </>
                 )}
               </span>
@@ -89,93 +100,94 @@ export default function TeamBilling({ t, now, viewOnly, onAction, onToast, onClo
             {live ? (
               teamCan(role, 'changeCard') ? (
                 <div className="tp-card-acts">
-                  <button type="button" className="tp-btn tp-btn-sm" onClick={openPortal}>Manage</button>
+                  <button type="button" className="tp-btn tp-btn-sm" onClick={openPortal}><Trans>Manage</Trans></button>
                 </div>
               ) : (
-                <p className="tp-card-t">Only {ownerFirst} changes the card.</p>
+                <p className="tp-card-t">{ownerFirst ? <Trans>Only {ownerFirst} changes the card.</Trans> : <Trans>Only the owner changes the card.</Trans>}</p>
               )
             ) : teamCan(role, 'changeCard') ? (
               <div className="tp-card-acts">
-                <button type="button" className="tp-btn tp-btn-sm" onClick={() => onToast('Preview: this comes with billing.')}>Change card</button>
-                <button type="button" className="tp-link" onClick={() => onToast('Preview: this comes with billing.')}>Invoices and receipts</button>
+                <button type="button" className="tp-btn tp-btn-sm" onClick={() => onToast(tr`Preview: this comes with billing.`)}><Trans>Change card</Trans></button>
+                <button type="button" className="tp-link" onClick={() => onToast(tr`Preview: this comes with billing.`)}><Trans>Invoices and receipts</Trans></button>
               </div>
             ) : (
-              <p className="tp-card-t">Only {ownerFirst} changes the card.</p>
+              <p className="tp-card-t">{ownerFirst ? <Trans>Only {ownerFirst} changes the card.</Trans> : <Trans>Only the owner changes the card.</Trans>}</p>
             )}
           </div>
         </div>
 
         <div className="tp-stack">
           <div className="tp-card">
-            <span className="tp-card-k">Seats</span>
-            <span className="tp-card-big">{used}<small>of {plan.seats} used</small></span>
+            <span className="tp-card-k"><Trans>Seats</Trans></span>
+            <span className="tp-card-big">{used}<small><Trans>of {ph({ seats: plan.seats })} used</Trans></small></span>
             <div className="tp-meter"><span style={{ width: `${Math.min(100, (used / plan.seats) * 100)}%` }} /></div>
             <p className="tp-card-t">
-              {free === 0 ? 'None are free to give.' : `${free} ${free === 1 ? 'is' : 'are'} free to give.`} A seat is anyone who can edit, guests too; viewers are free. Seats nobody uses drop at renewal, never below 3.
+              {free === 0 ? tr`None are free to give.` : tr`${plural(free, { one: '# is free to give.', other: '# are free to give.' })}`}{' '}
+              <Trans>A seat is anyone who can edit, guests too; viewers are free. Seats nobody uses drop at renewal, never below 3.</Trans>
             </p>
             <div className="tp-card-acts">
               <button type="button" className="tp-btn tp-btn-sm" onClick={() => setAdding(!adding)} aria-expanded={adding} {...lock}>
-                <Icon as={Plus} size={12} weight="regular" />Add seats
+                <Icon as={Plus} size={12} weight="regular" /><Trans>Add seats</Trans>
               </button>
               <button
                 type="button"
                 className="tp-link"
                 disabled={viewOnly || plan.seats <= removeFloor}
-                title={viewOnly ? FROZEN : undefined}
+                title={viewOnly ? frozen() : undefined}
                 onClick={() => (live ? go('removeSeat') : onAction('removeSeat'))}
               >
-                Remove a seat
+                <Trans>Remove a seat</Trans>
               </button>
             </div>
             {adding && !viewOnly && (
               <div className="tp-addrow">
                 <span className="tp-step">
-                  <button type="button" aria-label="Fewer seats" disabled={n <= 1} onClick={() => setN(Math.max(1, n - 1))}><Icon as={Minus} size={12} weight="regular" /></button>
-                  <output aria-label="Seats to add">{n}</output>
-                  <button type="button" aria-label="More seats" disabled={n >= 50} onClick={() => setN(Math.min(50, n + 1))}><Icon as={Plus} size={12} weight="regular" /></button>
+                  <button type="button" aria-label={tr`Fewer seats`} disabled={n <= 1} onClick={() => setN(Math.max(1, n - 1))}><Icon as={Minus} size={12} weight="regular" /></button>
+                  <output aria-label={tr`Seats to add`}>{n}</output>
+                  <button type="button" aria-label={tr`More seats`} disabled={n >= 50} onClick={() => setN(Math.min(50, n + 1))}><Icon as={Plus} size={12} weight="regular" /></button>
                 </span>
-                <span className="tp-card-t">{live ? 'You’ll see the price before anything is charged.' : seatAddLine(plan, n, now)}</span>
+                <span className="tp-card-t">{live ? tr`You’ll see the price before anything is charged.` : seatAddLine(plan, n, now)}</span>
                 <button
                   type="button"
                   className="tp-btn tp-btn-sm"
                   onClick={() => {
-                    if (!live) { onAction('addSeats', { n }); onToast('Preview: nothing was charged.'); setAdding(false); setN(1); return; }
+                    if (!live) { onAction('addSeats', { n }); onToast(tr`Preview: nothing was charged.`); setAdding(false); setN(1); return; }
                     const total = plan.seats + n;
-                    priceThen(total, 'Add seats', async (p, requestId) => {
+                    priceThen(total, tr`Add seats`, async (p, requestId) => {
                       const res = await go('addSeats', { seats: total, requestId, prorationDate: p.proration_date });
                       if (res.ok) { setAdding(false); setN(1); }
                       return res;
                     });
                   }}
                 >
-                  {live ? 'See the price' : 'Add'}
+                  {live ? tr`See the price` : tr`Add`}
                 </button>
-                <button type="button" className="tp-link" onClick={() => { setAdding(false); setN(1); }}>Cancel</button>
+                <button type="button" className="tp-link" onClick={() => { setAdding(false); setN(1); }}><Trans>Cancel</Trans></button>
               </div>
             )}
             <div className="tp-card-rule" />
-            <span className="tp-card-k">When seats run out</span>
+            <span className="tp-card-k"><Trans>When seats run out</Trans></span>
             <div className="tp-opts">
               <label className={`tp-opt${whenFull.mode === 'ask' ? ' is-on' : ''}${canWhenFull ? '' : ' is-off'}`}>
                 <input type="radio" name="tp-when-full" checked={whenFull.mode === 'ask'} disabled={!canWhenFull} onChange={() => (live ? go('whenFull', { mode: 'ask', current: whenFull }) : onAction('whenFull', { mode: 'ask' }))} />
                 <span className="tp-opt-t">
-                  <b>Ask first</b>
-                  <span>They join as a viewer. An admin approves, and that adds a seat.</span>
+                  <b><Trans>Ask first</Trans></b>
+                  <span><Trans>They join as a viewer. An admin approves, and that adds a seat.</Trans></span>
                 </span>
               </label>
               <label className={`tp-opt${whenFull.mode === 'auto' ? ' is-on' : ''}${canWhenFull ? '' : ' is-off'}`}>
                 <input type="radio" name="tp-when-full" checked={whenFull.mode === 'auto'} disabled={!canWhenFull} onChange={() => (live ? go('whenFull', { mode: 'auto', current: whenFull }) : onAction('whenFull', { mode: 'auto' }))} />
                 <span className="tp-opt-t">
-                  <b>Add a seat for them</b>
-                  <span>No waiting. Admins hear about each one.</span>
+                  <b><Trans>Add a seat for them</Trans></b>
+                  <span><Trans>No waiting. Admins hear about each one.</Trans></span>
                   <span className={`tp-cap${whenFull.mode === 'ask' ? ' is-dim' : ''}`}>
-                    <span className="tp-cap-k">Monthly limit</span>
+                    <span className="tp-cap-k"><Trans>Monthly limit</Trans></span>
                     <input
                       className="tp-num"
                       type="text"
                       inputMode="numeric"
-                      placeholder="None"
-                      aria-label="Most new seats a month"
+                      placeholder={tr`None`}
+                      aria-label={tr`Most new seats a month`}
                       value={live && limitDraft != null ? limitDraft : (whenFull.monthlyLimit == null ? '' : String(whenFull.monthlyLimit))}
                       disabled={!canWhenFull}
                       onChange={(e) => (live ? setLimitDraft(e.target.value) : onAction('monthlyLimit', { value: e.target.value }))}
@@ -186,7 +198,7 @@ export default function TeamBilling({ t, now, viewOnly, onAction, onToast, onClo
                       } : undefined}
                       onKeyDown={live ? (e) => { if (isComposingKey(e)) return; if (e.key === 'Enter') e.currentTarget.blur(); } : undefined}
                     />
-                    <span>new seats, then ask first. Any number you like; leave it empty for no limit.</span>
+                    <span><Trans>new seats, then ask first. Any number you like; leave it empty for no limit.</Trans></span>
                   </span>
                 </span>
               </label>
@@ -197,8 +209,8 @@ export default function TeamBilling({ t, now, viewOnly, onAction, onToast, onClo
 
       {teamCan(role, 'closeTeam') && (
         <div className="tp-endrow">
-          <button type="button" className="tp-link is-danger" onClick={onCloseTeam}>Close the team</button>
-          <span>Only you can. Its workspaces move to your own account, and everyone in them keeps what they had.</span>
+          <button type="button" className="tp-link is-danger" onClick={onCloseTeam}><Trans>Close the team</Trans></button>
+          <span><Trans>Only you can. Its workspaces move to your own account, and everyone in them keeps what they had.</Trans></span>
         </div>
       )}
     </>

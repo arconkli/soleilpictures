@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { t as tr } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // How long a doc may take to open before it says it is still connecting.
 export const DOC_OPENING_STALL_MS = 10000;
@@ -22,16 +24,16 @@ export function DocOpening({ onClose = null }) {
       <div role="status" className={stalled ? 'doc-opening-say' : 'sr-only'}>
         {stalled ? (
           <>
-            <span className="t-eyebrow">Document</span>
-            <div className="doc-state-title">Still connecting…</div>
-            <div className="doc-state-sub">The document opens as soon as it arrives. If your connection dropped, reload the page.</div>
+            <span className="t-eyebrow"><Trans>Document</Trans></span>
+            <div className="doc-state-title"><Trans>Still connecting…</Trans></div>
+            <div className="doc-state-sub"><Trans>The document opens as soon as it arrives. If your connection dropped, reload the page.</Trans></div>
           </>
-        ) : 'Opening document…'}
+        ) : tr`Opening document…`}
       </div>
       {stalled ? (
         <div className="doc-opening-actions">
-          <button type="button" className="surface-error-btn" onClick={() => window.location.reload()}>Reload page</button>
-          {onClose && <button type="button" className="surface-error-btn" onClick={onClose}>Close</button>}
+          <button type="button" className="surface-error-btn" onClick={() => window.location.reload()}><Trans>Reload page</Trans></button>
+          {onClose && <button type="button" className="surface-error-btn" onClick={onClose}><Trans>Close</Trans></button>}
         </div>
       ) : (
         <div className="doc-surface-skeleton" aria-hidden="true" />

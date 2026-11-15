@@ -16,6 +16,9 @@ import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { Field } from './fields.jsx';
+import { t as tr } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { formatDate } from '../../lib/intlFormat.js';
 
 const UNDO_MS = 8000;
 // Deletes waiting out their Undo. Module-level, so closing Settings doesn't
@@ -25,7 +28,7 @@ const pending = new Map();
 function when(iso) {
   const t = Date.parse(String(iso || ''));
   if (!Number.isFinite(t)) return null;
-  return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return formatDate(new Date(t), { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 export function PasskeysSection() {
@@ -37,7 +40,7 @@ export function PasskeysSection() {
 
   const load = async () => {
     const { data, error } = await supabase.auth.passkey.list();
-    if (error) { setProblem("Couldn't load your passkeys."); setList([]); return; }
+    if (error) { setProblem(tr`Couldn't load your passkeys.`); setList([]); return; }
     setProblem(null);
     setList(passkeyRows(data).filter((p) => !pending.has(p.id)));
   };
@@ -68,7 +71,7 @@ export function PasskeysSection() {
       return;
     }
     try { logEvent(EV.PASSKEY_SAVED, { via: 'settings' }); } catch (_) {}
-    feedback.toast({ type: 'success', message: 'Passkey saved. Next time, tap the email box and pick it.' });
+    feedback.toast({ type: 'success', message: tr`Passkey saved. Next time, tap the email box and pick it.` });
     load();
   };
 
@@ -80,7 +83,7 @@ export function PasskeysSection() {
       pending.delete(p.id);
       const { error } = await supabase.auth.passkey.delete({ passkeyId: p.id });
       if (error) {
-        feedback.toast({ type: 'error', code: 'passkey_remove_failed', message: "Couldn't remove that passkey. Try again." });
+        feedback.toast({ type: 'error', code: 'passkey_remove_failed', message: tr`Couldn't remove that passkey. Try again.` });
         load();
         return;
       }
@@ -89,10 +92,10 @@ export function PasskeysSection() {
     pending.set(p.id, timer);
     feedback.toast({
       type: 'info',
-      message: 'Passkey removed.',
+      message: tr`Passkey removed.`,
       ttl: UNDO_MS,
       action: {
-        label: 'Undo',
+        label: tr`Undo`,
         onClick: () => {
           if (!pending.has(p.id)) return;
           clearTimeout(pending.get(p.id));
@@ -104,11 +107,11 @@ export function PasskeysSection() {
   };
 
   return (
-    <Field label="Passkeys">
+    <Field label={tr`Passkeys`}>
       <p className="settings-section-hint" style={{ marginTop: 0 }}>
-        Sign in with your face, fingerprint or device PIN instead of an emailed code.
+        <Trans>Sign in with your face, fingerprint or device PIN instead of an emailed code.</Trans>
       </p>
-      {list === null && <div className="settings-empty">Loading…</div>}
+      {list === null && <div className="settings-empty"><Trans>Loading…</Trans></div>}
       {list && list.length > 0 && (
         <ul className="settings-member-list">
           {list.map((p) => {
@@ -116,12 +119,12 @@ export function PasskeysSection() {
             const used = when(p.last_used_at);
             return (
               <li key={p.id} className="settings-member-row">
-                <span className="settings-member-name">{p.friendly_name || 'Passkey'}</span>
+                <span className="settings-member-name">{p.friendly_name || tr`Passkey`}</span>
                 <span className="settings-member-role">
-                  {added ? `Added ${added}` : ''}{used ? ` · Last used ${used}` : ''}
+                  {added ? tr`Added ${added}` : ''}{used ? tr` · Last used ${used}` : ''}
                 </span>
                 <span className="settings-member-actions">
-                  <button type="button" className="settings-link-btn" onClick={() => remove(p)}>Remove</button>
+                  <button type="button" className="settings-link-btn" onClick={() => remove(p)}><Trans>Remove</Trans></button>
                 </span>
               </li>
             );
@@ -131,7 +134,7 @@ export function PasskeysSection() {
       {problem && <div className="settings-empty" role="alert">{problem}</div>}
       <div className="settings-row-actions" style={{ marginTop: 10 }}>
         <button type="button" className="settings-btn" onClick={add} disabled={busy || list === null}>
-          {busy ? 'Waiting for your device…' : 'Add a passkey'}
+          {busy ? tr`Waiting for your device…` : tr`Add a passkey`}
         </button>
       </div>
     </Field>

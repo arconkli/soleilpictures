@@ -64,6 +64,7 @@
 
 import { buildClusterCards } from './folderImport.js';
 import * as activityStore from './activity.js';
+import { t as tr } from '@lingui/core/macro';
 import { cardFromUpload, cardKindFor, measuredSize } from './cardFromUpload.js';
 import { fileMetaFor } from './fileIngest.js';
 import { parseLoopMeta } from './loopMeta.js';
@@ -128,7 +129,7 @@ export function pendingCard(item, id, at, stamp = null) {
   if (kind === 'video') Object.assign(card, { sizeBytes: f.size || null, mime: f.type || null });
   if (kind === 'pdf') card.name = f.name || 'PDF';
   else if (kind === 'audio') {
-    Object.assign(card, { title: f.name || 'Audio', fileName: f.name, mime: f.type, sizeBytes: f.size, ext });
+    Object.assign(card, { title: f.name || tr`Audio`, fileName: f.name, mime: f.type, sizeBytes: f.size, ext });
     Object.assign(card, parseLoopMeta(f.name));
   } else if (kind === 'file') {
     Object.assign(card, { fileName: f.name, mime: f.type, sizeBytes: f.size, ext });
@@ -176,7 +177,7 @@ function browserOnConnection(cb) {
 // seed (resuming after a reload): { jobId, created: [[key, boardId]],
 // landed: [relPath], cardIds: [[relPath, cardId]] } from the 0430 ledger.
 export function createImportJob({
-  plan, title = 'Import', deps, clusterCost = CLUSTER_CARD_COST, limits = {}, seed = null, onChange = () => {},
+  plan, title = tr`Import`, deps, clusterCost = CLUSTER_CARD_COST, limits = {}, seed = null, onChange = () => {},
 }) {
   const L = { ...JOB_LIMITS, ...limits };
   // The activity store's items for this job's files: relPath → item id while

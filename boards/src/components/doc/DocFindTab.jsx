@@ -13,6 +13,8 @@ import {
 import { undoToast } from '../../lib/undoToast.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import { Search, ArrowsLeftRight, ChevronUp, ChevronDown } from '../../lib/icons.js';
+import { t as tt, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // The side panel's Find (the owner's pick of 2026-10-21, mockup dx AC-find):
 // a search of every page of the doc, or the one open, in any case or as
@@ -28,7 +30,7 @@ import { Search, ArrowsLeftRight, ChevronUp, ChevronDown } from '../../lib/icons
 // on the doc's own undo (docState getDocUndoManager), which ⌘Z outside the
 // text takes back. The toast's Undo takes back both.
 
-const SCOPES = [{ value: 'page', label: 'This page' }, { value: 'all', label: 'All pages' }];
+const SCOPES = [{ value: 'page', get label() { return tt`This page`; } }, { value: 'all', get label() { return tt`All pages`; } }];
 // A list of thousands is no use to read: the first ones are shown, and ↑ ↓
 // still go through every hit.
 const LIST_MAX = 300;
@@ -307,10 +309,16 @@ export function DocFindTab({
     const deleted = !r;
     setDone({ n, deleted });
     undoToast(feedback, {
-      message: `${deleted ? 'Deleted' : 'Replaced'} ${n} ${n === 1 ? 'match' : 'matches'}${pages > 1 ? ` on ${pages} pages` : ''}`,
+      message: deleted
+        ? (pages > 1
+          ? tt`${plural(n, { one: `Deleted # match on ${pages} pages`, other: `Deleted # matches on ${pages} pages` })}`
+          : tt`${plural(n, { one: 'Deleted # match', other: 'Deleted # matches' })}`)
+        : (pages > 1
+          ? tt`${plural(n, { one: `Replaced # match on ${pages} pages`, other: `Replaced # matches on ${pages} pages` })}`
+          : tt`${plural(n, { one: 'Replaced # match', other: 'Replaced # matches' })}`),
       onUndo: () => {
         if (steps.some(({ um, item }) => um.undoStack[um.undoStack.length - 1] !== item)) {
-          feedback.toast({ type: 'info', message: 'The document changed since — press ⌘Z to step back instead.' });
+          feedback.toast({ type: 'info', message: tt`The document changed since — press ⌘Z to step back instead.` });
           return;
         }
         steps.forEach(({ um }) => um.undo());
@@ -324,11 +332,11 @@ export function DocFindTab({
     : !q ? '' : flat.length ? `${at + 1} of ${flat.length}` : 'None';
   let shown = 0;
   return (
-    <div className="dl-find" role="search" aria-label="Find in this doc" onKeyDown={onKeyDown}>
+    <div className="dl-find" role="search" aria-label={tt`Find in this doc`} onKeyDown={onKeyDown}>
       <div className="dl-find-f">
         <label className="dl-field">
           <Icon as={Search} size={15} />
-          <input ref={inputRef} type="text" value={q} placeholder="Find" aria-label="Find"
+          <input ref={inputRef} type="text" value={q} placeholder={tt`Find`} aria-label={tt`Find`}
                  spellCheck={false} autoComplete="off" enterKeyHint="search"
                  onChange={(e) => setQ(e.target.value)}
                  onKeyDown={(e) => {
@@ -338,14 +346,14 @@ export function DocFindTab({
                  }} />
           <span className="dl-find-n" aria-live="polite">{count}</span>
         </label>
-        <Btn icon={ChevronUp} label="Previous" keys="Shift+Enter" disabled={!flat.length} onClick={() => step(-1)} />
-        <Btn icon={ChevronDown} label="Next" keys="Enter" disabled={!flat.length} onClick={() => step(1)} />
+        <Btn icon={ChevronUp} label={tt`Previous`} keys="Shift+Enter" disabled={!flat.length} onClick={() => step(-1)} />
+        <Btn icon={ChevronDown} label={tt`Next`} keys="Enter" disabled={!flat.length} onClick={() => step(1)} />
       </div>
       {canEdit && (
         <div className="dl-find-f">
           <label className="dl-field">
             <Icon as={ArrowsLeftRight} size={15} />
-            <input type="text" value={r} placeholder="Replace with" aria-label="Replace with"
+            <input type="text" value={r} placeholder={tt`Replace with`} aria-label={tt`Replace with`}
                    spellCheck={false} autoComplete="off"
                    onChange={(e) => setR(e.target.value)}
                    onKeyDown={(e) => {
@@ -357,17 +365,17 @@ export function DocFindTab({
         </div>
       )}
       <div className="dl-find-o">
-        <DocSeg label="Search" value={where} onChange={setWhere} options={SCOPES} />
-        <button type="button" className="dl-mini" aria-pressed={matchCase} aria-label="Match case" title="Match case"
-                onClick={() => setMatchCase((v) => !v)}>Aa</button>
+        <DocSeg label={tt`Search`} value={where} onChange={setWhere} options={SCOPES} />
+        <button type="button" className="dl-mini" aria-pressed={matchCase} aria-label={tt`Match case`} title={tt`Match case`}
+                onClick={() => setMatchCase((v) => !v)}><Trans>Aa</Trans></button>
         <button type="button" className="dl-mini" aria-pressed={wholeWord}
-                onClick={() => setWholeWord((v) => !v)}>Whole word</button>
+                onClick={() => setWholeWord((v) => !v)}><Trans>Whole word</Trans></button>
       </div>
       {canEdit && (
         <div className="dl-find-a">
-          <button type="button" className="dl-mini" disabled={!hit} onClick={replaceOne}>Replace</button>
+          <button type="button" className="dl-mini" disabled={!hit} onClick={replaceOne}><Trans>Replace</Trans></button>
           <button type="button" className="dl-mini" disabled={!flat.length} onClick={replaceAll}>
-            {flat.length ? `Replace all ${flat.length}` : 'Replace all'}
+            {flat.length ? tt`Replace all ${ph({ count: flat.length })}` : tt`Replace all`}
           </button>
         </div>
       )}
@@ -379,7 +387,7 @@ export function DocFindTab({
             shown += rows.length;
             const name = [...g.trail, g.name].join(' › ');
             return (
-              <section key={g.id} aria-label={`${name}, ${g.hits.length} ${g.hits.length === 1 ? 'hit' : 'hits'}`}>
+              <section key={g.id} aria-label={tt`${name}, ${plural(g.hits.length, { one: '# hit', other: '# hits' })}`}>
                 <h3 className="dl-fg-h"><span>{name}</span><span className="dl-cnt">{g.hits.length}</span></h3>
                 {rows.map((h) => {
                   const on = hit === h;
@@ -393,8 +401,8 @@ export function DocFindTab({
               </section>
             );
           })}
-          {flat.length > shown && <p className="dl-find-more">And {flat.length - shown} more</p>}
-          {!flat.length && !done && <p className="dl-find-none">Nothing found{where === 'page' ? ' on this page' : ''}</p>}
+          {flat.length > shown && <p className="dl-find-more">{tt`${plural(flat.length - shown, { one: 'And # more', other: 'And # more' })}`}</p>}
+          {!flat.length && !done && <p className="dl-find-none">{where === 'page' ? tt`Nothing found on this page` : tt`Nothing found`}</p>}
         </div>
       )}
     </div>

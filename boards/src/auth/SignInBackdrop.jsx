@@ -19,7 +19,19 @@ import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import { HOME_FACT_NOTES } from '../lib/homeFactNotes.js';
+import { uiLocale } from '../lib/uiLocale.js';
 import './signin-backdrop.css';
+
+// The signed-out landing is public-site copy: it stays English whatever the
+// person's language is (the scene's root says lang="en"), like the /legal and
+// /docs pages its footer links to. Only the sign-in form inside it is wrapped
+// (AuthGate.jsx) and says so with lang on its own wrapper.
+const EN = {
+  film: 'Lost Time', email: 'clusters@soleilpictures.com',
+  writersRoom: 'Writers room', newCluster: 'New cluster', share: 'Share',
+  exploreLive: 'Explore a live board ↗', scroll: 'Scroll to explore', copy: '© Soleil Pictures',
+  useCases: 'Use cases', explore: 'Explore', privacy: 'Privacy', terms: 'Terms', cookies: 'Cookies', security: 'Security',
+};
 
 const RUNWAY_MULT = 8.2;        // runway height = this × viewport height (more scroll = gentler motion)
 const RUNWAY_MULT_TOUCH = 7.7; // fewer swipes to the payoff on phones
@@ -795,7 +807,7 @@ export function SignInBackdrop({ children, exploreHref }) {
   // theme the tokens flipped underneath it and left white-on-gold text and a
   // dark slab on a light page.
   return (
-    <div className="sb-scene public-dark" ref={sceneRef}>
+    <div className="sb-scene public-dark" ref={sceneRef} lang="en">
       <div className="sb-scroll" ref={scrollRef}>
         <div className="sb-runway" ref={runwayRef}>
           {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events */}
@@ -819,47 +831,47 @@ export function SignInBackdrop({ children, exploreHref }) {
                 <i className="tb-icon sbi-side" />
                 <i className="tb-brand"><img src="/clusters-logo-dark.webp" alt="" /></i>
                 <i className="tb-icon sbi-back" /><i className="tb-icon sbi-fwd" />
-                <span className="crumbs"><i className="crumb clk">Lost Time</i><i className="crumb-sep">›</i><i className="crumb here">Writers room</i></span>
-                <i className="sb-sep" /><i className="tb-btn tb-newcluster sbi-plus"><i className="tb-btn-label">New cluster</i></i>
+                <span className="crumbs"><i className="crumb clk">{EN.film}</i><i className="crumb-sep">›</i><i className="crumb here">{EN.writersRoom}</i></span>
+                <i className="sb-sep" /><i className="tb-btn tb-newcluster sbi-plus"><i className="tb-btn-label">{EN.newCluster}</i></i>
               </div>
               <div className="sb-isl">
                 <i className="tb-icon sbi-undo" /><i className="tb-icon sbi-redo" /><i className="sb-sep" />
                 <i className="tb-icon sbi-search" /><i className="tb-icon sbi-split" /><i className="tb-icon sbi-theme" /><i className="tb-icon sbi-bell" /><i className="sb-sep" />
                 <span className="ws-presence"><i className="ws-presence-status on" /><b className="ws-presence-avatar" style={{ background:'#ffa500' }}>A</b><b className="ws-presence-avatar" style={{ background:'#6b9088' }}>T</b><b className="ws-presence-avatar ws-presence-overflow">+1</b></span>
-                <i className="tb-btn tb-share sbi-share"><i className="tb-btn-label">Share</i></i><i className="sb-sep" />
+                <i className="tb-btn tb-share sbi-share"><i className="tb-btn-label">{EN.share}</i></i><i className="sb-sep" />
                 <i className="tb-icon sbi-more" />
               </div>
             </div>
 
             <div className="sb-box-wrap">
-              <div className="sb-box" ref={boxRef}>
+              <div className="sb-box" ref={boxRef} lang={uiLocale()}>
                 {children}
                 {exploreHref && (
-                  <a className="sb-explore" ref={exploreRef} href={exploreHref} target="_blank" rel="noopener noreferrer"
+                  <a className="sb-explore" lang="en" ref={exploreRef} href={exploreHref} target="_blank" rel="noopener noreferrer"
                      data-lp-cta="explore"
                      onClick={() => { logEvent(EV.LANDING_EXPLORE_CLICK); lp.tracker.ctaClick('explore', exploreHref, { intent: 'nav' }); }}>
-                    Explore a live board ↗
+                    {EN.exploreLive}
                   </a>
                 )}
               </div>
             </div>
 
             <div className="sb-hint" ref={hintRef} aria-hidden="true">
-              <span className="sb-hint-label">Scroll to explore</span>
+              <span className="sb-hint-label">{EN.scroll}</span>
               <span className="sb-chev" />
             </div>
 
             <div className="sb-foot" ref={footRef}>
               <div className="sb-foot-left">
-                <span className="sb-foot-copy">© Soleil Pictures</span>
-                <a className="sb-foot-link" href="/use-cases" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'use_cases' })}>Use cases</a>
-                <a className="sb-foot-link" href="/explore" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'explore' })}>Explore</a>
-                <a className="sb-foot-link" href="/legal/privacy" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'privacy' })}>Privacy</a>
-                <a className="sb-foot-link" href="/legal/terms" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'terms' })}>Terms</a>
-                <a className="sb-foot-link" href="/legal/cookies" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'cookies' })}>Cookies</a>
-                <a className="sb-foot-link" href="/docs/security" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'security' })}>Security</a>
+                <span className="sb-foot-copy">{EN.copy}</span>
+                <a className="sb-foot-link" href="/use-cases" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'use_cases' })}>{EN.useCases}</a>
+                <a className="sb-foot-link" href="/explore" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'explore' })}>{EN.explore}</a>
+                <a className="sb-foot-link" href="/legal/privacy" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'privacy' })}>{EN.privacy}</a>
+                <a className="sb-foot-link" href="/legal/terms" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'terms' })}>{EN.terms}</a>
+                <a className="sb-foot-link" href="/legal/cookies" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'cookies' })}>{EN.cookies}</a>
+                <a className="sb-foot-link" href="/docs/security" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'security' })}>{EN.security}</a>
               </div>
-              <a className="sb-foot-email" href="mailto:clusters@soleilpictures.com" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'email' })}>clusters@soleilpictures.com</a>
+              <a className="sb-foot-email" href="mailto:clusters@soleilpictures.com" onClick={() => logEvent(EV.LANDING_FOOTER_CLICK, { target: 'email' })}>{EN.email}</a>
             </div>
           </div>
         </div>

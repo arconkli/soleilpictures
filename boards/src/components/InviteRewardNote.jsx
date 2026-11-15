@@ -11,9 +11,11 @@
 // that pays it. `tier` picks the wording (only a free plan has a card limit for
 // the inviter's bonus cards to raise); `stats` is getMyReferralStats() or null.
 import { useState } from 'react';
-import { inviteRewardCopy, inviteProgressLine } from '../lib/inviteReward.js';
+import { inviteRewardCopy, inviteProgressLine } from '../lib/inviteRewardWords.js';
 import { Gift as GiftIcon } from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 export function InviteRewardNote({ tier = null, stats = null, onOpenInvites = null }) {
   const copy = inviteRewardCopy({ tier });
@@ -29,7 +31,7 @@ export function InviteRewardNote({ tier = null, stats = null, onOpenInvites = nu
         <button type="button" className="share-linkish share-reward-toggle"
                 aria-expanded={open}
                 onClick={() => setOpen((o) => !o)}>
-          {open ? 'Hide details' : 'Details'}
+          {open ? t`Hide details` : t`Details`}
         </button>
         {open && (
           <div className="share-reward-more">
@@ -40,7 +42,7 @@ export function InviteRewardNote({ tier = null, stats = null, onOpenInvites = nu
             </ul>
             {onOpenInvites && (
               <button type="button" className="share-linkish" onClick={onOpenInvites}>
-                Your invites and referral link →
+                <Trans>Your invites and referral link →</Trans>
               </button>
             )}
           </div>

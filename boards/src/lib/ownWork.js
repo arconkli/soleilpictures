@@ -25,6 +25,8 @@
 // CanvasSurface can see; reaching for them would mean the strip works from the
 // wall and nowhere else. No table read, no RPC, no new query.
 
+import { t } from '@lingui/core/macro';
+
 // Five is what fits the modal at its 460px width without the thumbs shrinking
 // below the size at which a board is recognisable as itself.
 export const OWN_WORK_MAX = 5;
@@ -54,7 +56,7 @@ export function publishOwnWork(boardsMap, { ownsWorkspace = false } = {}) {
     key: b.thumb_key,
     // Alt text, and the only place the board's name is used — deliberately not
     // rendered as a caption. The point is the picture.
-    name: b.name || 'Untitled cluster',
+    name: b.name || t`Untitled cluster`,
     // Cache-buster, exactly as the cluster browser keys its own R2Image.
     version: b.thumb_updated_at || b.thumb_version || null,
   }));

@@ -15,6 +15,13 @@
 // built from these pieces or escaped itself.
 
 import { graphemes } from "./safeLabel.mjs";
+import { emailStrings } from "./i18n.mjs";
+
+// The words of an email in the reader's language (i18n.mjs). Every piece that
+// writes words takes an optional one and reads English without it, so old
+// callers (and the Supabase sign-in template generator) keep working.
+export type EmailStrings = ReturnType<typeof emailStrings>;
+const EN: EmailStrings = emailStrings("en");
 
 export const T = {
   page: "#0a0a0c",
@@ -206,22 +213,31 @@ function footerLink(href: string, label: string): string {
   return `<a class="ink3" href="${esc(href)}" style="color:${T.ink3};text-decoration:underline;">${esc(label)}</a>`;
 }
 
-export function footerTx(unsubscribeUrl?: string): string {
+// The brand line stays English in every language.
+export function footerTx(unsubscribeUrl?: string, s: EmailStrings = EN): string {
   const lines = [`Clusters by Soleil Pictures · ${footerLink(SITE_URL, "clusters.soleilpictures.com")}`];
-  if (unsubscribeUrl) lines.push(footerLink(unsubscribeUrl, "Turn these emails off"));
+  if (unsubscribeUrl) lines.push(footerLink(unsubscribeUrl, s.t("common.turn_off_link")));
   return footerRow(lines);
 }
 
-export function footerNote(postalAddress: string, unsubscribeUrl: string): string {
-  return footerRow([esc(postalAddress), `Not into these? ${footerLink(unsubscribeUrl, "Unsubscribe")}.`]);
+// A private-use character stands in for the link while the sentence around it
+// is escaped, so the sentence (whatever a translator wrote) is escaped and the
+// link, built here, is not.
+const LINK_MARK = String.fromCodePoint(0xe000);
+
+export function footerNote(postalAddress: string, unsubscribeUrl: string, s: EmailStrings = EN): string {
+  const link = footerLink(unsubscribeUrl, s.t("common.unsubscribe_link"));
+  const sentence = esc(s.t("common.unsubscribe_note", { link: LINK_MARK })).replace(LINK_MARK, () => link);
+  return footerRow([esc(postalAddress), sentence]);
 }
 
 const PREHEADER_PAD = "&zwnj;&nbsp;".repeat(30);
 
-// `body` and `footer` are TRUSTED html (built from the pieces above).
-export function shell(o: { title?: string; preheader: string; body: string; footer: string }): string {
+// `body` and `footer` are TRUSTED html (built from the pieces above). `lang` is
+// the language of the words ("en" unless the caller says).
+export function shell(o: { title?: string; preheader: string; body: string; footer: string; lang?: string }): string {
   return `<!DOCTYPE html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<html lang="${esc(o.lang ?? "en")}" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">

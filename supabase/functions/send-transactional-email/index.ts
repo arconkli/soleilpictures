@@ -19,7 +19,8 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
-import { renderTemplate, TEMPLATE_NAMES, type TemplateName } from "../_shared/email/templates.ts";
+import { ENGLISH_ONLY, renderTemplate, TEMPLATE_NAMES, type TemplateName } from "../_shared/email/templates.ts";
+import { emailLocale } from "../_shared/email/i18n.mjs";
 import { isLegacyLookEdition } from "../_shared/email/legacyNote.ts";
 
 const RESEND_API_KEY    = Deno.env.get("RESEND_API_KEY") || "";
@@ -34,6 +35,22 @@ const OPS_ALERT_TO      = Deno.env.get("OPS_ALERT_TO") || "andrew@andrewconklin.
 const logDb = (SUPABASE_URL && SERVICE_KEY)
   ? createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } })
   : null;
+
+// The language to write this email in: the saved language of the account that
+// owns the address (_email_locale, 0895), or the sender's when the address has
+// no account yet. Anything wrong, or slower than 3 seconds, sends English: a
+// language lookup must never stop an email.
+async function readerLocale(to: string, actorId: string | null): Promise<string> {
+  if (!logDb) return "en";
+  try {
+    const { data } = await logDb
+      .rpc("_email_locale", { p_email: to, p_actor: actorId ?? null })
+      .abortSignal(AbortSignal.timeout(3000));
+    return emailLocale(data);
+  } catch {
+    return "en";
+  }
+}
 
 // Coarse bucket for the dashboard, derived from the template name.
 function emailCategory(template: string): string {
@@ -314,7 +331,8 @@ Deno.serve(async (req) => {
     return json({ error: "hourly ceiling reached" }, 429);
   }
 
-  const rendered = renderTemplate(body.template as TemplateName, body.data || {});
+  const locale = ENGLISH_ONLY.has(body.template) ? "en" : await readerLocale(to, actorId);
+  const rendered = renderTemplate(body.template as TemplateName, body.data || {}, locale);
   // An alert (0390) is plain text with no Reply-To, so its From is the only
   // address in it, and it says it was machine-sent (RFC 3834). Never a
   // List-Unsubscribe: nobody can opt out of these.

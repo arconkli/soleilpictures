@@ -30,6 +30,8 @@ import { logEvent, logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { claimUpsellSlot } from '../lib/upsellSlot.js';
 import { REFERRAL_BONUS_CARDS, REFERRED_START_CARDS } from '../lib/billingCopy.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;  // between shows
 const LIFETIME_CAP = 3;                       // total shows per account
@@ -133,18 +135,18 @@ export function ReferralNudge({ tier, onCollaborate }) {
 
   return (
     <div className={`fv-banner surface-frosted${leaving ? ' is-leaving' : ''}`}
-         role="dialog" aria-label="Invite someone to build this cluster with you">
+         role="dialog" aria-label={t`Invite someone to build this cluster with you`}>
       <div className="fv-banner-copy">
-        <div className="fv-banner-title">Build this together?</div>
+        <div className="fv-banner-title"><Trans>Build this together?</Trans></div>
         <div className="fv-banner-body">
           {isPaid
-            ? 'Grab an invite link and pull someone into this cluster — and when a friend you invite upgrades, you get a free month.'
-            : `Grab an invite link and pull someone into this cluster — editing together is free. They start with ${REFERRED_START_CARDS} free cards, and you earn ${REFERRAL_BONUS_CARDS} when they place their first.`}
+            ? t`Grab an invite link and pull someone into this cluster — and when a friend you invite upgrades, you get a free month.`
+            : t`Grab an invite link and pull someone into this cluster — editing together is free. They start with ${REFERRED_START_CARDS} free cards, and you earn ${REFERRAL_BONUS_CARDS} when they place their first.`}
         </div>
       </div>
       <div className="fv-banner-actions">
-        <button className="fv-banner-cta" onClick={invite}>Invite someone</button>
-        <button className="fv-banner-dismiss" onClick={dismiss}>Maybe later</button>
+        <button className="fv-banner-cta" onClick={invite}><Trans>Invite someone</Trans></button>
+        <button className="fv-banner-dismiss" onClick={dismiss}><Trans>Maybe later</Trans></button>
       </div>
     </div>
   );

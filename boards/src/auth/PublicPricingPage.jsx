@@ -29,12 +29,14 @@ import { useDwellTime } from '../hooks/useDwellTime.js';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
 import { useUpsellExposure } from '../hooks/useUpsellExposure.js';
 import { PricingPageView } from './PricingPageView.jsx';
-import { CTA, PRICING, PRICING_PAGE, creatorIntentLabels } from '../lib/billingCopy.js';
+import { PRICING, creatorIntentLabels } from '../lib/billingCopy.js';
+import { CTA, PRICING_PAGE } from '../lib/billingCopyWords.js';
 import { trackViewContent } from '../lib/metaPixel.js';
 import { stashCreatorIntent, clearCreatorIntent } from '../lib/creatorIntent.js';
 import { teamPricingAllowed } from '../lib/appHost.js';
 import { stashTeamStart, clearTeamStart } from '../lib/teamStart.js';
 import { useTeamPricingCard } from './useTeamPricingCard.js';
+import { Trans } from '@lingui/react/macro';
 
 const SURFACE = 'public_page';
 
@@ -137,13 +139,13 @@ export function PublicPricingPage() {
       teamCard={teamCard}
       footer={
         <div className="pp-foot t-meta">
-          Already have an account? <a className="auth-link" href="/">Sign in</a>
+          <Trans>Already have an account? <a className="auth-link" href="/">Sign in</a>
           <span className="welcome-foot-sep">·</span>
           <a className="auth-link" href="/legal/privacy">Privacy</a>
           <span className="welcome-foot-sep">·</span>
           <a className="auth-link" href="/legal/terms">Terms</a>
           <span className="welcome-foot-sep">·</span>
-          <a className="auth-link" href="/docs/security">Security</a>
+          <a className="auth-link" href="/docs/security">Security</a></Trans>
         </div>
       }
     />

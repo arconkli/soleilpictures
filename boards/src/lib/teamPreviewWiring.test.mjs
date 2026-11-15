@@ -111,7 +111,7 @@ test('the Team card stays lazy, and the team model stays a leaf', () => {
   }
   const hook = read('auth/useTeamPricingCard.js');
   assert.ok(hook.includes("if (!on) return undefined;"));
-  assert.ok(hook.includes("import('../lib/teamModel.js').then((m) => { if (live) setHeroLine(m.teamHeroLine(EDITOR_LIMIT)); }, () => {});"));
+  assert.ok(hook.includes("import('../lib/teamModelWords.js').then((m) => { if (live) setHeroLine(m.teamHeroLine(EDITOR_LIMIT)); }, () => {});"));
   // The model stays a leaf: an app import there would split that module out of the app chunk.
   assert.doesNotMatch(read('lib/teamModel.js'), /^import /m);
 });

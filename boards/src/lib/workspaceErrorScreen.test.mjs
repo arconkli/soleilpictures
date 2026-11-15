@@ -22,6 +22,6 @@ test('a refused workspace read tells the person to sign in with the emailed code
 });
 
 test('any other failure offers a reload, or the caller\'s own way out', () => {
-  assert.ok(app.includes("own ? actionLabel : 'Try again'"));
+  assert.ok(app.includes("own ? actionLabel : tr`Try again`"));
   assert.ok(app.includes('window.location.reload()'));
 });

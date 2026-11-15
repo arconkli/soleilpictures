@@ -15,6 +15,7 @@ import { supabase } from '../lib/supabase.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { TAG_LINKS_CHANGED } from '../lib/tagsApi.js';
 import { isDeleteEvent } from '../lib/tagSurface.js';
+import { t as tr } from '@lingui/core/macro';
 
 export function useAppliedTagRanges({ workspaceId, docCardId, pageId }) {
   const [ranges, setRanges] = useState([]);
@@ -61,7 +62,7 @@ export function useAppliedTagRanges({ workspaceId, docCardId, pageId }) {
           keywordLength: typeof a.keywordLength === 'number' ? a.keywordLength : null,
           tagId: r.target_id,
           tagColor: t.color || tagFallbackColor(t.name || r.target_id),
-          tagName: t.name || 'Tag',
+          tagName: t.name || tr`Tag`,
           source: r.source,
         });
       }

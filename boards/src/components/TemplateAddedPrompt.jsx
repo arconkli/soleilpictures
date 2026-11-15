@@ -3,6 +3,8 @@ import { GridLayoutThumb } from './GridLayoutThumb.jsx';
 import { Icon } from './Icon.jsx';
 import { X } from '../lib/icons.js';
 import './templateAddedPrompt.css';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // "Grid template added" — now put it on the board.
 //
@@ -54,18 +56,18 @@ export function TemplateAddedPrompt({ template, armed, onPlace, onDismiss }) {
       <span className="tpladd-text">
         <span className="tpladd-name">{template.name}</span>
         <span className="tpladd-sub">
-          {armed ? 'Click anywhere to place it' : 'Added to your templates'}
+          {armed ? t`Click anywhere to place it` : t`Added to your templates`}
         </span>
       </span>
       {!armed && (
         <button type="button" className="tpladd-go" onClick={onPlace}>
-          Place it
+          <Trans>Place it</Trans>
         </button>
       )}
       <button
         type="button"
         className="tpladd-x"
-        aria-label={armed ? 'Cancel placing this template' : 'Dismiss'}
+        aria-label={armed ? t`Cancel placing this template` : t`Dismiss`}
         onClick={onDismiss}
       >
         <Icon as={X} size={16} weight="regular" />

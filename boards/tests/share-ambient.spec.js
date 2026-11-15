@@ -39,7 +39,7 @@ test.describe('one Share control, and Share opens sharing', () => {
     const s = app();
     // It names the pane it was pressed in (split view shares the split's
     // cluster, not the main one) and then opens the one panel.
-    expect(s).toMatch(/className="tb-btn tb-share" onClick=\{\(\) => \{ setShareBoardId\([^)]*\); setShareOpen\(true\); \}\} title="Share this cluster" aria-label="Share this cluster"/);
+    expect(s).toMatch(/className="tb-btn tb-share" onClick=\{\(\) => \{ setShareBoardId\([^)]*\); setShareOpen\(true\); \}\} title=\{tr`Share this cluster`\} aria-label=\{tr`Share this cluster`\}/);
     // Not two: an icon beside it opening the console is what the intermediate
     // fix shipped, and on a phone .tb-btn-label is hidden, so the pair rendered
     // as two unlabelled share glyphs with nothing to tell them apart.

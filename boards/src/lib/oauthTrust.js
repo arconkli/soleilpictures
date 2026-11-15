@@ -1,5 +1,5 @@
 // Who vouches for an app on the consent screen (pages/OAuthConsentPage.jsx),
-// and what the connection may do, in the words the screen uses.
+// and what the connection may do.
 //
 // The banner across the top of the card says one of three things:
 //
@@ -15,7 +15,9 @@
 //     typed into /oauth/register; a document from another host is that host's
 //     word alone.
 //
-// Pure, so node tests it.
+// Pure, so node tests it. gen-docs reads VERIFIED_HOSTS, so this module takes
+// no Lingui macros: the banner, the footer and the sentence under the chips
+// are in oauthTrustWords.js (app-only), which calls consentKind() below.
 
 import { redirectHostOf } from './oauthConnect.js';
 
@@ -23,43 +25,18 @@ import { redirectHostOf } from './oauthConnect.js';
 // (claude.com is where Anthropic has said it may move), ChatGPT, VS Code.
 export const VERIFIED_HOSTS = ['claude.ai', 'claude.com', 'chatgpt.com', 'vscode.dev'];
 
-// Where the person is sent back to, as the footer says it.
-export function returnLabel(redirectUri) {
-  const host = redirectHostOf(redirectUri);
-  if (host === 'loopback') return 'this computer (localhost)';
-  if (host.endsWith(':')) return `the ${host.slice(0, -1)} app on this computer`;
-  return host;
-}
-
-// The banner: { kind: 'verified' | 'local' | 'unverified', tone: 'ok' | 'warn',
-// lead, rest }. `client` is /oauth/client's answer.
-export function consentTrust(client, redirectUri) {
-  const name = client?.client_name || 'that app';
+// Which of the three banners applies: { kind: 'verified' | 'local' |
+// 'unverified', host, target }. `client` is /oauth/client's answer.
+export function consentKind(client, redirectUri) {
   const target = redirectHostOf(redirectUri);
-  if (target === 'loopback' || target.endsWith(':')) {
-    return {
-      kind: 'local', tone: 'warn', lead: 'Runs on this computer.',
-      rest: `Only continue if you just started this from ${name} yourself.`,
-    };
-  }
+  if (target === 'loopback' || target.endsWith(':')) return { kind: 'local', host: '', target };
   const host = client?.client_kind === 'metadata' ? String(client.client_host || '').toLowerCase() : '';
-  if (host && VERIFIED_HOSTS.includes(host)) {
-    return { kind: 'verified', tone: 'ok', lead: 'Verified app', rest: `· identified by ${host}` };
-  }
-  return {
-    kind: 'unverified', tone: 'warn', lead: 'Not verified.',
-    rest: host
-      ? `Its details come from ${host}. Only continue if you trust it.`
-      : `It registered itself. Only continue if you trust ${target}.`,
-  };
+  if (host && VERIFIED_HOSTS.includes(host)) return { kind: 'verified', host, target };
+  return { kind: 'unverified', host, target };
 }
 
 // The scopes a person can grant, in the order the chips show them.
-export const SCOPE_CHIPS = {
-  read: 'Read',
-  write: 'Create and change',
-  delete: 'Delete',
-};
+export const SCOPE_KEYS = ['read', 'write', 'delete'];
 
 // What the screen offers: the scopes asked for, and whether "Allow deleting"
 // is offered beside them. An app that asks to write but not to delete can
@@ -67,18 +44,9 @@ export const SCOPE_CHIPS = {
 // deleting implies writing. Unknown scopes are dropped, and an empty or
 // missing list means read and write (the client's default, DEFAULT_SCOPES).
 export function consentScopes(requested) {
-  const asked = (requested || []).filter((s) => s in SCOPE_CHIPS);
-  const shown = asked.length ? Object.keys(SCOPE_CHIPS).filter((s) => asked.includes(s)) : ['read', 'write'];
+  const asked = (requested || []).filter((s) => SCOPE_KEYS.includes(s));
+  const shown = asked.length ? SCOPE_KEYS.filter((s) => asked.includes(s)) : ['read', 'write'];
   if (!shown.includes('read')) shown.unshift('read');
   if (shown.includes('delete') && !shown.includes('write')) shown.splice(1, 0, 'write');
   return { shown, offerDelete: shown.includes('write') && !shown.includes('delete') };
-}
-
-// One sentence under the chips, for what will be granted.
-export function scopeSentence(granted) {
-  if (granted.includes('delete')) {
-    return 'It can see, change and delete. Deleted clusters go to the bin and can be restored.';
-  }
-  if (granted.includes('write')) return 'It can see and change your clusters. It can’t delete anything.';
-  return 'It can see your clusters. It can’t change or delete anything.';
 }

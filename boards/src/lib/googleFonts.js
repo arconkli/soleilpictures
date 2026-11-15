@@ -4,6 +4,7 @@
 
 export const GOOGLE_FONT_CATEGORIES = [
   {
+    id: 'sans', // never translated; the fallback switches on it
     label: 'Sans',
     fonts: [
       'Inter', 'Manrope', 'DM Sans', 'IBM Plex Sans', 'Plus Jakarta Sans',
@@ -13,6 +14,7 @@ export const GOOGLE_FONT_CATEGORIES = [
     ],
   },
   {
+    id: 'serif', // never translated; the fallback switches on it
     label: 'Serif',
     fonts: [
       'Playfair Display', 'Lora', 'Merriweather', 'EB Garamond',
@@ -24,6 +26,7 @@ export const GOOGLE_FONT_CATEGORIES = [
     ],
   },
   {
+    id: 'mono', // never translated; the fallback switches on it
     label: 'Mono',
     fonts: [
       'JetBrains Mono', 'IBM Plex Mono', 'Geist Mono', 'Fira Code',
@@ -32,6 +35,7 @@ export const GOOGLE_FONT_CATEGORIES = [
     ],
   },
   {
+    id: 'display', // never translated; the fallback switches on it
     label: 'Display',
     fonts: [
       'Bebas Neue', 'Anton', 'Archivo Black', 'Pacifico',
@@ -41,6 +45,7 @@ export const GOOGLE_FONT_CATEGORIES = [
     ],
   },
   {
+    id: 'hand', // never translated; the fallback switches on it
     label: 'Hand / Script',
     fonts: [
       'Kalam', 'Indie Flower', 'Patrick Hand', 'Shadows Into Light',
@@ -52,16 +57,16 @@ export const GOOGLE_FONT_CATEGORIES = [
 
 // Flat list for search.
 export const GOOGLE_FONT_LIST = GOOGLE_FONT_CATEGORIES.flatMap(cat =>
-  cat.fonts.map(name => ({ name, category: cat.label }))
+  cat.fonts.map(name => ({ name, category: cat.id }))
 );
 
 // Best-guess fallback per category so unloaded fonts still render readably.
 function fallbackFor(category) {
   switch (category) {
-    case 'Serif':         return 'Georgia, serif';
-    case 'Mono':          return 'ui-monospace, monospace';
-    case 'Display':
-    case 'Hand / Script': return 'Georgia, serif';
+    case 'serif':         return 'Georgia, serif';
+    case 'mono':          return 'ui-monospace, monospace';
+    case 'display':
+    case 'hand':          return 'Georgia, serif';
     default:              return 'system-ui, sans-serif';
   }
 }
@@ -152,15 +157,16 @@ export function preloadRecentGoogleFonts(recents) {
 export function combineAllFonts(builtIn = [], customFonts = []) {
   const out = [];
   for (const f of builtIn) {
-    out.push({ key: 'b:' + f.id, label: f.label || f.name, css: f.css, gfName: null });
+    // `stored` is the name a note keeps for the font, never translated; `label` is what the picker shows.
+    out.push({ key: 'b:' + f.id, label: f.label || f.name, stored: f.stored || f.label || f.name, css: f.css, gfName: null });
   }
   for (const cat of GOOGLE_FONT_CATEGORIES) {
     for (const name of cat.fonts) {
-      out.push({ key: 'g:' + name, label: name, css: googleFontCss(name, cat.label), gfName: name });
+      out.push({ key: 'g:' + name, label: name, stored: name, css: googleFontCss(name, cat.id), gfName: name });
     }
   }
   for (const f of customFonts) {
-    out.push({ key: 'c:' + f.id, label: f.name, css: f.css, gfName: f.source?.kind === 'google' ? (f.source.value || f.name) : null });
+    out.push({ key: 'c:' + f.id, label: f.name, stored: f.name, css: f.css, gfName: f.source?.kind === 'google' ? (f.source.value || f.name) : null });
   }
   // De-dupe by label (built-in Sans wins over a Google Sans of same name).
   const seen = new Set();

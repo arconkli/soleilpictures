@@ -72,7 +72,7 @@ test.describe('collab invite-link wiring', () => {
     // only navigates when the current surface isn't already a board).
     const app = read('src/App.jsx');
     const tree = read('src/components/SidebarBoardTree.jsx');
-    expect(tree).toMatch(/id: 'share', label: 'Share…', run: \(\) => onShareBoard\?\.\(board\.id\)/);
+    expect(tree).toMatch(/id: 'share', label: tr`Share…`, run: \(\) => onShareBoard\?\.\(board\.id\)/);
     expect(app).toContain('onShareBoard={openShareForBoard}');
     expect(app).toMatch(/openShareForBoard[\s\S]{0,500}boardId !== currentId \|\| currentSurface !== 'board'/);
     expect(app).toMatch(/openShareForBoard[\s\S]{0,500}setStack\(\[boardId\]\)/);

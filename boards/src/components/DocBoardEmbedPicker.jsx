@@ -3,6 +3,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 export function DocBoardEmbedPicker({ boards, onPick, onClose }) {
   const [q, setQ] = useState('');
@@ -35,18 +37,18 @@ export function DocBoardEmbedPicker({ boards, onPick, onClose }) {
       <div className="doc-embed-picker" ref={ref} onClick={(e) => e.stopPropagation()}>
         <div className="doc-tpl-head">
           <div>
-            <div className="doc-tpl-kicker">Embed cluster</div>
-            <div className="doc-tpl-title">Pick a cluster to link to</div>
+            <div className="doc-tpl-kicker"><Trans>Embed cluster</Trans></div>
+            <div className="doc-tpl-title"><Trans>Pick a cluster to link to</Trans></div>
           </div>
-          <button className="doc-tpl-x" onClick={onClose} aria-label="Close">×</button>
+          <button className="doc-tpl-x" onClick={onClose} aria-label={t`Close`}>×</button>
         </div>
         <input autoFocus
                className="doc-embed-search"
-               placeholder="Search clusters…"
+               placeholder={t`Search clusters…`}
                value={q}
                onChange={(e) => setQ(e.target.value)} />
         <div className="doc-embed-list">
-          {list.length === 0 && <div className="doc-embed-empty">No clusters match.</div>}
+          {list.length === 0 && <div className="doc-embed-empty"><Trans>No clusters match.</Trans></div>}
           {list.map(b => (
             <button key={b.id} className="doc-embed-row"
                     onClick={() => { onPick({ boardId: b.id, label: b.name }); onClose(); }}>
@@ -57,7 +59,7 @@ export function DocBoardEmbedPicker({ boards, onPick, onClose }) {
                 </svg>
               </span>
               <span className="doc-embed-row-name">{b.name}</span>
-              <span className="doc-embed-row-meta">{b.view === 'list' ? 'files' : 'board'}</span>
+              <span className="doc-embed-row-meta">{b.view === 'list' ? t`files` : t`board`}</span>
             </button>
           ))}
         </div>

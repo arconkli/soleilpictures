@@ -14,6 +14,7 @@
 // Events are counts only, never the address (analyticsEvents.js SIGNUP_BOX_*).
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import { supabase } from '../../lib/supabase.js';
+import { signupLocale } from '../../lib/uiLocale.js';
 import { getFirstSource, logEvent, logEventNow } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { emailProblem } from '../../lib/emailTypo.js';
@@ -61,13 +62,18 @@ async function send(pos, { resending = false, onFirstPress, captchaEl } = {}) {
   try {
     if (!supabase) throw new Error('Sign-in is unavailable right now.');
     const firstSource = signupFirstSource(getFirstSource());
+    const locale = signupLocale();
+    const signupData = {
+      ...(firstSource ? { first_source: firstSource } : {}),
+      ...(locale !== 'en' ? { locale } : {}),
+    };
     const challenge = captchaEnabled() ? await captchaToken(captchaEl) : '';
     const { error } = await supabase.auth.signInWithOtp({
       email: address,
       options: {
         emailRedirectTo: window.location.origin,
         ...(challenge ? { captchaToken: challenge } : {}),
-        ...(firstSource ? { data: { first_source: firstSource } } : {}),
+        ...(Object.keys(signupData).length ? { data: signupData } : {}),
       },
     });
     if (error) throw error;

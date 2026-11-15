@@ -11,6 +11,8 @@ import { useFeedback } from './AppFeedback.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { searchKey } from '../lib/textFold.js';
 import { initialOf } from '../lib/graphemes.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // 2-stage popover: pick people, then optionally name the group.
 //   workspaceId
@@ -94,7 +96,7 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
         const p = userProfiles.get(m.user_id);
         return {
           user_id: m.user_id,
-          name: p?.name || m.name || p?.email || m.email || 'Member',
+          name: p?.name || m.name || p?.email || m.email || t`Member`,
           email: p?.email || m.email || '',
           color: p?.color || m.color || pickPresenceColor(m.user_id),
         };
@@ -182,9 +184,9 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
     >
       <div className="msg-newconv-head">
         <span className="t-eyebrow">
-          {stage === 'pick' ? (picked.length >= 2 ? `NEW GROUP CHAT · ${picked.length}` : 'NEW CHAT') : 'NAME THIS GROUP'}
+          {stage === 'pick' ? (picked.length >= 2 ? t`NEW GROUP CHAT · ${ph({ count: picked.length })}` : t`NEW CHAT`) : t`NAME THIS GROUP`}
         </span>
-        <button className="msg-panel-icon" onClick={onClose} title="Close" aria-label="Close">
+        <button className="msg-panel-icon" onClick={onClose} title={t`Close`} aria-label={t`Close`}>
           <Icon as={X} size={12} />
         </button>
       </div>
@@ -197,7 +199,7 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
               ref={inputRef}
               className="msg-newconv-input"
               dir="auto"
-              placeholder="Find people…"
+              placeholder={t`Find people…`}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Enter' && picked.length > 0) { e.preventDefault(); handleContinue(); } }}
@@ -208,8 +210,8 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
               {picked.map(uid => {
                 const p = userProfiles.get(uid);
                 return (
-                  <button key={uid} className="msg-newconv-chip" onClick={() => togglePick(uid)} title="Remove">
-                    {p?.name || p?.email || 'Member'} ×
+                  <button key={uid} className="msg-newconv-chip" onClick={() => togglePick(uid)} title={t`Remove`}>
+                    {p?.name || p?.email || t`Member`} ×
                   </button>
                 );
               })}
@@ -218,17 +220,17 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
           <div className="msg-newconv-list">
             {totalVisible === 0 && (
               <div className="msg-empty t-meta">
-                {query.trim() ? 'No people match.' : 'No one to message yet. Share a board to start collaborating.'}
+                {query.trim() ? t`No people match.` : t`No one to message yet. Share a board to start collaborating.`}
               </div>
             )}
             {suggested.length > 0 && (
               <>
-                <div className="msg-newconv-sectionhead t-eyebrow">ON THIS BOARD</div>
+                <div className="msg-newconv-sectionhead t-eyebrow"><Trans>ON THIS BOARD</Trans></div>
                 {suggested.map(renderMemberRow)}
               </>
             )}
             {suggested.length > 0 && others.length > 0 && (
-              <div className="msg-newconv-sectionhead t-eyebrow">EVERYONE ELSE</div>
+              <div className="msg-newconv-sectionhead t-eyebrow"><Trans>EVERYONE ELSE</Trans></div>
             )}
             {others.map(renderMemberRow)}
           </div>
@@ -238,36 +240,36 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
               disabled={picked.length === 0 || busy}
               onClick={handleContinue}
             >
-              {picked.length <= 1 ? 'Start chat' : 'Next →'}
+              {picked.length <= 1 ? t`Start chat` : t`Next →`}
             </button>
           </div>
         </>
       ) : (
         <>
           <div className="msg-newconv-name-body">
-            <label className="t-eyebrow">TITLE (OPTIONAL)</label>
+            <label className="t-eyebrow"><Trans>TITLE (OPTIONAL)</Trans></label>
             <input
               ref={inputRef}
               className="msg-newconv-input"
               dir="auto"
-              placeholder="Leave blank to use member names"
+              placeholder={t`Leave blank to use member names`}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Enter') { e.preventDefault(); handleCreateGroup(); } }}
               maxLength={80}
             />
             <div className="msg-newconv-members t-meta">
-              {picked.map(uid => userProfiles.get(uid)?.name || userProfiles.get(uid)?.email || 'Member').join(', ')}
+              {picked.map(uid => userProfiles.get(uid)?.name || userProfiles.get(uid)?.email || t`Member`).join(', ')}
             </div>
           </div>
           <div className="msg-newconv-foot">
-            <button className="msg-newconv-btn" onClick={() => setStage('pick')}>← Back</button>
+            <button className="msg-newconv-btn" onClick={() => setStage('pick')}><Trans>← Back</Trans></button>
             <button
               className="msg-newconv-btn primary"
               disabled={busy}
               onClick={handleCreateGroup}
             >
-              Create
+              <Trans>Create</Trans>
             </button>
           </div>
         </>

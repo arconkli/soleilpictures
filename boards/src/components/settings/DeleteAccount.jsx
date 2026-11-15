@@ -12,39 +12,49 @@
 import { useState } from 'react';
 import { getDeletionImpact, deleteOwnAccount, signOutAfterDeletion, submitDeletionReason } from '../../lib/deleteAccount.js';
 import { useFeedback } from '../AppFeedback.jsx';
+import { t, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { rich } from '../../lib/richParts.js';
+import { shownError } from '../../lib/errorWords.js';
+import { uiLocale } from '../../lib/uiLocale.js';
+import { formatList } from '../../lib/intlFormat.js';
+
+// A message with **bold** runs, drawn as bold.
+const Bold = ({ text }) => rich(text).map((p, i) => (typeof p === 'string' ? p : <b key={i}>{p.b}</b>));
 
 function Impact({ data }) {
   if (!data) return null;
   const gone = data.workspaces_deleted || [];
   const moved = data.workspaces_transferred || [];
+  // English joins with ', ' exactly as before; other languages get "a, b and c".
+  const names = uiLocale() === 'en' ? gone.map((w) => w.name).join(', ') : formatList(gone.map((w) => w.name));
+  const clustersLine = t`${plural(data.clusters_deleted, { one: `**# cluster** in ${names} — deleted, with everything on them.`, other: `**# clusters** in ${names} — deleted, with everything on them.` })}`;
+  const membershipsLine = t`${plural(data.memberships_dropped, { one: 'You leave **#** workspace you were a member of. Nothing there is lost.', other: 'You leave **#** workspaces you were a member of. Nothing there is lost.' })}`;
   return (
     <ul className="settings-danger-list">
       {gone.length > 0 && (
         <li>
-          <b>{data.clusters_deleted} cluster{data.clusters_deleted === 1 ? '' : 's'}</b>
-          {' '}in {gone.map((w) => w.name).join(', ')} — deleted, with everything on them.
+          <Bold text={clustersLine} />
         </li>
       )}
       {/* Named, because "your workspaces will be transferred" is the sort of
           sentence people agree to and then dispute afterwards. */}
       {moved.map((w) => (
         <li key={w.id}>
-          <b>{w.name}</b> has other people in it, so it stays and
-          {' '}<b>{w.to_name}</b> becomes its owner.
+          <Trans><b>{ph({ name: w.name })}</b> has other people in it, so it stays and <b>{ph({ to_name: w.to_name })}</b> becomes its owner.</Trans>
         </li>
       ))}
       {data.memberships_dropped > 0 && (
         <li>
-          You leave <b>{data.memberships_dropped}</b> workspace
-          {data.memberships_dropped === 1 ? '' : 's'} you were a member of. Nothing there is lost.
+          <Bold text={membershipsLine} />
         </li>
       )}
       {data.subscription_active && (
-        <li>Your subscription is <b>canceled</b> — no further charges.</li>
+        <li><Trans>Your subscription is <b>canceled</b> — no further charges.</Trans></li>
       )}
       <li>
-        Comments, tags and votes you left on other people's clusters stay where
-        they are, with your name removed.
+        <Trans>Comments, tags and votes you left on other people's clusters stay where
+        they are, with your name removed.</Trans>
       </li>
     </ul>
   );
@@ -68,7 +78,7 @@ export function DeleteAccount({ email, onSignOut }) {
     try {
       setImpact(await getDeletionImpact());
     } catch (_) {
-      feedback.toast({ type: 'error', code: 'account_impact_failed', message: 'Could not work out what deleting would affect. Try again in a moment.' });
+      feedback.toast({ type: 'error', code: 'account_impact_failed', message: t`Could not work out what deleting would affect. Try again in a moment.` });
       setOpen(false);
     } finally {
       setLoading(false);
@@ -80,9 +90,9 @@ export function DeleteAccount({ email, onSignOut }) {
   const run = async () => {
     if (!matches || busy) return;
     const ok = await feedback.confirm({
-      title: 'Delete your account?',
-      message: 'This removes your account and everything only you can see. It cannot be undone, and support cannot restore it.',
-      confirmLabel: 'Delete permanently',
+      title: t`Delete your account?`,
+      message: t`This removes your account and everything only you can see. It cannot be undone, and support cannot restore it.`,
+      confirmLabel: t`Delete permanently`,
       danger: true,
     });
     if (!ok) return;
@@ -95,7 +105,7 @@ export function DeleteAccount({ email, onSignOut }) {
       await deleteOwnAccount({ confirmEmail: typed.trim() });
       await signOutAfterDeletion();
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'account_delete_failed', message: err.message || 'Could not delete your account.' });
+      feedback.toast({ type: 'error', code: 'account_delete_failed', message: shownError(err, t`Could not delete your account.`) });
       setBusy(false);
     }
   };
@@ -104,7 +114,7 @@ export function DeleteAccount({ email, onSignOut }) {
     return (
       <div className="settings-row-actions" style={{ marginTop: 18 }}>
         <button type="button" className="settings-link-btn settings-danger-link"
-                onClick={expand}>Delete account…</button>
+                onClick={expand}><Trans>Delete account…</Trans></button>
         <span style={{ flex: 1 }} />
       </div>
     );
@@ -112,32 +122,32 @@ export function DeleteAccount({ email, onSignOut }) {
 
   return (
     <div className="settings-callout settings-callout-danger">
-      <div className="settings-callout-title">Delete your account</div>
+      <div className="settings-callout-title"><Trans>Delete your account</Trans></div>
       {onSignOut && (
         <div className="settings-switch">
-          <span>Only want to use a different email? Sign out instead: nothing is deleted, and you can sign in with the other one.</span>
+          <span><Trans>Only want to use a different email? Sign out instead: nothing is deleted, and you can sign in with the other one.</Trans></span>
           <button type="button" className="settings-btn" disabled={busy}
-                  onClick={onSignOut}>Sign out</button>
+                  onClick={onSignOut}><Trans>Sign out</Trans></button>
         </div>
       )}
       {loading ? (
-        <p>Working out what this would affect…</p>
+        <p><Trans>Working out what this would affect…</Trans></p>
       ) : (
         <>
-          <p>Here is what happens to this account, right now:</p>
+          <p><Trans>Here is what happens to this account, right now:</Trans></p>
           <Impact data={impact} />
           <label className="settings-field" style={{ display: 'block', marginTop: 8 }}>
             <span className="settings-field-label">
-              Anything you want us to know? <span style={{ opacity: 0.6 }}>(optional)</span>
+              <Trans>Anything you want us to know? <span style={{ opacity: 0.6 }}>(optional)</span></Trans>
             </span>
             <textarea className="auth-input" rows={2} maxLength={500}
-                      placeholder="Why you're leaving, what didn't work, what you use instead."
+                      placeholder={t`Why you're leaving, what didn't work, what you use instead.`}
                       value={reason} disabled={busy}
                       onChange={(e) => setReason(e.target.value)} />
           </label>
           <p>
-            There is no undo and no grace period. To confirm, type
-            {' '}<b>{email}</b> below.
+            <Trans>There is no undo and no grace period. To confirm, type
+            {' '}<b>{email}</b> below.</Trans>
           </p>
           <div className="api-token-row" style={{ marginTop: 8 }}>
             <input className="auth-input"
@@ -145,18 +155,18 @@ export function DeleteAccount({ email, onSignOut }) {
                    autoComplete="off"
                    spellCheck={false}
                    placeholder={email}
-                   aria-label="Type your email address to confirm"
+                   aria-label={t`Type your email address to confirm`}
                    value={typed}
                    disabled={busy}
                    onChange={(e) => setTyped(e.target.value)} />
             <button type="button" className="settings-btn settings-btn-danger"
                     disabled={!matches || busy}
                     onClick={run}>
-              {busy ? 'Deleting…' : 'Delete my account'}
+              {busy ? t`Deleting…` : t`Delete my account`}
             </button>
             <button type="button" className="settings-btn"
                     disabled={busy}
-                    onClick={() => { setOpen(false); setTyped(''); }}>Cancel</button>
+                    onClick={() => { setOpen(false); setTyped(''); }}><Trans>Cancel</Trans></button>
           </div>
         </>
       )}

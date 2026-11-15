@@ -11,9 +11,20 @@ import {
 import { uploadVersion, canBeVersionOf, versionKindOf } from './versionUpload.js';
 import { undoToast } from './undoToast.js';
 import { startBatch, addTransfer, updateTransfer, removeTransfer, trayMounted } from './activity.js';
+import { t, ph } from '@lingui/core/macro';
 
-const KIND_WORD = { image: 'an image', video: 'a video', audio: 'an audio file', pdf: 'a PDF', file: 'a file' };
-const nameOf = (c) => c?.title || c?.fileName || c?.name || 'this file';
+// Read at call time (R2): a table of t`` would freeze the English at load.
+function kindWord(kind) {
+  switch (kind) {
+    case 'image': return t`an image`;
+    case 'video': return t`a video`;
+    case 'audio': return t`an audio file`;
+    case 'pdf': return t`a PDF`;
+    case 'file': return t`a file`;
+    default: return undefined;
+  }
+}
+const nameOf = (c) => c?.title || c?.fileName || c?.name || t`this file`;
 
 function topStack(mutators) {
   const um = mutators?.undoManager;
@@ -29,12 +40,16 @@ function commit(mutators, cardId, patch) {
 }
 
 export function versionRefusal(card, file, opts) {
-  if (!canVersion(card)) return 'This card can’t have versions.';
+  if (!canVersion(card)) return t`This card can’t have versions.`;
   if (!canBeVersionOf(card, file, opts)) {
     const k = versionKindOf(file, opts);
-    return `A new version of ${KIND_WORD[card.kind] || 'this'} has to be ${KIND_WORD[card.kind] || 'the same kind'} too${k ? ` — that’s ${KIND_WORD[k]}` : ''}.`;
+    const subject = kindWord(card.kind) || t`this`;
+    const needed = kindWord(card.kind) || t`the same kind`;
+    return k
+      ? t`A new version of ${subject} has to be ${needed} too — that’s ${ph({ got: kindWord(k) })}.`
+      : t`A new version of ${subject} has to be ${needed} too.`;
   }
-  if (liveVersions(card).length >= VERSION_LIMIT) return `A file keeps up to ${VERSION_LIMIT} versions — delete an old one first.`;
+  if (liveVersions(card).length >= VERSION_LIMIT) return t`A file keeps up to ${VERSION_LIMIT} versions — delete an old one first.`;
   return null;
 }
 
@@ -65,17 +80,17 @@ export async function addVersionFromFile(env, cardId, file) {
     });
     // With a tray, the failed row and the card's own strip already say so
     // (with Retry); the toast is for a surface that has neither.
-    if (!trayMounted()) feedback?.toast?.({ type: 'error', code: 'version_upload_failed', message: `Couldn’t upload the new version: ${err?.message || err}` });
+    if (!trayMounted()) feedback?.toast?.({ type: 'error', code: 'version_upload_failed', message: t`Couldn’t upload the new version: ${ph({ value: err?.message || err })}` });
     return null;
   }
   // The card as it is NOW — it may have changed while the file uploaded.
   const live = getCard(cardId);
-  if (!live) { removeTransfer(tid); feedback?.toast?.({ type: 'error', code: 'version_card_deleted', message: 'The card was deleted while its new version uploaded.' }); return null; }
+  if (!live) { removeTransfer(tid); feedback?.toast?.({ type: 'error', code: 'version_card_deleted', message: t`The card was deleted while its new version uploaded.` }); return null; }
   const { _top, ...entryFields } = fields;
   const pruned = pruneDeletedPatch(live);
   const base = pruned ? { ...live, ...pruned } : live;
   const r = addVersionPatch(base, entryFields, { by: userId || null });
-  if (!r) { removeTransfer(tid); feedback?.toast?.({ type: 'error', code: 'version_add_failed', message: versionRefusal(live, file, ctx) || 'Couldn’t add the version.' }); return null; }
+  if (!r) { removeTransfer(tid); feedback?.toast?.({ type: 'error', code: 'version_add_failed', message: versionRefusal(live, file, ctx) || t`Couldn’t add the version.` }); return null; }
   const patch = { ...r.patch, ...(_top || {}) };
   const step = commit(mutators, cardId, patch);
   updateTransfer(tid, { state: 'done' });
@@ -83,17 +98,17 @@ export async function addVersionFromFile(env, cardId, file) {
   const stillTop = () => !um || !step || topStack(mutators) === step;
   feedback?.toast?.({
     type: 'success',
-    message: `Added ${versionLabel(r.entry)} of “${nameOf(live)}”`,
+    message: t`Added ${ph({ versionLabel: versionLabel(r.entry) })} of “${ph({ nameOf: nameOf(live) })}”`,
     ttl: 8000,
     actions: [
-      { label: 'Undo', onClick: () => {
-        if (!stillTop()) { feedback.toast({ type: 'info', message: 'The board changed since — press ⌘Z to step back instead.' }); return; }
+      { label: t`Undo`, onClick: () => {
+        if (!stillTop()) { feedback.toast({ type: 'info', message: t`The board changed since — press ⌘Z to step back instead.` }); return; }
         mutators.undo?.();
       } },
       // Meant it as a file of its own: take the version back off, and add it
       // as a card beside this one.
-      { label: 'Keep as separate file', onClick: () => {
-        if (!stillTop()) { feedback.toast({ type: 'info', message: 'The board changed since — press ⌘Z, then drop it again.' }); return; }
+      { label: t`Keep as separate file`, onClick: () => {
+        if (!stillTop()) { feedback.toast({ type: 'info', message: t`The board changed since — press ⌘Z, then drop it again.` }); return; }
         mutators.undo?.();
         const now = getCard(cardId) || live;
         const id = `${live.kind.slice(0, 3)}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
@@ -113,7 +128,7 @@ export function makeCurrent(env, cardId, versionId) {
   if (!patch) return;
   const step = commit(mutators, cardId, patch);
   const v = liveVersions({ ...card, ...patch }).find((x) => x.id === versionId);
-  undoToast(feedback, { message: `Showing ${versionLabel(v)} of “${nameOf(card)}”`, undoManager: mutators.undoManager, stackItem: step, onUndo: () => mutators.undo?.() });
+  undoToast(feedback, { message: t`Showing ${ph({ versionLabel: versionLabel(v) })} of “${ph({ nameOf: nameOf(card) })}”`, undoManager: mutators.undoManager, stackItem: step, onUndo: () => mutators.undo?.() });
 }
 
 export function deleteVersion(env, cardId, versionId) {
@@ -121,10 +136,10 @@ export function deleteVersion(env, cardId, versionId) {
   const card = getCard(cardId);
   const v = liveVersions(card).find((x) => x.id === versionId);
   const patch = card && deleteVersionPatch(card, versionId);
-  if (!patch) { feedback?.toast?.({ type: 'error', code: 'version_keep_one', message: 'A file keeps at least one version.' }); return; }
+  if (!patch) { feedback?.toast?.({ type: 'error', code: 'version_keep_one', message: t`A file keeps at least one version.` }); return; }
   const step = commit(mutators, cardId, patch);
   undoToast(feedback, {
-    message: `Deleted ${versionLabel(v)} — it’s under Recently deleted in Info for 30 days`,
+    message: t`Deleted ${ph({ versionLabel: versionLabel(v) })} — it’s under Recently deleted in Info for 30 days`,
     undoManager: mutators.undoManager, stackItem: step, onUndo: () => mutators.undo?.(),
   });
 }
@@ -141,7 +156,7 @@ export async function labelVersion(env, cardId, versionId) {
   const card = getCard(cardId);
   const v = liveVersions(card).find((x) => x.id === versionId);
   if (!v) return;
-  const label = await feedback?.prompt?.({ title: `Label ${versionLabel(v)}`, label: 'Label', defaultValue: v.label || '', placeholder: 'Picture lock, Director’s cut…', confirmLabel: 'Save' });
+  const label = await feedback?.prompt?.({ title: t`Label ${ph({ versionLabel: versionLabel(v) })}`, label: t`Label`, defaultValue: v.label || '', placeholder: t`Picture lock, Director’s cut…`, confirmLabel: t`Save` });
   if (label == null) return;
   const patch = labelVersionPatch(getCard(cardId), versionId, label);
   if (patch) commit(mutators, cardId, patch);

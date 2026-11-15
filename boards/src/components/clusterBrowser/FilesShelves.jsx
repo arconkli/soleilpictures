@@ -9,9 +9,11 @@
 import { useRef } from 'react';
 import { Icon } from '../Icon.jsx';
 import { ChevronRight } from '../../lib/icons.js';
+import { uiLocale } from '../../lib/uiLocale.js';
 import { TILE_SIZES, DEFAULT_TILE_SIZE } from '../../lib/justifiedGrid.js';
 import { JustifiedGallery } from './JustifiedGallery.jsx';
 import { ClusterTable } from './ClusterTable.jsx';
+import { t, ph } from '@lingui/core/macro';
 
 // A shelf's heading, as the card's (ClusterShelves.jsx): its name and count,
 // and a caret when it opens and closes.
@@ -20,7 +22,7 @@ export function FilesShelfHead({ id, label, count, closed = false, foldable = fa
     <div className={`sbf-shelf fp-shelf${closed ? ' is-closed' : ''}${first ? ' is-first' : ''}`} data-shelf={id}>
       {foldable ? (
         <button type="button" className="sbf-shelf-toggle" aria-expanded={!closed}
-                title={`${closed ? 'Show' : 'Hide'} ${label.toLowerCase()}`} onClick={onToggle}>
+                title={closed ? t`Show ${ph({ shelf: label.toLocaleLowerCase(uiLocale()) })}` : t`Hide ${ph({ shelf: label.toLocaleLowerCase(uiLocale()) })}`} onClick={onToggle}>
           <span className="sbf-shelf-label">{label}</span>
           <span className="sbf-shelf-count">{count}</span>
           <span className="sbf-shelf-caret" aria-hidden="true"><Icon as={ChevronRight} size={10} weight="regular" /></span>
@@ -63,7 +65,7 @@ export function FilesShelves({
     <>
       {folders && folders.count > 0 && (
         <>
-          {head({ id: 'clusters', label: 'Clusters', count: folders.count })}
+          {head({ id: 'clusters', label: t`Clusters`, count: folders.count })}
           <div className="fp-cls">{folders.nodes}</div>
         </>
       )}

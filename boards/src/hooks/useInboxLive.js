@@ -18,6 +18,7 @@ import { publishNotification } from '../lib/notificationBus.js';
 import { maybeShowNotification } from '../lib/browserNotifications.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { isWatchingConversation } from '../lib/threadAttention.js';
+import { t } from '@lingui/core/macro';
 
 // openConversationId is no longer read: App's copy outlives the panel (it is
 // not cleared on close), so it said "watching" when nobody was (COMMS-03).
@@ -47,13 +48,13 @@ export function useInboxLive({ userId, onOpenConversation, feedback }) {
 
       // Warm the profile cache so the name renders on the next paint.
       try { userProfiles.resolve(payload.sender_id); } catch (_) {}
-      const senderName = userProfiles.getName(payload.sender_id, payload.sender_email || 'New message');
+      const senderName = userProfiles.getName(payload.sender_id, payload.sender_email || t`New message`);
       const mentionsMe = Array.isArray(payload.mentions) && payload.mentions.includes(userId);
       const preview = payload.body_preview
-        || (payload.has_attachments ? 'Attachment' : '');
+        || (payload.has_attachments ? t`Attachment` : '');
       const message = mentionsMe
-        ? `${senderName} mentioned you${preview ? `: ${preview}` : ''}`
-        : (preview ? `${senderName}: ${preview}` : senderName);
+        ? (preview ? t`${senderName} mentioned you: ${preview}` : t`${senderName} mentioned you`)
+        : (preview ? t`${senderName}: ${preview}` : senderName);
 
       const openIt = () => {
         try { onOpenRef.current?.(payload.conversation_id); } catch (e) { console.warn('[inbox-live] open threw', e); }
@@ -64,12 +65,12 @@ export function useInboxLive({ userId, onOpenConversation, feedback }) {
           type: mentionsMe ? 'info' : 'info',
           message,
           ttl: 6000,
-          action: { label: 'Open', onClick: openIt },
+          action: { label: t`Open`, onClick: openIt },
         });
       } catch (e) { console.warn('[inbox-live] toast failed', e); }
 
       maybeShowNotification({
-        title: mentionsMe ? `${senderName} mentioned you` : senderName,
+        title: mentionsMe ? t`${senderName} mentioned you` : senderName,
         body: preview,
         tag: payload.conversation_id,
         onClick: openIt,

@@ -5,11 +5,14 @@
 import { useEffect, useRef } from 'react';
 import * as modalGuard from '../../lib/modalGuard.js';
 import { pushFilmLayer } from '../../lib/filmLayers.js';
-import { PLAYER_KEYS } from '../../lib/playerKeys.js';
+import { PLAYER_KEYS, playerKeyGroupLabel } from '../../lib/playerKeys.js';
 import { Icon } from '../Icon.jsx';
 import { X } from '../../lib/icons.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
+// The group ids match playerKeys.js; what a person reads is the name below.
 const GROUPS = ['Transport', 'Marking', 'View', 'Review'];
 
 export function ShortcutSheet({ onClose }) {
@@ -39,17 +42,17 @@ export function ShortcutSheet({ onClose }) {
   const rows = PLAYER_KEYS.filter((r) => !r.future);
   return (
     <div className="film-sheet-scrim" onPointerDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
-      <div ref={ref} className="film-sheet" role="dialog" aria-label="Player shortcuts" tabIndex={-1}>
+      <div ref={ref} className="film-sheet" role="dialog" aria-label={t`Player shortcuts`} tabIndex={-1}>
         <div className="film-sheet-head">
-          <span>Shortcuts</span>
-          <button type="button" className="film-btn" onClick={onClose} aria-label="Close shortcuts">
+          <span><Trans>Shortcuts</Trans></span>
+          <button type="button" className="film-btn" onClick={onClose} aria-label={t`Close shortcuts`}>
             <Icon as={X} size={16} weight="regular" />
           </button>
         </div>
         <div className="film-sheet-cols">
           {GROUPS.map((g) => (
             <section key={g} className="film-sheet-group">
-              <h3>{g}</h3>
+              <h3>{playerKeyGroupLabel(g)}</h3>
               {rows.filter((r) => r.group === g).map((r) => (
                 <div key={r.label} className="film-sheet-row">
                   <span className="film-sheet-keys">{r.keys.map((k) => <kbd key={k}>{k}</kbd>)}</span>

@@ -524,7 +524,7 @@ body.sbf-sizing .app,
   padding: 2px; border-radius: 9px; background: var(--sbf-track);
 }
 .sbf-tab {
-  position: relative; flex: 1 1 auto; min-width: 0; height: 26px; padding: 0 8px;
+  position: relative; flex: 1 1 auto; min-width: 0; height: 26px; padding: 0 6px;
   border: 0; border-radius: 7px; background: transparent; cursor: pointer;
   color: var(--ink-2); font: 600 12px/1 var(--font-sans); white-space: nowrap; text-align: center;
   transition: color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);

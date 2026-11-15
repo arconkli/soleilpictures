@@ -12,8 +12,12 @@
 // App.jsx) — who put it in THIS cluster. When they're the same person a moment
 // apart, Info says it once.
 
-import { TYPE_LABELS, noteParts } from './listItem.js';
+import { noteParts } from './listItem.js';
+import { listItemWords } from './listItemWords.js';
 import { formatLabel, formatKey } from './loopMeta.js';
+import { t as tr, plural, ph } from '@lingui/core/macro';
+import { formatDate, formatList, formatNumber, sizeText } from './intlFormat.js';
+import { uiLocale } from './uiLocale.js';
 
 // The kinds whose card holds a stored file, and the field that holds its key.
 export const FILE_FIELD = { image: 'src', video: 'src', audio: 'src', pdf: 'pdfSrc', file: 'fileSrc' };
@@ -30,12 +34,42 @@ export function fileKeyOf(card) {
   return s.startsWith('r2:') ? s.slice(3) : '';
 }
 
+const SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'];
+const SIZE_INTL = ['byte', 'kilobyte', 'megabyte', 'gigabyte', 'terabyte'];
+
+// A byte count as the number formatSize shows and the unit it shows it in.
+function sizeParts(bytes) {
+  let n = Number(bytes), i = 0;
+  while (n >= 1024 && i < SIZE_UNITS.length - 1) { n /= 1024; i++; }
+  const whole = n >= 10 || i === 0;
+  return { shown: whole ? String(Math.round(n)) : n.toFixed(1), i, digits: whole ? 0 : 1 };
+}
+
 export function formatSize(bytes) {
   if (bytes == null || !Number.isFinite(Number(bytes))) return '';
-  const u = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let n = Number(bytes), i = 0;
-  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
-  return `${n >= 10 || i === 0 ? Math.round(n) : n.toFixed(1)} ${u[i]}`;
+  const { shown, i, digits } = sizeParts(bytes);
+  return sizeText(`${shown} ${SIZE_UNITS[i]}`, Number(shown), SIZE_INTL[i], digits);
+}
+
+// "8 of 19 MB": the unit once when both sides share it, each side's own unit
+// otherwise ("500 KB of 19 MB"). A trailing ".0" drops ("1 of 3.4 MB"). Built
+// from the byte counts, so every language says it in one message.
+export function sizeProgress(sent, total) {
+  const ok = (b) => b != null && Number.isFinite(Number(b));
+  const fmt = (b) => {
+    if (!ok(b)) return '';
+    const { shown, i, digits } = sizeParts(b);
+    const clean = shown.replace(/\.0$/, '');
+    return sizeText(`${clean} ${SIZE_UNITS[i]}`, Number(shown), SIZE_INTL[i], clean === shown ? digits : 0);
+  };
+  const a = sizeParts(sent);
+  const b = sizeParts(total);
+  if (ok(sent) && ok(total) && a.i === b.i) {
+    const clean = a.shown.replace(/\.0$/, '');
+    const done = uiLocale() === 'en' ? clean : formatNumber(Number(a.shown), { minimumFractionDigits: clean === a.shown ? a.digits : 0, maximumFractionDigits: clean === a.shown ? a.digits : 0 });
+    return tr`${ph({ done })} of ${ph({ total: fmt(total) })}`;
+  }
+  return tr`${ph({ done: fmt(sent) })} of ${ph({ total: fmt(total) })}`;
 }
 
 // 0:07 · 4:05 · 1:02:03 — a length, not a clock, so no leading zero hours.
@@ -74,11 +108,11 @@ export function codecName(fourcc) {
 
 function channelsLabel(n) {
   if (!Number.isFinite(n) || n <= 0) return '';
-  if (n === 1) return 'Mono';
-  if (n === 2) return 'Stereo';
+  if (n === 1) return tr`Mono`;
+  if (n === 2) return tr`Stereo`;
   if (n === 6) return '5.1';
   if (n === 8) return '7.1';
-  return `${n} channels`;
+  return tr`${ph({ n })} channels`;
 }
 
 function rateLabel(hz) {
@@ -101,16 +135,31 @@ function wordCount(text) {
   return t ? t.split(/\s+/).length : 0;
 }
 
-const PLURALS = {
-  image: ['image', 'images'], video: ['video', 'videos'], audio: ['audio file', 'audio files'],
-  pdf: ['PDF', 'PDFs'], file: ['file', 'files'], note: ['note', 'notes'], link: ['link', 'links'],
-  doc: ['doc', 'docs'], palette: ['palette', 'palettes'], schedule: ['schedule', 'schedules'],
-  shape: ['shape', 'shapes'], grid: ['grid', 'grids'], board: ['cluster', 'clusters'],
-  boardlink: ['linked cluster', 'linked clusters'],
-};
+// "8 images", "1 note", "3 audio files": one whole message per kind.
 function countLabel(kind, n) {
-  const [one, many] = PLURALS[kind] || [String(kind || 'item'), `${kind || 'item'}s`];
-  return `${n} ${n === 1 ? one : many}`;
+  switch (kind) {
+    case 'image': return plural(n, { one: '# image', other: '# images' });
+    case 'video': return plural(n, { one: '# video', other: '# videos' });
+    case 'audio': return plural(n, { one: '# audio file', other: '# audio files' });
+    case 'pdf': return plural(n, { one: '# PDF', other: '# PDFs' });
+    case 'file': return plural(n, { one: '# file', other: '# files' });
+    case 'note': return plural(n, { one: '# note', other: '# notes' });
+    case 'link': return plural(n, { one: '# link', other: '# links' });
+    case 'doc': return plural(n, { one: '# doc', other: '# docs' });
+    case 'palette': return plural(n, { one: '# palette', other: '# palettes' });
+    case 'schedule': return plural(n, { one: '# schedule', other: '# schedules' });
+    case 'shape': return plural(n, { one: '# shape', other: '# shapes' });
+    case 'grid': return plural(n, { one: '# grid', other: '# grids' });
+    case 'board': return plural(n, { one: '# cluster', other: '# clusters' });
+    case 'boardlink': return plural(n, { one: '# linked cluster', other: '# linked clusters' });
+    case 'shortcut': return plural(n, { one: '# shortcut', other: '# shortcuts' });
+    case 'list': return plural(n, { one: '# list', other: '# lists' });
+    default: {
+      // A kind this list doesn't know: its own id, as it always was.
+      const word = String(kind || 'item');
+      return `${n} ${n === 1 ? word : `${kind || 'item'}s`}`;
+    }
+  }
 }
 
 // "8 images, 3 videos, 1 note" — most common first, then by kind name.
@@ -120,10 +169,10 @@ export function kindBreakdown(cards) {
     if (!c) continue;
     counts.set(c.kind, (counts.get(c.kind) || 0) + 1);
   }
-  return [...counts.entries()]
+  const parts = [...counts.entries()]
     .sort((a, b) => (b[1] - a[1]) || String(a[0]).localeCompare(String(b[0])))
-    .map(([k, n]) => countLabel(k, n))
-    .join(', ');
+    .map(([k, n]) => countLabel(k, n));
+  return formatList(parts, { type: 'conjunction', style: 'narrow' });
 }
 
 // The byte size of one card's file: the card's own sizeBytes, then its
@@ -139,11 +188,11 @@ export function sizeOf(card, getMeta = null) {
 }
 
 function kindLabelOf(card) {
-  if (!card) return 'Item';
-  if (card.kind === 'board') return 'Cluster';
-  if (card.kind === 'boardlink') return 'Linked cluster';
-  if (card.kind === 'doc') return 'Document';
-  return TYPE_LABELS[card.kind] || (card.kind ? card.kind[0].toUpperCase() + card.kind.slice(1) : 'Item');
+  if (!card) return tr`Item`;
+  if (card.kind === 'board') return tr`Cluster`;
+  if (card.kind === 'boardlink') return tr`Linked cluster`;
+  if (card.kind === 'doc') return tr`Document`;
+  return listItemWords.typeLabel(card.kind) || (card.kind ? card.kind[0].toUpperCase() + card.kind.slice(1) : tr`Item`);
 }
 
 function formatOf(card) {
@@ -162,9 +211,13 @@ function sameMoment(a, b, ms = 120000) {
   return Number.isFinite(ta) && Number.isFinite(tb) && Math.abs(ta - tb) <= ms;
 }
 
-function pushRow(rows, k, v, title) {
+// `id` is the row's never-translated name, for a reader that picks a row out
+// ('kind', 'size'); `k` is the label that is shown.
+function pushRow(rows, k, v, title, id) {
   if (v == null || v === '' || v === false) return;
-  rows.push(title ? { k, v: String(v), title } : { k, v: String(v) });
+  const row = title ? { k, v: String(v), title } : { k, v: String(v) };
+  if (id) row.id = id;
+  rows.push(row);
 }
 
 // ── One card ───────────────────────────────────────────────────────────────
@@ -172,7 +225,7 @@ function pushRow(rows, k, v, title) {
 //   opts.boards        → board map, for cluster names
 //   opts.gridTemplates → for a linked grid's template name
 export function describeCard(card, { getMeta = null, boards = {}, gridTemplates = {} } = {}) {
-  if (!card) return { kindLabel: 'Item', format: '', details: [], people: [] };
+  if (!card) return { kindLabel: tr`Item`, format: '', details: [], people: [] };
   const kind = card.kind;
   const key = fileKeyOf(card);
   const meta = key && getMeta ? getMeta(key) : null;
@@ -181,93 +234,93 @@ export function describeCard(card, { getMeta = null, boards = {}, gridTemplates 
   const format = formatOf(card);
   const details = [];
 
-  pushRow(details, 'Kind', format && format !== kindLabel ? `${kindLabel} · ${format}` : kindLabel);
+  pushRow(details, tr`Kind`, format && format !== kindLabel ? `${kindLabel} · ${format}` : kindLabel, undefined, 'kind');
 
   // The file's own name, when the card shows a different one (a title, a
   // rename) — the name it was uploaded with is what someone searches for.
   const fileName = card.fileName || meta?.originalName || '';
-  if (isFileCard(card) && fileName) pushRow(details, 'File name', fileName);
+  if (isFileCard(card) && fileName) pushRow(details, tr`File name`, fileName);
 
   switch (kind) {
     case 'image':
-      pushRow(details, 'Dimensions', dims(media?.w ?? meta?.w, media?.h ?? meta?.h));
+      pushRow(details, tr`Dimensions`, dims(media?.w ?? meta?.w, media?.h ?? meta?.h));
       break;
     case 'video': {
-      pushRow(details, 'Resolution', dims(media?.w ?? meta?.w, media?.h ?? meta?.h));
+      pushRow(details, tr`Resolution`, dims(media?.w ?? meta?.w, media?.h ?? meta?.h));
       const dur = media?.dur ?? (Number.isFinite(card.duration) ? card.duration : null);
-      pushRow(details, 'Duration', formatLength(dur));
-      pushRow(details, 'Frame rate', media?.fps ? `${formatFps(media.fps)}${media.vfr ? ' (variable)' : ''}` : '');
-      pushRow(details, 'Codec', [codecName(media?.codec), media?.prof].filter(Boolean).join(' · '));
-      if (media?.tc?.start) pushRow(details, 'Start timecode', media.tc.start);
+      pushRow(details, tr({ message: 'Duration', context: 'media' }), formatLength(dur));
+      pushRow(details, tr`Frame rate`, media?.fps ? (media.vfr ? tr`${ph({ fps: formatFps(media.fps) })} (variable)` : formatFps(media.fps)) : '');
+      pushRow(details, tr`Codec`, [codecName(media?.codec), media?.prof].filter(Boolean).join(' · '));
+      if (media?.tc?.start) pushRow(details, tr`Start timecode`, media.tc.start);
       if (media?.audio) {
-        pushRow(details, 'Audio', [codecName(media.audio.codec), rateLabel(media.audio.rate), channelsLabel(media.audio.ch)].filter(Boolean).join(' · '));
+        pushRow(details, tr`Audio`, [codecName(media.audio.codec), rateLabel(media.audio.rate), channelsLabel(media.audio.ch)].filter(Boolean).join(' · '));
       } else if (media?.probed) {
-        pushRow(details, 'Audio', 'None');
+        pushRow(details, tr`Audio`, tr`None`);
       }
       break;
     }
     case 'audio':
-      pushRow(details, 'Length', formatLength(card.duration));
-      pushRow(details, 'Tempo', Number.isFinite(card.bpm) ? `${card.bpm} BPM` : '');
-      pushRow(details, 'Key', formatKey(card.musicalKey));
-      pushRow(details, 'Sample rate', rateLabel(card.sampleRate));
-      pushRow(details, 'Channels', channelsLabel(card.channels));
+      pushRow(details, tr`Length`, formatLength(card.duration));
+      pushRow(details, tr`Tempo`, Number.isFinite(card.bpm) ? `${card.bpm} BPM` : '');
+      pushRow(details, tr`Key`, formatKey(card.musicalKey));
+      pushRow(details, tr`Sample rate`, rateLabel(card.sampleRate));
+      pushRow(details, tr`Channels`, channelsLabel(card.channels));
       break;
     case 'pdf':
-      pushRow(details, 'Pages', Number.isFinite(card.pageCount) && card.pageCount > 0 ? String(card.pageCount) : '');
+      pushRow(details, tr`Pages`, Number.isFinite(card.pageCount) && card.pageCount > 0 ? String(card.pageCount) : '');
       break;
     case 'file':
-      pushRow(details, 'Type', card.mime || '');
+      pushRow(details, tr`Type`, card.mime || '');
       break;
     case 'note': {
       const { title, body } = noteParts(card.html, card.body);
       const words = wordCount(`${title} ${body}`);
-      pushRow(details, 'Words', words ? String(words) : '0');
+      pushRow(details, tr`Words`, words ? String(words) : '0');
       break;
     }
     case 'link': {
       const url = card.link || card.source || '';
-      pushRow(details, 'Site', hostOf(url));
-      pushRow(details, 'Address', url, url);
+      pushRow(details, tr`Site`, hostOf(url));
+      pushRow(details, tr`Address`, url, url);
       break;
     }
     case 'doc':
-      pushRow(details, 'Lines', Array.isArray(card.lines) ? String(card.lines.length) : '');
+      pushRow(details, tr`Lines`, Array.isArray(card.lines) ? String(card.lines.length) : '');
       break;
     case 'palette': {
       const hexes = (card.swatches || []).map((s) => s?.hex).filter(Boolean);
-      pushRow(details, 'Colors', hexes.length ? `${hexes.length} — ${hexes.slice(0, 8).join(' ')}${hexes.length > 8 ? ' …' : ''}` : '0');
+      pushRow(details, tr`Colors`, hexes.length ? `${hexes.length} — ${hexes.slice(0, 8).join(' ')}${hexes.length > 8 ? ' …' : ''}` : '0');
       break;
     }
     case 'shape':
-      pushRow(details, 'Shape', card.shape || 'rect');
+      pushRow(details, tr`Shape`, card.shape || 'rect');
       break;
     case 'grid': {
       const cells = card.cells && typeof card.cells === 'object' ? Object.keys(card.cells).length : null;
-      pushRow(details, 'Filled cells', Number.isFinite(cells) ? String(cells) : '');
+      pushRow(details, tr`Filled cells`, Number.isFinite(cells) ? String(cells) : '');
       if (card.templateId) {
         const name = gridTemplates?.[card.templateId]?.name;
-        pushRow(details, 'Layout', name ? `Linked to “${name}”` : 'Linked to a shared layout');
+        pushRow(details, tr`Layout`, name ? tr`Linked to “${name}”` : tr`Linked to a shared layout`);
       }
       break;
     }
     case 'board':
-      pushRow(details, 'Cluster', boards[card.id]?.name || card.name || '');
+      pushRow(details, tr`Cluster`, boards[card.id]?.name || card.name || '');
       break;
     case 'boardlink':
-      pushRow(details, 'Links to', boards[card.target]?.name || card.name || '');
+      pushRow(details, tr`Links to`, boards[card.target]?.name || card.name || '');
       break;
     default:
       break;
   }
 
-  if (isFileCard(card)) pushRow(details, 'Size', formatSize(sizeOf(card, getMeta)));
+  if (isFileCard(card)) pushRow(details, tr`Size`, formatSize(sizeOf(card, getMeta)), undefined, 'size');
 
   // Who, and when.
   const people = [];
   const up = meta && (meta.uploadedBy || meta.uploadedAt) ? { by: meta.uploadedBy || null, at: meta.uploadedAt || null } : null;
   const added = card.createdBy || card.createdAt ? { by: card.createdBy || null, at: card.createdAt || null } : null;
-  if (up) people.push({ k: 'Uploaded', ...up });
+  if (up) people.push({ k: tr`Uploaded`, ...up });
   // The card is stamped when the file is dropped, the images row when its
   // bytes land — minutes later for a big file or a long batch. So "Added
   // here" is its own fact only when it came clearly AFTER the upload (a copy
@@ -275,10 +328,10 @@ export function describeCard(card, { getMeta = null, boards = {}, gridTemplates 
   const tUp = Date.parse(up?.at || ''), tAdd = Date.parse(added?.at || '');
   const addedLater = !up || !Number.isFinite(tUp) || !Number.isFinite(tAdd) ? !up : tAdd - tUp > 120000;
   if (added && addedLater) {
-    people.push({ k: up ? 'Added here' : 'Added', ...added });
+    people.push({ k: up ? tr`Added here` : tr`Added`, ...added });
   }
   if (card.updatedAt && !sameMoment(card.updatedAt, card.createdAt, 1000)) {
-    people.push({ k: 'Modified', by: card.updatedBy || null, at: card.updatedAt });
+    people.push({ k: tr`Modified`, by: card.updatedBy || null, at: card.updatedAt });
   }
 
   return { kindLabel, format, details, people };
@@ -288,8 +341,8 @@ export function describeCard(card, { getMeta = null, boards = {}, gridTemplates 
 export function describeSelection(cards, { getMeta = null } = {}) {
   const list = (cards || []).filter(Boolean);
   const details = [];
-  pushRow(details, 'Items', String(list.length));
-  pushRow(details, 'Kinds', kindBreakdown(list));
+  pushRow(details, tr`Items`, String(list.length));
+  pushRow(details, tr`Kinds`, kindBreakdown(list), null, 'kinds');
   const files = list.filter(isFileCard);
   if (files.length) {
     let total = 0, known = 0;
@@ -297,19 +350,19 @@ export function describeSelection(cards, { getMeta = null } = {}) {
       const s = sizeOf(c, getMeta);
       if (Number.isFinite(s)) { total += s; known++; }
     }
-    if (known) pushRow(details, 'Size', `${formatSize(total)}${known < files.length ? ` (${known} of ${files.length} files)` : ''}`);
+    if (known) pushRow(details, tr`Size`, known < files.length ? tr`${ph({ size: formatSize(total) })} (${known} of ${plural(files.length, { one: '# file', other: '# files' })})` : formatSize(total), undefined, 'size');
   }
   const off = list.filter((c) => c.unplaced === true).length;
-  if (off) pushRow(details, 'Not on board', String(off));
+  if (off) pushRow(details, tr`Not on board`, String(off));
   const times = list.map((c) => Date.parse(c.createdAt || '')).filter(Number.isFinite).sort((a, b) => a - b);
   const people = [];
   if (times.length) {
-    people.push({ k: 'Oldest', by: null, at: new Date(times[0]).toISOString() });
+    people.push({ k: tr`Oldest`, by: null, at: new Date(times[0]).toISOString() });
     if (times.length > 1 && times[times.length - 1] !== times[0]) {
-      people.push({ k: 'Newest', by: null, at: new Date(times[times.length - 1]).toISOString() });
+      people.push({ k: tr`Newest`, by: null, at: new Date(times[times.length - 1]).toISOString() });
     }
   }
-  return { title: `${list.length} item${list.length === 1 ? '' : 's'}`, subtitle: kindBreakdown(list), details, people };
+  return { title: plural(list.length, { one: '# item', other: '# items' }), subtitle: kindBreakdown(list), details, people };
 }
 
 // ── A cluster ──────────────────────────────────────────────────────────────
@@ -327,45 +380,45 @@ export function clusterPath(boards, id) {
 }
 
 export function describeCluster(board, { boards = {}, cards = null, getMeta = null } = {}) {
-  if (!board) return { title: 'Cluster', subtitle: '', details: [], people: [] };
+  if (!board) return { title: tr`Cluster`, subtitle: '', details: [], people: [] };
   const details = [];
-  pushRow(details, 'Kind', 'Cluster');
-  pushRow(details, 'Inside', clusterPath(boards, board.id) || (board.parent_board_id ? '' : 'Top level'));
+  pushRow(details, tr`Kind`, tr`Cluster`, undefined, 'kind');
+  pushRow(details, tr`Inside`, clusterPath(boards, board.id) || (board.parent_board_id ? '' : tr`Top level`));
   const subs = Object.values(boards || {}).filter((b) => b && b.parent_board_id === board.id && !b.deleted_at).length;
-  pushRow(details, 'Clusters inside', String(subs));
+  pushRow(details, tr`Clusters inside`, String(subs));
   if (Array.isArray(cards)) {
     const items = cards.filter((c) => c && c.kind !== 'board' && c.kind !== 'boardlink');
     const files = items.filter(isFileCard);
-    pushRow(details, 'Items', String(items.length));
-    if (items.length) pushRow(details, 'Kinds', kindBreakdown(items));
+    pushRow(details, tr`Items`, String(items.length));
+    if (items.length) pushRow(details, tr`Kinds`, kindBreakdown(items), null, 'kinds');
     if (files.length) {
       let total = 0, known = 0;
       for (const c of files) { const s = sizeOf(c, getMeta); if (Number.isFinite(s)) { total += s; known++; } }
-      if (known) pushRow(details, 'Files', `${files.length} · ${formatSize(total)}${known < files.length ? ' so far' : ''}`);
-      else pushRow(details, 'Files', String(files.length));
+      if (known) pushRow(details, tr`Files`, known < files.length ? tr`${ph({ count: files.length })} · ${ph({ size: formatSize(total) })} so far` : `${files.length} · ${formatSize(total)}`);
+      else pushRow(details, tr`Files`, String(files.length));
     }
     const off = items.filter((c) => c.unplaced === true).length;
-    if (off) pushRow(details, 'Not on board', String(off));
+    if (off) pushRow(details, tr`Not on board`, String(off));
   } else if (Number.isFinite(board.card_count)) {
-    pushRow(details, 'Items', String(board.card_count));
+    pushRow(details, tr`Items`, String(board.card_count));
   }
-  pushRow(details, 'Opens as', board.view === 'list' ? 'Files' : 'Board');
+  pushRow(details, tr`Opens as`, board.view === 'list' ? tr`Files` : tr`Board`);
   const people = [];
-  if (board.created_by || board.created_at) people.push({ k: 'Created', by: board.created_by || null, at: board.created_at || null });
-  if (board.updated_at && !sameMoment(board.updated_at, board.created_at, 1000)) people.push({ k: 'Modified', by: null, at: board.updated_at });
-  return { title: board.name || 'Cluster', subtitle: 'Cluster', details, people };
+  if (board.created_by || board.created_at) people.push({ k: tr`Created`, by: board.created_by || null, at: board.created_at || null });
+  if (board.updated_at && !sameMoment(board.updated_at, board.created_at, 1000)) people.push({ k: tr`Modified`, by: null, at: board.updated_at });
+  return { title: board.name || tr`Cluster`, subtitle: tr`Cluster`, details, people };
 }
 
 // ── A canvas group ─────────────────────────────────────────────────────────
 export function describeGroup(group, members) {
   const list = (members || []).filter(Boolean);
   const details = [];
-  pushRow(details, 'Kind', 'Group');
-  pushRow(details, 'Members', String(list.length));
-  if (list.length) pushRow(details, 'Kinds', kindBreakdown(list));
+  pushRow(details, tr`Kind`, tr`Group`, undefined, 'kind');
+  pushRow(details, tr`Members`, String(list.length));
+  if (list.length) pushRow(details, tr`Kinds`, kindBreakdown(list), null, 'kinds');
   const people = [];
-  if (group?.createdBy || group?.createdAt) people.push({ k: 'Created', by: group.createdBy || null, at: group.createdAt || null });
-  return { title: group?.name || group?.label || 'Group', subtitle: 'Group', details, people };
+  if (group?.createdBy || group?.createdAt) people.push({ k: tr`Created`, by: group.createdBy || null, at: group.createdAt || null });
+  return { title: group?.name || group?.label || tr`Group`, subtitle: tr`Group`, details, people };
 }
 
 // "Oct 8, 2026, 2:02 PM" — an absolute time beside the relative one, because
@@ -376,7 +429,9 @@ export function formatWhen(iso, locale = undefined) {
   const t = Date.parse(iso || '');
   if (!Number.isFinite(t) || t < EARLIEST_REAL) return '';
   try {
-    return new Date(t).toLocaleString(locale, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    const opts = { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+    // A caller's own locale wins; otherwise the interface's language.
+    return locale ? new Date(t).toLocaleString(locale, opts) : formatDate(new Date(t), opts);
   } catch (_) {
     return new Date(t).toISOString();
   }

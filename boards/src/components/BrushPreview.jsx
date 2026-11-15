@@ -6,13 +6,14 @@
 // which also means a brush can never be previewed as something it doesn't draw.
 
 import { toPathD, isFilledPath, strokeOpacity, strokeLineCap } from '../lib/strokeRender.js';
+import { t } from '@lingui/core/macro';
 
 export const BRUSH_ORDER = ['pen', 'marker', 'highlighter', 'pencil'];
 export const BRUSH_LABELS = {
-  pen: 'Pen',
-  marker: 'Marker',
-  highlighter: 'Highlighter',
-  pencil: 'Pencil',
+  get pen() { return t`Pen`; },
+  get marker() { return t`Marker`; },
+  get highlighter() { return t`Highlighter`; },
+  get pencil() { return t`Pencil`; },
 };
 
 // Light → heavy → light, so each preview shows the taper the brush produces

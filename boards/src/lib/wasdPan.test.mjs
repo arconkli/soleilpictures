@@ -169,8 +169,8 @@ test('the canvas: movement listener guards, and A and D stand down while it is o
 test('settings: the toggle applies at once and saves to the account', () => {
   const tab = src('../components/settings/AppearanceTab.jsx');
   assert.match(tab, /import \{ getWasdPan, applyWasdPanNow \} from '\.\.\/\.\.\/lib\/wasdPan\.js';/);
-  assert.match(tab, /label="Move with W A S D"/);
-  assert.match(tab, /desc="Hold W, A, S or D to move around a board and Q or E to zoom in or out, with Shift to go faster\./);
+  assert.match(tab, /label=\{t`Move with W A S D`\}/);
+  assert.match(tab, /desc=\{t`Hold W, A, S or D to move around a board and Q or E to zoom in or out, with Shift to go faster\./);
   assert.match(tab, /value=\{wasdPan\}/);
   assert.match(tab, /applyWasdPanNow\(v\);\s+setUi\(\{ wasdPan: v \}\);\s+try \{ logEvent\(EV\.WASD_PAN_SET, \{ on: v \}\); \} catch \(_\) \{\}/);
   // A new device learns it from the account, like the wheel.
@@ -178,6 +178,6 @@ test('settings: the toggle applies at once and saves to the account', () => {
   assert.match(src('../hooks/useResolvedDefaults.js'), /wasdPan: false,/);
   // The shortcuts overlay names both rows, and where to turn them on.
   const overlay = src('../components/ShortcutsOverlay.jsx');
-  assert.match(overlay, /\[\['W', 'A', 'S', 'D'\], 'Move around, Shift for faster — turn on in Settings → Appearance'\]/);
-  assert.match(overlay, /\[\['Q', 'E'\], 'Zoom in · out, with W A S D turned on'\]/);
+  assert.match(overlay, /\[\['W', 'A', 'S', 'D'\], t`Move around, Shift for faster — turn on in Settings → Appearance`\]/);
+  assert.match(overlay, /\[\['Q', 'E'\], t`Zoom in · out, with W A S D turned on`\]/);
 });

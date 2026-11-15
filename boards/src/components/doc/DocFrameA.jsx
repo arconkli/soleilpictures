@@ -19,6 +19,9 @@ import {
   CloudCheck, CloudArrowUp, CloudSlash, CloudWarning,
 } from '../../lib/icons.js';
 import './docLook.css';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownAuthor } from '../../lib/commentAuthor.js';
 
 // The one row of tools and the side panel's tabs come in the same chunk.
 export { DocBarA, DocMoreA } from './DocBarA.jsx';
@@ -48,6 +51,9 @@ export { DocTableBar } from './DocTableBar.jsx';
 // saving. The page it sits in has no close or dock of its own (no onClose, no
 // onSetMode), and what the share adds (Sign in to edit) comes as `children`,
 // after the title.
+// Read at render, so the fallback follows the person's language.
+const peerName = (p) => shownAuthor(p.user?.name) || tr`Someone`;
+
 export function DocHeadA({
   frame, card, scope, boards, canEdit = true, isPublic = false, guestMode = false, mode, titleInputRef,
   focusTitle = false, onUpdate, onSetMode, onClose, peersOnCard = [], onJumpToPeer, children = null,
@@ -72,7 +78,7 @@ export function DocHeadA({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const open = f.openComments;
   const pagesBtn = (
-    <Btn icon={SidebarSimple} label={f.railOpen ? 'Hide pages' : 'Show pages'}
+    <Btn icon={SidebarSimple} label={f.railOpen ? tr`Hide pages` : tr`Show pages`}
          aria-expanded={f.railOpen} disabled={!f.ready}
          onClick={() => frame?.act.toggleRail()} />
   );
@@ -80,10 +86,10 @@ export function DocHeadA({
   const title = (
     <input className="doc-card-title-input dl-title"
            ref={setTitle}
-           aria-label="Document title"
+           aria-label={tr`Document title`}
            dir="auto"
            value={card.title || ''}
-           placeholder="Untitled doc"
+           placeholder={tr`Untitled doc`}
            readOnly={!canRename}
            onChange={(e) => { if (canRename) onUpdate?.({ title: e.target.value }); }}
            onKeyDown={(e) => {
@@ -96,14 +102,14 @@ export function DocHeadA({
   // Share this doc on its own (held: docSharesAllowed), as before.
   const share = !isPublic && canEdit && scope?.boardId && docSharesAllowed() && isShareableDoc(card) ? (
     <FileShareButton variant="doc" surface="doc" boardId={scope.boardId} cardId={card.id}
-                     card={{ id: card.id, kind: 'doc', title: card.title || 'Untitled doc' }} />
+                     card={{ id: card.id, kind: 'doc', title: card.title || tr({ message: 'Untitled doc', context: 'default name' }) }} />
   ) : null;
   if (isPhone) {
     const unread = !isPublic ? messagesUi?.unread || 0 : 0;
     return (
       <IconWeightContext.Provider value="regular">
         <div className="dl-head is-phone">
-          {onClose && <Btn icon={X} label="Close document" onClick={onClose} />}
+          {onClose && <Btn icon={X} label={tr`Close document`} onClick={onClose} />}
           {pagesBtn}
           <div className="dl-ptitle">
             {title}
@@ -114,7 +120,7 @@ export function DocHeadA({
           </div>
           {children}
           {share}
-          <Btn ref={moreRef} icon={MoreHorizontal} label={unread > 0 ? `More, ${unread} unread messages` : 'More'}
+          <Btn ref={moreRef} icon={MoreHorizontal} label={unread > 0 ? tr`More, ${unread} unread messages` : tr`More`}
                aria-haspopup="menu" aria-expanded={!!f.moreOpen} disabled={!f.ready}
                onClick={(e) => frame?.act.toggleMore?.(moreRef, e.detail === 0)}>
             {unread > 0 && <span className="dl-dot" aria-hidden="true" />}
@@ -139,15 +145,15 @@ export function DocHeadA({
           {title}
         </div>
         {!canEdit && (
-          <span className="dl-chip"><Icon as={Eye} size={14} />View only</span>
+          <span className="dl-chip"><Icon as={Eye} size={14} /><Trans>View only</Trans></span>
         )}
         {peersOnCard.length > 0 && (
           <div className="dl-faces doc-card-peers">
             {peersOnCard.slice(0, 4).map((p) => (
               <button key={p.tabId || p.user?.id} type="button"
                       className="doc-card-peer"
-                      aria-label={`${p.user?.name || 'Someone'}: go to where they are`}
-                      title={`${p.user?.name || 'Someone'} — click to jump to their view`}
+                      aria-label={tr`${ph({ name: peerName(p) })}: go to where they are`}
+                      title={tr`${ph({ name: peerName(p) })} — click to jump to their view`}
                       onClick={() => onJumpToPeer?.(p.location)}>
                 <Avatar name={p.user?.name || '?'} color={p.user?.color || '#4f8df8'} size={24} />
               </button>
@@ -160,18 +166,18 @@ export function DocHeadA({
         {children}
         {share}
         {!isPublic && (
-          <Btn icon={ChatCircleText} label={open > 0 ? `Comments, ${open} open` : 'Comments'}
+          <Btn icon={ChatCircleText} label={open > 0 ? tr`Comments, ${open} open` : tr`Comments`}
                toggle on={f.panelOpen} disabled={!f.ready}
                onClick={() => frame?.act.togglePanel('comments')} />
         )}
         {!isPublic && <MessagesBtn />}
         {/* Hidden on public: the side dock assumes the workspace around it. */}
         {isPublic || !onSetMode ? null : mode === 'full' ? (
-          <Btn icon={Sidebar} className="dl-flip" label="Dock beside the canvas" onClick={() => onSetMode('side')} />
+          <Btn icon={Sidebar} className="dl-flip" label={tr`Dock beside the canvas`} onClick={() => onSetMode('side')} />
         ) : (
-          <Btn icon={CornersOut} label="Open fullscreen" onClick={() => onSetMode('full')} />
+          <Btn icon={CornersOut} label={tr`Open fullscreen`} onClick={() => onSetMode('full')} />
         )}
-        {onClose && <Btn icon={X} label="Close document" onClick={onClose} />}
+        {onClose && <Btn icon={X} label={tr`Close document`} onClick={onClose} />}
       </div>
     </IconWeightContext.Provider>
   );
@@ -182,15 +188,16 @@ export function DocHeadA({
 // here"). A reader's says so instead of saving.
 function PhoneLine({ boardId, doc, room, showSave, canEdit, isPublic, fresh, peers }) {
   const { status, savedAt } = useDocStatus({ editor: null, boardId, doc, room });
-  const names = [...new Set(peers.map((p) => (p.user?.name || '').trim().split(/\s+/)[0]).filter(Boolean))];
+  const names = [...new Set(peers.map((p) => (shownAuthor(p.user?.name) || '').trim().split(/\s+/)[0]).filter(Boolean))];
+  const first = names[0];
   const here = names.length === 0 ? null
-    : names.length === 1 ? `${names[0]} is here`
-      : names.length === 2 ? `${names[0]} and ${names[1]} are here`
-        : `${names[0]} and ${names.length - 1} others are here`;
+    : names.length === 1 ? tr`${ph({ name: names[0] })} is here`
+      : names.length === 2 ? tr`${ph({ first: names[0] })} and ${ph({ second: names[1] })} are here`
+        : tr`${plural(names.length - 1, { one: `${first} and # other are here`, other: `${first} and # others are here` })}`;
   let state = null;
   if (isPublic) state = null;
-  else if (!canEdit) state = 'View only';
-  else if (showSave) state = fresh && status.state === 'saved' && !savedAt ? 'New doc' : status.short;
+  else if (!canEdit) state = tr`View only`;
+  else if (showSave) state = fresh && status.state === 'saved' && !savedAt ? tr`New doc` : status.short;
   const line = [state, here].filter(Boolean).join(' · ');
   if (!line) return null;
   return <span className="dl-psub">{line}</span>;
@@ -203,7 +210,7 @@ function MessagesBtn() {
   if (!messagesUi) return null;
   const { unread = 0, open = false, toggle } = messagesUi;
   return (
-    <Btn icon={ChatsCircle} label="Messages" tip={unread > 0 ? `Messages, ${unread} unread` : 'Messages'}
+    <Btn icon={ChatsCircle} label={tr`Messages`} tip={unread > 0 ? tr`Messages, ${unread} unread` : tr`Messages`}
          toggle on={open} className="dl-msgs" onClick={() => toggle?.()}>
       {unread > 0 && <span className="dl-dot" aria-hidden="true" />}
     </Btn>
@@ -222,7 +229,8 @@ function MessagesBtn() {
 // it away (`onClose`). It sits above the on-screen keyboard, and takes the
 // focus when it opens, since it covers what had it. It lies in the window
 // (`host`), over the header too, since the surface is a layer of its own.
-const TAB_NAMES = { elements: 'Elements', comments: 'Comments', find: 'Find' };
+// Read at render, so the words follow the person's language.
+const tabName = (tab) => (tab === 'elements' ? tr`Elements` : tab === 'comments' ? tr`Comments` : tr`Find`);
 
 export function DocSidePanel({ tab, onTab, screenplay = false, openComments = 0, onEscape, sheet = false, host = null, onClose, children }) {
   const id = useId();
@@ -260,21 +268,21 @@ export function DocSidePanel({ tab, onTab, screenplay = false, openComments = 0,
     onEscape?.();
   };
   const panel = (
-    <aside ref={asideRef} className={`dl-panel${sheet ? ' is-sheet' : ''}`} aria-label="Comments and find"
+    <aside ref={asideRef} className={`dl-panel${sheet ? ' is-sheet' : ''}`} aria-label={tr`Comments and find`}
            style={sheet ? { '--dl-kb': `${kb}px` } : undefined} onKeyDown={onPanelKey}>
       {sheet && (
-        <button type="button" className="dl-sheet-grab" aria-label="Close panel" {...grab}>
+        <button type="button" className="dl-sheet-grab" aria-label={tr`Close panel`} {...grab}>
           <span aria-hidden="true" />
         </button>
       )}
       <div className="dl-tabs">
-        <div ref={listRef} className="dl-seg" role="tablist" aria-label="Side panel" onKeyDown={onKeyDown}>
+        <div ref={listRef} className="dl-seg" role="tablist" aria-label={tr`Side panel`} onKeyDown={onKeyDown}>
           {tabs.map((t) => (
             <button key={t} type="button" role="tab" data-tab={t}
                     id={`${id}-${t}-tab`} aria-controls={`${id}-${t}`}
                     aria-selected={t === current} tabIndex={t === current ? 0 : -1}
                     onClick={() => onTab(t)}>
-              {TAB_NAMES[t]}
+              {tabName(t)}
               {t === 'comments' && openComments > 0 && <span className="dl-cnt">{openComments}</span>}
             </button>
           ))}
@@ -393,17 +401,17 @@ export function DocFootA({
         <span className="dl-sp" />
         <span className="dl-foot-words">
           {script
-            ? `Page ${script.page} of ${script.of} · ${script.scenes.toLocaleString()} ${script.scenes === 1 ? 'scene' : 'scenes'}`
-            : `${words.toLocaleString()} ${words === 1 ? 'word' : 'words'}`}
+            ? tr`Page ${ph({ page: script.page })} of ${ph({ total: script.of })} · ${plural(script.scenes, { one: '# scene', other: '# scenes' })}`
+            : tr`${plural(words, { one: '# word', other: '# words' })}`}
         </span>
-        <MenuButton text={`${pct}%`} label={`Zoom, ${pct}%`} menuLabel="Zoom" caret
+        <MenuButton text={`${pct}%`} label={tr`Zoom, ${pct}%`} menuLabel={tr`Zoom`} caret
                     className="dl-foot-zoom" side="above" align="end">
-          <MenuItem label="Zoom in" keys="Mod+=" onSelect={onZoomIn} />
-          <MenuItem label="Zoom out" keys="Mod+-" onSelect={onZoomOut} />
+          <MenuItem label={tr`Zoom in`} keys="Mod+=" onSelect={onZoomIn} />
+          <MenuItem label={tr`Zoom out`} keys="Mod+-" onSelect={onZoomOut} />
           {fitEligible ? (
-            <MenuItem label="Fit to width" keys="Mod+0" checked={fitMode} onSelect={onZoomReset} />
+            <MenuItem label={tr`Fit to width`} keys="Mod+0" checked={fitMode} onSelect={onZoomReset} />
           ) : (
-            <MenuItem label="Actual size" keys="Mod+0" onSelect={onZoomReset} />
+            <MenuItem label={tr`Actual size`} keys="Mod+0" onSelect={onZoomReset} />
           )}
           <MenuSep />
           {ZOOMS.map((z) => (

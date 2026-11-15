@@ -19,21 +19,24 @@ import { inviteWorkspaceMember } from '../../lib/boardsApi.js';
 import { createWorkspaceInviteLink, getWorkspaceInviteLinkTerms } from '../../lib/inviteApi.js';
 import { workspaceInviteUrl } from '../../lib/workspaceLink.js';
 import { parseEmails, runInvitesByRole, inviteLimitKind } from '../../lib/inviteSubmit.js';
-import { editorLimitRefusalMessage } from '../../lib/editorLimit.js';
-import { inviteRewardCopy } from '../../lib/inviteReward.js';
+import { editorLimitRefusalMessage } from '../../lib/editorLimitWords.js';
+import { inviteRewardCopy } from '../../lib/inviteRewardWords.js';
 import { MAX_INVITE_ROWS, linkTermsLine } from '../../lib/workspaceSetup.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 let rowSeq = 0;
 const newRow = () => ({ id: `r${(rowSeq += 1)}`, email: '', role: 'editor' });
-const ROLE_LABEL = { editor: 'Can edit', viewer: 'Can view' };
+// Called at render, so the words follow the current language.
+const roleLabel = (role) => ({ editor: tr`Can edit`, viewer: tr`Can view` })[role];
 
 // The server's refusal, as a sentence for the link field.
 function linkProblem(e) {
-  if (e?.hint === 'link_limit') return 'You’ve made today’s invite links. Invite by email below, or try again tomorrow.';
+  if (e?.hint === 'link_limit') return tr`You’ve made today’s invite links. Invite by email below, or try again tomorrow.`;
   const msg = String(e?.message || '');
-  if (/paused/i.test(msg)) return 'Sharing is paused on this account while we review unusual activity.';
-  return 'The invite link didn’t load. Invite by email below.';
+  if (/paused/i.test(msg)) return tr`Sharing is paused on this account while we review unusual activity.`;
+  return tr`The invite link didn’t load. Invite by email below.`;
 }
 
 const sentence = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -151,7 +154,7 @@ export function InviteStep({ workspaceId, workspaceName, surface, isPhone, onOut
     if (!canShare) { copyLink(); return; }
     let completed = false;
     try {
-      await navigator.share({ title: `Join ${workspaceName || 'my workspace'} on Clusters`, url });
+      await navigator.share({ title: workspaceName ? tr`Join ${ph({ workspace: workspaceName })} on Clusters` : tr`Join my workspace on Clusters`, url });
       completed = true;
     } catch (_) { completed = false; }
     // Closing the sheet counts: the person reached for it, and the step should
@@ -178,9 +181,9 @@ export function InviteStep({ workspaceId, workspaceName, surface, isPhone, onOut
       (role) => (email) => inviteWorkspaceMember({ workspaceId, email, role }));
     for (const r of runs) {
       const { role } = r;
-      for (const e of r.granted) next.push({ email: e, ok: true, label: 'Added' });
-      for (const e of r.pending) next.push({ email: e, ok: true, label: 'Invite sent' });
-      for (const f of r.fail) next.push({ email: f.email, ok: false, label: f.reason === 'already a member' ? 'Already in it' : 'Not sent' });
+      for (const e of r.granted) next.push({ email: e, ok: true, label: tr`Added` });
+      for (const e of r.pending) next.push({ email: e, ok: true, label: tr`Invite sent` });
+      for (const f of r.fail) next.push({ email: f.email, ok: false, label: f.reason === 'already a member' ? tr`Already in it` : tr`Not sent` });
       sentEmails.push(...r.granted, ...r.pending);
       try {
         if (r.granted.length) {
@@ -215,12 +218,13 @@ export function InviteStep({ workspaceId, workspaceName, surface, isPhone, onOut
   };
 
   const reward = inviteRewardCopy().lead;
+  const copyKeys = isMac() ? '⌘C' : 'Ctrl+C';
   const refusedHint = isPhone
-    ? 'Copying didn’t work here. Press and hold the link to copy it.'
-    : `Copying didn’t work here. The link is selected: press ${isMac() ? '⌘C' : 'Ctrl+C'} to copy it.`;
+    ? tr`Copying didn’t work here. Press and hold the link to copy it.`
+    : tr`Copying didn’t work here. The link is selected: press ${ph({ keys: copyKeys })} to copy it.`;
   const linkField = (
     <input ref={linkFieldRef} className={isPhone ? 'su-input su-link-field-phone' : 'su-link-url su-link-field'}
-      type="text" readOnly value={url || ''} aria-label="Invite link"
+      type="text" readOnly value={url || ''} aria-label={tr`Invite link`}
       onFocus={(e) => selectLink(e.target)} onCopy={copiedByHand} />
   );
 
@@ -230,38 +234,38 @@ export function InviteStep({ workspaceId, workspaceName, surface, isPhone, onOut
         <>
           {/* With no share sheet the press copies, so it says so. */}
           <button type="button" className={`su-btn su-primary su-share-btn${copied ? ' is-done' : ''}`} onClick={shareLink} disabled={!url}>
-            <Icon as={copied ? Check : Export} size={18} weight="regular" />{copied ? 'Copied' : 'Share invite link'}
+            <Icon as={copied ? Check : Export} size={18} weight="regular" />{copied ? tr`Copied` : tr`Share invite link`}
           </button>
           {copyRefused && linkField}
         </>
       ) : (
-        <div className="su-link" role="group" aria-label="Invite link">
+        <div className="su-link" role="group" aria-label={tr`Invite link`}>
           <Icon as={LinkSimple} size={18} weight="regular" className="su-link-ico" />
           {copyRefused ? linkField : (
-            <span className={`su-link-url${url ? '' : ' is-waiting'}`}>{url ? url.replace(/^https?:\/\//, '') : (linkError ? 'No link right now' : 'Making your link…')}</span>
+            <span className={`su-link-url${url ? '' : ' is-waiting'}`}>{url ? url.replace(/^https?:\/\//, '') : (linkError ? tr`No link right now` : tr`Making your link…`)}</span>
           )}
           <button type="button" className={`su-btn ${copied ? 'su-secondary is-done' : 'su-primary'}`} onClick={copyLink} disabled={!url}>
-            <Icon as={copied ? Check : Copy} size={16} weight="regular" />{copied ? 'Copied' : 'Copy link'}
+            <Icon as={copied ? Check : Copy} size={16} weight="regular" />{copied ? tr`Copied` : tr`Copy link`}
           </button>
         </div>
       )}
       <p className="su-linknote" aria-live="polite">{linkError || (copyRefused ? refusedHint : termsLine)}</p>
 
-      <div className="su-or" role="presentation"><span>or invite by email</span></div>
+      <div className="su-or" role="presentation"><span><Trans>or invite by email</Trans></span></div>
       <div className="su-rows">
         {rows.map((r, i) => (
           <div className="su-row" key={r.id}>
             <input className="su-input su-email" type="email" inputMode="email" autoComplete="off" autoCapitalize="off" spellCheck={false}
-              aria-label={i === 0 ? 'Email address' : `Email address ${i + 1}`} placeholder={i === 0 ? 'name@studio.com' : 'another@studio.com'}
+              aria-label={i === 0 ? tr`Email address` : tr`Email address ${ph({ value: i + 1 })}`} placeholder={i === 0 ? tr`name@studio.com` : tr`another@studio.com`}
               value={r.email} disabled={sending}
               onChange={(e) => setRow(r.id, { email: e.target.value })}
               onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Enter') { e.preventDefault(); send(); } }} />
-            <button type="button" className="su-role" aria-label={`Access: ${ROLE_LABEL[r.role]}`} disabled={sending}
+            <button type="button" className="su-role" aria-label={tr`Access: ${ph({ value: roleLabel(r.role) })}`} disabled={sending}
               onClick={() => setRow(r.id, { role: r.role === 'editor' ? 'viewer' : 'editor' })}>
-              <span>{ROLE_LABEL[r.role]}</span><Icon as={CaretDown} size={10} weight="bold" />
+              <span>{roleLabel(r.role)}</span><Icon as={CaretDown} size={10} weight="bold" />
             </button>
             {i > 0 && (
-              <button type="button" className="su-x" aria-label="Remove this email" disabled={sending}
+              <button type="button" className="su-x" aria-label={tr`Remove this email`} disabled={sending}
                 onClick={() => setRows((rs) => rs.filter((x) => x.id !== r.id))}>
                 <Icon as={X} size={14} weight="regular" />
               </button>
@@ -272,10 +276,10 @@ export function InviteStep({ workspaceId, workspaceName, surface, isPhone, onOut
       <div className="su-email-actions">
         <button type="button" className="su-add" disabled={rows.length >= MAX_INVITE_ROWS || sending}
           onClick={() => setRows((rs) => [...rs, newRow()])}>
-          <Icon as={Plus} size={14} weight="regular" />Add another
+          <Icon as={Plus} size={14} weight="regular" /><Trans>Add another</Trans>
         </button>
         <button type="button" className="su-btn su-secondary su-send" disabled={valid.length === 0 || sending} onClick={send}>
-          {sending ? 'Sending…' : (valid.length > 1 ? `Send ${valid.length} invites` : 'Send invite')}
+          {sending ? tr`Sending…` : (valid.length > 1 ? tr`Send ${ph({ count: valid.length })} invites` : tr`Send invite`)}
         </button>
       </div>
 
@@ -291,7 +295,7 @@ export function InviteStep({ workspaceId, workspaceName, surface, isPhone, onOut
       )}
       {limit && (
         <p className="su-note" role="status"><Icon as={Info} size={16} weight="regular" />
-          <span>{limit} {isPhone ? 'Share' : 'Copy'} the invite link for everyone else.</span></p>
+          <span>{limit} {isPhone ? tr`Share the invite link for everyone else.` : tr`Copy the invite link for everyone else.`}</span></p>
       )}
       {editorsFull && (
         <p className="su-note" role="status"><Icon as={Info} size={16} weight="regular" />

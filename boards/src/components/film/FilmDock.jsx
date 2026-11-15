@@ -12,6 +12,8 @@ import { SpeakerHigh, SpeakerLow, SpeakerSlash, CornersOut, CornersIn, Repeat, X
 import { PlayGlyph, PauseGlyph, FrameBack, FrameFwd, MarkIn, MarkOut, GuidesGlyph } from './glyphs.jsx';
 import { formatFps } from '../../lib/cardInfo.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Mouse clicks don't take focus (keys keep going to the player); keyboard
 // focus still lands with :focus-visible.
@@ -61,7 +63,7 @@ function TcReadout({ ctl }) {
       {ctl.tcEdit ? (
         <input ref={inputRef} className="film-tc film-tc-input"
                defaultValue={ctl.tcEdit.seed || ''} placeholder="01:00:10:12 · 240 · 10.5s · +12"
-               aria-label="Go to a timecode, frame number or seconds" spellCheck={false} autoComplete="off"
+               aria-label={tr`Go to a timecode, frame number or seconds`} spellCheck={false} autoComplete="off"
                onKeyDown={(e) => {
                  e.stopPropagation();
                  if (isComposingKey(e)) return;
@@ -70,36 +72,36 @@ function TcReadout({ ctl }) {
                }}
                onBlur={() => ctl.setTcEdit(null)} />
       ) : (
-        <button type="button" className="film-tc" data-tip="Type a timecode, frame or seconds to jump" data-key="0–9"
+        <button type="button" className="film-tc" data-tip={tr`Type a timecode, frame or seconds to jump`} data-key="0–9"
                 onPointerDown={noFocus} onClick={() => ctl.setTcEdit({ seed: '' })}
                 onContextMenu={(e) => { e.preventDefault(); ctl.openTcMode(e.currentTarget); }}
-                aria-label="Current timecode — click to jump">
+                aria-label={tr`Current timecode — click to jump`}>
           <span ref={ctl.tcRef}>{ctl.format(0)}</span>
         </button>
       )}
-      {ctl.tcEdit && ctl.tcInvalid > 0 && <span className="film-tc-hint" role="status">Try 01:00:10:12 · 240 · 10.5s · +12</span>}
+      {ctl.tcEdit && ctl.tcInvalid > 0 && <span className="film-tc-hint" role="status"><Trans>Try 01:00:10:12 · 240 · 10.5s · +12</Trans></span>}
       <button type="button" className="film-dur" onPointerDown={noFocus}
-              data-tip={ctl.showRemaining ? 'Show the length' : 'Show the time left'}
+              data-tip={ctl.showRemaining ? tr`Show the length` : tr`Show the time left`}
               onClick={() => ctl.setShowRemaining((r) => !r)}>
         / {ctl.lengthText || '—'}
       </button>
       <button type="button" className="film-chip film-chip--btn" onPointerDown={noFocus} onClick={(e) => ctl.openTcMode(e.currentTarget)}
-              data-tip="How the timecode reads" aria-haspopup="menu" aria-expanded={ctl.menuId === 'tcmode'}>
+              data-tip={tr`How the timecode reads`} aria-haspopup="menu" aria-expanded={ctl.menuId === 'tcmode'}>
         {chip}<Icon as={ChevronDown} size={10} weight="bold" />
       </button>
       {ctl.fps && (
         <span className="film-chip film-fps"
-              data-tip={ctl.vfr ? 'Variable frame rate — frame numbers are approximate' : ctl.provisional ? 'Frame rate not read yet — counting at 24 for now' : 'Frame rate'}>
+              data-tip={ctl.vfr ? tr`Variable frame rate — frame numbers are approximate` : ctl.provisional ? tr`Frame rate not read yet — counting at 24 for now` : tr`Frame rate`}>
           {fpsText}
         </span>
       )}
       {ctl.rangeLength && (
         <span className="film-inout">
           <button type="button" className="film-inout-main" onPointerDown={noFocus} onClick={(e) => ctl.openRange(e.currentTarget)}
-                  aria-haspopup="menu" data-tip="In and out">
-            <span className="film-inout-k">I–O</span> {ctl.rangeLength.frames} fr
+                  aria-haspopup="menu" data-tip={tr`In and out`}>
+            <span className="film-inout-k">I–O</span> <Trans>{ph({ frames: ctl.rangeLength.frames })} fr</Trans>
           </button>
-          <button type="button" className="film-inout-x" onPointerDown={noFocus} onClick={ctl.clearRange} aria-label="Clear in and out" data-tip="Clear in and out" data-key="⌥X">
+          <button type="button" className="film-inout-x" onPointerDown={noFocus} onClick={ctl.clearRange} aria-label={tr`Clear in and out`} data-tip={tr`Clear in and out`} data-key="⌥X">
             <Icon as={X} size={12} weight="bold" />
           </button>
         </span>
@@ -114,13 +116,13 @@ function VolumeControl({ ctl }) {
   return (
     <div className={`film-volume${ctl.hasAudio ? '' : ' is-disabled'}`}>
       <button type="button" className="film-btn" onPointerDown={noFocus} onClick={ctl.toggleMute} disabled={!ctl.hasAudio}
-              aria-label={!ctl.hasAudio ? 'No audio track' : ctl.muted ? 'Unmute' : 'Mute'}
-              data-tip={!ctl.hasAudio ? 'This clip has no sound' : ctl.muted ? 'Unmute' : 'Mute'} data-key="M">
+              aria-label={!ctl.hasAudio ? tr`No audio track` : ctl.muted ? tr`Unmute` : tr`Mute`}
+              data-tip={!ctl.hasAudio ? tr`This clip has no sound` : ctl.muted ? tr`Unmute` : tr`Mute`} data-key="M">
         <Icon as={icon} size={20} weight="regular" />
       </button>
       {ctl.hasAudio && (
         <input type="range" className="film-vol-slider" min={0} max={1} step={0.01} value={v}
-               aria-label="Volume" style={{ '--v': `${v * 100}%` }}
+               aria-label={tr`Volume`} style={{ '--v': `${v * 100}%` }}
                onPointerDown={(e) => {
                  e.stopPropagation();
                  // Dragged with a mouse, it gives the focus back when let go —
@@ -152,48 +154,48 @@ export function FilmDock({ ctl, timeline }) {
         <div className="film-dock-left">
           <TcReadout ctl={ctl} />
         </div>
-        <div className="film-dock-centre" role="group" aria-label="Transport">
+        <div className="film-dock-centre" role="group" aria-label={tr`Transport`}>
           <button type="button" className={`film-btn${ctl.range.in != null ? ' is-set' : ''}`} onPointerDown={noFocus} onClick={ctl.markIn}
-                  aria-label="Set in point" data-tip="Set in" data-key="I"><MarkIn /></button>
-          <button type="button" className="film-btn" {...back} aria-label="Back one frame" data-tip="Back one frame — hold to repeat" data-key="←">
+                  aria-label={tr`Set in point`} data-tip={tr`Set in`} data-key="I"><MarkIn /></button>
+          <button type="button" className="film-btn" {...back} aria-label={tr`Back one frame`} data-tip={tr`Back one frame — hold to repeat`} data-key="←">
             <FrameBack />
           </button>
           <button type="button" className="film-btn film-play" onPointerDown={noFocus} onClick={ctl.toggle}
-                  aria-label={ctl.playing ? 'Pause' : 'Play'} data-tip={ctl.playing ? 'Pause' : 'Play'} data-key="Space">
+                  aria-label={ctl.playing ? tr`Pause` : tr`Play`} data-tip={ctl.playing ? tr`Pause` : tr`Play`} data-key="Space">
             {ctl.playing ? <PauseGlyph size={24} /> : <PlayGlyph size={24} />}
           </button>
-          <button type="button" className="film-btn" {...fwd} aria-label="Forward one frame" data-tip="Forward one frame — hold to repeat" data-key="→">
+          <button type="button" className="film-btn" {...fwd} aria-label={tr`Forward one frame`} data-tip={tr`Forward one frame — hold to repeat`} data-key="→">
             <FrameFwd />
           </button>
           <button type="button" className={`film-btn${ctl.range.out != null ? ' is-set' : ''}`} onPointerDown={noFocus} onClick={ctl.markOut}
-                  aria-label="Set out point" data-tip="Set out" data-key="O"><MarkOut /></button>
+                  aria-label={tr`Set out point`} data-tip={tr`Set out`} data-key="O"><MarkOut /></button>
         </div>
         <div className="film-dock-right">
           <button type="button" className={`film-btn${ctl.looping ? ' is-on' : ''}`} onPointerDown={noFocus} onClick={ctl.toggleLoop}
-                  aria-pressed={ctl.looping} aria-label="Loop"
-                  data-tip={ctl.range.in != null || ctl.range.out != null ? 'Loop between in and out' : 'Loop the whole clip'} data-key="⌥L">
+                  aria-pressed={ctl.looping} aria-label={tr`Loop`}
+                  data-tip={ctl.range.in != null || ctl.range.out != null ? tr`Loop between in and out` : tr`Loop the whole clip`} data-key="⌥L">
             <Icon as={Repeat} size={20} weight="regular" />
           </button>
           <button type="button" className={`film-btn film-rate${rateOn ? ' is-on' : ''}`} onPointerDown={noFocus}
                   onClick={(e) => ctl.openSpeed(e.currentTarget)} aria-haspopup="menu" aria-expanded={ctl.menuId === 'speed'}
-                  aria-label={`Speed ${rateText}`} data-tip="Speed" data-key="⇧< ⇧>">
+                  aria-label={tr`Speed ${rateText}`} data-tip={tr`Speed`} data-key="⇧< ⇧>">
             {rateText}
           </button>
           <button type="button" className={`film-btn film-guides-btn${ctl.guide !== 'off' ? ' is-on' : ''}`} onPointerDown={noFocus}
                   onClick={(e) => ctl.openGuides(e.currentTarget)} aria-haspopup="menu" aria-expanded={ctl.menuId === 'guides'}
-                  aria-label="Framing guides" data-tip={ctl.guideDef && ctl.guide !== 'off' ? `Guides: ${ctl.guideDef.label}` : 'Framing guides'} data-key="G">
+                  aria-label={tr`Framing guides`} data-tip={ctl.guideDef && ctl.guide !== 'off' ? tr`Guides: ${ph({ label: ctl.guideDef.label })}` : tr`Framing guides`} data-key="G">
             <GuidesGlyph />
           </button>
           {ctl.compareOn && (
             <>
               <span className="film-sep" />
-              <div className="film-ab" role="group" aria-label="Compare versions">
+              <div className="film-ab" role="group" aria-label={tr`Compare versions`}>
                 <button type="button" className={`film-ab-seg${ctl.side === 'A' ? ' is-shown' : ''}`} onPointerDown={noFocus}
-                        onClick={() => { if (ctl.side !== 'A') ctl.flip(); }} aria-pressed={ctl.side === 'A'} data-tip="Show A" data-key="\">
+                        onClick={() => { if (ctl.side !== 'A') ctl.flip(); }} aria-pressed={ctl.side === 'A'} data-tip={tr`Show A`} data-key="\">
                   A <span>{ctl.label}</span>
                 </button>
                 <button type="button" className={`film-ab-seg${ctl.side === 'B' ? ' is-shown' : ''}`} onPointerDown={noFocus}
-                        onClick={() => { if (ctl.side !== 'B') ctl.flip(); }} aria-pressed={ctl.side === 'B'} data-tip="Show B" data-key="\">
+                        onClick={() => { if (ctl.side !== 'B') ctl.flip(); }} aria-pressed={ctl.side === 'B'} data-tip={tr`Show B`} data-key="\">
                   B <span>{ctl.compareLabel}</span>
                 </button>
               </div>
@@ -203,7 +205,7 @@ export function FilmDock({ ctl, timeline }) {
           <VolumeControl ctl={ctl} />
           {ctl.canFull && (
             <button type="button" className="film-btn" onPointerDown={noFocus} onClick={ctl.toggleFull}
-                    aria-label={ctl.isFull ? 'Exit full screen' : 'Full screen'} data-tip={ctl.isFull ? 'Exit full screen' : 'Full screen'} data-key="F">
+                    aria-label={ctl.isFull ? tr`Exit full screen` : tr`Full screen`} data-tip={ctl.isFull ? tr`Exit full screen` : tr`Full screen`} data-key="F">
               <Icon as={ctl.isFull ? CornersIn : CornersOut} size={20} weight="regular" />
             </button>
           )}

@@ -13,6 +13,7 @@
 // a re-hover is instant (no lag vs. the cheap @mention hover).
 
 import { supabase } from './supabase.js';
+import { t as tr } from '@lingui/core/macro';
 
 const MAX_IMAGES = 120;
 const MAX_PALETTES = 3;
@@ -112,7 +113,7 @@ export async function fetchTagVisuals({ tagId, workspaceId } = {}) {
       } else if (r.source_kind === 'doc') {
         if (r.source_page_id) {
           const p = byPage.get(r.source_page_id);
-          hit2 = { kind: 'doc', title: p?.page_title || 'Doc page', board_id: null, card_id: r.source_id, meta: null, body: null };
+          hit2 = { kind: 'doc', title: p?.page_title || tr`Doc page`, board_id: null, card_id: r.source_id, meta: null, body: null };
           key = `doc:${r.source_id}:${r.source_page_id}`;
           navTarget = { kind: 'doc', docCardId: r.source_id, pageId: r.source_page_id };
         } else {

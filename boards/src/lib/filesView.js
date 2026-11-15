@@ -14,6 +14,7 @@
 import { SHELVES, SHELF_BUCKETS, FILTER_CHIPS, shelfOf } from './sidebarShelves.js';
 import { gridNeighbor } from './justifiedGrid.js';
 import { formatDuration } from './loopMeta.js';
+import { t } from '@lingui/core/macro';
 
 // The card's sorts, as the page sorts (lib/listItem.js sortItems).
 export const SORT_TO_PAGE = Object.freeze({
@@ -22,7 +23,12 @@ export const SORT_TO_PAGE = Object.freeze({
   size: Object.freeze({ key: 'size', dir: 'desc' }),
   canvas: Object.freeze({ key: 'board', dir: 'asc' }),
 });
-export const SORT_LABELS = Object.freeze({ newest: 'Newest first', name: 'Name', size: 'Size', canvas: 'Canvas order' });
+export const SORT_LABELS = Object.freeze({
+  get newest() { return t`Newest first`; },
+  get name() { return t`Name`; },
+  get size() { return t`Size`; },
+  get canvas() { return t`Canvas order`; },
+});
 
 // The card's sort a page sort is, or null for one the menu has no item for
 // (a column head's: Kind, Modified, the audio columns, a reversed one).
@@ -33,14 +39,25 @@ export function sidebarSortOf(key, dir) {
 
 // What a sort is called: the menu's word, else what its column says, with
 // the way it runs.
-const COLUMN_WORDS = {
-  name: 'Name', type: 'Kind', size: 'Size', created: 'Added', updated: 'Modified', board: 'Canvas order',
-  duration: 'Length', bpm: 'Tempo', key: 'Key', format: 'Format',
-};
+function columnWord(key) {
+  switch (key) {
+    case 'name': return t`Name`;
+    case 'type': return t`Kind`;
+    case 'size': return t`Size`;
+    case 'created': return t`Added`;
+    case 'updated': return t`Modified`;
+    case 'board': return t`Canvas order`;
+    case 'duration': return t`Length`;
+    case 'bpm': return t`Tempo`;
+    case 'key': return t`Key`;
+    case 'format': return t`Format`;
+    default: return t`Custom`;
+  }
+}
 export function sortLabelOf(key, dir) {
   const id = sidebarSortOf(key, dir);
   if (id) return SORT_LABELS[id];
-  return `${COLUMN_WORDS[key] || 'Custom'} ${dir === 'asc' ? '↑' : '↓'}`;
+  return `${columnWord(key)} ${dir === 'asc' ? '↑' : '↓'}`;
 }
 
 // A chip as the page filters: its shelf's type buckets, or Not on board.
@@ -83,16 +100,16 @@ export function pageChipsOf(counts, chip) {
   const out = FILTER_CHIPS.filter((c) => c.id === 'all' || c.id === chip || (counts?.[c.id] || 0) > 0);
   if (chip === 'more') {
     const at = out.findIndex((c) => c.id === 'unplaced');
-    out.splice(at < 0 ? out.length : at, 0, { id: 'more', label: 'Other' });
+    out.splice(at < 0 ? out.length : at, 0, { id: 'more', get label() { return t({ message: 'Other', context: 'files' }); } });
   }
   return out;
 }
 
 export function chipLabelOf(chip) {
-  if (chip == null) return 'Filtered';
-  if (chip === 'all') return 'All files';
-  if (chip === 'more') return 'Other';
-  return FILTER_CHIPS.find((c) => c.id === chip)?.label || 'All files';
+  if (chip == null) return t`Filtered`;
+  if (chip === 'all') return t`All files`;
+  if (chip === 'more') return t({ message: 'Other', context: 'files' });
+  return FILTER_CHIPS.find((c) => c.id === chip)?.label || t`All files`;
 }
 
 // The page's shelves over what it shows, in the card's order: photos and
@@ -126,7 +143,7 @@ const FORMATTED = new Set(['image', 'video', 'audio']);
 export function kindLabelOf(item) {
   if (!item) return '';
   const fmt = String(item.format || item.ext || '').toUpperCase();
-  if (item.kind === 'file') return fmt || item.typeLabel || 'File';
+  if (item.kind === 'file') return fmt || item.typeLabel || t`File`;
   if (FORMATTED.has(item.kind) && fmt) return `${item.typeLabel} · ${fmt}`;
   return item.typeLabel || '';
 }

@@ -33,9 +33,28 @@ import { supabase } from '../lib/supabase.js';
 import { useCandidateNames } from './useCandidateNames.js';
 import { ensureTag, setTagEntityType } from '../lib/tagsApi.js';
 import { entityTypeLabel } from '../lib/entityTypes.js';
+import { t as tr, ph } from '@lingui/core/macro';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { CANDIDATE_NAME_KEY } from '../components/docExtensions/CandidateNamePlugin.js';
+import { shownError } from '../lib/errorWords.js';
+
+// "“Ada” is now a character": one whole message per entity type (the type's
+// own word, so the article can agree with it). An unknown type prints its id.
+function promotedMessage(entityType, name) {
+  switch (entityType) {
+    case 'character': return tr`“${ph({ name })}” is now a character`;
+    case 'setting': return tr`“${ph({ name })}” is now a setting`;
+    case 'organization': return tr`“${ph({ name })}” is now an organization`;
+    case 'concept': return tr`“${ph({ name })}” is now a topic`;
+    case 'thing': return tr`“${ph({ name })}” is now a thing`;
+    default: {
+      const typeWord = entityTypeLabel(entityType);
+      if (!typeWord) return tr`“${ph({ name })}” is now a tag`;
+      return tr`“${ph({ name })}” is now a ${ph({ kind: typeWord.toLowerCase() })}`;
+    }
+  }
+}
 
 export function useCandidateTagging({ editorRef, workspaceId, userId, applyPromotedTag, notify }) {
   const { index: candidateIndex } = useCandidateNames(workspaceId);
@@ -66,9 +85,9 @@ export function useCandidateTagging({ editorRef, workspaceId, userId, applyPromo
         try { applied = !!(await applyPromotedTag(tag, c)); } catch (_) {}
       }
       try { logEvent(EV.TAG_CANDIDATE_PROMOTE, { entity_type: entityType, count: c.count || 0, applied }); } catch (_) {}
-      notify?.({ type: 'success', message: `“${c.name}” is now a ${(entityTypeLabel(entityType) || 'tag').toLowerCase()}` });
+      notify?.({ type: 'success', message: promotedMessage(entityType, c.name) });
     } catch (err) {
-      notify?.({ type: 'error', code: 'tag_create_failed', message: 'Could not create tag: ' + (err?.message || err) });
+      notify?.({ type: 'error', code: 'tag_create_failed', message: tr`Could not create tag: ${ph({ reason: shownError(err) })}` });
     } finally {
       setCandidateBusy(false);
       setCandidatePrompt(null);
@@ -94,7 +113,7 @@ export function useCandidateTagging({ editorRef, workspaceId, userId, applyPromo
       // it back on the next load. Already dismissed (23505) is fine.
       if (error && error.code !== '23505') throw error;
     } catch (err) {
-      notify?.({ type: 'error', code: 'tag_dismiss_failed', message: 'Could not dismiss: ' + (err?.message || err) });
+      notify?.({ type: 'error', code: 'tag_dismiss_failed', message: tr`Could not dismiss: ${ph({ reason: shownError(err) })}` });
     } finally {
       try { logEvent(EV.TAG_CANDIDATE_DISMISS, { count: c.count || 0 }); } catch (_) {}
       setCandidateBusy(false);

@@ -10,9 +10,12 @@ import { Stack, ArrowsOutSimple, UsersThree, ShieldCheck, UserCircle, Link as Li
 import { Icon } from '../Icon.jsx';
 import { BenefitGrid } from '../PricingBits.jsx';
 import { Plus, Minus } from '../../lib/icons.js';
-import { money, TEAM_SEAT_MIN, TEAM_SEAT_MAX, TEAM_SEAT_PRICE } from '../../lib/teamModel.js';
-import { teamBenefits, teamComparison, teamCardCopy } from '../../lib/teamPricingCopy.js';
+import { TEAM_SEAT_MIN, TEAM_SEAT_MAX, TEAM_SEAT_PRICE } from '../../lib/teamModel.js';
+import { money } from '../../lib/teamModelWords.js';
+import { teamBenefits, teamComparison, teamCardCopy } from '../../lib/teamPricingCopyWords.js';
 import { PLAN_NAME } from '../../lib/billingCopy.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Creator's glyphs where the benefit is Creator's (cards, drive), the rest in kind.
 const TEAM_BENEFIT_ICON = {
@@ -44,13 +47,13 @@ export default function TeamPlanCard({ plan = 'monthly', seats, setSeats, onStar
       <p className="pp-plan-sub t-meta">{c.sub}</p>
 
       <div className="pp-seatpick">
-        <span className="pp-seatpick-k">Seats</span>
+        <span className="pp-seatpick-k"><Trans>Seats</Trans></span>
         <span className="pp-step">
-          <button type="button" aria-label="One fewer seat" disabled={seats <= TEAM_SEAT_MIN} onClick={() => set(seats - 1)}>
+          <button type="button" aria-label={t`One fewer seat`} disabled={seats <= TEAM_SEAT_MIN} onClick={() => set(seats - 1)}>
             <Icon as={Minus} size={12} weight="regular" />
           </button>
           <b data-seats>{seats}</b>
-          <button type="button" aria-label="One more seat" disabled={seats >= TEAM_SEAT_MAX} onClick={() => set(seats + 1)}>
+          <button type="button" aria-label={t`One more seat`} disabled={seats >= TEAM_SEAT_MAX} onClick={() => set(seats + 1)}>
             <Icon as={Plus} size={12} weight="regular" />
           </button>
         </span>
@@ -88,9 +91,9 @@ export function TeamCompareTable({ editorLimit }) {
         <thead>
           <tr>
             <th scope="col">&nbsp;</th>
-            <th scope="col">Free</th>
+            <th scope="col"><Trans>Free</Trans></th>
             <th scope="col">{PLAN_NAME}</th>
-            <th scope="col" className="seo-us-col">Team</th>
+            <th scope="col" className="seo-us-col"><Trans>Team</Trans></th>
           </tr>
         </thead>
         <tbody>

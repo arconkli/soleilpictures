@@ -24,8 +24,10 @@ import { teamJoinLine } from '../lib/teamCopy.js';
 import { TEAMJOIN_PARAM, TEAMINVITE_PARAM, teamLinkFromSearch, stashTeamLink, readTeamLink, clearTeamLink, stashTeamNote } from '../lib/teamLinks.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { initialOf } from '../lib/graphemes.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
-const DEAD_SUB = 'It was turned off or reset. Ask the team for a new one.';
+const deadSub = () => t`It was turned off or reset. Ask the team for a new one.`;
 
 const first = (d) => (Array.isArray(d) ? d[0] : d);
 
@@ -39,10 +41,10 @@ function JoinCard({ token, onClose }) {
     peekTeamLink({ p_token: token }).then((d) => {
       if (cancelled) return;
       const row = first(d);
-      setLink({ status: row?.status || 'dead', name: row?.team_name || '', role: row?.role || 'member', sub: DEAD_SUB });
+      setLink({ status: row?.status || 'dead', name: row?.team_name || '', role: row?.role || 'member', sub: deadSub() });
     }, () => {
       if (cancelled) return;
-      setLink({ status: 'dead', name: '', role: 'member', sub: DEAD_SUB });
+      setLink({ status: 'dead', name: '', role: 'member', sub: deadSub() });
     });
     return () => { cancelled = true; };
   }, [token]);
@@ -70,12 +72,12 @@ function JoinCard({ token, onClose }) {
         return;
       }
       if (status === 'off' || status === 'not_found' || status === 'removed') {
-        setLink((l) => ({ ...l, status: 'dead', sub: line || DEAD_SUB }));
+        setLink((l) => ({ ...l, status: 'dead', sub: line || deadSub() }));
         return;
       }
-      setError('That didn’t work. Try again.');
+      setError(t`That didn’t work. Try again.`);
     } catch (e) {
-      setError('That didn’t work. Try again.');
+      setError(t`That didn’t work. Try again.`);
     } finally {
       setBusy(false);
     }
@@ -83,31 +85,32 @@ function JoinCard({ token, onClose }) {
 
   if (link.status !== 'ok') {
     return (
-      <div className="share-prompt" role="dialog" aria-label="Team link">
-        <button type="button" className="share-prompt-x" aria-label="Dismiss" onClick={onClose}>×</button>
-        <div className="share-prompt-title">That team link no longer works.</div>
+      <div className="share-prompt" role="dialog" aria-label={t`Team link`}>
+        <button type="button" className="share-prompt-x" aria-label={t`Dismiss`} onClick={onClose}>×</button>
+        <div className="share-prompt-title"><Trans>That team link no longer works.</Trans></div>
         <div className="share-prompt-sub">{link.sub}</div>
-        <button type="button" className="share-prompt-later" onClick={onClose}>OK</button>
+        <button type="button" className="share-prompt-later" onClick={onClose}><Trans>OK</Trans></button>
       </div>
     );
   }
 
+  const teamName = link.name || t`the team`;
   const viewer = link.role === 'viewer';
   return (
-    <div className="share-prompt" role="dialog" aria-label={link.name ? `Join ${link.name}` : 'Join this team'}>
-      <button type="button" className="share-prompt-x" aria-label="Dismiss" onClick={onClose}>×</button>
-      <div className="share-prompt-eyebrow">You’re invited</div>
-      <div className="share-prompt-title">{link.name ? `Join “${link.name}”.` : 'Join this team.'}</div>
+    <div className="share-prompt" role="dialog" aria-label={link.name ? t`Join ${ph({ name: link.name })}` : t`Join this team`}>
+      <button type="button" className="share-prompt-x" aria-label={t`Dismiss`} onClick={onClose}>×</button>
+      <div className="share-prompt-eyebrow"><Trans>You’re invited</Trans></div>
+      <div className="share-prompt-title">{link.name ? t`Join “${ph({ name: link.name })}”.` : t`Join this team.`}</div>
       <div className="share-prompt-sub">
         {viewer
-          ? 'You’ll see its workspaces as they’re added. Your own workspaces stay yours: the team never sees them.'
-          : 'Its workspaces join your workspace menu. Your own workspaces stay yours: the team never sees them.'}
+          ? t`You’ll see its workspaces as they’re added. Your own workspaces stay yours: the team never sees them.`
+          : t`Its workspaces join your workspace menu. Your own workspaces stay yours: the team never sees them.`}
       </div>
       {error && <div className="share-prompt-sub" role="alert">{error}</div>}
       <button type="button" className="public-cta share-prompt-cta" disabled={busy} onClick={join}>
-        {busy ? 'Joining…' : `Join ${link.name || 'the team'}`}
+        {busy ? t`Joining…` : t`Join ${teamName}`}
       </button>
-      <button type="button" className="share-prompt-later" onClick={onClose}>Not now</button>
+      <button type="button" className="share-prompt-later" onClick={onClose}><Trans>Not now</Trans></button>
     </div>
   );
 }
@@ -137,8 +140,8 @@ function TeamSignInNote({ link, onDead }) {
       <div className="auth-wsjoin" role="note">
         <span className="auth-wsjoin-av" aria-hidden="true">T</span>
         <span className="auth-wsjoin-t">
-          <b>You’re invited to a team</b>
-          <span>Sign in with the email address the invite went to.</span>
+          <b><Trans>You’re invited to a team</Trans></b>
+          <span><Trans>Sign in with the email address the invite went to.</Trans></span>
         </span>
       </div>
     );
@@ -147,7 +150,7 @@ function TeamSignInNote({ link, onDead }) {
   if (dead) {
     return (
       <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
-        That team link no longer works. Ask the team for a new one.
+        <Trans>That team link no longer works. Ask the team for a new one.</Trans>
       </div>
     );
   }
@@ -155,8 +158,8 @@ function TeamSignInNote({ link, onDead }) {
     <div className="auth-wsjoin" role="note">
       <span className="auth-wsjoin-av" aria-hidden="true">{initialOf(peek.name)}</span>
       <span className="auth-wsjoin-t">
-        <b>{peek.name ? `Join ${peek.name}` : 'Join a team'}</b>
-        <span>Sign in or sign up to join the team.</span>
+        <b>{peek.name ? t`Join ${ph({ name: peek.name })}` : t`Join a team`}</b>
+        <span><Trans>Sign in or sign up to join the team.</Trans></span>
       </span>
     </div>
   );

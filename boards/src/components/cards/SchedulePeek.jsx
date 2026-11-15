@@ -22,6 +22,8 @@ import { Icon } from '../Icon.jsx';
 import { ChevronLeft, ChevronRight, ArrowLeft, X } from '../../lib/icons.js';
 import { swallowContextMenu } from '../../lib/contextMenuGuard.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const stop = (e) => e.stopPropagation();
 
@@ -90,38 +92,38 @@ export function SchedulePeek({ cardId, title, sourceRect, contentH, hourMode = f
          onPointerDown={stop} onMouseDown={stop} onDoubleClick={stop}>
       <div className="schedc-peekhead" onPointerDown={stop}>
         {onBack && (
-          <button type="button" className="schedc-peeknav" title="Back to day" aria-label="Back to day"
+          <button type="button" className="schedc-peeknav" title={t`Back to day`} aria-label={t`Back to day`}
             onClick={(e) => { e.stopPropagation(); onBack(); }}>
             <Icon as={ArrowLeft} size={13} />
           </button>
         )}
         <button type="button" className="schedc-peeknav"
-          title={hourMode ? 'Previous hour' : 'Previous day'} aria-label={hourMode ? 'Previous hour' : 'Previous day'}
+          title={hourMode ? t`Previous hour` : t`Previous day`} aria-label={hourMode ? t`Previous hour` : t`Previous day`}
           onClick={(e) => { e.stopPropagation(); onPrev?.(); }}>
           <Icon as={ChevronLeft} size={13} />
         </button>
         <span className="schedc-peektitle" title={title}>{title}</span>
         <button type="button" className="schedc-peeknav"
-          title={hourMode ? 'Next hour' : 'Next day'} aria-label={hourMode ? 'Next hour' : 'Next day'}
+          title={hourMode ? t`Next hour` : t`Next day`} aria-label={hourMode ? t`Next hour` : t`Next day`}
           onClick={(e) => { e.stopPropagation(); onNext?.(); }}>
           <Icon as={ChevronRight} size={13} />
         </button>
         <span className="schedc-spring" />
         {onToggleGridHours && (
           <button type="button" className="schedc-peekday schedc-peekhours"
-            title="Show this day's hour rows inline on the calendar grid"
+            title={t`Show this day's hour rows inline on the calendar grid`}
             aria-pressed={gridHours ? 'true' : 'false'}
             onClick={(e) => { e.stopPropagation(); onToggleGridHours(); }}>
-            Hours on grid
+            <Trans>Hours on grid</Trans>
           </button>
         )}
         {onOpenAsDayView && (
-          <button type="button" className="schedc-peekday" title="Open as the card's Day view"
+          <button type="button" className="schedc-peekday" title={t`Open as the card's Day view`}
             onClick={(e) => { e.stopPropagation(); onOpenAsDayView(); }}>
-            Day view
+            <Trans>Day view</Trans>
           </button>
         )}
-        <button type="button" className="schedc-peeknav schedc-peekclose" title="Close" aria-label="Close"
+        <button type="button" className="schedc-peeknav schedc-peekclose" title={t`Close`} aria-label={t`Close`}
           onClick={(e) => { e.stopPropagation(); onClose?.(); }}>
           <Icon as={X} size={13} />
         </button>

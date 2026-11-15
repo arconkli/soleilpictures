@@ -4,7 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { consentTrust, returnLabel, consentScopes, scopeSentence, VERIFIED_HOSTS } from './oauthTrust.js';
+import { consentScopes, VERIFIED_HOSTS } from './oauthTrust.js';
+import { consentTrust, returnLabel, scopeSentence } from './oauthTrustWords.js';
 
 const metadata = (host, name) => ({
   client_kind: 'metadata', client_host: host, client_name: name, client_id: `https://${host}/oauth/client.json`,

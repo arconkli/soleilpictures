@@ -4,6 +4,8 @@ import { Icon } from './Icon.jsx';
 import { LayoutGrid, FileText, StickyNote, Link as LinkIcon } from '../lib/icons.js';
 import { COVER_TINTS } from './primitives.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t as tr, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const TILE_KIND_ICON = {
   board: LayoutGrid,
@@ -64,7 +66,7 @@ export function LinkPopover({ anchor, link, onNavigate, onClose }) {
       style={{ top: pos.top, left: pos.left, width: W }}
     >
       <div className="link-popover-head">
-        <span className="t-eyebrow">{link.targets.length} TARGETS</span>
+        <span className="t-eyebrow">{plural(link.targets.length, { one: '# TARGETS', other: '# TARGETS' })}</span>
         {link.name && <span className="link-popover-name">{link.name}</span>}
       </div>
       <div className="link-popover-grid">
@@ -91,7 +93,7 @@ function TilePreview({ target }) {
         </div>
         <div className="link-popover-tile-meta">
           <div className="link-popover-tile-title">{host}</div>
-          <div className="link-popover-tile-sub t-meta">URL</div>
+          <div className="link-popover-tile-sub t-meta"><Trans>URL</Trans></div>
         </div>
       </>
     );
@@ -103,7 +105,7 @@ function TilePreview({ target }) {
         <Icon as={IconCmp} size={20} />
       </div>
       <div className="link-popover-tile-meta">
-        <div className="link-popover-tile-title">{target.name || target.id || target.cardId || target.docCardId || 'Untitled'}</div>
+        <div className="link-popover-tile-title">{target.name || target.id || target.cardId || target.docCardId || tr`Untitled`}</div>
         <div className="link-popover-tile-sub t-meta">{target.kind}</div>
       </div>
     </>

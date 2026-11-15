@@ -10,6 +10,8 @@ import { HomeGraph2DFallback } from './HomeGraph2DFallback.jsx';
 import { prefetchEntity } from '../lib/prefetchKinds.js';
 import { orbitJitter, targetId } from '../lib/hashJitter.js';
 import { useMatchMedia } from '../hooks/useMatchMedia.js';
+import { t as tr } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // All entity kinds visible by default; users navigate the graph by hovering
 // + right-clicking to open. The HUD/filter chips were removed — they were
@@ -697,7 +699,7 @@ export function HomeGraph({
   // "get started" — give sparse graphs a quiet next-step nudge.
   const sparseHint = !backdrop && filtered.nodes.length > 0 && filtered.nodes.length < 5 ? (
     <div className="home-sparse-hint" aria-hidden="true">
-      Your map grows as you link things — type @ in any doc or note to connect boards, docs, and cards.
+      <Trans>Your map grows as you link things — type @ in any doc or note to connect boards, docs, and cards.</Trans>
     </div>
   ) : null;
 
@@ -802,7 +804,7 @@ export function HomeGraph({
                     }}
                     className={`hg-name is-${l.kind}${selectedId === l.boardId ? ' is-sel' : ''}${litIds ? (litIds.has(l.boardId) ? ' is-hit' : ' is-faded') : ''}`}
                     aria-pressed={selectedId === l.boardId}
-                    title={l.kind === 'nested' ? undefined : touch ? 'Tap to see it · double-tap to open it' : 'Click to see it · double-click to open it'}
+                    title={l.kind === 'nested' ? undefined : touch ? tr`Tap to see it · double-tap to open it` : tr`Click to see it · double-click to open it`}
                     onClick={(e) => pickStar(l.boardId, { keyboard: e.detail === 0 })}
                     onPointerEnter={() => { hoverRef.current = l.boardId; }}
                     onPointerLeave={() => { if (hoverRef.current === l.boardId) hoverRef.current = null; }}

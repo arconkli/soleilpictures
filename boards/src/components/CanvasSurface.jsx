@@ -64,6 +64,7 @@ import { WaitNote } from './WaitNote.jsx';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { lazyPanel } from '../lib/lazyPanel.jsx';
 import { toListItem } from '../lib/listItem.js';
+import { listItemWords } from '../lib/listItemWords.js';
 
 // Fullscreen PDF viewer — lazy so pdfjs-dist never enters the main bundle.
 const PdfViewer = lazyWithReload(() => import('./PdfViewer.jsx'));
@@ -76,7 +77,7 @@ function PdfViewerLoading({ onClose, name }) {
   useEffect(() => registerModalOpen({ onEscape: () => { closeRef.current(); return true; } }), []);
   return (
     <div className="pdfv pdfv-loading">
-      <WaitNote label={`Opening ${name || 'this PDF'}…`} spinnerLabel="Loading PDF" onClose={onClose} />
+      <WaitNote label={name ? tr`Opening ${name}…` : tr`Opening this PDF…`} spinnerLabel={tr`Loading PDF`} onClose={onClose} />
     </div>
   );
 }
@@ -121,6 +122,7 @@ import { Sheet } from './shell/Sheet.jsx';
 import { sanitizeLayout, computeCellRects, planCellFill, neighborCell, evenTree, rehomeCells, readingOrder, BOXES_MAX } from '../lib/gridLayout.js';
 import { GRID_SPACING, gridGapOf } from './cards/GridCard.jsx';
 import { mergeSections, rowsFromRecords, bodyFromGrid, sanitizeHints, sanitizeSize, SOURCES } from '../lib/gridLayoutLibrary.js';
+import { localizeSections } from '../lib/gridLayoutWords.js';
 import { layoutById } from '../lib/templateLayouts.js';
 import { TemplateAddedPrompt } from './TemplateAddedPrompt.jsx';
 // The shipped store catalogue, so the panel sells the same fifteen templates
@@ -181,7 +183,7 @@ import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { setClipboard, getClipboard, clipboardSize, clipboardOrigin, clipboardWasCut, clipboardCopiedAt, hasRecentInternalCopy, matchesSentinel, looksLikeSentinel } from '../lib/clipboard.js';
 import { logEvent, logEventOnce, noteSessionCounter } from '../lib/analytics.js';
 import { logCanvasTool } from '../lib/canvasToolEvents.js';
-import { storageFullMessage, CREATOR_STORAGE_LABEL } from '../lib/billingCopy.js';
+import { storageFullMessage, creatorStorageLabel } from '../lib/billingCopyWords.js';
 import { storageAddonAction } from '../lib/storageAddon.js';
 import { EV, JOURNEY_PHASE } from '../lib/analyticsEvents.js';
 import { getWheelMode, resolveWheelIntent } from '../lib/wheelMode.js';
@@ -273,6 +275,10 @@ import { revealDelta } from '../lib/noteTouchTyping.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { afterBoot } from '../lib/afterBoot.js';
 import { earliestEpoch, formatClipTime, parseClipTime, serverNow, setBoardEpoch, syncServerClock } from '../lib/videoSync.js';
+import { isDefaultName } from '../lib/defaultNames.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../lib/errorWords.js';
 
 // The cluster glyph. Once the cluster nudges ship it is the folder a cluster
 // already wears in Files, list rows and the cluster browser (cards.jsx
@@ -292,26 +298,28 @@ let clusterCardSeenLogged = false;
 // ("Start your moodboard / script / shot list…") to hint the app's full range
 // without a wall of options. Honors prefers-reduced-motion (→ static first word).
 // Each swap is keyed so the CSS fade (cnvRotatingWordIn) re-triggers.
-const BREADTH_WORDS = ['moodboard', 'script', 'shot list', 'lookbook', 'asset board'];
+// A function so the words are read through Lingui when drawn, not at load.
+const breadthWords = () => [tr`moodboard`, tr`script`, tr`shot list`, tr`lookbook`, tr`asset board`];
 
 // The empty-board tile row, beneath the Image hero. Hoisted out of the JSX so
 // empty_board_shown reports a count that cannot drift from what's rendered.
 const EMPTY_TILES = [
-  { id: 'grid',   label: 'Grid',     icon: GridFour },
-  { id: 'script', label: 'Script',   icon: Clapperboard },
-  { id: 'board',  label: 'Cluster',  icon: Browsers },
-  { id: 'note',   label: 'Note',     icon: NotePencil },
-  { id: 'doc',    label: 'Doc',      icon: FileText },
-  { id: 'file',   label: 'Any file', icon: Upload },
+  { id: 'grid',   get label() { return tr`Grid`; },     icon: GridFour },
+  { id: 'script', get label() { return tr`Script`; },   icon: Clapperboard },
+  { id: 'board',  get label() { return tr`Cluster`; },  icon: Browsers },
+  { id: 'note',   get label() { return tr`Note`; },     icon: NotePencil },
+  { id: 'doc',    get label() { return tr`Doc`; },      icon: FileText },
+  { id: 'file',   get label() { return tr`Any file`; }, icon: Upload },
 ];
 // The name of a project that was just started, in the empty panel's headline
 // slot. Deliberately NOT autofocused: the panel's whole ask is "paste or drag
 // images in", and a focused text input would swallow that paste. Untitled
 // shows as an empty field with the ask as its placeholder.
 const KEY_TOOL = Object.freeze({ v: 'select', h: 'pan', n: 'text', g: 'grid', d: 'draw', a: 'arrow', c: 'board' });
-const UNTITLED_RE = /^Untitled (cluster|list)$/i;
+// 'Untitled list' is the older English name; isDefaultName knows the app's name in every language.
+const isUntitled = (name) => isDefaultName(['Untitled cluster', 'Untitled list'], name);
 function ProjectNameField({ board, onRename }) {
-  const named = board?.name && !UNTITLED_RE.test(board.name) ? board.name : '';
+  const named = board?.name && !isUntitled(board.name) ? board.name : '';
   const [draft, setDraft] = useState(named);
   useEffect(() => { setDraft(named); /* a different board, or a rename from elsewhere */ }, [board?.id, named]);
   const commit = () => {
@@ -327,8 +335,8 @@ function ProjectNameField({ board, onRename }) {
            type="text"
            value={draft}
            maxLength={120}
-           placeholder="Name this project"
-           aria-label="Project name"
+           placeholder={tr`Name this project`}
+           aria-label={tr`Project name`}
            spellCheck={false}
            onChange={(e) => setDraft(e.target.value)}
            onKeyDown={(e) => {
@@ -344,7 +352,8 @@ function ProjectNameField({ board, onRename }) {
   );
 }
 
-function RotatingWord({ words = BREADTH_WORDS, intervalMs = 2000 }) {
+function RotatingWord({ words: wordsProp = null, intervalMs = 2000 }) {
+  const words = useMemo(() => wordsProp || breadthWords(), [wordsProp]);
   const [i, setI] = useState(0);
   useEffect(() => {
     let reduce = false;
@@ -606,7 +615,8 @@ const cmdKey = isMac ? '⌘' : 'Ctrl';
 // A menu's shortcut hint in the platform's own notation: '⌘X' on a Mac,
 // 'Ctrl+X' elsewhere. Gluing cmdKey to the key read 'CtrlX' off a Mac.
 const modShortcut = (key) => (isMac ? `⌘${key}` : `Ctrl+${key}`);
-
+// The tick that marks the current choice in a menu label: a space (or two) and ✓.
+const tickIf = (on, spaces = 1) => (on ? `${' '.repeat(spaces)}✓` : '');
 // Shared canonical "is the user typing in an editor?" guard (see
 // lib/isEditableTarget.js). Aliased to the historical name used throughout
 // this file's keyboard / paste guards.
@@ -669,16 +679,16 @@ function GridBoxesControl({ initialCols = 3, initialRows = 2, onApply, onEvenOut
   };
   return (
     <div className="grid-matrix-ctl" onPointerDown={(e) => e.stopPropagation()}>
-      <span className="gm-lbl">Boxes</span>
-      <input type="number" min="1" max={BOXES_MAX} value={cols} aria-label="Columns"
+      <span className="gm-lbl"><Trans>Boxes</Trans></span>
+      <input type="number" min="1" max={BOXES_MAX} value={cols} aria-label={tr`Columns`}
         onChange={(e) => setCols(e.target.value)} onKeyDown={onKey} />
       <span className="gm-x">×</span>
-      <input type="number" min="1" max={BOXES_MAX} value={rows} aria-label="Rows"
+      <input type="number" min="1" max={BOXES_MAX} value={rows} aria-label={tr`Rows`}
         onChange={(e) => setRows(e.target.value)} onKeyDown={onKey} />
-      <button type="button" className="gm-apply" onClick={submit}>Apply</button>
+      <button type="button" className="gm-apply" onClick={submit}><Trans>Apply</Trans></button>
       <span className="gm-sep" aria-hidden="true" />
-      <button type="button" className="gm-ghost" onClick={onEvenOut} title="Make every box the same size">
-        Even out
+      <button type="button" className="gm-ghost" onClick={onEvenOut} title={tr`Make every box the same size`}>
+        <Trans>Even out</Trans>
       </button>
     </div>
   );
@@ -2251,6 +2261,7 @@ export function CanvasSurface({
   const looseOnStudio = useMemo(() => (studioBarEligible
     ? planClusterFromSelection({ cards, ids: cards.map((c) => c.id), clusters: 'skip', skipSeeds: true }).ids.length
     : 0), [studioBarEligible, cards]);
+  const looseCards = plural(looseOnStudio, { one: '# loose card', other: '# loose cards' });
   useEffect(() => {
     if (studioBarUp) {
       // Filed, deleted or moved below the line: the offer is over.
@@ -2496,7 +2507,7 @@ export function CanvasSurface({
     noteCreateIntent('paste');
     if (clamped) {
       noteCreateBlocked('stale_paste', 'paste');
-      feedback.toast({ type: 'info', message: 'Pasted into view.', ttl: 2500 });
+      feedback.toast({ type: 'info', message: tr`Pasted into view.`, ttl: 2500 });
     }
   };
   // Place tools (click empty canvas to drop a card); 'draw'/'arrow' are not.
@@ -2529,10 +2540,10 @@ export function CanvasSurface({
     // Moving someone without asking is a liberty; name it and offer the way
     // back in the same breath, and measure how often they take it.
     feedback.toast({
-      message: 'Opened your new cluster — add images inside it.',
+      message: tr`Opened your new cluster — add images inside it.`,
       ttl: 7000,
       action: parentId ? {
-        label: 'Back',
+        label: tr`Back`,
         onClick: () => {
           try { logEvent(EV.CLUSTER_AUTO_OPEN_BACK, { board_id: parentId }); } catch (_) {}
           onOpenBoard(parentId);
@@ -3371,7 +3382,7 @@ export function CanvasSurface({
       };
     }).filter(Boolean);
     const community = [...takenFromGallery, ...published];
-    return mergeSections({ mine, workspace, downloaded, store, community });
+    return localizeSections(mergeSections({ mine, workspace, downloaded, store, community }));
   }, [savedLayouts, publishedLayouts, userId, workspaceId]);
 
   // The grid a template would re-cut: exactly one card selected and it IS a grid.
@@ -3402,7 +3413,7 @@ export function CanvasSurface({
     }
     const res = mutators.applyGridLayout?.(templateTargetIdRef.current, row.tree, row.hints || null);
     if (!res) {
-      feedback.toast({ type: 'error', code: 'template_apply_failed', message: 'Could not apply that template.' });
+      feedback.toast({ type: 'error', code: 'template_apply_failed', message: tr`Could not apply that template.` });
       return;
     }
     const um = mutators.undoManager;
@@ -3412,8 +3423,8 @@ export function CanvasSurface({
     // they had selected. A clean re-cut of a single grid needs no announcement —
     // they can see what happened.
     const parts = [];
-    if (res.affected > 1) parts.push(`Re-cut ${res.affected} linked grids`);
-    if (res.dropped) parts.push(`${res.dropped} filled ${res.dropped === 1 ? 'cell' : 'cells'} removed`);
+    if (res.affected > 1) parts.push(tr`Re-cut ${ph({ affected: res.affected })} linked grids`);
+    if (res.dropped) parts.push(plural(res.dropped, { one: '# filled cell removed', other: '# filled cells removed' }));
     if (parts.length) {
       undoToast(feedback, {
         message: parts.join(' · '),
@@ -3448,7 +3459,7 @@ export function CanvasSurface({
     const layout = card.templateId ? gridTemplates?.[card.templateId]?.layout : card.layout;
     const textStyle = card.templateId ? gridTemplates?.[card.templateId]?.textStyle : card.textStyle;
     const clean = sanitizeLayout(layout);
-    if (!clean) { feedback.toast({ type: 'error', code: 'template_no_layout', message: 'That grid has no layout to save.' }); return; }
+    if (!clean) { feedback.toast({ type: 'error', code: 'template_no_layout', message: tr`That grid has no layout to save.` }); return; }
     // The card's own proportions ride along, so a grid you built as a storyboard
     // comes back as one. Read here rather than at submit for the same reason the
     // layout is: the selection can change while the dialog is up.
@@ -3460,7 +3471,7 @@ export function CanvasSurface({
     setSaveTplLayout(null);
     if (!pending || !userId) return;
     const body = bodyFromGrid(pending.layout, pending.textStyle, hints, pending.size);
-    if (!body) { feedback.toast({ type: 'error', code: 'template_read_failed', message: 'Could not read that grid.' }); return; }
+    if (!body) { feedback.toast({ type: 'error', code: 'template_read_failed', message: tr`Could not read that grid.` }); return; }
     try {
       const row = await saveGridLayout({ name: name.slice(0, 80), body, scope: 'user', userId });
       const labelled = (hints || []).filter((h) => h.trim()).length;
@@ -3474,25 +3485,25 @@ export function CanvasSurface({
           await publishGridLayout(row.id, name.slice(0, 80), description || null);
           await reloadGridLayouts();
           feedback.toast({
-            message: 'Saved and shared in the store.',
-            actionLabel: 'View',
+            message: tr`Saved and shared in the store.`,
+            actionLabel: tr`View`,
             onAction: () => window.open('/templates', '_blank', 'noopener'),
           });
           return;
         } catch (e) {
           await reloadGridLayouts();
-          feedback.toast({ type: 'info', message: `Saved, but not shared — ${e?.message || 'try again from its ··· menu.'}` });
+          feedback.toast({ type: 'info', message: e?.message ? tr`Saved, but not shared — ${ph({ reason: e.message })}` : tr`Saved, but not shared — try again from its ··· menu.` });
           return;
         }
       }
       await reloadGridLayouts();
       feedback.toast({
         message: labelled
-          ? `Saved “${name}” with ${labelled} ${labelled === 1 ? 'label' : 'labels'}.`
-          : `Saved “${name}” to your templates.`,
+          ? plural(labelled, { one: `Saved “${name}” with # label.`, other: `Saved “${name}” with # labels.` })
+          : tr`Saved “${name}” to your templates.`,
       });
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'template_save_failed', message: 'Could not save that template.' });
+      feedback.toast({ type: 'error', code: 'template_save_failed', message: tr`Could not save that template.` });
     }
   };
 
@@ -3501,41 +3512,41 @@ export function CanvasSurface({
     const acts = [];
     acts.push({
       id: 'rename',
-      label: 'Rename…',
+      label: tr`Rename…`,
       run: async () => {
         const next = await feedback.prompt({
-          title: 'Rename template', label: 'Name', defaultValue: row.name, confirmLabel: 'Rename',
+          title: tr`Rename template`, label: tr`Name`, defaultValue: row.name, confirmLabel: tr`Rename`,
         });
         if (!next || !next.trim() || next.trim() === row.name) return;
         try { await renameGridLayout(row.id, next.trim().slice(0, 80)); await reloadGridLayouts(); }
-        catch (e) { feedback.toast({ type: 'error', code: 'template_rename_failed', message: 'Could not rename: ' + (e.message || e) }); }
+        catch (e) { { const reason = String(shownError(e)); feedback.toast({ type: 'error', code: 'template_rename_failed', message: tr`Could not rename: ${reason}` }); } }
       },
     });
     if (isMine) {
       const toWorkspace = row.source !== SOURCES.WORKSPACE;
       acts.push({
         id: 'scope',
-        label: toWorkspace ? 'Share with workspace' : 'Make private',
+        label: toWorkspace ? tr`Share with workspace` : tr`Make private`,
         run: async () => {
           try {
             await setGridLayoutScope(row.id, toWorkspace ? 'workspace' : 'user', workspaceId);
             await reloadGridLayouts();
-            feedback.toast({ message: toWorkspace ? 'Shared with your workspace.' : 'Now private to you.' });
-          } catch (e) { feedback.toast({ type: 'error', code: 'template_share_failed', message: 'Could not change sharing: ' + (e.message || e) }); }
+            feedback.toast({ message: toWorkspace ? tr`Shared with your workspace.` : tr`Now private to you.` });
+          } catch (e) { { const reason = String(shownError(e)); feedback.toast({ type: 'error', code: 'template_share_failed', message: tr`Could not change sharing: ${reason}` }); } }
         },
       });
       acts.push({
         id: 'link',
-        label: 'Copy share link',
+        label: tr`Copy share link`,
         run: async () => {
           try {
             const token = await createGridLayoutLink(row.id);
             const url = `${window.location.origin}/t/${token}`;
             // Clipboard can be denied; showing the URL is a worse-but-real
             // fallback rather than a silent failure.
-            try { await navigator.clipboard.writeText(url); feedback.toast({ message: 'Share link copied.' }); }
+            try { await navigator.clipboard.writeText(url); feedback.toast({ message: tr`Share link copied.` }); }
             catch (_) { feedback.toast({ message: url, ttl: 12000 }); }
-          } catch (e) { feedback.toast({ type: 'error', code: 'template_link_failed', message: 'Could not create a link: ' + (e.message || e) }); }
+          } catch (e) { { const reason = String(shownError(e)); feedback.toast({ type: 'error', code: 'template_link_failed', message: tr`Could not create a link: ${reason}` }); } }
         },
       });
     }
@@ -3545,28 +3556,28 @@ export function CanvasSurface({
       // the row from asking the user to guess its own state.
       acts.push(row.publishedSlug ? {
         id: 'unpublish',
-        label: 'Remove from the store',
+        label: tr`Remove from the store`,
         run: async () => {
           try {
             await unpublishGridLayout(row.id);
             await reloadGridLayouts();
-            feedback.toast({ message: 'Removed from the store.' });
-          } catch (e) { feedback.toast({ type: 'error', code: 'template_remove_failed', message: 'Could not remove: ' + (e.message || e) }); }
+            feedback.toast({ message: tr`Removed from the store.` });
+          } catch (e) { { const reason = String(shownError(e)); feedback.toast({ type: 'error', code: 'template_remove_failed', message: tr`Could not remove: ${reason}` }); } }
         },
       } : {
         id: 'publish',
-        label: 'Share in the store…',
+        label: tr`Share in the store…`,
         run: async () => {
           // A prompt rather than a confirm, because the description IS the tile
           // line in the store. Publishing used to pass null here, so every
           // community template arrived with no line under its name — the one
           // field a shopper actually reads.
           const desc = await feedback.prompt({
-            title: 'Share in the template store?',
-            message: `“${row.name}” will appear at /templates for anyone to add. It shares the shape and the labels only — no images, no text, nothing from the board it came from. You can remove it at any time.`,
-            label: 'One line about it (optional)',
-            placeholder: 'Three locations, three frames each — wide, detail, light.',
-            confirmLabel: 'Share it',
+            title: tr`Share in the template store?`,
+            message: tr`“${ph({ name: row.name })}” will appear at /templates for anyone to add. It shares the shape and the labels only — no images, no text, nothing from the board it came from. You can remove it at any time.`,
+            label: tr`One line about it (optional)`,
+            placeholder: tr`Three locations, three frames each — wide, detail, light.`,
+            confirmLabel: tr`Share it`,
           });
           // prompt resolves '' for an empty field and null only on cancel, so
           // this distinguishes "no description" from "changed my mind".
@@ -3575,20 +3586,20 @@ export function CanvasSurface({
             const res = await publishGridLayout(row.id, row.name, String(desc).trim() || null);
             await reloadGridLayouts();
             feedback.toast({
-              message: 'Shared in the store.',
-              action: res?.slug ? { label: 'View', onClick: () => window.open('/templates', '_blank', 'noopener') } : undefined,
+              message: tr`Shared in the store.`,
+              action: res?.slug ? { label: tr`View`, onClick: () => window.open('/templates', '_blank', 'noopener') } : undefined,
             });
           } catch (e) {
             // The 2-cell quality gate raises 22023 with a human-readable
             // message; surfacing it verbatim beats inventing a vaguer one.
-            feedback.toast({ type: 'error', code: 'template_publish_failed', message: e.message || 'Could not publish.' });
+            feedback.toast({ type: 'error', code: 'template_publish_failed', message: shownError(e, tr`Could not publish.`) });
           }
         },
       });
     }
     acts.push({
       id: 'delete',
-      label: 'Delete',
+      label: tr`Delete`,
       danger: true,
       run: async () => {
         try {
@@ -3598,13 +3609,13 @@ export function CanvasSurface({
           // UndoManager stack item is involved, which is the shape undoToast
           // documents for server-side operations.
           undoToast(feedback, {
-            message: `“${row.name}” deleted`,
+            message: tr`“${ph({ name: row.name })}” deleted`,
             onUndo: async () => {
               try { await restoreGridLayout(row.id); await reloadGridLayouts(); }
-              catch (e) { feedback.toast({ type: 'error', code: 'template_restore_failed', message: 'Could not restore: ' + (e.message || e) }); }
+              catch (e) { { const reason = String(shownError(e)); feedback.toast({ type: 'error', code: 'template_restore_failed', message: tr`Could not restore: ${reason}` }); } }
             },
           });
-        } catch (e) { feedback.toast({ type: 'error', code: 'template_delete_failed', message: 'Could not delete: ' + (e.message || e) }); }
+        } catch (e) { { const reason = String(shownError(e)); feedback.toast({ type: 'error', code: 'template_delete_failed', message: tr`Could not delete: ${reason}` }); } }
       },
     });
     return acts;
@@ -3788,7 +3799,7 @@ export function CanvasSurface({
       .filter(c => c.kind === 'palette' && Array.isArray(c.swatches) && c.swatches.length > 0)
       .map((c, i) => ({
         id: `${boardId}:${c.id}`,
-        name: c.title || `Palette ${i + 1}`,
+        name: c.title || tr`Palette ${ph({ number: i + 1 })}`,
         swatches: c.swatches.filter(s => s && s.hex),
       }));
     const localIds = new Set(local.map(p => p.id));
@@ -4160,7 +4171,7 @@ export function CanvasSurface({
   // (a paste, or Undo bringing back a card whose upload was cancelled).
   const soloTransferJob = useCallback((file, dropBoardId, cardId = null) => {
     const batch = startBatch({ kind: 'upload', boardId: dropBoardId || null, boardName: boardNameRef.current });
-    const tid = addTransfer({ batch, label: file?.name || 'File', boardId: dropBoardId || null, cardId, bytesTotal: file?.size || 0, mime: file?.type || '', cancellable: true });
+    const tid = addTransfer({ batch, label: file?.name || tr`File`, boardId: dropBoardId || null, cardId, bytesTotal: file?.size || 0, mime: file?.type || '', cancellable: true });
     return { tid, batch };
   }, []);
   // Where a card stands now, else `fallback`.
@@ -4246,13 +4257,13 @@ export function CanvasSurface({
     if (keptUploadsRef.current.has(id) || boardIdRef.current !== k.dropBoardId || !cardIsLive(id)) return;
     const batch = startBatch({ kind: 'upload', boardId: k.dropBoardId, boardName: boardNameRef.current });
     const tid = addTransfer({
-      batch, label: k.retry.file?.name || 'File', boardId: k.dropBoardId, cardId: id,
+      batch, label: k.retry.file?.name || tr`File`, boardId: k.dropBoardId, cardId: id,
       bytesTotal: k.retry.file?.size || 0, state: 'failed', mime: k.retry.file?.type || '', cancellable: true,
     });
     keptUploadsRef.current.set(id, { ...k, tid, batch, cleanup: null, retryWhenOpen: false });
     inflightUploadsRef.current.add(id);
     updateTransfer(tid, {
-      error: 'Didn’t upload',
+      error: null,
       actions: { retry: () => retryKeptByPerson(id), remove: () => removeKeptUpload(id) },
     });
   }, [cardIsLive, retryKeptByPerson, removeKeptUpload]);
@@ -4268,7 +4279,7 @@ export function CanvasSurface({
     const batch = activitySnapshot().items.find((it) => it.id === tid)?.batch || null;
     keptUploadsRef.current.set(id, { tid, batch, dropBoardId, retry, cleanup: null, retryWhenOpen: false });
     updateTransfer(tid, {
-      state: 'failed', error: 'Didn’t upload', retryOnline: true,
+      state: 'failed', error: null, retryOnline: true,
       actions: { retry: () => retryKeptByPerson(id), remove: () => removeKeptUpload(id) },
     });
     return true;
@@ -4413,7 +4424,7 @@ export function CanvasSurface({
         type: 'warning',
         message: storageFullMessage({ own: ownsWorkspace, paid: isPaidPlan }),
         ...(offer && !explained
-          ? { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'server_quota' }); upsell?.({ force: true }); } } }
+          ? { action: { label: tr`See Creator`, onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'server_quota' }); upsell?.({ force: true }); } } }
           : {}),
         ...(addon ? { action: addon } : {}),
       });
@@ -4438,7 +4449,7 @@ export function CanvasSurface({
       // upload party means the write itself was refused — edit access ended.
       feedback.toast({
         type: 'warning',
-        message: "That upload was refused — you may no longer be able to edit this cluster.",
+        message: tr`That upload was refused — you may no longer be able to edit this cluster.`,
       });
     } else if (err?.code === 'video_too_long') {
       refused();
@@ -4454,14 +4465,20 @@ export function CanvasSurface({
         const errs = tooLongRef.current || [err];
         tooLongRef.current = null;
         const explained = ownsWorkspace ? upsell?.() : false;
-        const what = errs.length === 1
-          ? `${err.message}.`
-          : `${errs.length} videos are over the ${err.maxSec ? `${err.maxSec}-second ` : ''}limit and were left out.`;
+        const maxSec = err.maxSec;
+        const durationSec = err.durationSec;
+        const videoCount = errs.length;
+        // One clip: uploads.js's own "Video too long (12s; max 10s)" from the error's fields.
+        const what = videoCount === 1
+          ? tr`Video too long (${durationSec}s; max ${maxSec}s).`
+          : maxSec
+            ? plural(videoCount, { one: `# video is over the ${maxSec}-second limit and was left out.`, other: `# videos are over the ${maxSec}-second limit and were left out.` })
+            : plural(videoCount, { one: '# video is over the limit and was left out.', other: '# videos are over the limit and were left out.' });
         feedback.toast({
           type: 'warning',
-          message: ownsWorkspace ? `${what} Creator removes the length limit.` : what,
+          message: ownsWorkspace ? tr`${what} Creator removes the length limit.` : what,
           ...(ownsWorkspace && !explained
-            ? { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'video_too_long' }); upsell?.({ force: true }); } } }
+            ? { action: { label: tr`See Creator`, onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'video_too_long' }); upsell?.({ force: true }); } } }
             : {}),
         });
       }, 1000);
@@ -4488,8 +4505,8 @@ export function CanvasSurface({
         ttl: TTL,
         message: uploadFailedWords(err),
         group: 'upload-failed',
-        groupMessage: (n) => `${n} uploads failed`,
-        ...(failed.items.length ? { action: { label: 'Retry', onClick: retryAll } } : {}),
+        groupMessage: (n) => plural(n, { one: '# upload failed', other: '# uploads failed' }),
+        ...(failed.items.length ? { action: { label: tr`Retry`, onClick: retryAll } } : {}),
         onDismiss: () => { failed.items = []; },
       });
     } else removeTransfer(tid);
@@ -4528,7 +4545,7 @@ export function CanvasSurface({
         const dims = await readImageDims(file);
         onDropFileImage?.({ publicUrl: dims.url, width: dims.width, height: dims.height, x: cx, y: cy });
       } catch (err) {
-        feedback.toast({ type: 'error', code: 'image_load_failed', message: 'Image failed: ' + (err.message || err) });
+        feedback.toast({ type: 'error', code: 'image_load_failed', message: tr`Image failed: ${ph({ reason: String(shownError(err)) })}` });
       }
       return;
     }
@@ -5173,7 +5190,7 @@ export function CanvasSurface({
     const files = Array.from(fileList || []);
     if (!files.length) return;
     // Every way in (drop, picker, paste, retry) stops here on a view-only cluster.
-    if (!canEdit) { feedback?.toast?.({ type: 'info', message: 'This cluster is view-only.' }); return; }
+    if (!canEdit) { feedback?.toast?.({ type: 'info', message: tr`This cluster is view-only.` }); return; }
     // Dropped, picked or pasted files are the user's own placement: an empty
     // cluster must not then auto-fit and zoom-frame the first one (the Files
     // drag path always did this; Finder drops, the photo picker — the phone's
@@ -5276,7 +5293,7 @@ export function CanvasSurface({
       // (lib/activity.js): the tray and the cards read them.
       const batch = startBatch({ kind: 'upload', boardId: board?.id || null, boardName: board?.name || null });
       const transfers = accepted.map((it) => ({
-        tid: addTransfer({ batch, label: it.file.name || 'File', boardId: board?.id || null, bytesTotal: it.file.size || 0, mime: it.file.type || '', cancellable: true }),
+        tid: addTransfer({ batch, label: it.file.name || tr`File`, boardId: board?.id || null, bytesTotal: it.file.size || 0, mime: it.file.type || '', cancellable: true }),
         batch,
       }));
       // Real dimensions before layout, not after: laying out at the fallback
@@ -5349,9 +5366,12 @@ export function CanvasSurface({
       } catch (_) {}
       feedback.toast({
         type: 'warning',
-        message: `${blockedForUpgrade.length === 1 ? 'That file is' : `${blockedForUpgrade.length} files are`} over the free ${FREE_FILE_CAP_LABEL} limit and ${blockedForUpgrade.length === 1 ? 'was' : 'were'} left out — Creator takes any size, up to ${CREATOR_STORAGE_LABEL}.`,
+        message: plural(blockedForUpgrade.length, {
+          one: `That file is over the free ${FREE_FILE_CAP_LABEL} limit and was left out — Creator takes any size, up to ${ph({ CREATOR_STORAGE_LABEL: creatorStorageLabel() })}.`,
+          other: `# files are over the free ${FREE_FILE_CAP_LABEL} limit and were left out — Creator takes any size, up to ${ph({ CREATOR_STORAGE_LABEL: creatorStorageLabel() })}.`,
+        }),
         ttl: 6000,
-        ...(explained ? {} : { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
+        ...(explained ? {} : { action: { label: tr`See Creator`, onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
       });
     }
 
@@ -5602,9 +5622,9 @@ export function CanvasSurface({
         markMomentumHintSeen();
         try { logEvent(EV.MOMENTUM_NUDGE_SHOWN, { board_id: board?.id, after }); } catch (_) {}
         feedback.toast({
-          message: 'Nice start — boards get good at 3+. Add a few more?',
+          message: tr`Nice start — boards get good at 3+. Add a few more?`,
           ttl: 6000,
-          action: { label: 'Add more', onClick: () => pickPhotosAtRef.current?.(pos, 'momentum') },
+          action: { label: tr`Add more`, onClick: () => pickPhotosAtRef.current?.(pos, 'momentum') },
         });
       }
     };
@@ -5637,7 +5657,7 @@ export function CanvasSurface({
       if (target && target.h < 150) patch.h = 150;
       mutators.updateCard?.(cardId, patch);
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'cover_upload_failed', message: uploadFailedWords(err, "Couldn't upload the cover. Try again.") });
+      feedback.toast({ type: 'error', code: 'cover_upload_failed', message: uploadFailedWords(err, tr`Couldn't upload the cover. Try again.`) });
     }
   }, [workspaceId, board?.id, userId, mutators, cards, feedback]);
 
@@ -5665,7 +5685,7 @@ export function CanvasSurface({
         await trackOp({
           kind: 'download', label: name, boardId: board?.id || null, boardName: board?.name || null,
           key: `download:${card.id}`,
-          doneLabel: (r) => (r === false ? null : direct ? 'Download started' : `Downloaded ${name}`),
+          doneLabel: (r) => (r === false ? null : direct ? tr`Download started` : tr`Downloaded ${name}`),
         }, () => downloadCardAsset(card, kind, { surface: 'canvas' }));
       } catch (err) {
         feedback.toast({ type: 'error', code: 'file_download_failed', message: downloadFailedWords(err) });
@@ -5676,7 +5696,7 @@ export function CanvasSurface({
     if (busy.n++ === 0) {
       busy.timer = setTimeout(() => {
         busy.timer = null;
-        busy.close = feedback.toast({ type: 'info', message: 'Preparing download…', ttl: 120000 });
+        busy.close = feedback.toast({ type: 'info', message: tr`Preparing download…`, ttl: 120000 });
       }, 400);
     }
     try {
@@ -5945,7 +5965,7 @@ export function CanvasSurface({
           markWheelHintSeen();
           feedbackRef.current?.toast({
             type: 'info',
-            message: `Scrolling pans the canvas. ${isMac ? '⌘' : 'Ctrl'}-scroll zooms — or switch the wheel to zoom in Settings → Appearance.`,
+            message: tr`Scrolling pans the canvas. ${cmdKey}-scroll zooms — or switch the wheel to zoom in Settings → Appearance.`,
             ttl: 7000,
           });
           try { logEvent(EV.WHEEL_HINT_SHOWN, { board_id: boardIdRef.current }); } catch (_) {}
@@ -6276,13 +6296,16 @@ export function CanvasSurface({
     const bn = boardCards.length;
     if (bn > 0 && total === bn) {
       if (bn === 1) {
-        const name = boards[boardCards[0].id]?.name || 'this board';
-        return `Delete board "${name}" and all its content?\n\nYou can undo this with Cmd+Z. The board is fully recoverable for 30 days.`;
+        const name = boards[boardCards[0].id]?.name || tr`this board`;
+        return tr`Delete board "${name}" and all its content?\n\nYou can undo this with Cmd+Z. The board is fully recoverable for 30 days.`;
       }
-      return `Delete ${bn} boards and all their content?\n\nYou can undo this with Cmd+Z. The boards are fully recoverable for 30 days.`;
+      return plural(bn, {
+        one: 'Delete # board and all its content?\n\nYou can undo this with Cmd+Z. The board is fully recoverable for 30 days.',
+        other: 'Delete # boards and all their content?\n\nYou can undo this with Cmd+Z. The boards are fully recoverable for 30 days.',
+      });
     }
     if (bn > 0) {
-      return `Delete ${total} items, including ${bn} board${bn > 1 ? 's' : ''}?\n\nYou can undo this with Cmd+Z. Anything deleted is recoverable for 30 days.`;
+      return tr`Delete ${total} items, including ${plural(bn, { one: '# board', other: '# boards' })}?\n\nYou can undo this with Cmd+Z. Anything deleted is recoverable for 30 days.`;
     }
     // Plain cards don't need a confirm — the delete is one undo step and
     // the toast below offers a one-click Undo. Boards keep the dialog
@@ -6295,9 +6318,9 @@ export function CanvasSurface({
     const msg = buildDeleteMessage(ids);
     if (msg) {
       const ok = await feedback.confirm({
-        title: 'Delete selection',
+        title: tr`Delete selection`,
         message: msg,
-        confirmLabel: 'Delete',
+        confirmLabel: tr`Delete`,
         danger: true,
       });
       if (!ok) return;
@@ -6323,7 +6346,7 @@ export function CanvasSurface({
     // undoing that newer action (lib/undoToast.js). Undoing also restores
     // the selection via the UndoManager's stack-item meta.
     undoToast(feedback, {
-      message: ids.length === 1 ? 'Card deleted' : `${ids.length} cards deleted`,
+      message: plural(ids.length, { 1: 'Card deleted', other: '# cards deleted' }),
       undoManager: mutators.undoManager,
       stackItem: deleted?.stackItem || null,
       onUndo: () => mutators.undo?.(),
@@ -6358,7 +6381,7 @@ export function CanvasSurface({
       const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
       mutators.breakUndo?.();
       undoToast(feedback, {
-        message: strokeArrowCount === 1 ? 'Deleted' : `${strokeArrowCount} deleted`,
+        message: plural(strokeArrowCount, { 1: 'Deleted', other: '# deleted' }),
         undoManager: um,
         stackItem: item,
         onUndo: () => mutators.undo?.(),
@@ -6376,7 +6399,7 @@ export function CanvasSurface({
     const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
     mutators.breakUndo?.();
     undoToast(feedback, {
-      message: 'Arrow deleted',
+      message: tr`Arrow deleted`,
       undoManager: um,
       stackItem: item,
       onUndo: () => mutators.undo?.(),
@@ -6490,9 +6513,13 @@ export function CanvasSurface({
     // duplicates, exactly like every other canvas tool).
     if (clipboardWasCut() && clipboardOrigin() && clipboardOrigin() !== board.id) {
       const srcName = boards?.[clipboardOrigin()]?.name;
+      const cutFrom = srcName ? `“${srcName}”` : tr`another cluster`;
       feedback.toast({
         type: 'info',
-        message: `Pasted ${newCards.length === 1 ? 'a card' : `${newCards.length} cards`} cut from ${srcName ? `“${srcName}”` : 'another cluster'} — the originals stay deleted there (⌘Z there restores them).`,
+        message: plural(newCards.length, {
+          1: `Pasted a card cut from ${cutFrom} — the originals stay deleted there (⌘Z there restores them).`,
+          other: `Pasted # cards cut from ${cutFrom} — the originals stay deleted there (⌘Z there restores them).`,
+        }),
       });
     }
 
@@ -6688,7 +6715,7 @@ export function CanvasSurface({
       // instead of letting a pasted file reach the upload code and fail there.
       if (!canEdit) {
         e.preventDefault();
-        feedback?.toast?.({ type: 'info', message: 'This cluster is view-only — pasting is disabled.' });
+        feedback?.toast?.({ type: 'info', message: tr`This cluster is view-only — pasting is disabled.` });
         return;
       }
 
@@ -6728,8 +6755,8 @@ export function CanvasSurface({
             } catch (_) {}
             feedback.toast({
               type: 'warning',
-              message: `That file is over the free ${FREE_FILE_CAP_LABEL} limit — Creator takes any size.`,
-              ...(explained ? {} : { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
+              message: tr`That file is over the free ${FREE_FILE_CAP_LABEL} limit — Creator takes any size.`,
+              ...(explained ? {} : { action: { label: tr`See Creator`, onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'canvas', reason: 'owner_not_paid' }); (onRequestStorageUpgrade || onRequestUpgrade)?.({ force: true }); } } }),
             });
             return;
           }
@@ -6758,7 +6785,7 @@ export function CanvasSurface({
         const { pos, clamped } = resolvePastePos();
         if (clamped) {
           noteCreateBlocked('stale_paste', 'paste');
-          feedback.toast({ type: 'info', message: 'Pasted into view.', ttl: 2500 });
+          feedback.toast({ type: 'info', message: tr`Pasted into view.`, ttl: 2500 });
         }
         doPaste(pos);
       };
@@ -7165,7 +7192,7 @@ export function CanvasSurface({
     try {
       const imgEl = e.target?.closest?.('.ic-imgwrap')?.querySelector('img');
       if (!imgEl) {
-        feedback.toast({ type: 'error', code: 'eyedrop_no_image', message: 'Could not find the image element.' });
+        feedback.toast({ type: 'error', code: 'eyedrop_no_image', message: tr`Could not find the image element.` });
         setEyedropFor(null);
         return;
       }
@@ -7210,7 +7237,7 @@ export function CanvasSurface({
           feedback.toast({
             type: 'error',
             code: 'eyedrop_cors_failed',
-            message: 'In-image sampling needs CORS on the image bucket. Use “Eyedrop color (anywhere on screen)” instead.',
+            message: tr`In-image sampling needs CORS on the image bucket. Use “Eyedrop color (anywhere on screen)” instead.`,
           });
           return;
         }
@@ -7220,17 +7247,17 @@ export function CanvasSurface({
           type: 'error',
           code: 'eyedrop_read_failed',
           message: taintedFallbackUsed
-            ? 'Image bucket missing CORS headers — try “Eyedrop color (anywhere on screen)”.'
-            : 'Could not read pixel.',
+            ? tr`Image bucket missing CORS headers — try “Eyedrop color (anywhere on screen)”.`
+            : tr`Could not read pixel.`,
         });
         return;
       }
-      const next = [...(palette.swatches || []), { name: 'Color', hex }];
+      const next = [...(palette.swatches || []), { name: tr({ message: 'Color', context: 'default name' }), hex }];
       mutators.updateCard?.(palette.id, { swatches: next });
-      feedback.toast({ type: 'success', message: `Added ${hex} to palette.` });
+      feedback.toast({ type: 'success', message: tr`Added ${hex} to palette.` });
     } catch (err) {
       console.error('eyedrop sample failed', err);
-      feedback.toast({ type: 'error', code: 'eyedrop_sample_failed', message: 'Sample failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'eyedrop_sample_failed', message: tr`Sample failed: ${ph({ reason: String(shownError(err)) })}` });
     } finally {
       setEyedropFor(null);
     }
@@ -7251,9 +7278,10 @@ export function CanvasSurface({
     if (n) {
       feedback.toast({
         type: 'info',
-        message: n === 1
-          ? 'A card that is still uploading stayed where it was — move it once it has finished.'
-          : `${n} cards that are still uploading stayed where they were — move them once they have finished.`,
+        message: plural(n, {
+          1: 'A card that is still uploading stayed where it was — move it once it has finished.',
+          other: '# cards that are still uploading stayed where they were — move them once they have finished.',
+        }),
         ttl: 7000,
       });
     }
@@ -7426,20 +7454,23 @@ export function CanvasSurface({
             feedback.toast({
               type: 'error',
               code: 'move_loss_restored',
-              message: `Move aborted — this cluster lost ${actualDelta} cards instead of ${expectedDelta}. Restored automatically.`,
+              message: plural(actualDelta, {
+                one: `Move aborted — this cluster lost # card instead of ${expectedDelta}. Restored automatically.`,
+                other: `Move aborted — this cluster lost # cards instead of ${expectedDelta}. Restored automatically.`,
+              }),
               ttl: 12000,
             });
           } else {
             // (The removed time-travel tool used to be named here; a
             // pre-drag board_versions snapshot exists server-side.)
-            feedback.toast({ type: 'error', code: 'move_loss_snapshot', message: 'The move caused unexpected state loss. A safety snapshot was saved — contact support to restore it.' });
+            feedback.toast({ type: 'error', code: 'move_loss_snapshot', message: tr`The move caused unexpected state loss. A safety snapshot was saved — contact support to restore it.` });
           }
         } else {
-          feedback.toast({ type: 'error', code: 'move_loss_manual', message: 'The move caused unexpected state loss; manual recovery needed.' });
+          feedback.toast({ type: 'error', code: 'move_loss_manual', message: tr`The move caused unexpected state loss; manual recovery needed.` });
         }
       } catch (rbErr) {
         console.error('[drag-into-board] rollback failed', rbErr);
-        feedback.toast({ type: 'error', code: 'move_rollback_failed', message: 'Rollback failed: ' + (rbErr.message || rbErr) });
+        feedback.toast({ type: 'error', code: 'move_rollback_failed', message: tr`Rollback failed: ${ph({ reason: String(rbErr.message || rbErr) })}` });
       }
       return;
     }
@@ -7484,12 +7515,12 @@ export function CanvasSurface({
       const groupName = plan.groupId ? (groupById[plan.groupId]?.name || null) : null;
       const n = plan.ids.length;
       const typed = await feedback.prompt({
-        title: 'Name this cluster',
-        message: n === 1 ? 'The card moves into it. Undo puts it back.' : `The ${n} cards move into it. Undo puts them back.`,
-        label: 'Name',
-        placeholder: 'e.g. Kitchen refs',
+        title: tr`Name this cluster`,
+        message: plural(n, { 1: 'The card moves into it. Undo puts it back.', other: 'The # cards move into it. Undo puts them back.' }),
+        label: tr`Name`,
+        placeholder: tr`e.g. Kitchen refs`,
         defaultValue: suggestClusterName({ groupName, cards: plan.cards }) || '',
-        confirmLabel: 'Create cluster',
+        confirmLabel: tr`Create cluster`,
       });
       if (typed == null) return null;
       name = String(typed).trim().slice(0, 200) || null;
@@ -7547,15 +7578,16 @@ export function CanvasSurface({
     const n = plan.ids.length;
     if (sweep && !n) return;
     const groupName = plan.groupId ? (groupById[plan.groupId]?.name || null) : null;
+    const landName = board?.name || tr`this cluster`;
     const typed = await feedback.prompt({
-      title: 'Name this cluster',
-      message: sweep ? `All ${n} loose cards move into it. Undo puts them back.`
-        : n ? (n === 1 ? 'The card you picked moves into it. Undo puts it back.' : `The ${n} cards you picked move into it. Undo puts them back.`)
-        : `It lands on ${board?.name || 'this cluster'} as a card and opens, ready to fill.`,
-      label: 'Name',
-      placeholder: 'Name it, e.g. Short film',
+      title: tr`Name this cluster`,
+      message: sweep ? plural(n, { one: 'All # loose cards move into it. Undo puts them back.', other: 'All # loose cards move into it. Undo puts them back.' })
+        : n ? plural(n, { 1: 'The card you picked moves into it. Undo puts it back.', other: 'The # cards you picked move into it. Undo puts them back.' })
+        : tr`It lands on ${landName} as a card and opens, ready to fill.`,
+      label: tr`Name`,
+      placeholder: tr`Name it, e.g. Short film`,
       defaultValue: n && !sweep ? (suggestClusterName({ groupName, cards: plan.cards }) || '') : '',
-      confirmLabel: 'Create cluster',
+      confirmLabel: tr`Create cluster`,
     });
     if (surface) {
       try { logEvent(EV.CLUSTER_NUDGE, { surface, action: typed == null ? 'dismiss' : 'accept', picked: n, board_id: board?.id || null }); } catch (_) {}
@@ -7808,7 +7840,7 @@ export function CanvasSurface({
           el, x: ev.clientX, y: ev.clientY,
           mods: { altKey: ev.altKey, ctrlKey: ev.ctrlKey, metaKey: ev.metaKey },
           drag: { files: dragFiles(), sourceName: board.name || '', workspaceId: board.workspace_id || workspaceId || null },
-          label: mixed ? { top: 'Clusters and files go separately', sub: 'Drag the clusters, then the files', hint: '', no: true } : null,
+          label: mixed ? { top: tr`Clusters and files go separately`, sub: tr`Drag the clusters, then the files`, hint: '', no: true } : null,
           decision: null,
         };
         document.dispatchEvent(new CustomEvent('soleil-card-drag-over', { detail }));
@@ -8135,7 +8167,7 @@ export function CanvasSurface({
             } catch (_) {}
             if (!liftHintSeen()) {
               markLiftHintSeen();
-              feedback.toast({ type: 'info', message: 'Press and hold a card to pick it up and move it.', ttl: 5000 });
+              feedback.toast({ type: 'info', message: tr`Press and hold a card to pick it up and move it.`, ttl: 5000 });
               try { logEvent(EV.MOBILE_LIFT_HINT_SHOWN, { board_id: board?.id }); } catch (_) {}
             }
           }
@@ -9008,7 +9040,7 @@ export function CanvasSurface({
     mutators.breakUndo?.();
     setSelected(new Set());
     undoToast(feedback, {
-      message: list.length === 1 ? 'Removed from board — it\u2019s still in Files' : `${list.length} removed from board — still in Files`,
+      message: plural(list.length, { 1: 'Removed from board — it\u2019s still in Files', other: '# removed from board — still in Files' }),
       undoManager: um, stackItem: item,
       onUndo: () => mutators.undo?.(),
     });
@@ -9031,7 +9063,7 @@ export function CanvasSurface({
     mutators.breakUndo?.();
     undoToast(feedback, {
       type: 'success',
-      message: plan.length === 1 ? 'Put on the board' : `${plan.length} put on the board`,
+      message: plural(plan.length, { 1: 'Put on the board', other: '# put on the board' }),
       undoManager: um, stackItem: item,
       onUndo: () => mutators.undo?.(),
     });
@@ -9061,24 +9093,24 @@ export function CanvasSurface({
     if (!canEdit) {
       if (!multi) {
         if (c.kind === 'board') {
-          openItems.push({ id: 'open', label: 'Open cluster', run: () => onOpenBoard(c.id) });
+          openItems.push({ id: 'open', label: tr`Open cluster`, run: () => onOpenBoard(c.id) });
         } else if (c.kind === 'boardlink') {
-          openItems.push({ id: 'open', label: 'Open linked cluster',
+          openItems.push({ id: 'open', label: tr`Open linked cluster`,
             run: () => boards[c.target] && onOpenBoard(c.target) });
         } else if (c.kind === 'link' && (c.source || c.link)) {
-          openItems.push({ id: 'open', label: 'Open link', run: () => {
+          openItems.push({ id: 'open', label: tr`Open link`, run: () => {
             const href = openableUrl(c.link || c.source);
             if (href) window.open(href, '_blank', 'noopener');
-            else feedback.toast({ type: 'error', code: 'link_open_failed', message: "That link can't be opened." });
+            else feedback.toast({ type: 'error', code: 'link_open_failed', message: tr`That link can't be opened.` });
           }});
         } else if (c.kind === 'shortcut' && c.shareToken && !isPublic) {
-          openItems.push({ id: 'open', label: 'Open', run: () => openSharedFile({ token: c.shareToken, via: 'shortcut' }) });
+          openItems.push({ id: 'open', label: tr`Open`, run: () => openSharedFile({ token: c.shareToken, via: 'shortcut' }) });
         }
-        metaItems.push({ id: 'info', label: 'Info', shortcut: modShortcut('I'),
+        metaItems.push({ id: 'info', label: tr`Info`, shortcut: modShortcut('I'),
           run: () => openInfo({ boardId: board.id, cardIds: [c.id], follow: infoFollow }) });
         metaItems.push({ backlinks: true });
       } else {
-        metaItems.push({ id: 'info', label: `Info (${selected.size})`, shortcut: modShortcut('I'),
+        metaItems.push({ id: 'info', label: tr`Info (${ph({ size: selected.size })})`, shortcut: modShortcut('I'),
           run: () => openInfo({ boardId: board.id, cardIds: [...selected], follow: infoFollow }) });
       }
       // The drop rules: out of a cluster you can only view, files can still be
@@ -9093,7 +9125,7 @@ export function CanvasSurface({
           const ids = copying.map((cc) => cc.id);
           copyItems.push({
             id: 'copy-cards-to-board',
-            label: ids.length > 1 ? `Copy ${ids.length} cards to…` : 'Copy to cluster…',
+            label: plural(ids.length, { 0: 'Copy to cluster…', 1: 'Copy to cluster…', other: 'Copy # cards to…' }),
             submenu: targets.map((t) => ({ id: 'ccb-' + t.id, label: t.label, run: () => sendCardsByRoute(ids, t.id, copying, true) })),
           });
         }
@@ -9127,13 +9159,13 @@ export function CanvasSurface({
           detail: { childIds: actingBoardIds, targetId, sourceSurface: 'menu' },
         }));
         const submenu = [
-          { id: 'mtb-root', label: 'Top level', run: () => dispatchMove(null) },
+          { id: 'mtb-root', label: tr`Top level`, run: () => dispatchMove(null) },
           ...(targets.length ? [{ divider: true }] : []),
-          ...targets.map(b => ({ id: 'mtb-' + b.id, label: b.name || 'Untitled', run: () => dispatchMove(b.id) })),
+          ...targets.map(b => ({ id: 'mtb-' + b.id, label: b.name || tr`Untitled`, run: () => dispatchMove(b.id) })),
         ];
         arrangeItems.push({
           id: 'move-to-board',
-          label: actingBoardIds.length > 1 ? `Move ${actingBoardIds.length} clusters to…` : 'Move to cluster…',
+          label: plural(actingBoardIds.length, { 0: 'Move to cluster…', 1: 'Move to cluster…', other: 'Move # clusters to…' }),
           submenu,
         });
       }
@@ -9156,14 +9188,14 @@ export function CanvasSurface({
         // the pile that has nowhere to go yet. A multi-selection with no
         // targets already has "New cluster from N cards" beside Group.
         const toNew = clusterNudgesAllowed()
-          ? { id: 'mcb-new', label: 'New cluster…', run: () => createClusterFrom(ids, { via: 'move_to_new' }) }
+          ? { id: 'mcb-new', label: tr`New cluster…`, run: () => createClusterFrom(ids, { via: 'move_to_new' }) }
           : null;
         if (targets.length) {
           // With the drop rules, by the route, and Copy to… beside Move to….
           const byRoute = !!onMoveFilesRef.current;
           arrangeItems.push({
             id: 'move-cards-to-board',
-            label: ids.length > 1 ? `Move ${ids.length} cards to…` : 'Move to cluster…',
+            label: plural(ids.length, { 0: 'Move to cluster…', 1: 'Move to cluster…', other: 'Move # cards to…' }),
             submenu: [
               ...(toNew ? [toNew, { divider: true }] : []),
               ...targets.map(t => ({
@@ -9176,12 +9208,12 @@ export function CanvasSurface({
           if (byRoute) {
             arrangeItems.push({
               id: 'copy-cards-to-board',
-              label: ids.length > 1 ? `Copy ${ids.length} cards to…` : 'Copy to cluster…',
+              label: plural(ids.length, { 0: 'Copy to cluster…', 1: 'Copy to cluster…', other: 'Copy # cards to…' }),
               submenu: targets.map(t => ({ id: 'ccb-' + t.id, label: t.label, run: () => sendCardsByRoute(ids, t.id, moving, true) })),
             });
           }
         } else if (toNew && !multi) {
-          arrangeItems.push({ id: 'move-cards-to-new', label: 'Move to a new cluster…', run: toNew.run });
+          arrangeItems.push({ id: 'move-cards-to-new', label: tr`Move to a new cluster…`, run: toNew.run });
         }
       }
     }
@@ -9189,30 +9221,30 @@ export function CanvasSurface({
     if (!multi) {
       // The review player: frame steps, J/K/L, in/out, guides, versions side by side.
       if (c.kind === 'video' && c.src && !c.pending && !isPublic) {
-        items.push({ id: 'player', label: 'Open in player', run: () => openPlayer({ boardId: board.id, cardId: c.id, ...(takeCardPlayer(c.id) || {}) }) });
+        items.push({ id: 'player', label: tr`Open in player`, run: () => openPlayer({ boardId: board.id, cardId: c.id, ...(takeCardPlayer(c.id) || {}) }) });
       }
       // A new version of a video, audio, PDF or file (an image's is in its Edit menu).
       if (canVersion(c) && c.kind !== 'image') {
-        items.push({ id: 'newversion', label: 'Upload new version…', run: () => pickVersionFile(versionEnv(), c.id) });
+        items.push({ id: 'newversion', label: tr`Upload new version…`, run: () => pickVersionFile(versionEnv(), c.id) });
       }
       if (c.kind === 'image') {
-        items.push({ id: 'image-edit', label: 'Edit', submenu: [
-          { id: 'title', label: c.title ? 'Edit title' : 'Add title', run: () => triggerInlineEdit(c.id, 'title') },
-          { id: 'caption', label: c.caption ? 'Edit caption' : 'Add caption', run: () => triggerInlineEdit(c.id, 'caption') },
-          { id: 'link', label: c.link ? 'Edit hyperlink' : 'Add hyperlink', run: async () => {
+        items.push({ id: 'image-edit', label: tr`Edit`, submenu: [
+          { id: 'title', label: c.title ? tr`Edit title` : tr`Add title`, run: () => triggerInlineEdit(c.id, 'title') },
+          { id: 'caption', label: c.caption ? tr`Edit caption` : tr`Add caption`, run: () => triggerInlineEdit(c.id, 'caption') },
+          { id: 'link', label: c.link ? tr`Edit hyperlink` : tr`Add hyperlink`, run: async () => {
             const v = await feedback.prompt({
-              title: c.link ? 'Edit image hyperlink' : 'Add image hyperlink',
-              label: 'URL',
-              placeholder: 'https://...',
+              title: c.link ? tr`Edit image hyperlink` : tr`Add image hyperlink`,
+              label: tr`URL`,
+              placeholder: tr`https://...`,
               defaultValue: c.link || '',
-              confirmLabel: 'Save link',
+              confirmLabel: tr`Save link`,
             });
             if (v == null) return;
             mutators.updateCard?.(c.id, { link: v.trim() || null });
           }},
           // A new version keeps the old file (Info → Versions). A card stuck
           // "Uploading…" has no file to keep: Replace image… gives it one.
-          c.pending ? { id: 'replace', label: 'Replace image…', run: () => {
+          c.pending ? { id: 'replace', label: tr`Replace image…`, run: () => {
             const input = document.createElement('input');
             input.type = 'file'; input.accept = 'image/*';
             input.onchange = async () => {
@@ -9230,49 +9262,49 @@ export function CanvasSurface({
               }
             };
             input.click();
-          }} : { id: 'newversion', label: 'Upload new version…', run: () => pickVersionFile(versionEnv(), c.id) },
+          }} : { id: 'newversion', label: tr`Upload new version…`, run: () => pickVersionFile(versionEnv(), c.id) },
         ]});
         if (canEdit && c.src) {
-          items.push({ id: 'image-edit-photo', label: 'Edit photo…',
+          items.push({ id: 'image-edit-photo', label: tr`Edit photo…`,
             run: () => setImageEditFull({ cardId: c.id }) });
         }
         if (c.src) {
-          items.push({ id: 'image-download', label: 'Download',
+          items.push({ id: 'image-download', label: tr`Download`,
             run: () => runDownload(c, 'image') });
         }
       } else if (c.kind === 'shortcut') {
         // A shortcut to a file shared with you: opens in the in-app viewer.
-        if (c.shareToken) openItems.push({ id: 'open', label: 'Open', run: () => openSharedFile({ token: c.shareToken, via: 'shortcut' }) });
+        if (c.shareToken) openItems.push({ id: 'open', label: tr`Open`, run: () => openSharedFile({ token: c.shareToken, via: 'shortcut' }) });
       } else if (c.kind === 'pdf') {
-        openItems.push({ id: 'pdf-open', label: 'Open',
+        openItems.push({ id: 'pdf-open', label: tr`Open`,
           run: () => { if (c.pdfSrc) setPdfViewer({ src: c.pdfSrc, name: c.name || c.title || 'PDF', cardId: c.id }); } });
-        items.push({ id: 'pdf-title', label: c.title ? 'Edit title' : 'Add title',
+        items.push({ id: 'pdf-title', label: c.title ? tr`Edit title` : tr`Add title`,
           run: () => triggerInlineEdit(c.id, 'title') });
-        items.push({ id: 'pdf-download', label: 'Download', run: () => runDownload(c, 'pdf') });
+        items.push({ id: 'pdf-download', label: tr`Download`, run: () => runDownload(c, 'pdf') });
       } else if (c.kind === 'file') {
-        items.push({ id: 'file-title', label: c.title ? 'Edit title' : 'Add title',
+        items.push({ id: 'file-title', label: c.title ? tr`Edit title` : tr`Add title`,
           run: () => triggerInlineEdit(c.id, 'title') });
-        items.push({ id: 'file-download', label: 'Download', run: () => runDownload(c, 'file') });
+        items.push({ id: 'file-download', label: tr`Download`, run: () => runDownload(c, 'file') });
       } else if (c.kind === 'shape') {
-        items.push({ id: 'shape-kind', label: 'Shape', submenu: [
-          { id: 'sk-rect', label: 'Rectangle', run: () => mutators.updateCard?.(c.id, { shape: 'rect' }) },
-          { id: 'sk-ellipse', label: 'Ellipse', run: () => mutators.updateCard?.(c.id, { shape: 'ellipse' }) },
-          { id: 'sk-line', label: 'Line', run: () => mutators.updateCard?.(c.id, { shape: 'line' }) },
-          { id: 'sk-arrow', label: 'Arrow', run: () => mutators.updateCard?.(c.id, { shape: 'arrow' }) },
-          { id: 'sk-diamond', label: 'Diamond', run: () => mutators.updateCard?.(c.id, { shape: 'diamond' }) },
-          { id: 'sk-triangle', label: 'Triangle', run: () => mutators.updateCard?.(c.id, { shape: 'triangle' }) },
-          { id: 'sk-hex', label: 'Hexagon', run: () => mutators.updateCard?.(c.id, { shape: 'hexagon' }) },
-          { id: 'sk-star', label: 'Star', run: () => mutators.updateCard?.(c.id, { shape: 'star' }) },
+        items.push({ id: 'shape-kind', label: tr`Shape`, submenu: [
+          { id: 'sk-rect', label: tr`Rectangle`, run: () => mutators.updateCard?.(c.id, { shape: 'rect' }) },
+          { id: 'sk-ellipse', label: tr`Ellipse`, run: () => mutators.updateCard?.(c.id, { shape: 'ellipse' }) },
+          { id: 'sk-line', label: tr`Line`, run: () => mutators.updateCard?.(c.id, { shape: 'line' }) },
+          { id: 'sk-arrow', label: tr`Arrow`, run: () => mutators.updateCard?.(c.id, { shape: 'arrow' }) },
+          { id: 'sk-diamond', label: tr`Diamond`, run: () => mutators.updateCard?.(c.id, { shape: 'diamond' }) },
+          { id: 'sk-triangle', label: tr`Triangle`, run: () => mutators.updateCard?.(c.id, { shape: 'triangle' }) },
+          { id: 'sk-hex', label: tr`Hexagon`, run: () => mutators.updateCard?.(c.id, { shape: 'hexagon' }) },
+          { id: 'sk-star', label: tr({ message: 'Star', context: 'shape' }), run: () => mutators.updateCard?.(c.id, { shape: 'star' }) },
         ]});
-        items.push({ id: 'shape-style', label: 'Stroke', submenu: [
-          { id: 'shape-stroke-col', label: 'Stroke color…', run: () => {
+        items.push({ id: 'shape-style', label: tr`Stroke`, submenu: [
+          { id: 'shape-stroke-col', label: tr`Stroke color…`, run: () => {
             setPicker({
               value: c.stroke || '#f5f5f6',
               onChange: (col) => mutators.updateCard?.(c.id, { stroke: col }),
               x: ctx.x, y: ctx.y, allowTransparent: false,
             });
           }},
-          { id: 'shape-fill', label: 'Fill color…', run: () => {
+          { id: 'shape-fill', label: tr`Fill color…`, run: () => {
             setPicker({
               value: c.fill && c.fill !== 'transparent' ? c.fill : '#1c1c1f',
               onChange: (col) => mutators.updateCard?.(c.id, { fill: col }),
@@ -9291,7 +9323,7 @@ export function CanvasSurface({
         // boxes apart on the frame with rounded corners. A linked family
         // changes together (setGridSpacing writes every member).
         const gapNow = gridGapOf(c);
-        items.push({ id: 'grid-spacing', label: 'Spacing', submenu: GRID_SPACING.map((s) => ({
+        items.push({ id: 'grid-spacing', label: tr`Spacing`, submenu: GRID_SPACING.map((s) => ({
           id: 'gsp-' + s.id, label: `${s.label}${gapNow === s.gap ? ' ✓' : ''}`, run: () => mutators.setGridSpacing?.(c.id, s.gap),
         })) });
         // Opens the Templates panel with this grid as the target. Selecting it
@@ -9300,14 +9332,14 @@ export function CanvasSurface({
         if (templatesEnabled) {
           items.push({
             id: 'grid-save-template',
-            label: 'Save as template…',
+            label: tr`Save as template…`,
             run: () => openSaveTemplate(c.id),
           });
         }
         if (templateStoreOpen) {
           items.push({
             id: 'grid-apply-template',
-            label: 'Apply template…',
+            label: tr`Apply template…`,
             run: () => { setSelected(new Set([c.id])); setTplPanelOpen(true); },
           });
         }
@@ -9315,17 +9347,17 @@ export function CanvasSurface({
           id: 'grid-link',
           // "Share layout" is the LINKED-FAMILY feature (edit one, all reflow),
           // not the Templates library above it. Different things, adjacent menu.
-          label: linked ? 'Unlink layout' : 'Share layout',
+          label: linked ? tr`Unlink layout` : tr`Share layout`,
           run: () => { if (linked) mutators.unlinkGrid?.(c.id); else mutators.promoteGridToTemplate?.(c.id); },
         });
-        items.push({ id: 'grid-matrix', label: 'Generate matrix…', run: async () => {
-          const v = await feedback.prompt({ title: 'Generate a matrix', label: 'Columns × Rows', placeholder: '6 x 3', defaultValue: '3 x 2', confirmLabel: 'Generate' });
+        items.push({ id: 'grid-matrix', label: tr`Generate matrix…`, run: async () => {
+          const v = await feedback.prompt({ title: tr`Generate a matrix`, label: tr`Columns × Rows`, placeholder: '6 x 3', defaultValue: '3 x 2', confirmLabel: tr`Generate` });
           if (!v) return;
           const mt = String(v).match(/(\d+)\s*[x×,]\s*(\d+)/i);
-          if (!mt) { feedback.toast({ type: 'error', code: 'matrix_size_invalid', message: 'Enter dimensions like 6 x 3.' }); return; }
+          if (!mt) { feedback.toast({ type: 'error', code: 'matrix_size_invalid', message: tr`Enter dimensions like 6 x 3.` }); return; }
           const mc = parseInt(mt[1], 10), mr = parseInt(mt[2], 10);
           if (mc * mr > 200) {
-            const ok = await feedback.confirm?.({ title: 'Make a big matrix', message: `This creates ${mc * mr} grids — it may take a moment. Continue?`, confirmLabel: 'Generate' });
+            const ok = await feedback.confirm?.({ title: tr`Make a big matrix`, message: tr`This creates ${ph({ value: mc * mr })} grids — it may take a moment. Continue?`, confirmLabel: tr`Generate` });
             if (!ok) return;
           }
           mutators.bulkGenerateGrids?.(c.id, mc, mr);
@@ -9333,31 +9365,35 @@ export function CanvasSurface({
         if (c.seqId) {
           const seq = gridSequences[c.seqId];
           const pat = seq?.pattern || 'z';
-          items.push({ id: 'grid-order', label: 'Reading order', submenu: [
-            { id: 'ord-z', label: `Z — rows, left→right${pat === 'z' ? ' ✓' : ''}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'z') },
-            { id: 'ord-n', label: `N — columns, top→bottom${pat === 'n' ? ' ✓' : ''}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'n') },
-            { id: 'ord-snake', label: `Snake — alternating rows${pat === 'snake' ? ' ✓' : ''}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'snake') },
+          const snakeTick = tickIf(pat === 'snake');
+          items.push({ id: 'grid-order', label: tr`Reading order`, submenu: [
+            { id: 'ord-z', label: tr`Z — rows, left→right${ph({ value: tickIf(pat === 'z') })}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'z') },
+            { id: 'ord-n', label: tr`N — columns, top→bottom${ph({ value: tickIf(pat === 'n') })}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'n') },
+            { id: 'ord-snake', label: tr`Snake — alternating rows${ph({ value: snakeTick })}`, run: () => mutators.setGridSequencePattern?.(c.seqId, 'snake') },
           ]});
         }
       } else if (c.kind === 'schedule' && c.schedView) {
         const setView = (v) => mutators.updateCard?.(c.id, { schedView: v });
-        items.push({ id: 'sched-view', label: 'View', submenu: [
-          { id: 'sv-month', label: `Month${c.schedView === 'month' ? ' ✓' : ''}`, run: () => setView('month') },
-          { id: 'sv-week', label: `Week${c.schedView === 'week' ? ' ✓' : ''}`, run: () => setView('week') },
+        const monthTick = tickIf(c.schedView === 'month');
+        const weekTick = tickIf(c.schedView === 'week');
+        const dayTick = tickIf(c.schedView === 'day' || c.schedView === 'hour');
+        items.push({ id: 'sched-view', label: tr`View`, submenu: [
+          { id: 'sv-month', label: tr`Month${ph({ value: monthTick })}`, run: () => setView('month') },
+          { id: 'sv-week', label: tr`Week${ph({ value: weekTick })}`, run: () => setView('week') },
           // 'hour' rows exist in stored data and readSchedModel folds them into
           // 'day', so the Day entry ticks for both — a card that came from the
           // removed view must not show every option unchecked.
-          { id: 'sv-day', label: `Day${c.schedView === 'day' || c.schedView === 'hour' ? ' ✓' : ''}`, run: () => setView('day') },
+          { id: 'sv-day', label: tr`Day${ph({ value: dayTick })}`, run: () => setView('day') },
         ]});
-        items.push({ id: 'sched-today', label: 'Go to today', run: () => mutators.updateCard?.(c.id, { anchor: schedTodayISO() }) });
+        items.push({ id: 'sched-today', label: tr`Go to today`, run: () => mutators.updateCard?.(c.id, { anchor: schedTodayISO() }) });
         // "Break into hours/minutes" is gone with the hour buckets it made. A
         // day's resolution is its running order now, and that lives in Day
         // view rather than as a mode a month cell can be put into.
       } else if (c.kind === 'board') {
-        openItems.push({ id: 'open', label: 'Open cluster', run: () => onOpenBoard(c.id) });
+        openItems.push({ id: 'open', label: tr`Open cluster`, run: () => onOpenBoard(c.id) });
         const target = boards[c.id];
         const currentCover = target?.cover || 'neutral';
-        items.push({ id: 'cover', label: 'Cover color', submenu: [
+        items.push({ id: 'cover', label: tr`Cover color`, submenu: [
           ...Object.keys(COVER_TINTS).map(k => ({
             id: `cover-${k}`,
             swatch: COVER_TINTS[k],
@@ -9366,28 +9402,28 @@ export function CanvasSurface({
             run: () => mutators.setBoardCover?.(c.id, k === 'neutral' ? null : k),
           })),
         ]});
-        items.push({ id: 'custom-thumb', label: 'Upload custom thumbnail…',
+        items.push({ id: 'custom-thumb', label: tr`Upload custom thumbnail…`,
           run: () => triggerThumbPick(c.id) });
         if (target?.thumb_custom) {
           items.push({ id: 'reset-thumb', label: 'Reset to auto thumbnail',
             run: () => mutators.resetBoardThumb?.(c.id) });
         }
         if (target && personalWorkspaceId && target.workspace_id !== personalWorkspaceId) {
-          items.push({ id: 'clone', label: 'Copy to my workspace', run: () => mutators.cloneBoardToPersonal?.(c.id) });
+          items.push({ id: 'clone', label: tr`Copy to my workspace`, run: () => mutators.cloneBoardToPersonal?.(c.id) });
         }
       } else if (c.kind === 'boardlink') {
-        openItems.push({ id: 'open', label: 'Open linked cluster', run: () => boards[c.target] && onOpenBoard(c.target) });
+        openItems.push({ id: 'open', label: tr`Open linked cluster`, run: () => boards[c.target] && onOpenBoard(c.target) });
       } else if (c.kind === 'palette') {
-        items.push({ id: 'palette-edit', label: 'Edit', submenu: [
+        items.push({ id: 'palette-edit', label: tr`Edit`, submenu: [
           { id: 'pc-pure',
-            label: c.chipsOnly ? 'Show labels' : 'Hide labels (pure color)',
+            label: c.chipsOnly ? tr`Show labels` : tr`Hide labels (pure color)`,
             run: () => mutators.updateCard?.(c.id, { chipsOnly: !c.chipsOnly }) },
           { divider: true },
-          { id: 'pc-eyedrop', label: 'Eyedrop color (anywhere on screen)…', run: async () => {
+          { id: 'pc-eyedrop', label: tr`Eyedrop color (anywhere on screen)…`, run: async () => {
             // Browser EyeDropper API. Falls back to a friendly toast where
             // unsupported (Firefox, Safari < 17.4 currently).
             if (typeof window === 'undefined' || !window.EyeDropper) {
-              feedback.toast({ type: 'error', code: 'eyedrop_unsupported', message: 'Eyedropper not supported in this browser yet.' });
+              feedback.toast({ type: 'error', code: 'eyedrop_unsupported', message: tr`Eyedropper not supported in this browser yet.` });
               return;
             }
             try {
@@ -9395,17 +9431,17 @@ export function CanvasSurface({
               const result = await ed.open();
               const hex = (result?.sRGBHex || '').toUpperCase();
               if (!hex) return;
-              const next = [...(c.swatches || []), { name: 'Color', hex }];
+              const next = [...(c.swatches || []), { name: tr({ message: 'Color', context: 'default name' }), hex }];
               mutators.updateCard?.(c.id, { swatches: next });
             } catch (_) { /* user cancelled */ }
           }},
-          { id: 'pc-pick-image', label: 'Pick from cluster image…', run: () => {
+          { id: 'pc-pick-image', label: tr`Pick from cluster image…`, run: () => {
             setEyedropFor(c.id);
-            feedback.toast({ type: 'info', message: 'Click an image to sample a color. Esc to cancel.' });
+            feedback.toast({ type: 'info', message: tr`Click an image to sample a color. Esc to cancel.` });
           }},
         ]});
       } else if (c.kind === 'note') {
-        items.push({ id: 'fit', label: 'Fit to content', run: () => {
+        items.push({ id: 'fit', label: tr`Fit to content`, run: () => {
           // Snap the note to the natural size of its rendered content so
           // there's no padding to the right of titles or short lines, and
           // no empty space below. The shared measurer gives the unwrapped
@@ -9421,46 +9457,46 @@ export function CanvasSurface({
           mutators.updateCard?.(c.id, { w: newW, h: newH, manuallyResized: false });
         }});
       } else if (c.kind === 'link') {
-        items.push({ id: 'edit-title', label: c.title ? 'Edit title' : 'Add title', run: () => {
+        items.push({ id: 'edit-title', label: c.title ? tr`Edit title` : tr`Add title`, run: () => {
           triggerInlineEdit(c.id, 'title');
         }});
         if (c.source || c.link) {
-          openItems.push({ id: 'open', label: 'Open link', run: () => {
+          openItems.push({ id: 'open', label: tr`Open link`, run: () => {
             const href = openableUrl(c.link || c.source);
             if (href) window.open(href, '_blank', 'noopener');
-            else feedback.toast({ type: 'error', code: 'link_open_failed', message: "That link can't be opened." });
+            else feedback.toast({ type: 'error', code: 'link_open_failed', message: tr`That link can't be opened.` });
           }});
         }
       } else if (c.kind === 'audio') {
-        items.push({ id: 'audio-title', label: c.title ? 'Edit title' : 'Add title',
+        items.push({ id: 'audio-title', label: c.title ? tr`Edit title` : tr`Add title`,
                      run: () => triggerInlineEdit(c.id, 'title') });
         if (c.cover) {
-          items.push({ id: 'audio-cover-replace', label: 'Replace cover image…',
+          items.push({ id: 'audio-cover-replace', label: tr`Replace cover image…`,
                        run: () => triggerInlineEdit(c.id, 'audioCover') });
-          items.push({ id: 'audio-cover-remove', label: 'Remove cover image',
+          items.push({ id: 'audio-cover-remove', label: tr`Remove cover image`,
                        run: () => mutators.updateCard?.(c.id, { cover: null }) });
         } else {
-          items.push({ id: 'audio-cover-set', label: 'Set cover image…',
+          items.push({ id: 'audio-cover-set', label: tr`Set cover image…`,
                        run: () => triggerInlineEdit(c.id, 'audioCover') });
         }
         // Looping a bar of audio is how you decide whether it fits, so it is
         // the one transport option worth a menu entry. Label states the action,
         // matching the video branch below — these menus have no checkmarks.
-        items.push({ id: 'audio-loop', label: c.loop ? 'Turn off looping' : 'Loop',
+        items.push({ id: 'audio-loop', label: c.loop ? tr`Turn off looping` : tr`Loop`,
                      run: () => mutators.updateCard?.(c.id, { loop: c.loop ? null : true }) });
         if (c.src) {
-          items.push({ id: 'audio-download', label: 'Download', run: () => runDownload(c, 'audio') });
+          items.push({ id: 'audio-download', label: tr`Download`, run: () => runDownload(c, 'audio') });
         }
       } else if (c.kind === 'video') {
-        items.push({ id: 'video-title', label: c.title ? 'Edit title' : 'Add title',
+        items.push({ id: 'video-title', label: c.title ? tr`Edit title` : tr`Add title`,
                      run: () => triggerInlineEdit(c.id, 'title') });
         // Labels state the action, matching the group outline/label pair — there
         // is no checkmark affordance in these menus. "(muted)" is on the label
         // because an unmuted autoplay is blocked by every browser, and a silent
         // clip nobody was warned about reads as broken audio.
-        items.push({ id: 'video-autoplay', label: c.autoplay ? 'Turn off autoplay' : 'Autoplay (muted)',
+        items.push({ id: 'video-autoplay', label: c.autoplay ? tr`Turn off autoplay` : tr`Autoplay (muted)`,
                      run: () => mutators.updateCard?.(c.id, { autoplay: c.autoplay ? null : true }) });
-        items.push({ id: 'video-loop', label: c.loop ? 'Turn off looping' : 'Loop',
+        items.push({ id: 'video-loop', label: c.loop ? tr`Turn off looping` : tr`Loop`,
                      run: () => mutators.updateCard?.(c.id, { loop: c.loop ? null : true }) });
         // Start points (lib/videoSync.js): the frame an autoplay clip shows when
         // the board starts, so clips can be lined up against each other. Stored
@@ -9472,37 +9508,37 @@ export function CanvasSurface({
           const here = vid && Number.isFinite(vid.currentTime) ? vid.currentTime : null;   // the frame showing as the menu opens
           const setStart = (s) => mutators.updateCard?.(c.id, { syncStart: Number.isFinite(s) && s > 0.05 ? Math.round(s * 100) / 100 : null });
           if (here != null) {
-            items.push({ id: 'video-start-here', label: `Start here (${formatClipTime(here)})`, run: () => setStart(here) });
+            items.push({ id: 'video-start-here', label: tr`Start here (${ph({ clipTime: formatClipTime(here) })})`, run: () => setStart(here) });
           }
-          items.push({ id: 'video-start-at', label: 'Start at…', run: async () => {
+          items.push({ id: 'video-start-at', label: tr`Start at…`, run: async () => {
             const typed = await feedback.prompt({
-              title: 'Start this clip at',
-              label: 'Time (m:ss)',
+              title: tr`Start this clip at`,
+              label: tr`Time (m:ss)`,
               placeholder: '0:12',
               defaultValue: formatClipTime(cur),
-              confirmLabel: 'Set start',
+              confirmLabel: tr`Set start`,
             });
             if (typed == null) return;
             const s = parseClipTime(typed);
-            if (s == null) { feedback.toast({ type: 'info', message: 'Type a time like 0:12 or 1:05.5.', ttl: 3500 }); return; }
+            if (s == null) { feedback.toast({ type: 'info', message: tr`Type a time like 0:12 or 1:05.5.`, ttl: 3500 }); return; }
             const dur = Number.isFinite(vid?.duration) && vid.duration > 0 ? vid.duration : Number(c.media?.dur);
             setStart(Number.isFinite(dur) && dur > 0 ? Math.min(s, dur) : s);
           } });
           if (cur > 0) {
-            items.push({ id: 'video-start-clear', label: `Clear start point (${formatClipTime(cur)})`, run: () => setStart(0) });
+            items.push({ id: 'video-start-clear', label: tr`Clear start point (${ph({ clipTime: formatClipTime(cur) })})`, run: () => setStart(0) });
           }
         }
         if (c.src) {
-          items.push({ id: 'video-download', label: 'Download', run: () => runDownload(c, 'video') });
+          items.push({ id: 'video-download', label: tr`Download`, run: () => runDownload(c, 'video') });
         }
       } else if (c.kind === 'schedule') {
-        items.push({ id: 'schedule-title', label: c.title ? 'Edit title' : 'Add title',
+        items.push({ id: 'schedule-title', label: c.title ? tr`Edit title` : tr`Add title`,
                      run: () => triggerInlineEdit(c.id, 'title') });
       } else if (c.kind === 'palette') {
-        items.push({ id: 'palette-title', label: c.title ? 'Edit title' : 'Add title',
+        items.push({ id: 'palette-title', label: c.title ? tr`Edit title` : tr`Add title`,
                      run: () => triggerInlineEdit(c.id, 'title') });
       } else if (c.kind === 'shape' && c.shape !== 'line' && c.shape !== 'arrow') {
-        items.push({ id: 'shape-label', label: c.label ? 'Edit label' : 'Add label',
+        items.push({ id: 'shape-label', label: c.label ? tr`Edit label` : tr`Add label`,
                      run: () => triggerInlineEdit(c.id, 'shapeLabel') });
       }
     }
@@ -9510,15 +9546,15 @@ export function CanvasSurface({
     if (multi && canEdit && !isPublic) {
       // The selection bar's Tag runs this with its own rect; the menu, with
       // the right-click point.
-      annotateItems.push({ id: 'tag-many', label: `Tag ${selected.size} cards…`,
+      annotateItems.push({ id: 'tag-many', label: tr`Tag ${ph({ size: selected.size })} cards…`,
         run: (rect) => openTagMany(rect || { left: ctx.x, top: ctx.y, bottom: ctx.y + 4, right: ctx.x + 4 }) });
     }
     if (!multi) {
-      annotateItems.push({ id: 'comment', label: 'Add comment',
+      annotateItems.push({ id: 'comment', label: tr`Add comment`,
         run: () => promptComment({ kind: 'card', id: c.id }) });
-      annotateItems.push({ id: 'vote', label: 'Add vote to card',
+      annotateItems.push({ id: 'vote', label: tr`Add vote to card`,
         run: () => addVoteCardAt({ kind: 'card', id: c.id }) });
-      annotateItems.push({ id: 'tag', label: 'Tag…',
+      annotateItems.push({ id: 'tag', label: tr`Tag…`,
         run: () => {
           // Open the picker anchored near the right-click coord. The
           // ctx state holds the click position from onCardContextMenu.
@@ -9529,11 +9565,11 @@ export function CanvasSurface({
     // Info lives in the bottom meta group (added here so it's the first meta
     // row, above the backlinks + delete pushed at the very end). It opens the
     // app's Info drawer (lib/infoBus.js), which then follows the selection.
-    metaItems.push({ id: 'info', label: multi ? `Info (${selected.size})` : 'Info', shortcut: modShortcut('I'),
+    metaItems.push({ id: 'info', label: multi ? tr`Info (${ph({ size: selected.size })})` : tr`Info`, shortcut: modShortcut('I'),
       run: () => openInfo({ boardId: board.id, cardIds: multi ? [...selected] : [c.id], follow: infoFollow }) });
-    clipboardItems.push({ id: 'cut', label: multi ? `Cut (${selected.size})` : 'Cut', shortcut: modShortcut('X'), run: doCut });
-    clipboardItems.push({ id: 'copy', label: multi ? `Copy (${selected.size})` : 'Copy', shortcut: modShortcut('C'), run: doCopy });
-    clipboardItems.push({ id: 'duplicate', label: multi ? `Duplicate (${selected.size})` : 'Duplicate', shortcut: modShortcut('D'), run: doDuplicate });
+    clipboardItems.push({ id: 'cut', label: multi ? tr`Cut (${ph({ size: selected.size })})` : tr`Cut`, shortcut: modShortcut('X'), run: doCut });
+    clipboardItems.push({ id: 'copy', label: multi ? tr`Copy (${ph({ size: selected.size })})` : tr`Copy`, shortcut: modShortcut('C'), run: doCopy });
+    clipboardItems.push({ id: 'duplicate', label: multi ? tr`Duplicate (${ph({ size: selected.size })})` : tr`Duplicate`, shortcut: modShortcut('D'), run: doDuplicate });
     // Arrange (z-order): mutators are singular, so for multi-select we
     // iterate in an order that preserves relative stacking:
     //   front:    low-z first  → top-most selected ends up top-most
@@ -9556,11 +9592,11 @@ export function CanvasSurface({
       order.forEach(id => fn?.(id));
       logCanvasTool('zorder', { how: op, boardId: board?.id });
     };
-    arrangeItems.push({ id: 'arrange', label: 'Arrange', submenu: [
-      { id: 'front',    label: 'Bring to front', run: () => arrangeRun('front') },
-      { id: 'forward',  label: 'Bring forward',  run: () => arrangeRun('forward') },
-      { id: 'backward', label: 'Send backward',  run: () => arrangeRun('backward') },
-      { id: 'back',     label: 'Send to back',   run: () => arrangeRun('back') },
+    arrangeItems.push({ id: 'arrange', label: tr`Arrange`, submenu: [
+      { id: 'front',    label: tr`Bring to front`, run: () => arrangeRun('front') },
+      { id: 'forward',  label: tr`Bring forward`,  run: () => arrangeRun('forward') },
+      { id: 'backward', label: tr`Send backward`,  run: () => arrangeRun('backward') },
+      { id: 'back',     label: tr`Send to back`,   run: () => arrangeRun('back') },
     ]});
 
     // Spatial arrangement. Until now this menu was z-order ONLY — there was no
@@ -9598,31 +9634,31 @@ export function CanvasSurface({
 
     arrangeItems.push({
       id: 'tidy',
-      label: selected.size >= 2 ? `Tidy up (${selected.size})` : 'Tidy up board',
+      label: selected.size >= 2 ? tr`Tidy up (${ph({ size: selected.size })})` : tr`Tidy up board`,
       submenu: [
-        { id: 'justified', label: 'Justified rows',  run: () => tidyRun('justified') },
-        { id: 'masonry',   label: 'Masonry columns', run: () => tidyRun('masonry') },
-        { id: 'grid',      label: 'Grid',            run: () => tidyRun('grid') },
-        { id: 'row',       label: 'Single row',      run: () => tidyRun('row') },
-        { id: 'column',    label: 'Single column',   run: () => tidyRun('column') },
+        { id: 'justified', label: tr`Justified rows`,  run: () => tidyRun('justified') },
+        { id: 'masonry',   label: tr`Masonry columns`, run: () => tidyRun('masonry') },
+        { id: 'grid',      label: tr`Grid`,            run: () => tidyRun('grid') },
+        { id: 'row',       label: tr`Single row`,      run: () => tidyRun('row') },
+        { id: 'column',    label: tr`Single column`,   run: () => tidyRun('column') },
       ],
     });
 
     if (multi && selected.size >= 2) {
-      arrangeItems.push({ id: 'align', label: 'Align', submenu: [
-        { id: 'left',     label: 'Left',   run: () => alignRun('left') },
-        { id: 'center-x', label: 'Center', run: () => alignRun('center-x') },
-        { id: 'right',    label: 'Right',  run: () => alignRun('right') },
-        { id: 'top',      label: 'Top',    run: () => alignRun('top') },
-        { id: 'middle',   label: 'Middle', run: () => alignRun('middle') },
-        { id: 'bottom',   label: 'Bottom', run: () => alignRun('bottom') },
+      arrangeItems.push({ id: 'align', label: tr`Align`, submenu: [
+        { id: 'left',     label: tr`Left`,   run: () => alignRun('left') },
+        { id: 'center-x', label: tr`Center`, run: () => alignRun('center-x') },
+        { id: 'right',    label: tr`Right`,  run: () => alignRun('right') },
+        { id: 'top',      label: tr`Top`,    run: () => alignRun('top') },
+        { id: 'middle',   label: tr`Middle`, run: () => alignRun('middle') },
+        { id: 'bottom',   label: tr`Bottom`, run: () => alignRun('bottom') },
       ]});
     }
     if (multi && selected.size >= 3) {
       // Three is the minimum that HAS a gap to even out.
-      arrangeItems.push({ id: 'distribute', label: 'Distribute', submenu: [
-        { id: 'horizontal', label: 'Horizontally', run: () => distributeRun('horizontal') },
-        { id: 'vertical',   label: 'Vertically',   run: () => distributeRun('vertical') },
+      arrangeItems.push({ id: 'distribute', label: tr`Distribute`, submenu: [
+        { id: 'horizontal', label: tr`Horizontally`, run: () => distributeRun('horizontal') },
+        { id: 'vertical',   label: tr`Vertically`,   run: () => distributeRun('vertical') },
       ]});
     }
 
@@ -9631,20 +9667,20 @@ export function CanvasSurface({
     if (multi && selected.size >= 2 && clusterNudgesAllowed()) {
       const plan = planClusterFromSelection({ cards, ids: [...selected] });
       if (!plan.refused && plan.ids.length) {
-        arrangeItems.push({ id: 'new-cluster-from', label: `New cluster from ${plan.ids.length} cards`,
+        arrangeItems.push({ id: 'new-cluster-from', label: plural(plan.ids.length, { other: 'New cluster from # cards' }),
           run: () => createClusterFrom([...selected], { via: 'from_selection' }) });
       }
     }
     // Grouping (stays in the ARRANGE group) ──
     if (multi && selected.size >= 2) {
       // Selection of 2+ → "Group together"
-      arrangeItems.push({ id: 'group', label: `Group (${selected.size})`, run: async () => {
+      arrangeItems.push({ id: 'group', label: tr`Group (${ph({ size: selected.size })})`, run: async () => {
         const name = await feedback.prompt({
-          title: 'Group these cards',
-          label: 'Name',
-          placeholder: 'e.g. Mood board',
+          title: tr`Group these cards`,
+          label: tr`Name`,
+          placeholder: tr`e.g. Mood board`,
           defaultValue: '',
-          confirmLabel: 'Group',
+          confirmLabel: tr({ message: 'Group', context: 'verb' }),
         });
         if (name == null) return;
         mutators.createGroup?.({ name: name || 'Group', cardIds: [...selected] });
@@ -9656,10 +9692,10 @@ export function CanvasSurface({
     // (or all selected cards) into the chosen group.
     if (!c.groupId && groups && groups.length > 0) {
       const targets = multi ? [...selected] : [c.id];
-      arrangeItems.push({ id: 'add-to-group', label: 'Add to group', submenu:
+      arrangeItems.push({ id: 'add-to-group', label: tr`Add to group`, submenu:
         groups.map(g => ({
           id: `atg-${g.id}`,
-          label: g.name || 'Untitled group',
+          label: g.name || tr`Untitled group`,
           run: () => mutators.addToGroup?.(g.id, targets),
         })),
       });
@@ -9667,48 +9703,51 @@ export function CanvasSurface({
     if (c.groupId && groupById[c.groupId]) {
       const g = groupById[c.groupId];
       // Quick "Remove from group" stays at top — most common action.
-      arrangeItems.push({ id: 'group-remove', label: multi ? `Remove from group (${selected.size})` : 'Remove from group',
+      arrangeItems.push({ id: 'group-remove', label: multi ? tr`Remove from group (${ph({ size: selected.size })})` : tr`Remove from group`,
         run: () => mutators.removeFromGroup?.(multi ? [...selected] : [c.id]) });
       // Everything else — rename / outline / shape / color / info / ungroup —
       // tucked into a single Group submenu so the top level stays scannable.
-      arrangeItems.push({ id: 'group', label: `Group "${g.name || 'Untitled'}"`, submenu: [
-        { id: 'group-rename', label: 'Rename group…', run: async () => {
+      const groupTitle = g.name || tr`Untitled`;
+      const boxTick = tickIf((g.shape || 'box') === 'box', 2);
+      const hugTick = tickIf(g.shape === 'hug', 2);
+      arrangeItems.push({ id: 'group', label: tr`Group "${groupTitle}"`, submenu: [
+        { id: 'group-rename', label: tr`Rename group…`, run: async () => {
           const name = await feedback.prompt({
-            title: 'Rename group',
-            label: 'Name',
+            title: tr`Rename group`,
+            label: tr`Name`,
             defaultValue: g.name || '',
-            confirmLabel: 'Rename',
+            confirmLabel: tr`Rename`,
           });
           if (name == null) return;
           mutators.renameGroup?.(g.id, name);
         }},
-        { id: 'group-outline', label: g.outline ? 'Hide outline' : 'Show outline',
+        { id: 'group-outline', label: g.outline ? tr`Hide outline` : tr`Show outline`,
           run: () => mutators.setGroupOutline?.(g.id, { outline: !g.outline }) },
         { id: 'group-hide-label',
-          label: g.options?.hideLabel ? 'Show label' : 'Hide label',
+          label: g.options?.hideLabel ? tr`Show label` : tr`Hide label`,
           run: () => mutators.setGroupOutline?.(g.id, {
             options: { ...(g.options || {}), hideLabel: !g.options?.hideLabel },
           }) },
-        { id: 'group-shape', label: 'Outline shape', submenu: [
-          { id: 'gs-box', label: `Box${(g.shape || 'box') === 'box' ? '  ✓' : ''}`,
+        { id: 'group-shape', label: tr`Outline shape`, submenu: [
+          { id: 'gs-box', label: tr`Box${ph({ value: boxTick })}`,
             run: () => mutators.setGroupOutline?.(g.id, { shape: 'box', outline: true }) },
-          { id: 'gs-hug', label: `Hug${g.shape === 'hug' ? '  ✓' : ''}`,
+          { id: 'gs-hug', label: tr`Hug${ph({ value: hugTick })}`,
             run: () => mutators.setGroupOutline?.(g.id, { shape: 'hug', outline: true }) },
         ]},
-        { id: 'group-color', label: 'Outline color…', run: () => {
+        { id: 'group-color', label: tr`Outline color…`, run: () => {
           setPicker({
             value: g.color || 'var(--soleil)',
             onChange: (col) => mutators.setGroupOutline?.(g.id, { color: col, outline: true }),
             x: ctx.x, y: ctx.y, allowTransparent: false,
           });
         }},
-        { id: 'group-info', label: 'Group info', run: () => openInfo({ boardId: board.id, groupId: g.id }) },
+        { id: 'group-info', label: tr`Group info`, run: () => openInfo({ boardId: board.id, groupId: g.id }) },
         // A group that has become a project gets a place of its own: the
         // group moves in whole and keeps its name (clusterFromSelection).
-        ...(clusterNudgesAllowed() ? [{ id: 'group-to-cluster', label: 'Turn into cluster…',
+        ...(clusterNudgesAllowed() ? [{ id: 'group-to-cluster', label: tr`Turn into cluster…`,
           run: () => createClusterFrom((cardsByGroup.get(g.id) || []).map(m => m.id), { via: 'from_group' }) }] : []),
         { divider: true },
-        { id: 'ungroup', label: 'Ungroup', danger: true, run: () => { mutators.ungroup?.(g.id); logCanvasTool('section_remove', { boardId: board?.id }); } },
+        { id: 'ungroup', label: tr`Ungroup`, danger: true, run: () => { mutators.ungroup?.(g.id); logCanvasTool('section_remove', { boardId: board?.id }); } },
       ]});
     }
 
@@ -9719,11 +9758,11 @@ export function CanvasSurface({
     // (lib/placement.js). Offered only when every card in the selection can go.
     const offIds = (multi ? [...selected] : [c.id]).filter((id) => canUnplace(cardById[id]));
     if (!mutators.captureGuarded && offIds.length && offIds.length === (multi ? selected.size : 1)) {
-      metaItems.push({ id: 'unplace', label: offIds.length > 1 ? `Remove ${offIds.length} from board` : 'Remove from board',
+      metaItems.push({ id: 'unplace', label: plural(offIds.length, { 0: 'Remove from board', 1: 'Remove from board', other: 'Remove # from board' }),
         run: () => removeFromBoard(offIds) });
     }
     if (!multi && canEdit && !isPublic && fileSharesAllowed() && isShareableCard(c)) {
-      items.push({ id: 'share-file', label: 'Share file…',
+      items.push({ id: 'share-file', label: tr`Share file…`,
         run: () => openFileShare({ boardId: board.id, cardId: c.id, card: c, boardName: board.name, surface: 'canvas' }) });
     }
     // A doc, to read or edit together (held: docSharesAllowed).
@@ -9733,7 +9772,7 @@ export function CanvasSurface({
         run: () => openFileShare({ boardId: board.id, cardId: c.id, card: c, boardName: board.name, surface: 'canvas' }) });
     }
     metaItems.push({ backlinks: true });
-    metaItems.push({ id: 'delete', label: multi ? `Delete (${selected.size})` : 'Delete',
+    metaItems.push({ id: 'delete', label: multi ? tr`Delete (${ph({ size: selected.size })})` : tr`Delete`,
       shortcut: '⌫', danger: true,
       run: () => doDeleteIds(multi ? [...selected] : [c.id]) });
 
@@ -10133,7 +10172,7 @@ export function CanvasSurface({
       if (notePointerType(e.pointerType)) {
         feedbackRef.current?.toast({
           type: 'info',
-          message: 'Stylus detected — your finger now pans instead of drawing. Change this under Brush in the draw options.',
+          message: tr`Stylus detected — your finger now pans instead of drawing. Change this under Brush in the draw options.`,
           ttl: 7000,
         });
       }
@@ -10617,9 +10656,9 @@ export function CanvasSurface({
   // partition card-creating actions from annotations; `icon` is consumed by
   // the mobile sheet and ignored by the context-menu renderer.
   const buildAddActions = (pos, method) => [
-    { id: 'board',   group: 'card', label: 'Cluster', icon: clusterGlyph(), run: () => { noteCreateIntent(method, 'board'); addClusterCard(pos, method); } },
-    { id: 'linkedcluster', group: 'card', label: 'Linked cluster', icon: ArrowSquareOut, run: () => onOpenPicker?.(pos) },
-    { id: 'grid',    group: 'card', label: 'Grid',    icon: GridFour,      run: () => { noteCreateIntent(method, 'grid'); mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); } },
+    { id: 'board',   group: 'card', label: tr`Cluster`, icon: clusterGlyph(), run: () => { noteCreateIntent(method, 'board'); addClusterCard(pos, method); } },
+    { id: 'linkedcluster', group: 'card', label: tr`Linked cluster`, icon: ArrowSquareOut, run: () => onOpenPicker?.(pos) },
+    { id: 'grid',    group: 'card', label: tr`Grid`,    icon: GridFour,      run: () => { noteCreateIntent(method, 'grid'); mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); } },
     // Multi-select, via the same batch ingest drag-drop uses. This used to call
     // mutators.addImageAt, which opens a picker with no `multiple` and reads
     // files[0] — so the single most prominent affordance in the shipped
@@ -10628,33 +10667,33 @@ export function CanvasSurface({
     // single gesture of ~2.8 cards and almost none has ever placed 5+ at once,
     // while returning at all is sharply gated on reaching ~6 on day one
     // (50-73% at 6+, ~13% at zero). Selecting one file behaves exactly as before.
-    { id: 'image',   group: 'card', label: 'Image',   icon: ImageIcon,     run: () => { noteCreateIntent(method, 'image'); pickPhotosAtRef.current?.(pos, method); } },
-    { id: 'file',    group: 'card', label: 'File',    icon: Paperclip,     run: () => { noteCreateIntent(method, 'file'); openFilePicker(pos); } },
-    ...(canPickFolder ? [{ id: 'folder', group: 'card', label: 'Folder', icon: folderUploadGlyph(), run: () => { noteCreateIntent(method, 'folder'); openFolderPicker(pos); } }] : []),
-    { id: 'note',    group: 'card', label: 'Text note', icon: NotePencil,  run: () => { noteCreateIntent(method, 'note'); mutators.addNote?.(pos); } },
-    { id: 'doc',     group: 'card', label: 'Doc',     icon: FileText,      run: () => { noteCreateIntent(method, 'doc'); mutators.addDocCard?.(pos); } },
-    { id: 'script',  group: 'card', label: 'Script',  icon: Clapperboard,  run: () => { noteCreateIntent(method, 'script'); mutators.addScriptCard?.(pos); } },
-    { id: 'shape',   group: 'card', label: 'Shape',   icon: Square,        run: () => { noteCreateIntent(method, 'shape'); mutators.addShape?.(pos, shapeOptions); } },
+    { id: 'image',   group: 'card', label: tr`Image`,   icon: ImageIcon,     run: () => { noteCreateIntent(method, 'image'); pickPhotosAtRef.current?.(pos, method); } },
+    { id: 'file',    group: 'card', label: tr`File`,   icon: Paperclip,     run: () => { noteCreateIntent(method, 'file'); openFilePicker(pos); } },
+    ...(canPickFolder ? [{ id: 'folder', group: 'card', label: tr`Folder`, icon: folderUploadGlyph(), run: () => { noteCreateIntent(method, 'folder'); openFolderPicker(pos); } }] : []),
+    { id: 'note',    group: 'card', label: tr`Text note`, icon: NotePencil,  run: () => { noteCreateIntent(method, 'note'); mutators.addNote?.(pos); } },
+    { id: 'doc',     group: 'card', label: tr`Doc`, icon: FileText,      run: () => { noteCreateIntent(method, 'doc'); mutators.addDocCard?.(pos); } },
+    { id: 'script',  group: 'card', label: tr`Script`,  icon: Clapperboard,  run: () => { noteCreateIntent(method, 'script'); mutators.addScriptCard?.(pos); } },
+    { id: 'shape',   group: 'card', label: tr`Shape`,   icon: Square,        run: () => { noteCreateIntent(method, 'shape'); mutators.addShape?.(pos, shapeOptions); } },
     // Switches tools rather than creating a card, so no create-intent is logged
     // — nothing exists yet to have intended. It lives in the registry so the
     // mobile "+" sheet can reach it at all: that sheet renders every action in
     // this list, and Draw's absence meant the puck simply dead-ended for it.
-    { id: 'draw',    group: 'tool', label: 'Draw',    icon: Scribble,      run: () => { logCanvasTool('pick', { tool: 'draw', via: 'menu', boardId: board?.id }); setSelectedTool('draw'); } },
-    { id: 'palette', group: 'card', label: 'Color palette', icon: Palette, run: () => { noteCreateIntent(method, 'palette'); mutators.addPalette?.(pos); } },
+    { id: 'draw',    group: 'tool', label: tr`Draw`,    icon: Scribble,      run: () => { logCanvasTool('pick', { tool: 'draw', via: 'menu', boardId: board?.id }); setSelectedTool('draw'); } },
+    { id: 'palette', group: 'card', label: tr`Color palette`, icon: Palette, run: () => { noteCreateIntent(method, 'palette'); mutators.addPalette?.(pos); } },
     // Held while the calendar is rebuilt (lib/appHost.js). sub() and
     // addFromRegistry both resolve through this list, so dropping the entry
     // here closes the right-click Add submenu and the mobile "+" sheet at once
     // — sub() returns null for an unknown id and the array is filter(Boolean)'d.
     // Rendering the card is NOT gated: existing schedule cards keep working.
     ...(scheduleCreationAllowed() ? [
-      { id: 'schedule', group: 'card', label: 'Schedule', icon: CalendarPh, run: () => { noteCreateIntent(method, 'schedule'); mutators.addSchedule?.(pos); } },
+      { id: 'schedule', group: 'card', label: tr`Schedule`, icon: CalendarPh, run: () => { noteCreateIntent(method, 'schedule'); mutators.addSchedule?.(pos); } },
     ] : []),
-    { id: 'addurl',  group: 'card', label: 'Link', icon: Link, run: async () => {
+    { id: 'addurl',  group: 'card', label: tr`Link`, icon: Link, run: async () => {
       const v = await feedback.prompt({
-        title: 'Add a link card',
-        label: 'URL',
-        placeholder: 'https://…',
-        confirmLabel: 'Add',
+        title: tr`Add a link card`,
+        label: tr`URL`,
+        placeholder: tr`https://…`,
+        confirmLabel: tr`Add`,
       });
       if (!v) return;
       const url = v.trim();
@@ -10690,8 +10729,8 @@ export function CanvasSurface({
         });
       }
     }},
-    { id: 'comment', group: 'note', label: 'Comment', icon: MessageCircle, run: () => promptComment({ kind: 'point', x: pos.x, y: pos.y }) },
-    { id: 'vote',    group: 'note', label: 'Vote',    icon: ListChecks,    run: () => addVoteCardAt({ kind: 'point', x: pos.x, y: pos.y }) },
+    { id: 'comment', group: 'note', label: tr`Comment`, icon: MessageCircle, run: () => promptComment({ kind: 'point', x: pos.x, y: pos.y }) },
+    { id: 'vote',    group: 'note', label: tr`Vote`,    icon: ListChecks,    run: () => addVoteCardAt({ kind: 'point', x: pos.x, y: pos.y }) },
   ];
 
   const buildBgMenu = () => {
@@ -10701,39 +10740,39 @@ export function CanvasSurface({
       const { id: gid, name: gname } = bgCtx.groupMenu;
       const g = groupById?.[gid];
       const items = [
-        { id: 'group-comment', label: 'Add comment to group',
+        { id: 'group-comment', label: tr`Add comment to group`,
           run: () => promptComment({ kind: 'group', id: gid }) },
       ];
       if (g) {
-        items.push({ id: 'group-tag', label: 'Tag group…',
+        items.push({ id: 'group-tag', label: tr`Tag group…`,
           run: () => {
             const r = { left: bgCtx.x, top: bgCtx.y, bottom: bgCtx.y + 4, right: bgCtx.x + 4 };
             setTagPicker({ kind: 'group', id: gid, anchorRect: r });
           }});
-        items.push({ id: 'group-rename', label: 'Rename group', run: async () => {
+        items.push({ id: 'group-rename', label: tr`Rename group`, run: async () => {
           const name = await feedback.prompt({
-            title: 'Rename group',
-            label: 'Name',
+            title: tr`Rename group`,
+            label: tr`Name`,
             defaultValue: gname || g.name || '',
-            confirmLabel: 'Rename',
+            confirmLabel: tr`Rename`,
           });
           if (name == null) return;
           mutators.renameGroup?.(gid, name);
         }});
-        items.push({ id: 'group-info', label: 'Group info', run: () => openInfo({ boardId: board.id, groupId: gid }) });
-        items.push({ id: 'group-outline', label: g.outline ? 'Hide outline' : 'Show outline',
+        items.push({ id: 'group-info', label: tr`Group info`, run: () => openInfo({ boardId: board.id, groupId: gid }) });
+        items.push({ id: 'group-outline', label: g.outline ? tr`Hide outline` : tr`Show outline`,
           run: () => mutators.setGroupOutline?.(gid, { outline: !g.outline }) });
         items.push({ id: 'group-hide-label',
-          label: g.options?.hideLabel ? 'Show group label' : 'Hide group label',
+          label: g.options?.hideLabel ? tr`Show group label` : tr`Hide group label`,
           run: () => mutators.setGroupOutline?.(gid, {
             options: { ...(g.options || {}), hideLabel: !g.options?.hideLabel },
           }) });
         if (clusterNudgesAllowed()) {
-          items.push({ id: 'group-to-cluster', label: 'Turn into cluster…',
+          items.push({ id: 'group-to-cluster', label: tr`Turn into cluster…`,
             run: () => createClusterFrom((cardsByGroup.get(gid) || []).map(m => m.id), { via: 'from_group' }) });
         }
         items.push({ divider: true });
-        items.push({ id: 'group-ungroup', label: 'Ungroup', danger: true,
+        items.push({ id: 'group-ungroup', label: tr`Ungroup`, danger: true,
           run: () => { mutators.ungroup?.(gid); logCanvasTool('section_remove', { boardId: board?.id }); } });
       }
       return items;
@@ -10742,30 +10781,30 @@ export function CanvasSurface({
     if (bgCtx.arrowMenu) {
       const { idx, arrow } = bgCtx.arrowMenu;
       return [
-        { id: 'arrow-label', label: arrow.label ? 'Edit label' : 'Add label', run: async () => {
+        { id: 'arrow-label', label: arrow.label ? tr`Edit label` : tr`Add label`, run: async () => {
           const v = await feedback.prompt({
-            title: 'Arrow label',
-            label: 'Label',
+            title: tr`Arrow label`,
+            label: tr`Label`,
             defaultValue: arrow.label || '',
-            placeholder: 'leads to, blocks, related…',
-            confirmLabel: 'Save',
+            placeholder: tr`leads to, blocks, related…`,
+            confirmLabel: tr`Save`,
           });
           if (v == null) return;
           mutators.updateArrow?.(idx, { label: v.trim() || null });
         }},
         { id: 'arrow-bidir',
-          label: arrow.bidir ? 'Single-sided arrow' : 'Double-sided arrow',
+          label: arrow.bidir ? tr`Single-sided arrow` : tr`Double-sided arrow`,
           run: () => mutators.updateArrow?.(idx, { bidir: !arrow.bidir }) },
         { id: 'arrow-straight',
-          label: arrow.straight ? 'Curved arrow' : 'Straight arrow',
+          label: arrow.straight ? tr`Curved arrow` : tr`Straight arrow`,
           run: () => mutators.updateArrow?.(idx, { straight: !arrow.straight }) },
-        ...(arrow.bend ? [{ id: 'arrow-reset-curve', label: 'Reset curve',
+        ...(arrow.bend ? [{ id: 'arrow-reset-curve', label: tr`Reset curve`,
           run: () => mutators.updateArrow?.(idx, { bend: null }) }] : []),
         { id: 'arrow-dashed',
           label: arrow.dashed ? 'Solid line' : 'Dashed line',
           run: () => mutators.updateArrow?.(idx, { dashed: !arrow.dashed }) },
         { divider: true },
-        { id: 'arrow-delete', label: 'Delete arrow', danger: true,
+        { id: 'arrow-delete', label: tr`Delete arrow`, danger: true,
           // Right-click selected this index. Left behind, it would select
           // whichever arrow slides into the slot — with handles, popover and
           // a Backspace aimed at it.
@@ -10774,19 +10813,19 @@ export function CanvasSurface({
     }
     // View-only states (viewer share, no access) — just expose the safe
     // read-only actions. (The demo-tier upgrade CTA died with 0188.)
-    const clusterInfo = { id: 'cluster-info', label: 'Cluster info', shortcut: modShortcut('I'),
+    const clusterInfo = { id: 'cluster-info', label: tr`Cluster info`, shortcut: modShortcut('I'),
       run: () => openInfo({ boardId: board.id, clusterId: board.id, follow: infoFollow }) };
     // Opened by a finger's hold: a finger has no Shift, so it gets a mode in
     // which taps add cards to the selection (touchSelecting).
     const selectSome = bgCtx.viaTouch
-      ? [{ id: 'selectsome', label: 'Select…', run: () => {
+      ? [{ id: 'selectsome', label: tr`Select…`, run: () => {
           setTouchSelecting(true);
           try { logEvent(EV.TOUCH_SELECT, { where: 'canvas', via: 'menu', n: selected.size + selectedStrokes.size + selectedArrows.size }); } catch (_) {}
         } }]
       : [];
     if (!canEdit) {
       return [
-        { id: 'selectall', label: 'Select all', shortcut: modShortcut('A'), run: selectAll },
+        { id: 'selectall', label: tr`Select all`, shortcut: modShortcut('A'), run: selectAll },
         ...selectSome,
         clusterInfo,
       ];
@@ -10816,42 +10855,42 @@ export function CanvasSurface({
       return a ? { id: a.id, label: labelOverride || a.label, run: settled(a.run) } : null;
     };
     const addSubmenu = [
-      { header: 'Cards' },
-      sub('note', 'Note'), sub('image'), sub('board'), sub('linkedcluster'), sub('grid'), sub('schedule'), sub('doc'), sub('file'),
+      { header: tr`Cards` },
+      sub('note', tr`Note`), sub('image'), sub('board'), sub('linkedcluster'), sub('grid'), sub('schedule'), sub('doc'), sub('file'),
       { divider: true },
-      { header: 'Visual' },
-      sub('shape'), sub('palette', 'Palette'), sub('draw'),
+      { header: tr`Visual` },
+      sub('shape'), sub('palette', tr`Palette`), sub('draw'),
       { divider: true },
-      { header: 'Web' },
-      sub('addurl', 'Link'),
+      { header: tr`Web` },
+      sub('addurl', tr`Link`),
       { divider: true },
-      { header: 'Annotate' },
+      { header: tr`Annotate` },
       sub('comment'), sub('vote'),
-      { id: 'arrow', label: 'Arrow', run: settled(() => { logCanvasTool('pick', { tool: 'arrow', via: 'menu', boardId: board?.id }); setSelectedTool('arrow'); }) },
+      { id: 'arrow', label: tr`Arrow`, run: settled(() => { logCanvasTool('pick', { tool: 'arrow', via: 'menu', boardId: board?.id }); setSelectedTool('arrow'); }) },
     ].filter(Boolean);
     return [
-      { id: 'add', label: 'Add', submenu: addSubmenu },
+      { id: 'add', label: tr`Add`, submenu: addSubmenu },
       { header: SECTION.CLIPBOARD },
-      { id: 'paste', label: clipboardSize() ? `Paste (${clipboardSize()})` : 'Paste',
+      { id: 'paste', label: clipboardSize() ? tr`Paste (${ph({ clipboardSize: clipboardSize() })})` : tr`Paste`,
         shortcut: modShortcut('V'), disabled: clipboardSize() === 0,
         run: () => doPaste(pos) },
-      { id: 'selectall', label: 'Select all', shortcut: modShortcut('A'), run: selectAll },
+      { id: 'selectall', label: tr`Select all`, shortcut: modShortcut('A'), run: selectAll },
       ...selectSome,
-      { header: 'BOARD' },
+      { header: tr`BOARD` },
       clusterInfo,
-      ...(canEdit && !isPublic ? [{ id: 'board-tag', label: 'Tag this cluster…', run: () => {
+      ...(canEdit && !isPublic ? [{ id: 'board-tag', label: tr`Tag this cluster…`, run: () => {
         setTagPicker({ kind: 'board', id: board.id, anchorRect: { left: bgCtx.x, top: bgCtx.y, bottom: bgCtx.y + 4, right: bgCtx.x + 4 } });
       } }] : []),
-      { id: 'bg', label: 'Background', submenu: [
-        { id: 'bg-default', swatch: 'transparent', label: 'Default', run: () => mutators.setBoardBgColor?.(null) },
-        { id: 'bg-paper',   swatch: '#f5f2ec', label: 'Paper',   run: () => mutators.setBoardBgColor?.('#f5f2ec') },
-        { id: 'bg-mid',     swatch: '#0a1428', label: 'Midnight',run: () => mutators.setBoardBgColor?.('#0a1428') },
-        { id: 'bg-mauve',   swatch: '#1d1822', label: 'Mauve',   run: () => mutators.setBoardBgColor?.('#1d1822') },
-        { id: 'bg-cream',   swatch: '#fef7ec', label: 'Cream',   run: () => mutators.setBoardBgColor?.('#fef7ec') },
-        { id: 'bg-sage',    swatch: '#e8f0e6', label: 'Sage',    run: () => mutators.setBoardBgColor?.('#e8f0e6') },
-        { id: 'bg-charcoal',swatch: '#1a1a1a', label: 'Charcoal',run: () => mutators.setBoardBgColor?.('#1a1a1a') },
+      { id: 'bg', label: tr`Background`, submenu: [
+        { id: 'bg-default', swatch: 'transparent', label: tr`Default`, run: () => mutators.setBoardBgColor?.(null) },
+        { id: 'bg-paper',   swatch: '#f5f2ec', label: tr`Paper`,   run: () => mutators.setBoardBgColor?.('#f5f2ec') },
+        { id: 'bg-mid',     swatch: '#0a1428', label: tr`Midnight`,run: () => mutators.setBoardBgColor?.('#0a1428') },
+        { id: 'bg-mauve',   swatch: '#1d1822', label: tr`Mauve`,   run: () => mutators.setBoardBgColor?.('#1d1822') },
+        { id: 'bg-cream',   swatch: '#fef7ec', label: tr`Cream`,   run: () => mutators.setBoardBgColor?.('#fef7ec') },
+        { id: 'bg-sage',    swatch: '#e8f0e6', label: tr`Sage`,    run: () => mutators.setBoardBgColor?.('#e8f0e6') },
+        { id: 'bg-charcoal',swatch: '#1a1a1a', label: tr`Charcoal`,run: () => mutators.setBoardBgColor?.('#1a1a1a') },
         { divider: true },
-        { id: 'bg-custom',  label: 'Custom…', run: () => {
+        { id: 'bg-custom',  label: tr`Custom…`, run: () => {
           setPicker({
             value: board.bg_color || '#1c1c1f',
             onChange: (c) => mutators.setBoardBgColor?.(c),
@@ -10860,13 +10899,13 @@ export function CanvasSurface({
           });
         }},
       ]},
-      { id: 'fit', label: 'Reset zoom', shortcut: modShortcut('0'), run: () => zoomAroundCenter(1 / zoomRef.current) },
-      { id: 'export', label: 'Export', submenu: [
-        { id: 'export-png', label: 'PNG image', run: () => exportBoardAs('png') },
-        { id: 'export-pdf', label: 'PDF (Save from Print)', run: () => exportBoardAs('pdf') },
+      { id: 'fit', label: tr`Reset zoom`, shortcut: modShortcut('0'), run: () => zoomAroundCenter(1 / zoomRef.current) },
+      { id: 'export', label: tr`Export`, submenu: [
+        { id: 'export-png', label: tr`PNG image`, run: () => exportBoardAs('png') },
+        { id: 'export-pdf', label: tr`PDF (Save from Print)`, run: () => exportBoardAs('pdf') },
       ]},
       { divider: true },
-      { id: 'clearstrokes', label: 'Clear all drawings', disabled: !(strokes && strokes.length > 0),
+      { id: 'clearstrokes', label: tr`Clear all drawings`, disabled: !(strokes && strokes.length > 0),
         danger: true, run: clearAllDrawings },
     ];
   };
@@ -10878,7 +10917,7 @@ export function CanvasSurface({
     let closeBusy = null;
     const useTray = !isPublic && opsHaveTray();
     const beat = useTray ? null : setTimeout(() => {
-      closeBusy = feedback.toast({ type: 'info', message: 'Preparing export…', ttl: 120000 });
+      closeBusy = feedback.toast({ type: 'info', message: tr`Preparing export…`, ttl: 120000 });
     }, 400);
     try {
       const picture = { cards, strokes, arrows, boards, bgColor: board?.bg_color || null };
@@ -10893,12 +10932,12 @@ export function CanvasSurface({
           kind: 'export', label: exportWords({ name: board?.name || 'board', format }),
           boardId: board?.id || null, boardName: board?.name || null,
           key: `export:${board?.id}:${format}`,
-          doneLabel: format === 'pdf' ? null : (r) => (r ? `Exported ${pngName}` : null),
+          doneLabel: format === 'pdf' ? null : (r) => (r ? tr`Exported ${pngName}` : null),
         }, run)
         : await run();
-      if (!done) feedback.toast({ type: 'error', code: 'export_empty', message: 'Nothing to export.' });
+      if (!done) feedback.toast({ type: 'error', code: 'export_empty', message: tr`Nothing to export.` });
     } catch (err) {
-      const message = 'Export failed: ' + (err?.message || err);
+      const message = tr`Export failed: ${ph({ reason: String(shownError(err)) })}`;
       if (format === 'pdf') feedback.toast({ type: 'error', code: 'pdf_export_failed', message });
       else feedback.toast({ type: 'error', code: 'png_export_failed', message });
     } finally {
@@ -10917,7 +10956,7 @@ export function CanvasSurface({
     mutators.breakUndo?.();
     setSelectedStrokes(new Set());
     undoToast(feedback, {
-      message: 'Drawings cleared',
+      message: tr`Drawings cleared`,
       undoManager: um,
       stackItem: item,
       onUndo: () => mutators.undo?.(),
@@ -10979,19 +11018,19 @@ export function CanvasSurface({
       await dismissAutotagSuggestion({ workspaceId, targetKind: 'card', targetId: cardId, tagId: tag.id, userId });
       refreshTags?.();
       undoToast(feedback, {
-        message: `Removed “${tag.name || 'tag'}”`,
+        message: tr`Removed “${ph({ name: tag.name || tr`tag` })}”`,
         onUndo: async () => {
           try {
             await tagCard({ workspaceId, boardId: board.id, cardId, tagId: tag.id });
             await undismissAutotagSuggestion({ workspaceId, targetKind: 'card', targetId: cardId, tagId: tag.id });
             refreshTags?.();
           } catch (err) {
-            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
+            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: tr`Restore failed: ${ph({ reason: String(shownError(err)) })}` });
           }
         },
       });
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tr`Tag failed: ${ph({ reason: String(shownError(err)) })}` });
     }
   };
   const createAndApplyTag = async (cardId, name) => {
@@ -11001,7 +11040,7 @@ export function CanvasSurface({
       await tagCard({ workspaceId, boardId: board.id, cardId, tagId: t.id });
       refreshTags?.();
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tr`Tag failed: ${ph({ reason: String(shownError(err)) })}` });
     }
   };
 
@@ -11035,19 +11074,19 @@ export function CanvasSurface({
       await dismissAutotagSuggestion({ workspaceId, targetKind: kind, targetId, tagId: tag.id, userId });
       refreshTags?.();
       undoToast(feedback, {
-        message: `Removed “${tag.name || 'tag'}”`,
+        message: tr`Removed “${ph({ name: tag.name || tr`tag` })}”`,
         onUndo: async () => {
           try {
             await t.add(id, tag.id);
             await undismissAutotagSuggestion({ workspaceId, targetKind: kind, targetId, tagId: tag.id });
             refreshTags?.();
           } catch (err) {
-            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
+            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: tr`Restore failed: ${ph({ reason: String(shownError(err)) })}` });
           }
         },
       });
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tr`Tag failed: ${ph({ reason: String(shownError(err)) })}` });
     }
   };
   const createAndApplyTagOn = async (kind, id, name) => {
@@ -11058,7 +11097,7 @@ export function CanvasSurface({
       await t.add(id, tag.id);
       refreshTags?.();
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tr`Tag failed: ${ph({ reason: String(shownError(err)) })}` });
     }
   };
 
@@ -11146,7 +11185,7 @@ export function CanvasSurface({
       try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: 'card', via: 'suggested_chip', tag_id: tag.id }); } catch (_) {}
       refreshTags?.();
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_suggestion_failed', message: 'Could not keep it: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_suggestion_failed', message: tr`Could not keep it: ${ph({ reason: String(shownError(err)) })}` });
     }
   };
   const dismissSuggestion = async (cardId, tag) => {
@@ -11155,7 +11194,7 @@ export function CanvasSurface({
       await dismissAutotagSuggestion({ workspaceId, targetKind: 'card', targetId: cardId, tagId: tag.id, userId });
       try { logEvent(EV.TAG_SUGGESTION_DISMISS, { tag_id: tag.id, via: 'card' }); } catch (_) {}
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_suggestion_failed', message: 'Could not dismiss it: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_suggestion_failed', message: tr`Could not dismiss it: ${ph({ reason: String(shownError(err)) })}` });
     }
   };
 
@@ -11380,7 +11419,7 @@ export function CanvasSurface({
     try {
       await addVoteCard({ workspaceId, boardId: board.id, author: userId, anchor, label: null });
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'vote_add_failed', message: 'Add vote failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'vote_add_failed', message: tr`Add vote failed: ${ph({ reason: String(shownError(err)) })}` });
     }
   };
   const promptComment = (anchor) => {
@@ -11444,7 +11483,7 @@ export function CanvasSurface({
     } catch (err) {
       // The draft stays open with its text so a retry is one press; clearing
       // it here (in a finally) threw away what was typed (SHARE-11).
-      feedback.toast({ type: 'error', code: 'comment_post_failed', message: 'Comment failed: ' + (err.message || err) + ' — your text is still there.' });
+      feedback.toast({ type: 'error', code: 'comment_post_failed', message: tr`Comment failed: ${ph({ reason: String(shownError(err)) })} — your text is still there.` });
     }
   };
   // Helper: compute a comment's canvas-space rect for collision-avoidance.
@@ -11639,9 +11678,9 @@ export function CanvasSurface({
       const { dropped } = rehomeCells(cur, next, model.cells, { x: 0, y: 0, w: c.w || 360, h: c.h || 300 });
       if (dropped > 0) {
         const ok = await feedback.confirm?.({
-          title: `Cut into ${cols * rows} ${cols * rows === 1 ? 'box' : 'boxes'}?`,
-          message: dropped === 1 ? 'One filled box won’t fit and will be removed. You can undo this.' : `${dropped} filled boxes won’t fit and will be removed. You can undo this.`,
-          confirmLabel: 'Cut into boxes',
+          title: plural(cols * rows, { one: 'Cut into # box?', other: 'Cut into # boxes?' }),
+          message: plural(dropped, { 1: 'One filled box won’t fit and will be removed. You can undo this.', other: '# filled boxes won’t fit and will be removed. You can undo this.' }),
+          confirmLabel: tr`Cut into boxes`,
         });
         if (!ok) return;
       }
@@ -11937,7 +11976,7 @@ export function CanvasSurface({
     addLinkToCell: async (gridId, cellId) => {
       cellId = resolveCellWriteKey(gridId, cellId);
       if (!guardCellFill(gridId, cellId)) return;   // demo cap: a link counts as a card
-      const v = await feedback.prompt({ title: 'Add a link', label: 'URL', placeholder: 'https://…', confirmLabel: 'Add' });
+      const v = await feedback.prompt({ title: tr`Add a link`, label: tr`URL`, placeholder: tr`https://…`, confirmLabel: tr`Add` });
       if (!v) return;
       const url = v.trim(); if (!url) return;
       const embed = detectEmbed(url);
@@ -12002,7 +12041,7 @@ export function CanvasSurface({
     if (!rec || !rec.type || rec.type === 'empty') return false;
     e.preventDefault();
     if (!canEdit) { showEditBlockedToast(); return true; }
-    gridActions.withUndoToast('Box cleared', () => mutators.clearGridCellContent?.(gid, cellId));
+    gridActions.withUndoToast(tr`Box cleared`, () => mutators.clearGridCellContent?.(gid, cellId));
     return true;
   };
 
@@ -12141,7 +12180,7 @@ export function CanvasSurface({
                      autoFocus={af}
                      editTitleAt={editFieldSignal.id === c.id && editFieldSignal.field === 'title' ? editFieldSignal.n : 0} />
         : boardsReady
-          ? <div className="bc bc-missing" title={`Missing cluster ${c.id}`}>Missing cluster</div>
+          ? <div className="bc bc-missing" title={tr`Missing cluster ${ph({ id: c.id })}`}><Trans>Missing cluster</Trans></div>
           : <div className="bc bc-loading" aria-hidden="true" />;
     } else if (c.kind === 'boardlink') {
       const target = boards[c.target];
@@ -12318,7 +12357,9 @@ export function CanvasSurface({
                 role="button"
                 className={`card-tag-chip is-clickable is-${t.source || 'user'}${t.id === spotlightTagId ? ' is-lit' : ''}`}
                 style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
-                title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source})` : ''} — click to light it up on this cluster`}
+                title={t.source && t.source !== 'user'
+                  ? tr`${ph({ name: t.name })} (${ph({ source: t.source })}) — click to light it up on this cluster`
+                  : tr`${ph({ name: t.name })} — click to light it up on this cluster`}
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   // Lights the tag up here (the spotlight); its page opens
@@ -12345,16 +12386,18 @@ export function CanvasSurface({
         {suggTag && (
           <span className="card-tag-chip is-suggested"
                 style={{ '--tag-c': resolveTagColor(suggTag) }}
-                title={`Suggested from ${String(cardSugg.origin || '').startsWith('vision') ? 'the picture' : 'the text'}: ${suggTag.name}. ✓ keeps it, × never suggests it here.`}
+                title={String(cardSugg.origin || '').startsWith('vision')
+                  ? tr`Suggested from the picture: ${ph({ name: suggTag.name })}. ✓ keeps it, × never suggests it here.`
+                  : tr`Suggested from the text: ${ph({ name: suggTag.name })}. ✓ keeps it, × never suggests it here.`}
                 onPointerDown={(e) => e.stopPropagation()}>
             <Icon as={Sparkle} size={9} className="card-tag-chip-sparkle" />
             <span className="card-tag-chip-name" dir="auto">{suggTag.name}</span>
             <span className="card-tag-chip-acts">
-              <button type="button" className="card-tag-chip-act" aria-label={`Keep ${suggTag.name}`}
+              <button type="button" className="card-tag-chip-act" aria-label={tr`Keep ${ph({ name: suggTag.name })}`}
                       onClick={(e) => { e.stopPropagation(); acceptSuggestion(c.id, suggTag); }}>
                 <Icon as={Check} size={9} />
               </button>
-              <button type="button" className="card-tag-chip-act is-dismiss" aria-label={`Never suggest ${suggTag.name} here`}
+              <button type="button" className="card-tag-chip-act is-dismiss" aria-label={tr`Never suggest ${ph({ name: suggTag.name })} here`}
                       onClick={(e) => { e.stopPropagation(); dismissSuggestion(c.id, suggTag); }}>
                 <Icon as={X} size={9} />
               </button>
@@ -12380,7 +12423,7 @@ export function CanvasSurface({
           if (live.length < 2) return null;
           return (
             <button type="button" className="card-version-chip"
-                    title={`${live.length} versions — Info shows them all`}
+                    title={plural(live.length, { other: '# versions — Info shows them all' })}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); openInfo({ boardId: board.id, cardIds: [c.id], follow: infoFollow }); }}>
               {versionLabel(currentOf(c))}
@@ -12390,12 +12433,12 @@ export function CanvasSurface({
         {canEdit && selectedTool === 'select' && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
           <div className="card-resize" onPointerDown={(e) => onResizePointerDown(e, c)}
                title={(c.kind === 'image' || c.kind === 'video' || c.kind === 'pdf')
-                 ? `Drag to resize — hold ${cmdKey} to break the aspect ratio`
+                 ? tr`Drag to resize — hold ${cmdKey} to break the aspect ratio`
                  : undefined}
                style={{ width: RESIZE_HANDLE_PX, height: RESIZE_HANDLE_PX }} />
         )}
         {canEdit && selectedTool === 'select' && isSelected && canRotate && (
-          <div className="card-rotate" onPointerDown={(e) => onRotatePointerDown(e, c)} title="Drag to rotate (shift = 15° steps)" />
+          <div className="card-rotate" onPointerDown={(e) => onRotatePointerDown(e, c)} title={tr`Drag to rotate (shift = 15° steps)`} />
         )}
         {canEdit && selectedTool === 'select' && isSelected && c.kind === 'grid'
           && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
@@ -12557,13 +12600,13 @@ export function CanvasSurface({
         src = await openClusterForMove(sourceBoardId, ids, { userId, sessionId });
       } catch (err) { console.error('[files-move-here] open failed', err); }
       if (!src) {
-        feedback.toast({ type: 'error', code: 'files_move_open_failed', message: 'Could not read that cluster — nothing was moved. Try again in a moment.' });
+        feedback.toast({ type: 'error', code: 'files_move_open_failed', message: tr`Could not read that cluster — nothing was moved. Try again in a moment.` });
         return;
       }
     }
     try {
       if (!stillOn(targetId, doc)) {
-        feedback.toast({ type: 'info', message: 'Nothing was moved — this board changed before the move could finish.' });
+        feedback.toast({ type: 'info', message: tr`Nothing was moved — this board changed before the move could finish.` });
         return;
       }
       const movable = src.cards.filter((c) => !isStillUploading(c) && c.kind !== 'board' && c.kind !== 'boardlink');
@@ -12583,7 +12626,7 @@ export function CanvasSurface({
         await src.commit(idMap);
       } catch (err) {
         console.error('[files-move-here] source update failed — copies kept', err);
-        feedback.toast({ type: 'error', code: 'files_move_cleanup_failed', ttl: 9000, message: 'Moved here, but the originals could not be removed from their cluster — they are in both places for now.' });
+        feedback.toast({ type: 'error', code: 'files_move_cleanup_failed', ttl: 9000, message: tr`Moved here, but the originals could not be removed from their cluster — they are in both places for now.` });
         return;
       }
       repointComments(sourceBoardId, targetId, idMap);
@@ -12592,7 +12635,7 @@ export function CanvasSurface({
       const n = Object.keys(idMap).length;
       undoToast(feedback, {
         type: 'success',
-        message: n === 1 ? 'Moved 1 card here' : `Moved ${n} cards here`,
+        message: plural(n, { one: 'Moved # card here', other: 'Moved # cards here' }),
         onUndo: () => undoMoveHere({ sourceBoardId, targetId, doc, idMap, originals }),
       });
     } finally {
@@ -12619,13 +12662,13 @@ export function CanvasSurface({
         src = await openClusterForMove(sourceBoardId, ids, { userId, sessionId });
       } catch (err) { console.error('[files-copy-here] open failed', err); }
       if (!src) {
-        feedback.toast({ type: 'error', code: 'files_copy_open_failed', message: 'Could not read that cluster — nothing was copied. Try again in a moment.' });
+        feedback.toast({ type: 'error', code: 'files_copy_open_failed', message: tr`Could not read that cluster — nothing was copied. Try again in a moment.` });
         return;
       }
     }
     try {
       if (!stillOn(targetId, doc)) {
-        feedback.toast({ type: 'info', message: 'Nothing was copied — this board changed before the copy could finish.' });
+        feedback.toast({ type: 'info', message: tr`Nothing was copied — this board changed before the copy could finish.` });
         return;
       }
       const copyable = src.cards.filter((c) => !isStillUploading(c) && c.kind !== 'board' && c.kind !== 'boardlink');
@@ -12650,22 +12693,27 @@ export function CanvasSurface({
       setSelected(new Set(landed));
       const n = landed.length;
       const allNotes = copyable.every((c) => c.kind === 'note');
-      const noun = allNotes ? (n === 1 ? 'note' : 'notes') : (n === 1 ? 'card' : 'cards');
-      const from = payload.sourceName ? ` from “${payload.sourceName}”` : '';
+      const fromName = payload.sourceName;
       feedback.toast({
         type: 'success',
         ttl: 8000,
-        message: `Copied ${n} ${noun}${from} · ⌘Z undoes`,
+        message: allNotes
+          ? (fromName
+            ? plural(n, { one: `Copied # note from “${fromName}” · ⌘Z undoes`, other: `Copied # notes from “${fromName}” · ⌘Z undoes` })
+            : plural(n, { one: 'Copied # note · ⌘Z undoes', other: 'Copied # notes · ⌘Z undoes' }))
+          : (fromName
+            ? plural(n, { one: `Copied # card from “${fromName}” · ⌘Z undoes`, other: `Copied # cards from “${fromName}” · ⌘Z undoes` })
+            : plural(n, { one: 'Copied # card · ⌘Z undoes', other: 'Copied # cards · ⌘Z undoes' })),
         action: {
-          label: 'Move instead',
+          label: tr`Move instead`,
           onClick: () => {
             if (!stillOn(targetId, doc)) {
-              feedback.toast({ type: 'info', message: 'Nothing was moved — this board changed since the copy.' });
+              feedback.toast({ type: 'info', message: tr`Nothing was moved — this board changed since the copy.` });
               return;
             }
             const topNow = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
             if (um && item && topNow !== item) {
-              feedback.toast({ type: 'info', message: 'The board changed since — drag it in again to move it instead.' });
+              feedback.toast({ type: 'info', message: tr`The board changed since — drag it in again to move it instead.` });
               return;
             }
             mutators.undo?.();
@@ -12688,7 +12736,7 @@ export function CanvasSurface({
   // from, so it says so rather than half-undoing.
   const undoMoveHere = async ({ sourceBoardId, targetId, doc, idMap, originals }) => {
     if (!stillOn(targetId, doc)) {
-      feedback.toast({ type: 'info', message: 'Undo needs the board they were moved to — open it and drag them back from Files.' });
+      feedback.toast({ type: 'info', message: tr`Undo needs the board they were moved to — open it and drag them back from Files.` });
       return;
     }
     const cm = doc?.getMap?.('cards');
@@ -12697,7 +12745,7 @@ export function CanvasSurface({
       return ym ? { id: oldId, card: yMapToCard(ym) } : null;
     }).filter(Boolean);
     if (!back.length) {
-      feedback.toast({ type: 'info', message: 'Nothing to undo — those cards are no longer on this board.' });
+      feedback.toast({ type: 'info', message: tr`Nothing to undo — those cards are no longer on this board.` });
       return;
     }
     const inverse = Object.fromEntries(Object.entries(idMap).map(([o, n2]) => [n2, o]));
@@ -12709,7 +12757,7 @@ export function CanvasSurface({
       try {
         await returnToCluster(sourceBoardId, back, originals, arrowsBack);
       } catch (err) {
-        feedback.toast({ type: 'error', code: 'files_return_failed', message: 'Undo failed — the cards stay here. ' + (err?.message || err) });
+        feedback.toast({ type: 'error', code: 'files_return_failed', message: tr`Undo failed — the cards stay here. ${ph({ reason: String(shownError(err)) })}` });
         return;
       }
     }
@@ -12870,7 +12918,7 @@ export function CanvasSurface({
     if (!c || !canVersion(c) || c.locked) return null;
     if (kindFromMime(items[0].type) !== c.kind) return null;
     const n = liveVersions(c).length + 1;
-    return { cardId: c.id, label: `Drop to add as v${n}` };
+    return { cardId: c.id, label: tr`Drop to add as v${n}` };
   };
   const handleDragLeave = (e) => {
     if (e.currentTarget.contains(e.relatedTarget)) return;
@@ -12886,7 +12934,7 @@ export function CanvasSurface({
     // tell the user, rather than silently no-op'ing the mutators.
     if (!canEdit) {
       e.preventDefault();
-      feedback?.toast?.({ type: 'info', message: 'This cluster is view-only — drops are disabled.' });
+      feedback?.toast?.({ type: 'info', message: tr`This cluster is view-only — drops are disabled.` });
       return;
     }
     const types = e.dataTransfer.types;
@@ -12937,7 +12985,7 @@ export function CanvasSurface({
             if (droppedCard) {
               if (droppedCard.kind === 'board') {
                 tagBoard({ workspaceId, boardId: droppedCard.id, tagId: ref.id, source: 'user' })
-                  .catch(err => feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) }));
+                  .catch(err => feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tr`Tag failed: ${ph({ reason: String(shownError(err)) })}` }));
               } else if (effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(droppedCard.id)) {
                 // Dropped on a selected card: the whole selection takes it.
                 const tag = wsTagById.get(ref.id) || { id: ref.id, name: ref.title || 'tag' };
@@ -12945,10 +12993,10 @@ export function CanvasSurface({
                 tagManyCards(ids, tag, 'add', 'drop_selection');
               } else {
                 tagCard({ workspaceId, boardId: board.id, cardId: droppedCard.id, tagId: ref.id, source: 'user' })
-                  .catch(err => feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) }));
+                  .catch(err => feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tr`Tag failed: ${ph({ reason: String(shownError(err)) })}` }));
               }
             } else {
-              feedback.toast({ type: 'info', message: 'Drop a tag onto a card or cluster to apply it.' });
+              feedback.toast({ type: 'info', message: tr`Drop a tag onto a card or cluster to apply it.` });
             }
             return;
           }
@@ -12977,7 +13025,7 @@ export function CanvasSurface({
       mutators.addCard?.({
         id: `xlink-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
         kind: 'boardlink', target: payload.boardId,
-        note: payload.pageName ? `Doc · ${payload.pageName}` : null,
+        note: payload.pageName ? tr`Doc · ${ph({ pageName: payload.pageName })}` : null,
         x: Math.max(8, Math.round(cx - w / 2)),
         y: Math.max(8, Math.round(cy - h / 2)),
         w, h,
@@ -13014,7 +13062,7 @@ export function CanvasSurface({
       // and it dies with that tab, so there is nothing to make a card from:
       // say so, instead of leaving a link that can never open.
       if (/^blob:/i.test(url)) {
-        feedback.toast({ type: 'info', message: 'That image only lives in the page it came from. Save it, then drop the file here.' });
+        feedback.toast({ type: 'info', message: tr`That image only lives in the page it came from. Save it, then drop the file here.` });
         return;
       }
       // A drag from another tab is the one "bring material from elsewhere"
@@ -13530,19 +13578,19 @@ export function CanvasSurface({
     // `title`, which says the key itself, is its name down the rail in the
     // guided tour's last step (data-tip), and the tooltip's where it has no
     // `tip`.
-    { id: 'select', title: 'Select / move (V)', tip: 'Select / move', label: 'Select tool', icon: MousePointer2, keys: 'V' },
-    { id: 'pan',    title: 'Pan canvas (H or Space)', tip: 'Pan canvas, or hold Space', label: 'Pan tool', icon: Hand, keys: 'H' },
-    { id: 'image',  title: 'Add image', label: 'Add image tool', icon: ImageIcon },
-    { id: 'text',   title: 'Add note (N)', tip: 'Add note', label: 'Add note tool', icon: NotePencil, keys: 'N' },
-    { id: 'doc',    title: 'Add doc', label: 'Add doc tool', icon: FileText },
-    { id: 'board',  title: 'Add cluster', label: 'Add cluster tool', icon: clusterGlyph(), keys: clusterNudgesAllowed() ? 'C' : undefined },
-    { id: 'grid',   title: 'Add grid (G)', tip: 'Add grid', label: 'Add grid tool', icon: GridNine, keys: 'G' },
-    { id: 'arrow',  title: 'Arrow (A) — click 2 cards, or drag on empty canvas', tip: 'Arrow — click 2 cards, or drag on empty canvas', label: 'Arrow tool', icon: ArrowRight, keys: getWasdPan() ? undefined : 'A' },
+    { id: 'select', title: tr`Select / move (V)`, tip: tr`Select / move`, label: tr`Select tool`, icon: MousePointer2, keys: 'V' },
+    { id: 'pan',    title: tr`Pan canvas (H or Space)`, tip: tr`Pan canvas, or hold Space`, label: tr`Pan tool`, icon: Hand, keys: 'H' },
+    { id: 'image',  title: tr`Add image`, label: tr`Add image tool`, icon: ImageIcon },
+    { id: 'text',   title: tr`Add note (N)`, tip: tr`Add note`, label: tr`Add note tool`, icon: NotePencil, keys: 'N' },
+    { id: 'doc',    title: tr`Add doc`, label: tr`Add doc tool`, icon: FileText },
+    { id: 'board',  title: tr`Add cluster`, label: tr`Add cluster tool`, icon: clusterGlyph(), keys: clusterNudgesAllowed() ? 'C' : undefined },
+    { id: 'grid',   title: tr`Add grid (G)`, tip: tr`Add grid`, label: tr`Add grid tool`, icon: GridNine, keys: 'G' },
+    { id: 'arrow',  title: tr`Arrow (A) — click 2 cards, or drag on empty canvas`, tip: tr`Arrow — click 2 cards, or drag on empty canvas`, label: tr`Arrow tool`, icon: ArrowRight, keys: getWasdPan() ? undefined : 'A' },
     // Draw was moved off the rail deliberately — on a desktop D reaches it
     // instantly and the rail stays uncluttered. A touch device has no keyboard
     // and no right-click, which left the rail "+" submenu as the only way in,
     // for the tool people most want on a tablet. Put it back, on touch only.
-    ...(isTouch ? [{ id: 'draw', title: 'Draw (D)', tip: 'Draw', label: 'Free-draw tool', icon: Scribble, keys: getWasdPan() ? undefined : 'D' }] : []),
+    ...(isTouch ? [{ id: 'draw', title: tr`Draw (D)`, tip: tr`Draw`, label: tr`Free-draw tool`, icon: Scribble, keys: getWasdPan() ? undefined : 'D' }] : []),
   ];
   // The zoom slider's place, 0..1000 on a log scale (ZOOM_MIN..ZOOM_MAX).
   const zoomPos = Math.round(1000 * Math.log(zoom / ZOOM_MIN) / Math.log(ZOOM_MAX / ZOOM_MIN));
@@ -13558,25 +13606,25 @@ export function CanvasSurface({
     return buildAddActions(pos, 'add_menu').find(a => a.id === id)?.run();
   };
   const addGroups = [
-    { title: 'Tools', items: [
+    { title: tr`Tools`, items: [
       // On touch Draw sits on the rail itself, so listing it here too would put
       // the same tool two taps apart in the same strip.
-      ...(isTouch ? [] : [{ id: 'draw', label: 'Draw', icon: Scribble, tip: 'Free-draw', keys: getWasdPan() ? undefined : 'D', action: () => { logCanvasTool('pick', { tool: 'draw', via: 'menu', boardId: board?.id }); setSelectedTool('draw'); } }]),
-      { id: 'shape',   label: 'Shape',   icon: Square,   tip: 'Draw a shape',    action: () => { logCanvasTool('pick', { tool: 'shape', via: 'menu', boardId: board?.id }); setSelectedTool('shape'); } },
-      { id: 'palette', label: 'Palette', icon: Palette,  tip: 'Color palette',   action: () => { logCanvasTool('pick', { tool: 'palette', via: 'menu', boardId: board?.id }); setSelectedTool('palette'); } },
+      ...(isTouch ? [] : [{ id: 'draw', label: tr`Draw`, icon: Scribble, tip: tr`Free-draw`, keys: getWasdPan() ? undefined : 'D', action: () => { logCanvasTool('pick', { tool: 'draw', via: 'menu', boardId: board?.id }); setSelectedTool('draw'); } }]),
+      { id: 'shape',   label: tr`Shape`,   icon: Square,   tip: tr`Draw a shape`,    action: () => { logCanvasTool('pick', { tool: 'shape', via: 'menu', boardId: board?.id }); setSelectedTool('shape'); } },
+      { id: 'palette', label: tr`Palette`, icon: Palette,  tip: tr`Color palette`,   action: () => { logCanvasTool('pick', { tool: 'palette', via: 'menu', boardId: board?.id }); setSelectedTool('palette'); } },
     ]},
-    { title: 'Create', items: [
-      { id: 'file',          label: 'File',           icon: Paperclip,      tip: 'Upload any file',         action: () => addFromRegistry('file') },
-      ...(canPickFolder ? [{ id: 'folder', label: 'Folder', icon: folderUploadGlyph(), tip: 'Upload a folder — its folders become clusters', action: () => addFromRegistry('folder') }] : []),
-      { id: 'addurl',        label: 'Link',           icon: Link,           tip: 'Add a web link',          action: () => addFromRegistry('addurl') },
+    { title: tr`Create`, items: [
+      { id: 'file',          label: tr`File`,          icon: Paperclip,      tip: tr`Upload any file`,         action: () => addFromRegistry('file') },
+      ...(canPickFolder ? [{ id: 'folder', label: tr`Folder`, icon: folderUploadGlyph(), tip: tr`Upload a folder — its folders become clusters`, action: () => addFromRegistry('folder') }] : []),
+      { id: 'addurl',        label: tr`Link`,           icon: Link,           tip: tr`Add a web link`,          action: () => addFromRegistry('addurl') },
       ...(scheduleCreationAllowed() ? [
-        { id: 'schedule',      label: 'Schedule',       icon: CalendarPh,     tip: 'A calendar you can drop anything into', action: () => addFromRegistry('schedule') },
+        { id: 'schedule',      label: tr`Schedule`,       icon: CalendarPh,     tip: tr`A calendar you can drop anything into`, action: () => addFromRegistry('schedule') },
       ] : []),
-      { id: 'linkedcluster', label: 'Linked cluster', icon: ArrowSquareOut, tip: 'Link an existing cluster',action: () => onOpenPicker?.(resolvePastePos().pos) },
+      { id: 'linkedcluster', label: tr`Linked cluster`, icon: ArrowSquareOut, tip: tr`Link an existing cluster`,action: () => onOpenPicker?.(resolvePastePos().pos) },
     ]},
-    { title: 'Annotate', items: [
-      { id: 'comment', label: 'Comment', icon: MessageCircle, tip: 'Place a comment — click a card or the canvas', action: () => setAnnotPlacing('comment') },
-      { id: 'vote',    label: 'Vote',    icon: ListChecks,    tip: 'Place a vote — click a card or the canvas',    action: () => setAnnotPlacing('vote') },
+    { title: tr`Annotate`, items: [
+      { id: 'comment', label: tr`Comment`, icon: MessageCircle, tip: tr`Place a comment — click a card or the canvas`, action: () => setAnnotPlacing('comment') },
+      { id: 'vote',    label: tr`Vote`,    icon: ListChecks,    tip: tr`Place a vote — click a card or the canvas`,    action: () => setAnnotPlacing('vote') },
     ]},
   ];
 
@@ -13814,8 +13862,10 @@ export function CanvasSurface({
                        whiteSpace: 'nowrap',
                      }}
                      title={selectedTool === 'arrow'
-                       ? `${g.name} — click to ${arrowFrom ? 'connect to' : 'start an arrow from'} this group`
-                       : `${g.name} — right-click for group actions`}
+                       ? (arrowFrom
+                          ? tr`${ph({ name: g.name })} — click to connect to this group`
+                          : tr`${ph({ name: g.name })} — click to start an arrow from this group`)
+                       : tr`${ph({ name: g.name })} — right-click for group actions`}
                      onPointerDown={selectedTool === 'arrow' ? (e) => {
                        if (e.button !== 0) return;
                        e.stopPropagation();
@@ -13860,7 +13910,7 @@ export function CanvasSurface({
                         <button type="button" key={t.id}
                                 className={`card-tag-chip is-clickable is-${t.source || 'user'}${t.id === spotlightTagId ? ' is-lit' : ''}`}
                                 style={{ '--tag-c': t.color || '#4f8df8' }}
-                                title={`${t.name} — click to light it up on this cluster`}
+                                title={tr`${ph({ name: t.name })} — click to light it up on this cluster`}
                                 onPointerDown={(e) => e.stopPropagation()}
                                 onClick={(e) => { e.stopPropagation(); toggleSpotlight(t.id, 'group_chip'); }}>
                           <span className="card-tag-chip-dot" />
@@ -13976,14 +14026,22 @@ export function CanvasSurface({
 
   // The tool hints, worded for the hand on the device: a finger taps and has
   // no Escape key, so it gets a Done button where a keyboard gets "esc".
-  const clickWord = isTouch ? 'Tap' : 'Click';
-  const placeNoun = (tool) => {
-    const noun = tool === 'text' ? 'note' : tool === 'board' ? 'cluster' : tool;
-    return `${/^[aeiou]/.test(noun) ? 'an' : 'a'} ${noun}`;
+  // Whole sentences per device and tool, so each language words its own.
+  const placeHint = (tool) => {
+    switch (tool) {
+      case 'text': return isTouch ? tr`Tap on the canvas to place a note` : tr`Click on the canvas to place a note`;
+      case 'board': return isTouch ? tr`Tap on the canvas to place a cluster` : tr`Click on the canvas to place a cluster`;
+      case 'grid': return isTouch ? tr`Tap on the canvas to place a grid` : tr`Click on the canvas to place a grid`;
+      case 'image': return isTouch ? tr`Tap on the canvas to place an image` : tr`Click on the canvas to place an image`;
+      case 'doc': return isTouch ? tr`Tap on the canvas to place a doc` : tr`Click on the canvas to place a doc`;
+      case 'shape': return isTouch ? tr`Tap on the canvas to place a shape` : tr`Click on the canvas to place a shape`;
+      case 'palette': return isTouch ? tr`Tap on the canvas to place a palette` : tr`Click on the canvas to place a palette`;
+      default: return '';
+    }
   };
   const hintExit = (onExit) => (isTouch
-    ? <button className="cnv-hint-btn" onClick={onExit}>Done</button>
-    : <button className="cnv-hint-x" onClick={onExit}>esc</button>);
+    ? <button className="cnv-hint-btn" onClick={onExit}><Trans>Done</Trans></button>
+    : <button className="cnv-hint-x" onClick={onExit}>{tr`esc`}</button>);
 
   // Viewport-centre canvas point — where the empty-state tiles drop their card
   // (same calc the old single CTA used inline).
@@ -14026,7 +14084,9 @@ export function CanvasSurface({
                   tabIndex={0}
                   className={`card-tag-chip is-clickable is-${t.source || 'user'}${t.id === spotlightTagId ? ' is-lit' : ''}`}
                   style={{ '--tag-c': t.color || '#4f8df8', cursor: 'pointer' }}
-                  title={`${t.name}${t.source && t.source !== 'user' ? ` (${t.source}) — right-click to confirm` : ''} — click to light it up on this cluster`}
+                  title={t.source && t.source !== 'user'
+                    ? tr`${ph({ name: t.name })} (${ph({ source: t.source })}) — right-click to confirm — click to light it up on this cluster`
+                    : tr`${ph({ name: t.name })} — click to light it up on this cluster`}
                   onKeyDown={(e) => {
                     if (isComposingKey(e)) return;
                     // The cluster's own chips are few, so they take the keyboard.
@@ -14052,18 +14112,18 @@ export function CanvasSurface({
       {spotlightTag && (
         <div className="tag-spotlight-pill" role="status" aria-live="polite">
           <Icon as={Eye} size={15} className="tag-spotlight-eye" />
-          <span>Showing</span>
+          <span><Trans>Showing</Trans></span>
           <button type="button" className="card-tag-chip is-lit tag-spotlight-chip"
                   style={{ '--tag-c': resolveTagColor(spotlightTag) }}
-                  title={`Open ${spotlightTag.name}'s page: everything carrying it, everywhere`}
+                  title={tr`Open ${ph({ name: spotlightTag.name })}'s page: everything carrying it, everywhere`}
                   onClick={() => openTagPage(spotlightTag.id, 'spotlight')}>
             <span className="card-tag-chip-dot" />
             <span className="card-tag-chip-name" dir="auto">{spotlightTag.name}</span>
           </button>
-          <span className="tag-spotlight-count">{spotMatched?.size || 0} of {(cards || []).length} cards</span>
+          <span className="tag-spotlight-count"><Trans>{ph({ value: spotMatched?.size || 0 })} of {ph({ count: (cards || []).length })} cards</Trans></span>
           <span className="tag-spotlight-rule" aria-hidden="true" />
-          <span className="tag-spotlight-hint"><kbd>Esc</kbd>clears</span>
-          <button type="button" className="tag-spotlight-x" aria-label={`Clear filter: ${spotlightTag.name}`}
+          <span className="tag-spotlight-hint"><Trans><kbd>Esc</kbd>clears</Trans></span>
+          <button type="button" className="tag-spotlight-x" aria-label={tr`Clear filter: ${ph({ name: spotlightTag.name })}`}
                   onClick={() => setSpotlightTagId(null)}>
             <Icon as={X} size={14} />
           </button>
@@ -14225,7 +14285,7 @@ export function CanvasSurface({
           <div className="sel-menu"
                style={{ left: a.x, top: a.y, transform: `scale(${1 / zoom})` }}>
             <button type="button" className="card-menu-btn" style={{ left: dx, top: dy }}
-              aria-label={selected.size > 1 ? `Options for ${selected.size} cards` : 'Card options'}
+              aria-label={plural(selected.size, { 0: 'Card options', 1: 'Card options', other: 'Options for # cards' })}
               onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); selMenuPressRef.current = performance.now(); }}
               onClick={(e) => {
                 e.stopPropagation();
@@ -14574,7 +14634,7 @@ export function CanvasSurface({
                               onPointerDown={onBendDown}
                               onContextMenu={onBendContext}
                               onDoubleClick={onBendReset}>
-                        <title>Drag to bend · right-click to straighten · double-click to reset</title>
+                        <title>{tr`Drag to bend · right-click to straighten · double-click to reset`}</title>
                       </circle>
                       {/* Visible dot — faded on hover, solid when selected (CSS). */}
                       <circle className="arrow-bend-vis" cx={bendMid.x} cy={bendMid.y} r={BEND_R}
@@ -15043,7 +15103,7 @@ export function CanvasSurface({
           will not finger-scroll it. Drive it ourselves. Tapping a tool still
           works — the gesture only engages past the movement threshold. */}
       <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`} data-tour="rail"
-           ref={railRef} role="toolbar" aria-label="Tools" aria-orientation="vertical"
+           ref={railRef} role="toolbar" aria-label={tr`Tools`} aria-orientation="vertical"
            onKeyDown={railKeys}
            onPointerDown={(e) => {
              railPressRef.current.scrolled = false;
@@ -15054,11 +15114,11 @@ export function CanvasSurface({
           <div
             ref={addBtnRef}
             className={`cnv-tool ${addMenuOpen ? 'active' : ''}`}
-            data-tip="Add"
-            {...tlTip('Add', null, 'right')}
+            data-tip={tr`Add`}
+            {...tlTip(tr`Add`, null, 'right')}
             role="button"
             tabIndex={0}
-            aria-label="Add menu"
+            aria-label={tr`Add menu`}
             aria-haspopup="menu"
             aria-expanded={addMenuOpen}
             onKeyDown={(e) => {
@@ -15089,7 +15149,7 @@ export function CanvasSurface({
           {/* A press in it isn't the rail's (its swipe scrolls the rail, not
               the menu, which a finger scrolls itself out here). */}
           {addMenuOpen && createPortal(
-            <div className="cnv-add-menu" role="menu" aria-label="Add" ref={addPop.popRef} style={addPop.style}
+            <div className="cnv-add-menu" role="menu" aria-label={tr`Add`} ref={addPop.popRef} style={addPop.style}
                  onKeyDown={onAddMenuKeyDown} onPointerDown={(e) => e.stopPropagation()}>
               {addGroups.map(group => (
                 <Fragment key={group.title}>
@@ -15190,10 +15250,10 @@ export function CanvasSurface({
                     <span className="cnv-tool-card-cover">
                       {CLUSTER_CARD_COVERS.map((src) => <img key={src} src={src} alt="" loading="lazy" decoding="async" />)}
                     </span>
-                    <span className="cnv-tool-card-meta"><b>Lost Time</b><span>4 cards</span></span>
+                    <span className="cnv-tool-card-meta"><b><Trans>Lost Time</Trans></b><span><Trans>4 cards</Trans></span></span>
                   </span>
-                  <span className="cnv-tool-card-title">Cluster<kbd>C</kbd></span>
-                  <span className="cnv-tool-card-body">A canvas inside this one. Make one per project, then drop cards onto it to file them.</span>
+                  <span className="cnv-tool-card-title"><Trans>Cluster</Trans><kbd>C</kbd></span>
+                  <span className="cnv-tool-card-body"><Trans>A canvas inside this one. Make one per project, then drop cards onto it to file them.</Trans></span>
                 </span>
               )}
             </div>
@@ -15221,11 +15281,11 @@ export function CanvasSurface({
         })}
         <div className="cnv-tool-sep" />
         <div className="cnv-tool"
-             data-tip="Keyboard shortcuts (?)"
-             {...tlTip('Keyboard shortcuts', '?', 'right')}
+             data-tip={tr`Keyboard shortcuts (?)`}
+             {...tlTip(tr`Keyboard shortcuts`, '?', 'right')}
              role="button"
              tabIndex={0}
-             aria-label="Keyboard shortcuts"
+             aria-label={tr`Keyboard shortcuts`}
              onKeyDown={(e) => {
                if (isComposingKey(e)) return;
                if (e.key === 'Enter' || e.key === ' ') {
@@ -15277,11 +15337,11 @@ export function CanvasSurface({
           while no tool is armed, so the two never stack. */}
       {studioBarUp && selectedTool === 'select' && (
         <div className="cnv-studio-bar" role="status">
-          <span className="cnv-studio-bar-txt">{looseOnStudio} loose cards<span className="cnv-studio-bar-where"> on {board?.name || 'Studio'}</span></span>
+          <span className="cnv-studio-bar-txt">{looseCards}<span className="cnv-studio-bar-where"> <Trans>on {ph({ name: board?.name || tr`Studio` })}</Trans></span></span>
           <button type="button" className="cnv-studio-bar-go" onPointerDown={(e) => e.stopPropagation()} onClick={sweepStudio}>
-            Move them into a cluster
+            <Trans>Move them into a cluster</Trans>
           </button>
-          <button type="button" className="cnv-studio-bar-x" aria-label="Dismiss" title="Dismiss"
+          <button type="button" className="cnv-studio-bar-x" aria-label={tr`Dismiss`} title={tr`Dismiss`}
                   onPointerDown={(e) => e.stopPropagation()} onClick={dismissStudioBar}>
             <Icon as={X} size={13} weight="regular" />
           </button>
@@ -15289,22 +15349,24 @@ export function CanvasSurface({
       )}
       {selectedTool === 'arrow' && (
         <div className="cnv-hint">
-          {arrowFrom ? `${clickWord} target card to connect` : `${clickWord} a card to start, or drag on empty canvas for a free arrow`}
+          {arrowFrom
+            ? (isTouch ? tr`Tap target card to connect` : tr`Click target card to connect`)
+            : (isTouch ? tr`Tap a card to start, or drag on empty canvas for a free arrow` : tr`Click a card to start, or drag on empty canvas for a free arrow`)}
           {hintExit(() => { setSelectedTool('select'); setArrowFrom(null); })}
         </div>
       )}
       {selectedTool === 'draw' && (
-        <div className="cnv-hint">{drawOptions.mode === 'eraser' ? 'Drag to erase strokes' : 'Drag to draw'} {hintExit(() => setSelectedTool('select'))}</div>
+        <div className="cnv-hint">{drawOptions.mode === 'eraser' ? tr`Drag to erase strokes` : tr`Drag to draw`} {hintExit(() => setSelectedTool('select'))}</div>
       )}
       {selectedTool === 'pan' && (
-        <div className="cnv-hint">Drag to pan {hintExit(() => setSelectedTool('select'))}</div>
+        <div className="cnv-hint"><Trans>Drag to pan</Trans> {hintExit(() => setSelectedTool('select'))}</div>
       )}
       {(selectedTool === 'board' || selectedTool === 'grid' || selectedTool === 'image' || selectedTool === 'text' || selectedTool === 'doc' || selectedTool === 'shape' || selectedTool === 'palette') && (
         <div className="cnv-hint">
           {selectedTool === 'board' && clusterNudgesAllowed()
             // The tool explains itself once picked, instead of standing out.
-            ? `${clickWord} to place a cluster: a canvas inside this one. Drop cards onto it to file them.`
-            : <>{clickWord} on the canvas to place {placeNoun(selectedTool)}</>}
+            ? (isTouch ? tr`Tap to place a cluster: a canvas inside this one. Drop cards onto it to file them.` : tr`Click to place a cluster: a canvas inside this one. Drop cards onto it to file them.`)
+            : placeHint(selectedTool)}
           {hintExit(() => setSelectedTool('select'))}
         </div>
       )}
@@ -15314,14 +15376,16 @@ export function CanvasSurface({
           tool bars above, which share this spot. */}
       {nameHint && selectedTool === 'select' && !annotPlacing && !touchSelecting && (
         <div className="cnv-hint cnv-hint-name" role="status" data-hint="name_cluster">
-          Your new cluster is still “{boards?.[nameHint.id]?.name || 'Untitled cluster'}” — name it so you can find it later.
-          <button className="cnv-hint-btn" onClick={() => triggerInlineEdit(nameHint.id, 'title')}>Name it</button>
-          <button className="cnv-hint-x" aria-label="Dismiss" onClick={dismissNameHint}>×</button>
+          <Trans>Your new cluster is still “{ph({ name: boards?.[nameHint.id]?.name || tr`Untitled cluster` })}” — name it so you can find it later.</Trans>
+          <button className="cnv-hint-btn" onClick={() => triggerInlineEdit(nameHint.id, 'title')}><Trans>Name it</Trans></button>
+          <button className="cnv-hint-x" aria-label={tr`Dismiss`} onClick={dismissNameHint}>×</button>
         </div>
       )}
       {annotPlacing && (
         <div className="cnv-hint">
-          {clickWord} a card to attach, or empty space to drop a {annotPlacing}
+          {annotPlacing === 'vote'
+            ? (isTouch ? tr`Tap a card to attach, or empty space to drop a vote` : tr`Click a card to attach, or empty space to drop a vote`)
+            : (isTouch ? tr`Tap a card to attach, or empty space to drop a comment` : tr`Click a card to attach, or empty space to drop a comment`)}
           {hintExit(() => setAnnotPlacing(null))}
         </div>
       )}
@@ -15329,8 +15393,8 @@ export function CanvasSurface({
           (or Escape) keeps the selection; a tap on empty canvas drops it. */}
       {touchSelecting && selectedTool === 'select' && !annotPlacing && (
         <div className="cnv-hint" role="status" data-hint="touch_select">
-          Tap cards to select
-          <button className="cnv-hint-btn" onClick={() => setTouchSelecting(false)}>Done</button>
+          <Trans>Tap cards to select</Trans>
+          <button className="cnv-hint-btn" onClick={() => setTouchSelecting(false)}><Trans>Done</Trans></button>
         </div>
       )}
       {(selected.size + selectedStrokes.size + selectedArrows.size) > 1 && (selBarOn ? (
@@ -15339,7 +15403,7 @@ export function CanvasSurface({
                          api={selBarApi} canDelete={canEdit} tagOpen={!!tagMany} />
         </Suspense>
       ) : (
-        <div className="cnv-selcount">{selected.size + selectedStrokes.size + selectedArrows.size} selected</div>
+        <div className="cnv-selcount"><Trans>{ph({ value: selected.size + selectedStrokes.size + selectedArrows.size })} selected</Trans></div>
       ))}
       {/* Empty-board starter: a contained, frosted panel of card-type tiles so
           the first "add a card" gesture lets you CHOOSE what to drop (image /
@@ -15359,8 +15423,8 @@ export function CanvasSurface({
                        onPut={putUnplacedOnBoard} onChoose={() => onRevealUnplaced([])} />
       ) : (
         <div className="cnv-waiting" role="status">
-          <span>{unplacedCount === 1 ? '1 file is' : `${unplacedCount} files are`} in Files, not on the board yet.</span>
-          <button type="button" className="tb-btn" onClick={() => onRevealUnplaced([])}>Open Files</button>
+          <span>{plural(unplacedCount, { one: '# file is in Files, not on the board yet.', other: '# files are in Files, not on the board yet.' })}</span>
+          <button type="button" className="tb-btn" onClick={() => onRevealUnplaced([])}><Trans>Open Files</Trans></button>
         </div>
       ))}
       {canEdit && selectedTool === 'select' && ((boardIsEmpty && unplacedCount === 0) || firstCardPrompt) && (() => {
@@ -15380,16 +15444,16 @@ export function CanvasSurface({
         const runTile = (id) => { markViewSettled(); return buildAddActions(emptyCenterPos(), 'empty_cta').find((a) => a.id === id)?.run(); };
         return (
         <div className={`cnv-empty-tiles${frictionStuck ? ' is-escalated' : ''}${firstCardPrompt ? ' is-prompt' : ''}${firstBoard ? ' is-first' : ''}${freshProject && !firstBoard ? ' is-project' : ''}`}
-             aria-label="Add your first images"
+             aria-label={tr`Add your first images`}
              role={frictionStuck ? 'status' : 'group'}>
           {freshProject && !firstBoard ? (
             <ProjectNameField board={board} onRename={(name) => mutators.renameBoardById?.(board.id, name, { via: 'project_field' })} />
           ) : (
             <div className="cnv-empty-tiles-head">
-              {panelCopy.head ? panelCopy.head : <>Start your <RotatingWord words={firstLike ? FIRST_BOARD_WORDS : BREADTH_WORDS} /></>}
+              {panelCopy.head ? panelCopy.head : <><Trans>Start your</Trans> <RotatingWord words={firstLike ? FIRST_BOARD_WORDS : null} /></>}
             </div>
           )}
-          <div className="cnv-empty-tiles-breadth">Moodboards, scripts, shot lists — every asset, one canvas.</div>
+          <div className="cnv-empty-tiles-breadth"><Trans>Moodboards, scripts, shot lists — every asset, one canvas.</Trans></div>
           <button type="button" className="cnv-empty-tile cnv-empty-tile-hero"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={() => runTile('image')}>
@@ -15403,8 +15467,8 @@ export function CanvasSurface({
               <span className={`cnv-empty-tile-hero-hint${pasteHintUp ? ' is-alt' : ''}`}>
                 {pasteHintUp
                   ? (isPhone
-                    ? 'Nothing picked? Tap + for your camera roll, or paste an image here'
-                    : 'Nothing picked? Paste an image from any tab (⌘V), or drag one straight in from another window')
+                    ? tr`Nothing picked? Tap + for your camera roll, or paste an image here`
+                    : tr`Nothing picked? Paste an image from any tab (⌘V), or drag one straight in from another window`)
                   : panelCopy.heroHint}
               </span>
             </span>
@@ -15420,8 +15484,8 @@ export function CanvasSurface({
               </button>
             ))}
           </div>
-          <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-fine">drag an image straight in&ensp;·&ensp;paste&ensp;·&ensp;or double-click to add</span>
-          <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-coarse">drag an image in&ensp;·&ensp;or long-press the canvas to add</span>
+          <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-fine"><Trans>drag an image straight in&ensp;·&ensp;paste&ensp;·&ensp;or double-click to add</Trans></span>
+          <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-coarse"><Trans>drag an image in&ensp;·&ensp;or long-press the canvas to add</Trans></span>
         </div>
         );
       })()}
@@ -15431,7 +15495,7 @@ export function CanvasSurface({
           on top of the cards the user has just made. Tagged `depth_dock` rather
           than `empty_cta` so the two surfaces stay separable in the funnel. */}
       {depthDockVisible && selectedTool === 'select' && (
-        <div className="cnv-depth-dock" role="group" aria-label="Add more images">
+        <div className="cnv-depth-dock" role="group" aria-label={tr`Add more images`}>
           <button type="button" className="cnv-depth-dock-add"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={() => {
@@ -15439,11 +15503,11 @@ export function CanvasSurface({
                     buildAddActions(emptyCenterPos(), 'depth_dock').find((a) => a.id === 'image')?.run();
                   }}>
             <Icon as={ImageIcon} size={18} weight="regular" />
-            <span className="cnv-depth-dock-lbl">Add images</span>
-            <span className="cnv-depth-dock-hint">pick several at once</span>
+            <span className="cnv-depth-dock-lbl"><Trans>Add images</Trans></span>
+            <span className="cnv-depth-dock-hint"><Trans>pick several at once</Trans></span>
           </button>
           <button type="button" className="cnv-depth-dock-x"
-                  aria-label="Dismiss"
+                  aria-label={tr`Dismiss`}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={dismissDepthDock}>
             <Icon as={X} size={14} weight="regular" />
@@ -15457,7 +15521,7 @@ export function CanvasSurface({
           Resting control, so neutral ink — gold is reserved for active,
           selection and focus states. */}
       {mixPromptVisible && selectedTool === 'select' && (
-        <div className="cnv-depth-dock" role="group" aria-label="Add a note">
+        <div className="cnv-depth-dock" role="group" aria-label={tr`Add a note`}>
           <button type="button" className="cnv-depth-dock-add"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={() => {
@@ -15471,11 +15535,11 @@ export function CanvasSurface({
                     buildAddActions(emptyCenterPos(), 'mix_prompt').find((a) => a.id === 'note')?.run();
                   }}>
             <Icon as={NotePencil} size={18} weight="regular" />
-            <span className="cnv-depth-dock-lbl">Add a note</span>
-            <span className="cnv-depth-dock-hint">say what this is</span>
+            <span className="cnv-depth-dock-lbl"><Trans>Add a note</Trans></span>
+            <span className="cnv-depth-dock-hint"><Trans>say what this is</Trans></span>
           </button>
           <button type="button" className="cnv-depth-dock-x"
-                  aria-label="Dismiss"
+                  aria-label={tr`Dismiss`}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={dismissMixPrompt}>
             <Icon as={X} size={14} weight="regular" />
@@ -15493,12 +15557,12 @@ export function CanvasSurface({
         // buildAddActions so behavior + analytics stay identical.
         const byId = Object.fromEntries(buildAddActions(quickAdd.pos, 'dblclick').map((a) => [a.id, a]));
         const items = [
-          { id: 'image', label: 'Image', icon: ImageIcon },
-          { id: 'note', label: 'Note', icon: NotePencil },
-          { id: 'file', label: 'Upload', icon: Upload },
-          { id: 'doc', label: 'Doc', icon: FileText },
+          { id: 'image', label: tr`Image`, icon: ImageIcon },
+          { id: 'note', label: tr`Note`, icon: NotePencil },
+          { id: 'file', label: tr`Upload`, icon: Upload },
+          { id: 'doc', label: tr`Doc`, icon: FileText },
           // "Add something here" includes a place for a project.
-          ...(clusterNudgesAllowed() ? [{ id: 'board', label: 'Cluster', icon: Folder }] : []),
+          ...(clusterNudgesAllowed() ? [{ id: 'board', label: tr`Cluster`, icon: Folder }] : []),
         ].map((t) => ({ ...byId[t.id], ...t })).filter((t) => t.run);
         const hEst = items.length * 40 + 12;
         const left = Math.min(quickAdd.x, window.innerWidth - W - 8);
@@ -15529,7 +15593,7 @@ export function CanvasSurface({
           if (!ids.length) return;
           const deleted = await mutators.deleteCards?.(ids); // one undo step (boundary default)
           undoToast(feedback, {
-            message: 'Demo cleared — your canvas is yours',
+            message: tr`Demo cleared — your canvas is yours`,
             undoManager: mutators.undoManager,
             stackItem: deleted?.stackItem || null,
             onUndo: () => mutators.undo?.(),
@@ -15538,14 +15602,14 @@ export function CanvasSurface({
         }} />
       )}
 
-      <div className="cnv-zoom" role="group" aria-label="Zoom">
+      <div className="cnv-zoom" role="group" aria-label={tr`Zoom`}>
         {/* −, + and 100% keep the view's centre where it is, like ⌘−/⌘=. A bare
             setZoom scales around the board origin (transform-origin 0 0), so
             what you were looking at slid away with every click. */}
         {/* − and + are icons, and the slider's track fills up to its knob
             (--zf, toolbarLook.css). */}
-        <button aria-label="Zoom out" aria-keyshortcuts={ariaKeys('Mod+-')}
-                {...tlTip('Zoom out', 'Mod+-')}
+        <button aria-label={tr`Zoom out`} aria-keyshortcuts={ariaKeys('Mod+-')}
+                {...tlTip(tr`Zoom out`, 'Mod+-')}
                 onClick={() => { markZooming(); zoomAroundCenter(1 / 1.25); }}>
           <Icon as={Minus} size={18} weight="regular" />
         </button>
@@ -15571,22 +15635,22 @@ export function CanvasSurface({
             setZoom(z);
             setPan({ x: newPanX, y: newPanY });
           }}
-          {...tlTip('Drag to zoom')}
-          aria-label="Zoom"
+          {...tlTip(tr`Drag to zoom`)}
+          aria-label={tr`Zoom`}
           aria-valuetext={`${Math.round(zoom * 100)}%`}
         />
         {/* What it shows, then what it does: Enter on it is ⌘0. (Double-click
             fits the cluster; the keyboard has ⇧1 for that.) */}
         <button type="button" className="cnv-zoom-val"
-              {...tlTip('Click: 100% · Double-click: Full Cluster', 'Mod+0')}
-              aria-label={`${Math.round(zoom * 100)}% — reset to 100%`}
+              {...tlTip(tr`Click: 100% · Double-click: Full Cluster`, 'Mod+0')}
+              aria-label={tr`${ph({ round: Math.round(zoom * 100) })}% — reset to 100%`}
               aria-keyshortcuts={ariaKeys('Mod+0')}
               onClick={() => { markZooming(); zoomAroundCenter(1 / zoomRef.current); }}
               onDoubleClick={() => { enableSmoothTransform(); markZooming(); fitToContent(); }}>
           {Math.round(zoom * 100)}%
         </button>
-        <button aria-label="Zoom in" aria-keyshortcuts={ariaKeys('Mod+=')}
-                {...tlTip('Zoom in', 'Mod+=')}
+        <button aria-label={tr`Zoom in`} aria-keyshortcuts={ariaKeys('Mod+=')}
+                {...tlTip(tr`Zoom in`, 'Mod+=')}
                 onClick={() => { markZooming(); zoomAroundCenter(1.25); }}>
           <Icon as={Plus} size={18} weight="regular" />
         </button>
@@ -15603,9 +15667,11 @@ export function CanvasSurface({
           one. */}
       <button className={`cnv-comments-eye ${commentsVisible ? '' : 'is-muted'}`}
               {...tlTip(commentsVisible
-                ? 'Hide all comments (right-click for archive)'
-                : 'Show all comments (right-click for archive)')}
-              aria-label={`${commentsVisible ? 'Hide' : 'Show'} all comments${visibleCommentCount > 0 ? `, ${visibleCommentCount} showing` : ''}`}
+                ? tr`Hide all comments (right-click for archive)`
+                : tr`Show all comments (right-click for archive)`)}
+              aria-label={commentsVisible
+                ? (visibleCommentCount > 0 ? tr`Hide all comments, ${visibleCommentCount} showing` : tr`Hide all comments`)
+                : (visibleCommentCount > 0 ? tr`Show all comments, ${visibleCommentCount} showing` : tr`Show all comments`)}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={toggleCommentsVisible}
               onContextMenu={(e) => {
@@ -15684,7 +15750,7 @@ export function CanvasSurface({
           sheet teardown. Gated on the whole shell (phone + touch tablet /
           landscape phone) so the puck never dead-ends. */}
       {mobileShell && mobileAdd && (
-        <Sheet open onClose={() => setMobileAdd(null)} title="Add to cluster" snap="half">
+        <Sheet open onClose={() => setMobileAdd(null)} title={tr`Add to cluster`} snap="half">
           {/* A cluster for the next project leads, above the tiles — the bar
               has no "+ New cluster" on a phone. Its tile below goes. */}
           {clusterNudgesAllowed() && (
@@ -15692,8 +15758,8 @@ export function CanvasSurface({
                     onClick={() => { setMobileAdd(null); newClusterPrompted({ via: 'add_sheet' }); }}>
               <span className="mobile-add-ico" aria-hidden="true"><Icon as={Folder} size={22} /></span>
               <span className="mobile-add-cluster-txt">
-                <span className="mobile-add-cluster-lbl">New cluster</span>
-                <span className="mobile-add-cluster-sub">A canvas inside this one. Make one per project.</span>
+                <span className="mobile-add-cluster-lbl"><Trans>New cluster</Trans></span>
+                <span className="mobile-add-cluster-sub"><Trans>A canvas inside this one. Make one per project.</Trans></span>
               </span>
             </button>
           )}
@@ -15706,7 +15772,7 @@ export function CanvasSurface({
               onClick={() => { setMobileAdd(null); noteCreateIntent('mobile_nav'); pickPhotosAt(mobileAdd.pos, 'add_sheet'); }}
             >
               <span className="mobile-add-ico" aria-hidden="true"><Icon as={ImageIcon} size={24} /></span>
-              <span className="mobile-add-lbl">Photos</span>
+              <span className="mobile-add-lbl"><Trans>Photos</Trans></span>
             </button>
             {buildAddActions(mobileAdd.pos, 'mobile_nav').filter(a => a.id !== 'script' && !(a.id === 'board' && clusterNudgesAllowed())).map(a => (
               <button
@@ -15865,7 +15931,7 @@ export function CanvasSurface({
              onMouseDown={(e) => e.stopPropagation()}>
           <button className="sb-tag-menu-item" role="menuitem"
                   onClick={() => { const { tag } = tagChipMenu; closeTagChipMenu(); openTagPage(tag.id, 'chip_menu'); }}>
-            Open tag page
+            <Trans>Open tag page</Trans>
           </button>
           {tagChipMenu.tag.source && tagChipMenu.tag.source !== 'user' && (
             <button className="sb-tag-menu-item" role="menuitem"
@@ -15880,14 +15946,14 @@ export function CanvasSurface({
                         });
                         refreshTags?.();
                       } catch (err) {
-                        feedback.toast({ type: 'error', code: 'tag_confirm_failed', message: 'Confirm failed: ' + (err.message || err) });
+                        feedback.toast({ type: 'error', code: 'tag_confirm_failed', message: tr`Confirm failed: ${ph({ reason: String(shownError(err)) })}` });
                       }
                     }}>
-              Confirm tag
+              <Trans>Confirm tag</Trans>
             </button>
           )}
           <button className="sb-tag-menu-item" role="menuitem"
-                  title="Removes this tag and won't auto-apply it here again."
+                  title={tr`Removes this tag and won't auto-apply it here again.`}
                   onClick={async () => {
                     const { kind, targetId, tag } = tagChipMenu;
                     closeTagChipMenu();
@@ -15910,7 +15976,7 @@ export function CanvasSurface({
                       // suggest again" row. The undo re-applies AND lifts
                       // the suppression.
                       undoToast(feedback, {
-                        message: `Removed “${tag.name || 'tag'}”`,
+                        message: tr`Removed “${ph({ name: tag.name || tr`tag` })}”`,
                         onUndo: async () => {
                           try {
                             if (kind === 'card') {
@@ -15921,15 +15987,15 @@ export function CanvasSurface({
                             await undismissAutotagSuggestion({ workspaceId, targetKind: kind, targetId, tagId: tag.id });
                             refreshTags?.();
                           } catch (err) {
-                            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
+                            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: tr`Restore failed: ${ph({ reason: String(shownError(err)) })}` });
                           }
                         },
                       });
                     } catch (err) {
-                      feedback.toast({ type: 'error', code: 'tag_remove_failed', message: 'Remove failed: ' + (err.message || err) });
+                      feedback.toast({ type: 'error', code: 'tag_remove_failed', message: tr`Remove failed: ${ph({ reason: String(shownError(err)) })}` });
                     }
                   }}>
-            Remove tag
+            <Trans>Remove tag</Trans>
           </button>
         </div>
       )}
@@ -15984,7 +16050,7 @@ export function CanvasSurface({
       })()}
       {fileView && (() => {
         const fc = cards.find(x => x.id === fileView.cardId);
-        const item = fc ? toListItem(fc, { boards, boardId: board.id }) : null;
+        const item = fc ? toListItem(fc, { boards, boardId: board.id, words: listItemWords }) : null;
         if (!item) return null;
         return (
           <Suspense fallback={null}>
@@ -16007,7 +16073,7 @@ export function CanvasSurface({
       )}
       {boardDropTarget && boardDropHoverPos && (() => {
         const target = boards?.[boardDropTarget];
-        const tname = target?.name || 'this board';
+        const tname = target?.name || tr`this board`;
         const count = drag?.ids?.length || 0;
         const left = Math.min(window.innerWidth - 240, boardDropHoverPos.x + 18);
         const top  = Math.min(window.innerHeight - 60, boardDropHoverPos.y + 18);
@@ -16016,8 +16082,8 @@ export function CanvasSurface({
                style={{ position: 'fixed', left, top, zIndex: 2147483646, pointerEvents: 'none' }}>
             <span className="board-drop-label-arrow">↳</span>
             <span className="board-drop-label-text">
-              Drop into <b>{tname}</b>
-              {count > 1 && <span className="board-drop-label-count"> · {count} cards</span>}
+              <Trans>Drop into</Trans> <b>{tname}</b>
+              {count > 1 && <span className="board-drop-label-count"> <Trans>· {count} cards</Trans></span>}
             </span>
           </div>
         );

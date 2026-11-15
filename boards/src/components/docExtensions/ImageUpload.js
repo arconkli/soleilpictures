@@ -26,6 +26,7 @@ import { meaningfulFileName } from '../../lib/fileIngest.js';
 import { resolveSrc } from '../../lib/r2.js';
 import { uploadImage } from '../../lib/uploads.js';
 import { rememberSize } from './ImageResizable.js';
+import { t, ph } from '@lingui/core/macro';
 
 const key = new PluginKey('docImageUpload');
 
@@ -60,7 +61,7 @@ const pct = (p) => Math.round(Math.max(0, Math.min(1, p || 0)) * 100);
 // "Failed to fetch" / "Load failed" / "NetworkError…".
 function reason(e) {
   const msg = e?.message || '';
-  if (!msg || /failed to fetch|load failed|networkerror/i.test(msg)) return 'Check your connection and try again.';
+  if (!msg || /failed to fetch|load failed|networkerror/i.test(msg)) return t`Check your connection and try again.`;
   return msg;
 }
 
@@ -99,7 +100,7 @@ function buildDom(rec) {
   name.textContent = rec.name;
   const state = el('span', 'doc-upload-state');
   const bar = el('span', 'doc-upload-bar', {
-    role: 'progressbar', 'aria-label': `Uploading ${rec.name}`, 'aria-valuemin': '0', 'aria-valuemax': '100',
+    role: 'progressbar', 'aria-label': t`Uploading ${ph({ name: rec.name })}`, 'aria-valuemin': '0', 'aria-valuemax': '100',
   });
   const fill = el('span', 'doc-upload-fill');
   bar.appendChild(fill);
@@ -113,7 +114,7 @@ function buildDom(rec) {
     return b;
   };
   const retry = button(() => rec.retry());
-  retry.textContent = 'Retry';
+  retry.textContent = t`Retry`;
   // Cancel while it runs (a stalled upload is never stuck in the doc), Remove
   // once it has failed.
   const remove = button(() => rec.remove());
@@ -134,13 +135,13 @@ function paint(rec) {
   d.bar.hidden = failed;
   d.error.hidden = !failed;
   d.retry.hidden = !failed;
-  d.remove.textContent = failed ? 'Remove' : 'Cancel';
+  d.remove.textContent = failed ? t`Remove` : t`Cancel`;
   if (failed) {
-    d.error.textContent = `Couldn't upload ${rec.name}. ${rec.error}`;
+    d.error.textContent = t`Couldn't upload ${ph({ name: rec.name })}. ${ph({ reason: rec.error })}`;
     return;
   }
   const p = pct(rec.progress);
-  d.state.textContent = p >= 100 ? 'Finishing…' : `Uploading · ${p}%`;
+  d.state.textContent = p >= 100 ? t`Finishing…` : t`Uploading · ${p}%`;
   d.bar.setAttribute('aria-valuenow', String(p));
   d.fill.style.width = `${p}%`;
 }
@@ -201,7 +202,7 @@ export function uploadImageIntoDoc(editor, file, { pos = null, workspaceId, user
   if (pos == null && !editor.state.selection.empty) editor.commands.deleteSelection();
   const at = pos ?? editor.state.selection.from;
   const id = `up-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-  const rec = { name: meaningfulFileName(file) || 'Image', preview: null, progress: 0, error: null, dom: null };
+  const rec = { name: meaningfulFileName(file) || t`Image`, preview: null, progress: 0, error: null, dom: null };
   try { rec.preview = URL.createObjectURL(file); } catch (_) {}
   const release = () => {
     if (rec.preview) { try { URL.revokeObjectURL(rec.preview); } catch (_) {} }
@@ -232,7 +233,7 @@ export function uploadImageIntoDoc(editor, file, { pos = null, workspaceId, user
         paint(rec);
       } else if (editor.isDestroyed) {
         release();
-        toast?.({ type: 'error', code: 'image_upload_failed', message: `Couldn't upload ${rec.name}. ${reason(e)}` });
+        toast?.({ type: 'error', code: 'image_upload_failed', message: t`Couldn't upload ${ph({ name: rec.name })}. ${ph({ reason: reason(e) })}` });
       }
       return;
     }
@@ -243,7 +244,7 @@ export function uploadImageIntoDoc(editor, file, { pos = null, workspaceId, user
     if (!live()) {
       // Cancelled while it ran, or its page closed: nothing to place it in.
       if (editor.isDestroyed) {
-        toast?.({ type: 'info', message: `${rec.name} finished uploading after its page closed. Add it again to place it.` });
+        toast?.({ type: 'info', message: t`${ph({ name: rec.name })} finished uploading after its page closed. Add it again to place it.` });
       }
       release();
       return;

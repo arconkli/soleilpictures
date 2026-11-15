@@ -34,6 +34,7 @@
 import { Component } from 'react';
 import { logClientError } from '../lib/errorReporting.js';
 import { looksLikeStaleChunk, reloadIfStaleChunk } from '../lib/lazyWithReload.js';
+import { t as tr } from '@lingui/core/macro';
 
 const MAX_AUTO_REMOUNTS = 3;
 const CRASH_WINDOW_MS = 60_000;
@@ -111,7 +112,7 @@ export class SurfaceErrorBoundary extends Component {
     if (this.state.recovering) {
       return (
         <div className={panelClass} role="status" aria-live="polite">
-          <div className="surface-error-text">Updating… a new version is loading.</div>
+          <div className="surface-error-text">{tr`Updating… a new version is loading.`}</div>
         </div>
       );
     }
@@ -128,7 +129,7 @@ export class SurfaceErrorBoundary extends Component {
       // back here instead of spending the remounts.
       return (
         <div className={panelClass} role="alert">
-          <div className="surface-error-text">{this.props.message || 'This cluster view hit a display glitch.'}</div>
+          <div className="surface-error-text">{this.props.message || tr`This cluster view hit a display glitch.`}</div>
           <button
             className="surface-error-btn"
             onClick={() => {
@@ -136,7 +137,7 @@ export class SurfaceErrorBoundary extends Component {
               this.setState((st) => ({ hasError: false, exhausted: false, error: null, remounts: st.remounts + 1 }));
             }}
           >
-            {this.props.retryLabel || 'Reload this view'}
+            {this.props.retryLabel || tr`Reload this view`}
           </button>
         </div>
       );

@@ -179,8 +179,9 @@ function clientList(file, constName) {
   assert.ok(start > -1, `${file} no longer declares ${constName}`);
   const end = src.indexOf('];', start);
   assert.ok(end > start, `could not find the end of ${constName}`);
-  const items = [...src.slice(start, end).matchAll(/id:\s*'([a-z0-9_]+)',\s*label:\s*(['"])((?:(?!\2).)*)\2/g)]
-    .map((m) => ({ id: m[1], label: m[3] }));
+  // label: 'x', or get label() { return tr`x`; } (a table read at module load, so a getter)
+  const items = [...src.slice(start, end).matchAll(/id:\s*'([a-z0-9_]+)',\s*(?:label:\s*(['"])((?:(?!\2).)*)\2|get label\(\)\s*\{\s*return\s+\w+`([^`]*)`;\s*\})/g)]
+    .map((m) => ({ id: m[1], label: m[3] ?? m[4] }));
   assert.ok(items.length > 0, `${constName} extracted as EMPTY`);
   return items;
 }

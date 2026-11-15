@@ -12,15 +12,26 @@ import { Modal } from './Modal.jsx';
 import { listDeletedBoards, restoreBoard, hardDeleteBoard } from '../lib/boardsApi.js';
 import { groupTrashBatches } from '../lib/trashBatches.js';
 import { useFeedback } from './AppFeedback.jsx';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { formatDate } from '../lib/intlFormat.js';
+import { shownError } from '../lib/errorWords.js';
 
 function fmtDate(iso) {
   if (!iso) return '';
   const d = new Date(iso);
-  return d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+  return formatDate(d, { dateStyle: 'short', timeStyle: 'short' });
 }
 
 function insideLabel(n) {
-  return n === 1 ? '1 cluster inside' : `${n} clusters inside`;
+  return plural(n, { one: '# cluster inside', other: '# clusters inside' });
+}
+
+// A cluster's view id, as a word.
+function viewLabel(view) {
+  if (view === 'canvas') return tr`canvas`;
+  if (view === 'list') return tr`list`;
+  return view;
 }
 
 function relTime(iso) {
@@ -28,16 +39,16 @@ function relTime(iso) {
   const t = new Date(iso).getTime();
   const diff = Date.now() - t;
   const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
+  if (s < 60) return tr`${s}s ago`;
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return tr`${m}m ago`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return tr`${h}h ago`;
   const d = Math.floor(h / 24);
-  if (d === 1) return 'yesterday';
-  if (d < 30) return `${d}d ago`;
+  if (d === 1) return tr`yesterday`;
+  if (d < 30) return tr`${d}d ago`;
   const mo = Math.floor(d / 30);
-  return `${mo}mo ago`;
+  return tr`${mo}mo ago`;
 }
 
 // canPurge: the viewer is the workspace's owner or a co-owner, the only people
@@ -87,10 +98,10 @@ export function TrashModal({ open, workspaceId = null, canPurge = false, onClose
       await restoreBoard(b.id);
       refreshTrash();
       onBoardRestored?.();
-      const name = `"${b.name || 'Untitled cluster'}"`;
+      const name = `"${b.name || tr`Untitled cluster`}"`;
       feedback.toast({
         type: 'success',
-        message: inside > 0 ? `Restored ${name} and the ${insideLabel(inside)}` : `Restored ${name}`,
+        message: inside > 0 ? tr`Restored ${name} and the ${ph({ insideLabel: insideLabel(inside) })}` : tr`Restored ${name}`,
       });
     } catch (e) {
       // A cap refusal (0333: restoring would carry the account past its
@@ -99,28 +110,29 @@ export function TrashModal({ open, workspaceId = null, canPurge = false, onClose
       // explanation. It is a warning, not an error — nothing went wrong.
       const capHit = /past your limit/i.test(e?.message || '');
       feedback.toast(capHit
-        ? { type: 'warning', message: e.message }
-        : { type: 'error', code: 'cluster_restore_failed', message: 'Restore failed: ' + (e?.message || e) });
+        ? { type: 'warning', message: shownError(e) }
+        : { type: 'error', code: 'cluster_restore_failed', message: tr`Restore failed: ${ph({ reason: shownError(e) })}` });
     } finally {
       setBusyId(null);
     }
   };
 
   const onHardDeleteBoard = async (b, inside = 0) => {
+    const clusterName = b.name || tr`Untitled cluster`;
     const ok = await feedback.confirm({
-      title: 'Permanently delete cluster?', confirmLabel: 'Delete forever', danger: true,
+      title: tr`Permanently delete cluster?`, confirmLabel: tr`Delete forever`, danger: true,
       message: inside > 0
-        ? `"${b.name || 'Untitled cluster'}", the ${insideLabel(inside)} and ALL their content will be permanently removed. This cannot be undone.`
-        : `"${b.name || 'Untitled cluster'}" and ALL its content will be permanently removed. This cannot be undone.`,
+        ? tr`"${clusterName}", the ${ph({ insideLabel: insideLabel(inside) })} and ALL their content will be permanently removed. This cannot be undone.`
+        : tr`"${clusterName}" and ALL its content will be permanently removed. This cannot be undone.`,
     });
     if (!ok) return;
     setBusyId(b.id);
     try {
       await hardDeleteBoard(b.id);
       refreshTrash();
-      feedback.toast({ type: 'success', message: 'Permanently deleted.' });
+      feedback.toast({ type: 'success', message: tr`Permanently deleted.` });
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'cluster_purge_failed', message: 'Delete failed: ' + (e?.message || e) });
+      feedback.toast({ type: 'error', code: 'cluster_purge_failed', message: tr`Delete failed: ${ph({ reason: shownError(e) })}` });
     } finally {
       setBusyId(null);
     }
@@ -131,27 +143,27 @@ export function TrashModal({ open, workspaceId = null, canPurge = false, onClose
   return (
     <Modal open={open} onClose={onClose} className="modal" labelledBy="trash-title">
       <div className="modal-hd">
-        <div className="modal-title" id="trash-title">Deleted clusters</div>
-        <button className="modal-x" onClick={onClose} aria-label="Close">✕</button>
+        <div className="modal-title" id="trash-title"><Trans>Deleted clusters</Trans></div>
+        <button className="modal-x" onClick={onClose} aria-label={tr`Close`}>✕</button>
       </div>
 
       <div className="modal-actions">
         <span className="modal-hint">
-          Deleted clusters stay here for 30 days before being permanently removed.
-          {!canPurge && ' Only the owner and co-owners can remove one sooner.'}
+          <Trans>Deleted clusters stay here for 30 days before being permanently removed.</Trans>
+          {!canPurge && <>{' '}<Trans>Only the owner and co-owners can remove one sooner.</Trans></>}
         </span>
       </div>
       <div className="modal-body">
-        {loading && <div className="modal-empty">Loading…</div>}
+        {loading && <div className="modal-empty"><Trans>Loading…</Trans></div>}
         {!loading && loadError && (
           <div className="modal-empty">
-            Couldn’t load the trash.{' '}
-            <button type="button" className="tb-btn tb-btn-sm" onClick={retryLoad}>Retry</button>
+            <Trans>Couldn’t load the trash.</Trans>{' '}
+            <button type="button" className="tb-btn tb-btn-sm" onClick={retryLoad}><Trans>Retry</Trans></button>
           </div>
         )}
         {!loading && !loadError && batches.length === 0 && (
           <div className="modal-empty">
-            Nothing in the trash. Deleted clusters land here automatically.
+            <Trans>Nothing in the trash. Deleted clusters land here automatically.</Trans>
           </div>
         )}
         {!loading && !loadError && batches.length > 0 && (
@@ -160,21 +172,21 @@ export function TrashModal({ open, workspaceId = null, canPurge = false, onClose
               <div key={b.id} className="hist-row">
                 <div className="hist-meta">
                   <div className="hist-when" title={fmtDate(b.deleted_at)}>
-                    {b.name || 'Untitled cluster'}
+                    {b.name || tr`Untitled cluster`}
                   </div>
                   <div className="hist-sub">
-                    <span>deleted {relTime(b.deleted_at)}</span>
+                    <span>{tr`deleted ${ph({ when: relTime(b.deleted_at) })}`}</span>
                     {inside > 0 && <span>{insideLabel(inside)}</span>}
-                    <span className="hist-label">{b.view || 'canvas'}</span>
+                    <span className="hist-label">{viewLabel(b.view || 'canvas')}</span>
                   </div>
                 </div>
                 <button className="tb-btn" disabled={busyId === b.id} onClick={() => onRestoreTrashBoard(b, inside)}>
-                  {busyId === b.id ? 'Restoring…' : 'Restore'}
+                  {busyId === b.id ? tr`Restoring…` : tr`Restore`}
                 </button>
                 {canPurge && (
                   <button className="tb-btn tb-btn-sm tb-btn-danger"
                           disabled={busyId === b.id}
-                          onClick={() => onHardDeleteBoard(b, inside)}>Delete now</button>
+                          onClick={() => onHardDeleteBoard(b, inside)}><Trans>Delete now</Trans></button>
                 )}
               </div>
             ))}

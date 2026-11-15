@@ -18,8 +18,8 @@ test('the chip stops at 99% while the server answers', () => {
 test('a failed upload says so, on its own chip, with Retry', () => {
   assert.match(src, /att \? \{ \.\.\.i, status: 'done', att, file: null \} : \{ \.\.\.i, status: 'failed' \}/);
   assert.match(src, /item\.status === 'failed' && \(/);
-  assert.match(src, /role="alert">Couldn't upload</);
-  assert.match(src, /onClick=\{\(\) => retryItem\(item\)\}>Retry</);
+  assert.match(src, /role="alert"><Trans>Couldn't upload<\/Trans></);
+  assert.match(src, /onClick=\{\(\) => retryItem\(item\)\}><Trans>Retry<\/Trans></);
   // A file removed while it uploaded doesn't come back when the upload lands.
   assert.match(src, /if \(!d\.items\.some\(\(i\) => i\.key === item\.key\)\) return d;/);
 });
@@ -47,6 +47,6 @@ test('a send takes what it sent out of the draft at once, and leaves a failed fi
 
 test('the upload percent is shown but not announced; a static live region names the file', () => {
   assert.match(src, /<span className="msg-composer-att-state" aria-hidden="true">\{Number\.isFinite\(item\.pct\)/);
-  assert.match(src, /<span className="sr-only" role="status">Uploading \{label\}<\/span>/);
+  assert.match(src, /<span className="sr-only" role="status"><Trans>Uploading \{label\}<\/Trans><\/span>/);
   assert.doesNotMatch(src, /msg-composer-att-state" role="status"/);
 });

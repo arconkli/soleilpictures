@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { isUuid } from '../lib/uuid.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Renders "Referenced by" rows from the doc_backlinks table for one
 // target entity. Caller specifies the target via props.
@@ -30,14 +32,14 @@ export function BacklinksList({ workspaceId, targetBoardId, targetCardId, target
   }, [workspaceId, targetBoardId, targetCardId, targetDocCardId, targetUrl]);
 
   if (rows.length === 0) {
-    return <div className="backlinks-empty t-meta">No references yet.</div>;
+    return <div className="backlinks-empty t-meta"><Trans>No references yet.</Trans></div>;
   }
   return (
     <div className="backlinks-list">
       {rows.map(r => (
         <button key={r.id} className="backlinks-row" onClick={() => onOpenSource?.(r)}>
-          <div className="backlinks-row-source t-eyebrow">SOURCE DOC</div>
-          <div className="backlinks-row-text">{r.source_text || '(no preview)'}</div>
+          <div className="backlinks-row-source t-eyebrow"><Trans>SOURCE DOC</Trans></div>
+          <div className="backlinks-row-text">{r.source_text || t`(no preview)`}</div>
         </button>
       ))}
     </div>

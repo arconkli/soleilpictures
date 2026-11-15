@@ -13,6 +13,8 @@ import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { Icon } from '../Icon.jsx';
 import { Columns2 as Columns, Trash2 as Trash, TextT, Image as ImageIcon, Link, ArrowsClockwise, Edit as Pencil, Maximize2, Download } from '../../lib/icons.js';
 import { swallowContextMenu } from '../../lib/contextMenuGuard.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const PAD = 10;
 const GAP = 10;   // gap between the cell edge and the menu
@@ -85,36 +87,36 @@ export function GridCellMenu({ anchorRect, mode = 'empty', isImage = false,
          onDoubleClick={stop} onContextMenu={swallowContextMenu} onWheel={stop}>
       {showChooser ? (
         <div className="gcm-group">
-          <button type="button" className="gcm-item" title="Text" aria-label="Text" onClick={run(onText)}>
-            <span className="gridc-ico"><Icon as={TextT} size={16} /></span><span className="gcm-label">Text</span>
+          <button type="button" className="gcm-item" title={t`Text`} aria-label={t`Text`} onClick={run(onText)}>
+            <span className="gridc-ico"><Icon as={TextT} size={16} /></span><span className="gcm-label"><Trans>Text</Trans></span>
           </button>
-          <button type="button" className="gcm-item" title="Image" aria-label="Image" onClick={run(onImage)}>
-            <span className="gridc-ico"><Icon as={ImageIcon} size={16} /></span><span className="gcm-label">Image</span>
+          <button type="button" className="gcm-item" title={t`Image`} aria-label={t`Image`} onClick={run(onImage)}>
+            <span className="gridc-ico"><Icon as={ImageIcon} size={16} /></span><span className="gcm-label"><Trans>Image</Trans></span>
           </button>
-          <button type="button" className="gcm-item" title="Link" aria-label="Link" onClick={run(onLink)}>
-            <span className="gridc-ico"><Icon as={Link} size={16} /></span><span className="gcm-label">Link</span>
+          <button type="button" className="gcm-item" title={t`Link`} aria-label={t`Link`} onClick={run(onLink)}>
+            <span className="gridc-ico"><Icon as={Link} size={16} /></span><span className="gcm-label"><Trans>Link</Trans></span>
           </button>
         </div>
       ) : (
         <div className="gcm-group">
           {isImage && (
-            <button type="button" className="gcm-item" title="Edit photo" aria-label="Edit photo" onClick={run(onEditPhoto)}>
-              <span className="gridc-ico"><Icon as={Pencil} size={16} /></span><span className="gcm-label">Edit photo</span>
+            <button type="button" className="gcm-item" title={t`Edit photo`} aria-label={t`Edit photo`} onClick={run(onEditPhoto)}>
+              <span className="gridc-ico"><Icon as={Pencil} size={16} /></span><span className="gcm-label"><Trans>Edit photo</Trans></span>
             </button>
           )}
           {isImage && (
-            <button type="button" className="gcm-item" title="Open full screen" aria-label="Open full screen" onClick={run(onOpenFullScreen)}>
-              <span className="gridc-ico"><Icon as={Maximize2} size={16} /></span><span className="gcm-label">Open full screen</span>
+            <button type="button" className="gcm-item" title={t`Open full screen`} aria-label={t`Open full screen`} onClick={run(onOpenFullScreen)}>
+              <span className="gridc-ico"><Icon as={Maximize2} size={16} /></span><span className="gcm-label"><Trans>Open full screen</Trans></span>
             </button>
           )}
           {isImage && (
-            <button type="button" className="gcm-item" title="Download" aria-label="Download" onClick={run(onDownload)}>
-              <span className="gridc-ico"><Icon as={Download} size={16} /></span><span className="gcm-label">Download</span>
+            <button type="button" className="gcm-item" title={t`Download`} aria-label={t`Download`} onClick={run(onDownload)}>
+              <span className="gridc-ico"><Icon as={Download} size={16} /></span><span className="gcm-label"><Trans>Download</Trans></span>
             </button>
           )}
-          <button type="button" className="gcm-item" title="Replace" aria-label="Replace"
+          <button type="button" className="gcm-item" title={t`Replace`} aria-label={t`Replace`}
                   onClick={(e) => { e.stopPropagation(); setShowChooser(true); }}>
-            <span className="gridc-ico"><Icon as={ArrowsClockwise} size={16} /></span><span className="gcm-label">Replace…</span>
+            <span className="gridc-ico"><Icon as={ArrowsClockwise} size={16} /></span><span className="gcm-label"><Trans>Replace…</Trans></span>
           </button>
         </div>
       )}
@@ -124,11 +126,11 @@ export function GridCellMenu({ anchorRect, mode = 'empty', isImage = false,
         <>
           <div className="gcm-sep" />
           <div className="gcm-group">
-            <button type="button" className="gcm-item" title="Add a vertical line (split into columns)" aria-label="Split into columns" onClick={run(onSplitRow)}>
-              <span className="gridc-ico"><Icon as={Columns} size={16} /></span><span className="gcm-label">Split into columns</span>
+            <button type="button" className="gcm-item" title={t`Add a vertical line (split into columns)`} aria-label={t`Split into columns`} onClick={run(onSplitRow)}>
+              <span className="gridc-ico"><Icon as={Columns} size={16} /></span><span className="gcm-label"><Trans>Split into columns</Trans></span>
             </button>
-            <button type="button" className="gcm-item" title="Add a horizontal line (split into rows)" aria-label="Split into rows" onClick={run(onSplitCol)}>
-              <span className="gridc-ico gridc-rot90"><Icon as={Columns} size={16} /></span><span className="gcm-label">Split into rows</span>
+            <button type="button" className="gcm-item" title={t`Add a horizontal line (split into rows)`} aria-label={t`Split into rows`} onClick={run(onSplitCol)}>
+              <span className="gridc-ico gridc-rot90"><Icon as={Columns} size={16} /></span><span className="gcm-label"><Trans>Split into rows</Trans></span>
             </button>
           </div>
         </>
@@ -139,8 +141,8 @@ export function GridCellMenu({ anchorRect, mode = 'empty', isImage = false,
         <>
           <div className="gcm-sep" />
           <div className="gcm-group">
-            <button type="button" className="gcm-item is-danger" title="Clear box" aria-label="Clear box" onClick={run(onClear)}>
-              <span className="gridc-ico"><Icon as={Trash} size={16} /></span><span className="gcm-label">Clear box</span><span className="gcm-key" aria-hidden="true">⌫</span>
+            <button type="button" className="gcm-item is-danger" title={t`Clear box`} aria-label={t`Clear box`} onClick={run(onClear)}>
+              <span className="gridc-ico"><Icon as={Trash} size={16} /></span><span className="gcm-label"><Trans>Clear box</Trans></span><span className="gcm-key" aria-hidden="true">⌫</span>
             </button>
           </div>
         </>

@@ -20,6 +20,8 @@ import { subscribeImportGuide, importGuideSnapshot } from '../lib/importGuide.js
 import { trayModel } from '../lib/activityTray.js';
 import './importTray.css';
 import './activityTray.css';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 export { ActivityTrayContext };
 
@@ -60,7 +62,7 @@ function DoneFold({ r, touch }) {
       {open && r.done.map((d) => (
         <div key={d.key} className={'atr-row is-done' + t}>
           <span className="atr-th is-kind is-ok" aria-hidden="true"><Icon as={Check} size={12} weight="regular" /></span>
-          <span className="n" dir="auto">{d.name}</span>
+          <span className="n" dir="auto" title={d.name}>{d.name}</span>
         </div>
       ))}
     </>
@@ -90,8 +92,8 @@ function Row({ r, item, touch, gap }) {
         <Thumb thumb={r.thumb} mime={r.mime} name={r.name} dim />
         <span className="atr-two"><span className="n" dir="auto" title={r.name}>{r.name}</span><span className="w">{r.why}</span></span>
         {r.retry && (
-          <button type="button" className="imptray-btn is-sm atr-retry" aria-label={`Retry ${r.name}`} onClick={() => item?.actions?.retry?.()}>
-            <Icon as={ArrowClockwise} size={12} weight="regular" />Retry
+          <button type="button" className="imptray-btn is-sm atr-retry" aria-label={tr`Retry ${ph({ name: r.name })}`} onClick={() => item?.actions?.retry?.()}>
+            <Icon as={ArrowClockwise} size={12} weight="regular" /><Trans>Retry</Trans>
           </button>
         )}
         {button}
@@ -122,7 +124,7 @@ function Rows({ rows, byId, touch }) {
 
 function FoldButton({ onFold }) {
   return (
-    <button type="button" className="imptray-ib" aria-label="Fold" onClick={onFold}>
+    <button type="button" className="imptray-ib" aria-label={tr`Fold`} onClick={onFold}>
       <Icon as={ChevronDown} size={14} weight="regular" />
     </button>
   );
@@ -155,7 +157,7 @@ function BatchPanel({ s, byId, touch, onFold }) {
           </button>
         )}
         {s.close === 'dismiss' ? (
-          <button type="button" className="imptray-ib" aria-label="Dismiss" onClick={() => dismissBatch(s.batchId)}>
+          <button type="button" className="imptray-ib" aria-label={tr`Dismiss`} onClick={() => dismissBatch(s.batchId)}>
             <Icon as={X} size={13} weight="regular" />
           </button>
         ) : <FoldButton onFold={onFold} />}
@@ -280,7 +282,7 @@ function Slim({ chip, onOpen, onAction, chipRef }) {
       </button>
       {chip.action && <button type="button" className="atr-chip-act atr-slim-act" onClick={onAction}>{chip.action.label}</button>}
       {chip.chevron && (
-        <button type="button" className="imptray-ib atr-slim-ib" aria-label="Open" aria-expanded={false} onClick={onOpen} tabIndex={-1}>
+        <button type="button" className="imptray-ib atr-slim-ib" aria-label={tr`Open`} aria-expanded={false} onClick={onOpen} tabIndex={-1}>
           <Icon as={ChevronUp} size={14} weight="regular" />
         </button>
       )}
@@ -482,7 +484,7 @@ export function ActivityTray({ phone = false, besideMessages = false, conn = nul
   return (
     <ActivityTrayContext.Provider value={ctx}>
       {phone && !folded && <div className="atr-scrim" onClick={fold} aria-hidden="true" />}
-      <div ref={shellRef} className={shell} role={model.sections.length ? 'region' : undefined} aria-label={model.sections.length ? 'Activity' : undefined}
+      <div ref={shellRef} className={shell} role={model.sections.length ? 'region' : undefined} aria-label={model.sections.length ? tr`Activity` : undefined}
            onKeyDown={onKeyDown} onClickCapture={(e) => { const b = e.target?.closest?.('button'); pressed.current = b ? { node: b, at: performance.now() } : null; }} onFocus={onFocusIn} onBlur={onFocusOut} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
         {phone && !folded && <div className="atr-grab" aria-hidden="true" />}
         {!folded && conns.map((s) => <ConnPanel key={s.key} s={s} byId={byId} touch={rowTouch} onFold={fold} retryConnection={retryConnection} />)}

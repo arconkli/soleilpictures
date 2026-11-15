@@ -4,8 +4,10 @@
 // page stays open. A danger confirm puts focus on Cancel.
 import { useEffect, useRef } from 'react';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
-export function TeamConfirm({ message, confirmLabel = 'Confirm', danger = false, busy = false, onConfirm, onCancel }) {
+export function TeamConfirm({ message, confirmLabel = t`Confirm`, danger = false, busy = false, onConfirm, onCancel }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -22,10 +24,10 @@ export function TeamConfirm({ message, confirmLabel = 'Confirm', danger = false,
   }, [danger, onCancel]);
 
   return (
-    <div className="tp-confirm" role="alertdialog" aria-label="Confirm" ref={ref}>
+    <div className="tp-confirm" role="alertdialog" aria-label={t`Confirm`} ref={ref}>
       <span className="tp-confirm-t">{message}</span>
       <span className="tp-confirm-acts">
-        <button type="button" className="tp-link" data-cancel disabled={busy} onClick={() => onCancel?.()}>Cancel</button>
+        <button type="button" className="tp-link" data-cancel disabled={busy} onClick={() => onCancel?.()}><Trans>Cancel</Trans></button>
         <button type="button" className={`tp-btn tp-btn-sm${danger ? ' tp-btn-danger' : ''}`} data-confirm disabled={busy} onClick={() => onConfirm?.()}>
           {confirmLabel}
         </button>

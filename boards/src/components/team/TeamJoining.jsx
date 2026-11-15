@@ -9,15 +9,20 @@ import { parseEmails } from '../../lib/inviteSubmit.js';
 import { refusalLine, domainCheckLine } from '../../lib/teamCopy.js';
 import { TeamMenu } from './TeamMenu.jsx';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
-const FROZEN = 'The team is view-only until it’s paid';
+const frozen = () => tr`The team is view-only until it’s paid`;
+// A toast, then the "Left out" note after a space when some addresses were dropped:
+// one message, so a language can order the two parts as it needs.
+const withLeft = (msg, emails) => (emails ? tr`${msg} Left out: ${ph({ emails })}` : msg);
 const ROLE_ITEMS = [
-  { id: 'editor', label: 'Can edit · uses a seat' },
-  { id: 'viewer', label: 'Can view · free' },
+  { id: 'editor', get label() { return tr`Can edit · uses a seat`; } },
+  { id: 'viewer', get label() { return tr`Can view · free`; } },
 ];
 const LINK_ITEMS = [
-  { id: 'editor', label: 'Can edit' },
-  { id: 'viewer', label: 'Can view' },
+  { id: 'editor', get label() { return tr`Can edit`; } },
+  { id: 'viewer', get label() { return tr`Can view`; } },
 ];
 
 // A fixed-looking TXT value per domain, so the hint doesn't change on re-render.
@@ -36,7 +41,7 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
   const [domainText, setDomainText] = useState('');
   const { link, domains } = t.joining || { link: null, domains: [] };
   const domainsOn = domains.length > 0 && domains.every((d) => d.on);
-  const lock = viewOnly ? { disabled: true, title: FROZEN } : {};
+  const lock = viewOnly ? { disabled: true, title: frozen() } : {};
 
   useEffect(() => {
     if (focusKey) taRef.current?.focus();
@@ -45,21 +50,22 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
   const parsed = parseEmails(text);
   const free = seatsFree(t);
   const needs = role === 'editor' ? parsed.valid.length : 0;
-  let seatLine = `${free} seat${free === 1 ? '' : 's'} free`;
+  const adds = needs - free;
+  let seatLine = tr`${plural(free, { one: '# seat free', other: '# seats free' })}`;
   if (needs > free) {
     seatLine = free === 0
-      ? `No seats free: sending adds ${needs}`
-      : `${free} seat${free === 1 ? '' : 's'} free: sending adds ${needs - free}`;
+      ? tr`No seats free: sending adds ${needs}`
+      : tr`${plural(free, { one: `# seat free: sending adds ${adds}`, other: `# seats free: sending adds ${adds}` })}`;
   }
 
   const sendLive = async (fresh, left, addSeats) => {
     const res = await onAction('invite', { emails: fresh, role, ...(addSeats ? { addSeats: true } : {}) });
     if (res.ok) {
       setText('');
-      onToast(`${fresh.length} invite${fresh.length === 1 ? '' : 's'} sent.${left}`);
+      onToast(withLeft(tr`${plural(fresh.length, { one: '# invite sent.', other: '# invites sent.' })}`, left));
     } else if (res.refusal?.code === 'team_seats_needed' && Number(res.refusal.needed) > 0 && t.plan && !addSeats) {
-      priceThen(t.plan.seats + Number(res.refusal.needed), 'Add seats and send',
-        () => sendLive(fresh, left, true), 'Sending needs more seats. ');
+      priceThen(t.plan.seats + Number(res.refusal.needed), tr`Add seats and send`,
+        () => sendLive(fresh, left, true), 'send');
     } else {
       report('invite', res);
     }
@@ -69,24 +75,24 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
   const send = () => {
     const have = new Set(t.people.map((p) => (p.email || '').toLowerCase()));
     const fresh = parsed.valid.filter((e) => !have.has(e.toLowerCase()));
-    const left = parsed.invalid.length ? ` Left out: ${parsed.invalid.join(', ')}` : '';
+    const left = parsed.invalid.length ? parsed.invalid.join(', ') : '';
     if (!fresh.length) {
-      onToast(live ? `No new addresses to invite.${left}` : `Preview: nobody was emailed. No new addresses to invite.${left}`);
+      onToast(withLeft(live ? tr`No new addresses to invite.` : tr`Preview: nobody was emailed. No new addresses to invite.`, left));
       return;
     }
     if (live) { sendLive(fresh, left, false); return; }
     onAction('invite', { emails: fresh, role, now: Date.now() });
     setText('');
-    onToast(`Preview: nobody was emailed. ${fresh.length} invite${fresh.length === 1 ? '' : 's'} added to People.${left}`);
+    onToast(withLeft(tr`${plural(fresh.length, { one: 'Preview: nobody was emailed. # invite added to People.', other: 'Preview: nobody was emailed. # invites added to People.' })}`, left));
   };
 
   const copy = async () => {
     try { await navigator.clipboard.writeText(`${live ? window.location.protocol : 'https:'}//${joinUrl(link.token, live ? window.location.host : undefined)}`); } catch (_) {}
-    onToast(live ? 'Link copied.' : 'Link copied. Preview: it opens nothing yet.');
+    onToast(live ? tr`Link copied.` : tr`Link copied. Preview: it opens nothing yet.`);
   };
 
   const copyText = async (text) => {
-    try { await navigator.clipboard.writeText(text); onToast('Copied.'); } catch (_) { onToast('Couldn’t copy. Select it and copy by hand.'); }
+    try { await navigator.clipboard.writeText(text); onToast(tr`Copied.`); } catch (_) { onToast(tr`Couldn’t copy. Select it and copy by hand.`); }
   };
 
   const addDomain = () => {
@@ -104,7 +110,7 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
 
   const removeDomain = (d) => ask({
     message: `Remove ${d.domain}? People who sign up with it stop joining the team.`,
-    confirmLabel: 'Remove',
+    confirmLabel: tr`Remove`,
     danger: true,
     run: () => go('removeDomain', { domain: d.domain }),
   });
@@ -125,29 +131,29 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
   const newLink = () => {
     if (!live) {
       onAction('newLink', { token: 'nl-' + Math.random().toString(36).slice(2, 8) });
-      onToast('Preview: the old link would stop working.');
+      onToast(tr`Preview: the old link would stop working.`);
       return;
     }
     ask({
-      message: 'Make a new link? The old link stops working.',
-      confirmLabel: 'Make a new link',
+      message: tr`Make a new link? The old link stops working.`,
+      confirmLabel: tr`Make a new link`,
       run: () => go('newLink'),
     });
   };
 
   const label = (items, id) => items.find((i) => i.id === id)?.label;
 
-  if (!link) return <p className="tp-card-t">Joining isn’t set up for this team yet.</p>;
+  if (!link) return <p className="tp-card-t"><Trans>Joining isn’t set up for this team yet.</Trans></p>;
 
   return (
     <div className="tp-join">
       <div className="tp-card">
-        <span className="tp-card-k">Invite by email</span>
+        <span className="tp-card-k"><Trans>Invite by email</Trans></span>
         <textarea
           ref={taRef}
           className="tp-ta"
-          aria-label="Email addresses"
-          placeholder="Paste addresses, one a line or with commas between"
+          aria-label={tr`Email addresses`}
+          placeholder={tr`Paste addresses, one a line or with commas between`}
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
@@ -162,23 +168,23 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
           </span>
           <span className="tp-sp" />
           <span className="tp-card-t">{seatLine}</span>
-          <button type="button" className="tp-btn" onClick={send} {...lock}>Send invites</button>
+          <button type="button" className="tp-btn" onClick={send} {...lock}><Trans>Send invites</Trans></button>
         </div>
       </div>
 
       <div className="tp-card">
         <div className="tp-row">
-          <span className="tp-card-k">Team link</span>
-          <button type="button" className="tp-sw" role="switch" aria-checked={link.on} aria-label="Team link" onClick={() => setLink(!link.on)} />
+          <span className="tp-card-k"><Trans>Team link</Trans></span>
+          <button type="button" className="tp-sw" role="switch" aria-checked={link.on} aria-label={tr`Team link`} onClick={() => setLink(!link.on)} />
         </div>
         <div className={`tp-row${link.on ? '' : ' is-off'}`}>
           <span className="tp-copybox"><Icon as={LinkSimple} size={13} weight="regular" />{joinUrl(link.token, live ? window.location.host : undefined)}</span>
           <button type="button" className="tp-btn tp-btn-sm" disabled={!link.on} onClick={copy}>
-            <Icon as={Copy} size={12} weight="regular" />Copy
+            <Icon as={Copy} size={12} weight="regular" /><Trans>Copy</Trans>
           </button>
         </div>
         <div className={`tp-row${link.on ? '' : ' is-off'}`}>
-          <span className="tp-card-t">People who open it join as</span>
+          <span className="tp-card-t"><Trans>People who open it join as</Trans></span>
           <span className="tp-selwrap">
             <button type="button" className="tp-sel" disabled={!link.on} aria-haspopup="menu" aria-expanded={menu === 'link'} onClick={() => setMenu(menu === 'link' ? null : 'link')}>
               {label(LINK_ITEMS, link.role)}<Icon as={ChevronDown} size={10} weight="regular" />
@@ -194,15 +200,15 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
             disabled={!link.on}
             onClick={newLink}
           >
-            Make a new link
+            <Trans>Make a new link</Trans>
           </button>
         </div>
       </div>
 
       <div className="tp-card">
         <div className="tp-row">
-          <span className="tp-card-k">Company domain</span>
-          <button type="button" className="tp-sw" role="switch" aria-checked={domainsOn} aria-label="Join by domain" onClick={switchDomains} />
+          <span className="tp-card-k"><Trans>Company domain</Trans></span>
+          <button type="button" className="tp-sw" role="switch" aria-checked={domainsOn} aria-label={tr`Join by domain`} onClick={switchDomains} />
         </div>
         {domains.map((d) => (
           <div key={d.domain}>
@@ -211,30 +217,30 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
               <b>{d.domain}</b>
               <span className="tp-badge">
                 {d.verified ? <Icon as={Check} size={10} weight="regular" /> : null}
-                {d.verified ? 'Verified' : 'Not verified'}
+                {d.verified ? tr`Verified` : tr`Not verified`}
               </span>
-              {live && <button type="button" className="tp-link" onClick={() => removeDomain(d)} {...lock}>Remove</button>}
+              {live && <button type="button" className="tp-link" onClick={() => removeDomain(d)} {...lock}><Trans>Remove</Trans></button>}
             </div>
             {!d.verified && !live && (
-              <p className="tp-card-t" style={{ marginTop: 8 }}>Add a TXT record soleil-verify={txtValue(d.domain)} to its DNS, then check back.</p>
+              <p className="tp-card-t" style={{ marginTop: 8 }}><Trans>Add a TXT record soleil-verify={ph({ txtValue: txtValue(d.domain) })} to its DNS, then check back.</Trans></p>
             )}
             {!d.verified && live && (
               <div className="tp-stack" style={{ marginTop: 8 }}>
-                <p className="tp-card-t">Add this TXT record to its DNS, then check.</p>
+                <p className="tp-card-t"><Trans>Add this TXT record to its DNS, then check.</Trans></p>
                 {d.txtName && (
                   <div className="tp-copyline">
-                    <span className="tp-card-t">Name</span><code>{d.txtName}</code>
-                    <button type="button" className="tp-btn tp-btn-sm" onClick={() => copyText(d.txtName)}><Icon as={Copy} size={12} weight="regular" />Copy</button>
+                    <span className="tp-card-t"><Trans>Name</Trans></span><code>{d.txtName}</code>
+                    <button type="button" className="tp-btn tp-btn-sm" onClick={() => copyText(d.txtName)}><Icon as={Copy} size={12} weight="regular" /><Trans>Copy</Trans></button>
                   </div>
                 )}
                 {d.txtValue && (
                   <div className="tp-copyline">
-                    <span className="tp-card-t">Value</span><code>{d.txtValue}</code>
-                    <button type="button" className="tp-btn tp-btn-sm" onClick={() => copyText(d.txtValue)}><Icon as={Copy} size={12} weight="regular" />Copy</button>
+                    <span className="tp-card-t"><Trans>Value</Trans></span><code>{d.txtValue}</code>
+                    <button type="button" className="tp-btn tp-btn-sm" onClick={() => copyText(d.txtValue)}><Icon as={Copy} size={12} weight="regular" /><Trans>Copy</Trans></button>
                   </div>
                 )}
                 <div className="tp-card-acts">
-                  <button type="button" className="tp-btn tp-btn-sm" onClick={() => checkDomain(d)}>Check now</button>
+                  <button type="button" className="tp-btn tp-btn-sm" onClick={() => checkDomain(d)}><Trans>Check now</Trans></button>
                 </div>
               </div>
             )}
@@ -242,7 +248,7 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
         ))}
         {domains[0] && (
           <p className="tp-card-t">
-            Anyone who signs up with an @{domains[0].domain} address joins the team. People who already have an account are asked once, the next time they sign in. Admins never see who has an account.
+            <Trans>Anyone who signs up with an @{ph({ domain: domains[0].domain })} address joins the team. People who already have an account are asked once, the next time they sign in. Admins never see who has an account.</Trans>
           </p>
         )}
         <div className="tp-row">
@@ -250,8 +256,8 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
             <>
               <input
                 className="tp-dom-in"
-                aria-label="Company domain"
-                placeholder="example.com"
+                aria-label={tr`Company domain`}
+                placeholder={tr`example.com`}
                 value={domainText}
                 autoFocus
                 onChange={(e) => setDomainText(e.target.value)}
@@ -261,10 +267,10 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
                   if (e.key === 'Escape') { e.stopPropagation(); setAddingDomain(false); setDomainText(''); }
                 }}
               />
-              <button type="button" className="tp-btn tp-btn-sm" onClick={addDomain}>Add</button>
+              <button type="button" className="tp-btn tp-btn-sm" onClick={addDomain}><Trans>Add</Trans></button>
             </>
           ) : (
-            <button type="button" className="tp-link" onClick={() => setAddingDomain(true)}>Add another domain</button>
+            <button type="button" className="tp-link" onClick={() => setAddingDomain(true)}><Trans>Add another domain</Trans></button>
           )}
         </div>
       </div>

@@ -1,7 +1,9 @@
 // passkeyWords.js — what a passkey failure says to a person, the short reason
-// the events carry, and a new passkey's name (2026-10-29). No imports, so
-// passkeyWords.test.mjs runs it under plain node. Where passkeys can work at
-// all is lib/passkeyGate.js.
+// the events carry, and a new passkey's name (2026-10-29). Its only import is
+// the message macro, which passkeyWords.test.mjs runs through the loader. Where
+// passkeys can work at all is lib/passkeyGate.js.
+
+import { t as tr } from '@lingui/core/macro';
 
 // A ceremony the person closed, or one we aborted ourselves (autofill making
 // way for the button, the page moving on), says nothing at all.
@@ -21,19 +23,19 @@ export function passkeyErrorWords(err, { saving = false } = {}) {
   const causeName = String(err.cause?.name || '');
   const msg = String(err.message || '').toLowerCase();
   if (code === 'webauthn_credential_exists' || code === 'ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED' || causeName === 'InvalidStateError') {
-    return 'This device already has a passkey for your account.';
+    return tr`This device already has a passkey for your account.`;
   }
-  if (code === 'too_many_passkeys') return 'Your account holds as many passkeys as it can. Remove one in Settings first.';
-  if (code === 'webauthn_credential_not_found') return "That passkey isn't on your account any more. Use your email instead.";
-  if (code === 'webauthn_challenge_expired' || code === 'webauthn_challenge_not_found') return 'That took too long. Try again.';
-  if (code === 'webauthn_verification_failed') return saving ? "That passkey couldn't be saved. Try again." : "That passkey didn't check out. Try again, or use your email.";
-  if (code === 'passkey_disabled') return 'Passkeys are switched off right now. Use your email instead.';
-  if (code === 'user_banned') return "This account can't sign in.";
-  if (code === 'email_not_confirmed') return 'Confirm your email first: sign in with the code we send.';
-  if (code === 'over_request_rate_limit' || err.status === 429 || msg.includes('rate limit') || msg.includes('too many')) return 'Too many tries. Wait a minute and try again.';
-  if (code === 'ERROR_INVALID_DOMAIN' || code === 'ERROR_INVALID_RP_ID' || causeName === 'SecurityError') return "Passkeys don't work on this address.";
-  if (err.name === 'AuthRetryableFetchError' || msg.includes('failed to fetch') || msg.includes('network')) return "Couldn't reach the server. Check your connection and try again.";
-  return saving ? "That passkey couldn't be saved. Try again." : "That didn't work. Try again, or use your email.";
+  if (code === 'too_many_passkeys') return tr`Your account holds as many passkeys as it can. Remove one in Settings first.`;
+  if (code === 'webauthn_credential_not_found') return tr`That passkey isn't on your account any more. Use your email instead.`;
+  if (code === 'webauthn_challenge_expired' || code === 'webauthn_challenge_not_found') return tr`That took too long. Try again.`;
+  if (code === 'webauthn_verification_failed') return saving ? tr`That passkey couldn't be saved. Try again.` : tr`That passkey didn't check out. Try again, or use your email.`;
+  if (code === 'passkey_disabled') return tr`Passkeys are switched off right now. Use your email instead.`;
+  if (code === 'user_banned') return tr`This account can't sign in.`;
+  if (code === 'email_not_confirmed') return tr`Confirm your email first: sign in with the code we send.`;
+  if (code === 'over_request_rate_limit' || err.status === 429 || msg.includes('rate limit') || msg.includes('too many')) return tr`Too many tries. Wait a minute and try again.`;
+  if (code === 'ERROR_INVALID_DOMAIN' || code === 'ERROR_INVALID_RP_ID' || causeName === 'SecurityError') return tr`Passkeys don't work on this address.`;
+  if (err.name === 'AuthRetryableFetchError' || msg.includes('failed to fetch') || msg.includes('network')) return tr`Couldn't reach the server. Check your connection and try again.`;
+  return saving ? tr`That passkey couldn't be saved. Try again.` : tr`That didn't work. Try again, or use your email.`;
 }
 
 // The short reason an event carries: a server code, the browser's error name,

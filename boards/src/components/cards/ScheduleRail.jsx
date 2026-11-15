@@ -22,10 +22,13 @@ import { Icon } from '../Icon.jsx';
 import { Clapperboard, Plus } from '../../lib/icons.js';
 import { useScrollEdges } from '../../hooks/useScrollEdges.js';
 import {
-  MONTHS_SHORT, WEEKDAYS, parseISO, weekdayOf, clockLabel, clockRange, shortDate,
+  parseISO, weekdayOf,
 } from '../../lib/schedDates.js';
+import { monthShortNames, weekdayShortNames, clockLabel, clockRange, shortDate } from '../../lib/schedDatesWords.js';
 import { dayTypesFor, dayTypeColor, dayTypeName } from '../../lib/dayTypes.js';
 import { SCHED_TUNING } from '../../lib/schedLayout.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const stop = (e) => e.stopPropagation();
 
@@ -33,7 +36,7 @@ const stop = (e) => e.stopPropagation();
 // 14", "Travel", "Company Move"); the date is never baked into it, so a moved
 // day can't carry a stale title (0238).
 function dayName(b) {
-  return (b.day_label || '').trim() || b.name || 'Day';
+  return (b.day_label || '').trim() || b.name || tr`Day`;
 }
 
 // ── One day ─────────────────────────────────────────────────────────────────
@@ -56,9 +59,10 @@ function DayRow({
   // context. When a day has neither, fall back to the date so the row is never
   // a single orphaned line.
   const sub = [place, typeName].filter(Boolean).join(' · ')
-    || `${WEEKDAYS[weekdayOf(date)]} ${shortDate(date)}`;
-  const statusTip = status === 'cancelled' ? 'Cancelled'
-    : published ? `Call sheet v${board.sched_version}` : 'Not published yet';
+    || `${weekdayShortNames()[weekdayOf(date)]} ${shortDate(date)}`;
+  const version = board.sched_version;
+  const statusTip = status === 'cancelled' ? tr`Cancelled`
+    : published ? tr`Call sheet v${version}` : tr`Not published yet`;
 
   return (
     <div
@@ -69,7 +73,7 @@ function DayRow({
       ].filter(Boolean).join(' ')}
       role="button" tabIndex={0}
       aria-label={`${dayName(board)}${time ? `, ${time}` : ''}${place ? `, ${place}` : ''} — ${statusTip}`}
-      title={draggable ? 'Drag to another date to move this day' : undefined}
+      title={draggable ? tr`Drag to another date to move this day` : undefined}
       style={hue ? { '--dayrow-hue': hue } : undefined}
       onPointerDown={draggable ? onPointerDown : stop}
       // With a drag armed, the open fires from pointerup-without-movement in
@@ -96,7 +100,7 @@ function DayRow({
               its full meaning in the tooltip and the accessible name. */}
           <span className={`schedc-dayrow-status is-${status}`} title={statusTip}>
             {status === 'cancelled'
-              ? 'Cancelled'
+              ? tr`Cancelled`
               : published ? `v${board.sched_version}` : '○'}
           </span>
         </span>
@@ -109,10 +113,11 @@ function DayRow({
 // reference photo pinned to a Tuesday is not the same kind of object as a
 // production day, and the calendar should not pretend otherwise.
 function LooseRow({ date, count, selected, onSelect, onOpen }) {
+  const when = shortDate(date);
   return (
     <div className={`schedc-dayrow is-loose${selected ? ' is-selected' : ''}`}
       role="button" tabIndex={0}
-      aria-label={`${count} item${count === 1 ? '' : 's'} on ${shortDate(date)}`}
+      aria-label={plural(count, { one: `# item on ${when}`, other: `# items on ${when}` })}
       onPointerDown={stop}
       onClick={(e) => { e.stopPropagation(); onSelect?.(); }}
       onDoubleClick={(e) => { e.stopPropagation(); onOpen?.(); }}
@@ -124,12 +129,12 @@ function LooseRow({ date, count, selected, onSelect, onOpen }) {
       <span className="schedc-dayrow-main">
         <span className="schedc-dayrow-l1">
           <span className="schedc-dayrow-name is-quiet">
-            {count} item{count === 1 ? '' : 's'}
+            {plural(count, { one: '# item', other: '# items' })}
           </span>
         </span>
         <span className="schedc-dayrow-l2">
           <span className="schedc-dayrow-sub">
-            {WEEKDAYS[weekdayOf(date)]} {shortDate(date)}
+            {weekdayShortNames()[weekdayOf(date)]} {shortDate(date)}
           </span>
         </span>
       </span>
@@ -168,7 +173,7 @@ export function ScheduleRail({
       const t = parseISO(r.date);
       const key = t ? `${t.y}-${t.m}` : '?';
       if (!out.length || out[out.length - 1].key !== key) {
-        out.push({ key, label: t ? `${MONTHS_SHORT[t.m - 1]} ${t.y}` : '', rows: [] });
+        out.push({ key, label: t ? `${monthShortNames()[t.m - 1]} ${t.y}` : '', rows: [] });
       }
       out[out.length - 1].rows.push(r);
     }
@@ -191,7 +196,7 @@ export function ScheduleRail({
         {todayInRange ? (
           <>
             <span className="schedc-today-label">
-              Today · {WEEKDAYS[weekdayOf(todayIso)]} {shortDate(todayIso)}
+              <Trans>Today · {ph({ value: weekdayShortNames()[weekdayOf(todayIso)] })} {ph({ shortDate: shortDate(todayIso) })}</Trans>
             </span>
             {todayBoard ? (
               <button type="button" className="schedc-today-main"
@@ -200,7 +205,7 @@ export function ScheduleRail({
                 {clockLabel(todayBoard.day_start) ? (
                   <span className="schedc-today-time">{clockLabel(todayBoard.day_start)}</span>
                 ) : (
-                  <span className="schedc-today-time is-none">No start time</span>
+                  <span className="schedc-today-time is-none"><Trans>No start time</Trans></span>
                 )}
                 <span className="schedc-today-meta">
                   {dayName(todayBoard)}
@@ -208,23 +213,23 @@ export function ScheduleRail({
                 </span>
               </button>
             ) : (
-              <span className="schedc-today-empty">Nothing scheduled</span>
+              <span className="schedc-today-empty"><Trans>Nothing scheduled</Trans></span>
             )}
           </>
         ) : (
           <button type="button" className="schedc-today-jump"
             onPointerDown={stop}
             onClick={(e) => { e.stopPropagation(); onGoToDate?.(todayIso); }}>
-            Today is not in view — jump to it
+            <Trans>Today is not in view — jump to it</Trans>
           </button>
         )}
         {next && next.date > todayIso && (
           <button type="button" className="schedc-next"
             onPointerDown={stop}
             onClick={(e) => { e.stopPropagation(); onOpenBoard?.(next.board.id); }}>
-            <span className="schedc-next-k">Next</span>
+            <span className="schedc-next-k"><Trans>Next</Trans></span>
             <span className="schedc-next-v">
-              {WEEKDAYS[weekdayOf(next.date)]} {shortDate(next.date)}
+              {weekdayShortNames()[weekdayOf(next.date)]} {shortDate(next.date)}
               {clockLabel(next.board.day_start) ? ` · ${clockLabel(next.board.day_start)}` : ''}
             </span>
           </button>
@@ -234,8 +239,9 @@ export function ScheduleRail({
       <div className="schedc-rail-body" ref={bodyRef}>
         {groups.length === 0 ? (
           <p className="schedc-rail-empty">
-            Nothing on the calendar yet.
-            {editable && onAddDay ? ' Use “Add days…” below to lay out a block.' : ''}
+            {editable && onAddDay
+              ? <Trans>Nothing on the calendar yet. Use “Add days…” below to lay out a block.</Trans>
+              : <Trans>Nothing on the calendar yet.</Trans>}
           </p>
         ) : groups.map((g) => (
           <div key={g.key} className="schedc-rail-group">
@@ -256,11 +262,11 @@ export function ScheduleRail({
                     it needs an affordance that is actually visible rather than
                     only a double-click nobody is told about. */}
                 <button type="button" className="schedc-rail-datemark"
-                  title={`Open ${WEEKDAYS[weekdayOf(r.date)]} ${shortDate(r.date)} by the hour`}
-                  aria-label={`Open ${WEEKDAYS[weekdayOf(r.date)]} ${shortDate(r.date)} by the hour`}
+                  title={tr`Open ${ph({ value: weekdayShortNames()[weekdayOf(r.date)] })} ${ph({ shortDate: shortDate(r.date) })} by the hour`}
+                  aria-label={tr`Open ${ph({ value: weekdayShortNames()[weekdayOf(r.date)] })} ${ph({ shortDate: shortDate(r.date) })} by the hour`}
                   onPointerDown={stop}
                   onClick={(e) => { e.stopPropagation(); onSelectDate?.(r.date); onPeekDate?.(r.date); }}>
-                  <span className="schedc-rail-dow">{WEEKDAYS[weekdayOf(r.date)]}</span>
+                  <span className="schedc-rail-dow">{weekdayShortNames()[weekdayOf(r.date)]}</span>
                   <span className="schedc-rail-dnum">{parseISO(r.date)?.d}</span>
                 </button>
                 <div className="schedc-rail-stack">
@@ -281,10 +287,10 @@ export function ScheduleRail({
                   )}
                   {!r.days.length && !r.loose && (
                     <div className="schedc-rail-none">
-                      <span>Nothing scheduled</span>
+                      <span><Trans>Nothing scheduled</Trans></span>
                       {editable && onAddDay && (
                         <button type="button" className="schedc-rail-add"
-                          title="Add a day here" aria-label="Add a day here"
+                          title={tr`Add a day here`} aria-label={tr`Add a day here`}
                           onPointerDown={stop}
                           onClick={(e) => { e.stopPropagation(); onAddDay(r.date); }}>
                           <Icon as={Plus} size={12} />
@@ -304,7 +310,7 @@ export function ScheduleRail({
           onPointerDown={stop}
           onClick={(e) => { e.stopPropagation(); onAddDay(selectedDate || todayIso); }}>
           <Icon as={Clapperboard} size={13} />
-          <span>Add days…</span>
+          <span><Trans>Add days…</Trans></span>
         </button>
       )}
     </div>

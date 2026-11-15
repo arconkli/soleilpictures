@@ -23,6 +23,9 @@ import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { initialOf } from '../lib/graphemes.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../lib/errorWords.js';
 
 export function CanvasCommentLayer({
   comments, boardId, workspaceId, userId, wsPeers = [],
@@ -196,7 +199,7 @@ function CanvasCommentDraft({ canvasPos, onSubmit, onCancel }) {
                   data-gramm_editor="false"
                   data-enable-grammarly="false"
                   spellCheck={false}
-                  placeholder="Add a comment…"
+                  placeholder={tr`Add a comment…`}
                   onChange={(e) => setBody(e.target.value)}
                   onKeyDown={(e) => {
                     // Mid-syllable, Enter picks the syllable; the next one posts.
@@ -207,13 +210,13 @@ function CanvasCommentDraft({ canvasPos, onSubmit, onCancel }) {
                     }
                   }} />
         <div className="canvas-comment-draft-actions">
-          <span className="canvas-comment-draft-hint">Enter to post · Esc to cancel</span>
+          <span className="canvas-comment-draft-hint"><Trans>Enter to post · Esc to cancel</Trans></span>
           <button type="button"
                   className="canvas-comment-draft-cancel"
-                  onClick={onCancel}>Cancel</button>
+                  onClick={onCancel}><Trans>Cancel</Trans></button>
           <button type="submit"
                   className="canvas-comment-draft-post"
-                  disabled={!body.trim() || busy}>{busy ? 'Posting…' : 'Post'}</button>
+                  disabled={!body.trim() || busy}>{busy ? tr`Posting…` : tr`Post`}</button>
         </div>
       </form>
     </div>
@@ -263,7 +266,7 @@ function resolveAuthor(authorId, currentUser) {
   }
   const entry = userProfiles.resolve(authorId);
   return {
-    name:  entry?.name || (entry?.email ? entry.email.split('@')[0] : null) || 'Member',
+    name:  entry?.name || (entry?.email ? entry.email.split('@')[0] : null) || tr`Member`,
     color: entry?.color || pickPresenceColor(authorId || ''),
   };
 }
@@ -433,7 +436,7 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
       try {
         await updateComment(comment.id, patch);
       } catch (err) {
-        feedback.toast({ type: 'error', code: 'comment_move_failed', message: 'Move failed: ' + (err.message || err) });
+        feedback.toast({ type: 'error', code: 'comment_move_failed', message: tr`Move failed: ${ph({ reason: shownError(err) })}` });
         // Roll back — restore baseRef to the last known prop value so
         // the bubble snaps back rather than appearing committed.
         baseRef.current = {
@@ -481,7 +484,7 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
       });
       setReply('');
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'comment_reply_failed', message: 'Reply failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'comment_reply_failed', message: tr`Reply failed: ${ph({ reason: shownError(err) })}` });
     } finally {
       setBusy(false);
     }
@@ -495,16 +498,16 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
       // logged with the same event so the ratio is visible rather than implied.
       try { logEvent(EV.COMMENT_RESOLVE, { board_id: comment.board_id, resolved: next }); } catch (_) {}
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'comment_update_failed', message: 'Update failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'comment_update_failed', message: tr`Update failed: ${ph({ reason: shownError(err) })}` });
     }
   };
   const onHide = async () => {
     try { await updateComment(comment.id, { hidden: true }); }
-    catch (err) { feedback.toast({ type: 'error', code: 'comment_hide_failed', message: 'Hide failed: ' + (err.message || err) }); }
+    catch (err) { feedback.toast({ type: 'error', code: 'comment_hide_failed', message: tr`Hide failed: ${ph({ reason: shownError(err) })}` }); }
   };
   const onUnhide = async () => {
     try { await updateComment(comment.id, { hidden: false }); }
-    catch (err) { feedback.toast({ type: 'error', code: 'comment_unhide_failed', message: 'Unhide failed: ' + (err.message || err) }); }
+    catch (err) { feedback.toast({ type: 'error', code: 'comment_unhide_failed', message: tr`Unhide failed: ${ph({ reason: shownError(err) })}` }); }
   };
   const onDelete = async () => {
     // House delete convention: no confirm, an Undo toast instead — the row is
@@ -513,9 +516,9 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
     // are just as restorable.
     if ((replies?.length || 0) > 0) {
       const ok = await feedback.confirm({
-        title: 'Delete comment?',
-        message: 'This also removes all replies.\n\nYou can undo this right after.',
-        confirmLabel: 'Delete',
+        title: tr`Delete comment?`,
+        message: tr`This also removes all replies.\n\nYou can undo this right after.`,
+        confirmLabel: tr`Delete`,
         danger: true,
       });
       if (!ok) return;
@@ -527,14 +530,14 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
       // doing both gives instant UX regardless of channel lag.
       onLocallyRemoved?.(comment.id);
       undoToast(feedback, {
-        message: 'Comment deleted',
+        message: tr`Comment deleted`,
         onUndo: async () => {
           try { await restoreComment(comment.id); } // realtime refetch resurfaces it
-          catch (err) { feedback.toast({ type: 'error', code: 'comment_restore_failed', message: 'Restore failed: ' + (err.message || err) }); }
+          catch (err) { feedback.toast({ type: 'error', code: 'comment_restore_failed', message: tr`Restore failed: ${ph({ reason: shownError(err) })}` }); }
         },
       });
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'comment_delete_failed', message: 'Delete failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'comment_delete_failed', message: tr`Delete failed: ${ph({ reason: shownError(err) })}` });
     }
   };
 
@@ -599,7 +602,7 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
               className="canvas-comment-card"
               aria-expanded={open}
               onPointerDown={onDragStart}
-              title={isAuthor ? 'Drag to reposition · click to open' : undefined}
+              title={isAuthor ? tr`Drag to reposition · click to open` : undefined}
               onClick={() => {
                 if (justDraggedRef.current) return;
                 setOpen(o => !o);
@@ -612,18 +615,18 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
           </span>
           <span className="canvas-comment-author">{author}</span>
           <span className="canvas-comment-when">{relativeTimeShort(comment.created_at)}</span>
-          {comment.resolved && <span className="canvas-comment-tag">resolved</span>}
+          {comment.resolved && <span className="canvas-comment-tag"><Trans>resolved</Trans></span>}
         </span>
         <span className="canvas-comment-body" dir="auto" title={comment.body}>
           {comment.body}
         </span>
         {replyCount > 0 && (
           <span className="canvas-comment-replies-count">
-            {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
+            {tr`${plural(replyCount, { one: '# reply', other: '# replies' })}`}
           </span>
         )}
         {hasUnreadReplies && !open && (
-          <span className="canvas-comment-unread-dot" aria-label="Unread reply" />
+          <span className="canvas-comment-unread-dot" aria-label={tr`Unread reply`} />
         )}
       </button>
       {open && (
@@ -641,35 +644,35 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
                              await deleteComment(r.id);
                              onLocallyRemoved?.(r.id);
                              undoToast(feedback, {
-                               message: 'Reply deleted',
+                               message: tr`Reply deleted`,
                                onUndo: async () => {
                                  try { await restoreComment(r.id); }
-                                 catch (err) { feedback.toast({ type: 'error', code: 'comment_restore_failed', message: 'Restore failed: ' + (err.message || err) }); }
+                                 catch (err) { feedback.toast({ type: 'error', code: 'comment_restore_failed', message: tr`Restore failed: ${ph({ reason: shownError(err) })}` }); }
                                },
                              });
-                           } catch (err) { feedback.toast({ type: 'error', code: 'comment_delete_failed', message: 'Delete failed' }); }
+                           } catch (err) { feedback.toast({ type: 'error', code: 'comment_delete_failed', message: tr`Delete failed` }); }
                          }} />
             );
           })}
           <form className="canvas-comment-reply" onSubmit={submitReply}>
             <input className="canvas-comment-reply-input"
-                   placeholder="Reply…"
+                   placeholder={tr`Reply…`}
                    value={reply}
                    disabled={busy}
                    onChange={(e) => setReply(e.target.value)} />
             <button type="submit"
                     className="canvas-comment-reply-send"
-                    disabled={!reply.trim() || busy}>Send</button>
+                    disabled={!reply.trim() || busy}><Trans>Send</Trans></button>
           </form>
           {canModerate && (
             <div className="canvas-comment-actions">
               <button type="button" onClick={onResolve}>
-                {comment.resolved ? 'Reopen' : 'Resolve'}
+                {comment.resolved ? tr`Reopen` : tr`Resolve`}
               </button>
               {comment.hidden
-                ? <button type="button" onClick={onUnhide}>Unhide</button>
-                : <button type="button" onClick={onHide}>Hide</button>}
-              {isAuthor && <button type="button" className="danger" onClick={onDelete}>Delete</button>}
+                ? <button type="button" onClick={onUnhide}><Trans>Unhide</Trans></button>
+                : <button type="button" onClick={onHide}><Trans>Hide</Trans></button>}
+              {isAuthor && <button type="button" className="danger" onClick={onDelete}><Trans>Delete</Trans></button>}
             </div>
           )}
         </div>
@@ -720,7 +723,7 @@ function CommentAnchorDot({ x, y, color, count = 1 }) {
   const SIZE = 6;
   return (
     <div className="canvas-comment-anchor-dot"
-         title={count === 1 ? '1 comment' : `${count} comments`}
+         title={tr`${plural(count, { one: '# comment', other: '# comments' })}`}
          style={{
            position: 'absolute',
            left: x - SIZE / 2, top: y - SIZE / 2,
@@ -821,32 +824,32 @@ export function CommentArchivePopover({
 
   const onReopen = async (c) => {
     try { await updateComment(c.id, { resolved: false, hidden: false }); }
-    catch (err) { feedback.toast({ type: 'error', code: 'comment_reopen_failed', message: 'Reopen failed: ' + (err.message || err) }); }
+    catch (err) { feedback.toast({ type: 'error', code: 'comment_reopen_failed', message: tr`Reopen failed: ${ph({ reason: shownError(err) })}` }); }
   };
   const onUnhide = async (c) => {
     try { await updateComment(c.id, { hidden: false }); }
-    catch (err) { feedback.toast({ type: 'error', code: 'comment_unhide_failed', message: 'Unhide failed: ' + (err.message || err) }); }
+    catch (err) { feedback.toast({ type: 'error', code: 'comment_unhide_failed', message: tr`Unhide failed: ${ph({ reason: shownError(err) })}` }); }
   };
   const onDeleteRow = async (c) => {
     // ("Permanent" was never true — comments soft-delete with 30-day
     // retention. Say so, and offer the Undo.)
     const ok = await feedback.confirm({
-      title: 'Delete comment?', confirmLabel: 'Delete', danger: true,
-      message: 'Also removes any replies. You can undo this right after.',
+      title: tr`Delete comment?`, confirmLabel: tr`Delete`, danger: true,
+      message: tr`Also removes any replies. You can undo this right after.`,
     });
     if (!ok) return;
     try {
       await deleteComment(c.id);
       onLocallyRemoved?.(c.id);
       undoToast(feedback, {
-        message: 'Comment deleted',
+        message: tr`Comment deleted`,
         onUndo: async () => {
           try { await restoreComment(c.id); }
-          catch (err) { feedback.toast({ type: 'error', code: 'comment_restore_failed', message: 'Restore failed: ' + (err.message || err) }); }
+          catch (err) { feedback.toast({ type: 'error', code: 'comment_restore_failed', message: tr`Restore failed: ${ph({ reason: shownError(err) })}` }); }
         },
       });
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'comment_delete_failed', message: 'Delete failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'comment_delete_failed', message: tr`Delete failed: ${ph({ reason: shownError(err) })}` });
     }
   };
 
@@ -865,13 +868,13 @@ export function CommentArchivePopover({
          role="dialog"
          style={{ position: 'fixed', left, top, width: W }}>
       <div className="comment-archive-head">
-        <span className="comment-archive-title">Archived comments</span>
-        <button className="comment-archive-x" aria-label="Close" onClick={onClose}>✕</button>
+        <span className="comment-archive-title"><Trans>Archived comments</Trans></span>
+        <button className="comment-archive-x" aria-label={tr`Close`} onClick={onClose}>✕</button>
       </div>
       <div className="comment-archive-body">
         {archived.length === 0 && (
           <div className="comment-archive-empty">
-            No resolved or hidden comments on this board.
+            <Trans>No resolved or hidden comments on this board.</Trans>
           </div>
         )}
         {archived.map(c => {
@@ -894,9 +897,9 @@ export function CommentArchivePopover({
               {(c.author === userId || canEdit) && (
                 <div className="comment-archive-row-actions">
                   {c.resolved
-                    ? <button onClick={() => onReopen(c)}>Reopen</button>
-                    : <button onClick={() => onUnhide(c)}>Unhide</button>}
-                  <button className="danger" onClick={() => onDeleteRow(c)}>Delete</button>
+                    ? <button onClick={() => onReopen(c)}><Trans>Reopen</Trans></button>
+                    : <button onClick={() => onUnhide(c)}><Trans>Unhide</Trans></button>}
+                  <button className="danger" onClick={() => onDeleteRow(c)}><Trans>Delete</Trans></button>
                 </div>
               )}
             </div>
@@ -921,7 +924,7 @@ function CommentLine({ c, authorName, authorColor, canManage, onDelete }) {
         {canManage && (
           <button type="button"
                   className="canvas-comment-line-x"
-                  aria-label="Delete reply"
+                  aria-label={tr`Delete reply`}
                   onClick={onDelete}>×</button>
         )}
       </span>

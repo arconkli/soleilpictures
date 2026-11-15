@@ -14,6 +14,7 @@
 //   localState.noteSelection = { boardId, cardId, rects: [{left,top,width,height}] }
 
 import { useEffect, useRef, useState } from 'react';
+import { shownAuthor } from '../lib/commentAuthor.js';
 
 const TYPING_FADE_MS = 1500;
 
@@ -179,7 +180,7 @@ export function NotePresence({ editor, awareness, boardId, cardId }) {
               <span style={{
                 position: 'absolute', top: '-1.4em', left: '-2px', background: color, color: '#fff',
                 font: '600 10px/1 var(--font-sans, sans-serif)', padding: '1px 5px', borderRadius: 3, whiteSpace: 'nowrap',
-              }}>{(p.user.name || '?').split(' ')[0]}</span>
+              }}>{(shownAuthor(p.user.name) || '?').split(' ')[0]}</span>
             </div>
           );
         }

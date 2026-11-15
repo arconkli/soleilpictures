@@ -29,5 +29,5 @@ test('Seen is chosen by the feed rules, in a DM only, and drawn under that one m
   assert.match(thread, /selectSeenMessageId\(messages, \{ selfId: userId, isDm, peerId, peerLastReadAt \}\)/);
   assert.match(thread, /seen=\{g\.msg\.id === seenId\}/);
   const bubble = read('../components/MessageBubble.jsx');
-  assert.match(bubble, /\{seen && <div className="msg-bubble-seen">Seen<\/div>\}/);
+  assert.match(bubble, /\{seen && <div className="msg-bubble-seen"><Trans>Seen<\/Trans><\/div>\}/);
 });

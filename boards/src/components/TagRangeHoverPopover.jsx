@@ -40,6 +40,8 @@ import { entityTypeLabel } from '../lib/entityTypes.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const PAD = 8;
 const W = 320;
@@ -184,21 +186,21 @@ export function TagRangeHoverPopover({
          style={{ top: pos.top, left: pos.left, width: pos.w ?? W, '--tag-color': tagColor }}
          onMouseEnter={onMouseEnter}
          onMouseLeave={onMouseLeave}>
-      <button className="tag-pop-header" onClick={openTag} title="Open tag detail">
+      <button className="tag-pop-header" onClick={openTag} title={t`Open tag detail`}>
         <span className="tag-pop-stamp" aria-hidden="true" />
-        <span className="tag-pop-name">{tagName || 'Tag'}</span>
+        <span className="tag-pop-name">{tagName || t`Tag`}</span>
         {entityTypeLabel(data.entityType) && (
           <span className="tag-pop-type">{entityTypeLabel(data.entityType)}</span>
         )}
         {total > 0 && (
-          <span className="tag-pop-count">{total} {total === 1 ? 'item' : 'items'}</span>
+          <span className="tag-pop-count">{t`${plural(total, { one: '# item', other: '# items' })}`}</span>
         )}
       </button>
 
-      {data.loading && <div className="tag-pop-empty">Loading…</div>}
+      {data.loading && <div className="tag-pop-empty"><Trans>Loading…</Trans></div>}
 
       {!data.loading && !hasAny && (
-        <div className="tag-pop-empty">No other items tagged.</div>
+        <div className="tag-pop-empty"><Trans>No other items tagged.</Trans></div>
       )}
 
       {data.images.length > 0 && (
@@ -206,7 +208,7 @@ export function TagRangeHoverPopover({
           {data.images.map((im, i) => (
             <button key={i} className="tag-pop-thumb"
                     onClick={() => setLightboxIdx(i)}
-                    title={im.title || 'Image'}>
+                    title={im.title || t`Image`}>
               <R2Image src={im.src} alt="" />
             </button>
           ))}
@@ -226,7 +228,7 @@ export function TagRangeHoverPopover({
               .slice(0, 10);
             return (
               <button key={i} className="tag-pop-palette"
-                      onClick={() => go(p.navTarget)} title={p.title || 'Palette'}>
+                      onClick={() => go(p.navTarget)} title={p.title || t`Palette`}>
                 <span className="tag-pop-palette-swatches">
                   {colors.map((color, j) => (
                     <span key={j} style={{ background: color }} />
@@ -261,11 +263,11 @@ export function TagRangeHoverPopover({
         {onRemove && sourceAnchor && (
           <button className="tag-pop-footer tag-pop-footer-danger"
                   onClick={() => onRemove(sourceAnchor)}>
-            Remove tag
+            <Trans>Remove tag</Trans>
           </button>
         )}
         <button className="tag-pop-footer" onClick={openTag}>
-          View tag <span aria-hidden="true">→</span>
+          <Trans>View tag</Trans> <span aria-hidden="true">→</span>
         </button>
       </div>
     </div>

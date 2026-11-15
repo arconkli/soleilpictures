@@ -40,6 +40,7 @@ import { readSetupOverride, setupMayOpenFirst } from '../lib/setupRule.js';
 import { parseShareReturn, stashShareReturn, readShareReturn, clearShareReturn, shareReturnHref, parseFileReturn, stashFileReturn, readFileReturn, clearFileReturn, fileReturnHref } from '../lib/shareReturn.js';
 import { readScoutPhone, clearScoutPhone } from '../lib/scoutClaim.js';
 import { readCreatorIntent } from '../lib/creatorIntent.js';
+import { intentLabels } from '../lib/creatorIntentWords.js';
 import { readTeamStart, clearTeamStart, teamStartHref } from '../lib/teamStart.js';
 import { getFbCookies } from '../lib/metaPixel.js';
 import { suggestEmail, emailProblem } from '../lib/emailTypo.js';
@@ -57,6 +58,14 @@ import { bootMark } from '../lib/bootMarks.js';
 import { preloadSignedInApp } from '../lib/preloadApp.js';
 import { startBootPrefetch, bootPrefetchPersonal, clearBootPrefetch } from '../lib/bootPrefetch.js';
 import { initialOf } from '../lib/graphemes.js';
+import { signupLocale } from '../lib/uiLocale.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../lib/errorWords.js';
+
+// The signed-out landing's description for screen readers is public-site copy:
+// it stays English (the header says lang="en").
+const LANDING_BLURB = 'Soleil Clusters is a creative workspace and moodboard tool for production teams. Organize references, projects, and ideas across film, photo, design, and brand work, and collaborate with your team in real time.';
 
 // Localstorage key holding an in-flight invite token between the
 // pre-signup landing (?invite=…) and the post-signup claim hook.
@@ -743,8 +752,8 @@ export function AuthGate({ children, signedOut = null, warmApp = null }) {
     return (
       <AuthContext.Provider value={{ user: localUser, signOut: () => { window.location.href = '/'; } }}>
         <DevBanner label={localMode
-          ? 'LOCAL QA MODE - seeded boards run in memory and reset on reload.'
-          : 'DEV MODE - Supabase not configured. Seeded boards run in memory and reset on reload.'} />
+          ? tr`LOCAL QA MODE - seeded boards run in memory and reset on reload.`
+          : tr`DEV MODE - Supabase not configured. Seeded boards run in memory and reset on reload.`} />
         {children}
       </AuthContext.Provider>
     );
@@ -1090,7 +1099,7 @@ function SignIn({ warmApp = null }) {
     const problem = emailProblem(email);
     if (problem) {
       logEvent(EV.EMAIL_SUBMIT_ERROR, { reason: problem, resend: !!resending });
-      setError("That address is missing its ending, like .com — check the part after the @.");
+      setError(tr`That address is missing its ending, like .com — check the part after the @.`);
       return;
     }
     // The first code: the step shows now and the request runs under it. Sending
@@ -1133,10 +1142,14 @@ function SignIn({ warmApp = null }) {
         const c = String(fromBag || fromUrl || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 16).toUpperCase();
         if (c) referralCode = c;
       } catch (_) {}
+      // The language this person reads (lib/accountLocale.js), so the sign-in
+      // email and the first ones after it match. Missing means English.
+      const locale = signupLocale();
       const signupData = {
         ...(fbc ? { ad_fbc: fbc } : {}),
         ...(firstSourceMeta ? { first_source: firstSourceMeta } : {}),
         ...(referralCode ? { referral_code: referralCode } : {}),
+        ...(locale !== 'en' ? { locale } : {}),
       };
       // Turnstile (2026-10-06 audit): a fresh token for every request, a
       // resend included. Dormant until a site key is built in; see turnstile.js
@@ -1195,7 +1208,7 @@ function SignIn({ warmApp = null }) {
       // onAuthStateChange fires SIGNED_IN; AuthGate re-renders to children.
     } catch (_) {
       signingInByForm = false;
-      setError("That email and password don't match.");
+      setError(tr`That email and password don't match.`);
       setPassword('');
       setBusy(false);
     }
@@ -1205,7 +1218,7 @@ function SignIn({ warmApp = null }) {
     e?.preventDefault?.();
     if (busy) return;
     const token = code.replace(/\s+/g, '');
-    if (token.length < 6) { setError('Enter the 6-digit code from your email.'); return; }
+    if (token.length < 6) { setError(tr`Enter the 6-digit code from your email.`); return; }
     setError(null);
     setBusy(true);
     verifyingRef.current = true;
@@ -1262,7 +1275,7 @@ function SignIn({ warmApp = null }) {
   };
   const typoOffer = (atStage) => (typo ? (
     <button type="button" className="auth-link auth-typo" onClick={applyTypo(atStage)} disabled={busy || sending}>
-      Did you mean <b>{typo.suggestion}</b>?
+      <Trans>Did you mean <b>{ph({ suggestion: typo.suggestion })}</b>?</Trans>
     </button>
   ) : null);
 
@@ -1271,21 +1284,21 @@ function SignIn({ warmApp = null }) {
     // form it was the most prominent exit from the step phones abandon most,
     // and the people who took it never came back to type the code.
     <SignInBackdrop exploreHref={stage === 'email' ? EXPLORE_HREF : undefined}>
-      <header className="sr-only">
+      <header className="sr-only" lang="en">
         <h1>Soleil Clusters</h1>
-        <p>Soleil Clusters is a creative workspace and moodboard tool for production teams. Organize references, projects, and ideas across film, photo, design, and brand work, and collaborate with your team in real time.</p>
+        <p>{LANDING_BLURB}</p>
       </header>
       <SoleilWordmark size="display" />
       {/* The owner's line. Hidden from the first paint when the visit is about an invite
           or a plan (same rule as UsedBy); shown on the email and the code step alike so
           the box doesn't jump. */}
       {!hintPending && !inviteHint && !joinHint && !wsJoinHint && !teamLink && !creatorHint && !teamStartHint && (
-        <p className="sb-tagline">One workspace for all your creative work.</p>
+        <p className="sb-tagline"><Trans>One workspace for all your creative work.</Trans></p>
       )}
 
       {inviteHint && (
         <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
-          You've been invited. Sign in with <b>{inviteHint.email}</b> to accept.
+          <Trans>You've been invited. Sign in with <b>{ph({ email: inviteHint.email })}</b> to accept.</Trans>
         </div>
       )}
 
@@ -1294,9 +1307,9 @@ function SignIn({ warmApp = null }) {
       {!inviteHint && joinHint && (joinHint.name ? (
         <div className="auth-joinc" role="note">
           <h2 className="auth-joinc-h">
-            {joinHint.kind === 'invite' && joinHint.sharer ? `${joinHint.sharer} invited you to edit`
-              : joinHint.sharer ? `Join ${joinHint.sharer} on Clusters`
-              : `Join “${joinHint.name}” on Clusters`}
+            {joinHint.kind === 'invite' && joinHint.sharer ? tr`${ph({ sharer: joinHint.sharer })} invited you to edit`
+              : joinHint.sharer ? tr`Join ${ph({ sharer: joinHint.sharer })} on Clusters`
+              : tr`Join “${ph({ name: joinHint.name })}” on Clusters`}
           </h2>
           <div className="auth-joinc-chip">
             <span className="auth-joinc-th" aria-hidden="true"
@@ -1305,8 +1318,8 @@ function SignIn({ warmApp = null }) {
               <b>{joinHint.name}</b>
               {(joinHint.sharer || joinHint.cards) && (
                 <span>
-                  {[joinHint.sharer ? `Shared by ${joinHint.sharer}` : null,
-                    joinHint.cards ? `${joinHint.cards} ${joinHint.cards === 1 ? 'card' : 'cards'}` : null]
+                  {[joinHint.sharer ? tr`Shared by ${ph({ sharer: joinHint.sharer })}` : null,
+                    joinHint.cards ? tr`${plural(joinHint.cards, { one: '# card', other: '# cards' })}` : null]
                     .filter(Boolean).join(' · ')}
                 </span>
               )}
@@ -1315,21 +1328,21 @@ function SignIn({ warmApp = null }) {
         </div>
       ) : (
         <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
-          You've been invited to collaborate. Sign in to join.
+          <Trans>You've been invited to collaborate. Sign in to join.</Trans>
         </div>
       ))}
 
       {/* ?wsjoin= — a whole workspace, named, with who invited them. */}
       {!inviteHint && !joinHint && wsJoinHint && (wsJoinHint.status === 'dead' ? (
         <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
-          That invite link has expired or was turned off. Ask whoever sent it for a new one.
+          <Trans>That invite link has expired or was turned off. Ask whoever sent it for a new one.</Trans>
         </div>
       ) : (
         <div className="auth-wsjoin" role="note">
           <span className="auth-wsjoin-av" aria-hidden="true">{initialOf(wsJoinHint.name)}</span>
           <span className="auth-wsjoin-t">
-            <b>{wsJoinHint.name ? `Join ${wsJoinHint.name}` : 'Join a workspace'}</b>
-            <span>{wsJoinHint.inviter ? `${wsJoinHint.inviter} invited you. ` : ''}Sign in or sign up to join.</span>
+            <b>{wsJoinHint.name ? tr`Join ${ph({ name: wsJoinHint.name })}` : tr`Join a workspace`}</b>
+            <span>{wsJoinHint.inviter ? tr`${ph({ inviter: wsJoinHint.inviter })} invited you. Sign in or sign up to join.` : tr`Sign in or sign up to join.`}</span>
           </span>
         </div>
       ))}
@@ -1346,14 +1359,14 @@ function SignIn({ warmApp = null }) {
           labels were written in by /pricing (creatorIntent.js). */}
       {!inviteHint && !joinHint && !wsJoinHint && !teamLink && creatorHint && (
         <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
-          Sign in to finish getting <b>{creatorHint.planName || 'the paid plan'}</b>
-          {creatorHint.priceLabel ? <> at <b>{creatorHint.priceLabel}</b></> : null}
-          {' '}— the offer opens as soon as you are in.
+          {creatorHint.priceLabel
+            ? <Trans>Sign in to finish getting <b>{ph({ plan: creatorHint.planName || tr`the paid plan` })}</b> at <b>{ph({ price: intentLabels(creatorHint).priceLabel })}</b> — the offer opens as soon as you are in.</Trans>
+            : <Trans>Sign in to finish getting <b>{ph({ plan: creatorHint.planName || tr`the paid plan` })}</b> — the offer opens as soon as you are in.</Trans>}
         </div>
       )}
       {!inviteHint && !joinHint && !wsJoinHint && !teamLink && !creatorHint && teamStartHint && (
         <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>
-          Sign in to start your <b>Team</b> trial — the setup opens as soon as you are in.
+          <Trans>Sign in to start your <b>Team</b> trial — the setup opens as soon as you are in.</Trans>
         </div>
       )}
 
@@ -1371,8 +1384,8 @@ function SignIn({ warmApp = null }) {
               enterKeyHint="go"
               autoFocus={AUTOFOCUS_EMAIL}
               required
-              aria-label="Email address"
-              placeholder="you@studio.com"
+              aria-label={tr`Email address`}
+              placeholder={tr`you@studio.com`}
               value={email}
               onChange={(e) => {
                 if (!emailEngagedRef.current) { emailEngagedRef.current = true; logEvent(EV.LANDING_FIELD_ENGAGE, { field: 'email' }); }
@@ -1389,23 +1402,23 @@ function SignIn({ warmApp = null }) {
                 type="password"
                 autoComplete="current-password"
                 required
-                aria-label="Password"
-                placeholder="Password"
+                aria-label={tr`Password`}
+                placeholder={tr`Password`}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={busy}
               />
             )}
             <button className="auth-btn" type="submit" disabled={busy || !email.trim() || (usesPassword(email) && !password)}>
-              {busy ? (usesPassword(email) ? 'Signing in…' : 'Sending…') : usesPassword(email) ? 'Sign in →' : 'Continue with email →'}
+              {busy ? (usesPassword(email) ? tr`Signing in…` : tr`Sending…`) : usesPassword(email) ? tr`Sign in →` : tr`Continue with email →`}
             </button>
             {error && <div className="auth-error t-meta">{error}</div>}
             <div className="sb-cap">
               {usesPassword(email)
-                ? 'The demo account signs in with its password.'
+                ? tr`The demo account signs in with its password.`
                 : !inviteHint && joinHint?.name
-                ? `We’ll email you a code. You’ll land right back in ${joinHint.name}.`
-                : 'Sign in or sign up — we\'ll email a 6-digit code.'}
+                ? tr`We’ll email you a code. You’ll land right back in ${ph({ name: joinHint.name })}.`
+                : tr`Sign in or sign up — we'll email a 6-digit code.`}
             </div>
             {passkey.link && (
               <button type="button" className="pk-link" onClick={signInByPasskey} disabled={busy || sending}>
@@ -1413,7 +1426,7 @@ function SignIn({ warmApp = null }) {
                   <circle cx="5.5" cy="10.5" r="3" />
                   <path d="M7.6 8.4 13.5 2.5M11.5 4.5l1.6 1.6M9.9 6.1l1.2 1.2" />
                 </svg>
-                Use a passkey
+                <Trans>Use a passkey</Trans>
               </button>
             )}
           </form>
@@ -1424,7 +1437,7 @@ function SignIn({ warmApp = null }) {
               {/* Not while the first code is on its way: its success would
                   remember the step for the address being edited. */}
               <button type="button" className="auth-link" onClick={editEmail} disabled={busy || sending}>
-                edit
+                <Trans>edit</Trans>
               </button>
             </div>
             {/* The two-and-a-half minutes people wait for a code that is never
@@ -1469,21 +1482,21 @@ function SignIn({ warmApp = null }) {
               disabled={busy}
             />
             <button className="auth-btn" type="submit" disabled={busy || code.length < 6}>
-              {busy ? 'Verifying…' : 'Sign in'}
+              {busy ? tr`Verifying…` : tr`Sign in`}
             </button>
             {error && <div className="auth-error t-meta">{error}</div>}
             <div className="auth-hint t-meta">
-              {sending ? 'Sending your code…' : (
+              {sending ? tr`Sending your code…` : (
                 <>
                   {sends > 1
-                    ? 'New code sent. Only the newest one works — check Spam or Promotions if it isn\'t there.'
-                    : 'Check your inbox for the 6-digit code — and Spam or Promotions if it isn\'t there.'}{' '}
+                    ? tr`New code sent. Only the newest one works — check Spam or Promotions if it isn't there.`
+                    : tr`Check your inbox for the 6-digit code — and Spam or Promotions if it isn't there.`}{' '}
                   {/* The resend control stays a button during cooldown (disabled,
                       counting down) — swapping it for a bare span made it look
                       like the option vanished. */}
                   <button type="button" className="auth-link" onClick={() => sendCode(true)}
                           disabled={busy || resendCooldown > 0}>
-                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+                    {resendCooldown > 0 ? tr`Resend in ${resendCooldown}s` : tr`Resend code`}
                   </button>
                 </>
               )}
@@ -1505,8 +1518,8 @@ function SignIn({ warmApp = null }) {
                 for a mistyped consumer domain (the typo offer is the advice). */}
             {!isConsumerAddress(email) && !inviteHint && !typo && !suggestEmail(email) && (
               <div className="auth-hint t-meta auth-work-hint">
-                Work and school mail can hold a code for a few minutes, or quarantine
-                it — check there too. A different address signs in to a separate account.
+                <Trans>Work and school mail can hold a code for a few minutes, or quarantine
+                it — check there too. A different address signs in to a separate account.</Trans>
               </div>
             )}
           </form>
@@ -1515,7 +1528,7 @@ function SignIn({ warmApp = null }) {
         <div ref={captchaRef} className="auth-captcha" />
       </div>
 
-      <p className="sb-trust">Made by a film studio, for creative professionals.</p>
+      <p className="sb-trust"><Trans>Made by a film studio, for creative professionals.</Trans></p>
       {/* The companies our users work with (lib/usedBy.js). The email step
           only, and never over an invite or a join: those screens stay on the
           one thing they ask for. index.html's crawlable fallback carries the
@@ -1529,17 +1542,17 @@ function SignIn({ warmApp = null }) {
 // what was typed. Only the newest works.
 function humanError(e, { resent = false } = {}) {
   const msg = (e?.message || String(e || '')).toLowerCase();
-  if (msg.includes('captcha')) return "We couldn't confirm you're a person, not a bot. Try again — or another browser if it keeps happening.";
-  if (msg.includes('rate') || msg.includes('too many')) return 'Hold on — too many attempts. Try again in a minute.';
+  if (msg.includes('captcha')) return tr`We couldn't confirm you're a person, not a bot. Try again — or another browser if it keeps happening.`;
+  if (msg.includes('rate') || msg.includes('too many')) return tr`Hold on — too many attempts. Try again in a minute.`;
   // One GoTrue message covers a wrong digit and a dead token; do not tell a
   // mistyped code it "expired" and send the person to the resend button.
-  if (resent && msg.includes('expired') && msg.includes('invalid')) return "That code didn't match. Only the newest code works — use the one in the latest email.";
-  if (msg.includes('expired') && msg.includes('invalid')) return "That code didn't match. Check the digits, or request a new one.";
-  if (msg.includes('expired'))                          return "That code expired. Request a new one.";
-  if (resent && msg.includes('invalid') && msg.includes('token')) return "That code didn't match. Only the newest code works — use the one in the latest email.";
-  if (msg.includes('invalid') && msg.includes('token')) return "That code didn't match. Try again or request a new one.";
-  if (msg.includes('email') && msg.includes('invalid')) return "That email doesn't look right.";
-  return e?.message || String(e || 'Something went wrong.');
+  if (resent && msg.includes('expired') && msg.includes('invalid')) return tr`That code didn't match. Only the newest code works — use the one in the latest email.`;
+  if (msg.includes('expired') && msg.includes('invalid')) return tr`That code didn't match. Check the digits, or request a new one.`;
+  if (msg.includes('expired'))                          return tr`That code expired. Request a new one.`;
+  if (resent && msg.includes('invalid') && msg.includes('token')) return tr`That code didn't match. Only the newest code works — use the one in the latest email.`;
+  if (msg.includes('invalid') && msg.includes('token')) return tr`That code didn't match. Try again or request a new one.`;
+  if (msg.includes('email') && msg.includes('invalid')) return tr`That email doesn't look right.`;
+  return shownError(e, tr`Something went wrong.`);
 }
 
 // Exported so main.jsx can reuse it as the <Suspense> fallback for the lazy
@@ -1554,9 +1567,9 @@ export function SplashLoading({ dark = false }) {
   return <LoadingScreen dark={dark} />;
 }
 
-function DevBanner({ label = 'DEV MODE — Supabase not configured. Boards are local-only and reset on reload.' }) {
+function DevBanner({ label = tr`DEV MODE — Supabase not configured. Boards are local-only and reset on reload.` }) {
   return (
-    <div className="dev-banner" title="Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in boards/.env.local">
+    <div className="dev-banner" title={tr`Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in boards/.env.local`}>
       {label}
     </div>
   );

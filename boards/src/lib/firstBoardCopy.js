@@ -18,6 +18,8 @@
 // that names the job when we can tell it, and — on a person's FIRST board only —
 // no container tiles. Pure and node-testable, like depthDock.js.
 
+import { t } from '@lingui/core/macro';
+
 export const FIRST_BOARD_WORDS = Object.freeze(['reference wall', 'moodboard', 'storyboard', 'lookbook', 'shot list']);
 
 // The tiles a first board offers beside the hero. Writing, not containers: a
@@ -44,14 +46,14 @@ export function firstBoardKindFrom(src) {
   return null;
 }
 
-const HINT = 'Paste or drag images from any tab, or drop a whole folder';
-const HINT_COARSE = 'Pick several from your camera roll at once';
-const HINT_FRAMES = 'Paste or drag images from any tab, or drop a folder of frames';
+const HINT = () => t`Paste or drag images from any tab, or drop a whole folder`;
+const HINT_COARSE = () => t`Pick several from your camera roll at once`;
+const HINT_FRAMES = () => t`Paste or drag images from any tab, or drop a folder of frames`;
 // Where the setup runs (appHost.js workspaceSetupAllowed) the hint names links
 // too: a link pasted on the first day is the one first-day habit that still
 // goes with coming back once how much was added is accounted for.
-const HINT_LINKS = 'Paste images or links from any tab, or drop a whole folder';
-const HINT_FRAMES_LINKS = 'Paste images or links from any tab, or drop a folder of frames';
+const HINT_LINKS = () => t`Paste images or links from any tab, or drop a whole folder`;
+const HINT_FRAMES_LINKS = () => t`Paste images or links from any tab, or drop a folder of frames`;
 
 // What every workspace was called before the setup asked for a name. Read
 // back to a joiner it would sound like a name someone chose.
@@ -63,12 +65,12 @@ const clean = (s, max) => (typeof s === 'string' ? s.replace(/\s+/g, ' ').trim()
 // it names the workspace and whose it is, and says what they add is seen.
 function joinCopy(join, coarse) {
   const ws = clean(join.ws, 60);
-  const name = ws && ws !== UNNAMED_WORKSPACE ? ws : 'this workspace';
+  const name = ws && ws !== UNNAMED_WORKSPACE ? ws : t`this workspace`;
   const by = clean(join.by, 40);
   return {
-    head: by ? `Start ${name} with ${by}` : `Start ${name}`,
-    heroLabel: 'Add the first images',
-    heroHint: `${coarse ? 'Pick several from your camera roll at once.' : 'Paste images or links from any tab, or drop a folder.'} ${by ? `${by} sees` : 'Everyone in it sees'} them as they land.`,
+    head: by ? t`Start ${name} with ${by}` : t`Start ${name}`,
+    heroLabel: t`Add the first images`,
+    heroHint: `${coarse ? t`Pick several from your camera roll at once.` : t`Paste images or links from any tab, or drop a folder.`} ${by ? t`${by} sees them as they land.` : t`Everyone in it sees them as they land.`}`,
   };
 }
 
@@ -78,12 +80,12 @@ export function firstBoardCopy(kind, opts = {}) {
   const coarse = !!(opts && opts.coarse);
   const links = !!(opts && opts.links);
   if (opts && opts.join) return joinCopy(opts.join, coarse);
-  const hint = coarse ? HINT_COARSE : links ? HINT_LINKS : HINT;
+  const hint = coarse ? HINT_COARSE() : links ? HINT_LINKS() : HINT();
   switch (kind) {
-    case 'references': return { head: 'Start your reference wall', heroLabel: 'Drop your references here', heroHint: hint };
-    case 'moodboard':  return { head: 'Start your moodboard',      heroLabel: 'Bring your images in',      heroHint: hint };
-    case 'storyboard': return { head: 'Start your storyboard',     heroLabel: 'Bring your frames in',      heroHint: coarse ? HINT_COARSE : links ? HINT_FRAMES_LINKS : HINT_FRAMES };
-    case 'treatment':  return { head: 'Start your treatment',      heroLabel: 'Bring your references in',  heroHint: hint };
-    default:           return { head: null,                        heroLabel: 'Add images',                heroHint: hint };
+    case 'references': return { head: t`Start your reference wall`, heroLabel: t`Drop your references here`, heroHint: hint };
+    case 'moodboard':  return { head: t`Start your moodboard`,      heroLabel: t`Bring your images in`,      heroHint: hint };
+    case 'storyboard': return { head: t`Start your storyboard`,     heroLabel: t`Bring your frames in`,      heroHint: coarse ? HINT_COARSE() : links ? HINT_FRAMES_LINKS() : HINT_FRAMES() };
+    case 'treatment':  return { head: t`Start your treatment`,      heroLabel: t`Bring your references in`,  heroHint: hint };
+    default:           return { head: null,                        heroLabel: t`Add images`,                heroHint: hint };
   }
 }

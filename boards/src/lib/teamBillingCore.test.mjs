@@ -175,6 +175,17 @@ test('teamCheckoutParams: a card always, the trial only when offered, the team s
   assert.equal(again.metadata.soleil_org_id, 'o');
 });
 
+test('teamCheckoutParams: the account\'s language only when there is one', () => {
+  const base = { customerId: 'c', priceId: 'p', seats: 3, trial: false, checkoutId: 'k', ownerId: 'u', successUrl: 's', cancelUrl: 'c', nowMs: 1_800_000_000_000 };
+  const none = teamCheckoutParams(base);
+  const fr = teamCheckoutParams({ ...base, locale: 'fr' });
+  assert.equal(fr.locale, 'fr');
+  assert.equal('locale' in none, false);
+  assert.equal('locale' in teamCheckoutParams({ ...base, locale: undefined }), false);
+  const { locale, ...rest } = fr;
+  assert.deepEqual(rest, none);
+});
+
 test('a team customer is never a person\'s, and is reused only by its own owner', () => {
   const c = { id: 'cus_t', ...teamCustomerParams({ name: 'Studio', email: 'a@example.com', ownerId: 'u1', checkoutId: 'k' }) };
   assert.equal(isTeamObject(c), true);

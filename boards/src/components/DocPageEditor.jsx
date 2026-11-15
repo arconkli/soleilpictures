@@ -94,6 +94,9 @@ import { useEntityNameTrie } from '../hooks/useEntityNameTrie.js';
 import { CommentGutter } from './CommentGutter.jsx';
 import { CommentInlinePopover } from './CommentInlinePopover.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t as tt, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../lib/errorWords.js';
 // DocPageTagChips intentionally not mounted — the margin dot
 // (DocTagGutter) is the canonical tag surface in the doc body now.
 // import { DocPageTagChips } from './DocPageTagChips.jsx';
@@ -316,7 +319,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   const openTagSelection = async () => {
     const anchor = selectionAnchor();
     if (!anchor) {
-      feedback.toast({ type: 'info', message: 'Select words inside one paragraph to tag them.' });
+      feedback.toast({ type: 'info', message: tt`Select words inside one paragraph to tag them.` });
       return;
     }
     let rect = null;
@@ -328,7 +331,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       const tags = await listWorkspaceTags(workspaceId);
       setDocTagPicker({ anchor, rect, tags });
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_list_failed', message: 'Could not load tags: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_list_failed', message: tt`Could not load tags: ${ph({ reason: shownError(err) })}` });
     }
   };
   const tagSelectionWith = async (tag, via) => {
@@ -344,7 +347,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       });
       try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: 'doc', via, tag_id: tag.id }); } catch (_) {}
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tt`Tag failed: ${ph({ reason: shownError(err) })}` });
     }
   };
 
@@ -839,7 +842,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       Typography,
       Placeholder.configure({
         placeholder: ({ node }) =>
-          node.type.name === 'heading' ? 'Heading' : 'Start writing…',
+          node.type.name === 'heading' ? tt`Heading` : tt`Start writing…`,
         showOnlyWhenEditable: true,
         showOnlyCurrent: true,
       }),
@@ -954,7 +957,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
         if (!imgs.length) return false;
         event.preventDefault();
         if (guestMode) {
-          feedback.toast({ type: 'info', message: "Images can't be added to a doc shared with you." });
+          feedback.toast({ type: 'info', message: tt`Images can't be added to a doc shared with you.` });
           return true;
         }
         const ed = editorRef.current;
@@ -1332,7 +1335,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     };
   }, [ydoc, workspaceId, scope]);
 
-  if (!editor || !fragment) return <div className="doc-empty">Pick a page on the left, or add one.</div>;
+  if (!editor || !fragment) return <div className="doc-empty"><Trans>Pick a page on the left, or add one.</Trans></div>;
 
   // Prose PAGED flow model: the wrap is a transparent column; we paint
   // `pageCount` white 8.5×11 sheets behind the text, and the DocPagination gap
@@ -1358,8 +1361,8 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
       {onDeleteSheet && (
         <button className="doc-sheet-delete"
                 type="button"
-                title="Delete this page"
-                aria-label="Delete this page"
+                title={tt`Delete this page`}
+                aria-label={tt`Delete this page`}
                 onClick={(e) => { e.stopPropagation(); onDeleteSheet(); }}>
           ×
         </button>
@@ -1387,7 +1390,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
                                   sourceAnchor: info.sourceAnchor,
                                 });
                                 undoToast(feedback, {
-                                  message: 'Tag removed',
+                                  message: tt`Tag removed`,
                                   onUndo: async () => {
                                     try {
                                       await restoreDocTagRows({
@@ -1395,12 +1398,12 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
                                         tagId: info.tagId, rows: removed,
                                       });
                                     } catch (err) {
-                                      feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
+                                      feedback.toast({ type: 'error', code: 'tag_restore_failed', message: tt`Restore failed: ${ph({ reason: shownError(err) })}` });
                                     }
                                   },
                                 });
                               } catch (err) {
-                                feedback.toast({ type: 'error', code: 'tag_remove_failed', message: 'Remove tag failed: ' + (err.message || err) });
+                                feedback.toast({ type: 'error', code: 'tag_remove_failed', message: tt`Remove tag failed: ${ph({ reason: shownError(err) })}` });
                               }
                             } : null} />
       )}
@@ -1502,7 +1505,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
                 sourceAnchor: anchor,
               });
               undoToast(feedback, {
-                message: 'Tag removed',
+                message: tt`Tag removed`,
                 onUndo: async () => {
                   try {
                     await restoreDocTagRows({
@@ -1510,12 +1513,12 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
                       tagId: removedTagId, rows: removed,
                     });
                   } catch (err) {
-                    feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
+                    feedback.toast({ type: 'error', code: 'tag_restore_failed', message: tt`Restore failed: ${ph({ reason: shownError(err) })}` });
                   }
                 },
               });
             } catch (err) {
-              feedback.toast({ type: 'error', code: 'tag_remove_failed', message: 'Remove tag failed: ' + (err.message || err) });
+              feedback.toast({ type: 'error', code: 'tag_remove_failed', message: tt`Remove tag failed: ${ph({ reason: shownError(err) })}` });
             }
           } : null}
           onMouseEnter={cancelHoverTimers}
@@ -1536,7 +1539,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
               const t = await ensureTag({ workspaceId, name, kind: 'user', createdBy: userId });
               await tagSelectionWith(t, 'selection_create');
             } catch (err) {
-              feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
+              feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tt`Tag failed: ${ph({ reason: shownError(err) })}` });
             }
           }}
         />
@@ -1669,28 +1672,28 @@ function DocSelectionBubble({ editor, at, onLink }) {
   const onBarKeys = useToolbarRoving(barRef);
   const mark = (as) => <Icon as={as} size={20} weight="regular" />;
   return (
-    <div className="doc-bubble" role="toolbar" aria-label="Selection formatting"
+    <div className="doc-bubble" role="toolbar" aria-label={tt`Selection formatting`}
          ref={barRef} onKeyDown={onBarKeys}
          style={{ position: 'fixed', top: Math.max(8, at.top - 54),
                   left: Math.max(8, Math.min(at.left, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 220)),
                   zIndex: 2147483647 }}>
-      <button className={lit.bold ? 'is-active' : ''} aria-label="Bold" aria-pressed={lit.bold}
+      <button className={lit.bold ? 'is-active' : ''} aria-label={tt`Bold`} aria-pressed={lit.bold}
               aria-keyshortcuts={ariaKeys('Mod+B')}
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => editor.chain().focus().toggleBold().run()}>{mark(Bold)}</button>
-      <button className={lit.italic ? 'is-active' : ''} aria-label="Italic" aria-pressed={lit.italic}
+      <button className={lit.italic ? 'is-active' : ''} aria-label={tt`Italic`} aria-pressed={lit.italic}
               aria-keyshortcuts={ariaKeys('Mod+I')}
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => editor.chain().focus().toggleItalic().run()}>{mark(Italic)}</button>
-      <button className={lit.underline ? 'is-active' : ''} aria-label="Underline" aria-pressed={lit.underline}
+      <button className={lit.underline ? 'is-active' : ''} aria-label={tt`Underline`} aria-pressed={lit.underline}
               aria-keyshortcuts={ariaKeys('Mod+U')}
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => editor.chain().focus().toggleUnderline().run()}>{mark(Underline)}</button>
-      <button className={lit.highlight ? 'is-active' : ''} aria-label="Highlight" aria-pressed={lit.highlight}
+      <button className={lit.highlight ? 'is-active' : ''} aria-label={tt`Highlight`} aria-pressed={lit.highlight}
               aria-keyshortcuts={ariaKeys('Mod+Shift+H')}
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => editor.chain().focus().toggleHighlight().run()}>{mark(HighlighterCircle)}</button>
-      <button aria-label="Link" aria-keyshortcuts={ariaKeys('Mod+K')}
+      <button aria-label={tt`Link`} aria-keyshortcuts={ariaKeys('Mod+K')}
               onPointerDown={(e) => e.preventDefault()}
               onClick={onLink}>{mark(Link)}</button>
     </div>
@@ -1793,7 +1796,7 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
     editor.view.focus();
     let ok = false;
     try { ok = document.execCommand(cmd); } catch (_) {}
-    if (!ok) onNotice?.(`Press ${CLIP_MOD}${cmd === 'cut' ? 'X' : 'C'} to ${cmd}.`);
+    if (!ok) onNotice?.(cmd === 'cut' ? tt`Press ${CLIP_MOD}X to cut.` : tt`Press ${CLIP_MOD}C to copy.`);
     close();
   };
   const paste = async () => {
@@ -1805,7 +1808,7 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
       if (text) editor.view.pasteText(text);
     } catch (_) {
       editor.commands.focus();
-      onNotice?.(`Press ${CLIP_MOD}V to paste.`);
+      onNotice?.(tt`Press ${CLIP_MOD}V to paste.`);
     }
   };
 
@@ -1821,35 +1824,35 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
     <div className="doc-ctx" style={{ position: 'fixed', left, top }} role="menu"
          onMouseDown={(e) => { if (e.target.tagName !== 'INPUT') e.preventDefault(); }}>
       {pos.hasSelection && (<>
-        <CtxItem icon={<CutIcon />} label="Cut" shortcut="⌘X" onClick={clip('cut')} />
-        <CtxItem icon={<CopyIcon />} label="Copy" shortcut="⌘C" onClick={clip('copy')} />
+        <CtxItem icon={<CutIcon />} label={tt`Cut`} shortcut="⌘X" onClick={clip('cut')} />
+        <CtxItem icon={<CopyIcon />} label={tt`Copy`} shortcut="⌘C" onClick={clip('copy')} />
       </>)}
-      <CtxItem icon={<PasteIcon />} label="Paste" shortcut="⌘V" onClick={paste} />
+      <CtxItem icon={<PasteIcon />} label={tt`Paste`} shortcut="⌘V" onClick={paste} />
       <CtxSep />
-      <CtxItem icon={<b>B</b>} label="Bold" shortcut="⌘B" active={isActive('bold')}
+      <CtxItem icon={<b>B</b>} label={tt`Bold`} shortcut="⌘B" active={isActive('bold')}
             onClick={run(() => editor.chain().focus().toggleBold().run())} />
-      <CtxItem icon={<i>I</i>} label="Italic" shortcut="⌘I" active={isActive('italic')}
+      <CtxItem icon={<i>I</i>} label={tt`Italic`} shortcut="⌘I" active={isActive('italic')}
             onClick={run(() => editor.chain().focus().toggleItalic().run())} />
-      <CtxItem icon={<u>U</u>} label="Underline" shortcut="⌘U" active={isActive('underline')}
+      <CtxItem icon={<u>U</u>} label={tt`Underline`} shortcut="⌘U" active={isActive('underline')}
             onClick={run(() => editor.chain().focus().toggleUnderline().run())} />
       <CtxSep />
-      <CtxItem icon={<LinkIcon />} label="Link" shortcut="⌘K"
+      <CtxItem icon={<LinkIcon />} label={tt`Link`} shortcut="⌘K"
             onClick={run(() => onOpenLinkPicker?.(editor))} />
-      <div className="doc-ctx-color-row" role="group" aria-label="Text color">
-        <span className="doc-ctx-color-label">Color</span>
+      <div className="doc-ctx-color-row" role="group" aria-label={tt`Text color`}>
+        <span className="doc-ctx-color-label"><Trans>Color</Trans></span>
         {['#f5f5f7', '#ffa500', '#cf6a4f', '#7c5cc9', '#5b8fc7', '#3fa39a', '#10b981'].map(c => (
           <button key={c}
                   type="button"
                   className="doc-ctx-color-dot"
                   style={{ background: c }}
-                  title={`Text color ${c}`}
+                  title={tt`Text color ${c}`}
                   onClick={run(() => editor.chain().focus().setColor(c).run())} />
         ))}
         <button type="button"
                 className="doc-ctx-color-dot doc-ctx-color-clear"
-                title="Clear color"
+                title={tt`Clear color`}
                 onClick={run(() => editor.chain().focus().unsetColor().run())}>×</button>
-        <label className="doc-ctx-color-dot doc-ctx-color-custom" title="Custom color">
+        <label className="doc-ctx-color-dot doc-ctx-color-custom" title={tt`Custom color`}>
           <input type="color"
                  onChange={(e) => { editor.chain().focus().setColor(e.target.value).run(); close(); }} />
           <span aria-hidden="true">⋯</span>
@@ -1858,10 +1861,10 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
       {pos.hasSelection && (
         <>
           <CtxSep />
-          <CtxItem icon={<CommentIcon />} label="Add comment" shortcut="⌘⌥M"
+          <CtxItem icon={<CommentIcon />} label={tt`Add comment`} shortcut="⌘⌥M"
                 onClick={run(() => onAddComment?.())} />
           {onTagSelection && (
-            <CtxItem icon={<TagIcon />} label="Tag selection…"
+            <CtxItem icon={<TagIcon />} label={tt`Tag selection…`}
                   onClick={run(() => onTagSelection())} />
           )}
         </>
@@ -1870,7 +1873,7 @@ function DocEditorContextMenu({ editor, onOpenLinkPicker, onAddComment, closeTag
         <>
           <CtxSep />
           <CtxItem icon={<RemoveTagIcon />}
-                label={pos.tagInfo.tagName ? `Remove "${pos.tagInfo.tagName}"` : 'Remove tag'}
+                label={pos.tagInfo.tagName ? tt`Remove "${ph({ tagName: pos.tagInfo.tagName })}"` : tt`Remove tag`}
                 danger
                 onClick={run(() => onRemoveTag(pos.tagInfo))} />
         </>

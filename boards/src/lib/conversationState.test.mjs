@@ -70,5 +70,5 @@ test('the row opens a menu instead of leaving on a bare right-click, with confir
   assert.match(panel, /undoToast\(feedback, \{[\s\S]*?rejoinConversation\(/);
   // Leaving from the thread's ⋯ menu gets the same Undo.
   const thread = read('../components/MessageThread.jsx');
-  assert.match(thread, /message: 'You left the conversation',\s*onUndo:[\s\S]*?rejoinConversation\(/);
+  assert.match(thread, /message: tr`You left the conversation`,\s*onUndo:[\s\S]*?rejoinConversation\(/);
 });

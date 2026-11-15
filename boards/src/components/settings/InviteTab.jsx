@@ -9,13 +9,15 @@ import { logEvent, logEventNow } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { logClientError } from '../../lib/errorReporting.js';
 import { describeReason } from '../../lib/describeReason.js';
-import { settingsLine } from '../../lib/liveTogether.js';
+import { settingsLine } from '../../lib/liveTogetherWords.js';
 import { REFERRAL_PITCH, referralMessage, buildShareTargets } from '../../lib/shareTargets.js';
 import {
   REFERRAL_BONUS_CARDS, REFERRAL_REWARD_CARDS, REFERRAL_REWARDS_PER_30_DAYS,
-  INVITE_BONUS_STORAGE_LABEL, formatBonusBytes, storageEarnedBytes,
+  INVITE_BONUS_STORAGE_BYTES, formatBonusBytes, storageEarnedBytes,
 } from '../../lib/inviteReward.js';
 import { useFeedback } from '../AppFeedback.jsx';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 function ReferralStat({ label, value, highlight }) {
   return (
@@ -29,6 +31,8 @@ function ReferralStat({ label, value, highlight }) {
 }
 
 export function InviteTab({ user }) {
+  // Read at render, not the module's INVITE_BONUS_STORAGE_LABEL, which is written when the file loads.
+  const INVITE_BONUS_STORAGE_LABEL = formatBonusBytes(INVITE_BONUS_STORAGE_BYTES);
   const feedback = useFeedback();
   const [code, setCode] = useState(null);
   const [stats, setStats] = useState(null);
@@ -83,7 +87,7 @@ export function InviteTab({ user }) {
     if (!link) return;
     try {
       await navigator.clipboard.writeText(referralMessage(link));
-      feedback.toast({ type: 'success', message: 'Invite message copied — paste it anywhere.' });
+      feedback.toast({ type: 'success', message: tr`Invite message copied — paste it anywhere.` });
     } catch (_) {
       feedback.toast({ type: 'info', message: link });
     }
@@ -104,23 +108,25 @@ export function InviteTab({ user }) {
     try { logEventNow(EV.REFERRAL_LINK_SHARED, { surface: 'account_tab', channel }); } catch (_) {}
   };
 
+  const monthsFree = tr`${plural(Number(stats?.monthsEarned) || 0, { one: '# free month', other: '# free months' })}`;
+
   if (loading) {
-    return <div className="settings-section"><div className="settings-empty">Loading…</div></div>;
+    return <div className="settings-section"><div className="settings-empty"><Trans>Loading…</Trans></div></div>;
   }
 
   return (
     <div className="settings-section">
-      <h3 className="settings-section-title">Invite &amp; earn</h3>
+      <h3 className="settings-section-title"><Trans>Invite &amp; earn</Trans></h3>
       <p className="settings-section-hint">
-        Clusters is better with people in it — invite someone to build with you.
+        <Trans>Clusters is better with people in it — invite someone to build with you.
         {' '}You <b>both</b> get free cards: your friend starts with <b>{REFERRAL_BONUS_CARDS} extra cards</b>,
         {' '}and once they place their first card, <b>you get {REFERRAL_REWARD_CARDS} too</b>.
         {' '}You each get {INVITE_BONUS_STORAGE_LABEL} more storage as well.
-        {' '}When a friend <b>upgrades to a paid plan, you get a free month</b> — up to 10 a month.
+        {' '}When a friend <b>upgrades to a paid plan, you get a free month</b> — up to 10 a month.</Trans>
       </p>
 
       {err || !code ? (
-        <div className="settings-empty">Couldn’t load your invite link. Reopen this tab to try again.</div>
+        <div className="settings-empty"><Trans>Couldn’t load your invite link. Reopen this tab to try again.</Trans></div>
       ) : (
         <>
           <div style={{ display: 'flex', gap: 8, marginTop: 14, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -128,7 +134,7 @@ export function InviteTab({ user }) {
               readOnly
               value={link}
               onFocus={(e) => e.target.select()}
-              aria-label="Your invite link"
+              aria-label={tr`Your invite link`}
               style={{
                 flex: '1 1 240px', minWidth: 0, padding: '9px 12px', borderRadius: 10,
                 border: '1px solid var(--line-1, rgba(255,255,255,.14))',
@@ -136,9 +142,9 @@ export function InviteTab({ user }) {
                 color: 'var(--ink-1)', fontSize: 13,
               }}
             />
-            <button type="button" className="settings-btn settings-btn-primary" onClick={copy}>Copy message</button>
+            <button type="button" className="settings-btn settings-btn-primary" onClick={copy}><Trans>Copy message</Trans></button>
             {canNativeShare && (
-              <button type="button" className="settings-btn" onClick={share}>Share…</button>
+              <button type="button" className="settings-btn" onClick={share}><Trans>Share…</Trans></button>
             )}
           </div>
 
@@ -164,35 +170,41 @@ export function InviteTab({ user }) {
           )}
 
           <div style={{ display: 'flex', gap: 22, marginTop: 18, flexWrap: 'wrap' }}>
-            <ReferralStat label="Friends joined" value={stats?.friendsJoined ?? 0} />
-            <ReferralStat label="Got started"    value={stats?.friendsActivated ?? 0} />
-            <ReferralStat label="Cards earned"   value={stats?.cardsEarned ?? 0} highlight />
-            <ReferralStat label="Storage earned" value={formatBonusBytes(storageEarnedBytes(stats?.cardsEarned))} highlight />
+            <ReferralStat label={tr`Friends joined`} value={stats?.friendsJoined ?? 0} />
+            <ReferralStat label={tr`Got started`}    value={stats?.friendsActivated ?? 0} />
+            <ReferralStat label={tr`Cards earned`}   value={stats?.cardsEarned ?? 0} highlight />
+            <ReferralStat label={tr`Storage earned`} value={formatBonusBytes(storageEarnedBytes(stats?.cardsEarned))} highlight />
             {(stats?.monthsEarned ?? 0) > 0 && (
-              <ReferralStat label="Free months" value={stats.monthsEarned} highlight />
+              <ReferralStat label={tr`Free months`} value={stats.monthsEarned} highlight />
             )}
           </div>
           {stats?.pending > 0 && (
             <p className="settings-section-hint" style={{ marginTop: 12 }}>
-              {stats.pending} {stats.pending === 1 ? 'friend has joined but hasn’t' : 'friends have joined but haven’t'}
-              {' '}placed a first card yet. You earn {REFERRAL_REWARD_CARDS} free cards (plus {INVITE_BONUS_STORAGE_LABEL} of storage) for each friend who gets started.
+              {tr`${plural(stats.pending, {
+                one: `# friend has joined but hasn’t placed a first card yet. You earn ${REFERRAL_REWARD_CARDS} free cards (plus ${INVITE_BONUS_STORAGE_LABEL} of storage) for each friend who gets started.`,
+                other: `# friends have joined but haven’t placed a first card yet. You earn ${REFERRAL_REWARD_CARDS} free cards (plus ${INVITE_BONUS_STORAGE_LABEL} of storage) for each friend who gets started.`,
+              })}`}
             </p>
           )}
           {(stats?.rewardsWaiting ?? 0) > 0 && (
             <p className="settings-section-hint" style={{ marginTop: 8 }}>
-              Rewards for {stats.rewardsWaiting} {stats.rewardsWaiting === 1 ? 'friend' : 'friends'} are on the way.
-              {' '}They land as the 30-day limit frees, for up to {REFERRAL_REWARDS_PER_30_DAYS} friends a month.
+              {tr`${plural(stats.rewardsWaiting, {
+                one: `Rewards for # friend are on the way. They land as the 30-day limit frees, for up to ${REFERRAL_REWARDS_PER_30_DAYS} friends a month.`,
+                other: `Rewards for # friends are on the way. They land as the 30-day limit frees, for up to ${REFERRAL_REWARDS_PER_30_DAYS} friends a month.`,
+              })}`}
             </p>
           )}
           {(stats?.friendsPaid ?? 0) > 0 && (
             <p className="settings-section-hint" style={{ marginTop: 8 }}>
-              {stats.friendsPaid} {stats.friendsPaid === 1 ? 'friend' : 'friends'} you invited
-              {' '}upgraded to a paid plan — that’s {stats.monthsEarned} free {stats.monthsEarned === 1 ? 'month' : 'months'} for you.
+              {tr`${plural(stats.friendsPaid, {
+                one: `# friend you invited upgraded to a paid plan — that’s ${monthsFree} for you.`,
+                other: `# friends you invited upgraded to a paid plan — that’s ${monthsFree} for you.`,
+              })}`}
             </p>
           )}
           {together && (
             <p className="settings-section-hint" style={{ marginTop: 12 }}>
-              Working live with someone in the same cluster earns you both cards too: {settingsLine(together.monthCards)}.
+              <Trans>Working live with someone in the same cluster earns you both cards too: {ph({ settingsLine: settingsLine(together.monthCards) })}.</Trans>
             </p>
           )}
         </>

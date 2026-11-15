@@ -5,6 +5,8 @@ import { Reply, Copy, Link as LinkIcon, Pin, Edit, Trash2 } from '../lib/icons.j
 import { QUICK_EMOJIS } from './EmojiPalette.jsx';
 import { withinEditWindow } from '../lib/messageEdit.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // A message's actions in one menu (the card look): the quick reactions along
 // its top (yours lit), then Reply, Copy text, Copy link, Pin, and Edit and
@@ -97,13 +99,13 @@ export function MessageMenu({
   }, [onClose, trigger]);
 
   return createPortal((
-    <div ref={popRef} className="msg-menu" role="menu" aria-label="Message actions"
+    <div ref={popRef} className="msg-menu" role="menu" aria-label={t`Message actions`}
          style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden' }}>
-      <div className="msg-menu-reacts" role="group" aria-label="React">
+      <div className="msg-menu-reacts" role="group" aria-label={t`React`}>
         {QUICK_EMOJIS.map((emoji) => (
           <button key={emoji} type="button" role="menuitemcheckbox" aria-checked={yours.has(emoji)}
                   className={`msg-menu-emoji${yours.has(emoji) ? ' is-on' : ''}`}
-                  aria-label={`React with ${emoji}`}
+                  aria-label={t`React with ${emoji}`}
                   onClick={() => { onClose(true); onReact?.(msg, emoji); }}>
             {emoji}
           </button>
@@ -112,34 +114,34 @@ export function MessageMenu({
       <div className="msg-menu-sep" role="separator" />
       {onReply && (
         <button type="button" role="menuitem" className="msg-menu-item" onClick={run(onReply)}>
-          <Icon as={Reply} size={15} weight="regular" />Reply<span className="msg-menu-key">R</span>
+          <Icon as={Reply} size={15} weight="regular" /><Trans>Reply</Trans><span className="msg-menu-key">R</span>
         </button>
       )}
       {msg.body && onCopyText && (
         <button type="button" role="menuitem" className="msg-menu-item" onClick={run(onCopyText)}>
-          <Icon as={Copy} size={15} weight="regular" />Copy text
+          <Icon as={Copy} size={15} weight="regular" /><Trans>Copy text</Trans>
         </button>
       )}
       {onCopyLink && (
         <button type="button" role="menuitem" className="msg-menu-item" onClick={run(onCopyLink)}>
-          <Icon as={LinkIcon} size={15} weight="regular" />Copy link
+          <Icon as={LinkIcon} size={15} weight="regular" /><Trans>Copy link</Trans>
         </button>
       )}
       {onPin && (
         <button type="button" role="menuitem" className="msg-menu-item" onClick={run(onPin)}>
-          <Icon as={Pin} size={15} weight="regular" />{msg.is_pinned ? 'Unpin' : 'Pin'}
+          <Icon as={Pin} size={15} weight="regular" />{msg.is_pinned ? t`Unpin` : t`Pin`}
         </button>
       )}
       {editable && onEdit && (
         <button type="button" role="menuitem" className="msg-menu-item" onClick={run(onEdit)}>
-          <Icon as={Edit} size={15} weight="regular" />Edit<span className="msg-menu-key">E</span>
+          <Icon as={Edit} size={15} weight="regular" /><Trans>Edit</Trans><span className="msg-menu-key">E</span>
         </button>
       )}
       {isMine && onDelete && (
         <>
           <div className="msg-menu-sep" role="separator" />
           <button type="button" role="menuitem" className="msg-menu-item is-danger" onClick={run(onDelete)}>
-            <Icon as={Trash2} size={15} weight="regular" />Delete
+            <Icon as={Trash2} size={15} weight="regular" /><Trans>Delete</Trans>
           </button>
         </>
       )}

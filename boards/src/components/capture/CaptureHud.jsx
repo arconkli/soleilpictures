@@ -23,16 +23,18 @@ import {
   grabStill, saveClip, saveFile, clipFilename, stillFilename, extForBlob,
   elementCaptureSupported,
 } from '../../lib/captureRecorder.js';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const CHIPS = [
   // Reframe first: on a phone shoot it is the control you reach for between
   // every take, and the HUD scrolls horizontally on a narrow screen.
-  { key: 'reframe',   label: 'Reframe',   on: 'Fitted',  off: 'As-is' },
-  { key: 'clean',     label: 'Chrome',    on: 'Hidden',  off: 'Shown' },
-  { key: 'silence',   label: 'Toasts',    on: 'Muted',   off: 'Live' },
-  { key: 'freeze',    label: 'Grain',     on: 'Off',     off: 'On' },
-  { key: 'spotlight', label: 'Cursor',    on: 'Lit',     off: 'Plain' },
-  { key: 'persona',   label: 'Identity',  on: 'Persona', off: 'Real' },
+  { key: 'reframe',   get label() { return tr`Reframe`; }, get on() { return tr`Fitted`; }, get off() { return tr`As-is`; } },
+  { key: 'clean',     get label() { return tr`Chrome`; }, get on() { return tr`Hidden`; }, get off() { return tr`Shown`; } },
+  { key: 'silence',   get label() { return tr`Toasts`; }, get on() { return tr({ message: 'Muted', context: 'toasts' }); }, get off() { return tr({ message: 'Live', context: 'toasts' }); } },
+  { key: 'freeze',    get label() { return tr`Grain`; }, get on() { return tr`Off`; }, get off() { return tr`On`; } },
+  { key: 'spotlight', get label() { return tr`Cursor`; }, get on() { return tr`Lit`; }, get off() { return tr`Plain`; } },
+  { key: 'persona',   get label() { return tr`Identity`; }, get on() { return tr`Persona`; }, get off() { return tr`Real`; } },
 ];
 
 // How many stand-in collaborators the Cast button steps through.
@@ -244,13 +246,13 @@ export function CaptureHud() {
   // that isn't excluded it ends up in the video. The buttons carry visible
   // labels; anything longer belongs in Settings → Capture.
   const shotLabel = cap.aspect
-    ? `Save a PNG, cropped to ${cap.aspect}`
-    : 'Save a PNG of the whole frame';
+    ? tr`Save a PNG, cropped to ${ph({ aspect: cap.aspect })}`
+    : tr`Save a PNG of the whole frame`;
 
   const recordLabel = !support.ok ? support.reason
-    : recording ? 'Stop and save'
-    : take ? `Record the ${take.label} take`
-    : 'Start recording';
+    : recording ? tr`Stop and save`
+    : take ? tr`Record the ${ph({ label: take.label })} take`
+    : tr`Start recording`;
 
   // One press does the whole thing. Recording starts BEFORE the take so the
   // first move is in frame, and stops on the take's own duration rather than a
@@ -382,9 +384,9 @@ export function CaptureHud() {
       <button type="button"
               className={`capture-hud-dot ${recording ? 'is-live' : ''}`}
               onClick={mustDuck ? onRecord : () => setClosed(false)}
-              aria-label={mustDuck ? 'Stop recording and save'
-                        : recording ? 'Recording — open capture controls to stop'
-                        : 'Open capture controls'}>
+              aria-label={mustDuck ? tr`Stop recording and save`
+                        : recording ? tr`Recording — open capture controls to stop`
+                        : tr`Open capture controls`}>
         <span className="capture-hud-dot-pip" />
       </button>,
       document.body,
@@ -392,9 +394,9 @@ export function CaptureHud() {
   }
 
   return createPortal(
-    <div className="capture-hud" role="group" aria-label="Capture controls"
+    <div className="capture-hud" role="group" aria-label={tr`Capture controls`}
          data-excluded={excluded ? '1' : undefined}>
-      <span className="capture-hud-title">{excluded ? 'Off-camera' : 'Capture'}</span>
+      <span className="capture-hud-title">{excluded ? tr`Off-camera` : tr`Capture`}</span>
 
       {CHIPS.map(c => (
         <button key={c.key} type="button" data-cap={c.key}
@@ -413,17 +415,17 @@ export function CaptureHud() {
           dropdown that opens a system sheet over the canvas is the last thing
           you want mid-take. Tap to step through the shapes. */}
       <button type="button" className="capture-hud-chip" data-cap="frame"
-              aria-label={`Framing guide: ${aspectLabel}. Tap for the next shape.`}
+              aria-label={tr`Framing guide: ${aspectLabel}. Tap for the next shape.`}
               onClick={cycleAspect}>
-        <span className="capture-hud-chip-label">Frame</span>
+        <span className="capture-hud-chip-label"><Trans>Frame</Trans></span>
         <span className="capture-hud-chip-val">{aspectLabel}</span>
       </button>
 
       <button type="button" data-cap="cast" className={`capture-hud-chip ${cap.cast ? 'is-on' : ''}`}
-              aria-label={`Stand-in collaborators: ${cap.cast || 'none'}. Tap to change.`}
+              aria-label={cap.cast ? tr`Stand-in collaborators: ${ph({ cast: cap.cast })}. Tap to change.` : tr`Stand-in collaborators: none. Tap to change.`}
               onClick={cycleCast}>
-        <span className="capture-hud-chip-label">Cast</span>
-        <span className="capture-hud-chip-val">{cap.cast || 'None'}</span>
+        <span className="capture-hud-chip-label"><Trans>Cast</Trans></span>
+        <span className="capture-hud-chip-val">{cap.cast || tr`None`}</span>
       </button>
 
       {/* The camera. A tweened move is what separates a product video from
@@ -432,21 +434,21 @@ export function CaptureHud() {
           components below this one. */}
       <button type="button" className="capture-hud-btn" data-cap="fit"
               onClick={() => moveCamera('fit')}>
-        Fit
+        <Trans>Fit</Trans>
       </button>
       <button type="button" className="capture-hud-btn" data-cap="push"
               onClick={() => moveCamera('selection')}>
-        Push in
+        <Trans>Push in</Trans>
       </button>
 
       {/* A take is a written-down sequence — establish, hold, go in, come back.
           Doing that by hand means hitting two buttons at the right moments
           while also recording, and getting it identical on the retake is luck. */}
       <button type="button" className="capture-hud-chip" data-cap="take"
-              aria-label={`Take: ${take ? take.label : 'none'}. Tap to change.`}
+              aria-label={take ? tr`Take: ${ph({ label: take.label })}. Tap to change.` : tr`Take: none. Tap to change.`}
               onClick={cycleTake}>
-        <span className="capture-hud-chip-label">Take</span>
-        <span className="capture-hud-chip-val">{take ? take.label : 'None'}</span>
+        <span className="capture-hud-chip-label"><Trans>Take</Trans></span>
+        <span className="capture-hud-chip-val">{take ? take.label : tr`None`}</span>
       </button>
 
       {/* Plain, not gold: gold is the house's active/selection/focus colour and
@@ -454,9 +456,9 @@ export function CaptureHud() {
       <button type="button" className="capture-hud-btn" data-cap="play"
               onClick={onPlay}
               aria-label={take
-                ? `Hide these controls and play the ${take.label} take. Start your screen recorder first.`
-                : 'Hide these controls for a few seconds, so an OS screenshot has none of this tool in it.'}>
-        {take ? 'Play' : 'Hide'}
+                ? tr`Hide these controls and play the ${ph({ label: take.label })} take. Start your screen recorder first.`
+                : tr`Hide these controls for a few seconds, so an OS screenshot has none of this tool in it.`}>
+        {take ? tr`Play` : tr`Hide`}
       </button>
 
       <span className="capture-hud-sep" />
@@ -476,7 +478,7 @@ export function CaptureHud() {
                 disabled={shooting}
                 aria-label={shotLabel}
                 onClick={onShot}>
-          {shooting ? '…' : 'Shot'}
+          {shooting ? '…' : tr`Shot`}
         </button>
       )}
 
@@ -489,16 +491,16 @@ export function CaptureHud() {
                 aria-label={recordLabel}
                 onClick={onRecord}>
           <span className="capture-hud-rec-dot" />
-          <span>{recording ? 'Stop' : take ? 'Record' : 'Rec'}</span>
+          <span>{recording ? tr`Stop` : take ? tr`Record` : tr`Rec`}</span>
         </button>
       )}
 
       <button type="button" className="capture-hud-btn" data-cap="reset"
-              onClick={resetCapture}>Reset</button>
+              onClick={resetCapture}><Trans>Reset</Trans></button>
 
       <button type="button" className="capture-hud-icon" data-cap="close"
               onClick={() => setClosed(true)}
-              aria-label="Close capture controls — leaves a dot">
+              aria-label={tr`Close capture controls — leaves a dot`}>
         <Icon as={X} size={12} />
       </button>
     </div>,

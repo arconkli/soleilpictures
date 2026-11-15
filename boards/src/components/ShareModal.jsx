@@ -52,10 +52,8 @@ import {
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { ASSIGNABLE_ROLES } from '../lib/workspaceRoles.js';
 import { parseEmails } from '../lib/inviteSubmit.js';
-import {
-  editorLimitNote, editorLimitFull, editorLimitRefusal, editorLimitRefusalMessage,
-  firstName, holdsPlace, ownerPlan,
-} from '../lib/editorLimit.js';
+import { editorLimitFull, editorLimitRefusal, firstName, holdsPlace } from '../lib/editorLimit.js';
+import { editorLimitNote, editorLimitRefusalMessage } from '../lib/editorLimitWords.js';
 import { editorLimitAllowed } from '../lib/appHost.js';
 import { useEditorLimit } from '../hooks/useEditorLimit.js';
 import { EditorLimitNote } from './EditorLimitNote.jsx';
@@ -75,6 +73,18 @@ import {
 import { Icon as Glyph } from './Icon.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { initialOf } from '../lib/graphemes.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { formatDate, joinSentences } from '../lib/intlFormat.js';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../lib/errorWords.js';
+
+// A row's second line: its parts, each a whole message, joined by a middle dot.
+const dotted = (...parts) => parts.filter(Boolean).join(' · ');
+// Who failed to be invited, as the toasts say it. The stored reason stays the
+// English word inviteSubmit.js writes and InviteStep compares; only its showing
+// is translated.
+const failReason = (reason) => (reason === 'already a member' ? tr`already a member` : reason);
+const failSummary = (fail) => fail.slice(0, 3).map((f) => `${f.email} (${failReason(f.reason)})`).join(', ') + (fail.length > 3 ? '…' : '');
 
 // Turn an expiry choice into a timestamp. 'never' is an explicit null, which
 // the RPCs read as "no expiry" — undefined would take the server default.
@@ -437,13 +447,17 @@ export function ShareModal({
 
   // What a copy says. A view link lets people join as viewers, and the toast
   // says so; an invite (edit) link keeps its own wording at its call sites.
-  const VIEW_COPIED = 'Link copied. Anyone with it can view and join.';
+  const viewCopied = () => tr`Link copied. Anyone with it can view and join.`;
   // An edit link: they sign in and join as editors, or as viewers while the
   // plan has no editor places left (0521).
-  // A function: planWord is declared further down this component.
-  const editCopied = () => (editFull
-    ? `Link copied. While ${planWord} is full, anyone with it joins as a viewer.`
-    : 'Link copied. Anyone with it can join and edit.');
+  // A function: ownerName is declared further down this component.
+  const editCopied = () => {
+    if (!editFull) return tr`Link copied. Anyone with it can join and edit.`;
+    if (limitCap?.isAccountOwner) return tr`Link copied. While your plan is full, anyone with it joins as a viewer.`;
+    return ownerName
+      ? tr`Link copied. While ${ownerName}’s plan is full, anyone with it joins as a viewer.`
+      : tr`Link copied. While the owner’s plan is full, anyone with it joins as a viewer.`;
+  };
 
   // ── Link access ────────────────────────────────────────────────────────
 
@@ -505,11 +519,11 @@ export function ShareModal({
       // point there instead of pretending it copied.
       feedback.toast(copied
         ? { type: 'success',
-            message: kind === 'invite' ? editCopied() : VIEW_COPIED }
-        : { type: 'warning', message: 'Link ready — copying failed, use Copy under Link settings.', ttl: 7000 });
+            message: kind === 'invite' ? editCopied() : viewCopied() }
+        : { type: 'warning', message: tr`Link ready — copying failed, use Copy under Link settings.`, ttl: 7000 });
       await refreshLinks();
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'share_link_failed', message: 'Could not create the link — try again. (' + (e.message || e) + ')' });
+      feedback.toast({ type: 'error', code: 'share_link_failed', message: tr`Could not create the link — try again. (${ph({ reason: shownError(e) })})` });
     } finally {
       setBusyLink(false);
     }
@@ -528,17 +542,17 @@ export function ShareModal({
       // on anyone else's, and trying them all made the switch fail forever.
       // The rest are named, and the status line keeps counting them as live.
       const { mine, others } = revocableLinks(publicLinks, { isManager, selfUserId });
-      const othersNote = others.length === 0 ? ''
-        : others.length === 1
-          ? ' 1 link someone else created stays live — only they, the owner or a co-owner can revoke it.'
-          : ` ${others.length} links other people created stay live — only they, the owner or a co-owner can revoke them.`;
+      const othersCount = others.length;
+      const othersNote = othersCount === 0 ? ''
+        : tr`${plural(othersCount, { one: '# link someone else created stays live — only they, the owner or a co-owner can revoke it.', other: '# links other people created stay live — only they, the owner or a co-owner can revoke them.' })}`;
+      const withNote = (sentence) => joinSentences(sentence, othersNote);
       if (mine.length > 0) {
         const ok = await feedback.confirm({
           title: others.length > 0
-            ? (mine.length === 1 ? 'Revoke your link?' : `Revoke your ${mine.length} links?`)
-            : (mine.length === 1 ? 'Revoke this link?' : `Revoke all ${mine.length} links?`),
-          message: 'Anyone using them will lose access immediately. People invited by email keep their access.' + othersNote,
-          confirmLabel: 'Revoke',
+            ? tr`${plural(mine.length, { 1: 'Revoke your link?', other: 'Revoke your # links?' })}`
+            : tr`${plural(mine.length, { 1: 'Revoke this link?', other: 'Revoke all # links?' })}`,
+          message: withNote(tr`Anyone using them will lose access immediately. People invited by email keep their access.`),
+          confirmLabel: tr`Revoke`,
           danger: true,
         });
         if (!ok) return;   // the picker does not move on a cancelled confirm
@@ -548,12 +562,12 @@ export function ShareModal({
         const failed = results.filter(r => r.status === 'rejected').length;
         await refreshLinks();
         feedback.toast(failed
-          ? { type: 'error', code: 'link_revoke_failed', message: `Could not revoke ${failed} of ${mine.length} — try again.` }
-          : { type: 'success', message: (mine.length === 1 ? 'Link revoked.' : 'Links revoked.') + othersNote,
+          ? { type: 'error', code: 'link_revoke_failed', message: tr`Could not revoke ${failed} of ${ph({ total: mine.length })} — try again.` }
+          : { type: 'success', message: withNote(tr`${plural(mine.length, { one: 'Link revoked.', other: 'Links revoked.' })}`),
               ...(othersNote ? { ttl: 8000 } : {}) });
         if (failed) return;
       } else if (others.length > 0) {
-        feedback.toast({ type: 'info', message: othersNote.trim(), ttl: 8000 });
+        feedback.toast({ type: 'info', message: othersNote, ttl: 8000 });
       }
       setAccessMode('off');
     } else {
@@ -590,24 +604,24 @@ export function ShareModal({
     const copied = await copyLinkUrl(token);
     const isInvite = publicLinks.find(l => l.token === token)?.kind === 'invite';
     feedback.toast(copied
-      ? { type: 'success', message: isInvite ? 'Link copied to clipboard.' : VIEW_COPIED }
+      ? { type: 'success', message: isInvite ? tr`Link copied to clipboard.` : viewCopied() }
       : { type: 'info', message: `${window.location.origin}/share/${token}` });
   };
 
   const onRevokePublicLink = async (token) => {
     const ok = await feedback.confirm({
-      title: 'Revoke this public link?',
-      message: 'Anyone using this link will lose access immediately.',
-      confirmLabel: 'Revoke',
+      title: tr`Revoke this public link?`,
+      message: tr`Anyone using this link will lose access immediately.`,
+      confirmLabel: tr`Revoke`,
       danger: true,
     });
     if (!ok) return;
     try {
       await revokePublicLink(token);
       setPublicLinks(arr => arr.filter(l => l.token !== token));
-      feedback.toast({ type: 'success', message: 'Link revoked.' });
+      feedback.toast({ type: 'success', message: tr`Link revoked.` });
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'link_revoke_failed', message: 'Could not revoke: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'link_revoke_failed', message: tr`Could not revoke: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -619,7 +633,7 @@ export function ShareModal({
     try {
       await setPublicLinkSubboards({ token: link.token, include: next });
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'link_subboards_failed', message: 'Could not update link: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'link_subboards_failed', message: tr`Could not update link: ${ph({ reason: shownError(e) })}` });
       await refreshLinks();
     }
   };
@@ -632,7 +646,7 @@ export function ShareModal({
     try {
       await setPublicLinkIndexing({ token: link.token, allow: next });
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'link_indexing_failed', message: 'Could not update link: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'link_indexing_failed', message: tr`Could not update link: ${ph({ reason: shownError(e) })}` });
       await refreshLinks();
     }
   };
@@ -653,10 +667,12 @@ export function ShareModal({
     const profile = userProfiles.get(uid);
     const peerName = maskName(peer?.user?.name, uid);
     const peerEmail = maskEmail(peer?.user?.email, uid);
+    // A stand-in word is shown, never stored or compared: placeholder says so
+    // (firstName() reads "Member" and "You" as no name).
+    const named = peerName || profile?.name || peerEmail || profile?.email;
     return {
-      name: peerName || profile?.name
-        || peerEmail || profile?.email
-        || (uid === selfUserId ? 'You' : 'Member'),
+      name: named || (uid === selfUserId ? tr`You` : tr`Member`),
+      placeholder: !named,
       email: peerEmail || profile?.email || null,
       online: !!peer,
     };
@@ -665,13 +681,18 @@ export function ShareModal({
   // Whose plan it is, by first name, for anyone but its owner: "Alex’s plan".
   // A workspace the panel knows only by a share (created_by null) says "the
   // owner".
-  const ownerName = !limitCap?.isAccountOwner && workspace?.created_by
-    ? firstName(userMeta(workspace.created_by).name) : null;
-  const planWord = limitCap?.isAccountOwner ? 'your plan' : ownerPlan(ownerName);
+  const ownerMeta = !limitCap?.isAccountOwner && workspace?.created_by ? userMeta(workspace.created_by) : null;
+  const ownerName = ownerMeta ? firstName(ownerMeta.placeholder ? null : ownerMeta.name) : null;
+  // One whole sentence per case, so each language words "the owner" itself.
+  const joinWhileFull = () => (limitCap?.isAccountOwner
+    ? tr`They sign in, then join as viewers while your plan is full`
+    : ownerName
+      ? tr`They sign in, then join as viewers while ${ownerName}’s plan is full`
+      : tr`They sign in, then join as viewers while the owner’s plan is full`);
   const limitNote = editorLimitNote(limitCap, { ownerName, asked: askState === 'sent', canBuySeat: seatBuyer });
   // With addresses to invite to edit, the note gives the seats' price, or why
   // there is none.
-  const seatWho = seatFor.length === 1 ? seatFor[0] : `${seatFor.length} people`;
+  const seatWho = seatFor.length === 1 ? seatFor[0] : tr`${plural(seatFor.length, { one: '# person', other: '# people' })}`;
   const shownNote = !limitNote || !seatFor.length ? limitNote : {
     ...limitNote,
     body: quoteOk ? addSeatInviteLine(quote.p, seatWho)
@@ -707,7 +728,7 @@ export function ShareModal({
     if (result === 'sent' || result === 'already_sent') { setAskState('sent'); return; }
     setAskState(null);
     if (result === 'error') {
-      feedback.toast({ type: 'error', code: 'editor_ask_failed', message: 'Could not ask — check your connection and try again.' });
+      feedback.toast({ type: 'error', code: 'editor_ask_failed', message: tr`Could not ask — check your connection and try again.` });
       return;
     }
     editorLimit.refresh();   // 'not_full' or 'owner': there is room after all
@@ -723,10 +744,11 @@ export function ShareModal({
 
   const submitInvite = async () => {
     const { valid: emails, invalid } = parseEmails(inviteEmail);
+    const invalidList = invalid.join(', ');
     if (invalid.length > 0) {
       feedback.toast({
         type: 'warning',
-        message: `Skipped ${invalid.length === 1 ? 'an invalid address' : `${invalid.length} invalid addresses`}: ${invalid.join(', ')}`,
+        message: tr`${plural(invalid.length, { 1: `Skipped an invalid address: ${invalidList}`, other: `Skipped # invalid addresses: ${invalidList}` })}`,
       });
     }
     if (emails.length === 0 || inviting) return;
@@ -830,12 +852,14 @@ export function ShareModal({
       const sent = granted.length + pending.length;
       const unsent = emails.slice(limitIdx);
       const why = editorLimitRefusalMessage(editorStop, { ownerName });
-      const failed = fail.length
-        ? ` Also failed: ${fail.slice(0, 3).map(f => `${f.email} (${f.reason})`).join(', ')}${fail.length > 3 ? '…' : ''}`
-        : '';
+      const failList = failSummary(fail);
       feedback.toast({
         type: 'warning',
-        message: sent > 0 ? `Sent ${sent}; ${unsent.length} not sent. ${why}${failed}` : `${why}${failed}`,
+        message: sent > 0
+          ? (fail.length
+            ? tr`Sent ${sent}; ${ph({ count: unsent.length })} not sent. ${why} Also failed: ${failList}`
+            : tr`Sent ${sent}; ${ph({ count: unsent.length })} not sent. ${why}`)
+          : (fail.length ? tr`${why} Also failed: ${failList}` : why),
         ttl: 9000,
       });
       try {
@@ -856,14 +880,14 @@ export function ShareModal({
       const reason = limitMsg.replace(/^invite limit reached:\s*/i, '');
       // Addresses that failed for their own reason before the limit hit are
       // reported too; they are not put back in the box.
-      const failed = fail.length
-        ? ` Also failed: ${fail.slice(0, 3).map(f => `${f.email} (${f.reason})`).join(', ')}${fail.length > 3 ? '…' : ''}`
-        : '';
+      const failList = failSummary(fail);
       feedback.toast({
         type: 'warning',
         message: sent > 0
-          ? `Sent ${sent}; ${unsent.length} not sent. ${reason}${failed}`
-          : `Not sent. ${reason}${failed}`,
+          ? (fail.length
+            ? tr`Sent ${sent}; ${ph({ count: unsent.length })} not sent. ${reason} Also failed: ${failList}`
+            : tr`Sent ${sent}; ${ph({ count: unsent.length })} not sent. ${reason}`)
+          : (fail.length ? tr`Not sent. ${reason} Also failed: ${failList}` : tr`Not sent. ${reason}`),
       });
       // The unsent addresses stay in the box, ready for tomorrow.
       setInviteEmail(unsent.join(', '));
@@ -880,25 +904,25 @@ export function ShareModal({
         feedback.toast({
           type: 'success',
           message: wasPending
-            ? `Invite sent to ${only}. They'll get access when they sign up.`
+            ? tr`Invite sent to ${only}. They'll get access when they sign up.`
             : (isWorkspaceInvite
-                ? `Added ${only} to "${workspace.name}".`
-                : `Shared "${board.name}" with ${only}.`),
+                ? tr`Added ${only} to "${ph({ name: workspace.name })}".`
+                : tr`Shared "${ph({ name: board.name })}" with ${only}.`),
         });
       } else if (pending.length > 0 && granted.length > 0) {
         feedback.toast({
           type: 'success',
-          message: `Invited ${granted.length}, plus ${pending.length} pending signup.`,
+          message: tr`Invited ${ph({ count: granted.length })}, plus ${ph({ count2: pending.length })} pending signup.`,
         });
       } else if (pending.length > 0) {
         feedback.toast({
           type: 'success',
-          message: `${pending.length} invite${pending.length === 1 ? '' : 's'} sent — they'll get access when they sign up.`,
+          message: tr`${plural(pending.length, { one: "# invite sent — they'll get access when they sign up.", other: "# invites sent — they'll get access when they sign up." })}`,
         });
       } else {
         feedback.toast({
           type: 'success',
-          message: `Invited ${granted.length} ${granted.length === 1 ? 'person' : 'people'}.`,
+          message: tr`${plural(granted.length, { one: 'Invited # person.', other: 'Invited # people.' })}`,
         });
       }
     } else if (okCount === 0) {
@@ -906,13 +930,15 @@ export function ShareModal({
         type: 'error',
         code: 'invite_failed',
         message: emails.length === 1
-          ? `Invite failed: ${fail[0].reason}`
-          : `Failed to invite ${fail.length}: ${fail.slice(0, 3).map(f => `${f.email} (${f.reason})`).join(', ')}${fail.length > 3 ? '…' : ''}`,
+          ? tr`Invite failed: ${ph({ reason: failReason(fail[0].reason) })}`
+          : tr`Failed to invite ${ph({ count: fail.length })}: ${ph({ list: failSummary(fail) })}`,
       });
     } else {
       feedback.toast({
         type: 'info',
-        message: `Invited ${okCount}${pending.length > 0 ? ` (${pending.length} pending signup)` : ''}, failed ${fail.length}: ${fail.slice(0, 3).map(f => `${f.email} (${f.reason})`).join(', ')}${fail.length > 3 ? '…' : ''}`,
+        message: pending.length > 0
+          ? tr`Invited ${okCount} (${ph({ pending: pending.length })} pending signup), failed ${ph({ failed: fail.length })}: ${ph({ list: failSummary(fail) })}`
+          : tr`Invited ${okCount}, failed ${ph({ failed: fail.length })}: ${ph({ list: failSummary(fail) })}`,
       });
     }
 
@@ -922,9 +948,9 @@ export function ShareModal({
 
   const onRevokePending = async (row) => {
     const ok = await feedback.confirm({
-      title: `Revoke invite to ${row.email}?`,
-      message: `They'll no longer get access if they sign up.`,
-      confirmLabel: 'Revoke',
+      title: tr`Revoke invite to ${ph({ email: row.email })}?`,
+      message: tr`They'll no longer get access if they sign up.`,
+      confirmLabel: tr`Revoke`,
       danger: true,
     });
     if (!ok) return;
@@ -933,7 +959,7 @@ export function ShareModal({
       setPendingBoardInvites(arr => arr.filter(x => x.id !== row.id));
       setPendingWorkspaceInvites(arr => arr.filter(x => x.id !== row.id));
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'invite_revoke_failed', message: 'Could not revoke: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'invite_revoke_failed', message: tr`Could not revoke: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -950,7 +976,7 @@ export function ShareModal({
       if (error) {
         const full = editorLimitRefusal(error);
         if (full) onEditorLimitRefused(full, 'edit_request');
-        else feedback.toast({ type: 'error', code: 'edit_answer_failed', message: error.message || 'Could not answer — try again.' });
+        else feedback.toast({ type: 'error', code: 'edit_answer_failed', message: shownError(error, tr`Could not answer — try again.`) });
         return;
       }
       setAsks((rows) => rows.filter((r) => r.request_id !== id));
@@ -961,7 +987,7 @@ export function ShareModal({
         editorLimit.refresh();
       }
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'edit_answer_failed', message: e?.message || 'Could not answer — try again.' });
+      feedback.toast({ type: 'error', code: 'edit_answer_failed', message: shownError(e, tr`Could not answer — try again.`) });
     } finally {
       done();
     }
@@ -976,15 +1002,15 @@ export function ShareModal({
     } catch (e) {
       const full = editorLimitRefusal(e);
       if (full) { onEditorLimitRefused(full, 'share_role'); return; }
-      feedback.toast({ type: 'error', code: 'share_role_failed', message: 'Could not change role: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'share_role_failed', message: tr`Could not change role: ${ph({ reason: shownError(e) })}` });
     }
   };
 
   const onRemoveShare = async (share) => {
     const ok = await feedback.confirm({
-      title: `Remove ${share.email}'s access?`,
-      message: `They'll lose access to "${board.name}" immediately. You can undo right after.`,
-      confirmLabel: 'Remove',
+      title: tr`Remove ${ph({ email: share.email })}'s access?`,
+      message: tr`They'll lose access to "${ph({ name: board.name })}" immediately. You can undo right after.`,
+      confirmLabel: tr`Remove`,
       danger: true,
     });
     if (!ok) return;
@@ -998,7 +1024,7 @@ export function ShareModal({
       // Not share_board: on a removed row that takes the new-share path,
       // emailing them "shared with you" and spending an invite (0405).
       undoToast(feedback, {
-        message: `Removed ${share.email}'s access`,
+        message: tr`Removed ${ph({ email: share.email })}'s access`,
         onUndo: async () => {
           try {
             await restoreBoardShare({ boardId: board.id, userId: share.user_id });
@@ -1007,12 +1033,12 @@ export function ShareModal({
           } catch (e) {
             const full = editorLimitRefusal(e);
             if (full) { onEditorLimitRefused(full, 'restore'); return; }
-            feedback.toast({ type: 'error', code: 'share_restore_failed', message: 'Could not restore access: ' + (e.message || e) });
+            feedback.toast({ type: 'error', code: 'share_restore_failed', message: tr`Could not restore access: ${ph({ reason: shownError(e) })}` });
           }
         },
       });
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'share_remove_failed', message: 'Could not remove: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'share_remove_failed', message: tr`Could not remove: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -1022,32 +1048,32 @@ export function ShareModal({
     // Every limit follows the owner: say so, and offer co-owner (which keeps
     // this plan covering the workspace) instead. Never name their plan.
     const ok = await feedback.confirm({
-      title: `Transfer ownership to ${label}?`,
-      message: `Its cards, files and storage will count against ${label}'s plan instead of yours, and everyone in it will work within that plan's limits. To let them run it while your plan keeps covering it, make them a co-owner instead. If you transfer, you'll be an editor of "${workspace.name}" and only they can transfer it back.`,
-      confirmLabel: 'Transfer ownership',
-      altLabel: member.role === 'coowner' ? null : 'Make co-owner instead',
+      title: tr`Transfer ownership to ${label}?`,
+      message: tr`Its cards, files and storage will count against ${label}'s plan instead of yours, and everyone in it will work within that plan's limits. To let them run it while your plan keeps covering it, make them a co-owner instead. If you transfer, you'll be an editor of "${ph({ name: workspace.name })}" and only they can transfer it back.`,
+      confirmLabel: tr`Transfer ownership`,
+      altLabel: member.role === 'coowner' ? null : tr`Make co-owner instead`,
       danger: true,
     });
     if (ok === 'alt') {
       try {
         await setWorkspaceMemberRole({ workspaceId: workspace.id, userId: member.user_id, role: 'coowner' });
-        feedback.toast({ type: 'success', message: `${label} is now a co-owner of "${workspace.name}".` });
+        feedback.toast({ type: 'success', message: tr`${label} is now a co-owner of "${ph({ name: workspace.name })}".` });
         onMembersChanged?.();
         onWorkspacesChanged?.();
       } catch (e) {
-        feedback.toast({ type: 'error', code: 'coowner_make_failed', message: 'Could not make them a co-owner: ' + (e.message || e) });
+        feedback.toast({ type: 'error', code: 'coowner_make_failed', message: tr`Could not make them a co-owner: ${ph({ reason: shownError(e) })}` });
       }
       return;
     }
     if (!ok) return;
     try {
       await transferWorkspaceOwnership({ workspaceId: workspace.id, newOwnerId: member.user_id });
-      feedback.toast({ type: 'success', message: `Transferred "${workspace.name}" to ${label}.` });
+      feedback.toast({ type: 'success', message: tr`Transferred "${ph({ name: workspace.name })}" to ${label}.` });
       onMembersChanged?.();
       onWorkspacesChanged?.();
       onClose?.();   // close modal — the user is no longer the owner; modal switches to read-only
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'workspace_transfer_failed', message: 'Could not transfer: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'workspace_transfer_failed', message: tr`Could not transfer: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -1055,18 +1081,18 @@ export function ShareModal({
     const meta = userMeta(member.user_id);
     const label = meta.email || meta.name;
     const ok = await feedback.confirm({
-      title: `Remove ${label}?`,
-      message: `They'll lose access to "${workspace.name}" and all its clusters. Clusters shared to them directly in this workspace are unshared as well.`,
-      confirmLabel: 'Remove member',
+      title: tr`Remove ${label}?`,
+      message: tr`They'll lose access to "${ph({ name: workspace.name })}" and all its clusters. Clusters shared to them directly in this workspace are unshared as well.`,
+      confirmLabel: tr`Remove member`,
       danger: true,
     });
     if (!ok) return;
     try {
       await removeWorkspaceMember({ workspaceId: workspace.id, userId: member.user_id });
-      feedback.toast({ type: 'success', message: `Removed ${label}.` });
+      feedback.toast({ type: 'success', message: tr`Removed ${label}.` });
       onMembersChanged?.();
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'member_remove_failed', message: 'Could not remove: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'member_remove_failed', message: tr`Could not remove: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -1083,15 +1109,17 @@ export function ShareModal({
       feedback.toast({
         type: 'success',
         message: value === 'coowner'
-          ? `${label} is now a co-owner of "${workspace.name}".`
-          : `${label} can now ${value === 'viewer' ? 'view' : 'edit'} every cluster in "${workspace.name}".`,
+          ? tr`${label} is now a co-owner of "${ph({ name: workspace.name })}".`
+          : value === 'viewer'
+            ? tr`${label} can now view every cluster in "${ph({ name: workspace.name })}".`
+            : tr`${label} can now edit every cluster in "${ph({ name: workspace.name })}".`,
       });
       onMembersChanged?.();
       onWorkspacesChanged?.();
     } catch (e) {
       const full = editorLimitRefusal(e);
       if (full) { onEditorLimitRefused(full, 'member_role'); return; }
-      feedback.toast({ type: 'error', code: 'member_role_failed', message: 'Could not change their access: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'member_role_failed', message: tr`Could not change their access: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -1117,16 +1145,18 @@ export function ShareModal({
   const onShareToWorkspace = async (share, role) => {
     if (widening.current.has(share.user_id)) return;
     const ok = await feedback.confirm({
-      title: `Give ${share.email} the whole workspace?`,
-      message: `They'll be able to ${role === 'viewer' ? 'open' : 'edit'} every cluster in "${workspace.name}", not just this one, and they'll get an email saying so.`,
-      confirmLabel: 'Add to workspace',
+      title: tr`Give ${ph({ email: share.email })} the whole workspace?`,
+      message: role === 'viewer'
+        ? tr`They'll be able to open every cluster in "${ph({ name: workspace.name })}", not just this one, and they'll get an email saying so.`
+        : tr`They'll be able to edit every cluster in "${ph({ name: workspace.name })}", not just this one, and they'll get an email saying so.`,
+      confirmLabel: tr`Add to workspace`,
     });
     if (!ok) return;
     widening.current.add(share.user_id);
     try {
       const status = await inviteWorkspaceMember({ workspaceId: workspace.id, email: share.email, role });
       if (status !== 'granted') {
-        feedback.toast({ type: 'info', message: `${share.email} is already in "${workspace.name}" — change their access on their workspace row.` });
+        feedback.toast({ type: 'info', message: tr`${ph({ email: share.email })} is already in "${ph({ name: workspace.name })}" — change their access on their workspace row.` });
         return;
       }
       try {
@@ -1141,42 +1171,46 @@ export function ShareModal({
       onMembersChanged?.();
       onSharesChanged?.();
       feedback.toast(unshared
-        ? { type: 'success', message: `Added ${share.email} to "${workspace.name}".` }
-        : { type: 'warning', message: `Added ${share.email} to "${workspace.name}", but their separate access to this cluster is still listed — remove it from their row.`, ttl: 8000 });
+        ? { type: 'success', message: tr`Added ${ph({ email: share.email })} to "${ph({ name: workspace.name })}".` }
+        : { type: 'warning', message: tr`Added ${ph({ email: share.email })} to "${ph({ name: workspace.name })}", but their separate access to this cluster is still listed — remove it from their row.`, ttl: 8000 });
     } catch (e) {
       const msg = e?.message || String(e);
       const full = editorLimitRefusal(e);
       if (full) { onEditorLimitRefused(full, 'widen'); return; }
       feedback.toast(/invite limit reached/i.test(msg)
         ? { type: 'warning', message: msg.replace(/^invite limit reached:\s*/i, '') }
-        : { type: 'error', code: 'member_widen_failed', message: 'Could not add them to the workspace: ' + msg });
+        : { type: 'error', code: 'member_widen_failed', message: tr`Could not add them to the workspace: ${ph({ reason: msg })}` });
     } finally {
       widening.current.delete(share.user_id);
     }
   };
 
-  const ROLE_LABEL = { viewer: 'Viewer', editor: 'Editor', workspace: 'Workspace member', workspaceviewer: 'Workspace viewer' };
+  const ROLE_LABEL = { viewer: tr`Viewer`, editor: tr`Editor`, workspace: tr`Workspace member`, workspaceviewer: tr`Workspace viewer` };
   // What one person can do, as the right-hand column says it. Workspace-wide
   // access says so first, so a bare "Can edit" always means this cluster.
   const MEMBER_ACCESS = {
-    owner: 'Owner', coowner: 'Co-owner', editor: 'Workspace · can edit', viewer: 'Workspace · can view',
-    admin: 'Workspace · admin', service: 'Service account',
+    owner: tr`Owner`, coowner: tr`Co-owner`, editor: tr`Workspace · can edit`, viewer: tr`Workspace · can view`,
+    admin: tr`Workspace · admin`, service: tr`Service account`,
   };
-  const SHARE_ACCESS = { editor: 'Can edit', viewer: 'Can view' };
+  const SHARE_ACCESS = { editor: tr`Can edit`, viewer: tr`Can view` };
 
   // What an invitation will let that person do, said under the invite row by
   // name — this cluster's or the workspace's — so the reach is never a guess.
-  const wsName = workspace?.name || 'this workspace';
-  const boardName = board?.name || 'this cluster';
+  const wsName = workspace?.name || tr`this workspace`;
+  const boardName = board?.name || tr`this cluster`;
   // "Editors are free" stops being true with the editor limit (held).
-  const freeEditors = editorLimitAllowed() ? '' : ' Editors are free on every plan.';
+  const freeEditors = !editorLimitAllowed();
   const roleHint = inviteRole === 'viewer'
-    ? `They can open “${boardName}” and its sub-clusters, comment and vote, but can’t change anything.`
+    ? tr`They can open “${boardName}” and its sub-clusters, comment and vote, but can’t change anything.`
     : inviteRole === 'workspace'
-      ? `They can add, move and delete cards in every cluster in “${wsName}”.${freeEditors}`
+      ? (freeEditors
+        ? tr`They can add, move and delete cards in every cluster in “${wsName}”. Editors are free on every plan.`
+        : tr`They can add, move and delete cards in every cluster in “${wsName}”.`)
       : inviteRole === 'workspaceviewer'
-        ? `They can open every cluster in “${wsName}”, comment and vote, but can’t change anything.`
-        : `They can add, move and delete cards in “${boardName}” and its sub-clusters.${freeEditors}`;
+        ? tr`They can open every cluster in “${wsName}”, comment and vote, but can’t change anything.`
+        : (freeEditors
+          ? tr`They can add, move and delete cards in “${boardName}” and its sub-clusters. Editors are free on every plan.`
+          : tr`They can add, move and delete cards in “${boardName}” and its sub-clusters.`);
 
   // Gold marks the action the panel is about to take, and only one control
   // carries it. At rest that is Copy link, at the top — it has focus, so
@@ -1193,20 +1227,20 @@ export function ShareModal({
   const linkStatus = () => {
     if (accessMode === 'off') {
       return live.length > 0
-        ? `Only the people below, plus ${live.length} link${live.length === 1 ? '' : 's'} still live`
-        : 'Only the people below can open it';
+        ? tr`${plural(live.length, { one: 'Only the people below, plus # link still live', other: 'Only the people below, plus # links still live' })}`
+        : tr`Only the people below can open it`;
     }
     // While the plan is full, an edit link lets people in to view (0521).
     const what = accessMode === 'edit'
-      ? (editFull ? `They sign in, then join as viewers while ${planWord} is full` : 'They sign in, then join as editors')
-      : 'Can view and join';
-    if (!currentLink) return `${what} · no link yet`;
+      ? (editFull ? joinWhileFull() : tr`They sign in, then join as editors`)
+      : tr`Can view and join`;
+    if (!currentLink) return dotted(what, tr`no link yet`);
     const expiry = currentLink.expires_at
-      ? `expires ${new Date(currentLink.expires_at).toLocaleDateString()}` : 'never expires';
+      ? tr`expires ${ph({ date: formatDate(new Date(currentLink.expires_at)) })}` : tr`never expires`;
     if (linkKind(currentLink) === 'invite') {
-      return `${what} · ${currentLink.joined_count > 0 ? `${currentLink.joined_count} joined` : 'nobody joined yet'} · ${expiry}`;
+      return dotted(what, currentLink.joined_count > 0 ? tr`${ph({ count: currentLink.joined_count })} joined` : tr`nobody joined yet`, expiry);
     }
-    return `${what} · ${currentLink.include_subboards ? 'includes sub-clusters' : 'this cluster only'} · ${expiry}`;
+    return dotted(what, currentLink.include_subboards ? tr`includes sub-clusters` : tr`this cluster only`, expiry);
   };
 
   // Inherited rows minus anyone the list already names (a share of their own
@@ -1223,17 +1257,22 @@ export function ShareModal({
       {/* The two link kinds are only distinguishable here and in the sub-line,
           so this icon is load-bearing — it can be neutral, but not absent. */}
       <span className="share-avatar" style={{ background: 'var(--bg-3)', color: 'var(--ink-1)' }}
-            aria-label={linkKind(l) === 'invite' ? 'Invite link' : 'View-only link'}>
+            aria-label={linkKind(l) === 'invite' ? tr`Invite link` : tr`View-only link`}>
         <Glyph as={linkKind(l) === 'invite' ? UserPlusIcon : LinkIcon} size={14} />
       </span>
       <div className="share-row-text">
-        <div className="share-row-name">/share/{l.token.slice(0, 8)}…</div>
+        <div className="share-row-name"><Trans>/share/{ph({ slice: l.token.slice(0, 8) })}…</Trans></div>
         <div className="share-row-sub">
-          {linkKind(l) === 'invite'
-            ? `Joins as ${l.role} · ${l.joined_count > 0 ? `${l.joined_count} joined` : 'nobody joined yet'}`
-            : `View-only · ${l.include_subboards ? 'with sub-clusters' : 'this cluster only'}`}
-          {l.expires_at ? ` · expires ${new Date(l.expires_at).toLocaleDateString()}` : ' · never expires'}
-          {l.allow_indexing ? ' · indexable by search' : ''}
+          {dotted(
+            linkKind(l) === 'invite'
+              ? (l.role === 'editor' ? tr`Joins as editor` : l.role === 'viewer' ? tr`Joins as viewer` : tr`Joins as ${ph({ role: l.role })}`)
+              : tr`View-only`,
+            linkKind(l) === 'invite'
+              ? (l.joined_count > 0 ? tr`${ph({ count: l.joined_count })} joined` : tr`nobody joined yet`)
+              : (l.include_subboards ? tr`with sub-clusters` : tr`this cluster only`),
+            l.expires_at ? tr`expires ${ph({ date: formatDate(new Date(l.expires_at)) })}` : tr`never expires`,
+            l.allow_indexing ? tr`indexable by search` : null,
+          )}
         </div>
       </div>
       {/* Wrapped so the four controls a link row can carry wrap as a GROUP.
@@ -1244,24 +1283,24 @@ export function ShareModal({
           <>
             <button className="share-remove"
                     onClick={() => onToggleLinkSubboards(l)}
-                    title={l.include_subboards ? 'Stop sharing sub-clusters' : 'Also share sub-clusters'}>
-              {l.include_subboards ? 'Hide sub-clusters' : 'Add sub-clusters'}
+                    title={l.include_subboards ? tr`Stop sharing sub-clusters` : tr`Also share sub-clusters`}>
+              {l.include_subboards ? tr`Hide sub-clusters` : tr`Add sub-clusters`}
             </button>
             <button className="share-remove"
                     onClick={() => onToggleLinkIndexing(l)}
                     title={l.allow_indexing
-                      ? 'Search engines may index this link — click to hide it from search'
-                      : 'Hidden from search engines — click to let this link rank (for marketing clusters)'}>
-              {l.allow_indexing ? 'Hide from search' : 'Allow indexing'}
+                      ? tr`Search engines may index this link — click to hide it from search`
+                      : tr`Hidden from search engines — click to let this link rank (for marketing clusters)`}>
+              {l.allow_indexing ? tr`Hide from search` : tr`Allow indexing`}
             </button>
           </>
         )}
-        <button className="share-remove" onClick={() => onCopyPublicLink(l.token)} title="Copy URL">
-          Copy
+        <button className="share-remove" onClick={() => onCopyPublicLink(l.token)} title={tr`Copy URL`}>
+          <Trans>Copy</Trans>
         </button>
         {(isManager || l.created_by === selfUserId) && (
           <button className="share-remove" onClick={() => onRevokePublicLink(l.token)}>
-            Revoke
+            <Trans>Revoke</Trans>
           </button>
         )}
       </div>
@@ -1280,7 +1319,7 @@ export function ShareModal({
       <div className="share-row-text">
         <div className="share-row-name has-dot">
           <span className="share-row-name-text" dir="auto">{name}</span>
-          {online && <span className="share-online" title="Online" />}
+          {online && <span className="share-online" title={tr`Online`} />}
         </div>
         {sub && <div className="share-row-sub">{sub}</div>}
       </div>
@@ -1294,7 +1333,7 @@ export function ShareModal({
     </span>
   );
   const accessLabel = (text) => <span className="share-access-label">{text}</span>;
-  const sentOn = (row) => new Date(row.created_at).toLocaleDateString();
+  const sentOn = (row) => formatDate(new Date(row.created_at));
 
   return (
     <Modal open onClose={onClose} className="share-modal" backdropClassName="share-backdrop"
@@ -1303,12 +1342,12 @@ export function ShareModal({
           {/* "Share “Lookbook”" — what the panel does and to what, in one line.
               The name truncates; the verb never does. */}
           <h2 className="share-title" id="share-title">
-            <span className="share-title-verb">{workspaceScope ? 'Share workspace' : 'Share'}</span>{' '}
+            <span className="share-title-verb">{workspaceScope ? tr`Share workspace` : tr`Share`}</span>{' '}
             <span className="share-title-name">
-              “<bdi>{workspaceScope ? (workspace?.name || 'Workspace') : (board?.name || 'Untitled cluster')}</bdi>”
+              “<bdi>{workspaceScope ? (workspace?.name || tr`Workspace`) : (board?.name || tr`Untitled cluster`)}</bdi>”
             </span>
           </h2>
-          <button className="share-close" onClick={onClose} aria-label="Close">
+          <button className="share-close" onClick={onClose} aria-label={tr`Close`}>
             <Glyph as={XIcon} size={14} />
           </button>
         </div>
@@ -1326,7 +1365,7 @@ export function ShareModal({
             lives under Link settings. */}
         {canInvite && (
           <div className="share-section share-linkblock">
-            <h3 className="share-section-title">Share a link</h3>
+            <h3 className="share-section-title"><Trans>Share a link</Trans></h3>
             <div className="share-list">
               {personRow({
                 key: '__link',
@@ -1336,7 +1375,7 @@ export function ShareModal({
                     <Glyph as={accessMode === 'off' ? LockIcon : GlobeIcon} size={14} weight="regular" />
                   </span>
                 ),
-                name: accessMode === 'off' ? 'Link sharing is off' : 'Anyone with the link',
+                name: accessMode === 'off' ? tr`Link sharing is off` : tr`Anyone with the link`,
                 sub: (
                   <>
                     {linkStatus()}
@@ -1345,7 +1384,7 @@ export function ShareModal({
                         {' · '}
                         <button type="button" className="share-linkish"
                                 onClick={() => setLinkSettingsOpen(true)}>
-                          {otherLinks.length} other link{otherLinks.length === 1 ? '' : 's'} live
+                          {tr`${plural(otherLinks.length, { one: '# other link live', other: '# other links live' })}`}
                         </button>
                       </>
                     )}
@@ -1353,19 +1392,19 @@ export function ShareModal({
                 ),
                 control: (
                   <select className="share-access-pick share-link-pick"
-                          aria-label="Who can open this cluster with a link"
+                          aria-label={tr`Who can open this cluster with a link`}
                           value={accessMode}
                           onChange={(e) => onPickAccess(e.target.value)}>
-                    <option value="edit">Can edit</option>
-                    <option value="view">Can view</option>
-                    <option value="off">No link</option>
+                    <option value="edit">{tr`Can edit`}</option>
+                    <option value="view">{tr`Can view`}</option>
+                    <option value="off">{tr`No link`}</option>
                   </select>
                 ),
               })}
             </div>
             {accessMode === 'off' && (
               <div className="share-hint share-link-off-note">
-                People who joined keep access. Remove them below.
+                <Trans>People who joined keep access. Remove them below.</Trans>
               </div>
             )}
             <div className="share-link-actions">
@@ -1374,27 +1413,27 @@ export function ShareModal({
                       onClick={takeLink}
                       disabled={busyLink || accessMode === 'off'}
                       title={accessMode === 'off'
-                        ? 'Nobody can open this by link — pick Can view or Can edit above first'
-                        : 'Copies the existing link when one is already live.'}>
+                        ? tr`Nobody can open this by link — pick Can view or Can edit above first`
+                        : tr`Copies the existing link when one is already live.`}>
                 <Glyph as={LinkIcon} size={14} />{' '}
-                {busyLink ? 'Working…' : currentLink ? 'Copy link' : 'Create link & copy'}
+                {busyLink ? tr`Working…` : currentLink ? tr`Copy link` : tr`Create link & copy`}
               </button>
             </div>
             <details className="share-link-options"
                      open={linkSettingsOpen}
                      onToggle={(e) => setLinkSettingsOpen(e.currentTarget.open)}>
-              <summary className="share-hint">Link settings</summary>
+              <summary className="share-hint"><Trans>Link settings</Trans></summary>
               <div className="share-link-create">
                 <label className="share-link-opt">
-                  Expires:
+                  <Trans>Expires:</Trans>
                   <select className="share-role-select"
                           value={accessMode === 'edit' ? inviteLinkExpiry : linkExpiry}
                           onChange={(e) => (accessMode === 'edit'
                             ? setInviteLinkExpiry(e.target.value)
                             : setLinkExpiry(e.target.value))}>
-                    <option value="never">Never</option>
-                    <option value="7d">In 7 days</option>
-                    <option value="30d">In 30 days</option>
+                    <option value="never">{tr`Never`}</option>
+                    <option value="7d">{tr`In 7 days`}</option>
+                    <option value="30d">{tr`In 30 days`}</option>
                   </select>
                 </label>
                 {/* Invite links cover the subtree inherently, so the scope
@@ -1404,13 +1443,13 @@ export function ShareModal({
                     <input type="checkbox"
                            checked={linkIncludeSubboards}
                            onChange={(e) => setLinkIncludeSubboards(e.target.checked)} />
-                    Include sub-clusters
+                    <Trans>Include sub-clusters</Trans>
                   </label>
                 )}
               </div>
               <div className="share-hint">
-                Applies to the next link you create. Existing links keep their own
-                settings — change them below.
+                <Trans>Applies to the next link you create. Existing links keep their own
+                settings — change them below.</Trans>
               </div>
 
               {live.length > 0 && (
@@ -1428,7 +1467,7 @@ export function ShareModal({
             and the note under that says what inviting someone new earns. */}
         {canInvite && (
           <div className="share-section share-invite">
-            <h3 className="share-section-title">Invite people</h3>
+            <h3 className="share-section-title"><Trans>Invite people</Trans></h3>
             <EditorLimitNote note={shownNote}
                              onSeeWho={onSeeEditors ? seeEditors : null}
                              onAsk={askForRoom}
@@ -1436,55 +1475,55 @@ export function ShareModal({
             <div className="share-invite-row">
               <input className="share-input"
                      type="text"
-                     aria-label="Email addresses to invite"
-                     placeholder="Add people by email"
+                     aria-label={tr`Email addresses to invite`}
+                     placeholder={tr`Add people by email`}
                      value={inviteEmail}
                      onChange={(e) => setInviteEmail(e.target.value)}
                      onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Enter') { e.preventDefault(); submitInvite(); } }} />
               <button className={'share-invite-btn' + goldIf('invite')}
                       onClick={submitInvite}
                       disabled={!inviteEmail.trim() || inviting || (seatFor.length > 0 && !quoteOk)}>
-                {inviting ? 'Inviting…'
-                  : seatFor.length === 1 ? 'Add a seat and invite'
-                    : seatFor.length > 1 ? `Add ${seatFor.length} seats and invite` : 'Invite'}
+                {inviting ? tr`Inviting…`
+                  : seatFor.length === 1 ? tr`Add a seat and invite`
+                    : seatFor.length > 1 ? tr`Add ${ph({ count: seatFor.length })} seats and invite` : tr`Invite`}
               </button>
             </div>
             <div className="share-invite-access">
-              <select className="share-role-select" aria-label="Access level for invitees"
+              <select className="share-role-select" aria-label={tr`Access level for invitees`}
                       value={access}
                       onChange={(e) => setInviteAccess(e.target.value)}>
                 {editLocked ? (
                   <>
-                    <option value="viewer">Can view</option>
-                    <option value="editor" disabled>Can edit — full</option>
+                    <option value="viewer">{tr`Can view`}</option>
+                    <option value="editor" disabled>{tr`Can edit — full`}</option>
                   </>
                 ) : (
                   <>
-                    <option value="editor">Can edit</option>
-                    <option value="viewer">Can view</option>
+                    <option value="editor">{tr`Can edit`}</option>
+                    <option value="viewer">{tr`Can view`}</option>
                   </>
                 )}
               </select>
-              <span className="share-invite-in">in</span>
+              <span className="share-invite-in">{tr`in`}</span>
               {/* Workspace membership grants access to every board, so only
                   the owner or a co-owner may hand it out. */}
               {isManager ? (
-                <div className="share-scope" role="group" aria-label="How much they get">
+                <div className="share-scope" role="group" aria-label={tr`How much they get`}>
                   <button type="button"
                           className={'share-scope-btn' + (inviteScope === 'cluster' ? ' is-on' : '')}
                           aria-pressed={inviteScope === 'cluster'}
                           onClick={() => pickInviteScope('cluster')}>
-                    This cluster
+                    <Trans>This cluster</Trans>
                   </button>
                   <button type="button"
                           className={'share-scope-btn' + (inviteScope === 'workspace' ? ' is-on' : '')}
                           aria-pressed={inviteScope === 'workspace'}
                           onClick={() => pickInviteScope('workspace')}>
-                    Whole workspace
+                    <Trans>Whole workspace</Trans>
                   </button>
                 </div>
               ) : (
-                <span className="share-invite-scope">this cluster</span>
+                <span className="share-invite-scope"><Trans>this cluster</Trans></span>
               )}
             </div>
             <div className="share-hint share-role-hint">{roleHint}</div>
@@ -1497,19 +1536,19 @@ export function ShareModal({
             their right-hand label, so a bare "Can edit" always means this
             cluster. */}
         <div className="share-section">
-          <h3 className="share-section-title">Who has access · {accessCount}</h3>
+          <h3 className="share-section-title"><Trans>Who has access · {accessCount}</Trans></h3>
           <div className="share-list">
             {sharesFailed && !loadingShares ? (
               <div className="share-empty" role="alert">
-                Couldn’t load who has access{' '}
-                <button type="button" className="tb-btn tb-btn-sm" onClick={retryShares}>Retry</button>
+                <Trans>Couldn’t load who has access</Trans>{' '}
+                <button type="button" className="tb-btn tb-btn-sm" onClick={retryShares}><Trans>Retry</Trans></button>
               </div>
             ) : loadingShares && accessCount === 0 ? (
-              <div className="share-empty">Loading…</div>
+              <div className="share-empty"><Trans>Loading…</Trans></div>
             ) : accessCount === 0 ? (
               <div className="share-empty">
-                Just you so far. Anyone you invite above will see this cluster
-                and everything inside it.
+                <Trans>Just you so far. Anyone you invite above will see this cluster
+                and everything inside it.</Trans>
               </div>
             ) : null}
 
@@ -1519,23 +1558,23 @@ export function ShareModal({
             {asks.length > 0 && <div ref={asksRef} className="share-asks" />}
             {asks.map(req => {
               const who = maskName(req.requester_name, req.requester_id)
-                || maskEmail(req.email, req.requester_id) || 'Someone';
+                || maskEmail(req.email, req.requester_id) || tr`Someone`;
               const busy = asksBusy.has(req.request_id);
               return personRow({
                 key: `ask-${req.request_id}`,
                 className: 'share-ask',
                 avatar: avatarFor(req.requester_id, who),
                 name: who,
-                sub: 'asked to edit',
+                sub: tr`asked to edit`,
                 control: (
                   <div className="share-ask-actions">
                     <button type="button" className="share-ask-yes" disabled={busy}
                             onClick={() => answerAsk(req, true)}>
-                      Let them edit
+                      <Trans>Let them edit</Trans>
                     </button>
                     <button type="button" className="share-ask-no" disabled={busy}
                             onClick={() => answerAsk(req, false)}>
-                      Not now
+                      <Trans>Not now</Trans>
                     </button>
                   </div>
                 ),
@@ -1559,28 +1598,28 @@ export function ShareModal({
               return personRow({
                 key: m.user_id,
                 avatar: avatarFor(m.user_id, meta.name),
-                name: isSelf && meta.name !== 'You' ? `${meta.name} (you)` : meta.name,
+                name: isSelf && !meta.placeholder ? tr`${ph({ name: meta.name })} (you)` : meta.name,
                 online: meta.online,
                 sub: meta.email && meta.email !== meta.name ? meta.email : null,
                 control: changeable ? (
-                  <select className="share-access-pick" aria-label={`Access for ${meta.name}`}
+                  <select className="share-access-pick" aria-label={tr`Access for ${ph({ name: meta.name })}`}
                           value={m.role}
                           onChange={(e) => onMemberAccess(m, e.target.value)}>
                     {levelPickable ? (
                       <>
-                        <option value="editor" disabled={lockEdit}>{lockEdit ? 'Workspace · can edit — full' : 'Workspace · can edit'}</option>
-                        <option value="viewer">Workspace · can view</option>
-                        <option value="coowner" disabled={lockEdit}>{lockEdit ? 'Co-owner — full' : 'Co-owner'}</option>
+                        <option value="editor" disabled={lockEdit}>{lockEdit ? tr`Workspace · can edit — full` : tr`Workspace · can edit`}</option>
+                        <option value="viewer">{tr`Workspace · can view`}</option>
+                        <option value="coowner" disabled={lockEdit}>{lockEdit ? tr`Co-owner — full` : tr`Co-owner`}</option>
                       </>
                     ) : (
                       <option value={m.role}>{MEMBER_ACCESS[m.role] || m.role}</option>
                     )}
                     <option disabled>──────────</option>
                     {/* 0397: a viewer can't be made owner (the server refuses). */}
-                    {isOwner && m.role !== 'viewer' && <option value="__owner">Make owner…</option>}
-                    <option value="__remove">Remove from workspace…</option>
+                    {isOwner && m.role !== 'viewer' && <option value="__owner">{tr`Make owner…`}</option>}
+                    <option value="__remove">{tr`Remove from workspace…`}</option>
                   </select>
-                ) : accessLabel(isWsOwner ? 'Owner' : (MEMBER_ACCESS[m.role] || m.role)),
+                ) : accessLabel(isWsOwner ? tr`Owner` : (MEMBER_ACCESS[m.role] || m.role)),
               });
             })}
 
@@ -1590,15 +1629,15 @@ export function ShareModal({
                 key: row.id,
                 avatar: avatarFor(row.id, email, true),
                 name: email,
-                sub: `Invite sent ${sentOn(row)} · joins when they sign up`,
+                sub: tr`Invite sent ${ph({ date: sentOn(row) })} · joins when they sign up`,
                 control: isManager ? (
-                  <select className="share-access-pick" aria-label={`Invitation for ${email}`}
+                  <select className="share-access-pick" aria-label={tr`Invitation for ${email}`}
                           value="invited"
                           onChange={(e) => { if (e.target.value === '__revoke') onRevokePending(row); }}>
-                    <option value="invited">{row.role === 'viewer' ? 'Invited · workspace, view' : 'Invited · workspace, edit'}</option>
-                    <option value="__revoke">Revoke invite…</option>
+                    <option value="invited">{row.role === 'viewer' ? tr`Invited · workspace, view` : tr`Invited · workspace, edit`}</option>
+                    <option value="__revoke">{tr`Revoke invite…`}</option>
                   </select>
-                ) : accessLabel('Invited · workspace'),
+                ) : accessLabel(tr`Invited · workspace`),
               });
             })}
 
@@ -1615,17 +1654,17 @@ export function ShareModal({
                 key: s.user_id,
                 avatar: avatarFor(s.user_id, displayName),
                 name: displayName,
-                sub: `${profile?.name && s.email ? `${s.email} · ` : ''}${s.via_link ? 'joined from a link' : 'this cluster'}`,
+                sub: dotted(profile?.name && s.email ? s.email : null, s.via_link ? tr`joined from a link` : tr`this cluster`),
                 control: canChange ? (
-                  <select className="share-access-pick" aria-label={`Access for ${displayName}`}
+                  <select className="share-access-pick" aria-label={tr`Access for ${displayName}`}
                           value={s.role}
                           onChange={(e) => onShareAccess(s, e.target.value)}>
-                    <option value="editor" disabled={lockEdit}>{lockEdit ? 'Can edit — full' : 'Can edit'}</option>
-                    <option value="viewer">Can view</option>
-                    {canWiden && <option value="workspace" disabled={lockEdit}>{lockEdit ? 'Whole workspace · can edit — full' : 'Whole workspace · can edit'}</option>}
-                    {canWiden && <option value="workspaceviewer">Whole workspace · can view</option>}
+                    <option value="editor" disabled={lockEdit}>{lockEdit ? tr`Can edit — full` : tr`Can edit`}</option>
+                    <option value="viewer">{tr`Can view`}</option>
+                    {canWiden && <option value="workspace" disabled={lockEdit}>{lockEdit ? tr`Whole workspace · can edit — full` : tr`Whole workspace · can edit`}</option>}
+                    {canWiden && <option value="workspaceviewer">{tr`Whole workspace · can view`}</option>}
                     <option disabled>──────────</option>
-                    <option value="__remove">Remove access…</option>
+                    <option value="__remove">{tr`Remove access…`}</option>
                   </select>
                 ) : accessLabel(SHARE_ACCESS[s.role] || s.role),
               });
@@ -1637,14 +1676,14 @@ export function ShareModal({
             {inherited.map(s => {
               const profile = userProfiles.get(s.user_id);
               const displayName = profile?.name || s.email;
-              const via = s.via_board_name || 'a parent cluster';
+              const via = s.via_board_name || tr`a parent cluster`;
               return personRow({
                 key: `via-${s.user_id}`,
                 className: 'share-row-inherited',
-                title: `Shared on "${via}". Change it from that cluster's Share panel.`,
+                title: tr`Shared on "${via}". Change it from that cluster's Share panel.`,
                 avatar: avatarFor(s.user_id, displayName),
                 name: displayName,
-                sub: `${profile?.name && s.email ? `${s.email} · ` : ''}— via ${via}`,
+                sub: profile?.name && s.email ? tr`${ph({ email: s.email })} · — via ${via}` : tr`— via ${via}`,
                 control: accessLabel(SHARE_ACCESS[s.role] || ROLE_LABEL[s.role] || s.role),
               });
             })}
@@ -1653,15 +1692,15 @@ export function ShareModal({
               key: row.id,
               avatar: avatarFor(row.id, row.email, true),
               name: row.email,
-              sub: `Invite sent ${sentOn(row)} · joins when they sign up`,
+              sub: tr`Invite sent ${ph({ date: sentOn(row) })} · joins when they sign up`,
               control: (isManager || row.invited_by === selfUserId) ? (
-                <select className="share-access-pick" aria-label={`Invitation for ${row.email}`}
+                <select className="share-access-pick" aria-label={tr`Invitation for ${ph({ email: row.email })}`}
                         value="invited"
                         onChange={(e) => { if (e.target.value === '__revoke') onRevokePending(row); }}>
-                  <option value="invited">{row.role === 'editor' ? 'Invited · can edit' : 'Invited · can view'}</option>
-                  <option value="__revoke">Revoke invite…</option>
+                  <option value="invited">{row.role === 'editor' ? tr`Invited · can edit` : tr`Invited · can view`}</option>
+                  <option value="__revoke">{tr`Revoke invite…`}</option>
                 </select>
-              ) : accessLabel(row.role === 'editor' ? 'Invited · can edit' : 'Invited · can view'),
+              ) : accessLabel(row.role === 'editor' ? tr`Invited · can edit` : tr`Invited · can view`),
             }))}
           </div>
         </div>
@@ -1671,8 +1710,8 @@ export function ShareModal({
         {!canInvite && (
           <div className="share-section">
             <div className="share-hint">
-              Only people who can edit this cluster can change who has access. You
-              can still see who does, above.
+              <Trans>Only people who can edit this cluster can change who has access. You
+              can still see who does, above.</Trans>
             </div>
           </div>
         )}
@@ -1685,7 +1724,7 @@ export function ShareModal({
           <button className="share-invite-btn share-foot-btn share-foot-done"
                   ref={doneRef}
                   onClick={onClose}>
-            Done
+            <Trans>Done</Trans>
           </button>
         </div>
     </Modal>

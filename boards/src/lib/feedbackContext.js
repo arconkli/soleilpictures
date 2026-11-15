@@ -18,6 +18,8 @@
 // Pure — the browser environment comes in as an argument (feedbackEnv.js reads
 // it), so node can test every rule here.
 
+import { t, plural } from '@lingui/core/macro';
+
 export const FEEDBACK_CONTEXT_KEYS = Object.freeze([
   'surface', 'offer', 'via', 'method', 'trial_offered', 'dwell_ms',
   'cards', 'server_cards', 'cap', 'tier',
@@ -51,11 +53,15 @@ export function buildFeedbackContext(input = {}, env = {}) {
   return out;
 }
 
-const SURFACE_NAMES = Object.freeze({
-  canvas: 'board', list: 'Files', doc: 'document', universe: 'home',
-  tag: 'tag page', settings: 'settings', public: 'public page',
-});
-const TIER_NAMES = Object.freeze({ demo: 'Free', paid: 'Creator', admin: 'Admin' });
+const SURFACE_NAMES = {
+  get canvas() { return t`board`; }, get list() { return t`Files`; },
+  get doc() { return t`document`; }, get universe() { return t`home`; },
+  get tag() { return t`tag page`; }, get settings() { return t`settings`; },
+  get public() { return t`public page`; },
+};
+const TIER_NAMES = {
+  get demo() { return t`Free`; }, get paid() { return t`Creator`; }, get admin() { return t`Admin`; },
+};
 
 // The line printed under every ask — "canvas · 34 cards · Free · desktop" — so
 // nothing is attached without the person seeing it. Shows what is there and
@@ -63,7 +69,7 @@ const TIER_NAMES = Object.freeze({ demo: 'Free', paid: 'Creator', admin: 'Admin'
 export function describeFeedbackContext(ctx = {}) {
   const parts = [];
   if (ctx.surface) parts.push(SURFACE_NAMES[ctx.surface] || ctx.surface);
-  if (Number.isFinite(ctx.cards)) parts.push(`${ctx.cards} card${ctx.cards === 1 ? '' : 's'}`);
+  if (Number.isFinite(ctx.cards)) parts.push(plural(ctx.cards, { one: '# card', other: '# cards' }));
   if (ctx.tier) parts.push(TIER_NAMES[ctx.tier] || ctx.tier);
   if (ctx.device) parts.push(ctx.device);
   return parts.join(' · ');

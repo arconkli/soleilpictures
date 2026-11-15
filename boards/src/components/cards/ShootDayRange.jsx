@@ -17,10 +17,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from '../Icon.jsx';
 import { X } from '../../lib/icons.js';
-import { addDays, shortDate } from '../../lib/schedDates.js';
+import { addDays } from '../../lib/schedDates.js';
+import { shortDate } from '../../lib/schedDatesWords.js';
 import { shootDayDates, MAX_SHOOT_DAYS_PER_ADD } from '../../lib/productionDayPlan.js';
 import { placeBeside } from './GridCellMenu.jsx';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
+import { t, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const stop = (e) => e.stopPropagation();
 
@@ -57,6 +60,8 @@ export function ShootDayRange({ anchorRect, startDate, startNumber = 1, onAdd, o
 
   const dates = shootDayDates(startDate, end, { skipWeekends });
   const clamped = dates.length >= MAX_SHOOT_DAYS_PER_ADD;
+  const dayCount = dates.length;
+  const lastNumber = startNumber + dayCount - 1;
 
   const submit = async () => {
     if (!dates.length || busy) return;
@@ -69,20 +74,20 @@ export function ShootDayRange({ anchorRect, startDate, startNumber = 1, onAdd, o
     <div ref={ref} className="schedc-range" onPointerDown={stop}
       style={pos ? { position: 'fixed', left: pos.left, top: pos.top }
                  : { position: 'fixed', visibility: 'hidden' }}
-      role="dialog" aria-label="Add days">
+      role="dialog" aria-label={t`Add days`}>
       <div className="schedc-range-head">
-        <span className="schedc-range-title">Add days</span>
+        <span className="schedc-range-title"><Trans>Add days</Trans></span>
         <button type="button" className="schedc-range-x" onClick={onClose}
-          title="Close (Esc)" aria-label="Close"><Icon as={X} size={11} /></button>
+          title={t`Close (Esc)`} aria-label={t`Close`}><Icon as={X} size={11} /></button>
       </div>
 
       <label className="schedc-range-row">
-        <span>First day</span>
+        <span><Trans>First day</Trans></span>
         <strong>{shortDate(startDate)}</strong>
       </label>
 
       <label className="schedc-range-row">
-        <span>Through</span>
+        <span><Trans>Through</Trans></span>
         <input type="date" value={end} min={startDate}
           onChange={(e) => setEnd(e.target.value)} />
       </label>
@@ -90,27 +95,27 @@ export function ShootDayRange({ anchorRect, startDate, startNumber = 1, onAdd, o
       <label className="schedc-range-row is-check">
         <input type="checkbox" checked={skipWeekends}
           onChange={(e) => setSkipWeekends(e.target.checked)} />
-        <span>Skip weekends</span>
+        <span><Trans>Skip weekends</Trans></span>
       </label>
 
       <div className="schedc-range-count">
         {dates.length === 0
-          ? 'No days in that range.'
-          : `${dates.length} day${dates.length === 1 ? '' : 's'} — Day ${startNumber} to Day ${startNumber + dates.length - 1}`}
+          ? t`No days in that range.`
+          : plural(dayCount, { one: `# day — Day ${startNumber} to Day ${lastNumber}`, other: `# days — Day ${startNumber} to Day ${lastNumber}` })}
         {clamped && (
           <span className="schedc-range-warn">
-            {' '}Capped at {MAX_SHOOT_DAYS_PER_ADD}; add the rest in a second pass.
+            {' '}<Trans>Capped at {MAX_SHOOT_DAYS_PER_ADD}; add the rest in a second pass.</Trans>
           </span>
         )}
       </div>
 
       <button type="button" className="schedc-range-go"
         disabled={!dates.length || busy} onClick={submit}>
-        {busy ? 'Adding…' : `Add ${dates.length} day${dates.length === 1 ? '' : 's'}`}
+        {busy ? t`Adding…` : plural(dayCount, { one: 'Add # day', other: 'Add # days' })}
       </button>
       <p className="schedc-range-hint">
-        Days are created empty. Open one and “Set up this day” adds its call
-        sheet, shotlist, script pages and hour-by-hour.
+        <Trans>Days are created empty. Open one and “Set up this day” adds its call
+        sheet, shotlist, script pages and hour-by-hour.</Trans>
       </p>
     </div>,
     document.body,

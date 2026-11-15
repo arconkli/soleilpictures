@@ -17,6 +17,9 @@
 
 import { useState } from 'react';
 import { supabase } from '../lib/supabase.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../lib/errorWords.js';
 
 // Must match syntheticEmail() in lib/scoutIdentity.js.
 const SHELL_DOMAIN = '@scout.soleilpictures.com';
@@ -53,7 +56,7 @@ export function ScoutClaimBanner({ user }) {
     try {
       const { data } = await supabase.auth.getSession();
       const accessToken = data?.session?.access_token || '';
-      if (!accessToken) throw new Error('not signed in');
+      if (!accessToken) throw new Error(t`not signed in`);
 
       const res = await fetch('/api/scout/claim', {
         method: 'POST',
@@ -61,13 +64,13 @@ export function ScoutClaimBanner({ user }) {
         body: JSON.stringify({ email: email.trim() }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body?.error || 'Could not save that address.');
+      if (!res.ok) throw new Error(body?.error || t`Could not save that address.`);
 
       // One answer whether or not the address is free: the route will not say
       // who is registered (see handleScoutClaim), so the copy covers both cases.
       setState('sent');
     } catch (err) {
-      setError(err?.message || 'Could not save that address.');
+      setError(shownError(err, t`Could not save that address.`));
       setState('idle');
     }
   };
@@ -77,26 +80,26 @@ export function ScoutClaimBanner({ user }) {
       <div className="scout-claim-body">
         {state === 'sent' ? (
           <p className="scout-claim-msg">
-            <b>Check {email}.</b> Follow the link there and this account is yours —
+            <Trans><b>Check {email}.</b> Follow the link there and this account is yours —
             {' '}same boards, same photos, an address you recognise. If no link arrives,
             {' '}that address may already have a Soleil account: sign into it, open
             {' '}Settings → Scout, and text yourself the connect code — everything you
-            {' '}have already sent moves across with you.
+            {' '}have already sent moves across with you.</Trans>
           </p>
         ) : (
           <>
             <p className="scout-claim-msg">
-              <b>Your photos are here, but this account has no email yet.</b>
-              {' '}Add one so you can get back in from anywhere.
+              <Trans><b>Your photos are here, but this account has no email yet.</b>
+              {' '}Add one so you can get back in from anywhere.</Trans>
             </p>
             <form className="scout-claim-form" onSubmit={submit}>
               <input
                 type="email"
                 className="auth-input"
-                placeholder="you@studio.com"
+                placeholder={t`you@studio.com`}
                 value={email}
                 onChange={(ev) => setEmail(ev.target.value)}
-                aria-label="Your email address"
+                aria-label={t`Your email address`}
                 autoComplete="email"
                 required
               />
@@ -105,7 +108,7 @@ export function ScoutClaimBanner({ user }) {
                 className="auth-btn"
                 disabled={state === 'saving' || !email.trim()}
               >
-                {state === 'saving' ? 'Sending…' : 'Save my account'}
+                {state === 'saving' ? t`Sending…` : t`Save my account`}
               </button>
             </form>
             {error && <p className="scout-claim-err">{error}</p>}
@@ -116,8 +119,8 @@ export function ScoutClaimBanner({ user }) {
         type="button"
         className="scout-claim-x"
         onClick={dismiss}
-        aria-label="Dismiss"
-        title="Dismiss"
+        aria-label={t`Dismiss`}
+        title={t`Dismiss`}
       >
         ×
       </button>

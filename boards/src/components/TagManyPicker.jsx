@@ -18,6 +18,9 @@ import { undoToast } from '../lib/undoToast.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { searchKey } from '../lib/textFold.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../lib/errorWords.js';
 
 const POP_W = 320;
 
@@ -84,8 +87,8 @@ export function TagManyPicker({
         <button key="create" type="button" className={`tag-many-row is-create ${idx === at ? 'is-hover' : ''}`}
                 onMouseEnter={() => setHover(idx)} onClick={() => act(row)}>
           <span className="tag-many-plus"><Icon as={Plus} size={12} /></span>
-          Create “{query.trim()}”
-          <span className="tag-many-meta tag-many-push">new tag on all {total}</span>
+          <Trans>Create “{ph({ trim: query.trim() })}”
+          <span className="tag-many-meta tag-many-push">new tag on all {total}</span></Trans>
         </button>
       );
     }
@@ -108,34 +111,34 @@ export function TagManyPicker({
   };
 
   return createPortal(
-    <div ref={ref} className="tag-many" role="dialog" aria-label={`Tag ${total} cards`}
+    <div ref={ref} className="tag-many" role="dialog" aria-label={plural(total, { one: 'Tag # card', other: 'Tag # cards' })}
          style={{ left, bottom, width: POP_W }}
          onPointerDown={(e) => e.stopPropagation()}>
       <div className="tag-many-search">
         <label className="tag-many-field">
           <Icon as={Search} size={14} />
-          <span className="tag-many-sr">Find or create a tag</span>
-          <input ref={inputRef} type="text" value={query} placeholder="Find or create a tag"
+          <span className="tag-many-sr"><Trans>Find or create a tag</Trans></span>
+          <input ref={inputRef} type="text" value={query} placeholder={tr`Find or create a tag`}
                  onChange={(e) => { setQuery(e.target.value); setHover(0); }}
                  onKeyDown={onKey} />
         </label>
       </div>
       <div className="tag-many-list">
-        {onCards.length > 0 && <div className="tag-many-eb">On these {total} cards</div>}
+        {onCards.length > 0 && <div className="tag-many-eb"><Trans>On these {total} cards</Trans></div>}
         {onCards.map(t => rowEl({ kind: 'tag', tag: t }))}
         {q && (onCards.length > 0) && <div className="tag-many-rule" />}
-        {q && <div className="tag-many-eb">Matching “{query.trim()}”</div>}
+        {q && <div className="tag-many-eb"><Trans>Matching “{ph({ trim: query.trim() })}”</Trans></div>}
         {matching.map(t => rowEl({ kind: 'tag', tag: t }))}
         {q && !hasExact && rowEl({ kind: 'create' })}
         {!q && onCards.length === 0 && (
-          <div className="tag-many-empty">None of these cards has a tag yet. Type to find one or make one.</div>
+          <div className="tag-many-empty"><Trans>None of these cards has a tag yet. Type to find one or make one.</Trans></div>
         )}
       </div>
       <div className="tag-many-foot">
-        <span><kbd>↵</kbd>Apply</span>
-        <span><kbd>↑</kbd><kbd>↓</kbd>Move</span>
-        <span><kbd>Esc</kbd>Close</span>
-        <span className="tag-many-push">Click – to add to all</span>
+        <span><kbd>↵</kbd><Trans>Apply</Trans></span>
+        <span><kbd>↑</kbd><kbd>↓</kbd><Trans context="navigate">Move</Trans></span>
+        <span><Trans><kbd>Esc</kbd>Close</Trans></span>
+        <span className="tag-many-push"><Trans>Click – to add to all</Trans></span>
       </div>
     </div>,
     document.body,
@@ -150,7 +153,7 @@ export function TagManyPicker({
 export async function applyTagToCards({ cardIds, tag, mode, via, ctx }) {
   const { workspaceId, boardId, userId, tagsByCard, refreshTags, feedback } = ctx;
   const has = (id) => (tagsByCard.get(id) || []).some(t => t.id === tag.id);
-  const n = (k) => `${k} ${k === 1 ? 'card' : 'cards'}`;
+  const shownName = tag.name || tr`tag`;
   try {
     if (mode === 'add') {
       const missing = cardIds.filter(id => !has(id));
@@ -159,13 +162,13 @@ export async function applyTagToCards({ cardIds, tag, mode, via, ctx }) {
       try { logEvent(EV.TAG_MANUAL_APPLY, { target_kind: 'card', via, tag_id: tag.id, n: missing.length }); } catch (_) {}
       refreshTags?.();
       undoToast(feedback, {
-        message: `Tagged ${n(missing.length)} “${tag.name || 'tag'}”`,
+        message: tr`Tagged ${plural(missing.length, { one: '# card', other: '# cards' })} “${shownName}”`,
         onUndo: async () => {
           try {
             await untagCards({ workspaceId, boardId, cardIds: missing, tagId: tag.id, keepOff: false });
             refreshTags?.();
           } catch (err) {
-            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Undo failed: ' + (err.message || err) });
+            feedback.toast({ type: 'error', code: 'tag_restore_failed', message: tr`Undo failed: ${ph({ reason: shownError(err) })}` });
           }
         },
       });
@@ -176,18 +179,18 @@ export async function applyTagToCards({ cardIds, tag, mode, via, ctx }) {
     const removed = await untagCards({ workspaceId, boardId, cardIds: having, tagId: tag.id, userId });
     refreshTags?.();
     undoToast(feedback, {
-      message: `Removed “${tag.name || 'tag'}” from ${n(having.length)}`,
+      message: tr`Removed “${shownName}” from ${plural(having.length, { one: '# card', other: '# cards' })}`,
       onUndo: async () => {
         try {
           await restoreCardTagRows({ workspaceId, tagId: tag.id, rows: removed });
           refreshTags?.();
         } catch (err) {
-          feedback.toast({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
+          feedback.toast({ type: 'error', code: 'tag_restore_failed', message: tr`Restore failed: ${ph({ reason: shownError(err) })}` });
         }
       },
     });
   } catch (err) {
-    feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
+    feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tr`Tag failed: ${ph({ reason: shownError(err) })}` });
   }
 }
 
@@ -196,6 +199,6 @@ export async function createTagOnCards({ name, cardIds, ctx }) {
     const tag = await ensureTag({ workspaceId: ctx.workspaceId, name, kind: 'user', createdBy: ctx.userId });
     await applyTagToCards({ cardIds, tag, mode: 'add', via: 'selection_create', ctx });
   } catch (err) {
-    ctx.feedback.toast({ type: 'error', code: 'tag_apply_failed', message: 'Tag failed: ' + (err.message || err) });
+    ctx.feedback.toast({ type: 'error', code: 'tag_apply_failed', message: tr`Tag failed: ${ph({ reason: shownError(err) })}` });
   }
 }

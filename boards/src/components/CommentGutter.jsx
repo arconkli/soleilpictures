@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { commentsMap, readComments } from '../lib/docState.js';
+import { shownAuthor } from '../lib/commentAuthor.js';
 
 // Right-margin layer that draws a soleil-gold dot per unresolved comment
 // thread on the active page. Click → opens the inline thread popover via
@@ -93,7 +94,7 @@ export function CommentGutter({ ydoc, scope, pageId, editor, onOpenThread }) {
           className="comment-gutter-dot"
           style={{ top: ((positions[t.id]?.top) ?? -9999) + 'px' }}
           onClick={() => onOpenThread?.(t.id)}
-          title={`${t.author || ''} · ${(t.body || '').slice(0, 60)}`}
+          title={`${shownAuthor(t.author) || ''} · ${(t.body || '').slice(0, 60)}`}
         />
       ))}
     </div>

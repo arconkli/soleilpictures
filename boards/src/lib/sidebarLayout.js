@@ -38,6 +38,8 @@
 // remembered per device: they belong to the screen, not the work. Storage can
 // be missing or throw (private windows, blocked site data); nothing here throws.
 
+import { t } from '@lingui/core/macro';
+
 export const SIDEBAR_LAYOUT_KEY = 'soleil.ui.sidebarLayout';
 // One width for the whole sidebar, before the cards were sized apart.
 export const OLD_SIDEBAR_W_KEY = 'soleil.ui.sidebarW';
@@ -244,15 +246,15 @@ export function toggledLayout(layout, shown = layout?.arr, { coarse = false } = 
 const RADIUS = 12;
 const ZONE = 8;
 const LABELS = {
-  treeRight: 'Width of the clusters',
-  filesRight: 'Width of the files',
-  divider: 'Share the height between clusters and files',
-  bottom: 'Height of the files',
-  corner: 'Size of the files',
-  split: 'Share the width between clusters and files',
-  right: 'Width of the files',
-  treeBottom: 'Height of the clusters',
-  treeCorner: 'Size of the clusters',
+  get treeRight() { return t`Width of the clusters`; },
+  get filesRight() { return t`Width of the files`; },
+  get divider() { return t`Share the height between clusters and files`; },
+  get bottom() { return t`Height of the files`; },
+  get corner() { return t`Size of the files`; },
+  get split() { return t`Share the width between clusters and files`; },
+  get right() { return t`Width of the files`; },
+  get treeBottom() { return t`Height of the clusters`; },
+  get treeCorner() { return t`Size of the clusters`; },
 };
 const HANDLES = {
   stack: [['treeRight', 'v'], ['filesRight', 'v'], ['divider', 'grip'], ['bottom', 'h'], ['corner', 'corner']],

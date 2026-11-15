@@ -21,6 +21,8 @@
 // Shared by the real seed (App.jsx) and the local first-run preview
 // (LocalBoardsApp, ?local=1&onboard=1).
 
+import { t } from '@lingui/core/macro';
+
 // Keep in sync with useBreakpoint.js / breakpoints.css.
 const PHONE_MAX = 640;
 
@@ -54,14 +56,14 @@ const PHONE = {
 
 function welcomeHtml(touch) {
   return touch
-    ? '<p><strong>Welcome to your board.</strong></p><p>This is your canvas. Tap a tool on the <strong>toolbar</strong> at the left, or long-press anywhere, to add a note, board and more. Drag images and files straight in.</p>'
-    : '<p><strong>Welcome to your board.</strong></p><p>This is your canvas. Right-click anywhere, or use the toolbar on the left, to add a note, board and more. Drag images and files straight in. ⌘Z undoes anything.</p>';
+    ? t`<p><strong>Welcome to your board.</strong></p><p>This is your canvas. Tap a tool on the <strong>toolbar</strong> at the left, or long-press anywhere, to add a note, board and more. Drag images and files straight in.</p>`
+    : t`<p><strong>Welcome to your board.</strong></p><p>This is your canvas. Right-click anywhere, or use the toolbar on the left, to add a note, board and more. Drag images and files straight in. ⌘Z undoes anything.</p>`;
 }
 
 function dragHtml(narrow) {
   return narrow
-    ? '<p><strong>Try it:</strong> drag this note down into the “Ideas” board ↓</p><p>It’s how you keep ideas together. Everything saves automatically.</p>'
-    : '<p><strong>Try it:</strong> drag this note into the “Ideas” board →</p><p>It’s how you keep ideas together. Everything saves automatically.</p>';
+    ? t`<p><strong>Try it:</strong> drag this note down into the “Ideas” board ↓</p><p>It’s how you keep ideas together. Everything saves automatically.</p>`
+    : t`<p><strong>Try it:</strong> drag this note into the “Ideas” board →</p><p>It’s how you keep ideas together. Everything saves automatically.</p>`;
 }
 
 // Phone: one combined welcome + drag instruction, so the first screen is just this
@@ -72,7 +74,7 @@ function phoneIntroHtml() {
   // intro points at the one-tap affordance — the bottom-nav ＋, which drops a card
   // straight onto an empty board (see CanvasSurface's mobile-add handler) — rather
   // than the drag. The "Ideas" board still sits below as a ready place to organize.
-  return '<p><strong>Welcome</strong></p><p>Tap the <strong>＋</strong> at the bottom to add your first card. Everything saves automatically.</p>';
+  return t`<p><strong>Welcome</strong></p><p>Tap the <strong>＋</strong> at the bottom to add your first card. Everything saves automatically.</p>`;
 }
 
 function buildCards(layout, narrow, touch) {
@@ -113,9 +115,6 @@ export function getStarterTutorialCard(id) {
   const layout = isNarrow() ? PHONE : DESKTOP;
   return { id, kind: 'board', seed: true, ...layout.board };
 }
-
-// Back-compat static array (desktop layout). Prefer getStarterCards().
-export const STARTER_CARDS = buildCards(DESKTOP, false, false);
 
 // ── Welcome showcase (welcome_showcase experiment, arm B) ────────────────────
 // Arm B clones the REAL "Clusters Logo" brand board onto the new user's root (see

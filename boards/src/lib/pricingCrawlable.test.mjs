@@ -78,7 +78,7 @@ test('the React page renders everything the crawlable body says', () => {
   const drawnFrom = [
     'PRICING_PAGE.h1', 'PRICING_PAGE.subhead', 'PRICING_ANSWER',
     'PRICING_PAGE.freeCardName', 'PRICING_PAGE.freeCardPrice', 'PRICING_PAGE.freeCardUnit',
-    'PRICING_PAGE.freeCardSub', 'DEMO_FEATURES', 'PLAN_NAME', 'PRICING_PAGE.paidCardSub',
+    'PRICING_PAGE.freeCardSub', 'demoFeatures', 'PLAN_NAME', 'PRICING_PAGE.paidCardSub',
     'CREATOR_BENEFITS', 'PRICING_PAGE.startFreeSub', 'PRICING_PAGE.trustLine', 'shot.caption',
     'PRICING_PAGE.paidHeading', 'PRICING_PAGE.paidBody', 'PLAN_COMPARISON', 'PRICING_PAGE.workspaceNote',
     'PRICING_FAQ', 'PRICING_PAGE.closing', 'PRICING_PAGE.closingSub',
@@ -103,7 +103,7 @@ test('the React page renders everything the crawlable body says', () => {
   const host = readFileSync(resolve(BOARDS, 'src/lib/appHost.js'), 'utf8');
   assert.match(host, /export function teamPricingAllowed\(\) \{\n  return true;\n\}/);
   // The prices the body states come through the shared price row and toggle.
-  for (const id of ['SAVINGS_PCT_LABEL', 'planPerMonth', 'planBilling']) {
+  for (const id of ['savingsPctLabel', 'planPerMonth', 'planBilling']) {
     assert.ok(bits.includes(id), `PricingBits no longer renders ${id}`);
   }
   // Links the body carries, rendered by the view too.
@@ -196,7 +196,8 @@ test('pricingModel is the same data the React page imports', () => {
   // PricingPageView must keep drawing from these same exports, or "parity by
   // construction" is a claim about a page that no longer reads them.
   const view = readFileSync(resolve(BOARDS, 'src/auth/PricingPageView.jsx'), 'utf8');
-  for (const name of ['DEMO_FEATURES', 'PRICING_PAGE', 'PLAN_COMPARISON', 'PRICING_FAQ', 'CREATOR_BENEFITS']) {
+  // DEMO_FEATURES is read through its app-side mirror, demoFeatures() (billingCopyWords.js, held equal by its parity test).
+  for (const name of ['demoFeatures', 'PRICING_PAGE', 'PLAN_COMPARISON', 'PRICING_FAQ', 'CREATOR_BENEFITS']) {
     assert.ok(view.includes(name), `PricingPageView no longer renders ${name} — update pricingCrawlable to match it`);
   }
 });

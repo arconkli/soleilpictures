@@ -39,6 +39,8 @@ import { useGesture } from '@use-gesture/react';
 import { Sheet } from './shell/Sheet.jsx';
 import { tapIsDouble } from '../lib/doubleTap.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Default pen stroke + bucket fill colors. The pad SURFACE defaults to
 // pure white — when the user commits, the surrounding ArtCanvasCard
@@ -65,11 +67,11 @@ const ERASER_WIDTH_PRESETS = [8, 16, 28, 44];
 // frame rather than the old 4:3 scratch pad. 2.39:1 is scope, 9:16 is vertical
 // delivery, and 4:3 is still there for anyone using it as a notepad.
 const ASPECTS = [
-  { id: '16x9',  label: '16:9',   hint: 'Widescreen', w: 480, h: 270 },
-  { id: '239x1', label: '2.39:1', hint: 'Scope',      w: 480, h: 201 },
-  { id: '4x3',   label: '4:3',    hint: 'Classic',    w: 480, h: 360 },
-  { id: '1x1',   label: '1:1',    hint: 'Square',     w: 420, h: 420 },
-  { id: '9x16',  label: '9:16',   hint: 'Vertical',   w: 304, h: 540 },
+  { id: '16x9',  label: '16:9',   get hint() { return tr`Widescreen`; }, w: 480, h: 270 },
+  { id: '239x1', label: '2.39:1', get hint() { return tr`Scope`; },      w: 480, h: 201 },
+  { id: '4x3',   label: '4:3',    get hint() { return tr`Classic`; },    w: 480, h: 360 },
+  { id: '1x1',   label: '1:1',    get hint() { return tr`Square`; },     w: 420, h: 420 },
+  { id: '9x16',  label: '9:16',   get hint() { return tr`Vertical`; },   w: 304, h: 540 },
 ];
 const DEFAULT_ASPECT = '16x9';
 
@@ -83,7 +85,7 @@ const DEFAULT_ASPECT = '16x9';
 let layerSeq = 0;
 function newLayer(n) {
   layerSeq += 1;
-  return { id: `L${layerSeq}`, name: `Layer ${n}`, visible: true, opacity: 1, strokes: [] };
+  return { id: `L${layerSeq}`, name: tr`Layer ${n}`, visible: true, opacity: 1, strokes: [] };
 }
 const EMPTY_STROKES = [];
 const MAX_LAYERS = 8;
@@ -305,14 +307,14 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     if (discardingRef.current) return false;
     discardingRef.current = true;
     const ok = await feedback.confirm(editingExisting ? {
-      title: 'Discard changes?',
-      message: 'Your changes to this drawing will be lost. The drawing on the board stays as it was.',
-      confirmLabel: 'Discard',
+      title: tr`Discard changes?`,
+      message: tr`Your changes to this drawing will be lost. The drawing on the board stays as it was.`,
+      confirmLabel: tr`Discard`,
       danger: true,
     } : {
-      title: 'Discard sketch?',
-      message: 'Your drawing will be lost.',
-      confirmLabel: 'Discard',
+      title: tr`Discard sketch?`,
+      message: tr`Your drawing will be lost.`,
+      confirmLabel: tr`Discard`,
       danger: true,
     });
     discardingRef.current = false;
@@ -726,7 +728,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                 style={{ background: c }}
                 onClick={() => { setColor(c); addRecentColor(c); }}
                 {...tlTip(c)}
-                aria-label={`Colour ${c}`} />
+                aria-label={tr`Colour ${c}`} />
       ))}
       <button type="button"
               className="sp-color sp-color-custom"
@@ -734,8 +736,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                 const r = e.currentTarget.getBoundingClientRect();
                 setPickerPos({ x: r.left + r.width / 2, y: r.bottom + 8 });
               }}
-              {...tlTip('Custom colour')}
-              aria-label="Custom colour"><Icon as={Plus} size={12} weight="bold" /></button>
+              {...tlTip(tr`Custom colour`)}
+              aria-label={tr`Custom colour`}><Icon as={Plus} size={12} weight="bold" /></button>
     </>
   );
 
@@ -744,8 +746,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
             type="button"
             className={`sp-width ${activeWidth === w ? 'is-active' : ''}`}
             onClick={() => (tool === 'eraser' ? setEraserWidth(w) : setWidth(w))}
-            {...tlTip(tool === 'eraser' ? `Eraser size ${w}px` : `${w}px`)}
-            aria-label={tool === 'eraser' ? `Eraser size ${w}` : `Stroke width ${w}`}>
+            {...tlTip(tool === 'eraser' ? tr`Eraser size ${w}px` : `${w}px`)}
+            aria-label={tool === 'eraser' ? tr`Eraser size ${w}` : tr`Stroke width ${w}`}>
       <span className="sp-width-dot" style={{
         width: Math.min(20, w + 4),
         height: Math.min(20, w + 4),
@@ -761,7 +763,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
             className={`sp-brush ${brush === id ? 'is-active' : ''}`}
             onClick={() => { setBrush(id); setTool('pen'); }}
             {...tlTip(BRUSH_LABELS[id])}
-            aria-label={`${BRUSH_LABELS[id]} brush`}>
+            aria-label={tr`${ph({ value: BRUSH_LABELS[id] })} brush`}>
       <svg viewBox="0 0 56 26" width="52" height="24" aria-hidden="true">
         <BrushPreview brush={id} />
       </svg>
@@ -812,9 +814,9 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     // Losing work needs a confirm, but an empty layer is not work.
     if (doomed?.strokes?.length) {
       const ok = await feedback.confirm({
-        title: `Delete ${doomed.name}?`,
-        message: `${doomed.strokes.length} stroke${doomed.strokes.length === 1 ? '' : 's'} will be removed. You can undo this.`,
-        confirmLabel: 'Delete',
+        title: tr`Delete ${ph({ name: doomed.name })}?`,
+        message: plural(doomed.strokes.length, { one: '# stroke will be removed. You can undo this.', other: '# strokes will be removed. You can undo this.' }),
+        confirmLabel: tr`Delete`,
         danger: true,
       });
       if (!ok) return;
@@ -838,8 +840,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                   className="sp-layer-eye"
                   onClick={() => toggleLayer(l.id)}
                   aria-pressed={l.visible !== false}
-                  {...tlTip(l.visible === false ? 'Show layer' : 'Hide layer')}
-                  aria-label={`${l.visible === false ? 'Show' : 'Hide'} ${l.name}`}>
+                  {...tlTip(l.visible === false ? tr`Show layer` : tr`Hide layer`)}
+                  aria-label={l.visible === false ? tr`Show ${ph({ name: l.name })}` : tr`Hide ${ph({ name: l.name })}`}>
             <Icon as={l.visible === false ? EyeOff : Eye} size={16} weight="regular" />
           </button>
           {renamingId === l.id ? (
@@ -849,7 +851,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                    autoFocus
                    defaultValue={l.name}
                    maxLength={24}
-                   aria-label={`Rename ${l.name}`}
+                   aria-label={tr`Rename ${ph({ name: l.name })}`}
                    onBlur={(e) => { renameLayer(l.id, e.target.value); setRenamingId(null); }}
                    onKeyDown={(e) => {
                      if (isComposingKey(e)) return;
@@ -866,21 +868,21 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                       if (tapIsDouble(doubleTapRef, e, { key: l.id })) setRenamingId(l.id);
                     }}
                     onDoubleClick={() => setRenamingId(l.id)}
-                    {...tlTip('Draw on this layer — double-tap to rename')}>
+                    {...tlTip(tr`Draw on this layer — double-tap to rename`)}>
               {l.name}
               <span className="sp-layer-count">{l.strokes.length || ''}</span>
             </button>
           )}
           <button type="button" className="sp-layer-btn" onClick={() => moveLayer(l.id, 1)}
-                  disabled={idx === layers.length - 1} aria-label={`Move ${l.name} up`}>
+                  disabled={idx === layers.length - 1} aria-label={tr`Move ${ph({ name: l.name })} up`}>
             <Icon as={ArrowUp} size={14} weight="regular" />
           </button>
           <button type="button" className="sp-layer-btn" onClick={() => moveLayer(l.id, -1)}
-                  disabled={idx === 0} aria-label={`Move ${l.name} down`}>
+                  disabled={idx === 0} aria-label={tr`Move ${ph({ name: l.name })} down`}>
             <Icon as={ArrowDown} size={14} weight="regular" />
           </button>
           <button type="button" className="sp-layer-btn" onClick={() => removeLayer(l.id)}
-                  disabled={layers.length <= 1} aria-label={`Delete ${l.name}`}>
+                  disabled={layers.length <= 1} aria-label={tr`Delete ${ph({ name: l.name })}`}>
             <Icon as={Trash2} size={14} weight="regular" />
           </button>
         </div>
@@ -888,10 +890,10 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
             stays a list rather than a wall of sliders. */}
         {isActive && (
           <label className="sp-layer-opacity">
-            <span>Opacity</span>
+            <span><Trans>Opacity</Trans></span>
             <input type="range" min="0" max="100" step="1"
                    value={Math.round(opacity * 100)}
-                   aria-label={`${l.name} opacity`}
+                   aria-label={tr`${ph({ name: l.name })} opacity`}
                    onPointerDown={pushHistory}
                    onChange={(e) => setLayerOpacity(l.id, Number(e.target.value) / 100)} />
             <span className="sp-layer-count">{Math.round(opacity * 100)}%</span>
@@ -910,7 +912,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
               className="sp-action sp-layer-add"
               onClick={addLayer}
               disabled={layers.length >= MAX_LAYERS}>
-        Add layer
+        <Trans>Add layer</Trans>
       </button>
     </div>
   );
@@ -935,18 +937,18 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
               className={`sp-tool ${tool === 'pen' ? 'is-active' : ''}`}
               onClick={() => setTool('pen')}
               aria-pressed={tool === 'pen'}
-              aria-label="Pen" {...tlTip('Pen')}><Icon as={PenNib} size={18} weight="regular" /></button>
+              aria-label={tr`Pen`} {...tlTip(tr`Pen`)}><Icon as={PenNib} size={18} weight="regular" /></button>
       <button type="button"
               className={`sp-tool ${tool === 'eraser' ? 'is-active' : ''}`}
               onClick={() => setTool('eraser')}
               aria-pressed={tool === 'eraser'}
-              aria-label="Eraser" {...tlTip('Eraser')}><Icon as={Eraser} size={18} weight="regular" /></button>
+              aria-label={tr`Eraser`} {...tlTip(tr`Eraser`)}><Icon as={Eraser} size={18} weight="regular" /></button>
       <button type="button"
               className={`sp-tool ${tool === 'bucket' ? 'is-active' : ''}`}
               onClick={() => setTool('bucket')}
               aria-pressed={tool === 'bucket'}
-              aria-label="Paint bucket"
-              {...tlTip('Paint bucket: a click fills the background')}>
+              aria-label={tr`Paint bucket`}
+              {...tlTip(tr`Paint bucket: a click fills the background`)}>
         <Icon as={PaintBucket} size={18} weight="regular" />
       </button>
     </>
@@ -958,18 +960,18 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
               className="sp-tool"
               onClick={undoPad}
               disabled={!undoStackRef.current.length}
-              {...tlTip('Undo', 'Mod+Z')}
+              {...tlTip(tr`Undo`, 'Mod+Z')}
               aria-keyshortcuts={ariaKeys('Mod+Z')}
-              aria-label="Undo sketch change">
+              aria-label={tr`Undo sketch change`}>
         <Icon as={Undo} size={18} weight="regular" />
       </button>
       <button type="button"
               className="sp-tool"
               onClick={redoPad}
               disabled={!redoStackRef.current.length}
-              {...tlTip('Redo', 'Mod+Shift+Z')}
+              {...tlTip(tr`Redo`, 'Mod+Shift+Z')}
               aria-keyshortcuts={ariaKeys('Mod+Shift+Z')}
-              aria-label="Redo sketch change">
+              aria-label={tr`Redo sketch change`}>
         <Icon as={Redo} size={18} weight="regular" />
       </button>
     </>
@@ -979,12 +981,12 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
     <button type="button"
             className="sp-action"
             onClick={() => { if (strokesLive.current.length) { pushHistory(); setActiveStrokes([]); } }}
-            disabled={!strokes.length}>Clear</button>
+            disabled={!strokes.length}><Trans>Clear</Trans></button>
   );
   const cancelBtn = (
     <button type="button"
             className="sp-action"
-            onClick={async () => { if (await confirmDiscard()) onClose?.(); }}>Cancel</button>
+            onClick={async () => { if (await confirmDiscard()) onClose?.(); }}><Trans>Cancel</Trans></button>
   );
   const commitBtn = (
     <button type="button"
@@ -993,7 +995,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
             disabled={!editingCard && !totalStrokes}>
       {/* A phone has no room for "Add to canvas" alongside finger-sized tools —
           the full label pushed the primary action clean off the right edge. */}
-      {editingCard ? 'Save' : (compact ? 'Add' : 'Add to canvas')}
+      {editingCard ? tr`Save` : (compact ? tr`Add` : tr`Add to canvas`)}
     </button>
   );
 
@@ -1026,7 +1028,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
               <button type="button"
                       className="sp-x"
                       onClick={async () => { if (await confirmDiscard()) onClose?.(); }}
-                      aria-label="Close">
+                      aria-label={tr`Close`}>
                 <Icon as={X} size={20} weight="regular" />
               </button>
               <span className="sp-bar-gap" />
@@ -1044,7 +1046,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
               <button type="button"
                       className="sp-chip"
                       onClick={() => setSheetOpen('color')}
-                      aria-label="Colour and size">
+                      aria-label={tr`Colour and size`}>
                 <span className="sp-chip-dot" style={{ background: color }} />
                 <span className="sp-chip-dot sp-chip-size"
                       style={{ width: Math.min(18, activeWidth + 4), height: Math.min(18, activeWidth + 4) }} />
@@ -1052,15 +1054,15 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
               <button type="button"
                       className={`sp-tool sp-layers-btn ${sheetOpen === 'layers' ? 'is-active' : ''}`}
                       onClick={() => setSheetOpen('layers')}
-                      aria-label={`Layers (${layers.length})`}
-                      {...tlTip('Layers')}>
+                      aria-label={tr`Layers (${ph({ count: layers.length })})`}
+                      {...tlTip(tr`Layers`)}>
                 <Icon as={Stack} size={20} weight="regular" aria-hidden="true" />
                 <span className="sp-layers-n">{layers.length}</span>
               </button>
               <button type="button"
                       className={`sp-tool ${sheetOpen === 'more' ? 'is-active' : ''}`}
                       onClick={() => setSheetOpen('more')}
-                      aria-label="More sketch options"><Icon as={MoreHorizontal} size={20} weight="regular" /></button>
+                      aria-label={tr`More sketch options`}><Icon as={MoreHorizontal} size={20} weight="regular" /></button>
             </div>
             {/* Row 3 — only while the canvas is still empty. The frame shape is
                 the one decision that cannot be revisited (nothing rescales once
@@ -1070,7 +1072,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                 stroke, giving the space back. */}
             {canPickAspect && (
               <div className="sketchpad-toolbar sp-bar-row sp-bar-frame">
-                <span className="sp-sheet-label">Frame</span>
+                <span className="sp-sheet-label"><Trans>Frame</Trans></span>
                 <div className="sp-aspects">{aspectButtons}</div>
               </div>
             )}
@@ -1095,7 +1097,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                       className={`sp-action ${layersOpen ? 'is-active' : ''}`}
                       onClick={() => setLayersOpen(o => !o)}
                       aria-expanded={layersOpen}>
-                Layers{layers.length > 1 ? ` (${layers.length})` : ''}
+                {layers.length > 1 ? tr`Layers (${ph({ count: layers.length })})` : tr`Layers`}
               </button>
               <span className="sp-sep" />
               {undoRedo}
@@ -1108,7 +1110,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
               <button type="button"
                       className="sp-x"
                       onClick={async () => { if (await confirmDiscard()) onClose?.(); }}
-                      aria-label="Close" {...tlTip('Close', 'Escape')}
+                      aria-label={tr`Close`} {...tlTip(tr`Close`, 'Escape')}
                       aria-keyshortcuts="Escape">
                 <Icon as={X} size={16} weight="regular" />
               </button>
@@ -1134,8 +1136,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
           {!visibleStrokes.length && !activeStroke && (
             <div className="sketchpad-hint">
               {compact
-                ? 'Sketch here, then press Add.'
-                : 'Sketch freely — your strokes commit to the active board when you press “Add to canvas”.'}
+                ? tr`Sketch here, then press Add.`
+                : tr`Sketch freely — your strokes commit to the active board when you press “Add to canvas”.`}
             </div>
           )}
         </div>
@@ -1144,7 +1146,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
             are drawing on. */}
         {!compact && layersOpen && (
           <div className="sp-layers-dock">
-            <div className="sp-sheet-label">Layers</div>
+            <div className="sp-sheet-label"><Trans>Layers</Trans></div>
             {layerPanel}
           </div>
         )}
@@ -1156,7 +1158,7 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
           <button type="button"
                   className="sp-zoom-reset"
                   onClick={() => setView({ z: 1, x: 0, y: 0 })}>
-            {Math.round(view.z * 100)}% · Reset
+            <Trans>{ph({ round: Math.round(view.z * 100) })}% · Reset</Trans>
           </button>
         )}
         </div>
@@ -1170,8 +1172,8 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
                // slider — half a phone screen cannot hold it without a second
                // hidden scroll, which is how it got lost in the first place.
                snap={sheetOpen === 'layers' ? 'full' : 'half'}
-               title={sheetOpen === 'layers' ? 'Layers'
-                 : sheetOpen === 'color' ? 'Colour & size' : 'Sketch'}
+               title={sheetOpen === 'layers' ? tr`Layers`
+                 : sheetOpen === 'color' ? tr`Colour & size` : tr`Sketch`}
                onClose={() => setSheetOpen(false)}>
           <div className="sp-sheet-body">
             {sheetOpen === 'layers' ? (
@@ -1179,15 +1181,15 @@ export function SketchPadOverlay({ open, onClose, onCommitStrokes, editingCard }
             ) : (
               <>
                 <div className="sp-sheet-group">
-                  <div className="sp-sheet-label">Brush</div>
+                  <div className="sp-sheet-label"><Trans>Brush</Trans></div>
                   <div className="sp-sheet-row sp-brushes">{brushButtons}</div>
                 </div>
                 <div className="sp-sheet-group">
-                  <div className="sp-sheet-label">Colour</div>
+                  <div className="sp-sheet-label"><Trans>Colour</Trans></div>
                   <div className="sp-sheet-row">{swatches}</div>
                 </div>
                 <div className="sp-sheet-group">
-                  <div className="sp-sheet-label">{tool === 'eraser' ? 'Eraser size' : 'Stroke width'}</div>
+                  <div className="sp-sheet-label">{tool === 'eraser' ? tr`Eraser size` : tr`Stroke width`}</div>
                   <div className="sp-sheet-row">{widths}</div>
                 </div>
                 {/* Layers and Frame are not repeated here — both have their own

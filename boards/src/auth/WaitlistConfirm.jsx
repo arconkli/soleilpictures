@@ -18,13 +18,15 @@ import { useMyTier } from '../hooks/useMyTier.js';
 import { startCheckout } from '../lib/checkout.js';
 import { checkoutErrorMessage } from '../lib/checkoutErrors.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
-import { CTA } from '../lib/billingCopy.js';
+import { CTA } from '../lib/billingCopyWords.js';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { qaWaitlistStatus } from '../lib/localMode.js';
 import { Check } from '../lib/icons.js';
 import { Icon } from '../components/Icon.jsx';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const POLL_MS = 10000;
 
@@ -113,11 +115,11 @@ export function WaitlistConfirm() {
             <Icon as={Check} size={32} weight="bold" />
           </div>
           <SoleilWordmark size="display" />
-          <div className="welcome-eyebrow t-eyebrow">YOU'RE IN</div>
+          <div className="welcome-eyebrow t-eyebrow"><Trans>YOU'RE IN</Trans></div>
           <p className="welcome-copy t-body">
-            A spot just opened up — taking you into Clusters…
+            <Trans>A spot just opened up — taking you into Clusters…</Trans>
           </p>
-          <div className="payment-spinner" aria-label="Loading your workspace" />
+          <div className="payment-spinner" aria-label={tr`Loading your workspace`} />
         </div>
       </div>
     );
@@ -133,49 +135,49 @@ export function WaitlistConfirm() {
 
       {loading ? (
         <div className="waitlist-status-card waitlist-status-card-loading">
-          <p className="t-meta">Loading…</p>
+          <p className="t-meta"><Trans>Loading…</Trans></p>
         </div>
       ) : !entry ? (
         <div className="waitlist-status-card">
-          <div className="waitlist-status-eyebrow t-eyebrow">No application yet</div>
-          <h2 className="waitlist-status-title">Pick a path to continue.</h2>
+          <div className="waitlist-status-eyebrow t-eyebrow"><Trans>No application yet</Trans></div>
+          <h2 className="waitlist-status-title"><Trans>Pick a path to continue.</Trans></h2>
           <p className="waitlist-status-sub t-body">
-            We don't see a waitlist entry for <b>{user?.email}</b>. Submit
-            your socials for review, or skip the wait with a paid plan.
+            <Trans>We don't see a waitlist entry for <b>{ph({ email: user?.email })}</b>. Submit
+            your socials for review, or skip the wait with a paid plan.</Trans>
           </p>
           <div className="waitlist-status-cta-row">
             <button
               className="pricing-cta pricing-cta-secondary waitlist-status-cta"
               onClick={() => { logEventNow(EV.WELCOME_CTA, { target: 'waitlist', from: 'waitlist_status' }); window.location.assign('/waitlist'); }}
             >
-              Submit Socials →
+              <Trans>Submit Socials →</Trans>
             </button>
             <button
               className="pricing-cta pricing-cta-primary waitlist-status-cta"
               onClick={() => { logEventNow(EV.WELCOME_CTA, { target: 'pricing', from: 'waitlist_status' }); window.location.assign('/pricing'); }}
             >
-              See Pricing →
+              <Trans>See Pricing →</Trans>
             </button>
           </div>
         </div>
       ) : entry.status === 'rejected' ? (
         <div className="waitlist-status-card">
           <div className="waitlist-status-eyebrow waitlist-status-eyebrow-muted t-eyebrow">
-            Application reviewed
+            <Trans>Application reviewed</Trans>
           </div>
-          <h2 className="waitlist-status-title">Your demo wasn't approved.</h2>
+          <h2 className="waitlist-status-title"><Trans>Your demo wasn't approved.</Trans></h2>
           <p className="waitlist-status-sub t-body">
-            We weren't able to offer you free demo access this round — we
+            <Trans>We weren't able to offer you free demo access this round — we
             review applications carefully to keep the community strong.
             You can still skip the wait with a paid plan, or write to us
             at <a className="auth-link" href="mailto:hello@soleilpictures.com?subject=Demo%20application">hello@soleilpictures.com</a> if
-            you think we got it wrong.
+            you think we got it wrong.</Trans>
           </p>
           <button
             className="pricing-cta pricing-cta-primary waitlist-status-cta"
             onClick={() => { logEventNow(EV.WELCOME_CTA, { target: 'pricing', from: 'waitlist_rejected' }); window.location.assign('/pricing'); }}
           >
-            See Pricing →
+            <Trans>See Pricing →</Trans>
           </button>
         </div>
       ) : (
@@ -183,19 +185,19 @@ export function WaitlistConfirm() {
           {/* Status — floating text, no container. */}
           <section className="waitlist-status">
             <div className="waitlist-status-eyebrow t-eyebrow">
-              On the waitlist
+              <Trans>On the waitlist</Trans>
             </div>
-            <h2 className="waitlist-status-title">We'll be in touch soon.</h2>
+            <h2 className="waitlist-status-title"><Trans>We'll be in touch soon.</Trans></h2>
             <p className="waitlist-status-sub t-body">
-              We're reviewing your application and will email you when a spot opens.
+              <Trans>We're reviewing your application and will email you when a spot opens.</Trans>
             </p>
           </section>
 
           {/* Skip — small subtle box. */}
           <section className="waitlist-skip">
-            <div className="waitlist-skip-label t-meta">Don't want to wait?</div>
+            <div className="waitlist-skip-label t-meta"><Trans>Don't want to wait?</Trans></div>
             <div className="waitlist-skip-row">
-              <div className="pricing-card-toggle" role="tablist" aria-label="Billing interval">
+              <div className="pricing-card-toggle" role="tablist" aria-label={tr`Billing interval`}>
                 <button
                   role="tab"
                   aria-selected={plan === 'monthly'}
@@ -203,7 +205,7 @@ export function WaitlistConfirm() {
                   onClick={() => { logEvent(EV.WAITLIST_PLAN_TOGGLE, { plan: 'monthly' }); setPlan('monthly'); }}
                   disabled={checkoutBusy}
                 >
-                  Monthly
+                  <Trans>Monthly</Trans>
                 </button>
                 <button
                   role="tab"
@@ -212,7 +214,7 @@ export function WaitlistConfirm() {
                   onClick={() => { logEvent(EV.WAITLIST_PLAN_TOGGLE, { plan: 'annual' }); setPlan('annual'); }}
                   disabled={checkoutBusy}
                 >
-                  Annual
+                  <Trans>Annual</Trans>
                 </button>
               </div>
               <button
@@ -220,7 +222,7 @@ export function WaitlistConfirm() {
                 onClick={startSkipCheckout}
                 disabled={checkoutBusy}
               >
-                {checkoutBusy ? 'Opening…' : CTA.subscribeShort(plan)}
+                {checkoutBusy ? tr`Opening…` : CTA.subscribeShort(plan)}
               </button>
             </div>
             {checkoutError && <div className="auth-error t-meta">{checkoutError}</div>}
@@ -229,9 +231,9 @@ export function WaitlistConfirm() {
       )}
 
       <footer className="pricing-foot t-meta">
-        Signed in as <b>{user?.email}</b>
+        <Trans>Signed in as</Trans> <b>{user?.email}</b>
         <span className="welcome-foot-sep">·</span>
-        <button className="auth-link" onClick={() => { logEvent(EV.WAITLIST_SIGNOUT); signOut(); }}>Use a different email</button>
+        <button className="auth-link" onClick={() => { logEvent(EV.WAITLIST_SIGNOUT); signOut(); }}><Trans>Use a different email</Trans></button>
       </footer>
     </div>
   );

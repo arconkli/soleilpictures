@@ -5,7 +5,11 @@
 // (lib/mcpDrafts.js, 0705). Its keep page reads it through the Worker
 // (POST /api/keep/bundle, worker-keep.js) and, once the person is signed in,
 // keeps it with keep_mcp_draft. Pure: no imports from the app, so every rule
-// here tests under node (keepDraft.test.mjs).
+// here tests under node (keepDraft.test.mjs). Its words go through Lingui, and
+// its dates through intlFormat's locale.
+
+import { t as tr } from '@lingui/core/macro';
+import { formatLocale } from './intlFormat.js';
 
 export const KEEP_BUNDLE_PATH = '/api/keep/bundle';
 
@@ -117,7 +121,7 @@ export function deleteDay(expiresAt, locale) {
   const t = Date.parse(expiresAt || '');
   if (!Number.isFinite(t)) return null;
   try {
-    return new Date(t).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+    return new Date(t).toLocaleDateString(locale || formatLocale(), { day: 'numeric', month: 'short' });
   } catch (_) {
     return null;
   }
@@ -131,15 +135,15 @@ export function deleteDay(expiresAt, locale) {
 // was typed. Only the newest works.
 export function signInWords(e, { resent = false } = {}) {
   const msg = (e?.message || String(e || '')).toLowerCase();
-  if (msg.includes('captcha')) return "We couldn't confirm you're a person, not a bot. Try again — or another browser if it keeps happening.";
-  if (msg.includes('rate') || msg.includes('too many')) return 'Hold on — too many attempts. Try again in a minute.';
-  if (resent && msg.includes('expired') && msg.includes('invalid')) return "That code didn't match. Only the newest code works — use the one in the latest email.";
-  if (msg.includes('expired') && msg.includes('invalid')) return "That code didn't match. Check the digits, or request a new one.";
-  if (msg.includes('expired'))                          return "That code expired. Request a new one.";
-  if (resent && msg.includes('invalid') && msg.includes('token')) return "That code didn't match. Only the newest code works — use the one in the latest email.";
-  if (msg.includes('invalid') && msg.includes('token')) return "That code didn't match. Try again or request a new one.";
-  if (msg.includes('email') && msg.includes('invalid')) return "That email doesn't look right.";
-  return e?.message || String(e || 'Something went wrong.');
+  if (msg.includes('captcha')) return tr`We couldn't confirm you're a person, not a bot. Try again — or another browser if it keeps happening.`;
+  if (msg.includes('rate') || msg.includes('too many')) return tr`Hold on — too many attempts. Try again in a minute.`;
+  if (resent && msg.includes('expired') && msg.includes('invalid')) return tr`That code didn't match. Only the newest code works — use the one in the latest email.`;
+  if (msg.includes('expired') && msg.includes('invalid')) return tr`That code didn't match. Check the digits, or request a new one.`;
+  if (msg.includes('expired'))                          return tr`That code expired. Request a new one.`;
+  if (resent && msg.includes('invalid') && msg.includes('token')) return tr`That code didn't match. Only the newest code works — use the one in the latest email.`;
+  if (msg.includes('invalid') && msg.includes('token')) return tr`That code didn't match. Try again or request a new one.`;
+  if (msg.includes('email') && msg.includes('invalid')) return tr`That email doesn't look right.`;
+  return e?.message || String(e || tr`Something went wrong.`);
 }
 
 // What a new account made here carries into its first touch (0157's

@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { cutGraphemes, exceedsGraphemes } from './graphemes.js';
+import { t as tr } from '@lingui/core/macro';
 
 // Assemble nodes + edges arrays for the home graph from boards + card_index +
 // doc_backlinks. Used by HomeGraph.
@@ -99,14 +100,14 @@ export function graphFromRows(rawBoards = [], cards = [], bls = [], options = {}
     if (!nodes.has(id)) {
       const colorKey = cardKind || kind;
       nodes.set(id, {
-        id, kind, cardKind, name: name || 'Untitled',
+        id, kind, cardKind, name: name || tr`Untitled`,
         color: COLOR[colorKey] || COLOR[kind] || COLOR.card,
         val,
       });
     }
   };
 
-  for (const b of boards) add(`board:${b.id}`, 'board', b.name || 'Untitled board', 14);
+  for (const b of boards) add(`board:${b.id}`, 'board', b.name || tr`Untitled board`, 14);
 
   // Embedded-board (`kind: 'board'`) and boardlink (`kind: 'boardlink'`)
   // cards are NOT added as separate nodes. The drawer used to render
@@ -221,9 +222,11 @@ const COLOR = {
 // specific to show. Mirrors the vocabulary in readableKind()
 // (HomeGraphDetailDrawer.jsx) and describeListItem() (cards.jsx).
 const KIND_LABEL = {
-  image: 'Image', note: 'Note', link: 'Link', palette: 'Palette',
-  doc: 'Doc', video: 'Video', audio: 'Audio', schedule: 'Schedule',
-  shape: 'Shape',
+  get image() { return tr`Image`; }, get note() { return tr`Note`; },
+  get link() { return tr`Link`; }, get palette() { return tr`Palette`; },
+  get doc() { return tr`Doc`; }, get video() { return tr`Video`; },
+  get audio() { return tr`Audio`; }, get schedule() { return tr`Schedule`; },
+  get shape() { return tr`Shape`; },
 };
 
 function hostFromUrl(url) {
@@ -244,8 +247,8 @@ function deriveCardName(c) {
   const title = clip(c.title);
   if (title) return title;
   const meta = c.meta || {};
-  if (c.kind === 'link')  return hostFromUrl(meta.url) || 'Link';
-  if (c.kind === 'note')  return clip((c.body || '').split('\n')[0]) || 'Note';
-  if (c.kind === 'image') return clip(meta.alt) || 'Image';
-  return KIND_LABEL[c.kind] || (c.kind ? c.kind[0].toUpperCase() + c.kind.slice(1) : 'Card');
+  if (c.kind === 'link')  return hostFromUrl(meta.url) || tr`Link`;
+  if (c.kind === 'note')  return clip((c.body || '').split('\n')[0]) || tr`Note`;
+  if (c.kind === 'image') return clip(meta.alt) || tr`Image`;
+  return KIND_LABEL[c.kind] || (c.kind ? c.kind[0].toUpperCase() + c.kind.slice(1) : tr`Card`);
 }

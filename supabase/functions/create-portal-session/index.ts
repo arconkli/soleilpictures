@@ -8,6 +8,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import Stripe from "npm:stripe@17.7.0";
 import { failedWith, reported } from "../_shared/reportError.ts";
+import { stripeLocale } from "../_shared/stripeLocale.mjs";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -55,11 +56,13 @@ Deno.serve(reported("create-portal-session", async (req) => {
     if (sub.error) return failedWith(json({ error: sub.error.message }, 500), sub.error, { what: "select subscriptions" });
     if (!sub.data?.stripe_customer_id) return json({ error: "no subscription found" }, 404);
 
+    const locale = stripeLocale(u.data.user);
     let session: Stripe.BillingPortal.Session;
     try {
       session = await stripe.billingPortal.sessions.create({
         customer: sub.data.stripe_customer_id,
         return_url: `${APP_URL}/?settings=billing`,
+        ...(locale ? { locale } : {}),
       });
     } catch (e) {
       // A Dashboard-deleted customer leaves a dead id in the mirror (we don't

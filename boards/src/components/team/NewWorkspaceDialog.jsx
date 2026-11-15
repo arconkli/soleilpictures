@@ -14,6 +14,8 @@ import { justMeLimitLine } from '../../lib/workspaceLimitCopy.js';
 import './newWorkspaceDialog.css';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import { initialOf } from '../../lib/graphemes.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 export default function NewWorkspaceDialog({ team, userName, defaultFor = 'team', personalCount = 0, onCancel, onCreate }) {
   const [name, setName] = useState('');
@@ -72,7 +74,7 @@ export default function NewWorkspaceDialog({ team, userName, defaultFor = 'team'
     if (!aliveRef.current) return;
     if (res && res.ok) return;
     setBusy(false);
-    setError((res && res.line) || 'That didn’t work. Try again.');
+    setError((res && res.line) || t`That didn’t work. Try again.`);
   };
 
   const radio = (on, toTeam, avatar, title, sub, off = false) => (
@@ -85,37 +87,37 @@ export default function NewWorkspaceDialog({ team, userName, defaultFor = 'team'
 
   return (
     <div className="feedback-bg" onPointerDown={() => onCancel?.()}>
-      <form className="feedback-dialog nwd" role="dialog" aria-modal="true" aria-label="New workspace"
+      <form className="feedback-dialog nwd" role="dialog" aria-modal="true" aria-label={t`New workspace`}
             onSubmit={submit} onPointerDown={(e) => e.stopPropagation()}>
         <div className="feedback-hd">
-          <div className="feedback-title">New workspace</div>
-          <button type="button" className="modal-x" aria-label="Close" onClick={() => onCancel?.()}><Icon as={X} size={16} /></button>
+          <div className="feedback-title"><Trans>New workspace</Trans></div>
+          <button type="button" className="modal-x" aria-label={t`Close`} onClick={() => onCancel?.()}><Icon as={X} size={16} /></button>
         </div>
         <label className="feedback-field">
-          <span>Name</span>
-          <input autoFocus value={name} maxLength={60} placeholder="e.g. Trailers"
+          <span><Trans>Name</Trans></span>
+          <input autoFocus value={name} maxLength={60} placeholder={t`e.g. Trailers`}
                  onChange={(e) => setName(e.target.value)} />
         </label>
-        <div className="nwd-label" id="nwd-for">Who is it for?</div>
-        <div className="nwd-radios" role="radiogroup" aria-label="Who is it for">
+        <div className="nwd-label" id="nwd-for"><Trans>Who is it for?</Trans></div>
+        <div className="nwd-radios" role="radiogroup" aria-label={t`Who is it for`}>
           {radio(forTeam, true,
             <span className="nwd-av" style={team.color ? { background: team.color } : undefined} aria-hidden="true">{teamLetter}</span>,
-            team.name, 'Everyone on the team can open it. It uses the team’s seats and storage.')}
+            team.name, t`Everyone on the team can open it. It uses the team’s seats and storage.`)}
           {radio(!forTeam, false,
             <span className="nwd-av nwd-av-me" aria-hidden="true">{myLetter}</span>,
-            'Just me', meFull ? justMeLimitLine(personalCount) : 'Personal. The team never sees it, and it’s on your own plan.', meFull)}
+            t`Just me`, meFull ? justMeLimitLine(personalCount) : t`Personal. The team never sees it, and it’s on your own plan.`, meFull)}
         </div>
         {canPrivate && (
           <div className="nwd-private">
-            <span className="nwd-text"><b>Private</b><span className="nwd-sub">Only the people you add, plus the team’s owner and admins.</span></span>
-            <button type="button" role="switch" aria-checked={isPrivate} aria-label="Private"
+            <span className="nwd-text"><b><Trans>Private</Trans></b><span className="nwd-sub"><Trans>Only the people you add, plus the team’s owner and admins.</Trans></span></span>
+            <button type="button" role="switch" aria-checked={isPrivate} aria-label={t`Private`}
                     className="nwd-switch" onClick={() => setIsPrivate((v) => !v)} />
           </div>
         )}
         {error && <div className="nwd-error" role="alert">{error}</div>}
         <div className="feedback-actions">
-          <button type="button" className="btn-secondary" onClick={() => onCancel?.()}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={!trimmed || busy}>{busy ? 'Creating…' : 'Create workspace'}</button>
+          <button type="button" className="btn-secondary" onClick={() => onCancel?.()}><Trans>Cancel</Trans></button>
+          <button type="submit" className="btn-primary" disabled={!trimmed || busy}>{busy ? t`Creating…` : t`Create workspace`}</button>
         </div>
       </form>
     </div>

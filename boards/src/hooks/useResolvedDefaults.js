@@ -23,6 +23,7 @@ import {
   getOwnProfile,
   getMyWorkspaceRole,
 } from '../lib/boardsApi.js';
+import { t } from '@lingui/core/macro';
 
 // Hardcoded defaults — exact values that shipped pre-settings. If a
 // user/workspace doesn't override a field, this is what they get.
@@ -55,10 +56,14 @@ export const HARDCODED_FALLBACKS = Object.freeze({
     w: 160, h: 100,
   },
   palette: {
-    swatches: [
-      { name: 'Color', hex: '#3b82f6' },
-      { name: 'Color', hex: '#10b981' },
-    ],
+    // A getter, so the swatch name is read in the person's language when the
+    // defaults are merged at render (never at module load).
+    get swatches() {
+      return [
+        { name: t({ message: 'Color', context: 'default name' }), hex: '#3b82f6' },
+        { name: t({ message: 'Color', context: 'default name' }), hex: '#10b981' },
+      ];
+    },
     w: 300, h: 180,
   },
   ui: {

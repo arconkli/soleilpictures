@@ -11,6 +11,7 @@ import { refusalLine } from './teamCopy.js';
 import { teamsAllowed } from './appHost.js';
 import { logEvent } from './analytics.js';
 import { EV } from './analyticsEvents.js';
+import { t as tr } from '@lingui/core/macro';
 
 const urlTo = (path) => { try { window.history.replaceState({}, '', path); } catch (_) {} };
 
@@ -28,11 +29,11 @@ export async function runTeamReturn(ret, deps) {
       deps.reloadTeams();
       deps.refreshWorkspaces();
       try { window.dispatchEvent(new Event('soleil:teams-changed')); } catch (_) {}
-      deps.toast(answer.created ? 'Your team is ready. Invite your people.'
-        : answer.kind === 'renew' ? 'The team is paid up. Editing is back on.' : 'Payment received.');
+      deps.toast(answer.created ? tr`Your team is ready. Invite your people.`
+        : answer.kind === 'renew' ? tr`The team is paid up. Editing is back on.` : tr`Payment received.`);
       deps.open(answer.created ? 'joining' : 'billing');
     } else if (answer?.gaveUp) {
-      deps.toast("Stripe is still confirming the payment. We'll open your team as soon as it's through.");
+      deps.toast(tr`Stripe is still confirming the payment. We'll open your team as soon as it's through.`);
       deps.reloadTeams();
       urlTo('/');
     } else {

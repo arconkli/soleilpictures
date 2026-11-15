@@ -16,14 +16,15 @@
 // cluster is counted and paged on the server. sidebarShelves.test.mjs reads the
 // newest definition and fails when the two disagree, so change both or neither.
 
+import { t } from '@lingui/core/macro';
 export const SHELVES = [
-  { id: 'photos',  label: 'Photos',  layout: 'rows' },
-  { id: 'video',   label: 'Video',   layout: 'rows' },
-  { id: 'audio',   label: 'Audio',   layout: 'rows' },
-  { id: 'files',   label: 'Files',   layout: 'rows' },
-  { id: 'writing', label: 'Notes',   layout: 'fold' },
-  { id: 'links',   label: 'Links',   layout: 'fold' },
-  { id: 'more',    label: 'Other',   layout: 'fold' },
+  { id: 'photos',  get label() { return t`Photos`; },  layout: 'rows' },
+  { id: 'video',   get label() { return t({ message: 'Video', context: 'plural' }); },   layout: 'rows' },
+  { id: 'audio',   get label() { return t`Audio`; },   layout: 'rows' },
+  { id: 'files',   get label() { return t`Files`; },   layout: 'rows' },
+  { id: 'writing', get label() { return t`Notes`; },   layout: 'fold' },
+  { id: 'links',   get label() { return t`Links`; },   layout: 'fold' },
+  { id: 'more',    get label() { return t({ message: 'Other', context: 'files' }); },   layout: 'fold' },
 ];
 
 export const SHELF_IDS = SHELVES.map((s) => s.id);
@@ -72,12 +73,12 @@ export const SHELF_BUCKETS = Object.freeze({
 // shelves: one clears the filter, the other keeps only what's stored off the
 // board, whatever shelf it sits on.
 export const FILTER_CHIPS = [
-  { id: 'all', label: 'All' },
-  { id: 'photos', label: 'Photos' },
-  { id: 'video', label: 'Video' },
-  { id: 'audio', label: 'Audio' },
-  { id: 'files', label: 'Files' },
-  { id: 'writing', label: 'Notes' },
-  { id: 'links', label: 'Links' },
-  { id: 'unplaced', label: 'Not on board' },
+  { id: 'all', get label() { return t`All`; } },
+  { id: 'photos', get label() { return t`Photos`; } },
+  { id: 'video', get label() { return t({ message: 'Video', context: 'plural' }); } },
+  { id: 'audio', get label() { return t`Audio`; } },
+  { id: 'files', get label() { return t`Files`; } },
+  { id: 'writing', get label() { return t`Notes`; } },
+  { id: 'links', get label() { return t`Links`; } },
+  { id: 'unplaced', get label() { return t`Not on board`; } },
 ];

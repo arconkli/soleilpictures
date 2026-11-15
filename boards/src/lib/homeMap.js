@@ -9,13 +9,17 @@
 // test them.
 
 import { searchKey } from './textFold.js';
+import { relativeTimeShort } from './relativeTime.js';
+import { isDefaultName } from './defaultNames.js';
+import { t, plural } from '@lingui/core/macro';
 
-const UNTITLED_RE = /^Untitled (cluster|list)$/i;
+// 'Untitled list' is the older English name; isDefaultName knows the app's name in every language.
+const isUntitled = (name) => isDefaultName(['Untitled cluster', 'Untitled list'], name);
 
 /** A cluster's name as Home shows it. */
 export const clusterName = (b) => {
   const n = typeof b?.name === 'string' ? b.name.trim() : '';
-  return n && !UNTITLED_RE.test(n) ? n : 'Untitled cluster';
+  return n && !isUntitled(n) ? n : t`Untitled cluster`;
 };
 
 const isLive = (b) => !!b && !b.deleted_at;
@@ -121,12 +125,14 @@ export function viewOffset(insets) {
  */
 export function workspaceLine({ workspace, personalWorkspaceId = null, selfUserId = null, memberCount = 0, when = '' } = {}) {
   if (!workspace) return '';
-  const whose = workspace.id === personalWorkspaceId ? 'Your personal workspace'
-    : workspace.created_by === selfUserId ? 'Your workspace'
-    : workspace._myRole === 'coowner' ? 'You co-own this'
-    : 'Shared with you';
+  const whose = workspace.id === personalWorkspaceId ? t`Your personal workspace`
+    : workspace.created_by === selfUserId ? t`Your workspace`
+    : workspace._myRole === 'coowner' ? t`You co-own this`
+    : t`Shared with you`;
   const parts = [whose];
-  if (memberCount > 1) parts.push(`${memberCount} people`);
-  if (when) parts.push(when === 'Just now' ? 'updated just now' : `updated ${when}`);
+  if (memberCount > 1) parts.push(plural(memberCount, { one: '# person', other: '# people' }));
+  // `when` is relativeTimeShort's own words, so "just now" is whatever it says
+  // for this very moment, in any language.
+  if (when) parts.push(when === relativeTimeShort(Date.now()) ? t`updated just now` : t`updated ${when}`);
   return parts.join(' · ');
 }

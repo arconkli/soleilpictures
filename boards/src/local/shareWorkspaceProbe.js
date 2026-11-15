@@ -10,11 +10,16 @@
 // nowhere.
 import React from 'react';
 import * as ReactDOM from 'react-dom/client';
+import { I18nProvider } from '@lingui/react';
+import { i18n } from '../lib/i18n.js';
 
 import { WorkspaceMenu } from '../components/WorkspaceMenu.jsx';
 import { ShareModal } from '../components/ShareModal.jsx';
 import { MembersTab } from '../components/settings/MembersTab.jsx';
 import { FeedbackProvider } from '../components/AppFeedback.jsx';
+
+// The app's provider (main.jsx) is not here, so the wrapped components get one.
+const mountIn = (el, tree) => ReactDOM.createRoot(el).render(React.createElement(I18nProvider, { i18n }, tree));
 
 const host = () => {
   const el = document.createElement('div');
@@ -27,7 +32,7 @@ const host = () => {
 export function mountWorkspaceMenu(props) {
   const calls = { share: [], settings: [], remove: [], close: 0 };
   window.__shareProbe = calls;
-  ReactDOM.createRoot(host()).render(React.createElement(WorkspaceMenu, {
+  mountIn(host(), React.createElement(WorkspaceMenu, {
     triggerSelector: null,
     onSelect: () => {},
     onAddNew: () => {},
@@ -41,7 +46,7 @@ export function mountWorkspaceMenu(props) {
 }
 
 export function mountShareModal(props) {
-  ReactDOM.createRoot(host()).render(React.createElement(FeedbackProvider, null,
+  mountIn(host(), React.createElement(FeedbackProvider, null,
     React.createElement(ShareModal, { onClose: () => {}, ...props })));
   return true;
 }
@@ -50,7 +55,7 @@ export function mountShareModal(props) {
 // canvas takes the pointer and a hover never reaches a row. Below the
 // confirm and the toasts, which portal to <body> on the top tier.
 export function mountMembersTab(props) {
-  ReactDOM.createRoot(host()).render(React.createElement(FeedbackProvider, null,
+  mountIn(host(), React.createElement(FeedbackProvider, null,
     React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 9999, overflow: 'auto', background: 'var(--bg-0)' } },
       React.createElement('div', { style: { width: 680, padding: 16 } },
         React.createElement(MembersTab, props)))));

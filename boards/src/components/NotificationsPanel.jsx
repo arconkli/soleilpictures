@@ -23,18 +23,23 @@ import { fileSharesAllowed, sharedFilesAllowed } from '../lib/appHost.js';
 import { openSharedFile } from '../lib/sharedFileBus.js';
 import { notificationTarget, placeUnderIsland, wantsNotificationSheet } from '../lib/notificationsBell.js';
 import { initialOf } from '../lib/graphemes.js';
+import { notificationText } from '../lib/notificationWords.js';
 import './notificationsPanel.css';
+import { t as tr } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../lib/errorWords.js';
 
 function agoLabel(ts) {
   const t = Date.parse(ts);
   if (!Number.isFinite(t)) return '';
   const s = Math.max(0, Math.round((Date.now() - t) / 1000));
-  if (s < 60) return 'just now';
+  if (s < 60) return tr`just now`;
   const m = Math.round(s / 60);
-  if (m < 60) return `${m}m`;
+  if (m < 60) return tr`${m}m`;
   const h = Math.round(m / 60);
-  if (h < 24) return `${h}h`;
-  return `${Math.round(h / 24)}d`;
+  if (h < 24) return tr`${h}h`;
+  const d = Math.round(h / 24);
+  return tr`${d}d`;
 }
 
 // A 'edit_request' row (0830): someone with view access asked to edit a cluster
@@ -49,6 +54,7 @@ function EditRequestRow({ n, onAnswer, onMarkRead, nameOf }) {
   const who = (nameOf?.(n.data?.requester_id) || '').trim()
     || String(n.title || '').split(' asked to edit')[0].trim();
   const initial = initialOf(who);
+  const { title } = notificationText(n, { nameOf });
 
   const answer = async (yes) => {
     if (busy || !requestId || !onAnswer) return;
@@ -62,31 +68,31 @@ function EditRequestRow({ n, onAnswer, onMarkRead, nameOf }) {
       else setDone(asked);
       onMarkRead?.([n.id]);
     } catch (e) {
-      setErr(String(e?.message || e || 'Could not save that. Try again.'));
+      setErr(String(shownError(e) || tr`Could not save that. Try again.`));
     } finally {
       setBusy(false);
     }
   };
 
-  const note = done === 'yes' ? 'You said yes'
-    : done === 'not_now' ? 'Not now'
-    : done === 'already' ? 'Already answered'
-    : done === 'gone' ? 'No longer on this cluster' : '';
+  const note = done === 'yes' ? tr`You said yes`
+    : done === 'not_now' ? tr`Not now`
+    : done === 'already' ? tr`Already answered`
+    : done === 'gone' ? tr`No longer on this cluster` : '';
 
   return (
     <div className={`ntf-row ntf-ask${n.read_at ? '' : ' is-unread'}`} data-kind="edit_request">
       <span className="ntf-dot" aria-hidden="true" />
       <span className="ntf-av" aria-hidden="true">{initial}</span>
       <span className="ntf-row-main">
-        <span className="ntf-row-title">{n.title}</span>
+        <span className="ntf-row-title">{title}</span>
         {note ? (
           <span className="ntf-ask-note">{note}</span>
         ) : (
           <span className="ntf-ask-acts">
             <button type="button" className="ntf-btn is-primary" disabled={busy || !requestId}
-              onClick={() => answer(true)}>Let them edit</button>
+              onClick={() => answer(true)}><Trans>Let them edit</Trans></button>
             <button type="button" className="ntf-btn" disabled={busy || !requestId}
-              onClick={() => answer(false)}>Not now</button>
+              onClick={() => answer(false)}><Trans>Not now</Trans></button>
           </span>
         )}
         {err && <span className="ntf-ask-err" role="alert">{err}</span>}
@@ -196,20 +202,20 @@ export function NotificationsPanel({
 
   return (
     <div className={`ntf-shell${sheet ? ' is-sheet' : ''}`} ref={shellRef}
-      role="dialog" aria-label="Notifications"
+      role="dialog" aria-label={tr`Notifications`}
       style={sheet ? undefined : { top: place.top, right: place.right }}>
     <div className="ntf-panel" ref={rootRef} tabIndex={-1}>
       <div className="ntf-head">
-        <div className="ntf-title">Notifications</div>
+        <div className="ntf-title"><Trans>Notifications</Trans></div>
         {unread > 0 && (
           <button type="button" className="ntf-markall" onClick={() => onMarkRead?.(null)}>
             <Icon as={Check} size={sheet ? 14 : 12} />
-            <span>Mark all read</span>
+            <span><Trans>Mark all read</Trans></span>
           </button>
         )}
         {sheet && (
           <button type="button" className="ntf-x" onClick={() => onCloseRef.current?.()}
-            title="Close" aria-label="Close notifications">
+            title={tr`Close`} aria-label={tr`Close notifications`}>
             <Icon as={X} size={18} />
           </button>
         )}
@@ -217,15 +223,17 @@ export function NotificationsPanel({
 
       <div className="ntf-body">
         {loading && items.length === 0 ? (
-          <div className="ntf-empty">Loading…</div>
+          <div className="ntf-empty"><Trans>Loading…</Trans></div>
         ) : items.length === 0 ? (
           <div className="ntf-empty">
-            Nothing yet. When someone shares a file with you or comments
-            on one, it lands here.
+            <Trans>Nothing yet. When someone shares a file with you or comments
+            on one, it lands here.</Trans>
           </div>
         ) : (
           <ul className="ntf-list">
-            {items.map((n) => (
+            {items.map((n) => {
+              const words = notificationText(n, { nameOf });
+              return (
               <li key={n.id}>
                 {n.kind === 'edit_request' && onAnswerEdit ? (
                   <EditRequestRow n={n} onAnswer={onAnswerEdit} onMarkRead={onMarkRead} nameOf={nameOf} />
@@ -237,14 +245,15 @@ export function NotificationsPanel({
                   <span className="ntf-dot" aria-hidden="true" />
                   {n.kind === 'invite.reward' && Number(n.data?.cards) > 0 && <span className="ntf-earn" aria-hidden="true">+{Number(n.data.cards)}</span>}
                   <span className="ntf-row-main">
-                    <span className="ntf-row-title">{n.title}</span>
-                    {n.body && <span className="ntf-row-body">{n.body}</span>}
+                    <span className="ntf-row-title">{words.title}</span>
+                    {words.body && <span className="ntf-row-body">{words.body}</span>}
                   </span>
                   <span className="ntf-row-ago">{agoLabel(n.created_at)}</span>
                 </button>
                 )}
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </div>

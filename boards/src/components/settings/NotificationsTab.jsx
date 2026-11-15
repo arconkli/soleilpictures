@@ -6,6 +6,9 @@ import { supabase } from '../../lib/supabase.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { Toggle } from './fields.jsx';
 import { useSettingsSave } from './saveState.jsx';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../../lib/errorWords.js';
 
 export function NotificationsTab({ user }) {
   const feedback = useFeedback();
@@ -24,7 +27,7 @@ export function NotificationsTab({ user }) {
         .maybeSingle();
       if (cancelled) return;
       if (error) {
-        feedback.toast({ type: 'error', code: 'prefs_load_failed', message: 'Could not load preferences: ' + (error.message || error) });
+        feedback.toast({ type: 'error', code: 'prefs_load_failed', message: t`Could not load preferences: ${ph({ reason: shownError(error) })}` });
       }
       setPrefs(data?.notification_prefs || {});
       setLoading(false);
@@ -54,40 +57,40 @@ export function NotificationsTab({ user }) {
   if (loading || !prefs) {
     return (
       <div className="settings-section">
-        <h3 className="settings-section-title">Notifications</h3>
-        <p className="settings-section-hint">Loading…</p>
+        <h3 className="settings-section-title"><Trans>Notifications</Trans></h3>
+        <p className="settings-section-hint"><Trans>Loading…</Trans></p>
       </div>
     );
   }
 
   return (
     <div className="settings-section">
-      <h3 className="settings-section-title">Notifications</h3>
+      <h3 className="settings-section-title"><Trans>Notifications</Trans></h3>
       <p className="settings-section-hint">
-        Which emails Clusters should send you. Anything you don't toggle on still shows up in-app.
+        <Trans>Which emails Clusters should send you. Anything you don't toggle on still shows up in-app.</Trans>
       </p>
 
       <Toggle
-        label="@-mentions"
-        desc="When someone @-mentions you in a cluster, DM, or workspace chat."
+        label={t`@-mentions`}
+        desc={t`When someone @-mentions you in a cluster, DM, or workspace chat.`}
         value={isOn('email_mentions')}
         onChange={(v) => togglePref('email_mentions', v)} />
 
       <Toggle
-        label="Comment replies"
-        desc="When someone replies to a comment you left."
+        label={t`Comment replies`}
+        desc={t`When someone replies to a comment you left.`}
         value={isOn('email_comment_replies')}
         onChange={(v) => togglePref('email_comment_replies', v)} />
 
       <Toggle
-        label="Workspace invites"
-        desc="When you're added to a new workspace."
+        label={t`Workspace invites`}
+        desc={t`When you're added to a new workspace.`}
         value={isOn('email_workspace_invite')}
         onChange={(v) => togglePref('email_workspace_invite', v)} />
 
       <Toggle
-        label="Board shares"
-        desc="When a cluster is shared with you."
+        label={t`Board shares`}
+        desc={t`When a cluster is shared with you.`}
         value={isOn('email_board_shared')}
         onChange={(v) => togglePref('email_board_shared', v)} />
 
@@ -97,25 +100,25 @@ export function NotificationsTab({ user }) {
           enabled — so this was an email nobody could turn off, on a screen
           whose whole promise is which emails we send you. */}
       <Toggle
-        label="Invite accepted"
-        desc="When someone you invited opens your link and joins a cluster. Only sent if you're not already in the app."
+        label={t`Invite accepted`}
+        desc={t`When someone you invited opens your link and joins a cluster. Only sent if you're not already in the app.`}
         value={isOn('email_invite_accepted')}
         onChange={(v) => togglePref('email_invite_accepted', v)} />
 
       <Toggle
-        label="Invite rewards"
-        desc="When a friend you invited adds their first card and you earn more cards and storage. Only sent if you're not already in the app."
+        label={t`Invite rewards`}
+        desc={t`When a friend you invited adds their first card and you earn more cards and storage. Only sent if you're not already in the app.`}
         value={isOn('email_invite_reward')}
         onChange={(v) => togglePref('email_invite_reward', v)} />
 
       <Toggle
-        label="Product tips & check-ins"
-        desc="Occasional nudges to help you get started and get back in when it's been a while, and a short note when something new ships."
+        label={t`Product tips & check-ins`}
+        desc={t`Occasional nudges to help you get started and get back in when it's been a while, and a short note when something new ships.`}
         value={isOn('email_lifecycle')}
         onChange={(v) => togglePref('email_lifecycle', v)} />
 
       <p className="settings-section-hint" style={{ marginTop: 16 }}>
-        Sign-in codes and account-critical emails always send, regardless of these settings.
+        <Trans>Sign-in codes and account-critical emails always send, regardless of these settings.</Trans>
       </p>
     </div>
   );

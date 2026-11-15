@@ -11,6 +11,8 @@ import { COVER_TINTS } from '../primitives.jsx';
 import { collapsePath, ELLIPSIS } from '../../lib/filesDock.js';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { useSpring } from '../../hooks/useSpring.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const byName = (a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
 
@@ -73,11 +75,11 @@ export function PathBar({
     () => Object.values(boards || {}).filter((b) => b && b.parent_board_id === last).sort(byName),
     [boards, last],
   );
-  const hereName = boards[last]?.name || 'Untitled cluster';
+  const hereName = boards[last]?.name || t`Untitled cluster`;
   return (
-    <nav className={`pb${trail ? ' pb--trail' : ''}`} aria-label="Files path">
+    <nav className={`pb${trail ? ' pb--trail' : ''}`} aria-label={t`Files path`}>
       {canBack && (
-        <button type="button" className={`cbt-iconbtn pb-back${spring.armed === 'back' ? ' is-springing' : ''}`} onClick={onBack} aria-label="Back" title="Back"
+        <button type="button" className={`cbt-iconbtn pb-back${spring.armed === 'back' ? ' is-springing' : ''}`} onClick={onBack} aria-label={t`Back`} title={t`Back`}
                 {...springProps('back', onSpringBack)}>
           <Icon as={ChevronLeft} size={16} weight="light" />
         </button>
@@ -85,13 +87,13 @@ export function PathBar({
       <ol className="pb-list">
         {steps.map((id, i) => {
           if (id === ELLIPSIS) return <li key={`gap-${i}`} className="pb-gap" aria-hidden="true">…</li>;
-          const name = boards[id]?.name || 'Untitled cluster';
+          const name = boards[id]?.name || t`Untitled cluster`;
           const here = !trail && id === last;
           return (
             <li key={id} className={`pb-step${here ? ' is-here' : ''}`}>
               {!here ? (
                 <button type="button" className={`pb-name pb-link${spring.armed === `step:${id}` ? ' is-springing' : ''}`} onClick={() => onNavigate?.(id)}
-                        title={trail ? `Up to ${name}` : name}
+                        title={trail ? t`Up to ${name}` : name}
                         {...springProps(`step:${id}`, onSpringTo ? () => onSpringTo(id) : null)}>
                   {trail && !canBack && <Icon as={ChevronLeft} size={13} weight="light" className="pb-up" />}
                   <span className="pb-text">{name}</span>
@@ -99,7 +101,7 @@ export function PathBar({
               ) : inside.length || onGoTo ? (
                 <button type="button" className="pb-name pb-here" data-menu-trigger="path" ref={triggerRef}
                         aria-current="location" aria-haspopup="menu" aria-expanded={open}
-                        title={inside.length ? `Clusters in ${name}` : 'Go to cluster…'} onClick={() => setOpen((o) => !o)}>
+                        title={inside.length ? t`Clusters in ${name}` : t`Go to cluster…`} onClick={() => setOpen((o) => !o)}>
                   <span className="pb-here-text">{name}</span>
                   <span className="pb-caret" aria-hidden="true"><Icon as={ChevronDown} size={12} weight="light" /></span>
                 </button>
@@ -112,16 +114,16 @@ export function PathBar({
       </ol>
       {/* Straight after the path, so it's next in reading order to its ▾. */}
       {open && (
-        <div className="cbt-menu pb-menu" ref={menuRef} role="menu" aria-label={inside.length ? `Clusters in ${hereName}` : 'Go to cluster'}
+        <div className="cbt-menu pb-menu" ref={menuRef} role="menu" aria-label={inside.length ? t`Clusters in ${hereName}` : t`Go to cluster`}
              onKeyDown={onMenuKey}>
-          {inside.length > 0 && <div className="cbt-menu-label">In {hereName}</div>}
+          {inside.length > 0 && <div className="cbt-menu-label"><Trans>In {hereName}</Trans></div>}
           {inside.map((b) => (
             <button key={b.id} type="button" role="menuitem" tabIndex={-1} className="ctx-item pb-menu-item"
                     onClick={() => { setOpen(false); onNavigate?.(b.id); }}>
               <span className="pb-menu-ico" aria-hidden="true">
                 <span className="pb-menu-dot" style={{ background: COVER_TINTS[b.cover === 'sun' ? 'sand' : b.cover] || COVER_TINTS.neutral }} />
               </span>
-              <span className="pb-menu-name" dir="auto">{b.name || 'Untitled cluster'}</span>
+              <span className="pb-menu-name" dir="auto">{b.name || t`Untitled cluster`}</span>
               {Number.isFinite(b.card_count) && <span className="cbt-count">{b.card_count}</span>}
             </button>
           ))}
@@ -130,7 +132,7 @@ export function PathBar({
               {inside.length > 0 && <div className="ctx-divider" role="separator" />}
               <button type="button" role="menuitem" tabIndex={-1} className="ctx-item pb-menu-item pb-menu-goto"
                       onClick={() => { setOpen(false); onGoTo(); }}>
-                <span className="pb-menu-name">Go to cluster…</span>
+                <span className="pb-menu-name"><Trans>Go to cluster…</Trans></span>
               </button>
             </>
           )}
@@ -141,7 +143,7 @@ export function PathBar({
           read "View only" — the words the app uses for a viewer's missing
           edit rights — over a cluster the person owns. */}
       {readOnly && (
-        <span className="cbt-ro" title="Browsing from the board. Open this cluster to add or change files">Browsing</span>
+        <span className="cbt-ro" title={t`Browsing from the board. Open this cluster to add or change files`}><Trans>Browsing</Trans></span>
       )}
     </nav>
   );

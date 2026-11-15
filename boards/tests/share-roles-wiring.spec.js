@@ -19,7 +19,7 @@ test.describe('workspace roles wiring', () => {
 
   test('Settings has a members tab, in the right key order for the docs gate', () => {
     const s = read('src/components/SettingsPanel.jsx');
-    expect(s).toMatch(/\{ id: 'members',\s+label: 'Members',\s+group: 'workspace' \}/);
+    expect(s).toMatch(/\{ id: 'members',\s+get label\(\) \{ return tr`Members`; \},\s+group: 'workspace' \}/);
     expect(s).toContain("{tab === 'members' && (");
     expect(read('content/docs/account/settings.md')).toContain('### Members');
   });
@@ -27,7 +27,7 @@ test.describe('workspace roles wiring', () => {
   test('the Members tab uses the 0318 RPC and confirms before removing', () => {
     const s = read('src/components/settings/MembersTab.jsx');
     expect(s).toContain('setWorkspaceMemberRole({');
-    expect(s).toMatch(/feedback\.confirm\(\{[\s\S]{0,200}confirmLabel: 'Remove member'/);
+    expect(s).toMatch(/feedback\.confirm\(\{[\s\S]{0,200}confirmLabel: t`Remove member`/);
     expect(read('src/lib/boardsApi.js')).toContain("rpc('set_workspace_member_role'");
   });
 

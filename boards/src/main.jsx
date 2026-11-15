@@ -1,5 +1,9 @@
+import { i18n } from './lib/i18n.js';
 import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
+import { I18nProvider } from '@lingui/react';
+import { startLocale, markLocaleDecided } from './lib/i18nBoot.js';
+import { englishOnlyPath } from './lib/uiLocale.js';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
 import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isTogetherQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode, isSidebarQaMode, isFileShareQaMode, isImportQaMode, isUploadQaMode, isLoadQaMode, isMsgQaMode, isSetupQaMode, isToolbarQaMode } from './lib/localMode.js';
@@ -332,6 +336,21 @@ const darkPublicRoute = !!(scoutMatch || seoLandingMatch || seoListicleMatch || 
   || changelogMatch || pricingMatch || talkToUsMatch || exploreMatch || publicBoardMatch || shareMatch
   || fileShareMatch || resumeMatch || keepMatch || makeMatch);
 
+// The interface's language. English is in the code and needs nothing; another
+// language's catalog is fetched (the index.html script has started it) and the
+// first paint waits for it, up to 3 s, so a screen is never half one language.
+// The public site is English and never waits (lib/uiLocale.js englishOnlyPath).
+const localeReady = englishOnlyPath(window.location.pathname, hasCachedSession()) ? null : startLocale();
+if (!localeReady) markLocaleDecided();
+function mount(tree) {
+  const go = () => {
+    markLocaleDecided();
+    createRoot(document.getElementById('root')).render(<I18nProvider i18n={i18n}>{tree}</I18nProvider>);
+  };
+  if (localeReady) localeReady.then(go, go);
+  else go();
+}
+
 // Platform-wide time-in-app counter. Visibility-aware; runs even
 // pre-auth so landing-page time also counts.
 startHeartbeat();
@@ -361,7 +380,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // from production builds. Renders the real admin tabs with fixture data and
   // no auth so the admin UI can be screenshotted / iterated on visually.
   import('./local/AdminPreviewHarness.jsx').then(({ AdminPreviewHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <AppErrorBoundary>
           <FeedbackProvider>
@@ -398,7 +417,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // window.__soleilArrowTest for the Playwright assertions. DEV guard drops it
   // (and its fixtures) from production builds.
   import('./local/ArrowQaHarness.jsx').then(({ ArrowQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <ArrowQaHarness />
       </StrictMode>
@@ -409,7 +428,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // window.__soleilAlignTest + a ready flag the spec waits on. DEV guard drops
   // it (and its fixtures) from production builds.
   import('./local/AlignQaHarness.jsx').then(({ AlignQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <AlignQaHarness />
       </StrictMode>
@@ -420,7 +439,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // a ready flag the spec waits on. DEV guard drops it (and its fixtures) from
   // production builds.
   import('./local/GridQaHarness.jsx').then(({ GridQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <GridQaHarness />
       </StrictMode>
@@ -430,7 +449,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // Bulk-import QA (?importqa=1). Renders the tray, chip and ask dialog from
   // fixtures. DEV guard drops it from production builds.
   import('./local/ImportQaHarness.jsx').then(({ ImportQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <ImportQaHarness />
       </StrictMode>
@@ -440,7 +459,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // Loading-screens QA (?loadqa=<state>). Renders the loading, failed-list and
   // failed-picture surfaces by themselves. DEV guard drops it from production.
   import('./local/LoadingQaHarness.jsx').then(({ LoadingQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <LoadingQaHarness />
       </StrictMode>
@@ -450,7 +469,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // Card upload QA (?uploadqa=1). Renders CardTransferState in every state
   // over fake cards. DEV guard drops it from production builds.
   import('./local/UploadQaHarness.jsx').then(({ UploadQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <UploadQaHarness />
       </StrictMode>
@@ -461,7 +480,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // window.__soleilSchedTest + a ready flag the spec waits on. DEV guard drops
   // it (and its fixtures) from production builds.
   import('./local/SchedQaHarness.jsx').then(({ SchedQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <SchedQaHarness />
       </StrictMode>
@@ -473,7 +492,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // window.__soleilTourTest for the step-advance/anchoring assertions. DEV guard
   // drops it (and its fixtures) from production builds.
   import('./local/TourQaHarness.jsx').then(({ TourQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <TourQaHarness />
       </StrictMode>
@@ -486,7 +505,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // the finder, chips, sort, paging and resize. DEV guard drops it from
   // production builds.
   import('./local/SidebarQaHarness.jsx').then(({ SidebarQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <SidebarQaHarness />
       </StrictMode>
@@ -497,7 +516,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // sheet, and live for the primitives' spec. DEV guard drops it from
   // production builds.
   import('./local/ToolbarQaHarness.jsx').then(({ ToolbarQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <ToolbarQaHarness />
       </StrictMode>
@@ -509,7 +528,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // spec can drive threads, peers, failures and screenshots with no backend.
   // DEV guard drops it from production builds.
   import('./local/MessagesQaHarness.jsx').then(({ MessagesQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <MessagesQaHarness />
       </StrictMode>
@@ -520,7 +539,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // steps over an in-memory fake of the Supabase client (the harness installs
   // it before it renders). DEV guard drops it from production builds.
   import('./local/SetupQaHarness.jsx').then(({ SetupQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <AppErrorBoundary>
           <FeedbackProvider>
@@ -536,7 +555,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // spec can drive every state, the viewers, the comment rail and the undo.
   // DEV guard drops it from production builds.
   import('./local/FileShareQaHarness.jsx').then(({ FileShareQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <FileShareQaHarness />
       </StrictMode>
@@ -546,7 +565,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // Power-reveal QA (?revealqa=1). Mounts the real FeedbackProvider/Overlay and
   // fires the real POWER_REVEALS registry toasts for design review — no backend.
   import('./local/RevealQaHarness.jsx').then(({ RevealQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <RevealQaHarness />
       </StrictMode>
@@ -557,7 +576,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // against a fake awareness + installs window.__soleilPresenceTest for the
   // at-scale cap/cull/no-storm assertions. DEV guard drops it from production.
   import('./local/PresenceQaHarness.jsx').then(({ PresenceQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <PresenceQaHarness />
       </StrictMode>
@@ -567,7 +586,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // Together chip QA (?togetherqa=1) — the real chip in each state. DEV guard
   // drops it from production like the other harnesses.
   import('./local/TogetherQaHarness.jsx').then(({ TogetherQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <TogetherQaHarness />
       </StrictMode>
@@ -578,7 +597,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   // the real renderThumbnailBlob at OG + tile sizes. Dropped from production
   // by the DEV guard like the other harnesses.
   import('./local/ThumbQaHarness.jsx').then(({ ThumbQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <ThumbQaHarness />
       </StrictMode>
@@ -586,7 +605,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   });
 } else if (import.meta.env.DEV && isDocQaMode()) {
   import('./local/DocQaHarness.jsx').then(({ DocQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <AppErrorBoundary>
           <FeedbackProvider>
@@ -598,7 +617,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
   });
 } else if (import.meta.env.DEV && isNoteQaMode()) {
   import('./local/NoteQaHarness.jsx').then(({ NoteQaHarness }) => {
-    createRoot(document.getElementById('root')).render(
+    mount(
       <StrictMode>
         <AppErrorBoundary>
           <FeedbackProvider>
@@ -609,7 +628,7 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     );
   });
 } else {
-  createRoot(document.getElementById('root')).render(
+  mount(
     <StrictMode>
       <AppErrorBoundary>
         <FeedbackProvider>

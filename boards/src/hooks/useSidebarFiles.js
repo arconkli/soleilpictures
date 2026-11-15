@@ -21,6 +21,7 @@ import { countsFromRows, countsFromItems, rollupCounts, withLive } from '../lib/
 import { searchEntities } from '../lib/entitySearch.js';
 import { searchKey } from '../lib/textFold.js';
 import { STARS_CHANGED, announceStars } from '../lib/starsChanged.js';
+import { t } from '@lingui/core/macro';
 
 const PEEK_PER_SHELF = 12;
 const PAGE = 60;
@@ -410,7 +411,7 @@ export function useSidebarFiles({
     const clusters = [];
     const items = [];
     for (const r of starredRows) {
-      if (r.kind === 'cluster') clusters.push({ boardId: r.board_id, name: r.title || 'Untitled cluster' });
+      if (r.kind === 'cluster') clusters.push({ boardId: r.board_id, name: r.title || t`Untitled cluster` });
       else {
         const item = itemFromIndexRow(r, r.board_id);
         if (item) items.push(item);

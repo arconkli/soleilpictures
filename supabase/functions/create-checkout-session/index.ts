@@ -24,6 +24,7 @@ import { decideCheckoutRoute, filterLiveSubscriptions, pickReusableCustomer, pro
 import { CREATOR_TRIAL_DAYS, creatorTrialEligibility, customerHasTrialed } from "../_shared/trialCore.mjs";
 import { trialEarlyArm } from "../_shared/trialEarly.mjs";
 import { failedWith, reported } from "../_shared/reportError.ts";
+import { stripeLocale } from "../_shared/stripeLocale.mjs";
 import { claimsMatch, earlyOr, settle, tokenClaims } from "../_shared/earlyReads.mjs";
 
 const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
@@ -93,6 +94,7 @@ Deno.serve(reported("create-checkout-session", async (req) => {
 
     const email  = u.data.user.email.toLowerCase().trim();
     const userId = u.data.user.id;
+    const locale = stripeLocale(u.data.user);
     // The trial_early arm, decided here from the JWT user id and never from the
     // request body (null while the test is off).
     const earlyArm = trialEarlyArm(userId);
@@ -212,6 +214,7 @@ Deno.serve(reported("create-checkout-session", async (req) => {
       const portal = await stripe.billingPortal.sessions.create({
         customer: customerId!,
         return_url: `${APP_URL}/?settings=billing`,
+        ...(locale ? { locale } : {}),
       });
       return json({ ok: true, mode: "portal", url: portal.url }, 200);
     }
@@ -305,6 +308,7 @@ Deno.serve(reported("create-checkout-session", async (req) => {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
+      ...(locale ? { locale } : {}),
       line_items: [{ price, quantity: 1 }],
       success_url: successUrl,
       cancel_url:  cancelUrl,

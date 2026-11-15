@@ -6,6 +6,8 @@ import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { Sheet } from './shell/Sheet.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
 import './gridTemplatePanel.css';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // The Templates panel — the grid tool's flyout.
 //
@@ -99,7 +101,7 @@ function TemplateRow({ row, index, onPick, rowActions, active, onHover }) {
         <button
           type="button"
           className="tplt-row-more"
-          aria-label={`Actions for ${row.name}`}
+          aria-label={t`Actions for ${ph({ name: row.name })}`}
           aria-expanded={menuOpen}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => setMenuOpen((o) => !o)}
@@ -109,7 +111,7 @@ function TemplateRow({ row, index, onPick, rowActions, active, onHover }) {
       )}
 
       {menuOpen && (
-        <div className="tplt-row-menu" role="menu" aria-label={`${row.name} actions`}>
+        <div className="tplt-row-menu" role="menu" aria-label={t`${ph({ name: row.name })} actions`}>
           {actions.map((a) => (
             <button
               key={a.id}
@@ -236,8 +238,8 @@ export function GridTemplatePanel({
 
   const applying = !!applyTargetId;
   const hint = applying
-    ? 'Replaces the selected grid’s layout.'
-    : 'Click the canvas to place, or pick a shape first.';
+    ? t`Replaces the selected grid’s layout.`
+    : t`Click the canvas to place, or pick a shape first.`;
 
   const pick = (row) => { onClose?.(); onPick?.(row); };
 
@@ -313,8 +315,8 @@ export function GridTemplatePanel({
           className="tplt-search"
           type="search"
           value={query}
-          placeholder="Search templates"
-          aria-label="Search templates"
+          placeholder={t`Search templates`}
+          aria-label={t`Search templates`}
           onPointerDown={(e) => e.stopPropagation()}
           onKeyDown={onKeyDown}
           onChange={(e) => setQuery(e.target.value)}
@@ -323,7 +325,7 @@ export function GridTemplatePanel({
 
       <div className="tplt-scroll" ref={scrollRef} onKeyDown={onKeyDown}>
         {shown.length === 0
-          ? <div className="tplt-empty">No templates match “{query}”.</div>
+          ? <div className="tplt-empty"><Trans>No templates match “{query}”.</Trans></div>
           : shown.map((section) => {
             const folded = isFolded(section.id);
             return (
@@ -373,18 +375,18 @@ export function GridTemplatePanel({
         <button
           type="button"
           className="tplt-save"
-          aria-label="Save this grid as a template"
+          aria-label={t`Save this grid as a template`}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => { onClose?.(); onSaveCurrent(); }}
         >
-          Save this grid as a template…
+          <Trans>Save this grid as a template…</Trans>
         </button>
       )}
     </>
   );
 
   if (mobileShell) {
-    return <Sheet open={open} onClose={onClose} title="Templates" snap="half">{body}</Sheet>;
+    return <Sheet open={open} onClose={onClose} title={t`Templates`} snap="half">{body}</Sheet>;
   }
 
   // Nothing to render until the anchor has been measured — one frame, and it
@@ -395,7 +397,7 @@ export function GridTemplatePanel({
     <div
       className="cnv-tpl-panel"
       role="menu"
-      aria-label="Templates"
+      aria-label={t`Templates`}
       style={{ left: box.left, top: box.top, maxHeight: box.maxHeight }}
     >
       {body}

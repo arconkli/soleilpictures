@@ -16,6 +16,7 @@
 // its tooltip, and clicking it brings the pill back.
 import { useState, useEffect } from 'react';
 import { onProdHost, onPreviewHost, getStagingTarget, stablePref, exitToStable, switchToLatest } from '../lib/stagingRedirect.js';
+import { t as tr } from '@lingui/core/macro';
 
 // Per device, like the other one-off UI prefs. Read-fail defaults to EXPANDED —
 // the inverse of the hint modules' "read-fail = seen", because their failure
@@ -73,8 +74,8 @@ export function StagingBanner() {
     font: '600 13px/1 ui-sans-serif, system-ui, sans-serif', opacity: 0.55,
   };
   const title = preview
-    ? "You're previewing the latest, unreleased build"
-    : "You're on the stable build";
+    ? tr`You're previewing the latest, unreleased build`
+    : tr`You're on the stable build`;
 
   if (collapsed) {
     // Dot only — same corner, same colour, same tooltip. Sized for a real
@@ -84,8 +85,8 @@ export function StagingBanner() {
         type="button"
         className="staging-banner"
         onClick={() => collapse(false)}
-        title={`${title} — click to expand`}
-        aria-label={`${preview ? 'Latest build' : 'Stable build'} — expand build switcher`}
+        title={tr`${title} — click to expand`}
+        aria-label={preview ? tr`Latest build — expand build switcher` : tr`Stable build — expand build switcher`}
         style={{
           position: 'fixed', bottom: 12, left: 12, zIndex: 2147483600,
           width: 20, height: 20, borderRadius: '50%', padding: 0, cursor: 'pointer',
@@ -102,13 +103,13 @@ export function StagingBanner() {
   return (
     <div className="staging-banner" style={wrap} title={title}>
       <span style={dot} />
-      <span>{preview ? 'Latest build' : 'Stable'}</span>
+      <span>{preview ? tr`Latest build` : tr`Stable`}</span>
       <span style={{ opacity: 0.5 }}>·</span>
       <button style={btn} onClick={preview ? exitToStable : switchToLatest}>
-        {preview ? 'Exit to stable' : 'Preview the latest build'}
+        {preview ? tr`Exit to stable` : tr`Preview the latest build`}
       </button>
       <button style={minBtn} onClick={() => collapse(true)}
-              title="Minimise to a dot" aria-label="Minimise build switcher">−</button>
+              title={tr`Minimise to a dot`} aria-label={tr`Minimise build switcher`}>−</button>
     </div>
   );
 }

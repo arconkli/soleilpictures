@@ -41,6 +41,8 @@ import { PerCardFilter } from '../ImageAdjustFilters.jsx';
 import { useCardCellsVersion, cellTextStyle, CellContent } from './gridCellShared.jsx';
 import './gridCard.css';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t as tr, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // The move grip's six dots, drawn here rather than as a Phosphor icon: the
 // grip sits on every filled box, so its icon would join the app's first
@@ -53,6 +55,17 @@ const GripDots = () => (
   </svg>
 );
 
+// "Stamp a Grid top" etc., one whole message per side so each language words it itself.
+function stampGridLabel(dir) {
+  switch (dir) {
+    case 'top': return tr`Stamp a Grid top`;
+    case 'bottom': return tr`Stamp a Grid bottom`;
+    case 'left': return tr`Stamp a Grid left`;
+    case 'right': return tr`Stamp a Grid right`;
+    default: return tr`Stamp a Grid ${dir}`;
+  }
+}
+
 const stop = (e) => e.stopPropagation();
 // Same as `stop`, but first lets a one-finger drag scroll the clipped editor
 // body. Everything inside `.canvas-wrap { touch-action: none }` needs this —
@@ -63,9 +76,9 @@ const stopWithTouchScroll = (e) => { startTouchScrollGesture(e); e.stopPropagati
 // 0 = flush. Exported so the canvas menu and the docs read the same values.
 export const GRID_SPACING = Object.freeze([
   { id: 'none', label: 'None', gap: 0 },
-  { id: 'small', label: 'Small', gap: 4 },
-  { id: 'medium', label: 'Medium', gap: 8 },
-  { id: 'large', label: 'Large', gap: 14 },
+  { id: 'small', get label() { return tr`Small`; }, gap: 4 },
+  { id: 'medium', get label() { return tr`Medium`; }, gap: 8 },
+  { id: 'large', get label() { return tr`Large`; }, gap: 14 },
 ]);
 export const gridGapOf = (card) => Math.max(0, Math.min(24, Math.round(Number(card && card.gridGap)) || 0));
 
@@ -156,17 +169,17 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
     downloadingRef.current = true;
     try {
       const ok = await downloadImage({ src: c.src, title: c.title || '', adjust: c.adjust });
-      if (!ok) feedback?.toast?.({ type: 'error', code: 'image_download_failed', message: 'Couldn’t download this image. Try again.' });
+      if (!ok) feedback?.toast?.({ type: 'error', code: 'image_download_failed', message: tr`Couldn’t download this image. Try again.` });
     } finally {
       downloadingRef.current = false;
     }
   };
-  const clearCell = (cellId) => withUndo('Box cleared', () => gridActions.clearCellContent(card.id, cellId));
+  const clearCell = (cellId) => withUndo(tr`Box cleared`, () => gridActions.clearCellContent(card.id, cellId));
   // Removing a line deletes the right / bottom side's cells. Content moves
   // into an empty neighbour; what can't is counted, and only then is there a
   // toast — a line between two empty cells costs nothing.
   const removeLine = (d) => withUndo(
-    (res) => (res?.dropped ? (res.dropped === 1 ? 'Removed a filled box' : `Removed ${res.dropped} filled boxes`) : null),
+    (res) => (res?.dropped ? plural(res.dropped, { one: 'Removed a filled box', other: 'Removed # filled boxes' }) : null),
     () => gridActions.removeDivider?.(card.id, d.path, d.childIndex),
   );
   // Open / close the image cell's photo + fit editor (portaled popover below).
@@ -325,7 +338,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         // Hidden at rest and revealed only on grid hover/selection (CSS) so it never
         // persistently covers the top-left cell corner — no comments-eye toggle needed.
         <span className="gridc-linked-badge" style={{ '--link-color': pickPresenceColor(model.templateId) }}
-              title="Linked layout — size & dividers reflow every linked Grid. Right-click → Unlink to detach.">Linked</span>
+              title={tr`Linked layout — size & dividers reflow every linked Grid. Right-click → Unlink to detach.`}><Trans>Linked</Trans></span>
       )}
       {rects.map((r) => {
         const cell = model.cells[r.id];
@@ -359,7 +372,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         const imageChoice = (e) => { e.stopPropagation(); gridActions.pickImageForCell(card.id, r.id); };
         const linkChoice = (e) => { e.stopPropagation(); gridActions.addLinkToCell(card.id, r.id); };
         const moreBtn = (
-          <button type="button" className="gridc-sq" title="Box options" aria-label="Box options"
+          <button type="button" className="gridc-sq" title={tr`Box options`} aria-label={tr`Box options`}
             onPointerDown={stop}
             onClick={(e) => { e.stopPropagation(); openMenu(r.id, e.currentTarget, empty ? 'empty' : 'filled'); }}>
             <span className="gridc-ico"><Icon as={MoreHorizontal} size={16} /></span>
@@ -428,15 +441,15 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
 
             {editable && isImage && repositionOn && photoEdit?.cellId === r.id && (
               // Reposition mode: a drag layer over the image → pan object-position.
-              <div className="gridc-reposition" title="Drag to reposition"
+              <div className="gridc-reposition" title={tr`Drag to reposition`}
                 onPointerDown={(e) => onRepositionDown(e, r.id, e.currentTarget.parentElement)} />
             )}
 
             {uploading && (
               // In-cell upload feedback (paste / drop / Image-picker) — spinner +
               // optional percentage so the user sees the upload is in flight.
-              <div className="gridc-cell-uploading" aria-label="Uploading">
-                <Spinner size={20} tone="on-dark" label="Uploading" />
+              <div className="gridc-cell-uploading" aria-label={tr`Uploading`}>
+                <Spinner size={20} tone="on-dark" label={tr`Uploading`} />
                 {cellUploads[r.id] > 0 && <span className="gridc-cell-pct">{Math.round(cellUploads[r.id] * 100)}%</span>}
               </div>
             )}
@@ -447,7 +460,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
               <div className="gridc-celltools">
                 {compact ? (
                   <button type="button" className="gridc-pill-mini"
-                    title={empty ? 'Add content' : 'Box options'} aria-label={empty ? 'Add content' : 'Box options'}
+                    title={empty ? tr`Add content` : tr`Box options`} aria-label={empty ? tr`Add content` : tr`Box options`}
                     onPointerDown={stop}
                     onClick={(e) => { e.stopPropagation(); openMenu(r.id, e.currentTarget, empty ? 'empty' : 'filled'); }}>
                     <span className="gridc-ico"><Icon as={empty ? Plus : MoreHorizontal} size={16} /></span>
@@ -458,18 +471,18 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                         stay "Text" / "Image" / "Link" at every size. */}
                     <div className={`gridc-chooser${labelled ? ' is-labelled' : ''}`}>
                       <div className="gridc-pill" onPointerDown={stop}>
-                        <button type="button" className={labelled ? undefined : 'is-icon'} title="Text" aria-label="Text" onClick={textChoice}>
-                          <span className="gridc-ico"><Icon as={TextT} size={15} /></span>{labelled && <span className="gridc-lbl">Text</span>}
+                        <button type="button" className={labelled ? undefined : 'is-icon'} title={tr`Text`} aria-label={tr`Text`} onClick={textChoice}>
+                          <span className="gridc-ico"><Icon as={TextT} size={15} /></span>{labelled && <span className="gridc-lbl"><Trans>Text</Trans></span>}
                         </button>
-                        <button type="button" className={labelled ? undefined : 'is-icon'} title="Image" aria-label="Image" onClick={imageChoice}>
-                          <span className="gridc-ico"><Icon as={ImageIcon} size={15} /></span>{labelled && <span className="gridc-lbl">Image</span>}
+                        <button type="button" className={labelled ? undefined : 'is-icon'} title={tr`Image`} aria-label={tr`Image`} onClick={imageChoice}>
+                          <span className="gridc-ico"><Icon as={ImageIcon} size={15} /></span>{labelled && <span className="gridc-lbl"><Trans>Image</Trans></span>}
                         </button>
-                        <button type="button" className={labelled ? undefined : 'is-icon'} title="Link" aria-label="Link" onClick={linkChoice}>
-                          <span className="gridc-ico"><Icon as={Link} size={15} /></span>{labelled && <span className="gridc-lbl">Link</span>}
+                        <button type="button" className={labelled ? undefined : 'is-icon'} title={tr`Link`} aria-label={tr`Link`} onClick={linkChoice}>
+                          <span className="gridc-ico"><Icon as={Link} size={15} /></span>{labelled && <span className="gridc-lbl"><Trans>Link</Trans></span>}
                         </button>
                         {!labelled && <><span className="gridc-pill-sep" />{moreBtn}</>}
                       </div>
-                      {labelled && cellH >= DROP_LINE_H && <div className="gridc-drop-line" aria-hidden="true">or drop a file here</div>}
+                      {labelled && cellH >= DROP_LINE_H && <div className="gridc-drop-line" aria-hidden="true"><Trans>or drop a file here</Trans></div>}
                     </div>
                     {labelled && <div className="gridc-corner gridc-corner-tr">{moreBtn}</div>}
                   </>
@@ -477,7 +490,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                   <>
                     <div className="gridc-corner gridc-corner-tr">
                       {isImage && cellW >= FULLSCREEN_MIN_W && (
-                        <button type="button" className="gridc-sq" title="Open full screen" aria-label="Open full screen"
+                        <button type="button" className="gridc-sq" title={tr`Open full screen`} aria-label={tr`Open full screen`}
                           onPointerDown={stop}
                           onClick={(e) => { e.stopPropagation(); openLightbox(r.id); }}>
                           <span className="gridc-ico"><Icon as={Maximize2} size={14} /></span>
@@ -487,7 +500,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
                     </div>
                     {gridActions.swapCells && (
                       <div className="gridc-corner gridc-corner-tl">
-                        <button type="button" className="gridc-sq gridc-grip" title="Drag to move or swap" aria-label="Drag to move or swap"
+                        <button type="button" className="gridc-sq gridc-grip" title={tr`Drag to move or swap`} aria-label={tr`Drag to move or swap`}
                           onPointerDown={(e) => onGripDown(e, r.id)} onClick={stop}>
                           <span className="gridc-ico"><GripDots /></span>
                         </button>
@@ -501,7 +514,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
             {isLifted && <div className="gridc-lifted-ring" aria-hidden="true" />}
             {isMoveTarget && (
               <div className="gridc-move-chip" aria-hidden="true">
-                {empty ? 'Move here' : 'Swap'}
+                {empty ? tr`Move here` : tr`Swap`}
               </div>
             )}
             {order && <div className="gridc-order" aria-hidden="true">{order}</div>}
@@ -518,7 +531,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
             style={{ left: d.x, top: d.y, width: d.w, height: d.h }}
             onPointerDown={grab ? (e) => onDividerDown(e, d) : undefined}
             onDoubleClick={grab ? (e) => { e.stopPropagation(); removeLine(d); } : undefined}
-            title={grab ? 'Drag to resize · double-click to remove this line' : undefined}
+            title={grab ? tr`Drag to resize · double-click to remove this line` : undefined}
           >
             {grab && seg >= GRIP_MIN_SEG && <span className="gridc-divider-grip" aria-hidden="true" />}
           </div>
@@ -526,7 +539,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
       })}
       {fillExtra > 0 && (
         <div className="gridc-fill-note" aria-hidden="true">
-          {fillExtra === 1 ? '1 more goes beside the grid' : `${fillExtra} more go beside the grid`}
+          {plural(fillExtra, { one: '# more goes beside the grid', other: '# more go beside the grid' })}
         </div>
       )}
     </div>
@@ -537,8 +550,8 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
         {movingCell && movingCell.type === 'image' && movingCell.src
           ? <img src={movingCell.src} alt="" draggable={false} />
           : <span className="gridc-move-ghost-txt">{movingCell && movingCell.type === 'text'
-            ? (String(movingCell.html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || 'Text')
-            : (movingCell && (movingCell.title || movingCell.fileName || movingCell.name)) || 'Box'}</span>}
+            ? (String(movingCell.html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || tr`Text`)
+            : (movingCell && (movingCell.title || movingCell.fileName || movingCell.name)) || tr`Box`}</span>}
       </div>,
       document.body,
     )}
@@ -640,7 +653,7 @@ export function GridCard({ card, w, h, ydoc, cardYMap, templates, seqIndex, seqF
             key={dir}
             type="button"
             className={`gridc-add gridc-add-${dir}`}
-            title={`Stamp a Grid ${dir}`}
+            title={stampGridLabel(dir)}
             onPointerDown={stop}
             onClick={(e) => { e.stopPropagation(); gridActions.stampNeighbor(card.id, dir); }}
           ><span className="gridc-ico"><Icon as={Plus} size={13} /></span></button>

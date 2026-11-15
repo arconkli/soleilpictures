@@ -6,6 +6,8 @@
 import { useState } from 'react';
 import { COVER_TINTS } from './primitives.jsx';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const EXPAND_KEY = 'soleil.boards.sb.shared.expanded';
 
@@ -40,7 +42,7 @@ export function SidebarSharedBoards({
   for (const row of shared) {
     const key = row.source_workspace_id || '__none__';
     if (!groups.has(key)) {
-      groups.set(key, { name: row.source_workspace_name || 'Unknown', rows: [] });
+      groups.set(key, { name: row.source_workspace_name || t`Unknown`, rows: [] });
     }
     groups.get(key).rows.push(row);
   }
@@ -61,20 +63,20 @@ export function SidebarSharedBoards({
              onClick={() => setRoot(!exp.root)}
              role="button" tabIndex={0}>
           <span className={`sb-shared-chev ${exp.root ? 'is-open' : ''}`}>▸</span>
-          Shared with me<span className="sb-shared-count"> · {shared.length}</span>
+          <Trans>Shared with me</Trans><span className="sb-shared-count"> · {shared.length}</span>
         </div>
       ) : (
-        <div className="sb-eyebrow sb-shared-head">Shared with me</div>
+        <div className="sb-eyebrow sb-shared-head"><Trans>Shared with me</Trans></div>
       )}
       {filesRow && (
         <div className={`sb-row sb-shared-row sb-shared-files ${filesRow.active ? 'active' : ''}`}
              role="button" tabIndex={0}
              onClick={() => filesRow.onOpen?.()}
              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); filesRow.onOpen?.(); } }}
-             title="Files shared with you, and files you've shared">
-          <span className="sb-row-label">Shared files</span>
+             title={t`Files shared with you, and files you've shared`}>
+          <span className="sb-row-label"><Trans>Shared files</Trans></span>
           {filesRow.unread > 0 && (
-            <span className="sb-shared-unread" aria-label={`${filesRow.unread} new`}>{filesRow.unread}</span>
+            <span className="sb-shared-unread" aria-label={t`${ph({ unread: filesRow.unread })} new`}>{filesRow.unread}</span>
           )}
         </div>
       )}
@@ -88,7 +90,7 @@ export function SidebarSharedBoards({
                      onClick={() => setGroupOpen(gid, !open)}
                      role="button" tabIndex={0}>
                   <span className={`sb-shared-chev ${open ? 'is-open' : ''}`}>▸</span>
-                  <span className="sb-shared-group-name">From {group.name}</span>
+                  <span className="sb-shared-group-name"><Trans>From {ph({ name: group.name })}</Trans></span>
                 </div>
                 {open && (
                   <div className="sb-shared-rows">
@@ -106,12 +108,12 @@ export function SidebarSharedBoards({
                              data-drop-name={row.board_name || ''}
                              onMouseEnter={() => prefetchBoard(row.board_id)}
                              onClick={() => onOpenBoard?.(row.board_id)}
-                             title={`${row.board_name} · ${row.role === 'viewer' ? 'view only' : 'editor'}`}>
+                             title={row.role === 'viewer' ? t`${ph({ name: row.board_name })} · view only` : t`${ph({ name: row.board_name })} · editor`}>
                           <span className="sb-dot"
                                 style={{ background: isActive ? 'var(--soleil)' : tint }} />
                           <span className="sb-row-label" dir="auto">{row.board_name}</span>
                           {row.role === 'viewer' && (
-                            <span className="sb-shared-ro" title="View only">View</span>
+                            <span className="sb-shared-ro" title={t`View only`}><Trans context="permission">View</Trans></span>
                           )}
                         </div>
                       );

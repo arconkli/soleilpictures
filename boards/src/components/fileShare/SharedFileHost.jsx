@@ -18,6 +18,8 @@ import { EV } from '../../lib/analyticsEvents.js';
 import { Icon } from '../Icon.jsx';
 import { ChevronDown } from '../../lib/icons.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t as tr } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const FileSharePage = lazyWithReload(() => import('./FileSharePage.jsx').then((m) => ({ default: m.FileSharePage })));
 
@@ -62,11 +64,11 @@ function AddToCluster({ token, res, onSaveCopy, onAddShortcut }) {
     <span className="fsp-addto">
       <button ref={btnRef} type="button" className="fsp-btn" aria-haspopup="menu" aria-expanded={open}
               disabled={busy} onClick={() => setOpen((o) => !o)}>
-        {busy ? 'Saving…' : 'Add to cluster'}
+        {busy ? tr`Saving…` : tr`Add to cluster`}
         <Icon as={ChevronDown} size={13} weight="regular" />
       </button>
       {open && (
-        <div ref={menuRef} className="fsp-menu" role="menu" aria-label="Add to cluster"
+        <div ref={menuRef} className="fsp-menu" role="menu" aria-label={tr`Add to cluster`}
              onKeyDown={(e) => {
                if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
                e.preventDefault();
@@ -76,14 +78,14 @@ function AddToCluster({ token, res, onSaveCopy, onAddShortcut }) {
              }}>
           {canSave && (
             <button type="button" role="menuitem" className="fsp-menu-item" onClick={() => run(onSaveCopy, 'copy')}>
-              <span className="fsp-menu-title">Save a copy</span>
-              <span className="fsp-menu-sub">Yours to keep. Uses your storage.</span>
+              <span className="fsp-menu-title"><Trans>Save a copy</Trans></span>
+              <span className="fsp-menu-sub"><Trans>Yours to keep. Uses your storage.</Trans></span>
             </button>
           )}
           {canShortcut && (
             <button type="button" role="menuitem" className="fsp-menu-item" onClick={() => run(onAddShortcut, 'shortcut')}>
-              <span className="fsp-menu-title">Add shortcut</span>
-              <span className="fsp-menu-sub">Stays in sync with theirs.</span>
+              <span className="fsp-menu-title"><Trans>Add shortcut</Trans></span>
+              <span className="fsp-menu-sub"><Trans>Stays in sync with theirs.</Trans></span>
             </button>
           )}
         </div>

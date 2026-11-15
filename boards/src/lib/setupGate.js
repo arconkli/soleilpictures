@@ -16,6 +16,7 @@
 // no import.meta.env.
 
 import { invitedStartWorkspace } from './startWorkspace.js';
+import { t, ph } from '@lingui/core/macro';
 
 // ?setup=A / ?setup=B, the QA override of the arm: setupRule.js, beside the
 // question AuthGate asks at sign-in (setupMayOpenFirst), which reads it too.
@@ -51,16 +52,16 @@ export function inviteeTarget({ user, memberships, slot } = {}) {
 // membership's. Board guests only know the cluster's name.
 export function inviteeCopy({ name, owner, others = [], role, kind } = {}) {
   const what = (name || '').trim();
-  const head = what ? `You’re joining ${what}` : 'You’re in';
+  const head = what ? t`You’re joining ${what}` : t`You’re in`;
   const can = role === 'viewer'
-    ? 'You can see everything in it'
-    : (kind === 'board' ? 'You can add to it and edit it' : 'You can add to and edit everything in it');
+    ? t`You can see everything in it`
+    : (kind === 'board' ? t`You can add to it and edit it` : t`You can add to and edit everything in it`);
   const people = [owner, ...others].filter(Boolean);
   const withWhom = people.length === 0 ? ''
-    : people.length === 1 ? `, with ${people[0]}`
-      : `, with ${people.slice(0, -1).join(', ')} and ${people[people.length - 1]}`;
-  const lead = owner ? `${owner} invited you. ` : '';
-  return { head, sub: `${lead}${can}${withWhom}.` };
+    : people.length === 1 ? t`, with ${ph({ person: people[0] })}`
+      : t`, with ${ph({ others: people.slice(0, -1).join(', ') })} and ${ph({ last: people[people.length - 1] })}`;
+  const lead = owner ? `${t`${owner} invited you.`} ` : '';
+  return { head, sub: `${lead}${t`${can}${withWhom}.`}` };
 }
 
 // ── The stamp ───────────────────────────────────────────────────────────────

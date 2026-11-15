@@ -50,7 +50,7 @@ for (const [surface, [rel, re]] of Object.entries(BUTTON_POINTS)) {
 test('FileShareButton opens the bus and keeps Shared neutral', () => {
   const s = src('../components/fileShare/FileShareButton.jsx');
   assert.match(s, /openFileShare\(\{ boardId, cardId, card: card \|\| \{ id: cardId \}, boardName, surface \}\)/);
-  assert.match(s, /'Shared - manage sharing' : 'Share file'/);
+  assert.match(s, /t`Shared - manage sharing` : t`Share file`/);
   assert.match(s, /frv: \{ className: 'frv-iconbtn/);
   assert.match(s, /ql: \{ className: 'ql-btn/);
   assert.match(s, /lightbox: \{ className: 'lightbox-download lightbox-share/);
@@ -81,7 +81,7 @@ test('the viewers draw the button only when handed a shareTarget', () => {
   assert.match(pdf, /shareTarget = null/);
   assert.match(pdf, /\{!embedded && shareTarget\?\.boardId && shareTarget\?\.cardId && \(\s*<FileShareButton variant="pdfv"/);
   // Before Download, in the bar.
-  assert.ok(pdf.indexOf('<FileShareButton') < pdf.indexOf('aria-label="Download"'));
+  assert.ok(pdf.indexOf('<FileShareButton') < pdf.indexOf('aria-label={t`Download`}'));
 });
 
 test('the dialog never toasts, and tells the bus after a write', () => {

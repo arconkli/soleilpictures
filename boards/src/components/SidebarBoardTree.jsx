@@ -24,6 +24,9 @@ import { INDENT } from '../lib/sidebarRows.js';
 import { Icon } from './Icon.jsx';
 import { ChevronRight } from '../lib/icons.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownAuthor } from '../lib/commentAuthor.js';
 
 const HOVER_PREFETCH_MS = 80;
 const expandedKey = (workspaceId) => `soleil.boards.sb.expanded.${workspaceId}`;
@@ -213,23 +216,23 @@ export function SidebarBoardTree({
     // cluster can hand out a view link, so this is not gated on canEdit —
     // the modal itself renders read-only for viewers.
     const openItems = [
-      { id: 'open', label: 'Open', run: () => onOpenBoard?.(board.id) },
-      { id: 'share', label: 'Share…', run: () => onShareBoard?.(board.id) },
+      { id: 'open', label: tr`Open`, run: () => onOpenBoard?.(board.id) },
+      { id: 'share', label: tr`Share…`, run: () => onShareBoard?.(board.id) },
       // The files sidebar's own: Star, and "Always open in Files".
       ...(filesView?.menuItems?.(board, canEdit) || []),
     ];
     const editItems = [];
-    const clipboardItems = [{ id: 'copy', label: 'Copy', run: () => onCopyBoard?.(board) }];
-    const metaItems = [{ id: 'info', label: 'Info', run: () => openInfo({ clusterId: board.id }) }];
+    const clipboardItems = [{ id: 'copy', label: tr`Copy`, run: () => onCopyBoard?.(board) }];
+    const metaItems = [{ id: 'info', label: tr`Info`, run: () => openInfo({ clusterId: board.id }) }];
 
     if (canEdit) {
-      editItems.push({ id: 'rename', label: 'Rename', run: () => beginRename(board) });
+      editItems.push({ id: 'rename', label: tr`Rename`, run: () => beginRename(board) });
       editItems.push({
-        id: 'new-inside', label: 'New cluster inside',
+        id: 'new-inside', label: tr`New cluster inside`,
         run: () => { expandBoard(board.id); onCreateBoardInside?.(board.id); },
       });
       editItems.push({
-        id: 'color', label: 'Change color',
+        id: 'color', label: tr`Change color`,
         submenu: [
           ...Object.keys(COVER_TINTS).map(k => ({
             id: `cover-${k}`,
@@ -240,7 +243,7 @@ export function SidebarBoardTree({
           })),
           { divider: true },
           {
-            id: 'cover-custom', label: 'Custom…',
+            id: 'cover-custom', label: tr`Custom…`,
             run: () => setPicker({
               boardId: board.id,
               value: board.bg_color || '#1c1c1f',
@@ -250,17 +253,17 @@ export function SidebarBoardTree({
         ],
       });
       editItems.push({
-        id: 'custom-thumb', label: 'Upload custom thumbnail…',
+        id: 'custom-thumb', label: tr`Upload custom thumbnail…`,
         run: () => triggerThumbPick(board.id),
       });
       if (board.thumb_custom) {
         editItems.push({
-          id: 'reset-thumb', label: 'Reset to auto thumbnail',
+          id: 'reset-thumb', label: tr`Reset to auto thumbnail`,
           run: () => onResetBoardThumb?.(board.id),
         });
       }
       clipboardItems.push({
-        id: 'paste', label: 'Paste into this cluster',
+        id: 'paste', label: tr`Paste into this cluster`,
         disabled: boardClipboardSize() === 0,
         run: () => onPasteBoardInto?.(board.id),
       });
@@ -273,7 +276,7 @@ export function SidebarBoardTree({
         )).length <= 1;
       metaItems.push({
         id: 'delete',
-        label: isLastRootCluster ? 'Delete (last cluster)' : 'Delete',
+        label: isLastRootCluster ? tr`Delete (last cluster)` : tr`Delete`,
         danger: !isLastRootCluster,
         disabled: isLastRootCluster,
         run: () => { if (!isLastRootCluster) onDeleteBoard?.(board.id); },
@@ -554,7 +557,7 @@ export function SidebarBoardTree({
                e.stopPropagation();
                beginRename(board);
              }}
-             title={isRenaming ? '' : 'Click to open · double-click to rename · drag onto another board to nest it'}>
+             title={isRenaming ? '' : tr`Click to open · double-click to rename · drag onto another board to nest it`}>
           <button className={`sb-tree-chev${filesView && isOpen ? ' is-open' : ''}`}
                   onClick={(e) => { e.stopPropagation(); if (hasKids) toggle(board.id); }}
                   style={{ visibility: hasKids ? 'visible' : 'hidden' }}
@@ -582,7 +585,7 @@ export function SidebarBoardTree({
                    onClick={(e) => e.stopPropagation()}
                    onDoubleClick={(e) => e.stopPropagation()} />
           ) : (
-            <span className="sb-row-label" dir="auto">{board.name || 'Untitled'}</span>
+            <span className="sb-row-label" dir="auto">{board.name || tr`Untitled`}</span>
           )}
           {filesView && !isRenaming && (() => {
             const status = filesView.statusOf?.(board.id);
@@ -595,13 +598,13 @@ export function SidebarBoardTree({
                         className={`bc-toc-peer ${p.exact ? 'is-exact' : 'is-nested'}`}
                         style={{ background: p.user.color || '#4f8df8' }}
                         title={p.exact
-                          ? `${p.user.name || p.user.email} is here — click to jump`
-                          : `${p.user.name || p.user.email} · in ${p.location?.boardName || 'a sub-board'} — click to jump`}
+                          ? tr`${ph({ value: shownAuthor(p.user.name) || p.user.email })} is here — click to jump`
+                          : tr`${ph({ value: shownAuthor(p.user.name) || p.user.email })} · in ${ph({ value: p.location?.boardName || tr`a sub-board` })} — click to jump`}
                         onClick={(e) => { e.stopPropagation(); onJumpToPeer?.(p.location); }} />
               ))}
               {presence.length > 3 && (
                 <span className="bc-toc-peers-overflow"
-                      title={`+${presence.length - 3} more`}>+{presence.length - 3}</span>
+                      title={plural(presence.length - 3, { one: '+# more', other: '+# more' })}>+{presence.length - 3}</span>
               )}
             </span>
           )}
@@ -648,7 +651,7 @@ export function SidebarBoardTree({
     const startGhost = (name) => {
       const g = document.createElement('div');
       g.className = 'sb-tree-touch-ghost';
-      g.textContent = name || 'Board';
+      g.textContent = name || tr`Board`;
       g.style.position = 'fixed';
       g.style.zIndex = '2000';
       g.style.pointerEvents = 'none';
@@ -796,10 +799,10 @@ export function SidebarBoardTree({
   if (roots.length === 0) {
     return (
       <div className="sb-tree-empty">
-        <div>No boards yet</div>
+        <div><Trans>No boards yet</Trans></div>
         {onCreateBoard && (
           <button type="button" className="sb-tree-empty-cta" onClick={() => onCreateBoard()}>
-            + Create your first board
+            <Trans>+ Create your first board</Trans>
           </button>
         )}
       </div>
@@ -807,7 +810,7 @@ export function SidebarBoardTree({
   }
 
   return (
-    <div className="sb-tree" ref={treeRef} role="tree" aria-label="Clusters">
+    <div className="sb-tree" ref={treeRef} role="tree" aria-label={tr`Clusters`}>
       {roots.map(b => renderRow(b, 0))}
       {/* Portal to <body>: the sidebar list (.sb-list) has a scroll-edge
           mask-image + overflow-x:hidden that would otherwise CLIP this

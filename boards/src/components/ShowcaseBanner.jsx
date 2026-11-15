@@ -11,6 +11,8 @@ import { useEffect, useRef, useState } from 'react';
 import { logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { journey } from '../lib/journey.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 export function ShowcaseBanner({ onClear, boardId }) {
   const [dismissed, setDismissed] = useState(false);
@@ -47,16 +49,16 @@ export function ShowcaseBanner({ onClear, boardId }) {
       <button
         type="button"
         className="cnv-showcase-banner-x"
-        aria-label="Explore the demo first"
+        aria-label={t`Explore the demo first`}
         onPointerDown={(e) => e.stopPropagation()}
         onClick={() => setDismissed(true)}
       >
         ×
       </button>
-      <div className="cnv-showcase-banner-title">Welcome to Soleil Clusters</div>
+      <div className="cnv-showcase-banner-title"><Trans>Welcome to Soleil Clusters</Trans></div>
       <p className="cnv-showcase-banner-text">
-        An infinite canvas for collecting and arranging your ideas — images, notes,
-        and links, all on one board. This is a quick demo of what you can build.
+        <Trans>An infinite canvas for collecting and arranging your ideas — images, notes,
+        and links, all on one board. This is a quick demo of what you can build.</Trans>
       </p>
       <button
         type="button"
@@ -64,9 +66,9 @@ export function ShowcaseBanner({ onClear, boardId }) {
         onPointerDown={(e) => e.stopPropagation()}
         onClick={handleClear}
       >
-        Start fresh
+        <Trans>Start fresh</Trans>
       </button>
-      <span className="cnv-showcase-banner-sub">Clears the demo so you can start your own.</span>
+      <span className="cnv-showcase-banner-sub"><Trans>Clears the demo so you can start your own.</Trans></span>
     </div>
   );
 }

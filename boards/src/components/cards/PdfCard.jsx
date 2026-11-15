@@ -9,6 +9,7 @@ import { R2Image } from '../R2Image.jsx';
 import { EditableText } from '../EditableText.jsx';
 import { Icon } from '../Icon.jsx';
 import { FilePdf } from '../../lib/icons.js';
+import { t, plural } from '@lingui/core/macro';
 
 export function PdfCard({ src, name, pageCount, title,
                           w, h, onUpdate, autoFocus = false,
@@ -23,10 +24,10 @@ export function PdfCard({ src, name, pageCount, title,
     prevEdit.current = editingTitle;
   }, [editingTitle]);
 
-  const label = name || 'PDF';
+  const label = name || t`PDF`;
   const pages = Number.isFinite(pageCount) && pageCount > 0
-    ? `${pageCount} ${pageCount === 1 ? 'page' : 'pages'}`
-    : 'PDF';
+    ? plural(pageCount, { one: '# page', other: '# pages' })
+    : t`PDF`;
   const showTitle = !!title || editingTitle;
 
   return (
@@ -41,7 +42,7 @@ export function PdfCard({ src, name, pageCount, title,
             </div>
           )}
         {!pending && onExpand && (
-          <button type="button" className="ic-expand" title="Open PDF"
+          <button type="button" className="ic-expand" title={t`Open PDF`}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onExpand(); }}>
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none"
@@ -60,7 +61,7 @@ export function PdfCard({ src, name, pageCount, title,
         <EditableText
           className="ic-title editable"
           value={title || ''}
-          placeholder="Title"
+          placeholder={t`Title`}
           editing={editingTitle}
           setEditing={setEditingTitle}
           onChange={(v) => onUpdate({ title: v || null })}

@@ -5,6 +5,7 @@
 //   { id, kind:'tag', title:<name>, meta:{ color, createdKind } }
 
 import { tagFallbackColor } from '../../lib/tagColor.js';
+import { Trans } from '@lingui/react/macro';
 
 export function previewMini(row) {
   const meta = row?.meta || {};
@@ -19,7 +20,7 @@ export function previewMini(row) {
         background: color, borderRadius: 999,
         boxShadow: '0 0 0 1.5px var(--bg-1)',
       }} />
-      <span>Tag</span>
+      <span><Trans>Tag</Trans></span>
       {kind && (
         <span style={{
           font: '700 9px/1 var(--font-display)',

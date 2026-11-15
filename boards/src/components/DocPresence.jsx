@@ -24,6 +24,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LiveCursor } from './primitives.jsx';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
+import { shownAuthor } from '../lib/commentAuthor.js';
 
 // Window after a peer's caret moves where we treat them as "actively
 // typing" — caret stays at full opacity and pulses subtly. After this
@@ -49,7 +50,7 @@ function rangeRects(view, from, to) {
 
 // Someone reading or editing through the doc's share (DocShareView): the
 // room marks them (user.guest), and their tag says so.
-const peerLabel = (user) => `${(user.name || '?').split(' ')[0]}${user.guest ? ' (guest)' : ''}`;
+const peerLabel = (user) => `${(shownAuthor(user.name) || '?').split(' ')[0]}${user.guest ? ' (guest)' : ''}`;
 
 export function DocPresence({ getAwareness, boardId, pageId, paperRef, editor, getEditors, zoom = 1, currentUser }) {
   const [peers, setPeers] = useState([]);

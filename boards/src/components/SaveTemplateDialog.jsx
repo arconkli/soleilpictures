@@ -4,6 +4,8 @@ import { GridLayoutThumb } from './GridLayoutThumb.jsx';
 import { computeCellRects, readingOrder } from '../lib/gridLayout.js';
 import { HINT_LIMITS } from '../lib/gridLayoutLibrary.js';
 import './saveTemplateDialog.css';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Save-as-template, with optional per-cell labels.
 //
@@ -81,33 +83,33 @@ export function SaveTemplateDialog({ open, layout, size = null, defaultName = ''
            labelledBy="savetpl-title" initialFocusRef={nameRef}>
       <form onSubmit={submit}>
         <div className="savetpl-head">
-          <div className="savetpl-kicker">Templates</div>
-          <div className="savetpl-title" id="savetpl-title">Save as template</div>
+          <div className="savetpl-kicker"><Trans>Templates</Trans></div>
+          <div className="savetpl-title" id="savetpl-title"><Trans>Save as template</Trans></div>
         </div>
 
         <div className="savetpl-body">
           <label className="savetpl-field">
-            <span className="savetpl-label">Name</span>
+            <span className="savetpl-label"><Trans>Name</Trans></span>
             <input
               ref={nameRef}
               className="savetpl-input"
               value={name}
               maxLength={80}
-              placeholder="Storyboard page"
+              placeholder={t`Storyboard page`}
               onChange={(e) => setName(e.target.value)}
             />
           </label>
 
           <div className="savetpl-cells">
             <div className="savetpl-cells-head">
-              <span className="savetpl-label">Label the boxes</span>
+              <span className="savetpl-label"><Trans>Label the boxes</Trans></span>
               <span className="savetpl-optional">
-                {labelled ? `${labelled} of ${cellCount} labelled` : 'Optional'}
+                {labelled ? t`${labelled} of ${cellCount} labelled` : t`Optional`}
               </span>
             </div>
             <p className="savetpl-help">
-              Shown in grey inside each empty box, and gone as soon as there is
-              something in it. Never part of the content.
+              <Trans>Shown in grey inside each empty box, and gone as soon as there is
+              something in it. Never part of the content.</Trans>
             </p>
 
             <div className="savetpl-split">
@@ -123,11 +125,11 @@ export function SaveTemplateDialog({ open, layout, size = null, defaultName = ''
                       className="savetpl-input savetpl-hint"
                       value={hints[i] || ''}
                       maxLength={HINT_LIMITS.MAX_LEN}
-                      placeholder={i === 0 ? 'e.g. WIDE SHOT' : ''}
+                      placeholder={i === 0 ? t`e.g. WIDE SHOT` : ''}
                       // Both pointer and keyboard light the matching cell — a
                       // keyboard user tabbing through fields needs the diagram
                       // to follow just as much as a mouse user does.
-                      aria-label={`Label for box ${i + 1}`}
+                      aria-label={t`Label for box ${ph({ value: i + 1 })}`}
                       onFocus={() => setActive(i)}
                       onBlur={() => setActive((cur) => (cur === i ? -1 : cur))}
                       onMouseEnter={() => setActive(i)}
@@ -156,21 +158,21 @@ export function SaveTemplateDialog({ open, layout, size = null, defaultName = ''
                   checked={publish}
                   onChange={(e) => setPublish(e.target.checked)}
                 />
-                <span>Share it in the store</span>
+                <span><Trans>Share it in the store</Trans></span>
               </label>
               <p className="savetpl-help">
-                Anyone can find it at /templates and add it. They get their own copy,
+                <Trans>Anyone can find it at /templates and add it. They get their own copy,
                 so removing yours later never reaches into anybody else's library.
-                Only the shape and the labels are shared — never your content.
+                Only the shape and the labels are shared — never your content.</Trans>
               </p>
               {publish && (
                 <label className="savetpl-field">
-                  <span className="savetpl-label">One line about it</span>
+                  <span className="savetpl-label"><Trans>One line about it</Trans></span>
                   <input
                     className="savetpl-input"
                     value={description}
                     maxLength={140}
-                    placeholder="Three locations, three frames each — wide, detail, light."
+                    placeholder={t`Three locations, three frames each — wide, detail, light.`}
                     onChange={(e) => setDescription(e.target.value)}
                   />
                 </label>
@@ -180,9 +182,9 @@ export function SaveTemplateDialog({ open, layout, size = null, defaultName = ''
         </div>
 
         <div className="savetpl-actions">
-          <button type="button" className="savetpl-btn" onClick={onCancel}>Cancel</button>
+          <button type="button" className="savetpl-btn" onClick={onCancel}><Trans>Cancel</Trans></button>
           <button type="submit" className="savetpl-btn savetpl-btn-primary" disabled={!canSave}>
-            {canPublish && publish ? 'Save and share' : 'Save template'}
+            {canPublish && publish ? t`Save and share` : t`Save template`}
           </button>
         </div>
       </form>

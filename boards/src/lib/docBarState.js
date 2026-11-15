@@ -1,34 +1,25 @@
 // What a doc's bar lights, and the choices it offers, for the doc look's bar
 // (components/doc/DocBarA.jsx).
 
-export const HEADING_OPTIONS = [
-  { value: 'p', label: 'Body' },
-  { value: 'h1', label: 'Heading 1' },
-  { value: 'h2', label: 'Heading 2' },
-  { value: 'h3', label: 'Heading 3' },
-  { value: 'h4', label: 'Heading 4' },
-  { value: 'h5', label: 'Heading 5' },
-  { value: 'h6', label: 'Heading 6' },
-];
-
+import { t } from '@lingui/core/macro';
 export const FONTS = [
-  { id: 'sans', label: 'Sans', css: 'Inter, system-ui, sans-serif' },
-  { id: 'serif', label: 'Serif', css: 'ui-serif, Georgia, "Iowan Old Style", serif' },
-  { id: 'mono', label: 'Mono', css: 'JetBrains Mono, ui-monospace, monospace' },
+  { id: 'sans', get label() { return t`Sans`; }, css: 'Inter, system-ui, sans-serif' },
+  { id: 'serif', get label() { return t`Serif`; }, css: 'ui-serif, Georgia, "Iowan Old Style", serif' },
+  { id: 'mono', get label() { return t`Mono`; }, css: 'JetBrains Mono, ui-monospace, monospace' },
 ];
 
 export const SIZES = [12, 14, 16, 18, 22, 28, 36];
 
 // The text colours, with the names a swatch is called by.
 export const DOC_COLORS = [
-  { c: '#f5f5f6', name: 'White' },
-  { c: '#0a0a0c', name: 'Black' },
-  { c: '#ef4444', name: 'Red' },
-  { c: '#f59e0b', name: 'Amber' },
-  { c: '#10b981', name: 'Green' },
-  { c: '#3b82f6', name: 'Blue' },
-  { c: '#8b5cf6', name: 'Violet' },
-  { c: '#ec4899', name: 'Pink' },
+  { c: '#f5f5f6', get name() { return t`White`; } },
+  { c: '#0a0a0c', get name() { return t`Black`; } },
+  { c: '#ef4444', get name() { return t`Red`; } },
+  { c: '#f59e0b', get name() { return t`Amber`; } },
+  { c: '#10b981', get name() { return t`Green`; } },
+  { c: '#3b82f6', get name() { return t`Blue`; } },
+  { c: '#8b5cf6', get name() { return t`Violet`; } },
+  { c: '#ec4899', get name() { return t`Pink`; } },
 ];
 export const COLORS = DOC_COLORS.map((x) => x.c);
 

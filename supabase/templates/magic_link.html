@@ -8,7 +8,7 @@
   → Authentication → Emails → "Magic link".
 
   Subject (the Dashboard's subject field):
-      {{ .Token }} is your Clusters sign-in code
+      {{ if eq .Data.locale "es" }}{{ .Token }} es tu código de inicio de sesión de Clusters{{ else if eq .Data.locale "fr" }}{{ .Token }} est votre code de connexion Clusters{{ else if eq .Data.locale "pt-BR" }}{{ .Token }} é seu código de acesso ao Clusters{{ else if eq .Data.locale "ru" }}{{ .Token }} — ваш код для входа в Clusters{{ else if eq .Data.locale "ja" }}{{ .Token }}がClustersのログインコードです{{ else if eq .Data.locale "ko" }}Clusters 로그인 코드: {{ .Token }}{{ else }}{{ .Token }} is your Clusters sign-in code{{ end }}
   The code in the subject shows on a phone's lock screen and in the inbox
   list, so it can be read without opening the mail app and finding this
   message. GoTrue renders the subject with the same data as the body; its own
@@ -23,14 +23,14 @@
   on purpose — disposable / corporate email scanners prefetch links and
   consume one-time tokens, blowing up the OTP flow.
 -->
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<html lang="{{ if eq .Data.locale "es" }}es{{ else if eq .Data.locale "fr" }}fr{{ else if eq .Data.locale "pt-BR" }}pt-BR{{ else if eq .Data.locale "ru" }}ru{{ else if eq .Data.locale "ja" }}ja{{ else if eq .Data.locale "ko" }}ko{{ else }}en{{ end }}" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="x-apple-disable-message-reformatting">
 <meta name="color-scheme" content="dark only">
 <meta name="supported-color-schemes" content="dark only">
-<title>Your Clusters sign-in code</title>
+<title>{{ if eq .Data.locale "es" }}Tu código de inicio de sesión de Clusters{{ else if eq .Data.locale "fr" }}Votre code de connexion Clusters{{ else if eq .Data.locale "pt-BR" }}Seu código de acesso ao Clusters{{ else if eq .Data.locale "ru" }}Ваш код для входа в Clusters{{ else if eq .Data.locale "ja" }}Clustersのログインコード{{ else if eq .Data.locale "ko" }}Clusters 로그인 코드{{ else }}Your Clusters sign-in code{{ end }}</title>
 <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 <style>
   body { margin:0; padding:0; }
@@ -72,7 +72,7 @@
 </style>
 </head>
 <body class="bg" bgcolor="#0a0a0c" style="margin:0;padding:0;background:#0a0a0c;-webkit-font-smoothing:antialiased;">
-<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">Your Clusters sign-in code: {{ .Token }}&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;</div>
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">{{ if eq .Data.locale "es" }}Tu código de inicio de sesión de Clusters: {{ .Token }}{{ else if eq .Data.locale "fr" }}Votre code de connexion Clusters : {{ .Token }}{{ else if eq .Data.locale "pt-BR" }}Seu código de acesso ao Clusters: {{ .Token }}{{ else if eq .Data.locale "ru" }}Ваш код для входа в Clusters: {{ .Token }}{{ else if eq .Data.locale "ja" }}Clustersのログインコード：{{ .Token }}{{ else if eq .Data.locale "ko" }}Clusters 로그인 코드: {{ .Token }}{{ else }}Your Clusters sign-in code: {{ .Token }}{{ end }}&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;</div>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="bg" bgcolor="#0a0a0c" style="background:#0a0a0c;">
   <tr><td align="center" class="outer" style="padding:44px 20px 48px;">
     <!--[if mso]><table role="presentation" width="560" align="center" cellspacing="0" cellpadding="0" border="0"><tr><td><![endif]-->
@@ -84,13 +84,13 @@
         </tr></table>
       </td></tr>
       <tr><td class="card cardpad" bgcolor="#121215" style="background:#121215;border:1px solid #222227;border-radius:16px;padding:40px 40px 36px;">
-        <div class="ink2" style="margin:0 0 12px;font:600 11px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:0.16em;text-transform:uppercase;color:#a0a0a8;text-align:center;">Sign-in code</div>
-        <h1 class="ink0 h1" style="margin:0 0 12px;font:700 28px/1.22 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:-0.02em;color:#f5f5f7;text-align:center;">Here&#39;s your code.</h1>
-        <p class="ink1" style="margin:0 0 28px;font:400 16px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#d0d0d4;text-align:center;">Enter this 6-digit code on the sign-in screen.</p>
+        <div class="ink2" style="margin:0 0 12px;font:600 11px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:0.16em;text-transform:uppercase;color:#a0a0a8;text-align:center;">{{ if eq .Data.locale "es" }}Código de inicio de sesión{{ else if eq .Data.locale "fr" }}Code de connexion{{ else if eq .Data.locale "pt-BR" }}Código de acesso{{ else if eq .Data.locale "ru" }}Код для входа{{ else if eq .Data.locale "ja" }}ログインコード{{ else if eq .Data.locale "ko" }}로그인 코드{{ else }}Sign-in code{{ end }}</div>
+        <h1 class="ink0 h1" style="margin:0 0 12px;font:700 28px/1.22 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;letter-spacing:-0.02em;color:#f5f5f7;text-align:center;">{{ if eq .Data.locale "es" }}Aquí tienes tu código.{{ else if eq .Data.locale "fr" }}Voici votre code.{{ else if eq .Data.locale "pt-BR" }}Aqui está o seu código.{{ else if eq .Data.locale "ru" }}Вот ваш код.{{ else if eq .Data.locale "ja" }}コードをお届けします。{{ else if eq .Data.locale "ko" }}코드를 보내 드려요.{{ else }}Here&#39;s your code.{{ end }}</h1>
+        <p class="ink1" style="margin:0 0 28px;font:400 16px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#d0d0d4;text-align:center;">{{ if eq .Data.locale "es" }}Introduce este código de 6 dígitos en la pantalla de inicio de sesión.{{ else if eq .Data.locale "fr" }}Saisissez ce code à 6 chiffres sur l’écran de connexion.{{ else if eq .Data.locale "pt-BR" }}Digite este código de 6 dígitos na tela de entrada.{{ else if eq .Data.locale "ru" }}Введите этот код из 6 цифр на экране входа.{{ else if eq .Data.locale "ja" }}ログイン画面でこの6桁のコードを入力してください。{{ else if eq .Data.locale "ko" }}로그인 화면에 6자리 코드를 입력하세요.{{ else }}Enter this 6-digit code on the sign-in screen.{{ end }}</p>
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 16px;"><tr><td class="panel" align="center" style="background:#1a1a1e;border-radius:12px;padding:22px 12px;">
         <span class="ink0" style="font:600 34px/1 ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;letter-spacing:0.32em;color:#f5f5f7;padding-left:0.32em;">{{ .Token }}</span>
       </td></tr></table>
-        <p class="ink2" style="margin:20px 0 0;font:400 13px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#a0a0a8;text-align:center;">It works for an hour. Asked for more than one? Only the newest works. Didn&#39;t request this? You can safely ignore this email.</p>
+        <p class="ink2" style="margin:20px 0 0;font:400 13px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#a0a0a8;text-align:center;">{{ if eq .Data.locale "es" }}Funciona durante una hora. ¿Pediste más de uno? Solo sirve el más reciente. ¿No lo pediste tú? Puedes ignorar este correo sin problema.{{ else if eq .Data.locale "fr" }}Il est valable une heure. Vous en avez demandé plusieurs ? Seul le plus récent fonctionne. Vous n’avez rien demandé ? Vous pouvez ignorer cet e-mail sans risque.{{ else if eq .Data.locale "pt-BR" }}Funciona por uma hora. Pediu mais de um? Só o mais recente funciona. Não foi você que pediu? Pode ignorar este e-mail sem problema.{{ else if eq .Data.locale "ru" }}Он действует час. Запрашивали несколько? Работает только последний. Не запрашивали код? Просто проигнорируйте это письмо.{{ else if eq .Data.locale "ja" }}有効期間は1時間です。何度かリクエストした場合は、最新のコードだけが使えます。心当たりがない場合は、このメールを無視して大丈夫です。{{ else if eq .Data.locale "ko" }}코드는 1시간 동안 유효해요. 여러 번 요청했다면 가장 최근 코드만 쓸 수 있어요. 요청한 적이 없다면 이 이메일은 무시해도 괜찮아요.{{ else }}It works for an hour. Asked for more than one? Only the newest works. Didn&#39;t request this? You can safely ignore this email.{{ end }}</p>
       </td></tr>
       <tr><td align="center" style="padding:24px 8px 0;">
     <div class="ink3" style="font:400 12px/1.7 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#80808a;text-align:center;">Clusters by Soleil Pictures · <a class="ink3" href="https://clusters.soleilpictures.com/" style="color:#80808a;text-decoration:underline;">clusters.soleilpictures.com</a></div>

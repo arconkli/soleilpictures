@@ -58,7 +58,7 @@ test('sign-in and keys: what the page says is what the code does', () => {
   assert.match(oauth, /code_challenge_methods_supported: \['S256'\]/);
   const consent = read('../pages/OAuthConsentPage.jsx');
   assert.match(consent, /const \[allowDelete, setAllowDelete\] = useState\(false\);/);
-  assert.ok(consent.includes("'Allow deleting'") && page.includes('**Allow\n  deleting**'));
+  assert.ok(consent.includes('t`Allow deleting`') && page.includes('**Allow\n  deleting**'));
 });
 
 test('transport headers the page describes are the ones the Worker sends', () => {

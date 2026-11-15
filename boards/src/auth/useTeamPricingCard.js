@@ -14,7 +14,7 @@ export function useTeamPricingCard({ on, plan, onStart, surface }) {
   useEffect(() => {
     if (!on) return undefined;
     let live = true;
-    import('../lib/teamModel.js').then((m) => { if (live) setHeroLine(m.teamHeroLine(EDITOR_LIMIT)); }, () => {});
+    import('../lib/teamModelWords.js').then((m) => { if (live) setHeroLine(m.teamHeroLine(EDITOR_LIMIT)); }, () => {});
     return () => { live = false; };
   }, [on]);
   if (!on) return null;

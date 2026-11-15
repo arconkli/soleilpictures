@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import { MenuButton, MenuItem, MenuSep } from '../toolbar/Menu.jsx';
 import { MoreHorizontal } from '../../lib/icons.js';
+import { t } from '@lingui/core/macro';
 
 // ⋯ in the top islands (FloatingChrome.jsx): the toolbar look's menu
 // (components/toolbar/Menu.jsx), portaled, under the button and lined up
@@ -20,7 +21,7 @@ export function ChromeMoreA({ items, focus = null }) {
   }, [focus]);
   return (
     <span className="chrome-more" ref={ref}>
-      <MenuButton icon={MoreHorizontal} label="More" align="end" className="chrome-more-btn">
+      <MenuButton icon={MoreHorizontal} label={t`More`} align="end" className="chrome-more-btn">
         {items.map((it, i) => (it.sep
           ? <MenuSep key={`sep-${i}`} />
           : <MenuItem key={it.id} icon={it.icon} label={it.label} keys={it.keys} onSelect={() => it.run?.()} />))}

@@ -5,7 +5,12 @@
 // The stored values stay 'canvas' and 'list' (boards.view, the API, MCP and
 // every share bundle read them); only the interface says Board and Files.
 
-export const VIEW_LABELS = Object.freeze({ canvas: 'Board', list: 'Files' });
+import { t } from '@lingui/core/macro';
+
+export const VIEW_LABELS = Object.freeze({
+  get canvas() { return t`Board`; },
+  get list() { return t`Files`; },
+});
 
 // The other view. Anything that is not 'list' is the board ('doc' is a legacy
 // value every reader already treats as canvas).

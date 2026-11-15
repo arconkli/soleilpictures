@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t } from '@lingui/core/macro';
 
 // One transparent, auto-growing field that looks like text typed on the page.
 function TitleField({ value, placeholder, onCommit, className, ariaLabel, editable, multiline }) {
@@ -84,35 +85,35 @@ export function ScreenplayTitlePage({ titlePage, onCommit, editable = true }) {
   return (
     <div className="doc-editor-wrap sp-title-page" data-sp-title-page="1">
       <div className="sp-tp-center">
-        <TitleField className="sp-tp-title" value={tp.title} placeholder="TITLE"
-                    editable={editable} ariaLabel="Title"
+        <TitleField className="sp-tp-title" value={tp.title} placeholder={t`TITLE`}
+                    editable={editable} ariaLabel={t`Title`}
                     onCommit={(v) => set({ title: v })} />
-        <TitleField className="sp-tp-credit" value={tp.credit} placeholder="Written by"
-                    editable={editable} ariaLabel="Credit"
+        <TitleField className="sp-tp-credit" value={tp.credit} placeholder={t`Written by`}
+                    editable={editable} ariaLabel={t`Credit`}
                     onCommit={(v) => set({ credit: v })} />
-        <TitleField className="sp-tp-authors" value={tp.authors} placeholder="Author" multiline
-                    editable={editable} ariaLabel="Author"
+        <TitleField className="sp-tp-authors" value={tp.authors} placeholder={t`Author`} multiline
+                    editable={editable} ariaLabel={t`Author`}
                     onCommit={(v) => set({ authors: v })} />
-        <TitleField className="sp-tp-source" value={tp.source} placeholder="Based on…" multiline
-                    editable={editable} ariaLabel="Source"
+        <TitleField className="sp-tp-source" value={tp.source} placeholder={t`Based on…`} multiline
+                    editable={editable} ariaLabel={t`Source`}
                     onCommit={(v) => set({ source: v })} />
       </div>
 
       <div className="sp-tp-foot">
         <div className="sp-tp-foot-left">
-          <TitleField className="sp-tp-contact" value={tp.contact} placeholder="Contact" multiline
-                      editable={editable} ariaLabel="Contact"
+          <TitleField className="sp-tp-contact" value={tp.contact} placeholder={t`Contact`} multiline
+                      editable={editable} ariaLabel={t`Contact`}
                       onCommit={(v) => set({ contact: v })} />
-          <TitleField className="sp-tp-copyright" value={tp.copyright} placeholder="© / rights" multiline
-                      editable={editable} ariaLabel="Copyright"
+          <TitleField className="sp-tp-copyright" value={tp.copyright} placeholder={t`© / rights`} multiline
+                      editable={editable} ariaLabel={t`Copyright`}
                       onCommit={(v) => set({ copyright: v })} />
         </div>
         <div className="sp-tp-foot-right">
-          <TitleField className="sp-tp-draft" value={tp.draftDate} placeholder="Draft date"
-                      editable={editable} ariaLabel="Draft date"
+          <TitleField className="sp-tp-draft" value={tp.draftDate} placeholder={t`Draft date`}
+                      editable={editable} ariaLabel={t`Draft date`}
                       onCommit={(v) => set({ draftDate: v })} />
-          <TitleField className="sp-tp-notes" value={tp.notes} placeholder="Notes" multiline
-                      editable={editable} ariaLabel="Notes"
+          <TitleField className="sp-tp-notes" value={tp.notes} placeholder={t`Notes`} multiline
+                      editable={editable} ariaLabel={t`Notes`}
                       onCommit={(v) => set({ notes: v })} />
         </div>
       </div>

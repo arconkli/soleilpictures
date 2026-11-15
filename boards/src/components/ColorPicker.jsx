@@ -11,6 +11,8 @@ import { addRecentColor, addSavedColor, removeSavedColor, isColorSaved } from '.
 import { useRecentColors, useSavedColors } from '../hooks/useRecentColors.js';
 import { swallowContextMenu } from '../lib/contextMenuGuard.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const PRESETS = [
   '#ffffff', '#0a0a0c', '#f5f5f6', '#5b5c61',
@@ -325,7 +327,7 @@ export function ColorPicker({
   const palList = (palettes && palettes.length > 0)
     ? palettes
     : (paletteColors.length > 0
-        ? [{ id: '_flat', name: 'Palette', swatches: paletteColors.map(hex => ({ hex })) }]
+        ? [{ id: '_flat', name: tr`Palette`, swatches: paletteColors.map(hex => ({ hex })) }]
         : []);
   const [palIdx, setPalIdx] = useState(0);
   const [palSearchOpen, setPalSearchOpen] = useState(false);
@@ -345,7 +347,7 @@ export function ColorPicker({
          onContextMenu={swallowContextMenu}>
       <div className="cp-head">
         <div>
-          <div className="cp-kicker">Color</div>
+          <div className="cp-kicker"><Trans>Color</Trans></div>
           <div className="cp-title">{currentHex.toUpperCase()}</div>
         </div>
         <div className="cp-current" style={{ background: currentHex }} />
@@ -372,11 +374,11 @@ export function ColorPicker({
                onChange={onHexInput}
                onBlur={onHexBlur}
                spellCheck={false}
-               placeholder="FFFFFF" />
+               placeholder={tr`FFFFFF`} />
         {eyeDropperSupported && (
           <button className="cp-eyedropper-btn"
-                  title="Pick a color from the screen"
-                  aria-label="Pick a color from the screen"
+                  title={tr`Pick a color from the screen`}
+                  aria-label={tr`Pick a color from the screen`}
                   onClick={pickFromScreen}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path d="M11.5 1.5 L14.5 4.5 L12 7 L9 4 Z"
@@ -388,12 +390,12 @@ export function ColorPicker({
         )}
         {allowTransparent && (
           <button className="cp-transparent-btn"
-                  title="Transparent"
-                  onClick={() => onChange('transparent')}>None</button>
+                  title={tr`Transparent`}
+                  onClick={() => onChange('transparent')}><Trans>None</Trans></button>
         )}
         <button className={`cp-star-btn ${isColorSaved(currentHex) ? 'is-saved' : ''}`}
-                title={isColorSaved(currentHex) ? 'Remove from Saved' : 'Save this color'}
-                aria-label="Save color"
+                title={isColorSaved(currentHex) ? tr`Remove from Saved` : tr`Save this color`}
+                aria-label={tr`Save color`}
                 onClick={() => {
                   if (isColorSaved(currentHex)) removeSavedColor(currentHex);
                   else addSavedColor(currentHex);
@@ -409,12 +411,12 @@ export function ColorPicker({
 
       {savedColors.length > 0 && (
         <>
-          <div className="cp-section">Saved</div>
+          <div className="cp-section"><Trans context="colors">Saved</Trans></div>
           <div className="cp-presets">
             {savedColors.slice(0, 24).map(c => (
               <button key={'s' + c} className={`cp-sw ${currentHex.toLowerCase() === c.toLowerCase() ? 'is-active' : ''}`}
                       style={{ background: c }}
-                      title={`${c.toUpperCase()} — right-click to remove`}
+                      title={tr`${ph({ upperCase: c.toUpperCase() })} — right-click to remove`}
                       onClick={() => pickHex(c)}
                       onContextMenu={(e) => { e.preventDefault(); removeSavedColor(c); }} />
             ))}
@@ -423,7 +425,7 @@ export function ColorPicker({
       )}
       {recentColors.length > 0 && (
         <>
-          <div className="cp-section">Recent</div>
+          <div className="cp-section"><Trans>Recent</Trans></div>
           <div className="cp-presets">
             {recentColors.slice(0, 16).map(c => (
               <button key={'r' + c} className={`cp-sw ${currentHex.toLowerCase() === c.toLowerCase() ? 'is-active' : ''}`}
@@ -437,20 +439,20 @@ export function ColorPicker({
       {currentPal && (
         <>
           <div className="cp-section cp-pal-head">
-            <span className="cp-pal-kicker">Palette</span>
+            <span className="cp-pal-kicker"><Trans>Palette</Trans></span>
             <span className="cp-pal-name" title={currentPal.name}>{currentPal.name}</span>
             {palList.length > 1 && (
               <span className="cp-pal-pager">
-                <button className="cp-pal-btn" title="Previous palette"
+                <button className="cp-pal-btn" title={tr`Previous palette`}
                         onClick={() => cyclePal(-1)}
                         onDoubleClick={() => setPalSearchOpen(true)}>↑</button>
                 <span className="cp-pal-idx">{safePalIdx + 1}/{palList.length}</span>
-                <button className="cp-pal-btn" title="Next palette (double-click to search)"
+                <button className="cp-pal-btn" title={tr`Next palette (double-click to search)`}
                         onClick={() => cyclePal(1)}
                         onDoubleClick={() => setPalSearchOpen(true)}>↓</button>
               </span>
             )}
-            <button className="cp-pal-search-btn" title="Search all palettes"
+            <button className="cp-pal-search-btn" title={tr`Search all palettes`}
                     onClick={() => setPalSearchOpen(true)}>
               <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
                 <circle cx="4.5" cy="4.5" r="3" stroke="currentColor" strokeWidth="1.2"/>
@@ -477,7 +479,7 @@ export function ColorPicker({
                        onClose={() => setPalSearchOpen(false)} />
       )}
 
-      <div className="cp-section">Presets</div>
+      <div className="cp-section"><Trans>Presets</Trans></div>
       <div className="cp-presets">
         {PRESETS.map(c => (
           <button key={c} className={`cp-sw ${currentHex.toLowerCase() === c.toLowerCase() ? 'is-active' : ''}`}
@@ -530,13 +532,13 @@ function PaletteSearch({ palettes, currentHex, onPick, onClose }) {
         <div className="cp-palsearch-head">
           <input autoFocus
                  className="cp-palsearch-input"
-                 placeholder="Search palettes by name or hex…"
+                 placeholder={tr`Search palettes by name or hex…`}
                  value={q}
                  onChange={(e) => setQ(e.target.value)} />
-          <button className="cp-palsearch-x" onClick={onClose} aria-label="Close">×</button>
+          <button className="cp-palsearch-x" onClick={onClose} aria-label={tr`Close`}>×</button>
         </div>
         <div className="cp-palsearch-list">
-          {matches.length === 0 && <div className="cp-palsearch-empty">No matches</div>}
+          {matches.length === 0 && <div className="cp-palsearch-empty"><Trans>No matches</Trans></div>}
           {matches.map(p => (
             <div key={p.id} className="cp-palsearch-row">
               <div className="cp-palsearch-rowhead">{p.name}</div>

@@ -7,7 +7,9 @@
 // Stripe product and prices; until then nothing calls this.
 
 import { supabase } from './supabase.js';
-import { STORAGE_ADDON_BLOCK_LABEL, STORAGE_ADDON_HELD, STORAGE_ADDON_MAX_BLOCKS } from './billingCopy.js';
+import { STORAGE_ADDON_HELD, STORAGE_ADDON_MAX_BLOCKS } from './billingCopy.js';
+import { addonBlockLabel } from './billingCopyWords.js';
+import { t, ph } from '@lingui/core/macro';
 
 // Run where the database is, as the checkout functions are (lib/checkout.js
 // says why). The sheet's preview on opening also warms the apply: same URL, so
@@ -55,36 +57,36 @@ export function applyStorageAddon({ blocks, prorationDate, requestId }) {
 export function storageAddonErrorMessage(answer) {
   switch (answer?.error) {
     case 'trial_active':
-      return 'Extra storage can be added after your trial’s first payment.';
+      return t`Extra storage can be added after your trial’s first payment.`;
     case 'past_due':
-      return 'Your last payment didn’t go through. Update your card in Manage billing, then add storage.';
+      return t`Your last payment didn’t go through. Update your card in Manage billing, then add storage.`;
     case 'cancel_pending':
-      return 'Your plan is set to end. Resume it in Manage billing to add or remove storage.';
+      return t`Your plan is set to end. Resume it in Manage billing to add or remove storage.`;
     case 'payment_pending':
-      return 'A storage payment is still waiting to be finished. Check your email or Manage billing.';
+      return t`A storage payment is still waiting to be finished. Check your email or Manage billing.`;
     case 'over_usage':
-      return `Your files take more room than you’d have without this ${STORAGE_ADDON_BLOCK_LABEL}. Delete some or empty the trash first.`;
+      return t`Your files take more room than you’d have without this ${ph({ STORAGE_ADDON_BLOCK_LABEL: addonBlockLabel() })}. Delete some or empty the trash first.`;
     case 'bad_request':
-      return `Extra storage goes up to ${STORAGE_ADDON_MAX_BLOCKS} × ${STORAGE_ADDON_BLOCK_LABEL}. For more, write to us.`;
+      return t`Extra storage goes up to ${STORAGE_ADDON_MAX_BLOCKS} × ${ph({ STORAGE_ADDON_BLOCK_LABEL: addonBlockLabel() })}. For more, write to us.`;
     case 'rate_limited':
-      return 'That’s a lot of changes in an hour — try again a little later.';
+      return t`That’s a lot of changes in an hour — try again a little later.`;
     case 'stale_preview':
-      return 'The price was a few minutes old. Open this again for a fresh one.';
+      return t`The price was a few minutes old. Open this again for a fresh one.`;
     case 'no_subscription':
     case 'contact_support':
     case 'quota_override':
     case 'schedule_attached':
     case 'discounted_subscription':
     case 'not_active':
-      return 'Extra storage can’t be added to this plan here. Write to hello@soleilpictures.com and we’ll sort it out.';
+      return t`Extra storage can’t be added to this plan here. Write to hello@soleilpictures.com and we’ll sort it out.`;
     case 'not_configured':
-      return 'Extra storage isn’t available yet.';
+      return t`Extra storage isn’t available yet.`;
     case 'network':
-      return 'Couldn’t reach billing. Check your connection and try again.';
+      return t`Couldn’t reach billing. Check your connection and try again.`;
     default:
       // Safe to retry from the sheet: a retry resends the same total under the
       // same request id, so one that already went through is not charged again.
-      return 'Something went wrong with billing. Use Try again here — repeating the same request never charges twice.';
+      return t`Something went wrong with billing. Use Try again here — repeating the same request never charges twice.`;
   }
 }
 
@@ -97,7 +99,7 @@ export const STORAGE_ADDON_OPEN_EVENT = 'clusters:storage-addon-open';
 export function storageAddonAction(surface) {
   if (STORAGE_ADDON_HELD) return null;
   return {
-    label: `Add ${STORAGE_ADDON_BLOCK_LABEL}`,
+    label: t`Add ${ph({ STORAGE_ADDON_BLOCK_LABEL: addonBlockLabel() })}`,
     onClick: () => window.dispatchEvent(new CustomEvent(STORAGE_ADDON_OPEN_EVENT, { detail: { surface } })),
   };
 }

@@ -166,7 +166,7 @@ test('the card is made with its title page and body, and a refused card is never
   assert.match(drop, /const id = addScriptCard\?\.\(pos, \{ title: parsed\.title, script: \{ titlePage: parsed\.titlePage, body: mod\.scriptBody\(parsed\) \} \}\);\s*if \(!id\) return null;\s*try \{ logEvent\(EV\.SCRIPT_IMPORTED/,
     'script_imported only for a card that exists');
   const fn2 = drop.slice(drop.indexOf('export async function importDroppedScripts('));
-  assert.ok(fn2.indexOf('SCRIPT_ONE_AT_A_TIME') > fn2.indexOf('if (!id) return null;'), '"the first is on the board" is said only once it is');
+  assert.ok(fn2.indexOf('scriptOneAtATime()') > fn2.indexOf('if (!id) return null;'), '"the first is on the board" is said only once it is');
 });
 
 test('no editor applies a script on open any more — there is nothing waiting to apply', () => {

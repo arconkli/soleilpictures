@@ -6,7 +6,7 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import {
-  appPreloadList, withoutList, adminPreloadLists, preloadScript, APP_PRELOAD_PATHS, WORKSPACE_SETUP_MODULE,
+  appPreloadList, catalogList, withoutList, adminPreloadLists, preloadScript, APP_PRELOAD_PATHS, WORKSPACE_SETUP_MODULE,
   ADMIN_PAGE_MODULE, ADMIN_PHONE_MODULE, PHONE_QUERY,
 } from './appPreloadList.mjs';
 
@@ -64,7 +64,7 @@ test('the setup list is only what setup adds on top of the app', () => {
 });
 
 // A page the script can run in: what it reads and the links it adds.
-function page({ path = '/', keys = [], existing = [], nonce = 'n0nce', storageThrows = false, phone, noMatchMedia = false } = {}) {
+function page({ path = '/', keys = [], existing = [], nonce = 'n0nce', storageThrows = false, phone, noMatchMedia = false, languages = ['en-US'], ui = null } = {}) {
   const head = [];
   const all = () => [...existing, ...head];
   const document = {
@@ -78,17 +78,18 @@ function page({ path = '/', keys = [], existing = [], nonce = 'n0nce', storageTh
   };
   const localStorage = storageThrows
     ? { get length() { throw new Error('denied'); }, key() { throw new Error('denied'); } }
-    : { length: keys.length, key: (i) => keys[i] ?? null };
+    : { length: keys.length, key: (i) => keys[i] ?? null, getItem: (k) => (k === 'soleil.ui' && ui ? JSON.stringify(ui) : null) };
   const window = noMatchMedia ? {} : { matchMedia: (q) => ({ matches: !!phone && q === PHONE_QUERY }) };
-  return { head, window, globals: [document, window, { pathname: path }, localStorage] };
+  return { head, window, globals: [document, window, { pathname: path }, localStorage, { languages }] };
 }
 
-const LISTS = { app: appPreloadList(BUNDLE), setup: { js: ['/assets/WorkspaceSetup-h.js'], css: ['/assets/WorkspaceSetup-w.css'] } };
+const CATALOGS = { es: '/assets/messages-es1.js', ja: '/assets/messages-ja1.js', 'pt-BR': '/assets/messages-pt1.js' };
+const LISTS = { app: appPreloadList(BUNDLE), catalogs: CATALOGS, setup: { js: ['/assets/WorkspaceSetup-h.js'], css: ['/assets/WorkspaceSetup-w.css'] } };
 const SIGNED_IN = ['soleil.theme', 'sb-abcdefgh-auth-token'];
 
 // Runs the script exactly as the build writes it into index.html.
 function boot(p, lists = LISTS) {
-  new Function('document', 'window', 'location', 'localStorage', preloadScript(lists))(...p.globals);
+  new Function('document', 'window', 'location', 'localStorage', 'navigator', preloadScript(lists))(...p.globals);
   return p;
 }
 
@@ -288,4 +289,46 @@ test('nothing under src/ imports adminWarm', () => {
     return e.isDirectory() ? walk(f) : /\.(m?js|jsx)$/.test(e.name) && e.name !== 'appPreloadList.test.mjs' ? [f] : [];
   });
   for (const f of walk(SRC)) assert.ok(!/adminWarm/.test(readFileSync(f, 'utf8')), f);
+});
+
+test('catalogList names each language chunk but English', () => {
+  const b = bundleOf(
+    chunk('assets/messages-a.js', { facade: '/repo/boards/src/locales/es/messages.mjs' }),
+    chunk('assets/messages-b.js', { facade: '/repo/boards/src/locales/pt-BR/messages.mjs' }),
+    chunk('assets/messages-c.js', { facade: '/repo/boards/src/locales/en/messages.mjs' }),
+    chunk('assets/Lazy-g.js', { facade: '/repo/boards/src/components/Lazy.jsx' }),
+  );
+  assert.deepEqual(catalogList(b), { es: '/assets/messages-a.js', 'pt-BR': '/assets/messages-b.js' });
+  assert.deepEqual(catalogList(b, { base: '/x/' }).es, '/x/assets/messages-a.js');
+});
+
+test('a Spanish browser on / signed out preloads the Spanish catalog, not the app', () => {
+  const p = boot(page({ languages: ['es-MX', 'en'] }));
+  assert.deepEqual(p.head.map((l) => l.href), [CATALOGS.es]);
+  assert.equal(p.head[0].rel, 'modulepreload');
+  assert.equal(p.head[0].fetchPriority, undefined, 'the catalog is on the critical path');
+});
+
+test('signed in, a Spanish browser preloads the app and the catalog', () => {
+  const p = boot(page({ keys: SIGNED_IN, languages: ['es'] }));
+  const hrefs = p.head.map((l) => l.href);
+  assert.ok(hrefs.includes(CATALOGS.es));
+  assert.ok(LISTS.app.js.every((h) => hrefs.includes(h)));
+  assert.equal(p.head.find((l) => l.href === CATALOGS.es).fetchPriority, undefined);
+  assert.equal(p.head.find((l) => l.href === LISTS.app.js[0]).fetchPriority, 'low');
+});
+
+test('the public site stays English: no catalog on /docs, /c/…, /pricing signed out', () => {
+  for (const path of ['/docs', '/docs/api', '/c/some-cluster', '/vs/pureref', '/pricing']) {
+    assert.equal(boot(page({ path, languages: ['es'] })).head.length, 0, path);
+  }
+  assert.ok(boot(page({ path: '/pricing', keys: SIGNED_IN, languages: ['es'] })).head.some((l) => l.href === CATALOGS.es));
+});
+
+test('the saved language wins over the browser, and English fetches nothing', () => {
+  const p = boot(page({ languages: ['en-US'], ui: { lang: 'ja' } }));
+  assert.deepEqual(p.head.map((l) => l.href), [CATALOGS.ja]);
+  assert.equal(boot(page({ languages: ['en-US'] })).head.length, 0);
+  assert.equal(boot(page({ languages: ['es'], ui: { lang: 'en' } })).head.length, 0);
+  assert.equal(boot(page({ languages: ['zh-CN'] })).head.length, 0);
 });

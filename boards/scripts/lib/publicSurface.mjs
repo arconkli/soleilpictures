@@ -179,8 +179,10 @@ export function apiCardKinds() {
 export function settingsTabs() {
   const file = 'boards/src/components/SettingsPanel.jsx';
   const body = sliceLiteral(read(file), 'const TABS =') ?? '';
-  const found = [...body.matchAll(/\{\s*id:\s*'([a-z]+)'\s*,\s*label:\s*'([^']+)'/g)]
-    .map((m) => ({ id: m[1], label: m[2] }));
+  // The label is a plain string, or a getter that reads it through Lingui
+  // (`get label() { return tr`Profile`; }`) so it follows the language.
+  const found = [...body.matchAll(/\{\s*id:\s*'([a-z]+)'\s*,\s*(?:label:\s*'([^']+)'|get label\(\)\s*\{\s*return\s+tr`([^`]+)`;\s*\})/g)]
+    .map((m) => ({ id: m[1], label: m[2] ?? m[3] }));
   return expect(found, 6, 'settings tabs', file).sort((a, b) => a.id.localeCompare(b.id));
 }
 
@@ -206,10 +208,12 @@ export function powerRevealKeys() {
 export function shortcutSections() {
   const file = 'boards/src/components/ShortcutsOverlay.jsx';
   const body = sliceLiteral(read(file), 'const SECTIONS =') ?? '';
-  const chunks = body.split(/title:\s*'([^']+)'/).slice(1);   // [title, rest, title, rest, …]
+  // A title is `title: t`Tools``, `title: t({ message: 'View', context: 'noun' })`
+  // (wrapped for translation) or `title: 'Tools'`.
+  const chunks = body.split(/title:\s*(?:t`([^`]+)`|t\(\{\s*message:\s*'([^']+)'[^}]*\}\)|'([^']+)')/).slice(1);   // [t, d, s, rest, …]
   const found = [];
-  for (let i = 0; i < chunks.length; i += 2) {
-    found.push({ title: chunks[i], rows: (chunks[i + 1].match(/\[\s*\[/g) || []).length });
+  for (let i = 0; i < chunks.length; i += 4) {
+    found.push({ title: chunks[i] ?? chunks[i + 1] ?? chunks[i + 2], rows: (chunks[i + 3].match(/\[\s*\[/g) || []).length });
   }
   expect(found, 4, 'shortcut sections', file);
   const empty = found.filter((s) => s.rows === 0).map((s) => s.title);

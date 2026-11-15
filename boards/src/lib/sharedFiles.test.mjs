@@ -81,9 +81,9 @@ test('the Shared page, the in-app viewer and the sidebar row all answer to share
 
 test('the Shared page’s menus and undo are the app’s', () => {
   const page = src('../components/shared/SharedPage.jsx');
-  assert.match(page, /\{ id: 'hide', label: 'Remove from Shared with me'/);
-  assert.match(page, /\{ id: 'stop', label: 'Stop sharing', danger: true/);
-  assert.match(page, /label: 'Undo'/);
+  assert.match(page, /\{ id: 'hide', label: tr`Remove from Shared with me`/);
+  assert.match(page, /\{ id: 'stop', label: tr`Stop sharing`, danger: true/);
+  assert.match(page, /label: tr`Undo`/);
   assert.match(page, /undoStopFileShare\(row\.board_id, row\.card_id,\s+\{ linkAccess: data\.link_access, stoppedAt: data\.stopped_at \}\)/);
   assert.match(page, /item\.allow_download && SAVEABLE\.has\(item\.kind\)/, 'Save a copy only where downloading is allowed');
   const css = src('../components/shared/sharedPage.css');

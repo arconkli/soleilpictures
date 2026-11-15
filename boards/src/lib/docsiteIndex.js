@@ -2658,7 +2658,7 @@ export const DOCS_PAGES = [
     "answer": "Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.",
     "section": "account",
     "order": 0,
-    "updated": "2026-11-04",
+    "updated": "2026-11-15",
     "navLabel": "Settings",
     "headings": [
       {
@@ -2895,7 +2895,7 @@ export const DOCS_PAGES = [
     "title": "Theme, Fonts and Defaults — Soleil Clusters",
     "metaDescription": "Follow your system theme or pick light or dark in Soleil Clusters, set an accent colour and body font, and choose what new notes, shapes and clusters start as.",
     "h1": "Theme and defaults",
-    "answer": "Appearance covers the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, what a plain scroll wheel does, and whether W, A, S and D move you around a board. Card defaults set what new notes, docs and shapes start as, and whether new clusters open as a board or in Files. Appearance is personal and follows your account between devices; card defaults belong to the workspace.",
+    "answer": "Appearance covers your language, the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, what a plain scroll wheel does, and whether W, A, S and D move you around a board. Card defaults set what new notes, docs and shapes start as, and whether new clusters open as a board or in Files. Appearance is personal and follows your account between devices; card defaults belong to the workspace.",
     "section": "account",
     "order": 2,
     "updated": "2026-11-15",
@@ -2920,6 +2920,10 @@ export const DOCS_PAGES = [
       "/docs/canvas/notes"
     ],
     "faq": [
+      {
+        "q": "Can I use Clusters in another language?",
+        "a": "Yes. Settings → Appearance → Language offers English, Spanish, French, Brazilian Portuguese, Russian, Japanese and Korean. Automatic, the default, follows your browser. Cards, clusters and comments stay in the language they were written in."
+      },
       {
         "q": "Does my theme follow me between devices?",
         "a": "Yes. Theme is a per-user account setting, not a browser one, so it syncs everywhere you sign in."

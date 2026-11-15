@@ -23,20 +23,26 @@ import { fmtBytes } from '../../lib/storageLabel.js';
 import { Icon } from '../Icon.jsx';
 import { Upload, FolderOpen, FileZip, CloudArrowDown } from '../../lib/icons.js';
 import { noteSessionCounter } from '../../lib/analytics.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const NEAR = 0.9;
+
+// Splits "1.2 GB" at its last space (a no-break one in es, fr, pt-BR and ru);
+// "1 024 Mo" keeps "1 024" as its number.
+const splitUnit = (s) => { const m = /^(.*\S)\s+(\S+)$/u.exec(s); return m ? [m[1], m[2]] : [s]; };
 
 // "1.2 of 5.0 GB" when both are in one unit, so the line fits a narrow column.
 function storageText(used, quota) {
   const u = fmtBytes(used);
   const q = fmtBytes(quota);
-  const [n, unit] = u.split(' ');
-  return unit && unit === q.split(' ')[1] ? `${n} of ${q}` : `${u} of ${q}`;
+  const [n, unit] = splitUnit(u);
+  return unit && unit === splitUnit(q)[1] ? t`${n} of ${q}` : t`${u} of ${q}`;
 }
 
 export function SidebarMeter({
   isPaid = false, cardsUsed = 0, cardLimit = null, storage = null,
-  onOpenPlan, onUpload, onUploadFolder, onUploadZips, onOpenGuide = null, uploadTitle = 'Upload files',
+  onOpenPlan, onUpload, onUploadFolder, onUploadZips, onOpenGuide = null, uploadTitle = t`Upload files`,
 }) {
   const inputRef = useRef(null);
   const folderRef = useRef(null);
@@ -92,7 +98,7 @@ export function SidebarMeter({
   const used = Number(cardsUsed) || 0;
   const cardFrac = showCards ? used / Number(cardLimit) : 0;
   const parts = [
-    showCards ? `${used} of ${cardLimit} cards` : null,
+    showCards ? t`${used} of ${cardLimit} cards` : null,
     known ? storageText(storage.used, storage.quota) : null,
   ].filter(Boolean);
   const frac = Math.max(cardFrac, storageFrac);
@@ -106,7 +112,7 @@ export function SidebarMeter({
       <div className="sbf-meter-line">
         {parts.length > 0 && (
           <button type="button" className="sbf-meter-text" onClick={() => { noteSessionCounter('files.meter_plan'); onOpenPlan?.(); }}
-                  title="Plan and storage" aria-label={`Plan and storage: ${parts.join(', ')}`}>
+                  title={t`Plan and storage`} aria-label={t`Plan and storage: ${ph({ join: parts.join(', ') })}`}>
             {parts.join(' · ')}
           </button>
         )}
@@ -115,7 +121,7 @@ export function SidebarMeter({
             <button type="button" className="sbf-upload" title={uploadTitle}
                     onClick={() => pick(inputRef, 'files')}>
               <Icon as={Upload} size={14} weight="regular" />
-              Upload
+              <Trans>Upload</Trans>
             </button>
             <input ref={inputRef} type="file" multiple hidden
                    onChange={(e) => chosen('files', [...(e.target.files || [])], onUpload)} />
@@ -126,34 +132,34 @@ export function SidebarMeter({
             <button type="button" ref={btnRef} className={'sbf-upload' + (open ? ' is-open' : '')} title={uploadTitle}
                     aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
               <Icon as={Upload} size={14} weight="regular" />
-              Upload
+              <Trans>Upload</Trans>
             </button>
             {open && pos && createPortal(
-              <div className="sbf-upmenu" role="menu" aria-label="Upload" ref={menuRef} onKeyDown={onMenuKey} style={pos}>
+              <div className="sbf-upmenu" role="menu" aria-label={t`Upload`} ref={menuRef} onKeyDown={onMenuKey} style={pos}>
                 <button type="button" className="sbf-upitem" role="menuitem" onClick={() => pick(inputRef, 'files')}>
                   <Icon as={Upload} size={16} weight="regular" />
-                  <span className="sbf-upitem-l"><b>Files…</b></span>
+                  <span className="sbf-upitem-l"><b><Trans>Files…</Trans></b></span>
                 </button>
                 {canFolder && (
                   <button type="button" className="sbf-upitem" role="menuitem" onClick={() => pick(folderRef, 'folder')}>
                     <Icon as={FolderOpen} size={16} weight="regular" />
-                    <span className="sbf-upitem-l"><b>A folder…</b><small>Its folders become clusters</small></span>
+                    <span className="sbf-upitem-l"><b><Trans>A folder…</Trans></b><small><Trans>Its folders become clusters</Trans></small></span>
                   </button>
                 )}
                 {onUploadZips && (
                   <button type="button" className="sbf-upitem" role="menuitem" onClick={() => pick(zipRef, 'zips')}>
                     <Icon as={FileZip} size={16} weight="regular" />
-                    <span className="sbf-upitem-l"><b>A zip or Google Takeout…</b><small>Each folder inside becomes a cluster</small></span>
+                    <span className="sbf-upitem-l"><b><Trans>A zip or Google Takeout…</Trans></b><small><Trans>Each folder inside becomes a cluster</Trans></small></span>
                   </button>
                 )}
                 <div className="sbf-upsep" role="separator" />
                 {onOpenGuide ? (
                   <button type="button" className="sbf-upitem" role="menuitem" onClick={() => { noteSessionCounter('files.upload_guide'); setOpen(false); onOpenGuide(); }}>
                     <Icon as={CloudArrowDown} size={16} weight="regular" />
-                    <span className="sbf-upitem-l"><b>Bring files from another app…</b><small>Google Drive, Dropbox and more</small></span>
+                    <span className="sbf-upitem-l"><b><Trans>Bring files from another app…</Trans></b><small><Trans>Google Drive, Dropbox and more</Trans></small></span>
                   </button>
                 ) : (
-                  <div className="sbf-upnote">Moving from Google Drive or Dropbox? Download it as a zip, or pick its folder on your computer.</div>
+                  <div className="sbf-upnote"><Trans>Moving from Google Drive or Dropbox? Download it as a zip, or pick its folder on your computer.</Trans></div>
                 )}
               </div>, document.body)}
             <input ref={inputRef} type="file" multiple hidden

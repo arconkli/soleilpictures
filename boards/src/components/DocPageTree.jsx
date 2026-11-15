@@ -24,6 +24,12 @@ import { undoToast } from '../lib/undoToast.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { Icon } from './Icon.jsx';
 import { ChevronDown, ChevronRight, FileText, Plus } from '../lib/icons.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownAuthor } from '../lib/commentAuthor.js';
+
+// Read at render, so the fallback follows the person's language.
+const peerName = (peer) => shownAuthor(peer.user?.name) || t`Someone`;
 
 export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelectPage, peers = [], onJumpToPeer,
                               // false → a view-only member or the public viewer. Their Y.Doc
@@ -32,7 +38,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
                               canEdit = true,
                               // Name for the page that replaces a deleted last page: the
                               // same card-title name DocSurface's empty-doc seed uses.
-                              defaultName = 'Untitled' }) {
+                              defaultName = t({ message: 'Untitled', context: 'default name' }) }) {
   const tree = buildPageTree(pages);
   const [renaming, setRenaming] = useState(null);  // page id
   const [draftName, setDraftName] = useState('');
@@ -64,7 +70,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
   };
   const commitRename = () => {
     const id = renaming;
-    const name = draftName.trim() || 'Untitled';
+    const name = draftName.trim() || t({ message: 'Untitled', context: 'default name' });
     if (id && name !== renameFromRef.current) renamePage(ydoc, id, name, scope);
     setRenaming(null);
     if (id) finishAdded(id);
@@ -76,27 +82,29 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
   };
 
   const onAddRoot = () => {
-    const id = addPage(ydoc, { scope });
+    const untitled = t({ message: 'Untitled', context: 'default name' });
+    const id = addPage(ydoc, { name: untitled, scope });
     justAddedRef.current = id;
     onSelectPage(id, { keepOpen: true, naming: true });
-    setTimeout(() => { renameFromRef.current = 'Untitled'; setRenaming(id); setDraftName(''); }, 0);
+    setTimeout(() => { renameFromRef.current = untitled; setRenaming(id); setDraftName(''); }, 0);
   };
   const onAddChild = (parentId) => {
-    const id = addPage(ydoc, { parent_id: parentId, scope });
+    const untitled = t({ message: 'Untitled', context: 'default name' });
+    const id = addPage(ydoc, { parent_id: parentId, name: untitled, scope });
     fold.setOpen(parentId, true);
     justAddedRef.current = id;
     onSelectPage(id, { keepOpen: true, naming: true });
-    setTimeout(() => { renameFromRef.current = 'Untitled'; setRenaming(id); setDraftName(''); }, 0);
+    setTimeout(() => { renameFromRef.current = untitled; setRenaming(id); setDraftName(''); }, 0);
   };
 
   const buildContextMenuItems = (pageId) => {
     const p = pages.find(x => x.id === pageId);
     if (!p) return [];
     return [
-      { id: 'rename', label: 'Rename', run: () => startRename(p) },
-      { id: 'addchild', label: 'New sub-page', run: () => onAddChild(pageId) },
+      { id: 'rename', label: t`Rename`, run: () => startRename(p) },
+      { id: 'addchild', label: t`New sub-page`, run: () => onAddChild(pageId) },
       { divider: true },
-      { id: 'delete', label: 'Delete', danger: true, run: async () => {
+      { id: 'delete', label: t`Delete`, danger: true, run: async () => {
         // Leaf pages match the canvas convention: no confirm, an Undo toast
         // instead. A page WITH sub-pages keeps the dialog (whole-subtree
         // cascade) — but is now just as undoable: deletePage runs in one
@@ -105,11 +113,12 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
         // a single step.
         const hasChildren = pages.some(x => x.parent_id === pageId);
         if (hasChildren) {
+          const pageLabel = p.name || t`Untitled`;
           const ok = await feedback.confirm({
-            title: `Delete "${p.name || 'Untitled'}"?`,
-            message: 'Any sub-pages will be deleted too.\n\nYou can undo this right after.',
+            title: t`Delete "${pageLabel}"?`,
+            message: t`Any sub-pages will be deleted too.\n\nYou can undo this right after.`,
             danger: true,
-            confirmLabel: 'Delete',
+            confirmLabel: t`Delete`,
           });
           if (!ok) return;
         }
@@ -123,7 +132,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
         let replacement = null;
         ydoc.transact(() => {
           deletePage(ydoc, pageId, scope);
-          if (!readPages(ydoc, scope).length) replacement = addPage(ydoc, { name: defaultName || 'Untitled', scope });
+          if (!readPages(ydoc, scope).length) replacement = addPage(ydoc, { name: defaultName || t({ message: 'Untitled', context: 'default name' }), scope });
         }, DOC_ORIGIN);
         const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
         um?.stopCapturing();
@@ -132,7 +141,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
           onSelectPage(next);
         }
         undoToast(feedback, {
-          message: hasChildren ? 'Page and its sub-pages deleted' : 'Page deleted',
+          message: hasChildren ? t`Page and its sub-pages deleted` : t`Page deleted`,
           undoManager: um,
           stackItem: item,
           onUndo: () => {
@@ -154,7 +163,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
       e.dataTransfer.setData('text/plain', p.id);
       if (boardId) {
         e.dataTransfer.setData('application/x-soleil-doc-page', JSON.stringify({
-          boardId, pageId: p.id, pageName: p.name || 'Untitled',
+          boardId, pageId: p.id, pageName: p.name || t({ message: 'Untitled', context: 'default name' }),
         }));
       }
     } catch (_) {}
@@ -231,7 +240,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
                setCtx({ open: true, x: e.clientX, y: e.clientY, pageId: p.id });
              }}>
           <button className="doc-tree-chev"
-                  aria-label={isOpen ? 'Collapse' : 'Expand'}
+                  aria-label={isOpen ? t`Collapse` : t`Expand`}
                   aria-expanded={isOpen}
                   onClick={(e) => { e.stopPropagation(); if (hasKids) fold.setOpen(p.id, !isOpen); }}
                   style={{ visibility: hasKids ? 'visible' : 'hidden' }}>
@@ -241,7 +250,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
           {renaming === p.id ? (
             <input className="doc-tree-rename" dir="auto"
                    autoFocus
-                   aria-label="Page name"
+                   aria-label={t`Page name`}
                    value={draftName}
                    onChange={(e) => setDraftName(e.target.value)}
                    onFocus={(e) => e.target.select()}
@@ -254,7 +263,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
                    }}
                    onClick={(e) => e.stopPropagation()} />
           ) : (
-            <span className="doc-tree-name" dir="auto">{p.name || 'Untitled'}</span>
+            <span className="doc-tree-name" dir="auto">{p.name || t`Untitled`}</span>
           )}
           {pagePeers.length > 0 && (
             <span className="doc-tree-peers">
@@ -264,8 +273,8 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
                 <button key={peer.tabId || peer.user?.id}
                         type="button"
                         className="doc-tree-peer"
-                        title={`${peer.user?.name || 'Someone'} — jump here`}
-                        aria-label={`${peer.user?.name || 'Someone'} is editing this page — jump to them`}
+                        title={t`${ph({ name: peerName(peer) })} — jump here`}
+                        aria-label={t`${ph({ name: peerName(peer) })} is editing this page — jump to them`}
                         style={{ background: peer.user?.color || '#4f8df8' }}
                         onClick={(e) => { e.stopPropagation(); onJumpToPeer?.(peer.location); }} />
               ))}
@@ -276,8 +285,8 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
           )}
           {canEdit && (
           <button className="doc-tree-add"
-                  title="Add sub-page"
-                  aria-label="Add sub-page"
+                  title={t`Add sub-page`}
+                  aria-label={t`Add sub-page`}
                   onClick={(e) => { e.stopPropagation(); onAddChild(p.id); }}><Icon as={Plus} size={14} /></button>
           )}
         </div>
@@ -293,19 +302,19 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
   return (
     <div className="doc-tree">
       <div className="doc-tree-head">
-        <span className="doc-tree-kicker">Pages</span>
-        {canEdit && <button className="doc-tree-add-root" title="New page" aria-label="New page" onClick={onAddRoot}><Icon as={Plus} size={16} /></button>}
+        <span className="doc-tree-kicker"><Trans>Pages</Trans></span>
+        {canEdit && <button className="doc-tree-add-root" title={t`New page`} aria-label={t`New page`} onClick={onAddRoot}><Icon as={Plus} size={16} /></button>}
       </div>
       <div className="doc-tree-body">
         {tree.length === 0 ? (canEdit ? (
           <button className="doc-tree-empty" onClick={onAddRoot}>
             <span className="doc-tree-empty-plus" aria-hidden="true">+</span>
-            <span className="doc-tree-empty-title">Add your first page</span>
-            <span className="doc-tree-empty-sub">Start writing — pages live here.</span>
+            <span className="doc-tree-empty-title"><Trans>Add your first page</Trans></span>
+            <span className="doc-tree-empty-sub"><Trans>Start writing — pages live here.</Trans></span>
           </button>
         ) : (
           <div className="doc-tree-empty is-readonly">
-            <span className="doc-tree-empty-title">No pages yet</span>
+            <span className="doc-tree-empty-title"><Trans>No pages yet</Trans></span>
           </div>
         )) : tree.map(p => renderRow(p, 0))}
       </div>

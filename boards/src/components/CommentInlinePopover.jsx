@@ -10,6 +10,9 @@ import { useFeedback } from './AppFeedback.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { detectMentionToken, matchMentions } from '../lib/commentMentionText.js';
 import { initialOf } from '../lib/graphemes.js';
+import { shownAuthor } from '../lib/commentAuthor.js';
+import { t as tr } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const W = 320;
 
@@ -45,10 +48,10 @@ export function CommentInlinePopover({
     if (replyRef.current.trim()) {
       confirmingRef.current = true;
       const ok = await feedback.confirm({
-        title: 'Discard reply?',
-        message: 'You have an unsent reply on this comment.',
-        confirmLabel: 'Discard',
-        cancelLabel: 'Keep writing',
+        title: tr`Discard reply?`,
+        message: tr`You have an unsent reply on this comment.`,
+        confirmLabel: tr`Discard`,
+        cancelLabel: tr`Keep writing`,
         danger: true,
       });
       confirmingRef.current = false;
@@ -113,18 +116,18 @@ export function CommentInlinePopover({
     <div ref={popRef} className="comment-inline-pop surface-frosted" style={{ top: pos.top, left: pos.left, width: pos.width }}>
       <div className="comment-inline-head">
         <span className="comment-inline-author" style={{ background: thread.authorColor || 'var(--soleil)' }}>
-          {initialOf(thread.author)}
+          {initialOf(shownAuthor(thread.author))}
         </span>
-        <span className="comment-inline-name">{thread.author}</span>
+        <span className="comment-inline-name">{shownAuthor(thread.author)}</span>
         {editable ? (<>
         <button
           className="comment-inline-x"
-          title={thread.resolved ? 'Reopen' : 'Resolve'}
+          title={thread.resolved ? tr`Reopen` : tr`Resolve`}
           onClick={() => resolveComment(ydoc, threadId, !thread.resolved, scope, { by: currentUser?.id || null, byName: currentUser?.name || null })}
         >{thread.resolved ? '↺' : '✓'}</button>
         <button
           className="comment-inline-x"
-          title="Delete"
+          title={tr`Delete`}
           onClick={() => {
             // No confirm: the house delete → Undo toast (docs on their
             // structural undo, notes by putting back what was filed).
@@ -133,13 +136,13 @@ export function CommentInlinePopover({
           }}
         >×</button>
         </>) : (
-          <span className="comment-inline-viewonly">View only</span>
+          <span className="comment-inline-viewonly"><Trans>View only</Trans></span>
         )}
       </div>
       <div className="comment-inline-body" dir="auto">{thread.body}</div>
       {thread.replies.map((r, i) => (
         <div key={r.id || i} className="comment-inline-reply">
-          <div className="comment-inline-name">{r.author}</div>
+          <div className="comment-inline-name">{shownAuthor(r.author)}</div>
           <div dir="auto">{r.body}</div>
         </div>
       ))}
@@ -173,7 +176,7 @@ export function CommentInlinePopover({
                    if (isComposingKey(e)) return;
                    if (e.key === 'Enter' && replyMention) e.preventDefault();
                  }}
-                 placeholder={workspaceId ? 'Reply… (@ to mention)' : 'Reply…'} />
+                 placeholder={workspaceId ? tr`Reply… (@ to mention)` : tr`Reply…`} />
         </form>
       )}
       {editable && replyMention && workspaceId && (

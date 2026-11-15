@@ -29,7 +29,8 @@ import { Modal } from '../Modal.jsx';
 import { Icon as Glyph } from '../Icon.jsx';
 import { X as XIcon, Link as LinkIcon, Globe as GlobeIcon, Lock as LockIcon } from '../../lib/icons.js';
 import * as realApi from '../../lib/fileShares.js';
-import { FILE_SHARE_PEOPLE_PER_CALL, fileShareUrl, friendlyShareError } from '../../lib/fileShares.js';
+import { FILE_SHARE_PEOPLE_PER_CALL, fileShareUrl } from '../../lib/fileShares.js';
+import { friendlyShareError } from '../../lib/fileSharesWords.js';
 import {
   mergeChips, normalizeSettings, sharedMessage, commentsLabel, fileDisplayName,
 } from '../../lib/fileShareDialog.js';
@@ -40,20 +41,23 @@ import { EV } from '../../lib/analyticsEvents.js';
 import './fileShareDialog.css';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import { initialOf } from '../../lib/graphemes.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
-const ROLE_LABEL = { view: 'Can view', comment: 'Can comment', edit: 'Can edit' };
+// Called at render, so the words follow the current language.
+const roleLabel = (role) => ({ view: tr`Can view`, comment: tr`Can comment`, edit: tr`Can edit` })[role];
 // The roles above "Can view", by what is being shared.
 const upperRole = (isDoc) => (isDoc ? 'edit' : 'comment');
 
 function linkSub(link, isDoc = false) {
   if (isDoc) {
-    if (link === 'edit') return 'Anyone with the link can read it. Signed in, they can edit it too.';
-    if (link === 'view') return 'Anyone with the link can read it. No account needed.';
-    return 'Only the people above, and people in this cluster, can open it.';
+    if (link === 'edit') return tr`Anyone with the link can read it. Signed in, they can edit it too.`;
+    if (link === 'view') return tr`Anyone with the link can read it. No account needed.`;
+    return tr`Only the people above, and people in this cluster, can open it.`;
   }
-  if (link === 'comment') return 'Anyone with the link can view it. Signed in, they can comment.';
-  if (link === 'view') return 'Anyone with the link can view it. No account needed.';
-  return 'Only the people above, and people in this cluster, can open it.';
+  if (link === 'comment') return tr`Anyone with the link can view it. Signed in, they can comment.`;
+  if (link === 'view') return tr`Anyone with the link can view it. No account needed.`;
+  return tr`Only the people above, and people in this cluster, can open it.`;
 }
 
 // How long a burst of changes waits before the doc's rooms are asked again.
@@ -233,7 +237,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
     const { chips: next, overflow } = mergeChips(chips, text);
     setChips(next);
     setDraft('');
-    if (overflow) setError(`At most ${FILE_SHARE_PEOPLE_PER_CALL} people at a time.`);
+    if (overflow) setError(plural(FILE_SHARE_PEOPLE_PER_CALL, { other: 'At most # people at a time.' }));
     return next;
   }, [chips]);
 
@@ -325,7 +329,7 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
           logEvent(EV.FILE_SHARE_PERSON_SET, { role: prevRole, undo: true, kind: kindRef.current });
         });
       };
-      say(`Removed ${label}`, { label: 'Undo', onClick: () => { setNotice(null); onUndo(); } });
+      say(tr`Removed ${ph({ label })}`, { label: tr`Undo`, onClick: () => { setNotice(null); onUndo(); } });
     });
   };
 
@@ -352,14 +356,14 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
       applyWrite(data);
     }
     if (!mounted.current) return;
-    if (!ok) { logFail('clipboard', null); setError("Couldn't copy the link. Try again."); return; }
+    if (!ok) { logFail('clipboard', null); setError(tr`Couldn't copy the link. Try again.`); return; }
     const after = sRef.current;
     logEvent(EV.FILE_SHARE_LINK_COPY, { link_access: after.linkAccess, kind: kindRef.current });
     setCopied(true);
     setTimeout(() => { if (mounted.current) setCopied(false); }, 1800);
     say(after.linkAccess === 'none' && after.people.length === 0
-      ? 'Link copied. Only people you add can open it.'
-      : 'Link copied');
+      ? tr`Link copied. Only people you add can open it.`
+      : tr`Link copied`);
   };
 
   const openComments = () => {
@@ -389,12 +393,12 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
           {sub && <div className="fsd-row-sub">{sub}</div>}
         </div>
         <div className="fsd-row-access">
-          <select className="fsd-pick" aria-label={`Access for ${label}`}
+          <select className="fsd-pick" aria-label={tr`Access for ${label}`}
                   value={p.role}
                   onChange={(e) => (e.target.value === '__remove' ? removePerson(p) : setPersonRole(p, e.target.value))}>
-            <option value="view">{ROLE_LABEL.view}</option>
-            <option value={upper}>{ROLE_LABEL[upper]}</option>
-            <option value="__remove">Remove</option>
+            <option value="view">{roleLabel('view')}</option>
+            <option value={upper}>{roleLabel(upper)}</option>
+            <option value="__remove">{tr`Remove`}</option>
           </select>
         </div>
       </div>
@@ -406,25 +410,25 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
            labelledBy="fsd-title" initialFocusRef={copyRef}>
       <div className="fsd-head">
         <h2 className="fsd-title" id="fsd-title">
-          <span className="fsd-title-verb">Share</span>{' '}
+          <span className="fsd-title-verb"><Trans>Share</Trans></span>{' '}
           <span className="fsd-title-name">“{name}”</span>
         </h2>
-        <button type="button" className="fsd-close" onClick={onClose} aria-label="Close">
+        <button type="button" className="fsd-close" onClick={onClose} aria-label={tr`Close`}>
           <Glyph as={XIcon} size={14} />
         </button>
       </div>
 
       <div className="fsd-body">
-        {phase === 'loading' && <div className="fsd-section fsd-empty">Loading…</div>}
+        {phase === 'loading' && <div className="fsd-section fsd-empty"><Trans>Loading…</Trans></div>}
 
         {phase === 'denied' && (
-          <div className="fsd-section fsd-empty" role="alert">You can't share {isDoc ? 'docs' : 'files'} in this cluster.</div>
+          <div className="fsd-section fsd-empty" role="alert">{isDoc ? tr`You can't share docs in this cluster.` : tr`You can't share files in this cluster.`}</div>
         )}
 
         {phase === 'error' && (
           <div className="fsd-section fsd-empty" role="alert">
-            Couldn't load who has access.{' '}
-            <button type="button" className="fsd-linkish" onClick={load}>Try again</button>
+            <Trans>Couldn't load who has access.</Trans>{' '}
+            <button type="button" className="fsd-linkish" onClick={load}><Trans>Try again</Trans></button>
           </div>
         )}
 
@@ -435,17 +439,17 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
                 <div className="fsd-chips" onClick={() => inputRef.current?.focus()}>
                   {chips.map((c) => (
                     <span key={c.email} className={`fsd-chip${c.invalid ? ' is-invalid' : ''}`}
-                          title={c.invalid ? 'Not an email address: it will be skipped' : c.email}>
+                          title={c.invalid ? tr`Not an email address: it will be skipped` : c.email}>
                       <span className="fsd-chip-text">{c.email}</span>
-                      <button type="button" className="fsd-chip-x" aria-label={`Remove ${c.email}`}
+                      <button type="button" className="fsd-chip-x" aria-label={tr`Remove ${ph({ email: c.email })}`}
                               onClick={(e) => { e.stopPropagation(); setChips(chips.filter((x) => x.email !== c.email)); }}>
                         <Glyph as={XIcon} size={10} />
                       </button>
                     </span>
                   ))}
                   <input ref={inputRef} className="fsd-input" type="text"
-                         aria-label="Add people by email"
-                         placeholder={chips.length ? '' : 'Add people by email'}
+                         aria-label={tr`Add people by email`}
+                         placeholder={chips.length ? '' : tr`Add people by email`}
                          value={draft}
                          autoComplete="off" autoCapitalize="off" spellCheck={false}
                          onChange={(e) => setDraft(e.target.value)}
@@ -455,47 +459,47 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
                 </div>
               </div>
               <div className="fsd-invite-access">
-                <select className="fsd-select" aria-label="Access for the people you add"
+                <select className="fsd-select" aria-label={tr`Access for the people you add`}
                         value={inviteRole === 'view' ? 'view' : upper} onChange={(e) => setInviteRole(e.target.value)}>
-                  <option value={upper}>{ROLE_LABEL[upper]}</option>
-                  <option value="view">{ROLE_LABEL.view}</option>
+                  <option value={upper}>{roleLabel(upper)}</option>
+                  <option value="view">{roleLabel('view')}</option>
                 </select>
                 <button type="button" className="fsd-btn fsd-send" onClick={send} disabled={!sendable || sending}>
-                  {sending ? 'Sending…' : 'Send'}
+                  {sending ? tr`Sending…` : tr`Send`}
                 </button>
               </div>
             </div>
 
             <div className="fsd-section">
-              <h3 className="fsd-section-title">People with access</h3>
+              <h3 className="fsd-section-title"><Trans>People with access</Trans></h3>
               {s.people.length > 0 && <div className="fsd-list">{peopleRows}</div>}
               <div className="fsd-hint">
-                People in {boardName ? `“${boardName}”` : 'this cluster'} can open it too.
+                {boardName ? tr`People in “${ph({ board: boardName })}” can open it too.` : tr`People in this cluster can open it too.`}
               </div>
             </div>
 
             <div className="fsd-section">
-              <h3 className="fsd-section-title">General access</h3>
+              <h3 className="fsd-section-title"><Trans>General access</Trans></h3>
               <div className="fsd-row fsd-general">
                 <span className="fsd-avatar fsd-avatar-link" aria-hidden="true">
                   <Glyph as={s.linkAccess === 'none' ? LockIcon : GlobeIcon} size={14} weight="regular" />
                 </span>
                 <div className="fsd-row-text">
-                  <select className="fsd-pick fsd-pick-left" aria-label="Who can open it"
+                  <select className="fsd-pick fsd-pick-left" aria-label={tr`Who can open it`}
                           value={s.linkAccess === 'none' ? 'restricted' : 'anyone'}
                           onChange={(e) => onGeneral(e.target.value)}>
-                    <option value="restricted">Only people added</option>
-                    <option value="anyone">Anyone with the link</option>
+                    <option value="restricted">{tr`Only people added`}</option>
+                    <option value="anyone">{tr`Anyone with the link`}</option>
                   </select>
                   <div className="fsd-row-sub fsd-wrap">{linkSub(s.linkAccess, isDoc)}</div>
                 </div>
                 {s.linkAccess !== 'none' && (
                   <div className="fsd-row-access">
-                    <select className="fsd-pick" aria-label="What anyone with the link can do"
+                    <select className="fsd-pick" aria-label={tr`What anyone with the link can do`}
                             value={s.linkAccess}
                             onChange={(e) => writeShare({ linkAccess: e.target.value })}>
-                      <option value="view">{ROLE_LABEL.view}</option>
-                      <option value={upper}>{ROLE_LABEL[upper]}</option>
+                      <option value="view">{roleLabel('view')}</option>
+                      <option value={upper}>{roleLabel(upper)}</option>
                     </select>
                   </div>
                 )}
@@ -503,9 +507,9 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
 
               <div className="fsd-row fsd-toggle-row">
                 <div className="fsd-row-text">
-                  <div className="fsd-row-name" id="fsd-dl-label">{isDoc ? 'Allow exporting' : 'Allow downloading'}</div>
+                  <div className="fsd-row-name" id="fsd-dl-label">{isDoc ? tr`Allow exporting` : tr`Allow downloading`}</div>
                   <div className="fsd-row-sub fsd-wrap">
-                    {isDoc ? 'People who can edit it can export a copy.' : 'People you share it with can save the original file.'}
+                    {isDoc ? tr`People who can edit it can export a copy.` : tr`People you share it with can save the original file.`}
                   </div>
                 </div>
                 <button type="button" role="switch" aria-checked={s.allowDownload}
@@ -532,16 +536,16 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
 
       {restrictedAlone && (
         <div className="fsd-foot-note">
-          <span>Only people you add can open it.</span>
+          <span><Trans>Only people you add can open it.</Trans></span>
           <button type="button" className="fsd-linkish" onClick={() => writeShare({ linkAccess: 'view' })}>
-            Let anyone with the link view
+            <Trans>Let anyone with the link view</Trans>
           </button>
         </div>
       )}
       <div className="fsd-foot">
         {phase === 'ready' && !isDoc && s.commentCount > 0 && s.token && (
           <button type="button" className="fsd-linkish fsd-comments" onClick={openComments}>
-            {commentsLabel(s.commentCount)} · Open
+            <Trans>{ph({ commentsLabel: commentsLabel(s.commentCount) })} · Open</Trans>
           </button>
         )}
         {phase !== 'denied' && (
@@ -549,11 +553,11 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
                   aria-disabled={phase !== 'ready' || copying}
                   onClick={copyLink}>
             <Glyph as={LinkIcon} size={14} />{' '}
-            {copied ? 'Copied' : copying ? 'Working…' : 'Copy link'}
+            {copied ? tr`Copied` : copying ? tr`Working…` : tr`Copy link`}
           </button>
         )}
         <button type="button" className="fsd-btn fsd-foot-btn fsd-done" onClick={onClose}>
-          {phase === 'denied' ? 'Close' : 'Done'}
+          {phase === 'denied' ? tr`Close` : tr`Done`}
         </button>
       </div>
     </Modal>

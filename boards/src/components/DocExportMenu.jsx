@@ -29,6 +29,7 @@ import { trackOp } from '../lib/activityOps.js';
 import { exportWords } from '../lib/activityWords.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { directedHtml } from '../lib/textDirection.js';
+import { t } from '@lingui/core/macro';
 
 // Inside the iOS / Android app the WebView has no window.print(): a print
 // never opens a dialog and afterprint never fires.
@@ -76,7 +77,7 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
     } catch (err) {
       console.error('[export] delivery failed', err);
       logEvent(EV.EXPORT_ERROR, { format: ext, surface: 'doc', reason: 'delivery_failed' });
-      feedback.toast({ type: 'error', code: 'doc_export_failed', message: 'Export failed — please try again.' });
+      feedback.toast({ type: 'error', code: 'doc_export_failed', message: t`Export failed — please try again.` });
       return null;
     }
   };
@@ -85,7 +86,7 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
   // failed one leaves no row, its own toast has said so.
   const inTray = (format, run) => trackOp({
     kind: 'export', label: exportWords({ name: safeFileName(currentDocTitle(), { fallback: 'document' }), format }),
-    doneLabel: (fileName) => (fileName ? `Exported ${fileName}` : null),
+    doneLabel: (fileName) => (fileName ? t`Exported ${fileName}` : null),
   }, run);
 
   // WYSIWYG: the exported HTML / printed PDF uses the SAME typography as the
@@ -152,7 +153,7 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
         // share, in the app), and the dialog is its own sign: no tray row.
         await trackOp({
           kind: 'export', label: exportWords({ name: safeFileName(docTitle, { fallback: 'Screenplay' }), format: 'pdf' }),
-          doneLabel: (fileName) => (fileName ? `Exported ${fileName}` : null),
+          doneLabel: (fileName) => (fileName ? t`Exported ${fileName}` : null),
         }, async () => {
           let blob = null;
           try { blob = await buildScreenplayPdfBlob(blocks, { title: docTitle, titlePage, sceneNumbers }); }
@@ -197,7 +198,7 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
     } catch (err) {
       console.error('[export] PDF failed', err);
       logEvent(EV.EXPORT_ERROR, { format: 'pdf', surface: 'doc', doc_mode: docMode, reason: 'threw' });
-      feedback.toast({ type: 'error', code: 'doc_pdf_export_failed', message: 'Couldn’t export this document — please try again.' });
+      feedback.toast({ type: 'error', code: 'doc_pdf_export_failed', message: t`Couldn’t export this document — please try again.` });
     } finally { setBusy(false); }
   };
 
@@ -239,17 +240,17 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
         // A silent no-op here is indistinguishable from "the file was empty" —
         // the user picked a file and NOTHING happened. Say so.
         console.error('[import] screenplay parse failed', err);
-        feedback.toast({ type: 'error', code: 'screenplay_read_failed', message: 'Couldn’t read that file — it doesn’t look like Fountain or Final Draft.' });
+        feedback.toast({ type: 'error', code: 'screenplay_read_failed', message: t`Couldn’t read that file — it doesn’t look like Fountain or Final Draft.` });
         return;
       }
       if (!blocks.length && !titlePage) {
-        feedback.toast({ type: 'error', code: 'import_empty', message: 'Nothing importable found in that file.' });
+        feedback.toast({ type: 'error', code: 'import_empty', message: t`Nothing importable found in that file.` });
         return;
       }
       if (editor) {
         // Replace the focused sheet's content. Undoable via ⌘Z; confirm only
         // when there's existing content to clobber.
-        if (!editor.isEmpty && !window.confirm('Replace this document with the imported screenplay?')) return;
+        if (!editor.isEmpty && !window.confirm(t`Replace this document with the imported screenplay?`)) return;
         editor.chain().focus().setContent(blocksToDocJSON(blocks)).run();
       }
       // Import the title page (enable it) — it lives in docMeta, not the editor.
@@ -261,7 +262,9 @@ export function useDocExport({ editor, docName, ydoc = null, scope = null, docMo
 
   return {
     busy, exportHTML, exportMarkdown, exportPDF, exportFountain, exportFdx, importScript,
-    pdfLabel: docMode === 'screenplay' ? 'Export PDF' : inNativeApp() ? 'Share printable page' : 'Print / Save as PDF',
+    pdfLabel: docMode === 'screenplay' ? t`Export PDF` : inNativeApp() ? t`Share printable page` : t`Print / Save as PDF`,
+    // The label above is shown, so the bar tests this, not its words.
+    pdfPrint: docMode !== 'screenplay' && !inNativeApp(),
   };
 }
 

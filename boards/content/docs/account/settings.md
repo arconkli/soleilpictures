@@ -5,7 +5,7 @@ h1: Settings
 navLabel: Settings
 section: account
 order: 0
-updated: 2026-11-04
+updated: 2026-11-15
 answer: Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 faq:
   - q: Are settings per device?
@@ -66,8 +66,13 @@ Settings with no undo — see
 
 ### Appearance
 
-How Clusters looks and how the canvas answers your hands, in three sections:
+How Clusters looks and how the canvas answers your hands, in four sections:
 
+- **Language** — the language of menus, dates and the emails we send you:
+  English, Español, Français, Português (Brasil), Русский, 日本語 or 한국어.
+  **Automatic** follows your browser. Cards and comments stay in the language
+  they were written in. See
+  [Theme and defaults](/docs/account/theme-and-defaults#language).
 - **Theme** — **System**, **Light** or **Dark**, plus accent colour and body
   font: a curated list of around twenty-five families plus anything from Google
   Fonts. **System** follows your device and is what you get before you choose

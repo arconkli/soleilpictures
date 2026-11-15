@@ -20,5 +20,5 @@ test('App toasts only away-time mentions, never the open thread, with an Open ac
   const app = read('../App.jsx');
   assert.doesNotMatch(app, /You were mentioned in \$\{where\}\. Open Messages to see it\./);
   assert.match(app, /if \(n\.live \|\| isWatchingConversation\(n\.conversation_id\)\) continue;/);
-  assert.match(app, /label: 'Open', onClick: \(\) => openConversationFromToast\(n\.conversation_id\)/);
+  assert.match(app, /label: tr`Open`, onClick: \(\) => openConversationFromToast\(n\.conversation_id\)/);
 });

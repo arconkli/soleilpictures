@@ -72,7 +72,7 @@ test('a refusal that stands down still leaves a route to the offer', () => {
     const forced = text.match(/force: true/g) || [];
     assert.ok(forced.length >= 2,
       `${rel}: a stood-down refusal must offer a forced route back; found ${forced.length}`);
-    assert.match(text, /label: 'See Creator'/,
+    assert.match(text, /label: (?:'See Creator'|tr`See Creator`)/,
       `${rel}: the route has to be visible on the toast, not implied`);
   }
   // And the flag is read, not just accepted — a `force` the helper ignores
@@ -125,7 +125,7 @@ test('a drop of several over-length clips pitches once, and only the owner hears
   assert.match(branch, /if \(tooLongRef\.current\) \{ tooLongRef\.current\.push\(err\); return; \}/,
     'later clips of the same drop join the first refusal instead of pitching again');
   assert.equal((branch.match(/upsell\?\.\(\)/g) || []).length, 1);
-  assert.match(branch, /message: ownsWorkspace \? `\$\{what\} Creator removes the length limit\.` : what,/);
+  assert.match(branch, /message: ownsWorkspace \? tr`\$\{what\} Creator removes the length limit\.` : what,/);
 });
 
 test('every deliberate cap-wall open takes the moment it asks for', () => {

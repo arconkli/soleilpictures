@@ -3,6 +3,7 @@ import { InlineComposer } from './InlineComposer.jsx';
 import { addCommentThread } from '../lib/docState.js';
 import { notifyCommentMentions } from '../lib/commentMentions.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
+import { t } from '@lingui/core/macro';
 
 // Imperative helper: opens an InlineComposer next to the live editor
 // selection and on commit creates a tt-comment mark + a thread record.
@@ -77,9 +78,9 @@ export function useAddCommentFlow({
   const node = composer && (
     <InlineComposer
       anchor={composer.rect}
-      placeholder="Comment, then ⏎ to post"
+      placeholder={t`Comment, then ⏎ to post`}
       multiline
-      commitLabel="Post"
+      commitLabel={t`Post`}
       workspaceId={workspaceId}
       onCommit={commit}
       onCancel={() => setComposer(null)}

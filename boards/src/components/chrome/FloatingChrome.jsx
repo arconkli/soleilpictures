@@ -26,6 +26,7 @@ import { MoreHorizontal } from '../../lib/icons.js';
 import { useToolbarRoving } from '../../hooks/useToolbarRoving.js';
 import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import './floatingChrome.css';
+import { t } from '@lingui/core/macro';
 
 const ChromeMoreA = lazyWithReload(() => import('./ChromeMoreA.jsx').then((m) => ({ default: m.ChromeMoreA })));
 
@@ -49,7 +50,7 @@ function MoreStandIn({ focus }) {
   useLayoutEffect(() => () => { focus.current = !!ref.current && ref.current === document.activeElement; }, [focus]);
   return (
     <span className="chrome-more">
-      <button ref={ref} type="button" className="tb-icon chrome-more-btn" aria-label="More" aria-disabled="true">
+      <button ref={ref} type="button" className="tb-icon chrome-more-btn" aria-label={t`More`} aria-disabled="true">
         <Icon as={MoreHorizontal} size={18} />
       </button>
     </span>
@@ -116,8 +117,8 @@ export function FloatingChrome({ left = null, right = null, menuItems = [] }) {
   const layer = (
     <div className={`chrome-layer${tight ? ' is-tight' : ''}${tight > 1 ? ' is-tighter' : ''}`} ref={layerRef}>
       <div className="chrome-room" ref={roomRef} aria-hidden="true" />
-      <nav className="chrome-island chrome-left" aria-label="Where you are" ref={leftRef}>{left}</nav>
-      <div className="chrome-island chrome-right" role="toolbar" aria-label="This cluster" ref={rightRef}
+      <nav className="chrome-island chrome-left" aria-label={t`Where you are`} ref={leftRef}>{left}</nav>
+      <div className="chrome-island chrome-right" role="toolbar" aria-label={t`This cluster`} ref={rightRef}
            onKeyDown={rightKeys}>
         {right}
         {more}

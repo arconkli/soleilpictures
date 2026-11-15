@@ -1,5 +1,7 @@
 import { SoleilMark } from './primitives.jsx';
 import { useStall } from '../hooks/useStall.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // The boot screen: the gold sun on the dark (or themed) ground, used by
 // AuthGate's SplashLoading, TierRouter's Splash and the workspace LoadingShell.
@@ -13,7 +15,7 @@ import { useStall } from '../hooks/useStall.js';
 // .auth-loading class stays: errorReporting's bootCheck looks for it.
 export function LoadingScreen({ dark = false, name = null, force }) {
   const stage = useStall({ force });
-  const first = name ? `Opening ${name}…` : (stage === 1 ? 'Still loading…' : '');
+  const first = name ? t`Opening ${name}…` : (stage === 1 ? t`Still loading…` : '');
   return (
     <div className={dark ? 'auth-screen public-dark' : 'auth-screen'}>
       <div className="auth-glow" aria-hidden="true" />
@@ -23,8 +25,8 @@ export function LoadingScreen({ dark = false, name = null, force }) {
           {stage >= 2 ? (
             <>
               {name && <span className="loading-words-line">{first}</span>}
-              <span className="loading-words-line">This is taking longer than usual</span>
-              <button type="button" className="surface-error-btn" onClick={() => window.location.reload()}>Reload page</button>
+              <span className="loading-words-line"><Trans>This is taking longer than usual</Trans></span>
+              <button type="button" className="surface-error-btn" onClick={() => window.location.reload()}><Trans>Reload page</Trans></button>
             </>
           ) : first ? (
             <span className="loading-words-line">{first}</span>

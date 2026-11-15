@@ -1,4 +1,6 @@
 import { BacklinksList } from './BacklinksList.jsx';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Pretty label per node kind/sub-kind. The eyebrow used to just shout
 // the raw `kind` slug (e.g., "CARD") which read as "no info" — now we
@@ -10,30 +12,30 @@ function readableKind(node) {
   // over the broad "card" bucket.
   const sub = node.cardKind || node.kind || broad;
   const map = {
-    board: 'Board',
-    boardlink: 'Board link',
-    doc: 'Doc',
-    note: 'Note',
-    image: 'Image',
-    palette: 'Palette',
-    link: 'Link',
-    card: 'Card',
-    url: 'External link',
-    docPos: 'Doc anchor',
+    board: t`Board`,
+    boardlink: t`Board link`,
+    doc: t`Doc`,
+    note: t`Note`,
+    image: t`Image`,
+    palette: t`Palette`,
+    link: t`Link`,
+    card: t`Card`,
+    url: t`External link`,
+    docPos: t`Doc anchor`,
   };
   return map[sub] || sub.charAt(0).toUpperCase() + sub.slice(1);
 }
 
 function openLabel(node) {
   const broad = node.id.split(':')[0];
-  if (broad === 'board') return 'Open board';
-  if (broad === 'url')   return 'Open link';
+  if (broad === 'board') return t`Open board`;
+  if (broad === 'url')   return t`Open link`;
   const sub = node.cardKind || node.kind;
-  if (sub === 'doc')     return 'Open doc';
-  if (sub === 'note')    return 'Open note';
-  if (sub === 'image')   return 'Open image';
-  if (sub === 'palette') return 'Open palette';
-  return 'Open';
+  if (sub === 'doc')     return t`Open doc`;
+  if (sub === 'note')    return t`Open note`;
+  if (sub === 'image')   return t`Open image`;
+  if (sub === 'palette') return t`Open palette`;
+  return t`Open`;
 }
 
 export function HomeGraphDetailDrawer({ workspaceId, node, onClose, onOpen }) {
@@ -50,13 +52,13 @@ export function HomeGraphDetailDrawer({ workspaceId, node, onClose, onOpen }) {
             <span className="home-graph-drawer-dot" style={{ background: node.color || '#ffa500' }} />
             <span className="t-eyebrow">{readableKind(node)}</span>
           </div>
-          <div className="home-graph-drawer-name t-h3">{node.name || 'Untitled'}</div>
+          <div className="home-graph-drawer-name t-h3">{node.name || t`Untitled`}</div>
         </div>
-        <button className="home-graph-drawer-x" onClick={onClose} aria-label="Close">×</button>
+        <button className="home-graph-drawer-x" onClick={onClose} aria-label={t`Close`}>×</button>
       </header>
       <div className="home-graph-drawer-body">
         <button className="btn-primary" style={{ width: '100%' }} onClick={onOpen}>{openLabel(node)}</button>
-        <div className="t-eyebrow" style={{ marginTop: 24, marginBottom: 8 }}>REFERENCED BY</div>
+        <div className="t-eyebrow" style={{ marginTop: 24, marginBottom: 8 }}><Trans>REFERENCED BY</Trans></div>
         <BacklinksList
           workspaceId={workspaceId}
           targetBoardId={boardId}

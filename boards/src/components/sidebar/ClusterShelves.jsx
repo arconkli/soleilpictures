@@ -20,8 +20,11 @@ import { R2Image } from '../R2Image.jsx';
 import { KindIcon } from '../cards.jsx';
 import { humanSize, extOf, iconForFile } from '../cards/FileCard.jsx';
 import { contentRows, layoutRows, visibleRange, INDENT } from '../../lib/sidebarRows.js';
+import { uiLocale } from '../../lib/uiLocale.js';
 import { getMeta, subscribeMeta, primeImageMeta } from '../../lib/imageMeta.js';
 import { viewKindOfKey, isCardViewKind, docFamily, extOfKey } from '../../lib/fileView.js';
+import { t, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const WINDOW_AFTER = 80;
 // Rows start a little in from the list's edge, so a hover fill has room: with
@@ -34,7 +37,7 @@ const LIST_HEIGHTS = {
   fine: { shelf: 36, file: 30, more: 30, loading: 30, empty: 44, error: 34 },
   coarse: { shelf: 44, file: 44, more: 44, loading: 44, empty: 52, error: 44 },
 };
-const EMPTY_NOTE = 'No files here yet. Drop some in, or press Upload.';
+const EMPTY_NOTE = () => t`No files here yet. Drop some in, or press Upload.`;
 
 function clock(sec) {
   const s = Math.round(Number(sec) || 0);
@@ -165,7 +168,9 @@ export function SidebarItemRow({ item, depth = 0, indent = null, onClick, onOpen
             style={{ paddingLeft: indent ?? 10 + depth * INDENT }}
             role="treeitem" aria-level={depth + 1}
             data-sb-item={item.key}
-            title={`${item.name}${where ? ` · ${where}` : ''}${item.unplaced ? ' · not on the board' : ''}`}
+            title={where
+              ? (item.unplaced ? t`${ph({ name: item.name })} · ${ph({ where })} · not on the board` : t`${ph({ name: item.name })} · ${ph({ where })}`)
+              : (item.unplaced ? t`${ph({ name: item.name })} · not on the board` : item.name)}
             onClick={(e) => { if (!hold.swallow()) onClick?.(item, e); }}
             onDoubleClick={() => { if (!checks) onOpen?.(item); }}
             onPointerDown={hold.onPointerDown}
@@ -182,8 +187,8 @@ export function SidebarItemRow({ item, depth = 0, indent = null, onClick, onOpen
       <ItemGlyph item={item} />
       <span className="sbf-file-name" dir="auto">{item.name}</span>
       {where && <span className="sbf-file-where">{where}</span>}
-      {item.unplaced && <span className="sbf-stored-dot" aria-label="not on the board" />}
-      {starred && <span className="sbf-star-mark" aria-label="starred">★</span>}
+      {item.unplaced && <span className="sbf-stored-dot" aria-label={t`not on the board`} />}
+      {starred && <span className="sbf-star-mark" aria-label={t`starred`}>★</span>}
       {meta && <span className="sbf-file-meta">{meta}</span>}
     </button>
   );
@@ -201,7 +206,7 @@ function Row({ row, depth, ctx }) {
     // just a heading there (toggle null), not a switch.
     const heading = row.toggle ? (
       <button type="button" className="sbf-shelf-toggle" role="treeitem" aria-expanded={!row.closed}
-              title={`${row.closed ? 'Show' : 'Hide'} ${label.toLowerCase()}`}
+              title={row.closed ? t`Show ${ph({ shelf: label.toLocaleLowerCase(uiLocale()) })}` : t`Hide ${ph({ shelf: label.toLocaleLowerCase(uiLocale()) })}`}
               onClick={() => onShelf(row)}>
         <span className="sbf-shelf-label">{label}</span>
         <span className="sbf-shelf-count">{row.count}</span>
@@ -218,7 +223,7 @@ function Row({ row, depth, ctx }) {
         {heading}
         {onOpenShelf && (
           <button type="button" className="sbf-shelf-open" tabIndex={-1}
-                  title="Open in Files" aria-label={`Open ${row.label || row.shelfId} in Files`}
+                  title={t`Open in Files`} aria-label={t`Open ${ph({ value: row.label || row.shelfId })} in Files`}
                   onClick={(e) => { e.stopPropagation(); onOpenShelf(row.boardId, row.shelfId); }}>
             <Icon as={ArrowsOutSimple} size={12} weight="regular" />
           </button>
@@ -239,26 +244,26 @@ function Row({ row, depth, ctx }) {
       <div className="sbf-more" style={pad}>
         {row.count > 0 && (
           <button type="button" className="sbf-more-btn" tabIndex={-1} onClick={() => onMore(row)}>
-            {row.expanded && moreFailed?.(row.shelfId) ? 'Couldn’t load more · Retry' : `Show ${row.count} more`}
+            {row.expanded && moreFailed?.(row.shelfId) ? t`Couldn’t load more · Retry` : plural(row.count, { one: 'Show # more', other: 'Show # more' })}
           </button>
         )}
         {row.expanded && (
           <button type="button" className="sbf-more-btn is-less" tabIndex={-1} onClick={() => onLess(row)}>
-            Show less
+            <Trans>Show less</Trans>
           </button>
         )}
       </div>
     );
   }
   if (row.type === 'loading') {
-    return <div className="sbf-note" style={pad} aria-busy="true">Loading…</div>;
+    return <div className="sbf-note" style={pad} aria-busy="true"><Trans>Loading…</Trans></div>;
   }
   if (row.type === 'error') {
     return (
       <div className="sbf-note is-error" style={pad} role="alert">
-        <span>Couldn’t load your files</span>
+        <span><Trans>Couldn’t load your files</Trans></span>
         <button type="button" className="sbf-more-btn" tabIndex={-1} onClick={() => onRetry?.(row.boardId)}>
-          <Icon as={ArrowClockwise} size={13} weight="regular" /> Retry
+          <Icon as={ArrowClockwise} size={13} weight="regular" /> <Trans>Retry</Trans>
         </button>
       </div>
     );
@@ -310,7 +315,7 @@ function useWindow(scrollRef, blockRef, layout, active) {
 // false` opens every heading: a search, a filter and Starred show everything
 // they found.
 export function ClusterShelves({
-  boardId, depth = 0, contents, coarse = false, emptyNote = EMPTY_NOTE, foldMinor = true,
+  boardId, depth = 0, contents, coarse = false, emptyNote = EMPTY_NOTE(), foldMinor = true,
   shelfState, onToggleShelf, onLoadMore, canLoadMore, moreFailed = null, onRetry = null,
   onItem, onItemOpen, onOpenShelf, isStarred, scrollRef,
   isSelected = null, onDragItem = null, onItemMenu = null,

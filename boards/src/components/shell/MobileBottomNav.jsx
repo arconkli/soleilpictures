@@ -17,6 +17,7 @@
 // is deliberately NOT a `.mb-nav-tab`/role="tab" — it's a plain button outside
 // the tablist model (so the tab count + indices stay stable for existing wiring
 // and a11y), centred by splitting the tab row in half around it.
+import { t as tr } from '@lingui/core/macro';
 export function MobileBottomNav({ tabs, active, onChange, showCreate = false, createIcon = null, onCreate }) {
   const mid = Math.ceil(tabs.length / 2);
   const left = showCreate ? tabs.slice(0, mid) : tabs;
@@ -35,14 +36,14 @@ export function MobileBottomNav({ tabs, active, onChange, showCreate = false, cr
     </button>
   );
   return (
-    <nav className="mb-nav" role="tablist" aria-label="App navigation">
+    <nav className="mb-nav" role="tablist" aria-label={tr`App navigation`}>
       {left.map(renderTab)}
       {showCreate && (
         <button
           type="button"
           className="mb-nav-create"
           data-tour="mb-create"
-          aria-label="Add a card"
+          aria-label={tr`Add a card`}
           onClick={() => onCreate?.()}
         >
           <span className="mb-nav-create-fab" aria-hidden="true">{createIcon}</span>

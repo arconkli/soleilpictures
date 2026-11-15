@@ -9,23 +9,25 @@
 import { Icon } from './Icon.jsx';
 import { RotateCcw, Maximize2, X, SquareSplitHorizontal, FlipHorizontal, FlipVertical, CircleHalf } from '../lib/icons.js';
 import { isAdjusted, normalizeAdjust, ADJUST_VERSION } from '../lib/imageAdjust.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const SLIDERS = [
-  { key: 'exposure',    label: 'Exposure',    group: 'light' },
-  { key: 'contrast',    label: 'Contrast',    group: 'light' },
-  { key: 'highlights',  label: 'Highlights',  group: 'light' },
-  { key: 'shadows',     label: 'Shadows',     group: 'light' },
-  { key: 'whites',      label: 'Whites',      group: 'light' },
-  { key: 'blacks',      label: 'Blacks',      group: 'light' },
-  { key: 'temperature', label: 'Temperature', group: 'color', track: 'temp' },
-  { key: 'tint',        label: 'Tint',        group: 'color', track: 'tint' },
-  { key: 'vibrance',    label: 'Vibrance',    group: 'color' },
-  { key: 'saturation',  label: 'Saturation',  group: 'color' },
-  { key: 'clarity',     label: 'Clarity',     group: 'detail' },
-  { key: 'sharpness',   label: 'Sharpness',   group: 'detail', min: 0, max: 100, plain: true },
+  { key: 'exposure',    get label() { return t`Exposure`; },    group: 'light' },
+  { key: 'contrast',    get label() { return t`Contrast`; },    group: 'light' },
+  { key: 'highlights',  get label() { return t`Highlights`; },  group: 'light' },
+  { key: 'shadows',     get label() { return t`Shadows`; },     group: 'light' },
+  { key: 'whites',      get label() { return t`Whites`; },      group: 'light' },
+  { key: 'blacks',      get label() { return t`Blacks`; },      group: 'light' },
+  { key: 'temperature', get label() { return t`Temperature`; }, group: 'color', track: 'temp' },
+  { key: 'tint',        get label() { return t`Tint`; },        group: 'color', track: 'tint' },
+  { key: 'vibrance',    get label() { return t`Vibrance`; },    group: 'color' },
+  { key: 'saturation',  get label() { return t`Saturation`; },  group: 'color' },
+  { key: 'clarity',     get label() { return t`Clarity`; },     group: 'detail' },
+  { key: 'sharpness',   get label() { return t`Sharpness`; },   group: 'detail', min: 0, max: 100, plain: true },
 ];
 const ESSENTIALS = ['exposure', 'contrast', 'highlights', 'shadows', 'temperature', 'vibrance'];
-const GROUPS = [['light', 'Light'], ['color', 'Color'], ['detail', 'Detail']];
+const groups = () => [['light', t`Light`], ['color', t`Color`], ['detail', t`Detail`]];
 
 const pct = (v, min, max) => ((v - min) / (max - min)) * 100;
 
@@ -58,7 +60,7 @@ export function ImageAdjustPanel({ adjust, onChange, onReset, onExpand, onClose,
         <div className="iap-rowtop">
           <span className="iap-label">{s.label}</span>
           <button type="button" className={`iap-val ${isDirty ? 'is-dirty' : ''}`}
-                  title={isDirty ? 'Reset to default' : undefined}
+                  title={isDirty ? t`Reset to default` : undefined}
                   onClick={() => { if (isDirty) setField(s.key, neutral); }}>
             {fmtVal(s, v)}
           </button>
@@ -79,32 +81,32 @@ export function ImageAdjustPanel({ adjust, onChange, onReset, onExpand, onClose,
   return (
     <div className={`iap iap-${mode}`}>
       <div className="iap-head">
-        <span className="iap-eyebrow">Edit photo</span>
+        <span className="iap-eyebrow"><Trans>Edit photo</Trans></span>
         <div className="iap-head-actions">
           {mode === 'compact' && onExpand && (
-            <button type="button" className="iap-iconbtn" title="Full screen" onClick={onExpand}>
+            <button type="button" className="iap-iconbtn" title={t`Full screen`} onClick={onExpand}>
               <Icon as={Maximize2} size={15} />
             </button>
           )}
           {mode === 'full' && onClose && (
-            <button type="button" className="iap-iconbtn" title="Done" onClick={onClose}>
+            <button type="button" className="iap-iconbtn" title={t`Done`} onClick={onClose}>
               <Icon as={X} size={16} />
             </button>
           )}
         </div>
       </div>
 
-      <div className="iap-flips" role="group" aria-label="Flip and black & white">
+      <div className="iap-flips" role="group" aria-label={t`Flip and black & white`}>
         <button type="button" className={`iap-toggle ${a.flipH ? 'is-on' : ''}`}
-                onClick={() => toggle('flipH')} title="Flip horizontal">
-          <Icon as={FlipHorizontal} size={15} /><span>Flip H</span>
+                onClick={() => toggle('flipH')} title={t`Flip horizontal`}>
+          <Icon as={FlipHorizontal} size={15} /><span><Trans>Flip H</Trans></span>
         </button>
         <button type="button" className={`iap-toggle ${a.flipV ? 'is-on' : ''}`}
-                onClick={() => toggle('flipV')} title="Flip vertical">
-          <Icon as={FlipVertical} size={15} /><span>Flip V</span>
+                onClick={() => toggle('flipV')} title={t`Flip vertical`}>
+          <Icon as={FlipVertical} size={15} /><span><Trans>Flip V</Trans></span>
         </button>
         <button type="button" className={`iap-toggle ${a.grayscale ? 'is-on' : ''}`}
-                onClick={() => toggle('grayscale')} title="Black & white">
+                onClick={() => toggle('grayscale')} title={t`Black & white`}>
           <Icon as={CircleHalf} size={15} /><span className="iap-bw">B/W</span>
         </button>
       </div>
@@ -112,7 +114,7 @@ export function ImageAdjustPanel({ adjust, onChange, onReset, onExpand, onClose,
       <div className="iap-sliders">
         {mode === 'compact'
           ? SLIDERS.filter((s) => ESSENTIALS.includes(s.key)).map(renderRow)
-          : GROUPS.map(([g, label]) => (
+          : groups().map(([g, label]) => (
               <div key={g} className="iap-group">
                 <div className="iap-eyebrow iap-group-label">{label}</div>
                 {SLIDERS.filter((s) => s.group === g).map(renderRow)}
@@ -122,14 +124,14 @@ export function ImageAdjustPanel({ adjust, onChange, onReset, onExpand, onClose,
 
       <div className="iap-foot">
         {dirty && onCompareStart && (
-          <button type="button" className="iap-btn iap-btn-icon" title="Hold to compare original"
+          <button type="button" className="iap-btn iap-btn-icon" title={t`Hold to compare original`}
                   onPointerDown={(e) => { e.preventDefault(); onCompareStart?.(); }}
                   onPointerUp={endCompare} onPointerLeave={endCompare} onPointerCancel={endCompare}>
             <Icon as={SquareSplitHorizontal} size={15} />
           </button>
         )}
         <button type="button" className="iap-btn" disabled={!dirty} onClick={onReset}>
-          <Icon as={RotateCcw} size={14} /><span>Reset</span>
+          <Icon as={RotateCcw} size={14} /><span><Trans>Reset</Trans></span>
         </button>
       </div>
     </div>

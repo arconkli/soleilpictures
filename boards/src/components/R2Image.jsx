@@ -32,6 +32,8 @@ import { getImageTierScheduler } from '../lib/imageTierScheduler.js';
 import { lowMemoryDevice } from '../lib/device.js';
 import './r2Image.css';
 import { bootMark } from '../lib/bootMarks.js';
+import { t as tr } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const REFRESH_BEFORE_MS = 30 * 1000; // re-presign 30s before client cache expires
 
@@ -229,7 +231,7 @@ function blurToDataUrl(b64) {
 
 function BlockedPlaceholder({ rootRef, ...rest }) {
   return (
-    <div ref={rootRef} className="r2-img r2-img-blocked" {...rest} aria-label="No access">
+    <div ref={rootRef} className="r2-img r2-img-blocked" {...rest} aria-label={tr`No access`}>
       <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
         <rect x="5" y="9" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
         <path d="M8 9 V6 a3 3 0 0 1 6 0 V9" stroke="currentColor" strokeWidth="1.5"/>
@@ -258,12 +260,12 @@ function UnavailablePlaceholder({ rootRef, downloadSrc = null, alt = '', classNa
         <path d="M4 14 l4-4 3 3 2-2 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
         <path d="M3 3 L19 19" stroke="currentColor" strokeWidth="1.5"/>
       </svg>
-      <span className="r2-img-unavailable-label">Preview not available</span>
+      <span className="r2-img-unavailable-label"><Trans>Preview not available</Trans></span>
       {downloadSrc && (
         <button type="button" className="r2-img-unavailable-dl"
                 onPointerDown={(ev) => ev.stopPropagation()}
                 onClick={download}>
-          Download
+          <Trans>Download</Trans>
         </button>
       )}
     </div>

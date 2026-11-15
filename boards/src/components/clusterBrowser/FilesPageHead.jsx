@@ -22,6 +22,8 @@ import { ClusterSwitch } from '../sidebar/ClusterSwitch.jsx';
 import { FilesShowMenu } from '../sidebar/FilesShowMenu.jsx';
 import { PathBar } from './PathBar.jsx';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // The top of the tree the switch lists: the cluster's oldest ancestor here.
 function rootOf(boards, id) {
@@ -61,7 +63,7 @@ export function FilesPageHead({ board, boards, phone = false, meta = '', downloa
   const list = useMemo(
     () => Object.values(boards || {}).filter((b) => b && b.workspace_id === board?.workspace_id && !b.deleted_at),
     [boards, board?.workspace_id]);
-  const name = board?.name || 'Untitled cluster';
+  const name = board?.name || t`Untitled cluster`;
   return (
     <>
       <div className="fp-titlebar">
@@ -70,7 +72,7 @@ export function FilesPageHead({ board, boards, phone = false, meta = '', downloa
           {switchable ? (
             <button type="button" ref={titleRef} className={`fp-title-btn${open ? ' is-open' : ''}`}
                     aria-haspopup="dialog" aria-expanded={open}
-                    title={`${name} · press to see another cluster’s files`}
+                    title={t`${name} · press to see another cluster’s files`}
                     onClick={() => { if (open) closeSwitch(); else { dropSwitch(); setSwitchOpen(true); } }}>
               <span className="fp-title-name" dir="auto">{name}</span>
               <span className="fp-title-caret" aria-hidden="true"><Icon as={ChevronDown} size={14} weight="regular" /></span>
@@ -89,7 +91,7 @@ export function FilesPageHead({ board, boards, phone = false, meta = '', downloa
         {shrink && (
           <button type="button" className="fp-word fp-shrink" onClick={shrink.onClick}
                   aria-label={shrink.label} title={shrink.title || shrink.label}>
-            <Icon as={ArrowsInSimple} size={15} weight="regular" /><span className="fp-word-label" aria-hidden="true">Shrink</span>
+            <Icon as={ArrowsInSimple} size={15} weight="regular" /><span className="fp-word-label" aria-hidden="true"><Trans>Shrink</Trans></span>
           </button>
         )}
       </div>
@@ -138,7 +140,7 @@ export function FilesPageTools({
                  if (query) onQuery(''); else e.currentTarget.blur();
                }} />
         {query && (
-          <button type="button" className="sbf-search-clear" aria-label="Clear"
+          <button type="button" className="sbf-search-clear" aria-label={t`Clear`}
                   onClick={() => { onQuery(''); searchRef?.current?.focus(); }}>
             <Icon as={X} size={12} weight="regular" />
           </button>
@@ -148,14 +150,14 @@ export function FilesPageTools({
       {found && <span className={`fp-found${foundPack ? ' is-pack' : ''}`} aria-live="polite">{found}</span>}
       <span className="fp-spacer" />
       {here.length > 0 && (
-        <div className="fp-faces" title={`${here.length} here`}>
+        <div className="fp-faces" title={t`${plural(here.length, { one: '# here', other: '# here' })}`}>
           {here.slice(0, 4).map((u) => <Avatar key={u.id} name={u.name} color={u.color} size={22} ring />)}
           {here.length > 4 && <span className="fp-face-more">+{here.length - 4}</span>}
         </div>
       )}
       {viewMode && (
-        <div className="sbf-tabs fp-seg" role="radiogroup" aria-label="Layout">
-          {[['gallery', 'Grid'], ['table', 'List']].map(([id, label]) => (
+        <div className="sbf-tabs fp-seg" role="radiogroup" aria-label={t`Layout`}>
+          {[['gallery', t`Grid`], ['table', t`List`]].map(([id, label]) => (
             <button type="button" key={id} role="radio" aria-checked={viewMode === id}
                     className={`sbf-tab${viewMode === id ? ' is-on' : ''}`} onClick={() => onViewMode(id)}>
               <span className="sbf-tab-label">{label}</span>
@@ -166,7 +168,7 @@ export function FilesPageTools({
       {upsell}
       {onAddFiles && (
         <button type="button" className="sbf-upload fp-add" onClick={onAddFiles}>
-          <Icon as={Plus} size={14} weight="regular" /><span className="fp-add-label">Add files</span>
+          <Icon as={Plus} size={14} weight="regular" /><span className="fp-add-label"><Trans>Add files</Trans></span>
         </button>
       )}
     </div>

@@ -4,25 +4,27 @@ import { Avatar } from '../primitives.jsx';
 import { useDismissOnOutside } from '../../hooks/useDismissOnOutside.js';
 import { PathBar } from './PathBar.jsx';
 import { Search, List, LayoutGrid, Plus, X, ArrowsOutSimple, Check, SlidersHorizontal } from '../../lib/icons.js';
+import { t, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const SORT_OPTIONS = [
   // The canvas read like a page — the default, so Files opens on the same
   // board, lined up (lib/listItem.js boardOrder).
-  { key: 'board', label: 'Board order' },
-  { key: 'name', label: 'Name' },
-  { key: 'type', label: 'Type' },
-  { key: 'size', label: 'Size' },
-  { key: 'updated', label: 'Date modified' },
-  { key: 'created', label: 'Date added' },
+  { key: 'board', get label() { return t`Board order`; } },
+  { key: 'name', get label() { return t`Name`; } },
+  { key: 'type', get label() { return t`Type`; } },
+  { key: 'size', get label() { return t`Size`; } },
+  { key: 'updated', get label() { return t`Date modified`; } },
+  { key: 'created', get label() { return t`Date added`; } },
 ];
 
 // Offered only when the table is in loop-browser mode — sorting by a column
 // that isn't on screen is a menu entry that appears to do nothing.
 const AUDIO_SORT_OPTIONS = [
-  { key: 'duration', label: 'Length' },
-  { key: 'bpm', label: 'Tempo' },
-  { key: 'key', label: 'Key' },
-  { key: 'format', label: 'Format' },
+  { key: 'duration', get label() { return t`Length`; } },
+  { key: 'bpm', get label() { return t`Tempo`; } },
+  { key: 'key', get label() { return t`Key`; } },
+  { key: 'format', get label() { return t`Format`; } },
 ];
 
 // Small frosted popover anchored under its trigger. Closes on outside tap/esc.
@@ -66,7 +68,7 @@ function Group({ label, children }) {
 export function StorageUpsell({ onUpsell }) {
   return (
     <button className="cbt-upsell" onClick={() => onUpsell?.()}>
-      Any file, any size — Creator
+      <Trans>Any file, any size — Creator</Trans>
     </button>
   );
 }
@@ -109,7 +111,7 @@ export function ClusterBrowserToolbar({
   const unplacedItem = unplacedCount > 0 && onToggleUnplaced ? (
     <Item active={unplacedOnly} onClick={() => onToggleUnplaced()} role="menuitemcheckbox">
       <span className="ct-tile-flag is-off cbt-flag" aria-hidden="true" />
-      <span>Not on board</span>
+      <span><Trans>Not on board</Trans></span>
       <span className="cbt-count">{unplacedCount}</span>
     </Item>
   ) : null;
@@ -124,10 +126,10 @@ export function ClusterBrowserToolbar({
 
   // Tile size for the Grid layout — S / M / L, remembered on this device.
   const sizePill = (
-    <div className="view-pill cbt-sizepill" role="group" aria-label="Tile size">
-      {[['s', 'Small'], ['m', 'Medium'], ['l', 'Large']].map(([k, label]) => (
+    <div className="view-pill cbt-sizepill" role="group" aria-label={t`Tile size`}>
+      {[['s', t`Small tiles`], ['m', t`Medium tiles`], ['l', t`Large tiles`]].map(([k, label]) => (
         <button key={k} type="button" className={`view-pill-btn${tileSize === k ? ' on' : ''}`}
-                aria-label={`${label} tiles`} aria-pressed={tileSize === k} title={`${label} tiles`}
+                aria-label={label} aria-pressed={tileSize === k} title={label}
                 onClick={() => onTileSize?.(k)}>{k.toUpperCase()}</button>
       ))}
     </div>
@@ -139,14 +141,14 @@ export function ClusterBrowserToolbar({
         ref={searchRef}
         className="cbt-input"
         type="text"
-        placeholder="Search this cluster…"
+        placeholder={t`Search this cluster…`}
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
         onKeyDown={onSearchKeyDown}
-        aria-label="Search files in this cluster"
+        aria-label={t`Search files in this cluster`}
       />
       {query && (
-        <button className="cbt-clear" onClick={() => onQueryChange('')} aria-label="Clear search">
+        <button className="cbt-clear" onClick={() => onQueryChange('')} aria-label={t`Clear search`}>
           <Icon as={X} size={12} weight="light" />
         </button>
       )}
@@ -158,29 +160,29 @@ export function ClusterBrowserToolbar({
   const sortOptions = [...SORT_OPTIONS, ...(audioMode ? AUDIO_SORT_OPTIONS : [])];
   // Its label can be hidden (a narrow panel shows the icon alone), so the
   // name — with how many filters are on — rides on aria-label and the tooltip.
-  const viewName = activeCount ? `View, ${activeCount} ${activeCount === 1 ? 'filter' : 'filters'} on` : 'View';
+  const viewName = activeCount ? t`${plural(activeCount, { one: 'View, # filter on', other: 'View, # filters on' })}` : t({ message: 'View', context: 'noun' });
   const viewMenu = (withLayout) => (
     <div className="cbt-menuwrap">
       <button type="button" className={`cbt-btn${viewOpen ? ' is-open' : ''}${activeCount ? ' has-active' : ''}`}
               data-menu-trigger="view" aria-label={viewName} title={viewName}
               onClick={() => setViewOpen(o => !o)} aria-haspopup="menu" aria-expanded={viewOpen}>
         <Icon as={SlidersHorizontal} size={16} weight="light" className="cbt-btn-ico" />
-        <span className="cbt-btn-label">View{activeCount ? ` · ${activeCount}` : ''}</span>
+        <span className="cbt-btn-label"><Trans>View{ph({ value: activeCount ? ` · ${activeCount}` : '' })}</Trans></span>
       </button>
       <Menu open={viewOpen} onClose={() => setViewOpen(false)} trigger="view">
         {withLayout && (
-          <Group label="Layout">
-            <Item active={viewMode === 'gallery'} onClick={() => onViewMode('gallery')}><span>Grid</span></Item>
-            <Item active={viewMode === 'table'} onClick={() => onViewMode('table')}><span>List</span></Item>
+          <Group label={t`Layout`}>
+            <Item active={viewMode === 'gallery'} onClick={() => onViewMode('gallery')}><span><Trans>Grid</Trans></span></Item>
+            <Item active={viewMode === 'table'} onClick={() => onViewMode('table')}><span><Trans>List</Trans></span></Item>
           </Group>
         )}
         {viewMode === 'gallery' && onTileSize && (
-          <Group label="Size">
+          <Group label={t`Size`}>
             <div className="cbt-sizes">{sizePill}</div>
           </Group>
         )}
         {(withLayout || (viewMode === 'gallery' && onTileSize)) && <div className="ctx-divider" role="separator" />}
-        <Group label="Sort by">
+        <Group label={t`Sort by`}>
           {sortOptions.map(o => (
             <Item key={o.key} active={sortKey === o.key} onClick={() => onSort(o.key)}>
               <span>{o.label}</span>
@@ -191,7 +193,7 @@ export function ClusterBrowserToolbar({
         {(availableBuckets.length > 0 || unplacedItem) && (
           <>
             <div className="ctx-divider" role="separator" />
-            <Group label="Show only">
+            <Group label={t`Show only`}>
               {unplacedItem}
               {availableBuckets.map(b => (
                 <Item key={b.key} active={activeFilters.has(b.key)} onClick={() => onToggleFilter(b.key)} role="menuitemcheckbox">
@@ -200,7 +202,7 @@ export function ClusterBrowserToolbar({
                 </Item>
               ))}
               {activeCount > 0 && (
-                <button type="button" role="menuitem" className="ctx-item cbt-clear-filters" onClick={() => onClearFilters()}>Clear filters</button>
+                <button type="button" role="menuitem" className="ctx-item cbt-clear-filters" onClick={() => onClearFilters()}><Trans>Clear filters</Trans></button>
               )}
             </Group>
           </>
@@ -215,16 +217,16 @@ export function ClusterBrowserToolbar({
         <div className="cbt-titlerow">
           {pathBar
             ? <PathBar {...pathBar} readOnly={!!readOnlyNote} />
-            : <span className="cbt-title" title={clusterName}>{clusterName || 'Files'}</span>}
+            : <span className="cbt-title" title={clusterName}>{clusterName || t`Files`}</span>}
           {dockControls?.onExpand && (
             <button type="button" className="cbt-iconbtn" onClick={dockControls.onExpand}
-                    aria-label="Expand Files to full screen" title="Full screen (or drag the edge all the way)">
+                    aria-label={t`Expand Files to full screen`} title={t`Full screen (or drag the edge all the way)`}>
               <Icon as={ArrowsOutSimple} size={16} weight="light" />
             </button>
           )}
           {dockControls?.onClose && (
             <button type="button" className="cbt-iconbtn" onClick={dockControls.onClose}
-                    aria-label="Close Files" title="Close Files (F)">
+                    aria-label={t`Close Files`} title={t`Close Files (F)`}>
               <Icon as={X} size={16} weight="light" />
             </button>
           )}
@@ -237,7 +239,7 @@ export function ClusterBrowserToolbar({
           {viewMenu(true)}
           {canEdit && (
             <button type="button" className="cbt-iconbtn cbt-add-ico" onClick={onAddFiles}
-                    aria-label="Add files" title="Add files">
+                    aria-label={t`Add files`} title={t`Add files`}>
               <Icon as={Plus} size={16} weight="light" />
             </button>
           )}
@@ -261,7 +263,7 @@ export function ClusterBrowserToolbar({
       {searchBox}
       <div className="cbt-spacer" />
       {dedupPeers.length > 0 && (
-        <div className="cbt-facepile" title={`${dedupPeers.length} here`}>
+        <div className="cbt-facepile" title={t`${plural(dedupPeers.length, { one: '# here', other: '# here' })}`}>
           {dedupPeers.slice(0, 4).map((u, i) => (
             <Avatar key={u.id || i} name={u.name} color={u.color} size={22} ring />
           ))}
@@ -271,16 +273,16 @@ export function ClusterBrowserToolbar({
       {viewMenu(false)}
       {/* Grid / List layout (internally 'gallery' / 'table'). Grid first: it is
           the default for any cluster that is not mostly audio. */}
-      <div className="view-pill cbt-viewtoggle" role="group" aria-label="Layout">
+      <div className="view-pill cbt-viewtoggle" role="group" aria-label={t`Layout`}>
         <button className={`view-pill-btn${viewMode === 'gallery' ? ' on' : ''}`} onClick={() => onViewMode('gallery')}
-                aria-label="Grid layout" aria-pressed={viewMode === 'gallery'} title="Grid"><Icon as={LayoutGrid} size={16} weight="light" /></button>
+                aria-label={t`Grid layout`} aria-pressed={viewMode === 'gallery'} title={t`Grid`}><Icon as={LayoutGrid} size={16} weight="light" /></button>
         <button className={`view-pill-btn${viewMode === 'table' ? ' on' : ''}`} onClick={() => onViewMode('table')}
-                aria-label="List layout" aria-pressed={viewMode === 'table'} title="List"><Icon as={List} size={16} weight="light" /></button>
+                aria-label={t`List layout`} aria-pressed={viewMode === 'table'} title={t`List`}><Icon as={List} size={16} weight="light" /></button>
       </div>
       {canEdit && showUpsell && <StorageUpsell onUpsell={onUpsell} />}
       {canEdit && (
         <button type="button" className="cbt-add" onClick={onAddFiles}>
-          <Icon as={Plus} size={14} weight="regular" />Add files
+          <Icon as={Plus} size={14} weight="regular" /><Trans>Add files</Trans>
         </button>
       )}
     </div>

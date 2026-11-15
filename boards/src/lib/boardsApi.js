@@ -15,6 +15,7 @@ import { createStateWriteGate } from './boardStateGate.js';
 import { shareThisTurn } from './shareThisTurn.js';
 import { normalizeEditorCapacity } from './editorLimit.js';
 import { isUuid } from './uuid.js';
+import { t } from '@lingui/core/macro';
 import {
   personalWorkspaceQuery, rootBoardQuery, boardListQuery, sharedBoardsQuery, boardStateQuery,
 } from './bootQueries.js';
@@ -70,10 +71,10 @@ export async function getOrCreatePersonalWorkspace({ userId, name = 'Personal Wo
 // The create_workspace_with_root RPC (security definer) does all the
 // inserts inside one transaction so there's no half-state and the
 // is_workspace_member check sees the new row.
-export async function createWorkspace({ name, userId, rootName = 'Studio' }) {
+export async function createWorkspace({ name, userId, rootName = t`Studio` }) {
   const { data, error } = await supabase.rpc('create_workspace_with_root', {
-    p_name: name || 'Workspace',
-    p_root_name: rootName || 'Studio',
+    p_name: name || t`Workspace`,
+    p_root_name: rootName || t`Studio`,
   });
   if (error) throw error;
   const wsId = data?.workspace_id;
@@ -1764,7 +1765,7 @@ export async function listWorkspacePalettes(workspaceId) {
         id: `${r.board_id}:${r.card_id}`,
         boardId: r.board_id,
         cardId: r.card_id,
-        name: r.title || 'Palette',
+        name: r.title || t`Palette`,
         swatches,
       };
     })

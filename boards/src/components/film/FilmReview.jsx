@@ -27,6 +27,7 @@ import { fileSharesAllowed } from '../../lib/appHost.js';
 import { isShareableCard } from '../../lib/fileShares.js';
 import { FileShareButton } from '../fileShare/FileShareButton.jsx';
 import { X, Keyboard, SquareSplitHorizontal, ChevronDown } from '../../lib/icons.js';
+import { t as tr, ph } from '@lingui/core/macro';
 
 // The fields a version's player needs, from a version entry or the card.
 function sourceOf(card, v) {
@@ -117,7 +118,7 @@ export function FilmReview({
   // which is the one that failed.
   const downloadShown = () => {
     const file = { ...card, src: a.src, poster: a.poster, fileName: v?.fileName || card?.fileName, mime: v?.mime || card?.mime };
-    downloadCardAsset(file, 'video', { surface: 'player' }).catch(() => playerRef.current?.hud?.('Download failed'));
+    downloadCardAsset(file, 'video', { surface: 'player' }).catch(() => playerRef.current?.hud?.(tr`Download failed`));
   };
 
   const handleAction = (action, payload) => {
@@ -129,7 +130,7 @@ export function FilmReview({
       if (Number.isFinite(t)) link += `&t=${t.toFixed(3)}`;
       if (many && v?.id) link += `&v=${encodeURIComponent(v.id)}`;
       const tc = p?.format?.(payload?.frame ?? p?.getFrame?.()) || '';
-      navigator.clipboard?.writeText(link).then(() => p?.hud?.(`Link to ${tc} copied`), () => {});
+      navigator.clipboard?.writeText(link).then(() => p?.hud?.(tr`Link to ${tc} copied`), () => {});
       return;
     }
     onAction?.(action, payload);
@@ -151,28 +152,28 @@ export function FilmReview({
   };
   const versionItems = () => [...versions].reverse().map((x) => ({
     id: x.id, label: `${versionLabel(x)}${x.label ? ` — ${x.label}` : ''}`, checked: x.id === v?.id,
-    sub: [x.fileName || x.name, x.id === current?.id ? 'Current' : null].filter(Boolean).join(' · '),
+    sub: [x.fileName || x.name, x.id === current?.id ? tr`Current` : null].filter(Boolean).join(' · '),
     run: () => showVersion(x.id),
   }));
   const compareItems = () => [
-    { header: `Compare ${versionLabel(v)} with` },
+    { header: tr`Compare ${ph({ versionLabel: versionLabel(v) })} with` },
     ...[...versions].reverse().filter((x) => x.id !== v?.id).map((x) => ({
       id: x.id, label: `${versionLabel(x)}${x.label ? ` — ${x.label}` : ''}`, checked: x.id === compareId,
-      sub: x.id === current?.id ? 'Current' : undefined, run: () => setCompareId(x.id),
+      sub: x.id === current?.id ? tr`Current` : undefined, run: () => setCompareId(x.id),
     })),
-    ...(compareId ? [{ divider: true }, { id: 'stop', label: 'Stop comparing', run: () => setCompareId(null) }] : []),
+    ...(compareId ? [{ divider: true }, { id: 'stop', label: tr`Stop comparing`, run: () => setCompareId(null) }] : []),
   ];
   const menuItems = { versions: versionItems, compare: compareItems };
 
   return createPortal(
-    <div className="frv" ref={rootRef} role="dialog" aria-modal="true" aria-label={`Review: ${title}`} tabIndex={-1}>
+    <div className="frv" ref={rootRef} role="dialog" aria-modal="true" aria-label={tr`Review: ${title}`} tabIndex={-1}>
       <div className="frv-head">
         <div className="frv-titles">
           <span className="frv-title" title={title}>{title}</span>
           {facts && <span className="frv-sub">{facts}</span>}
         </div>
         {many && versions.length <= 4 && (
-          <div className="frv-pills" role="radiogroup" aria-label="Version">
+          <div className="frv-pills" role="radiogroup" aria-label={tr`Version`}>
             {versions.map((x) => (
               <button key={x.id} type="button" onPointerDown={noFocus} role="radio" aria-checked={x.id === v?.id}
                       className={`frv-pill${x.id === v?.id ? ' is-shown' : ''}${x.id === current?.id ? ' is-current' : ''}`}
@@ -186,7 +187,7 @@ export function FilmReview({
         {/* More versions than pills hold: a menu; and a narrow header, which
             has no room for the pills, shows it in their place. */}
         {many && (
-          <button type="button" onPointerDown={noFocus} aria-haspopup="menu" aria-label={`Version ${versionLabel(v)}`}
+          <button type="button" onPointerDown={noFocus} aria-haspopup="menu" aria-label={tr`Version ${ph({ versionLabel: versionLabel(v) })}`}
                   className={`frv-pill frv-pill--menu is-shown${versions.length <= 4 ? ' frv-pill--narrow' : ''}`}
                   onClick={(e) => openMenu('versions', e.currentTarget, 'center')}>
             {versionLabel(v)} <Icon as={ChevronDown} size={10} weight="bold" />
@@ -195,21 +196,21 @@ export function FilmReview({
         <div className="frv-actions">
           {many && (
             <button type="button" onPointerDown={noFocus} className={`frv-iconbtn frv-compare${compareId ? ' is-on' : ''}`} aria-haspopup="menu"
-                    aria-label={compareId ? `Comparing with ${versionLabel(cmp)}` : 'Compare with another version'}
-                    title={compareId ? `Comparing with ${versionLabel(cmp)} — \\ flips between them` : 'Compare with another version'}
+                    aria-label={compareId ? tr`Comparing with ${ph({ versionLabel: versionLabel(cmp) })}` : tr`Compare with another version`}
+                    title={compareId ? tr`Comparing with ${ph({ versionLabel: versionLabel(cmp) })} — \\ flips between them` : tr`Compare with another version`}
                     onClick={(e) => openMenu('compare', e.currentTarget, 'end')}>
               <Icon as={SquareSplitHorizontal} size={18} weight="regular" />
-              <span>{compareId ? `vs ${versionLabel(cmp)}` : 'Compare'}</span>
+              <span>{compareId ? tr`vs ${ph({ versionLabel: versionLabel(cmp) })}` : tr`Compare`}</span>
             </button>
           )}
           {fileSharesAllowed() && canEdit && boardId && cardId && isShareableCard(card) && (
             <FileShareButton variant="frv" surface="player" boardId={boardId} cardId={cardId} card={card} boardName={null} />
           )}
-          <button type="button" onPointerDown={noFocus} className="frv-iconbtn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)"
+          <button type="button" onPointerDown={noFocus} className="frv-iconbtn" aria-label={tr`Keyboard shortcuts`} title={tr`Keyboard shortcuts (?)`}
                   onClick={() => playerRef.current?.toggleHelp?.()}>
             <Icon as={Keyboard} size={18} weight="regular" />
           </button>
-          <button type="button" onPointerDown={noFocus} className="frv-iconbtn" onClick={() => closeRef.current?.()} aria-label="Close" title="Close (Esc)">
+          <button type="button" onPointerDown={noFocus} className="frv-iconbtn" onClick={() => closeRef.current?.()} aria-label={tr`Close`} title={tr`Close (Esc)`}>
             <Icon as={X} size={18} weight="regular" />
           </button>
         </div>

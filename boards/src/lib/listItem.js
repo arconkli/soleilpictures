@@ -33,6 +33,30 @@ export const TYPE_LABELS = {
 const FAMILY_LABELS = { markdown: 'Text', text: 'Text', code: 'Code', table: 'Spreadsheet', subtitles: 'Subtitles', font: 'Font', mail: 'Email', design: 'Design file',
   zip: 'Archive', listed: 'Archive' };
 
+// The words toListItem writes into an item: its type, the name a card gets
+// when it has none, and the line under it. English, and what every non-app
+// reader (tests/list-item-logic.spec.js) sees. The app passes
+// lib/listItemWords.js as `words`, which says the same in the person's
+// language; listItemWords.test.mjs keeps the two equal.
+export const LIST_WORDS = Object.freeze({
+  typeLabel: (kind) => TYPE_LABELS[kind] || null,
+  familyLabel: (family) => FAMILY_LABELS[family] || null,
+  itemName: () => 'Item',
+  // What a card with no name of its own is called, by kind.
+  fallbackName: (kind) => ({
+    image: 'Image', pdf: 'PDF', video: 'Video', audio: 'Audio', file: 'File', note: 'Empty note',
+    link: 'Link', doc: 'Doc', palette: 'Palette', schedule: 'Schedule', grid: 'Grid',
+    board: 'Cluster', boardlink: 'Linked cluster',
+  }[kind] || 'Item'),
+  shapeName: (shape) => `Shape (${shape})`,
+  monthTitle: (iso) => monthTitle(iso),
+  pages: (n) => `${n} ${n === 1 ? 'page' : 'pages'}`,
+  lines: (n) => `${n} lines`,
+  colors: (n) => `${n} colors`,
+  scheduleItems: (n) => `${n} item${n === 1 ? '' : 's'}`,
+  scheduleRows: (n) => `${n} rows`,
+});
+
 // Coarse buckets for the type filter. Several kinds collapse (board+boardlink →
 // 'cluster'); 'other' catches shape/schedule/grid/unknown.
 export function typeBucket(kind) {
@@ -148,12 +172,13 @@ function fileDateOf(card) {
 //   opts.getMeta       — imageMeta.getMeta(key) → { sizeBytes?, ... } for media size
 //   opts.boardId       — the cluster this card lives on (informational)
 //   opts.gridTemplates — shared gridTemplates snapshot (id → { layout }) for linked grids
-export function toListItem(card, { boards = {}, getMeta = null, boardId = null, gridTemplates = {} } = {}) {
+//   opts.words         — the words it writes (LIST_WORDS, or lib/listItemWords.js in the app)
+export function toListItem(card, { boards = {}, getMeta = null, boardId = null, gridTemplates = {}, words = LIST_WORDS } = {}) {
   if (!card || !card.id) return null;
   const kind = card.kind;
   const item = {
     id: card.id, card, boardId: boardId || card.boardId || null, kind,
-    typeLabel: TYPE_LABELS[kind] || (kind ? kind[0].toUpperCase() + kind.slice(1) : 'Item'),
+    typeLabel: words.typeLabel(kind) || (kind ? kind[0].toUpperCase() + kind.slice(1) : words.itemName()),
     typeBucket: typeBucket(kind),
     name: '', sub: '',
     preview: { mode: 'icon', kind },
@@ -177,22 +202,22 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
     case 'image':
       // A caption someone typed, then the file's own name (fileIngest, 2026-10),
       // then the generic word — which every photo in a cluster used to share.
-      item.name = card.title || card.label || card.fileName || 'Image';
+      item.name = card.title || card.label || card.fileName || words.fallbackName('image');
       item.ext = extOf(card.fileName);
       item.sub = card.caption || '';
       item.preview = card.src ? { mode: 'r2', src: card.src, kind } : { mode: 'placeholder', tone: card.tone, kind };
       item.sizeBytes = mediaSizeFrom(getMeta, card.src);
       break;
     case 'pdf':
-      item.name = card.name || card.title || 'PDF';
+      item.name = card.name || card.title || words.fallbackName('pdf');
       item.ext = 'pdf';
       item.sub = Number.isFinite(card.pageCount) && card.pageCount > 0
-        ? `${card.pageCount} ${card.pageCount === 1 ? 'page' : 'pages'}` : '';
+        ? words.pages(card.pageCount) : '';
       item.preview = card.src ? { mode: 'r2', src: card.src, kind } : { mode: 'icon', kind };
       item.sizeBytes = mediaSizeFrom(getMeta, card.pdfSrc || card.src);
       break;
     case 'video':
-      item.name = card.title || card.fileName || 'Video';
+      item.name = card.title || card.fileName || words.fallbackName('video');
       item.ext = extOf(card.fileName);
       item.preview = card.poster ? { mode: 'r2', src: card.poster, kind } : { mode: 'icon', kind };
       item.sizeBytes = card.sizeBytes ?? mediaSizeFrom(getMeta, card.src);
@@ -200,7 +225,7 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
       item.durationSec = Number.isFinite(card.media?.dur) ? card.media.dur : (Number.isFinite(card.duration) ? card.duration : null);
       break;
     case 'audio': {
-      item.name = card.title || card.fileName || 'Audio';
+      item.name = card.title || card.fileName || words.fallbackName('audio');
       item.ext = String(card.ext || extOf(card.fileName)).toLowerCase();
       item.preview = card.cover ? { mode: 'r2', src: card.cover, kind } : { mode: 'icon', kind };
       // Audio cards now carry sizeBytes from the File itself; the images-table
@@ -227,7 +252,7 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
     case 'file':
       // A rename (title) shows over the uploaded name; downloads keep the
       // uploaded name either way (lib/fileRename.js).
-      item.name = card.title || card.fileName || 'File';
+      item.name = card.title || card.fileName || words.fallbackName('file');
       item.ext = String(card.ext || extOf(card.fileName)).toLowerCase();
       item.sub = card.ext ? String(card.ext).toUpperCase() : (card.mime || '');
       {
@@ -236,7 +261,7 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
           mode: 'file', ext: card.ext, mime: card.mime, kind, family,
           src: typeof card.fileSrc === 'string' ? card.fileSrc : '',
         };
-        item.typeLabel = FAMILY_LABELS[family] || item.typeLabel;
+        item.typeLabel = words.familyLabel(family) || item.typeLabel;
       }
       // A document's first page, a design file's own picture, or what an
       // archive holds, once it's made, is its picture (CardPreview).
@@ -248,21 +273,21 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
       // Title and body, as the canvas shows them: the caption is the title,
       // so it no longer repeats the preview word for word.
       const { title, body } = noteParts(card.html, card.body);
-      item.name = title || 'Empty note';
+      item.name = title || words.fallbackName('note');
       // Show the real text on the tint — far more readable than a glyph.
       item.preview = { mode: 'note', title, text: body, tone: card.bgColor, kind };
       break;
     }
     case 'link':
-      item.name = card.title || card.source || card.link || 'Link';
+      item.name = card.title || card.source || card.link || words.fallbackName('link');
       item.sub = card.source || card.link || '';
       item.preview = card.image
         ? { mode: 'r2', src: card.image, kind }
         : { mode: 'link', favicon: card.favicon || null, source: card.source || card.link || '', kind };
       break;
     case 'doc':
-      item.name = card.title || 'Doc';
-      item.sub = Array.isArray(card.lines) ? `${card.lines.length} lines` : '';
+      item.name = card.title || words.fallbackName('doc');
+      item.sub = Array.isArray(card.lines) ? words.lines(card.lines.length) : '';
       item.preview = {
         mode: 'doc',
         title: card.title || '',
@@ -272,8 +297,8 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
       };
       break;
     case 'palette':
-      item.name = card.title || 'Palette';
-      item.sub = `${(card.swatches || []).length} colors`;
+      item.name = card.title || words.fallbackName('palette');
+      item.sub = words.colors((card.swatches || []).length);
       item.preview = { mode: 'swatches', swatches: (card.swatches || []).map(s => s.hex).filter(Boolean), kind };
       break;
     case 'schedule': {
@@ -285,8 +310,8 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
             (card.gridCells && typeof card.gridCells.toJSON === 'function') ? card.gridCells.toJSON() : (card.cells || {}),
             { max: 30 }))
         : (Array.isArray(card.rows) ? card.rows : []);
-      item.name = card.title || (card.schedView ? monthTitle(card.anchor) || 'Schedule' : 'Schedule');
-      item.sub = card.schedView ? `${rows.length} item${rows.length === 1 ? '' : 's'}` : `${rows.length} rows`;
+      item.name = card.title || (card.schedView ? words.monthTitle(card.anchor) || words.fallbackName('schedule') : words.fallbackName('schedule'));
+      item.sub = card.schedView ? words.scheduleItems(rows.length) : words.scheduleRows(rows.length);
       item.preview = {
         mode: 'schedule',
         rows: rows.slice(0, 4).map(r => ({ when: String((r && (r.day ?? r.when)) || '').slice(0, 10) })),
@@ -295,21 +320,21 @@ export function toListItem(card, { boards = {}, getMeta = null, boardId = null, 
       break;
     }
     case 'shape':
-      item.name = card.label || card.title || `Shape (${card.shape || 'rect'})`;
+      item.name = card.label || card.title || words.shapeName(card.shape || 'rect');
       item.preview = { mode: 'shape', shape: card.shape || 'rect', fill: card.fill, stroke: card.stroke, dash: card.dash, kind };
       break;
     case 'grid':
-      item.name = card.title || 'Grid';
+      item.name = card.title || words.fallbackName('grid');
       item.preview = gridPreview(card, gridTemplates);
       break;
     case 'board':
-      item.name = boards[card.id]?.name || card.name || 'Cluster';
+      item.name = boards[card.id]?.name || card.name || words.fallbackName('board');
       break;
     case 'boardlink':
-      item.name = boards[card.target]?.name || card.name || 'Linked cluster';
+      item.name = boards[card.target]?.name || card.name || words.fallbackName('boardlink');
       break;
     default:
-      item.name = card.title || kind || 'Item';
+      item.name = card.title || kind || words.itemName();
   }
   return item;
 }
