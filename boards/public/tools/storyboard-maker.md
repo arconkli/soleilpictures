@@ -2,7 +2,7 @@
 
 > Soleil Clusters is an online storyboard maker: lay each shot out as a grid card, drop a still or sketch into the frame, write the action on the line beneath, and let each shot number itself by where it sits. Your director, DP, and AD edit the same storyboard live, and one link shares it.
 
-_Source: https://clusters.soleilpictures.com/tools/storyboard-maker · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/tools/storyboard-maker · Updated 2026-11-04_
 
 Lay your shots out in a grid, drop in frames and reference, and keep the shot list right beside them.
 

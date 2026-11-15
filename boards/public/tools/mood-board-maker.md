@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a free online mood board maker: drag images, links, video, color palettes and any other file onto an infinite canvas, arrange them freely, and share the finished board with one link. It runs in the browser with no download, supports real-time collaboration, and is built for film, photo, and design teams.
 
-_Source: https://clusters.soleilpictures.com/tools/mood-board-maker · Updated 2026-10-20_
+_Source: https://clusters.soleilpictures.com/tools/mood-board-maker · Updated 2026-11-04_
 
 Pull your references, colors, and notes onto one infinite canvas — then share the whole board with a single link.
 

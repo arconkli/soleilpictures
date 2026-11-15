@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a cinematography lookbook on a shared canvas: collect film frames and lighting references by scene, note lens and light beside each, check values in black and white, and sample palettes. The director, gaffer and colourist work in the same board live, and a view-only link shows it to anyone without an account.
 
-_Source: https://clusters.soleilpictures.com/tools/cinematography-lookbook · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/tools/cinematography-lookbook · Updated 2026-11-04_
 
 Collect the frames, light and lensing you are after, check them in black and white, and keep the director, gaffer and colourist on the same board.
 

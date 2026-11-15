@@ -2,7 +2,7 @@
 
 > Soleil Clusters gives production designers a mood board per set: references, palettes, PDFs of plans and notes in one cluster, nested inside the project. Set decorators, props and the art director build it live, the director comments on the image itself, and one link shows it to anyone. Editors are free, so the department is not billed per seat.
 
-_Source: https://clusters.soleilpictures.com/tools/production-design-mood-board · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/tools/production-design-mood-board · Updated 2026-11-04_
 
 A cluster per set, with references, palettes, plans and notes in one place — built by the whole art department, live.
 

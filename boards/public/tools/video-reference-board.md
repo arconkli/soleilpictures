@@ -2,7 +2,7 @@
 
 > Soleil Clusters is a free reference board that plays video: clips, GIFs and stills share one canvas in the browser, a clip steps frame by frame or loops like a GIF, and one link shares the board. PureRef’s format list is images and animated GIFs. The free plan holds 25 cards or 5GB of files, whichever comes first.
 
-_Source: https://clusters.soleilpictures.com/tools/video-reference-board · Updated 2026-10-20_
+_Source: https://clusters.soleilpictures.com/tools/video-reference-board · Updated 2026-11-04_
 
 Clips, GIFs and stills on one canvas in the browser: step to the exact frame, loop the move you are studying, and share the whole wall with one link.
 

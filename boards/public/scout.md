@@ -2,7 +2,7 @@
 
 > Soleil Scout is a text-message ingest bot for film crews. You text photos, links or notes from your phone. They land on an infinite Soleil Clusters canvas, grouped by what you said. Scout is not running yet. Leave your number and we text you when your line is ready.
 
-_Source: https://clusters.soleilpictures.com/scout · Updated 2026-10-02_
+_Source: https://clusters.soleilpictures.com/scout · Updated 2026-11-04_
 
 Text what you’re looking at. It lands on a canvas your whole team can open.
 

@@ -2,7 +2,7 @@
 
 > Soleil Clusters is an Eagle alternative for teams: a browser canvas where a crew builds reference boards together, live, and shares them with one link. Eagle is a one-time-purchase desktop library built around one person’s collection, strongest offline and at scale. Keep Eagle as the archive; use Clusters when a team needs the same board.
 
-_Source: https://clusters.soleilpictures.com/vs/eagle · Updated 2026-10-20_
+_Source: https://clusters.soleilpictures.com/vs/eagle · Updated 2026-11-04_
 
 Eagle is the best private library for one person’s references. Clusters is the shared room a team builds in — live, in the browser, on any machine.
 
