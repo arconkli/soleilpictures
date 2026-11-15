@@ -7,9 +7,11 @@
 // rather than empty states. Shapes match the real RPC/table return types
 // (verified via pg_get_function_result / pg_get_functiondef).
 
-// Data only and import-free. It is the one thing these fixtures take from lib/;
-// the weekly calendar below is deliberately their own (see weekStarts).
+// Data only. They take two things from lib/: the definition breaks, and the
+// Feedback tab's outreach rules (so the in-memory mark behaves as the tab
+// expects); the weekly calendar below is deliberately their own (see weekStarts).
 import { DEFINITION_BREAKS } from '../lib/adminDefinitionBreaks.js';
+import { markReached, unmarkReached } from '../lib/feedbackOutreach.js';
 
 const TODAY = new Date();
 const dayISO = (back) => {
@@ -408,18 +410,18 @@ const RPCS = {
     revoked_at: i === 7 ? tsISO(720) : null, note: i % 2 ? 'Beta partner' : 'Creator program',
   })),
   admin_list_feedback: [
-    { id: 'f1', user_id: 'u-2', email: 'priya@acme.io', kind: 'bug', message: 'The funnel chart tooltip flickers when I hover near the fork divider — looks like a re-render loop. Repro: 90d range, hover the email→otp band quickly.', url: '/admin?tab=analytics', viewport: '1512x982', user_agent: 'Mac · Chrome 128', created_at: tsISO(40), has_note: true, has_image: false },
-    { id: 'f2', user_id: 'u-5', email: 'theo@gmail.com', kind: 'idea', message: 'Could the Users table let me bulk-grant paid access by pasting a column of emails?', url: '/admin?tab=users', viewport: '1728x1080', user_agent: 'Mac · Safari 17', created_at: tsISO(180), has_note: true, has_image: false },
-    { id: 'f3', user_id: null, email: null, kind: 'praise', message: 'New analytics tab is gorgeous', url: '/admin', viewport: '1440x900', user_agent: 'Win · Edge 128', created_at: tsISO(520), has_note: true, has_image: false },
-    { id: 'f4', user_id: 'u-9', email: 'ravi@proton.me', kind: 'other', message: 'Typo on the waitlist email: "you’re in in".', url: '/welcome', viewport: '390x844', user_agent: 'iPhone · Safari', created_at: tsISO(1300), has_note: true, has_image: false },
-    { id: 'f5', user_id: 'u-1', email: 'devon@gmail.com', kind: 'bug', message: 'Storage tab showed "—" for a sec on load then filled in.', url: '/admin?tab=analytics&view=system', viewport: '2560x1440', user_agent: 'Mac · Chrome 128', created_at: tsISO(2600), has_note: true, has_image: true },
+    { id: 'f1', user_id: 'u-2', email: 'priya@acme.io', kind: 'bug', message: 'The funnel chart tooltip flickers when I hover near the fork divider — looks like a re-render loop. Repro: 90d range, hover the email→otp band quickly.', url: '/admin?tab=analytics', viewport: '1512x982', user_agent: 'Mac · Chrome 128', created_at: tsISO(40), has_note: true, has_image: false, reached_out_at: null, reached_out_by: null, reached_out_id: null, waiting: true },
+    { id: 'f2', user_id: 'u-5', email: 'theo@gmail.com', kind: 'idea', message: 'Could the Users table let me bulk-grant paid access by pasting a column of emails?', url: '/admin?tab=users', viewport: '1728x1080', user_agent: 'Mac · Safari 17', created_at: tsISO(180), has_note: true, has_image: false, reached_out_at: null, reached_out_by: null, reached_out_id: null, waiting: true },
+    { id: 'f3', user_id: null, email: null, kind: 'praise', message: 'New analytics tab is gorgeous', url: '/admin', viewport: '1440x900', user_agent: 'Win · Edge 128', created_at: tsISO(520), has_note: true, has_image: false, reached_out_at: null, reached_out_by: null, reached_out_id: null, waiting: false },
+    { id: 'f4', user_id: 'u-9', email: 'ravi@proton.me', kind: 'other', message: 'Typo on the waitlist email: "you’re in in".', url: '/welcome', viewport: '390x844', user_agent: 'iPhone · Safari', created_at: tsISO(1300), has_note: true, has_image: false, reached_out_at: tsISO(300), reached_out_by: 'andrew@andrewconklin.com', reached_out_id: 'o-fb-1', waiting: false },
+    { id: 'f5', user_id: 'u-1', email: 'devon@gmail.com', kind: 'bug', message: 'Storage tab showed "—" for a sec on load then filled in.', url: '/admin?tab=analytics&view=system', viewport: '2560x1440', user_agent: 'Mac · Chrome 128', created_at: tsISO(2600), has_note: true, has_image: true, reached_out_at: null, reached_out_by: null, reached_out_id: null, waiting: true },
     // Return-question answers. The first carries prose; the second is someone
     // who tapped and skipped the follow-up, so its message is the label the
     // SERVER wrote — has_note false is what tells the row to render it as
     // filler rather than as something a person typed.
-    { id: 'f6', user_id: 'u-4', email: 'mara@studio.co', kind: 'return_reason', choice: 'adding', message: 'A pinterest board my producer sent over the weekend.', url: null, viewport: '1512x982', user_agent: 'Mac · Chrome 128', created_at: tsISO(90), has_note: true, has_image: false },
-    { id: 'f7', user_id: 'u-7', email: 'jonas@gmail.com', kind: 'return_reason', choice: 'resuming', message: 'Picking up where I left off', url: null, viewport: '390x844', user_agent: 'iPhone · Safari', created_at: tsISO(400), has_note: false, has_image: false },
-    { id: 'f8', user_id: null, email: null, kind: 'return_reason', choice: 'reviewing', message: 'trying to find the lighting refs from the october shoot', url: null, viewport: '1728x1080', user_agent: 'Mac · Safari 17', created_at: tsISO(900), has_note: true, has_image: false },
+    { id: 'f6', user_id: 'u-4', email: 'mara@studio.co', kind: 'return_reason', choice: 'adding', message: 'A pinterest board my producer sent over the weekend.', url: null, viewport: '1512x982', user_agent: 'Mac · Chrome 128', created_at: tsISO(90), has_note: true, has_image: false, reached_out_at: null, reached_out_by: null, reached_out_id: null, waiting: true },
+    { id: 'f7', user_id: 'u-7', email: 'jonas@gmail.com', kind: 'return_reason', choice: 'resuming', message: 'Picking up where I left off', url: null, viewport: '390x844', user_agent: 'iPhone · Safari', created_at: tsISO(400), has_note: false, has_image: false, reached_out_at: null, reached_out_by: null, reached_out_id: null, waiting: false },
+    { id: 'f8', user_id: null, email: null, kind: 'return_reason', choice: 'reviewing', message: 'trying to find the lighting refs from the october shoot', url: null, viewport: '1728x1080', user_agent: 'Mac · Safari 17', created_at: tsISO(900), has_note: true, has_image: false, reached_out_at: null, reached_out_by: null, reached_out_id: null, waiting: false },
   ],
   // Real-sized, not a 1x1: a placeholder pixel renders at one pixel and the
   // expanded row looks correct while proving nothing about how a 640x360
@@ -2196,6 +2198,9 @@ function errorGroupsFixture(params) {
   };
 }
 
+let fbOutreachSeq = 0;
+const fbOutreachBefore = new Map();
+
 function rpcResult(name, params) {
   if (name === 'admin_tests_read') return testsReadFixture();
   if (name === 'showcase_library') return showcaseLibraryFixture();
@@ -2320,8 +2325,37 @@ function rpcResult(name, params) {
   // anything against a filtered set, so the harness has to honour p_kind or the
   // one thing the strip exists to show would be computed over every row.
   if (name === 'admin_list_feedback') {
+    let rows = RPCS.admin_list_feedback || [];
+    if (params?.p_kind) rows = rows.filter((r) => r.kind === params.p_kind);
+    // 0894's p_outreach: 'waiting' is the waiting flag, 'reached' any outreach mark.
+    if (params?.p_outreach === 'waiting') rows = rows.filter((r) => r.waiting);
+    else if (params?.p_outreach === 'reached') rows = rows.filter((r) => r.reached_out_at);
+    return rows;
+  }
+  // The Feedback tab's outreach marks, in memory: a mark changes the stored
+  // rows the way 0894's list does, so the reload after it agrees with the click.
+  if (name === 'admin_feedback_outreach_summary') {
     const rows = RPCS.admin_list_feedback || [];
-    return params?.p_kind ? rows.filter((r) => r.kind === params.p_kind) : rows;
+    const people = (list) => new Set(list.map((r) => r.user_id || String(r.email).toLowerCase())).size;
+    return {
+      waiting_rows: rows.filter((r) => r.waiting).length,
+      waiting_people: people(rows.filter((r) => r.waiting)),
+      reached_people: people(rows.filter((r) => r.reached_out_at)),
+      with_email_people: people(rows.filter((r) => r.email)),
+    };
+  }
+  if (name === 'admin_log_outreach') {
+    const entry = { id: `o-fb-new-${++fbOutreachSeq}`, email: params?.p_email ?? null, reached_at: new Date().toISOString(), reached_by_email: 'andrew@andrewconklin.com', note: null };
+    const m = markReached(RPCS.admin_list_feedback, { user_id: params?.p_user_id, email: params?.p_email }, entry);
+    RPCS.admin_list_feedback = m.rows;
+    fbOutreachBefore.set(entry.id, m.before);
+    return entry;
+  }
+  if (name === 'admin_delete_outreach') {
+    const before = fbOutreachBefore.get(params?.p_id);
+    if (before) RPCS.admin_list_feedback = unmarkReached(RPCS.admin_list_feedback, params.p_id, before);
+    fbOutreachBefore.delete(params?.p_id);
+    return null;
   }
   // admin_weekly_series(p_weeks): the last p_weeks rows, the partial week last. The
   // RPC clamps p_weeks to 2..52 and defaults it to 14; the harness holds fourteen
@@ -2595,6 +2629,16 @@ function playLive(kind) {
   return 0;
 }
 
+// ?rpcmissing=a,b answers those RPCs the way PostgREST does for a function the
+// database does not have yet (PGRST202), so a tab can be seen as it is before
+// its migration ships.
+function rpcMissing(name) {
+  try {
+    const list = new URLSearchParams(window.location.search).get('rpcmissing');
+    return !!list && list.split(',').map((x) => x.trim()).includes(name);
+  } catch { return false; }
+}
+
 function rpcDelayMs() {
   try {
     const ms = Number(new URLSearchParams(window.location.search).get('rpcdelay'));
@@ -2624,6 +2668,9 @@ export function installAdminPreviewMocks(supabase) {
         if (params.p_fresh) t[`${params.p_fn}:fresh`] = (t[`${params.p_fn}:fresh`] || 0) + 1;
       }
     } catch { /* ignore */ }
+    if (rpcMissing(name)) {
+      return Promise.resolve({ data: null, error: { code: 'PGRST202', message: `Could not find the function public.${name} in the schema cache` } });
+    }
     // The shared ten-minute report, answered as the database does: the named
     // report's own fixture inside { data, at }.
     const data = name === 'admin_report'

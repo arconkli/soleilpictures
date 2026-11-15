@@ -21,15 +21,25 @@
 // Enter / Space. Paginated (50 / page) via p_offset; Next is enabled while a
 // full page comes back (the RPC has no count, so length === PAGE_SIZE is our
 // "there may be more" signal).
+//
+// Outreach (0894): a row whose author left an email carries one button, "Mark
+// reached out", which logs it through admin_log_outreach (the same log the Users
+// and Waitlist tabs write). The summary RPC and the Waiting/Reached filter only
+// exist once 0894 is applied, so the pill, the select and the row buttons render
+// only when the summary read succeeds: before 0894 the list has no reached_out_*
+// columns, and a mark would turn green and then flip back on the next reload.
+// Until then the tab works as it did.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { CopyableText } from '../../components/CopyableText.jsx';
 import { relativeTime, fmtDateTime, formatCount } from '../../lib/adminFormat.js';
 import { useAdminData } from './useAdminData.js';
 import { AdminToolbar, AdminAsync, AdminSkeleton } from './AdminStates.jsx';
 import { FeedbackKindPill, FeedbackChoicePill } from './AdminPills.jsx';
-import { MessageSquare, Image as ImageIcon } from '../../lib/icons.js';
+import { MessageSquare, Image as ImageIcon, EnvelopeSimple, Check } from '../../lib/icons.js';
+import { useFeedback } from '../../components/AppFeedback.jsx';
+import { OUTREACH_FILTERS, canMark, markReached, unmarkReached, reachedByName } from '../../lib/feedbackOutreach.js';
 import { describeFeedbackContext } from '../../lib/feedbackContext.js';
 import { safeExternalHref } from '../../lib/safeExternalHref.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
@@ -51,6 +61,12 @@ export function AdminFeedbackTab() {
   const [page, setPage] = useState(0);          // 0-indexed
   const [expanded, setExpanded] = useState(new Set());
   const [shots, setShots] = useState({});     // id -> data URL | 'loading' | 'error'
+  const feedback = useFeedback();
+  const [outreach, setOutreach] = useState('');  // '' | 'waiting' | 'reached'
+  const [summary, setSummary] = useState(null);  // null until admin_feedback_outreach_summary answers
+  const [marks, setMarks] = useState({});        // entry id -> markReached's `before`, this session only
+  const marksRef = useRef({});
+  const [pendingId, setPendingId] = useState(null);
 
   // Debounce search input (~300ms)
   useEffect(() => {
@@ -59,7 +75,7 @@ export function AdminFeedbackTab() {
   }, [query]);
 
   // Reset to first page whenever the filter or query changes
-  useEffect(() => { setPage(0); }, [kind, debounced]);
+  useEffect(() => { setPage(0); }, [kind, debounced, outreach]);
 
   const fetchFeedback = useCallback(async () => {
     const { data, error } = await supabase.rpc('admin_list_feedback', {
@@ -67,13 +83,91 @@ export function AdminFeedbackTab() {
       p_offset: page * PAGE_SIZE,
       p_kind: kind || null,
       p_q: debounced || null,
+      // Only sent when set, so the call keeps working before 0894 is applied.
+      ...(outreach ? { p_outreach: outreach } : {}),
     });
     if (error) throw error;
     return data || [];
-  }, [kind, debounced, page]);
+  }, [kind, debounced, page, outreach]);
 
-  const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(fetchFeedback, [kind, debounced, page]);
-  const rows = data || [];
+  const { data, loading, error, refreshing, lastUpdated, hasData, refresh } = useAdminData(fetchFeedback, [kind, debounced, page, outreach]);
+
+  // The list as read, plus the marks made since: a click shows at once and the
+  // reload that follows replaces it with what the database says.
+  const [local, setLocal] = useState({ src: undefined, rows: [] });
+  if (local.src !== data) setLocal({ src: data, rows: data || [] });
+  const rows = local.src === data ? local.rows : (data || []);
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+
+  // Reads are numbered so a slow older answer never overwrites a newer one. A
+  // failed read keeps what was shown: before 0894 that is nothing (the outreach
+  // controls stay hidden); after it, one blip must not hide the filter while the
+  // list is still filtered by it.
+  const summarySeq = useRef(0);
+  const loadSummary = useCallback(async () => {
+    const seq = ++summarySeq.current;
+    try {
+      const { data: s, error: e } = await supabase.rpc('admin_feedback_outreach_summary');
+      if (seq === summarySeq.current && !e && s) setSummary(s);
+    } catch { /* keep what is shown */ }
+  }, []);
+  useEffect(() => { loadSummary(); }, [loadSummary]);
+
+  const rememberMarks = (next) => { marksRef.current = next; setMarks(next); };
+  // The toast's Undo can be pressed after a filter or page change; it calls the
+  // current undo (and so the current refresh), not the one from the click.
+  const undoRef = useRef(null);
+
+  // One request per mark: the inline link and the toast's Undo can both be
+  // pressed, and a second delete of the same entry would report a failure.
+  const undoing = useRef(new Set());
+  const undo = async (entryId) => {
+    if (!marksRef.current[entryId] || undoing.current.has(entryId)) return;
+    undoing.current.add(entryId);
+    try {
+      const { error: e } = await supabase.rpc('admin_delete_outreach', { p_id: entryId });
+      if (e) throw e;
+    } catch (e) {
+      feedback.toast({ type: 'error', code: 'feedback_outreach_undo_failed', message: 'Could not remove the mark: ' + (e?.message || e) });
+      return;
+    } finally {
+      undoing.current.delete(entryId);
+    }
+    const before = marksRef.current[entryId];
+    setLocal((p) => ({ ...p, rows: unmarkReached(p.rows, entryId, before) }));
+    const { [entryId]: _gone, ...rest } = marksRef.current;
+    rememberMarks(rest);
+    feedback.toast({ type: 'success', message: 'Mark removed' });
+    loadSummary();
+    refresh();
+  };
+
+  undoRef.current = undo;
+
+  const mark = async (r) => {
+    if (pendingId) return;
+    setPendingId(r.id);
+    try {
+      const { data: entry, error: e } = await supabase.rpc('admin_log_outreach', { p_user_id: r.user_id || null, p_email: r.email });
+      if (e || !entry) throw e || new Error('no reply');
+      const who = { user_id: r.user_id, email: r.email };
+      const { before } = markReached(rowsRef.current, who, entry);
+      setLocal((p) => ({ ...p, rows: markReached(p.rows, who, entry).rows }));
+      rememberMarks({ ...marksRef.current, [entry.id]: before });
+      feedback.toast({
+        type: 'success',
+        message: `Marked ${r.email} as reached out`,
+        action: { label: 'Undo', onClick: () => undoRef.current?.(entry.id) },
+      });
+      loadSummary();
+      refresh();
+    } catch (e) {
+      feedback.toast({ type: 'error', code: 'feedback_outreach_mark_failed', message: 'Could not mark as reached out: ' + (e?.message || e) });
+    } finally {
+      setPendingId(null);
+    }
+  };
 
   const firstIdx = rows.length === 0 ? 0 : page * PAGE_SIZE + 1;
   const lastIdx  = page * PAGE_SIZE + rows.length;
@@ -110,7 +204,7 @@ export function AdminFeedbackTab() {
 
   return (
     <div className="admin-section">
-      <AdminToolbar onRefresh={refresh} refreshing={refreshing} lastUpdated={lastUpdated}>
+      <AdminToolbar onRefresh={() => { refresh(); loadSummary(); }} refreshing={refreshing} lastUpdated={lastUpdated}>
         <input
           className="auth-input admin-search-input"
           type="text"
@@ -128,6 +222,16 @@ export function AdminFeedbackTab() {
           <option value="">All kinds</option>
           {KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
         </select>
+        {summary && (
+          <select
+            className="auth-input admin-filter-select"
+            value={outreach}
+            onChange={(e) => setOutreach(e.target.value)}
+            aria-label="Filter by outreach"
+          >
+            {OUTREACH_FILTERS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+          </select>
+        )}
         <span className="admin-filter-meta t-meta">
           {loading
             ? 'Loading…'
@@ -138,12 +242,24 @@ export function AdminFeedbackTab() {
       </AdminToolbar>
 
       <section className="admin-chart-panel admin-chart-panel-wide">
-        <header className="admin-chart-head">
+        <header className="admin-chart-head fbk-head">
           <h3 className="admin-chart-title">Feedback</h3>
           <span className="admin-chart-sub t-meta">
             The feedback widget and the return question
             {kind ? ` · ${kind}` : ''}{debounced ? ` · “${debounced}”` : ''}
           </span>
+          {summary && Number(summary.waiting_rows) > 0 && (
+            <button
+              type="button"
+              className="fbk-waiting"
+              aria-pressed={outreach === 'waiting'}
+              title="People who wrote to us, left an email, and haven't heard back. Click to show only them."
+              onClick={() => setOutreach((o) => (o === 'waiting' ? '' : 'waiting'))}
+            >
+              <span className="fbk-waiting-dot" />
+              <span className="fbk-waiting-n">{formatCount(Number(summary.waiting_rows))}</span> waiting for a reply
+            </button>
+          )}
         </header>
         <FeedbackBreakdown />
 
@@ -166,8 +282,8 @@ export function AdminFeedbackTab() {
           isEmpty={rows.length === 0}
           empty={{
             icon: MessageSquare,
-            title: kind || debounced ? 'No feedback matches these filters' : 'No feedback yet',
-            body: kind || debounced
+            title: kind || debounced || outreach ? 'No feedback matches these filters' : 'No feedback yet',
+            body: kind || debounced || outreach
               ? 'Try a different kind filter or a broader search.'
               : 'Feedback-widget submissions and return-question answers appear here.',
           }}
@@ -186,7 +302,7 @@ export function AdminFeedbackTab() {
               return (
                 <div
                   key={r.id}
-                  className={`fbk-row ${canOpen ? 'is-openable' : ''} ${isExpanded ? 'is-open' : ''}`}
+                  className={`fbk-row ${summary ? 'has-act' : ''} ${canOpen ? 'is-openable' : ''} ${isExpanded ? 'is-open' : ''}`}
                   role={canOpen ? 'button' : undefined}
                   tabIndex={canOpen ? 0 : undefined}
                   aria-expanded={canOpen ? isExpanded : undefined}
@@ -196,6 +312,7 @@ export function AdminFeedbackTab() {
                     if (canOpen && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(r); }
                   }}
                 >
+                  <div className="fbk-main">
                   {/* The message first and largest. It is the only part of a
                       row that carries information; everything else is filing. */}
                   <div className={`fbk-msg ${isFiller ? 'is-filler' : ''}`}>
@@ -229,6 +346,31 @@ export function AdminFeedbackTab() {
                       : <div className="fbk-shot-loading">
                           {shots[r.id] === 'error' ? 'Could not load the screenshot.' : 'Loading screenshot…'}
                         </div>
+                  )}
+                  </div>
+
+                  {/* One column, the same place on every row. Clicks and keys
+                      here never reach the row, which would expand or collapse. */}
+                  {summary && (
+                  <div className="fbk-act" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                    {!canMark(r) ? (
+                      <span className="fbk-noemail">no email</span>
+                    ) : r.reached_out_at ? (
+                      <>
+                        <span className="fbk-done"><Check size={14} />Reached out</span>
+                        <span className="fbk-done-by" title={fmtDateTime(r.reached_out_at)}>
+                          {relativeTime(r.reached_out_at)} · {reachedByName(r.reached_out_by)}
+                          {marks[r.reached_out_id] && (
+                            <> · <button type="button" className="fbk-undo" onClick={(e) => { e.stopPropagation(); undo(r.reached_out_id); }}>undo</button></>
+                          )}
+                        </span>
+                      </>
+                    ) : (
+                      <button type="button" className="fbk-mark" disabled={pendingId === r.id} onClick={(e) => { e.stopPropagation(); mark(r); }}>
+                        <EnvelopeSimple size={14} />{pendingId === r.id ? 'Marking…' : 'Mark reached out'}
+                      </button>
+                    )}
+                  </div>
                   )}
                 </div>
               );

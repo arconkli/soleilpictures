@@ -2259,9 +2259,49 @@
 }
 .fbk-tally-n { font-weight: 700; color: var(--ink-0); }
 
+/* Outreach (0894). The row is content | a fixed action column, the same place
+   on every row so working down the list is one click per person. Gold is for
+   the pill's pressed state and focus only. */
+.fbk-row.has-act { display: grid; grid-template-columns: minmax(0, 1fr) 168px; gap: 4px 18px; align-items: start; }
+.fbk-main { min-width: 0; }
+.fbk-act { justify-self: end; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; padding-top: 1px; cursor: default; }
+.fbk-mark {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 11px; border-radius: 8px;
+  background: var(--bg-3); border: 1px solid var(--line-2); color: var(--ink-1);
+  font: 600 12px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+}
+.fbk-mark:hover:not(:disabled) { background: var(--bg-4); color: var(--ink-0); }
+.fbk-mark:disabled { opacity: .6; cursor: default; }
+.fbk-done { display: inline-flex; align-items: center; gap: 6px; color: var(--ok); font: 600 12px/1 var(--font-sans); white-space: nowrap; }
+.fbk-done-by { color: var(--ink-3); font: 400 11.5px/1.2 var(--font-sans); text-align: right; }
+.fbk-undo {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--ink-2); font: inherit; text-decoration: underline; text-underline-offset: 2px;
+}
+.fbk-undo:hover { color: var(--ink-0); }
+.fbk-noemail { color: var(--ink-3); font: 400 11.5px/1 var(--font-sans); padding-top: 7px; }
+.fbk-waiting {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 11px; border-radius: 999px;
+  background: var(--bg-3); border: 1px solid var(--line-2); color: var(--ink-1);
+  font: 600 12px/1 var(--font-sans); white-space: nowrap; flex-shrink: 0; cursor: pointer;
+}
+.fbk-waiting:hover { background: var(--bg-4); }
+.fbk-waiting-n { color: var(--ink-0); }
+.fbk-waiting-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-2); }
+.fbk-waiting[aria-pressed="true"] { border-color: var(--soleil); color: var(--ink-0); }
+.fbk-waiting:focus-visible,
+.fbk-mark:focus-visible,
+.fbk-undo:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+
 @media (max-width: 640px) {
   .fbk-row { padding: 12px 4px 13px; }
-
+  .fbk-row.has-act { grid-template-columns: minmax(0, 1fr); }
+  .fbk-act { justify-self: start; align-items: flex-start; margin-top: 6px; }
+  .fbk-done-by { text-align: left; }
+  .fbk-head { flex-wrap: wrap; }
+  .fbk-waiting { margin-left: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
