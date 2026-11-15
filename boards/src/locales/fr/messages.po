@@ -841,6 +841,18 @@ msgstr "{bn, plural, one {Supprimer {total} éléments, dont # cluster ?\n"
 #: src/components/CanvasSurface.jsx
 msgid "{bn, plural, one {Delete # board and all its content?\n"
 "\n"
+"You can undo this from the top bar. The board is fully recoverable for 30 days.} other {Delete # boards and all their content?\n"
+"\n"
+"You can undo this from the top bar. The boards are fully recoverable for 30 days.}}"
+msgstr "{bn, plural, one {Supprimer # cluster et tout son contenu ?\n"
+"\n"
+"Vous pouvez annuler depuis la barre du haut. Le cluster reste entièrement récupérable pendant 30 jours.} other {Supprimer # clusters et tout leur contenu ?\n"
+"\n"
+"Vous pouvez annuler depuis la barre du haut. Les clusters restent entièrement récupérables pendant 30 jours.}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{bn, plural, one {Delete # board and all its content?\n"
+"\n"
 "You can undo this with Cmd+Z. The board is fully recoverable for 30 days.} other {Delete # boards and all their content?\n"
 "\n"
 "You can undo this with Cmd+Z. The boards are fully recoverable for 30 days.}}"
@@ -1472,6 +1484,14 @@ msgstr "{label} est maintenant copropriétaire de « {name} »."
 msgid "{label}, back to {label2}"
 msgstr "{label}, retour à {label2}"
 
+#: src/components/ctxMenuParts.jsx
+msgid "{label}, back to the canvas menu"
+msgstr "{label}, retour au menu de la toile"
+
+#: src/components/ctxMenuParts.jsx
+msgid "{label}, back to the card menu"
+msgstr "{label}, retour au menu de la carte"
+
 #: src/components/CanvasSurface.jsx
 msgid "{labelled, plural, one {Saved “{name}” with # label.} other {Saved “{name}” with # labels.}}"
 msgstr "{labelled, plural, one {« {name} » enregistré avec # libellé.} other {« {name} » enregistré avec # libellés.}}"
@@ -1827,12 +1847,28 @@ msgid "{n, plural, one {Copied # card from “{fromName}” · ⌘Z undoes} othe
 msgstr "{n, plural, one {# carte copiée depuis « {fromName} » · ⌘Z annule} other {# cartes copiées depuis « {fromName} » · ⌘Z annule}}"
 
 #: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Copied # card from “{fromName}”} other {Copied # cards from “{fromName}”}}"
+msgstr "{n, plural, one {# carte copiée depuis « {fromName} »} other {# cartes copiées depuis « {fromName} »}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Copied # card} other {Copied # cards}}"
+msgstr "{n, plural, one {# carte copiée} other {# cartes copiées}}"
+
+#: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Copied # note · ⌘Z undoes} other {Copied # notes · ⌘Z undoes}}"
 msgstr "{n, plural, one {# note copiée · ⌘Z annule} other {# notes copiées · ⌘Z annule}}"
 
 #: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Copied # note from “{fromName}” · ⌘Z undoes} other {Copied # notes from “{fromName}” · ⌘Z undoes}}"
 msgstr "{n, plural, one {# note copiée depuis « {fromName} » · ⌘Z annule} other {# notes copiées depuis « {fromName} » · ⌘Z annule}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Copied # note from “{fromName}”} other {Copied # notes from “{fromName}”}}"
+msgstr "{n, plural, one {# note copiée depuis « {fromName} »} other {# notes copiées depuis « {fromName} »}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Copied # note} other {Copied # notes}}"
+msgstr "{n, plural, one {# note copiée} other {# notes copiées}}"
 
 #: src/components/doc/DocFindTab.jsx
 msgid "{n, plural, one {Deleted # match on {pages} pages} other {Deleted # matches on {pages} pages}}"
@@ -2345,6 +2381,10 @@ msgstr "{person} a rejoint votre espace de travail — dites bonjour."
 #: src/App.jsx
 msgid "{person} said yes: you can edit “{grantedName}”."
 msgstr "{person} a dit oui : vous pouvez modifier « {grantedName} »."
+
+#: src/components/CanvasSurface.jsx
+msgid "{picked, plural, one {Delete # selected} other {Delete # selected}}"
+msgstr "{picked, plural, one {Supprimer # sélectionné} other {Supprimer # sélectionnés}}"
 
 #: src/App.jsx
 msgid "{placed, plural, one {# file} other {# files}} in {nClusters, plural, one {# cluster} other {# clusters}}"
@@ -8071,6 +8111,14 @@ msgstr "Supprimer {name} ?"
 #: src/components/CanvasSurface.jsx
 msgid "Delete {total} items, including {bn, plural, one {# board} other {# boards}}?\n"
 "\n"
+"You can undo this from the top bar. Anything deleted is recoverable for 30 days."
+msgstr "Supprimer {total} éléments, dont {bn, plural, one {# cluster} other {# clusters}} ?\n"
+"\n"
+"Vous pouvez annuler depuis la barre du haut. Tout ce qui est supprimé reste récupérable pendant 30 jours."
+
+#: src/components/CanvasSurface.jsx
+msgid "Delete {total} items, including {bn, plural, one {# board} other {# boards}}?\n"
+"\n"
 "You can undo this with Cmd+Z. Anything deleted is recoverable for 30 days."
 msgstr "Supprimer {total} éléments, dont {bn, plural, one {# cluster} other {# clusters}} ?\n"
 "\n"
@@ -8084,6 +8132,14 @@ msgstr "Supprimer le compte…"
 #: src/components/toolbar/CanvasBarsA.jsx
 msgid "Delete arrow"
 msgstr "Supprimer la flèche"
+
+#: src/components/CanvasSurface.jsx
+msgid "Delete board \"{name}\" and all its content?\n"
+"\n"
+"You can undo this from the top bar. The board is fully recoverable for 30 days."
+msgstr "Supprimer le cluster « {name} » et tout son contenu ?\n"
+"\n"
+"Vous pouvez annuler depuis la barre du haut. Le cluster reste entièrement récupérable pendant 30 jours."
 
 #: src/components/CanvasSurface.jsx
 msgid "Delete board \"{name}\" and all its content?\n"
@@ -8108,6 +8164,10 @@ msgstr "Supprimer la colonne"
 #: src/components/CanvasComment.jsx
 msgid "Delete comment?"
 msgstr "Supprimer le commentaire ?"
+
+#: src/components/CanvasSurface.jsx
+msgid "Delete drawing"
+msgstr "Supprimer le dessin"
 
 #: src/components/CanvasComment.jsx
 msgid "Delete failed"
@@ -8601,6 +8661,10 @@ msgstr "Double-cliquez pour interagir"
 msgid "Double-sided arrow"
 msgstr "Flèche double"
 
+#: src/components/cards.jsx
+msgid "Double-tap to play"
+msgstr "Appuyez deux fois pour lire"
+
 #: src/lib/activityTray.js
 msgid "download"
 msgstr "téléchargement"
@@ -8808,6 +8872,7 @@ msgstr "Faites glisser pour repositionner"
 msgid "Drag to reposition · click to open"
 msgstr "Faites glisser pour repositionner · cliquez pour ouvrir"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/docExtensions/ImageResizable.js
 msgid "Drag to resize"
 msgstr "Glisser pour redimensionner"
@@ -8823,6 +8888,10 @@ msgstr "Faites glisser pour redimensionner · double-clic pour supprimer cette l
 #: src/components/FilesDock.jsx
 msgid "Drag to resize · drag all the way to fill the screen · double-click to reset"
 msgstr "Faites glisser pour redimensionner · jusqu’au bout pour remplir l’écran · double-clic pour réinitialiser"
+
+#: src/components/CanvasSurface.jsx
+msgid "Drag to rotate"
+msgstr "Glisser pour pivoter"
 
 #: src/components/CanvasSurface.jsx
 msgid "Drag to rotate (shift = 15° steps)"
@@ -22999,6 +23068,7 @@ msgstr "Un cluster a été partagé avec vous en lecture seule."
 msgid "View changed"
 msgstr "Vue modifiée"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 msgid "View full size"
 msgstr "Voir en taille réelle"

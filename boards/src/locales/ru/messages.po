@@ -845,6 +845,22 @@ msgstr "{bn, plural, one {Удалить элементов: {total}, включ
 #: src/components/CanvasSurface.jsx
 msgid "{bn, plural, one {Delete # board and all its content?\n"
 "\n"
+"You can undo this from the top bar. The board is fully recoverable for 30 days.} other {Delete # boards and all their content?\n"
+"\n"
+"You can undo this from the top bar. The boards are fully recoverable for 30 days.}}"
+msgstr "{bn, plural, one {Удалить # кластер и всё его содержимое?\n"
+"\n"
+"Отменить можно на верхней панели. Кластер можно полностью восстановить в течение 30 дней.} few {Удалить # кластера и всё их содержимое?\n"
+"\n"
+"Отменить можно на верхней панели. Кластеры можно полностью восстановить в течение 30 дней.} many {Удалить # кластеров и всё их содержимое?\n"
+"\n"
+"Отменить можно на верхней панели. Кластеры можно полностью восстановить в течение 30 дней.} other {Удалить # кластера и всё их содержимое?\n"
+"\n"
+"Отменить можно на верхней панели. Кластеры можно полностью восстановить в течение 30 дней.}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{bn, plural, one {Delete # board and all its content?\n"
+"\n"
 "You can undo this with Cmd+Z. The board is fully recoverable for 30 days.} other {Delete # boards and all their content?\n"
 "\n"
 "You can undo this with Cmd+Z. The boards are fully recoverable for 30 days.}}"
@@ -1484,6 +1500,14 @@ msgstr "Совладелец «{name}»: {label}."
 msgid "{label}, back to {label2}"
 msgstr "{label}, назад к {label2}"
 
+#: src/components/ctxMenuParts.jsx
+msgid "{label}, back to the canvas menu"
+msgstr "{label}, назад к меню холста"
+
+#: src/components/ctxMenuParts.jsx
+msgid "{label}, back to the card menu"
+msgstr "{label}, назад к меню карточки"
+
 #: src/components/CanvasSurface.jsx
 msgid "{labelled, plural, one {Saved “{name}” with # label.} other {Saved “{name}” with # labels.}}"
 msgstr "{labelled, plural, one {Шаблон «{name}» сохранён с # меткой.} few {Шаблон «{name}» сохранён с # метками.} many {Шаблон «{name}» сохранён с # метками.} other {Шаблон «{name}» сохранён с # метки.}}"
@@ -1839,12 +1863,28 @@ msgid "{n, plural, one {Copied # card from “{fromName}” · ⌘Z undoes} othe
 msgstr "{n, plural, one {Скопирована # карточка из «{fromName}» · ⌘Z отменяет} few {Скопированы # карточки из «{fromName}» · ⌘Z отменяет} many {Скопировано # карточек из «{fromName}» · ⌘Z отменяет} other {Скопированы # карточки из «{fromName}» · ⌘Z отменяет}}"
 
 #: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Copied # card from “{fromName}”} other {Copied # cards from “{fromName}”}}"
+msgstr "{n, plural, one {Скопирована # карточка из «{fromName}»} few {Скопированы # карточки из «{fromName}»} many {Скопировано # карточек из «{fromName}»} other {Скопированы # карточки из «{fromName}»}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Copied # card} other {Copied # cards}}"
+msgstr "{n, plural, one {Скопирована # карточка} few {Скопированы # карточки} many {Скопировано # карточек} other {Скопированы # карточки}}"
+
+#: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Copied # note · ⌘Z undoes} other {Copied # notes · ⌘Z undoes}}"
 msgstr "{n, plural, one {Скопирована # заметка · ⌘Z отменяет} few {Скопированы # заметки · ⌘Z отменяет} many {Скопировано # заметок · ⌘Z отменяет} other {Скопированы # заметки · ⌘Z отменяет}}"
 
 #: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Copied # note from “{fromName}” · ⌘Z undoes} other {Copied # notes from “{fromName}” · ⌘Z undoes}}"
 msgstr "{n, plural, one {Скопирована # заметка из «{fromName}» · ⌘Z отменяет} few {Скопированы # заметки из «{fromName}» · ⌘Z отменяет} many {Скопировано # заметок из «{fromName}» · ⌘Z отменяет} other {Скопированы # заметки из «{fromName}» · ⌘Z отменяет}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Copied # note from “{fromName}”} other {Copied # notes from “{fromName}”}}"
+msgstr "{n, plural, one {Скопирована # заметка из «{fromName}»} few {Скопированы # заметки из «{fromName}»} many {Скопировано # заметок из «{fromName}»} other {Скопированы # заметки из «{fromName}»}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Copied # note} other {Copied # notes}}"
+msgstr "{n, plural, one {Скопирована # заметка} few {Скопированы # заметки} many {Скопировано # заметок} other {Скопированы # заметки}}"
 
 #: src/components/doc/DocFindTab.jsx
 msgid "{n, plural, one {Deleted # match on {pages} pages} other {Deleted # matches on {pages} pages}}"
@@ -2357,6 +2397,10 @@ msgstr "{person} теперь в вашем рабочем пространст�
 #: src/App.jsx
 msgid "{person} said yes: you can edit “{grantedName}”."
 msgstr "{person}: согласие получено, вы можете редактировать «{grantedName}»."
+
+#: src/components/CanvasSurface.jsx
+msgid "{picked, plural, one {Delete # selected} other {Delete # selected}}"
+msgstr "{picked, plural, one {Удалить выбранное (#)} few {Удалить выбранное (#)} many {Удалить выбранное (#)} other {Удалить выбранное (#)}}"
 
 #: src/App.jsx
 msgid "{placed, plural, one {# file} other {# files}} in {nClusters, plural, one {# cluster} other {# clusters}}"
@@ -8083,6 +8127,14 @@ msgstr "Удалить «{name}»?"
 #: src/components/CanvasSurface.jsx
 msgid "Delete {total} items, including {bn, plural, one {# board} other {# boards}}?\n"
 "\n"
+"You can undo this from the top bar. Anything deleted is recoverable for 30 days."
+msgstr "Удалить элементов: {total}, включая {bn, plural, one {# кластер} few {# кластера} many {# кластеров} other {# кластера}}?\n"
+"\n"
+"Отменить можно на верхней панели. Всё удалённое можно восстановить в течение 30 дней."
+
+#: src/components/CanvasSurface.jsx
+msgid "Delete {total} items, including {bn, plural, one {# board} other {# boards}}?\n"
+"\n"
 "You can undo this with Cmd+Z. Anything deleted is recoverable for 30 days."
 msgstr "Удалить элементов: {total}, включая {bn, plural, one {# кластер} few {# кластера} many {# кластеров} other {# кластера}}?\n"
 "\n"
@@ -8096,6 +8148,14 @@ msgstr "Удалить аккаунт…"
 #: src/components/toolbar/CanvasBarsA.jsx
 msgid "Delete arrow"
 msgstr "Удалить стрелку"
+
+#: src/components/CanvasSurface.jsx
+msgid "Delete board \"{name}\" and all its content?\n"
+"\n"
+"You can undo this from the top bar. The board is fully recoverable for 30 days."
+msgstr "Удалить кластер «{name}» и всё его содержимое?\n"
+"\n"
+"Отменить можно на верхней панели. Кластер можно полностью восстановить в течение 30 дней."
 
 #: src/components/CanvasSurface.jsx
 msgid "Delete board \"{name}\" and all its content?\n"
@@ -8120,6 +8180,10 @@ msgstr "Удалить столбец"
 #: src/components/CanvasComment.jsx
 msgid "Delete comment?"
 msgstr "Удалить комментарий?"
+
+#: src/components/CanvasSurface.jsx
+msgid "Delete drawing"
+msgstr "Удалить рисунок"
 
 #: src/components/CanvasComment.jsx
 msgid "Delete failed"
@@ -8613,6 +8677,10 @@ msgstr "Дважды щёлкните, чтобы взаимодействова
 msgid "Double-sided arrow"
 msgstr "Двусторонняя стрелка"
 
+#: src/components/cards.jsx
+msgid "Double-tap to play"
+msgstr "Воспроизвести двойным касанием"
+
 #: src/lib/activityTray.js
 msgid "download"
 msgstr "скачивание"
@@ -8820,6 +8888,7 @@ msgstr "Перетащите, чтобы переместить"
 msgid "Drag to reposition · click to open"
 msgstr "Перетащите, чтобы переместить · нажмите, чтобы открыть"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/docExtensions/ImageResizable.js
 msgid "Drag to resize"
 msgstr "Изменить размер"
@@ -8835,6 +8904,10 @@ msgstr "Перетащите, чтобы изменить размер · дво
 #: src/components/FilesDock.jsx
 msgid "Drag to resize · drag all the way to fill the screen · double-click to reset"
 msgstr "Потяните, чтобы изменить размер · потяните до упора, чтобы занять весь экран · двойной щелчок — сброс"
+
+#: src/components/CanvasSurface.jsx
+msgid "Drag to rotate"
+msgstr "Повернуть"
 
 #: src/components/CanvasSurface.jsx
 msgid "Drag to rotate (shift = 15° steps)"
@@ -23011,6 +23084,7 @@ msgstr "Вам открыли доступ к просмотру кластер�
 msgid "View changed"
 msgstr "Вид изменён"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 msgid "View full size"
 msgstr "Показать в полном размере"

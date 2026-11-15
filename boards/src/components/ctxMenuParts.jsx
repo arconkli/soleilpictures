@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from '../lib/icons.js';
 import { shortcutAria, shortcutCaps } from '../lib/looks.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { shellOf } from '../lib/deviceShell.js';
+import { t as tr, ph } from '@lingui/core/macro';
 
 // The parts the right-click menus share (CardContextMenu.jsx,
 // BackgroundContextMenu.jsx): a row's shortcut, the caret of a row that opens
@@ -157,13 +158,13 @@ export function useCtxStep(open, items, menuRef) {
 }
 
 // A stepped-in submenu, in its menu's box: ‹ and its name, a hairline, its
-// rows. `root` names the menu ‹ goes back to ("card menu", "canvas menu").
+// rows. `root` names the menu ‹ goes back to: 'card' or 'canvas'.
 export function CtxStepView({ item, root, onBack, onClose, claimFire = () => true }) {
   const choose = (sub) => { if (!claimFire()) return; if (sub.danger) haptic('delete'); onClose(); sub.run && sub.run(); };
   return (
     <>
       <button className="ctx-item is-back" role="menuitem"
-              aria-label={`${item.label}, back to ${root}`}
+              aria-label={root === 'card' ? tr`${ph({ label: item.label })}, back to the card menu` : tr`${ph({ label: item.label })}, back to the canvas menu`}
               onClick={onBack}>
         <Icon as={ChevronLeft} size={20} weight="regular" className="ctx-back-chevron" aria-hidden="true" />
         <span className="ctx-label">{item.label}</span>

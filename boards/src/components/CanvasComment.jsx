@@ -261,16 +261,16 @@ function CanvasCommentDraft({ canvasPos, onSubmit, onCancel, bar = false }) {
                     rows={1}
                     enterKeyHint="send"
                     value={body}
-                    placeholder="Add a comment…"
+                    placeholder={tr`Add a comment…`}
                     onChange={(e) => setBody(e.target.value)}
                     onKeyDown={onInputKeyDown} />
         </div>
         <button type="button"
                 className="canvas-comment-draft-cancel"
-                onClick={onCancel}>Cancel</button>
+                onClick={onCancel}><Trans>Cancel</Trans></button>
         <button type="submit"
                 className="canvas-comment-draft-post"
-                disabled={!body.trim() || busy}>{busy ? 'Posting…' : 'Post'}</button>
+                disabled={!body.trim() || busy}>{busy ? tr`Posting…` : tr`Post`}</button>
       </form>,
       document.body,
     );

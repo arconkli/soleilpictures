@@ -839,6 +839,16 @@ msgstr "{bn, plural, other {항목 {total}개를 삭제할까요? 클러스터 #
 #: src/components/CanvasSurface.jsx
 msgid "{bn, plural, one {Delete # board and all its content?\n"
 "\n"
+"You can undo this from the top bar. The board is fully recoverable for 30 days.} other {Delete # boards and all their content?\n"
+"\n"
+"You can undo this from the top bar. The boards are fully recoverable for 30 days.}}"
+msgstr "{bn, plural, other {클러스터 #개와 그 안의 모든 내용을 삭제할까요?\n"
+"\n"
+"상단 바에서 실행 취소할 수 있어요. 클러스터는 30일 동안 완전히 복구할 수 있어요.}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{bn, plural, one {Delete # board and all its content?\n"
+"\n"
 "You can undo this with Cmd+Z. The board is fully recoverable for 30 days.} other {Delete # boards and all their content?\n"
 "\n"
 "You can undo this with Cmd+Z. The boards are fully recoverable for 30 days.}}"
@@ -1466,6 +1476,14 @@ msgstr "{label}님이 이제 “{name}”의 공동 소유자예요."
 msgid "{label}, back to {label2}"
 msgstr "{label}, 뒤로: {label2}"
 
+#: src/components/ctxMenuParts.jsx
+msgid "{label}, back to the canvas menu"
+msgstr "{label}, 캔버스 메뉴로 돌아가기"
+
+#: src/components/ctxMenuParts.jsx
+msgid "{label}, back to the card menu"
+msgstr "{label}, 카드 메뉴로 돌아가기"
+
 #: src/components/CanvasSurface.jsx
 msgid "{labelled, plural, one {Saved “{name}” with # label.} other {Saved “{name}” with # labels.}}"
 msgstr "{labelled, plural, other {라벨 #개와 함께 저장했어요: “{name}”}}"
@@ -1821,12 +1839,28 @@ msgid "{n, plural, one {Copied # card from “{fromName}” · ⌘Z undoes} othe
 msgstr "{n, plural, other {“{fromName}”에서 카드 #장을 복사했어요 · ⌘Z로 실행 취소}}"
 
 #: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Copied # card from “{fromName}”} other {Copied # cards from “{fromName}”}}"
+msgstr "{n, plural, other {“{fromName}”에서 카드 #장을 복사했어요}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Copied # card} other {Copied # cards}}"
+msgstr "{n, plural, other {카드 #장을 복사했어요}}"
+
+#: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Copied # note · ⌘Z undoes} other {Copied # notes · ⌘Z undoes}}"
 msgstr "{n, plural, other {메모 #개를 복사했어요 · ⌘Z로 실행 취소}}"
 
 #: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Copied # note from “{fromName}” · ⌘Z undoes} other {Copied # notes from “{fromName}” · ⌘Z undoes}}"
 msgstr "{n, plural, other {“{fromName}”에서 메모 #개를 복사했어요 · ⌘Z로 실행 취소}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Copied # note from “{fromName}”} other {Copied # notes from “{fromName}”}}"
+msgstr "{n, plural, other {“{fromName}”에서 메모 #개를 복사했어요}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Copied # note} other {Copied # notes}}"
+msgstr "{n, plural, other {메모 #개를 복사했어요}}"
 
 #: src/components/doc/DocFindTab.jsx
 msgid "{n, plural, one {Deleted # match on {pages} pages} other {Deleted # matches on {pages} pages}}"
@@ -2339,6 +2373,10 @@ msgstr "{person}님이 워크스페이스에 참여했어요. 인사해 보세�
 #: src/App.jsx
 msgid "{person} said yes: you can edit “{grantedName}”."
 msgstr "{person}님이 수락했어요. 이제 “{grantedName}” 클러스터를 편집할 수 있어요."
+
+#: src/components/CanvasSurface.jsx
+msgid "{picked, plural, one {Delete # selected} other {Delete # selected}}"
+msgstr "{picked, plural, other {선택한 #개 삭제}}"
 
 #: src/App.jsx
 msgid "{placed, plural, one {# file} other {# files}} in {nClusters, plural, one {# cluster} other {# clusters}}"
@@ -8065,6 +8103,14 @@ msgstr "{name} 삭제할까요?"
 #: src/components/CanvasSurface.jsx
 msgid "Delete {total} items, including {bn, plural, one {# board} other {# boards}}?\n"
 "\n"
+"You can undo this from the top bar. Anything deleted is recoverable for 30 days."
+msgstr "항목 {total}개를 삭제할까요? 그중 {bn, plural, other {클러스터 #개}}가 포함돼 있어요.\n"
+"\n"
+"상단 바에서 실행 취소할 수 있어요. 삭제한 항목은 30일 동안 복구할 수 있어요."
+
+#: src/components/CanvasSurface.jsx
+msgid "Delete {total} items, including {bn, plural, one {# board} other {# boards}}?\n"
+"\n"
 "You can undo this with Cmd+Z. Anything deleted is recoverable for 30 days."
 msgstr "항목 {total}개를 삭제할까요? 그중 {bn, plural, other {클러스터 #개}}가 포함돼 있어요.\n"
 "\n"
@@ -8078,6 +8124,14 @@ msgstr "계정 삭제…"
 #: src/components/toolbar/CanvasBarsA.jsx
 msgid "Delete arrow"
 msgstr "화살표 삭제"
+
+#: src/components/CanvasSurface.jsx
+msgid "Delete board \"{name}\" and all its content?\n"
+"\n"
+"You can undo this from the top bar. The board is fully recoverable for 30 days."
+msgstr "“{name}” 클러스터와 그 안의 모든 내용을 삭제할까요?\n"
+"\n"
+"상단 바에서 실행 취소할 수 있어요. 클러스터는 30일 동안 완전히 복구할 수 있어요."
 
 #: src/components/CanvasSurface.jsx
 msgid "Delete board \"{name}\" and all its content?\n"
@@ -8102,6 +8156,10 @@ msgstr "열 삭제"
 #: src/components/CanvasComment.jsx
 msgid "Delete comment?"
 msgstr "댓글을 삭제할까요?"
+
+#: src/components/CanvasSurface.jsx
+msgid "Delete drawing"
+msgstr "그리기 삭제"
 
 #: src/components/CanvasComment.jsx
 msgid "Delete failed"
@@ -8595,6 +8653,10 @@ msgstr "더블클릭해서 사용하기"
 msgid "Double-sided arrow"
 msgstr "양쪽 화살표"
 
+#: src/components/cards.jsx
+msgid "Double-tap to play"
+msgstr "두 번 탭해서 재생"
+
 #: src/lib/activityTray.js
 msgid "download"
 msgstr "다운로드"
@@ -8802,6 +8864,7 @@ msgstr "끌어서 위치 이동"
 msgid "Drag to reposition · click to open"
 msgstr "끌어서 위치 이동 · 클릭해서 열기"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/docExtensions/ImageResizable.js
 msgid "Drag to resize"
 msgstr "드래그해서 크기 조절"
@@ -8817,6 +8880,10 @@ msgstr "드래그해서 크기 조절 · 더블클릭하면 이 선 제거"
 #: src/components/FilesDock.jsx
 msgid "Drag to resize · drag all the way to fill the screen · double-click to reset"
 msgstr "끌어서 크기 조절 · 끝까지 끌면 화면을 가득 채워요 · 더블클릭하면 초기화"
+
+#: src/components/CanvasSurface.jsx
+msgid "Drag to rotate"
+msgstr "끌어서 회전"
 
 #: src/components/CanvasSurface.jsx
 msgid "Drag to rotate (shift = 15° steps)"
@@ -22993,6 +23060,7 @@ msgstr "클러스터의 보기 권한이 나와 공유됐어요."
 msgid "View changed"
 msgstr "보기 변경됨"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/cards.jsx
 msgid "View full size"
 msgstr "원래 크기로 보기"
