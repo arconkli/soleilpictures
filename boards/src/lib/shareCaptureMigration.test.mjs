@@ -127,7 +127,9 @@ test("0741's channel is 0708's with one arm added, right after the share link's,
   assert.ok(before && now, 'defined in both files');
   assert.equal(before.split(SHARE_ARM).length, 2, "0708's share link arm is there exactly once");
   assert.equal(now, before.replace(SHARE_ARM, SHARE_ARM + FILE_ARM));
-  assert.equal(latestDefinition('derive_acquisition_channel').file, FILE_0741);
+  // 0888 restates it with the mail and invite arms; acquisitionInviteEmail.test.mjs
+  // holds that one to 0741's.
+  assert.equal(latestDefinition('derive_acquisition_channel').file, '0888_channel_email_and_invite.sql');
 });
 
 test("0741's proof keeps 0708's asserts word for word and proves the new arm", () => {
