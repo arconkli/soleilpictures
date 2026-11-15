@@ -24,12 +24,12 @@ import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { SEO_PROBE_CONTRACT, SEO_PROBE_UNPINNABLE, PROBE_ORIGIN } from './seoProbeContract.js';
+import { SEO_PROBE_CONTRACT, SEO_PROBE_UNPINNABLE, SEO_PROBE_UNWATCHED, PROBE_ORIGIN } from './seoProbeContract.js';
 import { CHANGELOG_HTML } from './changelogCrawlable.js';
 import { docsHtmlAsset, docsHtmlFrom } from './docsiteHtml.js';
 import { buildListicleCrawlableHtml } from './seoListicleHtml.js';
-import { getListicleSpec, SEO_LISTICLE_PATHS } from './seoListicles.js';
-import { SEO_LANDING_PATHS } from './seoLanding.js';
+import { getListicleSpec, SEO_LISTICLE_PAGES, SEO_LISTICLE_PATHS } from './seoListicles.js';
+import { getLandingSpec, SEO_LANDING_PAGES, SEO_LANDING_LISTED, SEO_LANDING_PATHS } from './seoLanding.js';
 import { buildPricingCrawlableHtml } from './pricingCrawlable.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -39,6 +39,13 @@ const read = (p) => readFileSync(resolve(BOARDS, p), 'utf8');
 // Every route the sitemap is expected to carry. `/changelog` is not in either
 // registry — it is a hand-written branch in worker.js — so it is added here.
 const ROUTES = [...SEO_LANDING_PATHS, ...SEO_LISTICLE_PATHS, '/changelog'];
+
+// The search pages production answers 200 for: what the sitemap lists. A held
+// page (the template store) has a spec and still 404s, so it is not here.
+const LISTED = new Set([...SEO_LANDING_LISTED.map((p) => p.path), ...SEO_LISTICLE_PATHS]);
+
+// The DB row's kind. Every row was 'body' before 0883, so that is the default.
+const kindOf = (row) => row.kind || 'body';
 
 // Resolve a contract row to the bytes a crawler receives for its URL. Each arm
 // is the SAME builder the Worker calls, not a copy of it — a test against a
@@ -67,6 +74,20 @@ function resolveSource(source) {
       return { text: read(source.path), what: `boards/${source.path}` };
     case 'route':
       return { text: ROUTES.join('\n'), what: 'the landing/listicle route registries' };
+    case 'title': {
+      // worker.js: .on('title', new SetText(spec.title)) for a landing page and
+      // the same with the listicle spec for a /best page.
+      const spec = getLandingSpec(source.path) || getListicleSpec(source.path);
+      assert.ok(spec, `no landing or listicle spec for ${source.path} — the page itself is gone`);
+      return { text: spec.title, what: `the title of ${source.path} (its spec's \`title\`)` };
+    }
+    case 'status':
+      // The prober compares the HTTP status. Production answers 200 for a page
+      // it lists and 404 for a spec that is retired or held.
+      return {
+        text: LISTED.has(source.path) ? '200' : '',
+        what: `the pages production lists (SEO_LANDING_LISTED, SEO_LISTICLE_PATHS): ${source.path} is not one`,
+      };
     default:
       throw new Error(`unknown contract source kind: ${source.kind}`);
   }
@@ -132,7 +153,89 @@ test('contract rows are well-formed and unambiguous', () => {
     assert.ok(row.expected?.trim(), `id=${row.id}: empty expected string`);
     // A one-word expectation is not evidence a crawler got the real page —
     // "Changelog" is in the <title> of a challenge page too.
-    assert.ok(row.expected.length >= 8, `id=${row.id}: ${JSON.stringify(row.expected)} is too short to prove anything`);
+    // A status row's expected IS the status code, so the length rule is for
+    // the rows that assert words.
+    if (kindOf(row) !== 'status') {
+      assert.ok(row.expected.length >= 8, `id=${row.id}: ${JSON.stringify(row.expected)} is too short to prove anything`);
+    }
+    assert.ok(['body', 'title', 'status'].includes(kindOf(row)), `id=${row.id}: unknown kind ${row.kind}`);
+    // A title or status row resolves against the page it is filed under.
+    if (kindOf(row) !== 'body') {
+      assert.equal(row.source.kind, kindOf(row), `id=${row.id}: a ${kindOf(row)} row needs a ${kindOf(row)} source`);
+      assert.equal(row.source.path, row.path, `id=${row.id}: its source must be its own page`);
+    }
+    if (kindOf(row) === 'status') {
+      assert.equal(row.expected, '200', `id=${row.id}: only "the page loads" (200) is mirrored here`);
+    }
+    if (kindOf(row) === 'title') {
+      // The prober reads the <title> as served, where HTMLRewriter has escaped
+      // & < > — "Simpler & Free" arrives as "Simpler &amp; Free". A typographic
+      // apostrophe is one keystroke from a straight one in a retitle.
+      assert.ok(!/[&<>'’]/.test(row.expected),
+        `id=${row.id}: ${JSON.stringify(row.expected)} carries a character the served <title> escapes or a retitle swaps`);
+    }
+  }
+});
+
+// ── No search page ships unwatched ──────────────────────────────────────────
+
+test('every landing and listicle page has a prober row or a stated reason', () => {
+  // 0883 exists because twelve search pages had no row at all: a page could
+  // 404 or be served the bare app shell and nothing would say so. A new spec
+  // now needs a row in seo_health_expectations (a pinned-id migration of the
+  // 0883 shape) mirrored in the contract, in the same commit.
+  const watched = new Set(
+    SEO_PROBE_CONTRACT.filter((r) => kindOf(r) !== 'body').map((r) => r.path),
+  );
+  const unwatched = new Map(SEO_PROBE_UNWATCHED.map((u) => [u.path, u]));
+
+  for (const page of [...SEO_LANDING_PAGES, ...SEO_LISTICLE_PAGES]) {
+    // A held page 404s in production on purpose (the template store), so a
+    // 200 row for it would be red from the first run. It gets its rows the day
+    // it is listed, and this test asks for them then.
+    if (!LISTED.has(page.path)) continue;
+    assert.ok(
+      watched.has(page.path) || unwatched.has(page.path),
+      `${page.path} has no row in seo_health_expectations: nothing watches it in production.\n`
+      + '  Add a status row (200) and a title row in a migration that pins their ids (0883 is the shape),\n'
+      + '  then mirror both in SEO_PROBE_CONTRACT (boards/src/lib/seoProbeContract.js).',
+    );
+  }
+
+  for (const u of SEO_PROBE_UNWATCHED) {
+    assert.ok(u.why?.trim(), `${u.path}: an unwatched page must say why`);
+    assert.ok(LISTED.has(u.path), `${u.path} is declared unwatched but production does not list it — drop the entry`);
+    assert.ok(!watched.has(u.path), `${u.path} is declared unwatched and has a row in the contract — drop the entry`);
+  }
+});
+
+test('the twelve pages of 0883 each carry a status row and a title row', () => {
+  const added = SEO_PROBE_CONTRACT.filter((r) => r.id >= 86 && r.id <= 109);
+  assert.equal(added.length, 24, '0883 pins ids 86 to 109');
+  const byPath = new Map();
+  for (const r of added) byPath.set(r.path, [...(byPath.get(r.path) || []), kindOf(r)]);
+  assert.equal(byPath.size, 12);
+  for (const [path, kinds] of byPath) {
+    assert.deepEqual(kinds.sort(), ['status', 'title'], `${path}: one status row and one title row`);
+  }
+});
+
+test('the contract and migration 0883 pin the same rows', () => {
+  // The migration is what production gets; the contract is what this repo
+  // checks. They are typed twice, so they are compared here.
+  const sql = readFileSync(resolve(BOARDS, '../supabase/migrations/0883_seo_health_twelve_pages.sql'), 'utf8');
+  const insert = sql.slice(sql.indexOf('from (values'), sql.indexOf(') as v(id, url, check_name, kind, expected)'));
+  const pinned = [...insert.matchAll(/\(\s*(\d+),\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']+)'\)/g)]
+    .map(([, id, url, check, kind, expected]) => ({ id: Number(id), url, check, kind, expected }));
+  assert.equal(pinned.length, 24, 'could not read 24 rows out of 0883');
+  for (const p of pinned) {
+    const row = SEO_PROBE_CONTRACT.find((r) => r.id === p.id);
+    assert.ok(row, `0883 pins id=${p.id} and the contract has no such row`);
+    assert.deepEqual(
+      { url: PROBE_ORIGIN + row.path, check: row.check, kind: kindOf(row), expected: row.expected },
+      { url: p.url, check: p.check, kind: p.kind, expected: p.expected },
+      `id=${p.id}: the contract and 0883 disagree`,
+    );
   }
 });
 
