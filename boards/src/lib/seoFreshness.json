@@ -1,0 +1,142 @@
+{
+  "pages": {
+    "/best/milanote-alternatives": {
+      "hash": "951ec440be55b4aa535d",
+      "updated": "2026-11-14"
+    },
+    "/best/mood-board-apps": {
+      "hash": "c9494342344711ea30fd",
+      "updated": "2026-11-14"
+    },
+    "/best/pureref-alternatives": {
+      "hash": "7e90f94d847412cc6301",
+      "updated": "2026-10-05"
+    },
+    "/best/storyboard-software": {
+      "hash": "8f312dd8874ab99aa071",
+      "updated": "2026-10-02"
+    },
+    "/scout": {
+      "hash": "05edea65c71cc0dae159",
+      "updated": "2026-10-02"
+    },
+    "/templates": {
+      "hash": "e979b394ea4ef698de0a",
+      "updated": "2026-08-28"
+    },
+    "/tools/ai-mood-board-maker": {
+      "hash": "d998c3c04d35d0a6b989",
+      "updated": "2026-11-14"
+    },
+    "/tools/cinematography-lookbook": {
+      "hash": "62128219b699e2e28887",
+      "updated": "2026-10-02"
+    },
+    "/tools/costume-design-mood-board": {
+      "hash": "28e64449748aa1415c96",
+      "updated": "2026-10-02"
+    },
+    "/tools/directors-treatment": {
+      "hash": "6eea96a69920f263f8b4",
+      "updated": "2026-11-14"
+    },
+    "/tools/free-mood-board-maker": {
+      "hash": "1e0bdc1862515e333ea4",
+      "updated": "2026-11-14"
+    },
+    "/tools/look-book-maker": {
+      "hash": "24b57d60b909259e55ec",
+      "updated": "2026-10-20"
+    },
+    "/tools/mood-board-maker": {
+      "hash": "7963ceb82c90318487de",
+      "updated": "2026-10-20"
+    },
+    "/tools/production-design-mood-board": {
+      "hash": "d0d55f5b6391ebe0d7c2",
+      "updated": "2026-10-02"
+    },
+    "/tools/reference-board-maker": {
+      "hash": "af901e248a830041b863",
+      "updated": "2026-10-20"
+    },
+    "/tools/shared-reference-board": {
+      "hash": "190d2d57974675cb81d5",
+      "updated": "2026-10-20"
+    },
+    "/tools/shot-list-maker": {
+      "hash": "ee467adc5dd4fda375e7",
+      "updated": "2026-10-20"
+    },
+    "/tools/storyboard-maker": {
+      "hash": "94ab067df5e67b76a9aa",
+      "updated": "2026-10-02"
+    },
+    "/tools/video-reference-board": {
+      "hash": "8708399ab49d3b8cfcb2",
+      "updated": "2026-10-20"
+    },
+    "/use-cases": {
+      "hash": "aaa04d7063c88d6f284d",
+      "updated": "2026-10-02"
+    },
+    "/vs/eagle": {
+      "hash": "5d562c440b20458c1d50",
+      "updated": "2026-10-20"
+    },
+    "/vs/google-drive": {
+      "hash": "200f9f5d3da5a8f21aad",
+      "updated": "2026-10-02"
+    },
+    "/vs/milanote": {
+      "hash": "46d0cbaa6467c3197317",
+      "updated": "2026-10-02"
+    },
+    "/vs/miro": {
+      "hash": "b1f2bba2b1ae0e78270d",
+      "updated": "2026-10-20"
+    },
+    "/vs/pureref": {
+      "hash": "1c0801c8ec1ef0a0dd6d",
+      "updated": "2026-10-02"
+    },
+    "/vs/storyflow": {
+      "hash": "4b3af761c38bde2a93ad",
+      "updated": "2026-11-14"
+    }
+  },
+  "log": [
+    {
+      "date": "2026-11-15",
+      "paths": [
+        "/best/milanote-alternatives",
+        "/best/mood-board-apps",
+        "/best/pureref-alternatives",
+        "/best/storyboard-software",
+        "/scout",
+        "/templates",
+        "/tools/ai-mood-board-maker",
+        "/tools/cinematography-lookbook",
+        "/tools/costume-design-mood-board",
+        "/tools/directors-treatment",
+        "/tools/free-mood-board-maker",
+        "/tools/look-book-maker",
+        "/tools/mood-board-maker",
+        "/tools/production-design-mood-board",
+        "/tools/reference-board-maker",
+        "/tools/shared-reference-board",
+        "/tools/shot-list-maker",
+        "/tools/storyboard-maker",
+        "/tools/video-reference-board",
+        "/use-cases",
+        "/vs/eagle",
+        "/vs/google-drive",
+        "/vs/milanote",
+        "/vs/miro",
+        "/vs/pureref",
+        "/vs/storyflow"
+      ],
+      "reason": "baseline"
+    }
+  ]
+}
