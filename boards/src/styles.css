@@ -3,7 +3,9 @@
    active sidebar bar). Backgrounds and text stay neutral so the canvas
    doesn't read as warm-tinted. */
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap');
+/* JetBrains Mono (--font-mono) is loaded by index.html, not by an @import here:
+   an import in this file is found only after the file arrives and holds the
+   first paint until Google answers. lib/fontLoading.test.mjs keeps it out. */
 
 /* Impact covers Greek and Cyrillic, so in the old stack brandon-grotesque -> Impact,
    Russian and Greek display text fell into Impact. This alias exposes Impact only for the
