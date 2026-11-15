@@ -20,7 +20,10 @@
 --
 --   * No re-raise while one is open. A 'discovery' alert is not raised again
 --     while an earlier one with the same dedupe key (discovery:<name>) has not
---     been marked Seen. Mark it Seen and the rule raises a fresh row the next
+--     been marked Seen and is less than 7 days old. An unseen row holds the
+--     rule for those 7 days and keeps the latest text (its body is rewritten
+--     each morning the rule is still true); after 7 days the rule raises a
+--     fresh row. Mark it Seen and the rule raises a fresh row the next
 --     morning it is still true. Only rows of kind 'discovery' count as open:
 --     the older rows filed as 'email_health' are left as they are, none of
 --     them marked as seen, and they do not hold a new alert back. So after
@@ -67,11 +70,21 @@ begin
   if v_page then
     perform public.ops_alert_raise('email_health', p_name, p_message, true,
       'discovery:' || p_name, interval '20 hours');
-  -- 0886: a pipeline rule has its own kind, and is one row until it is seen.
-  elsif not exists (select 1 from public.ops_alerts a
-                     where a.dedupe_key = 'discovery:' || p_name
-                       and a.kind = 'discovery'
-                       and a.acked_at is null) then
+  -- 0886: a pipeline rule has its own kind, and is one row until it is seen,
+  -- for at most 7 days. An unseen row younger than that keeps the latest text
+  -- and nothing new is raised; an older one no longer holds the rule.
+  elsif exists (select 1 from public.ops_alerts a
+                 where a.dedupe_key = 'discovery:' || p_name
+                   and a.kind = 'discovery'
+                   and a.acked_at is null
+                   and a.created_at > now() - interval '7 days') then
+    update public.ops_alerts a
+       set body = left(coalesce(p_message, ''), 4000)
+     where a.dedupe_key = 'discovery:' || p_name
+       and a.kind = 'discovery'
+       and a.acked_at is null
+       and a.created_at > now() - interval '7 days';
+  else
     perform public.ops_alert_raise('discovery', p_name, p_message, false,
       'discovery:' || p_name, interval '20 hours');
   end if;

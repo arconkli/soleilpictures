@@ -7,7 +7,8 @@
 //   * the email rules still page, under the kind the alert email's subject is
 //     chosen by, and are never held back by an older unseen row;
 //   * a pipeline rule is filed under 'discovery' and is not raised again while
-//     one with the same dedupe key is unseen;
+//     one with the same dedupe key is unseen and under 7 days old, which
+//     instead takes the latest text; after 7 days a fresh row is raised;
 //   * the client_errors row (Admin > Issues, the Overview markers) is untouched;
 //   * admin_markers is 0372's body with the new kind left out, nothing else;
 //   * Settings > Security lists alerts of any kind, so the new one shows there.
@@ -43,11 +44,16 @@ test('the four email rules page under email_health, on the 20-hour window alone'
   assert.doesNotMatch(paging, /acked_at/, 'a page never waits on an older alert being seen');
 });
 
-test('a pipeline rule is filed under discovery and is one row until it is seen', () => {
+test('a pipeline rule is filed under discovery and is one row until it is seen, for 7 days', () => {
   const body = norm(latestDefinition('_discovery_alert').body);
+  const open = "a.dedupe_key = 'discovery:' || p_name and a.kind = 'discovery' and a.acked_at is null and a.created_at > now() - interval '7 days'";
+  // An unseen row under 7 days old holds the rule and keeps the latest text.
+  assert.ok(body.includes(`elsif exists (select 1 from public.ops_alerts a where ${open}) then update public.ops_alerts a set body = left(coalesce(p_message, ''), 4000) where ${open};`));
+  // Otherwise (seen, or older than 7 days) a fresh row is raised.
   assert.match(body,
-    /elsif not exists \(select 1 from public\.ops_alerts a where a\.dedupe_key = 'discovery:' \|\| p_name and a\.kind = 'discovery' and a\.acked_at is null\) then perform public\.ops_alert_raise\('discovery', p_name, p_message, false, 'discovery:' \|\| p_name, interval '20 hours'\); end if;/);
+    /else perform public\.ops_alert_raise\('discovery', p_name, p_message, false, 'discovery:' \|\| p_name, interval '20 hours'\); end if;/);
   assert.equal((body.match(/ops_alert_raise\(/g) || []).length, 2, 'one raise per branch');
+  assert.equal((body.match(/update public\.ops_alerts/g) || []).length, 1, 'the text refresh is the only update');
 });
 
 test('the client_errors row is written exactly as before', () => {
@@ -70,7 +76,8 @@ test('admin_markers is 0372’s body with discovery left out of the ops markers'
 });
 
 test('0886 writes no rows, drops nothing, and proves its grants', () => {
-  assert.doesNotMatch(code, /^\s*(update|delete)\s/im);
+  assert.doesNotMatch(code, /^\s*delete\s/im);
+  assert.equal((code.match(/^\s*update\s/gim) || []).length, 1, 'the only update is the text refresh inside the function');
   assert.equal((code.match(/insert into/g) || []).length, 1, 'the only insert is the client_errors row inside the function');
   assert.doesNotMatch(code, /drop\s+function/i);
   assert.match(src, /^begin;$/m);
