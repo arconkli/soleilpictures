@@ -5282,16 +5282,12 @@ body[data-doc-overlay='1'] .cmdk-bg { z-index: 2147483604; }
   flex: 0 1 auto;
   margin-block: auto;
 }
-/* Clipped-text cue: when a note is pinned shorter than its text, fade the
-   bottom edge instead of hiding the rest behind an invisible scroll, and
-   surface a one-click "Show all" chip that fits the height back to the
-   content. The chip is hover-revealed on fine pointers and always visible
-   on touch (no hover there). */
+/* Clipped-text cue: when a note is pinned shorter than its text, surface a
+   one-click "Show all" chip that fits the height back to the content. The
+   text stays crisp to the note's edge: the old bottom fade read as a blur
+   (owner, 2026-11-15). The chip is hover-revealed on fine pointers and
+   always visible on touch (no hover there). */
 .note { position: relative; }
-.note.is-overflowing:not(.is-editing) .note-body {
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
-          mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
-}
 .note-more-chip {
   position: absolute;
   right: 8px; bottom: 6px;
