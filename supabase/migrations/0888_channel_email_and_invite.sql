@@ -35,6 +35,8 @@
 -- this is applied: mail-app arrivals from a search channel to 'email', and
 -- once 0889 has marked them, invited direct arrivals to 'invite'.
 
+begin;
+
 set local lock_timeout = '3s';
 
 -- ── 1. The channel ───────────────────────────────────────────────────────────
@@ -238,3 +240,5 @@ begin
   assert public.derive_acquisition_channel('{"utm_source":"public_board","invited":true}'::jsonb) = 'public_board', 'a public cluster still wins';
   assert public.derive_acquisition_channel('{"gclid":"x","invited":true}'::jsonb) = 'google_ads', 'a paid click still wins';
 end $proof$;
+
+commit;
