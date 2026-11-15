@@ -265,11 +265,34 @@ const PAGES = [
   // The three docs pages are docsLinks, not links in the prose: section bodies
   // are escaped text in both renderers, and docsLinks is the one field both
   // draw as real links with the same words.
+  //
+  // TITLE PRE-REGISTERED 2026-11-14 (CLAUDE.md ritual). The title named Claude
+  // alone ("AI Mood Board Maker — Build Boards with Claude") while the page
+  // has answered for ChatGPT since the no-account address shipped; it now
+  // names both. "AI Mood Board Maker" stays verbatim: it is the head term and
+  // a live check asserts that phrase, so keep it in any later title.
+  //   Target query predicate: the page-level rows, path =
+  //     '/tools/ai-mood-board-maker', query = '', search_type = 'web', read
+  //     for CTR and impression-weighted position. The partial view beside it
+  //     is the query rows (query <> '') on the same path and search_type
+  //     whose query matches (chatgpt|claude) and mood ?board. Never sum the
+  //     two row types together.
+  //   Evaluation window: from the production deploy + 3 days, in ±7 and ±14
+  //     day buckets against the same spans before it. Never graded inside 3
+  //     days of a ship (Search Console lags about 3 days and restates the
+  //     trailing 3).
+  //   Impression floor: at least 200 post-change page-level impressions
+  //     before any read; below that the answer is "not yet".
+  //   One page change, not a title test: the body above (the Claude and
+  //     ChatGPT section, two FAQ answers, the docs links, the new date)
+  //     shipped in the same release, so for those queries the result is
+  //     graded as title and body together and cannot be split between them.
+  //   The description is unchanged.
   // ────────────────────────────────────────────────────────────────────────
   {
     path: '/tools/ai-mood-board-maker',
     kind: 'tool',
-    title: 'AI Mood Board Maker — Build Boards with Claude',
+    title: 'AI Mood Board Maker for ChatGPT and Claude',
     metaDescription:
       'Connect Claude or any MCP client to Soleil Clusters and ask for a mood board. It gathers and arranges your own references — it does not invent pictures.',
     h1: 'AI Mood Board Maker',
