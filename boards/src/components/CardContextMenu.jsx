@@ -192,7 +192,7 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
     return (
       <div ref={menuRef} className="ctx-menu is-step" style={{ left: px, top: py, width: step.width }}
            role="menu" aria-label={step.item.label} onKeyDown={stepMenuKeys(step)}>
-        <CtxStepView item={step.item} root="card" onBack={step.back} onClose={onClose} claimFire={claimFire} />
+        <CtxStepView item={step.item} parent={step.parent} root="card" onBack={step.back} onStep={step.stepIn} onClose={onClose} claimFire={claimFire} />
       </div>
     );
   }

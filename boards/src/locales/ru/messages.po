@@ -1496,6 +1496,7 @@ msgstr "Теперь {label} может просматривать все кла
 msgid "{label} is now a co-owner of \"{name}\"."
 msgstr "Совладелец «{name}»: {label}."
 
+#: src/components/ctxMenuParts.jsx
 #: src/components/toolbar/Menu.jsx
 msgid "{label}, back to {label2}"
 msgstr "{label}, назад к {label2}"

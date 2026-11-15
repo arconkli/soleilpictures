@@ -97,7 +97,7 @@ export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId,
     return (
       <div ref={menuRef} className="ctx-menu is-step" style={{ left: px, top: py, width: step.width }}
            role="menu" aria-label={step.item.label} onKeyDown={stepMenuKeys(step)}>
-        <CtxStepView item={step.item} root="canvas" onBack={step.back} onClose={onClose} />
+        <CtxStepView item={step.item} parent={step.parent} root="canvas" onBack={step.back} onStep={step.stepIn} onClose={onClose} />
       </div>
     );
   }

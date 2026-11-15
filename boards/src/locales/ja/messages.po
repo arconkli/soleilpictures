@@ -1472,6 +1472,7 @@ msgstr "{label}は「{name}」のすべてのクラスターを閲覧できる�
 msgid "{label} is now a co-owner of \"{name}\"."
 msgstr "{label}は「{name}」の共同オーナーになりました。"
 
+#: src/components/ctxMenuParts.jsx
 #: src/components/toolbar/Menu.jsx
 msgid "{label}, back to {label2}"
 msgstr "{label}、{label2}に戻る"
