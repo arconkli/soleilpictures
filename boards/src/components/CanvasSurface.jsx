@@ -416,7 +416,30 @@ const SEL_MENU_BTN_PX = 36;
 const SEL_MENU_OUT_BELOW_PX = 96;
 const SEL_MENU_OVER = { dx: -26, dy: -14 };
 const SEL_MENU_OUT = { dx: 4, dy: -40 };
+// Under a finger the one selected card's rotate and resize handles are drawn
+// beside that ⋯, at a fixed size on screen (.sel-handle). A card narrower than
+// this on screen has no room for rotate's 44px hit area beside the ⋯ (which
+// sits outside the corner below SEL_MENU_OUT_BELOW_PX): rotate gives way. At
+// an angle that brings the two within SEL_HANDLE_CLEAR_PX (centre to centre)
+// the ⋯ steps away; where the screen's edge stops it and it would still cover
+// the handle's centre (SEL_HANDLE_COVER_PX), rotate gives way.
+const SEL_HANDLE_ROTATE_MIN_PX = 56;
+const SEL_HANDLE_CLEAR_PX = 44;
+const SEL_HANDLE_COVER_PX = 30;
+// The rotate dot's centre, in screen px above the card's top edge.
+const SEL_HANDLE_ROTATE_RISE_PX = 24;
+// A selected card drawn smaller than SEL_HANDLE_OUT_BELOW_PX would sit wholly
+// under the resize puck's hit area, so the puck moves this far out of the corner.
+const SEL_HANDLE_OUT_BELOW_PX = 48;
+const SEL_HANDLE_OUT_PX = 14;
 const MIN_W = 60, MIN_H = 40;
+// The two-stripe corner grip of the in-card resize handle, as a glyph for the
+// finger-sized puck.
+const SEL_HANDLE_GRIP = (
+  <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+    <path d="M3.5 10.5l7-7M7.5 10.5l3-3" />
+  </svg>
+);
 const ZOOM_MIN = 0.1, ZOOM_MAX = 5.0;
 // A touch screen's fingers drive the two-finger camera (the touch tracker in
 // CanvasSurface), not use-gesture's pinch, which stays for a Mac trackpad
@@ -2834,15 +2857,22 @@ export function CanvasSurface({
   const heldPendingRef = useRef(null);
   const heldRunRef = useRef(null);
   const cancelHeldRef = useRef(null);
-  // The board a held open claimed in the same commit as its open (its cards were
-  // already in): the reset below must not undo that claim, or the next card
-  // change would run the first-view effect again and pull the camera away.
+  // The board a held open claimed (its cards were already in): the reset below
+  // must not undo that claim, or the next card change would run the first-view
+  // effect again and pull the camera away. In an open's own commit the reset
+  // runs before the claim; this covers the effects running again over the same
+  // cluster (React's development remount).
   const heldClaimRef = useRef(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     // New board → arm fit. Don't reset pan/zoom here; the
     // useLayoutEffect below sets the correct viewport synchronously
     // with the first card render so there's never a frame painted at
     // the previous board's viewport.
+    // A layout effect, declared before the held open and the fit: it runs first
+    // in the same commit, so their lock stands. As a passive effect it ran after
+    // the fit and cleared that lock, and the first change to a card on a board
+    // whose cards were there at mount fitted the view again (a move of
+    // everything looked like it snapped back).
     if (heldClaimRef.current === board.id) { heldClaimRef.current = null; return; }
     fitOnceForRef.current = null;
   }, [board.id]);
@@ -4223,8 +4253,16 @@ export function CanvasSurface({
     if (!id) return null;
     const b = multiSelectionBounds;
     if (b) return { id, x: b.x + b.w + SEL_FRAME_PAD, y: b.y - SEL_FRAME_PAD, w: b.w, h: b.h };
+    // The one card's corner turns with it (the ⋯ itself stays upright), so
+    // the ⋯ keeps clear of the rotate handle, which turns too.
     const c = cardById[id];
-    return { id, x: c.x + c.w, y: c.y, w: c.w, h: c.h };
+    const r = (c.rotation || 0) * Math.PI / 180;
+    const cx = c.x + c.w / 2, cy = c.y + c.h / 2;
+    return {
+      id, w: c.w, h: c.h,
+      x: cx + Math.cos(r) * c.w / 2 + Math.sin(r) * c.h / 2,
+      y: cy + Math.sin(r) * c.w / 2 - Math.cos(r) * c.h / 2,
+    };
     // cardById is mutated in place; `cards` is what says it moved.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, cards, multiSelectionBounds]);
@@ -6942,7 +6980,7 @@ export function CanvasSurface({
         return;
       }
       // The selection's ⋯ and its resize corner sit outside every card.
-      if (e.target.closest?.('.cnv-tool, .cnv-zoom, .inbox, .sel-menu, .multi-resize')) return false;
+      if (e.target.closest?.('.cnv-tool, .cnv-zoom, .inbox, .sel-menu, .sel-handle, .multi-resize')) return false;
       // A finger on empty canvas decides this itself, on letting go
       // (startTouchCanvasPress): the hold may yet become a selection box.
       if (touchPressRef.current) return false;
@@ -8312,10 +8350,17 @@ export function CanvasSurface({
       // hover-only on a mouse, and read-only cards have no other click target.
       // The field traces were unambiguous — dead- and rage-clicks on
       // div.r2p.ic-img were the top in-board interaction on /share.
+      const linkHref = c.kind === 'link' ? openableUrl(c.source || c.link || c.url) : null;
+      const viewerLinkHref = linkHref && /^https?:/i.test(linkHref) ? linkHref : null;
       const openTap =
         (c.kind === 'board' && e.target.closest?.('.bc-cover')) ? () => onOpenBoard(c.id)
         : (c.kind === 'boardlink' && boards[c.target]) ? () => onOpenBoard(c.target)
         : (c.kind === 'image' && c.src) ? () => openImageLightbox(c)
+        // A link card opens its address the same way: without a preview its
+        // only way in was the 11px open button. Not from an embed's player,
+        // where taps are the player's.
+        : (viewerLinkHref && !e.target.closest?.('.lc-embed-frame'))
+          ? () => window.open(viewerLinkHref, '_blank', 'noopener,noreferrer')
         : null;
       if (openTap) {
         const pid = e.pointerId, sx = e.clientX, sy = e.clientY;
@@ -9513,7 +9558,10 @@ export function CanvasSurface({
     if (e.button !== 0) return;
     e.stopPropagation();
     setSelected(new Set([c.id]));
-    const wrapper = e.currentTarget.closest('.card');
+    // Under a finger the handle is drawn outside the card (.sel-handle).
+    const esc = (window.CSS && CSS.escape) ? CSS.escape(c.id) : c.id;
+    const wrapper = e.currentTarget.closest('.card')
+      || wrapRef.current?.querySelector(`.cards-layer .card[data-card-id="${esc}"]`);
     if (!wrapper) return;
     const r = wrapper.getBoundingClientRect();
     const cx = r.left + r.width / 2;
@@ -12752,6 +12800,55 @@ export function CanvasSurface({
     return true;
   };
 
+  // The card whose handles the selection layer draws (.sel-handle): the one
+  // selected card, under a finger, with the select tool.
+  const selHandleId = (isTouch && canEdit && selectedTool === 'select'
+    && selected.size === 1 && effectiveSelectedIds.size === 1)
+    ? ([...selected].find((sid) => cardById[sid]) || null) : null;
+
+  // The selection's ⋯ in screen px from its anchor (selMenuAnchor): over the
+  // corner or clear of a small selection, and kept on screen while the
+  // selection is: one at the edge of the view (a phone shows little else)
+  // would push it off.
+  // It also keeps clear of the one card's rotate handle, which is drawn under
+  // it and turns with the card: `rotateClear` is false where it could not.
+  const selMenuOffset = (a) => {
+    const base = Math.min(a.w, a.h) * zoom < SEL_MENU_OUT_BELOW_PX ? SEL_MENU_OUT : SEL_MENU_OVER;
+    const { w: vw, h: vh } = wrapWHRef.current;
+    const sx = pan.x + a.x * zoom, sy = pan.y + a.y * zoom;
+    const onScreen = vw && vh && sx > 0 && sx - a.w * zoom < vw && sy < vh && sy + a.h * zoom > 0;
+    const kept = (dx, dy) => (onScreen ? {
+      dx: Math.max(8 - sx, Math.min(dx, vw - 8 - SEL_MENU_BTN_PX - sx)),
+      dy: Math.max(8 - sy, Math.min(dy, vh - 8 - SEL_MENU_BTN_PX - sy)),
+    } : { dx, dy });
+    const at = kept(base.dx, base.dy);
+    const c = a.id === selHandleId ? cardById[a.id] : null;
+    if (!c || !ROTATABLE.has(c.kind) || c.w * zoom < SEL_HANDLE_ROTATE_MIN_PX) return { ...at, rotateClear: true };
+    // The rotate dot's centre, in screen px from the anchor, and how far the
+    // ⋯'s centre is from it.
+    const r = (c.rotation || 0) * Math.PI / 180, sin = Math.sin(r), cos = Math.cos(r);
+    const hx = (c.x + c.w / 2 + sin * c.h / 2 - a.x) * zoom + sin * SEL_HANDLE_ROTATE_RISE_PX;
+    const hy = (c.y + c.h / 2 - cos * c.h / 2 - a.y) * zoom - cos * SEL_HANDLE_ROTATE_RISE_PX;
+    const half = SEL_MENU_BTN_PX / 2, R = SEL_HANDLE_CLEAR_PX;
+    const gap = (o) => Math.hypot(o.dx + half - hx, o.dy + half - hy);
+    if (gap(at) >= R) return { ...at, rotateClear: true };
+    // Too close: the nearest place that is clear and on screen. Straight
+    // away from the handle, or along the screen edge that stopped it.
+    const ox = at.dx + half - hx, oy = at.dy + half - hy, d = Math.hypot(ox, oy);
+    const tries = [d < 1 ? kept(hx + cos * R - half, hy + sin * R - half) : kept(hx + ox / d * R - half, hy + oy / d * R - half)];
+    const rise = Math.sqrt(Math.max(0, R * R - ox * ox)), run = Math.sqrt(Math.max(0, R * R - oy * oy));
+    for (const sgn of [1, -1]) {
+      tries.push(kept(at.dx, hy + sgn * rise - half), kept(hx + sgn * run - half, at.dy));
+    }
+    let best = at;
+    for (const t of tries) {
+      const clear = gap(t) >= R - 0.5, bestClear = gap(best) >= R - 0.5;
+      const nearer = Math.hypot(t.dx - at.dx, t.dy - at.dy) < Math.hypot(best.dx - at.dx, best.dy - at.dy);
+      if (clear ? (!bestClear || nearer) : (!bestClear && gap(t) > gap(best))) best = t;
+    }
+    return { ...best, rotateClear: gap(best) >= SEL_HANDLE_COVER_PX };
+  };
+
   const renderCard = (c) => {
     const inDrag = drag && drag.ids.includes(c.id);
     const dragDelta = inDrag ? drag : null;
@@ -12778,6 +12875,10 @@ export function CanvasSurface({
       || isArrowSource;
     const rotation = (rotateState && rotateState.id === c.id ? rotateState.rot : c.rotation) || 0;
     const canRotate = ROTATABLE.has(c.kind);
+    // Under a finger the one selected card's handles are drawn outside it, in
+    // the selection layer (.sel-handle): in here the card's clip cut the rotate
+    // handle away and both shrank with the zoom.
+    const selHandleOut = selHandleId === c.id;
 
     // Stacking is driven entirely by DOM order — `sortedCards` is already
     // sorted by `c.z` (see useMemo above). Setting a CSS z-index here was
@@ -13140,14 +13241,14 @@ export function CanvasSurface({
             </button>
           );
         })()}
-        {canEdit && selectedTool === 'select' && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && (
+        {canEdit && selectedTool === 'select' && !(effectiveSelectedIds.size > 1 && effectiveSelectedIds.has(c.id)) && !selHandleOut && (
           <div className="card-resize" onPointerDown={(e) => onResizePointerDown(e, c)}
                title={(c.kind === 'image' || c.kind === 'video' || c.kind === 'pdf')
                  ? tr`Drag to resize — hold ${cmdKey} to break the aspect ratio`
                  : undefined}
                style={{ width: RESIZE_HANDLE_PX, height: RESIZE_HANDLE_PX }} />
         )}
-        {canEdit && selectedTool === 'select' && isSelected && canRotate && (
+        {canEdit && selectedTool === 'select' && isSelected && canRotate && !selHandleOut && (
           <div className="card-rotate" onPointerDown={(e) => onRotatePointerDown(e, c)} title={tr`Drag to rotate (shift = 15° steps)`} />
         )}
         {canEdit && selectedTool === 'select' && isSelected && c.kind === 'grid'
@@ -14956,6 +15057,17 @@ export function CanvasSurface({
                      width:  bounds.w + PAD * 2,
                      height: bounds.h + PAD * 2,
                    }} />
+              {isTouch ? (
+                // Under a finger: the same puck as one card's corner, at a
+                // fixed size on screen.
+                <div className="sel-handle"
+                     style={{ left: bounds.x + bounds.w, top: bounds.y + bounds.h, transform: `scale(${1 / zoom})` }}>
+                  <div className="card-resize multi-resize"
+                       onPointerDown={(e) => onMultiResizePointerDown(e, 'br', items, startBounds)}>
+                    {SEL_HANDLE_GRIP}
+                  </div>
+                </div>
+              ) : (
               <div className="card-resize multi-resize"
                    onPointerDown={(e) => onMultiResizePointerDown(e, 'br', items, startBounds)}
                    style={{
@@ -14967,6 +15079,56 @@ export function CanvasSurface({
                      zIndex: 999996,
                      pointerEvents: 'auto',
                    }} />
+              )}
+            </>
+          );
+        })()}
+
+        {/* One selected card's rotate and resize handles under a finger. Drawn
+            here, not in the card: the card's clip (overflow: hidden; contain:
+            paint) cut the rotate handle away entirely, and the resize corner
+            shrank with the zoom to a few pixels. Each .sel-handle is a point on
+            the card (top centre, bottom-right corner) that undoes the zoom and
+            turns with the card, so the handles are finger-sized at every zoom.
+            They stay mounted while they are being dragged (the finger's
+            pointer stays theirs) and follow the live size and angle. A mouse
+            keeps the in-card handles. */}
+        {selHandleId && !drag && !multiResize && !marquee && (() => {
+          const c = cardById[selHandleId];
+          if (!c) return null;
+          const w = Math.max(MIN_W, c.w + (resize?.id === c.id ? (resize.dw || 0) : 0));
+          const h = Math.max(MIN_H, c.h + (resize?.id === c.id ? (resize.dh || 0) : 0));
+          const rot = (rotateState && rotateState.id === c.id ? rotateState.rot : c.rotation) || 0;
+          const rad = rot * Math.PI / 180, cos = Math.cos(rad), sin = Math.sin(rad);
+          const cx = c.x + w / 2, cy = c.y + h / 2;
+          const tf = `scale(${1 / zoom})${rot ? ` rotate(${rot}deg)` : ''}`;
+          const rotX = cx + sin * h / 2, rotY = cy - cos * h / 2;
+          // Not where the ⋯ would cover it (the ⋯ is drawn above the handles).
+          const clearOfMenu = !selMenuAnchor || selMenuAnchor.id !== c.id || selMenuOffset(selMenuAnchor).rotateClear;
+          const showRotate = ROTATABLE.has(c.kind) && !resize
+            && ((w * zoom >= SEL_HANDLE_ROTATE_MIN_PX && clearOfMenu) || rotateState?.id === c.id);
+          const showResize = !rotateState;
+          // A card this small on screen would be wholly under the puck: it
+          // steps out of the corner, along the card's own axes, so a hold on
+          // the card still lifts it.
+          const out = Math.min(w, h) * zoom < SEL_HANDLE_OUT_BELOW_PX ? SEL_HANDLE_OUT_PX / zoom : 0;
+          return (
+            <>
+              {showRotate && (
+                <div className="sel-handle"
+                     style={{ left: rotX, top: rotY, transform: tf }}>
+                  <div className="card-rotate" onPointerDown={(e) => onRotatePointerDown(e, c)} title="Drag to rotate" />
+                </div>
+              )}
+              {showResize && (
+                <div className="sel-handle"
+                     style={{ left: cx + cos * w / 2 - sin * h / 2 + (cos - sin) * out,
+                              top: cy + sin * w / 2 + cos * h / 2 + (sin + cos) * out, transform: tf }}>
+                  <div className="card-resize" onPointerDown={(e) => onResizePointerDown(e, c)} title="Drag to resize">
+                    {SEL_HANDLE_GRIP}
+                  </div>
+                </div>
+              )}
             </>
           );
         })()}
@@ -14982,15 +15144,7 @@ export function CanvasSurface({
         {canEdit && selectedTool === 'select' && selMenuAnchor
           && !drag && !resize && !rotateState && !multiResize && !marquee && (() => {
           const a = selMenuAnchor;
-          let { dx, dy } = Math.min(a.w, a.h) * zoom < SEL_MENU_OUT_BELOW_PX ? SEL_MENU_OUT : SEL_MENU_OVER;
-          // Kept on screen while the selection is: one at the edge of the
-          // view (a phone shows little else) would push it off.
-          const { w: vw, h: vh } = wrapWHRef.current;
-          const sx = pan.x + a.x * zoom, sy = pan.y + a.y * zoom;
-          if (vw && vh && sx > 0 && sx - a.w * zoom < vw && sy < vh && sy + a.h * zoom > 0) {
-            dx = Math.max(8 - sx, Math.min(dx, vw - 8 - SEL_MENU_BTN_PX - sx));
-            dy = Math.max(8 - sy, Math.min(dy, vh - 8 - SEL_MENU_BTN_PX - sy));
-          }
+          const { dx, dy } = selMenuOffset(a);
           return (
           <div className="sel-menu"
                style={{ left: a.x, top: a.y, transform: `scale(${1 / zoom})` }}>

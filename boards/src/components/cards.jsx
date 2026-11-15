@@ -16,6 +16,7 @@ import { peaksFromBase64, peaksToPath, peaksPathWidth, PEAK_COUNT } from '../lib
 import { formatKey, canonicalKey, formatLabel } from '../lib/loopMeta.js';
 import { RichNoteEditor, useNoteOverflow } from './RichNoteEditor.jsx';
 import { swallowGhostClick, tapIsDouble } from '../lib/doubleTap.js';
+import { coarsePointer } from '../lib/noteTouchTyping.js';
 import { noteEntryFromEvent } from '../lib/noteEntryPoint.js';
 import { holdTouchKeyboard, claimTouchKeyboard, dropTouchKeyboard } from '../lib/touchKeyboard.js';
 
@@ -1594,6 +1595,7 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
   // to the canvas drag handler. Double-click activates the iframe; deselecting
   // the card on the canvas locks it again.
   const [embedActive, setEmbedActive] = useState(false);
+  const embedTapRef = useRef({});
   useEffect(() => { if (!isSelected) setEmbedActive(false); }, [isSelected]);
   // Escape deactivates the embed iframe (mirrors AudioCard's cover mode). Capture
   // phase + stopPropagation so it doesn't also trigger the canvas Escape.
@@ -1722,8 +1724,13 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
           {!embedActive && (
             <div
               className="lc-embed-overlay"
-              title={tr`Double-click to interact`}
+              title={coarsePointer() ? tr`Double-tap to play` : tr`Double-click to interact`}
               onDoubleClick={(e) => { e.stopPropagation(); setEmbedActive(true); }}
+              // WebKit never turns two taps into a dblclick, so a finger's
+              // double tap is counted here (lib/doubleTap.js).
+              onPointerUp={(e) => {
+                if (e.pointerType === 'touch' && tapIsDouble(embedTapRef, e)) setEmbedActive(true);
+              }}
             />
           )}
           {!showMeta && onUpdate && (
@@ -1840,6 +1847,7 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
   const [editingTitle, setEditingTitle] = useState(autoFocus);
   useEffect(() => { if (editTitleAt > 0) setEditingTitle(true); }, [editTitleAt]);
   const [pickerIdx, setPickerIdx] = useState(null);
+  const xPressRef = useRef(null);   // the swatch whose x a press began on
   const [pickerPos, setPickerPos] = useState(null);
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [dragIdx, setDragIdx] = useState(null);
@@ -2039,8 +2047,18 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
                 </div>
               )}
               <button className="pc-cell-x" title={tr`Remove`}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => removeSwatch(i, e)}>×</button>
+                      onPointerDown={(e) => { e.stopPropagation(); xPressRef.current = { i, t: performance.now() }; }}
+                      onClick={(e) => {
+                        // Only a press that began here (or a key): the tap that
+                        // selects the palette shows this under the finger, and
+                        // that tap's own click lands on it a moment later. A
+                        // press that slid off without a click goes stale.
+                        const p = xPressRef.current;
+                        const began = !!p && p.i === i && performance.now() - p.t <= 1500;
+                        xPressRef.current = null;
+                        if (e.detail > 0 && !began) { e.stopPropagation(); return; }
+                        removeSwatch(i, e);
+                      }}>×</button>
             </div>
           );
         })}
