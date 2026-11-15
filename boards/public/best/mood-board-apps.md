@@ -27,7 +27,7 @@ We are a working film studio, and these are tools we have used, evaluated, or be
 - **Survives an argument** — A board only one person can edit is a presentation, not a decision. We tested live co-editing and comments with a real crew disagreeing in real time.
 - **One-link approval** — Clients do not make accounts. If sign-off cannot happen from a single link, the tool adds friction exactly where it is most expensive.
 - **What the board becomes** — An approved board should flow into look books, storyboards, and shot lists. We scored how far each tool carries the work before you start over elsewhere.
-- **The free tier tells the truth** — A free plan that dies at 20 uploads or 100 items is a trial with better marketing. We measured whether each survives one real project.
+- **The free tier tells the truth** — A free plan only counts if one real project fits in it. We checked what each one holds, ours included, and say where it stops.
 - **Handles real media** — Production reference is not just JPEGs. Video, PDFs, palettes, and big files either belong on the board or the board is incomplete.
 - **Alive in August 2026** — Four well-known mood board tools have shut down since December 2023. Every app here has verifiable 2026 activity, checked against its own changelog or store listing.
 

@@ -5,7 +5,7 @@
       "updated": "2026-11-14"
     },
     "/best/mood-board-apps": {
-      "hash": "c9494342344711ea30fd",
+      "hash": "aca4ed0f073fb1a684bb",
       "updated": "2026-11-14"
     },
     "/best/pureref-alternatives": {
@@ -13,8 +13,8 @@
       "updated": "2026-10-05"
     },
     "/best/storyboard-software": {
-      "hash": "8f312dd8874ab99aa071",
-      "updated": "2026-11-04"
+      "hash": "95124c27a2f557537b98",
+      "updated": "2026-11-14"
     },
     "/pricing": {
       "hash": "74d31471af0d396075b4",
@@ -177,6 +177,14 @@
         "/vs/storyflow"
       ],
       "reason": "same-day fact 2026-11-14: Storyflow's planned free plan does not cap notes, documents or boards (/vs/storyflow, /tools/free-mood-board-maker, /best/milanote-alternatives)"
+    },
+    {
+      "date": "2026-11-15",
+      "paths": [
+        "/best/mood-board-apps",
+        "/best/storyboard-software"
+      ],
+      "reason": "free-plan framing: /best/mood-board-apps (already 2026-11-14) and /best/storyboard-software (2026-11-04 -> 2026-11-14)"
     }
   ]
 }
