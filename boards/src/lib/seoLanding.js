@@ -43,7 +43,7 @@
 
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 import { EDITOR_LIMIT } from './editorLimit.js';
-import { CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL, PRICING, freeLimitSentence } from './billingCopy.js';
+import { CREATOR_STORAGE_LABEL, CREATOR_TRIAL_DAYS, FREE_STORAGE_LABEL, PLAN_NAME, PRICING, freeLimitSentence } from './billingCopy.js';
 import { treatmentPageSteps } from './starterSections.js';
 // The template store hold: data-free, so it costs neither bundle anything.
 import { TEMPLATE_STORE_HELD, isTemplateStorePath } from './templatePaths.js';
@@ -538,6 +538,52 @@ const PAGES = [
     ],
     related: ['/tools/mood-board-maker', '/tools/directors-treatment', '/tools/costume-design-mood-board', '/vs/milanote', '/use-cases', '/tools/ai-mood-board-maker'],
   },
+  // ────────────────────────────────────────────────────────────────────────
+  // The free page answers one question: "is it really free, what do I get,
+  // and how does that compare". It is NOT a second mood board maker page.
+  // Google crawled it and left it out of the index from 2026-10-18, and its
+  // body then repeated /tools/mood-board-maker (the same how-to, the same
+  // "drop in images, links, notes" sections). Rewritten 2026-11-14 around the
+  // plan itself. Word 5-gram overlap of the two .md twins, measured the same
+  // day: 22% of this page's shingles were on the other page before, 3% after
+  // (Jaccard 0.113 to 0.019). Keep it that way: anything about HOW to make a
+  // board belongs on the other page; this one is about what free holds.
+  //
+  // Kept exactly through the rewrite: title, metaDescription, h1 and the cta
+  // (the sign-up box test holds the buttons and their words). The live check
+  // asserts "Free Mood Board Maker" in the title.
+  //
+  // Every figure of ours is an import (DEMO_CARD_LIMIT, FREE_STORAGE_LABEL,
+  // EDITOR_LIMIT, PRICING, CREATOR_TRIAL_DAYS). "No payment card" is
+  // billingCopy's own claim (PRICING_PAGE.startFreeSub / freeCardSub) and the
+  // sign-in is an emailed one-time code (content/docs/getting-started.md);
+  // the only place a card is asked for is the Creator trial
+  // (content/docs/account/plans.md, "Is there a free trial").
+  //
+  // THE COMPARISON IS A DATED READ of 2026-11-14. Each line says only what
+  // that tool's own page said that day; re-read all of them before changing a
+  // word, and move the date in the heading, the FAQ answer and here together.
+  //   - Milanote: milanote.com/plans. Free: "100 notes, images or links",
+  //     "10 file uploads", "Unlimited shared boards", "with no time limit".
+  //   - Miro: miro.com/pricing. Free "$0": "3 editable boards" ("Create and
+  //     share unlimited boards. Three most recent ones will remain
+  //     editable"); "Yes, Miro has a free plan with unlimited team members";
+  //     Board exports "Low-res only"; Private board sharing "Not included".
+  //   - Adobe Express: adobe.com/express/pricing. Free "US$0.00"; "Free to
+  //     use. No credit card required."; Cloud storage "5GB"; "Includes basic
+  //     editing tools and limited assets".
+  //   - Pinterest: help.pinterest.com/en/article/limits-for-pins-boards-and-follows
+  //     ("There's no limit to how many Pins you can create"; "there's a limit
+  //     to the total number of boards and follows we can store for accounts",
+  //     no figure given) and help.pinterest.com/en/article/secret-boards
+  //     ("Only you (and anyone you invite) can see your private boards").
+  //     Neither page states a price, so the page states none.
+  //   - Storyflow: storyflow.so/pricing. "Storyflow is paid-only during early
+  //     access"; Free marked "Coming soon": "3 projects", "100 images", "10
+  //     file and video uploads", "Plus 10 links and 1 GB of storage."
+  //   Canva is left out on purpose: canva.com/pricing answered 403 to every
+  //   read that day, and a competitor's plan is never written from memory.
+  // ────────────────────────────────────────────────────────────────────────
   {
     path: '/tools/free-mood-board-maker',
     kind: 'tool',
@@ -546,47 +592,67 @@ const PAGES = [
       'A genuinely free mood board maker — no credit card, no download, no trial clock. Drop images, notes, and palettes on an infinite canvas; share a link.',
     h1: 'Free Online Mood Board Maker',
     subhead:
-      'Runs in your browser. Drop images, notes, and palettes on an infinite canvas and share with a link — no download.',
+      `Free here is a plan, not a trial: ${DEMO_CARD_LIMIT} cards and a ${FREE_STORAGE_LABEL} drive, no payment card, no end date. This page says what that holds and how it compares.`,
     answer:
-      `Yes — you can make a mood board online free with Soleil Clusters. The Demo tier needs no credit card: open the browser app, drop in images, links, notes, and color palettes on an infinite canvas, and share the board with a public link. Upgrading only matters when you want unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.`,
-    updated: '2026-10-20',
+      `Yes. A mood board in Soleil Clusters costs nothing on the free plan, which holds ${freeLimitSentence()}, asks for no payment card and never expires. Boards cost no cards, any file fits, and up to ${EDITOR_LIMIT} people can edit. ${PLAN_NAME}, ${PRICING.monthly.billedLabel}, lifts the card limit and adds a ${CREATOR_STORAGE_LABEL} drive.`,
+    updated: '2026-11-14',
     cta: { label: 'Make one free', sub: 'No credit card. No install.' },
-    stepsHeading: 'How to make a mood board online, free',
+    stepsHeading: 'Starting free, step by step',
     steps: [
-      { t: 'Open Clusters in your browser', d: 'There is nothing to download — just open it and start.' },
-      { t: 'Create a board', d: 'Make a blank board and drag in images, links, and notes.' },
-      { t: 'Add a color palette', d: 'Drop a palette card to set the tone of the board.' },
-      { t: 'Arrange it', d: 'Move everything around on the infinite canvas until it reads the way you want.' },
-      { t: 'Share it free', d: 'Send your board with a link — viewers need no sign-up to see it.' },
+      { t: 'Enter your email', d: 'You get a one-time code. There is no password to choose and no payment form to fill in.' },
+      { t: 'Open your first cluster', d: 'A cluster is a board. Making one, or nesting one inside another, uses none of your cards.' },
+      { t: 'Add what the board needs', d: `Each image, note, link, palette or file you place is one card, up to ${DEMO_CARD_LIMIT}. Your count is on the Upgrade pill and in Settings, under Plan & billing.` },
+      { t: 'Send it', d: 'A view-only link opens the board for anyone, with no account on their side. That costs nothing either.' },
+      { t: 'Decide later, or never', d: `Nothing counts down. If the board outgrows the plan you are told, and what you made stays as it is whether you upgrade or not.` },
     ],
     sections: [
       {
-        heading: 'Free, and actually usable',
-        body: `A lot of "free" tools are a demo with a wall. Clusters’ Demo tier lets you build a real mood board — images, video, notes, links, color palettes and any other file, at any size, on an infinite canvas — and share it, without paying and without installing anything. It holds ${freeLimitSentence()}. When you outgrow it, Creator is ${PRICING.monthly.billedLabel} for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.`,
+        heading: 'What the free plan holds',
+        body: `Two limits, and you stop at whichever you reach first: ${DEMO_CARD_LIMIT} cards, and ${FREE_STORAGE_LABEL} of stored files. A card is one thing on the canvas, so ${DEMO_CARD_LIMIT} cards is ${DEMO_CARD_LIMIT} images, notes, links and palettes in any mix, counted across every board you own. That is room for one considered mood board, or a few small ones. It is not room for a whole production’s reference library, and this page will not pretend it is.`,
         bullets: [
-          'Works in any modern browser — nothing to download',
-          'Drop in images, links, video, notes, and palettes',
-          'Share the finished board with a single link',
+          `${DEMO_CARD_LIMIT} cards, counted across all your boards`,
+          `A ${FREE_STORAGE_LABEL} drive that takes any file, at any size`,
+          'Boards themselves are free, nested ones included',
+          `Up to ${EDITOR_LIMIT} people can edit with you, and anyone can view`,
         ],
       },
       {
-        heading: 'From a quick pin to a real project',
-        body: 'Start with a scratch board of references, then grow it into a structured project as the idea firms up: nest boards, connect them, and tag what matters so it stays findable. You never have to migrate to a "real" tool later — this is the real tool.',
+        heading: 'What you are never asked for',
+        body: `A payment card, a download or a deadline. You sign in with an emailed code, the app runs in the browser, and the free plan has no end date. The one place a card comes up is the ${CREATOR_TRIAL_DAYS}-day ${PLAN_NAME} trial, which the app offers once you have built something. Taking it is your choice, it needs a card, and nothing is charged until it ends. Leave it alone and the free plan carries on as before.`,
       },
       {
-        heading: 'Made for creative work',
-        body: 'This is not a generic whiteboard. Clusters is built for film, photo, design, and brand teams — with color palettes, image adjustments, docs, and a relationship graph that ties a whole project together. The free tier is a genuine on-ramp to all of it.',
+        heading: 'What stays free, whatever you do',
+        body: `Sharing, viewing and working together are not paid features. A view-only link needs no account from the person opening it. People you invite to edit pay nothing, and what they add counts against the workspace owner’s limits, not their own. Comments, documents and public links are the same on both plans. When you reach a limit you are told and offered the upgrade; nothing already on a board is removed, hidden or locked.`,
+      },
+      {
+        heading: `What ${PLAN_NAME} adds, and what it costs`,
+        body: `${PLAN_NAME} changes two things: the card limit comes off, and the drive grows from ${FREE_STORAGE_LABEL} to ${CREATOR_STORAGE_LABEL}. It is ${PRICING.monthly.billedLabel} billed monthly, or ${PRICING.annual.perMonthLabel}/mo billed annually. One plan covers the whole workspace, so the people you invite build at your limits and there are no per-seat charges. Cancel and everything you made stays where it is; you only stop being able to add past the free limits.`,
+      },
+      {
+        heading: 'Free mood board makers compared, as of 14 November 2026',
+        body: 'Free means something different in each tool, so this is what each one’s own pricing or help page said when it was read on 14 November 2026. Plans change, so check the tool’s page before you choose. On the count of items alone, Milanote’s free plan is larger than ours; the difference on our side is the drive for any file and the free editors.',
+        bullets: [
+          `Soleil Clusters: ${DEMO_CARD_LIMIT} cards and a ${FREE_STORAGE_LABEL} drive for any file, up to ${EDITOR_LIMIT} people who edit, no payment card, no end date.`,
+          'Milanote: the free plan is listed as “100 notes, images or links” and “10 file uploads”, with “Unlimited shared boards” and “no time limit”.',
+          'Miro: Free is listed at $0 with “3 editable boards”. You can create more, and the three most recent stay editable. Team members are unlimited, board exports are low-resolution only, and private board sharing is not included.',
+          'Adobe Express: Free is listed at US$0.00 with 5GB of cloud storage and the line “No credit card required”. Adobe describes it as “basic editing tools and limited assets”.',
+          'Pinterest: the help centre says there is no limit on how many Pins you can create, and that there is a limit on the total number of boards, without giving a figure. A private board is seen only by you and the people you invite.',
+          'Storyflow: its pricing page says it is paid-only during early access. A Free plan is marked “Coming soon”, listed at 3 projects, 100 images, 10 file and video uploads, 10 links and 1 GB.',
+        ],
       },
     ],
     faq: [
-      { q: 'Is it really free?', a: `Yes. The free Demo tier covers ${freeLimitSentence()} — the clusters you make cost none of them — with no credit card and no trial clock. Creator (${PRICING.monthly.billedLabel}) removes the card cap and gives you a ${CREATOR_STORAGE_LABEL} drive.` },
-      { q: 'Do I have to download anything?', a: 'No. It runs in your browser, and on a phone or tablet it can be added to the home screen as a web app. There is no store app to install, and nothing is required to start.' },
-      { q: 'What is the catch with the free tier?', a: `The Demo tier stops at ${freeLimitSentence()}. Collaboration is free, and invited editors edit on any tier. Upgrading to Creator removes the card cap and gives you a ${CREATOR_STORAGE_LABEL} drive.` },
-      { q: 'What happens when the free drive is full?', a: 'Nothing you have made is removed or locked. A drop that would not fit is caught before anything uploads, so you can add the part that fits. The rest waits in that browser tab and goes on by itself when you upgrade — or press Upload now after deleting something to make room. Closing the tab lets the waiting files go; they are still on your computer.' },
-      { q: 'Can I share my free mood board?', a: 'Yes. Every board can be shared with a public link that opens a clean, interactive preview with no sign-up needed.' },
-      { q: 'Will my boards stay mine?', a: 'Yes. You own your references and control who can see each board and whether it is discoverable by search engines.' },
+      { q: 'Is it really free?', a: `Yes. The free plan holds ${freeLimitSentence()}, with no payment card and no end date. It is the same app the paid plan uses, not a cut-down viewer. ${PLAN_NAME} (${PRICING.monthly.billedLabel}) takes the card limit off and gives you a ${CREATOR_STORAGE_LABEL} drive.` },
+      { q: 'Do I need a credit card to start?', a: `No. You sign in with an emailed one-time code and start on the free plan. A card is asked for only if you choose the ${CREATOR_TRIAL_DAYS}-day ${PLAN_NAME} trial or upgrade.` },
+      { q: 'How many images fit on a free mood board?', a: `Up to ${DEMO_CARD_LIMIT}, if images are all you add. Every image, note, link and palette is one card, and the ${DEMO_CARD_LIMIT} are counted across all the boards you own. The boards themselves use none of them.` },
+      { q: 'Does the free plan run out?', a: 'No. There is no trial period on the free plan and no date on which it ends. Your boards stay open and editable.' },
+      { q: 'What happens when I reach the limit?', a: 'You are told, and offered the upgrade. Nothing you made is removed or locked. A drop that would not fit is caught before anything uploads, so you can add the part that does fit, and deleting something gives its room back.' },
+      { q: 'Do the people I share with have to pay or sign up?', a: `To look, neither: a view-only link opens in any browser with no account. To edit, they sign in, and they pay nothing. Up to ${EDITOR_LIMIT} people can edit on the free plan.` },
+      { q: 'How does it compare with the free plans of Milanote and Miro?', a: `As of 14 November 2026, Milanote’s plans page lists its free plan as 100 notes, images or links and 10 file uploads, and Miro’s pricing page lists 3 editable boards with low-resolution exports. Clusters’ free plan is ${DEMO_CARD_LIMIT} cards with a ${FREE_STORAGE_LABEL} drive that takes any file.` },
+      { q: 'Can I try it without making an account?', a: 'In the app, no: a board needs an account to belong to, and the account is free. Without one, an AI assistant such as Claude or ChatGPT can build a draft cluster for you through the no-account address, and you keep it with a link. The AI mood board maker page has the steps.' },
     ],
-    related: ['/tools/mood-board-maker', '/vs/pureref', '/vs/milanote', '/use-cases'],
+    related: ['/tools/mood-board-maker', '/tools/ai-mood-board-maker', '/best/mood-board-apps', '/vs/pureref', '/vs/milanote', '/use-cases'],
+    docsLinks: [{ path: '/docs/account/plans', label: 'Plans and limits documentation' }],
   },
   {
     path: '/tools/reference-board-maker',
