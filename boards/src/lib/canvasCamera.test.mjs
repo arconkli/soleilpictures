@@ -25,8 +25,10 @@ test('peer note edits ignore our own awareness changes and keep an unchanged map
 });
 
 // CANVAS-A-01: use-gesture's pinch-on-wheel overrode the tuned ctrl+wheel zoom.
+// A touch screen's pinch is the two-finger camera's (lib/touchCamera.js), so use-gesture's pinch is off there.
 test('ctrl+wheel belongs to the custom wheel handler, not use-gesture', () => {
-  assert.match(canvas, /pinch: \{ scaleBounds: \{[^}]*\}, rubberband: true, pinchOnWheel: false \}/);
+  assert.match(canvas, /pinch: \{ enabled: !HAS_TOUCHSCREEN, scaleBounds: \{[^}]*\}, rubberband: true, pinchOnWheel: false \}/);
+  assert.match(canvas, /const HAS_TOUCHSCREEN = typeof window !== 'undefined' &&/);
 });
 
 // CANVAS-A-05: internal card paste used the last mousemove's canvas point,
