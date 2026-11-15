@@ -17,6 +17,22 @@
 
 export const TOUR_VERSION = 3;
 
+// The first card of the first-run tour opens with a welcome block. Owner's
+// reason: "let people know the moment they sign up this is more than an image
+// organization tool and its a whole workspace for all your creative work".
+export const TOUR_WELCOME = {
+  title: 'Welcome to Clusters',
+  body: 'One workspace for all your creative work.',
+  kinds: [
+    { key: 'pictures', label: 'Pictures' },
+    { key: 'video', label: 'Video' },
+    { key: 'scripts', label: 'Scripts' },
+    { key: 'docs', label: 'Docs' },
+    { key: 'files', label: 'Files' },
+    { key: 'links', label: 'Links' },
+  ],
+};
+
 export const TOUR_STEPS = [
   {
     // Points at the left-rail Cluster tool — the primary surface users will live
@@ -127,6 +143,7 @@ export const TOUR_STEPS = [
 export const MOBILE_TOUR_STEPS = [
   {
     id: 'add_photos',
+    welcome: true,
     anchor: 'mb-create',
     placement: 'top',
     lock: false,
@@ -189,6 +206,7 @@ export const PROJECT_TOUR_STEPS = [
     // OnboardingTour; each dispatches intent_picked via App's onAction, which
     // also seeds the named project cluster for non-exploring picks.
     id: 'pick_intent',
+    welcome: true,
     anchor: 'intent',
     placement: 'bottom',
     lock: false,
@@ -196,8 +214,8 @@ export const PROJECT_TOUR_STEPS = [
     choices: PROJECT_INTENTS,
     copy: {
       title: 'What are you working on?',
-      body: 'Pick one and we’ll set your board up for it — or skip and start blank.',
-      touch: 'Pick one and we’ll set your board up for it — or skip and start blank.',
+      body: 'Pick one and we’ll shape your first steps around it — or skip and start blank.',
+      touch: 'Pick one and we’ll shape your first steps around it — or skip and start blank.',
     },
     accepts: (e) => e?.type === 'intent_picked' || e?.type === 'cluster_created',
   },
@@ -218,7 +236,7 @@ export const PROJECT_TOUR_STEPS = [
     touchAction: { label: 'Add photos', type: 'pick_photos' },
     copy: {
       title: 'Now drop your images in',
-      body: 'Paste or drag images from any tab, or drop a whole folder. This is your workspace.',
+      body: 'Paste or drag images from any tab, or drop a whole folder — video, scripts and PDFs too. This is your workspace.',
       touch: 'Add your first images — or anything else. This is your canvas.',
     },
     // The one step a new desktop user reads BEFORE the empty panel (a running
@@ -232,7 +250,7 @@ export const PROJECT_TOUR_STEPS = [
         : 'Now drop your images in';
       return {
         title,
-        body: 'Paste or drag images from any tab, or drop a whole folder. This is your workspace.',
+        body: 'Paste or drag images from any tab, or drop a whole folder — video, scripts and PDFs too. This is your workspace.',
         touch: 'Add your first images — or anything else. This is your canvas.',
       };
     },

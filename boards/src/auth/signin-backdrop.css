@@ -301,6 +301,10 @@
 /* credential line — the whole pitch (IYKYK): "Made by a film studio, …". Sits
    below the form as the last box child; quiet gold tint so it reads as a
    credential, not body copy. */
+/* the owner's line under the wordmark: neutral ink, same dark halo as .sb-trust
+   since the box overflows into the finale's cards */
+.sb-tagline { margin: 0; font: 500 14px/1.4 var(--font-sans); color: var(--ink-1); text-align: center; text-wrap: balance;
+  text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 10px rgba(10,10,12,.75); }
 .sb-trust { margin: 2px auto 0; max-width: 100%; text-align: center; letter-spacing: .02em; white-space: nowrap;
   font: 600 11.5px/1.5 var(--font-sans); color: var(--soleil); opacity: .9;
   /* the box overflows into the finale's cards; a dark halo keeps the line crisp

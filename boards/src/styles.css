@@ -22018,6 +22018,22 @@ button, [role="button"], a {
   .onboarding-tour-skip { padding: 10px 10px; }
 }
 
+/* First card of the first-run tour: a "Welcome to Clusters" block above the
+   usual copy + actions. Placed after every .onboarding-tour width rule so it
+   wins at all widths; --tour-max-w keeps the phone card inside its region. */
+.onboarding-tour.tour-has-welcome { flex-wrap: wrap; max-width: min(384px, calc(100vw - 24px), var(--tour-max-w, 100vw)); padding: 16px 16px 12px; }
+.onboarding-tour.tour-has-welcome .onboarding-coachmark-copy { flex: 1 1 100%; }
+.onboarding-tour-welcome { flex: 1 0 100%; min-width: 0; }
+.onboarding-tour-welcome-head { display: flex; align-items: center; gap: 8px; }
+.onboarding-tour-welcome-title { font: 600 15px/1.25 var(--font-sans); color: var(--ink-0); }
+.onboarding-tour-welcome-body { margin-top: 4px; font: 400 13px/1.4 var(--font-sans); color: var(--ink-1); }
+.onboarding-tour-kinds { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; }
+.onboarding-tour-kinds li { display: flex; align-items: center; gap: 6px; font: 500 12px/1.2 var(--font-sans); color: var(--ink-2); white-space: nowrap; }
+.onboarding-tour-kinds svg { width: 16px; height: 16px; flex: none; }
+@media (max-width: 359px) { .onboarding-tour-kinds { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.onboarding-tour-rule { flex: 1 0 100%; height: 1px; background: rgba(255, 255, 255, 0.08); margin: 2px 0; }
+[data-theme='light'] .onboarding-tour-rule { background: rgba(10, 9, 8, 0.08); }
+
 @media (prefers-reduced-motion: reduce) {
   .onboarding-tour { animation: none; }
   .tour-target { animation: none; }
