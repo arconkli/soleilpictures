@@ -38,7 +38,7 @@ Free means something different in each tool, so this is what each one’s own pr
 - Miro: Free is listed at $0 with “3 editable boards”. You can create more, and the three most recent stay editable. Team members are unlimited, board exports are low-resolution only, and private board sharing is not included.
 - Adobe Express: Free is listed at US$0.00 with 5GB of cloud storage and the line “No credit card required”. Adobe describes it as “basic editing tools and limited assets”.
 - Pinterest: the help centre says there is no limit on how many Pins you can create, and that there is a limit on the total number of boards, without giving a figure. A private board is seen only by you and the people you invite.
-- Storyflow: its pricing page says it is paid-only during early access. A Free plan is marked “Coming soon”, listed at 3 projects, 100 images, 10 file and video uploads, 10 links and 1 GB.
+- Storyflow: its pricing page says it is paid-only during early access. A Free plan is marked “Coming soon”, listed at 3 projects, 100 images, 10 file and video uploads, 10 links and 1 GB. Notes, documents and boards inside a project are not capped.
 
 ## Starting free, step by step
 
