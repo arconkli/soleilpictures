@@ -16,8 +16,8 @@ sign in, and also the first time you create a board through the API without
 naming a workspace. You never have to set one up.
 
 You can belong to more than one workspace. The switcher at the top of the
-sidebar moves between them, and separates ones you own from ones shared with
-you.
+sidebar moves between them, separates ones you own from ones shared with
+you, and finds one by its name or by its owner's.
 
 ## Cluster (board)
 

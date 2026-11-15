@@ -120,3 +120,62 @@ test.describe('a shared file inside the app', () => {
     await expect(page.locator('.toast-msg', { hasText: 'Saved to Opening sequence' })).toBeVisible();
   });
 });
+
+test.describe('finding on the Shared page', () => {
+  const people = ['Rae Okafor', 'Jun Park', 'Ana Silva'];
+  const withMe = Array.from({ length: 8 }, (_, i) => ({
+    token: `aaaaaaaa-0000-4000-8000-00000000010${i}`, kind: 'file', name: `Reference ${i + 1}.zip`, ext: 'zip', access: 'view',
+    allow_download: true, shared_by: { name: people[i % 3], avatar_url: null }, source: 'person',
+    shared_at: new Date(Date.now() - (i + 1) * 3600000).toISOString(), opened_at: null, activity_at: null, unread: false,
+  }));
+  const byMe = (n) => Array.from({ length: n }, (_, i) => ({
+    token: `bbbbbbbb-0000-4000-8000-00000000010${i}`, board_id: 'qa-board', board_name: i % 2 ? 'Title sequence' : 'Opening sequence',
+    card_id: `c${i}`, kind: 'file', name: `Cut ${i + 1}.mov`, link_access: 'view', allow_download: true,
+    people_count: 1, people: ['a@example.com'], comment_count: 0, updated_at: new Date().toISOString(),
+  }));
+
+  async function feed(page, byMeCount) {
+    await open(page, 'shared-page');
+    await page.evaluate(async ({ withMe, byMe }) => {
+      const { setSharedFilesSource, refreshSharedFiles } = await import('/src/hooks/useSharedFiles.js');
+      setSharedFilesSource({
+        listSharedWithMe: async () => ({ data: { items: withMe }, error: null }),
+        listMyFileShares: async () => ({ data: { items: byMe }, error: null }),
+      });
+      await refreshSharedFiles({ force: true });
+    }, { withMe, byMe: byMe(byMeCount) });
+    await expect(page.locator('.shp-row')).toHaveCount(8);
+  }
+
+  test('With me: the field matches a person; "N of 8"; Escape clears; By me clears it and finds by cluster', async ({ page }) => {
+    await feed(page, 7);
+    const find = page.getByPlaceholder('Find a file or person…');
+    await expect(find).toBeVisible();
+    await find.fill('jun');
+    await expect(page.locator('.shp-row')).toHaveCount(3);
+    for (const r of await page.locator('.shp-row .shp-sub').allTextContents()) expect(r).toContain('Jun Park');
+    await expect(page.locator('.shp-count')).toHaveText('3 of 8');
+    await find.press('Escape');
+    await expect(find).toHaveValue('');
+    await expect(page.locator('.shp-row')).toHaveCount(8);
+
+    await find.fill('ana');
+    await expect(page.locator('.shp-row')).toHaveCount(2);
+    await page.getByRole('tab', { name: /By me/ }).click();
+    const byMeFind = page.getByPlaceholder('Find a file or cluster…');
+    await expect(byMeFind).toBeVisible();
+    await expect(byMeFind).toHaveValue('');
+    await expect(page.locator('.shp-row')).toHaveCount(7);
+    await byMeFind.fill('title');
+    await expect(page.locator('.shp-row')).toHaveCount(3);
+    await expect(page.locator('.shp-count')).toHaveText('3 of 7');
+  });
+
+  test('a tab with 6 files has no field', async ({ page }) => {
+    await feed(page, 6);
+    await expect(page.getByPlaceholder('Find a file or person…')).toBeVisible();
+    await page.getByRole('tab', { name: /By me/ }).click();
+    await expect(page.locator('.shp-row')).toHaveCount(6);
+    await expect(page.locator('.shp-find-input')).toHaveCount(0);
+  });
+});

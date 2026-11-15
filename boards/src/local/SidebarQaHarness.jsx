@@ -301,6 +301,7 @@ const VIEW_ONLY = QS.get('viewonly') || null;
 const SHARED = QS.has('shared') ? [{
   board_id: 'grade', board_name: 'Grade', role: 'viewer',
   source_workspace_id: 'ws-gradehouse', source_workspace_name: 'Gradehouse',
+  is_shared_root: true, shared_by: 'priya', shared_by_name: 'Priya Rao', shared_by_color: '#7a5af8',
 }] : [];
 // &many=1: a workspace that has been going a while, so the cluster tab's list
 // is longer than its room and scrolls (nothing is filed in the new ones).

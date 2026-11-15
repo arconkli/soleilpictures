@@ -406,11 +406,14 @@ import { holdNoteTypeAhead } from './lib/noteTypeAhead.js';
 import { dropUnclaimedTouchKeyboard } from './lib/touchKeyboard.js';
 import { isComposingKey } from './lib/composerKeys.js';
 import { initialOf } from './lib/graphemes.js';
+import { useWorkspaceOwners } from './hooks/useWorkspaceOwners.js';
+import { isOwnWorkspace, workspaceTitle, workspaceTileName, titleNamesOwner } from './lib/sharedPeopleWords.js';
 import { uiLocale } from './lib/uiLocale.js';
 import { formatDate } from './lib/intlFormat.js';
 import { t as tr, ph, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { searchWords } from './lib/searchWords.js';
+import { noteWorkspaceOpened } from './lib/sharedPeople.js';
 import { shownError } from './lib/errorWords.js';
 
 // A cluster with nothing on its board but files in Files gets a cover of its
@@ -597,6 +600,10 @@ export function App() {
     if (wsListLoading) return;
     setActiveWorkspaceId(personalWorkspace.id);
   }, [personalWorkspace, activeWorkspaceId, workspaces, wsListLoading, user]);
+  // Remember on this device that this workspace was opened (sharedPeople.js).
+  useEffect(() => {
+    if (activeWorkspaceId) noteWorkspaceOpened(activeWorkspaceId);
+  }, [activeWorkspaceId]);
   useEffect(() => {
     if (activeWorkspaceId) writeSession(workspaceSessionKey, { activeWorkspaceId });
   }, [workspaceSessionKey, activeWorkspaceId]);
@@ -721,6 +728,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   perf.usePerfRenderTime('Workspace');
   bootMark('workspace');
   const { boards: ownedBoards, loading: boardsLoading, refresh: refreshBoards } = useBoardList(workspace.id, user.id);
+  // Who owns each workspace that is someone else's: the switcher's title and
+  // ⌘K's workspace rows say "Sam's workspace" rather than a generic name.
+  const wsOwners = useWorkspaceOwners(workspaces, user.id);
   // Boards shared with the user via per-board shares. Fetched here
   // (early) so we can merge them into the boards map below; the shared
   // section in the sidebar reads from the same source.
@@ -765,6 +775,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           day_types: s.day_types ?? null,
           _shared: true,
           _sharedRoot: s.is_shared_root !== false,
+          // 0896: who shared it (the root's sharer, carried to descendants).
+          _sharedBy: s.shared_by ?? null,
+          _sharedByName: s.shared_by_name ?? null,
+          _sharedByColor: s.shared_by_color ?? null,
+          _sharedRole: s.role ?? null,
         };
       }
     }
@@ -10559,6 +10574,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
   // Command palette actions. Per-shell so each closure captures the right
   // setters; `available` gates rows that need an editable board / a real board.
+  // ⌘K's workspaces: the menu's list, minus the open one.
+  const paletteWorkspaces = useMemo(() => (workspaces || [])
+    .filter((ws) => ws.id !== workspace.id)
+    .map((ws) => {
+      const owner = wsOwners.get(ws.id) || null;
+      const ownerName = owner?.name || null;
+      const isOwn = isOwnWorkspace(ws, user.id);
+      const title = workspaceTitle(ws, { ownerName, isOwn });
+      let sub;
+      if (isOwn) sub = tr`Switch workspace`;
+      else if (!ownerName || titleNamesOwner(ws, { ownerName, isOwn })) sub = tr`Switch workspace · shared with you`;
+      else sub = tr`Switch workspace · owned by ${ph({ owner: ownerName })}`;
+      return {
+        id: ws.id, title, name: ws.name || '', ownerName, sub,
+        // The switcher's tile: the owner's letter and colour for someone else's.
+        letter: initialOf(workspaceTileName(ws, { ownerName, isOwn })),
+        color: (!isOwn && owner?.color) || ws.color || null,
+        keys: [title, ws.name, ownerName].filter(Boolean),
+      };
+    }), [workspaces, workspace.id, wsOwners, user.id]);
+
   const appCommands = useMemo(() => [
     { id: 'new-board', label: tr`New project`, icon: LayoutGrid, keywords: searchWords(['new', 'add', 'create', 'cluster', 'board', 'project'],
         tr({ message: 'new, add, create, cluster, board, project', context: 'command search words',
@@ -11264,12 +11300,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   //
   // The top: the workspace switcher and search, and on the old sidebar Home
   // and Messages, held in place (flex-shrink:0) while the list below scrolls.
+  // Someone else's workspace takes its owner's colour and the title's letter,
+  // as its row in the switcher does (wsOwners only holds others' workspaces).
+  const activeWsOwner = wsOwners.get(workspace.id) || null;
+  const activeWsTitle = workspaceTitle(workspace, { ownerName: activeWsOwner?.name || null, isOwn: isOwnWorkspace(workspace, user.id) });
   const sbTop = (
     <div className="sb-top">
     <div className="sb-mid-head">
       <button className="sb-ws-trigger"
               onClick={() => setWsMenuOpen(o => !o)}
-              title={tr`${ph({ name: workspace.name })} · click to switch`}
+              title={tr`${ph({ name: activeWsTitle })} · click to switch`}
               aria-haspopup="menu" aria-expanded={wsMenuOpen}>
         {(() => {
           const iconSrc = workspace.settings?.icon_url || '';
@@ -11280,12 +11320,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           ) : (
             // The files sidebar's is neutral: the name beside it says
             // which workspace, and gold and colour are kept for data.
-            <span className="sb-ws-avatar" style={filesSidebar ? undefined : { background: pickPresenceColor(workspace.id) }}>
-              {initialOf(workspace.name)}
+            <span className="sb-ws-avatar" style={filesSidebar ? undefined : { background: activeWsOwner?.color || pickPresenceColor(workspace.id) }}>
+              {initialOf(workspaceTileName(workspace, { ownerName: activeWsOwner?.name || null, isOwn: isOwnWorkspace(workspace, user.id) }))}
             </span>
           );
         })()}
-        <span className="sb-ws-name">{workspace.name}</span>
+        <span className="sb-ws-name">{activeWsTitle}</span>
         <svg className="sb-ws-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
           <path d="M2 4 L5 7 L8 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -12397,6 +12437,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         rootId={rootBoard.id}
         recents={recents.recents}
         commands={appCommands}
+        workspaces={paletteWorkspaces}
+        onSwitchWorkspace={(id) => {
+          if (filesSidebar && currentSurface === 'home' && id !== workspace.id) markHomeAfterSwitch(id);
+          onSwitchWorkspace(id); setCurrentSurface('board');
+        }}
         mobileShell={mobileShell}
         // What the open board holds, for the "no results" explanation: an
         // all-images board is why most searches here find nothing.

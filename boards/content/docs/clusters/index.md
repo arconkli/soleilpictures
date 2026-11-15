@@ -257,7 +257,7 @@ clusters open in.
 - **All clusters** at the bottom of the sidebar's list searches every cluster
   and opens the one you pick
 - **[`⌘K`](/docs/organize/search)** searches cluster names alongside everything else
-- **Shared with me** groups clusters other people have invited you to, by whose workspace they came from
+- **Shared with me** groups clusters other people have invited you to by the person who shared them, with a search field once there are many
 
 ## Deleting
 

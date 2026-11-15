@@ -6,7 +6,7 @@
 // render it inside a `position: relative` container. Click-outside +
 // Escape close it.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Plus, Search, MoreHorizontal, LogOut, Trash2, Edit, Check, Share2, Lock, Users, ChevronRight } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { R2Image } from './R2Image.jsx';
@@ -14,14 +14,19 @@ import { pickPresenceColor } from '../lib/presenceColor.js';
 import { ownPersonalCount, workspaceCountLine } from '../lib/workspaceLimit.js';
 import { teamsAllowed } from '../lib/appHost.js';
 import { isComposingKey } from '../lib/composerKeys.js';
-import { searchKey } from '../lib/textFold.js';
 import { initialOf } from '../lib/graphemes.js';
-import { t } from '@lingui/core/macro';
+import { matchesFind, findHitKind, readOpenedWorkspaces, orderSharedWorkspaces } from '../lib/sharedPeople.js';
+import { isOwnWorkspace, workspaceTitle, workspaceTileName, workspaceOwnerLine } from '../lib/sharedPeopleWords.js';
+import { useWorkspaceOwners } from '../hooks/useWorkspaceOwners.js';
+import { trackFindUsed } from '../lib/findUsed.js';
+import { coarsePointer } from '../lib/noteTouchTyping.js';
+import { t, ph } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import './workspaceMenuFind.css';
 
-// Show the filter input once we have more workspaces than this — on
-// small lists it's just visual clutter.
-const FILTER_THRESHOLD = 6;
+// Show the find field once the menu lists this many workspaces — on
+// tiny lists it's just visual clutter.
+const FILTER_MIN = 5;
 
 export function WorkspaceMenu({
   workspaces,
@@ -50,6 +55,14 @@ export function WorkspaceMenu({
 }) {
   const ref = useRef(null);
   const [filter, setFilter] = useState('');
+  // The keyboard / hover highlight: a workspace id, or null. While the field
+  // has text the first match stands in for null (see `hlId`).
+  const [hl, setHl] = useState(null);
+  const listId = useId();
+  const rowDomId = (id) => `${listId}-ws-${id}`;
+  const scrollHl = useRef(false);
+  // Which shared workspaces you opened last on this device: read once per open.
+  const opened = useMemo(() => readOpenedWorkspaces(), []);
   // Per-row mini-menu state — only one open at a time. Stores the
   // workspace id whose ⋯ button was clicked.
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -77,9 +90,13 @@ export function WorkspaceMenu({
   }, [onClose, triggerSelector]);
 
   const list = workspaces || [];
-  const showFilter = list.length > FILTER_THRESHOLD;
-  const q = filter.trim().toLowerCase();
-  const matches = (w) => !q || searchKey(w.name).includes(searchKey(q));
+  const owners = useWorkspaceOwners(list, selfUserId);
+  const showFilter = list.length >= FILTER_MIN;
+  const q = filter.trim();
+  // What a row calls itself, and who owns it (null: yours, or unknown).
+  const titleOf = (w) => (isOwnWorkspace(w, selfUserId) || w.created_by === selfUserId
+    ? w.name : workspaceTitle(w, { ownerName: owners.get(w.id)?.name ?? null, isOwn: false }));
+  const matches = (w) => !q || matchesFind(q, [titleOf(w), w.name, owners.get(w.id)?.name ?? null]);
   // A real team's workspaces show once, in the team section, while not filtering.
   const teamIds = !q && team?.ids ? new Set(team.ids) : null;
   const inTeam = (w) => !!teamIds && teamIds.has(w.id);
@@ -89,10 +106,60 @@ export function WorkspaceMenu({
       if (a.id === personalWorkspaceId) return -1;
       if (b.id === personalWorkspaceId) return 1;
       return (a.created_at || '').localeCompare(b.created_at || '');
-    }), [list, selfUserId, personalWorkspaceId, q, team?.ids]);
-  const shared = useMemo(() => list
-    .filter(w => w.created_by !== selfUserId && matches(w) && !inTeam(w))
-    .sort((a, b) => (a._joinedAt || '').localeCompare(b._joinedAt || '')), [list, selfUserId, q, team?.ids]);
+    }), [list, selfUserId, personalWorkspaceId, q, team?.ids, owners]);
+  const shared = useMemo(() => orderSharedWorkspaces(
+    list.filter(w => w.created_by !== selfUserId && matches(w) && !inTeam(w)),
+    opened,
+    (w) => Date.parse(w._joinedAt),
+  ), [list, selfUserId, q, team?.ids, owners, opened]);
+  // The rows on screen, top to bottom: what the arrows walk. A team's rows
+  // come first while nothing is typed, and switch through the team's own path.
+  const teamRows = team && !q ? (team.workspaces || []) : [];
+  const teamRowIds = new Set(teamRows.map(w => w.id));
+  const visible = [...teamRows, ...mine.filter(w => !teamRowIds.has(w.id)), ...shared.filter(w => !teamRowIds.has(w.id))];
+  const hlId = q ? (visible.some(w => w.id === hl) ? hl : visible[0]?.id ?? null)
+                 : (visible.some(w => w.id === hl) ? hl : null);
+  useEffect(() => {
+    if (!scrollHl.current || !hlId) return;
+    scrollHl.current = false;
+    document.getElementById(rowDomId(hlId))?.scrollIntoView?.({ block: 'nearest' });
+  }, [hlId]);
+  const pick = (w) => {
+    if (teamRowIds.has(w.id)) { team.onPickWorkspace?.(w); onClose?.(); return; }
+    if (q) {
+      trackFindUsed({
+        surface: 'ws_menu',
+        nItems: visible.length,
+        by: findHitKind(q, [titleOf(w), w.name], [owners.get(w.id)?.name ?? null]) || 'name',
+      });
+    }
+    onSelect?.(w.id);
+    onClose?.();
+  };
+  const onFindKey = (e) => {
+    if (isComposingKey(e)) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (filter) { e.stopPropagation(); setFilter(''); setHl(null); } else onClose?.();
+      return;
+    }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!visible.length) return;
+      const down = e.key === 'ArrowDown';
+      let i = visible.findIndex(w => w.id === hlId);
+      if (i < 0) i = visible.findIndex(w => w.id === activeWorkspaceId);
+      const next = i < 0 ? (down ? 0 : visible.length - 1)
+        : (i + (down ? 1 : -1) + visible.length) % visible.length;
+      scrollHl.current = true;
+      setHl(visible[next].id);
+      return;
+    }
+    if (e.key === 'Enter') {
+      const w = visible.find(x => x.id === hlId);
+      if (w) { e.preventDefault(); pick(w); }
+    }
+  };
   // From 8 of your own (0856): "8 of 10 workspaces"; "of your own" when a team's are in the list too.
   const countLine = workspaceCountLine(ownPersonalCount(list, selfUserId), { teams: teamsAllowed(), mixed: list.some(w => w.org_id) });
   const noResults = q && mine.length === 0 && shared.length === 0;
@@ -111,12 +178,19 @@ export function WorkspaceMenu({
     // can't delete it, so their remove action stays "Leave".
     const isCoowner = !isOwner && w._myRole === 'coowner';
     const canManage = isOwner || isCoowner;
+    const owner = owners.get(w.id) || null;
+    const title = titleOf(w);
+    const ownerLine = isOwner ? null
+      : workspaceOwnerLine(w, { ownerName: owner?.name ?? null, isOwn: isOwnWorkspace(w, selfUserId), role: w._myRole });
     const subtitle = isPersonal ? t`Personal`
                   : isOwner    ? t`You own this`
+                  : ownerLine ? ownerLine
                   : isCoowner  ? t`You co-own this`
                   :              t`Shared with you`;
-    const initial = initialOf(w.name);
-    const tint = pickPresenceColor(w.id);
+    const initial = initialOf(workspaceTileName(w, { ownerName: owner?.name ?? null, isOwn: isOwner || isOwnWorkspace(w, selfUserId) }));
+    // Someone else's workspace takes its owner's colour, so a person's
+    // workspaces read as theirs; your own keep the id-derived one.
+    const tint = (!isOwner && owner?.color) || pickPresenceColor(w.id);
     const iconSrc = w.settings?.icon_url || '';
     // Personal workspace is the user's home — not removable. Owners
     // see "Delete workspace" (destroys it for everyone); shared
@@ -129,18 +203,23 @@ export function WorkspaceMenu({
     const hasRowMenu = canRemove || canRename || canShare;
     return (
       <div key={w.id} className={`ws-menu-row-wrap ${hasRowMenu ? 'has-menu' : ''}`}
+           // Move, not enter: a row sliding under a still pointer as the
+           // arrows scroll the list mustn't take the highlight.
+           onMouseMove={() => setHl(w.id)}
            // Right-click a workspace → the same menu its ⋯ opens, instead of
            // the browser's.
            onContextMenu={hasRowMenu ? (e) => { e.preventDefault(); setOpenMenuId(w.id); } : undefined}>
-        <button className={`ws-menu-row ${isActive ? 'is-active' : ''}`}
-                onClick={() => { onSelect?.(w.id); onClose?.(); }}>
+        <button id={rowDomId(w.id)}
+                className={`ws-menu-row ${isActive ? 'is-active' : ''} ${hlId === w.id ? 'is-kb' : ''}`}
+                onClick={() => pick(w)}>
           {iconSrc
             ? <span className="ws-menu-avatar ws-menu-avatar-img"><R2Image src={iconSrc} alt="" /></span>
             : <span className="ws-menu-avatar" style={{ background: tint }}>{initial}</span>}
           <span className="ws-menu-text">
-            <span className="ws-menu-name">{w.name}</span>
+            <span className="ws-menu-name">{title}</span>
             <span className="ws-menu-sub">{subtitle}</span>
           </span>
+          {q && hlId === w.id && <span className="ws-menu-enter" aria-hidden="true">↵</span>}
           {isActive && (
             <span className="ws-menu-check"><Icon as={Check} size={14} /></span>
           )}
@@ -205,22 +284,26 @@ export function WorkspaceMenu({
       {showFilter && (
         <div className="ws-menu-filter">
           <Icon as={Search} size={12} />
-          <input autoFocus
+          <input autoFocus={!coarsePointer()}
                  type="text"
-                 placeholder={t`Filter workspaces…`}
+                 placeholder={t`Find a workspace or person…`}
+                 aria-label={t`Find a workspace or person…`}
+                 aria-controls={listId}
+                 aria-activedescendant={hlId ? rowDomId(hlId) : undefined}
                  value={filter}
-                 onChange={(e) => setFilter(e.target.value)}
-                 onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } }} />
+                 onChange={(e) => { setFilter(e.target.value); setHl(null); scrollHl.current = true; }}
+                 onKeyDown={onFindKey} />
         </div>
       )}
-      <div className="ws-menu-scroll">
+      <div className="ws-menu-scroll" id={listId}>
         {team && !q && (
           <>
             <div className="ws-menu-section">{team.name.toUpperCase()}<span className="ws-menu-tag"><Trans>TEAM</Trans></span></div>
             {team.workspaces.map((w) => (
-              <button key={w.id} type="button"
-                      className={`ws-menu-row ${team.activeId && w.id === team.activeId ? 'is-active' : ''}`}
-                      onClick={() => { team.onPickWorkspace?.(w); onClose?.(); }}>
+              <button key={w.id} type="button" id={rowDomId(w.id)}
+                      className={`ws-menu-row ${team.activeId && w.id === team.activeId ? 'is-active' : ''} ${hlId === w.id ? 'is-kb' : ''}`}
+                      onMouseMove={() => setHl(w.id)}
+                      onClick={() => pick(w)}>
                 <span className="ws-menu-avatar" style={{ background: w.color }}>{w.letter}</span>
                 <span className="ws-menu-text">
                   <span className="ws-menu-name">{w.name}</span>
@@ -260,7 +343,7 @@ export function WorkspaceMenu({
           </>
         )}
         {noResults && (
-          <div className="ws-menu-empty"><Trans>No workspaces match "{filter}"</Trans></div>
+          <div className="ws-menu-empty">{t`No workspace or person matches “${ph({ q })}”.`}</div>
         )}
       </div>
       <div className="ws-menu-divider" />

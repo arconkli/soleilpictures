@@ -1353,6 +1353,10 @@ msgstr "{h} ч назад"
 msgid "{heldElsewhere, plural, one {The file you dropped is in your other Clusters tab. Switch back to it to see it go on — you can close this one.} other {The # files you dropped are in your other Clusters tab. Switch back to it to see them go on — you can close this one.}}"
 msgstr "{heldElsewhere, plural, one {Файл, который вы перетащили, находится в другой вкладке Clusters. Вернитесь в неё, чтобы увидеть, как он добавится, — эту вкладку можно закрыть.} few {# файла, которые вы перетащили, находятся в другой вкладке Clusters. Вернитесь в неё, чтобы увидеть, как они добавятся, — эту вкладку можно закрыть.} many {# файлов, которые вы перетащили, находятся в другой вкладке Clusters. Вернитесь в неё, чтобы увидеть, как они добавятся, — эту вкладку можно закрыть.} other {# файла, которые вы перетащили, находятся в другой вкладке Clusters. Вернитесь в неё, чтобы увидеть, как они добавятся, — эту вкладку можно закрыть.}}"
 
+#: src/components/SidebarSharedBoards.jsx
+msgid "{hiddenN, plural, one {Show # more} other {Show # more}}"
+msgstr "{hiddenN, plural, one {Показать ещё #} few {Показать ещё #} many {Показать ещё #} other {Показать ещё #}}"
+
 #: src/components/cards.jsx
 msgid "{hx} — click to edit · drag to reorder"
 msgstr "{hx} — нажмите, чтобы изменить · перетащите, чтобы переставить"
@@ -2190,6 +2194,10 @@ msgstr "Ещё {overflow} — открыть день"
 msgid "{owner} invited you."
 msgstr "{owner} приглашает вас."
 
+#: src/lib/sharedPeopleWords.js
+msgid "{owner}'s workspace"
+msgstr "Рабочее пространство: {owner}"
+
 #: src/lib/dropRules.js
 msgid "{owner}’s workspace"
 msgstr "рабочем пространстве {owner}"
@@ -2532,6 +2540,7 @@ msgid "{shown} of {0, plural, one {# card} other {# cards}} came through"
 msgstr "Получено {shown} из {0, plural, one {# карточки} few {# карточек} many {# карточек} other {# карточки}}"
 
 #: src/components/ListSurface.jsx
+#: src/components/shared/SharedPage.jsx
 msgid "{shown} of {total}"
 msgstr "{shown} из {total}"
 
@@ -5831,6 +5840,8 @@ msgid "Clear out"
 msgstr "Сбросить выход"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
+#: src/components/shared/SharedPage.jsx
+#: src/components/SidebarSharedBoards.jsx
 msgid "Clear search"
 msgstr "Очистить поиск"
 
@@ -9634,10 +9645,6 @@ msgstr "Фильтруйте теги или введите новый…"
 msgid "Filter tags…"
 msgstr "Фильтр тегов…"
 
-#: src/components/WorkspaceMenu.jsx
-msgid "Filter workspaces…"
-msgstr "Фильтр рабочих пространств…"
-
 #: src/lib/filesView.js
 msgid "Filtered"
 msgstr "Отфильтровано"
@@ -9658,9 +9665,25 @@ msgstr "Найти"
 msgid "Find a cluster"
 msgstr "Найти кластер"
 
+#: src/components/SidebarSharedBoards.jsx
+msgid "Find a cluster or person…"
+msgstr "Найти кластер или человека…"
+
 #: src/components/MessagesPanel.jsx
 msgid "Find a conversation"
 msgstr "Найти беседу"
+
+#: src/components/shared/SharedPage.jsx
+msgid "Find a file or cluster…"
+msgstr "Найти файл или кластер…"
+
+#: src/components/shared/SharedPage.jsx
+msgid "Find a file or person…"
+msgstr "Найти файл или человека…"
+
+#: src/components/WorkspaceMenu.jsx
+msgid "Find a workspace or person…"
+msgstr "Найти рабочее пространство или человека…"
 
 #: src/lib/powerReveals.js
 msgid "Find anything instantly — search every card and doc you’ve made."
@@ -10021,7 +10044,7 @@ msgstr "Друзей присоединилось"
 msgid "From"
 msgstr "От"
 
-#: src/components/SidebarSharedBoards.jsx
+#: src/lib/sharedPeopleWords.js
 msgid "From {name}"
 msgstr "От: {name}"
 
@@ -13805,8 +13828,8 @@ msgid "No waiting. Admins hear about each one."
 msgstr "Без ожидания. Администраторы узнают о каждом."
 
 #: src/components/WorkspaceMenu.jsx
-msgid "No workspaces match \"{filter}\""
-msgstr "Нет рабочих пространств по запросу «{filter}»"
+msgid "No workspace or person matches “{q}”."
+msgstr "По запросу «{q}» не найдено ни рабочих пространств, ни людей."
 
 #: src/lib/billingCopyWords.js
 msgid "No. Clusters runs in the browser on desktop, laptop and tablet, and the same board opens on all of them. You can add it to a phone home screen as a web app."
@@ -14118,6 +14141,10 @@ msgstr "Пока ничего не загружено. Освободить ме
 msgid "Nothing has been uploaded yet. This cluster is on its owner’s plan, so their plan sets the limit."
 msgstr "Пока ничего не загружено. Этот кластер на тарифе владельца, поэтому лимит задаёт его тариф."
 
+#: src/components/shared/SharedPage.jsx
+msgid "Nothing here matches “{q}”."
+msgstr "Здесь ничего не найдено по запросу «{q}»."
+
 #: src/components/ListSurface.jsx
 msgid "Nothing here yet."
 msgstr "Здесь пока ничего нет."
@@ -14229,6 +14256,10 @@ msgstr "Решённых пока нет"
 #: src/components/cards/ScheduleWall.jsx
 msgid "Nothing scheduled"
 msgstr "Ничего не запланировано"
+
+#: src/components/SidebarSharedBoards.jsx
+msgid "Nothing shared with you matches “{q}”."
+msgstr "Среди доступного вам ничего не найдено по запросу «{q}»."
 
 #: src/lib/downloadOps.js
 msgid "Nothing there could be downloaded."
@@ -15237,6 +15268,14 @@ msgstr "Цвет контура…"
 #: src/components/CanvasSurface.jsx
 msgid "Outline shape"
 msgstr "Форма контура"
+
+#: src/lib/sharedPeopleWords.js
+msgid "Owned by {owner}"
+msgstr "Владелец: {owner}"
+
+#: src/lib/sharedPeopleWords.js
+msgid "Owned by {owner} · you co-own it"
+msgstr "Владелец: {owner} · вы — совладелец"
 
 #: src/components/settings/AccountEditorsCard.jsx
 #: src/components/ShareModal.jsx
@@ -18224,9 +18263,14 @@ msgstr "Доступ от"
 msgid "Shared by {by}"
 msgstr "Доступ от {by}"
 
+#: src/components/CommandPalette.jsx
 #: src/components/shared/SharedPage.jsx
 msgid "Shared by {name}"
 msgstr "Доступ от {name}"
+
+#: src/components/CommandPalette.jsx
+msgid "Shared by {name} · view only"
+msgstr "Доступ от {name} · только просмотр"
 
 #: src/App.jsx
 msgid "Shared by {sharedBy}"
@@ -18270,12 +18314,17 @@ msgstr "Доступные мне"
 #: src/components/setup/WorkspaceSetup.jsx
 #: src/components/WorkspaceMenu.jsx
 #: src/lib/homeMap.js
+#: src/lib/sharedPeopleWords.js
 msgid "Shared with you"
 msgstr "Доступно вам"
 
 #: src/components/WorkspaceMenu.jsx
 msgid "SHARED WITH YOU"
 msgstr "ДОСТУПНЫЕ ВАМ"
+
+#: src/lib/sharedPeopleWords.js
+msgid "Shared with you · you co-own it"
+msgstr "Доступно вам · вы — совладелец"
 
 #: src/components/CanvasSurface.jsx
 msgid "Shared with your workspace."
@@ -19591,6 +19640,11 @@ msgstr "Образцы цвета из изображения или выбра�
 msgid "Sweep"
 msgstr "Проезд"
 
+#: src/components/CommandPalette.jsx
+msgctxt "Command palette badge: switch to this workspace"
+msgid "Switch"
+msgstr "Перейти"
+
 #: src/components/ListSurface.jsx
 msgid "Switch to Board to drop links or text onto a cluster."
 msgstr "Переключитесь на «Холст», чтобы перетаскивать ссылки или текст на кластер."
@@ -19603,11 +19657,20 @@ msgstr "Перейти на оплату за месяц"
 msgid "Switch to yearly"
 msgstr "Перейти на оплату за год"
 
+#: src/App.jsx
 #: src/components/home/HomeWorkspace.jsx
 #: src/components/ProjectsHome.jsx
 #: src/components/WorkspaceMenu.jsx
 msgid "Switch workspace"
 msgstr "Сменить рабочее пространство"
+
+#: src/App.jsx
+msgid "Switch workspace · owned by {owner}"
+msgstr "Сменить рабочее пространство · владелец: {owner}"
+
+#: src/App.jsx
+msgid "Switch workspace · shared with you"
+msgstr "Сменить рабочее пространство · доступно вам"
 
 #: src/components/CustomFontsModal.jsx
 msgid "System"
@@ -21821,10 +21884,6 @@ msgstr "Показать"
 msgid "Unhide failed: {reason}"
 msgstr "Не удалось показать: {reason}"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Unknown"
-msgstr "Неизвестно"
-
 #: src/App.jsx
 msgid "unknown error"
 msgstr "неизвестная ошибка"
@@ -23168,6 +23227,7 @@ msgstr "Выполняется…"
 #: src/components/ShareModal.jsx
 #: src/lib/boardsApi.js
 #: src/lib/gridLayoutWords.js
+#: src/lib/sharedPeopleWords.js
 #: src/pages/MakePage.jsx
 msgid "Workspace"
 msgstr "Рабочее пространство"
@@ -23216,6 +23276,7 @@ msgid "Workspace viewer"
 msgstr "Читатель рабочего пространства"
 
 #: src/App.jsx
+#: src/components/CommandPalette.jsx
 #: src/lib/billingCopyWords.js
 msgid "Workspaces"
 msgstr "Рабочие пространства"
@@ -23396,6 +23457,7 @@ msgstr "Вы выбрали его на странице с тарифами д�
 #: src/components/ProjectsHome.jsx
 #: src/components/WorkspaceMenu.jsx
 #: src/lib/homeMap.js
+#: src/lib/sharedPeopleWords.js
 msgid "You co-own this"
 msgstr "Вы — совладелец"
 

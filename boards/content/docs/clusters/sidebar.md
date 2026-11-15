@@ -47,6 +47,20 @@ The top card:
   **Star** and, if you can edit it, **Always open in Files** to the
   [usual cluster actions](/docs/clusters).
 
+### Shared with me
+
+**Shared with me** lists the clusters people shared with you on their own,
+grouped by the person who shared them (**From Sam Lee**, with their initial),
+or by their workspace's name when who shared it isn't known. Whoever shared
+with you most recently comes first, and in each group the newest cluster
+does. A person who shared many shows their newest few, with **Show more** for
+the rest; the cluster you have open always stays in view.
+
+Once the list grows long, a search field sits at the top of it. It finds a
+cluster by its name, by who shared it, or by their workspace's name, and opens
+every group while you type. `Enter` opens the first match and `Esc` clears the
+search.
+
 The second card is **Files**.
 
 ## Files

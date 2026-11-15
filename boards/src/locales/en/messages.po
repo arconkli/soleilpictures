@@ -1341,6 +1341,10 @@ msgstr "{h}h ago"
 msgid "{heldElsewhere, plural, one {The file you dropped is in your other Clusters tab. Switch back to it to see it go on — you can close this one.} other {The # files you dropped are in your other Clusters tab. Switch back to it to see them go on — you can close this one.}}"
 msgstr "{heldElsewhere, plural, one {The file you dropped is in your other Clusters tab. Switch back to it to see it go on — you can close this one.} other {The # files you dropped are in your other Clusters tab. Switch back to it to see them go on — you can close this one.}}"
 
+#: src/components/SidebarSharedBoards.jsx
+msgid "{hiddenN, plural, one {Show # more} other {Show # more}}"
+msgstr "{hiddenN, plural, one {Show # more} other {Show # more}}"
+
 #: src/components/cards.jsx
 msgid "{hx} — click to edit · drag to reorder"
 msgstr "{hx} — click to edit · drag to reorder"
@@ -2178,6 +2182,10 @@ msgstr "{overflow} more — open day"
 msgid "{owner} invited you."
 msgstr "{owner} invited you."
 
+#: src/lib/sharedPeopleWords.js
+msgid "{owner}'s workspace"
+msgstr "{owner}'s workspace"
+
 #: src/lib/dropRules.js
 msgid "{owner}’s workspace"
 msgstr "{owner}’s workspace"
@@ -2520,6 +2528,7 @@ msgid "{shown} of {0, plural, one {# card} other {# cards}} came through"
 msgstr "{shown} of {0, plural, one {# card} other {# cards}} came through"
 
 #: src/components/ListSurface.jsx
+#: src/components/shared/SharedPage.jsx
 msgid "{shown} of {total}"
 msgstr "{shown} of {total}"
 
@@ -5819,6 +5828,8 @@ msgid "Clear out"
 msgstr "Clear out"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
+#: src/components/shared/SharedPage.jsx
+#: src/components/SidebarSharedBoards.jsx
 msgid "Clear search"
 msgstr "Clear search"
 
@@ -9622,10 +9633,6 @@ msgstr "Filter tags or type a new one…"
 msgid "Filter tags…"
 msgstr "Filter tags…"
 
-#: src/components/WorkspaceMenu.jsx
-msgid "Filter workspaces…"
-msgstr "Filter workspaces…"
-
 #: src/lib/filesView.js
 msgid "Filtered"
 msgstr "Filtered"
@@ -9646,9 +9653,25 @@ msgstr "Find"
 msgid "Find a cluster"
 msgstr "Find a cluster"
 
+#: src/components/SidebarSharedBoards.jsx
+msgid "Find a cluster or person…"
+msgstr "Find a cluster or person…"
+
 #: src/components/MessagesPanel.jsx
 msgid "Find a conversation"
 msgstr "Find a conversation"
+
+#: src/components/shared/SharedPage.jsx
+msgid "Find a file or cluster…"
+msgstr "Find a file or cluster…"
+
+#: src/components/shared/SharedPage.jsx
+msgid "Find a file or person…"
+msgstr "Find a file or person…"
+
+#: src/components/WorkspaceMenu.jsx
+msgid "Find a workspace or person…"
+msgstr "Find a workspace or person…"
 
 #: src/lib/powerReveals.js
 msgid "Find anything instantly — search every card and doc you’ve made."
@@ -10009,7 +10032,7 @@ msgstr "Friends joined"
 msgid "From"
 msgstr "From"
 
-#: src/components/SidebarSharedBoards.jsx
+#: src/lib/sharedPeopleWords.js
 msgid "From {name}"
 msgstr "From {name}"
 
@@ -13793,8 +13816,8 @@ msgid "No waiting. Admins hear about each one."
 msgstr "No waiting. Admins hear about each one."
 
 #: src/components/WorkspaceMenu.jsx
-msgid "No workspaces match \"{filter}\""
-msgstr "No workspaces match \"{filter}\""
+msgid "No workspace or person matches “{q}”."
+msgstr "No workspace or person matches “{q}”."
 
 #: src/lib/billingCopyWords.js
 msgid "No. Clusters runs in the browser on desktop, laptop and tablet, and the same board opens on all of them. You can add it to a phone home screen as a web app."
@@ -14106,6 +14129,10 @@ msgstr "Nothing has been uploaded yet. Deleting files or emptying the trash make
 msgid "Nothing has been uploaded yet. This cluster is on its owner’s plan, so their plan sets the limit."
 msgstr "Nothing has been uploaded yet. This cluster is on its owner’s plan, so their plan sets the limit."
 
+#: src/components/shared/SharedPage.jsx
+msgid "Nothing here matches “{q}”."
+msgstr "Nothing here matches “{q}”."
+
 #: src/components/ListSurface.jsx
 msgid "Nothing here yet."
 msgstr "Nothing here yet."
@@ -14217,6 +14244,10 @@ msgstr "Nothing resolved yet"
 #: src/components/cards/ScheduleWall.jsx
 msgid "Nothing scheduled"
 msgstr "Nothing scheduled"
+
+#: src/components/SidebarSharedBoards.jsx
+msgid "Nothing shared with you matches “{q}”."
+msgstr "Nothing shared with you matches “{q}”."
 
 #: src/lib/downloadOps.js
 msgid "Nothing there could be downloaded."
@@ -15225,6 +15256,14 @@ msgstr "Outline color…"
 #: src/components/CanvasSurface.jsx
 msgid "Outline shape"
 msgstr "Outline shape"
+
+#: src/lib/sharedPeopleWords.js
+msgid "Owned by {owner}"
+msgstr "Owned by {owner}"
+
+#: src/lib/sharedPeopleWords.js
+msgid "Owned by {owner} · you co-own it"
+msgstr "Owned by {owner} · you co-own it"
 
 #: src/components/settings/AccountEditorsCard.jsx
 #: src/components/ShareModal.jsx
@@ -18212,9 +18251,14 @@ msgstr "Shared by"
 msgid "Shared by {by}"
 msgstr "Shared by {by}"
 
+#: src/components/CommandPalette.jsx
 #: src/components/shared/SharedPage.jsx
 msgid "Shared by {name}"
 msgstr "Shared by {name}"
+
+#: src/components/CommandPalette.jsx
+msgid "Shared by {name} · view only"
+msgstr "Shared by {name} · view only"
 
 #: src/App.jsx
 msgid "Shared by {sharedBy}"
@@ -18258,12 +18302,17 @@ msgstr "Shared with me"
 #: src/components/setup/WorkspaceSetup.jsx
 #: src/components/WorkspaceMenu.jsx
 #: src/lib/homeMap.js
+#: src/lib/sharedPeopleWords.js
 msgid "Shared with you"
 msgstr "Shared with you"
 
 #: src/components/WorkspaceMenu.jsx
 msgid "SHARED WITH YOU"
 msgstr "SHARED WITH YOU"
+
+#: src/lib/sharedPeopleWords.js
+msgid "Shared with you · you co-own it"
+msgstr "Shared with you · you co-own it"
 
 #: src/components/CanvasSurface.jsx
 msgid "Shared with your workspace."
@@ -19579,6 +19628,11 @@ msgstr "Swatches pulled from an image, or picked by hand."
 msgid "Sweep"
 msgstr "Sweep"
 
+#: src/components/CommandPalette.jsx
+msgctxt "Command palette badge: switch to this workspace"
+msgid "Switch"
+msgstr "Switch"
+
 #: src/components/ListSurface.jsx
 msgid "Switch to Board to drop links or text onto a cluster."
 msgstr "Switch to Board to drop links or text onto a cluster."
@@ -19591,11 +19645,20 @@ msgstr "Switch to monthly"
 msgid "Switch to yearly"
 msgstr "Switch to yearly"
 
+#: src/App.jsx
 #: src/components/home/HomeWorkspace.jsx
 #: src/components/ProjectsHome.jsx
 #: src/components/WorkspaceMenu.jsx
 msgid "Switch workspace"
 msgstr "Switch workspace"
+
+#: src/App.jsx
+msgid "Switch workspace · owned by {owner}"
+msgstr "Switch workspace · owned by {owner}"
+
+#: src/App.jsx
+msgid "Switch workspace · shared with you"
+msgstr "Switch workspace · shared with you"
 
 #: src/components/CustomFontsModal.jsx
 msgid "System"
@@ -21809,10 +21872,6 @@ msgstr "Unhide"
 msgid "Unhide failed: {reason}"
 msgstr "Unhide failed: {reason}"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Unknown"
-msgstr "Unknown"
-
 #: src/App.jsx
 msgid "unknown error"
 msgstr "unknown error"
@@ -23156,6 +23215,7 @@ msgstr "Working…"
 #: src/components/ShareModal.jsx
 #: src/lib/boardsApi.js
 #: src/lib/gridLayoutWords.js
+#: src/lib/sharedPeopleWords.js
 #: src/pages/MakePage.jsx
 msgid "Workspace"
 msgstr "Workspace"
@@ -23204,6 +23264,7 @@ msgid "Workspace viewer"
 msgstr "Workspace viewer"
 
 #: src/App.jsx
+#: src/components/CommandPalette.jsx
 #: src/lib/billingCopyWords.js
 msgid "Workspaces"
 msgstr "Workspaces"
@@ -23384,6 +23445,7 @@ msgstr "You chose it on the pricing page before you signed in."
 #: src/components/ProjectsHome.jsx
 #: src/components/WorkspaceMenu.jsx
 #: src/lib/homeMap.js
+#: src/lib/sharedPeopleWords.js
 msgid "You co-own this"
 msgstr "You co-own this"
 

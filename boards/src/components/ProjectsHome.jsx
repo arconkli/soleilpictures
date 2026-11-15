@@ -35,6 +35,8 @@ import { isComposingKey } from '../lib/composerKeys.js';
 import { initialOf } from '../lib/graphemes.js';
 import { isDefaultName } from '../lib/defaultNames.js';
 import { t, plural } from '@lingui/core/macro';
+import { useWorkspaceOwners } from '../hooks/useWorkspaceOwners.js';
+import { isOwnWorkspace, workspaceTitle, workspaceTileName } from '../lib/sharedPeopleWords.js';
 import { Trans } from '@lingui/react/macro';
 
 // 'Untitled list' is the older English name; isDefaultName knows the app's name in every language.
@@ -125,6 +127,7 @@ function WorkspaceHeader({
   const triggerRef = useRef(null);
   const popRef = useRef(null);
   const open = !!place;
+  const owners = useWorkspaceOwners(workspaces, selfUserId);
 
   // The menu follows its trigger. The panel is centred, so the trigger moves
   // whenever the panel's height changes (the projects arriving just after a
@@ -180,6 +183,7 @@ function WorkspaceHeader({
     : t`Shared with you`;
   const iconSrc = workspace.settings?.icon_url || '';
   const name = (workspace.name || '').trim() || t`Workspace`;
+  const title = workspaceTitle(workspace, { ownerName: owners.get(workspace.id)?.name ?? null, isOwn: isOwnWorkspace(workspace, selfUserId) });
 
   const toggle = () => {
     if (open) { setPlace(null); return; }
@@ -194,12 +198,12 @@ function WorkspaceHeader({
         {iconSrc ? (
           <span className="ph-ws-avatar ph-ws-avatar-img"><R2Image src={iconSrc} alt="" /></span>
         ) : (
-          <span className="ph-ws-avatar" style={{ background: pickPresenceColor(workspace.id) }} aria-hidden="true">
-            {initialOf(name, '')}
+          <span className="ph-ws-avatar" style={{ background: owners.get(workspace.id)?.color || pickPresenceColor(workspace.id) }} aria-hidden="true">
+            {initialOf(workspaceTileName(workspace, { ownerName: owners.get(workspace.id)?.name ?? null, isOwn: isOwnWorkspace(workspace, selfUserId) }), '')}
           </span>
         )}
         <span className="ph-ws-text">
-          <span className="ph-ws-name">{name}</span>
+          <span className="ph-ws-name">{title}</span>
           <span className="ph-ws-sub">{sub}</span>
         </span>
         <svg className="ph-ws-chev" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">

@@ -24,6 +24,8 @@ import { isComposingKey } from '../lib/composerKeys.js';
 import { searchKey, minSearchLength, searchLength } from '../lib/textFold.js';
 import { t as tr, ph, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { matchesFind, findHitKind } from '../lib/sharedPeople.js';
+import { trackFindUsed } from '../lib/findUsed.js';
 
 // Global search + ⌘K command palette.
 //
@@ -51,7 +53,7 @@ const KIND_ICON = {
 };
 
 // Section caps keep the DOM small even on big workspaces.
-const CAP = { localBoards: 8, asyncBoards: 8, cards: 8, tags: 6, docs: 6, docPages: 6, recent: 5 };
+const CAP = { localBoards: 8, asyncBoards: 8, cards: 8, tags: 6, docs: 6, docPages: 6, recent: 5, workspaces: 6 };
 
 // A picture found only by what's in it shows itself: its small stored size at
 // 32px, once its sizes are known, and the kind's icon until then (an original
@@ -159,6 +161,9 @@ export function CommandPalette({
   emptyHelp = null,
   recents = [],
   commands = [],
+  // Workspaces to switch to, found by name or owner (search mode only).
+  workspaces = [],
+  onSwitchWorkspace,
   onNavigateRef,
   onOpenBoard,
   mobileShell = false,
@@ -307,7 +312,7 @@ export function CommandPalette({
     if (!open || !q) return [];
     const recentSet = new Set(recents);
     return Object.values(boards || {})
-      .filter(b => b.id !== rootId && !excludeIds.includes(b.id) && b.name && searchKey(b.name).includes(lq))
+      .filter(b => b.id !== rootId && !excludeIds.includes(b.id) && b.name && (searchKey(b.name).includes(lq) || (b._shared && b._sharedRoot && b._sharedByName && searchKey(b._sharedByName).includes(lq))))
       .sort((a, b) => {
         const ra = boardRank(a.name, lq), rb = boardRank(b.name, lq);
         if (ra !== rb) return ra - rb;
@@ -327,6 +332,12 @@ export function CommandPalette({
       return hay.includes(lq);
     });
   }, [open, q, lq, commands, isPick]);
+
+  // Workspaces whose title, name or owner holds every word typed.
+  const workspaceHits = useMemo(() => {
+    if (!open || !q || isPick || !workspaces.length) return [];
+    return workspaces.filter(w => matchesFind(q, w.keys)).slice(0, CAP.workspaces);
+  }, [open, q, isPick, workspaces]);
 
   // Recently-opened boards — the empty-state launcher.
   const recentBoards = useMemo(() => {
@@ -451,6 +462,19 @@ export function CommandPalette({
       })),
     });
 
+    if (workspaceHits.length) out.push({
+      id: 'workspaces', label: tr`Workspaces`,
+      items: workspaceHits.map(w => ({
+        key: `ws:${w.id}`, kind: 'workspace', ws: w,
+        title: w.title, sub: w.sub || null,
+        activate: () => {
+          close();
+          onSwitchWorkspace?.(w.id);
+          trackFindUsed({ surface: 'cmdk_ws', nItems: workspaceHits.length, by: findHitKind(q, [w.title, w.name], [w.ownerName]) || 'name' });
+        },
+      })),
+    });
+
     if (recentBoards.length) out.push({
       id: 'recent', label: tr({ message: 'Recent', context: 'items' }),
       items: recentBoards.map(b => ({
@@ -465,10 +489,20 @@ export function CommandPalette({
       id: 'boards', label: tr`Clusters`,
       items: boardItems.map(b => {
         const id = b.id || b.board_id;
+        // A cluster shared with you says by whom (and view only) when known.
+        const entry = boards?.[id];
+        const by = entry?._shared && entry._sharedByName ? String(entry._sharedByName) : null;
+        const sharedSub = by
+          ? (entry._sharedRole === 'viewer' ? tr`Shared by ${ph({ name: by })} · view only` : tr`Shared by ${ph({ name: by })}`)
+          : null;
         return {
           key: `board:${id}`, kind: 'board', icon: LayoutGrid,
-          title: b.name || b.title || tr`Untitled`, sub: b.meta || b.body || null,
-          activate: () => { close(); onOpenBoard?.(id); },
+          title: b.name || b.title || tr`Untitled`, sub: sharedSub || b.meta || b.body || null,
+          activate: () => {
+            close();
+            onOpenBoard?.(id);
+            if (by && q) trackFindUsed({ surface: 'cmdk_shared', nItems: boardItems.length, by: findHitKind(q, [entry.name], [by]) || 'name' });
+          },
         };
       }),
     });
@@ -532,7 +566,7 @@ export function CommandPalette({
     });
 
     return out;
-  }, [isPick, allBoardsList, onPickBoard, boards, commandHits, recentBoards, localBoards, asyncGroups, translatedPics, pageHits, tagHits, q, onClose, onOpenBoard, onNavigateRef]);
+  }, [isPick, allBoardsList, onPickBoard, boards, commandHits, workspaceHits, onSwitchWorkspace, recentBoards, localBoards, asyncGroups, translatedPics, pageHits, tagHits, q, onClose, onOpenBoard, onNavigateRef]);
 
   const flat = useMemo(() => sections.flatMap(s => s.items), [sections]);
   const flatIndexByKey = useMemo(() => {
@@ -663,7 +697,9 @@ export function CommandPalette({
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => activateAt(i)}
                   >
-                    {item.kind === 'tag' ? (
+                    {item.kind === 'workspace' ? (
+                      <span className="cmdk-row-icon cmdk-ws-tile" aria-hidden="true" style={item.ws.color ? { background: item.ws.color } : undefined}>{item.ws.letter}</span>
+                    ) : item.kind === 'tag' ? (
                       <span className="cmdk-tag-dot" aria-hidden="true" style={{ '--tag-c': item.accent }} />
                     ) : item.picture ? (
                       <PictureThumb src={item.picture} />
@@ -678,6 +714,8 @@ export function CommandPalette({
                     </span>
                     {item.kind === 'command' ? (
                       <span className="cmdk-row-badge"><Trans>Action</Trans></span>
+                    ) : item.kind === 'workspace' ? (
+                      <span className="cmdk-row-badge cmdk-row-badge-switch"><Trans context="Command palette badge: switch to this workspace">Switch</Trans></span>
                     ) : (
                       <Icon as={ChevronRight} size={14} className="cmdk-row-arrow" />
                     )}

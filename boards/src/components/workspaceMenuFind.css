@@ -1,0 +1,13 @@
+/* The workspace menu's keyboard / hover highlight: neutral (raised background
+   and a 1px inset line), never gold. The current workspace keeps its own
+   gold background; it only gains the line. */
+.ws-menu-row.is-kb { box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink-0); }
+.ws-menu-row.is-kb:not(.is-active) { background: var(--bg-3); }
+.ws-menu-enter {
+  margin-left: auto; flex: none;
+  font: 600 10px/1 var(--font-sans); color: var(--ink-2);
+  border: 1px solid var(--line-2); border-radius: 4px; padding: 3px 5px;
+}
+/* The search box takes the focus ring, not the input inside it. */
+.ws-menu-filter:focus-within { border-color: var(--soleil); box-shadow: var(--shadow-glow); }
+.ws-menu-filter input:focus-visible { box-shadow: none; }

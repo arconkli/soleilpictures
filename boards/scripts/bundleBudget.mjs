@@ -418,12 +418,23 @@ export const CEILINGS = {
   // block): a CI-style build read main 2de983f3 at 746,698 B, 3,402 B more than
   // on 490dc74c and over its 743,900 B ceiling. With the app's languages on top
   // it read 783,343 B, 36,645 B over main; the ceiling was 781,000 B.
-  appJs: 784_200,
+  // 2026-11-15: +1.8 KB for main's own app since that note (among it the
+  // two-finger camera on phones, lib/touchCamera.js): a CI-style build read
+  // main ec3aa3a1 at 785,125 B, over its 784,200 B ceiling. +3.1 KB for
+  // finding workspaces and shared clusters by person (the switcher's search,
+  // lib/sharedPeople.js, lib/sharedPeopleWords.js, hooks/useWorkspaceOwners.js,
+  // and their words): two builds with it read 788,140 B and 788,268 B (the
+  // compressed size moves a little with the commit tag each build carries).
+  // The ceiling moves by both, rounded up.
+  appJs: 789_000,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).
   // 21,857 B on main d2b3c2f0, 23,351 B with it.
-  appCss: 23_400,
+  // 2026-11-15: +0.3 KB for the search fields in the workspace switcher and in
+  // Shared with me (workspaceMenuFind.css, sidebar/sidebarSharedFind.css).
+  // 23,341 B on main ec3aa3a1, 23,658 B with it.
+  appCss: 23_720,
 };
 
 // Chunks that must never be in the app's critical closure. Matched against the
