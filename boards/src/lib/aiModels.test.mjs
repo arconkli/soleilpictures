@@ -16,6 +16,9 @@ const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 9, 19, 4, 0, 0);   // a Monday, 04:00 UTC
 const byId = (id) => AI_MODELS.find((m) => m.id === id);
 const LLAVA = '@cf/llava-hf/llava-1.5-7b-hf';
+// Retired and out of the registry; the 'vision' kind support stays, so tests use a stand-in.
+const VISION = { id: LLAVA, kind: 'vision' };
+const VISION11 = '@cf/meta/llama-3.2-11b-vision-instruct';
 const BGE = '@cf/baai/bge-m3';
 const WHISPER = '@cf/openai/whisper';
 
@@ -50,7 +53,7 @@ test('every model id the code calls is listed, with the files that call it', () 
 });
 
 test('the list says how to test each model, and the canaries read answers the way production does', () => {
-  assert.deepEqual(WATCHED_TASKS, ['Text Embeddings', 'Text Generation', 'Image-to-Text', 'Automatic Speech Recognition', 'Translation']);
+  assert.deepEqual(WATCHED_TASKS, ['Text Embeddings', 'Text Generation', 'Automatic Speech Recognition', 'Translation']);
   for (const m of AI_MODELS) {
     assert.ok(TASK_OF_KIND[m.kind], `${m.id}: unknown kind ${m.kind}`);
     assert.ok(m.uses && m.files.length, `${m.id}: say what it runs and where`);
@@ -59,7 +62,7 @@ test('the list says how to test each model, and the canaries read answers the wa
     if (m.kind === 'vision-chat') assert.ok(['top', 'part'].includes(m.image), `${m.id}: how it takes a picture`);
     assert.doesNotThrow(() => canaryRequest(m));
   }
-  const chat = byId('@cf/meta/llama-3.2-3b-instruct');
+  const chat = byId('@cf/meta/llama-3.3-70b-instruct-fp8-fast');
   // Workers AI parses an all-JSON answer itself (2026-10-19); either shape passes.
   assert.equal(canaryProblem(chat, { response: { ok: true } }), null);
   assert.equal(canaryProblem(chat, { response: '```json\n{"ok": true}\n```' }), null);
@@ -68,8 +71,8 @@ test('the list says how to test each model, and the canaries read answers the wa
   const bge = byId(BGE);
   assert.equal(canaryProblem(bge, { data: [new Array(1024).fill(0)] }), null);
   assert.match(canaryProblem(bge, { data: [new Array(768).fill(0)] }), /768-dim vector, not 1024/);
-  assert.equal(canaryProblem(byId(LLAVA), { description: '' }), null);
-  assert.match(canaryProblem(byId(LLAVA), { response: 'x' }), /no description/);
+  assert.equal(canaryProblem(VISION, { description: '' }), null);
+  assert.match(canaryProblem(VISION, { response: 'x' }), /no description/);
   assert.equal(canaryProblem(byId(WHISPER), { text: '' }), null);
   assert.equal(canaryProblem(byId('@cf/openai/whisper-large-v3-turbo'), { transcription_info: { text: 'Thank you.' } }), null);
   assert.match(canaryProblem(byId(WHISPER), { vtt: '' }), /no text/);
@@ -80,7 +83,7 @@ test('the list says how to test each model, and the canaries read answers the wa
   assert.equal(wav.length, 44 + 16000);
   assert.equal(String.fromCharCode(...wav.slice(0, 4)), 'RIFF');
   assert.equal(String.fromCharCode(...wav.slice(8, 12)), 'WAVE');
-  assert.ok(canaryRequest(byId(LLAVA)).image.length > 60, 'an image llava accepts');
+  assert.ok(canaryRequest(VISION).image.length > 60, 'an image llava accepts');
 });
 
 // ── The changelog ───────────────────────────────────────────────────────────
@@ -205,22 +208,22 @@ test("new models are the week's additions in the tasks the app uses, newest firs
 // ── The alerts ──────────────────────────────────────────────────────────────
 
 test('one alert per model, worst problem first, daily only when it is urgent', () => {
-  const r3b = '@cf/meta/llama-3.2-3b-instruct';
+  const goneId = BGE;
   const r70b = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
   const notice = (id, when) => ({ id, when, replacement: null, heading: 'Models deprecated', title: 'Workers AI - Deprecations', link: 'https://x.test/post', published: 'Mon, 19 Oct 2026' });
   const problems = modelProblems({
-    catalogNames: new Set(AI_MODELS.map((m) => m.id).filter((id) => id !== r3b)),
-    canaries: { [r3b]: { error: '5028: retired', attempts: 3 }, [r70b]: { error: null, ms: 900, attempts: 1 } },
-    retiring: [notice(r70b, NOW + 30 * DAY), notice(r3b, NOW - DAY)],
+    catalogNames: new Set(AI_MODELS.map((m) => m.id).filter((id) => id !== goneId)),
+    canaries: { [goneId]: { error: '5028: retired', attempts: 3 }, [r70b]: { error: null, ms: 900, attempts: 1 } },
+    retiring: [notice(r70b, NOW + 30 * DAY), notice(goneId, NOW - DAY)],
   });
-  assert.deepEqual(problems.map((p) => [p.type, p.model.id]), [['gone', r3b], ['retiring', r70b]]);
+  assert.deepEqual(problems.map((p) => [p.type, p.model.id]), [['gone', goneId], ['retiring', r70b]]);
 
   const gone = alertFor(problems[0], NOW);
-  assert.equal(gone.key, `ai_model:gone:${r3b}`);
-  assert.equal(gone.title, `Workers AI no longer lists ${r3b}`);
+  assert.equal(gone.key, `ai_model:gone:${goneId}`);
+  assert.equal(gone.title, `Workers AI no longer lists ${goneId}`);
   assert.equal(gone.window, '20 hours', 'broken: every morning');
   assert.match(gone.body, /A test request failed 3 times: 5028: retired/);
-  assert.match(gone.body, /change the id in boards\/src\/worker-ai\.js, then/);
+  assert.match(gone.body, /change the id in boards\/src\/lib\/serverEmbed\.js, boards\/src\/worker-tags\.js, then/);
 
   const soon = alertFor(problems[1], NOW);
   assert.equal(soon.title, `Workers AI retires ${r70b} on 2026-11-18`);
@@ -299,22 +302,22 @@ test('a retired model is one page, and so is one the changelog names', async () 
   const soon = item('Workers AI - Retiring Whisper', '2026-10-15-whisper', 'Thu, 15 Oct 2026 00:00:00 GMT',
     h4('models', 'Models deprecated on October 22, 2026') + `<ul><li>${code(WHISPER)}</li></ul>`);
   const { out, raised, calls } = await watch({
-    catalog: catalogOf(AI_MODELS.map((m) => m.id).filter((id) => id !== LLAVA)),
+    catalog: catalogOf(AI_MODELS.map((m) => m.id).filter((id) => id !== VISION11)),
     feed: feedOf(soon, LAUNCH, POST_0508),
-    run: answers({ [LLAVA]: async () => { throw new Error('5028: This model has been deprecated'); } }),
+    run: answers({ [VISION11]: async () => { throw new Error('5028: This model has been deprecated'); } }),
   });
   assert.deepEqual(raised.map((r) => [r.p_dedupe_key, r.p_dedupe_window]), [
-    [`ai_model:gone:${LLAVA}`, '20 hours'],
+    [`ai_model:gone:${VISION11}`, '20 hours'],
     [`ai_model:retiring:${WHISPER}`, '20 hours'],
   ]);
   assert.ok(raised.every((r) => r.p_kind === 'ai_models' && r.p_page === true));
   assert.match(raised[0].p_body, /admin alt text/);
   assert.match(raised[0].p_body, /failed 3 times: 5028/);
   assert.equal(raised[1].p_title, `Workers AI retires ${WHISPER} on 2026-10-22`);
-  assert.equal(calls.filter((id) => id === LLAVA).length, 3, 'tried three times before paging');
+  assert.equal(calls.filter((id) => id === VISION11).length, 3, 'tried three times before paging');
   assert.equal(out.sent, 2);
   // Already sent inside its window: PostgREST answers null, and nothing counts as sent.
-  assert.equal((await watch({ catalog: catalogOf(AI_MODELS.map((m) => m.id).filter((id) => id !== LLAVA)), alertId: null })).out.sent, 0);
+  assert.equal((await watch({ catalog: catalogOf(AI_MODELS.map((m) => m.id).filter((id) => id !== VISION11)), alertId: null })).out.sent, 0);
 });
 
 test('a passing blip is retried, not paged', async () => {

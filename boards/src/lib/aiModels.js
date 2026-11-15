@@ -29,16 +29,6 @@ export const AI_MODELS = [
     files: ['boards/src/lib/serverEmbed.js', 'boards/src/worker-tags.js'],
   },
   {
-    id: '@cf/meta/llama-3.1-8b-instruct-fp8', kind: 'chat',
-    uses: 'doc word-tagging (/api/tags/apply) and Scout\'s message intent and questions',
-    files: ['boards/src/lib/scoutIntent.js', 'boards/src/worker-tags.js', 'scout/src/pipeline.js'],
-  },
-  {
-    id: '@cf/meta/llama-3.2-3b-instruct', kind: 'chat',
-    uses: 'tag-candidate typing (/api/ai/candidates)',
-    files: ['boards/src/worker-ai.js'],
-  },
-  {
     id: '@cf/meta/llama-3.3-70b-instruct-fp8-fast', kind: 'chat',
     uses: 'admin SEO drafts (/api/seo/draft)',
     files: ['boards/src/worker-seo.js'],
@@ -47,21 +37,16 @@ export const AI_MODELS = [
     // A picture beside the messages (`image: 'top'`), with a system message:
     // a lone user message is refused (3030).
     id: '@cf/meta/llama-3.2-11b-vision-instruct', kind: 'vision-chat', image: 'top',
-    uses: 'picture descriptions, when Gemma 4 fails',
-    files: ['boards/src/worker-vision.js'],
+    uses: 'picture descriptions and admin alt text, when Gemma 4 fails',
+    files: ['boards/src/worker-seo.js', 'boards/src/worker-vision.js'],
   },
   {
     // The picture inside the message, OpenAI-style; it ignores one beside the
     // messages, reasons away its whole answer unless told not to, and answers
     // in the OpenAI shape (responseText reads choices[0]).
     id: '@cf/google/gemma-4-26b-a4b-it', kind: 'vision-chat', image: 'part', noThinking: true,
-    uses: 'picture descriptions (worker-vision.js, 0593)',
-    files: ['boards/src/worker-vision.js'],
-  },
-  {
-    id: '@cf/llava-hf/llava-1.5-7b-hf', kind: 'vision',
-    uses: 'admin alt text (/api/seo/alt)',
-    files: ['boards/src/worker-seo.js'],
+    uses: 'picture descriptions (worker-vision.js, 0593), admin alt text (/api/seo/alt), doc word-tagging (/api/tags/apply), tag-candidate typing (/api/ai/candidates), and Scout\'s message intent and questions',
+    files: ['boards/src/lib/scoutIntent.js', 'boards/src/worker-ai.js', 'boards/src/worker-seo.js', 'boards/src/worker-tags.js', 'boards/src/worker-vision.js', 'scout/src/pipeline.js'],
   },
   {
     // The two Whisper models take audio differently (transcribe.js).

@@ -26,12 +26,14 @@ import { SEO_LANDING_LISTED } from './lib/seoLanding.js';
 import { SEO_LISTICLE_INDEX } from './lib/seoListicleIndex.js';
 import { DOCS_PATHS } from './lib/docsiteIndex.js';
 import { parseJsonLoose, responseText } from './worker-llm.js';
+import { visionRequest, dataUriOf, pictureTypeOf, ORIGINAL_MAX_BYTES } from './lib/vision.js';
 import { answeredWith, jobFailed } from './lib/workerErrors.js';
 
 // Cloudflare Workers AI (free in-worker tier — no API key/credits). The vision
 // model captions images for alt text; the text model drafts SEO copy. Both run
 // via the env.AI binding (declared in wrangler.toml). Models are swappable.
-const VISION_MODEL = '@cf/llava-hf/llava-1.5-7b-hf';
+const ALT_MODEL = '@cf/google/gemma-4-26b-a4b-it';
+const ALT_FALLBACK = '@cf/meta/llama-3.2-11b-vision-instruct';
 const TEXT_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 const SITE_ORIGIN = 'https://clusters.soleilpictures.com';
@@ -422,8 +424,11 @@ async function handleSeoAlt(env, boardId) {
   let previewByStorage = {};
   try {
     const inList = srcKeys.map((k) => `"${k.replace(/"/g, '\\"')}"`).join(',');
-    const imgs = await sbGet(env, `images?storage_path=in.(${enc(inList)})&select=storage_path,preview_path`);
-    for (const im of imgs || []) if (im.preview_path) previewByStorage[im.storage_path] = im.preview_path;
+    const imgs = await sbGet(env, `images?storage_path=in.(${enc(inList)})&select=storage_path,preview_sm_path,preview_path`);
+    for (const im of imgs || []) {
+      const p = im.preview_sm_path || im.preview_path;
+      if (p) previewByStorage[im.storage_path] = p;
+    }
   } catch (_) { /* fall back to originals */ }
 
   const generated = await mapLimit(todo, ALT_CONCURRENCY, async (card) => {
@@ -432,14 +437,20 @@ async function handleSeoAlt(env, boardId) {
     try {
       const obj = await env.IMAGES.get(key);
       if (!obj) return { card_id: card.card_id, error: 'image not found' };
-      // Workers AI vision takes the raw image bytes as a number[] (no base64).
-      const image = [...new Uint8Array(await obj.arrayBuffer())];
-      const out = await env.AI.run(VISION_MODEL, {
-        image,
-        prompt: `${ALT_SYSTEM} The image is on a board about "${topic}".`,
-        max_tokens: 64,
-      });
-      let alt = (out?.description || '').trim().replace(/^["']|["']$/g, '');
+      if (obj.size > ORIGINAL_MAX_BYTES) return { card_id: card.card_id, error: 'too big' };
+      const mime = pictureTypeOf(key, obj.httpMetadata?.contentType);
+      if (!mime || mime === 'image/gif') return { card_id: card.card_id, error: 'not a still picture' };
+      const uri = dataUriOf(new Uint8Array(await obj.arrayBuffer()), mime);
+      // Gemma 4 with the picture inside the message, Llama 3.2 Vision if it throws:
+      // the same pair the describe job uses. LLaVA retired 2026-11-20.
+      const ask = { system: ALT_SYSTEM, prompt: `Write the alt text. The image is on a board about "${topic}".`, maxTokens: 64 };
+      let out;
+      try {
+        out = await env.AI.run(ALT_MODEL, visionRequest('part', uri, { ...ask, noThinking: true }));
+      } catch (_) {
+        out = await env.AI.run(ALT_FALLBACK, visionRequest('top', uri, ask));
+      }
+      let alt = responseText(out).trim().replace(/^["']|["']$/g, '');
       if (alt.length > ALT_MAXLEN) alt = alt.slice(0, ALT_MAXLEN).replace(/\s+\S*$/, '');
       if (!alt) return { card_id: card.card_id, error: 'empty' };
       return { card_id: card.card_id, alt };

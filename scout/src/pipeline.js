@@ -520,8 +520,8 @@ async function answerQuestion(cfg, text, ctx) {
       // runChat, not runWorkersAiChat: this service has no AI binding, only
       // the REST API (config.js), and the binding-only call threw every time.
       const out = await runChat(
-        cfg, '@cf/meta/llama-3.1-8b-instruct-fp8', CLASSIFIER_SYSTEM,
-        String(text).slice(0, 400), { max_tokens: 12, temperature: 0 },
+        cfg, '@cf/google/gemma-4-26b-a4b-it', CLASSIFIER_SYSTEM,
+        String(text).slice(0, 400), { max_tokens: 12, temperature: 0, noThinking: true },
       );
       const guess = String(out || '').trim().toLowerCase().replace(/[^a-z_]/g, '');
       if (isValidTopic(guess)) topic = guess;
