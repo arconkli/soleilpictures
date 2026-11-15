@@ -6,14 +6,16 @@ navLabel: Settings
 section: account
 order: 0
 updated: 2026-11-15
-answer: Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
+answer: Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your own picture and name in the sidebar, or with Cmd-K and typing settings.
 faq:
   - q: Are settings per device?
     a: No. They are stored on your account and follow you to any browser or device you sign in on, including the theme and the scroll-wheel mode.
-  - q: What is the difference between the cog and my avatar?
-    a: Nothing except where they land you. Both open the same panel — the cog on the workspace's General tab, the avatar on your Profile. Everything else is one click away in the same rail.
+  - q: What is the difference between the cog and my name?
+    a: Nothing except where they land you. Both open the same panel — the cog on the workspace's General tab, your picture and name on your Profile. Everything else is one click away in the same rail.
+  - q: How do I change my name or profile picture?
+    a: Click your picture and name at the bottom left of the sidebar, or press Cmd-K and type edit profile. In Profile, click the picture to add or change it and type your name in Display name. People you share a workspace with see both, with your colour, beside your comments and messages, in who's here, in Members and in the Share panel.
   - q: How do I sign out or switch to another email?
-    a: Open Settings from your avatar. Profile starts with the email you are signed in as and a Sign out button, and on a phone that is also the first thing in the Settings list. Sign out, then sign in with the other email. Signing out deletes nothing.
+    a: Click your picture and name at the bottom left of the sidebar. Profile starts with the email you are signed in as and a Sign out button. On a phone, Settings opens with a card for you, and Sign out is on it. Sign out, then sign in with the other email. Signing out deletes nothing.
   - q: Where do I find my storage usage?
     a: Under Plan and billing, as a meter showing used against your quota.
   - q: Where are API tokens?
@@ -24,9 +26,10 @@ related:
   - /docs/api/authentication
 ---
 
-Open it from the sidebar — the **cog** or **your avatar**, bottom left — or with
-`⌘K` → "settings". Both buttons open the same panel; they differ only in which
-tab they land on, and every other tab is one click away in the same rail.
+Open it from the sidebar — the **cog** or **your picture and name**, bottom
+left — or with `⌘K` → "settings". Both buttons open the same panel; they differ
+only in which tab they land on: the cog on General, your name on Profile. Every
+other tab is one click away in the same rail.
 
 Settings are stored on your account, not the device, so they follow you
 everywhere you sign in. **Nothing here has a Save button** — every change is
@@ -38,17 +41,30 @@ The rail is grouped, and which group a setting is in tells you who it affects.
 
 ## You
 
-Personal. Nobody else in the workspace sees these, and they follow your account
-between devices.
+Personal, and they follow your account between devices. Nobody else in the
+workspace sees these, with one exception: **Profile** is how you appear to the
+people you share a workspace with.
 
 ### Profile
 
 It starts with the email you're signed in as and a **Sign out** button. Have
 two emails? Sign out, then sign in with the other one; nothing is deleted.
 
-Below that: profile picture, display name and your
+Below that: your **picture**, your **display name** and your
 **[presence colour](/docs/collaborate/presence)** — the colour your cursor and
-selection halos appear in to everyone else.
+selection halos appear in to everyone else. People you share a workspace with
+see all three: beside your comments and messages, in who's here on a cluster,
+in Members and in the Share panel. Until you add a picture they see your
+initial on your colour.
+
+Click the picture to add or change it; **Remove** takes it away. To get here,
+click your picture and name at the bottom left of the sidebar, or press `⌘K`
+and type "edit profile". Your own face on a comment, a message, Members or the
+Share panel opens Profile too.
+
+If you have set neither a name nor a picture, Clusters asks the first time
+someone else is in a cluster with you. It asks once on each computer or phone
+you use, so you may see the note again on another one.
 
 **Passkeys** lists the passkeys you can sign in with instead of an emailed
 code, with when each was added and last used. **Add a passkey** saves one on
@@ -183,7 +199,7 @@ The same button sits in three places:
 
 - At the top of **Profile**, next to the email you're signed in as.
 - At the foot of the rail on a computer, with that email under it.
-- First in the list on a phone, above every tab.
+- On the card for you that opens the list on a phone.
 
 It asks first, and names the account it is about to sign out of. Signing out
 ends that email's sign-in on every device, so each one asks for a fresh code
@@ -206,5 +222,5 @@ A few things live where they apply rather than in a settings screen:
 ## On a phone
 
 The panel fills the screen and works as a list: the rail is the first screen,
-headed by the email you're signed in as and **Sign out**; tapping a tab pushes it, and the back chevron in the header returns to the
+headed by a card for you — your picture, name and email, with **Sign out**. Tapping the card opens Profile; tapping a tab pushes it, and the back chevron in the header returns to the
 list. The bottom nav's **Settings** tab opens it.

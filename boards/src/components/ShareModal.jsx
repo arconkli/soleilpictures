@@ -73,7 +73,6 @@ import {
 } from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
-import { initialOf } from '../lib/graphemes.js';
 import { t as tr, ph, plural } from '@lingui/core/macro';
 import { formatDate, joinSentences } from '../lib/intlFormat.js';
 import { Trans } from '@lingui/react/macro';
@@ -86,6 +85,8 @@ const dotted = (...parts) => parts.filter(Boolean).join(' · ');
 // is translated.
 const failReason = (reason) => (reason === 'already a member' ? tr`already a member` : reason);
 const failSummary = (fail) => fail.slice(0, 3).map((f) => `${f.email} (${failReason(f.reason)})`).join(', ') + (fail.length > 3 ? '…' : '');
+import { PersonFace } from './PersonFace.jsx';
+import { openProfile } from '../lib/openProfile.js';
 
 // Turn an expiry choice into a timestamp. 'never' is an explicit null, which
 // the RPCs read as "no expiry" — undefined would take the server default.
@@ -1334,12 +1335,26 @@ export function ShareModal({
       <div className="share-row-access">{control}</div>
     </div>
   );
-  const avatarFor = (seed, text, neutral = false) => (
-    <span className="share-avatar"
-          style={neutral ? { background: 'var(--bg-4)', color: 'var(--ink-1)' } : { background: pickPresenceColor(seed) }}>
-      {initialOf(text)}
-    </span>
-  );
+  // A person's row is seeded by their user id, which is also where their
+  // picture is found. A neutral row is an invite to an address: its seed is
+  // the invite's id, there is no person yet, so no picture is looked up.
+  // Your own face opens your profile.
+  const avatarFor = (seed, text, neutral = false) => {
+    if (neutral) {
+      return (
+        <PersonFace name={text} className="share-avatar"
+                    style={{ background: 'var(--bg-4)', color: 'var(--ink-1)' }} />
+      );
+    }
+    const mine = !!seed && seed === selfUserId;
+    return (
+      <PersonFace userId={seed} name={text} color={pickPresenceColor(seed)}
+                  className="share-avatar"
+                  {...(mine
+                    ? { onClick: () => openProfile('share'), isolate: true, title: tr`Edit profile`, ariaLabel: tr`Edit profile` }
+                    : null)} />
+    );
+  };
   const accessLabel = (text) => <span className="share-access-label">{text}</span>;
   const sentOn = (row) => formatDate(new Date(row.created_at));
 

@@ -39628,7 +39628,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " in the header, with the full roster on click"
+      "v": " in the header — each person's picture, or their initial on their colour until they add one — with the full roster on click"
      }
     ]
    ]
@@ -39703,17 +39703,24 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Settings → Profile",
+     "v": "[Settings → Profile](/docs/account/settings#profile)",
      "children": [
       {
-       "t": "text",
-       "v": "Settings → Profile"
+       "t": "link",
+       "v": "Settings → Profile",
+       "href": "/docs/account/settings#profile",
+       "children": [
+        {
+         "t": "text",
+         "v": "Settings → Profile"
+        }
+       ]
       }
      ]
     },
     {
      "t": "text",
-     "v": "."
+     "v": ", along with your picture and name."
     }
    ]
   },
@@ -43991,11 +43998,11 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "your avatar",
+     "v": "your picture and name",
      "children": [
       {
        "t": "text",
-       "v": "your avatar"
+       "v": "your picture and name"
       }
      ]
     },
@@ -44009,7 +44016,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " → \"settings\". Both buttons open the same panel; they differ only in which tab they land on, and every other tab is one click away in the same rail."
+     "v": " → \"settings\". Both buttons open the same panel; they differ only in which tab they land on: the cog on General, your name on Profile. Every other tab is one click away in the same rail."
     }
    ]
   },
@@ -44078,7 +44085,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Personal. Nobody else in the workspace sees these, and they follow your account between devices."
+     "v": "Personal, and they follow your account between devices. Nobody else in the workspace sees these, with one exception: "
+    },
+    {
+     "t": "strong",
+     "v": "Profile",
+     "children": [
+      {
+       "t": "text",
+       "v": "Profile"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is how you appear to the people you share a workspace with."
     }
    ]
   },
@@ -44122,7 +44143,35 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Below that: profile picture, display name and your "
+     "v": "Below that: your "
+    },
+    {
+     "t": "strong",
+     "v": "picture",
+     "children": [
+      {
+       "t": "text",
+       "v": "picture"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", your "
+    },
+    {
+     "t": "strong",
+     "v": "display name",
+     "children": [
+      {
+       "t": "text",
+       "v": "display name"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and your "
     },
     {
      "t": "strong",
@@ -44143,7 +44192,47 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — the colour your cursor and selection halos appear in to everyone else."
+     "v": " — the colour your cursor and selection halos appear in to everyone else. People you share a workspace with see all three: beside your comments and messages, in who's here on a cluster, in Members and in the Share panel. Until you add a picture they see your initial on your colour."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Click the picture to add or change it; "
+    },
+    {
+     "t": "strong",
+     "v": "Remove",
+     "children": [
+      {
+       "t": "text",
+       "v": "Remove"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " takes it away. To get here, click your picture and name at the bottom left of the sidebar, or press "
+    },
+    {
+     "t": "code",
+     "v": "⌘K"
+    },
+    {
+     "t": "text",
+     "v": " and type \"edit profile\". Your own face on a comment, a message, Members or the Share panel opens Profile too."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If you have set neither a name nor a picture, Clusters asks the first time someone else is in a cluster with you. It asks once on each computer or phone you use, so you may see the note again on another one."
     }
    ]
   },
@@ -45321,7 +45410,7 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "First in the list on a phone, above every tab."
+      "v": "On the card for you that opens the list on a phone."
      }
     ]
    ]
@@ -45518,7 +45607,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The panel fills the screen and works as a list: the rail is the first screen, headed by the email you're signed in as and "
+     "v": "The panel fills the screen and works as a list: the rail is the first screen, headed by a card for you — your picture, name and email, with "
     },
     {
      "t": "strong",
@@ -45532,7 +45621,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "; tapping a tab pushes it, and the back chevron in the header returns to the list. The bottom nav's "
+     "v": ". Tapping the card opens Profile; tapping a tab pushes it, and the back chevron in the header returns to the list. The bottom nav's "
     },
     {
      "t": "strong",

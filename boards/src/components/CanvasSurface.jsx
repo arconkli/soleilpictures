@@ -194,6 +194,7 @@ import {
 } from '../lib/wasdPan.js';
 import { wheelHintSeen, markWheelHintSeen, trackWheelFrustration, freshWheelState } from '../lib/wheelHint.js';
 import { canShowHint, claimHint, releaseHint, markHintSeen, hintSeen, isDefaultClusterName, NAME_CLUSTER_AFTER_MS } from '../lib/hints.js';
+import { openProfile } from '../lib/openProfile.js';
 import { genuineCards, hasGenuineCard } from '../lib/firstValueTrigger.js';
 import { shouldShowDepthDock } from '../lib/depthDock.js';
 import { firstBoardCopy, FIRST_BOARD_WORDS, FIRST_BOARD_TILE_IDS } from '../lib/firstBoardCopy.js';
@@ -279,6 +280,7 @@ import { earliestEpoch, formatClipTime, parseClipTime, serverNow, setBoardEpoch,
 import { isDefaultName } from '../lib/defaultNames.js';
 import { t as tr, ph, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { shownAuthor } from '../lib/commentAuthor.js';
 import { shownError } from '../lib/errorWords.js';
 
 // The cluster glyph. Once the cluster nudges ship it is the folder a cluster
@@ -750,6 +752,7 @@ export function CanvasSurface({
   peersHereByBoard,        // Map<boardId, Peer[]>  — workspace presence
   peersBelowByBoard,       // Map<boardId, Peer[]>  — descendants
   uploadingElsewhere = null, // userId → { name, color, boards: Set } still uploading from a tab elsewhere (App, workspace presence)
+  profileAskable = false,  // true → this person has no name or picture set (App), so the one-time profile note may show
   wsPeers = [],            // Workspace peers — passed into doc cards so the
                            // doc-card overlay can render its own peer
                            // avatars + page-tree dots scoped to that card.
@@ -2050,11 +2053,98 @@ export function CanvasSurface({
     releaseHint('paste');
     setPasteHintUp(false);
   }, [pasteHintUp, cards.length]);
-  // Leaving the canvas ends both, so a hint never outlives the board it was about.
+  // The profile note (hint kind 'profile_ask'): someone else is on this cluster
+  // and this person has no name or picture, so the other one sees an initial
+  // and an email. That is the moment a profile matters, so it is asked for
+  // then, once per device. The short wait lets a peer who is only passing
+  // through go again before anything is said.
+  const PROFILE_ASK_AFTER_MS = 1500;
+  const [profileAsk, setProfileAsk] = useState(null); // { name, at, boardId }
+  const dismissProfileAsk = () => { releaseHint('profile_ask'); setProfileAsk(null); };
+  // The note can't be drawn while a tool, a placement or a touch selection has
+  // the bar's spot (the render's own condition), or while the chrome is hidden:
+  // styles.css hides every .cnv-hint under these three body flags. It is only
+  // counted as shown (claimed, marked seen, logged) when it can be seen.
+  const chromeHiddenNow = () => {
+    try {
+      const b = document.body;
+      return ['data-clean-mode', 'data-focus-mode', 'data-capture-clean'].some((a) => b.getAttribute(a) === '1');
+    } catch (_) { return false; }
+  };
+  const [chromeHidden, setChromeHidden] = useState(false);
+  useEffect(() => {
+    if (!profileAskable || typeof MutationObserver === 'undefined') return undefined;
+    const read = () => setChromeHidden(chromeHiddenNow());
+    read();
+    const mo = new MutationObserver(read);
+    mo.observe(document.body, { attributes: true, attributeFilter: ['data-clean-mode', 'data-focus-mode', 'data-capture-clean'] });
+    return () => mo.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileAskable]);
+  const profileAskBlocked = selectedTool !== 'select' || !!annotPlacing || touchSelecting || chromeHidden;
+  const profileAskBlockedRef = useRef(profileAskBlocked);
+  profileAskBlockedRef.current = profileAskBlocked;
+  useEffect(() => {
+    // Blocked: wait. `profileAskBlocked` is a dep, so this runs again, and
+    // looks for a peer again, as soon as the block lifts.
+    if (!profileAskable || profileAskBlocked || !canShowHint('profile_ask')) return;
+    const aw = getAwareness?.();
+    if (!aw) return;
+    let timer = null;
+    const peerHere = () => {
+      for (const state of aw.getStates().values()) {
+        const u = state?.user;
+        if (u?.id && u.id !== userId) return u;
+      }
+      return null;
+    };
+    const check = () => {
+      if (timer || !peerHere()) return;
+      timer = setTimeout(() => {
+        timer = null;
+        const peer = peerHere();
+        if (!peer) return;
+        // It couldn't be drawn right now (the ref and the body are read here
+        // because a block can land between a render and this callback):
+        // nothing is claimed, marked seen or logged, and the listener stays.
+        if (profileAskBlockedRef.current || chromeHiddenNow()) return;
+        if (!canShowHint('profile_ask') || !claimHint('profile_ask')) return;
+        markHintSeen('profile_ask');
+        aw.off('change', check);
+        setProfileAsk({ name: String(peer.name || '').trim(), at: Date.now(), boardId: board.id });
+        try { logEvent(EV.HINT_SHOWN, { kind: 'profile_ask', trigger: 'peer', board_id: boardIdRef.current }); } catch (_) {}
+      }, PROFILE_ASK_AFTER_MS);
+    };
+    check();
+    aw.on('change', check);
+    return () => {
+      if (timer) clearTimeout(timer);
+      aw.off('change', check);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getAwareness, board.id, profileAskable, profileAskBlocked, userId]);
+  // The note is about the cluster it showed on. Moving to another one without
+  // this canvas remounting takes it down; it stays seen.
+  useEffect(() => {
+    if (profileAsk && profileAsk.boardId !== board.id) dismissProfileAsk();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileAsk, board.id]);
+  // A name or picture set some other way while the note is up answers it.
+  useEffect(() => {
+    if (profileAsk && !profileAskable) dismissProfileAsk();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileAsk, profileAskable]);
+  const actOnProfileAsk = () => {
+    try { logEvent(EV.HINT_ACTED, { kind: 'profile_ask', ms: Date.now() - (profileAsk?.at || Date.now()), board_id: boardIdRef.current }); } catch (_) {}
+    openProfile('hint');
+    dismissProfileAsk();
+  };
+  // Leaving the canvas ends them all, so a hint never outlives the board it was about.
   useEffect(() => () => {
     if (nameTimerRef.current) clearTimeout(nameTimerRef.current);
     releaseHint('name_cluster');
     releaseHint('paste');
+    releaseHint('profile_ask');
   }, []);
   // Lightbox: previewing an image inline (clicked from a list-board's child
   // row, or the expand button on a canvas image card). Null when closed.
@@ -15657,6 +15747,17 @@ export function CanvasSurface({
           <Trans>Your new cluster is still “{ph({ name: boards?.[nameHint.id]?.name || tr`Untitled cluster` })}” — name it so you can find it later.</Trans>
           <button className="cnv-hint-btn" onClick={() => triggerInlineEdit(nameHint.id, 'title')}><Trans>Name it</Trans></button>
           <button className="cnv-hint-x" aria-label={tr`Dismiss`} onClick={dismissNameHint}>×</button>
+        </div>
+      )}
+      {/* The profile note (lib/hints.js 'profile_ask'): shown once, the first
+          time someone else is here and this person has no name or picture.
+          Same spot and the same yielding as the naming bar; the two can never
+          show together (claimHint). "Not now" is for good on this device. */}
+      {profileAsk && profileAsk.boardId === board.id && selectedTool === 'select' && !annotPlacing && !touchSelecting && (
+        <div className="cnv-hint cnv-hint-profile" role="status" data-hint="profile_ask">
+          <Trans>{ph({ name: shownAuthor(profileAsk.name) || tr`Someone` })} is here too. Add your name and picture so people know who you are.</Trans>
+          <button className="cnv-hint-btn" onClick={actOnProfileAsk}><Trans comment="Button on the note asking for your name and picture. Opens your profile so you can add them.">Add them</Trans></button>
+          <button className="cnv-hint-later" onClick={dismissProfileAsk}><Trans>Not now</Trans></button>
         </div>
       )}
       {annotPlacing && (

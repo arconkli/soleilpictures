@@ -27,7 +27,10 @@
 // beside them; their once-only records are their own. whats_new is the same
 // shape for the accounts from before the files sidebar (lib/whatsNew.js).
 // board_more is the first-board test's third-card toast (lib/boardMore.js).
-export const HINT_KINDS = Object.freeze(['paste', 'name_cluster', 'studio_bar', 'setup_tips', 'invite_reask', 'whats_new', 'board_more']);
+// profile_ask is the canvas's one-time "add your name and picture" note, shown
+// the first time someone else is on a cluster with a person who has neither
+// (CanvasSurface.jsx). An offer like studio_bar, under the same discipline.
+export const HINT_KINDS = Object.freeze(['paste', 'name_cluster', 'studio_bar', 'setup_tips', 'invite_reask', 'whats_new', 'board_more', 'profile_ask']);
 
 // A new cluster that still carries its default name a minute later is one
 // nobody will find again. A minute, not ten seconds: people often place the

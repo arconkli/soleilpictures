@@ -276,23 +276,38 @@ export function SwatchInput({ value: saved, fallback, onChange, disabled, allowT
 // Avatar / icon preview + file picker + remove button. Used for both
 // the profile picture and the workspace icon — same shape, same flow,
 // just different consumers wiring up state.
-export function AvatarUploadRow({ src, fallbackColor, fallbackInitial, uploading, disabled, onPick, onRemove, shape = 'circle' }) {
+// `profile` is your own picture: the preview is larger and is itself a button
+// that opens the file picker (a face is the thing people try to click), and
+// the words say "picture". The workspace icon leaves it off.
+export function AvatarUploadRow({ src, fallbackColor, fallbackInitial, uploading, disabled, onPick, onRemove, shape = 'circle', profile = false }) {
   const fileRef = useRef(null);
   const previewClass = `settings-avatar-preview settings-avatar-${shape}`;
+  const face = src
+    ? <R2Image src={src} alt="" className="settings-avatar-img" />
+    : <span>{fallbackInitial}</span>;
+  const pickLabel = profile ? (src ? tr`Change picture` : tr`Add a picture`) : (src ? tr`Replace` : tr`Upload`);
   return (
-    <div className="settings-avatar-row">
-      <div className={previewClass}
-           style={src ? undefined : { background: fallbackColor }}
-           aria-hidden="true">
-        {src
-          ? <R2Image src={src} alt="" className="settings-avatar-img" />
-          : <span>{fallbackInitial}</span>}
-      </div>
+    <div className={`settings-avatar-row${profile ? ' is-profile' : ''}`}>
+      {profile ? (
+        <button type="button" className={`${previewClass} settings-avatar-pick`}
+                style={src ? undefined : { background: fallbackColor }}
+                aria-label={src ? tr`Change profile picture` : tr`Add a profile picture`}
+                onClick={() => fileRef.current?.click()}
+                disabled={disabled || uploading}>
+          {face}
+        </button>
+      ) : (
+        <div className={previewClass}
+             style={src ? undefined : { background: fallbackColor }}
+             aria-hidden="true">
+          {face}
+        </div>
+      )}
       <div className="settings-avatar-actions">
         <button type="button" className="settings-btn"
                 onClick={() => fileRef.current?.click()}
                 disabled={disabled || uploading}>
-          {uploading ? tr`Uploading…` : (src ? tr`Replace` : tr`Upload`)}
+          {uploading ? tr`Uploading…` : pickLabel}
         </button>
         {src && (
           <button type="button" className="settings-link-btn"

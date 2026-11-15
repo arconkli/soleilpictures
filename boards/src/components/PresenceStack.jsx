@@ -10,11 +10,15 @@
 // uses. Multi-tab presences collapse to one entry per user.
 
 import { useEffect, useRef, useState } from 'react';
-import { initialOf } from '../lib/graphemes.js';
 import { shownAuthor } from '../lib/commentAuthor.js';
 import { t as tr, plural } from '@lingui/core/macro';
+import { PersonFace } from './PersonFace.jsx';
 
 const MAX_AVATARS = 4;
+
+// Pictures: awareness carries only id, name and colour, and the call site in
+// CanvasSurface is pinned by a test, so each face looks its picture up by the
+// peer's id (PersonFace reads the userProfiles cache).
 
 // selfId — the signed-in user. Skipping only this tab's clientID listed YOU
 // as "another person here" when the cluster was open in a second tab or on
@@ -80,11 +84,8 @@ export function PresenceStack({ getAwareness, selfId = null }) {
          onMouseLeave={() => setOpen(false)}>
       <div className="presence-stack" aria-label={label}>
         {visible.map(p => (
-          <span key={p.id} className="presence-dot"
-                style={{ background: p.color }}
-                title={p.name}>
-            {initialOf(p.name)}
-          </span>
+          <PersonFace key={p.id} userId={p.id} name={p.name} color={p.color}
+                      className="presence-dot" title={p.name} />
         ))}
         {overflow > 0 && (
           <span className="presence-dot presence-overflow" title={tr`+${overflow} more`}>
@@ -97,9 +98,8 @@ export function PresenceStack({ getAwareness, selfId = null }) {
           <div className="presence-roster-head">{label}</div>
           {peers.map(p => (
             <div key={p.id} className="presence-roster-row" role="listitem">
-              <span className="presence-dot presence-roster-dot" style={{ background: p.color }}>
-                {initialOf(p.name)}
-              </span>
+              <PersonFace userId={p.id} name={p.name} color={p.color} ariaHidden
+                          className="presence-dot presence-roster-dot" />
               <span className="presence-roster-name">{p.name}</span>
             </div>
           ))}

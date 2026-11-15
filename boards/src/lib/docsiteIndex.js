@@ -2273,7 +2273,7 @@ export const DOCS_PAGES = [
     "answer": "When several people are in a cluster you see each other's cursors, selections and text carets live. A facepile shows who is on the current board, and a workspace facepile shows who is anywhere in the workspace — clicking someone jumps you to whatever board they are on. Everyone has a stable colour that stays the same across sessions.",
     "section": "collaborate",
     "order": 2,
-    "updated": "2026-08-08",
+    "updated": "2026-11-15",
     "navLabel": "Presence",
     "headings": [
       {
@@ -2309,7 +2309,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Can I see what someone is looking at without asking?",
-        "a": "Yes. Click their avatar in the workspace facepile and you jump to the board they are on."
+        "a": "Yes. Click their picture in the workspace facepile and you jump to the board they are on."
       },
       {
         "q": "Do presence colours change?",
@@ -2655,7 +2655,7 @@ export const DOCS_PAGES = [
     "title": "Settings — Soleil Clusters",
     "metaDescription": "Every setting in Soleil Clusters — Profile, Appearance, Notifications, Connections, Billing, Invite and earn, General, Members, Card defaults and Documentation.",
     "h1": "Settings",
-    "answer": "Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.",
+    "answer": "Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your own picture and name in the sidebar, or with Cmd-K and typing settings.",
     "section": "account",
     "order": 0,
     "updated": "2026-11-15",
@@ -2697,12 +2697,16 @@ export const DOCS_PAGES = [
         "a": "No. They are stored on your account and follow you to any browser or device you sign in on, including the theme and the scroll-wheel mode."
       },
       {
-        "q": "What is the difference between the cog and my avatar?",
-        "a": "Nothing except where they land you. Both open the same panel — the cog on the workspace's General tab, the avatar on your Profile. Everything else is one click away in the same rail."
+        "q": "What is the difference between the cog and my name?",
+        "a": "Nothing except where they land you. Both open the same panel — the cog on the workspace's General tab, your picture and name on your Profile. Everything else is one click away in the same rail."
+      },
+      {
+        "q": "How do I change my name or profile picture?",
+        "a": "Click your picture and name at the bottom left of the sidebar, or press Cmd-K and type edit profile. In Profile, click the picture to add or change it and type your name in Display name. People you share a workspace with see both, with your colour, beside your comments and messages, in who's here, in Members and in the Share panel."
       },
       {
         "q": "How do I sign out or switch to another email?",
-        "a": "Open Settings from your avatar. Profile starts with the email you are signed in as and a Sign out button, and on a phone that is also the first thing in the Settings list. Sign out, then sign in with the other email. Signing out deletes nothing."
+        "a": "Click your picture and name at the bottom left of the sidebar. Profile starts with the email you are signed in as and a Sign out button. On a phone, Settings opens with a card for you, and Sign out is on it. Sign out, then sign in with the other email. Signing out deletes nothing."
       },
       {
         "q": "Where do I find my storage usage?",

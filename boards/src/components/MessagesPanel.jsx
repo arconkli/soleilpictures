@@ -24,6 +24,7 @@ import { touchKeyboard, isComposingKey } from '../lib/composerKeys.js';
 import { initialOf, cutGraphemes } from '../lib/graphemes.js';
 import { t, ph } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { PersonFace } from './PersonFace.jsx';
 
 const NO_PARTICIPANTS = [];
 
@@ -470,13 +471,9 @@ function ConversationRow({ card = false, conv, participants, unreadCount, curren
       {isUnread && !card && <span className="msg-row-dot" />}
       <span className={`msg-row-avatar ${avatarPeers.length > 1 ? 'is-stack' : ''}`}>
         {avatarPeers.length === 0 ? '·' : avatarPeers.map((p) => (
-          <span
-            key={p.id}
-            className="msg-row-avatar-chip"
-            style={{ background: p.color }}
-          >
-            {initialOf(p.name, 'M')}
-          </span>
+          <PersonFace key={p.id} userId={p.id} name={p.name} color={p.color}
+                      initial={initialOf(p.name, 'M')}
+                      className="msg-row-avatar-chip" ariaHidden />
         ))}
       </span>
       {card ? (

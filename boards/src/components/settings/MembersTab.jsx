@@ -29,6 +29,8 @@ import { isComposingKey } from '../../lib/composerKeys.js';
 import { t, ph } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { shownError } from '../../lib/errorWords.js';
+import { PersonFace } from '../PersonFace.jsx';
+import { pickPresenceColor } from '../../lib/presenceColor.js';
 
 // Holds an action slot a row does not have. It is the same element as the real
 // control (a <button>), so it gets the same UA box and text metrics and the
@@ -41,7 +43,10 @@ function SlotPlaceholder({ children }) {
   );
 }
 
-export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspacesChanged }) {
+// onOpenProfile: SettingsPanel's switch to the Profile tab. Your own row is the
+// way there; without it the row is plain, as every other row is.
+export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspacesChanged, onOpenProfile }) {
+  const editSelf = typeof onOpenProfile === 'function' ? () => onOpenProfile() : null;
   const feedback = useFeedback();
   const save = useSettingsSave();
   const isOwner = role === 'owner';
@@ -217,8 +222,27 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
             const isOwnerRow = m.role === 'owner';
             const changeable = canManage && !isOwnerRow && !self && ASSIGNABLE_ROLES.includes(m.role);
             return (
-              <li key={m.user_id} className="settings-member-row">
-                <span className="settings-member-name" dir="auto">{label(m)}{self ? t` (you)` : ''}</span>
+              <li key={m.user_id} className={`settings-member-row${self ? ' is-self' : ''}`}>
+                {/* Every person gets a face. On your own row the face and the
+                    name open your profile, and a quiet Edit profile shows
+                    while the pointer is on the row (personFace.css). */}
+                <PersonFace userId={m.user_id} name={label(m)} color={pickPresenceColor(m.user_id)}
+                            className="settings-member-face"
+                            {...(editSelf && self
+                              ? { onClick: editSelf, title: t`Edit profile`, ariaLabel: t`Edit profile` }
+                              : { ariaHidden: true })} />
+                <span className="settings-member-name" dir="auto">
+                  {self && editSelf ? (
+                    <button type="button" className="settings-member-name-btn" onClick={editSelf}>
+                      {label(m)}<span className="settings-member-you">{t` (you)`}</span>
+                    </button>
+                  ) : (
+                    <>{label(m)}{self && <span className="settings-member-you">{t` (you)`}</span>}</>
+                  )}
+                </span>
+                {self && editSelf && (
+                  <button type="button" className="settings-link-btn settings-member-edit" onClick={editSelf}><Trans>Edit profile</Trans></button>
+                )}
                 {changeable ? (
                   <select className="settings-input" aria-label={t`Role for ${ph({ label: label(m) })}`}
                           value={m.role} onChange={(e) => changeRole(m, e.target.value)}>
@@ -249,6 +273,9 @@ export function MembersTab({ workspaceId,workspaceName, user, role, onWorkspaces
           })}
           {pending.map(row => (
             <li key={row.id} className="settings-member-row settings-member-pending">
+              {/* No person yet, so no face: the empty slot keeps the address
+                  in line with the names above. */}
+              <span className="settings-member-face is-empty" aria-hidden="true" />
               <span className="settings-member-name" title={row.email}>{row.email}</span>
               <span className="settings-member-role">
                 <Trans>{ph({ value: ROLE_LABEL[row.role] || row.role })} · invite sent, gets access when they sign up</Trans>

@@ -2065,6 +2065,10 @@ msgstr "{name} está editando esta página: ir con esa persona"
 msgid "{name} is here"
 msgstr "{name} está aquí"
 
+#: src/components/CanvasSurface.jsx
+msgid "{name} is here too. Add your name and picture so people know who you are."
+msgstr "{name} también está aquí. Añade tu nombre y tu foto para que los demás sepan quién eres."
+
 #: src/pages/MakePage.jsx
 msgid "{name} is in {space}, with room for {roomText} on the free plan."
 msgstr "{name} está en {space}, con espacio para {roomText} en el plan gratis."
@@ -2135,6 +2139,10 @@ msgstr "{name} usa el correo de tu empresa"
 #: src/components/doc/DocFindTab.jsx
 msgid "{name}, {0, plural, one {# hit} other {# hits}}"
 msgstr "{name}, {0, plural, one {# resultado} other {# resultados}}"
+
+#: src/App.jsx
+msgid "{name}, edit profile"
+msgstr "{name}, editar perfil"
 
 #: src/components/team/TeamPage.jsx
 msgid "{name}, team"
@@ -3588,23 +3596,9 @@ msgstr "Nivel de acceso de las personas invitadas"
 msgid "Access: {value}"
 msgstr "Acceso: {value}"
 
-#: src/App.jsx
-msgid "Account"
-msgstr "Cuenta"
-
-#: src/App.jsx
-msgid "Account & billing"
-msgstr "Cuenta y facturación"
-
 #: src/auth/TierRouter.jsx
 msgid "Account suspended"
 msgstr "Cuenta suspendida"
-
-#. Words people might type to find this command, comma-separated.
-#: src/App.jsx
-msgctxt "command search words"
-msgid "account, profile, billing, plan"
-msgstr "cuenta, perfil, facturación, plan, pago, suscripción"
 
 #: src/components/settings/AccountEditorsCard.jsx
 msgid "Across all of {owner}’s workspaces. {owner}’s plan has room for {limit}, and viewers don’t count."
@@ -3776,6 +3770,15 @@ msgstr "Añadir una nota"
 #: src/components/settings/PasskeysSection.jsx
 msgid "Add a passkey"
 msgstr "Añadir una llave de acceso"
+
+#: src/components/settings/fields.jsx
+#: src/components/SettingsPanel.jsx
+msgid "Add a picture"
+msgstr "Añadir una foto"
+
+#: src/components/settings/fields.jsx
+msgid "Add a profile picture"
+msgstr "Añadir una foto de perfil"
 
 #: src/components/CanvasVoteCard.jsx
 msgid "Add a question…"
@@ -4039,6 +4042,11 @@ msgstr "Añade las primeras imágenes"
 msgid "Add the highlighted file to the selection · take it out"
 msgstr "Añadir el archivo resaltado a la selección · quitarlo"
 
+#. Button on the note asking for your name and picture. Opens your profile so you can add them.
+#: src/components/CanvasSurface.jsx
+msgid "Add them"
+msgstr "Añadirlos"
+
 #: src/components/team/TeamJoining.jsx
 msgid "Add this TXT record to its DNS, then check."
 msgstr "Añade este registro TXT al DNS del dominio y comprueba."
@@ -4120,6 +4128,15 @@ msgstr "Añade tu primera página"
 #: src/lib/onboardingTourWords.js
 msgid "Add your first photos — or anything else. This is your canvas."
 msgstr "Añade tus primeras fotos, o cualquier otra cosa. Este es tu lienzo."
+
+#: src/App.jsx
+#: src/components/SettingsPanel.jsx
+msgid "Add your name"
+msgstr "Añadir tu nombre"
+
+#: src/components/SettingsPanel.jsx
+msgid "Add your name and picture"
+msgstr "Añadir tu nombre y tu foto"
 
 #: src/lib/onboardingTourWords.js
 msgid "Add your photos"
@@ -5073,6 +5090,12 @@ msgstr "Facturación"
 msgid "Billing interval"
 msgstr "Periodo de facturación"
 
+#. Words people might type to find this command, comma-separated.
+#: src/App.jsx
+msgctxt "command search words"
+msgid "billing, plan, upgrade, subscription, invoice, account"
+msgstr "facturación, plan, mejorar plan, suscripción, factura, pago, cuenta"
+
 #: src/lib/docBarState.js
 msgid "Black"
 msgstr "Negro"
@@ -5707,6 +5730,14 @@ msgstr "Cambiar tarjeta"
 #: src/components/SidebarBoardTree.jsx
 msgid "Change color"
 msgstr "Cambiar color"
+
+#: src/components/settings/fields.jsx
+msgid "Change picture"
+msgstr "Cambiar foto"
+
+#: src/components/settings/fields.jsx
+msgid "Change profile picture"
+msgstr "Cambiar foto de perfil"
 
 #: src/components/toolbar/NoteBarA.jsx
 msgid "Changes apply to"
@@ -9040,6 +9071,15 @@ msgstr "Editar foto"
 #: src/components/CanvasSurface.jsx
 msgid "Edit photo…"
 msgstr "Editar foto…"
+
+#: src/App.jsx
+#: src/components/CanvasComment.jsx
+#: src/components/CommentInlinePopover.jsx
+#: src/components/MessageBubble.jsx
+#: src/components/settings/MembersTab.jsx
+#: src/components/ShareModal.jsx
+msgid "Edit profile"
+msgstr "Editar perfil"
 
 #: src/components/CanvasSurface.jsx
 msgid "Edit title"
@@ -14132,6 +14172,7 @@ msgstr "No está en un navegador."
 msgid "Not linked anywhere"
 msgstr "No está enlazado en ningún sitio"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/FirstValueUpgradeBanner.jsx
 #: src/components/NotificationsPanel.jsx
 #: src/components/ReturnReasonAsk.jsx
@@ -16130,6 +16171,7 @@ msgstr "Cajas sencillas que muestran dónde están las tarjetas y qué tamaño t
 msgid "Plan"
 msgstr "Plan"
 
+#: src/App.jsx
 #: src/components/settings/BillingTab.jsx
 #: src/components/SettingsPanel.jsx
 msgid "Plan & billing"
@@ -16462,6 +16504,12 @@ msgstr "Perfil"
 #: src/components/settings/ProfileTab.jsx
 msgid "Profile picture"
 msgstr "Foto de perfil"
+
+#. Words people might type to find this command, comma-separated.
+#: src/App.jsx
+msgctxt "command search words"
+msgid "profile, name, display name, picture, photo, avatar, colour, color, account, me"
+msgstr "perfil, nombre, nombre visible, foto, imagen, avatar, color, cuenta, yo"
 
 #: src/components/CanvasSurface.jsx
 msgid "Project name"
@@ -19246,6 +19294,7 @@ msgid "someone"
 msgstr "alguien"
 
 #: src/App.jsx
+#: src/components/CanvasSurface.jsx
 #: src/components/cards/CardTransferState.jsx
 #: src/components/clusterBrowser/ClusterRow.jsx
 #: src/components/clusterBrowser/FolderTiles.jsx
@@ -23164,10 +23213,6 @@ msgstr "¿Para qué lo usas sobre todo?"
 msgid "What else is new"
 msgstr "Qué más hay de nuevo"
 
-#: src/components/settings/ProfileTab.jsx
-msgid "What everyone you share a cluster with sees. Changes save as you make them."
-msgstr "Lo que ven todas las personas con las que compartes un clúster. Los cambios se guardan sobre la marcha."
-
 #: src/components/FeedbackButton.jsx
 msgid "What happened, and what did you expect? (optional)"
 msgstr "¿Qué pasó y qué esperabas? (opcional)"
@@ -23211,6 +23256,10 @@ msgstr "¿Qué tipo de trabajo?"
 #: src/components/settings/WorkspaceTab.jsx
 msgid "What may go to an AI model"
 msgstr "Qué puede enviarse a un modelo de IA"
+
+#: src/components/settings/ProfileTab.jsx
+msgid "What people in your workspaces see: your picture, name and colour. Changes save as you make them."
+msgstr "Lo que ven las personas de tus espacios de trabajo: tu foto, tu nombre y tu color. Los cambios se guardan sobre la marcha."
 
 #: src/components/FeedbackButton.jsx
 msgid "What should we know? (optional)"

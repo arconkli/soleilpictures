@@ -303,20 +303,9 @@ export async function saveOwnProfile({ userId, displayName, color, avatarUrl }) 
   if (retryError) throw retryError;
 }
 
-// Read the name, colour and picture of the given user ids — yours and anyone
-// you share a workspace with. member_profiles (migration 0382) holds only
-// those columns; the rest of someone's profile is theirs. Returns a Map<uid,row>.
-export async function getProfilesByIds(userIds) {
-  if (!userIds || userIds.length === 0) return new Map();
-  const { data, error } = await supabase
-    .from('member_profiles')
-    .select('user_id, display_name, color, avatar_url')
-    .in('user_id', userIds);
-  if (error) throw error;
-  const m = new Map();
-  (data || []).forEach(p => m.set(p.user_id, p));
-  return m;
-}
+// The name, colour and picture of the given user ids. Its own module so a
+// face can read it without loading this one; see memberProfilesApi.js.
+export { getProfilesByIds } from './memberProfilesApi.js';
 
 // Members of a workspace. Used for the sidebar member-dot stack and the
 // "Nx" badge on shared workspaces in the rail. RLS already restricts

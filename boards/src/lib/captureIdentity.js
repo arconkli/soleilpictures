@@ -82,11 +82,14 @@ export function maskEmail(email, seed) {
  * This is the single choke point the app already resolves every display name
  * through, so masking here covers comments, messages, the inbox and the share
  * panel in one place rather than eight.
+ *
+ * The picture goes too: a real face under a persona's name identifies the
+ * person in recorded footage just as their address would.
  */
 export function maskProfile(userId, entry) {
   if (!isPersonaOn() || !entry) return entry;
   const p = personaFor(userId ?? entry.email ?? entry.name);
-  return { ...entry, name: p.name, email: p.email, color: personaColor(userId ?? p.email) };
+  return { ...entry, name: p.name, email: p.email, color: personaColor(userId ?? p.email), avatarUrl: null };
 }
 
 export { PERSONAS };
