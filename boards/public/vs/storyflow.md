@@ -61,7 +61,7 @@ How the two compare on the things production teams care about. Storyflow figures
 | Nested boards with a relationship graph | Yes | Not on its pricing page (November 2026) |
 | Screenplay mode (Final Draft and Fountain) | Yes | Not on its pricing page (November 2026) |
 | Files of any type, at any size | Yes — any size, on every plan | Unlimited uploads on paid plans; 10 on the planned free plan |
-| Free-plan card cap | 25 cards or 5GB of files | Unlimited objects on paid plans; the planned free plan holds 3 projects, 100 images, 10 uploads, 10 links and 1 GB |
+| Free-plan card cap | 25 cards or 5GB of files | Unlimited objects on paid plans; the planned free plan holds 3 projects, 100 images, 10 uploads, 10 links and 1 GB, with no cap on notes, documents or boards inside a project |
 | Template library | Growing (grid templates) | 200+ frameworks on paid plans |
 | Works with Claude and other MCP clients | Yes, one URL | Yes — unlimited actions on paid plans; 25 a week on the planned free plan |
 
@@ -113,7 +113,7 @@ Storyflow exports boards as PNG, SVG or PDF. Bring the original images and files
 
 ### Does Clusters have a limit like Storyflow’s upload cap?
 
-Clusters’ free Demo tier caps cards at 25 or storage at 5GB — the clusters you make cost none — and takes files of any size; Creator ($25/mo) removes the card cap. The free plan Storyflow’s pricing page describes (November 2026) caps file and video uploads at 10, links at 10, images at 100 and projects at 3, with 1 GB of storage and no in-app AI.
+Clusters’ free Demo tier caps cards at 25 or storage at 5GB — the clusters you make cost none — and takes files of any size; Creator ($25/mo) removes the card cap. The free plan Storyflow’s pricing page describes (November 2026) caps file and video uploads at 10, links at 10, images at 100 and projects at 3, with 1 GB of storage and no in-app AI; notes, documents and boards inside a project are not capped.
 
 ### Can I use Clusters on an iPad or a phone?
 

@@ -1,7 +1,7 @@
 {
   "pages": {
     "/best/milanote-alternatives": {
-      "hash": "951ec440be55b4aa535d",
+      "hash": "7c3c3a26909dc69bba47",
       "updated": "2026-11-14"
     },
     "/best/mood-board-apps": {
@@ -45,7 +45,7 @@
       "updated": "2026-11-14"
     },
     "/tools/free-mood-board-maker": {
-      "hash": "1e0bdc1862515e333ea4",
+      "hash": "8e5db610d2bf912d7d65",
       "updated": "2026-11-14"
     },
     "/tools/look-book-maker": {
@@ -105,7 +105,7 @@
       "updated": "2026-10-02"
     },
     "/vs/storyflow": {
-      "hash": "4b3af761c38bde2a93ad",
+      "hash": "82b65aaefe162ef223bf",
       "updated": "2026-11-14"
     }
   },
@@ -168,6 +168,15 @@
         "/vs/miro"
       ],
       "reason": "dates follow the 25-card change of 2026-11-04"
+    },
+    {
+      "date": "2026-11-15",
+      "paths": [
+        "/best/milanote-alternatives",
+        "/tools/free-mood-board-maker",
+        "/vs/storyflow"
+      ],
+      "reason": "same-day fact 2026-11-14: Storyflow's planned free plan does not cap notes, documents or boards (/vs/storyflow, /tools/free-mood-board-maker, /best/milanote-alternatives)"
     }
   ]
 }

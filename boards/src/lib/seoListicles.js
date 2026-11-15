@@ -1125,7 +1125,7 @@ const PAGES = [
           "Prompt-to-board generation: storyboards, shot lists, moodboards, trackers",
           "200+ 'Tactics' creative frameworks (3 on the planned free plan)",
           "AI image generation on Pro and Max, with background removal and upscaling",
-          "Unlimited objects on every paid plan (the planned free plan holds 3 projects and 100 images); comment-enabled share links; invited collaborators join free",
+          "Unlimited objects on every paid plan (the planned free plan holds 3 projects and 100 images, with notes and boards uncapped); comment-enabled share links; invited collaborators join free",
           "Web only — no desktop or mobile apps"
         ],
         "pricing": {
