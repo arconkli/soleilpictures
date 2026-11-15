@@ -4623,7 +4623,7 @@ export const CHANGELOG_CONTENT = {
     [
      {
       "t": "text",
-      "v": "The free plan holds 50 cards at the time, or 5GB of files, whichever you reach first — and takes any file at any size. The per-file limits on video, audio, PDFs and other files are gone; the drive is the only limit. See "
+      "v": "The free plan holds 50 cards (the limit at the time) or 5GB of files, whichever you reach first — and takes any file at any size. The per-file limits on video, audio, PDFs and other files are gone; the drive is the only limit. See "
      },
      {
       "t": "link",
