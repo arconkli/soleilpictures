@@ -15,7 +15,7 @@
 -- typographic apostrophe, which is why /tools/directors-treatment asserts
 -- 'Treatment' and plurals are left off ('Shared Reference Board').
 --
--- The ids are PINNED to 86-109 with `overriding system value` (0866's shape),
+-- The ids are PINNED to 86-111 with `overriding system value` (0866's shape),
 -- so the repo half — the mirror in boards/src/lib/seoProbeContract.js — ships
 -- in the same commit. If one of those ids is already held by a different row,
 -- the proof below fails loudly instead of mirroring the wrong row. The identity
@@ -80,7 +80,11 @@ from (values
   (108, 'https://clusters.soleilpictures.com/vs/miro',
         'miro compare loads', 'status', '200'),
   (109, 'https://clusters.soleilpictures.com/vs/miro',
-        'miro compare title', 'title', 'Miro Alternative')
+        'miro compare title', 'title', 'Miro Alternative'),
+  (110, 'https://clusters.soleilpictures.com/scout',
+        'scout loads', 'status', '200'),
+  (111, 'https://clusters.soleilpictures.com/scout',
+        'scout title', 'title', 'Soleil Scout')
 ) as v(id, url, check_name, kind, expected)
 where not exists (
   select 1 from public.seo_health_expectations e
@@ -144,7 +148,11 @@ begin
       (108, 'https://clusters.soleilpictures.com/vs/miro',
             'miro compare loads', 'status', '200'),
       (109, 'https://clusters.soleilpictures.com/vs/miro',
-            'miro compare title', 'title', 'Miro Alternative')
+            'miro compare title', 'title', 'Miro Alternative'),
+      (110, 'https://clusters.soleilpictures.com/scout',
+            'scout loads', 'status', '200'),
+      (111, 'https://clusters.soleilpictures.com/scout',
+            'scout title', 'title', 'Soleil Scout')
     ) as t(id, url, check_name, kind, expected)
   loop
     if not exists (
@@ -160,8 +168,8 @@ begin
   if pg_sequence_last_value(
        pg_get_serial_sequence('public.seo_health_expectations', 'id')::regclass) is null
      or pg_sequence_last_value(
-       pg_get_serial_sequence('public.seo_health_expectations', 'id')::regclass) < 109 then
-    raise exception '0883: the id sequence did not move past 109';
+       pg_get_serial_sequence('public.seo_health_expectations', 'id')::regclass) < 111 then
+    raise exception '0883: the id sequence did not move past 111';
   end if;
 end $$;
 
