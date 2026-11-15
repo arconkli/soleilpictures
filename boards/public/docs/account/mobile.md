@@ -12,7 +12,8 @@ added to your home screen. They are the same app.
 | Gesture | Does |
 |---|---|
 | One finger drag | Pan |
-| Pinch | Zoom |
+| Two finger drag | Pan |
+| Pinch | Zoom, keeping the spot between your fingers under them |
 | Tap | Select a card; on empty canvas, clear the selection |
 | Tap a selected note | Type where you tapped, with the keyboard up |
 | Double tap | On empty canvas, the add menu at that point; on a note, type where you tapped |
@@ -28,6 +29,12 @@ the press is a hold, and moving draws the box instead of panning. The menu
 opens when you let go, never under a box you were about to draw. A second
 finger at any point hands it to the pinch: no box, no menu, and the selection
 as it was.
+
+A pinch follows your hand, so you can zoom and move the board in one motion.
+Lift one finger and the other keeps panning. Past the closest or farthest zoom
+the board gives a little, and settles back when you let go. Every finger in a
+pinch belongs to the zoom: a card under one is not picked up or selected, and
+lifting your fingers opens nothing.
 
 **Select…** is for picking cards a box can't reach together: until you press
 **Done** in the bar that says "Tap cards to select", each tap adds a card or

@@ -6,6 +6,7 @@ import { fileDropSize } from '../lib/fileView.js';
 import { setFileActions } from '../lib/fileActions.js';
 import { setPerfContext, clearPerfContext, markGestureActiveUntil, bumpPerf } from '../lib/perfReport.js';
 import { setCanvasScale, emitCanvasSettle } from '../lib/canvasScale.js';
+import { fingerAnchor, moveCamera, settleTarget } from '../lib/touchCamera.js';
 import { spatialOrder } from '../lib/gridSequence.js';
 import { isItemKey as isSchedItemKey, slotOfItem as schedSlotOfItem, mintItemKey as mintSchedItemKey, newUid as schedUid, parseSlotKey as schedParseSlotKey } from '../lib/schedLayout.js';
 import { todayISO as schedTodayISO } from '../lib/schedDates.js';
@@ -412,6 +413,11 @@ const SEL_MENU_OVER = { dx: -26, dy: -14 };
 const SEL_MENU_OUT = { dx: 4, dy: -40 };
 const MIN_W = 60, MIN_H = 40;
 const ZOOM_MIN = 0.1, ZOOM_MAX = 5.0;
+// A touch screen's fingers drive the two-finger camera (the touch tracker in
+// CanvasSurface), not use-gesture's pinch, which stays for a Mac trackpad
+// pinch in Safari (gesture events).
+const HAS_TOUCHSCREEN = typeof window !== 'undefined' &&
+  ('ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0);
 // Mobile press-and-hold to pick up a card. On touch a one-finger drag PANS
 // the board (looking around); a card only becomes movable after holding it
 // still this long. Mirrors the existing useLongPress timing (480ms / 10px).
@@ -951,6 +957,14 @@ export function CanvasSurface({
   // appeared to disappear from their screen while we panned.
   const panRef = useRef(pan);
   const zoomRef = useRef(zoom);
+  // The zoom widget's % and slider, written live by applyCanvasTransform.
+  const zoomValRef = useRef(null);
+  const zoomSliderRef = useRef(null);
+  // The two-finger camera's state (the touch tracker below the wheel handler):
+  // the touches down on the board in landing order, the touches it has claimed,
+  // the pair's last anchor and the wrapper's rect, whether a gesture is live,
+  // and a glide back off a zoom limit in flight.
+  const touchCamRef = useRef({ pts: new Map(), claimed: new Set(), anchor: null, rect: null, live: false, springing: null, kind: null, z0: 1, p0: { x: 0, y: 0 } });
   // Publish the canvas scale DURING render (idempotent module write), before
   // any image card renders, so first-paint tier selection (R2Image
   // pickInitialTier) sees the real zoom instead of the default 1.0. The
@@ -1119,6 +1133,23 @@ export function CanvasSurface({
       setTransform(el, `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${z})`);
       if (el.style.willChange !== 'auto') el.style.willChange = 'auto';
     }
+    // The zoom readout follows the live zoom (a pinch, a wheel, a glide), not
+    // only the committed one: a pinch reveals it for exactly this. It writes the
+    // text node React rendered and the slider's own value, never replacing a
+    // node, so the next render (the same numbers once the zoom settles) has
+    // nothing to correct.
+    const zc = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+    const pct = `${Math.round(zc * 100)}%`;
+    const tn = zoomValRef.current?.firstChild;
+    if (tn && tn.nodeType === 3 && tn.nodeValue !== pct) tn.nodeValue = pct;
+    const sl = zoomSliderRef.current;
+    if (sl) {
+      const pos = String(Math.round(1000 * Math.log(zc / ZOOM_MIN) / Math.log(ZOOM_MAX / ZOOM_MIN)));
+      if (sl.value !== pos) {
+        sl.value = pos;
+        sl.style.setProperty('--zf', `${Number(pos) / 10}%`);
+      }
+    }
     if (inFrame) drawGroundNow(); else scheduleGroundDraw();
   };
   // ── Viewport culling state (D1) ──────────────────────────────────────────
@@ -1140,7 +1171,7 @@ export function CanvasSurface({
   // shrinks them and would mass-unmount off-center cards each rAF — and the
   // matching zoom-OUT then REMOUNTS them, resetting R2ImageProgressive to
   // its blur tier (visible re-blur churn). The gesture-settle commits
-  // (scheduleCommit / scheduleTouchPanCommit / startPan onUp) zero this and
+  // (scheduleCommit / the touch tracker's commit / startPan onUp) zero this and
   // run one strict recompute to prune. A timestamp (not a boolean) so a
   // cancel-terminated gesture self-heals on the next recompute.
   const gestureUntilRef = useRef(0);
@@ -1251,6 +1282,10 @@ export function CanvasSurface({
     });
   }, []);
   useLayoutEffect(() => {
+    // Fingers on the board own the camera until they lift (and the glide back
+    // off a zoom limit finishes): a render landing mid-pinch must not write the
+    // last committed pose back over the live one. The gesture commits on release.
+    if (touchCamOwnsPose()) return;
     panRef.current = pan;
     zoomRef.current = zoom;
     // Settled zoom only (mid-gesture zoom lives in the refs) — R2Image uses
@@ -1260,6 +1295,15 @@ export function CanvasSurface({
     applyCanvasTransform();
     scheduleVisibleRecompute();
   }, [pan.x, pan.y, zoom, scheduleVisibleRecompute]);
+  // Every settle publishes the zoom it settled AT before telling anyone.
+  // setZoom() reaches setCanvasScale() only on the next render, so a settle
+  // emitted straight after setZoom() gave the image-tier scheduler the zoom
+  // before the gesture: it skipped every card it had last judged at that zoom,
+  // and pictures stayed soft after zooming in.
+  const settleCanvas = useCallback(() => {
+    setCanvasScale(zoomRef.current);
+    emitCanvasSettle();
+  }, []);
   // A deep zoom must not leak into the next surface's first image mounts.
   useEffect(() => () => setCanvasScale(1), []);
   // Drain deferred prunes: one follow-up recompute per commit until the
@@ -2612,6 +2656,7 @@ export function CanvasSurface({
     const onUp = (ev) => {
       if (ev.pointerId !== e.pointerId) return;
       done();
+      if (touchCamRef.current.claimed.has(ev.pointerId)) return;   // half of a pinch, not a tap
       if (Math.hypot(ev.clientX - at.x, ev.clientY - at.y) > TOUCH_LIFT_TOLERANCE) return;
       if (selectedTool === 'text') {
         // The new note's editor takes the keyboard over from the keeper
@@ -2846,6 +2891,13 @@ export function CanvasSurface({
   // second take mid-flight abandons the first rather than the two fighting
   // over the transform.
   const cameraRunRef = useRef(0);
+  // The two-finger camera owns the pose: fingers are down, or its glide back
+  // off a zoom limit still holds the camera run (a camera move started since
+  // has taken over and commits itself).
+  const touchCamOwnsPose = () => {
+    const tc = touchCamRef.current;
+    return tc.live || (!!tc.springing && cameraRunRef.current === tc.springing.run);
+  };
 
   // `runToken` lets a SEQUENCE own the counter: a take bumps it once and passes
   // it to every move, so its own second move doesn't read as an interruption of
@@ -2875,7 +2927,7 @@ export function CanvasSurface({
       applyCanvasTransform();
       applyCamera(cam);
       scheduleVisibleRecompute?.();
-      emitCanvasSettle();
+      settleCanvas();
       return Promise.resolve();
     }
     // Decide the layerization for this move against where it is GOING, and hold
@@ -3018,7 +3070,7 @@ export function CanvasSurface({
     gestureUntilRef.current = 0;
     markGestureActiveUntil(0);
     scheduleVisibleRecompute();
-    emitCanvasSettle();
+    settleCanvas();
     // Say so out loud. takeDuration() is arithmetic over the move list, but a
     // hold is a setTimeout and a tween is rAF, so the real wall clock drifts a
     // little per move — and every caller that wants to know when a take is
@@ -5774,7 +5826,7 @@ export function CanvasSurface({
       setPan({ x: panRef.current.x, y: panRef.current.y });
       setZoom(zoomRef.current);
       scheduleVisibleRecompute();
-      emitCanvasSettle();
+      settleCanvas();
     };
     const frame = (now) => {
       raf = 0;
@@ -5896,7 +5948,7 @@ export function CanvasSurface({
         setPan({ x: panRef.current.x, y: panRef.current.y });
         setZoom(zoomRef.current);
         scheduleVisibleRecompute();
-        emitCanvasSettle();
+        settleCanvas();
       }, 140);
     };
     // A wheel click's glide: a frame at a time toward glideRef's target,
@@ -6090,24 +6142,17 @@ export function CanvasSurface({
     };
   }, []);
 
-  // ── Touch gestures (P3.2): pinch-zoom + two-finger pan ─────────────────────
-  // Desktop mouse path is untouched — these handlers only fire when the
-  // pointerType is 'touch'. Single-finger drag stays driven by the existing
-  // onBackgroundPointerDown (so cards / lasso / pan-mode keep working).
-  // Both gestures route through panRef/zoomRef + direct DOM transform like
-  // the wheel handler above — see that comment for rationale.
-  const touchPanCommitTimer = useRef(0);
-  // Which two-finger gesture this was, counted once as it settles: a pinch
-  // wins over the pan that rides along with it.
-  const touchGestureRef = useRef(null);
+  // A Mac trackpad pinch in Safari (use-gesture's gesture events) commits a
+  // beat after its last change, as every pinch used to.
+  const trackpadPinchCommitTimer = useRef(0);
   // Pinch is sitting on the min or max zoom (the clamp tick fires once per visit).
   const pinchClampedRef = useRef(false);
   const pinch100ArmedRef = useRef(true);
-  const scheduleTouchPanCommit = () => {
-    if (touchPanCommitTimer.current) clearTimeout(touchPanCommitTimer.current);
-    touchPanCommitTimer.current = setTimeout(() => {
-      touchPanCommitTimer.current = 0;
-      if (touchGestureRef.current) { noteSessionCounter(`canvas.${touchGestureRef.current}`); touchGestureRef.current = null; }
+  const scheduleTrackpadPinchCommit = () => {
+    if (trackpadPinchCommitTimer.current) clearTimeout(trackpadPinchCommitTimer.current);
+    trackpadPinchCommitTimer.current = setTimeout(() => {
+      trackpadPinchCommitTimer.current = 0;
+      noteSessionCounter('canvas.pinch');
       // Gesture settled — see scheduleCommit for the prune contract.
       gestureUntilRef.current = 0;
       markGestureActiveUntil(0);
@@ -6115,20 +6160,20 @@ export function CanvasSurface({
       setPan({ x: panRef.current.x, y: panRef.current.y });
       setZoom(zoomRef.current);
       scheduleVisibleRecompute();
-      emitCanvasSettle();
+      settleCanvas();
     }, 140);
   };
   useEffect(() => () => {
-    if (touchPanCommitTimer.current) clearTimeout(touchPanCommitTimer.current);
+    if (trackpadPinchCommitTimer.current) clearTimeout(trackpadPinchCommitTimer.current);
   }, []);
   // A note being typed on a phone or tablet keeps its line in view
   // (NoteTiptapSurface asks through lib/noteEditorRegistry.js): the board
   // glides up or down just enough, on the camera tween. Never during a pinch
-  // or two-finger pan, or the 140ms they take to settle: that is the person
+  // or two-finger pan, or the glide back off a zoom limit: that is the person
   // moving the board. A new ask mid-glide retargets it from where it is.
   useEffect(() => addCanvasRevealer((el, rect, band) => {
     if (!el || !wrapRef.current?.contains(el)) return false;
-    if (touchPanCommitTimer.current) return false;
+    if (trackpadPinchCommitTimer.current || touchCamOwnsPose()) return false;
     const dy = revealDelta(rect, band);
     if (!dy) return false;
     const p = panRef.current;
@@ -6137,9 +6182,265 @@ export function CanvasSurface({
     const done = tweenCameraTo(cam, 180, 'settle');
     const run = cameraRunRef.current;
     // Image tiers re-evaluate once the board is still, not under a later glide.
-    done.then(() => { if (cameraRunRef.current === run) emitCanvasSettle(); });
+    done.then(() => { if (cameraRunRef.current === run) settleCanvas(); });
     return true;
-  }), [tweenCameraTo, reduceMotionMq]);
+  }), [tweenCameraTo, reduceMotionMq, settleCanvas]);
+  // ── Two-finger camera on touch: pinch + two-finger pan ─────────────────────
+  // One finger belongs to whatever it pressed (a card, a tool, the board). The
+  // moment a SECOND finger lands on the board, both belong to the camera until
+  // the last one lifts: whatever the first finger had started (a card drag, a
+  // stroke, a shape, a resize) is dropped the way Escape drops it, and its
+  // lift opens and places nothing. Each move applies the step from the pair's
+  // previous midpoint and spacing to the new ones (lib/touchCamera.js), so the
+  // board point under the fingers stays under them: a pinch that drifts also
+  // pans, two fingers moved together pan 1:1, and a finger landing or lifting
+  // re-takes the pair without a jump (one finger left keeps panning). Past
+  // 10% / 500% the board stretches and glides back on release. Native pointer
+  // events rather than use-gesture: its pinch silenced the two-finger pan the
+  // moment the second finger landed, anchored the zoom where the fingers first
+  // touched, and clamped at the limits with a dead zone.
+  useEffect(() => {
+    const t = touchCamRef.current;
+    // Controls that float over the board keep their own touches.
+    const SKIP = '.cnv-tools, .cnv-tool, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .modal-bg, .tob, .sel-menu';
+    const pairAnchor = () => {
+      const r = t.rect || { left: 0, top: 0 };
+      const pts = [];
+      for (const p of t.pts.values()) {
+        pts.push({ x: p.x - r.left, y: p.y - r.top });
+        if (pts.length === 2) break;
+      }
+      return fingerAnchor(pts);
+    };
+    const retake = () => {
+      const el = wrapRef.current;
+      if (el) t.rect = el.getBoundingClientRect();
+      t.anchor = pairAnchor();
+      // Every finger in a camera gesture is the camera's until it lifts. The
+      // presses that act on a lift (a placing tool, a view-only open) check
+      // this set, so the end of a pinch places and opens nothing.
+      for (const id of t.pts.keys()) t.claimed.add(id);
+    };
+    const commit = () => {
+      gestureUntilRef.current = 0;
+      markGestureActiveUntil(0);
+      if (t.kind) noteSessionCounter(`canvas.${t.kind}`);
+      t.kind = null;
+      setPerfContext({ zoom: zoomRef.current });
+      setPan({ x: panRef.current.x, y: panRef.current.y });
+      setZoom(zoomRef.current);
+      scheduleVisibleRecompute();
+      settleCanvas();
+    };
+    // Cut a glide back that still owns the camera to its end pose, and commit
+    // it. One that another camera move took over is that move's to commit.
+    const finishSpring = () => {
+      const s = t.springing;
+      t.springing = null;
+      if (!s || cameraRunRef.current !== s.run) return;
+      cameraRunRef.current++;   // its next frame sees this and stops
+      zoomRef.current = s.cam.zoom;
+      panRef.current = { x: s.cam.pan.x, y: s.cam.pan.y };
+      applyCanvasTransform();
+      commit();
+    };
+    const begin = () => {
+      finishSpring();
+      // A glide or camera move in flight yields to the fingers. Bumping the
+      // run makes a running tween resolve on its next frame (cancelling its
+      // frame instead would leave it pending forever), so a sequence awaiting
+      // it ends cleanly.
+      glideRef.current = null;
+      cameraRunRef.current++;
+      cameraPromoteRef.current = null;
+      // Whatever the first finger had started is dropped, as Escape drops it.
+      const abortOp = pointerOpAbortRef.current;
+      pointerOpAbortRef.current = null;
+      try { abortOp?.(); } catch (_) { /* an abort must not break the pinch */ }
+      t.live = true;
+      t.kind = null;
+      t.z0 = zoomRef.current;
+      t.p0 = { x: panRef.current.x, y: panRef.current.y };
+    };
+    // The glide back off a zoom limit. The zoom eases in log space and the pan
+    // is derived from it each frame, so the board point under the last finger
+    // position stays put: the camera tween interpolates the pan on its own,
+    // and on a big board the content swam sideways mid-glide.
+    const springBack = (back, at) => {
+      const run = ++cameraRunRef.current;
+      const s = { run, cam: back };
+      t.springing = s;
+      const z0 = zoomRef.current;
+      const L0 = Math.log(z0);
+      const L1 = Math.log(back.zoom);
+      const wx = (at.x - panRef.current.x) / z0;
+      const wy = (at.y - panRef.current.y) / z0;
+      const ease = easingFor('settle');
+      const t0 = performance.now();
+      const step = (now) => {
+        if (t.springing !== s || cameraRunRef.current !== run) return;
+        const k = Math.min(1, (now - t0) / 220);
+        if (k < 1) {
+          const z = Math.exp(L0 + (L1 - L0) * ease(k));
+          zoomRef.current = z;
+          panRef.current = { x: at.x - wx * z, y: at.y - wy * z };
+          gestureUntilRef.current = performance.now() + 200;
+          markGestureActiveUntil(gestureUntilRef.current);
+          applyCanvasTransform(true);
+          scheduleVisibleRecompute();
+          cameraRafRef.current = requestAnimationFrame(step);
+          return;
+        }
+        t.springing = null;
+        zoomRef.current = back.zoom;
+        panRef.current = { x: back.pan.x, y: back.pan.y };
+        applyCanvasTransform(true);
+        commit();
+      };
+      cameraRafRef.current = requestAnimationFrame(step);
+    };
+    // `quiet`: the gesture ends without its fingers lifting (a lift we never
+    // heard, a control pressed mid-gesture, the window losing focus). No
+    // glide, and no click swallowed: the touch doing it is a real one.
+    const end = (quiet = false) => {
+      t.live = false;
+      if (!quiet) swallowNextClick();   // the lift was a pinch, not a tap
+      const at = t.anchor;
+      t.anchor = null;
+      const cam = { zoom: zoomRef.current, pan: { x: panRef.current.x, y: panRef.current.y } };
+      const back = at ? settleTarget(cam, at, { min: ZOOM_MIN, max: ZOOM_MAX }) : null;
+      if (back && !quiet && !reduceMotionMq?.matches) { springBack(back, at); return; }
+      if (back) {
+        zoomRef.current = back.zoom;
+        panRef.current = { x: back.pan.x, y: back.pan.y };
+        applyCanvasTransform();
+      }
+      commit();
+    };
+    const onDown = (e) => {
+      if (e.pointerType !== 'touch') return;
+      // The browser's first finger: nothing else is down anywhere, whatever we
+      // last saw. Heals a lift we never heard about, so a stale finger can
+      // never turn the next tap into a "second finger".
+      if (e.isPrimary) {
+        t.pts.clear();
+        t.claimed.clear();
+        if (t.live) end(true);
+        finishSpring();
+      }
+      const el = wrapRef.current;
+      if (!el || !el.contains(e.target)) return;
+      if (e.target.closest?.(SKIP)) {
+        // A control pressed mid-gesture (the zoom widget's +, Fit) gets the
+        // camera as it stands; the gesture's own commit would undo it.
+        if (t.live) end(true);
+        return;
+      }
+      const others = t.pts.size;
+      t.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (others === 0 && !t.live) return;   // one finger: what it pressed owns it
+      // An extra finger belongs to the camera, and nothing under it may see
+      // it: a card selected itself and followed it through the pinch, a tool
+      // started a second stroke. This listener is on window in the capture
+      // phase, ahead of React's root listeners, so stopping it here reaches
+      // those too; the one-finger presses' own abort listeners are window
+      // capture listeners as well, and still hear it.
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+      if (!t.live) begin();
+      retake();
+    };
+    const onMove = (e) => {
+      const p = t.pts.get(e.pointerId);
+      if (!p) return;
+      p.x = e.clientX;
+      p.y = e.clientY;
+      if (!t.live) return;
+      const _tZ = perf.isEnabled() ? performance.now() : 0;
+      const next = pairAnchor();
+      const prevZoom = zoomRef.current;
+      const cam = moveCamera({ zoom: prevZoom, pan: panRef.current }, t.anchor, next, { min: ZOOM_MIN, max: ZOOM_MAX });
+      t.anchor = next;
+      zoomRef.current = cam.zoom;
+      panRef.current = cam.pan;
+      // Ticks: crossing 100% either way (re-armed once the zoom is 2% away, so
+      // fingers resting near 100% don't stutter), and reaching the closest or
+      // farthest zoom once per visit. Only when the zoom really moved: two
+      // fingers panning at 500% wobble it by a hair.
+      if (Math.abs(Math.log(cam.zoom / prevZoom)) > 1e-4) {
+        if (Math.abs(prevZoom - 1) > 0.02) pinch100ArmedRef.current = true;
+        if (pinch100ArmedRef.current && ((prevZoom < 1 && cam.zoom >= 1) || (prevZoom > 1 && cam.zoom <= 1))) {
+          haptic('tick');
+          pinch100ArmedRef.current = false;
+        }
+        const atLimit = cam.zoom >= ZOOM_MAX * (1 - 1e-6) || cam.zoom <= ZOOM_MIN * (1 + 1e-6);
+        if (atLimit && !pinchClampedRef.current) haptic('tick');
+        pinchClampedRef.current = atLimit;
+      }
+      // Which gesture this was, counted once as it settles: a pinch wins over
+      // the pan that rides along with it.
+      if (Math.abs(Math.log(cam.zoom / t.z0)) > 0.02) t.kind = 'pinch';
+      else if (!t.kind && Math.hypot(cam.pan.x - t.p0.x, cam.pan.y - t.p0.y) > 2) t.kind = 'two_finger_pan';
+      gestureUntilRef.current = performance.now() + 200; // ADD-only cull while the fingers move
+      markGestureActiveUntil(gestureUntilRef.current);
+      markCanvasInteracting();               // immersive look-around (auto-hide chrome)
+      if (t.kind === 'pinch') markZooming(); // reveal the zoom widget while pinching
+      applyCanvasTransform();
+      scheduleVisibleRecompute();
+      if (_tZ && cam.zoom !== prevZoom) {
+        perf.mark(_zoomCountRef.current === 0 ? 'firstZoom.ms' : 'zoom.ms', performance.now() - _tZ);
+        _zoomCountRef.current++;
+      }
+    };
+    const onUp = (e) => {
+      if (!t.pts.delete(e.pointerId)) return;
+      if (!t.live) return;
+      if (t.pts.size > 0) { retake(); return; }
+      end();
+    };
+    // Android raises a context menu on a held finger; mid-pinch it isn't one.
+    const onContextMenu = (e) => {
+      if (!touchCamOwnsPose()) return;
+      if (!wrapRef.current?.contains(e.target)) return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    const onBlur = () => {
+      t.pts.clear();
+      if (t.live) end(true);
+    };
+    // iOS scales the whole page on a pinch unless its gesture events are
+    // refused; the board does its own zoom.
+    const wrap = wrapRef.current;
+    const refuseGesture = (e) => { if (e.cancelable) e.preventDefault(); };
+    if (HAS_TOUCHSCREEN && wrap) {
+      wrap.addEventListener('gesturestart', refuseGesture, { passive: false });
+      wrap.addEventListener('gesturechange', refuseGesture, { passive: false });
+    }
+    window.addEventListener('pointerdown', onDown, { capture: true, passive: false });
+    window.addEventListener('pointermove', onMove, { capture: true, passive: true });
+    window.addEventListener('pointerup', onUp, { capture: true, passive: true });
+    window.addEventListener('pointercancel', onUp, { capture: true, passive: true });
+    window.addEventListener('contextmenu', onContextMenu, true);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      if (wrap) {
+        wrap.removeEventListener('gesturestart', refuseGesture);
+        wrap.removeEventListener('gesturechange', refuseGesture);
+      }
+      window.removeEventListener('pointerdown', onDown, { capture: true });
+      window.removeEventListener('pointermove', onMove, { capture: true });
+      window.removeEventListener('pointerup', onUp, { capture: true });
+      window.removeEventListener('pointercancel', onUp, { capture: true });
+      window.removeEventListener('contextmenu', onContextMenu, true);
+      window.removeEventListener('blur', onBlur);
+      t.pts.clear();
+      t.claimed.clear();
+      t.live = false;
+      t.springing = null;
+    };
+  }, []);
+
   useGesture(
     {
       onPinch: ({ event, origin: [ox, oy], movement: [ms], memo }) => {
@@ -6179,8 +6480,7 @@ export function CanvasSurface({
         markZooming();            // reveal the zoom widget while pinching
         applyCanvasTransform();
         scheduleVisibleRecompute();
-        touchGestureRef.current = 'pinch';
-        scheduleTouchPanCommit();
+        scheduleTrackpadPinchCommit();
         if (_tZ) {
           const dur = performance.now() - _tZ;
           const isFirst = _zoomCountRef.current === 0;
@@ -6188,25 +6488,6 @@ export function CanvasSurface({
           _zoomCountRef.current++;
         }
         return start;
-      },
-      onDrag: ({ event, delta: [dx, dy], touches, pinching, pointerType }) => {
-        // Two-finger drag pans the canvas regardless of selected tool.
-        // Single-finger / mouse drags stay on the existing onPointerDown
-        // path so card move, lasso, pan-mode, etc. keep their behavior.
-        if (pinching) return;
-        if (pointerType !== 'touch') return;
-        if (touches < 2) return;
-        if (event?.cancelable) event.preventDefault();
-        glideRef.current = null;
-        const p = panRef.current;
-        panRef.current = { x: p.x + dx, y: p.y + dy };
-        gestureUntilRef.current = performance.now() + 200; // ADD-only cull while two-finger panning
-        markGestureActiveUntil(gestureUntilRef.current);
-        markCanvasInteracting();  // immersive look-around (auto-hide chrome)
-        applyCanvasTransform();
-        scheduleVisibleRecompute();
-        if (touchGestureRef.current !== 'pinch') touchGestureRef.current = 'two_finger_pan';
-        scheduleTouchPanCommit();
       },
     },
     {
@@ -6218,21 +6499,8 @@ export function CanvasSurface({
       // 1/100 ratio and wrote an absolute zoom from the gesture start, so one
       // ctrl+scroll-down notch at 100% rubberbanded straight to ZOOM_MIN.
       // Safari's trackpad pinch still arrives here through gesture events.
-      pinch: { scaleBounds: { min: ZOOM_MIN / 4, max: ZOOM_MAX * 4 }, rubberband: true, pinchOnWheel: false },
-      // `touch: true` only switches the drag engine to TouchEvents on
-      // devices where use-gesture's SUPPORT.touch ('ontouchstart') is true.
-      // On a touchless desktop it silently falls back to PointerEvents,
-      // whose default `capture: true` called setPointerCapture on EVERY
-      // left-button pointerdown inside the wrap. Capturing retargets all
-      // subsequent pointer events to the pressed element, which freezes
-      // the browser's native text-selection drag — selecting multiple note
-      // lines by mouse stopped dead at the first line boundary (backward
-      // drags ~always; forward drags raced). capture:false costs nothing:
-      // onDrag above ignores non-touch pointers entirely, and on real touch
-      // devices the TouchEvent path never captured to begin with. NOTE:
-      // card click handling must stay correct without capture — see the
-      // dragArmed comment in onCardPointerDown.
-      drag: { pointer: { touch: true, capture: false }, threshold: 0 },
+      // On a touch screen the two-finger camera above owns pinching; this is a Mac trackpad's pinch in Safari.
+      pinch: { enabled: !HAS_TOUCHSCREEN, scaleBounds: { min: ZOOM_MIN / 4, max: ZOOM_MAX * 4 }, rubberband: true, pinchOnWheel: false },
     },
   );
 
@@ -6244,6 +6512,8 @@ export function CanvasSurface({
   useLongPress(
     wrapRef,
     (x, y, e) => {
+      // Two fingers down is a pinch; a still pair must not open a menu (or buzz).
+      if (touchCamRef.current.live) return false;
       // What keeps its own menu on a right-click: the comments eye's archive,
       // a group's label, an arrow, a tag chip. A hold there is that
       // right-click. Android raises the contextmenu itself on a hold; iOS
@@ -7147,9 +7417,10 @@ export function CanvasSurface({
     const onSecondTouch = (ev) => {
       if (ev.pointerType !== 'touch') return;
       if (ev.pointerId === initialPointerId) return;
+      if (!touchCamRef.current.live) return;   // a finger on a control or off the board leaves this press alone
       // A second finger means the user is pinching / two-finger panning.
       // Abort our single-finger pan so onUp doesn't commit a setPan that
-      // would override the pinch's deferred commit (scheduleTouchPanCommit).
+      // would override the two-finger camera's commit.
       aborted = true;
       cleanup();
     };
@@ -7165,7 +7436,7 @@ export function CanvasSurface({
       // catch up to the gesture-time ref values.
       setPan({ x: panRef.current.x, y: panRef.current.y });
       scheduleVisibleRecompute();
-      emitCanvasSettle();
+      settleCanvas();
       if (travelled) noteSessionCounter(`canvas.drag_pan.${e.pointerType === 'touch' || e.pointerType === 'pen' ? e.pointerType : 'mouse'}`);
       if (onTap && startedFromTouch && !travelled) onTap(ev);
     };
@@ -7618,7 +7889,7 @@ export function CanvasSurface({
       const onUp = (ev) => {
         if (ev.pointerId !== pid) return;
         cleanup();
-        if (Math.hypot(ev.clientX - sx, ev.clientY - sy) <= 4) openImageLightbox(c);
+        if (Math.hypot(ev.clientX - sx, ev.clientY - sy) <= 4 && !touchCamRef.current.claimed.has(ev.pointerId)) openImageLightbox(c);
       };
       const onCancel = (ev) => { if (ev.pointerId === pid) cleanup(); };
       window.addEventListener('pointerup', onUp);
@@ -7653,7 +7924,7 @@ export function CanvasSurface({
         const onUp = (ev) => {
           if (ev.pointerId !== pid) return; // another finger/pen — not this gesture
           cleanup();
-          if (Math.hypot(ev.clientX - sx, ev.clientY - sy) <= 4) openTap();
+          if (Math.hypot(ev.clientX - sx, ev.clientY - sy) <= 4 && !touchCamRef.current.claimed.has(ev.pointerId)) openTap();
         };
         const onCancel = (ev) => { if (ev.pointerId === pid) cleanup(); };
         const cleanup = () => {
@@ -7743,7 +8014,11 @@ export function CanvasSurface({
     // so selection must NOT change until the gesture commits to being a tap or
     // a lift. `touchHold` gates every mobile-specific branch below; for mouse /
     // pen it stays false and the original synchronous path runs verbatim.
-    const touchHold = e.pointerType === 'touch' && e.isPrimary;
+    // Every touch, not only the browser's first finger: an extra finger used to
+    // take the mouse path here, selecting the card at once and dragging it along.
+    // A second finger on the board itself never reaches this handler (the
+    // two-finger camera claims it).
+    const touchHold = e.pointerType === 'touch';
     // Select… (the hold menu): a tap adds the card or takes it out (the tap
     // branch of onUp), and a lift carries the whole selection, this card with it.
     const toggling = touchHold && touchSelectingRef.current;
@@ -7946,6 +8221,7 @@ export function CanvasSurface({
       // A second finger → use-gesture owns the pinch; abort our pan/lift so we
       // never fight its panRef writes or commit a stray move (cf. startPan).
       if (ev.pointerType !== 'touch' || ev.pointerId === initialPointerId) return;
+      if (!touchCamRef.current.live) return;   // a finger on a control or off the board leaves this press alone
       // Already carrying the card: the pinch can't share the gesture (the
       // drag maths uses the zoom from pointerdown), so put the card back
       // where it was rather than let it hop between fingers and drop under
@@ -8277,7 +8553,7 @@ export function CanvasSurface({
           gestureUntilRef.current = 0;
           setPan({ x: panRef.current.x, y: panRef.current.y });
           scheduleVisibleRecompute();
-          emitCanvasSettle();
+          settleCanvas();
           noteSessionCounter('canvas.drag_pan.touch');
         } else if (!panned && !touchScrolling && !aborted) {
           // A tap on another card finishes the note being written first. The
@@ -10070,6 +10346,7 @@ export function CanvasSurface({
     press.abort = abort;   // a hold on something with its own menu (useLongPress)
     const onSecondTouch = (ev) => {
       if (ev.pointerType !== 'touch' || ev.pointerId === e.pointerId) return;
+      if (!touchCamRef.current.live) return;   // a finger on a control or off the board leaves this press alone
       abort();
     };
     const travel = (ev) => Math.hypot(ev.clientX - startClient.x, ev.clientY - startClient.y);
@@ -10108,7 +10385,7 @@ export function CanvasSurface({
         gestureUntilRef.current = 0;
         setPan({ x: panRef.current.x, y: panRef.current.y });
         scheduleVisibleRecompute();
-        emitCanvasSettle();
+        settleCanvas();
         noteSessionCounter('canvas.drag_pan.touch');
         return;
       }
@@ -10208,6 +10485,7 @@ export function CanvasSurface({
       };
       const onSecondTouch = (ev) => {
         if (ev.pointerType !== 'touch' || ev.pointerId === e.pointerId) return;
+        if (!touchCamRef.current.live) return;   // a finger on a control or off the board leaves this press alone
         abortStroke();
       };
       if (e.pointerType === 'touch') {
@@ -15614,11 +15892,15 @@ export function CanvasSurface({
           <Icon as={Minus} size={18} weight="regular" />
         </button>
         <input
+          ref={zoomSliderRef}
           className="cnv-zoom-slider"
+          // Uncontrolled: applyCanvasTransform writes the knob from the live
+          // zoom. A controlled value was re-imposed by every render mid-pinch
+          // and the knob flickered back to where the pinch started.
           type="range"
           min="0" max="1000" step="1"
           // log scale: 0..1000 → ZOOM_MIN..ZOOM_MAX
-          value={zoomPos}
+          defaultValue={zoomPos}
           style={{ '--zf': `${zoomPos / 10}%` }}
           onInput={(e) => {
             markZooming();
@@ -15641,13 +15923,13 @@ export function CanvasSurface({
         />
         {/* What it shows, then what it does: Enter on it is ⌘0. (Double-click
             fits the cluster; the keyboard has ⇧1 for that.) */}
-        <button type="button" className="cnv-zoom-val"
+        <button type="button" className="cnv-zoom-val" ref={zoomValRef}
               {...tlTip(tr`Click: 100% · Double-click: Full Cluster`, 'Mod+0')}
               aria-label={tr`${ph({ round: Math.round(zoom * 100) })}% — reset to 100%`}
               aria-keyshortcuts={ariaKeys('Mod+0')}
               onClick={() => { markZooming(); zoomAroundCenter(1 / zoomRef.current); }}
               onDoubleClick={() => { enableSmoothTransform(); markZooming(); fitToContent(); }}>
-          {Math.round(zoom * 100)}%
+          {`${Math.round(zoom * 100)}%`}
         </button>
         <button aria-label={tr`Zoom in`} aria-keyshortcuts={ariaKeys('Mod+=')}
                 {...tlTip(tr`Zoom in`, 'Mod+=')}

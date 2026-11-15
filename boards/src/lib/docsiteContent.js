@@ -48714,13 +48714,27 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
+       "v": "Two finger drag"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Pan"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
        "v": "Pinch"
       }
      ],
      [
       {
        "t": "text",
-       "v": "Zoom"
+       "v": "Zoom, keeping the spot between your fingers under them"
       }
      ]
     ],
@@ -48882,6 +48896,15 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "While you hold empty canvas, a ring fills under your finger; once it is full, the press is a hold, and moving draws the box instead of panning. The menu opens when you let go, never under a box you were about to draw. A second finger at any point hands it to the pinch: no box, no menu, and the selection as it was."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A pinch follows your hand, so you can zoom and move the board in one motion. Lift one finger and the other keeps panning. Past the closest or farthest zoom the board gives a little, and settles back when you let go. Every finger in a pinch belongs to the zoom: a card under one is not picked up or selected, and lifting your fingers opens nothing."
     }
    ]
   },
