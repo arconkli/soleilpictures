@@ -31,6 +31,7 @@ import { handleTagsRoute } from './worker-tags.js';
 import { handleSearchRoute } from './worker-search.js';
 import { pickOgImage } from './lib/ogImagePick.js';
 import { isUnlistedBoard, postBoardRobots } from './lib/postBoardRobots.js';
+import { publicCover, readPublicCover } from './lib/publicCover.js';
 import { handleClustersRoute } from './worker-clusters.js';
 import { handleTeamRoute, runTeamDomainRecheck } from './worker-team.js';
 import { runDraftReap } from './worker-drafts.js';
@@ -1766,15 +1767,21 @@ function injectPublicBoard(res, meta, content, slug, related, page) {
     .on('meta[name="twitter:description"]', new SetContent(description))
     .on('link[rel="canonical"]',            new SetHref(canonical));
 
-  // og:image — served INDEXABLE from /api/public-thumb/<slug>.
-  if (meta.thumb_key || meta.og_image_key) {
-    const v = encodeURIComponent(meta.thumb_updated_at || '');
-    const img = `${SITE_ORIGIN}/api/public-thumb/${slug}?v=${v}`;
-    const isV2 = (meta.thumb_version || 0) >= 2;
+  // og:image — served INDEXABLE from /api/public-thumb/<slug>. The type and
+  // size are those of the picture that endpoint serves (lib/publicCover.js: the
+  // cover's share-sized WebP when it has one, else the original, else the
+  // rendered thumbnail), and ?v= is the board's updated time so a changed cover
+  // is a new address to the apps that cache link previews. A size or type that
+  // is not known is left out; the shell's own values describe the home page's
+  // picture, not this one.
+  const cover = publicCover(meta);
+  if (cover) {
+    const img = `${SITE_ORIGIN}/api/public-thumb/${slug}?v=${encodeURIComponent(cover.version)}`;
+    const sized = cover.width && cover.height;
     rw.on('meta[property="og:image"]',        new SetContent(img))
-      .on('meta[property="og:image:width"]',  new SetContent(isV2 ? '1200' : '800'))
-      .on('meta[property="og:image:height"]', new SetContent(isV2 ? '675' : '600'))
-      .on('meta[property="og:image:type"]',   new SetContent('image/webp'))
+      .on('meta[property="og:image:width"]',  sized ? new SetContent(String(cover.width)) : new RemoveEl())
+      .on('meta[property="og:image:height"]', sized ? new SetContent(String(cover.height)) : new RemoveEl())
+      .on('meta[property="og:image:type"]',   cover.type ? new SetContent(cover.type) : new RemoveEl())
       .on('meta[property="og:image:alt"]',    new SetContent(name))
       .on('meta[name="twitter:image"]',       new SetContent(img))
       .on('meta[name="twitter:image:alt"]',   new SetContent(name));
@@ -2783,7 +2790,8 @@ async function handleImageSitemap(env, request) {
 }
 
 // og:image for /c/<slug> — clone of handleShareThumb but slug-keyed and
-// INDEXABLE (no x-robots-tag: noindex), except an unlisted post board's. Prefers an admin og_image_key override.
+// INDEXABLE (no x-robots-tag: noindex), except an unlisted post board's. Prefers an admin og_image_key override,
+// served as its share-sized copy.
 async function handlePublicThumb(env, slug, searchParams, request) {
   const fallback = () =>
     new Response(null, {
@@ -2793,10 +2801,15 @@ async function handlePublicThumb(env, slug, searchParams, request) {
   let meta = null;
   try { meta = await fetchPublicBoardMeta(env, slug); } catch { return fallback(); }
   if (!meta || meta === PUB_NOT_FOUND) return fallback();
-  const key = (meta?.og_image_key || meta?.thumb_key || '').replace(/^r2:/, '');
-  if (!key || !env.IMAGES) return fallback();
-  const obj = await env.IMAGES.get(key);
-  if (!obj) return fallback();
+  // A cover goes out as its share-sized WebP when it has one, the original
+  // otherwise (lib/publicCover.js; scripts/backfill-image-variants.mjs --covers
+  // makes the copies).
+  const cover = publicCover(meta);
+  if (!cover || !env.IMAGES) return fallback();
+  let found = null;
+  try { found = await readPublicCover(env.IMAGES, cover); } catch { return fallback(); }
+  if (!found) return fallback();
+  const { obj, key } = found;
   // 0366 audit: never the uploader's declared type — see safeRasterType.
   const type = safeRasterType(obj.httpMetadata?.contentType, key);
   if (!type) return fallback();
