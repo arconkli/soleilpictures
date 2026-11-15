@@ -12240,6 +12240,55 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
   cursor: pointer;
 }
 .canvas-comment-draft-post:disabled { opacity: .5; cursor: not-allowed; }
+/* A finger has no Enter-to-post or Esc: Cancel and Post say it. */
+@media (pointer: coarse) {
+  .canvas-comment-draft-hint { display: none; }
+  .canvas-comment-draft-actions { justify-content: flex-end; }
+}
+
+/* The draft on the phone shell (CanvasCommentDraft `bar`, portaled to the
+   body): one bar across the screen's foot, riding the top of the keyboard
+   (its `bottom` is set from the visual viewport), with a field and two
+   buttons a thumb can hit. Post is ink, never gold: gold is the field's
+   focus ring. */
+.canvas-comment-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 95;
+  box-sizing: border-box;
+  display: flex; align-items: flex-end; gap: 6px;
+  padding: 8px;
+  background: var(--bg-1);
+  border-top: 1px solid var(--line-1);
+  box-shadow: 0 -6px 18px rgba(10, 10, 12, .06);
+}
+/* No keyboard and no tab bar under it: clear the home bar. */
+.canvas-comment-bar.is-floor { padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+.canvas-comment-bar-field {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; align-items: center; box-sizing: border-box;
+  min-height: 44px; padding: 4px 10px;
+  border-radius: 12px;
+  background: var(--sbf-field, var(--bg-3));
+}
+.canvas-comment-bar-field:focus-within { box-shadow: inset 0 0 0 1px var(--soleil); }
+.canvas-comment-bar .canvas-comment-draft-input {
+  flex: 1; min-width: 0; box-sizing: border-box;
+  min-height: 32px; max-height: 120px; padding: 6px 0;
+  font: 400 16px/20px var(--font-sans);
+  letter-spacing: 0;
+}
+/* The field wears the focus ring, not the text inside it. */
+.canvas-comment-bar .canvas-comment-draft-input:focus-visible { outline: 0; box-shadow: none; }
+.canvas-comment-bar .canvas-comment-draft-cancel {
+  flex: none; height: 44px; padding: 0 12px;
+  border-radius: 9px;
+  font: 500 15px/1 var(--font-sans);
+}
+.canvas-comment-bar .canvas-comment-draft-post {
+  flex: none; height: 44px; min-width: 64px; padding: 0 16px;
+  border-radius: 9px;
+  background: var(--ink-0); color: var(--bg-0);
+  font: 600 15px/1 var(--font-sans);
+}
 
 /* ──────────────────────────── Peer-comment audit popover ───────────────── */
 
@@ -12626,6 +12675,12 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 @media (max-width: 640px),
        (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
   .toast-stack { left: 12px; right: 12px; align-items: flex-end; }
+  /* On a canvas the comments button is in the stack's top-left corner (12px
+     in, up to about 55px wide with its count), and a toast across the whole
+     width lay on it: the stack starts where the loose-cards bar's room does.
+     Not the floating look, whose stack hangs from the right island at its own
+     width. */
+  body:not([data-sb-float]):has(.cnv-comments-eye) .toast-stack { left: 76px; }
   /* Share, Trash, Version history and Settings are full-screen sheets here,
      covering the topbar the offset above is tuned for, so a toast landed on
      the sheet's own header: over its close button, and over most of Share's

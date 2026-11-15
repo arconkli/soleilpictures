@@ -11,7 +11,8 @@
 //   anchor_kind = 'board'  → fixed top-right of canvas wrap
 //   anchor_kind = 'doc_range' → ignored on canvas (shown inside doc)
 
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { addComment, updateComment, deleteComment, restoreComment } from '../lib/commentsApi.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
@@ -22,6 +23,7 @@ import { relativeTimeShort } from '../lib/relativeTime.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { keyboardInset } from '../lib/keyboardInset.js';
 import { t as tr, ph, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { shownError } from '../lib/errorWords.js';
@@ -55,6 +57,10 @@ export function CanvasCommentLayer({
   // the given canvas position. submitting calls onSubmitDraft; Esc /
   // outside-click calls onCancelDraft.
   draft, onSubmitDraft, onCancelDraft,
+  // The phone shell (phones and upright iPads): the draft is a bar on top of
+  // the keyboard instead of a box on the canvas, where it shrank with the
+  // zoom and could open past the screen's edge.
+  draftAsBar = false,
   // Optimistic local removal — invoked right after a successful delete
   // so the bubble disappears without waiting for the realtime fan-out.
   onLocallyRemoved,
@@ -150,14 +156,45 @@ export function CanvasCommentLayer({
           canvasPos={draft.canvasPos}
           onSubmit={onSubmitDraft}
           onCancel={onCancelDraft}
+          bar={draftAsBar}
         />
       )}
     </div>
   );
 }
 
-function CanvasCommentDraft({ canvasPos, onSubmit, onCancel }) {
+// Where the comment bar's foot goes: the top of the on-screen keyboard while
+// one shows (the visual viewport's bottom edge), else the top of the phone's
+// tab bar, else the screen's own foot (`floor`: the bar pads the home bar).
+function useCommentBarBottom(on) {
+  const [pos, setPos] = useState({ bottom: 0, floor: true });
+  useLayoutEffect(() => {
+    if (!on) return undefined;
+    const vv = window.visualViewport;
+    const measure = () => {
+      const h = window.innerHeight;
+      const kb = keyboardInset(window);
+      const r = document.querySelector('.mb-nav')?.getBoundingClientRect();
+      const nav = r && r.height > 0 ? Math.max(0, Math.round(h - r.top)) : 0;
+      const bottom = Math.max(kb, nav);
+      setPos((p) => (p.bottom === bottom ? p : { bottom, floor: bottom === 0 }));
+    };
+    measure();
+    vv?.addEventListener('resize', measure);
+    vv?.addEventListener('scroll', measure);
+    window.addEventListener('resize', measure);
+    return () => {
+      vv?.removeEventListener('resize', measure);
+      vv?.removeEventListener('scroll', measure);
+      window.removeEventListener('resize', measure);
+    };
+  }, [on]);
+  return pos;
+}
+
+function CanvasCommentDraft({ canvasPos, onSubmit, onCancel, bar = false }) {
   const [body, setBody] = useState('');
+  const barPos = useCommentBarBottom(bar);
   // onSubmit may be async. The draft stays mounted (with its text) when a
   // post fails, so it must not take a second press while one is in flight.
   const [busy, setBusy] = useState(false);
@@ -189,6 +226,55 @@ function CanvasCommentDraft({ canvasPos, onSubmit, onCancel }) {
     const el = ref.current?.querySelector('textarea');
     if (el) { try { el.focus({ preventScroll: true }); } catch (_) { el.focus(); } }
   }, []);
+  // The bar's field starts one line tall and grows with what's typed.
+  useLayoutEffect(() => {
+    if (!bar) return;
+    const el = ref.current?.querySelector('textarea');
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [bar, body]);
+  const onInputKeyDown = (e) => {
+    // Mid-syllable, Enter picks the syllable; the next one posts.
+    if (isComposingKey(e)) return;
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      post();
+    }
+  };
+  if (bar) {
+    // On the body: inside the canvas, `fixed` would hang from the canvas's
+    // transform. React still bubbles its events to the canvas, so the ones
+    // the canvas acts on stop here.
+    const stop = (e) => e.stopPropagation();
+    return createPortal(
+      <form ref={ref}
+            className={`canvas-comment-bar${barPos.floor ? ' is-floor' : ''}`}
+            style={{ bottom: barPos.bottom }}
+            onMouseDown={stop} onPointerDown={stop} onClick={stop}
+            onDoubleClick={stop} onContextMenu={stop}
+            onDragOver={stop} onDrop={stop}
+            onSubmit={(e) => { e.preventDefault(); post(); }}>
+        <div className="canvas-comment-bar-field">
+          <textarea className="canvas-comment-draft-input" dir="auto"
+                    autoFocus
+                    rows={1}
+                    enterKeyHint="send"
+                    value={body}
+                    placeholder="Add a comment…"
+                    onChange={(e) => setBody(e.target.value)}
+                    onKeyDown={onInputKeyDown} />
+        </div>
+        <button type="button"
+                className="canvas-comment-draft-cancel"
+                onClick={onCancel}>Cancel</button>
+        <button type="submit"
+                className="canvas-comment-draft-post"
+                disabled={!body.trim() || busy}>{busy ? 'Posting…' : 'Post'}</button>
+      </form>,
+      document.body,
+    );
+  }
   return (
     <div ref={ref}
          className="canvas-comment canvas-comment-draft"
@@ -210,14 +296,7 @@ function CanvasCommentDraft({ canvasPos, onSubmit, onCancel }) {
                   spellCheck={false}
                   placeholder={tr`Add a comment…`}
                   onChange={(e) => setBody(e.target.value)}
-                  onKeyDown={(e) => {
-                    // Mid-syllable, Enter picks the syllable; the next one posts.
-                    if (isComposingKey(e)) return;
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      post();
-                    }
-                  }} />
+                  onKeyDown={onInputKeyDown} />
         <div className="canvas-comment-draft-actions">
           <span className="canvas-comment-draft-hint"><Trans>Enter to post · Esc to cancel</Trans></span>
           <button type="button"
