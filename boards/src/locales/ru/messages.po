@@ -17809,6 +17809,11 @@ msgstr "Насыщенность"
 msgid "Save"
 msgstr "Сохранить"
 
+#: src/lib/photoSave.js
+msgctxt "save a photo"
+msgid "Save"
+msgstr "Сохранить"
+
 #: src/components/MessageComposer.jsx
 msgid "Save (Enter)"
 msgstr "Сохранить (Enter)"
@@ -24620,6 +24625,10 @@ msgstr "Платёж ещё обрабатывается — банковски�
 #: src/lib/homeMap.js
 msgid "Your personal workspace"
 msgstr "Ваше личное рабочее пространство"
+
+#: src/lib/photoSave.js
+msgid "Your photo is ready to save."
+msgstr "Фото готово к сохранению."
 
 #: src/pages/MakePage.jsx
 msgid "Your plan has no room for more cards. See the plans with room for this board."

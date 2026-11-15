@@ -17785,6 +17785,11 @@ msgstr "채도"
 msgid "Save"
 msgstr "저장"
 
+#: src/lib/photoSave.js
+msgctxt "save a photo"
+msgid "Save"
+msgstr "저장"
+
 #: src/components/MessageComposer.jsx
 msgid "Save (Enter)"
 msgstr "저장 (Enter)"
@@ -24596,6 +24601,10 @@ msgstr "결제가 아직 처리 중이에요. 은행 결제는 시간이 조금 
 #: src/lib/homeMap.js
 msgid "Your personal workspace"
 msgstr "내 개인 워크스페이스"
+
+#: src/lib/photoSave.js
+msgid "Your photo is ready to save."
+msgstr "사진을 저장할 준비가 됐어요."
 
 #: src/pages/MakePage.jsx
 msgid "Your plan has no room for more cards. See the plans with room for this board."

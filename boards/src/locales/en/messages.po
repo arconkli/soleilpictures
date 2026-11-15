@@ -17793,6 +17793,11 @@ msgstr "Saturation"
 msgid "Save"
 msgstr "Save"
 
+#: src/lib/photoSave.js
+msgctxt "save a photo"
+msgid "Save"
+msgstr "Save"
+
 #: src/components/MessageComposer.jsx
 msgid "Save (Enter)"
 msgstr "Save (Enter)"
@@ -24604,6 +24609,10 @@ msgstr "Your payment is still processing — bank payments can take a little whi
 #: src/lib/homeMap.js
 msgid "Your personal workspace"
 msgstr "Your personal workspace"
+
+#: src/lib/photoSave.js
+msgid "Your photo is ready to save."
+msgstr "Your photo is ready to save."
 
 #: src/pages/MakePage.jsx
 msgid "Your plan has no room for more cards. See the plans with room for this board."

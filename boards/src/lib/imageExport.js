@@ -9,6 +9,9 @@
 
 import { resolveSrc, getSignedUrl } from './r2.js';
 import { deliverFile } from './exportDelivery.js';
+import { deliverPhoto } from './photoSave.js';
+import { safeFileName } from './safeFileName.js';
+import { getDeviceInfo } from './device.js';
 import { logEvent } from './analytics.js';
 import { EV } from './analyticsEvents.js';
 
@@ -40,10 +43,26 @@ import {
 // downloads did in the Capacitor app for as long as it has existed. deliverFile
 // writes to the cache directory and presents the OS share sheet there, and
 // falls back to exactly the old <a download> on the web.
+//
+// One exception, lib/photoSave.js: on an iPhone or iPad in a browser the photo
+// goes to the share sheet, where Save Image puts it in Photos; <a download>
+// there only reaches Files > Downloads. deliverFile stays the fallback.
 function triggerDownload(blob, name) {
   // Fire-and-forget: callers are click handlers and there is nothing useful to
   // do with a rejection beyond the console.
-  deliverFile(blob, name).catch((err) => console.warn('[imageExport] delivery failed', err));
+  const warn = (err) => console.warn('[imageExport] delivery failed', err);
+  const fallback = () => deliverFile(blob, name).catch(warn);
+  try {
+    name = safeFileName(name, { fallback: 'download', maxChars: 120 });
+    let ios = false;
+    try { ios = getDeviceInfo().os === 'iOS'; } catch (_) { ios = false; }
+    let native = false;
+    try { native = !!window.Capacitor?.isNativePlatform?.(); } catch (_) { native = false; }
+    deliverPhoto(blob, name, { ios, native, fallback }).catch((err) => { warn(err); fallback(); });
+  } catch (err) {
+    warn(err);
+    fallback();
+  }
 }
 
 // 3×3 convolution with edge-clamping; alpha is copied through. Kernels sum to 1.

@@ -10665,6 +10665,43 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On an iPhone or iPad, "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " opens the share sheet; "
+    },
+    {
+     "t": "strong",
+     "v": "Save Image",
+     "children": [
+      {
+       "t": "text",
+       "v": "Save Image"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " puts the photo in Photos."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Auto-arranging a moodboard",
