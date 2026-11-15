@@ -8469,6 +8469,9 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
   min-width: 220px;
   max-width: calc(100vw - 16px);
   max-height: calc(100vh - 16px);
+  /* The screen a phone actually shows (its bars in, its notch and home bar
+     out), less the 8px kept to each edge. */
+  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px);
   overflow: visible;
   /* Menus open over photos: solid, or the art runs through the text. */
   background: var(--bg-3);
@@ -8490,6 +8493,45 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
    32px row toward its 13px text. */
 .ctx-menu.is-scrollable { overflow-y: auto; }
 .ctx-menu.is-scrollable > * { flex-shrink: 0; }
+/* Its scrollbar is hidden, so while rows wait below the fold its foot fades
+   out (lib/ctxMenuFit.js marks it), and stops fading at the last row. The
+   menu's own is a wash of its ground stuck to its foot, over the rows (a mask
+   would take its edge and shadow too); a stepped-in submenu's rows, which have
+   no ground of their own, are masked. */
+.ctx-menu.is-scrollable.has-more-below::before {
+  content: '';
+  order: 9999;
+  flex: none;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  height: 36px;
+  margin-top: -36px;
+  background: linear-gradient(transparent, var(--ctx-ground, var(--bg-3)));
+  pointer-events: none;
+}
+.ctx-step-body.has-more-below {
+  -webkit-mask-image: linear-gradient(#000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(#000 calc(100% - 32px), transparent);
+}
+/* A submenu stepped into its menu's box (ctxMenuParts.jsx, a phone): ‹ and
+   its name stay put over a hairline, and its rows scroll under them. */
+.ctx-menu.is-step { overflow: hidden; }
+.ctx-menu.is-step > * { flex: none; }
+.ctx-menu.is-step > .ctx-step-body {
+  flex: 0 1 auto; min-height: 0;
+  display: flex; flex-direction: column; gap: inherit;
+  overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.ctx-step-body::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.ctx-step-body > * { flex-shrink: 0; }
+.ctx-menu.is-step .ctx-item.is-back { justify-content: flex-start; gap: 10px; }
+.ctx-menu.is-step .ctx-item.is-back .ctx-back-chevron { width: 20px; height: 20px; flex-shrink: 0; color: var(--ink-1); }
+.ctx-menu.is-step .ctx-item.is-back .ctx-label { color: var(--ink-0); font-weight: 600; }
+@media (pointer: coarse) {
+  .ctx-menu.is-step .ctx-item { height: auto; min-height: 44px; }
+}
 @keyframes ctx-menu-in {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }

@@ -2164,8 +2164,9 @@ export function CanvasSurface({
   // Esc handling + close-on-backdrop-click live inside ImageLightbox.
   const [lightbox, setLightbox] = useState(null);
   // Open an image card fullscreen. Shared by the corner Expand button, the
-  // double-click/double-tap-the-image gesture, and focus-view single-tap, so
-  // all three reach the same lightbox.
+  // card menu's View full size, focus view's single tap and a view-only
+  // board's, so all of them reach the same lightbox. (A double tap on an
+  // image does nothing for an editor.)
   const openImageLightbox = useCallback((c) => {
     if (!c?.src) return;
     setLightbox({ src: c.src, title: c.title || c.label || '', alt: c.title || c.label || '', adjust: c.adjust, cardId: c.id, downloadName: c.fileName || null });
@@ -8377,7 +8378,13 @@ export function CanvasSurface({
       return;
     }
     if (isEditorPointerTarget(e)) return;
-    if (e.target.closest?.('.editable.is-editing, .note-toolbar, .rb-swatch-pop, .ic-link, .ic-add-caption, .editable')) return;
+    // A finger on a resting title or caption (a link's, a palette's, a
+    // picture's) takes the hold path below as the rest of the card does: it
+    // lifts, or pans. Only text being edited keeps the touch; EditableText
+    // hears its own double tap. A mouse still leaves any .editable alone.
+    if (e.target.closest?.(e.pointerType === 'touch'
+      ? '.editable.is-editing, .note-toolbar, .rb-swatch-pop, .ic-link, .ic-add-caption'
+      : '.editable.is-editing, .note-toolbar, .rb-swatch-pop, .ic-link, .ic-add-caption, .editable')) return;
 
     if (selectedTool === 'arrow') {
       e.stopPropagation();
@@ -9937,6 +9944,12 @@ export function CanvasSurface({
             input.click();
           }} : { id: 'newversion', label: tr`Upload new version…`, run: () => pickVersionFile(versionEnv(), c.id) },
         ]});
+        // The corner Expand button shrinks with the zoom (a few px on a phone):
+        // this is the way in that a finger can always hit.
+        if (c.src) {
+          openItems.push({ id: 'image-view', label: 'View full size',
+            run: () => openImageLightbox(c) });
+        }
         if (canEdit && c.src) {
           items.push({ id: 'image-edit-photo', label: tr`Edit photo…`,
             run: () => setImageEditFull({ cardId: c.id }) });
@@ -10445,16 +10458,23 @@ export function CanvasSurface({
         run: () => openFileShare({ boardId: board.id, cardId: c.id, card: c, boardName: board.name, surface: 'canvas' }) });
     }
     metaItems.push({ backlinks: true });
-    metaItems.push({ id: 'delete', label: multi ? tr`Delete (${ph({ size: selected.size })})` : tr`Delete`,
+    // Last, to a mouse. To a finger the menu is taller than a phone, and
+    // Delete at its foot was below the fold: there it follows Duplicate, in
+    // a Clipboard group moved up under Edit (below).
+    (isTouch ? clipboardItems : metaItems).push({ id: 'delete', label: multi ? tr`Delete (${ph({ size: selected.size })})` : tr`Delete`,
       shortcut: '⌫', danger: true,
       run: () => doDeleteIds(multi ? [...selected] : [c.id]) });
 
+    // To a finger the Clipboard group (Delete in it) follows Edit, ahead of
+    // Annotate and Arrange: on a photo those two alone fill a phone's screen.
+    const clipboard = { header: SECTION.CLIPBOARD, items: clipboardItems };
     return composeMenuSections([
       { items: openItems },
       { header: SECTION.EDIT,      items },
+      ...(isTouch ? [clipboard] : []),
       { header: SECTION.ANNOTATE,  items: annotateItems },
       { header: SECTION.ARRANGE,   items: arrangeItems },
-      { header: SECTION.CLIPBOARD, items: clipboardItems },
+      ...(isTouch ? [] : [clipboard]),
       { items: metaItems },
     ]);
   };
@@ -11543,7 +11563,19 @@ export function CanvasSurface({
       sub('comment'), sub('vote'),
       { id: 'arrow', label: tr`Arrow`, run: settled(() => { logCanvasTool('pick', { tool: 'arrow', via: 'menu', boardId: board?.id }); setSelectedTool('arrow'); }) },
     ].filter(Boolean);
+    // Drawings and arrows selected (a finger has no Delete key, and they have
+    // no menu of their own to hold open): delete them from here, first.
+    // doDeleteSelected takes the selected cards with them, so they count.
+    const drawn = selectedStrokes.size + selectedArrows.size;
+    const picked = drawn + selected.size;
+    const deleteDrawn = drawn > 0
+      ? [{ id: 'delete-drawn', danger: true,
+          label: picked > 1 ? plural(picked, { one: 'Delete # selected', other: 'Delete # selected' }) : selectedStrokes.size ? tr`Delete drawing` : tr`Delete arrow`,
+          run: () => doDeleteSelected() },
+        { divider: true }]
+      : [];
     return [
+      ...deleteDrawn,
       { id: 'add', label: tr`Add`, submenu: addSubmenu },
       { header: SECTION.CLIPBOARD },
       { id: 'paste', label: clipboardSize() ? tr`Paste (${ph({ clipboardSize: clipboardSize() })})` : tr`Paste`,

@@ -84,3 +84,38 @@ test('press-and-hold then drag moves the card', async ({ page }) => {
   const { before, after } = res;
   expect(Math.abs(after.left - before.left) + Math.abs(after.top - before.top)).toBeGreaterThan(20);
 });
+
+// A finger that lands on a card's text (a link's title, a palette's, a caption)
+// used to be turned away before the hold: the card neither lifted nor panned.
+// The title at rest is part of the card; only text being edited keeps the touch.
+test('press-and-hold on a link card\'s title, then drag, moves the card', async ({ page }) => {
+  const title = page.locator('[data-card-id="home-link"] .editable.lc-title');
+  await expect(title).toBeVisible();
+  const res = await page.evaluate(async () => {
+    const el = document.querySelector('[data-card-id="home-link"]');
+    const from = el.querySelector('.editable.lc-title');
+    const read = () => ({ left: parseFloat(el.style.left) || 0, top: parseFloat(el.style.top) || 0 });
+    const before = read();
+    const r = from.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const fire = (target, type, x, y) => target.dispatchEvent(new PointerEvent(type, {
+      bubbles: true, cancelable: true, pointerType: 'touch', isPrimary: true,
+      pointerId: 9, clientX: x, clientY: y, button: 0,
+    }));
+    const raf = () => new Promise(res => requestAnimationFrame(() => res()));
+    fire(from, 'pointerdown', cx, cy);
+    await new Promise(res => setTimeout(res, 600));
+    let x = cx, y = cy;
+    for (let i = 1; i <= 6; i++) {
+      x = cx + i * 10; y = cy + i * 7;
+      fire(window, 'pointermove', x, y);
+      await raf(); await raf();
+    }
+    fire(window, 'pointerup', x, y);
+    await raf(); await raf();
+    return { before, after: read(), editing: from.classList.contains('is-editing') };
+  });
+  expect(Math.abs(res.after.left - res.before.left) + Math.abs(res.after.top - res.before.top)).toBeGreaterThan(20);
+  // Moved, not opened for editing.
+  expect(res.editing).toBe(false);
+});

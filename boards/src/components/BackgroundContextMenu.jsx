@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { useFitMenuToViewport } from '../lib/ctxMenuFit.js';
-import { CtxShortcut, CtxSubmenu, rowKeys, walkMenu } from './ctxMenuParts.jsx';
+import { CtxShortcut, CtxStepView, CtxSubmenu, rowKeys, stepMenuKeys, useCtxStep, walkMenu } from './ctxMenuParts.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
 import HapticTap from './HapticTap.jsx';
 import { haptic } from '../lib/haptics.js';
@@ -46,12 +46,23 @@ export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId,
   // Another board's count must not show while this one's loads.
   useEffect(() => { setRefCount(null); }, [boardId]);
 
+  // A submenu stepped into the menu's own box (a phone: ctxMenuParts.jsx).
+  const menuRef = useRef(null);
+  const step = useCtxStep(open, items, menuRef);
+  const stepBackRef = useRef(step.back);
+  stepBackRef.current = step.back;
+
   useEffect(() => {
     if (!open) return;
     const onDocDown = (e) => {
       if (!e.target.closest?.('.ctx-menu')) onClose();
     };
-    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onClose(); };
+    // Escape in a stepped-in submenu goes back a level first.
+    const onKey = (e) => {
+      if (isComposingKey(e) || e.key !== 'Escape') return;
+      if (stepBackRef.current()) { e.preventDefault(); e.stopPropagation(); return; }
+      onClose();
+    };
     // Capture phase + both pointer and mouse so a card's stopPropagation can't
     // swallow the outside-tap on touch (pointerdown fires before mousedown).
     document.addEventListener('pointerdown', onDocDown, true);
@@ -67,8 +78,10 @@ export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId,
   // The row-count guess below only seeds the first render (it counted headers
   // and dividers as 30px rows; real rows are 33px): this measures the rendered
   // menu and re-fits it before paint (see lib/ctxMenuFit.js).
-  const menuRef = useRef(null);
-  useFitMenuToViewport(menuRef, open, y);
+  // Stepped in, a submenu starts where the menu did, and moves up only if it
+  // is the taller.
+  const stepped = !!step.item;
+  useFitMenuToViewport(menuRef, open, stepped ? step.top : y);
 
   if (!open) return null;
   const w = 240, hEst = items.length * 30 + 8;
@@ -77,12 +90,21 @@ export function BackgroundContextMenu({ open, x, y, items, onClose, workspaceId,
   // window scrolls (.is-scrollable) instead of starting above the viewport.
   const py = Math.max(8, Math.min(y, window.innerHeight - hEst - 8));
 
+  if (stepped) {
+    return (
+      <div ref={menuRef} className="ctx-menu is-step" style={{ left: px, top: py, width: step.width }}
+           role="menu" aria-label={step.item.label} onKeyDown={stepMenuKeys(step)}>
+        <CtxStepView item={step.item} root="canvas menu" onBack={step.back} onClose={onClose} />
+      </div>
+    );
+  }
+
   return (
     <div ref={menuRef} className="ctx-menu is-scrollable" style={{ left: px, top: py }} role="menu" onKeyDown={walkMenu}>
       {items.map((it, i) => {
         if (it.divider) return <div key={`d-${i}`} className="ctx-divider" />;
         if (it.header) return <div key={`h-${i}`} className="ctx-header" aria-hidden="true">{it.header}</div>;
-        if (it.submenu) return <CtxSubmenu key={it.id || i} item={it} onClose={onClose} />;
+        if (it.submenu) return <CtxSubmenu key={it.id || i} item={it} onClose={onClose} onStep={step.stepIn} />;
         return (
           <button
             key={it.id || i}
