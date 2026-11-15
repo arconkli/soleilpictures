@@ -7,7 +7,7 @@
 
 Terminology: the product calls a board a **cluster**. The API and database call the same object a `board`.
 
-Every page below is also available as raw Markdown by appending `.md` (e.g. https://clusters.soleilpictures.com/docs/api.md).
+The documentation (/docs/...), the comparison, buying-guide and tool pages (/vs/..., /best/..., /tools/...), /use-cases, /scout, /pricing and /changelog are also available as raw Markdown by appending `.md` (e.g. https://clusters.soleilpictures.com/docs/api.md). The gallery, public clusters (/c/...) and legal pages have no Markdown copy.
 The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 
 ## Changelog
@@ -151,3 +151,7 @@ The full corpus in one file: https://clusters.soleilpictures.com/llms-full.txt
 - [PureRef Online: The Closest Thing, in Your Browser](https://clusters.soleilpictures.com/vs/pureref): There is no PureRef web version. Clusters is the closest thing online: the same drop-and-arrange reference wall, in your browser, shared with one link.
 - [A Miro Alternative for Filmmakers and Creative Teams](https://clusters.soleilpictures.com/vs/miro): A Miro alternative for creative work, not diagramming: image-first boards, palettes, storyboards, and client-ready sharing. Free to start.
 - [What You Can Make with Clusters](https://clusters.soleilpictures.com/use-cases): Mood boards, look books, storyboards, shot lists — see what creative teams make with Soleil Clusters, browse example boards, and start yours free.
+
+## Public clusters
+
+- [Explore](https://clusters.soleilpictures.com/explore): The public cluster gallery: real mood boards, look books and reference collections made with Soleil Clusters that anyone can open without an account.
