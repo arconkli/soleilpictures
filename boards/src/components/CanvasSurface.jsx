@@ -246,7 +246,7 @@ import { embedTextForLiveCard } from '../lib/embedText.js';
 import { ensureTag, tagCard, untagCard, tagBoard, untagBoard, tagGroup, untagGroup, confirmAppliedTag, dismissAutotagSuggestion, undismissAutotagSuggestion } from '../lib/tagsApi.js';
 import { syncCardIndex, saveBoardVersion, loadBoardVersionDoc, bulletproofRestore } from '../lib/boardsApi.js';
 import { isAbandonedUpload, planAbandonedSweep, abandonedNotice, uploadAge, SWEEP_RECHECK_MS, isStillUploading, stashLateUpload, takeLateUploads } from '../lib/abandonedUploads.js';
-import { isUnplaced, countUnplaced, canUnplace, nearestFreeSpot, besideContent, planPutOnBoard } from '../lib/placement.js';
+import { isUnplaced, countUnplaced, canUnplace, nearestFreeSpot, besideContent, planPutOnBoard, freeAddPos } from '../lib/placement.js';
 import { UnplacedOffer } from './UnplacedOffer.jsx';
 import { withGeometry } from '../lib/moodboard.js';
 import { holdDrop, claimReady, restoreHeld, setHeldBaseline, subscribeHeld } from '../lib/heldUploads.js';
@@ -502,6 +502,15 @@ function railFitInset(wrapEl, wrapRect, margin) {
   if (rr.width < 1 || rr.height < 1) return 0;
   return Math.max(0, Math.round(rr.right - wrapRect.left + RAIL_FIT_GUTTER - margin));
 }
+// A card a finger just added (see revealAdded): the air kept around it when
+// the view moves to show all of it, how far under the board's top edge a new
+// note or doc sits once the view has zoomed in to it, and the most that zoom
+// goes to (a portrait iPad would otherwise blow a 200px note up to 3x).
+const ADD_VIEW_MARGIN = 12;
+const ADD_ZOOM_TOP = 24;
+const ADD_ZOOM_SHARE = 0.8;
+const ADD_ZOOM_MAX = 1.5;
+const ADD_ZOOM_MS = 300;
 // Below this canvas width a fit-everything open is a phone, not a desktop.
 const NARROW_FIT_MAX_W = 640;
 // How many cards a public board should span on a phone when fitting everything
@@ -2737,6 +2746,8 @@ export function CanvasSurface({
     // A cluster that stays "Untitled cluster" a minute from now gets the naming
     // bar — unless we are about to step inside it, where this canvas is gone.
     if (newId && !(wasFirst && onOpenBoard)) scheduleNameHint(newId);
+    // A finger's add (the + sheet): bring the new card into view if it isn't.
+    if (newId && Array.isArray(pos?.clear) && !(wasFirst && onOpenBoard)) followNewCard({ id: newId, ms: 3000 });
     if (!wasFirst || !newId || !onOpenBoard) return;
     const parentId = board?.id || null;
     try { logEvent(EV.CLUSTER_AUTO_OPEN, { board_id: parentId, new_board_id: newId, method }); } catch (_) {}
@@ -2764,6 +2775,12 @@ export function CanvasSurface({
     if (!PLACE_TOOLS.includes(selectedTool)) return false;
     markViewSettled(); // keep the placed card where clicked (no first-card auto-fit)
     noteCreateIntent('tool_place', selectedTool);
+    // On a phone a note or doc placed while zoomed out is too small to read
+    // what is typed: the view zooms in to it (revealAdded). It stays where
+    // the finger put it.
+    if (mobileShell && coarse && (selectedTool === 'text' || selectedTool === 'doc')) {
+      followNewCard({ kind: selectedTool === 'text' ? 'note' : 'doc', zoomIn: true, fit: false });
+    }
     switch (selectedTool) {
       case 'board':   addClusterCard(pos, 'tool_place'); break;
       // A layout armed by the Templates panel wins; a bare G (or the right-click
@@ -4428,6 +4445,8 @@ export function CanvasSurface({
   // pickPhotosAt is declared further down (it needs ingestFiles); the ref keeps
   // these early listeners on the CURRENT closure without TDZ'd deps arrays.
   const pickPhotosAtRef = useRef(null);
+  // revealAdded is declared further down too (it needs the camera tween).
+  const revealAddedRef = useRef(null);
   useEffect(() => {
     const onAdd = (e) => {
       if (e.detail?.boardId !== board.id) return;
@@ -5821,7 +5840,11 @@ export function CanvasSurface({
       // Files a multi-drop on a grid had no box for (opts.beside, the grid's
       // right edge) go the same way: the free space nearest that spot.
       const beside = opts && opts.beside && Number.isFinite(opts.beside.x) && Number.isFinite(opts.beside.y) ? opts.beside : null;
-      if ((source === 'held' || beside) && rects.length) {
+      // A finger's add (the + sheet's Photos or File, the Add menu on a
+      // tablet) pointed at no spot either: the free space nearest the middle
+      // of the view, and the view moves if the block doesn't fit in it.
+      const free = !!(opts && opts.free);
+      if ((source === 'held' || beside || free) && rects.length) {
         const left = Math.min(...rects.map((r) => r.x));
         const top = Math.min(...rects.map((r) => r.y));
         const w = Math.max(...rects.map((r) => r.x + r.w)) - left;
@@ -5829,6 +5852,7 @@ export function CanvasSurface({
         const solid = withGeometry(cardsRef.current);
         const spot = nearestFreeSpot(solid, beside || { x: left, y: top }, w, h) || besideContent(solid);
         rects = rects.map((r) => ({ ...r, x: r.x + spot.x - left, y: r.y + spot.y - top }));
+        if (free) revealAddedRef.current?.({ x: spot.x, y: spot.y, w, h });
       }
 
       for (let i = 0; i < accepted.length; i++) {
@@ -6078,7 +6102,7 @@ export function CanvasSurface({
     input.multiple = true;
     input.onchange = () => {
       if (input.files && input.files.length) {
-        ingestFiles(input.files, pos?.x ?? 200, pos?.y ?? 200, 'picker');
+        ingestFiles(input.files, pos?.x ?? 200, pos?.y ?? 200, 'picker', Array.isArray(pos?.clear) ? { free: true } : null);
       }
     };
     input.click();
@@ -6103,7 +6127,7 @@ export function CanvasSurface({
       // Genuine cards on the board BEFORE this batch (cardsRef hasn't re-synced
       // the optimistic adds yet, so add `n` to project the post-batch count).
       const before = genuineCards(cardsRef.current || []).length;
-      await ingestFiles(input.files, pos?.x ?? 200, pos?.y ?? 200, 'photo_picker');
+      await ingestFiles(input.files, pos?.x ?? 200, pos?.y ?? 200, 'photo_picker', Array.isArray(pos?.clear) ? { free: true } : null);
       // Momentum beat: on a phone, right after the first photo(s) land while
       // still short of a populated board (<3), nudge to add a few more —
       // tapping re-opens the multi-select. Once per device; never during a tour
@@ -6614,6 +6638,10 @@ export function CanvasSurface({
   useEffect(() => addCanvasRevealer((el, rect, band) => {
     if (!el || !wrapRef.current?.contains(el)) return false;
     if (trackpadPinchCommitTimer.current || touchCamOwnsPose()) return false;
+    // The view is on its way in to a note just added (revealAdded), which
+    // lands the note's first lines at the top of the board: a glide from
+    // here would retarget that move at the zoom it has reached so far.
+    if (addZoomRunRef.current && cameraRunRef.current === addZoomRunRef.current) return true;
     const dy = revealDelta(rect, band);
     if (!dy) return false;
     const p = panRef.current;
@@ -6625,6 +6653,152 @@ export function CanvasSurface({
     done.then(() => { if (cameraRunRef.current === run) settleCanvas(); });
     return true;
   }), [tweenCameraTo, reduceMotionMq, settleCanvas]);
+
+  // ── A card a finger just added ─────────────────────────────────────────────
+  // The phone's + sheet and, under a coarse pointer, the rail's Add menu point
+  // at no spot. Their cards go in the free space nearest the middle of the
+  // board that can be seen (the wrap less the rail's hold-back, as
+  // fitToContent has it), and the view then moves to the card when it has to.
+  // A mouse gets none of this: its adds land where they always did.
+  //
+  // The visible board in the wrap's own px: `left` is where it starts, right
+  // of the rail; `top` is under a bar across the board's top (the Studio bar,
+  // a tool's hint); its height stops at the phone's bottom nav, which lies
+  // over the board's foot.
+  const visibleBoard = () => {
+    const wrap = wrapRef.current;
+    if (!wrap) return null;
+    const r = wrap.getBoundingClientRect();
+    if (r.width < 50 || r.height < 50) return null;
+    const left = Math.min(railFitInset(wrap, r, 0), Math.round(r.width / 2));
+    const half = r.top + r.height / 2;
+    let top = 0;
+    for (const el of wrap.querySelectorAll('.cnv-studio-bar, .cnv-hint')) {
+      const b = el.getBoundingClientRect();
+      if (b.height > 0 && b.bottom < half && b.right > r.left + left) top = Math.max(top, b.bottom - r.top);
+    }
+    let bottom = r.height;
+    const nav = document.querySelector('.mb-nav')?.getBoundingClientRect();
+    if (nav && nav.height > 0 && nav.top > half && nav.top < r.bottom) bottom = nav.top - r.top;
+    return { r, left, top, w: r.width - left, h: bottom - top };
+  };
+  // The pos a finger's add hands the mutators: the middle of the visible
+  // board, marked with the cards to stay off (lib/placement.js freeAddPos).
+  const freeAddAnchor = () => {
+    const v = visibleBoard();
+    const at = v
+      ? clientToCanvas(v.r.left + v.left + v.w / 2, v.r.top + v.top + v.h / 2, v.r)
+      : { x: 200, y: 200 };
+    return { x: at.x, y: at.y, clear: withGeometry(cardsRef.current || []) };
+  };
+  // Where the keyboard keeper waits for a note the + sheet is about to make
+  // (lib/touchKeyboard.js): where the note's first line will be, not under
+  // the sheet's tile, which the keyboard covers.
+  const newNoteKeyboardAt = () => {
+    const v = visibleBoard();
+    return v ? { x: v.r.left + v.left + v.w / 2, y: v.r.top + v.top + ADD_ZOOM_TOP + 20 } : null;
+  };
+  // The run of a zoom in to a new note, while it is under way (the note
+  // revealer above stands down for it).
+  const addZoomRunRef = useRef(0);
+  // Move the view to a card just added. `rect` is in board units.
+  //  zoomIn: a new note or doc on a phone. Zoomed out, what is typed can't be
+  //    read, so the view zooms in until the card is ADD_ZOOM_SHARE of the
+  //    visible board's width (ADD_ZOOM_MAX at most), centred, its top just
+  //    under the board's top edge so the keyboard leaves its first lines in
+  //    view. Never out: at or past that zoom the view keeps its zoom and only
+  //    pans, and only when the card isn't all in view.
+  //  fit: a card that isn't all inside the visible board (a 920px Schedule on
+  //    an iPad beside Files) zooms the view out and pans just enough to show it.
+  const revealAdded = (rect, { zoomIn = false, fit = true } = {}) => {
+    const v = visibleBoard();
+    if (!v || !rect || !(rect.w > 0) || !(rect.h > 0)) return;
+    // The person is moving the board: theirs.
+    if (trackpadPinchCommitTimer.current || touchCamOwnsPose()) return;
+    const M = ADD_VIEW_MARGIN;
+    const z0 = zoomRef.current;
+    const p0 = panRef.current;
+    const l = p0.x + rect.x * z0, t = p0.y + rect.y * z0;
+    const inView = l >= v.left + M - 0.5 && t >= v.top + M - 0.5
+      && l + rect.w * z0 <= v.left + v.w - M + 0.5 && t + rect.h * z0 <= v.top + v.h - M + 0.5;
+    let cam = null;
+    let pinned = false;   // the card's top sits just under the board's top
+    if (zoomIn) {
+      const zt = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.min(ADD_ZOOM_SHARE * v.w / rect.w, ADD_ZOOM_MAX)));
+      // Past the target and too wide for the view at this zoom: `fit` below.
+      if (z0 < zt || (!inView && rect.w * z0 <= v.w - M * 2)) {
+        const z = Math.max(z0, zt);
+        cam = { zoom: z, pan: { x: v.left + v.w / 2 - (rect.x + rect.w / 2) * z, y: v.top + ADD_ZOOM_TOP - rect.y * z } };
+        pinned = true;
+      }
+    }
+    if (!cam && fit && !inView) {
+      const c = solveCenter(rect, { w: v.w, h: v.h }, z0, { margin: M, zoomMin: ZOOM_MIN, zoomMax: ZOOM_MAX });
+      cam = { zoom: c.zoom, pan: { x: c.pan.x + v.left, y: c.pan.y + v.top } };
+    }
+    if (!cam) return;
+    // A bar that came up across the board's top after the view set off (the
+    // Studio bar, for the card that made a pile of the loose ones) covers the
+    // card's first lines where they landed: slide down from under it.
+    const underBar = () => {
+      const v2 = pinned && !touchCamOwnsPose() ? visibleBoard() : null;
+      const y = v2 ? v2.top + ADD_ZOOM_TOP - rect.y * cam.zoom : cam.pan.y;
+      return y - cam.pan.y > 1 ? { zoom: cam.zoom, pan: { x: cam.pan.x, y } } : null;
+    };
+    // A cut settles itself (tweenCameraTo).
+    if (reduceMotionMq?.matches) {
+      tweenCameraTo(cam, 0);
+      const run = cameraRunRef.current;
+      if (pinned) setTimeout(() => { if (cameraRunRef.current === run) tweenCameraTo(underBar(), 0); }, ADD_ZOOM_MS);
+      return;
+    }
+    // Image tiers re-evaluate once the board is still (settleCanvas). The note
+    // revealer stands down while a zoom in is under way (addZoomRunRef).
+    const move = (to, ms, ease, then) => {
+      const done = tweenCameraTo(to, ms, ease);
+      const run = cameraRunRef.current;
+      if (pinned) addZoomRunRef.current = run;
+      done.then(() => {
+        if (addZoomRunRef.current === run) addZoomRunRef.current = 0;
+        if (cameraRunRef.current !== run) return;
+        const next = then?.();
+        if (next) move(next, 160, 'settle', null); else settleCanvas();
+      });
+    };
+    move(cam, ADD_ZOOM_MS, 'smooth', underBar);
+  };
+  revealAddedRef.current = revealAdded;
+  // The mutators answer with nothing, so the card they add is found as it
+  // arrives: by `id` when the caller knows it (a cluster), else the next card
+  // of `kind` that wasn't on the board. Dropped after `ms` (the card limit
+  // refused the card).
+  const followAddRef = useRef(null);
+  const followRafRef = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(followRafRef.current), []);
+  const tryFollowAdd = (list) => {
+    const f = followAddRef.current;
+    if (!f) return;
+    if (performance.now() > f.until) { followAddRef.current = null; return; }
+    const c = (list || []).find((x) => (f.id ? x.id === f.id : !f.known.has(x.id) && x.kind === f.kind));
+    if (!c || ![c.x, c.y, c.w, c.h].every(Number.isFinite)) return;
+    followAddRef.current = null;
+    // A frame on, so a bar this card raised across the board's top (the Studio
+    // bar counts loose cards) is there to be measured.
+    cancelAnimationFrame(followRafRef.current);
+    followRafRef.current = requestAnimationFrame(() => {
+      revealAdded({ x: c.x, y: c.y, w: c.w, h: c.h },
+        { zoomIn: f.zoomIn && (c.kind === 'note' || c.kind === 'doc'), fit: f.fit });
+    });
+  };
+  const followNewCard = ({ id = null, kind = null, zoomIn = false, fit = true, ms = 1500 }) => {
+    followAddRef.current = {
+      id, kind, zoomIn, fit,
+      known: new Set((cardsRef.current || []).map((c) => c.id)),
+      until: performance.now() + ms,
+    };
+    if (id) tryFollowAdd(cardsRef.current);
+  };
+  useEffect(() => { tryFollowAdd(cards); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [cards]);
   // ── Two-finger camera on touch: pinch + two-finger pan ─────────────────────
   // One finger belongs to whatever it pressed (a card, a tool, the board). The
   // moment a SECOND finger lands on the board, both belong to the camera until
@@ -11412,10 +11586,16 @@ export function CanvasSurface({
   // noteCreateIntent ('context_menu' | 'mobile_nav'). `group` lets callers
   // partition card-creating actions from annotations; `icon` is consumed by
   // the mobile sheet and ignored by the context-menu renderer.
+  // A pos from freeAddAnchor (a finger's add) puts each card in free space
+  // (the mutators, lib/placement.js freeAddPos) and has the view follow it:
+  // in to a note or doc on a phone, out to a card bigger than the view.
+  const followFingerAdd = (pos, kind) => {
+    if (Array.isArray(pos?.clear)) followNewCard({ kind, zoomIn: mobileShell, fit: true });
+  };
   const buildAddActions = (pos, method) => [
     { id: 'board',   group: 'card', label: tr`Cluster`, icon: clusterGlyph(), run: () => { noteCreateIntent(method, 'board'); addClusterCard(pos, method); } },
     { id: 'linkedcluster', group: 'card', label: tr`Linked cluster`, icon: ArrowSquareOut, run: () => onOpenPicker?.(pos) },
-    { id: 'grid',    group: 'card', label: tr`Grid`,    icon: GridFour,      run: () => { noteCreateIntent(method, 'grid'); mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); } },
+    { id: 'grid',    group: 'card', label: tr`Grid`,    icon: GridFour,      run: () => { noteCreateIntent(method, 'grid'); followFingerAdd(pos, 'grid'); mutators.addGrid?.(pos, { preset: 'storyboard-1-2' }); } },
     // Multi-select, via the same batch ingest drag-drop uses. This used to call
     // mutators.addImageAt, which opens a picker with no `multiple` and reads
     // files[0] — so the single most prominent affordance in the shipped
@@ -11427,23 +11607,23 @@ export function CanvasSurface({
     { id: 'image',   group: 'card', label: tr`Image`,   icon: ImageIcon,     run: () => { noteCreateIntent(method, 'image'); pickPhotosAtRef.current?.(pos, method); } },
     { id: 'file',    group: 'card', label: tr`File`,   icon: Paperclip,     run: () => { noteCreateIntent(method, 'file'); openFilePicker(pos); } },
     ...(canPickFolder ? [{ id: 'folder', group: 'card', label: tr`Folder`, icon: folderUploadGlyph(), run: () => { noteCreateIntent(method, 'folder'); openFolderPicker(pos); } }] : []),
-    { id: 'note',    group: 'card', label: tr`Text note`, icon: NotePencil,  run: () => { noteCreateIntent(method, 'note'); mutators.addNote?.(pos); } },
-    { id: 'doc',     group: 'card', label: tr`Doc`, icon: FileText,      run: () => { noteCreateIntent(method, 'doc'); mutators.addDocCard?.(pos); } },
+    { id: 'note',    group: 'card', label: tr`Text note`, icon: NotePencil,  run: () => { noteCreateIntent(method, 'note'); followFingerAdd(pos, 'note'); mutators.addNote?.(pos); } },
+    { id: 'doc',     group: 'card', label: tr`Doc`, icon: FileText,      run: () => { noteCreateIntent(method, 'doc'); followFingerAdd(pos, 'doc'); mutators.addDocCard?.(pos); } },
     { id: 'script',  group: 'card', label: tr`Script`,  icon: Clapperboard,  run: () => { noteCreateIntent(method, 'script'); mutators.addScriptCard?.(pos); } },
-    { id: 'shape',   group: 'card', label: tr`Shape`,   icon: Square,        run: () => { noteCreateIntent(method, 'shape'); mutators.addShape?.(pos, shapeOptions); } },
+    { id: 'shape',   group: 'card', label: tr`Shape`,   icon: Square,        run: () => { noteCreateIntent(method, 'shape'); followFingerAdd(pos, 'shape'); mutators.addShape?.(pos, shapeOptions); } },
     // Switches tools rather than creating a card, so no create-intent is logged
     // — nothing exists yet to have intended. It lives in the registry so the
     // mobile "+" sheet can reach it at all: that sheet renders every action in
     // this list, and Draw's absence meant the puck simply dead-ended for it.
     { id: 'draw',    group: 'tool', label: tr`Draw`,    icon: Scribble,      run: () => { logCanvasTool('pick', { tool: 'draw', via: 'menu', boardId: board?.id }); setSelectedTool('draw'); } },
-    { id: 'palette', group: 'card', label: tr`Color palette`, icon: Palette, run: () => { noteCreateIntent(method, 'palette'); mutators.addPalette?.(pos); } },
+    { id: 'palette', group: 'card', label: tr`Color palette`, icon: Palette, run: () => { noteCreateIntent(method, 'palette'); followFingerAdd(pos, 'palette'); mutators.addPalette?.(pos); } },
     // Held while the calendar is rebuilt (lib/appHost.js). sub() and
     // addFromRegistry both resolve through this list, so dropping the entry
     // here closes the right-click Add submenu and the mobile "+" sheet at once
     // — sub() returns null for an unknown id and the array is filter(Boolean)'d.
     // Rendering the card is NOT gated: existing schedule cards keep working.
     ...(scheduleCreationAllowed() ? [
-      { id: 'schedule', group: 'card', label: tr`Schedule`, icon: CalendarPh, run: () => { noteCreateIntent(method, 'schedule'); mutators.addSchedule?.(pos); } },
+      { id: 'schedule', group: 'card', label: tr`Schedule`, icon: CalendarPh, run: () => { noteCreateIntent(method, 'schedule'); followFingerAdd(pos, 'schedule'); mutators.addSchedule?.(pos); } },
     ] : []),
     { id: 'addurl',  group: 'card', label: tr`Link`, icon: Link, run: async () => {
       const v = await feedback.prompt({
@@ -11461,14 +11641,19 @@ export function CanvasSurface({
       const newId = `link-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
       const w = embed ? embed.defaultW : 280;
       const h = embed ? embed.defaultH : 110;
+      // A finger's add: free space, against the board as it is now (the
+      // question above took a while).
+      const finger = Array.isArray(pos?.clear);
+      const at = finger ? freeAddPos({ x: pos.x, y: pos.y, clear: withGeometry(cardsRef.current || []) }, w, h) : pos;
       const card = {
         id: newId,
         kind: 'link', source: url, link: url, title,
-        x: Math.max(8, Math.round(pos.x - w / 2)),
-        y: Math.max(8, Math.round(pos.y - h / 2)),
+        x: Math.max(8, Math.round(at.x - w / 2)),
+        y: Math.max(8, Math.round(at.y - h / 2)),
         w, h,
       };
       if (embed) card.embed = embed;
+      if (finger) followNewCard({ id: newId });
       mutators.addCard?.(card);
       // Fire-and-forget OG fetch — when it resolves, patch the card
       // with the preview fields and grow it to fit the image. Skip
@@ -14436,7 +14621,9 @@ export function CanvasSurface({
   // reuse the shared buildAddActions runs so behaviour + analytics match the
   // right-click menu exactly. (Script lives only in the empty-state hero.)
   const addFromRegistry = (id) => {
-    const pos = resolvePastePos().pos;
+    // Under a finger there is no pointer to add at: free space near the
+    // middle of the visible board (freeAddAnchor).
+    const pos = coarse ? freeAddAnchor() : resolvePastePos().pos;
     return buildAddActions(pos, 'add_menu').find(a => a.id === id)?.run();
   };
   const addGroups = [
@@ -16672,7 +16859,7 @@ export function CanvasSurface({
             <button
               type="button"
               className="mobile-add-tile"
-              onClick={() => { setMobileAdd(null); noteCreateIntent('mobile_nav'); pickPhotosAt(mobileAdd.pos, 'add_sheet'); }}
+              onClick={() => { setMobileAdd(null); noteCreateIntent('mobile_nav'); pickPhotosAt(coarse ? freeAddAnchor() : mobileAdd.pos, 'add_sheet'); }}
             >
               <span className="mobile-add-ico" aria-hidden="true"><Icon as={ImageIcon} size={24} /></span>
               <span className="mobile-add-lbl"><Trans>Photos</Trans></span>
@@ -16682,7 +16869,16 @@ export function CanvasSurface({
                 key={a.id}
                 type="button"
                 className="mobile-add-tile"
-                onClick={() => { setMobileAdd(null); a.run(); }}
+                onClick={() => {
+                  setMobileAdd(null);
+                  if (!coarse) { a.run(); return; }
+                  // The keyboard comes up only for a focus inside this tap, and
+                  // the note's editor mounts a beat later: the keeper holds it
+                  // (lib/touchKeyboard.js), as the Text tool's tap does.
+                  if (a.id === 'note') holdTouchKeyboard(null, newNoteKeyboardAt());
+                  // Free space near the middle of the board, as it is now.
+                  buildAddActions(freeAddAnchor(), 'mobile_nav').find((x) => x.id === a.id)?.run();
+                }}
               >
                 <span className="mobile-add-ico" aria-hidden="true"><Icon as={a.icon} size={24} /></span>
                 <span className="mobile-add-lbl">{a.label}</span>
