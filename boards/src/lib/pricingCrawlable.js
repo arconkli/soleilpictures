@@ -36,6 +36,13 @@ import { TEAM_SEAT_MIN, TEAM_SEAT_MAX, TEAM_SEAT_PRICE, money, teamHeroLine } fr
 import { teamCardCopy, teamBenefits, teamComparison } from './teamPricingCopy.js';
 
 export const PRICING_PATH = '/pricing';
+// The day /pricing's words last changed: the sitemap's lastmod. The words come
+// from billingCopy.js (PRICING_PAGE, PRICING_FAQ, plan copy), teamPricingCopy.js,
+// teamModel.js and this file, and their last change to what the page says was
+// 2026-11-14 (git log -1 --format=%cs on those files). Move it only when the
+// page's words move; scripts/seo-freshness.mjs hashes the rendered words against
+// this date and seoFreshness.test.mjs fails when they change without it.
+export const PRICING_PAGE_UPDATED = '2026-11-14';
 const SITE_ORIGIN = 'https://clusters.soleilpictures.com';
 const SIGNUP = '/?utm_source=pricing&utm_medium=crawlable&utm_campaign=pricing';
 
