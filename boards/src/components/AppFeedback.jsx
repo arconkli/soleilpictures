@@ -1,8 +1,9 @@
-import { createContext, Suspense, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { createContext, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { isSilenced } from '../lib/captureState.js';
 import { placeGroupedToast, releaseToastGroup } from '../lib/toastGroup.js';
 import { reportToast } from '../lib/errorReporting.js';
+import { setPhotoSaveToast } from '../lib/photoSave.js';
 import { t as tr } from '@lingui/core/macro';
 
 // The visual layer (confirm/prompt dialogs + toast stack) is the only part of
@@ -157,6 +158,9 @@ export function FeedbackProvider({ children }) {
     timersRef.current.set(id, window.setTimeout(() => dismissToast(id), Math.max(1000, ttl)));
     return () => dismissToast(id);
   }, [dismissToast]);
+
+  // A photo's Save on an iPhone (lib/photoSave.js) is offered from a toast.
+  useEffect(() => setPhotoSaveToast(toast), [toast]);
 
   const value = useMemo(() => ({ confirm, prompt, toast }), [confirm, prompt, toast]);
   // Dev only: a spec raises a real toast through this (error-collection.spec.js).

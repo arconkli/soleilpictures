@@ -127,6 +127,9 @@ who downloads the image gets to choose whether your edits come with it.
 From the lightbox or the card menu. You choose between the original file and a
 version with your adjustments baked in.
 
+On an iPhone or iPad, **Download** opens the share sheet; **Save Image** puts
+the photo in Photos.
+
 ## Auto-arranging a moodboard
 
 Select a set of images and use **auto-arrange** to lay them out as a colour-ordered

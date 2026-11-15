@@ -878,6 +878,8 @@ Downloading
 
 From the lightbox or the card menu. You choose between the original file and a version with your adjustments baked in.
 
+On an iPhone or iPad, Download opens the share sheet; Save Image puts the photo in Photos.
+
 Auto-arranging a moodboard
 
 Select a set of images and use auto-arrange to lay them out as a colour-ordered masonry grid — images sorted so that neighbouring ones relate tonally rather than by the order you happened to drop them. It is the fastest way to turn a pile of references into something presentable.
