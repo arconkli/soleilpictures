@@ -129,7 +129,7 @@ export const DOCS_PAGES = [
     "answer": "Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 25 cards and up to 10 people who edit.",
     "section": "start",
     "order": 1,
-    "updated": "2026-10-29",
+    "updated": "2026-11-15",
     "navLabel": "Getting started",
     "headings": [
       {
@@ -177,7 +177,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Do I have to invite anyone during setup?",
-        "a": "No. Every question after the workspace's name can be skipped. If you skip the invite step you may be asked once more, after you have added a few things, and never again. The invite link and the Share panel are there whenever you want them."
+        "a": "No. There are no setup screens, so nothing asks you to invite anyone. Share a cluster whenever you like — see [Sharing](/docs/collaborate/sharing) for links, roles and expiry."
       },
       {
         "q": "Can people I share with edit my board?",

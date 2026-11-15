@@ -2,40 +2,35 @@
 
 > Sign in with your email — there is no password, you get a one-time code. Create a cluster, drag images straight onto the canvas from your desktop, arrange them, and send a view-only link to anyone. No account is needed to view a shared board, and the free plan includes 25 cards and up to 10 people who edit.
 
-_Source: https://clusters.soleilpictures.com/docs/getting-started · Updated 2026-10-29_
+_Source: https://clusters.soleilpictures.com/docs/getting-started · Updated 2026-11-15_
 
 From an empty account to a board you would show someone, in about five minutes.
 
 ## 1. Sign in
 
-Go to [clusters.soleilpictures.com](https://clusters.soleilpictures.com/) and enter your email
-address. You will get a one-time code — there is no password.
+Go to [clusters.soleilpictures.com](https://clusters.soleilpictures.com/). The page says **One
+workspace for all your creative work.** Sign in or sign up with your email
+address. We email a 6-digit code — there is no password.
 
 Once you're in, you can save a **passkey** so the next sign-in skips the code:
 your browser offers it as soon as you tap the email box, or press
 **Use a passkey** under it. Save one from the note that appears after a code
 sign-in, or any time in **Settings › Profile › Passkeys**.
 
-Some new accounts start with a short setup before the canvas; others go
-straight to their first cluster.
+After the code you land on your canvas. There are no setup screens.
 
-The setup is three screens:
+The first card says **Welcome to Clusters** — *One workspace for all your
+creative work.* — and shows what a cluster holds: pictures, video, scripts,
+docs, files and links.
 
-1. **Name your workspace.** It is where your clusters, files and people live,
-   and you can rename it any time. This is the one step you can't skip.
-2. **Tell us about it.** *Who's working in it?* (Just me, A few people or A
-   team) and *What kind of work?* — film and video, photo, design, ads and
-   brand, music, school, personal, or something else. One tap each, or
-   **Skip**. The work answer changes what your first cluster says when it is
-   empty.
-3. **Invite people.** The step leads with an invite link to the whole
-   workspace — **Copy link** on a computer, **Share invite link** on a phone —
-   and under it, **or invite by email**. See
-   [Inviting a whole workspace](/docs/collaborate/sharing#inviting-a-whole-workspace)
-   for what the link does. **Skip for now** goes straight in.
+On a computer, the same card asks **What are you working on?** Pick **A
+moodboard**, **A storyboard**, **Collecting references** or **Just exploring**
+and the next card is shaped around it: it asks you to paste or drag images from
+any tab, or drop a whole folder — video, scripts and PDFs too. **Skip** starts
+blank.
 
-If you skip the invite step, you may be asked once more in your first two
-weeks, after you have put a few things on the board, and never a third time.
+On a phone, the first card is **Add your photos**, which opens your camera
+roll. The next one shows how to group them into a cluster.
 
 Once something is on your board, three short tips point out where your
 clusters are, that Files takes any file and a pasted link becomes a card, and
@@ -98,7 +93,7 @@ attached when you move things.
 Click **Share**. You have two different things there, and the difference matters:
 
 - **Invite by email** gives a named person Editor or Viewer access. Editors can change the board. This does not require them to pay — collaboration is free on every plan.
-- **The workspace invite link** from setup brings people into the whole workspace, every cluster and file in it, as editors.
+- **The workspace invite link** brings people into the whole workspace, every cluster and file in it, as editors.
 - **Create a public link** produces a view-only URL that works for anyone, with no account and no sign-in. You can set it to expire, and choose whether sub-clusters are included.
 
 ## Where to go next

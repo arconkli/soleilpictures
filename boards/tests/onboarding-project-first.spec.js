@@ -23,6 +23,17 @@ test('opens on the centered intent card: four choices, nothing locked, tiles hid
   await expect(page.locator('body')).not.toHaveAttribute('data-tour-active', '1');
   await expect(page.locator('body')).toHaveAttribute('data-tour-variant', 'project');
   await expect(page.locator('.cnv-empty-tiles')).toBeHidden();
+
+  // The welcome block: this is a whole workspace, not an image organizer.
+  await expect(pill).toContainText('Welcome to Clusters');
+  await expect(pill).toContainText('One workspace for all your creative work.');
+  await expect(pill.locator('.onboarding-tour-kinds li')).toHaveCount(6);
+  const box = await pill.boundingBox();
+  const vp = page.viewportSize();
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(vp.width);
+  expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
 });
 
 test('picking an intent advances to the content step without seeding a cluster', async ({ page }) => {
@@ -36,6 +47,8 @@ test('picking an intent advances to the content step without seeding a cluster',
 
   // And the tour moved on to the content-first close.
   await expect(pill).toContainText('Now drop your images in');
+  await expect(pill).not.toContainText('Welcome to Clusters');
+  await expect(pill.locator('.onboarding-tour-kinds')).toHaveCount(0);
   await expect(page.locator('body')).toHaveAttribute('data-tour-variant', 'project');
 });
 

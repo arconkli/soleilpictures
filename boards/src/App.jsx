@@ -46,7 +46,7 @@ import { openBesideDock, mainPaneMoved, sidebarShown, toggleSidebar } from './li
 import { OnboardingCoachmark } from './components/OnboardingCoachmark.jsx';
 import { OnboardingTour } from './components/OnboardingTour.jsx';
 import { useOnboardingTour } from './hooks/useOnboardingTour.js';
-import { mergeTourIntoOnboarding, shouldRearmOnboarding } from './lib/onboardingTour.js';
+import { mergeTourIntoOnboarding, shouldRearmOnboarding, stepsFor } from './lib/onboardingTour.js';
 import { firstBoardKindFrom } from './lib/firstBoardCopy.js';
 import { momentumHintSeen, markMomentumHintSeen } from './lib/momentumHint.js';
 import {
@@ -8016,6 +8016,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // same failure mode as the 6/29 dead-after-step-1 bug).
   const desktopHandoffDecidedRef = useRef(false);
   const [desktopHandoff, setDesktopHandoff] = useState(false);
+  const desktopHandoffRef = useRef(false);
   useEffect(() => {
     if (desktopHandoffDecidedRef.current) return;
     const onb = myTier.onboarding;
@@ -8023,6 +8024,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     desktopHandoffDecidedRef.current = true;
     if (onboardingArmB && tourVariantRef.current !== 'mobile_lite'
         && onb.done === true && onb.tour?.variant === 'mobile_lite') {
+      desktopHandoffRef.current = true;
       setDesktopHandoff(true);
     }
   }, [myTier.onboarding, onboardingArmB]);
@@ -8054,6 +8056,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const emitTourStep = useCallback((e) => {
     if (e.action === 'advance' && e.done) tourCompletedRef.current = true;
     const props = { step: e.step, action: e.action, via: e.via || null, done: !!e.done, variant: tourVariantRef.current };
+    // The welcome block rides the first card only, and not on a desktop handoff.
+    try {
+      if (!desktopHandoffRef.current && stepsFor(tourVariantRef.current).find((x) => x.id === e.step)?.welcome) props.welcome = true;
+    } catch (_) {}
     // A 'view' is "this step was surfaced", once. useOnboardingTour dedupes it,
     // but only per hook instance — anything that remounts the tour hands it a
     // fresh Set and the step re-views. Measured, mobile_lite's add_photos step
@@ -12619,6 +12625,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       {tour.step && (
         <OnboardingTour
+          showWelcome={!desktopHandoff}
           step={tour.step}
           onEvent={(e) => tour.fire(e)}
           onSkip={() => tour.skip()}

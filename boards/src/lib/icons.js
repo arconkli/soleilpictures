@@ -81,6 +81,9 @@ export {
   FolderOpen,
   FileText,
   Files,
+  // The tour's welcome block (components/OnboardingTour.jsx).
+  FilmStrip,
+  Scroll,
   DotsThree as MoreHorizontal,
   Sun,
   Moon,

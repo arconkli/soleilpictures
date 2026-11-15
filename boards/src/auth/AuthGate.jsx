@@ -848,6 +848,16 @@ function SignIn({ warmApp = null }) {
   const [joinHint, setJoinHint] = useState(() => {
     try { const p = readPendingJoin(); return p && p.name ? p : null; } catch (_) { return null; }
   });
+  // True from the first render when the visit is about an invite: a stashed
+  // token, or a link param the capture effects have not stripped yet. The hints
+  // above arrive after a network peek, so this keeps the tagline from painting
+  // and then vanishing.
+  const [hintPending] = useState(() => {
+    try {
+      if (localStorage.getItem(PENDING_INVITE_KEY) || readWsJoin() || readPendingJoin()) return true;
+      return new RegExp(`[?&](invite|join|${WSJOIN_PARAM}|teamjoin|teaminvite)=`).test(window.location.search);
+    } catch (_) { return false; }
+  });
   // ?wsjoin= names the workspace and who sent it (peek_workspace_invite_link).
   const [wsJoinHint, setWsJoinHint] = useState(null);
   // A stashed ?teamjoin= / ?teaminvite=, noted by the lazy TeamLink.
@@ -1256,6 +1266,12 @@ function SignIn({ warmApp = null }) {
         <p>Soleil Clusters is a creative workspace and moodboard tool for production teams. Organize references, projects, and ideas across film, photo, design, and brand work, and collaborate with your team in real time.</p>
       </header>
       <SoleilWordmark size="display" />
+      {/* The owner's line. Hidden from the first paint when the visit is about an invite
+          or a plan (same rule as UsedBy); shown on the email and the code step alike so
+          the box doesn't jump. */}
+      {!hintPending && !inviteHint && !joinHint && !wsJoinHint && !teamLink && !creatorHint && !teamStartHint && (
+        <p className="sb-tagline">One workspace for all your creative work.</p>
+      )}
 
       {inviteHint && (
         <div className="auth-hint t-meta" style={{ marginBottom: 0 }}>

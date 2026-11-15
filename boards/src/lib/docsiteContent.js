@@ -769,7 +769,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " and enter your email address. You will get a one-time code — there is no password."
+     "v": ". The page says "
+    },
+    {
+     "t": "strong",
+     "v": "One workspace for all your creative work.",
+     "children": [
+      {
+       "t": "text",
+       "v": "One workspace for all your creative work."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Sign in or sign up with your email address. We email a 6-digit code — there is no password."
     }
    ]
   },
@@ -829,7 +843,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Some new accounts start with a short setup before the canvas; others go straight to their first cluster."
+     "v": "After the code you land on your canvas. There are no setup screens."
     }
    ]
   },
@@ -838,175 +852,36 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The setup is three screens:"
+     "v": "The first card says "
+    },
+    {
+     "t": "strong",
+     "v": "Welcome to Clusters",
+     "children": [
+      {
+       "t": "text",
+       "v": "Welcome to Clusters"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — "
+    },
+    {
+     "t": "em",
+     "v": "One workspace for all your creative work.",
+     "children": [
+      {
+       "t": "text",
+       "v": "One workspace for all your creative work."
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — and shows what a cluster holds: pictures, video, scripts, docs, files and links."
     }
-   ]
-  },
-  {
-   "type": "list",
-   "ordered": true,
-   "items": [
-    [
-     {
-      "t": "strong",
-      "v": "Name your workspace.",
-      "children": [
-       {
-        "t": "text",
-        "v": "Name your workspace."
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " It is where your clusters, files and people live, and you can rename it any time. This is the one step you can't skip."
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Tell us about it.",
-      "children": [
-       {
-        "t": "text",
-        "v": "Tell us about it."
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " "
-     },
-     {
-      "t": "em",
-      "v": "Who's working in it?",
-      "children": [
-       {
-        "t": "text",
-        "v": "Who's working in it?"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " (Just me, A few people or A team) and "
-     },
-     {
-      "t": "em",
-      "v": "What kind of work?",
-      "children": [
-       {
-        "t": "text",
-        "v": "What kind of work?"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " — film and video, photo, design, ads and brand, music, school, personal, or something else. One tap each, or "
-     },
-     {
-      "t": "strong",
-      "v": "Skip",
-      "children": [
-       {
-        "t": "text",
-        "v": "Skip"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": ". The work answer changes what your first cluster says when it is empty."
-     }
-    ],
-    [
-     {
-      "t": "strong",
-      "v": "Invite people.",
-      "children": [
-       {
-        "t": "text",
-        "v": "Invite people."
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " The step leads with an invite link to the whole workspace — "
-     },
-     {
-      "t": "strong",
-      "v": "Copy link",
-      "children": [
-       {
-        "t": "text",
-        "v": "Copy link"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " on a computer, "
-     },
-     {
-      "t": "strong",
-      "v": "Share invite link",
-      "children": [
-       {
-        "t": "text",
-        "v": "Share invite link"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " on a phone — and under it, "
-     },
-     {
-      "t": "strong",
-      "v": "or invite by email",
-      "children": [
-       {
-        "t": "text",
-        "v": "or invite by email"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": ". See "
-     },
-     {
-      "t": "link",
-      "v": "Inviting a whole workspace",
-      "href": "/docs/collaborate/sharing#inviting-a-whole-workspace",
-      "children": [
-       {
-        "t": "text",
-        "v": "Inviting a whole workspace"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " for what the link does. "
-     },
-     {
-      "t": "strong",
-      "v": "Skip for now",
-      "children": [
-       {
-        "t": "text",
-        "v": "Skip for now"
-       }
-      ]
-     },
-     {
-      "t": "text",
-      "v": " goes straight in."
-     }
-    ]
    ]
   },
   {
@@ -1014,7 +889,114 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "If you skip the invite step, you may be asked once more in your first two weeks, after you have put a few things on the board, and never a third time."
+     "v": "On a computer, the same card asks "
+    },
+    {
+     "t": "strong",
+     "v": "What are you working on?",
+     "children": [
+      {
+       "t": "text",
+       "v": "What are you working on?"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " Pick "
+    },
+    {
+     "t": "strong",
+     "v": "A moodboard",
+     "children": [
+      {
+       "t": "text",
+       "v": "A moodboard"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "A storyboard",
+     "children": [
+      {
+       "t": "text",
+       "v": "A storyboard"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Collecting references",
+     "children": [
+      {
+       "t": "text",
+       "v": "Collecting references"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "Just exploring",
+     "children": [
+      {
+       "t": "text",
+       "v": "Just exploring"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and the next card is shaped around it: it asks you to paste or drag images from any tab, or drop a whole folder — video, scripts and PDFs too. "
+    },
+    {
+     "t": "strong",
+     "v": "Skip",
+     "children": [
+      {
+       "t": "text",
+       "v": "Skip"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " starts blank."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone, the first card is "
+    },
+    {
+     "t": "strong",
+     "v": "Add your photos",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add your photos"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", which opens your camera roll. The next one shows how to group them into a cluster."
     }
    ]
   },
@@ -1533,7 +1515,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " from setup brings people into the whole workspace, every cluster and file in it, as editors."
+      "v": " brings people into the whole workspace, every cluster and file in it, as editors."
      }
     ],
     [

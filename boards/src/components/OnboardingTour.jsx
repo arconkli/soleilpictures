@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { onCanvasSettle } from '../lib/canvasScale.js';
 import { Icon } from './Icon.jsx';
-import { Sparkle } from '../lib/icons.js';
+import { Sparkle, Image, FilmStrip, Scroll, FileText, Files, Link } from '../lib/icons.js';
+import { TOUR_WELCOME } from '../lib/onboardingTour.js';
+
+const WELCOME_ICONS = { pictures: Image, video: FilmStrip, scripts: Scroll, docs: FileText, files: Files, links: Link };
 
 // First-run guided tour overlay. Renders the active step as a Milanote-style
 // frosted pill with a pointer arrow, anchored to the live on-screen position of
@@ -80,7 +83,7 @@ function centered(pr, region) {
   };
 }
 
-export function OnboardingTour({ step, onEvent, onSkip, onView, onAction }) {
+export function OnboardingTour({ step, onEvent, onSkip, onView, onAction, showWelcome = true }) {
   const { isTouch } = useBreakpoint();
   const pillRef = useRef(null);
   const [pos, setPos] = useState(null);
@@ -206,6 +209,8 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction }) {
 
   if (!step) return null;
 
+  const welcome = !!step.welcome && showWelcome;
+
   const body = isTouch ? (step.copy.touch || step.copy.body) : step.copy.body;
   const style = pos
     ? { top: `${pos.top}px`, left: `${pos.left}px`, '--tour-max-w': `${pos.maxW}px` }
@@ -216,14 +221,35 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction }) {
   return (
     <div
       ref={pillRef}
-      className={`onboarding-tour surface-frosted tour-${pos?.placement || step.placement}${arrowClass}${choicesClass}`}
+      className={`onboarding-tour surface-frosted tour-${pos?.placement || step.placement}${arrowClass}${choicesClass}${welcome ? ' tour-has-welcome' : ''}`}
       data-tour-anchor={step.anchor}
       style={style}
       role="dialog"
       aria-live="polite"
     >
       <span className="onboarding-tour-arrow" aria-hidden="true" />
-      <div className="onboarding-coachmark-spark" aria-hidden="true"><Icon as={Sparkle} size={18} weight="fill" /></div>
+      {welcome ? (
+        <>
+          <div className="onboarding-tour-welcome">
+            <div className="onboarding-tour-welcome-head">
+              <div className="onboarding-coachmark-spark" aria-hidden="true"><Icon as={Sparkle} size={18} weight="fill" /></div>
+              <span className="onboarding-tour-welcome-title">{TOUR_WELCOME.title}</span>
+            </div>
+            <div className="onboarding-tour-welcome-body">{TOUR_WELCOME.body}</div>
+            <ul className="onboarding-tour-kinds" aria-label="What a cluster holds">
+              {TOUR_WELCOME.kinds.map((k) => (
+                <li key={k.key}>
+                  <Icon as={WELCOME_ICONS[k.key]} size={16} weight="regular" aria-hidden="true" />
+                  {k.label}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="onboarding-tour-rule" aria-hidden="true" />
+        </>
+      ) : (
+        <div className="onboarding-coachmark-spark" aria-hidden="true"><Icon as={Sparkle} size={18} weight="fill" /></div>
+      )}
       <div className="onboarding-coachmark-copy">
         <div className="onboarding-coachmark-title">{step.copy.title}</div>
         <div className="onboarding-coachmark-body">{body}</div>

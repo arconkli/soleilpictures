@@ -31,6 +31,20 @@ test('opens on the photos step, anchored to the puck, WITHOUT locking the app', 
   // complete the tour with zero photos) must be hidden during the tour, leaving
   // the ringed puck as the single obvious CTA.
   await expect(page.locator('.cnv-empty-tiles')).toBeHidden();
+
+  // The welcome block, fully on screen and clear of the bottom bar.
+  await expect(pill).toContainText('Welcome to Clusters');
+  await expect(pill).toContainText('One workspace for all your creative work.');
+  await expect(pill.locator('.onboarding-tour-kinds li')).toHaveCount(6);
+  await expect(pill.getByRole('button', { name: 'Add photos' })).toBeVisible();
+  await expect(pill.getByRole('button', { name: /skip/i })).toBeVisible();
+  const box = await pill.boundingBox();
+  const vp = page.viewportSize();
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(vp.width);
+  const nav = await page.locator('.mb-nav').boundingBox();
+  expect(box.y + box.height).toBeLessThanOrEqual(nav.y);
 });
 
 test('the puck is live during the tour and opens the camera-roll multi-select', async ({ page }) => {
@@ -61,6 +75,7 @@ test('adding an image advances to the group step; Done completes the tour', asyn
   await chooser.setFiles({ name: 'shot.png', mimeType: 'image/png', buffer: PNG });
 
   await expect(pill).toContainText('Group them into a cluster');
+  await expect(pill).not.toContainText('Welcome to Clusters');
   await pill.getByRole('button', { name: /done/i }).tap();
   await expect(page.locator('.onboarding-tour')).toHaveCount(0);
 });
