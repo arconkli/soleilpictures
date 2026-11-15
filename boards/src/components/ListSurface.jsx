@@ -90,7 +90,7 @@ import {
 } from '../lib/filesView.js';
 import { SORTS } from '../lib/sidebarSort.js';
 import { shellOf } from '../lib/deviceShell.js';
-import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload, Folder, Copy, DownloadSimple, UploadSimple, FolderSimplePlus } from '../lib/icons.js';
+import { Download, ArrowBendUpRight, ArrowsInSimple, Trash2, X, Plus, Link as LinkIcon, Info, BoundingBox, ChevronDown, ChevronUp, Upload, Folder, Copy, DownloadSimple, UploadSimple, FolderSimplePlus, MoreHorizontal } from '../lib/icons.js';
 import {
   DOWNLOADABLE, zipNameFor, bulkDownloadSupported,
   isPublicSurface,
@@ -125,7 +125,11 @@ function writeBrowserPrefs(patch) {
 // off the pill for the widest. Measured instead, it drops the first-run hint,
 // then the labels, only as far as the pane needs. Each button keeps its name
 // in aria-label and title. data-fit is ours alone, so React never resets it.
-const SELBAR_FITS = ['full', 'nohint', 'icons'];
+// A phone can be too narrow even for the icons (40px each to a finger: Info
+// and Done ran off the pill at 375 and 320), so the last fit, 'tight', shows
+// the count as a number and folds Put on board, Copy to…, New cluster and
+// Info into a ⋯ menu (styles.css, .list-selbar[data-fit='tight']).
+const SELBAR_FITS = ['full', 'nohint', 'icons', 'tight'];
 function fitSelbar(bar) {
   for (const fit of SELBAR_FITS) {
     bar.dataset.fit = fit;
@@ -585,7 +589,9 @@ export function ListSurface({
   const [renamingId, setRenamingId] = useState(null);
   // Right-click menu: { x, y } — it acts on the selection.
   const [ctxMenu, setCtxMenu] = useState(null);
-  useEffect(() => { setRenamingId(null); setCtxMenu(null); }, [board.id]);
+  // The selection bar's ⋯ (its 'tight' fit): where its menu opens, or null.
+  const [selMore, setSelMore] = useState(null);
+  useEffect(() => { setRenamingId(null); setCtxMenu(null); setSelMore(null); }, [board.id]);
   // Opened from the keyboard (⇧F10, the menu key): focus goes into the menu.
   // Its arrow keys only work with focus inside, and Files' own keys stand down
   // while it is open — so ↓ and Enter used to reach nothing at all. Focus
@@ -2401,7 +2407,7 @@ export function ListSurface({
   // last.
   const renderSelbar = () => {
     const count = (
-      <span className="list-selbar-count" aria-live="polite"
+      <span className="list-selbar-count" aria-live="polite" data-n={totalSel || undefined}
             title={tr`${selAllKey} selects all · ${cmdKey}-click adds · ${shiftKey}-click selects a range`}>{totalSel || !selecting ? tr`${totalSel} selected` : tr`Select items`}</span>
     );
     const download = downloadableSelected.length > 0 && (
@@ -2415,7 +2421,7 @@ export function ListSurface({
     );
     // A visitor on a shared link can't move or delete, so those aren't offered.
     const put = canEdit && selectedUnplaced.length > 0 && (
-      <button type="button" className="list-selbar-act" onClick={() => putOnBoard(selectedUnplaced)}
+      <button type="button" className="list-selbar-act list-selbar-fold" onClick={() => putOnBoard(selectedUnplaced)}
               title={tr`Put on the board`} aria-label={tr`Put on board`}>
         <Icon as={BoundingBox} size={14} weight="light" /><span><Trans>Put on board</Trans></span>
       </button>
@@ -2427,12 +2433,12 @@ export function ListSurface({
     );
     // With no right-click to find it, a finger gets Copy to… here.
     const copy = touchPass && (selecting || isTouch) && canCopyTo && (
-      <button type="button" className="list-selbar-act" onClick={copySelection} title={tr`Copy to…`} aria-label={tr`Copy to…`}>
+      <button type="button" className="list-selbar-act list-selbar-fold" onClick={copySelection} title={tr`Copy to…`} aria-label={tr`Copy to…`}>
         <Icon as={Copy} size={14} weight="light" /><span><Trans>Copy to…</Trans></span>
       </button>
     );
     const newCluster = canEdit && clusterNudgesAllowed() && mutators.addNewBoard && selectedCards.size > 0 && selectedBoards.size === 0 && (
-      <button type="button" className="list-selbar-act" onClick={() => newClusterFromSelection()}
+      <button type="button" className="list-selbar-act list-selbar-fold" onClick={() => newClusterFromSelection()}
               title={tr`Move them into a new cluster`} aria-label={tr`New cluster`}>
         <Icon as={sb ? FolderSimplePlus : Folder} size={14} weight="light" /><span><Trans>New cluster</Trans></span>
       </button>
@@ -2443,9 +2449,27 @@ export function ListSurface({
       </button>
     );
     const info = totalSel > 0 && (
-      <button type="button" className={`list-selbar-act${!isPanel && infoOpen ? ' is-on' : ''}`} onClick={() => showInfo()}
+      <button type="button" className={`list-selbar-act list-selbar-fold${!isPanel && infoOpen ? ' is-on' : ''}`} onClick={() => showInfo()}
               aria-pressed={isPanel ? undefined : infoOpen} title={tr`Info (${cmdKey}I)`} aria-label={tr`Info`}>
         <Icon as={Info} size={14} weight="light" /><span><Trans>Info</Trans></span>
+      </button>
+    );
+    // The 'tight' fit's ⋯: the folded actions, as a menu. Hidden at every
+    // other fit (styles.css), and not rendered with nothing to fold.
+    const folded = [
+      put && { id: 'put', label: tr`Put on board`, run: () => putOnBoard(selectedUnplaced) },
+      copy && { id: 'copy-to', label: tr`Copy to…`, run: copySelection },
+      newCluster && { id: 'new-cluster', label: tr`New cluster`, run: () => newClusterFromSelection() },
+      info && { id: 'info', label: tr`Info`, run: () => showInfo() },
+    ].filter(Boolean);
+    const more = folded.length > 0 && (
+      <button type="button" className="list-selbar-act list-selbar-more" aria-haspopup="menu" aria-expanded={!!selMore}
+              title={tr`More actions`} aria-label={tr`More actions`}
+              onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                setSelMore({ x: r.left, y: r.top, items: folded });
+              }}>
+        <Icon as={MoreHorizontal} size={14} weight="light" />
       </button>
     );
     const done = selecting ? (
@@ -2468,9 +2492,9 @@ export function ListSurface({
     return (
       <div className="list-selbar" ref={selbarRef}>
         {sb ? (
-          <>{done}{count}<span className="list-selbar-sep" aria-hidden="true" />{download}{put}{move}{copy}{newCluster}{del}<span className="list-selbar-spacer" />{hint}{info}</>
+          <>{done}{count}<span className="list-selbar-sep" aria-hidden="true" />{download}{put}{move}{copy}{newCluster}{del}{more}<span className="list-selbar-spacer" />{hint}{info}</>
         ) : (
-          <>{count}{download}{put}{move}{copy}{newCluster}{del}{info}{done}{hint}</>
+          <>{count}{download}{put}{move}{copy}{newCluster}{del}{info}{more}{done}{hint}</>
         )}
       </div>
     );
@@ -2805,6 +2829,11 @@ export function ListSurface({
           <CardContextMenu open x={ctxMenu.x} y={ctxMenu.y} items={menuItems()}
                            onClose={() => setCtxMenu(null)}
                            workspaceId={menuCard ? workspaceId : null} boardId={menuCard ? board.id : null} card={menuCard} />,
+          document.body,
+        )}
+        {selMore && createPortal(
+          <CardContextMenu open x={selMore.x} y={selMore.y} items={selMore.items}
+                           onClose={() => setSelMore(null)} />,
           document.body,
         )}
         {quickIndex >= 0 && (

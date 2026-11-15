@@ -2528,7 +2528,7 @@ Trash
 
 Deleting a cluster is a soft delete. It goes to the workspace trash and stays restorable for 30 days, then is purged.
 
-The trash is workspace-wide — open it from the sidebar or ⌘K → "trash". From there, restore puts a cluster back where it was. The workspace's owner and co-owners can also remove it permanently if they are sure; for everyone else, editors included, a deleted cluster waits out its 30 days and can always be brought back.
+The trash is workspace-wide — open it from the sidebar or ⌘K → "trash". On a phone, open the menu and tap Deleted clusters. From there, restore puts a cluster back where it was. The workspace's owner and co-owners can also remove it permanently if they are sure; for everyone else, editors included, a deleted cluster waits out its 30 days and can always be brought back.
 
 A cluster goes to the trash with everything inside it, the clusters nested in it included, and it comes back the same way: restoring it brings them all back in place. The trash lists it once, with a count of what is inside. If you restore a cluster whose parent is still in the trash, it comes back under the nearest cluster that isn't, or at the top of your workspace.
 

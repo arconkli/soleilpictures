@@ -2986,6 +2986,10 @@ msgstr "{what}Creatorプランなら長さの上限がなくなります。"
 msgid "{where} · click to jump · right-click for recent comments"
 msgstr "{where} · クリックで移動 · 右クリックで最近のコメント"
 
+#: src/components/WorkspacePresenceStack.jsx
+msgid "{where} · tap to jump · hold for recent comments"
+msgstr "{where} · タップで移動 · 長押しで最近のコメント"
+
 #: src/components/cards.jsx
 msgid "{who} · in {board}"
 msgstr "{who} · {board}内"
@@ -13255,6 +13259,7 @@ msgstr "ムードボード、脚本、ショットリスト。あらゆる素材
 msgid "More"
 msgstr "その他"
 
+#: src/components/ListSurface.jsx
 #: src/components/WorkspaceMenu.jsx
 msgid "More actions"
 msgstr "その他の操作"

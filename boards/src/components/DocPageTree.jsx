@@ -5,7 +5,8 @@
 //   - ▸ / ▾ chevron → expand/collapse, on this device only
 //     (hooks/useDocTreeExpansion)
 //   - Dbl-click name → inline rename
-//   - Right-click row → context menu (rename / duplicate-as-child / delete)
+//   - Right-click row → context menu (rename / duplicate-as-child / delete);
+//     under a finger, a hold on the row opens the same menu
 //   - HTML5 drag-drop → reorder (drop on row top/bottom) or nest
 //                       (drop on row middle)
 //   - "+" button on a row → insert new child
@@ -18,6 +19,8 @@ import {
 } from '../lib/docState.js';
 import { byPageOrder } from '../lib/docPageEntries.js';
 import { useDocTreeExpansion } from '../hooks/useDocTreeExpansion.js';
+import { useLongPress } from '../hooks/useLongPress.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
 import { CardContextMenu } from './CardContextMenu.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
@@ -47,6 +50,23 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
   const [ctx, setCtx] = useState({ open: false, x: 0, y: 0, pageId: null });
   const feedback = useFeedback();
   const fold = useDocTreeExpansion(boardId, scope?.cardId);
+
+  // iOS Safari never fires contextmenu for a touch hold, so on a phone the
+  // row menu (rename, new sub-page, delete) had no way in. A hold on a row
+  // opens it at the finger, as the sidebar's clusters do, and the click the
+  // lift leaves behind is swallowed so it doesn't also open the page (and
+  // close the phone's drawer under the menu).
+  const bodyRef = useRef(null);
+  useLongPress(bodyRef, (x, y, e) => {
+    if (!canEdit) return false;
+    const row = e.target?.closest?.('.doc-tree-row');
+    const pageId = row?.dataset?.pageId;
+    // Not a row, or the row being named: the hold belongs to the text field.
+    if (!pageId || e.target.closest?.('input')) return false;
+    swallowNextClick({ held: true });
+    setCtx({ open: true, x, y, pageId });
+    return true;
+  }, { ms: 480, tolerance: 8, pointerType: 'touch' });
 
   // The name a rename started from: finishing without changing it writes
   // nothing, so it can't put back a name someone else gave the page meanwhile.
@@ -158,6 +178,9 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
   // drops a boardlink to this doc (and stashes the pageId for future deep-
   // linking).
   const onDragStart = (e, p) => {
+    // The hold that opened the menu also starts a native drag on a phone: no
+    // reorder under an open menu.
+    if (ctx.open) { e.preventDefault(); return; }
     setDragId(p.id);
     try {
       e.dataTransfer.setData('text/plain', p.id);
@@ -226,6 +249,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
     return (
       <div key={p.id} className="doc-tree-node">
         <div className={`doc-tree-row ${isActive ? 'is-active' : ''} ${drop ? `drop-${drop}` : ''}`}
+             data-page-id={p.id}
              draggable={canEdit && renaming !== p.id}
              style={{ paddingLeft: 6 + depth * 16 }}
              onDragStart={(e) => onDragStart(e, p)}
@@ -305,7 +329,7 @@ export function DocPageTree({ ydoc, scope, boardId, pages, activePageId, onSelec
         <span className="doc-tree-kicker"><Trans>Pages</Trans></span>
         {canEdit && <button className="doc-tree-add-root" title={t`New page`} aria-label={t`New page`} onClick={onAddRoot}><Icon as={Plus} size={16} /></button>}
       </div>
-      <div className="doc-tree-body">
+      <div className="doc-tree-body" ref={bodyRef}>
         {tree.length === 0 ? (canEdit ? (
           <button className="doc-tree-empty" onClick={onAddRoot}>
             <span className="doc-tree-empty-plus" aria-hidden="true">+</span>

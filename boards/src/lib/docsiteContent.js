@@ -27827,7 +27827,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " → \"trash\". From there, "
+     "v": " → \"trash\". On a phone, open the menu and tap "
+    },
+    {
+     "t": "strong",
+     "v": "Deleted clusters",
+     "children": [
+      {
+       "t": "text",
+       "v": "Deleted clusters"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". From there, "
     },
     {
      "t": "strong",

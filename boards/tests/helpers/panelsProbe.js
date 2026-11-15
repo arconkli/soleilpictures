@@ -19,6 +19,7 @@ import { VersionHistoryModal } from '../../src/components/VersionHistoryModal.js
 import { TrashModal } from '../../src/components/TrashModal.jsx';
 import { NotificationsPanel } from '../../src/components/NotificationsPanel.jsx';
 import { ShareModal } from '../../src/components/ShareModal.jsx';
+import { WorkspacePresenceStack } from '../../src/components/WorkspacePresenceStack.jsx';
 
 const h = React.createElement;
 
@@ -98,6 +99,19 @@ export function mountShare({ onlinePeerName } = {}) {
     selfUserId: self, canManage: true, myWorkspaceRole: 'owner',
     onClose: () => {},
   }));
+}
+
+// One person online, in a corner above the local shell. A jump is counted on
+// window.__probeJumped.
+export function mountPresence() {
+  mountInto(h(WorkspacePresenceStack, {
+    peers: [{ key: 'peer-1', tabId: 't1',
+      user: { id: '00000000-0000-4000-8000-000000000002', name: 'Maya Okafor', color: '#4f8df8' },
+      location: { boardId: 'b-probe', boardName: 'Reference wall', surface: 'canvas' } }],
+    status: 'connected', selfId: '00000000-0000-4000-8000-000000000001',
+    workspaceId: 'ws-probe', max: 1,
+    onJumpTo: () => { window.__probeJumped = (window.__probeJumped || 0) + 1; },
+  }), { position: 'fixed', top: '120px', left: '24px', zIndex: '50' });
 }
 
 // `mobileShell`: what App passes on a phone, where the list is a sheet.

@@ -3010,6 +3010,10 @@ msgstr "{what} Тариф Creator снимает ограничение длин
 msgid "{where} · click to jump · right-click for recent comments"
 msgstr "{where} · нажмите, чтобы перейти · щелчок правой кнопкой — недавние комментарии"
 
+#: src/components/WorkspacePresenceStack.jsx
+msgid "{where} · tap to jump · hold for recent comments"
+msgstr "{where} · коснитесь, чтобы перейти · удерживайте — недавние комментарии"
+
 #: src/components/cards.jsx
 msgid "{who} · in {board}"
 msgstr "{who} · в {board}"
@@ -13279,6 +13283,7 @@ msgstr "Мудборды, сценарии, шот-листы — все мат�
 msgid "More"
 msgstr "Ещё"
 
+#: src/components/ListSurface.jsx
 #: src/components/WorkspaceMenu.jsx
 msgid "More actions"
 msgstr "Другие действия"
