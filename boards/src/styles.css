@@ -3130,14 +3130,14 @@ body {
   .public-board-eyebrow { font-size: 8px; letter-spacing: 0.08em; }
 }
 
-/* Sidebar footer — settings + avatar/sign-out, anchored at the bottom. */
+/* Sidebar footer — you, Help and Settings, anchored at the bottom. */
 .sb-foot {
   margin-top: auto;
   display: flex; align-items: center; gap: 6px;
   padding: 8px 6px 2px;
   border-top: 1px solid var(--line-1);
 }
-.sb-foot-icon, .sb-foot-avatar {
+.sb-foot-icon {
   appearance: none; border: 0; background: transparent;
   width: 28px; height: 28px;
   border-radius: 8px;
@@ -3146,26 +3146,9 @@ body {
   color: var(--ink-2);
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.sb-foot-icon:hover, .sb-foot-avatar:hover { background: var(--bg-hov); color: var(--ink-0); }
-.sb-foot-avatar {
-  margin-left: auto;
-  /* background set inline to the user's accent color */
-  font: 700 11px/1 var(--font-sans);
-  color: #fff;
-  text-shadow: 0 0 1px rgba(0, 0, 0, 0.35);
-  position: relative;
-}
-.sb-foot-avatar:hover { filter: brightness(1.08); }
-.sb-foot-avatar-img {
-  background: transparent;
-  padding: 0;
-  overflow: hidden;
-  border-radius: 50%;
-  text-shadow: none;
-}
-.sb-foot-avatar-img > img,
-.sb-foot-avatar-img .r2-img { object-fit: cover; }
-.sb-foot-avatar-img:hover { filter: brightness(1.04); }
+.sb-foot-icon:hover { background: var(--bg-hov); color: var(--ink-0); }
+/* Your row at the foot's left (.sb-foot-me) is styled in
+   sidebar/clusterSidebar.css: it loads with the app, not the entry. */
 .sb-mid-title {
   font: 600 13px/1.4 var(--font-sans);
   color: var(--ink-0);
@@ -18428,6 +18411,9 @@ a.msg-attachment-file:hover .msg-attachment-file-name { color: var(--ink-0); tex
   font: 400 13px/1.3 var(--font-sans);
   min-width: 0;
 }
+/* A suggestion, not a value: the Display name field shows the name we'd guess
+   until you set one, and it must not read as already set. */
+.settings-input::placeholder { color: var(--ink-3); opacity: 1; }
 /* Selects draw the same chevron as the Share panel's role menus, so one
    control does not look like two different ones in the two places. */
 select.settings-input {
@@ -21435,7 +21421,6 @@ button, [role="button"], a {
     border-right: none;
     padding: 12px 12px 24px;
   }
-  .settings-tabs .settings-account { margin-bottom: 18px; }
   .settings-account .settings-account-signout { width: auto; min-height: 44px; }
   .settings-tabs-group + .settings-tabs-group { margin-top: 22px; }
   .settings-tab {
@@ -23298,6 +23283,17 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
   cursor: pointer;
 }
 .cnv-hint-btn:hover, .cnv-hint-btn:focus-visible { background: var(--bg-hov); outline: none; }
+/* "Not now" beside it: the same size with no box, so the answer the note is
+   asking for is the one that reads as a button. */
+.cnv-hint-later {
+  appearance: none;
+  height: 22px; padding: 0 9px; margin-left: -6px;
+  border: 1px solid transparent; border-radius: 4px;
+  background: transparent; color: var(--ink-2);
+  font: 500 11px/1 var(--font-sans);
+  cursor: pointer;
+}
+.cnv-hint-later:hover, .cnv-hint-later:focus-visible { color: var(--ink-0); background: var(--bg-hov); outline: none; }
 /* The hero's hint line after a cancelled picker: the other ways in, a touch brighter. */
 .cnv-empty-tile-hero-hint.is-alt { color: var(--ink-0); }
 

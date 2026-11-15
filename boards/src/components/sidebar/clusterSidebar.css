@@ -786,9 +786,71 @@ body.sbf-sizing .app,
 .sbf-upitem-l small { color: var(--ink-3); font: 400 12px/1.3 var(--font-sans); }
 .sbf-upsep { height: 1px; margin: 4px 6px; background: var(--line-2); }
 .sbf-upnote { padding: 6px 10px 8px; color: var(--ink-3); font: 400 12px/1.45 var(--font-sans); }
-/* Help, Settings and you, under the meter, in the same card. */
+/* ── The sidebar foot's "you" row (App.jsx sbFoot) ───────────────────────
+   Here and not in styles.css so it loads with the app, not with every
+   public page. The foot itself (.sb-foot, .sb-foot-icon) stays there. */
+/* You, at the foot's left: your face and your name in one button that opens
+   Profile. As tall as a sidebar row. It takes the width Help and the cog
+   leave and no more (a basis of 0, so neither a long name nor the cue that
+   shows under a pointer can widen it and move them); the name is cut short. */
+.sb-foot-me {
+  appearance: none; border: 0; background: transparent;
+  flex: 1 1 0; min-width: 0;
+  height: 30px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 8px 0 6px;
+  margin-right: 2px;
+  border-radius: var(--radius);
+  color: var(--ink-1);
+  font: 500 13px/1 var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.sb-foot-me:hover { background: var(--bg-hov); color: var(--ink-0); }
+.sb-foot-me:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+/* "Add your name": quieter than a name, resting and pointed at. */
+.sb-foot-me.is-ask { color: var(--ink-2); }
+.sb-foot-face {
+  flex: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  overflow: hidden;
+  /* background set inline to the user's accent color */
+  font: 700 10px/1 var(--font-sans);
+  color: #fff;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.sb-foot-face > img,
+.sb-foot-face .r2-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sb-foot-name {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  line-height: 1.4;
+}
+/* What a click does: words under a pointer, a chevron under a finger. The
+   words take at most half the row, so in a longer language or a sidebar
+   dragged narrow they are cut short rather than running under Help. */
+.sb-foot-cue {
+  flex: none; display: none; max-width: 50%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--ink-2); font: 400 12px/1.4 var(--font-sans);
+}
+.sb-foot-chev { flex: none; display: none; place-items: center; color: var(--ink-3); }
+@media (hover: hover) and (pointer: fine) {
+  .sb-foot-me:hover .sb-foot-cue { display: block; }
+}
+@media (pointer: coarse) {
+  .sb-foot-me { height: auto; min-height: 40px; }
+  .sb-foot-chev { display: grid; }
+}
+
+/* You, Help and Settings, under the meter, in the same card. */
 .app.sb-files .sb-mid .sb-foot { margin: 0; padding: 0 9px 8px; gap: 2px; border-top: 0; }
 .app.sb-files .sb-foot .sb-foot-icon { color: var(--ink-2); }
+/* Your row is rounded like the rows above it. */
+.app.sb-files .sb-foot .sb-foot-me { border-radius: 6px; }
 
 /* ── Selection (⌘/⇧-click) and the bar that acts on it ───────────────────── */
 .sbf-file.is-selected {
@@ -856,7 +918,9 @@ body.sbf-sizing .app,
   .sbf-meter-line { height: 48px; }
   .sbf-meter-text { font-size: 13px; }
   .sbf-upload { height: 36px; padding: 0 14px 0 12px; font-size: 14px; }
-  .app.sb-files .sb-foot .sb-foot-icon, .app.sb-files .sb-foot .sb-foot-avatar { width: 40px; height: 40px; }
+  .app.sb-files .sb-foot .sb-foot-icon { width: 40px; height: 40px; }
+  .app.sb-files .sb-foot .sb-foot-me { min-height: 40px; font-size: 15px; }
+  .app.sb-files .sb-foot .sb-foot-face { width: 26px; height: 26px; font-size: 12px; }
   /* The rest a finger met under 40px (tests/touch/touch-targets.spec.js). */
   .app.sb-files .sb-top .sb-ws-trigger { height: 40px; }
   .app.sb-files .sb-mid .sb-boards-head,
@@ -888,12 +952,12 @@ body.sbf-sizing .app,
 .app.sb-files .sidebar.is-mobile-open .sbf-files-list { overflow: visible; -webkit-mask-image: none; mask-image: none; }
 /* The meter with Upload, and the foot under it, stay at the drawer's bottom
    while the rest scrolls under them: adding files shouldn't wait for the end
-   of every shelf. The meter sits on the foot, as tall as its icons (28px; 40
-   under a finger, below) and its 8px under them. */
+   of every shelf. The meter sits on the foot, as tall as your row in it (30px;
+   40 under a finger, below) and its 8px under that. */
 .app.sb-files .sidebar.is-mobile-open .sb-mid .sbf-meter,
 .app.sb-files .sidebar.is-mobile-open .sb-mid .sb-foot { position: sticky; z-index: 1; background-color: var(--bg-1); }
 .app.sb-files .sidebar.is-mobile-open .sb-mid .sb-foot { bottom: 0; }
-.app.sb-files .sidebar.is-mobile-open .sb-mid .sbf-meter { bottom: calc(28px + 8px); }
+.app.sb-files .sidebar.is-mobile-open .sb-mid .sbf-meter { bottom: calc(30px + 8px); }
 @media (pointer: coarse) {
   .app.sb-files .sidebar.is-mobile-open .sb-mid .sbf-meter { bottom: calc(40px + 8px); }
 }

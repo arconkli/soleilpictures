@@ -23,6 +23,8 @@ test('the gate refuses an unknown kind, a seen kind, and anything while the tour
   const never = () => false;
   assert.equal(canShowHint('paste', { seen: never, tour: never }), true);
   assert.equal(canShowHint('name_cluster', { seen: never, tour: never }), true);
+  assert.equal(canShowHint('profile_ask', { seen: never, tour: never }), true);
+  assert.equal(canShowHint('profile_ask', { seen: () => true, tour: never }), false, 'Not now is for good on this device');
   assert.equal(canShowHint('place', { seen: never, tour: never }), false, 'place is not a hint kind: the canvas already says where to click');
   assert.equal(canShowHint('paste', { seen: () => true, tour: never }), false);
   assert.equal(canShowHint('paste', { seen: never, tour: () => true }), false);
@@ -55,6 +57,6 @@ test('the tour stamp on the body is what counts as the tour showing', () => {
 });
 
 test('the kinds and the naming delay are what the surfaces expect', () => {
-  assert.deepEqual([...HINT_KINDS], ['paste', 'name_cluster', 'studio_bar', 'setup_tips', 'invite_reask', 'whats_new', 'board_more']);
+  assert.deepEqual([...HINT_KINDS], ['paste', 'name_cluster', 'studio_bar', 'setup_tips', 'invite_reask', 'whats_new', 'board_more', 'profile_ask']);
   assert.ok(NAME_CLUSTER_AFTER_MS >= 30_000 && NAME_CLUSTER_AFTER_MS <= 120_000, 'a minute, give or take');
 });

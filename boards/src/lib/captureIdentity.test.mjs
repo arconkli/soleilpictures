@@ -91,6 +91,14 @@ test('maskProfile replaces name, email and colour together', () => {
   assert.equal(out.extra, 1, 'unrelated fields must survive');
 });
 
+test('maskProfile takes the picture away from a masked person', () => {
+  on();
+  const real = { name: REAL_NAME, email: REAL_EMAIL, color: '#3b82f6', avatarUrl: 'r2:ws/face.webp' };
+  const out = maskProfile('user-123', real);
+  assert.equal(out.avatarUrl, null, 'a real face under a persona name identifies the person');
+  assert.equal(real.avatarUrl, 'r2:ws/face.webp', 'the entry passed in is not changed');
+});
+
 // ── Stable ─────────────────────────────────────────────────────────────────
 
 test('the same person is the same persona every time', () => {

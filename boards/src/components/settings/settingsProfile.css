@@ -1,0 +1,90 @@
+/* Your own profile in Settings: the phone's "you" card and your picture's
+   pick button. Loaded with the Settings panel, not the entry stylesheet,
+   since nothing else draws them. It loads after styles.css, so these win
+   ties with the .settings-avatar-preview tile they sit on. */
+
+/* The "you" card that heads the phone's Settings list, on the material of
+   .settings-account: your face, name and address open Profile, and Sign out
+   is a row of its own under a divider. */
+.settings-me {
+  flex: none;
+  margin-bottom: 18px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
+  background: var(--bg-2);
+  overflow: hidden;
+}
+.settings-me-main {
+  appearance: none; border: 0; background: transparent;
+  display: flex; align-items: center; gap: 12px;
+  width: 100%;
+  padding: 12px 12px 12px 14px;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+.settings-me-face {
+  flex: none;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  overflow: hidden;
+  font: 700 16px/1 var(--font-sans);
+  color: #fff;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.settings-me-face > img,
+.settings-me-face .r2-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.settings-me-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.settings-me-name {
+  font: 600 15px/1.25 var(--font-sans);
+  color: var(--ink-0);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.settings-me-email {
+  font: 400 12px/1.3 var(--font-mono);
+  color: var(--ink-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.settings-me-add { margin-top: 2px; font: 400 12.5px/1.3 var(--font-sans); color: var(--ink-1); }
+.settings-me-chev { flex: none; color: var(--ink-3); }
+.settings-me-out {
+  appearance: none; border: 0; background: transparent;
+  display: flex; align-items: center;
+  width: 100%; min-height: 44px;
+  padding: 0 14px;
+  border-top: 1px solid var(--line-2);
+  text-align: left;
+  font: 500 14px/1 var(--font-sans);
+  color: var(--ink-1);
+  cursor: pointer;
+}
+.settings-me-main:focus-visible,
+.settings-me-out:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+
+/* Your own picture (AvatarUploadRow `profile`): larger, and a button that
+   opens the file picker. The workspace icon keeps the 56px tile above. */
+.settings-avatar-pick {
+  appearance: none;
+  width: 64px; height: 64px;
+  padding: 0;
+  background: transparent;
+  font-size: 24px;
+  cursor: pointer;
+}
+.settings-avatar-pick:hover:not(:disabled) { filter: brightness(1.06); }
+.settings-avatar-pick:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+.settings-avatar-pick:disabled { cursor: default; }
+
+/* Phones (the same query as the Settings phone block in styles.css). */
+@media (max-width: 640px),
+       (min-width: 641px) and (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  /* Your own picture: the face at the left under its label, its button the
+     width of the screen and Remove under it. The row is a flex child of
+     .settings-field-control, so it has to ask for the width itself. */
+  .settings-avatar-row.is-profile { flex: 1 1 auto; min-width: 0; }
+  .settings-avatar-row.is-profile .settings-avatar-pick { align-self: flex-start; }
+  .settings-avatar-row.is-profile .settings-avatar-actions { flex-direction: column; align-items: stretch; }
+  .settings-avatar-row.is-profile .settings-avatar-actions .settings-btn { width: 100%; }
+  .settings-avatar-row.is-profile .settings-avatar-actions .settings-link-btn { align-self: center; }
+}

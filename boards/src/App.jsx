@@ -18,6 +18,7 @@ import { useWorkspaceMembers } from './hooks/useWorkspaceMembers.js';
 import { useSharedBoards } from './hooks/useSharedBoards.js';
 import { useScrollEdges } from './hooks/useScrollEdges.js';
 import * as userProfiles from './lib/userProfiles.js';
+import { OPEN_PROFILE_EVENT } from './lib/openProfile.js';
 import { useBoardPermission, computeBoardPermission } from './hooks/useBoardPermission.js';
 import { setBoardClipboard, getBoardClipboard } from './lib/boardClipboard.js';
 import { useMyTier, expectIndexChange } from './hooks/useMyTier.js';
@@ -147,7 +148,7 @@ import { SoleilWordmark, ClustersMark } from './components/SoleilWordmark.jsx';
 import { Icon } from './components/Icon.jsx';
 import { tlTip } from './lib/looks.js';
 import { ariaKeys } from './lib/ariaKeys.js';
-import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, BoundingBox, Files as FilesIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera, Question, Eye } from './lib/icons.js';
+import { Plus, Bell, PanelLeftClose, PanelLeftOpen, Search, LayoutGrid, BoundingBox, Files as FilesIcon, Inbox as InboxIcon, Settings, Share2, Sun, Moon, Columns2, LogOut, Undo, Redo, Home, MessageSquare, Trash2, History, ChevronLeft, ChevronRight, Link as LinkIcon, Maximize2, Minimize2, StickyNote, User, UserPlus, BookOpen, Camera, Question, Eye, CreditCard } from './lib/icons.js';
 // The small things in the files sidebar's look (nudges, View only, a
 // comment's unread dot), under body[data-sb-files], which App sets.
 import './components/smallThingsLook.css';
@@ -1133,9 +1134,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // old panel away, so the note opens it here.
   const [settingsOpen, setSettingsOpen] = useState(() => !!settingsAfterSwitchFor(workspace.id));
   const [settingsTab, setSettingsTab] = useState(() => settingsAfterSwitchFor(workspace.id));
+  // `settingsAsk` counts the asks. Asking for the tab that was asked for last
+  // time leaves settingsTab unchanged, so the panel (which stays mounted, and
+  // may have been clicked over to another tab since) would not hear it; the
+  // count tells it to go to that tab again.
+  const [settingsAsk, setSettingsAsk] = useState(0);
   const openSettings = React.useCallback((tab = null) => {
     setSettingsTab(tab);
     setSettingsOpen(true);
+    setSettingsAsk((n) => n + 1);
   }, []);
 
   // Deep-link into Plan & billing when returning from the Stripe Customer
@@ -1171,6 +1178,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     window.addEventListener('soleil:open-invite', onOpenInvite);
     return () => window.removeEventListener('soleil:open-invite', onOpenInvite);
   }, [openInviteFriends]);
+  // The same for Profile (lib/openProfile.js): your own face on a comment, a
+  // message or the Share panel, and the "add your name and picture" note on
+  // the canvas. Settings draws above every other panel, so it shows over
+  // whichever one asked.
+  useEffect(() => {
+    const onOpenProfile = () => openSettings('profile');
+    window.addEventListener(OPEN_PROFILE_EVENT, onOpenProfile);
+    return () => window.removeEventListener(OPEN_PROFILE_EVENT, onOpenProfile);
+  }, [openSettings]);
 
   const currentId = stack[stack.length - 1];
   const currentBoard = boards[currentId] || rootBoard;
@@ -1223,16 +1239,34 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // email-derived defaults. Refetch when the AccountSettings modal closes
   // (user may have just saved). Falls back gracefully if the row is empty.
   const [ownProfile, setOwnProfile] = useState(null);
+  // An empty row and a row that hasn't arrived are both null above. This says
+  // which, so "no name or picture yet" is never said about a profile that is
+  // still on its way.
+  const [ownProfileLoaded, setOwnProfileLoaded] = useState(false);
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
     getOwnProfile({ userId: user.id })
-      .then(p => { if (!cancelled) setOwnProfile(p || null); })
+      .then(p => { if (!cancelled) { setOwnProfile(p || null); setOwnProfileLoaded(true); } })
       .catch(() => {});
     return () => { cancelled = true; };
     // Re-reads when Settings closes so the sidebar avatar picks up a profile
     // edit without a reload.
   }, [user?.id, settingsOpen]);
+  // A save in Settings > Profile lands here at once, so the corner of the
+  // sidebar (and your entry in userProfiles, through the effect that follows
+  // ownProfile) changes while the panel is still open. ProfileTab speaks
+  // {name, color, avatarUrl}; the row is {display_name, color, avatar_url}.
+  const onProfileSaved = React.useCallback((next) => {
+    if (!next) return;
+    setOwnProfile((prev) => ({
+      ...(prev || {}),
+      display_name: next.name || null,
+      color: next.color || null,
+      avatar_url: next.avatarUrl || null,
+    }));
+    setOwnProfileLoaded(true);
+  }, []);
 
   // Subscribed here rather than reading it off useCaptureMode below, because
   // userInfo has to re-derive the moment the persona flips and it is computed
@@ -9615,8 +9649,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       id: user.id,
       displayName: ownProfile?.display_name || null,
       color:       ownProfile?.color || null,
+      // undefined until the row has loaded: null would say "no picture" and
+      // wipe one the cache already holds.
+      avatarUrl:   ownProfileLoaded ? (ownProfile?.avatar_url || null) : undefined,
     });
-  }, [user?.id, ownProfile?.display_name, ownProfile?.color]);
+  }, [user?.id, ownProfile?.display_name, ownProfile?.color, ownProfile?.avatar_url, ownProfileLoaded]);
 
   // One realtime sub on public.profiles so any workspace mate changing
   // their name/color reflects everywhere (comments, archive, etc.)
@@ -10802,10 +10839,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         tr({ message: 'add, what, kinds, cards, image, note, doc, script, grid, cluster, file, video, pdf, palette, arrow', context: 'command search words',
           comment: 'Words people might type to find this command, comma-separated.' })),
       run: () => openHelpHub('palette_add') },
-    { id: 'account', label: tr`Account & billing`, icon: User, keywords: searchWords(['account', 'profile', 'billing', 'plan'],
-        tr({ message: 'account, profile, billing, plan', context: 'command search words',
+    { id: 'account', label: tr`Edit profile`, icon: User,
+      keywords: searchWords(['profile', 'name', 'display name', 'picture', 'photo', 'avatar', 'colour', 'color', 'account', 'me'],
+        tr({ message: 'profile, name, display name, picture, photo, avatar, colour, color, account, me', context: 'command search words',
           comment: 'Words people might type to find this command, comma-separated.' })),
       run: () => openSettings('profile') },
+    // Labelled as its Settings tab is (SettingsPanel TABS).
+    { id: 'billing', label: tr`Plan & billing`, icon: CreditCard,
+      keywords: searchWords(['billing', 'plan', 'upgrade', 'subscription', 'invoice', 'account'],
+        tr({ message: 'billing, plan, upgrade, subscription, invoice, account', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
+      run: () => openSettings('billing') },
     { id: 'invite', label: tr`Invite friends`, icon: UserPlus, keywords: searchWords(['invite', 'referral', 'friends', 'earn'],
         tr({ message: 'invite, referral, friends, earn', context: 'command search words',
           comment: 'Words people might type to find this command, comma-separated.' })),
@@ -11179,6 +11223,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const renderCanvas = () => (
           <Profiler id={`canvas-${isMain ? 'main' : 'split'}`} onRender={onCanvasRender}>
             <CanvasSurface board={board} boards={boards} boardsReady={boardsReady} cards={canvasCards} allCards={cards} arrows={arrows} strokes={strokes} groups={groups}
+                           profileAskable={ownProfileLoaded && !capturePersona && !ownProfile?.display_name && !ownProfile?.avatar_url}
                            onRevealUnplaced={(ids) => revealInFiles(board.id, ids, isMain)}
                            onMoveFilesHere={filesSidebar ? (payload, at, opts) => moveFilesHere(board.id, payload, at, opts) : null}
                            onMoveFiles={filesSidebar ? moveFilesBetween : null}
@@ -11580,36 +11625,41 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     )}
     </div>
   );
-  // The foot: the settings cog and your avatar. Both open the same panel and
-  // differ only in which tab it lands on: the cog is about the workspace, the
-  // avatar is about you.
+  // The foot: you, then Help and the settings cog. You and the cog open the
+  // same panel and differ only in which tab it lands on: your name is about
+  // you, the cog is about the workspace.
+  const meAvatarSrc = ownProfile?.avatar_url || '';
+  // With no display name the row asks for one in place of showing the first
+  // part of your address. Not while the profile is still loading, and not
+  // under a Capture persona, whose name stands in for yours.
+  const meNamed = !!ownProfile?.display_name || !ownProfileLoaded || !!capturePersona;
+  const meLabel = meNamed ? userInfo.name : tr`Add your name`;
   const sbFoot = (
     <div className="sb-foot">
+      <button type="button" className={`sb-foot-me${meNamed ? '' : ' is-ask'}`}
+              title={tr`Edit profile`} aria-label={tr`${ph({ name: meLabel })}, edit profile`}
+              onClick={() => openSettings('profile')}>
+        {meAvatarSrc ? (
+          <span className="sb-foot-face"><R2Image src={meAvatarSrc} alt="" /></span>
+        ) : (
+          <span className="sb-foot-face"
+                style={{ background: userInfo.color || pickPresenceColor(user.id) }}>
+            {/* With no avatar set this is the first letter of your
+                address, sitting in the corner of every screenshot. */}
+            {(maskEmail(user.email, user.id)?.[0] || 'Y').toUpperCase()}
+          </span>
+        )}
+        <span className="sb-foot-name" dir="auto">{meLabel}</span>
+        {/* The words under a pointer, the chevron under a finger; the
+            stylesheet shows one or neither. */}
+        <span className="sb-foot-cue" aria-hidden="true"><Trans>Edit profile</Trans></span>
+        <span className="sb-foot-chev" aria-hidden="true"><Icon as={ChevronRight} size={12} /></span>
+      </button>
       <HelpButton as="foot" via="sidebar" />
       <button className="sb-foot-icon" title={tr`Settings`} aria-label={tr`Settings`}
               onClick={() => openSettings('general')}>
         <Icon as={Settings} size={filesSidebar ? 16 : 14} weight={filesSidebar ? 'regular' : undefined} />
       </button>
-      {(() => {
-        const avatarSrc = ownProfile?.avatar_url || '';
-        if (avatarSrc) {
-          return (
-            <button className="sb-foot-avatar sb-foot-avatar-img" title={tr`Account`}
-                    onClick={() => openSettings('profile')}>
-              <R2Image src={avatarSrc} alt="" />
-            </button>
-          );
-        }
-        return (
-          <button className="sb-foot-avatar" title={tr`Account`}
-                  style={{ background: userInfo.color || pickPresenceColor(user.id) }}
-                  onClick={() => openSettings('profile')}>
-            {/* With no avatar set this is the first letter of your
-                address, sitting in the corner of every screenshot. */}
-            {(maskEmail(user.email, user.id)?.[0] || 'Y').toUpperCase()}
-          </button>
-        );
-      })()}
     </div>
   );
 
@@ -11834,13 +11884,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           {!filesSidebar && sbFoot}
         </div>
       </aside>
-      {/* One panel. The cog lands on the workspace group, the avatar on
+      {/* One panel. The cog lands on the workspace group, your name on
           Profile, and everything else is one click away in the same rail. */}
       <SettingsPanel
         open={settingsOpen}
         onClose={() => { setSettingsOpen(false); setSettingsTab(null); }}
         initialTab={settingsTab}
+        askKey={settingsAsk}
         user={user}
+        // null until the row has loaded, so the phone's "you" card doesn't ask
+        // for a name that is on its way.
+        ownProfile={ownProfileLoaded ? (ownProfile || {}) : null}
+        onProfileSaved={onProfileSaved}
         onSignOut={signOut}
         workspaceId={workspace?.id}
         workspaceName={workspace?.name}

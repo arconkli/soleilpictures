@@ -22,6 +22,8 @@ import { initialOf } from '../lib/graphemes.js';
 import { formatDate } from '../lib/intlFormat.js';
 import { t, ph } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { PersonFace } from './PersonFace.jsx';
+import { openProfile } from '../lib/openProfile.js';
 
 // One message row in a thread.
 //   msg              — full row from messages table
@@ -268,22 +270,24 @@ export const MessageBubble = memo(function MessageBubble({
           </time>
         ) : (
           <>
+            {/* Someone else's face opens a DM with them, as before. Your own
+                opens your profile, and keeps its press from the row. */}
             {!isMine && openDm ? (
-              <button
-                type="button"
-                className="msg-bubble-avatar is-clickable"
-                style={{ background: senderColor }}
-                onClick={() => openDm(msg.sender_id)}
-                title={t`Message ${senderName}`}
-              >
-                {initialOf(senderName, '')}
-              </button>
+              <PersonFace userId={msg.sender_id} name={senderName} color={senderColor}
+                          initial={initialOf(senderName, '')}
+                          className="msg-bubble-avatar is-clickable"
+                          onClick={() => openDm(msg.sender_id)}
+                          title={t`Message ${senderName}`} />
+            ) : isMine ? (
+              <PersonFace userId={msg.sender_id} name={senderName} color={senderColor}
+                          initial={initialOf(senderName, '')}
+                          className="msg-bubble-avatar"
+                          onClick={() => openProfile('message')} isolate
+                          title={t`Edit profile`} ariaLabel={t`Edit profile`} />
             ) : (
-              <span className="msg-bubble-avatar"
-                    aria-hidden="true"
-                    style={{ background: senderColor }}>
-                {initialOf(senderName, '')}
-              </span>
+              <PersonFace userId={msg.sender_id} name={senderName} color={senderColor}
+                          initial={initialOf(senderName, '')}
+                          className="msg-bubble-avatar" ariaHidden />
             )}
             <span className="msg-bubble-author" dir="auto">{senderName}</span>
             {sendState ? (

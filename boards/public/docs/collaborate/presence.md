@@ -2,7 +2,7 @@
 
 > When several people are in a cluster you see each other's cursors, selections and text carets live. A facepile shows who is on the current board, and a workspace facepile shows who is anywhere in the workspace — clicking someone jumps you to whatever board they are on. Everyone has a stable colour that stays the same across sessions.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/presence · Updated 2026-08-08_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/presence · Updated 2026-11-15_
 
 Presence answers "who else is here and what are they doing" without anyone
 having to say.
@@ -12,7 +12,7 @@ having to say.
 - **Live cursors**, each labelled with a name
 - **Selection halos** — what someone has selected is outlined in their colour
 - **Text carets** inside [notes](/docs/canvas/notes) and [documents](/docs/documents), so you can see where someone is typing before the words appear
-- **A facepile** in the header, with the full roster on click
+- **A facepile** in the header — each person's picture, or their initial on their colour until they add one — with the full roster on click
 
 ## Across the workspace
 
@@ -27,7 +27,7 @@ call, this replaces "which board are you on, send me the link".
 Each person has a stable presence colour. It does not change between sessions,
 so a colour becomes a person you recognise.
 
-Set your own in **Settings → Profile**.
+Set your own in **[Settings → Profile](/docs/account/settings#profile)**, along with your picture and name.
 
 ## At scale
 

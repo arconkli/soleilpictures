@@ -29,7 +29,9 @@ import { useFeedback } from './AppFeedback.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { SettingsSaveProvider, useSettingsSaveState, SettingsSavedFlash } from './settings/saveState.jsx';
 import { ProfileTab } from './settings/ProfileTab.jsx';
-import AccountBox from './settings/AccountBox.jsx';
+import { R2Image } from './R2Image.jsx';
+import { pickPresenceColor } from '../lib/presenceColor.js';
+import { initialOf } from '../lib/graphemes.js';
 import { AppearanceTab } from './settings/AppearanceTab.jsx';
 import { NotificationsTab } from './settings/NotificationsTab.jsx';
 import { ConnectionsTab } from './settings/ConnectionsTab.jsx';
@@ -41,6 +43,7 @@ import { MembersTab } from './settings/MembersTab.jsx';
 import { DocsTab } from './settings/DocsTab.jsx';
 import { t as tr } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import './settings/settingsProfile.css';
 // Lazy so nobody but an admin who opens the tab ever downloads it — the same
 // reason AdminPage is lazy in TierRouter.
 const CaptureTab = lazyWithReload(() => import('./settings/CaptureTab.jsx').then(m => ({ default: m.CaptureTab })));
@@ -131,6 +134,16 @@ export function SettingsPanel({
   // Which tab this open is about. The avatar sends 'profile', the cog sends
   // 'general', the phone's bottom nav sends nothing (and gets the list).
   initialTab = null,
+  // Counts the asks to open (App's openSettings). A second ask for the tab the
+  // last one named leaves initialTab as it was; this changing is how the panel
+  // knows to go there again after the person has clicked over to another tab.
+  askKey = 0,
+  // Your own profile row ({ display_name, color, avatar_url }) for the "you"
+  // card that heads the phone's list; null while it is still loading.
+  ownProfile = null,
+  // Called with { name, color, avatarUrl } after each Profile save, so the
+  // sidebar corner follows while the panel is open. onSaved stays what it was.
+  onProfileSaved,
   // tier === 'admin'. Appends ADMIN_TABS to the rail. The UI gate is cosmetic
   // — every admin capability behind it is gated server-side — but Capture is
   // pure client-side staging, so this IS its gate, and captureState refuses to
@@ -164,10 +177,10 @@ export function SettingsPanel({
   // Adjust-state-during-render rather than an effect. The panel stays mounted
   // across close/reopen, so an effect would paint one frame of whichever tab
   // was open last before snapping to the one this open is about.
-  const [sync, setSync] = useState({ open, tab: initialTab });
-  if (open !== sync.open || initialTab !== sync.tab) {
+  const [sync, setSync] = useState({ open, tab: initialTab, ask: askKey });
+  if (open !== sync.open || initialTab !== sync.tab || askKey !== sync.ask) {
     const fresh = !sync.open;
-    setSync({ open, tab: initialTab });
+    setSync({ open, tab: initialTab, ask: askKey });
     if (open) {
       const t = resolveTab(initialTab, tabs);
       if (t) { setTab(t); setDetail(true); }
@@ -269,6 +282,16 @@ export function SettingsPanel({
 
   const showBack = stacked && detail;
 
+  // The phone list's "you" card: what other people see of you, and the one
+  // line that says what is still missing.
+  const meName = ownProfile?.display_name || user?.email?.split('@')[0] || '';
+  const mePicture = ownProfile?.avatar_url || '';
+  const meMissing = !ownProfile ? null
+    : (!ownProfile.display_name && !mePicture) ? tr`Add your name and picture`
+    : !mePicture ? tr`Add a picture`
+    : !ownProfile.display_name ? tr`Add your name`
+    : null;
+
   return createPortal(
     <div className="settings-bg" onMouseDown={onClose}>
       <div className="settings-modal" ref={modalRef}
@@ -292,11 +315,37 @@ export function SettingsPanel({
         <div className={`settings-body${stacked ? (detail ? ' is-detail' : ' is-list') : ''}`}>
           <nav className="settings-tabs" role="tablist" aria-label={tr`Settings`}
                aria-orientation="vertical" onKeyDown={onRailKeyDown}>
-            {stacked && onSignOut && <AccountBox email={user?.email} onSignOut={signOut} />}
+            {/* On a phone the list opens with you. The card is the way into
+                Profile, so it takes the Profile row's place (and its id, which
+                the pane is labelled by); it is not a .settings-tab. */}
+            {stacked && (
+              <div className="settings-me">
+                <button type="button" className="settings-me-main"
+                        id="settings-tab-profile"
+                        ref={(el) => { railRefs.current.profile = el; }}
+                        onClick={() => selectTab('profile')}>
+                  <span className="settings-me-face"
+                        style={mePicture ? undefined : { background: ownProfile?.color || pickPresenceColor(user?.id || user?.email || '') }}>
+                    {mePicture
+                      ? <R2Image src={mePicture} alt="" />
+                      : initialOf(meName || user?.email)}
+                  </span>
+                  <span className="settings-me-text">
+                    <span className="settings-me-name" dir="auto">{meName}</span>
+                    <span className="settings-me-email">{user?.email}</span>
+                    {meMissing && <span className="settings-me-add">{meMissing}</span>}
+                  </span>
+                  <Icon as={ChevronRight} size={14} className="settings-me-chev" />
+                </button>
+                {onSignOut && (
+                  <button type="button" className="settings-me-out" onClick={signOut}><Trans>Sign out</Trans></button>
+                )}
+              </div>
+            )}
             {groups.map(g => (
               <div key={g.id} className="settings-tabs-group">
                 <span className="settings-tabs-grouplabel" role="presentation">{g.label}</span>
-                {tabs.filter(t => t.group === g.id).map(t => (
+                {tabs.filter(t => t.group === g.id && !(stacked && t.id === 'profile')).map(t => (
                   <button key={t.id}
                           type="button"
                           role="tab"
@@ -329,6 +378,7 @@ export function SettingsPanel({
             <SettingsSaveProvider value={save}>
               {tab === 'profile' && (
                 <ProfileTab user={user} workspaceId={workspaceId} onSaved={onSaved}
+                            onProfileSaved={onProfileSaved}
                             onSignOut={onSignOut ? signOut : undefined} />
               )}
               {tab === 'appearance' && (
@@ -361,6 +411,7 @@ export function SettingsPanel({
                             workspaceName={workspaceName}
                             user={user}
                             role={role}
+                            onOpenProfile={() => selectTab('profile')}
                             onWorkspacesChanged={onWorkspacesChanged} />
               )}
               {tab === 'defaults' && (

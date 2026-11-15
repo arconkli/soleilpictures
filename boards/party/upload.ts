@@ -60,6 +60,9 @@ import { answeredWith } from "../src/lib/serverErrors.js";
 import { attachmentDisposition } from "../src/lib/attachmentDisposition.js";
 import { bundleRefusalStatus } from "../src/lib/bundleRefusal.js";
 import {
+  avatarInList, avatarOwnersByKey, keysInList, profilePictureCandidates, signableProfileKeys,
+} from "../src/lib/profilePictureKeys.js";
+import {
   FILE_SHARE_CACHE_CONTROL, FILE_SHARE_URL_TTL_SECONDS, FILE_TOKEN_RE, fileShareResponse,
 } from "../src/lib/fileShareBundle.js";
 import {
@@ -1078,7 +1081,55 @@ export class UploadParty {
     });
   }
 
-  // POST /sign-reads — batch presign read URLs. RLS does the filter.
+  // Profile pictures the images read above refused (lib/profilePictureKeys.js).
+  // A picture is uploaded with no cluster under whichever workspace was open,
+  // so someone who shares a different workspace with its owner cannot read its
+  // images row and saw an initial. Two reads decide: member_profiles as the
+  // caller (0382: your own row, your workspace-mates', everyone's for an admin)
+  // says whose picture a key is; images as the service role says the key is
+  // that person's own never-used picture. The second is needed because
+  // avatar_url is written by the client, so someone removed from a workspace
+  // can point their own profile at any key they know there and read their
+  // own row. What the second read closes:
+  //   - someone else's upload (uploaded_by must be the profile's owner);
+  //   - anything ever used on a cluster (board_id, or first_referenced_at,
+  //     which stays set after the cluster is hard-deleted and board_id goes
+  //     null), attached to a card (card_id), named (original_name: file and
+  //     API drops carry the file's name, the profile upload carries none) or
+  //     deleted (deleted_at);
+  //   - files that aren't pictures (the key's extension, checked before
+  //     either read).
+  // What remains: your own never-used pictures, such as an earlier profile
+  // picture or a workspace icon you uploaded. Any failure answers with no
+  // keys; this never fails the request.
+  private async profilePictureKeys(
+    requested: string[], allowedKeys: Set<string>, accessToken: string,
+  ): Promise<Set<string>> {
+    const none = new Set<string>();
+    const svc = String(this.room.env.SUPABASE_SERVICE_ROLE_KEY || "");
+    if (!svc) return none;
+    const candidates = profilePictureCandidates(requested, allowedKeys);
+    if (!candidates.length) return none;
+    try {
+      const profiles = await supabaseGet(
+        `member_profiles?avatar_url=${encodeURIComponent(avatarInList(candidates))}&select=user_id,avatar_url`,
+        accessToken,
+      );
+      const owners = avatarOwnersByKey(profiles);
+      if (!owners.size) return none;
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/images?select=storage_path,board_id,card_id,first_referenced_at,original_name,deleted_at,uploaded_by&board_id=is.null&card_id=is.null&first_referenced_at=is.null&original_name=is.null&deleted_at=is.null&storage_path=${encodeURIComponent(keysInList([...owners.keys()]))}`,
+        { headers: { apikey: svc, Authorization: `Bearer ${svc}`, Accept: "application/json" } },
+      );
+      if (!res.ok) return none;
+      return signableProfileKeys(owners, await res.json());
+    } catch (_) {
+      return none;
+    }
+  }
+
+  // POST /sign-reads — batch presign read URLs. RLS does the filter, plus
+  // profile pictures of people the caller may see (profilePictureKeys above).
   async handleSignReads(
     req: Request, accessToken: string,
     env: R2Env, origin: string | null,
@@ -1109,6 +1160,7 @@ export class UploadParty {
     const allowedKeys = new Set<string>(
       Array.isArray(rows) ? rows.map((r: any) => r.storage_path) : []
     );
+    for (const key of await this.profilePictureKeys(requested, allowedKeys, accessToken)) allowedKeys.add(key);
 
     const r2 = new AwsClient({
       accessKeyId: env.accessKeyId,

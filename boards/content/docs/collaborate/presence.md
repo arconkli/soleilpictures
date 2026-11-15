@@ -5,11 +5,11 @@ h1: Presence
 navLabel: Presence
 section: collaborate
 order: 2
-updated: 2026-08-08
+updated: 2026-11-15
 answer: When several people are in a cluster you see each other's cursors, selections and text carets live. A facepile shows who is on the current board, and a workspace facepile shows who is anywhere in the workspace — clicking someone jumps you to whatever board they are on. Everyone has a stable colour that stays the same across sessions.
 faq:
   - q: Can I see what someone is looking at without asking?
-    a: Yes. Click their avatar in the workspace facepile and you jump to the board they are on.
+    a: Yes. Click their picture in the workspace facepile and you jump to the board they are on.
   - q: Do presence colours change?
     a: No. Each person keeps a stable colour, and you can set your own in Settings under Profile.
   - q: What happens when a lot of people are on one board?
@@ -28,7 +28,7 @@ having to say.
 - **Live cursors**, each labelled with a name
 - **Selection halos** — what someone has selected is outlined in their colour
 - **Text carets** inside [notes](/docs/canvas/notes) and [documents](/docs/documents), so you can see where someone is typing before the words appear
-- **A facepile** in the header, with the full roster on click
+- **A facepile** in the header — each person's picture, or their initial on their colour until they add one — with the full roster on click
 
 ## Across the workspace
 
@@ -43,7 +43,7 @@ call, this replaces "which board are you on, send me the link".
 Each person has a stable presence colour. It does not change between sessions,
 so a colour becomes a person you recognise.
 
-Set your own in **Settings → Profile**.
+Set your own in **[Settings → Profile](/docs/account/settings#profile)**, along with your picture and name.
 
 ## At scale
 

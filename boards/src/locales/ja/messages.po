@@ -2059,6 +2059,10 @@ msgstr "{name}がこのページを編集中：そこへ移動"
 msgid "{name} is here"
 msgstr "{name}がここにいます"
 
+#: src/components/CanvasSurface.jsx
+msgid "{name} is here too. Add your name and picture so people know who you are."
+msgstr "{name}もここにいます。名前と画像を追加して、あなたが誰なのか分かるようにしましょう。"
+
 #: src/pages/MakePage.jsx
 msgid "{name} is in {space}, with room for {roomText} on the free plan."
 msgstr "{name}は{space}にあり、無料プランであと{roomText}追加できます。"
@@ -2129,6 +2133,10 @@ msgstr "{name}は、あなたの会社のメールを使っています"
 #: src/components/doc/DocFindTab.jsx
 msgid "{name}, {0, plural, one {# hit} other {# hits}}"
 msgstr "{name}、{0, plural, other {#件}}"
+
+#: src/App.jsx
+msgid "{name}, edit profile"
+msgstr "{name}、プロフィールを編集"
 
 #: src/components/team/TeamPage.jsx
 msgid "{name}, team"
@@ -3582,23 +3590,9 @@ msgstr "招待する人のアクセスレベル"
 msgid "Access: {value}"
 msgstr "アクセス権: {value}"
 
-#: src/App.jsx
-msgid "Account"
-msgstr "アカウント"
-
-#: src/App.jsx
-msgid "Account & billing"
-msgstr "アカウントとお支払い"
-
 #: src/auth/TierRouter.jsx
 msgid "Account suspended"
 msgstr "アカウントが停止されています"
-
-#. Words people might type to find this command, comma-separated.
-#: src/App.jsx
-msgctxt "command search words"
-msgid "account, profile, billing, plan"
-msgstr "アカウント、プロフィール、お支払い、プラン、請求"
 
 #: src/components/settings/AccountEditorsCard.jsx
 msgid "Across all of {owner}’s workspaces. {owner}’s plan has room for {limit}, and viewers don’t count."
@@ -3770,6 +3764,15 @@ msgstr "メモを追加"
 #: src/components/settings/PasskeysSection.jsx
 msgid "Add a passkey"
 msgstr "パスキーを追加"
+
+#: src/components/settings/fields.jsx
+#: src/components/SettingsPanel.jsx
+msgid "Add a picture"
+msgstr "画像を追加"
+
+#: src/components/settings/fields.jsx
+msgid "Add a profile picture"
+msgstr "プロフィール画像を追加"
 
 #: src/components/CanvasVoteCard.jsx
 msgid "Add a question…"
@@ -4033,6 +4036,11 @@ msgstr "最初の画像を追加"
 msgid "Add the highlighted file to the selection · take it out"
 msgstr "ハイライトしたファイルを選択に追加 · 外す"
 
+#. Button on the note asking for your name and picture. Opens your profile so you can add them.
+#: src/components/CanvasSurface.jsx
+msgid "Add them"
+msgstr "追加"
+
 #: src/components/team/TeamJoining.jsx
 msgid "Add this TXT record to its DNS, then check."
 msgstr "このTXTレコードをDNSに追加してから、確認してください。"
@@ -4114,6 +4122,15 @@ msgstr "最初のページを追加"
 #: src/lib/onboardingTourWords.js
 msgid "Add your first photos — or anything else. This is your canvas."
 msgstr "最初の写真を追加しましょう。ほかのものでも構いません。ここがあなたのキャンバスです。"
+
+#: src/App.jsx
+#: src/components/SettingsPanel.jsx
+msgid "Add your name"
+msgstr "名前を追加"
+
+#: src/components/SettingsPanel.jsx
+msgid "Add your name and picture"
+msgstr "名前と画像を追加"
 
 #: src/lib/onboardingTourWords.js
 msgid "Add your photos"
@@ -5067,6 +5084,12 @@ msgstr "お支払い"
 msgid "Billing interval"
 msgstr "お支払い間隔"
 
+#. Words people might type to find this command, comma-separated.
+#: src/App.jsx
+msgctxt "command search words"
+msgid "billing, plan, upgrade, subscription, invoice, account"
+msgstr "お支払い、プラン、プラン変更、サブスクリプション、請求書、支払い、アカウント"
+
 #: src/lib/docBarState.js
 msgid "Black"
 msgstr "黒"
@@ -5701,6 +5724,14 @@ msgstr "カードを変更"
 #: src/components/SidebarBoardTree.jsx
 msgid "Change color"
 msgstr "色を変更"
+
+#: src/components/settings/fields.jsx
+msgid "Change picture"
+msgstr "画像を変更"
+
+#: src/components/settings/fields.jsx
+msgid "Change profile picture"
+msgstr "プロフィール画像を変更"
 
 #: src/components/toolbar/NoteBarA.jsx
 msgid "Changes apply to"
@@ -9034,6 +9065,15 @@ msgstr "写真を編集"
 #: src/components/CanvasSurface.jsx
 msgid "Edit photo…"
 msgstr "写真を編集…"
+
+#: src/App.jsx
+#: src/components/CanvasComment.jsx
+#: src/components/CommentInlinePopover.jsx
+#: src/components/MessageBubble.jsx
+#: src/components/settings/MembersTab.jsx
+#: src/components/ShareModal.jsx
+msgid "Edit profile"
+msgstr "プロフィールを編集"
 
 #: src/components/CanvasSurface.jsx
 msgid "Edit title"
@@ -14126,6 +14166,7 @@ msgstr "ブラウザ上ではありません。"
 msgid "Not linked anywhere"
 msgstr "どこからもリンクされていません"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/FirstValueUpgradeBanner.jsx
 #: src/components/NotificationsPanel.jsx
 #: src/components/ReturnReasonAsk.jsx
@@ -16124,6 +16165,7 @@ msgstr "カードの位置と大きさを示す、ただの四角形です。中
 msgid "Plan"
 msgstr "プラン"
 
+#: src/App.jsx
 #: src/components/settings/BillingTab.jsx
 #: src/components/SettingsPanel.jsx
 msgid "Plan & billing"
@@ -16456,6 +16498,12 @@ msgstr "プロフィール"
 #: src/components/settings/ProfileTab.jsx
 msgid "Profile picture"
 msgstr "プロフィール画像"
+
+#. Words people might type to find this command, comma-separated.
+#: src/App.jsx
+msgctxt "command search words"
+msgid "profile, name, display name, picture, photo, avatar, colour, color, account, me"
+msgstr "プロフィール、名前、表示名、画像、写真、アイコン、アバター、色、アカウント、自分"
 
 #: src/components/CanvasSurface.jsx
 msgid "Project name"
@@ -19240,6 +19288,7 @@ msgid "someone"
 msgstr "誰か"
 
 #: src/App.jsx
+#: src/components/CanvasSurface.jsx
 #: src/components/cards/CardTransferState.jsx
 #: src/components/clusterBrowser/ClusterRow.jsx
 #: src/components/clusterBrowser/FolderTiles.jsx
@@ -23158,10 +23207,6 @@ msgstr "主に何に使っていますか？"
 msgid "What else is new"
 msgstr "そのほかの新機能"
 
-#: src/components/settings/ProfileTab.jsx
-msgid "What everyone you share a cluster with sees. Changes save as you make them."
-msgstr "クラスターを共有している全員に表示される内容です。変更は自動的に保存されます。"
-
 #: src/components/FeedbackButton.jsx
 msgid "What happened, and what did you expect? (optional)"
 msgstr "何が起きましたか？期待していた動作は何ですか？（任意）"
@@ -23205,6 +23250,10 @@ msgstr "どんな仕事ですか？"
 #: src/components/settings/WorkspaceTab.jsx
 msgid "What may go to an AI model"
 msgstr "AIモデルに送信されるもの"
+
+#: src/components/settings/ProfileTab.jsx
+msgid "What people in your workspaces see: your picture, name and colour. Changes save as you make them."
+msgstr "ワークスペースのメンバーには、あなたの画像、名前、色が表示されます。変更は自動的に保存されます。"
 
 #: src/components/FeedbackButton.jsx
 msgid "What should we know? (optional)"

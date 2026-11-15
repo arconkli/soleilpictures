@@ -358,7 +358,7 @@ const SCREENS = [
         await clickText(page, L('Version history'));
       }, closeAll);
       await ctx.step('chrome-more-menu', async () => { await page.locator('.chrome-more-btn').click(); }, closeAll);
-      await ctx.step('account-settings-profile', async () => { await page.locator('.sb-foot-avatar').click(); }, closeAll);
+      await ctx.step('account-settings-profile', async () => { await page.locator('.sb-foot-me').click(); }, closeAll);
       await ctx.step('notifications', async () => { await page.locator('.nb-bell').click(); }, closeAll);
       await ctx.step('add-menu', async () => { await page.locator(`[aria-label="${L('Add menu')}"]`).click(); }, closeAll);
       await ctx.step('background-menu', async () => { await bg(page); }, closeAll);

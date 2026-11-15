@@ -9,9 +9,9 @@
 //      every entry in the workspace presence list).
 //   2. populateFromUser({ id, email, name }) — pre-seed the current
 //      user's row at app boot (saves a roundtrip for self).
-//   3. populateFromOwnProfile({ id, displayName, color }) — overwrites
-//      with the current user's *real* set display_name + color once
-//      ownProfile finishes loading from Supabase.
+//   3. populateFromOwnProfile({ id, displayName, color, avatarUrl }) —
+//      overwrites with the current user's *real* set display_name, color
+//      and picture once ownProfile finishes loading from Supabase.
 //   4. resolve(userId) — async; coalesces unknown ids into a single
 //      microtask-batched users_by_ids + getProfilesByIds RPC pair.
 //
@@ -27,13 +27,15 @@
 import { supabase } from './supabase.js';
 import { pickPresenceColor } from './presenceColor.js';
 import { maskProfile } from './captureIdentity.js';
-import { getProfilesByIds } from './boardsApi.js';
+import { getProfilesByIds } from './memberProfilesApi.js';
 import { emailToName } from './personName.js';
 import { t } from '@lingui/core/macro';
 
 export { emailToName };
 
-const cache = new Map();         // userId → { name, email, color, hasProfile }
+// avatarUrl is member_profiles.avatar_url as stored: 'r2:<key>', an https URL,
+// or null. PersonFace turns it into a picture.
+const cache = new Map();         // userId → { name, email, color, avatarUrl, hasProfile }
 const subscribers = new Set();
 const inflight = new Set();       // ids currently being fetched (avoid duplicate roundtrips)
 let pendingIds = new Set();
@@ -86,13 +88,19 @@ export function populateFromUser({ id, email, name }) {
 // profile row has loaded. display_name + color from `profiles`
 // always wins over email-derived fallbacks; we mark hasProfile so
 // resolve() short-circuits and doesn't re-fetch.
-export function populateFromOwnProfile({ id, displayName, color }) {
+//
+// avatarUrl: pass the saved picture, or null once it is removed. Left out
+// (undefined), the picture already cached stays, so a caller that only knows
+// the name and colour can't wipe it.
+export function populateFromOwnProfile({ id, displayName, color, avatarUrl }) {
   if (!id) return;
-  setEntry(id, {
+  const partial = {
     name: displayName || undefined,
     color: color || undefined,
     hasProfile: true,
-  });
+  };
+  if (avatarUrl !== undefined) partial.avatarUrl = avatarUrl || null;
+  setEntry(id, partial);
   notify();
 }
 
@@ -171,6 +179,7 @@ async function flushPending() {
         setEntry(id, {
           name: row?.display_name || undefined,
           color: row?.color || undefined,
+          avatarUrl: row?.avatar_url || null,
           hasProfile: true,
         });
       }
@@ -218,17 +227,22 @@ export function subscribeToProfileChanges() {
             ...prev,
             name: prev.email ? emailToName(prev.email) : undefined,
             color: pickPresenceColor(uid),
+            avatarUrl: null,
             hasProfile: false,
           });
           notify();
         }
         return;
       }
-      setEntry(uid, {
+      const next = {
         name: payload.new?.display_name || undefined,
         color: payload.new?.color || undefined,
         hasProfile: true,
-      });
+      };
+      // Only when the change carries the column, so a payload without it
+      // can't take away a picture we already hold.
+      if (payload.new && 'avatar_url' in payload.new) next.avatarUrl = payload.new.avatar_url || null;
+      setEntry(uid, next);
       notify();
     })
     .subscribe();

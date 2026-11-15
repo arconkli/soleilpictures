@@ -22,10 +22,19 @@ import { relativeTimeShort } from '../lib/relativeTime.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { isComposingKey } from '../lib/composerKeys.js';
-import { initialOf } from '../lib/graphemes.js';
 import { t as tr, ph, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { shownError } from '../lib/errorWords.js';
+import { PersonFace } from './PersonFace.jsx';
+import { openProfile } from '../lib/openProfile.js';
+
+// Your own face on a comment opens Settings on Profile; anyone else's is just
+// a face beside their name. In the collapsed card the face sits inside the
+// card's own button, so there it is a span that acts as one. A function, so
+// the label is read in the viewer's language when the face is drawn.
+const editOwnProfile = () => openProfile('comment');
+const selfFace = () => ({ onClick: editOwnProfile, isolate: true, title: tr`Edit profile`, ariaLabel: tr`Edit profile` });
+const OTHER_FACE = { ariaHidden: true };
 
 export function CanvasCommentLayer({
   comments, boardId, workspaceId, userId, wsPeers = [],
@@ -608,11 +617,12 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
                 setOpen(o => !o);
               }}>
         <span className="canvas-comment-card-head">
-          <span className="canvas-comment-avatar"
-                style={{ background: authorColor }}
-                aria-hidden="true">
-            {initialOf(author)}
-          </span>
+          {/* Your own face opens your profile. A span, not a button: it sits
+              inside the card's button. isolate keeps the press from starting
+              a drag and the click from opening the thread. */}
+          <PersonFace userId={comment.author} name={author} color={authorColor}
+                      className="canvas-comment-avatar"
+                      {...(isAuthor ? { ...selfFace(), as: 'span' } : OTHER_FACE)} />
           <span className="canvas-comment-author">{author}</span>
           <span className="canvas-comment-when">{relativeTimeShort(comment.created_at)}</span>
           {comment.resolved && <span className="canvas-comment-tag"><Trans>resolved</Trans></span>}
@@ -638,6 +648,8 @@ function CanvasCommentBubble({ comment, replies, boardId, workspaceId, userId, w
                          c={r}
                          authorName={ra.name}
                          authorColor={ra.color}
+                         authorId={r.author}
+                         isSelf={r.author === userId}
                          canManage={r.author === userId}
                          onDelete={async () => {
                            try {
@@ -885,10 +897,9 @@ export function CommentArchivePopover({
           return (
             <div key={c.id} className={`comment-archive-row is-${status}`}>
               <div className="comment-archive-row-head">
-                <span className="canvas-comment-avatar canvas-comment-avatar-sm"
-                      style={{ background: color }}>
-                  {initialOf(name)}
-                </span>
+                <PersonFace userId={c.author} name={name} color={color}
+                            className="canvas-comment-avatar canvas-comment-avatar-sm"
+                            {...(c.author === userId ? selfFace() : OTHER_FACE)} />
                 <span className="canvas-comment-author">{name}</span>
                 <span className="canvas-comment-when">{relativeTimeShort(c.created_at)}</span>
                 <span className={`comment-archive-tag is-${status}`}>{status}</span>
@@ -910,15 +921,15 @@ export function CommentArchivePopover({
   );
 }
 
-function CommentLine({ c, authorName, authorColor, canManage, onDelete }) {
+// authorId finds the author's picture; isSelf makes your own face the way to
+// your profile.
+function CommentLine({ c, authorName, authorColor, authorId = null, isSelf = false, canManage, onDelete }) {
   return (
     <div className="canvas-comment-line">
       <span className="canvas-comment-line-head">
-        <span className="canvas-comment-avatar canvas-comment-avatar-sm"
-              style={{ background: authorColor }}
-              aria-hidden="true">
-          {initialOf(authorName)}
-        </span>
+        <PersonFace userId={authorId} name={authorName} color={authorColor}
+                    className="canvas-comment-avatar canvas-comment-avatar-sm"
+                    {...(isSelf ? selfFace() : OTHER_FACE)} />
         <span className="canvas-comment-line-name" dir="auto">{authorName}</span>
         <span className="canvas-comment-line-when">{relativeTimeShort(c.created_at)}</span>
         {canManage && (

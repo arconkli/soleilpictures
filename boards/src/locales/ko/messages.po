@@ -2059,6 +2059,10 @@ msgstr "{name}님이 이 페이지를 편집 중 — 그쪽으로 이동"
 msgid "{name} is here"
 msgstr "{name}: 여기 있어요"
 
+#: src/components/CanvasSurface.jsx
+msgid "{name} is here too. Add your name and picture so people know who you are."
+msgstr "{name}님도 여기 있어요. 이름과 사진을 추가해서 내가 누구인지 알려 주세요."
+
 #: src/pages/MakePage.jsx
 msgid "{name} is in {space}, with room for {roomText} on the free plan."
 msgstr "{name}이(가) {space}에 있어요. 무료 요금제에서 {roomText} 더 담을 여유가 있어요."
@@ -2129,6 +2133,10 @@ msgstr "회사 이메일을 쓰는 팀: {name}"
 #: src/components/doc/DocFindTab.jsx
 msgid "{name}, {0, plural, one {# hit} other {# hits}}"
 msgstr "{name}, {0, plural, other {#건 일치}}"
+
+#: src/App.jsx
+msgid "{name}, edit profile"
+msgstr "{name}, 프로필 편집"
 
 #: src/components/team/TeamPage.jsx
 msgid "{name}, team"
@@ -3582,23 +3590,9 @@ msgstr "초대받는 사람의 액세스 수준"
 msgid "Access: {value}"
 msgstr "액세스: {value}"
 
-#: src/App.jsx
-msgid "Account"
-msgstr "계정"
-
-#: src/App.jsx
-msgid "Account & billing"
-msgstr "계정 및 결제"
-
 #: src/auth/TierRouter.jsx
 msgid "Account suspended"
 msgstr "계정 정지됨"
-
-#. Words people might type to find this command, comma-separated.
-#: src/App.jsx
-msgctxt "command search words"
-msgid "account, profile, billing, plan"
-msgstr "계정, 프로필, 결제, 요금제, 구독"
 
 #: src/components/settings/AccountEditorsCard.jsx
 msgid "Across all of {owner}’s workspaces. {owner}’s plan has room for {limit}, and viewers don’t count."
@@ -3770,6 +3764,15 @@ msgstr "메모 추가"
 #: src/components/settings/PasskeysSection.jsx
 msgid "Add a passkey"
 msgstr "패스키 추가"
+
+#: src/components/settings/fields.jsx
+#: src/components/SettingsPanel.jsx
+msgid "Add a picture"
+msgstr "사진 추가"
+
+#: src/components/settings/fields.jsx
+msgid "Add a profile picture"
+msgstr "프로필 사진 추가"
 
 #: src/components/CanvasVoteCard.jsx
 msgid "Add a question…"
@@ -4033,6 +4036,11 @@ msgstr "첫 이미지 추가"
 msgid "Add the highlighted file to the selection · take it out"
 msgstr "강조된 파일을 선택에 추가 · 선택에서 빼기"
 
+#. Button on the note asking for your name and picture. Opens your profile so you can add them.
+#: src/components/CanvasSurface.jsx
+msgid "Add them"
+msgstr "추가하기"
+
 #: src/components/team/TeamJoining.jsx
 msgid "Add this TXT record to its DNS, then check."
 msgstr "이 TXT 레코드를 DNS에 추가한 뒤 확인하세요."
@@ -4114,6 +4122,15 @@ msgstr "첫 페이지 추가"
 #: src/lib/onboardingTourWords.js
 msgid "Add your first photos — or anything else. This is your canvas."
 msgstr "첫 사진을 추가하세요 — 다른 무엇이든 괜찮아요. 여기가 캔버스예요."
+
+#: src/App.jsx
+#: src/components/SettingsPanel.jsx
+msgid "Add your name"
+msgstr "이름 추가"
+
+#: src/components/SettingsPanel.jsx
+msgid "Add your name and picture"
+msgstr "이름과 사진 추가"
 
 #: src/lib/onboardingTourWords.js
 msgid "Add your photos"
@@ -5067,6 +5084,12 @@ msgstr "결제"
 msgid "Billing interval"
 msgstr "결제 주기"
 
+#. Words people might type to find this command, comma-separated.
+#: src/App.jsx
+msgctxt "command search words"
+msgid "billing, plan, upgrade, subscription, invoice, account"
+msgstr "결제, 요금제, 요금제 변경, 구독, 청구서, 계정"
+
 #: src/lib/docBarState.js
 msgid "Black"
 msgstr "검은색"
@@ -5701,6 +5724,14 @@ msgstr "카드 변경"
 #: src/components/SidebarBoardTree.jsx
 msgid "Change color"
 msgstr "색상 변경"
+
+#: src/components/settings/fields.jsx
+msgid "Change picture"
+msgstr "사진 변경"
+
+#: src/components/settings/fields.jsx
+msgid "Change profile picture"
+msgstr "프로필 사진 변경"
 
 #: src/components/toolbar/NoteBarA.jsx
 msgid "Changes apply to"
@@ -9034,6 +9065,15 @@ msgstr "사진 편집"
 #: src/components/CanvasSurface.jsx
 msgid "Edit photo…"
 msgstr "사진 편집…"
+
+#: src/App.jsx
+#: src/components/CanvasComment.jsx
+#: src/components/CommentInlinePopover.jsx
+#: src/components/MessageBubble.jsx
+#: src/components/settings/MembersTab.jsx
+#: src/components/ShareModal.jsx
+msgid "Edit profile"
+msgstr "프로필 편집"
 
 #: src/components/CanvasSurface.jsx
 msgid "Edit title"
@@ -14126,6 +14166,7 @@ msgstr "브라우저가 아니에요."
 msgid "Not linked anywhere"
 msgstr "어디에도 연결되지 않음"
 
+#: src/components/CanvasSurface.jsx
 #: src/components/FirstValueUpgradeBanner.jsx
 #: src/components/NotificationsPanel.jsx
 #: src/components/ReturnReasonAsk.jsx
@@ -16124,6 +16165,7 @@ msgstr "카드가 놓인 위치와 크기를 보여 주는 단순한 상자일 �
 msgid "Plan"
 msgstr "요금제"
 
+#: src/App.jsx
 #: src/components/settings/BillingTab.jsx
 #: src/components/SettingsPanel.jsx
 msgid "Plan & billing"
@@ -16456,6 +16498,12 @@ msgstr "프로필"
 #: src/components/settings/ProfileTab.jsx
 msgid "Profile picture"
 msgstr "프로필 사진"
+
+#. Words people might type to find this command, comma-separated.
+#: src/App.jsx
+msgctxt "command search words"
+msgid "profile, name, display name, picture, photo, avatar, colour, color, account, me"
+msgstr "프로필, 이름, 표시 이름, 사진, 이미지, 아바타, 색상, 계정, 나"
 
 #: src/components/CanvasSurface.jsx
 msgid "Project name"
@@ -19240,6 +19288,7 @@ msgid "someone"
 msgstr "누군가"
 
 #: src/App.jsx
+#: src/components/CanvasSurface.jsx
 #: src/components/cards/CardTransferState.jsx
 #: src/components/clusterBrowser/ClusterRow.jsx
 #: src/components/clusterBrowser/FolderTiles.jsx
@@ -23158,10 +23207,6 @@ msgstr "주로 어떤 용도로 쓰나요?"
 msgid "What else is new"
 msgstr "그 밖의 새 소식"
 
-#: src/components/settings/ProfileTab.jsx
-msgid "What everyone you share a cluster with sees. Changes save as you make them."
-msgstr "클러스터를 함께 쓰는 모든 사람에게 보이는 정보예요. 변경 사항은 바로 저장돼요."
-
 #: src/components/FeedbackButton.jsx
 msgid "What happened, and what did you expect? (optional)"
 msgstr "무슨 일이 있었고, 어떻게 되길 기대했나요? (선택 사항)"
@@ -23205,6 +23250,10 @@ msgstr "어떤 작업인가요?"
 #: src/components/settings/WorkspaceTab.jsx
 msgid "What may go to an AI model"
 msgstr "AI 모델로 보내질 수 있는 것"
+
+#: src/components/settings/ProfileTab.jsx
+msgid "What people in your workspaces see: your picture, name and colour. Changes save as you make them."
+msgstr "워크스페이스의 사람들에게 내 사진, 이름, 색상이 보여요. 변경 사항은 바로 저장돼요."
 
 #: src/components/FeedbackButton.jsx
 msgid "What should we know? (optional)"

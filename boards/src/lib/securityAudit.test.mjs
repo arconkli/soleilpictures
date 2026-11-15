@@ -690,8 +690,9 @@ test('workspace mates read member_profiles, never the whole profiles row', () =>
   assert.ok(latestMatch(/create trigger profiles_member_profile_sync\s+after insert or update of display_name, color, avatar_url on public\.profiles/));
 
   // The client reads peers from member_profiles, and listens to it.
-  const api = read('./boardsApi.js');
-  const byIds = api.slice(api.indexOf('export async function getProfilesByIds'), api.indexOf('export async function listWorkspaceMembers'));
+  const byIds = read('./memberProfilesApi.js');
+  assert.match(byIds, /export async function getProfilesByIds/);
+  assert.match(read('./boardsApi.js'), /export \{ getProfilesByIds \} from '\.\/memberProfilesApi\.js';/);
   assert.match(byIds, /\.from\('member_profiles'\)/);
   assert.doesNotMatch(byIds, /\.from\('profiles'\)/);
   assert.match(read('./userProfiles.js'), /table: 'member_profiles'/);

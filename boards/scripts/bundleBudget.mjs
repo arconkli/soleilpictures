@@ -438,7 +438,19 @@ export const CEILINGS = {
   // its tabs stay chunks of their own. CI-style builds measured appJs
   // 788,206 B on main 4334c13d and 789,645 B with it; the ceiling moves by
   // the difference, 1,439 B, rounded up.
-  appJs: 790_500,
+  // 2026-11-15: +6.2 KB for editing your profile, and pictures other people
+  // see: the sidebar corner's row for you and the ⌘K Edit profile and Plan &
+  // billing entries (App.jsx); faces that show a picture in who's here,
+  // comments and Members (components/PersonFace.jsx, a chunk of its own,
+  // since the public file share and doc share pages reach it too, with
+  // lib/userProfiles.js and lib/memberProfilesApi.js, which keeps
+  // lib/boardsApi.js out of that chunk); your own face opening Profile
+  // (lib/openProfile.js); and the one-time note asking for a name and a
+  // picture (CanvasSurface.jsx). The Settings card and Profile's picture
+  // load with Settings. CI-style builds measured appJs 789,772 B on main
+  // b29a7ed7 and 795,932 B with it on ab03f854 (which changed only the
+  // Worker); the ceiling moves by the difference, 6,160 B, rounded up.
+  appJs: 796_700,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).
@@ -446,7 +458,12 @@ export const CEILINGS = {
   // 2026-11-15: +0.3 KB for the search fields in the workspace switcher and in
   // Shared with me (workspaceMenuFind.css, sidebar/sidebarSharedFind.css).
   // 23,341 B on main ec3aa3a1, 23,658 B with it.
-  appCss: 23_720,
+  // 2026-11-15: +0.8 KB for the same: the faces (components/personFace.css,
+  // with the PersonFace chunk) and the corner's row for you
+  // (sidebar/clusterSidebar.css; it was in styles.css, which every public page
+  // loads, and the entry CSS is 50 B smaller for the move). 23,658 B on main
+  // b29a7ed7, 24,397 B with it.
+  appCss: 24_450,
 };
 
 // Chunks that must never be in the app's critical closure. Matched against the

@@ -1,0 +1,72 @@
+/* PersonFace (PersonFace.jsx): a person's picture inside whatever face the
+   surface already draws. The surface's own class (.presence-dot,
+   .canvas-comment-avatar, .msg-bubble-avatar, .share-avatar, …) keeps the
+   size, the corner radius and the ring, so nothing moves when a picture
+   replaces an initial. */
+
+/* A picture fills the same box, inside the same ring. !important because some
+   surfaces pass their colour as an inline background. */
+.person-face.is-pictured {
+  background: var(--bg-3) !important;
+  overflow: hidden;
+  padding: 0;
+}
+.person-face-img {
+  display: block;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+/* Still loading: fetched but not shown, so the initial stays until the
+   picture is ready and stays for good if it never is. */
+.person-face-img.is-pending { display: none; }
+
+/* Your own face, where it opens your profile. :where() keeps these at zero
+   specificity so each surface's class still sets the font, size and radius. */
+:where(button.person-face) {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.person-face.is-action { cursor: pointer; }
+.person-face.is-action:hover { box-shadow: 0 0 0 2px color-mix(in oklab, var(--ink-0) 22%, transparent); }
+.person-face.is-action:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+
+/* Settings → Members: a face in every row (24px), and a quiet Edit profile on
+   your own row while the pointer is on it. */
+.settings-member-face {
+  flex: none;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font: 600 11px/1 var(--font-sans);
+  color: var(--bg-0);
+}
+/* A pending invite has no person yet: the slot stays so the addresses line up
+   with the names above. */
+.settings-member-face.is-empty { visibility: hidden; }
+.settings-member-you { color: var(--ink-3); }
+.settings-member-name-btn {
+  appearance: none;
+  background: transparent; border: 0; padding: 0; margin: 0;
+  font: inherit; color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  vertical-align: bottom;
+}
+.settings-member-name-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; border-radius: var(--radius); }
+.settings-member-edit { visibility: hidden; }
+.settings-member-row.is-self:focus-within .settings-member-edit { visibility: visible; }
+@media (hover: hover) {
+  .settings-member-row.is-self:hover .settings-member-edit { visibility: visible; color: var(--ink-1); }
+}
+/* Touch has no hover, and a hidden slot would cost the name its room on a
+   phone: the face and the name are the way in there. */
+@media (hover: none) {
+  .settings-member-edit { display: none; }
+}

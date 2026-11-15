@@ -43,6 +43,7 @@ import { isComposingKey } from '../../lib/composerKeys.js';
 import { initialOf } from '../../lib/graphemes.js';
 import { t as tr, ph, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { PersonFace } from '../PersonFace.jsx';
 
 // Called at render, so the words follow the current language.
 const roleLabel = (role) => ({ view: tr`Can view`, comment: tr`Can comment`, edit: tr`Can edit` })[role];
@@ -374,13 +375,15 @@ export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName =
   const restrictedAlone = phase === 'ready' && s.linkAccess === 'none' && s.people.length === 0;
   const sendable = chips.length > 0 || draft.trim().length > 0;
 
-  const avatar = (p) => (p.avatarUrl
-    ? <img className="fsd-avatar" src={p.avatarUrl} alt="" referrerPolicy="no-referrer" />
-    : (
-      <span className="fsd-avatar" aria-hidden="true" style={{ background: pickPresenceColor(p.email) }}>
-        {initialOf(p.name || p.email, '')}
-      </span>
-    ));
+  // The server sends the picture as stored, which for one uploaded here is
+  // 'r2:<key>', not a URL: straight into an <img> it was a broken image.
+  // PersonFace signs it and keeps the initial when it can't.
+  const avatar = (p) => (
+    <PersonFace url={p.avatarUrl || null} name={p.name || p.email}
+                initial={initialOf(p.name || p.email, '')}
+                color={pickPresenceColor(p.email)}
+                className="fsd-avatar" ariaHidden />
+  );
 
   const peopleRows = s.people.map((p) => {
     const label = p.name || p.email;

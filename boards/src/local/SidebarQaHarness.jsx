@@ -637,16 +637,21 @@ export function SidebarQaHarness() {
         : { mine: true, others: [{ id: 'maya', name: 'Maya Ortiz' }, { id: 'jon', name: 'Jon Park' }] })} />
     </div>
   );
-  // Help, Settings and you.
+  // You, Help and Settings.
   const foot = (
     <div className="sb-foot">
+      <button type="button" className="sb-foot-me" title="Edit profile" aria-label="Avery Lin, edit profile" onClick={() => say('profile')}>
+        <span className="sb-foot-face" style={{ background: '#2f6fd6' }}>A</span>
+        <span className="sb-foot-name" dir="auto">Avery Lin</span>
+        <span className="sb-foot-cue" aria-hidden="true">Edit profile</span>
+        <span className="sb-foot-chev" aria-hidden="true"><Icon as={ChevronRight} size={12} /></span>
+      </button>
       <button type="button" className="sb-foot-icon" title="Help" aria-label="Help" onClick={() => say('help')}>
         <Icon as={Question} size={16} weight="regular" />
       </button>
       <button type="button" className="sb-foot-icon" title="Settings" aria-label="Settings" onClick={() => say('settings')}>
         <Icon as={Settings} size={16} weight="regular" />
       </button>
-      <button type="button" className="sb-foot-avatar" title="Account" style={{ background: '#2f6fd6' }} onClick={() => say('account')}>A</button>
     </div>
   );
 

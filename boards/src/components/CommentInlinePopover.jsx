@@ -9,10 +9,11 @@ import { placeCommentPopover } from '../lib/commentPopoverPlace.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { detectMentionToken, matchMentions } from '../lib/commentMentionText.js';
-import { initialOf } from '../lib/graphemes.js';
 import { shownAuthor } from '../lib/commentAuthor.js';
 import { t as tr } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { PersonFace } from './PersonFace.jsx';
+import { openProfile } from '../lib/openProfile.js';
 
 const W = 320;
 
@@ -43,8 +44,10 @@ export function CommentInlinePopover({
   const replyRef = useRef('');
   replyRef.current = reply;
   const confirmingRef = useRef(false);
+  // Resolves true when the popover closed, false when it stayed open (the
+  // person picked "Keep writing", or the confirm is already up).
   const requestClose = async () => {
-    if (confirmingRef.current) return;
+    if (confirmingRef.current) return false;
     if (replyRef.current.trim()) {
       confirmingRef.current = true;
       const ok = await feedback.confirm({
@@ -55,9 +58,10 @@ export function CommentInlinePopover({
         danger: true,
       });
       confirmingRef.current = false;
-      if (!ok) return;
+      if (!ok) return false;
     }
     onClose?.();
+    return true;
   };
 
   useEffect(() => {
@@ -115,9 +119,17 @@ export function CommentInlinePopover({
   return createPortal(
     <div ref={popRef} className="comment-inline-pop surface-frosted" style={{ top: pos.top, left: pos.left, width: pos.width }}>
       <div className="comment-inline-head">
-        <span className="comment-inline-author" style={{ background: thread.authorColor || 'var(--soleil)' }}>
-          {initialOf(shownAuthor(thread.author))}
-        </span>
+        {/* The picture is the author's current one, by id; the name and the
+            colour stay what the thread recorded when it was written. On your
+            own thread the face opens your profile, once this popover has
+            closed: it sits above Settings, and would take the next press
+            inside Settings for an outside press. */}
+        <PersonFace userId={thread.authorId || null} name={shownAuthor(thread.author)}
+                    color={thread.authorColor || 'var(--soleil)'}
+                    className="comment-inline-author"
+                    {...(thread.authorId && thread.authorId === currentUser?.id
+                      ? { onClick: async () => { if (await requestClose()) openProfile('comment'); }, isolate: true, title: tr`Edit profile`, ariaLabel: tr`Edit profile` }
+                      : { ariaHidden: true })} />
         <span className="comment-inline-name">{shownAuthor(thread.author)}</span>
         {editable ? (<>
         <button

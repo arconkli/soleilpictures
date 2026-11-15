@@ -13,7 +13,8 @@
 // hundred).
 import { useEffect, useRef, useState } from 'react';
 import { getOwnProfile, saveOwnProfile } from '../../lib/boardsApi.js';
-import { uploadImage } from '../../lib/uploads.js';
+import { uploadImage, makeBoundedPreview } from '../../lib/uploads.js';
+import { isAnimatedImageBytes, ANIMATION_SNIFF_BYTES } from '../../lib/fileIngest.js';
 import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { useFeedback } from '../AppFeedback.jsx';
 import { ColorPicker } from '../ColorPicker.jsx';
@@ -31,7 +32,14 @@ import { t, ph } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { shownError } from '../../lib/errorWords.js';
 
-export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
+// The longest edge, in pixels, of the picture that is stored.
+const PICTURE_EDGE = 512;
+const PICTURE_EXT = { 'image/webp': 'webp', 'image/png': 'png', 'image/jpeg': 'jpg' };
+
+// onProfileSaved hears every successful save with { name, color, avatarUrl }
+// (App keeps the sidebar corner in step with it); onSaved is the older hook
+// the workspace list refreshes on.
+export function ProfileTab({ user, workspaceId, onSaved, onProfileSaved, onSignOut }) {
   const feedback = useFeedback();
   const save = useSettingsSave();
   const [name, setName] = useState('');
@@ -58,9 +66,10 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
     getOwnProfile()
       .then(p => {
         if (cancelled) return;
-        const fallbackName = user.user_metadata?.full_name
-                          || user.email?.split('@')[0] || '';
-        const n = p?.display_name || fallbackName;
+        // Only a name that is stored. A suggestion in the field would read
+        // as set while the sidebar corner says "Add your name", and the next
+        // colour or picture save would write it (persist merges `saved`).
+        const n = p?.display_name || '';
         const c = p?.color || '';
         const a = p?.avatar_url || '';
         setName(n); setColor(c); setAvatarUrl(a);
@@ -100,7 +109,7 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
       color: next.color || null,
       avatarUrl: next.avatarUrl || null,
     }));
-    if (ok) { setSaved(next); onSaved?.(next); }
+    if (ok) { setSaved(next); onProfileSaved?.(next); onSaved?.(next); }
     return ok;
   };
 
@@ -138,8 +147,28 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
     }
     setUploadingAvatar(true);
     try {
+      // Everyone in your workspaces loads this picture, mostly at 24px
+      // beside a comment or a message, so a multi-megabyte original goes up as
+      // a small copy. A file the browser can't shrink goes up as it is.
+      // An animated GIF, WebP or APNG goes up as it is too: the small copy is
+      // one frame, so a large one would stop moving while a small one kept on.
+      let upload = file;
+      let animated = false;
+      try {
+        animated = isAnimatedImageBytes(new Uint8Array(await file.slice(0, ANIMATION_SNIFF_BYTES).arrayBuffer()));
+      } catch (_) { animated = false; }
+      if (!animated) {
+        try {
+          const small = await makeBoundedPreview(file, PICTURE_EDGE);
+          const blob = small?.blob;
+          if (blob && blob !== file && blob.size > 0) {
+            const type = blob.type || 'image/webp';
+            upload = new File([blob], `profile-picture.${PICTURE_EXT[type] || 'webp'}`, { type });
+          }
+        } catch (_) { upload = file; }
+      }
       const { src } = await uploadImage({
-        file,
+        file: upload,
         workspaceId,
         boardId: null,
         userId: user.id,
@@ -158,7 +187,7 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
       <AccountBox email={user?.email} onSignOut={onSignOut} hint />
       <h3 className="settings-section-title"><Trans>Profile</Trans></h3>
       <p className="settings-section-hint">
-        <Trans>What everyone you share a cluster with sees. Changes save as you make them.</Trans>
+        <Trans>What people in your workspaces see: your picture, name and colour. Changes save as you make them.</Trans>
       </p>
       <Field label={t`Profile picture`}>
         <AvatarUploadRow
@@ -167,6 +196,7 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
           fallbackInitial={initialOf(name || user?.email)}
           uploading={uploadingAvatar}
           disabled={loading}
+          profile
           onPick={onAvatarPick}
           onRemove={() => { setAvatarUrl(''); commitAvatar(''); }}
         />
@@ -174,7 +204,7 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
       <Field label={t`Display name`}>
         <input className="settings-input" dir="auto"
                value={name}
-               placeholder={user?.email?.split('@')[0] || t`Your name`}
+               placeholder={user?.user_metadata?.full_name || user?.email?.split('@')[0] || t`Your name`}
                onChange={(e) => setName(e.target.value)}
                onBlur={commitName}
                onKeyDown={(e) => {

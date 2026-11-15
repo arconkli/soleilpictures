@@ -55,6 +55,7 @@ import { initialOf } from '../lib/graphemes.js';
 import { formatDate } from '../lib/intlFormat.js';
 import { t as tr, ph, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { PersonFace } from './PersonFace.jsx';
 
 // Dragging an attachment out of a message onto a canvas makes it a card.
 function attachmentDragStart(e, att) {
@@ -1563,9 +1564,9 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
               className={`msg-newconv-row ${sel ? 'is-picked' : ''}`}
               onClick={() => setPicked(p => sel ? p.filter(x => x !== m.user_id) : [...p, m.user_id])}
             >
-              <span className="msg-row-avatar" style={{ background: m.color }}>
-                {initialOf(m.name, 'M')}
-              </span>
+              <PersonFace userId={m.user_id} name={m.name} color={m.color}
+                          initial={initialOf(m.name, 'M')}
+                          className="msg-row-avatar" ariaHidden />
               <span className="msg-row-text">
                 <span className="msg-row-name" dir="auto">{m.name}</span>
                 {m.email && m.email !== m.name && <span className="msg-row-preview t-meta">{m.email}</span>}

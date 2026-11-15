@@ -13,6 +13,7 @@ import { searchKey } from '../lib/textFold.js';
 import { initialOf } from '../lib/graphemes.js';
 import { t, ph } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { PersonFace } from './PersonFace.jsx';
 
 // 2-stage popover: pick people, then optionally name the group.
 //   workspaceId
@@ -159,9 +160,9 @@ export function NewConversationPicker({ workspaceId, currentUserId, anchor, sugg
         className={`msg-newconv-row ${sel ? 'is-picked' : ''}`}
         onClick={() => togglePick(m.user_id)}
       >
-        <span className="msg-row-avatar" style={{ background: m.color }}>
-          {initialOf(m.name, 'M')}
-        </span>
+        <PersonFace userId={m.user_id} name={m.name} color={m.color}
+                    initial={initialOf(m.name, 'M')}
+                    className="msg-row-avatar" ariaHidden />
         <span className="msg-row-text">
           <span className="msg-row-name" dir="auto">{m.name}</span>
           {m.email && m.email !== m.name && (
