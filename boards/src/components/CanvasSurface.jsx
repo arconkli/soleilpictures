@@ -2353,7 +2353,7 @@ export function CanvasSurface({
   // The whole touch shell that shows the bottom-nav "+" puck (App/LocalBoardsApp
   // gate the nav on this) — phones plus touch tablets and landscape phones. The
   // add sheet must render for all of them or the puck dead-ends there.
-  const { mobileShell } = shellOf(breakpoint);
+  const { mobileShell, coarse } = shellOf(breakpoint);
   const [spaceDown, setSpaceDown] = useState(false);
   const lastMouseCanvasRef = useRef({ x: 200, y: 200 });
   // The same pointer in SCREEN space. A wheel or trackpad pan moves the camera
@@ -7000,24 +7000,34 @@ export function CanvasSurface({
     const boardCards = sel.filter(c => c.kind === 'board');
     const total = sel.length;
     const bn = boardCards.length;
+    // A finger has no Cmd+Z: its undo is the arrow in the top bar.
     if (bn > 0 && total === bn) {
       if (bn === 1) {
         const name = boards[boardCards[0].id]?.name || tr`this board`;
-        return tr`Delete board "${name}" and all its content?\n\nYou can undo this with Cmd+Z. The board is fully recoverable for 30 days.`;
+        return coarse
+          ? tr`Delete board "${name}" and all its content?\n\nYou can undo this from the top bar. The board is fully recoverable for 30 days.`
+          : tr`Delete board "${name}" and all its content?\n\nYou can undo this with Cmd+Z. The board is fully recoverable for 30 days.`;
       }
-      return plural(bn, {
-        one: 'Delete # board and all its content?\n\nYou can undo this with Cmd+Z. The board is fully recoverable for 30 days.',
-        other: 'Delete # boards and all their content?\n\nYou can undo this with Cmd+Z. The boards are fully recoverable for 30 days.',
-      });
+      return coarse
+        ? plural(bn, {
+          one: 'Delete # board and all its content?\n\nYou can undo this from the top bar. The board is fully recoverable for 30 days.',
+          other: 'Delete # boards and all their content?\n\nYou can undo this from the top bar. The boards are fully recoverable for 30 days.',
+        })
+        : plural(bn, {
+          one: 'Delete # board and all its content?\n\nYou can undo this with Cmd+Z. The board is fully recoverable for 30 days.',
+          other: 'Delete # boards and all their content?\n\nYou can undo this with Cmd+Z. The boards are fully recoverable for 30 days.',
+        });
     }
     if (bn > 0) {
-      return tr`Delete ${total} items, including ${plural(bn, { one: '# board', other: '# boards' })}?\n\nYou can undo this with Cmd+Z. Anything deleted is recoverable for 30 days.`;
+      return coarse
+        ? tr`Delete ${total} items, including ${plural(bn, { one: '# board', other: '# boards' })}?\n\nYou can undo this from the top bar. Anything deleted is recoverable for 30 days.`
+        : tr`Delete ${total} items, including ${plural(bn, { one: '# board', other: '# boards' })}?\n\nYou can undo this with Cmd+Z. Anything deleted is recoverable for 30 days.`;
     }
     // Plain cards don't need a confirm — the delete is one undo step and
     // the toast below offers a one-click Undo. Boards keep the dialog
     // (they can contain a whole subtree).
     return null;
-  }, [cardById, boards]);
+  }, [cardById, boards, coarse]);
 
   const doDeleteIds = useCallback(async (ids, { boundary = true } = {}) => {
     if (!ids?.length) return;
@@ -13522,7 +13532,16 @@ export function CanvasSurface({
       feedback.toast({
         type: 'success',
         ttl: 8000,
-        message: allNotes
+        // A finger has no ⌘Z: its undo is the arrow in the top bar.
+        message: coarse
+          ? (allNotes
+            ? (fromName
+              ? plural(n, { one: `Copied # note from “${fromName}”`, other: `Copied # notes from “${fromName}”` })
+              : plural(n, { one: 'Copied # note', other: 'Copied # notes' }))
+            : (fromName
+              ? plural(n, { one: `Copied # card from “${fromName}”`, other: `Copied # cards from “${fromName}”` })
+              : plural(n, { one: 'Copied # card', other: 'Copied # cards' })))
+          : allNotes
           ? (fromName
             ? plural(n, { one: `Copied # note from “${fromName}” · ⌘Z undoes`, other: `Copied # notes from “${fromName}” · ⌘Z undoes` })
             : plural(n, { one: 'Copied # note · ⌘Z undoes', other: 'Copied # notes · ⌘Z undoes' }))
@@ -15894,6 +15913,7 @@ export function CanvasSurface({
           resolveCardBBox={resolveCardBBox}
           resolveGroupBBox={resolveGroupBBox}
           draft={commentDraft}
+          draftAsBar={mobileShell}
           onSubmitDraft={submitCommentDraft}
           onCancelDraft={() => setCommentDraft(null)}
           onLocallyRemoved={removeCommentLocally}
