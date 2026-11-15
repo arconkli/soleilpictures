@@ -32,17 +32,19 @@ import { t } from '@lingui/core/macro';
 // twice, and the first load's look for missed ones can reach the same row.
 const toasted = new Set();
 
-export function useNotifications({ userId, feedback = null, onOpenBoard = null, onOpenSettings = null, nameOf = null } = {}) {
+export function useNotifications({ userId, feedback = null, onOpenBoard = null, onOpenSettings = null, onOpenTeam = null, nameOf = null } = {}) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const onOpenRef = useRef(onOpenBoard);
   const onSettingsRef = useRef(onOpenSettings);
+  const onTeamRef = useRef(onOpenTeam);
   const feedbackRef = useRef(feedback);
   const nameOfRef = useRef(nameOf);
   const sweptFor = useRef(null);   // the userId whose first load was looked through
   useEffect(() => { onOpenRef.current = onOpenBoard; }, [onOpenBoard]);
   useEffect(() => { onSettingsRef.current = onOpenSettings; }, [onOpenSettings]);
+  useEffect(() => { onTeamRef.current = onOpenTeam; }, [onOpenTeam]);
   useEffect(() => { feedbackRef.current = feedback; }, [feedback]);
   useEffect(() => { nameOfRef.current = nameOf; }, [nameOf]);
   // The row as the person reads it: the stored English, or its words in their language.
@@ -88,12 +90,17 @@ export function useNotifications({ userId, feedback = null, onOpenBoard = null, 
   useEffect(() => { refresh(); }, [refresh]);
 
   // Live pings: prepend optimistically so the badge moves on the same frame.
+  // A payload whose id is already listed replaces that row and moves it to the
+  // top, keeping its read_at: realtime can double-deliver (the same words
+  // again), and a notice that counts up (team.joined, 0897) is sent again on
+  // its own id with the new words and time.
   useEffect(() => {
     if (!userId) return undefined;
     return subscribeNotifications(userId, (payload) => {
       setItems((prev) => {
-        if (prev.some((x) => x.id === payload.id)) return prev;   // realtime can double-deliver
-        return [{ ...payload, read_at: null }, ...prev].slice(0, 50);
+        const at = prev.findIndex((x) => x.id === payload.id);
+        if (at < 0) return [{ ...payload, read_at: null }, ...prev].slice(0, 50);
+        return [{ ...prev[at], ...payload, read_at: prev[at].read_at }, ...prev.slice(0, at), ...prev.slice(at + 1)];
       });
       if (toasted.has(payload.id)) return;
       toasted.add(payload.id);
@@ -112,6 +119,10 @@ export function useNotifications({ userId, feedback = null, onOpenBoard = null, 
             try { onSettingsRef.current?.(target.tab, target.workspaceId); } catch (_) {}
           }
         : null;
+      // A team notice opens that team's page on the tab it is about.
+      const openTeam = target?.kind === 'team'
+        ? () => { try { onTeamRef.current?.(target.tab, target.orgId); } catch (_) {} }
+        : null;
       try {
         feedbackRef.current?.toast({
           type: 'info',
@@ -122,12 +133,13 @@ export function useNotifications({ userId, feedback = null, onOpenBoard = null, 
                 ? openSharedFile({ token: fileToken, via: 'toast' })
                 : window.open('/f/' + encodeURIComponent(fileToken), '_blank', 'noopener')) }
             : openSettings ? { label: t`See who can edit`, onClick: openSettings }
-              : (payload.board_id ? { label: t`Open`, onClick: openIt } : undefined),
+              : openTeam ? { label: t`Open`, onClick: openTeam }
+                : (payload.board_id ? { label: t`Open`, onClick: openIt } : undefined),
         });
       } catch (_) {}
       // Only fires when the tab is hidden/unfocused and permission was granted.
       const shown = worded(payload);
-      maybeShowNotification({ title: shown.title, body: shown.body || '', tag: `ntf:${payload.id}`, onClick: openIt });
+      maybeShowNotification({ title: shown.title, body: shown.body || '', tag: `ntf:${payload.id}`, onClick: openTeam || openIt });
     });
   }, [userId, worded]);
 

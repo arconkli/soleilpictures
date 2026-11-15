@@ -10,6 +10,7 @@ const NAMES = [
   'keepTeamRequestViewer', 'removeTeamSeat', 'addTeamSeats', 'setTeamWhenFull', 'inviteToTeam',
   'setTeamLink', 'resetTeamLink', 'setTeamDomainOn', 'addTeamDomain', 'removeTeamDomain',
   'checkTeamDomain', 'closeTeam', 'leaveTeam', 'openTeamPortal', 'setTeamSeatPerk', 'resendTeamInvite',
+  'setTeamWorkspacePrivate', 'moveWorkspaceOutOfTeam', 'moveWorkspaceIntoTeam', 'previewMoveIntoTeam',
 ];
 
 function fake(over = {}) {
@@ -53,12 +54,36 @@ test('each action calls the right function with the right arguments', async () =
     ['leave', {}, ['leaveTeam', { p_org_id: O }]],
     ['portal', {}, ['openTeamPortal', O]],
     ['seatPerk', { on: true }, ['setTeamSeatPerk', { p_org_id: O, p_on: true }]],
+    ['workspacePrivate', { workspaceId: 'w1', private: true }, ['setTeamWorkspacePrivate', { p_workspace_id: 'w1', p_private: true }]],
+    ['workspacePrivate', { workspaceId: 'w1', private: false }, ['setTeamWorkspacePrivate', { p_workspace_id: 'w1', p_private: false }]],
+    ['moveOut', { workspaceId: 'w1' }, ['moveWorkspaceOutOfTeam', { p_workspace_id: 'w1', p_to_user: null }]],
+    ['moveOut', { workspaceId: 'w1', toUserId: 'u2' }, ['moveWorkspaceOutOfTeam', { p_workspace_id: 'w1', p_to_user: 'u2' }]],
+    ['moveIn', { workspaceId: 'w1' }, ['moveWorkspaceIntoTeam', { p_workspace_id: 'w1', p_org_id: O, p_add_seats: false }]],
+    ['previewMoveIn', { workspaceId: 'w1' }, ['previewMoveIntoTeam', { p_workspace_id: 'w1', p_org_id: O }]],
   ];
   for (const [type, payload, want] of cases) {
     const { res, calls } = await one(type, payload);
     assert.equal(res.ok, true, type);
     assert.deepEqual(calls, [want], type);
   }
+});
+
+test('the move-in look reads the function\'s one row, and a move in never buys seats', async () => {
+  let { res } = await one('previewMoveIn', { workspaceId: 'w1' }, { previewMoveIntoTeam: [{ seats_needed: 2, editors: 4 }] });
+  assert.deepEqual(res, { ok: true, data: { seatsNeeded: 2, editors: 4 } });
+  ({ res } = await one('previewMoveIn', { workspaceId: 'w1' }, { previewMoveIntoTeam: { seats_needed: 0, editors: 1 } }));
+  assert.deepEqual(res, { ok: true, data: { seatsNeeded: 0, editors: 1 } });
+  ({ res } = await one('previewMoveIn', { workspaceId: 'w1' }));
+  assert.deepEqual(res, { ok: true, data: { seatsNeeded: 0, editors: 0 } });
+  // Their refusals read through teamRefusal, as every action's do.
+  const { api } = fake();
+  api.previewMoveIntoTeam = async () => { throw { hint: 'team_seats_ceiling', details: '100' }; };
+  assert.equal((await runTeamAction(api, O, 'previewMoveIn', { workspaceId: 'w1' })).refusal.code, 'team_seats_ceiling');
+  api.moveWorkspaceIntoTeam = async () => { throw { hint: 'team_seats_needed', details: '2' }; };
+  assert.deepEqual(await runTeamAction(api, O, 'moveIn', { workspaceId: 'w1' }),
+    { ok: false, refusal: { code: 'team_seats_needed', needed: 2 } });
+  api.moveWorkspaceIntoTeam = async () => { throw { hint: 'team_view_only' }; };
+  assert.equal((await runTeamAction(api, O, 'moveIn', { workspaceId: 'w1' })).refusal.code, 'team_view_only');
 });
 
 test('domainOn with several domains sets each', async () => {

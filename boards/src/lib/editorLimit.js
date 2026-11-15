@@ -4,6 +4,8 @@
 // more refuses with one of the hints below; an edit link lets the person in as
 // a viewer instead. Pure, so it runs in node.
 
+import { teamsAllowed } from './appHost.js';
+
 // public._editor_limit() in 0520 says the same number;
 // editorLimitMigration.test.mjs reads the SQL and holds them together.
 export const EDITOR_LIMIT = 10;
@@ -156,6 +158,20 @@ export function editorLimitNote(cap, { ownerName = null, asked = false, canBuySe
     ask: asked ? null : `Ask ${who} for room`,
     done: asked ? `We told ${who} you’d like to add an editor.` : null,
   };
+}
+
+// The "More than 10 people? Start a Team" line under the owner's note and in
+// Settings › Members: null, or { stage, limit } (limit is the cap's own number).
+// Only the account's owner, on a personal plan at near, full or over, in a
+// workspace that isn't a team's, who isn't already in a team, where teams are
+// open. inTeam is null while unknown (list_my_teams not back yet), and unknown
+// says nothing; teamsOpen is injectable for tests.
+export function editorLimitTeamLine(cap, { inTeam = null, teamWorkspace = false, teamsOpen = teamsAllowed() } = {}) {
+  if (!teamsOpen || inTeam !== false || teamWorkspace) return null;
+  if (!cap || cap.subject === 'team' || !cap.isAccountOwner) return null;
+  const stage = editorLimitStage(cap);
+  if (stage !== 'near' && stage !== 'full' && stage !== 'over') return null;
+  return { stage, limit: cap.limit };
 }
 
 // A door's refusal (editorLimitRefusal) as one sentence for a toast.

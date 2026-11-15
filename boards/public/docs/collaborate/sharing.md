@@ -77,6 +77,10 @@ like any other, so it is refused when the account has no room. **Not now**
 tells them nothing, and they can ask again a day later. Open asks also wait at
 the top of the cluster's **Who has access** list.
 
+In a [team](/docs/account/team)'s workspace, a viewer's **Ask to edit** goes to
+the team's admins instead. They answer it on the team's page, under
+**People**, and the viewer hears back either way.
+
 ### What "view" includes
 
 Read-only means nobody can change the cluster. It does **not** mean the files

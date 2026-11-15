@@ -2,6 +2,8 @@
 // and admins, get_team_billing (0538, times as ISO strings) into the
 // TeamSnapshot of teamModel.js's header. Pure. A member's snapshot carries
 // what the server sent and nothing more: no billing, no emails made up.
+// seatPerk is the billing's seat_perk (0897): true or false for an owner or
+// admin, null for a member or before 0897 is applied.
 
 const DAY = 864e5;
 
@@ -63,6 +65,7 @@ export function toTeamSnapshot(team, billing) {
     unpaid,
     workspaces: team.workspaces,
     seats: team.seats ?? null,
+    seatPerk: b && typeof b.seat_perk === 'boolean' ? b.seat_perk : null,
   };
 }
 

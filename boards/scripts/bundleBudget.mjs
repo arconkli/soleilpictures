@@ -426,7 +426,19 @@ export const CEILINGS = {
   // and their words): two builds with it read 788,140 B and 788,268 B (the
   // compressed size moves a little with the commit tag each build carries).
   // The ceiling moves by both, rounded up.
-  appJs: 789_000,
+  // 2026-11-15: +1.5 KB for finishing Team, the part the frame runs at once:
+  // the bell's team notices (team.joined, team.kept_viewer in
+  // lib/notificationWords.js) that open the team's page on their tab
+  // (lib/notificationsBell.js, lib/teamPreview.js); Ask to edit for a viewer
+  // in a team's workspace (App.jsx; the call loads with lib/teamsApi.js); a
+  // team workspace kept in the list across reloads (lib/teamWorkspaceList.js,
+  // hooks/useAllWorkspaces.js); team access in the board permission mirror
+  // (hooks/useBoardPermission.js); and the Start a Team line
+  // (lib/editorLimit.js, components/EditorLimitNote.jsx). The Team page and
+  // its tabs stay chunks of their own. CI-style builds measured appJs
+  // 788,206 B on main 4334c13d and 789,645 B with it; the ceiling moves by
+  // the difference, 1,439 B, rounded up.
+  appJs: 790_500,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).

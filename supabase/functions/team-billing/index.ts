@@ -31,7 +31,9 @@ import {
   seatAddKey,
   seatPreviewParams,
   teamCheckoutParams,
+  teamBillingSummary,
   teamCustomerParams,
+  teamHasNextCharge,
   teamItems,
   teamPortalConfiguration,
   teamPriceIdFor,
@@ -94,6 +96,7 @@ Deno.serve(reported("team-billing", async (req) => {
       case "checkout":      return await checkout(userClient, admin, user, body);
       case "verify":        return await verify(admin, user.id, body);
       case "portal":        return await portal(admin, user.id, stripeLocale(user), body);
+      case "summary":       return await summary(userClient, admin, body);
       case "seats_preview": return await seatsPreview(userClient, admin, body);
       case "seats_add":     return await seatsAdd(userClient, admin, body);
       case "sync":          return await sync(userClient, admin, body);
@@ -239,6 +242,44 @@ async function teamPlan(userClient: Client, admin: Client, orgId: string) {
     subId: (row.data?.stripe_subscription_id as string | undefined) ?? null,
     customerId: (row.data?.stripe_customer_id as string | undefined) ?? null,
   };
+}
+
+// The billing tab's card, next charge and receipts. The owner and any admin
+// may read it (get_team_billing refuses everyone else); it returns the card on
+// file, what the next invoice will be and the last 12 receipts, and never a
+// link into Stripe. Manage (the portal) stays the owner's alone.
+async function summary(userClient: Client, admin: Client, body: Body) {
+  const orgId = typeof body.org_id === "string" && UUID_RE.test(body.org_id) ? body.org_id : null;
+  if (!orgId) return json({ error: "bad_request" }, 400);
+  const plan = await teamPlan(userClient, admin, orgId);
+  if (plan.refused) return plan.refused;
+  const { subId, customerId } = plan;
+  if (!subId || !customerId) return json({ ok: true, card: null, next: null, receipts: [] }, 200);
+
+  const [sub, list] = await Promise.all([
+    stripe.subscriptions.retrieve(subId, { expand: ["default_payment_method"] }),
+    stripe.invoices.list({ customer: customerId, limit: 12 }),
+  ]);
+  let paymentMethod = sub.default_payment_method && typeof sub.default_payment_method === "object"
+    ? sub.default_payment_method : null;
+  if (!paymentMethod) {
+    const customer = await stripe.customers.retrieve(customerId, { expand: ["invoice_settings.default_payment_method"] });
+    if (!customer.deleted) {
+      const dpm = customer.invoice_settings?.default_payment_method;
+      if (dpm && typeof dpm === "object") paymentMethod = dpm;
+    }
+  }
+  // A preview is one more Stripe call, so only a team that will be charged
+  // again gets one; if it fails the card and receipts still return.
+  let preview = null;
+  if (teamHasNextCharge(sub)) {
+    try {
+      preview = await stripe.invoices.createPreview({ customer: customerId, subscription: subId });
+    } catch (e) {
+      console.error("[team-billing] summary preview", e);
+    }
+  }
+  return json({ ok: true, ...teamBillingSummary({ sub, paymentMethod, invoices: list.data, preview }) }, 200);
 }
 
 async function seatsPreview(userClient: Client, admin: Client, body: Body) {

@@ -93,6 +93,7 @@ export function successLine(type) {
     case 'link':
     case 'linkRole':
     case 'domainOn':
+    case 'workspacePrivate':
     case 'seatPerk': return tr`Saved.`;
     case 'invite': return tr`Invites sent.`;
     case 'newLink': return tr`New link made. The old one has stopped working.`;
@@ -100,8 +101,55 @@ export function successLine(type) {
     case 'removeDomain': return tr`Domain removed.`;
     case 'close': return tr`The team is closed. Its workspaces are in your account.`;
     case 'leave': return tr`You left the team.`;
+    case 'moveIn': return tr`Moved into the team.`;
+    case 'moveOut': return tr`Moved out of the team.`;
     default: return tr`Done.`;
   }
+}
+
+// ── Removals that wait for an Undo (teamPendingRemovals.js) ─────────────
+
+export const undoLabel = () => tr`Undo`;
+
+// The toast the moment a row goes. kind: 'person' | 'outside' (a guest, or a
+// viewer from outside the team) | 'invite' (who: the address) | 'domain'.
+export function removedLine(kind, who) {
+  switch (kind) {
+    case 'outside': return tr`Removed ${who}’s access.`;
+    case 'invite': return tr`Invite to ${who} revoked.`;
+    case 'domain': return tr`${who} removed from the team’s domains.`;
+    default: return tr`${who} removed from the team.`;
+  }
+}
+
+// The confirm before a seat goes: `seats` now, one fewer after, and `left` of
+// those still free to give. The two parts are shown as a lead and a quieter
+// second line, as the other confirms are.
+export function removeSeatLines(seats, left) {
+  const fewer = seats - 1;
+  return {
+    lead: tr`Remove a seat?`,
+    detail: tr`The team goes from ${plural(seats, { one: '# seat', other: '# seats' })} to ${fewer}, and the bill follows. ${plural(left, { 0: 'None will still be free to give.', one: '# seat will still be free to give.', other: '# seats will still be free to give.' })}`,
+  };
+}
+
+// ── The Workspaces tab's "Move one of yours in" ─────────────────────────
+
+// What moving the picked workspace in takes, from preview_move_into_team.
+export function moveInNeedLine(n) {
+  return tr`${plural(n, { one: 'It needs # more seat.', other: 'It needs # more seats.' })}`;
+}
+
+// What a member reads next: only the owner or an admin adds seats.
+export function moveInAskLine(n) {
+  return tr`${plural(n, { one: 'Ask an admin to add it.', other: 'Ask an admin to add them.' })}`;
+}
+
+// Who can edit one of the person's own workspaces, themselves counted in.
+export function ownEditorsLine(editors) {
+  const others = Math.max(0, (editors | 0) - 1);
+  if (others === 0) return tr`Only you.`;
+  return tr`${plural(others, { one: 'You and # other can edit it.', other: 'You and # others can edit it.' })}`;
 }
 
 // A domain check's answer ({ verified, dns }) as one line.

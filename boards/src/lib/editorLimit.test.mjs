@@ -7,7 +7,7 @@ import {
   editorLimitStage, editorLimitFull, firstName, ownerPlan, editorLimitNote, editorLimitRefusalMessage,
   noticeToastText, missedJoinedAsViewer, accountHolders, holdsPlace,
   accountEditorSub, makeViewerOps, removeOps, revokeOps,
-  applyEditorLimitPreview, EDITOR_LIMIT_PREVIEW_STATES,
+  applyEditorLimitPreview, EDITOR_LIMIT_PREVIEW_STATES, editorLimitTeamLine,
 } from './editorLimit.js';
 
 test('a refusal is read from its hint, the way supabase-js hands it over', () => {
@@ -338,4 +338,28 @@ test('an account’s note is unchanged at every stage', () => {
     ask: 'Ask Alex for room', done: null,
   });
   assert.equal(editorLimitNote(acct({ ...owner, used: 3, taken: 3, left: 7 })), null);
+});
+
+test('an owner on a personal plan is offered Team at near, full and over, with the cap’s own number', () => {
+  const acct = (o) => ({ enforced: true, limit: 10, pending: 0, subject: 'account', isAccountOwner: true, ...o });
+  const open = { inTeam: false, teamsOpen: true };
+  assert.deepEqual(editorLimitTeamLine(acct({ used: 8, taken: 8, left: 2 }), open), { stage: 'near', limit: 10 });
+  assert.deepEqual(editorLimitTeamLine(acct({ used: 10, taken: 10, left: 0, full: true }), open), { stage: 'full', limit: 10 });
+  assert.deepEqual(editorLimitTeamLine(acct({ used: 12, taken: 12, left: 0 }), open), { stage: 'over', limit: 10 });
+  assert.deepEqual(editorLimitTeamLine(acct({ limit: 7, used: 6, taken: 6, left: 1 }), open), { stage: 'near', limit: 7 });
+});
+
+test('the Team line stays off at room, for non-owners, in team workspaces, for people already in a team, and where teams are closed', () => {
+  const acct = (o) => ({ enforced: true, limit: 10, pending: 0, subject: 'account', isAccountOwner: true, used: 10, taken: 10, left: 0, full: true, ...o });
+  const open = { inTeam: false, teamsOpen: true };
+  assert.equal(editorLimitTeamLine(acct({ used: 3, taken: 3, left: 7, full: false }), open), null, 'room');
+  assert.equal(editorLimitTeamLine(acct({ enforced: false }), open), null, 'limit off');
+  assert.equal(editorLimitTeamLine(null, open), null, 'unknown');
+  assert.equal(editorLimitTeamLine(acct({ isAccountOwner: false }), open), null, 'not the owner');
+  assert.equal(editorLimitTeamLine(acct(), { ...open, teamWorkspace: true }), null, 'a team workspace (org_id)');
+  assert.equal(editorLimitTeamLine(acct({ subject: 'team', limit: 5, used: 5, taken: 5, left: 0 }), open), null, 'a team’s own count');
+  assert.equal(editorLimitTeamLine(acct(), { ...open, inTeam: true }), null, 'already in a team');
+  assert.equal(editorLimitTeamLine(acct(), { ...open, inTeam: null }), null, 'teams not read yet');
+  assert.equal(editorLimitTeamLine(acct(), { inTeam: false, teamsOpen: false }), null, 'teams not allowed');
+  assert.equal(editorLimitTeamLine(acct()), null, 'no inputs says nothing');
 });

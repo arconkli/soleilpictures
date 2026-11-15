@@ -275,6 +275,11 @@ msgstr "{0, plural, one {· # carte} other {· # cartes}}"
 msgid "{0, plural, one {{first} and # other are here} other {{first} and # others are here}}"
 msgstr "{0, plural, one {{first} et # autre personne sont ici} other {{first} et # autres personnes sont ici}}"
 
+#. placeholder {0}: count - 1
+#: src/lib/notificationWords.js
+msgid "{0, plural, one {{name} and # other joined {team}} other {{name} and # others joined {team}}}"
+msgstr "{0, plural, one {{name} et # autre personne ont rejoint {team}} other {{name} et # autres personnes ont rejoint {team}}}"
+
 #. placeholder {0}: data.clusters_deleted
 #: src/components/settings/DeleteAccount.jsx
 msgid "{0, plural, one {**# cluster** in {names} — deleted, with everything on them.} other {**# clusters** in {names} — deleted, with everything on them.}}"
@@ -753,6 +758,10 @@ msgstr "{activeCount, plural, one {Affichage, # filtre actif} other {Affichage, 
 msgid "{actualDelta, plural, one {Move aborted — this cluster lost # card instead of {expectedDelta}. Restored automatically.} other {Move aborted — this cluster lost # cards instead of {expectedDelta}. Restored automatically.}}"
 msgstr "{actualDelta, plural, one {Déplacement interrompu — ce cluster a perdu # carte au lieu de {expectedDelta}. Restauré automatiquement.} other {Déplacement interrompu — ce cluster a perdu # cartes au lieu de {expectedDelta}. Restauré automatiquement.}}"
 
+#: src/lib/teamBillingLines.js
+msgid "{added, plural, one {# added this month} other {# added this month}}"
+msgstr "{added, plural, one {# ajouté ce mois-ci} other {# ajoutés ce mois-ci}}"
+
 #: src/components/cards/ScheduleRundown.jsx
 msgid "{amount} over"
 msgstr "{amount} en trop"
@@ -822,6 +831,7 @@ msgid "{boardCount, plural, one {# cluster} other {# clusters}}"
 msgstr "{boardCount, plural, one {# cluster} other {# clusters}}"
 
 #: src/components/team/TeamBilling.jsx
+#: src/lib/teamBillingLines.js
 msgid "{brand} ending {last4}"
 msgstr "{brand} se terminant par {last4}"
 
@@ -1485,6 +1495,10 @@ msgstr "{left, plural, =1 {une personne de plus} one {# personne de plus} other 
 msgid "{left, plural, =1 {one person} other {up to # people}}"
 msgstr "{left, plural, =1 {une personne} one {jusqu’à # personne} other {jusqu’à # personnes}}"
 
+#: src/lib/teamBillingLines.js
+msgid "{left, plural, one {# more before it asks first.} other {# more before it asks first.}}"
+msgstr "{left, plural, one {Encore # avant de demander confirmation.} other {Encore # avant de demander confirmation.}}"
+
 #: src/lib/editorLimitWords.js
 msgid "{left, plural, one {# place left for people who can edit.} other {# places left for people who can edit.}}"
 msgstr "{left, plural, one {# place restante pour des personnes qui peuvent modifier.} other {# places restantes pour des personnes qui peuvent modifier.}}"
@@ -1779,6 +1793,10 @@ msgstr "{n, plural, one {# jour de tournage ajouté} other {# jours de tournage 
 msgid "{n, plural, one {All # loose cards move into it. Undo puts them back.} other {All # loose cards move into it. Undo puts them back.}}"
 msgstr "{n, plural, one {Toutes les # cartes libres y sont déplacées. Annuler les remet en place.} other {Toutes les # cartes libres y sont déplacées. Annuler les remet en place.}}"
 
+#: src/lib/teamCopy.js
+msgid "{n, plural, one {Ask an admin to add it.} other {Ask an admin to add them.}}"
+msgstr "{n, plural, one {Demandez à un administrateur de l’ajouter.} other {Demandez à un administrateur de les ajouter.}}"
+
 #: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Copied # card · ⌘Z undoes} other {Copied # cards · ⌘Z undoes}}"
 msgstr "{n, plural, one {# carte copiée · ⌘Z annule} other {# cartes copiées · ⌘Z annule}}"
@@ -1803,6 +1821,10 @@ msgstr "{n, plural, one {# occurrence supprimée sur {pages} pages} other {# occ
 #: src/components/DocFindReplace.jsx
 msgid "{n, plural, one {Deleted # match} other {Deleted # matches}}"
 msgstr "{n, plural, one {# occurrence supprimée} other {# occurrences supprimées}}"
+
+#: src/lib/teamCopy.js
+msgid "{n, plural, one {It needs # more seat.} other {It needs # more seats.}}"
+msgstr "{n, plural, one {Cela nécessite # siège de plus.} other {Cela nécessite # sièges de plus.}}"
 
 #: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Moved # card here} other {Moved # cards here}}"
@@ -2068,6 +2090,10 @@ msgstr "{name} est dans votre compte Clusters, avec de la place pour {roomText} 
 msgid "{name} is in your Clusters."
 msgstr "{name} est dans votre compte Clusters."
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "{name} is private"
+msgstr "{name} est privé"
+
 #: src/components/setup/InviteReask.jsx
 msgid "{name} is taking shape.<0/>Who should see it?"
 msgstr "{name} prend forme.<0/>Qui doit le voir ?"
@@ -2088,6 +2114,10 @@ msgstr "{name} est en lecture seule"
 #: src/App.jsx
 msgid "{name} is view-only for you."
 msgstr "{name} est en lecture seule pour vous."
+
+#: src/lib/notificationWords.js
+msgid "{name} joined {team}"
+msgstr "{name} a rejoint {team}"
 
 #: src/components/SketchPadOverlay.jsx
 msgid "{name} opacity"
@@ -2166,6 +2196,10 @@ msgstr "ajout impossible pour {notAdded}"
 msgid "{others, plural, =1 {You and # other person are working together} other {You and # others are working together}}"
 msgstr "{others, plural, =1 {Vous et # autre personne travaillez ensemble} one {Vous et # autre personne travaillez ensemble} other {Vous et # autres personnes travaillez ensemble}}"
 
+#: src/lib/teamCopy.js
+msgid "{others, plural, one {You and # other can edit it.} other {You and # others can edit it.}}"
+msgstr "{others, plural, one {Modifiable par vous et # autre personne.} other {Modifiable par vous et # autres personnes.}}"
+
 #: src/lib/liveTogetherWords.js
 msgid "{others, plural, other {# people are here. You're all earning cards while you work together.}}"
 msgstr "{others, plural, one {# personne est là. Vous gagnez tous des cartes en travaillant ensemble.} other {# personnes sont là. Vous gagnez tous des cartes en travaillant ensemble.}}"
@@ -2177,6 +2211,10 @@ msgstr "{othersCount, plural, one {# lien créé par quelqu’un d’autre reste
 #: src/components/cards/ScheduleCard.jsx
 msgid "{overflow} more — open day"
 msgstr "{overflow} de plus — ouvrir le jour"
+
+#: src/lib/teamBillingLines.js
+msgid "{owner} ended the plan. The team ends on {date}, and its workspaces become {owner}’s."
+msgstr "{owner} a résilié l’offre. L’équipe prend fin le {date}, et ses espaces de travail passent à {owner}."
 
 #: src/lib/setupGate.js
 msgid "{owner} invited you."
@@ -2434,9 +2472,25 @@ msgstr "{seats, plural, one {# siège, {seatsFreeNow} libres} other {# sièges, 
 msgid "{seats, plural, one {# seat, all in use} other {# seats, all in use}}"
 msgstr "{seats, plural, one {# siège, tous utilisés} other {# sièges, tous utilisés}}"
 
+#: src/lib/teamBillingLines.js
+msgid "{seats, plural, one {# seat, billed monthly. The next charge is {amount} on {date}.} other {# seats, billed monthly. The next charge is {amount} on {date}.}}"
+msgstr "{seats, plural, one {# siège, facturé au mois. Le prochain débit est de {amount} le {date}.} other {# sièges, facturés au mois. Le prochain débit est de {amount} le {date}.}}"
+
+#: src/lib/teamBillingLines.js
+msgid "{seats, plural, one {# seat, billed yearly. The next charge is {amount} on {date}.} other {# seats, billed yearly. The next charge is {amount} on {date}.}}"
+msgstr "{seats, plural, one {# siège, facturé à l’année. Le prochain débit est de {amount} le {date}.} other {# sièges, facturés à l’année. Le prochain débit est de {amount} le {date}.}}"
+
 #: src/components/team/TeamSetup.jsx
 msgid "{seats, plural, one {# seat} other {# seats}}"
 msgstr "{seats, plural, one {# siège} other {# sièges}}"
+
+#: src/lib/teamBillingLines.js
+msgid "{seats, plural, one {Free until {date}. The first charge is that day: {amount} for # seat, then monthly.} other {Free until {date}. The first charge is that day: {amount} for # seats, then monthly.}}"
+msgstr "{seats, plural, one {Gratuit jusqu’au {date}. Le premier débit a lieu ce jour-là : {amount} pour # siège, puis chaque mois.} other {Gratuit jusqu’au {date}. Le premier débit a lieu ce jour-là : {amount} pour # sièges, puis chaque mois.}}"
+
+#: src/lib/teamBillingLines.js
+msgid "{seats, plural, one {Free until {date}. The first charge is that day: {amount} for # seat, then yearly.} other {Free until {date}. The first charge is that day: {amount} for # seats, then yearly.}}"
+msgstr "{seats, plural, one {Gratuit jusqu’au {date}. Le premier débit a lieu ce jour-là : {amount} pour # siège, puis chaque année.} other {Gratuit jusqu’au {date}. Le premier débit a lieu ce jour-là : {amount} pour # sièges, puis chaque année.}}"
 
 #: src/lib/teamCopy.js
 msgid "{seats} at {unit}, {today} today."
@@ -2450,19 +2504,19 @@ msgstr "{seats} à {unit}. Rien aujourd’hui : votre essai se termine le {end}
 msgid "{seats} seats × {money}"
 msgstr "{seats} sièges × {money}"
 
-#: src/components/team/TeamBilling.jsx
+#: src/lib/teamBillingLines.js
 msgid "{seats} seats, billed monthly, renewing {date}."
 msgstr "{seats} sièges, facturés au mois, renouvelés le {date}."
 
-#: src/components/team/TeamBilling.jsx
+#: src/lib/teamBillingLines.js
 msgid "{seats} seats, billed monthly."
 msgstr "{seats} sièges, facturés au mois."
 
-#: src/components/team/TeamBilling.jsx
+#: src/lib/teamBillingLines.js
 msgid "{seats} seats, billed yearly, renewing {date}."
 msgstr "{seats} sièges, facturés à l’année, renouvelés le {date}."
 
-#: src/components/team/TeamBilling.jsx
+#: src/lib/teamBillingLines.js
 msgid "{seats} seats, billed yearly."
 msgstr "{seats} sièges, facturés à l’année."
 
@@ -2886,6 +2940,14 @@ msgstr "Vous avez reçu une mention de {who} pendant votre absence."
 #: src/components/settings/MembersTab.jsx
 msgid "{who} now owns this workspace."
 msgstr "{who} est désormais propriétaire de cet espace de travail."
+
+#: src/lib/teamCopy.js
+msgid "{who} removed from the team."
+msgstr "{who} a été retiré de l’équipe."
+
+#: src/lib/teamCopy.js
+msgid "{who} removed from the team’s domains."
+msgstr "{who} retiré des domaines de l’équipe."
 
 #: src/components/MessagesPanel.jsx
 msgid "{who} sent an attachment"
@@ -3941,6 +4003,10 @@ msgstr "Ajouter une ligne en dessous"
 msgid "Add seats"
 msgstr "Ajouter des sièges"
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Add seats and move it in"
+msgstr "Ajouter des sièges et l’intégrer"
+
 #: src/components/team/TeamJoining.jsx
 msgid "Add seats and send"
 msgstr "Ajouter des sièges et envoyer"
@@ -4366,6 +4432,14 @@ msgstr "Toujours ouvrir dans Fichiers"
 msgid "Amber"
 msgstr "Ambre"
 
+#: src/lib/notificationWords.js
+msgid "An admin approved their request."
+msgstr "Un administrateur a approuvé sa demande."
+
+#: src/lib/notificationWords.js
+msgid "An admin of {team} kept you as a viewer for now."
+msgstr "Un administrateur de {team} vous a gardé comme lecteur pour l’instant."
+
 #: src/lib/versionActions.js
 msgid "an audio file"
 msgstr "un fichier audio"
@@ -4474,6 +4548,14 @@ msgstr "Toute personne qui les utilise perdra l’accès immédiatement. Les per
 #: src/components/ShareModal.jsx
 msgid "Anyone using this link will lose access immediately."
 msgstr "Toute personne qui utilise ce lien perdra l’accès immédiatement."
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Anyone who opens it only through the team loses it. People added to it directly keep it."
+msgstr "Les personnes qui ne l’ouvrent que via l’équipe perdent l’accès. Celles qui y ont été ajoutées directement le gardent."
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Anyone who opens it only through the team loses it. The owner, admins and people added to it keep it."
+msgstr "Les personnes qui ne l’ouvrent que via l’équipe perdent l’accès. Le propriétaire, les administrateurs et les personnes qui y ont été ajoutées le gardent."
 
 #: src/components/team/TeamJoining.jsx
 msgid "Anyone who signs up with an @{domain} address joins the team. People who already have an account are asked once, the next time they sign in. Admins never see who has an account."
@@ -4711,6 +4793,10 @@ msgid "Ask the person who shared it to open it once, then try again."
 msgstr "Demandez à la personne qui l’a partagé de l’ouvrir une fois, puis réessayez."
 
 #: src/App.jsx
+msgid "Ask the team’s admins to let you edit"
+msgstr "Demandez aux administrateurs de l’équipe de vous laisser modifier"
+
+#: src/App.jsx
 msgid "Ask to edit"
 msgstr "Demander à modifier"
 
@@ -4721,6 +4807,18 @@ msgstr "Demandé"
 #: src/components/ShareModal.jsx
 msgid "asked to edit"
 msgstr "a demandé à modifier"
+
+#: src/App.jsx
+msgid "Asked. The admins of {teamName} will see it, and you’ll hear back here."
+msgstr "Demande envoyée. Les administrateurs de {teamName} la verront et vous répondront ici."
+
+#: src/App.jsx
+msgid "Asked. The team’s admins will see it, and you’ll hear back here."
+msgstr "Demande envoyée. Les administrateurs de l’équipe la verront et vous répondront ici."
+
+#: src/App.jsx
+msgid "Asked. We’ll tell you when an admin answers."
+msgstr "Demande envoyée. Nous vous préviendrons dès qu’un administrateur répondra."
 
 #: src/App.jsx
 msgid "Asked. We’ll tell you when they say yes."
@@ -5396,6 +5494,7 @@ msgstr "Enregistrement impossible — accès terminé"
 #: src/components/team/TeamBilling.jsx
 #: src/components/team/TeamConfirm.jsx
 #: src/components/team/TeamSetup.jsx
+#: src/components/team/TeamWorkspaces.jsx
 #: src/components/ThumbnailCropModal.jsx
 #: src/components/WorkspaceRecoveryModal.jsx
 #: src/lib/activityTray.js
@@ -5505,6 +5604,11 @@ msgstr "capture, capture d’écran, enregistrer, démo, marketing, propre"
 #: src/lib/entityKinds.js
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
+msgid "Card"
+msgstr "Carte"
+
+#: src/lib/teamBillingLines.js
+msgctxt "payment card"
 msgid "Card"
 msgstr "Carte"
 
@@ -5657,6 +5761,10 @@ msgstr "ChatGPT, Claude et les applications de code comme Claude Code, Cursor et
 msgid "Check now"
 msgstr "Vérifier maintenant"
 
+#: src/components/team/TeamPageLive.jsx
+msgid "Check the connection, then try again. Nothing about the team changed."
+msgstr "Vérifiez la connexion, puis réessayez. Rien n’a changé dans l’équipe."
+
 #: src/components/docExtensions/ImageUpload.js
 #: src/components/fileShare/FileSharePage.jsx
 msgid "Check your connection and try again."
@@ -5680,6 +5788,7 @@ msgid "Checking the price…"
 msgstr "Vérification du prix…"
 
 #: src/auth/PricingSuccess.jsx
+#: src/components/team/TeamWorkspaces.jsx
 #: src/pages/KeepPage.jsx
 #: src/pages/MakePage.jsx
 msgid "Checking…"
@@ -9108,6 +9217,10 @@ msgstr "Point de terminaison copié."
 msgid "Ends"
 msgstr "Fin"
 
+#: src/lib/teamBillingLines.js
+msgid "Ends {day}"
+msgstr "Fin le {day}"
+
 #: src/components/ShortcutsOverlay.jsx
 msgctxt "keyboard key"
 msgid "Enter"
@@ -9266,6 +9379,14 @@ msgstr "TOUS LES AUTRES"
 msgid "Everyone in it sees them as they land."
 msgstr "Tous ceux qui y sont les voient arriver au fur et à mesure."
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Everyone in the team"
+msgstr "Toute l’équipe"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Everyone in the team can open these, except the private ones."
+msgstr "Toute l’équipe peut les ouvrir, sauf ceux qui sont privés."
+
 #: src/lib/editorLimitWords.js
 msgid "Everyone keeps editing. Nobody new can edit until you’re under {limit}."
 msgstr "Tout le monde continue de modifier. Aucune nouvelle personne ne peut modifier tant que vous n’êtes pas en dessous de {limit}."
@@ -9364,6 +9485,18 @@ msgstr "Expiré"
 #: src/components/ShareModal.jsx
 msgid "expires {date}"
 msgstr "expire le {date}"
+
+#: src/lib/teamBillingLines.js
+msgid "Expires {exp}"
+msgstr "Expire {exp}"
+
+#: src/lib/teamBillingLines.js
+msgid "Expires {exp} · only {owner} changes the card"
+msgstr "Expire {exp} · la carte ne peut être changée que par {owner}"
+
+#: src/lib/teamBillingLines.js
+msgid "Expires {exp} · only the owner changes the card"
+msgstr "Expire {exp} · la carte ne peut être changée que par le propriétaire"
 
 #: src/components/team/TeamBilling.jsx
 msgid "Expires {exp} · receipts to {receiptsTo}"
@@ -9806,6 +9939,10 @@ msgstr "Ajuster à la largeur"
 msgid "Fit to width, {pct}%"
 msgstr "Ajuster à la largeur, {pct} %"
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Fits in the seats you have."
+msgstr "Cela tient dans les sièges dont vous disposez."
+
 #: src/components/capture/CaptureHud.jsx
 msgid "Fitted"
 msgstr "Ajusté"
@@ -10001,6 +10138,10 @@ msgstr "Mois gratuits"
 #: src/lib/billingCopyWords.js
 msgid "Free mood board maker"
 msgstr "Créateur de moodboards gratuit"
+
+#: src/lib/teamBillingLines.js
+msgid "Free trial"
+msgstr "Essai gratuit"
 
 #: src/components/CanvasSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
@@ -11212,6 +11353,10 @@ msgstr "Invitez quelqu’un à construire ce cluster avec vous"
 msgid "Invite the people you work with"
 msgstr "Invitez les personnes avec qui vous travaillez"
 
+#: src/lib/teamCopy.js
+msgid "Invite to {who} revoked."
+msgstr "Invitation à {who} révoquée."
+
 #. Words people might type to find this command, comma-separated.
 #: src/App.jsx
 msgctxt "command search words"
@@ -11458,6 +11603,10 @@ msgstr "Ses cartes, fichiers et son stockage compteront dans l’offre de {who} 
 msgid "its cluster"
 msgstr "son cluster"
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Its clusters, files and people come with it. The team pays for it from then on, and everyone in the team can open it unless an admin makes it private."
+msgstr "Ses clusters, fichiers et personnes l’accompagnent. Ensuite, c’est l’équipe qui paie, et toute l’équipe peut l’ouvrir, sauf si un administrateur le rend privé."
+
 #: src/lib/oauthTrustWords.js
 msgid "Its details come from {host}. Only continue if you trust it."
 msgstr "Ses informations viennent de {host}. Ne continuez que si vous lui faites confiance."
@@ -11699,6 +11848,10 @@ msgstr "Conserver les schémas de la mise en page de mes clusters"
 #: src/pages/MakePage.jsx
 msgid "Keep the first {room}"
 msgstr "Garder les {room} premières"
+
+#: src/components/team/TeamBilling.jsx
+msgid "Keep the team"
+msgstr "Garder l’équipe"
 
 #: src/pages/MakePage.jsx
 msgid "Keep these {count}"
@@ -12330,6 +12483,7 @@ msgstr "Chargement de votre espace de travail"
 #: src/components/ShareModal.jsx
 #: src/components/sidebar/ClusterShelves.jsx
 #: src/components/TagRangeHoverPopover.jsx
+#: src/components/team/TeamWorkspaces.jsx
 #: src/components/ThumbnailCropModal.jsx
 #: src/components/TrashModal.jsx
 #: src/components/VersionHistoryModal.jsx
@@ -12442,6 +12596,10 @@ msgstr "Créé avec Clusters, un seul endroit pour tous vos fichiers."
 msgid "Make “{name}” a tag"
 msgstr "Faire de « {name} » une étiquette"
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Make {name} private?"
+msgstr "Rendre {name} privé ?"
+
 #: src/components/settings/AccountEditorsCard.jsx
 msgid "Make {who} a viewer?"
 msgstr "Passer {who} en lecteur ?"
@@ -12486,6 +12644,10 @@ msgstr "Rendre actuelle"
 #: src/components/CanvasSurface.jsx
 msgid "Make every box the same size"
 msgstr "Donner la même taille à toutes les cases"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Make it private"
+msgstr "Le rendre privé"
 
 #: src/components/OnboardingCoachmark.jsx
 msgid "Make it yours"
@@ -12900,6 +13062,7 @@ msgstr "Plus d’options de flèche"
 
 #: src/components/shared/SharedPage.jsx
 #: src/components/team/TeamPeople.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "More for {name}"
 msgstr "Plus pour {name}"
 
@@ -12939,6 +13102,10 @@ msgstr "Plus de {editorLimit} éditeurs"
 #: src/lib/teamPricingCopyWords.js
 msgid "More than {editorLimit} people who edit"
 msgstr "Plus de {editorLimit} personnes qui modifient"
+
+#: src/components/EditorLimitNote.jsx
+msgid "More than {limit} people? <0>Start a Team</0>"
+msgstr "Plus de {limit} personnes ? <0>Démarrez avec Team</0>"
 
 #: src/lib/importGuide.js
 msgid "More than that? In the Dropbox app on your computer, right-click the folder and choose **Make available offline**. Once it shows a green check, drag the folder in."
@@ -12990,6 +13157,18 @@ msgstr "Déplacer {movingCount} et copier {copyingCount} vers {name}"
 msgid "Move {name} down"
 msgstr "Descendre {name}"
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Move {name} out of the team, to {owner}?"
+msgstr "Sortir {name} de l’équipe et le transférer à {owner} ?"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Move {name} out of the team, to <0/>?"
+msgstr "Sortir {name} de l’équipe et le transférer à <0/> ?"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Move {name} out of the team, to its owner?"
+msgstr "Sortir {name} de l’équipe et le transférer à son propriétaire ?"
+
 #: src/components/SketchPadOverlay.jsx
 msgid "Move {name} up"
 msgstr "Monter {name}"
@@ -13027,6 +13206,22 @@ msgstr "Déplacement incomplet — impossible de finaliser le cluster de destina
 #: src/components/CanvasSurface.jsx
 msgid "Move instead"
 msgstr "Déplacer à la place"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Move it in"
+msgstr "L’intégrer"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Move it out"
+msgstr "Le sortir"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Move one of yours in"
+msgstr "Intégrer l’un des vôtres"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Move out of the team"
+msgstr "Sortir de l’équipe"
 
 #: src/components/CanvasSurface.jsx
 msgid "Move them into a cluster"
@@ -13114,6 +13309,14 @@ msgstr "Déplacé du {from} au {to}"
 msgid "Moved here, but the originals could not be removed from their cluster — they are in both places for now."
 msgstr "Déplacé ici, mais les originaux n’ont pas pu être retirés de leur cluster — ils sont pour l’instant aux deux endroits."
 
+#: src/lib/teamCopy.js
+msgid "Moved into the team."
+msgstr "Intégré à l’équipe."
+
+#: src/lib/teamCopy.js
+msgid "Moved out of the team."
+msgstr "Sorti de l’équipe."
+
 #: src/App.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "Moved to {nameOf}, but they’re still in {nameOf2} too."
@@ -13126,6 +13329,10 @@ msgstr "Intégré"
 #: src/components/sidebar/SidebarMeter.jsx
 msgid "Moving from Google Drive or Dropbox? Download it as a zip, or pick its folder on your computer."
 msgstr "Vous venez de Google Drive ou Dropbox ? Téléchargez-le en zip, ou choisissez son dossier sur votre ordinateur."
+
+#: src/components/team/TeamPage.jsx
+msgid "Moving it in needs more seats. {line}"
+msgstr "L’intégrer à l’équipe demande plus de sièges. {line}"
 
 #: src/lib/workspaceSetup.js
 msgid "Music"
@@ -13819,6 +14026,10 @@ msgstr "Sans attente. Les administrateurs sont prévenus de chaque ajout."
 msgid "No workspace or person matches “{q}”."
 msgstr "Aucun espace de travail ni aucune personne ne correspond à « {q} »."
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "No workspaces here yet."
+msgstr "Aucun espace de travail ici."
+
 #: src/lib/billingCopyWords.js
 msgid "No. Clusters runs in the browser on desktop, laptop and tablet, and the same board opens on all of them. You can add it to a phone home screen as a web app."
 msgstr "Non. Clusters fonctionne dans le navigateur sur ordinateur de bureau, portable et tablette, et le même cluster s’ouvre sur tous. Vous pouvez l’ajouter à l’écran d’accueil d’un téléphone comme une application web."
@@ -13859,6 +14070,14 @@ msgstr "Aucun n’est libre à attribuer."
 #: src/components/TagManyPicker.jsx
 msgid "None of these cards has a tag yet. Type to find one or make one."
 msgstr "Aucune de ces cartes n’a encore d’étiquette. Saisissez pour en trouver une ou en créer une."
+
+#: src/lib/teamBillingLines.js
+msgid "None yet."
+msgstr "Aucun reçu."
+
+#: src/lib/teamBillingLines.js
+msgid "None yet. The first comes on {date}."
+msgstr "Aucun pour l’instant. Le premier arrive le {date}."
 
 #: src/components/settings/ConnectionsTab.jsx
 msgid "None yet. Tokens you create appear here with what they can do and when they were last used, so you can revoke one you no longer recognise."
@@ -13942,6 +14161,10 @@ msgstr "Pas sur la toile — dans ce cluster, mais pas placé dessus"
 #: src/components/sidebar/ClusterShelves.jsx
 msgid "not on the board"
 msgstr "pas sur la toile"
+
+#: src/lib/teamBillingLines.js
+msgid "Not paid"
+msgstr "Non payé"
 
 #: src/components/fileShare/FileComments.jsx
 msgid "Not pinned"
@@ -14656,6 +14879,10 @@ msgid "Only you can. Its workspaces move to your own account, and everyone in th
 msgstr "Vous seul le pouvez. Ses espaces de travail passent sur votre propre compte, et chacun garde ce qu’il avait."
 
 #: src/lib/teamCopy.js
+msgid "Only you."
+msgstr "Seulement vous."
+
+#: src/lib/teamCopy.js
 msgid "Only your own personal workspaces can move into a team."
 msgstr "Seuls vos propres espaces de travail personnels peuvent rejoindre une équipe."
 
@@ -14686,11 +14913,17 @@ msgstr "Opacité"
 #: src/components/shared/SharedPage.jsx
 #: src/components/SidebarBoardTree.jsx
 #: src/components/TagDetailView.jsx
+#: src/components/team/TeamWorkspaces.jsx
 #: src/hooks/useInboxLive.js
 #: src/hooks/useNotifications.js
 #: src/lib/activityTray.js
 msgid "Open"
 msgstr "Ouvrir"
+
+#: src/lib/teamBillingLines.js
+msgctxt "invoice status"
+msgid "Open"
+msgstr "En attente"
 
 #: src/components/doc/DocCommentsTab.jsx
 msgctxt "status"
@@ -15317,6 +15550,10 @@ msgstr "Sans pages"
 msgid "Pages"
 msgstr "Pages"
 
+#: src/lib/teamBillingLines.js
+msgid "Paid"
+msgstr "Payé"
+
 #: src/components/SketchPadOverlay.jsx
 msgid "Paint bucket"
 msgstr "Pot de peinture"
@@ -15678,6 +15915,10 @@ msgstr "Les personnes avec qui vous le partagez peuvent enregistrer le fichier d
 msgid "People, seats and billing"
 msgstr "Personnes, sièges et facturation"
 
+#: src/components/team/TeamBilling.jsx
+msgid "People’s own workspaces"
+msgstr "Espaces de travail personnels"
+
 #: src/components/TrashModal.jsx
 msgid "Permanently delete cluster?"
 msgstr "Supprimer définitivement le cluster ?"
@@ -15705,6 +15946,7 @@ msgid "Personal — these change how Clusters looks and behaves for you, on ever
 msgstr "Personnel — cela change l’apparence et le comportement de Clusters pour vous, sur chaque appareil où vous vous connectez. Personne d’autre dans l’espace de travail ne le voit."
 
 #: src/components/team/TeamSetup.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "Personal workspace"
 msgstr "Espace de travail personnel"
 
@@ -16081,6 +16323,7 @@ msgid "Preview the latest build"
 msgstr "Prévisualiser la dernière version"
 
 #: src/App.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "Preview: {name} is an example workspace in the test team."
 msgstr "Aperçu : {name} est un espace de travail d’exemple dans l’équipe de test."
 
@@ -16105,6 +16348,7 @@ msgid "Preview: nobody was emailed. No new addresses to invite."
 msgstr "Aperçu : personne n’a reçu d’e-mail. Aucune nouvelle adresse à inviter."
 
 #: src/components/team/TeamBilling.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "Preview: nothing was charged."
 msgstr "Aperçu : rien n’a été débité."
 
@@ -16198,6 +16442,7 @@ msgid "Privacy"
 msgstr "Confidentialité"
 
 #: src/components/team/NewWorkspaceDialog.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "Private"
 msgstr "Privé"
 
@@ -16393,6 +16638,18 @@ msgstr "De vrais lecteurs sur la toile ; de l’audio à mettre en boucle et à
 msgid "Rec"
 msgstr "REC"
 
+#: src/components/team/TeamBilling.jsx
+msgid "Receipt"
+msgstr "Reçu"
+
+#: src/components/team/TeamBilling.jsx
+msgid "Receipt from {date}"
+msgstr "Reçu du {date}"
+
+#: src/components/team/TeamBilling.jsx
+msgid "Receipts"
+msgstr "Reçus"
+
 #: src/components/ColorPicker.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/toolbar/NoteBarA.jsx
@@ -16537,7 +16794,6 @@ msgstr "Remix"
 #: src/components/settings/PasskeysSection.jsx
 #: src/components/ShareModal.jsx
 #: src/components/team/TeamJoining.jsx
-#: src/components/team/TeamPeople.jsx
 #: src/components/WaitlistModal.jsx
 msgid "Remove"
 msgstr "Retirer"
@@ -16570,10 +16826,6 @@ msgstr "Retirer {label} ?"
 msgid "Remove {name}"
 msgstr "Retirer {name}"
 
-#: src/components/team/TeamPeople.jsx
-msgid "Remove {name} from the team? They lose access to the team’s workspaces."
-msgstr "Retirer {name} de l’équipe ? Cette personne perd l’accès aux espaces de travail de l’équipe."
-
 #: src/components/settings/BillingTab.jsx
 msgid "Remove {STORAGE_ADDON_BLOCK_LABEL}"
 msgstr "Retirer {STORAGE_ADDON_BLOCK_LABEL}"
@@ -16584,8 +16836,13 @@ msgid "Remove {who}?"
 msgstr "Retirer {who} ?"
 
 #: src/components/team/TeamBilling.jsx
+#: src/components/team/TeamPage.jsx
 msgid "Remove a seat"
 msgstr "Retirer un siège"
+
+#: src/lib/teamCopy.js
+msgid "Remove a seat?"
+msgstr "Retirer un siège ?"
 
 #: src/components/ShareModal.jsx
 msgid "Remove access…"
@@ -16684,10 +16941,6 @@ msgstr "Échec du retrait de l’étiquette : {reason}"
 msgid "Remove their access"
 msgstr "Retirer son accès"
 
-#: src/components/team/TeamPeople.jsx
-msgid "Remove their access?"
-msgstr "Retirer son accès ?"
-
 #: src/components/cards/CardTransferState.jsx
 msgid "Remove this card"
 msgstr "Retirer cette carte"
@@ -16740,6 +16993,10 @@ msgstr "{title} retiré — ses clusters sont dans la corbeille."
 #: src/components/settings/MembersTab.jsx
 msgid "Removed {who}."
 msgstr "{who} retiré."
+
+#: src/lib/teamCopy.js
+msgid "Removed {who}’s access."
+msgstr "Accès de {who} retiré."
 
 #: src/components/ExplorePublishSection.jsx
 msgid "Removed from Explore."
@@ -17443,6 +17700,7 @@ msgstr "Enregistré."
 #: src/components/fileShare/SharedFileHost.jsx
 #: src/components/settings/saveState.jsx
 #: src/components/setup/WorkspaceSetup.jsx
+#: src/components/team/TeamPeople.jsx
 #: src/components/ThumbnailCropModal.jsx
 #: src/lib/docSaveStatus.js
 msgid "Saving…"
@@ -17758,6 +18016,7 @@ msgid "See Pricing →"
 msgstr "Voir les tarifs →"
 
 #: src/components/team/TeamBilling.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "See the price"
 msgstr "Voir le prix"
 
@@ -17773,6 +18032,10 @@ msgstr "Voir qui"
 #: src/hooks/useNotifications.js
 msgid "See who can edit"
 msgstr "Voir qui peut modifier"
+
+#: src/lib/notificationWords.js
+msgid "See who in People."
+msgstr "Voyez qui dans Personnes."
 
 #: src/components/MessageBubble.jsx
 msgid "Seen"
@@ -18968,6 +19231,10 @@ msgstr "Plein"
 #: src/lib/dropRules.js
 msgid "Some are view only, so they’re copied"
 msgstr "Certains sont en lecture seule, ils sont donc copiés"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Some of its editors don’t have a seat in the team yet."
+msgstr "Certains de ses éditeurs n’ont pas encore de siège dans l’équipe."
 
 #: src/components/settings/AccountEditorsCard.jsx
 msgid "Some of that didn’t go through. Try again."
@@ -20533,6 +20800,14 @@ msgstr "L’original reste dans {from}"
 msgid "The originals stay in {from}"
 msgstr "Les originaux restent dans {from}"
 
+#: src/lib/teamBillingLines.js
+msgid "The owner ended the plan. The team ends on {date}, and its workspaces become the owner’s."
+msgstr "Le propriétaire a résilié l’offre. L’équipe prend fin le {date}, et ses espaces de travail passent au propriétaire."
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "The owner, admins and people added to it"
+msgstr "Le propriétaire, les administrateurs et les personnes ajoutées"
+
 #: src/lib/editorLimitWords.js
 msgid "The owner’s plan has room for {limit}. Invite people to view, or ask the owner to make room."
 msgstr "L’offre du propriétaire prévoit {limit} places. Invitez des personnes à consulter, ou demandez au propriétaire de faire de la place."
@@ -20638,9 +20913,13 @@ msgstr "La demande est annulée avant examen. Vous pourrez la soumettre de nouve
 msgid "the team"
 msgstr "l’équipe"
 
-#: src/components/team/TeamPageLive.jsx
-msgid "The team couldn’t be loaded. Try again in a moment."
-msgstr "Impossible de charger l’équipe. Réessayez dans un instant."
+#: src/lib/teamBillingLines.js
+msgid "The team ends on {date}, and nothing more is charged. Its workspaces then become yours, and everyone in them keeps what they had."
+msgstr "L’équipe prend fin le {date}, et plus rien n’est débité. Ses espaces de travail deviennent alors les vôtres, et chacun y garde ce qu’il avait."
+
+#: src/lib/teamCopy.js
+msgid "The team goes from {seats, plural, one {# seat} other {# seats}} to {fewer}, and the bill follows. {left, plural, =0 {None will still be free to give.} one {# seat will still be free to give.} other {# seats will still be free to give.}}"
+msgstr "L’équipe passe de {seats, plural, one {# siège} other {# sièges}} à {fewer}, et la facture suit. {left, plural, =0 {Aucun siège ne restera libre à attribuer.} one {# siège restera libre à attribuer.} other {# sièges resteront libres à attribuer.}}"
 
 #: src/lib/teamCopy.js
 msgid "The team is closed. Its workspaces are in your account."
@@ -20654,12 +20933,17 @@ msgstr "L’équipe est à jour. La modification est réactivée."
 #: src/components/team/TeamJoining.jsx
 #: src/components/team/TeamPage.jsx
 #: src/components/team/TeamPeople.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "The team is view-only until it’s paid"
 msgstr "L’équipe est en lecture seule tant qu’elle n’a pas payé"
 
 #: src/lib/teamCopy.js
 msgid "The team is view-only until it’s paid."
 msgstr "L’équipe est en lecture seule tant qu’elle n’a pas payé."
+
+#: src/components/team/TeamPageLive.jsx
+msgid "The team page didn’t load."
+msgstr "La page de l’équipe ne s’est pas chargée."
 
 #: src/pages/TemplateSharePage.jsx
 msgid "The template may have been deleted, or the link revoked."
@@ -20767,6 +21051,10 @@ msgstr "Ces paramètres appartiennent à l’espace de travail, pas à vous — 
 msgid "They"
 msgstr "Cette personne"
 
+#: src/lib/notificationWords.js
+msgid "They accepted an invite."
+msgstr "A accepté une invitation."
+
 #: src/components/ShareModal.jsx
 msgid "They can add, move and delete cards in “{boardName}” and its sub-clusters."
 msgstr "Cette personne peut ajouter, déplacer et supprimer des cartes dans « {boardName} » et ses sous-clusters."
@@ -20783,6 +21071,10 @@ msgstr "Cette personne peut ajouter, déplacer et supprimer des cartes dans tous
 msgid "They can add, move and delete cards in every cluster in “{wsName}”. Editors are free on every plan."
 msgstr "Cette personne peut ajouter, déplacer et supprimer des cartes dans tous les clusters de « {wsName} ». Les éditeurs sont gratuits sur toutes les offres."
 
+#: src/lib/notificationWords.js
+msgid "They can edit."
+msgstr "Peut modifier."
+
 #: src/components/ShareModal.jsx
 msgid "They can open “{boardName}” and its sub-clusters, comment and vote, but can’t change anything."
 msgstr "Cette personne peut ouvrir « {boardName} » et ses sous-clusters, commenter et voter, mais ne peut rien modifier."
@@ -20791,6 +21083,10 @@ msgstr "Cette personne peut ouvrir « {boardName} » et ses sous-clusters, com
 msgid "They can open every cluster in “{wsName}”, comment and vote, but can’t change anything."
 msgstr "Cette personne peut ouvrir tous les clusters de « {wsName} », commenter et voter, mais ne peut rien modifier."
 
+#: src/lib/notificationWords.js
+msgid "They can view."
+msgstr "Peut consulter."
+
 #: src/components/team/TeamBilling.jsx
 msgid "They join as a viewer. An admin approves, and that adds a seat."
 msgstr "Ils rejoignent en tant que lecteurs. Un administrateur approuve, ce qui ajoute un siège."
@@ -20798,6 +21094,18 @@ msgstr "Ils rejoignent en tant que lecteurs. Un administrateur approuve, ce qui 
 #: src/components/team/TeamSetup.jsx
 msgid "They join as viewers. Make them editors and it adds a seat each."
 msgstr "Ils rejoignent en tant que lecteurs. En faire des éditeurs ajoute un siège chacun."
+
+#: src/lib/notificationWords.js
+msgid "They joined the team."
+msgstr "A rejoint l’équipe."
+
+#: src/lib/notificationWords.js
+msgid "They joined through the team link."
+msgstr "A rejoint via le lien de l’équipe."
+
+#: src/lib/notificationWords.js
+msgid "They joined with their work email."
+msgstr "A rejoint avec son e-mail professionnel."
 
 #: src/components/settings/MembersTab.jsx
 msgid "They sign in to accept."
@@ -21700,6 +22008,7 @@ msgstr "Essayez une grille — un cadre redimensionnable avec des cellules qui c
 #: src/components/PdfViewer.jsx
 #: src/components/shared/SharedPage.jsx
 #: src/components/StorageAddonSheet.jsx
+#: src/components/team/TeamPageLive.jsx
 msgid "Try again"
 msgstr "Réessayer"
 
@@ -21813,6 +22122,7 @@ msgstr "Souligné"
 #: src/components/shared/SharedPage.jsx
 #: src/components/SketchPadOverlay.jsx
 #: src/components/toolbar/CanvasBarsA.jsx
+#: src/lib/teamCopy.js
 #: src/lib/undoToast.js
 #: src/lib/versionActions.js
 msgid "Undo"
@@ -23050,6 +23360,10 @@ msgstr "Les e-mails que Clusters doit vous envoyer. Tout ce que vous n’activez
 msgid "Which workspaces move in?<0>{count} of {value}</0>"
 msgstr "Quels espaces de travail intégrer ?<0>{count} sur {value}</0>"
 
+#: src/components/team/TeamBilling.jsx
+msgid "While someone holds a seat, their own workspaces get unlimited cards and {size} more drive. Turned off, they go back to each person’s own plan. Nothing is removed."
+msgstr "Tant qu’une personne a un siège, ses propres espaces de travail ont des cartes illimitées et {size} de drive en plus. Si l’option est désactivée, ils reviennent à l’offre de chacun. Rien n’est retiré."
+
 #: src/lib/importCopy.js
 msgid "While you’re trying {PLAN_NAME} your drive is {TRIAL_STORAGE_LABEL}. Your first payment makes it {CREATOR_STORAGE_LABEL}."
 msgstr "Pendant votre essai de {PLAN_NAME}, votre drive fait {TRIAL_STORAGE_LABEL}. Votre premier paiement le porte à {CREATOR_STORAGE_LABEL}."
@@ -23067,6 +23381,7 @@ msgid "Whites"
 msgstr "Blancs"
 
 #: src/components/fileShare/FileShareDialog.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "Who can open it"
 msgstr "Qui peut l’ouvrir"
 
@@ -23213,6 +23528,7 @@ msgstr "En cours…"
 #: src/components/home/HomeWorkspace.jsx
 #: src/components/ProjectsHome.jsx
 #: src/components/ShareModal.jsx
+#: src/components/team/TeamWorkspaces.jsx
 #: src/lib/boardsApi.js
 #: src/lib/gridLayoutWords.js
 #: src/lib/sharedPeopleWords.js
@@ -23265,6 +23581,8 @@ msgstr "Lecteur de l’espace de travail"
 
 #: src/App.jsx
 #: src/components/CommandPalette.jsx
+#: src/components/team/TeamPage.jsx
+#: src/components/team/TeamWorkspaces.jsx
 #: src/lib/billingCopyWords.js
 msgid "Workspaces"
 msgstr "Espaces de travail"
@@ -23320,6 +23638,11 @@ msgstr "Hier"
 msgid "you"
 msgstr "vous"
 
+#: src/components/team/TeamWorkspaces.jsx
+msgctxt "who a workspace moves to"
+msgid "you"
+msgstr "vous"
+
 #: src/App.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
 #: src/components/doc/DocCommentsTab.jsx
@@ -23365,6 +23688,10 @@ msgstr "Vous pouvez tout y ajouter et tout y modifier"
 #: src/lib/setupGate.js
 msgid "You can add to it and edit it"
 msgstr "Vous pouvez y ajouter et y modifier"
+
+#: src/lib/notificationWords.js
+msgid "You can keep viewing “{target}”"
+msgstr "Vous pouvez continuer à consulter « {target} »"
 
 #: src/components/home/ClustersHome.jsx
 msgid "You can look around this cluster but not change it."
@@ -23489,6 +23816,10 @@ msgstr "Vous avez une réponse non envoyée sur ce commentaire."
 msgid "You have no personal workspaces to move in. The team starts empty, and you can make team workspaces in it."
 msgstr "Vous n’avez aucun espace de travail personnel à intégrer. L’équipe démarre vide, et vous pouvez y créer des espaces de travail d’équipe."
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "You have no workspaces of your own to move in."
+msgstr "Vous n’avez aucun espace de travail personnel à intégrer."
+
 #: src/auth/PricingPage.jsx
 #: src/components/settings/BillingTab.jsx
 msgid "You have unlimited admin access — no subscription needed."
@@ -23584,6 +23915,7 @@ msgid "You’ll see its workspaces as they’re added. Your own workspaces stay 
 msgstr "Vous verrez ses espaces de travail à mesure qu’ils sont ajoutés. Vos propres espaces de travail restent à vous : l’équipe ne les voit jamais."
 
 #: src/components/team/TeamBilling.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "You’ll see the price before anything is charged."
 msgstr "Vous verrez le prix avant tout débit."
 
@@ -23672,6 +24004,10 @@ msgstr "Vous rejoignez {what}"
 #: src/lib/messageAccess.js
 msgid "You're not a member of this workspace. Switch to one you belong to and try again."
 msgstr "Vous n’êtes pas membre de cet espace de travail. Passez à un espace dont vous faites partie et réessayez."
+
+#: src/App.jsx
+msgid "You’re not in this team anymore."
+msgstr "Vous n’êtes plus dans cette équipe."
 
 #: src/lib/teamCopy.js
 msgid "You’re not in this team."

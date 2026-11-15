@@ -5,8 +5,12 @@
 // machine: the stub aborts every host but its own.
 //
 // The invite box is on the Joining tab (the "Invite people" button opens it).
+// The page's tabs are People · Workspaces · Seats & billing · Joining for the
+// owner and admins, People · Workspaces for a member. Removing a person waits
+// UNDO_MS for an Undo (page.clock jumps it).
 import { test, expect as baseExpect } from '@playwright/test';
 import { bootSignedIn, USER_ID, WS_ID, ORG } from './helpers/signedInStub.js';
+import { UNDO_MS } from '../src/lib/teamPendingRemovals.js';
 
 // The stubbed app reaches the Team plan several seconds after the boot
 // (list_my_teams and lib/teamBoot.js load once the workspace is up), past
@@ -50,6 +54,18 @@ const JOINED_LINE = 'You’re in Northlight Films. Its workspaces are in your wo
 const toast = (page, text) => page.locator('.toast-msg', { hasText: text });
 
 const only = (calls, path) => calls.filter((c) => c.path === path);
+
+const PRIYA = '88888888-8888-4888-8888-888888888888';
+
+// get_team the way the server answers it after remove_from_team: whoever was
+// removed is gone from the next read.
+function removableTeam(base = GET_TEAM) {
+  const gone = new Set();
+  return {
+    get_team: () => ({ ...base, people: base.people.filter((p) => !gone.has(p.id)) }),
+    remove_from_team: (body) => { gone.add(body.p_user_id); return null; },
+  };
+}
 
 test.describe('Team plan on the real app, Supabase stubbed', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
@@ -271,5 +287,218 @@ test.describe('Team plan on the real app, Supabase stubbed', () => {
     const dialog = page.getByRole('dialog', { name: 'New workspace' });
     await dialog.getByRole('radio', { name: /Northlight Films/ }).click();
     await expect(dialog.getByRole('switch', { name: 'Private' })).toBeVisible();
+  });
+
+  // ── The page's tabs, and the Workspaces tab ──────────────────────────────
+
+  test('the owner has four tabs on a real team', async ({ page }) => {
+    await bootSignedIn(page, {
+      path: '/team',
+      rpc: { list_my_teams: [teamRow('owner')], get_team: GET_TEAM, get_team_billing: GET_BILLING },
+    });
+    const sheet = page.locator('[data-team-page]');
+    await expect(sheet.getByRole('heading', { name: 'Northlight Films' })).toBeVisible();
+    await expect(sheet.getByRole('tab')).toHaveText([/^People/, /^Workspaces/, /^Seats & billing/, /^Joining/]);
+  });
+
+  test('a member has People and Workspaces, and no Private switch', async ({ page }) => {
+    await bootSignedIn(page, {
+      path: '/team',
+      rpc: {
+        list_my_teams: [teamRow('member')],
+        get_team: { ...GET_TEAM, me: { id: USER_ID, role: 'member' } },
+      },
+    });
+    const sheet = page.locator('[data-team-page]');
+    await expect(sheet.getByRole('heading', { name: 'Northlight Films' })).toBeVisible();
+    await expect(sheet.getByRole('tab')).toHaveText([/^People/, /^Workspaces/]);
+    await sheet.getByRole('tab', { name: /Workspaces/ }).click();
+    await expect(sheet.getByText('Studio work')).toBeVisible();
+    await expect(sheet.getByRole('switch')).toHaveCount(0);
+  });
+
+  test('Make private asks first: Cancel sends nothing, Make it private sends it once', async ({ page }) => {
+    const { calls } = await bootSignedIn(page, {
+      path: '/team',
+      rpc: { list_my_teams: [teamRow('owner')], get_team: GET_TEAM, get_team_billing: GET_BILLING },
+    });
+    const sheet = page.locator('[data-team-page]');
+    await sheet.getByRole('tab', { name: /Workspaces/ }).click();
+    const sw = sheet.getByRole('switch', { name: 'Studio work is private' });
+    await expect(sw).toHaveAttribute('aria-checked', 'false');
+
+    await sw.click();
+    const confirm = sheet.getByRole('alertdialog');
+    await expect(confirm).toContainText('Make Studio work private?');
+    await confirm.getByRole('button', { name: 'Cancel' }).click();
+    await expect(confirm).toHaveCount(0);
+    await page.waitForTimeout(300);
+    expect(only(calls, 'rpc/set_team_workspace_private')).toHaveLength(0);
+    await expect(sw).toHaveAttribute('aria-checked', 'false');
+
+    await sw.click();
+    await sheet.getByRole('alertdialog').getByRole('button', { name: 'Make it private' }).click();
+    await expect.poll(() => only(calls, 'rpc/set_team_workspace_private').length).toBe(1);
+    expect(only(calls, 'rpc/set_team_workspace_private')[0].body).toEqual({ p_workspace_id: WS_ID, p_private: true });
+  });
+
+  // ── Removing a person waits for an Undo ──────────────────────────────────
+
+  const removePriya = async (sheet) => {
+    await sheet.getByRole('button', { name: 'More for Priya Nair' }).click();
+    await sheet.getByRole('menuitem', { name: 'Remove from the team' }).click();
+  };
+  const removedToast = (page) => page.locator('.toast', { hasText: 'Priya Nair removed from the team.' });
+
+  test('removing a person: the row goes at once with an Undo, and Undo sends nothing', async ({ page }) => {
+    // Before the page mounts, so the wait's timer is the faked one.
+    await page.clock.install();
+    const { calls } = await bootSignedIn(page, {
+      path: '/team',
+      rpc: { list_my_teams: [teamRow('owner')], get_team_billing: GET_BILLING, ...removableTeam() },
+    });
+    const sheet = page.locator('[data-team-page]');
+    await expect(sheet.getByText('Priya Nair')).toBeVisible();
+
+    await removePriya(sheet);
+    await expect(sheet.getByText('Priya Nair')).toHaveCount(0);
+    await expect(removedToast(page)).toBeVisible();
+    expect(only(calls, 'rpc/remove_from_team')).toHaveLength(0);
+
+    await removedToast(page).getByRole('button', { name: 'Undo' }).click();
+    await expect(sheet.getByText('Priya Nair')).toBeVisible();
+    // Past the wait: nothing was sent, and she is still there.
+    await page.clock.fastForward(UNDO_MS + 1000);
+    await page.waitForTimeout(500);
+    expect(only(calls, 'rpc/remove_from_team')).toHaveLength(0);
+    await expect(sheet.getByText('Priya Nair')).toBeVisible();
+  });
+
+  test('removing a person without Undo: the call is made once, after the wait', async ({ page }) => {
+    await page.clock.install();
+    const { calls } = await bootSignedIn(page, {
+      path: '/team',
+      rpc: { list_my_teams: [teamRow('owner')], get_team_billing: GET_BILLING, ...removableTeam() },
+    });
+    const sheet = page.locator('[data-team-page]');
+    await expect(sheet.getByText('Priya Nair')).toBeVisible();
+
+    await removePriya(sheet);
+    await expect(removedToast(page)).toBeVisible();
+    await page.waitForTimeout(500);
+    expect(only(calls, 'rpc/remove_from_team')).toHaveLength(0);
+
+    await page.clock.fastForward(UNDO_MS + 1000);
+    await expect.poll(() => only(calls, 'rpc/remove_from_team').length).toBe(1);
+    expect(only(calls, 'rpc/remove_from_team')[0].body).toEqual({ p_org_id: ORG, p_user_id: PRIYA });
+    // The reload after the call keeps her out, and nothing sends it again.
+    await page.waitForTimeout(500);
+    await expect(sheet.getByText('Priya Nair')).toHaveCount(0);
+    expect(only(calls, 'rpc/remove_from_team')).toHaveLength(1);
+  });
+
+  // ── Seats & billing ──────────────────────────────────────────────────────
+
+  test('Remove a seat asks first: Cancel sends nothing, the button sends it once', async ({ page }) => {
+    const { calls } = await bootSignedIn(page, {
+      path: '/team',
+      rpc: { list_my_teams: [teamRow('owner')], get_team: GET_TEAM, get_team_billing: GET_BILLING },
+    });
+    const sheet = page.locator('[data-team-page]');
+    await sheet.getByRole('tab', { name: /Seats & billing/ }).click();
+    await sheet.getByRole('button', { name: 'Remove a seat' }).click();
+
+    const confirm = sheet.getByRole('alertdialog');
+    await expect(confirm).toContainText('Remove a seat?');
+    await expect(confirm).toContainText('The team goes from 5 seats to 4');
+    await confirm.getByRole('button', { name: 'Cancel' }).click();
+    await expect(confirm).toHaveCount(0);
+    await page.waitForTimeout(300);
+    expect(only(calls, 'rpc/remove_team_seat')).toHaveLength(0);
+
+    await sheet.getByRole('button', { name: 'Remove a seat' }).click();
+    await sheet.getByRole('alertdialog').getByRole('button', { name: 'Remove a seat' }).click();
+    await expect.poll(() => only(calls, 'rpc/remove_team_seat').length).toBe(1);
+    expect(only(calls, 'rpc/remove_team_seat')[0].body).toEqual({ p_org_id: ORG });
+  });
+
+  // team-billing "summary": the card, the next charge and the receipts, as
+  // _shared/teamBillingCore.mjs teamBillingSummary sends them (amounts in the
+  // currency's minor unit, dates in ms, the card's expiry as expMonth/expYear).
+  const noon = (monthIndex, day, yearAhead = 0) => new Date(new Date().getFullYear() + yearAhead, monthIndex, day, 12).getTime();
+  const SUMMARY = {
+    ok: true,
+    card: { brand: 'visa', last4: '4242', expMonth: 8, expYear: 2028 },
+    next: { amount: 37500, currency: 'usd', date: noon(0, 2, 1) },
+    receipts: [
+      { id: 'in_paid_https', date: noon(0, 5), amount: 37500, currency: 'usd', status: 'paid', url: 'https://invoice.stripe.com/i/acct_test/in_paid_https' },
+      { id: 'in_paid_http', date: noon(0, 4), amount: 4167, currency: 'usd', status: 'paid', url: 'http://invoice.stripe.com/i/acct_test/in_paid_http' },
+      { id: 'in_open_none', date: noon(0, 3), amount: 2500, currency: 'usd', status: 'open', url: null },
+    ],
+  };
+
+  test('Seats & billing shows the card, the next charge and the receipts; only an https receipt links', async ({ page }) => {
+    const { calls } = await bootSignedIn(page, {
+      path: '/team',
+      rpc: { list_my_teams: [teamRow('owner')], get_team: GET_TEAM, get_team_billing: GET_BILLING },
+      functions: { 'team-billing': (body) => (body.action === 'summary' ? SUMMARY : {}) },
+    });
+    const sheet = page.locator('[data-team-page]');
+    await sheet.getByRole('tab', { name: /Seats & billing/ }).click();
+
+    await expect(sheet.locator('.tp-pay-t')).toContainText('Visa ending 4242');
+    await expect(sheet.locator('.tp-pay-t')).toContainText('Expires 08/28');
+    await expect(sheet).toContainText('The next charge is $375 on January 2.');
+    await expect(sheet.locator('.tpb-rc')).toHaveCount(3);
+
+    const rowFor = (amount) => sheet.locator('.tpb-rc', { hasText: amount });
+    await expect(rowFor('$375.00')).toContainText('Paid');
+    await expect(rowFor('$375.00').getByRole('link')).toHaveAttribute('href', 'https://invoice.stripe.com/i/acct_test/in_paid_https');
+    await expect(rowFor('$41.67')).toContainText('Paid');
+    await expect(rowFor('$41.67').getByRole('link')).toHaveCount(0);
+    await expect(rowFor('$25.00')).toContainText('Open');
+    await expect(rowFor('$25.00').getByRole('link')).toHaveCount(0);
+    await expect(sheet.locator('.tpb-rc a')).toHaveCount(1);
+
+    // The dev server mounts under StrictMode, which runs the page's effect twice:
+    // count that it asked, and for which team, not how many times.
+    const asked = only(calls, 'functions/team-billing').filter((c) => c.body?.action === 'summary');
+    expect(asked.length).toBeGreaterThanOrEqual(1);
+    for (const c of asked) expect(c.body.org_id).toBe(ORG);
+  });
+
+  test('Seats & billing without a summary keeps the Stripe line', async ({ page }) => {
+    await bootSignedIn(page, {
+      path: '/team',
+      rpc: { list_my_teams: [teamRow('owner')], get_team: GET_TEAM, get_team_billing: GET_BILLING },
+      functions: { 'team-billing': { status: 500, body: { error: 'server_error' } } },
+    });
+    const sheet = page.locator('[data-team-page]');
+    await sheet.getByRole('tab', { name: /Seats & billing/ }).click();
+    await expect(sheet.getByText('Card, invoices and receipts are in Stripe.')).toBeVisible();
+    await expect(sheet.locator('.tpb-rc')).toHaveCount(0);
+  });
+
+  // ── The page that did not load ───────────────────────────────────────────
+
+  test('a team that did not load says so, and Try again loads it', async ({ page }) => {
+    // Down until the test says otherwise, not "the first read": the dev server's
+    // StrictMode reads the team twice on open.
+    let down = true;
+    const { calls } = await bootSignedIn(page, {
+      path: '/team',
+      rpc: {
+        list_my_teams: [teamRow('owner')],
+        get_team: () => (down ? { status: 500, body: { code: 'XX000', message: 'boom', details: null, hint: null } } : GET_TEAM),
+        get_team_billing: GET_BILLING,
+      },
+    });
+    const sheet = page.locator('[data-team-page]');
+    await expect(sheet.getByText('The team page didn’t load.')).toBeVisible();
+    await expect(sheet.getByRole('button', { name: 'Close' })).toBeVisible();
+    down = false;
+    await sheet.getByRole('button', { name: 'Try again' }).click();
+    await expect(sheet.getByRole('heading', { name: 'Northlight Films' })).toBeVisible();
+    expect(only(calls, 'rpc/get_team').length).toBeGreaterThanOrEqual(2);
   });
 });

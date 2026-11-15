@@ -6,7 +6,8 @@ import { Icon } from '../Icon.jsx';
 import { ChevronDown, LinkSimple, Copy, Globe, Check } from '../../lib/icons.js';
 import { seatsFree, joinUrl } from '../../lib/teamModel.js';
 import { parseEmails } from '../../lib/inviteSubmit.js';
-import { refusalLine, domainCheckLine } from '../../lib/teamCopy.js';
+import { refusalLine, domainCheckLine, removedLine } from '../../lib/teamCopy.js';
+import { domainKey } from '../../lib/teamPendingRemovals.js';
 import { TeamMenu } from './TeamMenu.jsx';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import { t as tr, ph, plural } from '@lingui/core/macro';
@@ -32,7 +33,7 @@ function txtValue(domain) {
   return (h >>> 0).toString(16).padStart(8, '0');
 }
 
-export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, live, go, report, ask, priceThen }) {
+export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, live, go, report, ask, priceThen, removeLater, track, isBusy }) {
   const taRef = useRef(null);
   const [text, setText] = useState('');
   const [role, setRole] = useState('editor');
@@ -108,17 +109,19 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
     setAddingDomain(false);
   };
 
-  const removeDomain = (d) => ask({
-    message: `Remove ${d.domain}? People who sign up with it stop joining the team.`,
-    confirmLabel: tr`Remove`,
-    danger: true,
-    run: () => go('removeDomain', { domain: d.domain }),
+  // Gone at once, with an Undo toast; the call is made a few seconds on.
+  const removeDomain = (d) => removeLater({
+    key: domainKey(d.domain),
+    type: 'removeDomain',
+    payload: { domain: d.domain },
+    line: removedLine('domain', d.domain),
   });
 
-  const checkDomain = async (d) => {
+  const checkKey = (d) => `check:${d.domain}`;
+  const checkDomain = (d) => track(checkKey(d), async () => {
     const res = await onAction('checkDomain', { domain: d.domain });
     onToast(res.ok ? domainCheckLine(res.data, d.domain) : refusalLine(res.refusal));
-  };
+  });
 
   const switchDomains = () => {
     const on = !domainsOn;
@@ -219,7 +222,7 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
                 {d.verified ? <Icon as={Check} size={10} weight="regular" /> : null}
                 {d.verified ? tr`Verified` : tr`Not verified`}
               </span>
-              {live && <button type="button" className="tp-link" onClick={() => removeDomain(d)} {...lock}><Trans>Remove</Trans></button>}
+              <button type="button" className="tp-link" onClick={() => removeDomain(d)} {...lock}><Trans>Remove</Trans></button>
             </div>
             {!d.verified && !live && (
               <p className="tp-card-t" style={{ marginTop: 8 }}><Trans>Add a TXT record soleil-verify={ph({ txtValue: txtValue(d.domain) })} to its DNS, then check back.</Trans></p>
@@ -240,7 +243,7 @@ export default function TeamJoining({ t, viewOnly, onAction, onToast, focusKey, 
                   </div>
                 )}
                 <div className="tp-card-acts">
-                  <button type="button" className="tp-btn tp-btn-sm" onClick={() => checkDomain(d)}><Trans>Check now</Trans></button>
+                  <button type="button" className="tp-btn tp-btn-sm" disabled={isBusy(checkKey(d))} onClick={() => checkDomain(d)}><Trans>Check now</Trans></button>
                 </div>
               </div>
             )}

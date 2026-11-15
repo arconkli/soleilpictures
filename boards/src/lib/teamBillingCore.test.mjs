@@ -17,6 +17,7 @@ import {
   seatSyncKey,
   seatSyncPlan,
   canSyncSeats,
+  teamBillingSummary,
   teamCheckoutParams,
   teamCustomerParams,
   teamItems,
@@ -219,4 +220,69 @@ test('idempotency keys: a sync converges, a click is its own request', () => {
   assert.equal(seatSyncKey('o', null, 6), 'team-seats:o:0:6');
   assert.equal(seatAddKey('o', 'not-a-uuid'), null);
   assert.equal(seatAddKey('o', 'A0EEBC99-9C0B-4EF8-BB6D-6BB9BD380A11'), 'team-seats-add:o:a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+});
+
+// -- teamBillingSummary (team-billing "summary") ------------------------------
+const PREVIEW = { amount_due: 7500, currency: 'usd' };
+const CARD = { type: 'card', card: { brand: 'visa', last4: '4242', exp_month: 4, exp_year: 2030 } };
+const inv = (id, status, extra = {}) => ({
+  id, status, number: `N-${id}`, created: 1000, amount_paid: 7500, amount_due: 0, currency: 'usd',
+  hosted_invoice_url: `https://pay.example/${id}`, ...extra,
+});
+
+test('summary: a trial\'s next charge dates from trial_end', () => {
+  const s = teamBillingSummary({ sub: { status: 'trialing', trial_end: 2000, current_period_end: 3000 }, paymentMethod: CARD, invoices: [], preview: PREVIEW });
+  assert.deepEqual(s.next, { amount: 7500, currency: 'usd', date: 2000 * 1000 });
+  assert.deepEqual(s.card, { brand: 'visa', last4: '4242', expMonth: 4, expYear: 2030 });
+});
+
+test('summary: an active or past-due subscription dates from current_period_end', () => {
+  for (const status of ['active', 'past_due']) {
+    const s = teamBillingSummary({ sub: { status, trial_end: 2000, current_period_end: 3000 }, paymentMethod: CARD, invoices: [], preview: PREVIEW });
+    assert.equal(s.next.date, 3000 * 1000);
+  }
+  const noDate = teamBillingSummary({ sub: { status: 'active' }, paymentMethod: null, invoices: [], preview: PREVIEW });
+  assert.equal(noDate.next.date, null);
+});
+
+test('summary: no next charge when it ends, is not live, or has no preview', () => {
+  const live = { status: 'active', current_period_end: 3000 };
+  assert.equal(teamBillingSummary({ sub: { ...live, cancel_at_period_end: true }, invoices: [], preview: PREVIEW }).next, null);
+  assert.equal(teamBillingSummary({ sub: live, invoices: [], preview: null }).next, null);
+  assert.equal(teamBillingSummary({ sub: null, invoices: [], preview: PREVIEW }).next, null);
+  for (const status of ['canceled', 'incomplete', 'unpaid', 'paused']) {
+    assert.equal(teamBillingSummary({ sub: { ...live, status }, invoices: [], preview: PREVIEW }).next, null, status);
+  }
+});
+
+test('summary: a payment method that is not a card, and none at all', () => {
+  const sepa = teamBillingSummary({ sub: null, paymentMethod: { type: 'sepa_debit' }, invoices: [], preview: null });
+  assert.deepEqual(sepa.card, { brand: 'sepa_debit', last4: null, expMonth: null, expYear: null });
+  assert.equal(teamBillingSummary({ sub: null, paymentMethod: null, invoices: [], preview: null }).card, null);
+});
+
+test('summary: receipts drop drafts and voids, keep order, and read paid or due amounts', () => {
+  const { receipts } = teamBillingSummary({
+    sub: null,
+    invoices: [
+      inv('a', 'draft'),
+      inv('b', 'paid', { status_transitions: { paid_at: 5000 } }),
+      inv('c', 'void'),
+      inv('d', 'open', { amount_due: 2500, amount_paid: 0, number: null, hosted_invoice_url: null }),
+      inv('e', 'uncollectible', { amount_due: 900 }),
+    ],
+    preview: null,
+  });
+  assert.deepEqual(receipts.map((r) => r.id), ['b', 'd', 'e']);
+  assert.deepEqual(receipts[0], { id: 'b', number: 'N-b', date: 5000 * 1000, amount: 7500, currency: 'usd', status: 'paid', url: 'https://pay.example/b' });
+  assert.deepEqual(receipts[1], { id: 'd', number: null, date: 1000 * 1000, amount: 2500, currency: 'usd', status: 'open', url: null });
+  assert.equal(receipts[2].amount, 900);
+});
+
+test('summary: at most 12 receipts, and a missing list is empty', () => {
+  const many = Array.from({ length: 20 }, (_, i) => inv(`i${i}`, 'paid'));
+  const { receipts } = teamBillingSummary({ sub: null, invoices: many, preview: null });
+  assert.equal(receipts.length, 12);
+  assert.equal(receipts[11].id, 'i11');
+  assert.deepEqual(teamBillingSummary({ sub: null, invoices: undefined, preview: null }).receipts, []);
 });

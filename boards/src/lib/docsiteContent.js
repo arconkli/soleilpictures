@@ -34744,6 +34744,34 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
+     "v": ": as an account gets close to full, its owner sees "
+    },
+    {
+     "t": "strong",
+     "v": "More than 10 people? Start a Team",
+     "children": [
+      {
+       "t": "text",
+       "v": "More than 10 people? Start a Team"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the share panel and in "
+    },
+    {
+     "t": "strong",
+     "v": "Settings → Members",
+     "children": [
+      {
+       "t": "text",
+       "v": "Settings → Members"
+      }
+     ]
+    },
+    {
+     "t": "text",
      "v": "."
     }
    ]
@@ -35897,6 +35925,58 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " list."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "In a "
+    },
+    {
+     "t": "link",
+     "v": "team",
+     "href": "/docs/account/team",
+     "children": [
+      {
+       "t": "text",
+       "v": "team"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "'s workspace, a viewer's "
+    },
+    {
+     "t": "strong",
+     "v": "Ask to edit",
+     "children": [
+      {
+       "t": "text",
+       "v": "Ask to edit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " goes to the team's admins instead. They answer it on the team's page, under "
+    },
+    {
+     "t": "strong",
+     "v": "People",
+     "children": [
+      {
+       "t": "text",
+       "v": "People"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and the viewer hears back either way."
     }
    ]
   },
@@ -46921,7 +47001,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", has three tabs: "
+     "v": ", has four tabs: "
     },
     {
      "t": "strong",
@@ -46930,6 +47010,20 @@ export const DOCS_CONTENT = {
       {
        "t": "text",
        "v": "People"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Workspaces",
+     "children": [
+      {
+       "t": "text",
+       "v": "Workspaces"
       }
      ]
     },
@@ -46963,7 +47057,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": "."
+     "v": ". Members and viewers see the first two."
     }
    ]
   },
@@ -47000,7 +47094,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " add seats (the price is shown first), manage people, joining and what happens when seats run out."
+      "v": " add and remove seats (adding shows the price first, removing asks first), and manage people, workspaces, joining and what happens when seats run out."
      }
     ],
     [
@@ -47016,7 +47110,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " hold a seat and can make new workspaces for the team."
+      "v": " hold a seat, can make new workspaces for the team and can move one of their own into it."
      }
     ],
     [
@@ -47051,7 +47145,177 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Team workspaces are open to the whole team by default. An admin can make one private; the owner and admins can still open a private workspace, so work can always be handed over."
+     "v": "Removing someone, revoking an invite or removing a domain shows "
+    },
+    {
+     "t": "strong",
+     "v": "Undo",
+     "children": [
+      {
+       "t": "text",
+       "v": "Undo"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for a few seconds before it happens."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Admins hear in the bell when people join the team; joins share one notice until it's read. A team notice in the bell opens the team's page on the tab it's about."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Asking to edit",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Asking to edit"
+    }
+   ],
+   "id": "asking-to-edit"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A viewer in a team workspace sees "
+    },
+    {
+     "t": "strong",
+     "v": "Ask to edit",
+     "children": [
+      {
+       "t": "text",
+       "v": "Ask to edit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " at the top of a cluster, as on a shared cluster. The request goes to the team's admins, who answer it in "
+    },
+    {
+     "t": "strong",
+     "v": "People",
+     "children": [
+      {
+       "t": "text",
+       "v": "People"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and the person hears back either way."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Workspaces",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Workspaces"
+    }
+   ],
+   "id": "workspaces"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The "
+    },
+    {
+     "t": "strong",
+     "v": "Workspaces",
+     "children": [
+      {
+       "t": "text",
+       "v": "Workspaces"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " tab lists the team's workspaces and who can open each one. A team workspace is open to the whole team by default."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Private",
+      "children": [
+       {
+        "t": "text",
+        "v": "Private"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": the owner or an admin can make a workspace private. Anyone who opens it only through the team loses it; the owner, admins and people added to it keep it, so work can always be handed over."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Move one of yours in",
+      "children": [
+       {
+        "t": "text",
+        "v": "Move one of yours in"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": pick one of your own workspaces, and the tab says first whether the people who edit in it fit in the team's free seats. When they don't, the owner or an admin sees the price before seats are added; a member asks an admin. The team then owns the workspace, and everyone in it keeps what they had."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Move out",
+      "children": [
+       {
+        "t": "text",
+        "v": "Move out"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ": the owner or an admin can hand a workspace to one person, the team's owner or someone else with a seat whom the owner picks. Anyone who opens it only through the team loses it; people added to it directly keep it."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Making a workspace private and moving one out both ask first."
     }
    ]
   },
@@ -47206,21 +47470,58 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "The team never sees, opens or bills your own workspaces. While you hold a seat in a team that is paid up, they get unlimited cards and 50GB more drive (admins can turn this off for the team). If you leave the team, your own workspaces go back to your own plan and nothing in them is removed."
+     "v": "The team never sees, opens or bills your own workspaces. While you hold a seat in a team that is paid up, they get unlimited cards and 50GB more drive (admins can turn this off for the team, on "
+    },
+    {
+     "t": "strong",
+     "v": "Seats & billing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Seats & billing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "). If you leave the team, your own workspaces go back to your own plan and nothing in them is removed."
     }
    ]
   },
   {
    "type": "heading",
    "depth": 2,
-   "text": "Payments",
+   "text": "Seats & billing",
    "inline": [
     {
      "t": "text",
-     "v": "Payments"
+     "v": "Seats & billing"
     }
    ],
-   "id": "payments"
+   "id": "seats-billing"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The "
+    },
+    {
+     "t": "strong",
+     "v": "Seats & billing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Seats & billing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " tab shows the plan and its seats, and when the trial ends and the first charge comes. Once the owner has ended the plan, it shows the day the team ends, and the owner can keep the team until then. It says how many seats were added automatically this month. The owner and admins see the card the team pays with and its recent receipts; only the owner changes the card."
+    }
+   ]
   },
   {
    "type": "para",

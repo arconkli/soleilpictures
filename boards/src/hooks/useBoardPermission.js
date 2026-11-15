@@ -66,6 +66,17 @@ export function computeBoardPermission({
     return { role: 'editor', canEdit: true, source: 'workspace' };
   }
 
+  // A workspace reached through a team has no workspace_members row (0530:
+  // _org_ws_role_for gives the team's owner/admins 'coowner', members 'editor',
+  // viewers 'viewer'). useAllWorkspaces marks it _viaTeam with the role in
+  // _myRole, and the server writes for coowner and editor, so the mirror must
+  // too. A real membership row, if there is one, decides above instead.
+  const teamRole = !membership && workspace?._viaTeam && board.workspace_id === workspace.id
+    ? workspace._myRole : null;
+  if (teamRole === 'coowner' || teamRole === 'editor') {
+    return { role: 'editor', canEdit: true, source: 'workspace' };
+  }
+
   // Per-board share — walk up parent chain, take the strongest role
   // we find (editor beats viewer).
   const sharedById = new Map((sharedBoards || []).map(s => [s.board_id, s]));
@@ -84,7 +95,7 @@ export function computeBoardPermission({
     return { role: bestRole, canEdit: bestRole === 'editor', source: 'share' };
   }
 
-  if (isWsMember) {
+  if (isWsMember || teamRole === 'viewer') {
     return { role: 'viewer', canEdit: false, source: 'workspace' };
   }
 

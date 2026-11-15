@@ -98,3 +98,80 @@ test('kinds whose words name a cluster, workspace, team or plan owner stay store
     assert.deepEqual(es(row(kind, { data: { org_id: 'o', request_id: 'r', requester_id: 'u1' } })), STORED, kind);
   }
 });
+
+// 0897's SQL (_tg_team_note_joined): the words it writes, character for
+// character, for each way in and each role.
+const sqlJoinedTitle = (name, team, count) => (
+  count === 1 ? `${name} joined ${team}`
+    : count === 2 ? `${name} and 1 other joined ${team}`
+      : `${name} and ${count - 1} others joined ${team}`);
+const sqlJoinedBody = (via, role, count) => (count > 1 ? 'See who in People.' : `${{
+  invite: 'They accepted an invite.',
+  link: 'They joined through the team link.',
+  domain: 'They joined with their work email.',
+  request: 'An admin approved their request.',
+}[via] || 'They joined the team.'}${role === 'viewer' ? ' They can view.' : ' They can edit.'}`);
+const joined = (over = {}) => row('team.joined', {
+  data: { org_id: 'o1', team_name: 'Northlight Films', name: 'Lena Fischer', count: 1, via: 'link', role: 'editor', since: '2026-11-15T09:00:00Z', ...over },
+});
+
+test('team.joined says what the SQL says, for every way in and both roles (0897)', () => {
+  for (const via of ['invite', 'link', 'domain', 'request', 'create', 'other', null]) {
+    for (const role of ['viewer', 'editor', 'admin', 'member']) {
+      assert.deepEqual(es(joined({ via, role })), {
+        title: sqlJoinedTitle('Lena Fischer', 'Northlight Films', 1),
+        body: sqlJoinedBody(via, role, 1),
+      }, `${via} / ${role}`);
+    }
+  }
+});
+
+test('team.joined counts up: 2 is "and 1 other", more is "and N others", the body points to People', () => {
+  for (const count of [2, 3, 5]) {
+    assert.deepEqual(es(joined({ count })), {
+      title: sqlJoinedTitle('Lena Fischer', 'Northlight Films', count),
+      body: sqlJoinedBody('link', 'editor', count),
+    }, `count ${count}`);
+  }
+  assert.equal(es(joined({ count: 2 })).title, 'Lena Fischer and 1 other joined Northlight Films');
+  assert.equal(es(joined({ count: 5 })).title, 'Lena Fischer and 4 others joined Northlight Films');
+  // A count-up needs neither how they came in nor their role.
+  assert.equal(es(joined({ count: 3, via: undefined, role: undefined })).body, 'See who in People.');
+});
+
+test('team.joined keeps the stored words when a field it needs is missing', () => {
+  for (const over of [
+    { name: undefined }, { name: '  ' }, { team_name: undefined }, { team_name: null },
+    { count: undefined }, { count: null }, { count: 0 },
+    { role: undefined }, { role: null },
+  ]) {
+    assert.deepEqual(es(joined(over)), STORED, JSON.stringify(over));
+  }
+  const noVia = joined();
+  delete noVia.data.via;
+  assert.deepEqual(es(noVia), STORED);
+  assert.deepEqual(es(row('team.joined', { data: {} })), STORED);
+  assert.deepEqual(es(row('team.joined', { data: null })), STORED);
+});
+
+test('team.joined in English is the stored row, untouched', () => {
+  const n = joined({ count: 3 });
+  assert.deepEqual(notificationText(n, { nameOf }), STORED);
+});
+
+// 0897 (_tg_team_note_kept).
+test('team.kept_viewer says what the SQL says, from target_name and team_name (0897)', () => {
+  const data = { org_id: 'o1', team_name: 'Northlight Films', target_name: 'Commercials', request_id: 'r1' };
+  assert.deepEqual(es(row('team.kept_viewer', { data })), {
+    title: 'You can keep viewing “Commercials”',
+    body: 'An admin of Northlight Films kept you as a viewer for now.',
+  });
+});
+
+test('team.kept_viewer keeps the stored words when a name is missing', () => {
+  const data = { org_id: 'o1', team_name: 'Northlight Films', target_name: 'Commercials' };
+  for (const over of [{ target_name: undefined }, { target_name: ' ' }, { team_name: undefined }, { team_name: null }]) {
+    assert.deepEqual(es(row('team.kept_viewer', { data: { ...data, ...over } })), STORED, JSON.stringify(over));
+  }
+  assert.deepEqual(es(row('team.kept_viewer', { data: {} })), STORED);
+});

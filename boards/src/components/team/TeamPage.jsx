@@ -1,21 +1,25 @@
 // TeamPage — the Team page, direction B (the owner's pick 2026-10-21): a page of
-// its own over the board column, with tabs People · Seats & billing · Joining.
+// its own over the board column, with tabs People · Workspaces · Seats & billing
+// · Joining (Workspaces is for everyone in the team; the last two are the
+// owner's and admins').
 // It renders a TeamSnapshot (lib/teamModel.js). Handed a `live` prop (TeamPageLive:
 // a real team, `live.act` runs each action) it draws the `team` prop and every
 // click is a real call; without one it answers through teamReducer, look only:
 // nothing leaves the browser. Lazy and the only importer of team.css, so the
 // signed-in app's CSS budget doesn't move.
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react';
 import './team.css';
 import { Icon } from '../Icon.jsx';
 import { UserPlus, MoreHorizontal, X, Eye, Warning } from '../../lib/icons.js';
-import { teamReducer, teamCan, peopleCounts } from '../../lib/teamModel.js';
+import { teamReducer, teamCan, peopleCounts, seatsUsed } from '../../lib/teamModel.js';
 import { dateLabel, dayLabel } from '../../lib/teamModelWords.js';
-import { refusalLine, successLine, seatPriceLine } from '../../lib/teamCopy.js';
+import { refusalLine, successLine, seatPriceLine, removeSeatLines, undoLabel } from '../../lib/teamCopy.js';
+import { createPendingRemovals, withoutPending, UNDO_MS } from '../../lib/teamPendingRemovals.js';
 import { previewTeamSeatsCost, newSeatRequestId } from '../../lib/teamBillingApi.js';
 import { TeamMenu } from './TeamMenu.jsx';
 import { TeamConfirm } from './TeamConfirm.jsx';
 import TeamPeople from './TeamPeople.jsx';
+import TeamWorkspaces from './TeamWorkspaces.jsx';
 import TeamBilling from './TeamBilling.jsx';
 import TeamJoining from './TeamJoining.jsx';
 import { isComposingKey } from '../../lib/composerKeys.js';
@@ -27,21 +31,44 @@ const frozenTip = () => tr`The team is view-only until it’s paid`;
 const RETRYABLE = new Set(['retry', 'network']);
 
 
-export default function TeamPage({ team, initialTab = 'people', onClose, onToast, live = null }) {
+export default function TeamPage({ team, initialTab = 'people', tabKey, onClose, onToast, onOpenWorkspace, live = null }) {
   const isLive = !!live;
   const [sample, dispatch] = useReducer(teamReducer, team);
-  const t = isLive ? team : sample;
   const onAction = isLive
     ? live.act
     : (type, payload) => { dispatch({ type, ...payload }); return Promise.resolve({ ok: true }); };
+
+  // Removing a person, revoking an invite and removing a domain wait for an
+  // Undo (lib/teamPendingRemovals.js). The row is left out of the snapshot
+  // drawn here until the call has answered, so a reload of the snapshot never
+  // brings it back; only a refused call does. The page closing sends them.
+  const latest = useRef(null);
+  latest.current = { onAction, onToast };
+  const queueRef = useRef(null);
+  if (!queueRef.current) {
+    queueRef.current = createPendingRemovals({
+      commit: (item) => latest.current.onAction(item.type, item.payload),
+      onFail: (_item, res) => latest.current.onToast(refusalLine(res && res.refusal)),
+    });
+  }
+  const queue = queueRef.current;
+  const pendingVersion = useSyncExternalStore(queue.subscribe, queue.version);
+  const base = isLive ? team : sample;
+  const t = useMemo(() => withoutPending(base, queue.has), [base, queue, pendingVersion]);
+  useEffect(() => {
+    const flushNow = () => { queue.flush(); };
+    window.addEventListener('pagehide', flushNow);
+    return () => { window.removeEventListener('pagehide', flushNow); flushNow(); };
+  }, [queue]);
   const [confirmState, setConfirmState] = useState(null);
   const [busy, setBusy] = useState(false);
   const [now] = useState(() => Date.now());
   const role = t.me.role;
   const manager = teamCan(role, 'managePeople');
   const viewOnly = t.status === 'view_only';
-  const tabIds = manager ? ['people', 'billing', 'joining'] : ['people'];
+  const tabIds = manager ? ['people', 'workspaces', 'billing', 'joining'] : ['people', 'workspaces'];
   const [tab, setTabState] = useState(tabIds.includes(initialTab) ? initialTab : 'people');
+  const [busyKeys, setBusyKeys] = useState([]);
   const [focusKey, setFocusKey] = useState(0);
   const [menu, setMenu] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -50,6 +77,16 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
   const tabRefs = useRef({});
 
   const setTab = (id) => { setTabState(id); setFocusKey(0); };
+
+  // The app opened the page again (a bell notice) while it was already open:
+  // go to the tab it asked for, when this person has it.
+  const seenTabKey = useRef(tabKey);
+  useEffect(() => {
+    if (seenTabKey.current === tabKey) return;
+    seenTabKey.current = tabKey;
+    if (tabIds.includes(initialTab)) setTab(initialTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabKey, initialTab]);
 
   useEffect(() => { titleRef.current?.focus(); }, []);
 
@@ -81,6 +118,43 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
   };
   const go = async (type, payload, say) => report(type, await onAction(type, payload), say);
   const ask = (o) => setConfirmState(o);
+
+  // A row's own call is running: its controls wait (`isBusy(key)`), the rest of
+  // the page doesn't. `track(key, fn)` wraps the call and resolves what it does.
+  const isBusy = (key) => busyKeys.includes(key);
+  const track = async (key, fn) => {
+    setBusyKeys((k) => [...k, key]);
+    try {
+      return await fn();
+    } finally {
+      setBusyKeys((k) => { const i = k.indexOf(key); return i < 0 ? k : [...k.slice(0, i), ...k.slice(i + 1)]; });
+    }
+  };
+
+  // The row goes at once and the toast offers Undo; the call is made when the
+  // wait ends (or the page closes), and Undo before that sends nothing.
+  const removeLater = ({ key, type, payload, line }) => {
+    queue.add(key, { type, payload });
+    onToast({ message: line, ttl: UNDO_MS, action: { label: undoLabel(), onClick: () => { queue.undo(key); } } });
+  };
+
+  // A seat changes the bill, so it asks first and says what changes. Seats &
+  // billing's "Remove a seat" calls go / onAction('removeSeat'); it comes here.
+  const askRemoveSeat = () => {
+    if (!t.plan) return Promise.resolve({ ok: false, asked: true });
+    const { lead, detail } = removeSeatLines(t.plan.seats, Math.max(0, t.plan.seats - 1 - seatsUsed(t.people)));
+    ask({
+      message: (
+        <>
+          {lead}{' '}
+          <span className="tp-confirm-sub">{detail}</span>
+        </>
+      ),
+      confirmLabel: tr`Remove a seat`,
+      run: () => (isLive ? go('removeSeat') : onAction('removeSeat')),
+    });
+    return Promise.resolve({ ok: false, asked: true });
+  };
   const runConfirm = async () => {
     const o = confirmState;
     if (!o) return;
@@ -92,7 +166,7 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
 
   // The price of buying up to `total` seats, from the server's own preview,
   // then `run(preview, requestId)` once confirmed. One request id per preview.
-  const priceThen = async (total, label, run, lead = '') => {   // lead: '' | 'send' | 'approve' | 'role'
+  const priceThen = async (total, label, run, lead = '') => {   // lead: '' | 'send' | 'approve' | 'role' | 'moveIn'
     if (!t.plan) return;
     const p = await previewTeamSeatsCost(t.id, total);
     if (!p || p.ok === false) { onToast(refusalLine({ code: p && p.error })); return; }
@@ -101,6 +175,7 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
     const message = lead === 'send' ? tr`Sending needs more seats. ${line}`
       : lead === 'approve' ? tr`Every seat is in use. Approving adds one. ${line}`
       : lead === 'role' ? tr`Every seat is in use. This adds one. ${line}`
+      : lead === 'moveIn' ? tr`Moving it in needs more seats. ${line}`
       : line;
     ask({ message, confirmLabel: label, run: () => run(p, requestId) });
   };
@@ -161,8 +236,13 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
     titleRef.current?.focus();
   };
 
-  const common = { t, now, viewOnly, onAction, onToast, live: isLive, go, report, ask, priceThen, openPortal };
-  const tabLabels = { people: tr`People`, billing: tr`Seats & billing`, joining: tr`Joining` };
+  const goAsked = (type, payload, say) => (type === 'removeSeat' ? askRemoveSeat() : go(type, payload, say));
+  const onActionAsked = (type, payload) => (type === 'removeSeat' ? askRemoveSeat() : onAction(type, payload));
+  const common = {
+    t, now, viewOnly, onAction: onActionAsked, onToast, live: isLive, go: goAsked, report, ask, priceThen, openPortal,
+    removeLater, track, isBusy,
+  };
+  const tabLabels = { people: tr`People`, workspaces: tr`Workspaces`, billing: tr`Seats & billing`, joining: tr`Joining` };
   const unpaid = t.unpaid;
   const failedDay = unpaid && unpaid.failedAt ? dayLabel(unpaid.failedAt) : null;
   // The sample's banner shows while it is view-only; a real team's also covers
@@ -255,6 +335,7 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
             >
               {tabLabels[id]}
               {id === 'people' && <span className="tp-tab-n">{peopleCounts(t.people).all}</span>}
+              {id === 'workspaces' && <span className="tp-tab-n">{(t.workspaces || []).length}</span>}
             </button>
           ))}
         </div>
@@ -312,6 +393,7 @@ export default function TeamPage({ team, initialTab = 'people', onClose, onToast
             </div>
           )}
           {tab === 'people' && <TeamPeople {...common} />}
+          {tab === 'workspaces' && <TeamWorkspaces {...common} onOpenWorkspace={onOpenWorkspace} />}
           {tab === 'billing' && manager && <TeamBilling {...common} onCloseTeam={closeTeamToast} />}
           {tab === 'joining' && manager && <TeamJoining {...common} focusKey={focusKey} />}
         </div>

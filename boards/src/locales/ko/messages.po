@@ -275,6 +275,11 @@ msgstr "{0, plural, other {· 카드 #장}}"
 msgid "{0, plural, one {{first} and # other are here} other {{first} and # others are here}}"
 msgstr "{0, plural, other {{first} 외 #명이 여기 있어요}}"
 
+#. placeholder {0}: count - 1
+#: src/lib/notificationWords.js
+msgid "{0, plural, one {{name} and # other joined {team}} other {{name} and # others joined {team}}}"
+msgstr "{0, plural, other {{name} 님 외 #명이 {team}에 참여했어요}}"
+
 #. placeholder {0}: data.clusters_deleted
 #: src/components/settings/DeleteAccount.jsx
 msgid "{0, plural, one {**# cluster** in {names} — deleted, with everything on them.} other {**# clusters** in {names} — deleted, with everything on them.}}"
@@ -753,6 +758,10 @@ msgstr "{activeCount, plural, other {보기, 필터 #개 켜짐}}"
 msgid "{actualDelta, plural, one {Move aborted — this cluster lost # card instead of {expectedDelta}. Restored automatically.} other {Move aborted — this cluster lost # cards instead of {expectedDelta}. Restored automatically.}}"
 msgstr "{actualDelta, plural, other {이동을 중단했어요. 이 클러스터에서 카드 {expectedDelta}장 대신 #장이 사라졌어요. 자동으로 복원했어요.}}"
 
+#: src/lib/teamBillingLines.js
+msgid "{added, plural, one {# added this month} other {# added this month}}"
+msgstr "{added, plural, other {이번 달 #개 추가됨}}"
+
 #: src/components/cards/ScheduleRundown.jsx
 msgid "{amount} over"
 msgstr "{amount} 초과"
@@ -818,6 +827,7 @@ msgid "{boardCount, plural, one {# cluster} other {# clusters}}"
 msgstr "{boardCount, plural, other {클러스터 #개}}"
 
 #: src/components/team/TeamBilling.jsx
+#: src/lib/teamBillingLines.js
 msgid "{brand} ending {last4}"
 msgstr "{brand} 끝자리 {last4}"
 
@@ -1479,6 +1489,10 @@ msgstr "{left, plural, =1 {한 명 더} other {#명 더}}"
 msgid "{left, plural, =1 {one person} other {up to # people}}"
 msgstr "{left, plural, =1 {한 명} other {최대 #명}}"
 
+#: src/lib/teamBillingLines.js
+msgid "{left, plural, one {# more before it asks first.} other {# more before it asks first.}}"
+msgstr "{left, plural, other {#개 더 추가되면 먼저 물어봐요.}}"
+
 #: src/lib/editorLimitWords.js
 msgid "{left, plural, one {# place left for people who can edit.} other {# places left for people who can edit.}}"
 msgstr "{left, plural, other {편집할 수 있는 사람을 위한 시트가 #개 남았어요.}}"
@@ -1773,6 +1787,10 @@ msgstr "{n, plural, other {촬영일 #일 추가했어요}}"
 msgid "{n, plural, one {All # loose cards move into it. Undo puts them back.} other {All # loose cards move into it. Undo puts them back.}}"
 msgstr "{n, plural, other {낱개 카드 #장이 모두 그 안으로 이동해요. 실행 취소하면 되돌려 놓아요.}}"
 
+#: src/lib/teamCopy.js
+msgid "{n, plural, one {Ask an admin to add it.} other {Ask an admin to add them.}}"
+msgstr "{n, plural, other {관리자에게 추가해 달라고 요청하세요.}}"
+
 #: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Copied # card · ⌘Z undoes} other {Copied # cards · ⌘Z undoes}}"
 msgstr "{n, plural, other {카드 #장을 복사했어요 · ⌘Z로 실행 취소}}"
@@ -1797,6 +1815,10 @@ msgstr "{n, plural, other {{pages}페이지에서 일치 항목 #건을 삭제�
 #: src/components/DocFindReplace.jsx
 msgid "{n, plural, one {Deleted # match} other {Deleted # matches}}"
 msgstr "{n, plural, other {일치 항목 #개를 삭제했어요}}"
+
+#: src/lib/teamCopy.js
+msgid "{n, plural, one {It needs # more seat.} other {It needs # more seats.}}"
+msgstr "{n, plural, other {시트가 #개 더 필요해요.}}"
 
 #: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Moved # card here} other {Moved # cards here}}"
@@ -2062,6 +2084,10 @@ msgstr "{name}이(가) 내 Clusters에 있어요. 무료 요금제에서 {roomTe
 msgid "{name} is in your Clusters."
 msgstr "{name}이(가) 내 Clusters에 있어요."
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "{name} is private"
+msgstr "{name} 비공개"
+
 #: src/components/setup/InviteReask.jsx
 msgid "{name} is taking shape.<0/>Who should see it?"
 msgstr "{name} — 모양이 잡혀 가고 있어요.<0/>누구에게 보여 줄까요?"
@@ -2082,6 +2108,10 @@ msgstr "보기 전용: {name}"
 #: src/App.jsx
 msgid "{name} is view-only for you."
 msgstr "{name}은(는) 보기 전용이에요."
+
+#: src/lib/notificationWords.js
+msgid "{name} joined {team}"
+msgstr "{name} 님이 {team}에 참여했어요"
 
 #: src/components/SketchPadOverlay.jsx
 msgid "{name} opacity"
@@ -2160,6 +2190,10 @@ msgstr "{notAdded}은(는) 추가할 수 없었어요"
 msgid "{others, plural, =1 {You and # other person are working together} other {You and # others are working together}}"
 msgstr "{others, plural, =1 {나와 다른 한 명이 함께 작업하고 있어요} other {나와 다른 #명이 함께 작업하고 있어요}}"
 
+#: src/lib/teamCopy.js
+msgid "{others, plural, one {You and # other can edit it.} other {You and # others can edit it.}}"
+msgstr "{others, plural, other {나와 다른 #명이 편집할 수 있어요.}}"
+
 #: src/lib/liveTogetherWords.js
 msgid "{others, plural, other {# people are here. You're all earning cards while you work together.}}"
 msgstr "{others, plural, other {#명이 여기 있어요. 함께 작업하는 동안 모두 카드를 받아요.}}"
@@ -2171,6 +2205,10 @@ msgstr "{othersCount, plural, other {다른 사람이 만든 링크 #개는 계�
 #: src/components/cards/ScheduleCard.jsx
 msgid "{overflow} more — open day"
 msgstr "{overflow}개 더 — 이 날 열기"
+
+#: src/lib/teamBillingLines.js
+msgid "{owner} ended the plan. The team ends on {date}, and its workspaces become {owner}’s."
+msgstr "{owner} 님이 요금제를 해지했어요. 팀은 {date}에 닫히고, 팀의 워크스페이스는 {owner} 님의 것이 돼요."
 
 #: src/lib/setupGate.js
 msgid "{owner} invited you."
@@ -2428,9 +2466,25 @@ msgstr "{seats, plural, other {시트 #개, {seatsFreeNow}개 남음}}"
 msgid "{seats, plural, one {# seat, all in use} other {# seats, all in use}}"
 msgstr "{seats, plural, other {시트 #개, 모두 사용 중}}"
 
+#: src/lib/teamBillingLines.js
+msgid "{seats, plural, one {# seat, billed monthly. The next charge is {amount} on {date}.} other {# seats, billed monthly. The next charge is {amount} on {date}.}}"
+msgstr "{seats, plural, other {시트 #개, 월간 결제. 다음 결제: {date}, {amount}.}}"
+
+#: src/lib/teamBillingLines.js
+msgid "{seats, plural, one {# seat, billed yearly. The next charge is {amount} on {date}.} other {# seats, billed yearly. The next charge is {amount} on {date}.}}"
+msgstr "{seats, plural, other {시트 #개, 연간 결제. 다음 결제: {date}, {amount}.}}"
+
 #: src/components/team/TeamSetup.jsx
 msgid "{seats, plural, one {# seat} other {# seats}}"
 msgstr "{seats, plural, other {시트 #개}}"
+
+#: src/lib/teamBillingLines.js
+msgid "{seats, plural, one {Free until {date}. The first charge is that day: {amount} for # seat, then monthly.} other {Free until {date}. The first charge is that day: {amount} for # seats, then monthly.}}"
+msgstr "{seats, plural, other {{date}까지 무료예요. 첫 결제는 그날이에요: 시트 #개 {amount}, 이후 월간 결제.}}"
+
+#: src/lib/teamBillingLines.js
+msgid "{seats, plural, one {Free until {date}. The first charge is that day: {amount} for # seat, then yearly.} other {Free until {date}. The first charge is that day: {amount} for # seats, then yearly.}}"
+msgstr "{seats, plural, other {{date}까지 무료예요. 첫 결제는 그날이에요: 시트 #개 {amount}, 이후 연간 결제.}}"
 
 #: src/lib/teamCopy.js
 msgid "{seats} at {unit}, {today} today."
@@ -2444,19 +2498,19 @@ msgstr "{seats} × {unit}. 오늘은 청구 없음: 체험은 {end}에 끝나요
 msgid "{seats} seats × {money}"
 msgstr "시트 {seats}개 × {money}"
 
-#: src/components/team/TeamBilling.jsx
+#: src/lib/teamBillingLines.js
 msgid "{seats} seats, billed monthly, renewing {date}."
 msgstr "시트 {seats}개, 월간 결제, {date} 갱신."
 
-#: src/components/team/TeamBilling.jsx
+#: src/lib/teamBillingLines.js
 msgid "{seats} seats, billed monthly."
 msgstr "시트 {seats}개, 월간 결제."
 
-#: src/components/team/TeamBilling.jsx
+#: src/lib/teamBillingLines.js
 msgid "{seats} seats, billed yearly, renewing {date}."
 msgstr "시트 {seats}개, 연간 결제, {date} 갱신."
 
-#: src/components/team/TeamBilling.jsx
+#: src/lib/teamBillingLines.js
 msgid "{seats} seats, billed yearly."
 msgstr "시트 {seats}개, 연간 결제."
 
@@ -2880,6 +2934,14 @@ msgstr "자리를 비운 사이 {who}님에게 멘션을 받았어요."
 #: src/components/settings/MembersTab.jsx
 msgid "{who} now owns this workspace."
 msgstr "이제 {who} 님이 이 워크스페이스의 소유자예요."
+
+#: src/lib/teamCopy.js
+msgid "{who} removed from the team."
+msgstr "{who} 님을 팀에서 제거했어요."
+
+#: src/lib/teamCopy.js
+msgid "{who} removed from the team’s domains."
+msgstr "팀 도메인에서 {who}을(를) 제거했어요."
 
 #: src/components/MessagesPanel.jsx
 msgid "{who} sent an attachment"
@@ -3935,6 +3997,10 @@ msgstr "아래에 행 추가"
 msgid "Add seats"
 msgstr "시트 추가"
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Add seats and move it in"
+msgstr "시트를 추가하고 옮기기"
+
 #: src/components/team/TeamJoining.jsx
 msgid "Add seats and send"
 msgstr "시트 추가하고 보내기"
@@ -4360,6 +4426,14 @@ msgstr "항상 파일에서 열기"
 msgid "Amber"
 msgstr "호박색"
 
+#: src/lib/notificationWords.js
+msgid "An admin approved their request."
+msgstr "관리자가 요청을 승인했어요."
+
+#: src/lib/notificationWords.js
+msgid "An admin of {team} kept you as a viewer for now."
+msgstr "{team}의 관리자가 일단 뷰어로 유지했어요."
+
 #: src/lib/versionActions.js
 msgid "an audio file"
 msgstr "오디오 파일"
@@ -4468,6 +4542,14 @@ msgstr "링크를 쓰던 사람은 즉시 액세스 권한을 잃어요. 이메�
 #: src/components/ShareModal.jsx
 msgid "Anyone using this link will lose access immediately."
 msgstr "이 링크를 쓰던 사람은 즉시 액세스 권한을 잃어요."
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Anyone who opens it only through the team loses it. People added to it directly keep it."
+msgstr "팀을 통해서만 여는 사람은 열 수 없게 돼요. 직접 추가된 사람은 계속 열 수 있어요."
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Anyone who opens it only through the team loses it. The owner, admins and people added to it keep it."
+msgstr "팀을 통해서만 여는 사람은 열 수 없게 돼요. 소유자, 관리자, 직접 추가된 사람은 계속 열 수 있어요."
 
 #: src/components/team/TeamJoining.jsx
 msgid "Anyone who signs up with an @{domain} address joins the team. People who already have an account are asked once, the next time they sign in. Admins never see who has an account."
@@ -4705,6 +4787,10 @@ msgid "Ask the person who shared it to open it once, then try again."
 msgstr "공유한 사람에게 한 번 열어 달라고 요청한 뒤 다시 시도해 주세요."
 
 #: src/App.jsx
+msgid "Ask the team’s admins to let you edit"
+msgstr "팀 관리자에게 편집을 요청하세요"
+
+#: src/App.jsx
 msgid "Ask to edit"
 msgstr "편집 요청"
 
@@ -4715,6 +4801,18 @@ msgstr "요청함"
 #: src/components/ShareModal.jsx
 msgid "asked to edit"
 msgstr "편집을 요청함"
+
+#: src/App.jsx
+msgid "Asked. The admins of {teamName} will see it, and you’ll hear back here."
+msgstr "요청했어요. {teamName}의 관리자에게 전달되고, 답변은 여기서 알려 드릴게요."
+
+#: src/App.jsx
+msgid "Asked. The team’s admins will see it, and you’ll hear back here."
+msgstr "요청했어요. 팀 관리자에게 전달되고, 답변은 여기서 알려 드릴게요."
+
+#: src/App.jsx
+msgid "Asked. We’ll tell you when an admin answers."
+msgstr "요청했어요. 관리자가 답하면 알려 드릴게요."
 
 #: src/App.jsx
 msgid "Asked. We’ll tell you when they say yes."
@@ -5390,6 +5488,7 @@ msgstr "저장할 수 없음 — 액세스 종료됨"
 #: src/components/team/TeamBilling.jsx
 #: src/components/team/TeamConfirm.jsx
 #: src/components/team/TeamSetup.jsx
+#: src/components/team/TeamWorkspaces.jsx
 #: src/components/ThumbnailCropModal.jsx
 #: src/components/WorkspaceRecoveryModal.jsx
 #: src/lib/activityTray.js
@@ -5501,6 +5600,11 @@ msgstr "캡처, 스크린샷, 녹화, 데모, 마케팅, 깔끔하게"
 #: src/lib/indexRowCard.js
 msgid "Card"
 msgstr "카드"
+
+#: src/lib/teamBillingLines.js
+msgctxt "payment card"
+msgid "Card"
+msgstr "결제 카드"
 
 #: src/components/toolbar/NoteBarA.jsx
 msgid "Card background"
@@ -5651,6 +5755,10 @@ msgstr "ChatGPT, Claude, 그리고 Claude Code, Cursor, VS Code 같은 코딩 �
 msgid "Check now"
 msgstr "지금 확인"
 
+#: src/components/team/TeamPageLive.jsx
+msgid "Check the connection, then try again. Nothing about the team changed."
+msgstr "연결을 확인한 다음 다시 시도해 주세요. 팀에는 바뀐 것이 없어요."
+
 #: src/components/docExtensions/ImageUpload.js
 #: src/components/fileShare/FileSharePage.jsx
 msgid "Check your connection and try again."
@@ -5674,6 +5782,7 @@ msgid "Checking the price…"
 msgstr "가격을 확인하는 중…"
 
 #: src/auth/PricingSuccess.jsx
+#: src/components/team/TeamWorkspaces.jsx
 #: src/pages/KeepPage.jsx
 #: src/pages/MakePage.jsx
 msgid "Checking…"
@@ -9102,6 +9211,10 @@ msgstr "엔드포인트를 복사했어요."
 msgid "Ends"
 msgstr "종료일"
 
+#: src/lib/teamBillingLines.js
+msgid "Ends {day}"
+msgstr "{day} 종료"
+
 #: src/components/ShortcutsOverlay.jsx
 msgctxt "keyboard key"
 msgid "Enter"
@@ -9260,6 +9373,14 @@ msgstr "나머지 모두"
 msgid "Everyone in it sees them as they land."
 msgstr "함께 있는 모든 사람에게 바로바로 보여요."
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Everyone in the team"
+msgstr "팀의 모든 사람"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Everyone in the team can open these, except the private ones."
+msgstr "비공개를 제외하고 팀의 모든 사람이 열 수 있어요."
+
 #: src/lib/editorLimitWords.js
 msgid "Everyone keeps editing. Nobody new can edit until you’re under {limit}."
 msgstr "모두 계속 편집할 수 있어요. {limit} 아래로 내려가기 전까지는 새로운 사람이 편집할 수 없어요."
@@ -9358,6 +9479,18 @@ msgstr "만료됨"
 #: src/components/ShareModal.jsx
 msgid "expires {date}"
 msgstr "{date}에 만료"
+
+#: src/lib/teamBillingLines.js
+msgid "Expires {exp}"
+msgstr "만료 {exp}"
+
+#: src/lib/teamBillingLines.js
+msgid "Expires {exp} · only {owner} changes the card"
+msgstr "만료 {exp} · 카드는 {owner} 님만 변경할 수 있어요"
+
+#: src/lib/teamBillingLines.js
+msgid "Expires {exp} · only the owner changes the card"
+msgstr "만료 {exp} · 카드는 소유자만 변경할 수 있어요"
 
 #: src/components/team/TeamBilling.jsx
 msgid "Expires {exp} · receipts to {receiptsTo}"
@@ -9800,6 +9933,10 @@ msgstr "너비에 맞춤"
 msgid "Fit to width, {pct}%"
 msgstr "너비에 맞춤, {pct}%"
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Fits in the seats you have."
+msgstr "지금 있는 시트로 충분해요."
+
 #: src/components/capture/CaptureHud.jsx
 msgid "Fitted"
 msgstr "맞춤"
@@ -9995,6 +10132,10 @@ msgstr "무료 개월"
 #: src/lib/billingCopyWords.js
 msgid "Free mood board maker"
 msgstr "무료 무드보드 만들기 도구"
+
+#: src/lib/teamBillingLines.js
+msgid "Free trial"
+msgstr "무료 체험"
 
 #: src/components/CanvasSurface.jsx
 #: src/components/ShortcutsOverlay.jsx
@@ -11206,6 +11347,10 @@ msgstr "이 클러스터를 함께 만들 사람을 초대하세요"
 msgid "Invite the people you work with"
 msgstr "함께 일하는 사람들을 초대하세요"
 
+#: src/lib/teamCopy.js
+msgid "Invite to {who} revoked."
+msgstr "{who}에게 보낸 초대를 취소했어요."
+
 #. Words people might type to find this command, comma-separated.
 #: src/App.jsx
 msgctxt "command search words"
@@ -11452,6 +11597,10 @@ msgstr "이 워크스페이스의 카드, 파일, 저장 공간이 내 요금제
 msgid "its cluster"
 msgstr "해당 클러스터"
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Its clusters, files and people come with it. The team pays for it from then on, and everyone in the team can open it unless an admin makes it private."
+msgstr "클러스터, 파일, 사람도 함께 옮겨져요. 그때부터는 팀이 비용을 내고, 관리자가 비공개로 바꾸지 않는 한 팀의 모든 사람이 열 수 있어요."
+
 #: src/lib/oauthTrustWords.js
 msgid "Its details come from {host}. Only continue if you trust it."
 msgstr "세부 정보는 {host}에서 가져왔어요. 신뢰하는 경우에만 계속하세요."
@@ -11693,6 +11842,10 @@ msgstr "내 클러스터의 배치 윤곽 보관"
 #: src/pages/MakePage.jsx
 msgid "Keep the first {room}"
 msgstr "처음 {room}장 보관"
+
+#: src/components/team/TeamBilling.jsx
+msgid "Keep the team"
+msgstr "팀 유지"
 
 #: src/pages/MakePage.jsx
 msgid "Keep these {count}"
@@ -12324,6 +12477,7 @@ msgstr "워크스페이스를 불러오는 중"
 #: src/components/ShareModal.jsx
 #: src/components/sidebar/ClusterShelves.jsx
 #: src/components/TagRangeHoverPopover.jsx
+#: src/components/team/TeamWorkspaces.jsx
 #: src/components/ThumbnailCropModal.jsx
 #: src/components/TrashModal.jsx
 #: src/components/VersionHistoryModal.jsx
@@ -12436,6 +12590,10 @@ msgstr "Clusters로 만들었어요. 만드는 모든 파일을 한곳에서."
 msgid "Make “{name}” a tag"
 msgstr "태그로 만들기: “{name}”"
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Make {name} private?"
+msgstr "{name}을(를) 비공개로 바꿀까요?"
+
 #: src/components/settings/AccountEditorsCard.jsx
 msgid "Make {who} a viewer?"
 msgstr "{who} 님을 뷰어로 바꿀까요?"
@@ -12480,6 +12638,10 @@ msgstr "현재 버전으로 지정"
 #: src/components/CanvasSurface.jsx
 msgid "Make every box the same size"
 msgstr "모든 칸을 같은 크기로"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Make it private"
+msgstr "비공개로 전환"
 
 #: src/components/OnboardingCoachmark.jsx
 msgid "Make it yours"
@@ -12894,6 +13056,7 @@ msgstr "화살표 옵션 더 보기"
 
 #: src/components/shared/SharedPage.jsx
 #: src/components/team/TeamPeople.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "More for {name}"
 msgstr "{name} 더 보기"
 
@@ -12933,6 +13096,10 @@ msgstr "편집자 {editorLimit}명 초과"
 #: src/lib/teamPricingCopyWords.js
 msgid "More than {editorLimit} people who edit"
 msgstr "편집자 {editorLimit}명 초과"
+
+#: src/components/EditorLimitNote.jsx
+msgid "More than {limit} people? <0>Start a Team</0>"
+msgstr "{limit}명이 넘나요? <0>Team 시작하기</0>"
 
 #: src/lib/importGuide.js
 msgid "More than that? In the Dropbox app on your computer, right-click the folder and choose **Make available offline**. Once it shows a green check, drag the folder in."
@@ -12984,6 +13151,18 @@ msgstr "{name}(으)로 이동 {movingCount}개, 복사 {copyingCount}개"
 msgid "Move {name} down"
 msgstr "{name} 아래로 이동"
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Move {name} out of the team, to {owner}?"
+msgstr "{name}을(를) 팀 밖으로 옮겨 {owner} 님에게 넘길까요?"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Move {name} out of the team, to <0/>?"
+msgstr "{name}을(를) 팀 밖으로 옮겨 <0/>에게 넘길까요?"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Move {name} out of the team, to its owner?"
+msgstr "{name}을(를) 팀 밖으로 옮겨 워크스페이스 소유자에게 넘길까요?"
+
 #: src/components/SketchPadOverlay.jsx
 msgid "Move {name} up"
 msgstr "{name} 위로 이동"
@@ -13021,6 +13200,22 @@ msgstr "이동이 완료되지 않았어요. 대상 클러스터를 마무리할
 #: src/components/CanvasSurface.jsx
 msgid "Move instead"
 msgstr "대신 이동"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Move it in"
+msgstr "옮기기"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Move it out"
+msgstr "밖으로 옮기기"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Move one of yours in"
+msgstr "내 워크스페이스 옮기기"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Move out of the team"
+msgstr "팀 밖으로 옮기기"
 
 #: src/components/CanvasSurface.jsx
 msgid "Move them into a cluster"
@@ -13108,6 +13303,14 @@ msgstr "{from}에서 {to}(으)로 이동됨"
 msgid "Moved here, but the originals could not be removed from their cluster — they are in both places for now."
 msgstr "여기로 이동했지만 원본을 원래 클러스터에서 제거할 수 없었어요. 지금은 두 곳 모두에 있어요."
 
+#: src/lib/teamCopy.js
+msgid "Moved into the team."
+msgstr "팀으로 옮겼어요."
+
+#: src/lib/teamCopy.js
+msgid "Moved out of the team."
+msgstr "팀 밖으로 옮겼어요."
+
 #: src/App.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "Moved to {nameOf}, but they’re still in {nameOf2} too."
@@ -13120,6 +13323,10 @@ msgstr "팀으로 이동"
 #: src/components/sidebar/SidebarMeter.jsx
 msgid "Moving from Google Drive or Dropbox? Download it as a zip, or pick its folder on your computer."
 msgstr "Google Drive나 Dropbox에서 옮기나요? zip으로 다운로드하거나 컴퓨터에서 폴더를 선택하세요."
+
+#: src/components/team/TeamPage.jsx
+msgid "Moving it in needs more seats. {line}"
+msgstr "팀으로 옮기려면 시트가 더 필요해요. {line}"
 
 #: src/lib/workspaceSetup.js
 msgid "Music"
@@ -13813,6 +14020,10 @@ msgstr "기다릴 필요가 없어요. 관리자에게 하나하나 알림이 �
 msgid "No workspace or person matches “{q}”."
 msgstr "“{q}”에 해당하는 워크스페이스나 사람이 없어요."
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "No workspaces here yet."
+msgstr "아직 워크스페이스가 없어요."
+
 #: src/lib/billingCopyWords.js
 msgid "No. Clusters runs in the browser on desktop, laptop and tablet, and the same board opens on all of them. You can add it to a phone home screen as a web app."
 msgstr "아니요. Clusters는 데스크톱, 노트북, 태블릿의 브라우저에서 실행되고, 같은 클러스터가 모든 기기에서 열려요. 웹 앱으로 휴대전화 홈 화면에 추가할 수도 있어요."
@@ -13853,6 +14064,14 @@ msgstr "무료로 줄 수 있는 시트가 없어요."
 #: src/components/TagManyPicker.jsx
 msgid "None of these cards has a tag yet. Type to find one or make one."
 msgstr "이 카드들에는 아직 태그가 없어요. 입력해서 찾거나 새로 만드세요."
+
+#: src/lib/teamBillingLines.js
+msgid "None yet."
+msgstr "아직 없어요."
+
+#: src/lib/teamBillingLines.js
+msgid "None yet. The first comes on {date}."
+msgstr "아직 없어요. 첫 영수증은 {date}에 나와요."
 
 #: src/components/settings/ConnectionsTab.jsx
 msgid "None yet. Tokens you create appear here with what they can do and when they were last used, so you can revoke one you no longer recognise."
@@ -13936,6 +14155,10 @@ msgstr "캔버스에 없음 — 이 클러스터에 있지만 캔버스에 놓�
 #: src/components/sidebar/ClusterShelves.jsx
 msgid "not on the board"
 msgstr "캔버스에 없음"
+
+#: src/lib/teamBillingLines.js
+msgid "Not paid"
+msgstr "미결제"
 
 #: src/components/fileShare/FileComments.jsx
 msgid "Not pinned"
@@ -14650,6 +14873,10 @@ msgid "Only you can. Its workspaces move to your own account, and everyone in th
 msgstr "나만 할 수 있어요. 워크스페이스는 내 계정으로 옮겨지고, 그 안의 모든 사람은 가지고 있던 것을 그대로 유지해요."
 
 #: src/lib/teamCopy.js
+msgid "Only you."
+msgstr "나만 편집해요."
+
+#: src/lib/teamCopy.js
 msgid "Only your own personal workspaces can move into a team."
 msgstr "내 개인 워크스페이스만 팀으로 옮길 수 있어요."
 
@@ -14680,11 +14907,17 @@ msgstr "불투명도"
 #: src/components/shared/SharedPage.jsx
 #: src/components/SidebarBoardTree.jsx
 #: src/components/TagDetailView.jsx
+#: src/components/team/TeamWorkspaces.jsx
 #: src/hooks/useInboxLive.js
 #: src/hooks/useNotifications.js
 #: src/lib/activityTray.js
 msgid "Open"
 msgstr "열기"
+
+#: src/lib/teamBillingLines.js
+msgctxt "invoice status"
+msgid "Open"
+msgstr "결제 대기"
 
 #: src/components/doc/DocCommentsTab.jsx
 msgctxt "status"
@@ -15311,6 +15544,10 @@ msgstr "페이지 없음"
 msgid "Pages"
 msgstr "페이지"
 
+#: src/lib/teamBillingLines.js
+msgid "Paid"
+msgstr "결제됨"
+
 #: src/components/SketchPadOverlay.jsx
 msgid "Paint bucket"
 msgstr "페인트 통"
@@ -15672,6 +15909,10 @@ msgstr "공유받은 사람이 원본 파일을 저장할 수 있어요."
 msgid "People, seats and billing"
 msgstr "멤버, 시트, 결제"
 
+#: src/components/team/TeamBilling.jsx
+msgid "People’s own workspaces"
+msgstr "사람들의 개인 워크스페이스"
+
 #: src/components/TrashModal.jsx
 msgid "Permanently delete cluster?"
 msgstr "클러스터를 영구 삭제할까요?"
@@ -15699,6 +15940,7 @@ msgid "Personal — these change how Clusters looks and behaves for you, on ever
 msgstr "개인 설정 — 로그인하는 모든 기기에서 Clusters가 보이고 동작하는 방식이 바뀌어요. 워크스페이스의 다른 사람에게는 보이지 않아요."
 
 #: src/components/team/TeamSetup.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "Personal workspace"
 msgstr "개인 워크스페이스"
 
@@ -16075,6 +16317,7 @@ msgid "Preview the latest build"
 msgstr "최신 빌드 미리 보기"
 
 #: src/App.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "Preview: {name} is an example workspace in the test team."
 msgstr "미리보기: {name}은(는) 테스트 팀의 예시 워크스페이스예요."
 
@@ -16099,6 +16342,7 @@ msgid "Preview: nobody was emailed. No new addresses to invite."
 msgstr "미리보기: 이메일은 보내지 않았어요. 초대할 새 주소가 없어요."
 
 #: src/components/team/TeamBilling.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "Preview: nothing was charged."
 msgstr "미리보기: 청구된 금액은 없어요."
 
@@ -16192,6 +16436,7 @@ msgid "Privacy"
 msgstr "개인정보"
 
 #: src/components/team/NewWorkspaceDialog.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "Private"
 msgstr "비공개"
 
@@ -16387,6 +16632,18 @@ msgstr "캔버스에서 바로 재생하고, 파일에서 오디오를 반복하
 msgid "Rec"
 msgstr "REC"
 
+#: src/components/team/TeamBilling.jsx
+msgid "Receipt"
+msgstr "영수증"
+
+#: src/components/team/TeamBilling.jsx
+msgid "Receipt from {date}"
+msgstr "{date} 영수증"
+
+#: src/components/team/TeamBilling.jsx
+msgid "Receipts"
+msgstr "영수증"
+
 #: src/components/ColorPicker.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/toolbar/NoteBarA.jsx
@@ -16531,7 +16788,6 @@ msgstr "리믹스"
 #: src/components/settings/PasskeysSection.jsx
 #: src/components/ShareModal.jsx
 #: src/components/team/TeamJoining.jsx
-#: src/components/team/TeamPeople.jsx
 #: src/components/WaitlistModal.jsx
 msgid "Remove"
 msgstr "제거"
@@ -16564,10 +16820,6 @@ msgstr "{label} 제거할까요?"
 msgid "Remove {name}"
 msgstr "{name} 제거"
 
-#: src/components/team/TeamPeople.jsx
-msgid "Remove {name} from the team? They lose access to the team’s workspaces."
-msgstr "{name} 님을 팀에서 제거할까요? 팀의 워크스페이스에 대한 액세스 권한을 잃어요."
-
 #: src/components/settings/BillingTab.jsx
 msgid "Remove {STORAGE_ADDON_BLOCK_LABEL}"
 msgstr "{STORAGE_ADDON_BLOCK_LABEL} 제거"
@@ -16578,8 +16830,13 @@ msgid "Remove {who}?"
 msgstr "{who} 님을 제거할까요?"
 
 #: src/components/team/TeamBilling.jsx
+#: src/components/team/TeamPage.jsx
 msgid "Remove a seat"
 msgstr "시트 하나 제거"
+
+#: src/lib/teamCopy.js
+msgid "Remove a seat?"
+msgstr "시트를 하나 제거할까요?"
 
 #: src/components/ShareModal.jsx
 msgid "Remove access…"
@@ -16678,10 +16935,6 @@ msgstr "태그를 제거하지 못했어요: {reason}"
 msgid "Remove their access"
 msgstr "액세스 권한 제거"
 
-#: src/components/team/TeamPeople.jsx
-msgid "Remove their access?"
-msgstr "액세스 권한을 제거할까요?"
-
 #: src/components/cards/CardTransferState.jsx
 msgid "Remove this card"
 msgstr "이 카드 제거"
@@ -16734,6 +16987,10 @@ msgstr "제거했어요: {title} — 안에 있던 클러스터는 휴지통에 
 #: src/components/settings/MembersTab.jsx
 msgid "Removed {who}."
 msgstr "{who} 님을 제거했어요."
+
+#: src/lib/teamCopy.js
+msgid "Removed {who}’s access."
+msgstr "{who} 님의 액세스 권한을 제거했어요."
 
 #: src/components/ExplorePublishSection.jsx
 msgid "Removed from Explore."
@@ -17437,6 +17694,7 @@ msgstr "저장했어요."
 #: src/components/fileShare/SharedFileHost.jsx
 #: src/components/settings/saveState.jsx
 #: src/components/setup/WorkspaceSetup.jsx
+#: src/components/team/TeamPeople.jsx
 #: src/components/ThumbnailCropModal.jsx
 #: src/lib/docSaveStatus.js
 msgid "Saving…"
@@ -17752,6 +18010,7 @@ msgid "See Pricing →"
 msgstr "요금제 보기 →"
 
 #: src/components/team/TeamBilling.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "See the price"
 msgstr "가격 보기"
 
@@ -17767,6 +18026,10 @@ msgstr "누구인지 보기"
 #: src/hooks/useNotifications.js
 msgid "See who can edit"
 msgstr "편집할 수 있는 사람 보기"
+
+#: src/lib/notificationWords.js
+msgid "See who in People."
+msgstr "“사람”에서 확인하세요."
 
 #: src/components/MessageBubble.jsx
 msgid "Seen"
@@ -18962,6 +19225,10 @@ msgstr "실선"
 #: src/lib/dropRules.js
 msgid "Some are view only, so they’re copied"
 msgstr "일부는 보기 전용이라 복사돼요"
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "Some of its editors don’t have a seat in the team yet."
+msgstr "편집자 중 일부는 아직 팀에 시트가 없어요."
 
 #: src/components/settings/AccountEditorsCard.jsx
 msgid "Some of that didn’t go through. Try again."
@@ -20527,6 +20794,14 @@ msgstr "원본은 그대로 남아요: {from}"
 msgid "The originals stay in {from}"
 msgstr "원본은 그대로 남아요: {from}"
 
+#: src/lib/teamBillingLines.js
+msgid "The owner ended the plan. The team ends on {date}, and its workspaces become the owner’s."
+msgstr "소유자가 요금제를 해지했어요. 팀은 {date}에 닫히고, 팀의 워크스페이스는 소유자의 것이 돼요."
+
+#: src/components/team/TeamWorkspaces.jsx
+msgid "The owner, admins and people added to it"
+msgstr "소유자, 관리자, 직접 추가된 사람"
+
 #: src/lib/editorLimitWords.js
 msgid "The owner’s plan has room for {limit}. Invite people to view, or ask the owner to make room."
 msgstr "소유자의 요금제로 {limit}명까지 쓸 수 있어요. 보기 권한으로 초대하거나 소유자에게 여유를 만들어 달라고 요청하세요."
@@ -20632,9 +20907,13 @@ msgstr "검토 전에 제출이 취소돼요. 나중에 다시 제출할 수 있
 msgid "the team"
 msgstr "팀"
 
-#: src/components/team/TeamPageLive.jsx
-msgid "The team couldn’t be loaded. Try again in a moment."
-msgstr "팀을 불러올 수 없었어요. 잠시 후 다시 시도해 주세요."
+#: src/lib/teamBillingLines.js
+msgid "The team ends on {date}, and nothing more is charged. Its workspaces then become yours, and everyone in them keeps what they had."
+msgstr "팀은 {date}에 닫히고, 더 이상 청구되지 않아요. 그 후에는 팀의 워크스페이스가 내 것이 되고, 안에 있는 모든 사람은 가지고 있던 것을 그대로 유지해요."
+
+#: src/lib/teamCopy.js
+msgid "The team goes from {seats, plural, one {# seat} other {# seats}} to {fewer}, and the bill follows. {left, plural, =0 {None will still be free to give.} one {# seat will still be free to give.} other {# seats will still be free to give.}}"
+msgstr "팀의 시트가 {seats, plural, other {#개}}에서 {fewer}개로 줄고, 결제 금액도 그에 맞춰 달라져요. {left, plural, =0 {배정할 수 있는 시트는 남지 않아요.} other {배정할 수 있는 시트가 #개 남아요.}}"
 
 #: src/lib/teamCopy.js
 msgid "The team is closed. Its workspaces are in your account."
@@ -20648,12 +20927,17 @@ msgstr "팀 결제가 완료됐어요. 편집이 다시 켜졌어요."
 #: src/components/team/TeamJoining.jsx
 #: src/components/team/TeamPage.jsx
 #: src/components/team/TeamPeople.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "The team is view-only until it’s paid"
 msgstr "결제 전까지 팀은 보기 전용이에요"
 
 #: src/lib/teamCopy.js
 msgid "The team is view-only until it’s paid."
 msgstr "결제가 완료되기 전까지 팀은 보기 전용이에요."
+
+#: src/components/team/TeamPageLive.jsx
+msgid "The team page didn’t load."
+msgstr "팀 페이지를 불러오지 못했어요."
 
 #: src/pages/TemplateSharePage.jsx
 msgid "The template may have been deleted, or the link revoked."
@@ -20761,6 +21045,10 @@ msgstr "이 설정은 내가 아니라 워크스페이스에 속해요. 워크�
 msgid "They"
 msgstr "상대방"
 
+#: src/lib/notificationWords.js
+msgid "They accepted an invite."
+msgstr "초대를 수락했어요."
+
 #: src/components/ShareModal.jsx
 msgid "They can add, move and delete cards in “{boardName}” and its sub-clusters."
 msgstr "“{boardName}” 클러스터와 그 하위 클러스터에서 카드를 추가, 이동, 삭제할 수 있어요."
@@ -20777,6 +21065,10 @@ msgstr "“{wsName}”의 모든 클러스터에서 카드를 추가, 이동, �
 msgid "They can add, move and delete cards in every cluster in “{wsName}”. Editors are free on every plan."
 msgstr "“{wsName}”의 모든 클러스터에서 카드를 추가, 이동, 삭제할 수 있어요. 편집자는 모든 요금제에서 무료예요."
 
+#: src/lib/notificationWords.js
+msgid "They can edit."
+msgstr "편집할 수 있어요."
+
 #: src/components/ShareModal.jsx
 msgid "They can open “{boardName}” and its sub-clusters, comment and vote, but can’t change anything."
 msgstr "“{boardName}” 클러스터와 그 하위 클러스터를 열고 댓글과 투표를 할 수 있지만 아무것도 변경할 수 없어요."
@@ -20785,6 +21077,10 @@ msgstr "“{boardName}” 클러스터와 그 하위 클러스터를 열고 댓�
 msgid "They can open every cluster in “{wsName}”, comment and vote, but can’t change anything."
 msgstr "“{wsName}”의 모든 클러스터를 열고 댓글과 투표를 할 수 있지만 아무것도 변경할 수 없어요."
 
+#: src/lib/notificationWords.js
+msgid "They can view."
+msgstr "볼 수 있어요."
+
 #: src/components/team/TeamBilling.jsx
 msgid "They join as a viewer. An admin approves, and that adds a seat."
 msgstr "뷰어로 참여해요. 관리자가 승인하면 시트가 하나 추가돼요."
@@ -20792,6 +21088,18 @@ msgstr "뷰어로 참여해요. 관리자가 승인하면 시트가 하나 추�
 #: src/components/team/TeamSetup.jsx
 msgid "They join as viewers. Make them editors and it adds a seat each."
 msgstr "뷰어로 참여해요. 편집자로 바꾸면 한 명당 시트가 하나씩 추가돼요."
+
+#: src/lib/notificationWords.js
+msgid "They joined the team."
+msgstr "팀에 참여했어요."
+
+#: src/lib/notificationWords.js
+msgid "They joined through the team link."
+msgstr "팀 링크로 참여했어요."
+
+#: src/lib/notificationWords.js
+msgid "They joined with their work email."
+msgstr "회사 이메일로 참여했어요."
 
 #: src/components/settings/MembersTab.jsx
 msgid "They sign in to accept."
@@ -21694,6 +22002,7 @@ msgstr "그리드를 써 보세요 — 샷을 레이아웃에 맞춰 담는 칸�
 #: src/components/PdfViewer.jsx
 #: src/components/shared/SharedPage.jsx
 #: src/components/StorageAddonSheet.jsx
+#: src/components/team/TeamPageLive.jsx
 msgid "Try again"
 msgstr "다시 시도"
 
@@ -21807,6 +22116,7 @@ msgstr "밑줄"
 #: src/components/shared/SharedPage.jsx
 #: src/components/SketchPadOverlay.jsx
 #: src/components/toolbar/CanvasBarsA.jsx
+#: src/lib/teamCopy.js
 #: src/lib/undoToast.js
 #: src/lib/versionActions.js
 msgid "Undo"
@@ -23044,6 +23354,10 @@ msgstr "Clusters가 보낼 이메일을 선택하세요. 켜지 않은 항목도
 msgid "Which workspaces move in?<0>{count} of {value}</0>"
 msgstr "어떤 워크스페이스를 옮길까요?<0>{value}개 중 {count}개</0>"
 
+#: src/components/team/TeamBilling.jsx
+msgid "While someone holds a seat, their own workspaces get unlimited cards and {size} more drive. Turned off, they go back to each person’s own plan. Nothing is removed."
+msgstr "시트를 가진 동안에는 그 사람의 개인 워크스페이스에서 카드가 무제한이고 드라이브가 {size} 더 늘어나요. 끄면 각자의 요금제로 돌아가요. 삭제되는 것은 없어요."
+
 #: src/lib/importCopy.js
 msgid "While you’re trying {PLAN_NAME} your drive is {TRIAL_STORAGE_LABEL}. Your first payment makes it {CREATOR_STORAGE_LABEL}."
 msgstr "{PLAN_NAME}을(를) 체험하는 동안 드라이브는 {TRIAL_STORAGE_LABEL}이에요. 첫 결제 후에는 {CREATOR_STORAGE_LABEL}이 돼요."
@@ -23061,6 +23375,7 @@ msgid "Whites"
 msgstr "화이트"
 
 #: src/components/fileShare/FileShareDialog.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "Who can open it"
 msgstr "열 수 있는 사람"
 
@@ -23207,6 +23522,7 @@ msgstr "처리 중…"
 #: src/components/home/HomeWorkspace.jsx
 #: src/components/ProjectsHome.jsx
 #: src/components/ShareModal.jsx
+#: src/components/team/TeamWorkspaces.jsx
 #: src/lib/boardsApi.js
 #: src/lib/gridLayoutWords.js
 #: src/lib/sharedPeopleWords.js
@@ -23259,6 +23575,8 @@ msgstr "워크스페이스 뷰어"
 
 #: src/App.jsx
 #: src/components/CommandPalette.jsx
+#: src/components/team/TeamPage.jsx
+#: src/components/team/TeamWorkspaces.jsx
 #: src/lib/billingCopyWords.js
 msgid "Workspaces"
 msgstr "워크스페이스"
@@ -23314,6 +23632,11 @@ msgstr "어제"
 msgid "you"
 msgstr "나"
 
+#: src/components/team/TeamWorkspaces.jsx
+msgctxt "who a workspace moves to"
+msgid "you"
+msgstr "나"
+
 #: src/App.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
 #: src/components/doc/DocCommentsTab.jsx
@@ -23359,6 +23682,10 @@ msgstr "그 안의 모든 것을 추가하고 편집할 수 있어요"
 #: src/lib/setupGate.js
 msgid "You can add to it and edit it"
 msgstr "추가하고 편집할 수 있어요"
+
+#: src/lib/notificationWords.js
+msgid "You can keep viewing “{target}”"
+msgstr "“{target}”을(를) 계속 볼 수 있어요"
 
 #: src/components/home/ClustersHome.jsx
 msgid "You can look around this cluster but not change it."
@@ -23483,6 +23810,10 @@ msgstr "이 댓글에 보내지 않은 답글이 있어요."
 msgid "You have no personal workspaces to move in. The team starts empty, and you can make team workspaces in it."
 msgstr "옮길 개인 워크스페이스가 없어요. 팀은 빈 상태로 시작하고, 그 안에 팀 워크스페이스를 만들 수 있어요."
 
+#: src/components/team/TeamWorkspaces.jsx
+msgid "You have no workspaces of your own to move in."
+msgstr "옮길 수 있는 내 워크스페이스가 없어요."
+
 #: src/auth/PricingPage.jsx
 #: src/components/settings/BillingTab.jsx
 msgid "You have unlimited admin access — no subscription needed."
@@ -23578,6 +23909,7 @@ msgid "You’ll see its workspaces as they’re added. Your own workspaces stay 
 msgstr "워크스페이스가 추가되는 대로 볼 수 있어요. 내 워크스페이스는 계속 내 것이고, 팀은 볼 수 없어요."
 
 #: src/components/team/TeamBilling.jsx
+#: src/components/team/TeamWorkspaces.jsx
 msgid "You’ll see the price before anything is charged."
 msgstr "청구되기 전에 가격을 먼저 보여 드려요."
 
@@ -23666,6 +23998,10 @@ msgstr "{what}에 참여하는 중이에요"
 #: src/lib/messageAccess.js
 msgid "You're not a member of this workspace. Switch to one you belong to and try again."
 msgstr "이 워크스페이스의 멤버가 아니에요. 속해 있는 워크스페이스로 전환한 뒤 다시 시도해 주세요."
+
+#: src/App.jsx
+msgid "You’re not in this team anymore."
+msgstr "더 이상 이 팀에 속해 있지 않아요."
 
 #: src/lib/teamCopy.js
 msgid "You’re not in this team."

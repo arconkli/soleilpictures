@@ -1,5 +1,5 @@
 // The Team page on a test team (the admin preview): the workspace menu's team
-// section, the page's three tabs as the owner, an admin, a member and an
+// section, the page's four tabs as the owner, an admin, a member and an
 // unpaid team, Esc and the close button, and a phone.
 // Mounted through src/local/teamProbe.js (?local=1 renders its own sidebar with
 // no workspace menu), like tests/editor-limit.spec.js.
@@ -51,7 +51,8 @@ test('as the owner: the title, the tabs, twelve people and the viewers folded, a
   const sheet = await mountPage(page);
   await expect(sheet.locator('h2')).toHaveText('Northlight Films');
   await expect(sheet).toContainText('Test team');
-  await expect(sheet.getByRole('tab')).toHaveCount(3);
+  await expect(sheet.getByRole('tab')).toHaveCount(4);
+  await expect(sheet.getByRole('tab')).toHaveText([/^People/, /^Workspaces/, /^Seats & billing/, /^Joining/]);
   await expect(tab(sheet, /People/)).toHaveAttribute('aria-selected', 'true');
   await expect(sheet.locator('.tp-tbl .tp-av')).toHaveCount(12);
   await expect(sheet.locator('.tp-tr.is-group')).toContainText(/Can view\s*·\s*7/);
@@ -99,12 +100,38 @@ test('as an admin: the card is the owner’s, and there is no Close the team', a
   await expect(sheet.getByText('Close the team')).toHaveCount(0);
 });
 
-test('as a member: People only, no addresses, and who to ask', async ({ page }) => {
+test('as a member: People and Workspaces only, no addresses, and who to ask', async ({ page }) => {
   const sheet = await mountPage(page, { as: 'member' });
-  await expect(sheet.getByRole('tab')).toHaveCount(1);
+  await expect(sheet.getByRole('tab')).toHaveCount(2);
+  await expect(sheet.getByRole('tab')).toHaveText([/^People/, /^Workspaces/]);
   expect(await sheet.locator('.tp-tbl').innerText()).not.toContain('@');
   await expect(sheet.locator('.tp-note')).toContainText('Alex and Ben');
   await expect(sheet.getByRole('button', { name: 'Invite people' })).toHaveCount(0);
+});
+
+test('Workspaces: the owner makes one private, and is asked first', async ({ page }) => {
+  const sheet = await mountPage(page, { tab: 'workspaces' });
+  const commercials = sheet.getByRole('switch', { name: 'Commercials is private' });
+  await expect(sheet.locator('.tp-wstbl .tp-tr.is-ws:not(.is-head)')).toHaveCount(3);
+  await expect(commercials).toHaveAttribute('aria-checked', 'false');
+  // Cancel leaves it as it was.
+  await commercials.click();
+  const confirm = sheet.getByRole('alertdialog');
+  await expect(confirm).toContainText('Make Commercials private?');
+  await confirm.getByRole('button', { name: 'Cancel' }).click();
+  await expect(confirm).toHaveCount(0);
+  await expect(commercials).toHaveAttribute('aria-checked', 'false');
+  // Make it private does.
+  await commercials.click();
+  await sheet.getByRole('alertdialog').getByRole('button', { name: 'Make it private' }).click();
+  await expect(commercials).toHaveAttribute('aria-checked', 'true');
+});
+
+test('Workspaces as a member: the list without the Private column', async ({ page }) => {
+  const sheet = await mountPage(page, { as: 'member', tab: 'workspaces' });
+  await expect(sheet.getByRole('tab', { name: /Workspaces/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(sheet.locator('.tp-wstbl .tp-tr.is-ws:not(.is-head)').first()).toBeVisible();
+  await expect(sheet.getByRole('switch')).toHaveCount(0);
 });
 
 test('unpaid: the view-only banner, Update the card, and Invite people off', async ({ page }) => {

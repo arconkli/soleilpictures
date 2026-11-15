@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sampleTeam, SAMPLE_SETUP_WORKSPACES } from './teamSample.js';
+import { sampleTeam, SAMPLE_SETUP_WORKSPACES, SAMPLE_OWN_WORKSPACES } from './teamSample.js';
 import { seatsUsed, storageQuota, holdsSeat } from './teamModel.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -47,6 +47,17 @@ test('a member gets names and where people edit, and nothing else', () => {
   assert.equal(t.requests, null);
   assert.deepEqual(t.workspaces.map((w) => w.name), ['Studio', 'Commercials']);
   assert.doesNotMatch(JSON.stringify(t), /@northlight\.studio|4242/);
+});
+
+test('everyone has workspaces of their own to move in: one that needs seats, one that fits', () => {
+  for (const as of ['owner', 'admin', 'member', 'unpaid']) {
+    const t = sampleTeam(as, NOW);
+    assert.deepEqual(t.ownWorkspaces.map((w) => [w.name, w.editors, w.seatsNeeded]), [['Pitch decks', 4, 2], ['Scratch', 1, 0]], as);
+    // None of them is already the team's.
+    assert.ok(t.ownWorkspaces.every((w) => !t.workspaces.some((x) => x.id === w.id)), as);
+  }
+  // Each snapshot gets its own copies, so one page's moves never reach another's.
+  assert.notEqual(sampleTeam('owner', NOW).ownWorkspaces[0], SAMPLE_OWN_WORKSPACES[0]);
 });
 
 test('unpaid is the owner of a view-only team, with the deletion a year after grace ends', () => {

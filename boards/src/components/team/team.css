@@ -1,6 +1,6 @@
 /* The Team page (direction B, the owner's pick 2026-10-21): a sheet of its own
-   over the board column, beside the sidebar, with tabs People · Seats & billing
-   · Joining. Ported from the mockup's .sheet rules with a tp- prefix and the
+   over the board column, beside the sidebar, with tabs People · Workspaces ·
+   Seats & billing · Joining. Ported from the mockup's .sheet rules with a tp- prefix and the
    app's tokens. Imported only by TeamPage.jsx, so it rides the lazy chunk and
    the signed-in app's CSS budget doesn't move. */
 .tp-ground {
@@ -248,8 +248,8 @@
   white-space: nowrap; overflow: hidden;
 }
 .tp-copybox svg { color: var(--ink-3); }
-.tp-dom { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 6px; background: var(--bg-3); box-shadow: inset 0 0 0 1px var(--line-1); }
-.tp-dom b { font: 600 12.5px/1 var(--tp-font); color: var(--ink-0); }
+.tp-dom { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 10px 12px; border-radius: 6px; background: var(--bg-3); box-shadow: inset 0 0 0 1px var(--line-1); }
+.tp-dom b { font: 600 12.5px/1.3 var(--tp-font); color: var(--ink-0); min-width: 0; overflow-wrap: anywhere; }
 .tp-dom svg { color: var(--ink-2); }
 .tp-dom .tp-badge { margin-left: auto; }
 .tp-dom-in {
@@ -311,6 +311,13 @@
   .tp-tab { padding-top: 0; padding-bottom: 0; }
 }
 
+/* A page that didn't load, and a row that is saving */
+.tp-fail { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 40px 8px 48px; }
+.tp-fail b { font: 600 14px/1.3 var(--tp-font); color: var(--ink-0); }
+.tp-fail-ic { color: var(--ink-2); }
+.tp-fail-t { font: 400 12.5px/1.5 var(--tp-font); color: var(--ink-2); }
+.tp-busy { color: var(--ink-3); font: 500 12px/1.2 var(--tp-font); text-align: end; overflow-wrap: anywhere; }
+
 /* Inline confirm (a real team's closes, leaves and prices) */
 .tp-confirm {
   position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 10px;
@@ -325,4 +332,61 @@
 @media (max-width: 640px) {
   .tp-confirm { flex-wrap: wrap; }
   .tp-confirm-acts { width: 100%; justify-content: flex-end; }
+}
+
+/* Workspaces. Its rows are the People table's with their own columns; every
+   cell wraps, so a long name or a long translation grows the row and never
+   runs out of it. */
+.tp-ws-note { flex: 1 1 260px; min-width: 0; }
+.tp-ws-add { height: auto; min-height: 30px; padding-top: 6px; padding-bottom: 6px; white-space: normal; text-align: start; }
+.tp-wstbl { --tp-ws-acts: 26px; }
+.tp-tr.is-ws {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 2fr) 80px var(--tp-ws-acts);
+  height: auto; min-height: 42px; padding-top: 4px; padding-bottom: 4px;
+}
+/* A member's table has no Private column. */
+.tp-wstbl.is-plain .tp-tr.is-ws { grid-template-columns: minmax(0, 1.6fr) minmax(0, 2fr) var(--tp-ws-acts); }
+.tp-tr.is-ws.is-head { min-height: 30px; padding-top: 4px; padding-bottom: 4px; line-height: 1.3; }
+.tp-tr.is-ws.is-head > span { min-width: 0; overflow-wrap: anywhere; }
+.tp-ws {
+  width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center;
+  font: 700 11px/1 var(--tp-font); color: #0a0a0c; flex: none;
+}
+.tp-tr.is-ws .tp-nm { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: normal; overflow: visible; }
+.tp-ws-name { min-width: 0; overflow-wrap: anywhere; }
+.tp-ws-lock { flex: none; color: var(--ink-3); }
+.tp-tr.is-ws .tp-cell { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.tp-ws-sw { display: flex; align-items: center; }
+.tp-ws-sw .tp-sw { margin-left: 0; }
+/* The row menu's items lead with an icon, so the check's slot goes. */
+.tp-wstbl .tp-menu-check { display: none; }
+.tp-ws-mi { display: inline-flex; align-items: center; gap: 8px; }
+.tp-ws-mi svg { color: var(--ink-2); }
+/* Move one of yours in */
+.tp-ws-card { width: 720px; max-width: 100%; }
+.tp-ws-card .tp-card-t b { font-weight: 600; color: var(--ink-1); }
+.tp-ws-card .tp-opt-t b { overflow-wrap: anywhere; }
+/* The confirms: the second line, and the owner's pick of who it moves to. */
+.tp-confirm-sub { color: var(--ink-2); }
+.tp-ws-to { vertical-align: middle; }
+.tp-ws-to .tp-menu { max-width: min(280px, 80vw); max-height: 240px; overflow-y: auto; }
+.tp-ws-to .tp-menu-item { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 720px) {
+  /* Who can open it goes under the name; the switch and the menu stay beside them. */
+  .tp-tr.is-ws { grid-template-columns: minmax(0, 1fr) auto var(--tp-ws-acts); row-gap: 2px; }
+  .tp-wstbl.is-plain .tp-tr.is-ws { grid-template-columns: minmax(0, 1fr) var(--tp-ws-acts); }
+  .tp-tr.is-ws > :nth-child(3), .tp-tr.is-ws > :nth-child(4) { display: flex; }
+  .tp-tr.is-ws > .tp-who { grid-column: 1; grid-row: 1; }
+  .tp-tr.is-ws > .tp-cell { grid-column: 1; grid-row: 2; padding-left: 34px; }
+  .tp-tr.is-ws > .tp-ws-sw { grid-column: 2; grid-row: 1 / span 2; }
+  .tp-tr.is-ws > .tp-rowacts { grid-column: -2; grid-row: 1 / span 2; }
+  .tp-tr.is-ws.is-head > :nth-child(2) { display: none; }
+}
+@media (max-width: 640px) {
+  /* The pick's menu hangs from the confirm, not from the middle of its sentence. */
+  .tp-ws-to { position: static; }
+  .tp-ws-to .tp-menu { top: auto; left: 14px; right: 14px; max-width: none; margin-top: 4px; }
+}
+@media (pointer: coarse) {
+  .tp-wstbl { --tp-ws-acts: 40px; }
 }
