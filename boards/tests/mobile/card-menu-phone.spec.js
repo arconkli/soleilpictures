@@ -123,6 +123,85 @@ for (const size of [null, [390, 844], [375, 667], [320, 568]]) {
   });
 }
 
+// A submenu's row with a submenu of its own: a group's Outline shape, in a
+// card's Group submenu. On the device's own screen (an upright iPad too).
+test('a group\'s Outline shape steps a level deeper, ‹ comes back a level at a time, and its row runs', async ({ page }) => {
+  await boot(page);
+  // Every card of the board in one group (a paired keyboard's ⌘A, ⌘G).
+  const b = await card(page, 'home-image').boundingBox();
+  await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height - 6);
+  await expect(page.locator('.sel-menu .card-menu-btn')).toBeVisible();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.press('ControlOrMeta+g');
+  await expect(page.locator('.group-label').first()).toBeVisible();
+  const hugOutline = page.locator('.group-outline.group-hug');
+  await expect(hugOutline).toHaveCount(0);
+  await page.locator('.sel-menu .card-menu-btn').tap();
+  await expect(menu(page)).toBeVisible();
+
+  const groupRow = () => menu(page).locator('.ctx-has-submenu', { hasText: /^Group "/ });
+  const shapeRow = () => menu(page).locator('.ctx-has-submenu', { hasText: 'Outline shape' });
+  const back = () => menu(page).locator('.ctx-item.is-back');
+  await groupRow().scrollIntoViewIfNeeded();
+  await groupRow().tap();
+  await expectStepped(page, 'Group "Group"', 'card menu');
+  // The nested row says it opens a menu, and nothing flies out of it.
+  await expect(shapeRow()).toHaveAttribute('aria-haspopup', 'menu');
+  await expect(shapeRow().locator('.ctx-chevron')).toBeVisible();
+  const was = await menu(page).boundingBox();
+
+  await shapeRow().tap();
+  await expect(menu(page)).toHaveCount(1);
+  await expect(page.locator('.ctx-submenu')).toHaveCount(0);
+  await expect(menu(page)).toHaveClass(/is-step/);
+  await expect(menu(page)).toHaveAttribute('aria-label', 'Outline shape');
+  // ‹ carries this level's name, and says it goes back to the submenu above.
+  await expect(back()).toHaveText('Outline shape');
+  await expect(back()).toHaveAccessibleName('Outline shape, back to Group "Group"');
+  await expect(menu(page).getByRole('menuitem', { name: /^Box/ })).toBeVisible();
+  await expect(menu(page).getByRole('menuitem', { name: /^Hug/ })).toBeVisible();
+  await expect(menu(page).locator('.ctx-step-body button.ctx-item')).toHaveCount(2);
+  // The same box, where the level above was.
+  const deep = await menu(page).boundingBox();
+  expect(Math.abs(deep.x - was.x)).toBeLessThan(1.5);
+  expect(Math.abs(deep.width - was.width)).toBeLessThan(1.5);
+  await expectOnScreen(page);
+
+  // ‹ goes back one level, on the row that stepped in; then to the menu.
+  await back().tap();
+  await expectStepped(page, 'Group "Group"', 'card menu');
+  await expect(shapeRow()).toBeFocused();
+  await back().tap();
+  await expect(menu(page)).not.toHaveClass(/is-step/);
+  await expect(back()).toHaveCount(0);
+  await expect(groupRow()).toBeFocused();
+
+  // Escape and ← go back a level at a time too, before Escape closes.
+  await groupRow().tap();
+  await shapeRow().tap();
+  await expect(menu(page)).toHaveAttribute('aria-label', 'Outline shape');
+  await page.keyboard.press('Escape');
+  await expect(menu(page)).toHaveAttribute('aria-label', 'Group "Group"');
+  // → on the nested row steps in with its first row focused.
+  await shapeRow().focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(menu(page)).toHaveAttribute('aria-label', 'Outline shape');
+  await expect(menu(page).locator('.ctx-step-body button.ctx-item').first()).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(menu(page)).toHaveAttribute('aria-label', 'Group "Group"');
+  await expect(shapeRow()).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu(page)).not.toHaveClass(/is-step/);
+  await expect(menu(page)).toBeVisible();
+
+  // Two levels in, a row runs and the menu closes.
+  await groupRow().tap();
+  await shapeRow().tap();
+  await menu(page).getByRole('menuitem', { name: /^Hug/ }).tap();
+  await expect(menu(page)).toHaveCount(0);
+  await expect(hugOutline).toHaveCount(1);
+});
+
 test('the canvas menu\'s Export steps in and stays on screen', async ({ page, browserName }) => {
   phoneOnly();
   await boot(page, { width: 320, height: 568 });

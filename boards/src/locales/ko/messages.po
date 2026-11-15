@@ -1472,6 +1472,7 @@ msgstr "{label}님이 이제 “{name}”의 모든 클러스터를 볼 수 있�
 msgid "{label} is now a co-owner of \"{name}\"."
 msgstr "{label}님이 이제 “{name}”의 공동 소유자예요."
 
+#: src/components/ctxMenuParts.jsx
 #: src/components/toolbar/Menu.jsx
 msgid "{label}, back to {label2}"
 msgstr "{label}, 뒤로: {label2}"

@@ -1480,6 +1480,7 @@ msgstr "{label} peut désormais consulter tous les clusters de « {name} »."
 msgid "{label} is now a co-owner of \"{name}\"."
 msgstr "{label} est maintenant copropriétaire de « {name} »."
 
+#: src/components/ctxMenuParts.jsx
 #: src/components/toolbar/Menu.jsx
 msgid "{label}, back to {label2}"
 msgstr "{label}, retour à {label2}"
