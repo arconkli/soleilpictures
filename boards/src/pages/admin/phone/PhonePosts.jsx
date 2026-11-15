@@ -10,6 +10,27 @@ const KEY = 'admin.posts.posted';
 const readLocal = () => { try { return JSON.parse(localStorage.getItem(KEY) || '[]').map(Number); } catch { return []; } };
 const writeLocal = (set) => { try { localStorage.setItem(KEY, JSON.stringify([...set].slice(-200))); } catch { /* private mode */ } };
 
+// The badge as Posts last counted it today, so the panel can show it before
+// Posts is opened (its files load only then). A count and a date, nothing else.
+const BADGE_KEY = 'admin.posts.unposted';
+export function rememberedBadge() {
+  try {
+    const kept = JSON.parse(localStorage.getItem(BADGE_KEY) || 'null');
+    return kept && kept.date === localDate() ? Number(kept.n) || 0 : 0;
+  } catch { return 0; }
+}
+const rememberBadge = (n) => { try { localStorage.setItem(BADGE_KEY, JSON.stringify({ date: localDate(), n })); } catch { /* private mode */ } };
+
+// The badge without the slides: the day list and the posted marks only, merged
+// the way PhonePosts merges them. A failed days() rejects; a failed posted()
+// counts as none.
+export async function countUnposted(api = realApi) {
+  const [days, list] = await Promise.all([api.days(), api.posted().catch(() => [])]);
+  const n = unpostedCount(Array.isArray(days) ? days : [], new Set([...readLocal(), ...(Array.isArray(list) ? list : []).map(Number)]));
+  rememberBadge(n);
+  return n;
+}
+
 function Slide({ api, date, file, alt }) {
   const [src, setSrc] = useState(null);
   useEffect(() => {
@@ -121,7 +142,12 @@ export function PhonePosts({ refreshKey, api = realApi, onBadge, onLoaded }) {
     return () => { live = false; };
   }, [api, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { if (days) onBadge?.(unpostedCount(days, posted)); }, [days, posted, onBadge]);
+  useEffect(() => {
+    if (!days) return;
+    const n = unpostedCount(days, posted);
+    rememberBadge(n);
+    onBadge?.(n);
+  }, [days, posted, onBadge]);
 
   const onPosted = (n, on) => {
     setPosted((prev) => {

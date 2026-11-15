@@ -22,6 +22,10 @@
 // CSS on the sign-in page would restyle it. Both carry crossorigin="", as the
 // helper's own links do, so the browser can reuse what was preloaded.
 //
+// A list may carry `path` (and `media`): on a signed-in open of that path the
+// script preloads it after the app. /admin uses it for the admin's own files
+// (adminPreloadLists).
+//
 // Pure apart from preloadRuntime, which runs in the page; vite.config.js
 // serialises it into the HTML, and appPreloadList.test.mjs runs both in node.
 
@@ -31,6 +35,11 @@ export const APP_PRELOAD_PATHS = ['/', '/pricing', '/pricing/success', '/admin',
 
 export const APP_SHELL_MODULE = '/src/AppShell.jsx';
 export const WORKSPACE_SETUP_MODULE = '/src/components/setup/WorkspaceSetup.jsx';
+export const ADMIN_PATH = '/admin';
+export const ADMIN_PAGE_MODULE = '/src/pages/AdminPage.jsx';
+export const ADMIN_PHONE_MODULE = '/src/pages/admin/phone/AdminPhonePanel.jsx';
+// The width AdminPage shows the phone panel at (hooks/useBreakpoint.js' PHONE_MAX).
+export const PHONE_QUERY = '(max-width: 640px)';
 
 function staticClosure(bundle, fileName, into) {
   if (into.has(fileName)) return into;
@@ -76,6 +85,23 @@ export function withoutList(list, already) {
   return { js: list.js.filter((h) => !has.has(h)), css: list.css.filter((h) => !has.has(h)) };
 }
 
+// What a signed-in open of /admin adds: AdminPage and what it imports, then
+// on a phone the phone panel, each minus what an earlier list fetches. Listed
+// rather than started with an import() at boot: an import() of AdminPage from
+// the entry's side lets it load without AppShell, and the bundler then splits
+// every module the two share out of the app's chunks into files of their own
+// (14 more files and 6.7 KB on every open of the app, measured 2026-11-15).
+export function adminPreloadLists(bundle, app) {
+  const admin = withoutList(appPreloadList(bundle, ADMIN_PAGE_MODULE), app);
+  if (!admin) return {};
+  const both = { js: [...(app?.js || []), ...admin.js], css: [...(app?.css || []), ...admin.css] };
+  const phone = withoutList(appPreloadList(bundle, ADMIN_PHONE_MODULE), both);
+  return {
+    admin: { ...admin, path: ADMIN_PATH },
+    ...(phone ? { adminPhone: { ...phone, path: ADMIN_PATH, media: PHONE_QUERY } } : {}),
+  };
+}
+
 // Runs in the page, from an inline script at the top of <head>. Keep it
 // self-contained ES5 with no comments inside: it is serialised with
 // toString(), and index.html is scanned for public claims.
@@ -107,7 +133,14 @@ export function preloadRuntime(lists, paths) {
     if (paths.indexOf(p) < 0) return;
     for (var k = 0; k < localStorage.length; k++) {
       var key = localStorage.key(k);
-      if (key && key.indexOf('sb-') === 0 && key.indexOf('auth-token') > 0) { run('app', true); return; }
+      if (key && key.indexOf('sb-') === 0 && key.indexOf('auth-token') > 0) {
+        run('app', true);
+        for (var name in lists) {
+          var l = lists[name];
+          if (l && l.path === p && (!l.media || (window.matchMedia && window.matchMedia(l.media).matches))) run(name, true);
+        }
+        return;
+      }
     }
   } catch (e) {}
 }

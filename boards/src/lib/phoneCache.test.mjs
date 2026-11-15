@@ -88,7 +88,7 @@ test('a failed fetch keeps the last good data, with the error and stale true', a
   assert.equal(bad.error, boom);
   assert.equal(bad.stale, true);
   assert.equal(bad.at, good.at);
-  assert.deepEqual(cache.peek('k'), { data: { n: 5 }, at: good.at });
+  assert.deepEqual(cache.peek('k'), { data: { n: 5 }, at: good.at, seeded: false });
 });
 
 test('a thrown fetch is handled the same way', async () => {
@@ -141,4 +141,70 @@ test('keys are independent, and clear forgets values and ignores a fetch already
   const r = await slow;
   assert.equal(r.data, 'late');
   assert.equal(cache.peek('c'), null);
+});
+
+test('a seed is stored only when the key holds nothing, and peek marks it', async () => {
+  const c = clock();
+  const cache = createCache({ now: c.now });
+  assert.equal(cache.seed('k', { n: 1 }, 400), true);
+  assert.deepEqual(cache.peek('k'), { data: { n: 1 }, at: 400, seeded: true });
+  assert.equal(cache.seed('k', { n: 2 }, 500), false);
+  assert.deepEqual(cache.peek('k').data, { n: 1 });
+  // Nothing to paint is not a seed.
+  assert.equal(cache.seed('empty', null, 400), false);
+  assert.equal(cache.peek('empty'), null);
+
+  await cache.get('fresh', async () => ({ data: 'live' }));
+  assert.equal(cache.seed('fresh', 'old', 400), false);
+  assert.equal(cache.peek('fresh').data, 'live');
+  assert.equal(cache.peek('fresh').seeded, false);
+});
+
+test('get always fetches over a seed, even one younger than the ttl, and the fetch replaces it', async () => {
+  const c = clock();
+  const cache = createCache({ now: c.now });
+  cache.seed('k', 'last visit', c.now());
+  const f = counted([{ data: 'fresh' }]);
+  const r = await cache.get('k', f.fn, { ttl: 60000 });
+  assert.equal(f.calls, 1);
+  assert.equal(r.data, 'fresh');
+  assert.equal(r.stale, false);
+  assert.deepEqual(cache.peek('k'), { data: 'fresh', at: c.now(), seeded: false });
+  // Now it is a real value: inside the ttl it is served without fetching.
+  c.tick(10);
+  const hit = await cache.get('k', f.fn, { ttl: 60000 });
+  assert.equal(hit.data, 'fresh');
+  assert.equal(f.calls, 1);
+});
+
+test('a failed fetch keeps the seed: its data, the error, stale true, and it is still a seed', async () => {
+  const c = clock(5000);
+  const cache = createCache({ now: c.now });
+  cache.seed('k', { n: 3 }, 1200);
+  const boom = { message: 'boom' };
+  const f = counted([{ error: boom }, new Error('again'), { data: { n: 4 } }]);
+  const bad = await cache.get('k', f.fn, { ttl: 60000 });
+  assert.deepEqual(bad, { data: { n: 3 }, error: boom, at: 1200, stale: true });
+  assert.equal(cache.peek('k').seeded, true);
+  // Still fetched over the next time, ttl or not.
+  const worse = await cache.get('k', f.fn, { ttl: 60000 });
+  assert.equal(worse.stale, true);
+  assert.equal(f.calls, 2);
+  const ok = await cache.get('k', f.fn, { ttl: 60000 });
+  assert.deepEqual(ok.data, { n: 4 });
+  assert.equal(cache.peek('k').seeded, false);
+});
+
+test('clear forgets seeds too, and a fetch in flight over a seed writes nothing back', async () => {
+  const cache = createCache({ now: clock().now });
+  cache.seed('a', 1, 10);
+  let release;
+  const slow = cache.get('a', () => new Promise((res) => { release = () => res({ data: 2 }); }));
+  cache.clear();
+  assert.equal(cache.peek('a'), null);
+  release();
+  await slow;
+  assert.equal(cache.peek('a'), null);
+  // Cleared, so a seed can go in again.
+  assert.equal(cache.seed('a', 3, 20), true);
 });

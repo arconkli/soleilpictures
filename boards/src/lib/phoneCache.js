@@ -13,11 +13,16 @@
 //   * a failed fetch never wipes a good value: it resolves the LAST GOOD data
 //     with `error` set and stale true. With nothing stored yet it resolves
 //     data null, the error, stale false (there is nothing to be stale);
-//   * clear() forgets everything, and a fetch that was already in flight
-//     settles without writing back.
+//   * seed(key, data, at) puts in a value from the last visit (the panel paints
+//     it at once) only when nothing is stored for the key. A seed is never
+//     fresh: get() always fetches over it, whatever the ttl, and peek() marks
+//     it `seeded`. A good fetch replaces it; a failed one keeps it, resolved
+//     with the error and stale true like any last good value;
+//   * clear() forgets everything, seeds too, and a fetch that was already in
+//     flight settles without writing back.
 
 export function createCache({ now = () => Date.now() } = {}) {
-  const store = new Map();     // key -> { data, at }
+  const store = new Map();     // key -> { data, at, seeded }
   const inflight = new Map();  // key -> Promise
   let generation = 0;
 
@@ -34,7 +39,7 @@ export function createCache({ now = () => Date.now() } = {}) {
     if (!error) {
       const at = now();
       const data = res ? (res.data === undefined ? null : res.data) : null;
-      if (gen === generation) store.set(key, { data, at });
+      if (gen === generation) store.set(key, { data, at, seeded: false });
       return { data, error: null, at, stale: false };
     }
     const last = store.get(key);
@@ -44,7 +49,7 @@ export function createCache({ now = () => Date.now() } = {}) {
 
   function get(key, fetcher, { ttl = 0, force = false } = {}) {
     const held = store.get(key);
-    if (!force && ttl > 0 && held && now() - held.at < ttl) {
+    if (!force && ttl > 0 && held && !held.seeded && now() - held.at < ttl) {
       return Promise.resolve({ data: held.data, error: null, at: held.at, stale: false });
     }
     const running = inflight.get(key);
@@ -56,10 +61,17 @@ export function createCache({ now = () => Date.now() } = {}) {
     return p;
   }
 
-  /** The stored value, { data, at }, or null. Never fetches. */
+  /** The stored value, { data, at, seeded }, or null. Never fetches. */
   function peek(key) {
     const held = store.get(key);
-    return held ? { data: held.data, at: held.at } : null;
+    return held ? { data: held.data, at: held.at, seeded: !!held.seeded } : null;
+  }
+
+  /** A value from the last visit. True when it was put in; false when the key already holds something. */
+  function seed(key, data, at) {
+    if (store.has(key) || data == null) return false;
+    store.set(key, { data, at: typeof at === 'number' ? at : null, seeded: true });
+    return true;
   }
 
   function clear() {
@@ -68,5 +80,5 @@ export function createCache({ now = () => Date.now() } = {}) {
     inflight.clear();
   }
 
-  return { get, peek, clear };
+  return { get, peek, seed, clear };
 }

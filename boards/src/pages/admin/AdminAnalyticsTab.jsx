@@ -7,22 +7,42 @@
 // switch; each view registers its own refresh/freshness with the context so the
 // single toolbar can drive it. Per-view lazy fetch (only the mounted view runs
 // its RPCs) replaces the old 14-RPC-on-mount firehose.
+//
+// Overview is the view the tab opens on, so its code comes with the tab. The
+// other six load when first opened, and are fetched while the page is idle so
+// the switch does not wait.
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { WEEKS_FETCHED } from '../../lib/trendStats.js';
-import { AdminToolbar } from './AdminStates.jsx';
+import { lazyWithReload } from '../../lib/lazyWithReload.js';
+import { idlePrefetch } from '../../lib/idlePrefetch.js';
+import { AdminSkeleton, AdminToolbar } from './AdminStates.jsx';
 import { AdminTimeRange } from './AdminTimeRange.jsx';
 import { AnalyticsFiltersProvider, useAnalyticsFilters, POLL_MS } from './analytics/AnalyticsFiltersContext.jsx';
 import { SegmentSelect } from './analytics/widgets/SegmentSelect.jsx';
 import { OverviewView } from './analytics/views/OverviewView.jsx';
-import { FunnelView } from './analytics/views/FunnelView.jsx';
-import { SharingView } from './analytics/views/SharingView.jsx';
-import { RetentionView } from './analytics/views/RetentionView.jsx';
-import { MoneyView } from './analytics/views/MoneyView.jsx';
-import { SystemView } from './analytics/views/SystemView.jsx';
-import { TestsView } from './analytics/views/TestsView.jsx';
 import { md } from '../../lib/moneyView.js';
+
+const VIEW_LOADERS = {
+  funnel:    () => import('./analytics/views/FunnelView.jsx'),
+  sharing:   () => import('./analytics/views/SharingView.jsx'),
+  retention: () => import('./analytics/views/RetentionView.jsx'),
+  money:     () => import('./analytics/views/MoneyView.jsx'),
+  tests:     () => import('./analytics/views/TestsView.jsx'),
+  system:    () => import('./analytics/views/SystemView.jsx'),
+};
+const lazyView = (id, name) => lazyWithReload(() => VIEW_LOADERS[id]().then((m) => ({ default: m[name] })));
+const FunnelView    = lazyView('funnel', 'FunnelView');
+const SharingView   = lazyView('sharing', 'SharingView');
+const RetentionView = lazyView('retention', 'RetentionView');
+const MoneyView     = lazyView('money', 'MoneyView');
+const TestsView     = lazyView('tests', 'TestsView');
+const SystemView    = lazyView('system', 'SystemView');
+
+// What a view shows while its own first read is out, for the moment its code
+// is still arriving: the same skeleton, so the switch looks as it always did.
+const VIEW_FALLBACK = <AdminSkeleton variant="chart" />;
 
 // Seven views, each answering one question.
 //
@@ -220,6 +240,7 @@ function AnalyticsToolbar({ view }) {
       // Read on Overview only, as DeckStatus does: for the render after a switch
       // the previous view's runtime is still the registered one.
       stream={view === 'overview' ? f.runtime.stream : null}
+      updating={f.updating}
     >
       {showRange && <AdminTimeRange value={f.days} onChange={f.setDays} />}
       {showSegments && (
@@ -245,6 +266,10 @@ export function AdminAnalyticsTab() {
 
   // Seed/refresh today's snapshot once so KPI deltas have a current datapoint.
   useEffect(() => { supabase.rpc('admin_capture_metrics_now').then(() => {}, () => {}); }, []);
+
+  // The other views' code, one at a time once the page is idle. This tab is the
+  // desktop admin's, so a phone on the phone panel never fetches them.
+  useEffect(() => idlePrefetch(Object.values(VIEW_LOADERS)), []);
 
   const selectView = (v) => {
     setView(v);
@@ -276,7 +301,7 @@ export function AdminAnalyticsTab() {
   };
 
   return (
-    <AnalyticsFiltersProvider>
+    <AnalyticsFiltersProvider view={view}>
       <div className="admin-analytics">
         <div className="admin-subtabs" role="tablist" aria-label="Analytics views">
           {VIEWS.map((v, i) => (
@@ -301,12 +326,14 @@ export function AdminAnalyticsTab() {
         {/* Remount by key so each view owns a clean useAdminData lifecycle and
             only the mounted view runs its RPCs. */}
         {view === 'overview'  && <OverviewView  key="overview" />}
-        {view === 'funnel'    && <FunnelView    key="funnel" />}
-        {view === 'sharing'   && <SharingView   key="sharing" />}
-        {view === 'retention' && <RetentionView key="retention" />}
-        {view === 'money'     && <MoneyView     key="money" />}
-        {view === 'tests'     && <TestsView     key="tests" />}
-        {view === 'system'    && <SystemView    key="system" />}
+        <Suspense fallback={VIEW_FALLBACK}>
+          {view === 'funnel'    && <FunnelView    key="funnel" />}
+          {view === 'sharing'   && <SharingView   key="sharing" />}
+          {view === 'retention' && <RetentionView key="retention" />}
+          {view === 'money'     && <MoneyView     key="money" />}
+          {view === 'tests'     && <TestsView     key="tests" />}
+          {view === 'system'    && <SystemView    key="system" />}
+        </Suspense>
       </div>
     </AnalyticsFiltersProvider>
   );

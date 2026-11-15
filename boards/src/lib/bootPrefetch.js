@@ -22,6 +22,8 @@
 // handler, so a read that fails costs a head start and never becomes a
 // client_errors row; the app makes the read again itself.
 //
+// On /admin only the tier starts; the admin's code is preloaded with the HTML (lib/appPreloadList.mjs).
+//
 // Entry-light on purpose: AuthGate imports this, so it reaches only the
 // Supabase client and the import-free helpers, never boardsApi (yjs) or r2.
 
@@ -63,8 +65,15 @@ function warmSnapshot(boardId) {
 export function startBootPrefetch(uid) {
   if (!supabase || !uid || startedFor === uid) return;
   startedFor = uid;
-  const plan = bootPlan(storage(), uid);
   start('tier', uid, () => tierQuery(supabase));
+  // /admin opens none of the app: it needs only the tier (its code
+  // was preloaded with the HTML), and the reads below would only queue ahead of its numbers.
+  // Every hook that takes one asks for itself when nothing was started.
+  if (window.location.pathname === '/admin') {
+    personalFor = uid;
+    return;
+  }
+  const plan = bootPlan(storage(), uid);
   start('members', uid, () => membershipsQuery(supabase, uid));
   start('shared', uid, () => sharedBoardsQuery(supabase));
   if (plan.rpc) start('personal', uid, () => personalWorkspaceQuery(supabase, uid));

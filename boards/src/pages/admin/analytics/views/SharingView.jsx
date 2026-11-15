@@ -12,6 +12,7 @@
 
 import { useState } from 'react';
 import { supabase } from '../../../../lib/supabase.js';
+import { adminReport } from '../../../../lib/adminReport.js';
 import { formatCount, fmtDateTime } from '../../../../lib/adminFormat.js';
 import { ROUTE_ORDER, routeLabel, plural } from '../../../../lib/shareRoutes.js';
 import { ledgerSentence, shortName } from '../../../../lib/shareSentences.js';
@@ -193,9 +194,11 @@ function fmtDayHead(ymd) {
 export function SharingView() {
   const f = useAnalyticsFilters();
   const days = f.days;
-  const q = useAdminData(async () => {
+  const q = useAdminData(async ({ fresh }) => {
     const [ov, rf, mp] = await Promise.allSettled([
-      supabase.rpc('admin_sharing_overview', { p_days: days, p_exclude_internal: f.excludeInternal }),
+      // The ledger is the slow one: the server's shared ten-minute result,
+      // computed again only by the toolbar's refresh button.
+      adminReport(supabase, 'admin_sharing_overview', { p_days: days, p_exclude_internal: f.excludeInternal }, { fresh }),
       supabase.rpc('admin_referral_stats', { p_days: days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       supabase.rpc('admin_multiplayer_stats', { p_days: days, p_exclude_internal: f.excludeInternal }),
     ]);
@@ -205,7 +208,7 @@ export function SharingView() {
     return { overview: ov.value.data || {}, referrals: val(rf), multiplayer: val(mp) };
   }, [days, f.excludeInternal, f.verifiedOnly], { pollIntervalMs: POLL_MS.sharing, refetchOnFocus: true });
 
-  useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
+  useRegisterViewRuntime({ refresh: q.refreshFresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
 
   const o = q.data?.overview || {};
   const t = o.totals || {};

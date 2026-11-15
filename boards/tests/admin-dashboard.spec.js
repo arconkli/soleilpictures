@@ -601,11 +601,14 @@ test.describe('admin dashboard charts', () => {
     await openAdmin(page, { view: 'overview', theme: 'dark' });
     await expect(page.locator('.adm-well').first()).toBeVisible({ timeout: 15000 });
 
-    // Counted on an RPC only THIS view issues. The first version of this test
-    // watched the grand total and passed even with this view's poll deleted,
-    // because the shell polls too — it was measuring that something on the page
-    // refreshes, not that this view does.
-    const calls = () => page.evaluate(() => window.__admRpcCalls?.admin_activity_heatmap || 0);
+    // Counted on an RPC only THIS view issues: admin_weekly_series, which the
+    // Overview's main read issues on every poll and nothing else does on the
+    // computer. The heatmap is not counted: the Overview holds that read for an
+    // hour (lib/slowReportCache.js), so a 5-minute poll never re-issues it. The
+    // first version of this test watched the grand total and passed even with
+    // this view's poll deleted, because the shell polls too — it was measuring
+    // that something on the page refreshes, not that this view does.
+    const calls = () => page.evaluate(() => window.__admRpcCalls?.admin_weekly_series || 0);
     const first = await calls();
     expect(first, 'the harness call tally never armed').toBeGreaterThan(0);
 

@@ -71,6 +71,16 @@ const AUTOFOCUS_EMAIL = typeof window !== 'undefined' && typeof window.matchMedi
   : true;
 
 const AuthContext = createContext({ user: null, signOut: () => {} });
+
+// Signing out by any path, in this tab or another, forgets the admin's kept
+// numbers (lib/adminSnapshot.js). Here and not in the component, so pages that
+// sign out without it mounted are covered. Loaded on demand to keep it out of
+// the entry chunk; the promise is returned so signOut() waits for it.
+try {
+  supabase?.auth?.onAuthStateChange((event) => (event === 'SIGNED_OUT'
+    ? import('../lib/adminSnapshot.js').then((m) => m.forgetSnaps(), () => {})
+    : undefined));
+} catch (_) { /* no auth in the local harness */ }
 export const useAuth = () => useContext(AuthContext);
 
 function clearAuthUrl() {

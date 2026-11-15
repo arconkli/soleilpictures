@@ -18,6 +18,7 @@
 // is shown next to it rather than instead of it.
 
 import { supabase } from '../../../../lib/supabase.js';
+import { adminReport } from '../../../../lib/adminReport.js';
 import { formatCount } from '../../../../lib/adminFormat.js';
 import { useAdminData } from '../../useAdminData.js';
 import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
@@ -197,7 +198,10 @@ export function RetentionView() {
 
   // One wave, not four. The old view's sequencing was incidental — no call
   // depended on another's result — so it was pure added latency.
-  const q = useAdminData(async () => {
+  // The five slowest reads here take the server's shared ten-minute result
+  // (lib/adminReport.js). `fresh` is the toolbar's refresh button, which
+  // computes them again.
+  const q = useAdminData(async ({ fresh }) => {
     const [af, rc, rr, hp, hw, cm, sd, sc, rg, fh, sb, bt, ss, bmA, bmB] = await Promise.allSettled([
       supabase.rpc('admin_activation_funnel', { p_days: f.days, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
       fetchRetentionCurve({ p_window_days: Math.max(f.days, 30), p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
@@ -231,7 +235,7 @@ export function RetentionView() {
       // Same cohort as the built read beside it (first visits since 2026-08-17,
       // the usage_session epoch), so the gap between the two panels is glances,
       // not a different set of people.
-      supabase.rpc('admin_return_fixed_horizon', { p_since: '2026-08-17', p_horizon_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      adminReport(supabase, 'admin_return_fixed_horizon', { p_since: '2026-08-17', p_horizon_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }, { fresh }),
       // Only to size the intake for the power note — how long a change would
       // take to become readable depends on how fast people arrive.
       // Under "Internal: excluded" the intake leaves the team out too (0460
@@ -240,18 +244,18 @@ export function RetentionView() {
       // 0361. The same fixed horizon, but only a later visit that MADE something
       // counts — about half of the any-visit returners came back to look for a
       // few seconds, and a change that produces glances must not grade as a win.
-      supabase.rpc('admin_built_return', { p_horizon_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      adminReport(supabase, 'admin_built_return', { p_horizon_days: 7, p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }, { fresh }),
       // 0361. A same-day second sitting: the day-one marker of returning that
       // can be read the day after a signup instead of eight days after.
-      supabase.rpc('admin_second_sitting', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      adminReport(supabase, 'admin_second_sitting', { p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }, { fresh }),
       // 0365. The same fixed horizon split by how the day-one material ARRIVED:
       // placed by hand, card by card, or landed in a burst (a folder drop, a
       // multi-file pick, an import). Hand-placed boards come back and bursts do
       // not, at every depth — the cut that explained what day-one breadth and
       // "stuck" only seemed to. Any-visit and built, so the glance gap stays
       // visible here too.
-      supabase.rpc('admin_return_by_mode', { p_horizon_days: 7, p_measure: 'any', p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
-      supabase.rpc('admin_return_by_mode', { p_horizon_days: 7, p_measure: 'built', p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }),
+      adminReport(supabase, 'admin_return_by_mode', { p_horizon_days: 7, p_measure: 'any', p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }, { fresh }),
+      adminReport(supabase, 'admin_return_by_mode', { p_horizon_days: 7, p_measure: 'built', p_exclude_internal: f.excludeInternal, p_verified_only: f.verifiedOnly }, { fresh }),
     ]);
     const val = (r) => (r.status === 'fulfilled' && !r.value.error ? r.value.data : null);
     const errOf = (r) => (r.status === 'rejected' ? r.reason : r.value?.error) || null;
@@ -283,7 +287,7 @@ export function RetentionView() {
   }, [f.days, f.excludeInternal, f.verifiedOnly],
      { pollIntervalMs: POLL_MS.retention, refetchOnFocus: true });
 
-  useRegisterViewRuntime({ refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
+  useRegisterViewRuntime({ refresh: q.refreshFresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing });
 
   return (
     <AdminAsync loading={q.loading} error={q.error} hasData={q.hasData} onRetry={q.refresh}

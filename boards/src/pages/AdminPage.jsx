@@ -30,25 +30,10 @@ import { useFeedback } from '../components/AppFeedback.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { EmptyState } from '../components/EmptyState.jsx';
 import { Lock } from '../lib/icons.js';
-import { AdminError } from './admin/AdminStates.jsx';
+import { AdminError, AdminSkeleton } from './admin/AdminStates.jsx';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
+import { idlePrefetch } from '../lib/idlePrefetch.js';
 import { AdminAnalyticsTab } from './admin/AdminAnalyticsTab.jsx';
-import { AdminUsersTab } from './admin/AdminUsersTab.jsx';
-import { AdminGrantsTab } from './admin/AdminGrantsTab.jsx';
-import { AdminDiscountsTab } from './admin/AdminDiscountsTab.jsx';
-import { AdminCampaignTab } from './admin/AdminCampaignTab.jsx';
-import { AdminDiscoverTab } from './admin/AdminDiscoverTab.jsx';
-import { AdminApprovalsTab } from './admin/AdminApprovalsTab.jsx';
-import { AdminTemplatesTab } from './admin/AdminTemplatesTab.jsx';
-import { AdminWaitlistTab } from './admin/AdminWaitlistTab.jsx';
-import { AdminFeedbackTab } from './admin/AdminFeedbackTab.jsx';
-import { AdminTalkTab } from './admin/AdminTalkTab.jsx';
-import { AdminErrorsTab } from './admin/AdminErrorsTab.jsx';
-import { AdminAuditTab } from './admin/AdminAuditTab.jsx';
-import { AdminApiTab } from './admin/AdminApiTab.jsx';
-import { AdminScoutTab } from './admin/AdminScoutTab.jsx';
-import { AdminEmailsTab } from './admin/AdminEmailsTab.jsx';
-import { AdminTaggingTab } from './admin/AdminTaggingTab.jsx';
 import { AdminMoreMenu } from './admin/AdminMoreMenu.jsx';
 import { FeedbackButton } from '../components/FeedbackButton.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
@@ -65,19 +50,61 @@ const AdminUniverseTab = lazyWithReload(() => loadUniverseTab().then((m) => ({ d
 // path owns the stale-deploy reload.
 const prefetchUniverseTab = () => { loadUniverseTab().catch(() => {}); };
 
-// Boards carries its own stylesheet and the image-heavy grid, and only its tab
-// draws them, so it loads when the tab opens too.
 // /admin on a phone (pages/admin/phone/): its own chunk, so desktop never loads it.
 const AdminPhonePanel = lazyWithReload(() => import('./admin/phone/AdminPhonePanel.jsx').then((m) => ({ default: m.AdminPhonePanel })));
 
-// Posts (the TikTok posts: the phone panel's Posts screen in a column), its own chunk too.
-const AdminPostsTab = lazyWithReload(() => import('./admin/AdminPostsTab.jsx').then((m) => ({ default: m.AdminPostsTab })));
+// Analytics is the tab the admin opens on, so its code comes with the page.
+// Every other tab is a chunk of its own: the page used to download and compile
+// all of them before it could paint the one on screen. They load when opened,
+// and are fetched one at a time once the page is idle (below), so a switch does
+// not wait. Boards (its stylesheet and the image-heavy grid), Outlines (its
+// wireframes and stylesheet) and Posts (the phone panel's Posts screen in a
+// column) were already split this way.
+const TAB_LOADERS = {
+  users:     () => import('./admin/AdminUsersTab.jsx'),
+  posts:     () => import('./admin/AdminPostsTab.jsx'),
+  approvals: () => import('./admin/AdminApprovalsTab.jsx'),
+  boards:    () => import('./admin/AdminBoardsTab.jsx'),
+  outlines:  () => import('./admin/AdminOutlinesTab.jsx'),
+  discover:  () => import('./admin/AdminDiscoverTab.jsx'),
+  templates: () => import('./admin/AdminTemplatesTab.jsx'),
+  feedback:  () => import('./admin/AdminFeedbackTab.jsx'),
+  talk:      () => import('./admin/AdminTalkTab.jsx'),
+  errors:    () => import('./admin/AdminErrorsTab.jsx'),
+  audit:     () => import('./admin/AdminAuditTab.jsx'),
+  api:       () => import('./admin/AdminApiTab.jsx'),
+  scout:     () => import('./admin/AdminScoutTab.jsx'),
+  emails:    () => import('./admin/AdminEmailsTab.jsx'),
+  discounts: () => import('./admin/AdminDiscountsTab.jsx'),
+  grants:    () => import('./admin/AdminGrantsTab.jsx'),
+  campaign:  () => import('./admin/AdminCampaignTab.jsx'),
+  waitlist:  () => import('./admin/AdminWaitlistTab.jsx'),
+  tagging:   () => import('./admin/AdminTaggingTab.jsx'),
+};
+const lazyTab = (id, name) => lazyWithReload(() => TAB_LOADERS[id]().then((m) => ({ default: m[name] })));
+const AdminUsersTab     = lazyTab('users', 'AdminUsersTab');
+const AdminPostsTab     = lazyTab('posts', 'AdminPostsTab');
+const AdminApprovalsTab = lazyTab('approvals', 'AdminApprovalsTab');
+const AdminBoardsTab    = lazyTab('boards', 'AdminBoardsTab');
+const AdminOutlinesTab  = lazyTab('outlines', 'AdminOutlinesTab');
+const AdminDiscoverTab  = lazyTab('discover', 'AdminDiscoverTab');
+const AdminTemplatesTab = lazyTab('templates', 'AdminTemplatesTab');
+const AdminFeedbackTab  = lazyTab('feedback', 'AdminFeedbackTab');
+const AdminTalkTab      = lazyTab('talk', 'AdminTalkTab');
+const AdminErrorsTab    = lazyTab('errors', 'AdminErrorsTab');
+const AdminAuditTab     = lazyTab('audit', 'AdminAuditTab');
+const AdminApiTab       = lazyTab('api', 'AdminApiTab');
+const AdminScoutTab     = lazyTab('scout', 'AdminScoutTab');
+const AdminEmailsTab    = lazyTab('emails', 'AdminEmailsTab');
+const AdminDiscountsTab = lazyTab('discounts', 'AdminDiscountsTab');
+const AdminGrantsTab    = lazyTab('grants', 'AdminGrantsTab');
+const AdminCampaignTab  = lazyTab('campaign', 'AdminCampaignTab');
+const AdminWaitlistTab  = lazyTab('waitlist', 'AdminWaitlistTab');
+const AdminTaggingTab   = lazyTab('tagging', 'AdminTaggingTab');
 
-const AdminBoardsTab = lazyWithReload(() => import('./admin/AdminBoardsTab.jsx').then((m) => ({ default: m.AdminBoardsTab })));
-
-// Outlines (how clusters are laid out, boxes only) draws wireframes and carries
-// its own stylesheet, so it loads when its tab opens.
-const AdminOutlinesTab = lazyWithReload(() => import('./admin/AdminOutlinesTab.jsx').then((m) => ({ default: m.AdminOutlinesTab })));
+// What a tab shows while its first read is out, for the moment its code is
+// still arriving. Boards, Outlines and Posts keep the blank they always had.
+const TAB_FALLBACK = <AdminSkeleton />;
 
 // Overview and Analytics were two tabs showing the same numbers: both led with
 // total users, signups and MRR, and neither was authoritative. They are one tab
@@ -170,6 +197,8 @@ export function AdminPage() {
   const [fullOnPhone] = useState(() => {
     try { return new URLSearchParams(window.location.search).get('full') === '1'; } catch { return false; }
   });
+  // The phone panel is what renders, not the desktop admin.
+  const phonePanel = isPhone && !fullOnPhone;
   const tabRefs = useRef([]);
   const moreTriggerRef = useRef(null);
 
@@ -212,18 +241,19 @@ export function AdminPage() {
   }, []);
 
   // Seed the Approvals badge once tier resolves to admin (the tab itself keeps
-  // it live after each approve/reject via onCountsChange).
+  // it live after each approve/reject via onCountsChange). The phone panel has
+  // no pills to put either badge on, so it skips both reads.
   useEffect(() => {
-    if (tier !== 'admin') return undefined;
+    if (tier !== 'admin' || phonePanel) return undefined;
     let cancelled = false;
     adminPublicBoardSubmissionCounts()
       .then((c) => { if (!cancelled) setPendingApprovals(c?.pending ?? 0); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [tier]);
+  }, [tier, phonePanel]);
 
   useEffect(() => {
-    if (tier !== 'admin') return undefined;
+    if (tier !== 'admin' || phonePanel) return undefined;
     let cancelled = false;
     const seed = async () => {
       try {
@@ -233,7 +263,16 @@ export function AdminPage() {
     };
     seed();
     return () => { cancelled = true; };
-  }, [tier]);
+  }, [tier, phonePanel]);
+
+  // The other tabs' code, one chunk at a time once the page is idle, in the
+  // order the pills and the menu list them. Desktop only: the phone panel
+  // draws none of them. The Universe stays out: it is over a megabyte, and its
+  // menu row already starts the download when pointed at.
+  useEffect(() => {
+    if (tier !== 'admin' || phonePanel) return undefined;
+    return idlePrefetch(Object.values(TAB_LOADERS));
+  }, [tier, phonePanel]);
 
   // Roving focus spans the VISIBLE controls only — the primary pills plus the
   // More trigger at index PRIMARY_TABS.length. Selection follows focus for the
@@ -303,7 +342,7 @@ export function AdminPage() {
 
   // A phone gets the phone panel (Today · Posts · Boards), unless ?full=1 asked
   // for the desktop admin for this visit.
-  if (isPhone && !fullOnPhone) {
+  if (phonePanel) {
     return (
       <Suspense fallback={<Splash />}>
         <AdminPhonePanel
@@ -382,23 +421,25 @@ export function AdminPage() {
           </Suspense>
         )}
         {tab === 'overview'  && <AdminAnalyticsTab />}
-        {tab === 'users'     && <AdminUsersTab />}
-        {tab === 'grants'    && <AdminGrantsTab />}
-        {tab === 'discounts' && <AdminDiscountsTab />}
-        {tab === 'campaign'  && <AdminCampaignTab />}
-        {tab === 'discover'  && <AdminDiscoverTab />}
-        {tab === 'approvals' && <AdminApprovalsTab onCountsChange={(c) => setPendingApprovals(c?.pending ?? 0)} />}
-        {/* A takedown surface, not a queue — so no pending-count badge. */}
-        {tab === 'templates' && <AdminTemplatesTab />}
-        {tab === 'waitlist'  && <AdminWaitlistTab />}
-        {tab === 'feedback'  && <AdminFeedbackTab />}
-        {tab === 'talk'      && <AdminTalkTab />}
-        {tab === 'scout'     && <AdminScoutTab />}
-        {tab === 'errors'    && <AdminErrorsTab />}
-        {tab === 'audit'     && <AdminAuditTab />}
-        {tab === 'api'       && <AdminApiTab />}
-        {tab === 'emails'    && <AdminEmailsTab />}
-        {tab === 'tagging'   && <AdminTaggingTab />}
+        <Suspense fallback={TAB_FALLBACK}>
+          {tab === 'users'     && <AdminUsersTab />}
+          {tab === 'grants'    && <AdminGrantsTab />}
+          {tab === 'discounts' && <AdminDiscountsTab />}
+          {tab === 'campaign'  && <AdminCampaignTab />}
+          {tab === 'discover'  && <AdminDiscoverTab />}
+          {tab === 'approvals' && <AdminApprovalsTab onCountsChange={(c) => setPendingApprovals(c?.pending ?? 0)} />}
+          {/* A takedown surface, not a queue — so no pending-count badge. */}
+          {tab === 'templates' && <AdminTemplatesTab />}
+          {tab === 'waitlist'  && <AdminWaitlistTab />}
+          {tab === 'feedback'  && <AdminFeedbackTab />}
+          {tab === 'talk'      && <AdminTalkTab />}
+          {tab === 'scout'     && <AdminScoutTab />}
+          {tab === 'errors'    && <AdminErrorsTab />}
+          {tab === 'audit'     && <AdminAuditTab />}
+          {tab === 'api'       && <AdminApiTab />}
+          {tab === 'emails'    && <AdminEmailsTab />}
+          {tab === 'tagging'   && <AdminTaggingTab />}
+        </Suspense>
       </main>
     </div>
   );

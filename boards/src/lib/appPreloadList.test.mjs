@@ -2,11 +2,12 @@
 // that preloads them. Run: node --test src/lib/appPreloadList.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import {
-  appPreloadList, withoutList, preloadScript, APP_PRELOAD_PATHS, WORKSPACE_SETUP_MODULE,
+  appPreloadList, withoutList, adminPreloadLists, preloadScript, APP_PRELOAD_PATHS, WORKSPACE_SETUP_MODULE,
+  ADMIN_PAGE_MODULE, ADMIN_PHONE_MODULE, PHONE_QUERY,
 } from './appPreloadList.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -63,7 +64,7 @@ test('the setup list is only what setup adds on top of the app', () => {
 });
 
 // A page the script can run in: what it reads and the links it adds.
-function page({ path = '/', keys = [], existing = [], nonce = 'n0nce', storageThrows = false } = {}) {
+function page({ path = '/', keys = [], existing = [], nonce = 'n0nce', storageThrows = false, phone, noMatchMedia = false } = {}) {
   const head = [];
   const all = () => [...existing, ...head];
   const document = {
@@ -78,7 +79,7 @@ function page({ path = '/', keys = [], existing = [], nonce = 'n0nce', storageTh
   const localStorage = storageThrows
     ? { get length() { throw new Error('denied'); }, key() { throw new Error('denied'); } }
     : { length: keys.length, key: (i) => keys[i] ?? null };
-  const window = {};
+  const window = noMatchMedia ? {} : { matchMedia: (q) => ({ matches: !!phone && q === PHONE_QUERY }) };
   return { head, window, globals: [document, window, { pathname: path }, localStorage] };
 }
 
@@ -197,4 +198,94 @@ test('an app run before sign-in keeps the image links a past session signed', ()
   assert.match(listener, /if \(event === 'SIGNED_OUT'\) \{ clearPersisted\(\); return; \}/);
   assert.match(listener, /if \(!uid\) return;/);
   assert.match(r2, /if \(!parsed \|\| parsed\.uid !== uid\) \{ localStorage\.removeItem\(LS_KEY\); return; \}/);
+});
+
+const ADMIN_BUNDLE = {
+  ...BUNDLE,
+  ...bundleOf(
+    chunk('assets/AdminPage-j.js', {
+      facade: '/repo/boards/src/pages/AdminPage.jsx',
+      imports: ['assets/vendor-react-b.js', 'assets/shared-e.js', 'assets/adminOnly-k.js'],
+      css: ['assets/AdminPage-v.css'],
+    }),
+    chunk('assets/adminOnly-k.js'),
+    chunk('assets/AdminPhonePanel-l.js', {
+      facade: '/repo/boards/src/pages/admin/phone/AdminPhonePanel.jsx',
+      imports: ['assets/adminOnly-k.js', 'assets/phoneOnly-m.js'],
+    }),
+    chunk('assets/phoneOnly-m.js'),
+  ),
+};
+
+test('the admin lists are what the admin adds over the app, the phone panel over both', () => {
+  const app = appPreloadList(ADMIN_BUNDLE);
+  assert.deepEqual(adminPreloadLists(ADMIN_BUNDLE, app), {
+    admin: { js: ['/assets/AdminPage-j.js', '/assets/adminOnly-k.js'], css: ['/assets/AdminPage-v.css'], path: '/admin' },
+    adminPhone: { js: ['/assets/AdminPhonePanel-l.js', '/assets/phoneOnly-m.js'], css: [], path: '/admin', media: PHONE_QUERY },
+  });
+  assert.deepEqual(adminPreloadLists(BUNDLE, appPreloadList(BUNDLE)), {});
+});
+
+const ADMIN_LISTS = { ...LISTS, ...adminPreloadLists(ADMIN_BUNDLE, appPreloadList(ADMIN_BUNDLE)) };
+const hrefs = (p) => p.head.map((l) => l.href);
+const APP_HREFS = [...ADMIN_LISTS.app.css, ...ADMIN_LISTS.app.js];
+const ADMIN_HREFS = [...ADMIN_LISTS.admin.css, ...ADMIN_LISTS.admin.js];
+const PHONE_HREFS = [...ADMIN_LISTS.adminPhone.css, ...ADMIN_LISTS.adminPhone.js];
+
+test('a signed-in open of /admin preloads the admin after the app, the phone panel only on a phone', () => {
+  const onPhone = boot(page({ path: '/admin', keys: SIGNED_IN, phone: true }), ADMIN_LISTS);
+  assert.deepEqual(hrefs(onPhone), [...APP_HREFS, ...ADMIN_HREFS, ...PHONE_HREFS]);
+  assert.ok(onPhone.head.every((l) => l.fetchPriority === 'low'));
+  assert.deepEqual(hrefs(boot(page({ path: '/admin', keys: SIGNED_IN }), ADMIN_LISTS)), [...APP_HREFS, ...ADMIN_HREFS]);
+  assert.deepEqual(hrefs(boot(page({ path: '/admin/', keys: SIGNED_IN, phone: true }), ADMIN_LISTS)), [...APP_HREFS, ...ADMIN_HREFS, ...PHONE_HREFS]);
+});
+
+test('the admin files are only for /admin, and only signed in', () => {
+  assert.deepEqual(hrefs(boot(page({ path: '/', keys: SIGNED_IN, phone: true }), ADMIN_LISTS)), APP_HREFS);
+  assert.equal(boot(page({ path: '/admin', keys: ['soleil.theme'], phone: true }), ADMIN_LISTS).head.length, 0);
+});
+
+test('a window with no matchMedia gets the app and the admin, and no throw', () => {
+  const p = boot(page({ path: '/admin', keys: SIGNED_IN, noMatchMedia: true }), ADMIN_LISTS);
+  assert.deepEqual(hrefs(p), [...APP_HREFS, ...ADMIN_HREFS]);
+});
+
+const SRC = resolve(HERE, '..');
+const read = (rel) => readFileSync(resolve(SRC, rel), 'utf8');
+
+test('the phone query is the one AdminPage makes', () => {
+  const max = read('hooks/useBreakpoint.js').match(/const PHONE_MAX = (\d+);/)[1];
+  assert.equal(PHONE_QUERY, `(max-width: ${max}px)`);
+});
+
+test('the listed modules are the ones the lazy components import, and exist', () => {
+  assert.ok(read('auth/TierRouter.jsx').includes("import('../pages/AdminPage.jsx')"));
+  assert.ok(read('pages/AdminPage.jsx').includes("import('./admin/phone/AdminPhonePanel.jsx')"));
+  for (const m of [ADMIN_PAGE_MODULE, ADMIN_PHONE_MODULE]) {
+    assert.ok(existsSync(resolve(SRC, m.replace(/^\/src\//, ''))), m);
+  }
+});
+
+test('on /admin the boot prefetch reads the tier and nothing else, and imports nothing', () => {
+  const s = read('lib/bootPrefetch.js');
+  const body = s.slice(s.indexOf('export function startBootPrefetch'), s.indexOf('export function clearBootPrefetch'));
+  const branch = body.indexOf("if (window.location.pathname === '/admin') {");
+  assert.ok(branch > 0);
+  assert.ok(body.indexOf("start('tier'") < branch);
+  const end = body.indexOf('return;', branch);
+  assert.ok(end > branch);
+  assert.match(body.slice(branch, end), /personalFor = uid;/);
+  assert.ok(!body.slice(branch, end).includes('import('), 'an import() here splits the app apart');
+  for (const later of ["start('members'", "start('shared'", "start('personal'", 'bootPlan(', 'warmSnapshot(plan.tip)']) {
+    assert.ok(body.indexOf(later) > end, later);
+  }
+  assert.ok(read('auth/TierRouter.jsx').includes("if (path === '/admin')"));
+});
+
+test('nothing under src/ imports adminWarm', () => {
+  const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const f = resolve(dir, e.name);
+    return e.isDirectory() ? walk(f) : /\.(m?js|jsx)$/.test(e.name) && e.name !== 'appPreloadList.test.mjs' ? [f] : [];
+  });
+  for (const f of walk(SRC)) assert.ok(!/adminWarm/.test(readFileSync(f, 'utf8')), f);
 });

@@ -17,6 +17,7 @@
 
 import { useMemo, useState } from 'react';
 import { supabase } from '../../../../lib/supabase.js';
+import { adminReport } from '../../../../lib/adminReport.js';
 import { useAdminData } from '../../useAdminData.js';
 import { AdminAsync, AdminSkeleton } from '../../AdminStates.jsx';
 import { useRegisterViewRuntime, POLL_MS } from '../AnalyticsFiltersContext.jsx';
@@ -37,8 +38,10 @@ const HEALTH = {
 const compareTitle = (t) => (t.kind === 'beforeafter' ? 'before' : t.kind === 'holdout' ? 'sending it' : 'as before');
 
 export function TestsView() {
-  const q = useAdminData(async () => {
-    const { data, error } = await supabase.rpc('admin_tests_read');
+  // The server's shared ten-minute result (lib/adminReport.js); the toolbar's
+  // refresh button computes it again.
+  const q = useAdminData(async ({ fresh }) => {
+    const { data, error } = await adminReport(supabase, 'admin_tests_read', {}, { fresh });
     if (error) throw error;
     return data;
   }, [], { pollIntervalMs: POLL_MS.tests, refetchOnFocus: true });
@@ -46,7 +49,7 @@ export function TestsView() {
   const page = useMemo(() => (q.data ? testsPage(q.data) : null), [q.data]);
 
   useRegisterViewRuntime({
-    refresh: q.refresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing,
+    refresh: q.refreshFresh, lastUpdated: q.lastUpdated, refreshing: q.refreshing,
     status: page ? { running: page.running, looks: page.looks } : null,
   });
 
