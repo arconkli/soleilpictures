@@ -102,7 +102,9 @@ test("0856's keep_mcp_draft is 0706's with only the workspace limit added", () =
 
 // 0741 restates the channel with a shared file's arm added after the share
 // link's; shareCaptureMigration.test.mjs holds it to 0708's plus that arm.
-const RESTATED_AFTER_0708 = { derive_acquisition_channel: '0741_channel_credits_file_shares.sql' };
+// 0888 restates it again with the mail and invite arms
+// (acquisitionInviteEmail.test.mjs).
+const RESTATED_AFTER_0708 = { derive_acquisition_channel: '0888_channel_email_and_invite.sql' };
 
 test('0708 makes these three functions, and they are the ones that run (or a later restatement)', () => {
   const made = madeIn(src0708);
