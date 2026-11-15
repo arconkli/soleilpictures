@@ -107,3 +107,68 @@ test('a message the server wrote is not presented as something a person typed', 
   const prose = page.locator('.fbk-msg:not(.is-filler)').first();
   expect(await prose.evaluate((n) => getComputedStyle(n).fontStyle)).toBe('normal');
 });
+
+// Outreach marks (0894). Fixture: four rows are waiting (email, a note, not yet
+// reached), one is reached out, one is a signed-in tap with no note (a button,
+// not waiting), and the signed-out rows have no email.
+const WAITING = 4;
+
+test('the waiting pill filters to the people who have not heard back', async ({ page }) => {
+  const errors = await openTab(page, 'dark');
+
+  const pill = page.locator('.fbk-waiting');
+  await expect(pill).toHaveText(`${WAITING} waiting for a reply`);
+  await expect(pill).toHaveAttribute('aria-pressed', 'false');
+
+  await pill.click();
+  await expect(pill).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.fbk-row')).toHaveCount(WAITING);
+  for (const row of await page.locator('.fbk-row').all()) {
+    await expect(row.getByRole('button', { name: 'Mark reached out' })).toBeVisible();
+  }
+  expect(errors).toEqual([]);
+});
+
+test('one click marks a row reached out, and Undo puts it back', async ({ page }) => {
+  const errors = await openTab(page, 'dark');
+
+  const row = page.locator('.fbk-row').filter({ hasText: 'funnel chart tooltip' });
+  await row.getByRole('button', { name: 'Mark reached out' }).click();
+
+  await expect(row.locator('.fbk-done')).toHaveText('Reached out');
+  // A click on the button must not also expand the row.
+  await expect(row).not.toHaveClass(/is-open/);
+  await expect(row.getByRole('button', { name: 'Mark reached out' })).toHaveCount(0);
+
+  const undo = page.locator('.toast-action', { hasText: 'Undo' });
+  await expect(undo).toBeVisible();
+  await undo.click();
+
+  await expect(row.getByRole('button', { name: 'Mark reached out' })).toBeVisible();
+  await expect(row.locator('.fbk-done')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('a row without an email says so and offers no button', async ({ page }) => {
+  await openTab(page, 'dark');
+  const row = page.locator('.fbk-row').filter({ hasText: 'New analytics tab is gorgeous' });
+  await expect(row.locator('.fbk-noemail')).toHaveText('no email');
+  await expect(row.getByRole('button', { name: 'Mark reached out' })).toHaveCount(0);
+});
+
+// Between landing and the release that applies 0894, the summary RPC does not
+// exist. The tab must then look as it did: no pill, no outreach filter, and no
+// row button, because the old list has no reached_out_* columns and a mark
+// would turn green, then flip back on the next reload.
+test('before 0894 is applied the tab shows nothing new', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+  await page.goto('/admin?adminpreview=1&tab=feedback&rpcmissing=admin_feedback_outreach_summary');
+  await page.locator('.fbk-row').first().waitFor({ timeout: 20000 });
+  await expect(page.locator('.fbk-row').first()).toBeVisible();
+  await expect(page.locator('.fbk-waiting')).toHaveCount(0);
+  await expect(page.getByLabel('Filter by outreach')).toHaveCount(0);
+  await expect(page.locator('.fbk-act')).toHaveCount(0);
+  await expect(page.locator('.fbk-row.has-act')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
