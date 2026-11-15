@@ -1813,7 +1813,7 @@ const PAGES = [
       { q: 'How do I move my PureRef boards into Clusters?', a: 'Export the images from PureRef (or gather the originals), then drag the whole set onto a new Clusters board. It lands in one drop, and you can rebuild your layout in minutes.' },
       { q: 'Does Clusters work offline like PureRef?', a: 'Clusters is a cloud, browser-based workspace, so it is not a fully-offline desktop window the way PureRef is. In exchange you get sharing, collaboration, and cross-device sync.' },
       { q: 'Can I put more than images on a Clusters board?', a: 'Yes — images, notes, links, video, PDFs, docs, and color palettes all live on the same canvas, with non-destructive image adjustments built in.' },
-      { q: 'Is Clusters free?', a: `Yes, the Demo tier is free with no credit card. Creator (${PRICING.monthly.billedLabel}) adds unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.` },
+      { q: 'Is Clusters free?', a: `Yes, the Demo tier is free with no credit card. Creator ($25/mo) adds unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.` },
           { q: 'Can an AI assistant work with my reference board?', a: 'In Clusters, yes — connect Claude, ChatGPT, Cursor, VS Code or any other MCP app with one URL and ask (anyone can try it from Claude or ChatGPT with no account) it to build or tidy a board. PureRef is an offline desktop app with no API, so there is nothing for an assistant to connect to. Clusters arranges the references you already have rather than generating images.' },
 ],
     siblingListicle: { path: '/best/pureref-alternatives', label: 'See all 10 PureRef alternatives, ranked by a film studio.' },

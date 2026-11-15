@@ -187,7 +187,7 @@ const PAGES = [
           "Clusters exists because we kept hitting the day the wall breaks. Our references lived in .pur files on individual machines, and every production meant re-exporting and re-explaining which version was current. So we built the wall as a place instead of a file: a freeform canvas in the browser with the same drop-images-and-arrange feel, where the board is the single copy everyone sees. We use it daily on our own productions — that is both the pitch and the bias.",
           "The team mechanics are the point. Live cursors and presence show who is on the board; comments pin to the exact image they are about; a client or director opens a read-only view from one link, no account, nothing to install. Free editors can collaborate, so bringing on the production designer costs nothing. Tags gather references across boards, and a relationship graph connects boards across a project — mood board, look book, and shot list stay one linked body of work.",
           "A production reference wall is rarely just images, so boards hold video, audio, PDFs, links, notes, docs with a screenplay mode, color palettes, image grids, and vote cards — put one beside each of five frames and the 'which one' argument settles without a meeting. Photo adjustments are non-destructive. Boards nest inside boards with live thumbnails, so a project reads like a map rather than a pile.",
-          `It runs in the browser on desktop and mobile, including touch and iPad. The free Demo tier has no credit card and no trial clock, and covers ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, whichever comes first; Creator is a flat ${PRICING.monthly.perMonthLabel} a month — not per person — for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive. Both plans take any file at any size. The honest trade: there is no offline desktop app and no always-on-top overlay. If you never share your wall, keep PureRef.`
+          `It runs in the browser on desktop and mobile, including touch and iPad. The free Demo tier has no credit card and no trial clock, and covers ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, whichever comes first; Creator is a flat $25 a month — not per person — for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive. Both plans take any file at any size. The honest trade: there is no offline desktop app and no always-on-top overlay. If you never share your wall, keep PureRef.`
         ],
         "features": [
           "Real-time multiplayer canvas: live cursors, presence, pinned comments",
@@ -198,12 +198,12 @@ const PAGES = [
           "Runs in the browser on desktop and mobile (touch and iPad); published template boards can be opened live"
         ],
         "pricing": {
-          "summary": `Free (Demo) — no credit card, no trial clock, ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files; Creator ${PRICING.monthly.billedLabel} flat (not per person): unlimited cards, ${CREATOR_STORAGE_LABEL} drive`,
+          "summary": `Free (Demo) — no credit card, no trial clock, ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files; Creator $25/mo flat (not per person): unlimited cards, ${CREATOR_STORAGE_LABEL} drive`,
           "asOf": "August 2026"
         },
         "pros": [
           "The one-link test is the whole design: browser-based, no install, no account for viewers",
-          `Flat ${PRICING.monthly.billedLabel} Creator pricing — a full crew does not multiply the bill`,
+          "Flat $25/mo Creator pricing — a full crew does not multiply the bill",
           "Built and used daily by a working film studio on its own productions"
         ],
         "cons": [
@@ -540,7 +540,7 @@ const PAGES = [
     "tableCells": {
       "soleil-clusters": [
         "Shared team reference boards",
-        `Free; Creator ${PRICING.monthly.billedLabel} flat`,
+        "Free; Creator $25/mo flat",
         "Yes — no trial clock",
         "Yes",
         "9.2/10"
