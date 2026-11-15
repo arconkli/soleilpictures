@@ -7429,7 +7429,7 @@ A: Set omc.functionalType in the board's properties. Values outside the OMC cont
 ========================================================================
 # MCP server
 URL: https://clusters.soleilpictures.com/docs/mcp
-Updated: 2026-11-04
+Updated: 2026-11-14
 
 Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser; it signs you in over OAuth, so there is no token to paste. With no account, https://clusters.soleilpictures.com/mcp lets an assistant build a draft cluster you keep with a link. Run it locally with npx only for files on your machine. It holds no credentials of its own, so an agent reaches exactly what your account reaches.
 
@@ -7810,6 +7810,9 @@ A: In ChatGPT and Claude, yes. show_board draws the cluster inside the conversat
 
 Q: Is it the same set of tools either way?
 A: Yes, apart from upload_file, which needs a filesystem. Both servers are built from one registry so they cannot drift apart, though the local package's 2.x releases still have the tool names from before 3.0.
+
+Q: Does PureRef have an MCP server?
+A: Not an official one, as of November 14, 2026. PureRef is a desktop program for Windows, Mac and Linux, and neither its site nor the official MCP registry lists a server for it. A community project on GitHub, PureRef MCP, writes .pur files from images on your computer for PureRef to open. Soleil Clusters is a web app with its own MCP server, at https://clusters.soleilpictures.com/api/v1/mcp, so an assistant can build and arrange a reference board there directly.
 
 
 ========================================================================
@@ -8539,13 +8542,13 @@ Yes. Connect Claude, ChatGPT, Cursor, VS Code or any other MCP app with one URL 
 
 ========================================================================
 URL: https://clusters.soleilpictures.com/tools/ai-mood-board-maker
-Updated: 2026-08-10
+Updated: 2026-11-14
 
 # AI Mood Board Maker
 
 > Soleil Clusters connects to Claude, ChatGPT, Cursor, VS Code and other MCP apps, and anyone can try it from Claude or ChatGPT with no account. Ask an assistant and it creates the board, pulls in images from links you give it, and lays them out. It arranges your own references rather than generating pictures.
 
-_Source: https://clusters.soleilpictures.com/tools/ai-mood-board-maker · Updated 2026-08-10_
+_Source: https://clusters.soleilpictures.com/tools/ai-mood-board-maker · Updated 2026-11-14_
 
 Point Claude at your clusters and ask. It builds the board, brings in the references, and lays them out.
 
@@ -8573,7 +8576,15 @@ Soleil Clusters is its own OAuth 2.1 authorization server, listed in the officia
 
 - Nothing to install for the hosted server
 - An npm package for local files, if you want to upload video from your own disk
-- Disconnect any time under Settings → API
+- Disconnect any time under Settings → Connections
+
+## Connect it from Claude or ChatGPT
+
+Both take the same address, https://clusters.soleilpictures.com/api/v1/mcp. In Claude, on claude.ai or in the desktop app, open Settings → Connectors, add a custom connector and paste it. In ChatGPT, turn on developer mode under Settings → Apps → Advanced settings, then create an app from Settings → Apps and paste the same address; on a Business or Enterprise workspace an admin may need to allow developer mode first. Either one then draws the cluster inside the chat when you ask to see it. An AI that cannot add a connector can still hand you a board as a make-it link, which shows the board before anyone signs in. The MCP docs (/docs/mcp) have the steps for every app, the make-it link page (/docs/make-link) says how that link works, and the security page (/docs/security) says what a connected app can and cannot reach.
+
+- No account yet: https://clusters.soleilpictures.com/mcp builds a draft cluster you keep with a link and your email
+- A make-it link carries the board after the #, so nothing reaches Clusters until you keep it
+- Connected apps are listed under Settings → Connections → Connected apps, where you can disconnect one
 
 ## It reaches exactly what you reach
 
@@ -8600,13 +8611,21 @@ No. It works with references you already have, or that you point it at with a li
 
 Claude, ChatGPT, Cursor, VS Code and any other app that speaks the Model Context Protocol. Anyone can try it from Claude or ChatGPT with no account: the assistant builds a draft and you keep it with a link. The hosted server is a URL, so anything that can add a remote MCP connector can use it. There is also an npm package, soleil-clusters-mcp, for clients that need to read files off your own machine.
 
+### Does it work with ChatGPT?
+
+Yes. In ChatGPT, turn on developer mode under Settings → Apps → Advanced settings, create an app from Settings → Apps, and paste https://clusters.soleilpictures.com/api/v1/mcp. On a Business or Enterprise workspace an admin may need to allow developer mode first. ChatGPT then builds the board in your account and draws it inside the chat. To try it with no account, use https://clusters.soleilpictures.com/mcp instead: ChatGPT builds a draft cluster and gives you a link to keep it.
+
+### Which mood board apps have an MCP server?
+
+As of November 14, 2026: Soleil Clusters has one, listed in the official Model Context Protocol registry as com.soleilpictures/clusters. Miro publishes an official MCP server. Storyflow’s pricing page says Claude, ChatGPT, Gemini and Grok work on its boards through MCP. The registry’s one Milanote entry is published by a third party, not by Milanote. PureRef is a desktop program for Windows, Mac and Linux, and neither its site nor the registry lists an MCP server for it; a community project on GitHub, PureRef MCP, writes .pur files from images on your computer for PureRef to open.
+
 ### Do I need to be a developer?
 
 No. You add one URL to your assistant and press Allow in the browser. There is no key to generate and nothing to paste into a configuration file.
 
 ### Can the assistant delete my work?
 
-Only if you let it. Deleting is a separate permission from writing and is not granted by default, so an assistant can build boards without being able to remove anything. You can disconnect it at any time under Settings → API, which stops it working immediately.
+Only if you let it. Deleting is a separate permission from writing and is not granted by default, so an assistant can build boards without being able to remove anything. You can disconnect it at any time under Settings → Connections, which stops it working immediately.
 
 ### Can it see all of my boards?
 

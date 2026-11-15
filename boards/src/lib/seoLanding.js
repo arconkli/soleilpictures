@@ -243,8 +243,28 @@ const PAGES = [
   //
   // Nothing here claims a competitor cannot be reached by an assistant.
   // Checked before writing: Miro HAS MCP servers in the official registry, so
-  // a blanket "only we can do this" would have been false. Milanote, PureRef,
-  // Boords and StudioBinder return nothing there, and those are named.
+  // a blanket "only we can do this" would have been false.
+  //
+  // The "Which mood board apps have an MCP server?" answer is a dated read of
+  // 2026-11-14, and every clause has a source. Re-read all of them before
+  // changing a word, and keep /docs/mcp's "Does PureRef have an MCP server?"
+  // answer in agreement with it:
+  //   - Clusters: registry.modelcontextprotocol.io/v0/servers?search=soleilpictures
+  //   - Miro: developers.miro.com/docs/miro-mcp ("the official Miro Model
+  //     Context Protocol (MCP) Server"), and io.github.miroapp/mcp-server in
+  //     the registry
+  //   - Storyflow: storyflow.so/pricing ("Works with Claude, ChatGPT, Gemini
+  //     and Grok (MCP)")
+  //   - Milanote: the registry's one entry is dev.cotlet/milanote, a third
+  //     party's namespace, so the page says who published it and no more
+  //   - PureRef: pureref.com calls it "a stand-alone program for Windows, Mac
+  //     and Linux"; neither the site nor the handbook mentions MCP; the
+  //     registry search for "pureref" is empty; github.com/quazi1622/PureRef-MCP
+  //     is a community Python server that writes .pur files PureRef then opens
+  //
+  // The three docs pages are docsLinks, not links in the prose: section bodies
+  // are escaped text in both renderers, and docsLinks is the one field both
+  // draw as real links with the same words.
   // ────────────────────────────────────────────────────────────────────────
   {
     path: '/tools/ai-mood-board-maker',
@@ -257,7 +277,7 @@ const PAGES = [
       'Point Claude at your clusters and ask. It builds the board, brings in the references, and lays them out.',
     answer:
       'Soleil Clusters connects to Claude, ChatGPT, Cursor, VS Code and other MCP apps, and anyone can try it from Claude or ChatGPT with no account. Ask an assistant and it creates the board, pulls in images from links you give it, and lays them out. It arranges your own references rather than generating pictures.',
-    updated: '2026-08-10',
+    updated: '2026-11-14',
     cta: { label: 'Connect your assistant — free', sub: 'One URL. Approve it in the browser. No token to paste.' },
     stepsHeading: 'How to build a mood board with your assistant',
     steps: [
@@ -291,7 +311,16 @@ const PAGES = [
         bullets: [
           'Nothing to install for the hosted server',
           'An npm package for local files, if you want to upload video from your own disk',
-          'Disconnect any time under Settings → API',
+          'Disconnect any time under Settings → Connections',
+        ],
+      },
+      {
+        heading: 'Connect it from Claude or ChatGPT',
+        body: 'Both take the same address, https://clusters.soleilpictures.com/api/v1/mcp. In Claude, on claude.ai or in the desktop app, open Settings → Connectors, add a custom connector and paste it. In ChatGPT, turn on developer mode under Settings → Apps → Advanced settings, then create an app from Settings → Apps and paste the same address; on a Business or Enterprise workspace an admin may need to allow developer mode first. Either one then draws the cluster inside the chat when you ask to see it. An AI that cannot add a connector can still hand you a board as a make-it link, which shows the board before anyone signs in. The MCP docs (/docs/mcp) have the steps for every app, the make-it link page (/docs/make-link) says how that link works, and the security page (/docs/security) says what a connected app can and cannot reach.',
+        bullets: [
+          'No account yet: https://clusters.soleilpictures.com/mcp builds a draft cluster you keep with a link and your email',
+          'A make-it link carries the board after the #, so nothing reaches Clusters until you keep it',
+          'Connected apps are listed under Settings → Connections → Connected apps, where you can disconnect one',
         ],
       },
       {
@@ -307,10 +336,17 @@ const PAGES = [
     faq: [
       { q: 'Does it generate images with AI?', a: 'No. It works with references you already have, or that you point it at with a link. It builds and arranges the board; it does not invent pictures. For reference work that is the right way round — a board full of images nobody can actually shoot is not much use on the day.' },
       { q: 'Which assistants work with it?', a: 'Claude, ChatGPT, Cursor, VS Code and any other app that speaks the Model Context Protocol. Anyone can try it from Claude or ChatGPT with no account: the assistant builds a draft and you keep it with a link. The hosted server is a URL, so anything that can add a remote MCP connector can use it. There is also an npm package, soleil-clusters-mcp, for clients that need to read files off your own machine.' },
+      { q: 'Does it work with ChatGPT?', a: 'Yes. In ChatGPT, turn on developer mode under Settings → Apps → Advanced settings, create an app from Settings → Apps, and paste https://clusters.soleilpictures.com/api/v1/mcp. On a Business or Enterprise workspace an admin may need to allow developer mode first. ChatGPT then builds the board in your account and draws it inside the chat. To try it with no account, use https://clusters.soleilpictures.com/mcp instead: ChatGPT builds a draft cluster and gives you a link to keep it.' },
+      { q: 'Which mood board apps have an MCP server?', a: 'As of November 14, 2026: Soleil Clusters has one, listed in the official Model Context Protocol registry as com.soleilpictures/clusters. Miro publishes an official MCP server. Storyflow’s pricing page says Claude, ChatGPT, Gemini and Grok work on its boards through MCP. The registry’s one Milanote entry is published by a third party, not by Milanote. PureRef is a desktop program for Windows, Mac and Linux, and neither its site nor the registry lists an MCP server for it; a community project on GitHub, PureRef MCP, writes .pur files from images on your computer for PureRef to open.' },
       { q: 'Do I need to be a developer?', a: 'No. You add one URL to your assistant and press Allow in the browser. There is no key to generate and nothing to paste into a configuration file.' },
-      { q: 'Can the assistant delete my work?', a: 'Only if you let it. Deleting is a separate permission from writing and is not granted by default, so an assistant can build boards without being able to remove anything. You can disconnect it at any time under Settings → API, which stops it working immediately.' },
+      { q: 'Can the assistant delete my work?', a: 'Only if you let it. Deleting is a separate permission from writing and is not granted by default, so an assistant can build boards without being able to remove anything. You can disconnect it at any time under Settings → Connections, which stops it working immediately.' },
       { q: 'Can it see all of my boards?', a: 'It sees exactly what your account sees — no more. It runs as you, under the same database permissions as your browser session, so a cluster you cannot open is one it cannot open either.' },
       { q: 'Is it free?', a: `Yes. Connecting an assistant costs nothing and works on the free plan. The usual plan limits apply to what it creates, exactly as they would if you made those cards yourself — the free Demo tier covers ${freeLimitSentence()}, and the clusters it makes cost none of them.` },
+    ],
+    docsLinks: [
+      { path: '/docs/mcp', label: 'Connect Claude, ChatGPT and other apps: the MCP docs' },
+      { path: '/docs/make-link', label: 'The make-it link: a board from any AI' },
+      { path: '/docs/security', label: 'Security: what a connected app can reach' },
     ],
     related: ['/tools/mood-board-maker', '/tools/shot-list-maker', '/tools/reference-board-maker', '/best/mood-board-apps', '/vs/pureref', '/use-cases', '/vs/storyflow'],
   },

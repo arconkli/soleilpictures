@@ -2,7 +2,7 @@
 
 > Soleil Clusters ships an MCP server exposing the API as tools an AI assistant can call directly. Point a client at https://clusters.soleilpictures.com/api/v1/mcp and approve it in the browser; it signs you in over OAuth, so there is no token to paste. With no account, https://clusters.soleilpictures.com/mcp lets an assistant build a draft cluster you keep with a link. Run it locally with npx only for files on your machine. It holds no credentials of its own, so an agent reaches exactly what your account reaches.
 
-_Source: https://clusters.soleilpictures.com/docs/mcp · Updated 2026-11-04_
+_Source: https://clusters.soleilpictures.com/docs/mcp · Updated 2026-11-14_
 
 The MCP server puts Soleil Clusters in reach of Claude and any other
 Model Context Protocol client, so an assistant can read and build boards
