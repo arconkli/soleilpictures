@@ -16,6 +16,10 @@
       "hash": "8f312dd8874ab99aa071",
       "updated": "2026-10-02"
     },
+    "/pricing": {
+      "hash": "74d31471af0d396075b4",
+      "updated": "2026-11-14"
+    },
     "/scout": {
       "hash": "05edea65c71cc0dae159",
       "updated": "2026-10-02"
@@ -137,6 +141,13 @@
         "/vs/storyflow"
       ],
       "reason": "baseline"
+    },
+    {
+      "date": "2026-11-15",
+      "paths": [
+        "/pricing"
+      ],
+      "reason": "added /pricing to the check"
     }
   ]
 }

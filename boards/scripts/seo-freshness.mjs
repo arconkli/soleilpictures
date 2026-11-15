@@ -46,7 +46,7 @@ export function wordsHash(spec) {
   return createHash('sha256').update(JSON.stringify(stable(words))).digest('hex').slice(0, 20);
 }
 
-// { path: { hash, updated } } for every spec the sitemap dates.
+// { path: { hash, updated } } for every page the sitemap dates from its words.
 export async function currentPages() {
   const { SEO_LANDING_PAGES } = await import('../src/lib/seoLanding.js');
   const { SEO_LISTICLE_PAGES } = await import('../src/lib/seoListicles.js');
@@ -54,6 +54,14 @@ export async function currentPages() {
   for (const s of [...SEO_LANDING_PAGES, ...SEO_LISTICLE_PAGES]) {
     pages[s.path] = { hash: wordsHash(s), updated: s.updated };
   }
+  // /pricing renders from billingCopy and the team copy, not from a spec: its
+  // words are the crawlable body and the meta description.
+  const { PRICING_PATH, PRICING_PAGE_UPDATED, buildPricingCrawlableHtml } = await import('../src/lib/pricingCrawlable.js');
+  const { PRICING_META_DESCRIPTION } = await import('../src/lib/billingCopy.js');
+  pages[PRICING_PATH] = {
+    hash: wordsHash({ metaDescription: PRICING_META_DESCRIPTION, body: buildPricingCrawlableHtml() }),
+    updated: PRICING_PAGE_UPDATED,
+  };
   return pages;
 }
 

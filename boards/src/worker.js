@@ -49,7 +49,8 @@ import { handleShowcaseShot } from './worker-showcase.js';
 import { ADMIN_POSTS_PREFIX, handleAdminPosts } from './worker-admin-posts.js';
 import { runWebhooks } from './lib/webhooks.js';
 import { PRICING_META_DESCRIPTION, PRICING, PLAN_NAME, PRICING_PAGE } from './lib/billingCopy.js';
-import { buildPricingCrawlableHtml, buildPricingJsonLd } from './lib/pricingCrawlable.js';
+import { buildPricingCrawlableHtml, buildPricingJsonLd, PRICING_PAGE_UPDATED } from './lib/pricingCrawlable.js';
+import { LEGAL_UPDATED } from './lib/legalDates.js';
 import { TEAM_TALK_META } from './lib/teamPricingCopy.js';
 import { hasPlanBlock, planBlockHtml } from './lib/planBlock.js';
 import {
@@ -2656,7 +2657,9 @@ async function handleSitemap(env, request) {
 async function sitemapUrls(env) {
   // lastmod policy: HONEST dates only (fabricated per-deploy freshness trains
   // Google to ignore the field). Landings carry their spec's `updated`; the
-  // homepage the date its copy last changed; /explore the newest board;
+  // homepage the date its copy last changed; /pricing its PRICING_PAGE_UPDATED;
+  // /legal/* the document's own last-updated date (lib/legalDates.js);
+  // /explore the newest board;
   // /c/<slug> the board's updated_at; everything else omits lastmod.
   const HOME_LASTMOD = '2026-10-02'; // homepage head/OG + crawlable copy last edited
   let boards = null;
@@ -2668,7 +2671,7 @@ async function sitemapUrls(env) {
   }, null);
   const urls = [
     { loc: `${SITE_ORIGIN}/`,        lastmod: HOME_LASTMOD, changefreq: 'weekly',  priority: '1.0' },
-    { loc: `${SITE_ORIGIN}/pricing`,                        changefreq: 'monthly', priority: '0.9' },
+    { loc: `${SITE_ORIGIN}/pricing`, lastmod: PRICING_PAGE_UPDATED, changefreq: 'monthly', priority: '0.9' },
     { loc: `${SITE_ORIGIN}/explore`, lastmod: newestBoard,  changefreq: 'daily',   priority: '0.8' },
     // Self-authored SEO landing pages (lib/seoLanding.js): tool / "alternative
     // to" / hub. These rank independent of user-uploaded boards.
@@ -2699,9 +2702,9 @@ async function sitemapUrls(env) {
     // policy at the top of this function: the newest entry's date IS the page's
     // content, not a proxy for it.
     { loc: `${SITE_ORIGIN}/changelog`, lastmod: CHANGELOG_LATEST, changefreq: 'weekly', priority: '0.6' },
-    { loc: `${SITE_ORIGIN}/legal/privacy`,  changefreq: 'yearly',  priority: '0.3' },
-    { loc: `${SITE_ORIGIN}/legal/terms`,    changefreq: 'yearly',  priority: '0.3' },
-    { loc: `${SITE_ORIGIN}/legal/cookies`,  changefreq: 'yearly',  priority: '0.3' },
+    { loc: `${SITE_ORIGIN}/legal/privacy`, lastmod: LEGAL_UPDATED.privacy, changefreq: 'yearly',  priority: '0.3' },
+    { loc: `${SITE_ORIGIN}/legal/terms`, lastmod: LEGAL_UPDATED.terms, changefreq: 'yearly',  priority: '0.3' },
+    { loc: `${SITE_ORIGIN}/legal/cookies`, lastmod: LEGAL_UPDATED.cookies, changefreq: 'yearly',  priority: '0.3' },
   ];
   for (const b of boardList) {
     urls.push({
