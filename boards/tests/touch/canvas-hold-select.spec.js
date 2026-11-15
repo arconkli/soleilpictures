@@ -81,10 +81,13 @@ const menu = (page) => page.locator('.ctx-menu').first();
 async function pinchCentre(page) {
   const b = await page.locator('.canvas-wrap').boundingBox();
   const p = await emptyNear(page, { x: b.x + b.width / 2, y: b.y + b.height / 2 }, 16);
-  const onBoard = (x) => page.evaluate(({ x, y }) => {
-    const el = document.elementFromPoint(x, y);
+  // The point and a finger's width around it: Chrome's touch adjustment moves
+  // a touch onto a control within its radius (the rail's tools), and the
+  // two-finger camera leaves a finger on a control to the control.
+  const onBoard = (x) => page.evaluate(({ x, y }) => [[0, 0], [-20, 0], [20, 0], [0, -20], [0, 20]].every(([dx, dy]) => {
+    const el = document.elementFromPoint(x + dx, y + dy);
     return !!el && !!el.closest('.canvas-wrap') && !el.closest('button, [role=button], input, .cnv-tools, .cnv-zoom, .tob');
-  }, { x, y: p.y });
+  }), { x, y: p.y });
   let room = Math.min(p.x - b.x, b.x + b.width - p.x) * 2 - 24;
   while (room > 80 && !((await onBoard(p.x - room / 2)) && (await onBoard(p.x + room / 2)))) room -= 16;
   return { p, room };
