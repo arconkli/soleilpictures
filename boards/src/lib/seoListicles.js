@@ -76,7 +76,7 @@
 //     related:         ['/vs/…', '/tools/…'],   // internal-linking spokes
 //     cta:             { label, sub },
 //   }
-import { CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL, freeLimitSentence } from './billingCopy.js';
+import { CREATOR_STORAGE_LABEL, FREE_STORAGE_LABEL, PRICING, freeLimitSentence } from './billingCopy.js';
 import { DEMO_CARD_LIMIT } from './demoCardCap.js';
 
 
@@ -187,7 +187,7 @@ const PAGES = [
           "Clusters exists because we kept hitting the day the wall breaks. Our references lived in .pur files on individual machines, and every production meant re-exporting and re-explaining which version was current. So we built the wall as a place instead of a file: a freeform canvas in the browser with the same drop-images-and-arrange feel, where the board is the single copy everyone sees. We use it daily on our own productions — that is both the pitch and the bias.",
           "The team mechanics are the point. Live cursors and presence show who is on the board; comments pin to the exact image they are about; a client or director opens a read-only view from one link, no account, nothing to install. Free editors can collaborate, so bringing on the production designer costs nothing. Tags gather references across boards, and a relationship graph connects boards across a project — mood board, look book, and shot list stay one linked body of work.",
           "A production reference wall is rarely just images, so boards hold video, audio, PDFs, links, notes, docs with a screenplay mode, color palettes, image grids, and vote cards — put one beside each of five frames and the 'which one' argument settles without a meeting. Photo adjustments are non-destructive. Boards nest inside boards with live thumbnails, so a project reads like a map rather than a pile.",
-          `It runs in the browser on desktop and mobile, including touch and iPad. The free Demo tier has no credit card and no trial clock, and covers ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, whichever comes first; Creator is a flat $25 a month — not per person — for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive. Both plans take any file at any size. The honest trade: there is no offline desktop app and no always-on-top overlay. If you never share your wall, keep PureRef.`
+          `It runs in the browser on desktop and mobile, including touch and iPad. The free Demo tier has no credit card and no trial clock, and covers ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, whichever comes first; Creator is a flat ${PRICING.monthly.perMonthLabel} a month — not per person — for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive. Both plans take any file at any size. The honest trade: there is no offline desktop app and no always-on-top overlay. If you never share your wall, keep PureRef.`
         ],
         "features": [
           "Real-time multiplayer canvas: live cursors, presence, pinned comments",
@@ -198,12 +198,12 @@ const PAGES = [
           "Runs in the browser on desktop and mobile (touch and iPad); published template boards can be opened live"
         ],
         "pricing": {
-          "summary": `Free (Demo) — no credit card, no trial clock, ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files; Creator $25/mo flat (not per person): unlimited cards, ${CREATOR_STORAGE_LABEL} drive`,
+          "summary": `Free (Demo) — no credit card, no trial clock, ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files; Creator ${PRICING.monthly.billedLabel} flat (not per person): unlimited cards, ${CREATOR_STORAGE_LABEL} drive`,
           "asOf": "August 2026"
         },
         "pros": [
           "The one-link test is the whole design: browser-based, no install, no account for viewers",
-          "Flat $25/mo Creator pricing — a full crew does not multiply the bill",
+          `Flat ${PRICING.monthly.billedLabel} Creator pricing — a full crew does not multiply the bill`,
           "Built and used daily by a working film studio on its own productions"
         ],
         "cons": [
@@ -540,7 +540,7 @@ const PAGES = [
     "tableCells": {
       "soleil-clusters": [
         "Shared team reference boards",
-        "Free; Creator $25/mo flat",
+        `Free; Creator ${PRICING.monthly.billedLabel} flat`,
         "Yes — no trial clock",
         "Yes",
         "9.2/10"
@@ -861,7 +861,7 @@ const PAGES = [
     "h1": "The 12 Best Milanote Alternatives in 2026",
     "subhead": "Twelve tools, ranked by the only question that matters: what does your board have to become next?",
     "answerHeading": "What is the best Milanote alternative in 2026?",
-    "answer": `Soleil Clusters is the best Milanote alternative for production teams in 2026: a free tier that takes any file at any size, up to ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, where Milanote stops at 10 file uploads ever, plus a flat $25/mo where Milanote charges per person or $49/mo for a team, and real-time boards that carry a project from mood board to shot list. Miro is the runner-up for team whiteboarding, Obsidian Canvas for free offline work, Canva for polished deliverables.`,
+    "answer": `Soleil Clusters is the best Milanote alternative for production teams in 2026: a free tier that takes any file at any size, up to ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, where Milanote stops at 10 file uploads ever, plus a flat ${PRICING.monthly.billedLabel} where Milanote charges per person or $49/mo for a team, and real-time boards that carry a project from mood board to shot list. Miro is the runner-up for team whiteboarding, Obsidian Canvas for free offline work, Canva for polished deliverables.`,
     "disclosure": "Soleil Clusters is our app. We are Soleil Pictures, a working film studio, and we built Clusters because our own pre-production kept outgrowing tools like Milanote. We rank it first for one job only — taking a production team from mood board to shot list — and we say plainly where rivals beat us: Milanote's templates and mobile apps are better than ours, Miro's ecosystem is deeper, and Obsidian and PureRef work offline where we do not.",
     "published": "2026-08-04",
     "updated": "2026-11-14",
@@ -911,7 +911,7 @@ const PAGES = [
         "verdict": "The one tool on this list built so the board never has to be exported to become the next thing.",
         "paras": [
           "Clusters is what we built when our own pre-production kept splintering across four apps: a real-time multiplayer canvas in the browser whose boards hold images, video, audio, PDFs, links, notes, docs, color palettes, image grids, and vote cards, with non-destructive photo adjustments built in. The point is not the format list — it is that the mood board, storyboard, shot list, and script live as connected boards in one project, tied together by a relationship graph. The board becomes the next thing instead of being rebuilt as it.",
-          `Against Milanote, two structural differences. First, the wall: Milanote's free plan spends a 10-file upload budget that never resets, so one scene's reference pull can end it in an afternoon — Clusters takes any file at any size, with ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files free, and the free Demo tier has no trial clock or credit card. Second, the team math: Creator is a flat $25/mo — not per person — for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive. On Milanote, adding your DP and production designer adds a Pro seat each, or a $49/mo team plan. On Clusters it does not, and free editors can collaborate.`,
+          `Against Milanote, two structural differences. First, the wall: Milanote's free plan spends a 10-file upload budget that never resets, so one scene's reference pull can end it in an afternoon — Clusters takes any file at any size, with ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files free, and the free Demo tier has no trial clock or credit card. Second, the team math: Creator is a flat ${PRICING.monthly.billedLabel} — not per person — for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive. On Milanote, adding your DP and production designer adds a Pro seat each, or a $49/mo team plan. On Clusters it does not, and free editors can collaborate.`,
           "Sharing is one link. Viewers need no account — a producer opens the live board in a browser — and anyone you invite, free, can comment right on the exact image they mean. Select everything in a reference folder and drag it in, and it lands in one go — at hour three of a pull, nobody uploads one file at a time. Screenplay mode lives in docs, so the script draft sits beside the imagery it describes. We use all of this daily; the features exist because a shoot demanded them.",
           "The honest limits: Clusters is browser-only — no offline mode, no always-on-top overlay over your paint tool; PureRef keeps that crown. The template library is smaller than Milanote's or Canva's, there is no integrations marketplace, and it is a young product from a small studio. If your work is solo, offline, and image-only, tools further down this list fit better. If your board has to reach a shot list with other people involved, this is the one built for that."
         ],
@@ -924,12 +924,12 @@ const PAGES = [
           "Nested boards with live thumbnails; published template boards open live"
         ],
         "pricing": {
-          "summary": "Free (Demo); Creator $25/mo flat",
+          "summary": `Free (Demo); Creator ${PRICING.monthly.billedLabel} flat`,
           "asOf": "August 2026"
         },
         "pros": [
           `Free tier has no trial clock and takes any file at any size, no 10-upload limit`,
-          "Flat $25/mo Creator — the price does not multiply per teammate",
+          `Flat ${PRICING.monthly.billedLabel} Creator — the price does not multiply per teammate`,
           "Covers the whole arc: mood board, look book, storyboard, shot list, script"
         ],
         "cons": [
@@ -1325,7 +1325,7 @@ const PAGES = [
     "tableCells": {
       "soleil-clusters": [
         "Production teams, mood board to shot list",
-        "Free; Creator $25/mo flat",
+        `Free; Creator ${PRICING.monthly.billedLabel} flat`,
         "Yes — no trial clock",
         `Card cap or ${FREE_STORAGE_LABEL} of files on free`,
         "9.2/10"
@@ -1596,7 +1596,7 @@ const PAGES = [
       },
       {
         "q": "Is Milanote worth it for teams?",
-        "a": "Do the math for your headcount. Milanote Pro is $9.99 per person per month billed annually ($12.50 monthly); team plans run $49/mo for up to 10 people or $99/mo for up to 50, billed annually. A five-person crew on Pro is about $50/mo. Flat-priced alternatives change that shape — Clusters' Creator is $25/mo total, and viewers never need seats."
+        "a": `Do the math for your headcount. Milanote Pro is $9.99 per person per month billed annually ($12.50 monthly); team plans run $49/mo for up to 10 people or $99/mo for up to 50, billed annually. A five-person crew on Pro is about $50/mo. Flat-priced alternatives change that shape — Clusters' Creator is ${PRICING.monthly.billedLabel} total, and viewers never need seats.`
       },
       {
         "q": "What happened to Kosmik?",
@@ -1701,7 +1701,7 @@ const PAGES = [
           "Clusters is the tool we built because nothing else survived our own pre-production. It is an infinite canvas in the browser where a board holds what production reference actually is: images with non-destructive adjustments, video, audio, PDFs, links, notes, color palettes, image grids, and docs with a screenplay mode — not just stills. Select everything in a reference folder and drag it in, and it lands in one go, so the time goes into arguing about the layout, not uploading.",
           "The arguing is the point. Boards are real-time multiplayer — live cursors, presence, comments pinned to the image they are about — so the director and the production designer move frames while they talk instead of trading screenshots. When the look settles, you send one link; the client opens the current board in any browser, on a laptop or a phone — no account, no install — not last Tuesday's export.",
           "Then the board keeps working. Boards nest with live thumbnails and connect through a relationship graph, so the approved mood board sits beside the look book, the storyboard, and the shot list as one project instead of four files in three apps. That is the after-the-board-looks-good test the rest of this list keeps failing, and the one job we rank ourselves first for.",
-          `The honest limits: Clusters runs in the browser only — no offline desktop app, no always-on-top overlay, so PureRef keeps that lane. Our template library is smaller than Milanote's or Canva's, and we are a young product from a small studio; in exchange you get a tool shaped by people who use it on their own productions every week. The free Demo tier needs no credit card and has no trial clock. Creator is a flat $25 a month — not per person — for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.`
+          `The honest limits: Clusters runs in the browser only — no offline desktop app, no always-on-top overlay, so PureRef keeps that lane. Our template library is smaller than Milanote's or Canva's, and we are a young product from a small studio; in exchange you get a tool shaped by people who use it on their own productions every week. The free Demo tier needs no credit card and has no trial clock. Creator is a flat ${PRICING.monthly.perMonthLabel} a month — not per person — for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.`
         ],
         "features": [
           "Real-time multiplayer canvas: live cursors, presence, pinned comments",
@@ -1711,11 +1711,11 @@ const PAGES = [
           "Nested boards with live thumbnails; non-destructive photo adjustments; runs in any browser, including iPad"
         ],
         "pricing": {
-          "summary": `Free (Demo tier, no credit card, no trial clock); Creator $25/mo flat — unlimited cards, ${CREATOR_STORAGE_LABEL} drive`,
+          "summary": `Free (Demo tier, no credit card, no trial clock); Creator ${PRICING.monthly.billedLabel} flat — unlimited cards, ${CREATOR_STORAGE_LABEL} drive`,
           "asOf": "August 2026"
         },
         "pros": [
-          "Flat $25/mo — the price does not multiply with every collaborator",
+          `Flat ${PRICING.monthly.billedLabel} — the price does not multiply with every collaborator`,
           "Clients review from one link with no account; the board is always current",
           "The approved board carries into look books, storyboards, and shot lists"
         ],
@@ -2107,7 +2107,7 @@ const PAGES = [
     "tableCells": {
       "soleil-clusters": [
         "Film/photo production boards",
-        "Free; Creator $25/mo flat",
+        `Free; Creator ${PRICING.monthly.billedLabel} flat`,
         "No card, no trial clock",
         "One link, no account needed",
         "9.3/10"
@@ -2296,7 +2296,7 @@ const PAGES = [
       },
       {
         "q": "What is the best mood board software for teams?",
-        "a": "For a production team, Soleil Clusters: real-time multiplayer editing, free editors, and a flat $25/mo Creator plan that does not multiply per person. For big workshop groups, Miro allows unlimited members even on its free plan. Milanote is strong but per-person at $9.99/mo billed annually, so team cost scales with headcount."
+        "a": `For a production team, Soleil Clusters: real-time multiplayer editing, free editors, and a flat ${PRICING.monthly.billedLabel} Creator plan that does not multiply per person. For big workshop groups, Miro allows unlimited members even on its free plan. Milanote is strong but per-person at $9.99/mo billed annually, so team cost scales with headcount.`
       },
       {
         "q": "Canva or Milanote for mood boards?",
@@ -2421,7 +2421,7 @@ const PAGES = [
           "Clusters exists because our own boards kept dying in transit. We would build a sequence in a slide deck, export a PDF, email it, and by the second revision nobody knew which version the director had seen — and the shot list it referred to lived in a spreadsheet that had moved on without it. So we built the board as a place instead of a deliverable: an infinite canvas in the browser where the frames, the coverage plan and the script sit in one document that only ever has one current version.",
           "The storyboard mechanic is the grid card. Drop a grid on the canvas, cut it into frames, and each frame holds an image, a screen grab, a photo from a scout or a phone snap of a thumbnail sketch, with the action written in the box beneath. Stamp the next shot from the + on the grid's edge and a SHOT [#] box numbers each one by where it sits. Next to the grid you can put a document in screenplay mode with the actual scene, a shot-list table and a colour palette — so the board argues for itself instead of needing a meeting to explain.",
           "The team mechanics are why it survives a production. Live cursors and presence show who is on the board. Comments pin to a specific frame, so 'the third one' is unambiguous. A director or client opens a read-only view from one link with no account and nothing installed, on a laptop or an iPad at a scout. Invited collaborators edit free on every tier, so adding the first AD or the production designer does not change the invoice. Vote cards settle 'which of these five frames' without a thread.",
-          `The honest shape of it: this is not a drawing program. There are freehand and shape tools and a sketch pad, and they are fine for rough thumbnails, but there is no pressure-sensitive brush engine, no onion skinning and no camera-move keyframing. There is no AI frame generation. There is no animatic timeline that plays your board against scratch audio — if you need to time a sequence to a soundtrack, Toon Boom or Boords is the right purchase. The free Demo tier needs no credit card and has no trial clock, and covers ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, whichever comes first; Creator is a flat $25 a month, not per person, for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.`
+          `The honest shape of it: this is not a drawing program. There are freehand and shape tools and a sketch pad, and they are fine for rough thumbnails, but there is no pressure-sensitive brush engine, no onion skinning and no camera-move keyframing. There is no AI frame generation. There is no animatic timeline that plays your board against scratch audio — if you need to time a sequence to a soundtrack, Toon Boom or Boords is the right purchase. The free Demo tier needs no credit card and has no trial clock, and covers ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files, whichever comes first; Creator is a flat ${PRICING.monthly.perMonthLabel} a month, not per person, for unlimited cards and a ${CREATOR_STORAGE_LABEL} drive.`
         ],
         "features": [
           "Grid cards as storyboard frames — cut the frames, drop images in, write the action beneath, and let shots number themselves",
@@ -2432,12 +2432,12 @@ const PAGES = [
           "Runs in the browser on desktop, tablet and phone, including touch and iPad; export the board as PNG or PDF"
         ],
         "pricing": {
-          "summary": `Free (Demo) — no credit card, no trial clock, ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files; Creator $25/mo flat (not per person): unlimited cards, ${CREATOR_STORAGE_LABEL} drive`,
+          "summary": `Free (Demo) — no credit card, no trial clock, ${DEMO_CARD_LIMIT} cards or ${FREE_STORAGE_LABEL} of files; Creator ${PRICING.monthly.billedLabel} flat (not per person): unlimited cards, ${CREATOR_STORAGE_LABEL} drive`,
           "asOf": "August 2026"
         },
         "pros": [
           "The storyboard stays joined to the shot list and script instead of becoming a detached PDF",
-          "Flat $25/mo Creator pricing and free collaborators — a full crew does not multiply the bill",
+          `Flat ${PRICING.monthly.billedLabel} Creator pricing and free collaborators — a full crew does not multiply the bill`,
           "Built and used daily by a working film studio on its own productions"
         ],
         "cons": [
@@ -2775,7 +2775,7 @@ const PAGES = [
     "tableCells": {
       "soleil-clusters": [
         "Boards joined to shot list and script",
-        "Free; Creator $25/mo flat",
+        `Free; Creator ${PRICING.monthly.billedLabel} flat`,
         "Yes — no trial clock",
         "Rough sketching only",
         "Yes",
@@ -2968,7 +2968,7 @@ const PAGES = [
       },
       {
         "q": "What is the cheapest storyboard software for a small team?",
-        "a": "It depends on team size, because the pricing models differ. MakeStoryboard's Team plan is $60/month billed monthly and includes ten seats. Boords bundles five users into Pro at $75/month. Soleil Clusters is $25/month flat regardless of crew size, since invited collaborators edit free on every tier. Per-person tools like Milanote at $9.99 each get more expensive as the crew grows."
+        "a": `It depends on team size, because the pricing models differ. MakeStoryboard's Team plan is $60/month billed monthly and includes ten seats. Boords bundles five users into Pro at $75/month. Soleil Clusters is ${PRICING.monthly.perMonthLabel}/month flat regardless of crew size, since invited collaborators edit free on every tier. Per-person tools like Milanote at $9.99 each get more expensive as the crew grows.`
       },
       {
         "q": "Can I make a storyboard in Canva or Figma?",
