@@ -18,6 +18,7 @@ import { Icon } from './Icon.jsx';
 // The Tab trap and the focusable query live in lib/modalGuard, shared with
 // Settings, which keeps its own shell and so cannot wrap in this component.
 import { registerModalOpen, isTopModal, focusablesIn as focusables, trapTabKey } from '../lib/modalGuard.js';
+import { useBackLayer } from '../hooks/useBackLayer.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { t as tr } from '@lingui/core/macro';
 
@@ -56,6 +57,9 @@ export function Modal({
   const panelRef = useRef(null);
   const triggerRef = useRef(null);
   const guardRef = useRef(null);
+
+  // Under a finger, the phone's Back closes the dialog (hooks/useBackLayer).
+  useBackLayer(open, onClose);
 
   // Capture trigger, set initial focus, lock scroll; restore focus + unlock
   // on close. Keyed on `open` only — callbacks are read via refs/closures so

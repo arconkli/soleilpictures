@@ -62,9 +62,9 @@ export async function initCapacitor() {
         const u = new URL(url);
         const path = u.pathname + u.search + u.hash;
         if (path && path !== window.location.pathname + window.location.search + window.location.hash) {
-          window.history.replaceState({}, document.title, path);
+          window.history.replaceState(window.history.state, document.title, path);
           // Trigger a popstate so the surface-state-driven router picks it up.
-          window.dispatchEvent(new PopStateEvent('popstate'));
+          window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));
         }
       } catch (_) {}
     });

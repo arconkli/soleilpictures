@@ -23,6 +23,8 @@
 // gesture (or the Capacitor back button, which calls history.back()) closes
 // that layer instead of leaving the app. Closing it any other way consumes
 // the entry again, and puts back a URL the app changed in the meantime.
+// On touch devices the same section also holds one entry per place visited,
+// so Back then goes to the cluster you were on before.
 
 import { isComposingKey } from './composerKeys.js';
 
@@ -129,69 +131,150 @@ export function trapTabKey(e, panel) {
   }
 }
 
-// ── Back closes the top layer ─────────────────────────────────────────
+// ── Back closes the top layer, then goes where you were ───────────────
+//
+// This section owns every history entry the app writes and the only popstate
+// listener that acts on one. Two kinds of entry, all on the same URL:
+//
+//   a LAYER entry (state.soleilLayer) while a sheet, menu or dialog is open:
+//     Back closes that layer instead of leaving the app;
+//   a NAV entry per place the in-app history visits (App.jsx recordNav), on
+//     touch devices only: Back and Forward move between clusters.
+//
+// Every entry carries soleilNav, the id of the in-app history entry on screen
+// when it was written, so a Back that lands on it knows where the app should
+// be. The rules that keep the two kinds from tangling:
+//
+//   1. Nothing is written while a traversal we issued ourselves (history.go
+//      to drop a closed layer's entry) is scheduled or in flight. Writes wait
+//      in a queue and run, in order, once its popstate has been handled. A
+//      push made under a late go(-1) would otherwise be the entry it removes.
+//   2. A new nav entry first closes every layer whose entry is in history and
+//      takes those entries off, so layer entries only ever sit right on top
+//      of the nav entry they were opened from.
+//   3. A popstate we did not issue closes the layers above the entry landed
+//      on, then hands that entry's soleilNav to App, which moves the in-app
+//      history there without recording or pushing anything.
+//
+// With a mouse App never sets a current id: no nav entries, no soleilNav, and
+// layers behave as they always have.
 
 const backLayers = [];
 let popListening = false;
-// Pending history.go(-n) we issued ourselves; its popstate is not a Back.
-let selfBack = null;            // { url, state } to restore after the traversal
-let selfBackCount = 0;
+// A history.go(-n) we issued ourselves; its popstate is not a Back.
+let selfPending = null;         // { url, timer } while it is in flight
+let selfBackCount = 0;          // entries waiting to be taken off
 let selfBackScheduled = false;
+const writeQueue = [];          // history writes held back by rule 1
+let currentNav = null;          // the in-app history entry on screen (touch)
+let navHandler = null;          // App's reconcile: (soleilNav | null) => void
+let navForwardCut = null;       // App: a layer push dropped the forward entries
+
+// Ids are seeded from the clock so an entry left by an earlier page load (a
+// reload keeps the tab's history) never matches one from this load.
+const idSeed = () => Date.now() * 1000;
+let layerSeq = idSeed();
+let navSeq = idSeed();
+
+function historyBusy() { return !!selfPending || selfBackScheduled || selfBackCount > 0; }
+
+function drainWrites() {
+  while (writeQueue.length && !historyBusy()) {
+    const fn = writeQueue.shift();
+    try { fn(); } catch (_) { /* sandboxed iframe etc. */ }
+  }
+}
+
+// Run a history write now, or after the traversal in flight has landed.
+function writeHistory(fn) {
+  if (historyBusy() || writeQueue.length) { writeQueue.push(fn); return; }
+  try { fn(); } catch (_) { /* sandboxed iframe etc. */ }
+}
+
+function selfBackLanded() {
+  if (!selfPending) return;
+  const { url, timer } = selfPending;
+  selfPending = null;
+  if (timer) clearTimeout(timer);
+  // The app may have replaceState-d a new URL onto the entry we just left.
+  // Going back landed on the OLD url; put the current one back so a reload
+  // opens what's on screen. The landed entry keeps its own state.
+  try { if (url && window.location.href !== url) window.history.replaceState(window.history.state, '', url); } catch (_) {}
+  if (selfBackCount) issueSelfBack(); else drainWrites();
+}
+
+function issueSelfBack() {
+  selfBackScheduled = false;
+  if (selfPending) return;        // selfBackLanded picks the count up
+  const n = selfBackCount;
+  selfBackCount = 0;
+  if (!n) { drainWrites(); return; }
+  try {
+    selfPending = { url: window.location.href, timer: null };
+    window.history.go(-n);
+    // A traversal that never reports back must not hold the queue for good:
+    // a layer that never gets its entry is a Back that leaves the app.
+    const timer = setTimeout(selfBackLanded, 2000);
+    timer?.unref?.();
+    if (selfPending) selfPending.timer = timer;
+  } catch (_) { selfPending = null; drainWrites(); }
+}
+
+function scheduleSelfBack(n = 1) {
+  selfBackCount += n;
+  if (selfBackScheduled || selfPending) return;
+  selfBackScheduled = true;
+  queueMicrotask(issueSelfBack);
+}
 
 function onPopState() {
-  if (selfBack) {
-    const { url, state } = selfBack;
-    selfBack = null;
-    // The app may have replaceState-d a new URL onto our entry (opening a
-    // cluster from the drawer does). Going back landed on the OLD url; put
-    // the current one back so a reload opens what's on screen.
-    try { if (url && window.location.href !== url) window.history.replaceState(state, '', url); } catch (_) {}
-    return;
-  }
-  // A real Back: the entry for the top layer is gone. Close that layer.
+  if (selfPending) { selfBackLanded(); return; }
+  // A real Back or Forward. Layer entries stack in id order, so every open
+  // layer newer than the entry landed on has lost its entry: close those,
+  // top first. (One Back closes one layer; Forward onto a closed layer's
+  // entry closes nothing.)
+  const st = window.history.state || {};
+  const below = typeof st.soleilLayer === 'number' ? st.soleilLayer : 0;
   for (let i = backLayers.length - 1; i >= 0; i--) {
     const layer = backLayers[i];
-    if (!layer.pushed || layer.consumed) continue;
+    if (!layer || !layer.pushed || layer.consumed || layer.id <= below) continue;
     layer.consumed = true;
     try { layer.onBack(); } catch (_) {}
-    return;
+  }
+  if (navHandler) {
+    try { navHandler(st.soleilNav ?? null); } catch (_) {}
   }
 }
 
-function scheduleSelfBack() {
-  selfBackCount += 1;
-  if (selfBackScheduled) return;
-  selfBackScheduled = true;
-  queueMicrotask(() => {
-    const n = selfBackCount;
-    selfBackCount = 0;
-    selfBackScheduled = false;
-    if (!n) return;
-    try {
-      const state = { ...(window.history.state || {}) };
-      delete state.soleilLayer;
-      selfBack = { url: window.location.href, state };
-      window.history.go(-n);
-    } catch (_) { selfBack = null; }
-  });
+function ensurePopListener() {
+  if (popListening) return;
+  popListening = true;
+  window.addEventListener('popstate', onPopState);
 }
 
-let layerSeq = 0;
+const canWriteHistory = () => typeof window !== 'undefined' && !!window.history?.pushState;
+
 export function registerBackLayer(onBack) {
-  if (typeof window === 'undefined' || !window.history?.pushState || typeof onBack !== 'function') {
+  if (!canWriteHistory() || typeof onBack !== 'function') {
     return () => {};
   }
-  if (!popListening) { popListening = true; window.addEventListener('popstate', onPopState); }
+  ensurePopListener();
   const layer = { id: ++layerSeq, onBack, pushed: false, consumed: false, closed: false };
   backLayers.push(layer);
   // Push on the next microtask, not now: StrictMode's mount → unmount →
   // mount must not leave history entries (or traversals) behind.
   queueMicrotask(() => {
     if (layer.closed) return;
-    try {
-      window.history.pushState({ ...(window.history.state || {}), soleilLayer: layer.id }, '');
+    writeHistory(() => {
+      if (layer.closed) return;
+      const state = { ...(window.history.state || {}), soleilLayer: layer.id };
+      if (currentNav != null) state.soleilNav = currentNav;
+      window.history.pushState(state, '');
       layer.pushed = true;
-    } catch (_) { /* sandboxed iframe etc.: Back simply won't close it */ }
+      // The push dropped whatever was forward of here; App's Forward button
+      // must not offer it.
+      if (currentNav != null && navForwardCut) { try { navForwardCut(); } catch (_) {} }
+    });
   });
   return () => {
     if (layer.closed) return;
@@ -204,13 +287,80 @@ export function registerBackLayer(onBack) {
   };
 }
 
+// How many open layers have an entry in history right now. App's Back button
+// goes that many further, so one tap closes them and reaches the place before.
+export function backLayerDepth() {
+  return backLayers.filter(l => l && l.pushed && !l.consumed).length;
+}
+
+// ── The in-app history's entries (touch only; App.jsx recordNav) ──────
+
+// A fresh id for an in-app history entry.
+export function newNavId() { return ++navSeq; }
+
+// The in-app entry on screen. App calls this on every move, silent ones
+// included; a layer entry takes this id, not whatever history.state held.
+// null (a mouse, or no workspace mounted) writes no soleilNav.
+export function setCurrentNav(id) { currentNav = id ?? null; }
+
+// App's reconcile, called for every popstate this module did not issue, after
+// the layers above the landed entry have closed, with that entry's soleilNav
+// (null when it has none). onForwardCut: a layer entry was pushed, so the
+// browser has nothing forward of here any more.
+export function setNavHandler(fn, onForwardCut) {
+  navHandler = typeof fn === 'function' ? fn : null;
+  navForwardCut = typeof onForwardCut === 'function' ? onForwardCut : null;
+  if (navHandler && canWriteHistory()) ensurePopListener();
+}
+
+// The entry the app started on (or a workspace switch landed on): mark it
+// with its id, keeping the rest of its state.
+export function stampNavEntry(id) {
+  currentNav = id ?? null;
+  if (!canWriteHistory() || id == null) return;
+  ensurePopListener();
+  writeHistory(() => {
+    window.history.replaceState({ ...(window.history.state || {}), soleilNav: id }, '');
+  });
+}
+
+// The only way App adds a nav entry. Layers already in history close first
+// (rule 2): each is marked consumed and told to close, and one history.go
+// takes their entries off, merged with any already scheduled. The nav entry
+// is pushed once that has landed. A layer registered but not yet pushed (a
+// dialog opened by the same tap) stays open and pushes after it.
+export function pushNavEntry(id) {
+  currentNav = id ?? null;
+  if (!canWriteHistory() || id == null) return;
+  ensurePopListener();
+  let n = 0;
+  for (let i = backLayers.length - 1; i >= 0; i--) {
+    const layer = backLayers[i];
+    if (!layer || !layer.pushed || layer.consumed) continue;
+    layer.consumed = true;
+    n += 1;
+    try { layer.onBack(); } catch (_) {}
+  }
+  if (n) scheduleSelfBack(n);
+  writeHistory(() => {
+    const state = { ...(window.history.state || {}), soleilNav: id };
+    delete state.soleilLayer;
+    window.history.pushState(state, '');
+  });
+}
+
 // Test-only: reset module state between node --test cases.
 export function __resetModalGuardForTests() {
   stack.length = 0;
   backLayers.length = 0;
   keyListening = false;
   popListening = false;
-  selfBack = null;
+  if (selfPending?.timer) clearTimeout(selfPending.timer);
+  selfPending = null;
   selfBackCount = 0;
   selfBackScheduled = false;
+  writeQueue.length = 0;
+  currentNav = null;
+  navHandler = null;
+  navForwardCut = null;
 }

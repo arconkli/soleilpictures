@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
+import { useBackLayer } from '../hooks/useBackLayer.js';
 import { tagFallbackColor, resolveTagColor } from '../lib/tagColor.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { searchKey } from '../lib/textFold.js';
@@ -27,6 +28,8 @@ export function TagPicker({
 
   // Close on outside tap/click (touch-safe via pointerdown) or Escape.
   useDismissOnOutside(ref, open, onClose);
+  // On touch, Back closes the picker.
+  useBackLayer(open, onClose);
 
   const q = query.trim().toLowerCase();
   const matches = useMemo(() => {

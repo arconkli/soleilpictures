@@ -190,7 +190,7 @@ export function AdminPhonePanel({ boards, postsApi }) {
       const url = withParam('tab', id === 'today' ? null : id);
       url.searchParams.delete('page');
       url.searchParams.delete('sheet');
-      window.history.replaceState({}, '', url);
+      window.history.replaceState(window.history.state, '', url);
     } catch { /* ignore */ }
     setView({ page: null, sheet: null });
     scrollRef.current?.scrollTo?.(0, 0);

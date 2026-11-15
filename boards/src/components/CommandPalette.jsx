@@ -19,6 +19,7 @@ import { useListboxNav } from '../hooks/useListboxNav.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
+import { useBackLayer } from '../hooks/useBackLayer.js';
 import { LoadFailed } from './LoadFailed.jsx';
 import { useRetry } from '../hooks/useRetry.js';
 import { isComposingKey } from '../lib/composerKeys.js';
@@ -609,6 +610,8 @@ export function CommandPalette({
     if (!open) return undefined;
     return registerModalOpen({ onEscape: () => { onCloseRef.current?.(); return true; } });
   }, [open]);
+  // Under a finger, the phone's Back closes it.
+  useBackLayer(open, onClose);
 
   if (!open) return null;
 
