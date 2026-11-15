@@ -191,6 +191,12 @@ export function PricingPageView({
               <TeamTalkLine editorLimit={teamCard.editorLimit} onTalk={teamCard.onTalk} />
             </Suspense>
           )}
+          {teamCard && (
+            <p className="pp-talk">
+              {PRICING_PAGE.teamSecurity.lead}{' '}
+              <a className="pp-talk-link" href={PRICING_PAGE.teamSecurity.href}>{PRICING_PAGE.teamSecurity.label}</a>.
+            </p>
+          )}
 
           <div className="seo-trust pp-trust">
             <span>{PRICING_PAGE.startFreeSub}</span>
@@ -269,6 +275,12 @@ export function PricingPageView({
             )}
 
             <p className="seo-body pp-workspace">{PRICING_PAGE.workspaceNote}</p>
+            <p className="seo-body pp-more">
+              {PRICING_PAGE.moreLinks.lead}{' '}
+              {PRICING_PAGE.moreLinks.links.map((l, i) => (
+                <span key={l.href}>{i > 0 && ' · '}<a href={l.href}>{l.label}</a></span>
+              ))}
+            </p>
           </section>
 
           <section className="seo-section seo-faq">
