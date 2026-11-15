@@ -3,7 +3,7 @@
   <channel>
     <title>Changelog — Soleil Clusters</title>
     <link>https://clusters.soleilpictures.com/changelog</link>
-    <description>Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly.</description>
+    <description>Every user-visible change to Soleil Clusters, newest first, in dated entries.</description>
     <language>en</language>
     <lastBuildDate>Tue, 10 Nov 2026 00:00:00 GMT</lastBuildDate>
     <atom:link href="https://clusters.soleilpictures.com/changelog.xml" rel="self" type="application/rss+xml"/>
