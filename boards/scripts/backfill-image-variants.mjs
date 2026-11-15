@@ -36,7 +36,7 @@
 //   --covers        only the cover pictures of published public clusters
 //                   (public_boards.og_image_key). /api/public-thumb/<slug>
 //                   serves a cover's preview in place of the original once it
-//                   has one (src/lib/publicCover.js, migration 0889), so this
+//                   has one (src/lib/publicCover.js, migration 0890), so this
 //                   is what makes link previews and the search pages' example
 //                   lists light. Safe to run again after new clusters are
 //                   published: a cover that already has a preview is skipped.
