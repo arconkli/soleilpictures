@@ -282,6 +282,23 @@ behaviour, read the archive or `crawler_hits`, not the live table.
 
 ---
 
+## Brand
+
+The Soleil brand guide is `docs/brand/` (start at `docs/brand/README.md`). It
+covers the studio and every product: names, marks, colour, type, grain, voice,
+and a checklist for a new product. Read it before designing anything new, for
+Clusters or for anything else Soleil makes. The same guide is a private Claude
+design system named "Soleil" (claude.ai/artifact/NcERah8tyCf6ZdyBKcN6FF) for
+decks, designs and pages.
+
+`boards/src/lib/brandGuide.test.mjs` pins `docs/brand/tokens.json` to the code
+(`styles.css`, `sunMark.js`, `boardStyle.js`, the email `theme.ts`, the studio's
+`style.css`) and checks every colour and path the pages name. When it goes red,
+change the guide and the code together, or record the difference in
+`docs/brand/drift.md`. Never edit a canon value just to make it pass.
+
+---
+
 ## House conventions
 
 - **The repo is public.** No business metrics, revenue figures or user counts in commit messages or committed files.
