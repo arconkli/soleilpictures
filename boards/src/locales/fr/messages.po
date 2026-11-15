@@ -1867,6 +1867,11 @@ msgstr "{n, plural, one {Cela nécessite # siège de plus.} other {Cela nécessi
 msgid "{n, plural, one {The card moves into it. Undo puts it back.} other {The # cards move into it. Undo puts them back.}}"
 msgstr "{n, plural, one {La carte y est déplacée. Annuler la remet en place.} other {Les # cartes y sont déplacées. Annuler les remet en place.}}"
 
+#. Shown once, on a person’s first day, when they come back after a break. Their pictures on this cluster have been read, so search now finds them by what they show. {word} is a word or short phrase in English taken from those pictures; keep it as it is, in quotation marks.
+#: src/App.jsx
+msgid "{n, plural, one {Welcome back. Your # picture can now be searched by what’s in it. Try “{word}”.} other {Welcome back. Your # pictures can now be searched by what’s in them. Try “{word}”.}}"
+msgstr "{n, plural, one {Bon retour parmi nous. Votre # image peut maintenant être recherchée d’après son contenu. Essayez « {word} ».} other {Bon retour parmi nous. Vos # images peuvent maintenant être recherchées d’après leur contenu. Essayez « {word} ».}}"
+
 #: src/components/ImportCapDialog.jsx
 msgid "{n, plural, one {You dropped # card ({weighs}).} other {You dropped # cards ({weighs}).}}"
 msgstr "{n, plural, one {Vous avez déposé # carte ({weighs}).} other {Vous avez déposé # cartes ({weighs}).}}"
@@ -7898,6 +7903,11 @@ msgstr "Date de modification"
 msgid "Day"
 msgstr "Jour"
 
+#. Beside a cluster’s name in the title bar: which working day on this cluster this is, like the day number on a film slate. It counts every day anyone worked on the cluster. {num} is 2 or more.
+#: src/components/ClusterSlate.jsx
+msgid "Day {num}"
+msgstr "Jour {num}"
+
 #: src/components/cards/ScheduleCard.jsx
 msgid "Day tiles"
 msgstr "Vignettes de jours"
@@ -12047,6 +12057,46 @@ msgstr "dernière utilisation le {localeDateString}"
 #: src/lib/teamModelWords.js
 msgid "Last week"
 msgstr "La semaine dernière"
+
+#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
+#: src/components/ClusterSlate.jsx
+msgid "last worked {weekday} afternoon"
+msgstr "dernier travail : {weekday} après-midi"
+
+#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
+#: src/components/ClusterSlate.jsx
+msgid "last worked {weekday} evening"
+msgstr "dernier travail : {weekday} soir"
+
+#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
+#: src/components/ClusterSlate.jsx
+msgid "last worked {weekday} morning"
+msgstr "dernier travail : {weekday} matin"
+
+#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
+#: src/components/ClusterSlate.jsx
+msgid "last worked late {weekday}"
+msgstr "dernier travail : {weekday} tard"
+
+#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
+#: src/components/ClusterSlate.jsx
+msgid "last worked late yesterday"
+msgstr "dernier travail : hier tard"
+
+#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
+#: src/components/ClusterSlate.jsx
+msgid "last worked yesterday afternoon"
+msgstr "dernier travail : hier après-midi"
+
+#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
+#: src/components/ClusterSlate.jsx
+msgid "last worked yesterday evening"
+msgstr "dernier travail : hier soir"
+
+#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
+#: src/components/ClusterSlate.jsx
+msgid "last worked yesterday morning"
+msgstr "dernier travail : hier matin"
 
 #: src/components/MessageThread.jsx
 msgid "Latest"
@@ -17893,6 +17943,11 @@ msgid "Search"
 msgstr "Rechercher"
 
 #: src/App.jsx
+msgctxt "Button: searches for the word just suggested"
+msgid "Search"
+msgstr "Rechercher"
+
+#: src/App.jsx
 msgid "Search (⌘K)"
 msgstr "Rechercher (⌘K)"
 
@@ -23133,12 +23188,12 @@ msgid "Welcome back — pick up where you left off."
 msgstr "Bon retour parmi nous — reprenez là où vous en étiez."
 
 #: src/App.jsx
-msgid "Welcome back — your board is where you left it."
-msgstr "Content de vous revoir — votre cluster est là où vous l’avez laissé."
+msgid "Welcome back — your cluster is where you left it."
+msgstr "Bon retour parmi nous — votre cluster est là où vous l’avez laissé."
 
 #: src/App.jsx
-msgid "Welcome back — your board is where you left it. Paste or drop anything to keep adding."
-msgstr "Content de vous revoir — votre cluster est là où vous l’avez laissé. Collez ou déposez n’importe quoi pour continuer à ajouter."
+msgid "Welcome back — your cluster is where you left it. Paste or drop anything to keep adding."
+msgstr "Bon retour parmi nous — votre cluster est là où vous l’avez laissé. Collez ou déposez n’importe quoi pour continuer à ajouter."
 
 #: src/auth/PricingSuccess.jsx
 msgid "Welcome to {PLAN_NAME}"

@@ -260,6 +260,7 @@ import {
 } from '../lib/snapGuides.js';
 import { boundsOfCards, oppositeCorner, clampDropRect } from '../lib/canvasGeom.js';
 import { solveFit, solveCenter, sampleTween, easingFor, fitMargin, selectionMargin, CAMERA_MS } from '../lib/captureCamera.js';
+import { planHeldOpen, settleCamera, heldOnce, releaseHeld, PLACE_HELD_HOLD_MS } from '../lib/placeHeld.js';
 import { normalizeMoves, resolveTake } from '../lib/captureTakes.js';
 import { useCaptureState } from '../hooks/useCaptureState.js';
 import { makeCast, advanceCast } from '../lib/syntheticPeers.js';
@@ -819,6 +820,12 @@ export function CanvasSurface({
                            // drop, select + frame the newly-arranged cards once
                            // the user switches to canvas ("where did my files go?").
   clearFocusRequest = null,// () => void — consume the request after framing.
+  placeHeld = null,        // { uid, lastVisitMs } — App, signed-in main pane only. On a
+                           // reopen after a real break the canvas cuts to the whole
+                           // cluster, holds it, glides to the card this person last
+                           // touched and selects it (lib/placeHeld.js). null → off.
+  onPlaceHeld = null,      // ({ phase: 'start' | 'end', boardId, cardId, outcome }) => void;
+                           // outcome on 'end': 'glided' | 'cut' (reduced motion) | 'cancelled'.
   // Every card in the cluster, including files that aren't on the board
   // (lib/placement.js) — `cards` is only what the board draws. Defaults to
   // `cards` for callers that don't split them.
@@ -841,6 +848,10 @@ export function CanvasSurface({
   onMoveFilesHereRef.current = onMoveFilesHere;
   const onMoveFilesRef = useRef(onMoveFiles);
   onMoveFilesRef.current = onMoveFiles;
+  const placeHeldRef = useRef(placeHeld);
+  placeHeldRef.current = placeHeld;
+  const onPlaceHeldRef = useRef(onPlaceHeld);
+  onPlaceHeldRef.current = onPlaceHeld;
   const unplacedCount = useMemo(() => countUnplaced(everyCard), [everyCard]);
   // What the empty board's offer speaks for (UnplacedOffer): only worked out
   // while nothing is on the board.
@@ -2783,19 +2794,212 @@ export function CanvasSurface({
   // it. fitOnceForRef stores the board id we've already fit so a return
   // visit re-fits and intra-session moves don't disrupt the user's pan.
   const fitOnceForRef = useRef(null);
+  // The held open (the block below): armed on each open, decided once the
+  // cluster's cards are in, the run it starts, and a handle for the effects
+  // further down that have to stop it.
+  const heldPendingRef = useRef(null);
+  const heldRunRef = useRef(null);
+  const cancelHeldRef = useRef(null);
+  // The board a held open claimed in the same commit as its open (its cards were
+  // already in): the reset below must not undo that claim, or the next card
+  // change would run the first-view effect again and pull the camera away.
+  const heldClaimRef = useRef(null);
   useEffect(() => {
     // New board → arm fit. Don't reset pan/zoom here; the
     // useLayoutEffect below sets the correct viewport synchronously
     // with the first card render so there's never a frame painted at
     // the previous board's viewport.
+    if (heldClaimRef.current === board.id) { heldClaimRef.current = null; return; }
     fitOnceForRef.current = null;
   }, [board.id]);
   // Mark the camera "settled" for this board so the empty→first-card auto-fit
   // below won't zoom-frame (and recenter) a card the user just placed. Called
   // synchronously from every user create entry point BEFORE the card is added,
   // so the fit useLayoutEffect early-returns. Initial-load sync-retry is
-  // unaffected (it runs before any user placement).
-  const markViewSettled = useCallback(() => { fitOnceForRef.current = board.id; }, [board.id]);
+  // unaffected (it runs before any user placement). It also drops a held open
+  // still waiting to start: never glide away from a card the person just placed.
+  const markViewSettled = useCallback(() => {
+    fitOnceForRef.current = board.id;
+    heldPendingRef.current = null;
+  }, [board.id]);
+
+  // ── The held open ────────────────────────────────────────────────────────
+  // Every way it ends goes through finishHeld, so a stop that arrives twice
+  // (input, then the board changing) is told once. These reach cameraRunRef,
+  // applyCamera, tweenCameraTo and cardByIdRef, declared further down; the
+  // closures only read them at call time, so no TDZ.
+  const tellHeld = (e) => { try { onPlaceHeldRef.current?.(e); } catch (_) {} };
+  const finishHeld = (outcome) => {
+    const h = heldRunRef.current;
+    if (!h) return;
+    heldRunRef.current = null;
+    clearTimeout(h.timer);
+    h.detach();
+    tellHeld({ phase: 'end', boardId: h.boardId, cardId: h.cardId, outcome });
+  };
+  // Stop where the camera is, with no selection. `commit` writes the pose the
+  // glide reached into React state so it matches the refs (input on the board);
+  // a board change or an unmount has no use for one.
+  const cancelHeld = (commit) => {
+    const h = heldRunRef.current;
+    if (!h) return;
+    clearTimeout(h.timer);
+    // Only while the run is still ours: a camera move that took over has pinned
+    // its own layerization and commits itself (see runMoves).
+    if (cameraRunRef.current === h.run) {
+      cameraRunRef.current++;                  // the running tween stops on its next frame
+      cameraPromoteRef.current = null;
+      gestureUntilRef.current = 0;
+      markGestureActiveUntil(0);
+      if (commit) {
+        // After the event that stopped it has reached its own handler (a wheel
+        // moves the refs), so the commit carries that move instead of writing
+        // the pre-wheel pose back over it.
+        queueMicrotask(() => {
+          applyCamera({ zoom: zoomRef.current, pan: { x: panRef.current.x, y: panRef.current.y } });
+          applyCanvasTransform();
+          scheduleVisibleRecompute();
+          settleCanvas();
+        });
+      }
+    }
+    if (commit) { finishHeld('cancelled'); return; }
+    // Left before it finished (a board change, an unmount, StrictMode's dev
+    // remount): end it quietly, and the next open of this cluster may hold again.
+    heldRunRef.current = null;
+    h.detach();
+    releaseHeld(h.boardId);
+  };
+  cancelHeldRef.current = cancelHeld;
+  const startHeld = ({ boardId, cardId, fitCam, target }) => {
+    // The card the camera lands on is selected, if it is still on the board.
+    const selectHeld = () => { if (cardByIdRef.current?.[cardId]) setSelected(new Set([cardId])); };
+    if (reduceMotionMq?.matches) {
+      tweenCameraTo(target, 0);
+      // After the open's own passive reset of the selection has run.
+      setTimeout(selectHeld, 60);
+      tellHeld({ phase: 'start', boardId, cardId });
+      tellHeld({ phase: 'end', boardId, cardId, outcome: 'cut' });
+      return;
+    }
+    tweenCameraTo(fitCam, 0);                  // the cut: refs and state, before paint
+    const run = ++cameraRunRef.current;        // another camera move supersedes this run
+    const wrap = wrapRef.current;
+    const stop = () => cancelHeld(true);
+    // On the document in capture, so it runs before the flash listener's own
+    // framing: the card the link names is framed after the stop, not under it.
+    const onFlash = (e) => { if (e.detail?.boardId === boardId) stop(); };
+    const listen = { capture: true, passive: true };
+    wrap.addEventListener('pointerdown', stop, listen);
+    wrap.addEventListener('wheel', stop, listen);
+    wrap.addEventListener('touchstart', stop, listen);
+    window.addEventListener('keydown', stop, { capture: true });
+    document.addEventListener('soleil-flash-card', onFlash, { capture: true });
+    const detach = () => {
+      wrap.removeEventListener('pointerdown', stop, { capture: true });
+      wrap.removeEventListener('wheel', stop, { capture: true });
+      wrap.removeEventListener('touchstart', stop, { capture: true });
+      window.removeEventListener('keydown', stop, { capture: true });
+      document.removeEventListener('soleil-flash-card', onFlash, { capture: true });
+    };
+    const h = { run, boardId, cardId, timer: 0, gliding: false, detach };
+    heldRunRef.current = h;
+    // The hold and the glide are one gesture, as runMoves holds the flag across a
+    // take: the image tiers wait for the one settle at the end.
+    gestureUntilRef.current = performance.now() + PLACE_HELD_HOLD_MS + CAMERA_MS + 250;
+    markGestureActiveUntil(gestureUntilRef.current);
+    h.timer = setTimeout(async () => {
+      if (cameraRunRef.current !== run) { finishHeld('cancelled'); return; }
+      h.gliding = true;
+      await tweenCameraTo(target, CAMERA_MS, 'smooth', run);
+      if (heldRunRef.current !== h) return;    // input or a board change already ended it
+      if (cameraRunRef.current !== run) { finishHeld('cancelled'); return; }
+      // Landed: end the sequence the way runMoves does.
+      cameraPromoteRef.current = null;
+      applyCanvasTransform();
+      gestureUntilRef.current = 0;
+      markGestureActiveUntil(0);
+      scheduleVisibleRecompute();
+      settleCanvas();
+      selectHeld();
+      finishHeld('glided');
+    }, PLACE_HELD_HOLD_MS);
+    tellHeld({ phase: 'start', boardId, cardId });
+  };
+  // Armed on each open of a cluster; the effect below decides once its cards are in.
+  useLayoutEffect(() => {
+    heldClaimRef.current = null;
+    heldPendingRef.current = (placeHeldRef.current && !isPublic && autoFrame)
+      ? { boardId: board.id, at: performance.now() }
+      : null;
+    // A link to one card (Copy link, ⌘K, the greeting's Show my last card) is
+    // flashed a moment after the open, often before the cards are in: it rules
+    // out a held open still waiting, and stops one already running.
+    const onFlash = (e) => {
+      if (e.detail?.boardId !== board.id) return;
+      heldPendingRef.current = null;
+      cancelHeldRef.current?.(true);
+    };
+    document.addEventListener('soleil-flash-card', onFlash, { capture: true });
+    return () => {
+      document.removeEventListener('soleil-flash-card', onFlash, { capture: true });
+      cancelHeld(false);
+      heldPendingRef.current = null;
+    };
+  }, [board.id]);
+  // The held open (lib/placeHeld.js). Coming back to a cluster after a real
+  // break, the canvas cuts to the whole cluster, holds it a beat, glides to the
+  // card this person last touched and selects it. This runs BEFORE the first-view
+  // effect below and claims the open (fitOnceForRef), so it supersedes the saved
+  // view only on a held open: a quick switch restores the saved view exactly as
+  // before. The decision is made once per open, and once per page per cluster
+  // (heldOnce). Any pointer, wheel, touch or key press, or a deep link
+  // (focusRequest, soleil-flash-card, a card in the URL), stops it where it is
+  // with no selection. Reduced motion cuts straight to the card.
+  useLayoutEffect(() => {
+    const p = heldPendingRef.current;
+    if (!p || p.boardId !== board.id) return;
+    // The cards came too late: the person is already looking at the cluster.
+    if (performance.now() - p.at > 5000) { heldPendingRef.current = null; return; }
+    const wrap = wrapRef.current;
+    if (!wrap || !cards || cards.length === 0) return;
+    const r = wrap.getBoundingClientRect();
+    if (r.width < 50 || r.height < 50) return;
+    heldPendingRef.current = null;             // decided once per open, whatever the answer
+    let deepLink = !!(focusRequest && focusRequest.boardId === board.id && focusRequest.ids?.length > 0);
+    if (!deepLink) {
+      try {
+        const q = new URLSearchParams(window.location.search);
+        deepLink = q.has('card') || q.has('cards');
+      } catch (_) {}
+    }
+    const plan = planHeldOpen({
+      uid: placeHeldRef.current?.uid,
+      cards,
+      nowMs: Date.now(),
+      lastVisitMs: placeHeldRef.current?.lastVisitMs,
+      isPublic,
+      deepLink,
+    });
+    if (!plan || !heldOnce(board.id)) return;
+    fitOnceForRef.current = board.id;          // claim the open: the first-view effect stands down
+    heldClaimRef.current = board.id;
+    // The open fit, as the first-view effect solves it: the whole cluster, held
+    // back from the rail, never past 1:1.
+    const margin = fitMargin(r);
+    const railDx = railFitInset(wrap, r, margin);
+    const b = boundsOfCards(cards);
+    const fit = b && solveFit(b, { w: r.width - railDx, h: r.height },
+      { margin, zoomMin: ZOOM_MIN, zoomMax: OPEN_FIT_MAX_ZOOM });
+    if (!fit) { fitOnceForRef.current = null; return; }   // the first-view effect runs as it always has
+    const fitCam = { zoom: fit.zoom, pan: { x: fit.pan.x + railDx, y: fit.pan.y } };
+    const target = settleCamera({
+      card: plan.card, fitZoom: fitCam.zoom, viewW: r.width, viewH: r.height,
+      railDx, maxZoom: OPEN_FIT_MAX_ZOOM,
+    });
+    if (!target) { tweenCameraTo(fitCam, 0); return; }    // nowhere to glide: a normal fit open
+    startHeld({ boardId: board.id, cardId: plan.card.id, fitCam, target });
+  }, [cards, board.id]);
   // useLayoutEffect (not useEffect): runs after DOM mutations but
   // BEFORE the browser paints. setState inside a layout effect
   // triggers a sync re-render in the same commit phase, so the cards
@@ -3321,6 +3525,7 @@ export function CanvasSurface({
         onRevealUnplacedRef.current?.(req.ids);
         return;
       }
+      if (present) cancelHeldRef.current?.(true);   // a deep link outranks the held open
       if (present && (req.mode === 'center' ? centerCards(req.ids) : frameCards(req.ids))) {
         focusTokenRef.current = req.token;
         setSelected(new Set(req.ids));

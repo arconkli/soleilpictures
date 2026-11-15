@@ -2,7 +2,7 @@
 
 > Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 
-_Source: https://clusters.soleilpictures.com/docs/keyboard-shortcuts · Updated 2026-11-09_
+_Source: https://clusters.soleilpictures.com/docs/keyboard-shortcuts · Updated 2026-11-15_
 
 Press `?` on any canvas to see this list in the app, where it shows the right
 modifier key for your platform. On Windows and Linux, every `⌘` below is `Ctrl`.
@@ -102,7 +102,8 @@ With one [grid](/docs/canvas/grids) selected and a box in it clicked:
 | `⌘`-scroll | Zoom at the pointer |
 
 Zoom and pan are remembered per cluster. Reopening a board puts you back where
-you were rather than at the origin.
+you were rather than at the origin. After a break of half an hour or more it opens
+on the card you last worked on instead.
 
 ### Swapping what the wheel does
 
