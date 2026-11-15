@@ -25,7 +25,9 @@ related:
 ## What it searches
 
 - **Recents** — what you have had open
-- **Clusters** — by name
+- **Clusters** — by name, and one shared with you also by who shared it
+- **Workspaces** — the other workspaces you are in, by their name or their
+  owner's, while you type; choosing one switches to it
 - **Cards and notes** — by title, and by the first {{fact:searchBodyChars}} characters of their text
 - **Files** — by the name the file was uploaded with, so a photo nobody captioned
   is found as `diner_ext_dusk_04.jpg` (photos and videos uploaded since names

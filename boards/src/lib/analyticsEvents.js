@@ -640,6 +640,7 @@ export const EV = Object.freeze({
   TAG_SET_TYPE:            'tag_set_type',                // one-tap set/changed an entity's type {tag_id,entity_type}
   TAG_SPOTLIGHT:           'tag_spotlight',               // lit a tag's cards up on the open cluster {tag_id,via:'card_chip'|'board_chip'|'group_chip'}
   TAG_SUGGESTION_DISMISS:  'tag_suggestion_dismiss',      // dismissed a suggested tag on a card {tag_id,via:'card'} (accepting one is a TAG_MANUAL_APPLY via 'suggested_chip')
+  FIND_USED:               'find_used',                   // a result was picked while a search was typed {surface:'ws_menu'|'shared_sidebar'|'shared_page'|'cmdk_ws'|'cmdk_shared',n_items,by:'name'|'person'} — n_items is how many results were showing; by says whether the cluster, workspace or file's own name matched or only the person who owns or shared it did. Never the typed text
 });
 
 // ── What counts as WORK, as opposed to presence ───────────────────────────

@@ -37,7 +37,8 @@ card until the word is settled.
 
 `⌘K` is the fastest way to get anywhere. It searches cluster names, card
 contents, notes, docs and tags, and it also runs commands — "share", "trash",
-"theme", "invite" all work as typed input.
+"theme", "invite" all work as typed input. Type a person's name to switch to
+their workspace or open a cluster they shared with you.
 
 ## Sidebar
 

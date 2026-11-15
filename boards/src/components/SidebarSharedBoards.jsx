@@ -3,12 +3,21 @@
 // member of the source workspace). Grouped by source workspace name,
 // collapsed by default to avoid clutter.
 
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { COVER_TINTS } from './primitives.jsx';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
-import { t, ph } from '@lingui/core/macro';
+import { t, ph, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { groupSharedByPerson, matchesFind, findHitKind, findTokens } from '../lib/sharedPeople.js';
+import { sharedGroupHead } from '../lib/sharedPeopleWords.js';
+import { trackFindUsed } from '../lib/findUsed.js';
+import { initialOf } from '../lib/graphemes.js';
+import { cssColor } from '../lib/presenceCss.js';
+import { isComposingKey } from '../lib/composerKeys.js';
+import './sidebar/sidebarSharedFind.css';
 
+const GROUP_CAP = 5;      // rows a person's group shows before "Show # more"
+const FIND_OVER = 6;      // the find field appears above this many shared clusters
 const EXPAND_KEY = 'soleil.boards.sb.shared.expanded';
 
 function loadExpanded() {
@@ -33,19 +42,34 @@ export function SidebarSharedBoards({
   filesRow = null,
 }) {
   const [exp, setExp] = useState(loadExpanded);
+  const [q, setQ] = useState('');
+  const [more, setMore] = useState({});       // group key -> showing every row
+  const inputRef = useRef(null);
+
+  // One group per person (the workspace when the server didn't say who).
+  const groups = useMemo(() => groupSharedByPerson(shared), [shared]);
 
   const hasBoards = !!shared && shared.length > 0;
   if (!hasBoards && !filesRow) return null;
 
-  // Group rows by source workspace.
-  const groups = new Map();
-  for (const row of shared) {
-    const key = row.source_workspace_id || '__none__';
-    if (!groups.has(key)) {
-      groups.set(key, { name: row.source_workspace_name || t`Unknown`, rows: [] });
+  const showFind = shared.length > FIND_OVER;
+  const searching = showFind && findTokens(q).length > 0;
+  const rowMatches = (row, g) => matchesFind(q, [row.board_name, g.personName, row.source_workspace_name]);
+  const shownGroups = searching
+    ? groups.map((g) => ({ g, rows: g.rows.filter((r) => rowMatches(r, g)) })).filter((x) => x.rows.length)
+    : groups.map((g) => ({ g, rows: g.rows }));
+  const matchCount = shownGroups.reduce((n, x) => n + x.rows.length, 0);
+
+  const openRow = (row, g) => {
+    if (searching) {
+      trackFindUsed({
+        surface: 'shared_sidebar',
+        nItems: matchCount,
+        by: findHitKind(q, [row.board_name], [g.personName, row.source_workspace_name]) || 'name',
+      });
     }
-    groups.get(key).rows.push(row);
-  }
+    onOpenBoard?.(row.board_id);
+  };
 
   const setRoot = (open) => {
     const next = { ...exp, root: open };
@@ -72,7 +96,7 @@ export function SidebarSharedBoards({
         <div className={`sb-row sb-shared-row sb-shared-files ${filesRow.active ? 'active' : ''}`}
              role="button" tabIndex={0}
              onClick={() => filesRow.onOpen?.()}
-             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); filesRow.onOpen?.(); } }}
+             onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); filesRow.onOpen?.(); } }}
              title={t`Files shared with you, and files you've shared`}>
           <span className="sb-row-label"><Trans>Shared files</Trans></span>
           {filesRow.unread > 0 && (
@@ -82,19 +106,54 @@ export function SidebarSharedBoards({
       )}
       {hasBoards && exp.root && (
         <div className="sb-shared-body">
-          {[...groups.entries()].map(([gid, group]) => {
-            const open = exp.groups[gid] !== false; // groups default OPEN once parent is opened
+          {showFind && (
+            <div className="sb-shared-find">
+              <input ref={inputRef} type="text" className="sb-shared-find-input" value={q}
+                     placeholder={t`Find a cluster or person…`} aria-label={t`Find a cluster or person…`}
+                     autoComplete="off" spellCheck={false}
+                     onChange={(e) => setQ(e.target.value)}
+                     onKeyDown={(e) => {
+                       e.stopPropagation();
+                       if (isComposingKey(e)) return;
+                       if (e.key === 'Escape') {
+                         e.preventDefault();
+                         if (q) setQ(''); else inputRef.current?.blur();
+                       } else if (e.key === 'Enter' && searching && shownGroups.length) {
+                         e.preventDefault();
+                         openRow(shownGroups[0].rows[0], shownGroups[0].g);
+                       }
+                     }} />
+              {q && (
+                <button type="button" className="sb-shared-find-x" aria-label={t`Clear search`} title={t`Clear search`}
+                        onClick={() => { setQ(''); inputRef.current?.focus(); }}>✕</button>
+              )}
+            </div>
+          )}
+          {searching && !shownGroups.length && (
+            <div className="sb-shared-empty">{t`Nothing shared with you matches “${ph({ q: q.trim() })}”.`}</div>
+          )}
+          {shownGroups.map(({ g, rows }) => {
+            const gid = g.key;
+            const open = searching || exp.groups[gid] !== false; // groups default OPEN once parent is opened
+            const activeHidden = !searching && rows.slice(GROUP_CAP).some((r) => r.board_id === activeBoardId);
+            const showAll = searching || more[gid] || activeHidden || rows.length <= GROUP_CAP;
+            const visible = showAll ? rows : rows.slice(0, GROUP_CAP);
+            const hiddenN = rows.length - visible.length;
             return (
               <div key={gid} className="sb-shared-group">
                 <div className="sb-shared-group-head"
-                     onClick={() => setGroupOpen(gid, !open)}
+                     onClick={() => { if (!searching) setGroupOpen(gid, !open); }}
                      role="button" tabIndex={0}>
                   <span className={`sb-shared-chev ${open ? 'is-open' : ''}`}>▸</span>
-                  <span className="sb-shared-group-name"><Trans>From {ph({ name: group.name })}</Trans></span>
+                  {g.personName && (
+                    <span className="sb-shared-pv" aria-hidden="true"
+                          style={g.personColor ? { background: cssColor(g.personColor) } : undefined}>{initialOf(g.personName)}</span>
+                  )}
+                  <span className="sb-shared-group-name">{sharedGroupHead(g)}</span>
                 </div>
                 {open && (
                   <div className="sb-shared-rows">
-                    {group.rows.map(row => {
+                    {visible.map(row => {
                       const isActive = row.board_id === activeBoardId;
                       const tint = COVER_TINTS[row.board_cover || 'neutral'] || COVER_TINTS.neutral;
                       return (
@@ -107,7 +166,7 @@ export function SidebarSharedBoards({
                              data-drop-ws-name={row.source_workspace_name || ''}
                              data-drop-name={row.board_name || ''}
                              onMouseEnter={() => prefetchBoard(row.board_id)}
-                             onClick={() => onOpenBoard?.(row.board_id)}
+                             onClick={() => openRow(row, g)}
                              title={row.role === 'viewer' ? t`${ph({ name: row.board_name })} · view only` : t`${ph({ name: row.board_name })} · editor`}>
                           <span className="sb-dot"
                                 style={{ background: isActive ? 'var(--soleil)' : tint }} />
@@ -118,6 +177,12 @@ export function SidebarSharedBoards({
                         </div>
                       );
                     })}
+                    {hiddenN > 0 && (
+                      <button type="button" className="sb-shared-more"
+                              onClick={() => setMore((m) => ({ ...m, [gid]: true }))}>
+                        {plural(hiddenN, { one: 'Show # more', other: 'Show # more' })}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

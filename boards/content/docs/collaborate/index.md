@@ -102,7 +102,8 @@ share the running of the workspace; deleting it and handing it to someone else
 stay with the owner.
 
 Clusters shared with you appear under **Shared with me** in the sidebar, grouped
-by whose workspace they came from.
+by the person who shared them, newest first; see
+[the sidebar](/docs/clusters/sidebar#shared-with-me).
 
 ## What collaboration looks like in use
 

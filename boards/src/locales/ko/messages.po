@@ -1335,6 +1335,10 @@ msgstr "{h}시간 전"
 msgid "{heldElsewhere, plural, one {The file you dropped is in your other Clusters tab. Switch back to it to see it go on — you can close this one.} other {The # files you dropped are in your other Clusters tab. Switch back to it to see them go on — you can close this one.}}"
 msgstr "{heldElsewhere, plural, other {놓은 파일 #개가 다른 Clusters 탭에 있어요. 그 탭으로 돌아가면 올라가는 모습을 볼 수 있어요. 이 탭은 닫아도 돼요.}}"
 
+#: src/components/SidebarSharedBoards.jsx
+msgid "{hiddenN, plural, one {Show # more} other {Show # more}}"
+msgstr "{hiddenN, plural, other {#개 더 보기}}"
+
 #: src/components/cards.jsx
 msgid "{hx} — click to edit · drag to reorder"
 msgstr "{hx} — 클릭해서 편집 · 끌어서 순서 바꾸기"
@@ -2172,6 +2176,10 @@ msgstr "{overflow}개 더 — 이 날 열기"
 msgid "{owner} invited you."
 msgstr "{owner} 님이 초대했어요."
 
+#: src/lib/sharedPeopleWords.js
+msgid "{owner}'s workspace"
+msgstr "{owner} 님의 워크스페이스"
+
 #: src/lib/dropRules.js
 msgid "{owner}’s workspace"
 msgstr "{owner} 님의 워크스페이스"
@@ -2514,6 +2522,7 @@ msgid "{shown} of {0, plural, one {# card} other {# cards}} came through"
 msgstr "카드 {0, plural, other {#장}} 중 {shown}장이 도착했어요"
 
 #: src/components/ListSurface.jsx
+#: src/components/shared/SharedPage.jsx
 msgid "{shown} of {total}"
 msgstr "{total}개 중 {shown}개"
 
@@ -5813,6 +5822,8 @@ msgid "Clear out"
 msgstr "아웃 지우기"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
+#: src/components/shared/SharedPage.jsx
+#: src/components/SidebarSharedBoards.jsx
 msgid "Clear search"
 msgstr "검색어 지우기"
 
@@ -9616,10 +9627,6 @@ msgstr "태그를 필터링하거나 새 태그를 입력하세요…"
 msgid "Filter tags…"
 msgstr "태그 필터…"
 
-#: src/components/WorkspaceMenu.jsx
-msgid "Filter workspaces…"
-msgstr "워크스페이스 필터…"
-
 #: src/lib/filesView.js
 msgid "Filtered"
 msgstr "필터링됨"
@@ -9640,9 +9647,25 @@ msgstr "찾기"
 msgid "Find a cluster"
 msgstr "클러스터 찾기"
 
+#: src/components/SidebarSharedBoards.jsx
+msgid "Find a cluster or person…"
+msgstr "클러스터 또는 사람 검색…"
+
 #: src/components/MessagesPanel.jsx
 msgid "Find a conversation"
 msgstr "대화 찾기"
+
+#: src/components/shared/SharedPage.jsx
+msgid "Find a file or cluster…"
+msgstr "파일 또는 클러스터 검색…"
+
+#: src/components/shared/SharedPage.jsx
+msgid "Find a file or person…"
+msgstr "파일 또는 사람 검색…"
+
+#: src/components/WorkspaceMenu.jsx
+msgid "Find a workspace or person…"
+msgstr "워크스페이스 또는 사람 검색…"
 
 #: src/lib/powerReveals.js
 msgid "Find anything instantly — search every card and doc you’ve made."
@@ -10003,7 +10026,7 @@ msgstr "가입한 친구"
 msgid "From"
 msgstr "보낸 사람"
 
-#: src/components/SidebarSharedBoards.jsx
+#: src/lib/sharedPeopleWords.js
 msgid "From {name}"
 msgstr "보낸 사람: {name}"
 
@@ -13787,8 +13810,8 @@ msgid "No waiting. Admins hear about each one."
 msgstr "기다릴 필요가 없어요. 관리자에게 하나하나 알림이 가요."
 
 #: src/components/WorkspaceMenu.jsx
-msgid "No workspaces match \"{filter}\""
-msgstr "“{filter}”와(과) 일치하는 워크스페이스가 없어요"
+msgid "No workspace or person matches “{q}”."
+msgstr "“{q}”에 해당하는 워크스페이스나 사람이 없어요."
 
 #: src/lib/billingCopyWords.js
 msgid "No. Clusters runs in the browser on desktop, laptop and tablet, and the same board opens on all of them. You can add it to a phone home screen as a web app."
@@ -14100,6 +14123,10 @@ msgstr "아직 업로드된 것이 없어요. 파일을 삭제하거나 휴지�
 msgid "Nothing has been uploaded yet. This cluster is on its owner’s plan, so their plan sets the limit."
 msgstr "아직 업로드된 것이 없어요. 이 클러스터는 소유자의 요금제를 따르므로 한도도 소유자의 요금제에 따라 정해져요."
 
+#: src/components/shared/SharedPage.jsx
+msgid "Nothing here matches “{q}”."
+msgstr "여기에는 “{q}” 검색 결과가 없어요."
+
 #: src/components/ListSurface.jsx
 msgid "Nothing here yet."
 msgstr "아직 아무것도 없어요."
@@ -14211,6 +14238,10 @@ msgstr "아직 해결된 댓글이 없어요"
 #: src/components/cards/ScheduleWall.jsx
 msgid "Nothing scheduled"
 msgstr "예정된 일정이 없어요"
+
+#: src/components/SidebarSharedBoards.jsx
+msgid "Nothing shared with you matches “{q}”."
+msgstr "나와 공유된 항목에서 “{q}” 검색 결과가 없어요."
 
 #: src/lib/downloadOps.js
 msgid "Nothing there could be downloaded."
@@ -15219,6 +15250,14 @@ msgstr "윤곽선 색상…"
 #: src/components/CanvasSurface.jsx
 msgid "Outline shape"
 msgstr "윤곽선 모양"
+
+#: src/lib/sharedPeopleWords.js
+msgid "Owned by {owner}"
+msgstr "{owner} 님 소유"
+
+#: src/lib/sharedPeopleWords.js
+msgid "Owned by {owner} · you co-own it"
+msgstr "{owner} 님 소유 · 공동 소유 중"
 
 #: src/components/settings/AccountEditorsCard.jsx
 #: src/components/ShareModal.jsx
@@ -18206,9 +18245,14 @@ msgstr "공유한 사람"
 msgid "Shared by {by}"
 msgstr "{by} 님이 공유함"
 
+#: src/components/CommandPalette.jsx
 #: src/components/shared/SharedPage.jsx
 msgid "Shared by {name}"
 msgstr "공유한 사람: {name}"
+
+#: src/components/CommandPalette.jsx
+msgid "Shared by {name} · view only"
+msgstr "공유한 사람: {name} · 보기 전용"
 
 #: src/App.jsx
 msgid "Shared by {sharedBy}"
@@ -18252,12 +18296,17 @@ msgstr "나와 공유됨"
 #: src/components/setup/WorkspaceSetup.jsx
 #: src/components/WorkspaceMenu.jsx
 #: src/lib/homeMap.js
+#: src/lib/sharedPeopleWords.js
 msgid "Shared with you"
 msgstr "나와 공유됨"
 
 #: src/components/WorkspaceMenu.jsx
 msgid "SHARED WITH YOU"
 msgstr "나와 공유됨"
+
+#: src/lib/sharedPeopleWords.js
+msgid "Shared with you · you co-own it"
+msgstr "나와 공유됨 · 공동 소유 중"
 
 #: src/components/CanvasSurface.jsx
 msgid "Shared with your workspace."
@@ -19573,6 +19622,11 @@ msgstr "이미지에서 추출하거나 직접 고른 색상 견본이에요."
 msgid "Sweep"
 msgstr "스윕"
 
+#: src/components/CommandPalette.jsx
+msgctxt "Command palette badge: switch to this workspace"
+msgid "Switch"
+msgstr "전환"
+
 #: src/components/ListSurface.jsx
 msgid "Switch to Board to drop links or text onto a cluster."
 msgstr "클러스터에 링크나 텍스트를 놓으려면 캔버스 보기로 전환하세요."
@@ -19585,11 +19639,20 @@ msgstr "월간으로 전환"
 msgid "Switch to yearly"
 msgstr "연간으로 전환"
 
+#: src/App.jsx
 #: src/components/home/HomeWorkspace.jsx
 #: src/components/ProjectsHome.jsx
 #: src/components/WorkspaceMenu.jsx
 msgid "Switch workspace"
 msgstr "워크스페이스 전환"
+
+#: src/App.jsx
+msgid "Switch workspace · owned by {owner}"
+msgstr "워크스페이스 전환 · {owner} 님 소유"
+
+#: src/App.jsx
+msgid "Switch workspace · shared with you"
+msgstr "워크스페이스 전환 · 나와 공유됨"
 
 #: src/components/CustomFontsModal.jsx
 msgid "System"
@@ -21803,10 +21866,6 @@ msgstr "숨김 해제"
 msgid "Unhide failed: {reason}"
 msgstr "숨김을 해제하지 못했어요: {reason}"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Unknown"
-msgstr "알 수 없음"
-
 #: src/App.jsx
 msgid "unknown error"
 msgstr "알 수 없는 오류"
@@ -23150,6 +23209,7 @@ msgstr "처리 중…"
 #: src/components/ShareModal.jsx
 #: src/lib/boardsApi.js
 #: src/lib/gridLayoutWords.js
+#: src/lib/sharedPeopleWords.js
 #: src/pages/MakePage.jsx
 msgid "Workspace"
 msgstr "워크스페이스"
@@ -23198,6 +23258,7 @@ msgid "Workspace viewer"
 msgstr "워크스페이스 뷰어"
 
 #: src/App.jsx
+#: src/components/CommandPalette.jsx
 #: src/lib/billingCopyWords.js
 msgid "Workspaces"
 msgstr "워크스페이스"
@@ -23378,6 +23439,7 @@ msgstr "로그인하기 전에 요금 페이지에서 직접 골랐어요."
 #: src/components/ProjectsHome.jsx
 #: src/components/WorkspaceMenu.jsx
 #: src/lib/homeMap.js
+#: src/lib/sharedPeopleWords.js
 msgid "You co-own this"
 msgstr "공동 소유 중"
 

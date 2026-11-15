@@ -514,6 +514,12 @@ which turns the link off and removes everyone you added, at once. Stopping
 has an undo that brings back the link and exactly the people it removed, and
 emails nobody again.
 
+When a tab holds more than a handful of files, a search field in the page's
+header narrows it: on **With me** by the file's name or who shared it, on
+**By me** by the file's name or its cluster. While you type it shows how many
+of the tab's files match; `Esc` or **✕** clears it, and switching tabs starts
+afresh.
+
 ### Save a copy
 
 **Add to cluster** → **Save a copy** in the viewer, or **Save a copy…** on the

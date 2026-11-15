@@ -144,3 +144,86 @@ test('handing a workspace over warns that limits follow the new owner, and offer
   await expect(page.getByRole('button', { name: 'Make co-owner instead' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Transfer ownership' })).toBeVisible();
 });
+
+// ---- finding a workspace by person ------------------------------------------
+
+const SAM = '00000000-0000-4000-8000-0000000000c1';
+const MAYA = '00000000-0000-4000-8000-0000000000c2';
+const JUN = '00000000-0000-4000-8000-0000000000c3';
+const RAE = '00000000-0000-4000-8000-0000000000c4';
+const PROFILES = [
+  { user_id: SAM, display_name: 'Sam Lee', color: '#4f8df8', avatar_url: null },
+  { user_id: MAYA, display_name: 'Maya Ortiz', color: '#8e5cf7', avatar_url: null },
+  { user_id: JUN, display_name: 'Jun Park', color: '#2fa36b', avatar_url: null },
+  { user_id: RAE, display_name: 'Rae Okafor', color: '#d9602e', avatar_url: null },
+];
+const sh = (id, name, by, day) => ({ id, name, created_by: by, _myRole: 'editor', _joinedAt: `2026-03-${day}` });
+// Yours (one default-named, two named) and nine shared from four people.
+const MANY = [
+  { id: 'ws-mine', name: 'Personal Workspace', created_by: ME, created_at: '2026-01-01' },
+  { id: 'ws-m2', name: 'Studio', created_by: ME, created_at: '2026-01-02' },
+  { id: 'ws-m3', name: 'Archive', created_by: ME, created_at: '2026-01-03' },
+  sh('ws-s1', 'Personal Workspace', MAYA, '10'),
+  sh('ws-s2', 'Midnight Diner', MAYA, '09'),
+  sh('ws-s3', 'Personal Workspace', MAYA, '08'),
+  sh('ws-s4', 'Personal Workspace', SAM, '07'),
+  sh('ws-s5', 'Reels', SAM, '06'),
+  sh('ws-s6', 'Personal Workspace', JUN, '05'),
+  sh('ws-s7', 'Dailies', JUN, '04'),
+  sh('ws-s8', 'Personal Workspace', RAE, '03'),
+  sh('ws-s9', 'Personal Workspace', RAE, '02'),
+];
+
+async function bootMany(page) {
+  await page.route('**/rest/v1/member_profiles**', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify(PROFILES),
+  }));
+  await boot(page);
+  await page.evaluate(async ({ workspaces, me }) => {
+    const { mountWorkspaceMenu } = await import('/src/local/shareWorkspaceProbe.js');
+    mountWorkspaceMenu({ workspaces, activeWorkspaceId: 'ws-mine', personalWorkspaceId: 'ws-mine', selfUserId: me });
+  }, { workspaces: MANY, me: ME });
+}
+const idOf = async (wrap) => (await wrap.locator('.ws-menu-row').getAttribute('id')).replace(/^.*?-ws-/, '');
+
+test('12 workspaces: titled and searched by person', async ({ page }) => {
+  await bootMany(page);
+  const find = page.getByPlaceholder('Find a workspace or person…');
+  await expect(find).toBeVisible();
+
+  // An unnamed shared workspace is its owner's; a renamed one says who owns it.
+  const sam = page.locator('.ws-menu-row-wrap', { has: page.locator('.ws-menu-name', { hasText: "Sam Lee's workspace" }) });
+  await expect(sam.locator('.ws-menu-sub')).toHaveText('Shared with you');
+  await expect(rowFor(page, 'Midnight Diner').locator('.ws-menu-sub')).toHaveText('Owned by Maya Ortiz');
+
+  await find.fill('maya');
+  const rows = page.locator('.ws-menu-row-wrap');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0).locator('.ws-menu-row')).toHaveClass(/is-kb/);
+  await expect(rows.nth(1).locator('.ws-menu-row')).not.toHaveClass(/is-kb/);
+
+  await find.press('ArrowDown');
+  await expect(rows.nth(1).locator('.ws-menu-row')).toHaveClass(/is-kb/);
+  await expect(rows.nth(0).locator('.ws-menu-row')).not.toHaveClass(/is-kb/);
+
+  const second = await idOf(rows.nth(1));
+  await find.press('Enter');
+  expect(await page.evaluate(() => window.__shareProbe.select)).toEqual([second]);
+});
+
+test('workspace find: Escape clears the text first, then closes; no match says so', async ({ page }) => {
+  await bootMany(page);
+  const find = page.getByPlaceholder('Find a workspace or person…');
+  await find.fill('maya');
+  const before = await page.evaluate(() => window.__shareProbe.close);
+  await find.press('Escape');
+  await expect(find).toHaveValue('');
+  await expect(page.locator('.ws-menu')).toBeVisible();
+  expect(await page.evaluate(() => window.__shareProbe.close)).toBe(before);
+  await find.press('Escape');
+  expect(await page.evaluate(() => window.__shareProbe.close)).toBeGreaterThan(before);
+
+  await find.fill('zzz');
+  await expect(page.locator('.ws-menu-empty')).toHaveText('No workspace or person matches “zzz”.');
+  await expect(page.locator('.ws-menu-row-wrap')).toHaveCount(0);
+});

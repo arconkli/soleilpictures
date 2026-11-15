@@ -25,6 +25,15 @@ team.
 The same switcher sits at the top of the sidebar. Switching from there takes
 you straight to the workspace's canvas instead.
 
+Most workspaces keep their first name, so someone else's that still has it is
+called by its owner's name, such as **Sam Lee's workspace**, with their
+initial on its tile; one they renamed says **Owned by Sam Lee** under its
+name. Among the ones shared with you, the one you opened last on this device
+comes first. When you are in several workspaces, a search field at the top of
+the switcher finds one by its name or by its owner's. The first match is
+already picked, so `Enter` switches to it; `↑` and `↓` move through the list,
+and `Esc` clears the search, then closes the switcher.
+
 ## Your clusters
 
 A panel shows three things:

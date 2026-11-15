@@ -193,7 +193,7 @@ A workspace is the outermost container. It holds clusters and it holds people.
 
 Your personal workspace is created for you automatically — the first time you sign in, and also the first time you create a board through the API without naming a workspace. You never have to set one up.
 
-You can belong to more than one workspace. The switcher at the top of the sidebar moves between them, and separates ones you own from ones shared with you.
+You can belong to more than one workspace. The switcher at the top of the sidebar moves between them, separates ones you own from ones shared with you, and finds one by its name or by its owner's.
 
 Cluster (board)
 
@@ -275,7 +275,7 @@ Key | Action
 ⌘. | Clean mode — hide all chrome
 ↑ / ↓ in a right-click menu | Move through it — → opens a submenu and ← closes it, Enter chooses
 
-⌘K is the fastest way to get anywhere. It searches cluster names, card contents, notes, docs and tags, and it also runs commands — "share", "trash", "theme", "invite" all work as typed input.
+⌘K is the fastest way to get anywhere. It searches cluster names, card contents, notes, docs and tags, and it also runs commands — "share", "trash", "theme", "invite" all work as typed input. Type a person's name to switch to their workspace or open a cluster they shared with you.
 
 Sidebar
 
@@ -2053,7 +2053,7 @@ Home lists your projects, newest work first, with the clusters you were last in 
 The sidebar tree opens on your projects, most recently worked on first, and expands lazily, so a deep hierarchy stays fast
 All clusters at the bottom of the sidebar's list searches every cluster and opens the one you pick
 ⌘K searches cluster names alongside everything else
-Shared with me groups clusters other people have invited you to, by whose workspace they came from
+Shared with me groups clusters other people have invited you to by the person who shared them, with a search field once there are many
 
 Deleting
 
@@ -2088,6 +2088,12 @@ The workspace — its name opens the switcher, to change workspace or start a ne
 Search — the magnifying glass, or ⌘K, searches everything in the workspace. See search.
 Home and Messages — Home is where your projects are; Messages opens over the cluster you are in and shows an unread count.
 Your clusters — the cluster tree, with Shared with me and your tags below it. Click a cluster to open it; the chevron shows the clusters inside it. Right-click a cluster for its menu, which adds Star and, if you can edit it, Always open in Files to the usual cluster actions.
+
+Shared with me
+
+Shared with me lists the clusters people shared with you on their own, grouped by the person who shared them (From Sam Lee, with their initial), or by their workspace's name when who shared it isn't known. Whoever shared with you most recently comes first, and in each group the newest cluster does. A person who shared many shows their newest few, with Show more for the rest; the cluster you have open always stays in view.
+
+Once the list grows long, a search field sits at the top of it. It finds a cluster by its name, by who shared it, or by their workspace's name, and opens every group while you type. Enter opens the first match and Esc clears the search.
 
 The second card is Files.
 
@@ -2420,6 +2426,8 @@ Your workspace
 The top of the panel names the workspace these projects belong to, and whether it is your personal one, another of yours, or shared with you. Click it to switch to any workspace you are in: Home stays open and shows that workspace's projects. In the list, a workspace you own has a ⋯ menu with Rename & icon… and Delete workspace — your personal workspace can be renamed but never deleted — and one shared with you has Leave workspace. New workspace beside the name starts a fresh one, with its own Studio, and opens it on Home. In an account's first 72 hours it can own up to 4 workspaces; the limit lifts after that. As you get close to your 10 workspaces, the switcher shows how many you have used; at the limit, New workspace explains it and offers to start a team.
 
 The same switcher sits at the top of the sidebar. Switching from there takes you straight to the workspace's canvas instead.
+
+Most workspaces keep their first name, so someone else's that still has it is called by its owner's name, such as Sam Lee's workspace, with their initial on its tile; one they renamed says Owned by Sam Lee under its name. Among the ones shared with you, the one you opened last on this device comes first. When you are in several workspaces, a search field at the top of the switcher finds one by its name or by its owner's. The first match is already picked, so Enter switches to it; ↑ and ↓ move through the list, and Esc clears the search, then closes the switcher.
 
 Your clusters
 
@@ -3124,7 +3132,8 @@ Press Cmd-K or forward slash to open the command palette. It searches cluster na
 What it searches
 
 Recents — what you have had open
-Clusters — by name
+Clusters — by name, and one shared with you also by who shared it
+Workspaces — the other workspaces you are in, by their name or their owner's, while you type; choosing one switches to it
 Cards and notes — by title, and by the first 500 characters of their text
 Files — by the name the file was uploaded with, so a photo nobody captioned is found as diner_ext_dusk_04.jpg (photos and videos uploaded since names were kept; audio, PDFs and attachments always had theirs)
 Pictures — by what is in them. Each picture is described by an AI model a few minutes after it lands, so red car or night exterior finds the photo even when nobody named or captioned it. A picture found this way shows a small preview and says In the picture. Not in a workspace whose AI suggestions are off
@@ -3236,7 +3245,7 @@ Access can be granted at the workspace level instead of per board, which is the 
 
 A workspace has one owner, and can have any number of co-owners. The owner or a co-owner makes someone a co-owner from Settings → Members. Co-owners share the running of the workspace; deleting it and handing it to someone else stay with the owner.
 
-Clusters shared with you appear under Shared with me in the sidebar, grouped by whose workspace they came from.
+Clusters shared with you appear under Shared with me in the sidebar, grouped by the person who shared them, newest first; see the sidebar.
 
 What collaboration looks like in use
 
@@ -3529,6 +3538,8 @@ Add shortcut… | Puts a live shortcut to the file on one of your clusters
 Remove from Shared with me | Takes it off your list, with an undo. It changes nothing for the person who shared it
 
 By me lists what you have shared that is still shared, with the cluster each file is in and who can open it. Click a row to open its sharing dialog, or use its ⋯ menu: Manage sharing…, Copy link, or Stop sharing, which turns the link off and removes everyone you added, at once. Stopping has an undo that brings back the link and exactly the people it removed, and emails nobody again.
+
+When a tab holds more than a handful of files, a search field in the page's header narrows it: on With me by the file's name or who shared it, on By me by the file's name or its cluster. While you type it shows how many of the tab's files match; Esc or ✕ clears it, and switching tabs starts afresh.
 
 Save a copy
 

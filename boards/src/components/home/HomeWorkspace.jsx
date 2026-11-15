@@ -19,6 +19,8 @@ import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { workspaceMenuPlacement } from '../../lib/projectsHome.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import { initialOf } from '../../lib/graphemes.js';
+import { useWorkspaceOwners } from '../../hooks/useWorkspaceOwners.js';
+import { isOwnWorkspace, workspaceTitle, workspaceTileName } from '../../lib/sharedPeopleWords.js';
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
@@ -44,6 +46,7 @@ export function HomeWorkspace({
   const popRef = useRef(null);
   const inputRef = useRef(null);
   const open = !!place;
+  const owners = useWorkspaceOwners(workspaces, selfUserId);
 
   // The switcher follows its caret when the window changes size.
   useEffect(() => {
@@ -82,6 +85,8 @@ export function HomeWorkspace({
   const saved = (workspace.name || '').trim() || t`Workspace`;
   const name = saving || saved;
   const iconSrc = workspace.settings?.icon_url || '';
+  // Someone else's workspace still called by the default name reads as theirs.
+  const shownName = saving || workspaceTitle(workspace, { ownerName: owners.get(workspace.id)?.name ?? null, isOwn: isOwnWorkspace(workspace, selfUserId) });
 
   const startRename = () => { setPlace(null); setDraft(name); setRenaming(true); };
   const commit = async () => {
@@ -101,8 +106,8 @@ export function HomeWorkspace({
         {iconSrc ? (
           <span className="ch-ws-avatar is-img" aria-hidden="true"><R2Image src={iconSrc} alt="" /></span>
         ) : (
-          <span className="ch-ws-avatar" style={{ background: pickPresenceColor(workspace.id) }} aria-hidden="true">
-            {initialOf(name, '')}
+          <span className="ch-ws-avatar" style={{ background: owners.get(workspace.id)?.color || pickPresenceColor(workspace.id) }} aria-hidden="true">
+            {initialOf(saving || workspaceTileName(workspace, { ownerName: owners.get(workspace.id)?.name ?? null, isOwn: isOwnWorkspace(workspace, selfUserId) }), '')}
           </span>
         )}
         {renaming ? (
@@ -113,7 +118,7 @@ export function HomeWorkspace({
                    onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); } }} />
           </form>
         ) : (
-          <h1 className="ch-ws-name" title={name}>{name}</h1>
+          <h1 className="ch-ws-name" title={shownName}>{shownName}</h1>
         )}
         <button ref={triggerRef} type="button" className={`ch-ws-switch${open ? ' is-open' : ''}`} onClick={toggle}
                 aria-label={t`Switch workspace`} title={t`Switch workspace`} aria-haspopup="menu" aria-expanded={open}>

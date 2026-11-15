@@ -1335,6 +1335,10 @@ msgstr "{h}時間前"
 msgid "{heldElsewhere, plural, one {The file you dropped is in your other Clusters tab. Switch back to it to see it go on — you can close this one.} other {The # files you dropped are in your other Clusters tab. Switch back to it to see them go on — you can close this one.}}"
 msgstr "{heldElsewhere, plural, other {ドロップした#件のファイルは、もう一方のClustersのタブにあります。そのタブに切り替えると追加される様子を確認できます。このタブは閉じて構いません。}}"
 
+#: src/components/SidebarSharedBoards.jsx
+msgid "{hiddenN, plural, one {Show # more} other {Show # more}}"
+msgstr "{hiddenN, plural, other {さらに#件を表示}}"
+
 #: src/components/cards.jsx
 msgid "{hx} — click to edit · drag to reorder"
 msgstr "{hx}：クリックで編集 · ドラッグで並べ替え"
@@ -2172,6 +2176,10 @@ msgstr "ほか{overflow}件・日を開く"
 msgid "{owner} invited you."
 msgstr "{owner}さんから招待されました。"
 
+#: src/lib/sharedPeopleWords.js
+msgid "{owner}'s workspace"
+msgstr "{owner}さんのワークスペース"
+
 #: src/lib/dropRules.js
 msgid "{owner}’s workspace"
 msgstr "{owner}さんのワークスペース"
@@ -2514,6 +2522,7 @@ msgid "{shown} of {0, plural, one {# card} other {# cards}} came through"
 msgstr "{0, plural, other {#枚のカード}}のうち{shown}枚が届きました"
 
 #: src/components/ListSurface.jsx
+#: src/components/shared/SharedPage.jsx
 msgid "{shown} of {total}"
 msgstr "{total}件中{shown}件"
 
@@ -5813,6 +5822,8 @@ msgid "Clear out"
 msgstr "アウト点をクリア"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
+#: src/components/shared/SharedPage.jsx
+#: src/components/SidebarSharedBoards.jsx
 msgid "Clear search"
 msgstr "検索をクリア"
 
@@ -9616,10 +9627,6 @@ msgstr "タグを絞り込むか、新しい名前を入力…"
 msgid "Filter tags…"
 msgstr "タグを絞り込み…"
 
-#: src/components/WorkspaceMenu.jsx
-msgid "Filter workspaces…"
-msgstr "ワークスペースを絞り込み…"
-
 #: src/lib/filesView.js
 msgid "Filtered"
 msgstr "フィルター適用中"
@@ -9640,9 +9647,25 @@ msgstr "検索"
 msgid "Find a cluster"
 msgstr "クラスターを探す"
 
+#: src/components/SidebarSharedBoards.jsx
+msgid "Find a cluster or person…"
+msgstr "クラスターまたは人を検索…"
+
 #: src/components/MessagesPanel.jsx
 msgid "Find a conversation"
 msgstr "会話を検索"
+
+#: src/components/shared/SharedPage.jsx
+msgid "Find a file or cluster…"
+msgstr "ファイルまたはクラスターを検索…"
+
+#: src/components/shared/SharedPage.jsx
+msgid "Find a file or person…"
+msgstr "ファイルまたは人を検索…"
+
+#: src/components/WorkspaceMenu.jsx
+msgid "Find a workspace or person…"
+msgstr "ワークスペースまたは人を検索…"
 
 #: src/lib/powerReveals.js
 msgid "Find anything instantly — search every card and doc you’ve made."
@@ -10003,7 +10026,7 @@ msgstr "参加した友だち"
 msgid "From"
 msgstr "差出人"
 
-#: src/components/SidebarSharedBoards.jsx
+#: src/lib/sharedPeopleWords.js
 msgid "From {name}"
 msgstr "{name}から"
 
@@ -13787,8 +13810,8 @@ msgid "No waiting. Admins hear about each one."
 msgstr "待つ必要はありません。管理者には1件ずつ通知されます。"
 
 #: src/components/WorkspaceMenu.jsx
-msgid "No workspaces match \"{filter}\""
-msgstr "「{filter}」に一致するワークスペースはありません"
+msgid "No workspace or person matches “{q}”."
+msgstr "「{q}」に一致するワークスペースや人はいません。"
 
 #: src/lib/billingCopyWords.js
 msgid "No. Clusters runs in the browser on desktop, laptop and tablet, and the same board opens on all of them. You can add it to a phone home screen as a web app."
@@ -14100,6 +14123,10 @@ msgstr "まだ何もアップロードされていません。ファイルを削
 msgid "Nothing has been uploaded yet. This cluster is on its owner’s plan, so their plan sets the limit."
 msgstr "まだ何もアップロードされていません。このクラスターはオーナーのプランで運用されているため、上限はオーナーのプランで決まります。"
 
+#: src/components/shared/SharedPage.jsx
+msgid "Nothing here matches “{q}”."
+msgstr "「{q}」に一致するものはありません。"
+
 #: src/components/ListSurface.jsx
 msgid "Nothing here yet."
 msgstr "まだ何もありません。"
@@ -14211,6 +14238,10 @@ msgstr "解決済みのコメントはまだありません"
 #: src/components/cards/ScheduleWall.jsx
 msgid "Nothing scheduled"
 msgstr "予定なし"
+
+#: src/components/SidebarSharedBoards.jsx
+msgid "Nothing shared with you matches “{q}”."
+msgstr "あなたと共有されたものに「{q}」と一致するものはありません。"
 
 #: src/lib/downloadOps.js
 msgid "Nothing there could be downloaded."
@@ -15219,6 +15250,14 @@ msgstr "枠の色…"
 #: src/components/CanvasSurface.jsx
 msgid "Outline shape"
 msgstr "枠の形"
+
+#: src/lib/sharedPeopleWords.js
+msgid "Owned by {owner}"
+msgstr "{owner}さんが所有"
+
+#: src/lib/sharedPeopleWords.js
+msgid "Owned by {owner} · you co-own it"
+msgstr "{owner}さんが所有 · 共同オーナーです"
 
 #: src/components/settings/AccountEditorsCard.jsx
 #: src/components/ShareModal.jsx
@@ -18206,9 +18245,14 @@ msgstr "共有者"
 msgid "Shared by {by}"
 msgstr "{by}さんが共有"
 
+#: src/components/CommandPalette.jsx
 #: src/components/shared/SharedPage.jsx
 msgid "Shared by {name}"
 msgstr "{name}さんが共有"
+
+#: src/components/CommandPalette.jsx
+msgid "Shared by {name} · view only"
+msgstr "{name}さんが共有 · 閲覧のみ"
 
 #: src/App.jsx
 msgid "Shared by {sharedBy}"
@@ -18252,12 +18296,17 @@ msgstr "共有アイテム"
 #: src/components/setup/WorkspaceSetup.jsx
 #: src/components/WorkspaceMenu.jsx
 #: src/lib/homeMap.js
+#: src/lib/sharedPeopleWords.js
 msgid "Shared with you"
 msgstr "共有アイテム"
 
 #: src/components/WorkspaceMenu.jsx
 msgid "SHARED WITH YOU"
 msgstr "共有アイテム"
+
+#: src/lib/sharedPeopleWords.js
+msgid "Shared with you · you co-own it"
+msgstr "あなたと共有 · 共同オーナーです"
 
 #: src/components/CanvasSurface.jsx
 msgid "Shared with your workspace."
@@ -19573,6 +19622,11 @@ msgstr "画像から抽出したり、手で選んだりしたスウォッチで
 msgid "Sweep"
 msgstr "スイープ"
 
+#: src/components/CommandPalette.jsx
+msgctxt "Command palette badge: switch to this workspace"
+msgid "Switch"
+msgstr "切り替え"
+
 #: src/components/ListSurface.jsx
 msgid "Switch to Board to drop links or text onto a cluster."
 msgstr "リンクやテキストをクラスターにドロップするには、キャンバスに切り替えてください。"
@@ -19585,11 +19639,20 @@ msgstr "月額に切り替え"
 msgid "Switch to yearly"
 msgstr "年額に切り替え"
 
+#: src/App.jsx
 #: src/components/home/HomeWorkspace.jsx
 #: src/components/ProjectsHome.jsx
 #: src/components/WorkspaceMenu.jsx
 msgid "Switch workspace"
 msgstr "ワークスペースを切り替え"
+
+#: src/App.jsx
+msgid "Switch workspace · owned by {owner}"
+msgstr "ワークスペースを切り替え · {owner}さんが所有"
+
+#: src/App.jsx
+msgid "Switch workspace · shared with you"
+msgstr "ワークスペースを切り替え · あなたと共有"
 
 #: src/components/CustomFontsModal.jsx
 msgid "System"
@@ -21803,10 +21866,6 @@ msgstr "再表示"
 msgid "Unhide failed: {reason}"
 msgstr "再表示に失敗しました：{reason}"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Unknown"
-msgstr "不明"
-
 #: src/App.jsx
 msgid "unknown error"
 msgstr "不明なエラー"
@@ -23150,6 +23209,7 @@ msgstr "処理中…"
 #: src/components/ShareModal.jsx
 #: src/lib/boardsApi.js
 #: src/lib/gridLayoutWords.js
+#: src/lib/sharedPeopleWords.js
 #: src/pages/MakePage.jsx
 msgid "Workspace"
 msgstr "ワークスペース"
@@ -23198,6 +23258,7 @@ msgid "Workspace viewer"
 msgstr "ワークスペースの閲覧者"
 
 #: src/App.jsx
+#: src/components/CommandPalette.jsx
 #: src/lib/billingCopyWords.js
 msgid "Workspaces"
 msgstr "ワークスペース"
@@ -23378,6 +23439,7 @@ msgstr "ログインする前に、料金ページで選んでいただきまし
 #: src/components/ProjectsHome.jsx
 #: src/components/WorkspaceMenu.jsx
 #: src/lib/homeMap.js
+#: src/lib/sharedPeopleWords.js
 msgid "You co-own this"
 msgstr "共同オーナーです"
 

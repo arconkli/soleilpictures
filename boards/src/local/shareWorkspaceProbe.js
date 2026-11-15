@@ -17,6 +17,7 @@ import { WorkspaceMenu } from '../components/WorkspaceMenu.jsx';
 import { ShareModal } from '../components/ShareModal.jsx';
 import { MembersTab } from '../components/settings/MembersTab.jsx';
 import { FeedbackProvider } from '../components/AppFeedback.jsx';
+import { SidebarSharedBoards } from '../components/SidebarSharedBoards.jsx';
 
 // The app's provider (main.jsx) is not here, so the wrapped components get one.
 const mountIn = (el, tree) => ReactDOM.createRoot(el).render(React.createElement(I18nProvider, { i18n }, tree));
@@ -30,11 +31,11 @@ const host = () => {
 
 // Records what the menu asked the app to do on window.__shareProbe.
 export function mountWorkspaceMenu(props) {
-  const calls = { share: [], settings: [], remove: [], close: 0 };
+  const calls = { share: [], settings: [], remove: [], select: [], close: 0 };
   window.__shareProbe = calls;
   mountIn(host(), React.createElement(WorkspaceMenu, {
     triggerSelector: null,
-    onSelect: () => {},
+    onSelect: (id) => calls.select.push(id),
     onAddNew: () => {},
     onShare: (ws) => calls.share.push(ws.id),
     onOpenSettings: (ws) => calls.settings.push(ws.id),
@@ -59,5 +60,20 @@ export function mountMembersTab(props) {
     React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 9999, overflow: 'auto', background: 'var(--bg-0)' } },
       React.createElement('div', { style: { width: 680, padding: 16 } },
         React.createElement(MembersTab, props)))));
+  return true;
+}
+
+// The sidebar's "Shared with me" section, opened. Records the ids it was asked
+// to open on window.__sharedProbe.opened. Hosted in a sidebar-width box.
+export function mountSharedWithMe(props) {
+  const calls = { opened: [] };
+  window.__sharedProbe = calls;
+  try { localStorage.setItem('soleil.boards.sb.shared.expanded', JSON.stringify({ root: true, groups: {} })); } catch (_) {}
+  const el = host();
+  el.style.cssText = 'width:260px;padding:8px;background:var(--bg-1, var(--bg-0));position:fixed;top:0;left:0;max-height:100vh;overflow:auto;z-index:9999';
+  mountIn(el, React.createElement(SidebarSharedBoards, {
+    onOpenBoard: (id) => calls.opened.push(id),
+    ...props,
+  }));
   return true;
 }

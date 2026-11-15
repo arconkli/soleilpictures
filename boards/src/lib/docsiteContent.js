@@ -1724,7 +1724,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "You can belong to more than one workspace. The switcher at the top of the sidebar moves between them, and separates ones you own from ones shared with you."
+     "v": "You can belong to more than one workspace. The switcher at the top of the sidebar moves between them, separates ones you own from ones shared with you, and finds one by its name or by its owner's."
     }
    ]
   },
@@ -2421,7 +2421,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " is the fastest way to get anywhere. It searches cluster names, card contents, notes, docs and tags, and it also runs commands — \"share\", \"trash\", \"theme\", \"invite\" all work as typed input."
+     "v": " is the fastest way to get anywhere. It searches cluster names, card contents, notes, docs and tags, and it also runs commands — \"share\", \"trash\", \"theme\", \"invite\" all work as typed input. Type a person's name to switch to their workspace or open a cluster they shared with you."
     }
    ]
   },
@@ -21837,7 +21837,7 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " groups clusters other people have invited you to, by whose workspace they came from"
+      "v": " groups clusters other people have invited you to by the person who shared them, with a search field once there are many"
      }
     ]
    ]
@@ -22131,6 +22131,90 @@ export const DOCS_CONTENT = {
       "v": "."
      }
     ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Shared with me",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Shared with me"
+    }
+   ],
+   "id": "shared-with-me"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Shared with me",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shared with me"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " lists the clusters people shared with you on their own, grouped by the person who shared them ("
+    },
+    {
+     "t": "strong",
+     "v": "From Sam Lee",
+     "children": [
+      {
+       "t": "text",
+       "v": "From Sam Lee"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", with their initial), or by their workspace's name when who shared it isn't known. Whoever shared with you most recently comes first, and in each group the newest cluster does. A person who shared many shows their newest few, with "
+    },
+    {
+     "t": "strong",
+     "v": "Show more",
+     "children": [
+      {
+       "t": "text",
+       "v": "Show more"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for the rest; the cluster you have open always stays in view."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Once the list grows long, a search field sits at the top of it. It finds a cluster by its name, by who shared it, or by their workspace's name, and opens every group while you type. "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " opens the first match and "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " clears the search."
+    }
    ]
   },
   {
@@ -26876,6 +26960,75 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "The same switcher sits at the top of the sidebar. Switching from there takes you straight to the workspace's canvas instead."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Most workspaces keep their first name, so someone else's that still has it is called by its owner's name, such as "
+    },
+    {
+     "t": "strong",
+     "v": "Sam Lee's workspace",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sam Lee's workspace"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", with their initial on its tile; one they renamed says "
+    },
+    {
+     "t": "strong",
+     "v": "Owned by Sam Lee",
+     "children": [
+      {
+       "t": "text",
+       "v": "Owned by Sam Lee"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " under its name. Among the ones shared with you, the one you opened last on this device comes first. When you are in several workspaces, a search field at the top of the switcher finds one by its name or by its owner's. The first match is already picked, so "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " switches to it; "
+    },
+    {
+     "t": "code",
+     "v": "↑"
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "code",
+     "v": "↓"
+    },
+    {
+     "t": "text",
+     "v": " move through the list, and "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " clears the search, then closes the switcher."
     }
    ]
   },
@@ -33524,7 +33677,23 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " — by name"
+      "v": " — by name, and one shared with you also by who shared it"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Workspaces",
+      "children": [
+       {
+        "t": "text",
+        "v": "Workspaces"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — the other workspaces you are in, by their name or their owner's, while you type; choosing one switches to it"
      }
     ],
     [
@@ -34830,7 +34999,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the sidebar, grouped by whose workspace they came from."
+     "v": " in the sidebar, grouped by the person who shared them, newest first; see "
+    },
+    {
+     "t": "link",
+     "v": "the sidebar",
+     "href": "/docs/clusters/sidebar#shared-with-me",
+     "children": [
+      {
+       "t": "text",
+       "v": "the sidebar"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -38942,6 +39126,65 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": ", which turns the link off and removes everyone you added, at once. Stopping has an undo that brings back the link and exactly the people it removed, and emails nobody again."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "When a tab holds more than a handful of files, a search field in the page's header narrows it: on "
+    },
+    {
+     "t": "strong",
+     "v": "With me",
+     "children": [
+      {
+       "t": "text",
+       "v": "With me"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " by the file's name or who shared it, on "
+    },
+    {
+     "t": "strong",
+     "v": "By me",
+     "children": [
+      {
+       "t": "text",
+       "v": "By me"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " by the file's name or its cluster. While you type it shows how many of the tab's files match; "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "✕",
+     "children": [
+      {
+       "t": "text",
+       "v": "✕"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " clears it, and switching tabs starts afresh."
     }
    ]
   },

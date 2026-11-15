@@ -19,6 +19,7 @@
 // no container tiles. Pure and node-testable, like depthDock.js.
 
 import { t } from '@lingui/core/macro';
+import { UNNAMED_WORKSPACE } from './sharedPeople.js';
 
 export const FIRST_BOARD_WORDS = Object.freeze(['reference wall', 'moodboard', 'storyboard', 'lookbook', 'shot list']);
 
@@ -54,10 +55,6 @@ const HINT_FRAMES = () => t`Paste or drag images from any tab, or drop a folder 
 // goes with coming back once how much was added is accounted for.
 const HINT_LINKS = () => t`Paste images or links from any tab, or drop a whole folder`;
 const HINT_FRAMES_LINKS = () => t`Paste images or links from any tab, or drop a folder of frames`;
-
-// What every workspace was called before the setup asked for a name. Read
-// back to a joiner it would sound like a name someone chose.
-const UNNAMED_WORKSPACE = 'Personal Workspace';
 
 const clean = (s, max) => (typeof s === 'string' ? s.replace(/\s+/g, ' ').trim().slice(0, max) : '');
 
