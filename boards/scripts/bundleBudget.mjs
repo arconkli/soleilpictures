@@ -148,7 +148,11 @@ export const CEILINGS = {
   // (dir=auto), links that keep their own direction, and Impact named for
   // Latin only, so a title in another script draws in a font that has it.
   // 96,771 B on main ba2e6e95, 97,135 B with it.
-  entryCss: 97_200,
+  // Production only (release 2026-11-15): +0.2 KB for the line under the
+  // sign-in wordmark and the tour's welcome block (ac341a6b) with layout
+  // outlines' rules (d2b3c2f0). A CI-style build on this release's own npm ci
+  // read 97.3 KB. Main carries the same 97_400 for the same rules.
+  entryCss: 97_400,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
   // they draw (vite.config.js iconSplit), from 687 KB.
@@ -375,7 +379,13 @@ export const CEILINGS = {
   // character maps load only where they are used. A CI-style build on this
   // worktree's own npm ci measured appJs 735,343 B on main ba2e6e95 and
   // 743,320 B with it; the ceiling moves by the difference, 7,977 B.
-  appJs: 743_900,
+  // Production only (release 2026-11-15): +3.5 KB for layout outlines' ask
+  // and canvas tool counts (d2b3c2f0, 3e9c82c5), haptics on touch with
+  // @capacitor/haptics (4add2b17) and the tour's welcome block (ac341a6b),
+  // less the "New idea?" toast (a6691905). A CI-style build on this
+  // release's own npm ci read 746.7 KB; main's ceiling is higher because it
+  // also carries the languages.
+  appJs: 747_400,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).
