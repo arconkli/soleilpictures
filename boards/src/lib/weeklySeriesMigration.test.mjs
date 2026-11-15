@@ -59,7 +59,10 @@ const defOf = (fn) => {
 
 // 0851 restated _admin_people to leave service accounts out
 // (adminServiceAccountsMigration.test.mjs: the body before it plus one clause).
-const LATER = { _admin_people: '0851_admin_people_skip_service.sql' };
+// 0886 restated admin_markers to leave one more ops kind out
+// (discoveryAlertKind.test.mjs: 0372's body plus that kind).
+const LATER = { _admin_people: '0851_admin_people_skip_service.sql',
+                admin_markers: '0886_discovery_alerts_own_kind_one_until_seen.sql' };
 
 // The same shape latestDefinition matches, scoped to one file's text.
 function definitionIn(sql, fn) {
@@ -273,12 +276,13 @@ test('admin_markers reads notes, collapses repeated alerts, and leaves routine o
   assert.match(cteIn(body, 'disc'),
     /case when count\(\*\) = 1 then r\.name\s+else r\.name \|\| ' \(' \|\| count\(\*\) \|\| ' days\)' end as label/,
     'a one-day discovery run is its name; a longer one says how many days');
-  // Five kinds are not markers. email_health is raised by _discovery_alert for
-  // every discovery row (0369), so it would twin each discovery marker.
+  // Six kinds are not markers. email_health and discovery (0886) are raised by
+  // _discovery_alert beside every discovery row (0369), so each would twin a
+  // discovery marker.
   assert.match(cteIn(body, 'ops_days'),
-    /oa\.kind not in \('heartbeat', 'test', 'held_reminder', 'signups', 'email_health'\)/,
-    'the exclusion tests the kind, and names all five');
-  for (const k of ["'heartbeat'", "'test'", "'held_reminder'", "'signups'", "'email_health'"]) {
+    /oa\.kind not in \('heartbeat', 'test', 'held_reminder', 'signups', 'email_health', 'discovery'\)/,
+    'the exclusion tests the kind, and names all six');
+  for (const k of ["'heartbeat'", "'test'", "'held_reminder'", "'signups'", "'email_health'", "'discovery'"]) {
     assert.ok(body.includes(k), `${k} is excluded`);
   }
   assert.match(body, /order by m\.day, m\.source, m\.label/);
