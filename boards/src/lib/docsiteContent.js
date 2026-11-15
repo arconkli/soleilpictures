@@ -564,6 +564,42 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Help",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Help"
+    }
+   ],
+   "id": "help"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "If something is not working or you cannot find it here, "
+    },
+    {
+     "t": "link",
+     "v": "Help and support",
+     "href": "/docs/account/support",
+     "children": [
+      {
+       "t": "text",
+       "v": "Help and support"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " says who to email and what to include, how to disconnect an AI app, and how to restore a deleted cluster."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "What changed, and when",
    "inline": [
     {
@@ -53431,6 +53467,102 @@ export const DOCS_CONTENT = {
      "t": "text",
      "v": " returns this list plus your current scopes, so the one URL a person types by hand answers usefully."
     }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Comments, docs and tags",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Comments, docs and tags"
+    }
+   ],
+   "id": "comments-docs-and-tags"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Three groups of endpoints have a page of their own:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "[Comments](/docs/api/comments)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Comments",
+        "href": "/docs/api/comments",
+        "children": [
+         {
+          "t": "text",
+          "v": "Comments"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — read every thread on a board, docs included, and add, reply, resolve or delete"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "[Docs](/docs/api/docs)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Docs",
+        "href": "/docs/api/docs",
+        "children": [
+         {
+          "t": "text",
+          "v": "Docs"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — read and write a doc card's pages as Markdown, without overwriting anyone's changes"
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "[Tags](/docs/api/tags)",
+      "children": [
+       {
+        "t": "link",
+        "v": "Tags",
+        "href": "/docs/api/tags",
+        "children": [
+         {
+          "t": "text",
+          "v": "Tags"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — list a workspace's tags, see what carries one, and tag cards or untag them"
+     }
+    ]
    ]
   },
   {

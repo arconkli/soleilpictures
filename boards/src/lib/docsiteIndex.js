@@ -84,6 +84,10 @@ export const DOCS_PAGES = [
         "text": "Guides, by what you are making"
       },
       {
+        "id": "help",
+        "text": "Help"
+      },
+      {
         "id": "what-changed-and-when",
         "text": "What changed, and when"
       },
@@ -3303,6 +3307,10 @@ export const DOCS_PAGES = [
       {
         "id": "endpoints",
         "text": "Endpoints"
+      },
+      {
+        "id": "comments-docs-and-tags",
+        "text": "Comments, docs and tags"
       },
       {
         "id": "authentication",

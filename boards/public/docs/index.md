@@ -57,6 +57,12 @@ of board, start to finish.
 - For production departments: [Shared reference boards for art teams](/tools/shared-reference-board) · [Director’s treatment](/tools/directors-treatment) · [Production design](/tools/production-design-mood-board) · [Costume design](/tools/costume-design-mood-board) · [Cinematography lookbook](/tools/cinematography-lookbook)
 - [Coming from another tool](/docs/migrating) — PureRef, Milanote, Miro and the rest
 
+## Help
+
+If something is not working or you cannot find it here, [Help and support](/docs/account/support)
+says who to email and what to include, how to disconnect an AI app, and how to
+restore a deleted cluster.
+
 ## What changed, and when
 
 These pages describe the product as it is today. They do not say when any of it
