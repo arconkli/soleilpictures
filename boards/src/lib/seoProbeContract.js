@@ -256,6 +256,10 @@ export const SEO_PROBE_CONTRACT = [
     expected: '200', source: { kind: 'status', path: '/vs/miro' } },
   { id: 109, path: '/vs/miro', check: 'miro compare title', kind: 'title',
     expected: 'Miro Alternative', source: { kind: 'title', path: '/vs/miro' } },
+  { id: 110, path: '/scout', check: 'scout loads', kind: 'status',
+    expected: '200', source: { kind: 'status', path: '/scout' } },
+  { id: 111, path: '/scout', check: 'scout title', kind: 'title',
+    expected: 'Soleil Scout', source: { kind: 'title', path: '/scout' } },
 ];
 
 // Search pages with no row in seo_health_expectations, each with its reason.
@@ -264,10 +268,7 @@ export const SEO_PROBE_CONTRACT = [
 // above nor here, so a new page cannot ship unwatched by accident. An entry
 // here is a decision someone made, never a way to quiet the test: add the DB
 // rows and the mirror instead.
-export const SEO_PROBE_UNWATCHED = [
-  { path: '/scout',
-    why: 'not one of the twelve pages 0883 added; the page is live and listed, so it still needs a status row and a title row' },
-];
+export const SEO_PROBE_UNWATCHED = [];
 
 // Deliberately NOT pinned: their `expected` is live database content, not
 // anything in this repo, so no local test can speak for them. Listed so the

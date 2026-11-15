@@ -209,12 +209,12 @@ test('every landing and listicle page has a prober row or a stated reason', () =
   }
 });
 
-test('the twelve pages of 0883 each carry a status row and a title row', () => {
-  const added = SEO_PROBE_CONTRACT.filter((r) => r.id >= 86 && r.id <= 109);
-  assert.equal(added.length, 24, '0883 pins ids 86 to 109');
+test('the thirteen pages of 0883 each carry a status row and a title row', () => {
+  const added = SEO_PROBE_CONTRACT.filter((r) => r.id >= 86 && r.id <= 111);
+  assert.equal(added.length, 26, '0883 pins ids 86 to 111');
   const byPath = new Map();
   for (const r of added) byPath.set(r.path, [...(byPath.get(r.path) || []), kindOf(r)]);
-  assert.equal(byPath.size, 12);
+  assert.equal(byPath.size, 13);
   for (const [path, kinds] of byPath) {
     assert.deepEqual(kinds.sort(), ['status', 'title'], `${path}: one status row and one title row`);
   }
@@ -227,7 +227,7 @@ test('the contract and migration 0883 pin the same rows', () => {
   const insert = sql.slice(sql.indexOf('from (values'), sql.indexOf(') as v(id, url, check_name, kind, expected)'));
   const pinned = [...insert.matchAll(/\(\s*(\d+),\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']+)'\)/g)]
     .map(([, id, url, check, kind, expected]) => ({ id: Number(id), url, check, kind, expected }));
-  assert.equal(pinned.length, 24, 'could not read 24 rows out of 0883');
+  assert.equal(pinned.length, 26, 'could not read 26 rows out of 0883');
   for (const p of pinned) {
     const row = SEO_PROBE_CONTRACT.find((r) => r.id === p.id);
     assert.ok(row, `0883 pins id=${p.id} and the contract has no such row`);
