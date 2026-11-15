@@ -883,7 +883,7 @@ body.sbf-sizing .app,
   /* A finger-sized chevron that still draws where the text starts, names
      where they are with a mouse. */
   .app.sb-files .sb-tree-row.is-files .sb-tree-chev { width: 32px; height: 40px; margin: 0 -10px 0 -10px; }
-  .app.sb-files .sb-boards-add, .app.sb-files .sb-tags-add { opacity: 1; width: 36px; height: 36px; }
+  .app.sb-files .sb-boards-add, .app.sb-files .sb-tags-add { opacity: 1; width: 40px; height: 40px; margin-right: -2px; }
   .sbf-quickbtn { height: 44px; font-size: 15px; }
   .app.sb-files .sb-tag-row { height: 44px; font-size: 15px; }
   .sb-mid-search, .app.sb-files .sb-top .sb-mid-collapse { width: 40px; height: 40px; }

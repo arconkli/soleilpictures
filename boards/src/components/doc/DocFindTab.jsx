@@ -11,6 +11,7 @@ import {
   DOC_ORIGIN, getDocUndoManager, pageContentMap, sheetContentMap, pagesArray,
 } from '../../lib/docState.js';
 import { undoToast } from '../../lib/undoToast.js';
+import { coarsePointer } from '../../lib/noteTouchTyping.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import { Search, ArrowsLeftRight, ChevronUp, ChevronDown } from '../../lib/icons.js';
 import { t as tt, ph, plural } from '@lingui/core/macro';
@@ -318,7 +319,9 @@ export function DocFindTab({
           : tt`${plural(n, { one: 'Replaced # match', other: 'Replaced # matches' })}`),
       onUndo: () => {
         if (steps.some(({ um, item }) => um.undoStack[um.undoStack.length - 1] !== item)) {
-          feedback.toast({ type: 'info', message: tt`The document changed since — press ⌘Z to step back instead.` });
+          feedback.toast({ type: 'info', message: coarsePointer()
+            ? tt`The document changed since — use Undo to step back instead.`
+            : tt`The document changed since — press ⌘Z to step back instead.` });
           return;
         }
         steps.forEach(({ um }) => um.undo());

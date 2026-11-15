@@ -4935,6 +4935,10 @@ msgid "At least {TEAM_SEAT_MIN}. Add more any time; seats nobody uses drop at re
 msgstr "At least {TEAM_SEAT_MIN}. Add more any time; seats nobody uses drop at renewal."
 
 #: src/components/home/ClustersHome.jsx
+msgid "At the top of {wsName}"
+msgstr "At the top of {wsName}"
+
+#: src/components/home/ClustersHome.jsx
 msgid "At the top of {wsName} · Enter to make it and go in"
 msgstr "At the top of {wsName} · Enter to make it and go in"
 
@@ -5257,6 +5261,10 @@ msgstr "Bold"
 #: src/components/ShortcutsOverlay.jsx
 msgid "Bold · italic · underline"
 msgstr "Bold · italic · underline"
+
+#: src/lib/helpHub.js
+msgid "Bold, lists, and @-mentions of other cards."
+msgstr "Bold, lists, and @-mentions of other cards."
 
 #: src/lib/inviteRewardWords.js
 msgid "Bonuses go to each person’s own account, add to any plan and never expire."
@@ -8806,10 +8814,6 @@ msgstr "Drafts are deleted a while after their last change, and nobody kept this
 msgid "Drag a card onto a board card to nest it inside."
 msgstr "Drag a card onto a board card to nest it inside."
 
-#: src/components/CanvasSurface.jsx
-msgid "drag an image in · or long-press the canvas to add"
-msgstr "drag an image in · or long-press the canvas to add"
-
 #: src/components/OnboardingCoachmark.jsx
 msgid "Drag an image in, paste, or hit Image on the left to start your moodboard."
 msgstr "Drag an image in, paste, or hit Image on the left to start your moodboard."
@@ -10940,6 +10944,10 @@ msgstr "Hide the banner for 1 hour without acknowledging the alert"
 #: src/components/doc/DocBarA.jsx
 msgid "Hide the keyboard"
 msgstr "Hide the keyboard"
+
+#: src/components/settings/AppearanceTab.jsx
+msgid "Hide the sidebar, toolbar, breadcrumb, and overlays."
+msgstr "Hide the sidebar, toolbar, breadcrumb, and overlays."
 
 #: src/components/settings/AppearanceTab.jsx
 msgid "Hide the sidebar, toolbar, breadcrumb, and overlays. ⌘. toggles."
@@ -14004,6 +14012,10 @@ msgstr "No conversations match “{trim}”."
 msgid "No conversations yet. Click <0><1/></0> to start one."
 msgstr "No conversations yet. Click <0><1/></0> to start one."
 
+#: src/components/MessagesPanel.jsx
+msgid "No conversations yet. Tap <0><1/></0> to start one."
+msgstr "No conversations yet. Tap <0><1/></0> to start one."
+
 #: src/lib/billingCopyWords.js
 msgid "No credit card. Nothing to install."
 msgstr "No credit card. Nothing to install."
@@ -15215,6 +15227,10 @@ msgstr "Open **Google Takeout**, choose **Deselect all**, then select **Google P
 #: src/App.jsx
 msgid "Open a board in split view…"
 msgstr "Open a board in split view…"
+
+#: src/components/TagDetailView.jsx
+msgid "Open a card's menu and choose Tag…."
+msgstr "Open a card's menu and choose Tag…."
 
 #: src/App.jsx
 msgid "Open a cluster…"
@@ -16503,6 +16519,10 @@ msgstr "Press A. Arrows anchor to cards and follow them when you move things."
 #: src/components/CanvasSurface.jsx
 msgid "Press and hold a card to pick it up and move it."
 msgstr "Press and hold a card to pick it up and move it."
+
+#: src/components/ShortcutsOverlay.jsx
+msgid "Press and hold the canvas or any card for more actions."
+msgstr "Press and hold the canvas or any card for more actions."
 
 #: src/components/TagPicker.jsx
 msgid "Press Enter to create this tag"
@@ -20317,6 +20337,10 @@ msgid "Tap + then New cluster to group these — drag photos in, name it."
 msgstr "Tap + then New cluster to group these — drag photos in, name it."
 
 #: src/components/CanvasSurface.jsx
+msgid "tap + to add · or press and hold"
+msgstr "tap + to add · or press and hold"
+
+#: src/components/CanvasSurface.jsx
 msgid "Tap a card to attach, or empty space to drop a comment"
 msgstr "Tap a card to attach, or empty space to drop a comment"
 
@@ -20335,6 +20359,10 @@ msgstr "Tap a star to see it · Double-tap to open it"
 #: src/components/OnboardingCoachmark.jsx
 msgid "Tap a tool on the toolbar at the left, or long-press the canvas, to add your first card."
 msgstr "Tap a tool on the toolbar at the left, or long-press the canvas, to add your first card."
+
+#: src/components/CanvasSurface.jsx
+msgid "Tap an image to sample a color."
+msgstr "Tap an image to sample a color."
 
 #: src/components/CanvasSurface.jsx
 msgid "Tap cards to select"
@@ -20950,6 +20978,10 @@ msgstr "The demo account signs in with its password."
 msgid "The doc changed since — press ⌘Z to step back instead."
 msgstr "The doc changed since — press ⌘Z to step back instead."
 
+#: src/components/doc/DocTableBar.jsx
+msgid "The doc changed since — use Undo to step back instead."
+msgstr "The doc changed since — use Undo to step back instead."
+
 #: src/components/DocSurface.jsx
 msgid "The document changed since — press ⌘Z in it to step back instead."
 msgstr "The document changed since — press ⌘Z in it to step back instead."
@@ -20958,6 +20990,15 @@ msgstr "The document changed since — press ⌘Z in it to step back instead."
 #: src/components/DocFindReplace.jsx
 msgid "The document changed since — press ⌘Z to step back instead."
 msgstr "The document changed since — press ⌘Z to step back instead."
+
+#: src/components/DocSurface.jsx
+msgid "The document changed since — use Undo in it to step back instead."
+msgstr "The document changed since — use Undo in it to step back instead."
+
+#: src/components/doc/DocFindTab.jsx
+#: src/components/DocFindReplace.jsx
+msgid "The document changed since — use Undo to step back instead."
+msgstr "The document changed since — use Undo to step back instead."
 
 #: src/components/DocOpening.jsx
 msgid "The document opens as soon as it arrives. If your connection dropped, reload the page."
@@ -22747,6 +22788,10 @@ msgstr "Upload a folder — its folders become clusters"
 #: src/components/info/VersionsSection.jsx
 msgid "Upload a new version of this file"
 msgstr "Upload a new version of this file"
+
+#: src/components/DocInsertMenu.jsx
+msgid "Upload a picture"
+msgstr "Upload a picture"
 
 #: src/components/film/FilmPlayer.jsx
 msgid "Upload a version"

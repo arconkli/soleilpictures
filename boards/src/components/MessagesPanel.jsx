@@ -19,6 +19,7 @@ import { pickPresenceColor } from '../lib/presenceColor.js';
 import { usePanelPresence } from './MessagesPresence.jsx';
 import { useLongPress } from '../hooks/useLongPress.js';
 import { useKeyboardInset } from '../hooks/useKeyboardInset.js';
+import { useMatchMedia } from '../hooks/useMatchMedia.js';
 import { swallowNextClick } from '../lib/swallowClick.js';
 import { touchKeyboard, isComposingKey } from '../lib/composerKeys.js';
 import { initialOf, cutGraphemes } from '../lib/graphemes.js';
@@ -58,6 +59,8 @@ export function MessagesPanel({
   presentUserIds = null,
 }) {
   const userId = currentUser?.id;
+  // Under a finger the empty list says Tap, not Click.
+  const coarse = useMatchMedia('(pointer: coarse)');
   const {
     conversations, participantsByConv, myStateByConv, unreadByConv, loaded, failed, retry,
   } = useConversationList({ workspaceId, userId, refreshTick });
@@ -349,7 +352,9 @@ export function MessagesPanel({
         )}
         {loaded && !failed && visibleConversations.length === 0 && (
           <div className="msg-empty t-meta">
-            <Trans>No conversations yet. Click <span className="msg-empty-plus"><Icon as={Plus} size={11} /></span> to start one.</Trans>
+            {coarse
+              ? <Trans>No conversations yet. Tap <span className="msg-empty-plus"><Icon as={Plus} size={11} /></span> to start one.</Trans>
+              : <Trans>No conversations yet. Click <span className="msg-empty-plus"><Icon as={Plus} size={11} /></span> to start one.</Trans>}
           </div>
         )}
         {card && find.trim() && visibleConversations.length > 0 && shownConversations.length === 0 && (

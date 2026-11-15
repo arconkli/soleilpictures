@@ -355,6 +355,13 @@
 .sb-foot-link, .sb-foot-email { pointer-events: auto; color: var(--ink-3); text-decoration: none; white-space: nowrap;
   transition: color var(--dur-base) var(--ease); }
 .sb-foot-link:hover, .sb-foot-email:hover { color: var(--soleil); }
+/* Under a finger, where the footer is one row (wider than a phone), each
+   link is 40px tall to a finger and the row keeps its height. A phone stacks
+   the links over the email 17px apart: no room there without the two rows'
+   areas overlapping. */
+@media (pointer: coarse) and (min-width: 641px) {
+  .sb-foot-link, .sb-foot-email { padding: 13px 2px; margin: -13px 0; }
+}
 
 /* long emails truncate in the code step so they never overflow the box */
 .sb-frost .auth-email-row { max-width: 100%; }

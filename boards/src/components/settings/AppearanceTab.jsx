@@ -18,6 +18,7 @@ import { useHapticsEnabled } from '../HapticTap.jsx';
 import { setHapticsEnabled, isTouchDevice, hapticsAvailable, usesSwitchTrick } from '../../lib/haptics.js';
 import { Field, Toggle, SettingsCategory, AccentPicker, FontField } from './fields.jsx';
 import { useSettingsSave } from './saveState.jsx';
+import { useMatchMedia } from '../../hooks/useMatchMedia.js';
 import { overlayPending, settlePending } from './pendingPatch.js';
 import { LOCALES, LOCALE_NAMES } from '../../lib/i18n.js';
 import { effectiveLocale, followAccountLocale } from '../../lib/accountLocale.js';
@@ -37,6 +38,10 @@ const THEME_MODES = [
 export function AppearanceTab({ mySettings, refresh }) {
   const { t } = useLingui();
   const save = useSettingsSave();
+  // A finger has no wheel and no W A S D: those rows, and the ⌘. hint, are a
+  // computer's.
+  const coarse = useMatchMedia('(pointer: coarse)');
+  const showHaptics = isTouchDevice() && hapticsAvailable();
   // `ui` is the fetched copy with our unconfirmed writes on top. The RPC
   // replaces the whole `ui` key, so building a write from the fetched copy
   // alone let a second quick change revert the first (pendingPatch.js).
@@ -157,7 +162,9 @@ export function AppearanceTab({ mySettings, refresh }) {
       <SettingsCategory title={t`Layout`} desc={t`What's on screen when you start`}>
         <Toggle
           label={t`Clean mode`}
-          desc={t`Hide the sidebar, toolbar, breadcrumb, and overlays. ⌘. toggles.`}
+          desc={coarse
+            ? t`Hide the sidebar, toolbar, breadcrumb, and overlays.`
+            : t`Hide the sidebar, toolbar, breadcrumb, and overlays. ⌘. toggles.`}
           value={!!ui.hideChrome}
           onChange={(v) => {
             if (v) document.body.setAttribute('data-clean-mode', '1');
@@ -178,7 +185,9 @@ export function AppearanceTab({ mySettings, refresh }) {
           Applied synchronously as well as saved: the canvas reads the module,
           not this component, so the gesture changes under the user's hand
           rather than after the profile round-trip. */}
+      {(!coarse || showHaptics) && (
       <SettingsCategory title={t`Canvas`} desc={t`How the canvas answers your hands`}>
+        {!coarse && (<>
         <Field label={t`Scroll wheel`}>
           <div className="settings-pill-row">
             {WHEEL_MODES.map((m) => (
@@ -213,8 +222,9 @@ export function AppearanceTab({ mySettings, refresh }) {
             setUi({ wasdPan: v });
             try { logEvent(EV.WASD_PAN_SET, { on: v }); } catch (_) {}
           }} />
+        </>)}
 
-        {isTouchDevice() && hapticsAvailable() && (
+        {showHaptics && (
           <Toggle
             label={t`Vibration`}
             desc={usesSwitchTrick()
@@ -224,6 +234,7 @@ export function AppearanceTab({ mySettings, refresh }) {
             onChange={(v) => setHapticsEnabled(v)} />
         )}
       </SettingsCategory>
+      )}
     </div>
   );
 }

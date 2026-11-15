@@ -194,6 +194,11 @@ body:has(.tob) .atr-slim { bottom: calc(68px + 54px + 8px + var(--safe-bottom, e
 .atr-row.is-touch.is-fail { height: 50px; }
 .atr-row.is-touch .imptray-ib.atr-ib { width: 36px; height: 36px; }
 .atr-row.is-touch .atr-ib-gap { width: 36px; }
+/* Under a finger a row's own button takes 40, the row's height. */
+@media (pointer: coarse) {
+  .atr-row.is-touch .imptray-ib.atr-ib { width: 40px; height: 40px; }
+  .atr-row.is-touch .atr-ib-gap { width: 40px; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .atr-glyph.is-turn svg,

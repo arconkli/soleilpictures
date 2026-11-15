@@ -789,6 +789,13 @@ body:is([data-clean-mode='1'], [data-focus-mode='1'], [data-capture-clean='1']) 
 @media (hover: none) and (pointer: coarse) {
   :root[data-tb='a'] .ic-actions .ic-act { width: 32px; height: 32px; min-width: 32px; min-height: 32px; border-radius: 8px; }
 }
+/* Under a finger each of the 32px buttons takes 40: 8px apart with a clear
+   4px rim, so no two areas meet (styles.css gives the rim its ::before). */
+@media (pointer: coarse) {
+  :root[data-tb='a'] .ic-actions { gap: 8px; padding: 3px 7px; }
+  :root[data-tb='a'] .ic-actions .ic-act { width: 32px; height: 32px; min-width: 32px; min-height: 32px; border-radius: 8px; }
+  :root[data-tb='a'] .ic-actions .ic-act::before { inset: -4px; }
+}
 
 /* ── The PDF viewer's bar (PdfViewer.jsx): on the viewer's dark room, so
    light ink in both themes; page and zoom each a small island of their own,

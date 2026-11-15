@@ -11,6 +11,7 @@ import { Modal } from './Modal.jsx';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { coarsePointer } from '../lib/noteTouchTyping.js';
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
@@ -190,8 +191,11 @@ const SECTIONS = () => [
   },
 ];
 
+// A finger has no right-click: its first tip says press and hold.
 const TIPS = () => [
-  t`Right-click the canvas or any card for more actions.`,
+  coarsePointer()
+    ? t`Press and hold the canvas or any card for more actions.`
+    : t`Right-click the canvas or any card for more actions.`,
   t`Drag a card onto a board card to nest it inside.`,
   t`Hold Alt while dragging to ignore snapping; hold ${CMD} while resizing an image to break its aspect ratio.`,
 ];

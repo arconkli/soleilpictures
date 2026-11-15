@@ -630,3 +630,15 @@ body[data-sb-files] .sheet-root.msg-sheet .msg-sheet-emoji {
 }
 body[data-sb-files] .sheet-root.msg-sheet .msg-sheet-emoji.is-on { background: var(--mc-own-soft); box-shadow: inset 0 0 0 1px var(--mc-own-edge); }
 body[data-sb-files] .sheet-root.msg-sheet .msg-sheet-actions button { min-height: 50px; font: 500 16px/1 var(--font-sans); }
+/* Under a finger: the head's icons stay 28px and take 40 (12px apart, so two
+   side by side don't share any of it); the composer's buttons are 40px. */
+@media (pointer: coarse) {
+  .msg-panel-icon { position: relative; }
+  .msg-panel-icon::before { content: ''; position: absolute; inset: -6px; }
+  .msg-panel-icon + .msg-panel-icon { margin-left: 10px; }
+  /* That area stays off the search field, and off the title beside Back. */
+  body[data-sb-files] .msg-search.is-head { margin: 0 6px; }
+  body[data-sb-files] .msg-panel-head > .msg-panel-icon:first-child { margin-right: 6px; }
+  body[data-sb-files] .msg-composer-field .msg-composer-btn,
+  body[data-sb-files] .msg-composer-send.is-icon { width: 40px; height: 40px; }
+}

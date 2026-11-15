@@ -4935,6 +4935,10 @@ msgid "At least {TEAM_SEAT_MIN}. Add more any time; seats nobody uses drop at re
 msgstr "No mínimo {TEAM_SEAT_MIN}. Adicione mais quando quiser; assentos que ninguém usa são removidos na renovação."
 
 #: src/components/home/ClustersHome.jsx
+msgid "At the top of {wsName}"
+msgstr "No topo de {wsName}"
+
+#: src/components/home/ClustersHome.jsx
 msgid "At the top of {wsName} · Enter to make it and go in"
 msgstr "No topo de {wsName} · Enter para criar e entrar"
 
@@ -5257,6 +5261,10 @@ msgstr "Negrito"
 #: src/components/ShortcutsOverlay.jsx
 msgid "Bold · italic · underline"
 msgstr "Negrito · itálico · sublinhado"
+
+#: src/lib/helpHub.js
+msgid "Bold, lists, and @-mentions of other cards."
+msgstr "Negrito, listas e @menções a outros cartões."
 
 #: src/lib/inviteRewardWords.js
 msgid "Bonuses go to each person’s own account, add to any plan and never expire."
@@ -8806,10 +8814,6 @@ msgstr "Os rascunhos são excluídos algum tempo depois da última alteração, 
 msgid "Drag a card onto a board card to nest it inside."
 msgstr "Arraste um cartão sobre um cartão de cluster para aninhá-lo dentro."
 
-#: src/components/CanvasSurface.jsx
-msgid "drag an image in · or long-press the canvas to add"
-msgstr "arraste uma imagem · ou pressione e segure a tela para adicionar"
-
 #: src/components/OnboardingCoachmark.jsx
 msgid "Drag an image in, paste, or hit Image on the left to start your moodboard."
 msgstr "Arraste uma imagem, cole ou toque em Imagem à esquerda para começar seu moodboard."
@@ -10940,6 +10944,10 @@ msgstr "Ocultar o banner por 1 hora sem reconhecer o alerta"
 #: src/components/doc/DocBarA.jsx
 msgid "Hide the keyboard"
 msgstr "Ocultar o teclado"
+
+#: src/components/settings/AppearanceTab.jsx
+msgid "Hide the sidebar, toolbar, breadcrumb, and overlays."
+msgstr "Oculta a barra lateral, a barra de ferramentas, o caminho e as sobreposições."
 
 #: src/components/settings/AppearanceTab.jsx
 msgid "Hide the sidebar, toolbar, breadcrumb, and overlays. ⌘. toggles."
@@ -14004,6 +14012,10 @@ msgstr "Nenhuma conversa corresponde a “{trim}”."
 msgid "No conversations yet. Click <0><1/></0> to start one."
 msgstr "Nenhuma conversa ainda. Clique em <0><1/></0> para começar uma."
 
+#: src/components/MessagesPanel.jsx
+msgid "No conversations yet. Tap <0><1/></0> to start one."
+msgstr "Nenhuma conversa ainda. Toque em <0><1/></0> para começar uma."
+
 #: src/lib/billingCopyWords.js
 msgid "No credit card. Nothing to install."
 msgstr "Sem cartão de crédito. Nada para instalar."
@@ -15215,6 +15227,10 @@ msgstr "Abra o **Google Takeout**, escolha **Desmarcar tudo** e depois selecione
 #: src/App.jsx
 msgid "Open a board in split view…"
 msgstr "Abrir um cluster em visualização dividida…"
+
+#: src/components/TagDetailView.jsx
+msgid "Open a card's menu and choose Tag…."
+msgstr "Abra o menu de um cartão e escolha Adicionar tag…."
 
 #: src/App.jsx
 msgid "Open a cluster…"
@@ -16503,6 +16519,10 @@ msgstr "Pressione A. As setas se ancoram nos cartões e os acompanham quando voc
 #: src/components/CanvasSurface.jsx
 msgid "Press and hold a card to pick it up and move it."
 msgstr "Pressione e segure um cartão para pegá-lo e movê-lo."
+
+#: src/components/ShortcutsOverlay.jsx
+msgid "Press and hold the canvas or any card for more actions."
+msgstr "Pressione e segure a tela ou qualquer cartão para ver mais ações."
 
 #: src/components/TagPicker.jsx
 msgid "Press Enter to create this tag"
@@ -20317,6 +20337,10 @@ msgid "Tap + then New cluster to group these — drag photos in, name it."
 msgstr "Toque em + e depois em Novo cluster para agrupá-las — arraste as fotos para dentro e dê um nome."
 
 #: src/components/CanvasSurface.jsx
+msgid "tap + to add · or press and hold"
+msgstr "toque em + para adicionar · ou pressione e segure"
+
+#: src/components/CanvasSurface.jsx
 msgid "Tap a card to attach, or empty space to drop a comment"
 msgstr "Toque em um cartão para anexar ou em um espaço vazio para soltar um comentário"
 
@@ -20335,6 +20359,10 @@ msgstr "Toque em uma estrela para vê-la · Toque duas vezes para abri-la"
 #: src/components/OnboardingCoachmark.jsx
 msgid "Tap a tool on the toolbar at the left, or long-press the canvas, to add your first card."
 msgstr "Toque em uma ferramenta na barra de ferramentas à esquerda, ou pressione e segure a tela, para adicionar seu primeiro cartão."
+
+#: src/components/CanvasSurface.jsx
+msgid "Tap an image to sample a color."
+msgstr "Toque em uma imagem para amostrar uma cor."
 
 #: src/components/CanvasSurface.jsx
 msgid "Tap cards to select"
@@ -20950,6 +20978,10 @@ msgstr "A conta de demonstração entra com a senha dela."
 msgid "The doc changed since — press ⌘Z to step back instead."
 msgstr "O documento mudou desde então — pressione ⌘Z para voltar atrás."
 
+#: src/components/doc/DocTableBar.jsx
+msgid "The doc changed since — use Undo to step back instead."
+msgstr "O documento mudou desde então — use Desfazer para voltar atrás."
+
 #: src/components/DocSurface.jsx
 msgid "The document changed since — press ⌘Z in it to step back instead."
 msgstr "O documento mudou desde então — pressione ⌘Z nele para voltar atrás."
@@ -20958,6 +20990,15 @@ msgstr "O documento mudou desde então — pressione ⌘Z nele para voltar atrá
 #: src/components/DocFindReplace.jsx
 msgid "The document changed since — press ⌘Z to step back instead."
 msgstr "O documento mudou desde então — pressione ⌘Z para voltar atrás."
+
+#: src/components/DocSurface.jsx
+msgid "The document changed since — use Undo in it to step back instead."
+msgstr "O documento mudou desde então — use Desfazer nele para voltar atrás."
+
+#: src/components/doc/DocFindTab.jsx
+#: src/components/DocFindReplace.jsx
+msgid "The document changed since — use Undo to step back instead."
+msgstr "O documento mudou desde então — use Desfazer para voltar atrás."
 
 #: src/components/DocOpening.jsx
 msgid "The document opens as soon as it arrives. If your connection dropped, reload the page."
@@ -22747,6 +22788,10 @@ msgstr "Enviar uma pasta — as pastas dela viram clusters"
 #: src/components/info/VersionsSection.jsx
 msgid "Upload a new version of this file"
 msgstr "Enviar uma nova versão deste arquivo"
+
+#: src/components/DocInsertMenu.jsx
+msgid "Upload a picture"
+msgstr "Enviar uma imagem"
 
 #: src/components/film/FilmPlayer.jsx
 msgid "Upload a version"

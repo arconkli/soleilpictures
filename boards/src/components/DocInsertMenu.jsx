@@ -8,10 +8,11 @@ import { safeRun } from '../lib/safeEditorCmd.js';
 import { t } from '@lingui/core/macro';
 
 // Each row runs on the live editor. An item whose handler is missing is left
-// out (a guest in a shared doc has neither: DocSurface guestMode).
-export function insertItems({ onInsertImage, onInsertBoardEmbed }) {
+// out (a guest in a shared doc has neither: DocSurface guestMode). Under a
+// finger (coarse) the image row doesn't say "machine": a phone has none.
+export function insertItems({ onInsertImage, onInsertBoardEmbed, coarse = false }) {
   return [
-    { id: 'image', title: t`Image`, subtitle: t`Upload from your machine`,
+    { id: 'image', title: t`Image`, subtitle: coarse ? t`Upload a picture` : t`Upload from your machine`,
       run: (e) => onInsertImage?.(e) },
     { id: 'table', title: t`Table`, subtitle: t`Insert 3×3 table`,
       run: (e) => safeRun(e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }), 'doc-insert:table') },
