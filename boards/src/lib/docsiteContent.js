@@ -45865,7 +45865,22 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "There is no separate cap on clusters — each one is a card, and counts as one. Collaborators, editing, sharing, "
+     "v": "There is no cap on clusters, and making or nesting one costs none of your cards; a "
+    },
+    {
+     "t": "link",
+     "v": "linked cluster",
+     "href": "/docs/clusters#nesting",
+     "children": [
+      {
+       "t": "text",
+       "v": "linked cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", a reference to a cluster that lives elsewhere, counts as one. Collaborators, editing, sharing, "
     },
     {
      "t": "link",

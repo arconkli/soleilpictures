@@ -4213,7 +4213,7 @@ A: Under Connections, alongside any apps you have approved. Tokens are shown onc
 ========================================================================
 # Plans and pricing
 URL: https://clusters.soleilpictures.com/docs/account/plans
-Updated: 2026-10-27
+Updated: 2026-11-14
 
 The free Demo plan gives you 25 cards or 5GB of files, whichever comes first, up to 10 people who edit, and any file at any size; clusters cost no cards. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes two things: the card cap is removed, and your drive grows to 1TB. Limits are charged to the workspace owner, so one plan covers everyone in that workspace, with no per-seat charges. Team is for more than 10 people who edit, at $25 a seat a month.
 
@@ -4264,7 +4264,7 @@ The same rule is why a free workspace stays limited no matter who is working in 
 
 Older accounts keep a higher cap. The free allowance used to be 100 cards, and then 50. Every account keeps the allowance it was created under, permanently — no existing cap was ever lowered. Your own figure is on the Upgrade pill and in Settings → Plan & billing, and it is the one enforced. Referral credits add to whichever cap you have.
 
-There is no separate cap on clusters — each one is a card, and counts as one. Collaborators, editing, sharing, public links, comments, documents, screenplay mode and the API are not capped at all. No file has a size cap on any plan — the drive is the only limit.
+There is no cap on clusters, and making or nesting one costs none of your cards; a linked cluster, a reference to a cluster that lives elsewhere, counts as one. Collaborators, editing, sharing, public links, comments, documents, screenplay mode and the API are not capped at all. No file has a size cap on any plan — the drive is the only limit.
 
 Whose allowance
 
