@@ -732,6 +732,9 @@ interface PendingInviteData {
   expiresAt?: string;    // ISO-8601 (display-only)
 }
 
+// Mirrors REFERRED_START_CARDS in boards/src/lib/billingCopy.js; inviteEmailCards.test.mjs keeps them equal.
+const REFERRED_START_CARDS = 50;
+
 function pendingInvite(d: PendingInviteData): RenderedEmail {
   const isWorkspace = d.role === "workspace" || !d.boardName;
   const target = isWorkspace
@@ -743,10 +746,11 @@ function pendingInvite(d: PendingInviteData): RenderedEmail {
     return "a viewer";
   })();
   const headline = `${d.inviterName} invited you.`;
-  // 75 = DEMO_CARD_LIMIT (50) + the 0163 referral bonus (25), which a collab
-  // invite grants on signup. Mirror of billingCopy.REFERRED_START_CARDS — this
-  // is a Deno bundle and cannot import the client lib. It said 25 for months.
-  const subtitle = `You've been invited to join ${target} as ${roleLabel}. You'll start with 75 free cards — sign in and we'll set up your account.`;
+  // An invitee starts at DEMO_CARD_LIMIT + REFERRAL_BONUS_CARDS (the 0163
+  // referral bonus a collab invite grants on signup). This is a Deno bundle
+  // and cannot import the client lib; the constant above is kept equal to
+  // billingCopy.REFERRED_START_CARDS by inviteEmailCards.test.mjs.
+  const subtitle = `You've been invited to join ${target} as ${roleLabel}. You'll start with ${REFERRED_START_CARDS} free cards — sign in and we'll set up your account.`;
   const url = `${APP_URL}?invite=${encodeURIComponent(d.token)}`;
   return {
     // A stranger reads this one. Its subject carries nothing anyone typed —
