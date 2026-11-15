@@ -41,13 +41,15 @@ test('only the index filters, their messages and the "Google dropped" message mo
     // De-index: the PASS-within-a-week test gains an "or", so it re-indents.
     'and exists (select 1 from public.seo_index_status p',
     "v_cnt || ' page(s) Google had on its index within the past week and no longer does. ' || v_list) then",
-    // 14 days: the path filter's closing bracket moves, and the message.
+    // 14 days: the path filter's closing bracket moves, the day test repeats
+    // every 14 days, and the message.
     "or s.path ~ '^/(tools|vs|best)/')",
+    'where days_out = 14 and last_day = v_ix_day',
     "v_cnt || ' marketing page(s) still off Google after 14 daily checks; request indexing in Search Console. ' || v_list) then",
   ]);
   const was = new Set(code(def867));
   const added = code(def885).filter((l) => !was.has(l));
-  assert.equal(added.length, 22, 'and nothing else was added');
+  assert.equal(added.length, 23, 'and nothing else was added');
   // Every alert 0867 raised is still raised, under the same literal name.
   const names = (s) => [...s.matchAll(/_discovery_alert\('([^']+)'/g)].map((m) => m[1]);
   assert.deepEqual(names(def885), names(def867));

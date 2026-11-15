@@ -11,6 +11,9 @@
 --      '^/c/'. The de-index alert also names a watched page on the day it
 --      turns Soft 404, whether or not it was indexed before; the 14-day check
 --      already counted Soft 404 as off Google and now says what to do about it.
+--      The 14-day check names a page on day 14 of being out and every 14 days
+--      after (days 14, 28, 42 ...), where it used to name it on day 14 only
+--      and so never named a page already past that day.
 --
 --   2. "Google dropped <page>". The name says the page is gone; the check
 --      reads impressions, and it kept firing for pages Google still showed,
@@ -314,8 +317,9 @@ begin
         end if;
       end if;
 
-      -- A marketing page on its fourteenth straight inspection day off Google.
-      -- Raised on that day only, so each page is named once rather than every
+      -- A watched page on its fourteenth straight inspection day off Google,
+      -- and again every 14 days after that while it is still out (days 14, 28,
+      -- 42 ...), so a page already past day 14 is named too and not every
       -- morning it stays out.
       -- 0885: public clusters (/c/<slug>) count here as well. Soft 404 pages
       -- were already included (any verdict but PASS is "off Google") and are
@@ -340,7 +344,7 @@ begin
       due as (
         select coalesce(state, '?') as state, count(*) as n, string_agg(path, ', ' order by path) as paths
           from streak
-         where days_out = 14 and last_day = v_ix_day
+         where days_out >= 14 and days_out % 14 = 0 and last_day = v_ix_day
          group by 1
       )
       select sum(n)::int, string_agg(state || ': ' || paths, '; ' order by state)

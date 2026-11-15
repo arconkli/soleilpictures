@@ -214,7 +214,7 @@ test('a failing or stale instrument never reads as pages leaving Google', () => 
   assert.match(gone, /verdict is distinct from 'PASS'/, 'PASS is the only verdict that means indexed');
   assert.match(gone, /p\.verdict = 'PASS'\s+and p\.day between v_ix_day - 7 and v_ix_day - 1/, 'indexed within the past week');
   assert.match(streak, /min\(rn\) filter \(where verdict = 'PASS'\)/);
-  assert.match(streak, /days_out = 14 and last_day = v_ix_day/, 'raised on the fourteenth day only');
+  assert.match(streak, /days_out >= 14 and days_out % 14 = 0 and last_day = v_ix_day/, 'raised on day 14 and every 14 days after');
 });
 
 test('the impressions that widen the de-index alert are page-level web rows', () => {
