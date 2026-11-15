@@ -5,12 +5,16 @@
 //
 // Right-click an avatar → popover listing the peer's recent comments
 // across the workspace. Useful "what's <person> been weighing in on?"
-// audit, scoped by RLS to boards the local user can read.
+// audit, scoped by RLS to boards the local user can read. Under a finger a
+// hold opens the same popover (iOS never fires contextmenu for a touch).
 
 import { useEffect, useRef, useState } from 'react';
 import { listCommentsByAuthor } from '../lib/commentsApi.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { useOpenDm } from '../hooks/useOpenDm.js';
+import { useLongPress } from '../hooks/useLongPress.js';
+import { useBackLayer, fingerIsPointer } from '../hooks/useBackLayer.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { initialOf } from '../lib/graphemes.js';
 import { t, ph, plural } from '@lingui/core/macro';
@@ -49,12 +53,25 @@ export function WorkspacePresenceStack({ peers, status, selfId, onJumpTo, worksp
   const visible = list.slice(0, max);
   const overflow = list.length - visible.length;
 
+  // A hold on an avatar: the recent-comments popover a right-click opens. The
+  // click the lift leaves behind is swallowed, so it doesn't also jump to them.
+  const stackRef = useRef(null);
+  useLongPress(stackRef, (x, y, e) => {
+    const btn = e.target?.closest?.('button.ws-presence-avatar');
+    const peer = btn && visible.find(p => String(p.key) === btn.dataset.peerKey);
+    if (!peer) return false;
+    swallowNextClick({ held: true });
+    setAuditPeer({ peer, anchorRect: btn.getBoundingClientRect() });
+    return true;
+  }, { ms: 480, tolerance: 8, pointerType: 'touch' });
+  const touch = fingerIsPointer();
+
   const dotClass = status === 'connected' ? 'on'
                  : status === 'error' || status === 'disconnected' ? 'off'
                  : 'pending';
 
   return (
-    <div className="ws-presence" aria-label={plural(list.length, { one: '# person online', other: '# people online' })}>
+    <div className="ws-presence" ref={stackRef} aria-label={plural(list.length, { one: '# person online', other: '# people online' })}>
       <span className={`ws-presence-status ${dotClass}`} title={STATUS_LABEL[status] || status} />
       {visible.map(p => {
         const initial = initialOf(p.user.name || p.user.email);
@@ -67,6 +84,7 @@ export function WorkspacePresenceStack({ peers, status, selfId, onJumpTo, worksp
         return (
           <button key={p.key}
                   className={`ws-presence-avatar${inactive ? ' is-inactive' : ''}`}
+                  data-peer-key={p.key}
                   style={{ background: p.user.color || '#4f8df8' }}
                   onClick={() => onJumpTo?.(p.location)}
                   onContextMenu={(e) => {
@@ -74,7 +92,9 @@ export function WorkspacePresenceStack({ peers, status, selfId, onJumpTo, worksp
                     const rect = e.currentTarget.getBoundingClientRect();
                     setAuditPeer({ peer: p, anchorRect: rect });
                   }}
-                  title={t`${where} · click to jump · right-click for recent comments`}>
+                  title={touch
+                    ? t`${where} · tap to jump · hold for recent comments`
+                    : t`${where} · click to jump · right-click for recent comments`}>
             {initial}
           </button>
         );
@@ -100,6 +120,8 @@ function PeerCommentsAudit({ peer, anchorRect, workspaceId, onClose, onJumpTo })
   const [error, setError] = useState(null);
   const ref = useRef(null);
   const openDm = useOpenDm();
+  // On touch, the phone's Back closes the popover before anything navigates.
+  useBackLayer(true, onClose);
 
   useEffect(() => {
     if (!workspaceId || !peer?.user?.id) return;

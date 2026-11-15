@@ -12694,6 +12694,12 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
     top: auto;
     bottom: calc(12px + var(--safe-bottom, 0px));
   }
+  /* Share pins its own footer there (Done, 44px in 12px of padding), and the
+     toast after making a link or inviting lay on it: it sits above the footer.
+     (.toast-stack twice: the rule above counts its longest :has() branch.) */
+  body:has(.modal-shell-bg > .share-modal) .toast-stack.toast-stack {
+    bottom: calc(77px + var(--safe-bottom, 0px));
+  }
 }
 @keyframes toastIn  { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(12px); } }
@@ -13069,6 +13075,22 @@ button.pc-hex-btn:hover { background: rgba(127,127,127,.28); }
 @media (pointer: coarse) {
   .lightbox-x, .lightbox-download { width: 40px; height: 40px; }
   .lightbox-download { right: 66px; }
+}
+/* A phone, upright or held sideways: 48px a side took a quarter of the width
+   from the photo, and the buttons sat under the notch or the status bar. The
+   photo gets the width, less the safe areas, with a row on top for the
+   buttons, which clear the notch on whichever side it is. */
+@media (max-width: 640px), (max-height: 480px) and (pointer: coarse) {
+  .lightbox {
+    padding: calc(56px + env(safe-area-inset-top, 0px))
+             max(8px, env(safe-area-inset-right, 0px))
+             max(8px, env(safe-area-inset-bottom, 0px))
+             max(8px, env(safe-area-inset-left, 0px));
+  }
+  .lightbox-x, .lightbox-download { top: calc(8px + env(safe-area-inset-top, 0px)); }
+  .lightbox-x { right: calc(8px + env(safe-area-inset-right, 0px)); }
+  .lightbox-download { right: calc(56px + env(safe-area-inset-right, 0px)); }
+  .lightbox-cap { margin-top: 8px; padding: 0 8px; }
 }
 
 /* Hover-revealed expand button on canvas image cards. Mirrors .ic-link
@@ -21847,6 +21869,21 @@ button, [role="button"], a {
   color: var(--ink-1);
   text-align: center;
 }
+/* A phone held sideways (under 480px tall): half of that height showed one
+   tile at a time. A half sheet takes the height there, the tiles run six to a
+   row at a shorter height, and the sheet's content clears the notch. */
+@media (max-height: 480px) and (pointer: coarse) {
+  [data-snap="half"] .sheet-panel { max-height: calc(100vh - 8px); max-height: calc(100dvh - 8px); }
+  .sheet-grip-row { padding: 8px 0 4px; }
+  .sheet-title, .sheet-body {
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
+    padding-right: max(20px, env(safe-area-inset-right, 0px));
+  }
+  .mobile-add-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+  .mobile-add-lbl { overflow-wrap: anywhere; }
+  .mobile-add-tile { min-height: 72px; padding: 8px 4px; gap: 6px; }
+  .mobile-add-cluster { min-height: 52px; margin-bottom: 8px; padding: 6px 14px; }
+}
 /* The sheet's "New cluster" row (CanvasSurface, behind clusterNudgesAllowed):
    full width above the tiles and raised like the desktop bar's pill, because
    on a phone there is no bar to put that pill in. Never gold at rest. */
@@ -22933,6 +22970,28 @@ html.public-doc-page body { overflow-y: auto; overscroll-behavior-y: none; }
   flex-direction: column;
   align-items: stretch;
   gap: 0;
+  /* Taller than the room above its anchor (a short window, a phone held
+     sideways), it ran off the top of the screen over the top bar: it stops
+     under the top edge and scrolls inside itself. 104px: the frame's 96px
+     from the bottom on a phone (88px elsewhere), and 8px of air on top. */
+  max-height: calc(100vh - 104px - env(safe-area-inset-top, 0px));
+  max-height: calc(100dvh - 104px - env(safe-area-inset-top, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* The frame wraps on a phone; a wrapped column would start a second one. */
+  flex-wrap: nowrap;
+}
+/* A column's children would otherwise squeeze before the column scrolls. */
+.rr-ask > * { flex-shrink: 0; }
+/* A phone held sideways has under 480px in all: the question takes the whole
+   height, over the bottom bar, and leaves the top bar's two ends in reach. */
+@media (max-height: 480px) and (pointer: coarse) {
+  .rr-ask {
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    max-height: calc(100vh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    z-index: 91;
+  }
 }
 
 .rr-ask .fv-banner-actions {
@@ -23907,8 +23966,26 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
    spilled past the pill with Delete and × off-screen. When ListSurface
    measures that they don't fit (fitSelbar), they go to icons; each keeps its
    name in aria-label and title. */
-.list-wrap .list-selbar[data-fit='icons'] .list-selbar-act > span { display: none; }
-.list-wrap .list-selbar[data-fit='icons'] .list-selbar-act { padding: 0 8px; }
+.list-wrap .list-selbar[data-fit='icons'] .list-selbar-act > span,
+.list-wrap .list-selbar[data-fit='tight'] .list-selbar-act > span { display: none; }
+.list-wrap .list-selbar[data-fit='icons'] .list-selbar-act,
+.list-wrap .list-selbar[data-fit='tight'] .list-selbar-act { padding: 0 8px; }
+/* Narrower than the icons (a phone: each is 40px to a finger, and Info and
+   Done ran off the pill at 375 and 320): the count is its number, and Put on
+   board, Copy to…, New cluster and Info fold into the ⋯ menu, which shows at
+   this fit only. Download, Move to…, Delete and Done stay on the bar. */
+.list-selbar .list-selbar-more { display: none; }
+.list-selbar[data-fit='tight'] .list-selbar-more { display: inline-flex; }
+.list-selbar[data-fit='tight'] .list-selbar-fold,
+.list-selbar[data-fit='tight'] .list-selbar-hint,
+.list-selbar[data-fit='tight'] .list-selbar-spacer,
+.list-selbar[data-fit='tight'] .list-selbar-sep { display: none; }
+.list-wrap .list-selbar[data-fit='tight'] { gap: 0; padding: 4px 4px 4px 12px; }
+.list-wrap .list-selbar[data-fit='tight'] .list-selbar-act { margin-left: 0; }
+.list-wrap .list-selbar[data-fit='tight'] .list-selbar-count[data-n] { font-size: 0; }
+.list-wrap .list-selbar[data-fit='tight'] .list-selbar-count[data-n]::before {
+  content: attr(data-n); font: 600 12px/1 var(--font-sans);
+}
 /* The Grid's keyboard cursor: a thin ring on the preview (gold is focus). */
 .ct-jg .ct-tile.is-active .ct-tile-preview { outline: 1px solid var(--soleil); outline-offset: 2px; }
 .ct-jg .ct-tile.is-active.is-selected .ct-tile-preview { outline-width: 2px; outline-offset: 2px; }

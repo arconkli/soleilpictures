@@ -2994,6 +2994,10 @@ msgstr "{what} L’offre Creator supprime la limite de durée."
 msgid "{where} · click to jump · right-click for recent comments"
 msgstr "{where} · cliquez pour y aller · clic droit pour les commentaires récents"
 
+#: src/components/WorkspacePresenceStack.jsx
+msgid "{where} · tap to jump · hold for recent comments"
+msgstr "{where} · appuyez pour y aller · maintenez pour les commentaires récents"
+
 #: src/components/cards.jsx
 msgid "{who} · in {board}"
 msgstr "{who} · dans {board}"
@@ -13263,6 +13267,7 @@ msgstr "Moodboards, scénarios, listes de plans — tous vos assets, une seule t
 msgid "More"
 msgstr "Plus"
 
+#: src/components/ListSurface.jsx
 #: src/components/WorkspaceMenu.jsx
 msgid "More actions"
 msgstr "Plus d’actions"

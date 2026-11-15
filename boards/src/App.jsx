@@ -219,6 +219,7 @@ import { rewardCardsBeyondTogether } from './lib/liveTogether.js';
 import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, fetchMyDaysBack, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listPublicLinks, createCollabLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, getMyTogetherStats, syncCardIndex, getProfilesByIds, forgetIndexRefusals, markSharedBoardOpened, hideSharedBoard } from './lib/boardsApi.js';
 import { rewardToastMessage } from './lib/inviteRewardWords.js';
 import { undoToast } from './lib/undoToast.js';
+import { writeClipboard } from './lib/clipboardWrite.js';
 import { failMove } from './lib/moveFailure.js';
 import { cardIndexWeight } from './lib/cardIndexRow.js';
 import { isAbandonedUpload } from './lib/abandonedUploads.js';
@@ -9928,7 +9929,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const quickCopyShareLink = React.useCallback(async () => {
     if (quickShareBusy) return;
     setQuickShareBusy(true);
-    try {
+    // The link is found or made as a promise, and the clipboard write starts
+    // here, inside the tap, with that promise: Safari drops a write that comes
+    // after an await (lib/clipboardWrite.js).
+    const minted = (async () => {
       const rows = await listPublicLinks(currentBoard.id);
       // Lazy: the Share panel's own chunk already carries it, and the app's doesn't need to.
       const { deriveAccessMode, linkForMode } = await import('./lib/shareAccess.js');
@@ -9948,9 +9952,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } else {
         ({ token } = await ensurePublicLink({ boardId: currentBoard.id, includeSubboards: true }));
       }
-      const url = `${window.location.origin}/share/${token}`;
-      let copied = false;
-      try { await navigator.clipboard.writeText(url); copied = true; } catch (_) {}
+      return { kind, url: `${window.location.origin}/share/${token}` };
+    })();
+    const copying = writeClipboard(minted.then(({ url }) => url));
+    try {
+      const { kind, url } = await minted;
+      const copied = await copying;
       // Fresh unfurl preview for the link we just handed out.
       try {
         const yd = yb.ready && yb.boardId === currentBoard.id ? yb.ydoc : null;
@@ -12151,6 +12158,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
            {...rowButtonProps(() => { setMobileNavOpen(false); setVersionsOpen(true); })}>
         <Icon as={History} size={14} />
         <span className="sb-row-label"><Trans>Version history</Trans></span>
+      </div>
+    )}
+    {/* The trash is workspace-wide, so the row shows on every surface. On a
+        computer it is the topbar's Trash button and the ⋯ menu's row. */}
+    {mobileShell && (
+      <div className="sb-row"
+           {...rowButtonProps(() => { setMobileNavOpen(false); setTrashOpen(true); })}>
+        <Icon as={Trash2} size={14} />
+        <span className="sb-row-label"><Trans>Deleted clusters</Trans></span>
       </div>
     )}
     {mobileShell && isTouch && currentSurface === 'board' && (

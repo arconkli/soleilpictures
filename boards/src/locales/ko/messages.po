@@ -2986,6 +2986,10 @@ msgstr "{what} Creator 요금제에서는 길이 제한이 없어져요."
 msgid "{where} · click to jump · right-click for recent comments"
 msgstr "{where} · 클릭해서 이동 · 우클릭해서 최근 댓글 보기"
 
+#: src/components/WorkspacePresenceStack.jsx
+msgid "{where} · tap to jump · hold for recent comments"
+msgstr "{where} · 탭해서 이동 · 길게 눌러 최근 댓글 보기"
+
 #: src/components/cards.jsx
 msgid "{who} · in {board}"
 msgstr "{who} · {board}에 있음"
@@ -13255,6 +13259,7 @@ msgstr "무드보드, 시나리오, 샷 리스트 — 모든 에셋을 하나의
 msgid "More"
 msgstr "더 보기"
 
+#: src/components/ListSurface.jsx
 #: src/components/WorkspaceMenu.jsx
 msgid "More actions"
 msgstr "작업 더 보기"

@@ -60,6 +60,7 @@ import { useEditorLimit } from '../hooks/useEditorLimit.js';
 import { EditorLimitNote } from './EditorLimitNote.jsx';
 import { maskName, maskEmail } from '../lib/captureIdentity.js';
 import { undoToast } from '../lib/undoToast.js';
+import { writeClipboard } from '../lib/clipboardWrite.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { ExplorePublishSection } from './ExplorePublishSection.jsx';
 import { InviteRewardNote } from './InviteRewardNote.jsx';
@@ -431,8 +432,7 @@ export function ShareModal({
   // publicLinks until the list refetches. `position` names the button that
   // copied when the panel's layout is what's being read ('top': the link
   // block's button, since the owner's pick A of 2026-10-27).
-  const copyLinkUrl = async (token, kind, position) => {
-    const url = `${window.location.origin}/share/${token}`;
+  const noteLinkCopied = (token, kind, position) => {
     try {
       logEventNow(EV.SHARE_LINK_COPIED, {
         kind: kind || (publicLinks.find(l => l.token === token)?.kind === 'invite' ? 'invite' : 'view'),
@@ -443,8 +443,10 @@ export function ShareModal({
     } catch (_) {}
     // The link's preview picture, kept current as the link goes out.
     refreshCard();
-    try { await navigator.clipboard.writeText(url); return true; }
-    catch (_) { return false; }
+  };
+  const copyLinkUrl = (token, kind, position) => {
+    noteLinkCopied(token, kind, position);
+    return writeClipboard(`${window.location.origin}/share/${token}`);
   };
 
   // What a copy says. A view link lets people join as viewers, and the toast
@@ -476,7 +478,11 @@ export function ShareModal({
   const takeLink = async () => {
     if (busyLink || accessMode === 'off') return;
     setBusyLink(true);
-    try {
+    // The link is made (or found) as a promise, and the clipboard write starts
+    // HERE, inside the tap, with that promise: Safari drops a write that comes
+    // after an await, so on an iPhone the first press of "Create link & copy"
+    // made the link and then said copying failed (lib/clipboardWrite.js).
+    const minted = (async () => {
       let token; let kind; let reused;
       if (accessMode === 'edit') {
         kind = 'invite';
@@ -513,9 +519,15 @@ export function ShareModal({
           });
         }
       }
+      return { token, kind, reused };
+    })();
+    const copying = writeClipboard(minted.then(({ token }) => `${window.location.origin}/share/${token}`));
+    try {
+      const { token, kind, reused } = await minted;
       // Refresh the board's OG thumbnail so the link unfurls with a real preview.
       if (!reused) { try { onLinkCreated?.(); } catch (_) {} }
-      const copied = await copyLinkUrl(token, kind, 'top');
+      noteLinkCopied(token, kind, 'top');
+      const copied = await copying;
       // If the clipboard write failed (permissions, non-secure context), say
       // so — the link is listed under Link settings with a Copy button, so
       // point there instead of pretending it copied.

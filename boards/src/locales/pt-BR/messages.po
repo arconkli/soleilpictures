@@ -2994,6 +2994,10 @@ msgstr "{what} O Creator remove o limite de duração."
 msgid "{where} · click to jump · right-click for recent comments"
 msgstr "{where} · clique para ir · clique com o botão direito para ver comentários recentes"
 
+#: src/components/WorkspacePresenceStack.jsx
+msgid "{where} · tap to jump · hold for recent comments"
+msgstr "{where} · toque para ir · mantenha pressionado para ver comentários recentes"
+
 #: src/components/cards.jsx
 msgid "{who} · in {board}"
 msgstr "{who} · em {board}"
@@ -13263,6 +13267,7 @@ msgstr "Moodboards, roteiros, listas de planos — todos os ativos, uma só tela
 msgid "More"
 msgstr "Mais"
 
+#: src/components/ListSurface.jsx
 #: src/components/WorkspaceMenu.jsx
 msgid "More actions"
 msgstr "Mais ações"

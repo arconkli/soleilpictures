@@ -26,6 +26,7 @@
 // removed person is out within seconds rather than at the room's next minute.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal } from '../Modal.jsx';
+import { writeClipboard } from '../../lib/clipboardWrite.js';
 import { Icon as Glyph } from '../Icon.jsx';
 import { X as XIcon, Link as LinkIcon, Globe as GlobeIcon, Lock as LockIcon } from '../../lib/icons.js';
 import * as realApi from '../../lib/fileShares.js';
@@ -63,44 +64,6 @@ function linkSub(link, isDoc = false) {
 
 // How long a burst of changes waits before the doc's rooms are asked again.
 const RECHECK_AFTER_MS = 400;
-
-async function writeClipboard(textOrPromise) {
-  // A link that has to be created first is handed over as a promise: Safari
-  // only lets a page write the clipboard inside the click, and an await
-  // before writeText() falls outside it.
-  if (typeof textOrPromise !== 'string') {
-    if (typeof window !== 'undefined' && window.ClipboardItem && navigator.clipboard?.write) {
-      try {
-        const blob = textOrPromise.then((t) => {
-          if (!t) throw new Error('no link');
-          return new Blob([t], { type: 'text/plain' });
-        });
-        await navigator.clipboard.write([new window.ClipboardItem({ 'text/plain': blob })]);
-        return true;
-      } catch (_) { /* fall through to the plain path */ }
-    }
-    const t = await textOrPromise;
-    if (!t) return false;
-    return writeClipboard(t);
-  }
-  try {
-    await navigator.clipboard.writeText(textOrPromise);
-    return true;
-  } catch (_) {
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = textOrPromise;
-      ta.setAttribute('readonly', '');
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      const ok = document.execCommand('copy');
-      ta.remove();
-      return ok;
-    } catch (_) { return false; }
-  }
-}
 
 export function FileShareDialog({ boardId, cardId: cardIdProp, card, boardName = '', onClose, api = realApi }) {
   const cardId = cardIdProp || card?.id;

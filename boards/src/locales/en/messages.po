@@ -2994,6 +2994,10 @@ msgstr "{what} Creator removes the length limit."
 msgid "{where} · click to jump · right-click for recent comments"
 msgstr "{where} · click to jump · right-click for recent comments"
 
+#: src/components/WorkspacePresenceStack.jsx
+msgid "{where} · tap to jump · hold for recent comments"
+msgstr "{where} · tap to jump · hold for recent comments"
+
 #: src/components/cards.jsx
 msgid "{who} · in {board}"
 msgstr "{who} · in {board}"
@@ -13263,6 +13267,7 @@ msgstr "Moodboards, scripts, shot lists — every asset, one canvas."
 msgid "More"
 msgstr "More"
 
+#: src/components/ListSurface.jsx
 #: src/components/WorkspaceMenu.jsx
 msgid "More actions"
 msgstr "More actions"

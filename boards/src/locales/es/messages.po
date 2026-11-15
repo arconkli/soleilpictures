@@ -2994,6 +2994,10 @@ msgstr "{what} El plan Creator quita el límite de duración."
 msgid "{where} · click to jump · right-click for recent comments"
 msgstr "{where} · clic para ir · clic derecho para ver comentarios recientes"
 
+#: src/components/WorkspacePresenceStack.jsx
+msgid "{where} · tap to jump · hold for recent comments"
+msgstr "{where} · toca para ir · mantén pulsado para ver comentarios recientes"
+
 #: src/components/cards.jsx
 msgid "{who} · in {board}"
 msgstr "{who} · en {board}"
@@ -13263,6 +13267,7 @@ msgstr "Moodboards, guiones, listas de planos: todos tus recursos, un solo lienz
 msgid "More"
 msgstr "Más"
 
+#: src/components/ListSurface.jsx
 #: src/components/WorkspaceMenu.jsx
 msgid "More actions"
 msgstr "Más acciones"

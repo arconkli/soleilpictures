@@ -216,6 +216,7 @@ import { recordIntent } from '../lib/frictionSignal.js';
 import { useGesture } from '@use-gesture/react';
 import { useLongPress } from '../hooks/useLongPress.js';
 import { swallowNextClick } from '../lib/swallowClick.js';
+import { writeClipboard } from '../lib/clipboardWrite.js';
 import { prefetchBoard } from '../lib/prefetchKinds.js';
 import * as Y from 'yjs';
 import { supabase } from '../lib/supabase.js';
@@ -3950,13 +3951,16 @@ export function CanvasSurface({
         id: 'link',
         label: tr`Copy share link`,
         run: async () => {
+          // The write starts inside the tap, with the link still on its way:
+          // Safari drops one that comes after an await (lib/clipboardWrite.js).
+          const link = createGridLayoutLink(row.id).then((token) => `${window.location.origin}/t/${token}`);
+          const copying = writeClipboard(link);
           try {
-            const token = await createGridLayoutLink(row.id);
-            const url = `${window.location.origin}/t/${token}`;
+            const url = await link;
             // Clipboard can be denied; showing the URL is a worse-but-real
             // fallback rather than a silent failure.
-            try { await navigator.clipboard.writeText(url); feedback.toast({ message: tr`Share link copied.` }); }
-            catch (_) { feedback.toast({ message: url, ttl: 12000 }); }
+            if (await copying) feedback.toast({ message: tr`Share link copied.` });
+            else feedback.toast({ message: url, ttl: 12000 });
           } catch (e) { { const reason = String(shownError(e)); feedback.toast({ type: 'error', code: 'template_link_failed', message: tr`Could not create a link: ${reason}` }); } }
         },
       });

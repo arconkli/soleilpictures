@@ -51,6 +51,26 @@ async function tapClear(loc) {
   await loc.tap();
 }
 
+// One of the bar's actions that a phone's bar folds into its ⋯ (the 'tight'
+// fit): on the bar where it fits, in the ⋯ menu where it doesn't. Opens the
+// menu when that is where it is; `closeFoldMenu` puts it away again.
+async function foldedAction(page, name) {
+  const onBar = bar(page).getByRole('button', { name, exact: true });
+  if (await onBar.isVisible()) return onBar;
+  const more = bar(page).getByRole('button', { name: 'More actions', exact: true });
+  if (!(await more.isVisible())) return onBar;
+  await more.tap();
+  await expect(menu(page)).toBeVisible();
+  return menu(page).getByRole('menuitem', { name, exact: true });
+}
+async function closeFoldMenu(page) {
+  if (await menu(page).count()) {
+    // As a phone closes it: Back takes the menu and nothing else.
+    await page.goBack();
+    await expect(menu(page)).toHaveCount(0);
+  }
+}
+
 // Held until the menu shows, then Select.
 async function holdToSelect(page, loc) {
   await hold(page, await middle(loc));
@@ -138,7 +158,8 @@ test.describe('Files', () => {
     await expect(bar(page)).toContainText('2 selected');
     await expect(quickLook(page)).toHaveCount(0);
     // Files only: the bar copies them too, with no right-click to find it.
-    await expect(bar(page).getByRole('button', { name: 'Copy to…' })).toBeVisible();
+    await expect(await foldedAction(page, 'Copy to…')).toBeVisible();
+    await closeFoldMenu(page);
     // A second tap takes one back out.
     await tapClear(tile(page, 'home-note'));
     await expect(bar(page)).toContainText('1 selected');
@@ -147,7 +168,8 @@ test.describe('Files', () => {
     await tapClear(folder(page, 'Stills'));
     await expect(bar(page)).toContainText('2 selected');
     await expect(folder(page, 'Stills')).toHaveClass(/is-selected/);
-    await expect(bar(page).getByRole('button', { name: 'Copy to…' })).toHaveCount(0);
+    await expect(await foldedAction(page, 'Copy to…')).toHaveCount(0);
+    await closeFoldMenu(page);
     // Done puts the checks away and lets go of everything.
     await bar(page).getByRole('button', { name: 'Done', exact: true }).tap();
     await expect(files(page)).not.toHaveClass(/is-selecting/);
@@ -158,12 +180,55 @@ test.describe('Files', () => {
     await expect(quickLook(page)).toBeVisible();
   });
 
+  // A phone is narrower than the bar's icons (40px each to a finger): Info
+  // and Done ran off the pill. The bar's last fit folds the rest into a ⋯.
+  for (const [w, h] of [[375, 667], [320, 568]]) {
+    test(`at ${w} wide the bar fits, with nothing cut off and the rest in its ⋯`, async ({ page, browserName }) => {
+      needsHold(test, browserName);
+      test.skip(page.viewportSize().width > 640, 'a phone\'s width');
+      await page.setViewportSize({ width: w, height: h });
+      await openFiles(page, { filesrules: true });
+      await tile(page, 'home-note').evaluate((el) => el.scrollIntoView({ block: 'center' }));
+      await holdToSelect(page, tile(page, 'home-note'));
+      await tapClear(tile(page, 'home-image'));
+      await expect(bar(page)).toContainText('2 selected');
+      await expect(bar(page)).toHaveAttribute('data-fit', 'tight');
+      // Every button that shows is whole, inside the bar and the screen, and
+      // finger-sized.
+      const fit = await bar(page).evaluate((el) => {
+        const b = el.getBoundingClientRect();
+        const shown = [...el.querySelectorAll('button')].filter((k) => k.getBoundingClientRect().width > 0);
+        return {
+          left: b.left, right: b.right, over: el.scrollWidth - el.clientWidth,
+          kids: shown.map((k) => { const r = k.getBoundingClientRect(); return { name: k.getAttribute('aria-label') || k.textContent, left: r.left, right: r.right, w: r.width, h: r.height }; }),
+        };
+      });
+      expect(fit.over).toBeLessThanOrEqual(1);
+      expect(fit.left).toBeGreaterThanOrEqual(0);
+      expect(fit.right).toBeLessThanOrEqual(w);
+      for (const k of fit.kids) {
+        expect(k.left, k.name).toBeGreaterThanOrEqual(fit.left);
+        expect(k.right, k.name).toBeLessThanOrEqual(fit.right);
+        expect(k.w, k.name).toBeGreaterThanOrEqual(40);
+        expect(k.h, k.name).toBeGreaterThanOrEqual(40);
+      }
+      expect(fit.kids.map((k) => k.name)).toEqual(['Download', 'Move to…', 'Delete', 'More actions', 'Done']);
+      // The folded ones are in the ⋯ (the Copy to… test presses one).
+      await bar(page).getByRole('button', { name: 'More actions' }).tap();
+      await expect(menu(page).getByRole('menuitem')).toHaveText(['Copy to…', 'New cluster', 'Info']);
+      await closeFoldMenu(page);
+      // Done is on the bar and puts the checks away.
+      await bar(page).getByRole('button', { name: 'Done', exact: true }).tap();
+      await expect(bar(page)).toHaveCount(0);
+    });
+  }
+
   test('the bar\'s Copy to… copies what the finger picked', async ({ page, browserName }) => {
     needsHold(test, browserName);
     await openFiles(page, { filesrules: true });
     await page.evaluate(() => { (window.__filesRulesQa ||= { calls: [] }).pick = 'b-stills'; });
     await holdToSelect(page, tile(page, 'home-image'));
-    await bar(page).getByRole('button', { name: 'Copy to…' }).tap();
+    await (await foldedAction(page, 'Copy to…')).tap();
     const calls = () => page.evaluate(() => window.__filesRulesQa?.calls || []);
     await expect.poll(async () => (await calls()).length).toBe(1);
     expect((await calls())[0]).toMatchObject({ from: 'root', to: 'b-stills', cardIds: ['home-image'], copy: true });

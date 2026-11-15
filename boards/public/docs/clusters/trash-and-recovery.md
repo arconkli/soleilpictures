@@ -27,7 +27,8 @@ the note.
 Deleting a cluster is a **soft delete**. It goes to the workspace trash and
 stays restorable for **30 days**, then is purged.
 
-The trash is workspace-wide — open it from the sidebar or `⌘K` → "trash". From
+The trash is workspace-wide — open it from the sidebar or `⌘K` → "trash". On a
+phone, open the menu and tap **Deleted clusters**. From
 there, **restore** puts a cluster back where it was. The workspace's owner and
 co-owners can also **remove it permanently** if they are sure; for everyone
 else, editors included, a deleted cluster waits out its 30 days and can always
