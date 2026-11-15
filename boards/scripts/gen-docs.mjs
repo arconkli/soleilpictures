@@ -1930,7 +1930,10 @@ export function isChangelogPath(pathname) {
     '',
     'Terminology: the product calls a board a **cluster**. The API and database call the same object a `board`.',
     '',
-    `Every page below is also available as raw Markdown by appending \`.md\` (e.g. ${SITE_ORIGIN}/docs/api.md).`,
+    // Only the families docs:build really writes a .md for (public/docs, /vs, /best,
+    // /tools, /use-cases, /scout, /pricing, /changelog). /explore, /c/* and /legal/*
+    // have none, and the Worker answers /explore.md with a 404.
+    `The documentation (/docs/...), the comparison, buying-guide and tool pages (/vs/..., /best/..., /tools/...), /use-cases, /scout, /pricing and /changelog are also available as raw Markdown by appending \`.md\` (e.g. ${SITE_ORIGIN}/docs/api.md). The gallery, public clusters (/c/...) and legal pages have no Markdown copy.`,
     `The full corpus in one file: ${SITE_ORIGIN}/llms-full.txt`,
     '',
     // Listed FIRST, and with its date stated, because the single most common way
@@ -1967,6 +1970,9 @@ export function isChangelogPath(pathname) {
   for (const s of SEO_LANDING_LISTED) {
     llms.push(`- [${s.h1}](${SITE_ORIGIN}${s.path}): ${s.metaDescription}`);
   }
+  // The public cluster gallery. HTML only: there is no /explore.md.
+  llms.push('', '## Public clusters', '');
+  llms.push(`- [Explore](${SITE_ORIGIN}/explore): The public cluster gallery: real mood boards, look books and reference collections made with Soleil Clusters that anyone can open without an account.`);
   // The template store. Grouped by category rather than dumped flat, because
   // "which template do I want" is a browsing question and the categories are the
   // answer to it — an assistant reading this should be able to narrow before

@@ -8,10 +8,11 @@ Disallow: /oauth/
 
 # AI assistants are welcome, explicitly.
 #
-# Over 90 days to 2026-08-22, assistant referrals converted at the highest
-# activation rate of any channel (8 of 11 signups placed a card), landing
-# mostly on the /best/* buying guides. Every page here is also available as raw
-# Markdown by appending `.md`, and the whole corpus is at /llms-full.txt.
+# Assistant referrals have been the highest-activating channel, landing mostly
+# on the /best/* buying guides. The docs, /vs, /best, /tools, /use-cases, /scout,
+# /pricing and /changelog pages are also available as raw Markdown by appending
+# `.md` (/explore, /c/* and /legal/* have none), and the whole corpus is at
+# /llms-full.txt.
 #
 # If these ever need to be disallowed, that is a deliberate business decision —
 # not something to inherit from a hosting default.
