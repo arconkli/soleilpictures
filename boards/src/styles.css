@@ -24391,3 +24391,111 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
 .cbd-linkbtn { border: 0; background: none; padding: 2px 0; color: var(--ink-2); font: 500 11px/1.3 var(--font-sans); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .cbd-linkbtn:hover { color: var(--ink-0); }
 .cbd-hint { margin: 4px 0 6px; font: 400 11px/1.4 var(--font-sans); color: var(--ink-2); }
+
+/* ── Under a finger: 40px to take, 16px to type ──────────────────────────────
+   Every rule here is for a coarse pointer, at any width (a phone, an iPad
+   either way up), and sits after the base rules it changes: a computer with a
+   mouse keeps its sizes. Where the drawn size is the look, a clear ::before
+   or ::after takes the finger, and no two of them overlap. */
+@media (pointer: coarse) {
+  /* One sentence, two wordings: a finger has no right-click (TagDetailView). */
+  .only-fine { display: none !important; }
+
+  /* Share: the reach buttons, the role pickers, the reward's Details. */
+  .share-scope-btn { min-height: 40px; padding-top: 0; padding-bottom: 0; }
+  .share-role-select, .share-access-pick { min-height: 40px; }
+  .share-reward-toggle { position: relative; }
+  .share-reward-toggle::after { content: ''; position: absolute; inset: -11px -8px; }
+
+  /* Settings: close and back at 44, with the head trimmed round them so it
+     stays 56px tall; the back sits nearer the edge, so the title beside it
+     starts within 2px of where it did. */
+  .settings-head { padding: 6px 10px 6px 20px; }
+  .settings-x { width: 44px; height: 44px; }
+  .settings-back { width: 44px; height: 44px; margin: 0 0 0 -18px; }
+  .settings-pill, select.settings-input { min-height: 40px; }
+  .settings-link-btn.is-danger, .settings-link-btn-danger, .settings-danger-link { min-height: 40px; }
+  /* The accent dots stay 22px; 20px apart, each one's 42px meets the next
+     (the chosen dot is drawn a tenth larger: its finger area isn't). */
+  .settings-accent-row { gap: 20px; row-gap: 20px; padding: 10px 0; }
+  .settings-accent-dot { position: relative; }
+  .settings-accent-dot::after { content: ''; position: absolute; inset: -12px; border-radius: 50%; }
+  .settings-accent-dot-clear::after { inset: -11px; }   /* a 1px border, not 2 */
+  .settings-accent-dot.is-active::after { transform: scale(.909); }
+
+  .pricing-toggle-pill { min-height: 40px; padding-left: 16px; padding-right: 16px; }
+  .onboarding-tour-skip { min-height: 40px; min-width: 40px; }
+
+  /* The plan chip: the top bar's 32px, and 40 to a finger (up and down only,
+     so it reaches no neighbour beside it). */
+  .upgrade-chip { height: 32px; padding: 0 12px; }
+  .upgrade-chip::after { content: ''; position: absolute; inset: -5px 0; }
+
+  /* The strip's Done (it leaves Draw, Arrow, Select): 32px drawn in a 42px
+     strip, and the whole height inside the strip to a finger. */
+  .cnv-hint { padding-top: 4px; padding-bottom: 4px; }
+  .cnv-hint-btn { position: relative; height: 32px; padding: 0 14px; font-size: 13px; }
+  .cnv-hint-btn::before { content: ''; position: absolute; inset: -5px 0; }   /* from inside its 1px border */
+  .cnv-studio-bar { gap: 16px; }
+  .cnv-studio-bar-go, .cnv-studio-bar-x { position: relative; }
+  .cnv-studio-bar-go::before { content: ''; position: absolute; inset: -8px 0; }
+  .cnv-studio-bar-x::before { content: ''; position: absolute; inset: -7px; }
+
+  /* Questions (Add a link, rename, an arrow's label, Delete?). */
+  .feedback-field input { height: 40px; }
+  .feedback-dialog :is(.btn-primary, .btn-secondary) { min-height: 40px; }
+
+  /* The workspace menu's ⋯, and the phone menu's Admin. */
+  .ws-menu-row { min-height: 44px; }
+  .ws-menu-row-wrap.has-menu .ws-menu-row { padding-right: 48px; }
+  .ws-menu-row-more { width: 40px; height: 40px; right: 2px; }
+  .sb-admin-btn { height: 40px; }
+
+  /* Keyboard hints a finger can't use. The comment box keeps its Post where
+     it was, so the hint only goes blank. */
+  .inline-composer-hint { visibility: hidden; }
+  .list-selbar-hint { display: none; }
+
+  /* A photo's buttons stay 24px; 16px apart, each takes 40. */
+  .ic-actions { gap: 16px; padding: 3px 8px; }
+  .ic-actions .ic-act { position: relative; }
+  .ic-actions .ic-act::before { content: ''; position: absolute; inset: -9px; }
+  .ic-imgwrap:has(.ic-actions) .ic-link { right: 140px; }
+  /* A palette's remove-colour x (it shows once the palette is selected): its
+     finger area grows into its own swatch, never over the next one. */
+  .pc-cell-x::before { content: ''; position: absolute; inset: -5px -5px -11px -11px; border-radius: 50%; }
+  @container (min-width: 64px) {
+    .pc-cell-x::before { inset: -5px -5px -19px -19px; }
+  }
+  /* A swatch too narrow for that (a palette of many colours): the area stops
+     at the x's own left edge, short of the swatch before it. */
+  @container (max-width: 31px) {
+    .pc-cell-x::before { inset: -5px -5px -11px 0; }
+  }
+  /* The add-colour sliver is 40px wide while its palette is selected. */
+  .card.is-selected .pc-add, .card.is-selected .pc-bands .pc-add { flex-basis: 40px; }
+}
+@media not (pointer: coarse) {
+  .only-coarse { display: none !important; }
+}
+@media (pointer: coarse) and (max-width: 640px) {
+  /* The studio bar's close is pinned to the right edge here: room for its 40. */
+  .cnv-studio-bar { padding-right: 44px; }
+  .cnv-studio-bar-x { right: 8px; }
+  /* The plan chip sits under the top bar on a phone, across where a tool's
+     strip is: the strip (and its Done) goes below the chip, and the tag pill
+     below the strip. */
+  body:has(.upgrade-chip) .cnv-hint { top: 54px; }
+  body:has(.upgrade-chip) .canvas-wrap:has(> .cnv-hint) > .tag-spotlight-pill { top: 104px; }
+}
+
+/* iPhone zooms the page when a field under 16px takes the focus, and leaves
+   it zoomed. Every field a finger types in is 16px, whatever its class says
+   (hence !important). The canvas's own text is not: a note, a doc or a grid
+   on the board keeps its size and the board's zoom. Nor are the fields drawn
+   larger than 16px (the sign-in code, a title being renamed): they keep
+   their size. The public pages' sheets repeat this rule; keep them the same. */
+@media (pointer: coarse) {
+  :where(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]),
+    textarea, select):not(.cards-layer *):not(.auth-code-input, .sgb-input.is-code, .ch-ws-rename input, .tp-title-input, .doc-card-title-input) { font-size: 16px !important; }
+}

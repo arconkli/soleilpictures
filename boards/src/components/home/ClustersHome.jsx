@@ -206,6 +206,8 @@ export function ClustersHome({
   const [naming, setNaming] = useState(false);
   // A finger taps where a mouse clicks: the hint says so.
   const touch = useMatchMedia('(hover: none) and (pointer: coarse)');
+  // A finger has no Enter to be told about (the query styles.css sizes by).
+  const finger = useMatchMedia('(pointer: coarse)');
   // While a field is in use on a touch screen, how much of the window the
   // keyboard covers: the find bar and the naming card rise above it.
   const [findFocused, setFindFocused] = useState(false);
@@ -336,7 +338,9 @@ export function ClustersHome({
                onChange={(e) => setDraft(e.target.value)}
                onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); setNaming(false); } }} />
       </label>
-      <p className="ch-naming-sub"><Trans>At the top of {wsName} · Enter to make it and go in</Trans></p>
+      <p className="ch-naming-sub">{finger
+        ? <Trans>At the top of {wsName}</Trans>
+        : <Trans>At the top of {wsName} · Enter to make it and go in</Trans>}</p>
       <div className="ch-card-acts">
         <button type="submit" className="ch-primary"><Trans>Make cluster</Trans></button>
         <button type="button" className="ch-word" onClick={() => setNaming(false)}><Trans>Cancel</Trans></button>

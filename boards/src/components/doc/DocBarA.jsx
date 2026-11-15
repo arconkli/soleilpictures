@@ -10,6 +10,7 @@ import { useDocExport } from '../DocExportMenu.jsx';
 import { useDocFont } from '../../hooks/useDocFont.js';
 import { useCustomFonts, useRecentFonts } from '../../hooks/useCustomFonts.js';
 import { useKeyboardInset } from '../../hooks/useKeyboardInset.js';
+import { useMatchMedia } from '../../hooks/useMatchMedia.js';
 import { useMessagesUi } from '../../hooks/useOpenDm.js';
 import { ELEMENTS } from '../docExtensions/screenplay/screenplayFlow.js';
 import { elementLabel } from '../../lib/screenplayFlowWords.js';
@@ -117,6 +118,8 @@ export function DocBarA({
   // the row (which is what changes).
   const capRef = useRef(null);
   const input = useCoarse() ? 'touch' : 'desktop';
+  // The Insert menu's wording follows the query styles.css sizes by.
+  const finger = useMatchMedia('(pointer: coarse)');
   const [level, setLevel] = useState(0);
   const seenW = useRef({});
   // The observer and the selects it already watches, kept where the
@@ -395,7 +398,7 @@ export function DocBarA({
         return (
           <MenuButton key={id} keepFocus label={t`Insert`} icon={Plus} caret align="end" className="dl-w-caret"
                       menuClassName="dl-insert-menu" disabled={disabled} side={side}>
-            {insertItems({ onInsertImage, onInsertBoardEmbed }).map((it) => (
+            {insertItems({ onInsertImage, onInsertBoardEmbed, coarse: finger }).map((it) => (
               <MenuItem key={it.id} icon={INSERT_ICONS[it.id]} label={it.title} sub={it.subtitle}
                         onSelect={() => { if (editor) it.run(editor); }} />
             ))}

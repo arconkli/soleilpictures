@@ -7,6 +7,7 @@ import { MenuButton, MenuItem, MenuSep } from '../toolbar/Menu.jsx';
 import { useFeedback } from '../AppFeedback.jsx';
 import { safeRun } from '../../lib/safeEditorCmd.js';
 import { undoToast } from '../../lib/undoToast.js';
+import { coarsePointer } from '../../lib/noteTouchTyping.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import {
   Check, Columns2, ColumnsPlusLeft, ColumnsPlusRight, Rows, RowsPlusBottom, RowsPlusTop, Trash2,
@@ -150,7 +151,9 @@ export function DocTableBar({ editor, paperRef }) {
       message: tr`Table deleted`,
       undoManager: step ? um : null,
       stackItem: step,
-      supersededMessage: tr`The doc changed since — press ⌘Z to step back instead.`,
+      supersededMessage: coarsePointer()
+        ? tr`The doc changed since — use Undo to step back instead.`
+        : tr`The doc changed since — press ⌘Z to step back instead.`,
       onUndo: () => { if (step) um.undo(); },
     });
   };

@@ -1229,7 +1229,9 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
           <div className="tag-detail-empty">
             <Trans>Nothing connected to <strong>{ph({ name: tag.name })}</strong> yet.</Trans>
             <div className="tag-detail-empty-hint">
-              <Trans>Right-click a card and choose Tag…, or drag this tag onto something.</Trans>
+              {/* styles.css shows one of the two: a finger has no right-click. */}
+              <span className="only-fine"><Trans>Right-click a card and choose Tag…, or drag this tag onto something.</Trans></span>
+              <span className="only-coarse"><Trans>Open a card's menu and choose Tag….</Trans></span>
             </div>
           </div>
         )}

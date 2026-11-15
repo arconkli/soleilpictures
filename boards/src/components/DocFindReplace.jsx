@@ -13,6 +13,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { yUndoPluginKey } from 'y-prosemirror';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { undoToast } from '../lib/undoToast.js';
+import { coarsePointer } from '../lib/noteTouchTyping.js';
 import { useFeedback } from './AppFeedback.jsx';
 import { t as tt, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
@@ -273,7 +274,9 @@ export function DocFindReplace({ editor, editors = [], open, onClose,
         : tt`${plural(n, { one: 'Replaced # match', other: 'Replaced # matches' })}`,
       onUndo: () => {
         if (steps.some(({ um, item }) => um.undoStack[um.undoStack.length - 1] !== item)) {
-          feedback.toast({ type: 'info', message: tt`The document changed since — press ⌘Z to step back instead.` });
+          feedback.toast({ type: 'info', message: coarsePointer()
+            ? tt`The document changed since — use Undo to step back instead.`
+            : tt`The document changed since — press ⌘Z to step back instead.` });
           return;
         }
         steps.forEach(({ um }) => um.undo());

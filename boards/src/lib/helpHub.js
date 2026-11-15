@@ -16,9 +16,10 @@
 // product does today — "Any file" says so about the free plan, and changes
 // the day file types open up there.
 import { t } from '@lingui/core/macro';
+import { coarsePointer } from './noteTouchTyping.js';
 export const ADD_KINDS = Object.freeze([
   { id: 'image',   get title() { return t`Image`; },            get line() { return t`Paste from any tab, drag from your desktop, or drop a whole folder — they arrange themselves.`; }, docs: '/docs/canvas/images' },
-  { id: 'note',    get title() { return t`Note`; },             get line() { return t`Press N, or right-click the canvas. Bold, lists, and @-mentions of other cards.`; }, docs: '/docs/canvas/notes' },
+  { id: 'note',    get title() { return t`Note`; },             get line() { return coarsePointer() ? t`Bold, lists, and @-mentions of other cards.` : t`Press N, or right-click the canvas. Bold, lists, and @-mentions of other cards.`; }, docs: '/docs/canvas/notes' },
   { id: 'doc',     get title() { return t`Doc`; },              get line() { return t`Long-form writing with pages, an outline, comments and backlinks.`; }, docs: '/docs/documents' },
   { id: 'script',  get title() { return t`Script`; },           get line() { return t`A doc in screenplay mode. Drop a .fountain or .fdx file and it opens as one.`; }, docs: '/docs/documents/screenplay' },
   { id: 'link',    get title() { return t`Link`; },             get line() { return t`Paste a URL onto the canvas and it unfurls into a card.`; }, docs: '/docs/canvas/cards' },

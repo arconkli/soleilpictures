@@ -41,6 +41,7 @@
 .su-tip.is-phone .su-tip-foot{clear:both;padding-top:2px}
 .su-tip.is-phone .su-tip-next{height:36px;padding:0 16px;font-size:13px}
 .su-tip.is-phone .su-tip-how,.su-tip.is-phone .onboarding-tour-skip{height:36px;font-size:13px}
+@media (pointer:coarse){.su-tip .su-tip-how,.su-tip .onboarding-tour-skip{height:40px}}
 @media (prefers-reduced-motion: reduce){.su-tip{animation:none}}
 
 /* ── The re-ask ───────────────────────────────────────────────────────────── */

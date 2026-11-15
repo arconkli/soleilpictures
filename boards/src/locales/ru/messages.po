@@ -4951,6 +4951,10 @@ msgid "At least {TEAM_SEAT_MIN}. Add more any time; seats nobody uses drop at re
 msgstr "Не меньше {TEAM_SEAT_MIN}. Добавить можно в любой момент; места, которыми никто не пользуется, исчезают при продлении."
 
 #: src/components/home/ClustersHome.jsx
+msgid "At the top of {wsName}"
+msgstr "На верхнем уровне {wsName}"
+
+#: src/components/home/ClustersHome.jsx
 msgid "At the top of {wsName} · Enter to make it and go in"
 msgstr "На верхнем уровне {wsName} · Enter — создать и войти"
 
@@ -5273,6 +5277,10 @@ msgstr "Жирный"
 #: src/components/ShortcutsOverlay.jsx
 msgid "Bold · italic · underline"
 msgstr "Жирный · курсив · подчёркнутый"
+
+#: src/lib/helpHub.js
+msgid "Bold, lists, and @-mentions of other cards."
+msgstr "Жирный шрифт, списки и @-упоминания других карточек."
 
 #: src/lib/inviteRewardWords.js
 msgid "Bonuses go to each person’s own account, add to any plan and never expire."
@@ -8822,10 +8830,6 @@ msgstr "Черновики удаляются спустя какое-то вр�
 msgid "Drag a card onto a board card to nest it inside."
 msgstr "Перетащите карточку на карточку-кластер, чтобы вложить её."
 
-#: src/components/CanvasSurface.jsx
-msgid "drag an image in · or long-press the canvas to add"
-msgstr "перетащите изображение · или долго нажмите на холст, чтобы добавить"
-
 #: src/components/OnboardingCoachmark.jsx
 msgid "Drag an image in, paste, or hit Image on the left to start your moodboard."
 msgstr "Перетащите изображение, вставьте его или нажмите «Изображение» слева, чтобы начать мудборд."
@@ -10956,6 +10960,10 @@ msgstr "Скрыть баннер на 1 час, не подтверждая о�
 #: src/components/doc/DocBarA.jsx
 msgid "Hide the keyboard"
 msgstr "Скрыть клавиатуру"
+
+#: src/components/settings/AppearanceTab.jsx
+msgid "Hide the sidebar, toolbar, breadcrumb, and overlays."
+msgstr "Скрыть боковую панель, панель инструментов, навигационную цепочку и наложения."
 
 #: src/components/settings/AppearanceTab.jsx
 msgid "Hide the sidebar, toolbar, breadcrumb, and overlays. ⌘. toggles."
@@ -14020,6 +14028,10 @@ msgstr "Нет бесед по запросу «{trim}»."
 msgid "No conversations yet. Click <0><1/></0> to start one."
 msgstr "Бесед пока нет. Нажмите <0><1/></0>, чтобы начать."
 
+#: src/components/MessagesPanel.jsx
+msgid "No conversations yet. Tap <0><1/></0> to start one."
+msgstr "Бесед пока нет. Коснитесь <0><1/></0>, чтобы начать."
+
 #: src/lib/billingCopyWords.js
 msgid "No credit card. Nothing to install."
 msgstr "Без банковской карты. Ничего не нужно устанавливать."
@@ -15231,6 +15243,10 @@ msgstr "Откройте **Google Takeout**, выберите **Отменить
 #: src/App.jsx
 msgid "Open a board in split view…"
 msgstr "Открыть кластер в разделённом виде…"
+
+#: src/components/TagDetailView.jsx
+msgid "Open a card's menu and choose Tag…."
+msgstr "Откройте меню карточки и выберите «Добавить тег…»."
 
 #: src/App.jsx
 msgid "Open a cluster…"
@@ -16519,6 +16535,10 @@ msgstr "Нажмите A. Стрелки крепятся к карточкам 
 #: src/components/CanvasSurface.jsx
 msgid "Press and hold a card to pick it up and move it."
 msgstr "Нажмите и удерживайте карточку, чтобы взять её и переместить."
+
+#: src/components/ShortcutsOverlay.jsx
+msgid "Press and hold the canvas or any card for more actions."
+msgstr "Нажмите и удерживайте холст или любую карточку, чтобы увидеть другие действия."
 
 #: src/components/TagPicker.jsx
 msgid "Press Enter to create this tag"
@@ -20333,6 +20353,10 @@ msgid "Tap + then New cluster to group these — drag photos in, name it."
 msgstr "Коснитесь «+», затем «Новый кластер», чтобы сгруппировать их: перетащите фото, дайте название."
 
 #: src/components/CanvasSurface.jsx
+msgid "tap + to add · or press and hold"
+msgstr "коснитесь +, чтобы добавить · или нажмите и удерживайте"
+
+#: src/components/CanvasSurface.jsx
 msgid "Tap a card to attach, or empty space to drop a comment"
 msgstr "Коснитесь карточки, чтобы прикрепить, или пустого места, чтобы оставить комментарий"
 
@@ -20351,6 +20375,10 @@ msgstr "Коснитесь звезды, чтобы посмотреть · дв
 #: src/components/OnboardingCoachmark.jsx
 msgid "Tap a tool on the toolbar at the left, or long-press the canvas, to add your first card."
 msgstr "Выберите инструмент на панели слева или долго нажмите на холст, чтобы добавить первую карточку."
+
+#: src/components/CanvasSurface.jsx
+msgid "Tap an image to sample a color."
+msgstr "Коснитесь изображения, чтобы взять цвет."
 
 #: src/components/CanvasSurface.jsx
 msgid "Tap cards to select"
@@ -20966,6 +20994,10 @@ msgstr "Демо-аккаунт входит по паролю."
 msgid "The doc changed since — press ⌘Z to step back instead."
 msgstr "С тех пор документ изменился — нажмите ⌘Z, чтобы отменить."
 
+#: src/components/doc/DocTableBar.jsx
+msgid "The doc changed since — use Undo to step back instead."
+msgstr "С тех пор документ изменился — используйте «Отменить», чтобы вернуться назад."
+
 #: src/components/DocSurface.jsx
 msgid "The document changed since — press ⌘Z in it to step back instead."
 msgstr "Документ с тех пор изменился — нажмите в нём ⌘Z, чтобы вернуться назад."
@@ -20974,6 +21006,15 @@ msgstr "Документ с тех пор изменился — нажмите 
 #: src/components/DocFindReplace.jsx
 msgid "The document changed since — press ⌘Z to step back instead."
 msgstr "Документ с тех пор изменился — нажмите ⌘Z, чтобы вернуться назад."
+
+#: src/components/DocSurface.jsx
+msgid "The document changed since — use Undo in it to step back instead."
+msgstr "Документ с тех пор изменился — используйте в нём «Отменить», чтобы вернуться назад."
+
+#: src/components/doc/DocFindTab.jsx
+#: src/components/DocFindReplace.jsx
+msgid "The document changed since — use Undo to step back instead."
+msgstr "Документ с тех пор изменился — используйте «Отменить», чтобы вернуться назад."
 
 #: src/components/DocOpening.jsx
 msgid "The document opens as soon as it arrives. If your connection dropped, reload the page."
@@ -22763,6 +22804,10 @@ msgstr "Загрузить папку — её папки станут клас�
 #: src/components/info/VersionsSection.jsx
 msgid "Upload a new version of this file"
 msgstr "Загрузить новую версию этого файла"
+
+#: src/components/DocInsertMenu.jsx
+msgid "Upload a picture"
+msgstr "Загрузить изображение"
 
 #: src/components/film/FilmPlayer.jsx
 msgid "Upload a version"

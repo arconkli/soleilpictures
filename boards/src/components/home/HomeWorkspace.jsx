@@ -21,6 +21,7 @@ import { isComposingKey } from '../../lib/composerKeys.js';
 import { initialOf } from '../../lib/graphemes.js';
 import { useWorkspaceOwners } from '../../hooks/useWorkspaceOwners.js';
 import { isOwnWorkspace, workspaceTitle, workspaceTileName } from '../../lib/sharedPeopleWords.js';
+import { useMatchMedia } from '../../hooks/useMatchMedia.js';
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
@@ -47,6 +48,8 @@ export function HomeWorkspace({
   const inputRef = useRef(null);
   const open = !!place;
   const owners = useWorkspaceOwners(workspaces, selfUserId);
+  // A finger has no Enter or Esc to be told about (the query styles.css sizes by).
+  const finger = useMatchMedia('(pointer: coarse)');
 
   // The switcher follows its caret when the window changes size.
   useEffect(() => {
@@ -132,7 +135,7 @@ export function HomeWorkspace({
           </span>
         )}
       </div>
-      <p className="ch-ws-meta">{renaming ? t`Enter to save · Esc to cancel` : line}</p>
+      <p className="ch-ws-meta">{renaming && !finger ? t`Enter to save · Esc to cancel` : line}</p>
       {open && typeof document !== 'undefined' && createPortal(
         <div ref={popRef} className="ph-ws-pop" style={{ top: place.top, left: place.left, width: place.width }}>
           <WorkspaceMenu

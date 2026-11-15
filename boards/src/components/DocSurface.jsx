@@ -23,6 +23,7 @@ import { RELOAD_EVENT, noteDocReset, refreshDocReset, settleDocReset } from '../
 import { pushDocUndoTarget, removeDocUndoTarget, getDocUndoTarget } from '../lib/overlayRouting.js';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { undoToast } from '../lib/undoToast.js';
+import { coarsePointer } from '../lib/noteTouchTyping.js';
 import { encodeAnchor, resolveAnchor } from '../lib/bookmarkRelPos.js';
 import { uploadImageIntoDoc } from './docExtensions/ImageUpload.js';
 import { isDocQaMode } from '../lib/localMode.js';
@@ -832,7 +833,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       undoManager: docUndoManager,
       stackItem: item,
       onUndo: () => { try { docUndoManager?.undo(); } catch (_) {} },
-      supersededMessage: tr`The document changed since — press ⌘Z in it to step back instead.`,
+      supersededMessage: coarsePointer()
+        ? tr`The document changed since — use Undo in it to step back instead.`
+        : tr`The document changed since — press ⌘Z in it to step back instead.`,
     });
   }, [activePageId, ydoc, scope, feedback, docUndoManager]);
 

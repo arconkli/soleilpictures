@@ -1216,3 +1216,15 @@
 .seo-hero.is-storefront .seo-subhead { margin-left: 0; }
 .seo-hero.is-storefront::before,
 .seo-hero.is-storefront::after { display: none; }
+
+/* Under a finger every field is 16px, or iPhone zooms the page on focus and
+   leaves it zoomed (the same rule closes styles.css, which this page may load
+   without). This sheet also loads inside the app, so it leaves the same things
+   alone: the board's own text, and the fields drawn larger than 16px. */
+@media (pointer: coarse) {
+  :where(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]),
+    textarea, select):not(.cards-layer *):not(.auth-code-input, .sgb-input.is-code, .ch-ws-rename input, .tp-title-input, .doc-card-title-input) { font-size: 16px !important; }
+}
+@media (pointer: coarse) {
+  .exp-sort-btn { min-height: 40px; min-width: 40px; }
+}

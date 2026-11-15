@@ -4927,6 +4927,10 @@ msgid "At least {TEAM_SEAT_MIN}. Add more any time; seats nobody uses drop at re
 msgstr "최소 {TEAM_SEAT_MIN}개. 언제든 늘릴 수 있고, 아무도 쓰지 않는 시트는 갱신 때 줄어들어요."
 
 #: src/components/home/ClustersHome.jsx
+msgid "At the top of {wsName}"
+msgstr "{wsName} 최상위에 만들어요"
+
+#: src/components/home/ClustersHome.jsx
 msgid "At the top of {wsName} · Enter to make it and go in"
 msgstr "{wsName} 최상위에 만들어요 · Enter를 누르면 만들고 들어가요"
 
@@ -5249,6 +5253,10 @@ msgstr "굵게"
 #: src/components/ShortcutsOverlay.jsx
 msgid "Bold · italic · underline"
 msgstr "굵게 · 기울임 · 밑줄"
+
+#: src/lib/helpHub.js
+msgid "Bold, lists, and @-mentions of other cards."
+msgstr "굵게, 목록, 다른 카드 @멘션을 쓸 수 있어요."
 
 #: src/lib/inviteRewardWords.js
 msgid "Bonuses go to each person’s own account, add to any plan and never expire."
@@ -8798,10 +8806,6 @@ msgstr "초안은 마지막 변경 후 일정 시간이 지나면 삭제되는�
 msgid "Drag a card onto a board card to nest it inside."
 msgstr "카드를 클러스터 카드 위로 끌어다 놓으면 그 안에 넣을 수 있어요."
 
-#: src/components/CanvasSurface.jsx
-msgid "drag an image in · or long-press the canvas to add"
-msgstr "이미지를 끌어다 놓거나 캔버스를 길게 눌러 추가"
-
 #: src/components/OnboardingCoachmark.jsx
 msgid "Drag an image in, paste, or hit Image on the left to start your moodboard."
 msgstr "이미지를 끌어다 놓거나 붙여넣거나 왼쪽의 이미지를 눌러 무드보드를 시작하세요."
@@ -10932,6 +10936,10 @@ msgstr "알림을 확인하지 않고 배너를 1시간 동안 숨기기"
 #: src/components/doc/DocBarA.jsx
 msgid "Hide the keyboard"
 msgstr "키보드 숨기기"
+
+#: src/components/settings/AppearanceTab.jsx
+msgid "Hide the sidebar, toolbar, breadcrumb, and overlays."
+msgstr "사이드바, 도구 모음, 이동 경로, 오버레이를 숨겨요."
 
 #: src/components/settings/AppearanceTab.jsx
 msgid "Hide the sidebar, toolbar, breadcrumb, and overlays. ⌘. toggles."
@@ -13996,6 +14004,10 @@ msgstr "“{trim}” 검색 결과가 없어요."
 msgid "No conversations yet. Click <0><1/></0> to start one."
 msgstr "아직 대화가 없어요. <0><1/></0> 버튼을 눌러 시작하세요."
 
+#: src/components/MessagesPanel.jsx
+msgid "No conversations yet. Tap <0><1/></0> to start one."
+msgstr "아직 대화가 없어요. <0><1/></0> 버튼을 탭해 시작하세요."
+
 #: src/lib/billingCopyWords.js
 msgid "No credit card. Nothing to install."
 msgstr "신용카드는 필요 없어요. 설치할 것도 없어요."
@@ -15207,6 +15219,10 @@ msgstr "**Google Takeout**을 열고 **모두 선택 해제**를 선택한 뒤 *
 #: src/App.jsx
 msgid "Open a board in split view…"
 msgstr "분할 보기에서 클러스터 열기…"
+
+#: src/components/TagDetailView.jsx
+msgid "Open a card's menu and choose Tag…."
+msgstr "카드 메뉴를 열고 태그…를 선택하세요."
 
 #: src/App.jsx
 msgid "Open a cluster…"
@@ -16495,6 +16511,10 @@ msgstr "A를 누르세요. 화살표는 카드에 고정되고, 카드를 옮기
 #: src/components/CanvasSurface.jsx
 msgid "Press and hold a card to pick it up and move it."
 msgstr "카드를 길게 눌러 집어 올린 뒤 옮기세요."
+
+#: src/components/ShortcutsOverlay.jsx
+msgid "Press and hold the canvas or any card for more actions."
+msgstr "캔버스나 카드를 길게 누르면 더 많은 작업이 나와요."
 
 #: src/components/TagPicker.jsx
 msgid "Press Enter to create this tag"
@@ -20309,6 +20329,10 @@ msgid "Tap + then New cluster to group these — drag photos in, name it."
 msgstr "+를 탭한 다음 새 클러스터를 선택해 묶으세요 — 사진을 끌어다 놓고 이름을 붙이세요."
 
 #: src/components/CanvasSurface.jsx
+msgid "tap + to add · or press and hold"
+msgstr "+를 탭해 추가 · 또는 길게 누르기"
+
+#: src/components/CanvasSurface.jsx
 msgid "Tap a card to attach, or empty space to drop a comment"
 msgstr "카드를 탭해서 붙이거나, 빈 곳을 탭해서 댓글을 놓으세요"
 
@@ -20327,6 +20351,10 @@ msgstr "별을 탭하면 미리 보고, 더블탭하면 열려요"
 #: src/components/OnboardingCoachmark.jsx
 msgid "Tap a tool on the toolbar at the left, or long-press the canvas, to add your first card."
 msgstr "왼쪽 도구 모음에서 도구를 탭하거나 캔버스를 길게 눌러 첫 카드를 추가하세요."
+
+#: src/components/CanvasSurface.jsx
+msgid "Tap an image to sample a color."
+msgstr "이미지를 탭해 색상을 추출하세요."
 
 #: src/components/CanvasSurface.jsx
 msgid "Tap cards to select"
@@ -20942,6 +20970,10 @@ msgstr "데모 계정은 비밀번호로 로그인해요."
 msgid "The doc changed since — press ⌘Z to step back instead."
 msgstr "그 사이 문서가 바뀌었어요. 대신 ⌘Z를 눌러 되돌리세요."
 
+#: src/components/doc/DocTableBar.jsx
+msgid "The doc changed since — use Undo to step back instead."
+msgstr "그 사이 문서가 바뀌었어요. 대신 실행 취소로 되돌리세요."
+
 #: src/components/DocSurface.jsx
 msgid "The document changed since — press ⌘Z in it to step back instead."
 msgstr "그 사이 문서가 바뀌었어요. 문서 안에서 ⌘Z를 눌러 되돌리세요."
@@ -20950,6 +20982,15 @@ msgstr "그 사이 문서가 바뀌었어요. 문서 안에서 ⌘Z를 눌러 �
 #: src/components/DocFindReplace.jsx
 msgid "The document changed since — press ⌘Z to step back instead."
 msgstr "그 사이 문서가 바뀌었어요. 대신 ⌘Z를 눌러 되돌리세요."
+
+#: src/components/DocSurface.jsx
+msgid "The document changed since — use Undo in it to step back instead."
+msgstr "그 사이 문서가 바뀌었어요. 문서 안에서 실행 취소로 되돌리세요."
+
+#: src/components/doc/DocFindTab.jsx
+#: src/components/DocFindReplace.jsx
+msgid "The document changed since — use Undo to step back instead."
+msgstr "그 사이 문서가 바뀌었어요. 대신 실행 취소로 되돌리세요."
 
 #: src/components/DocOpening.jsx
 msgid "The document opens as soon as it arrives. If your connection dropped, reload the page."
@@ -22739,6 +22780,10 @@ msgstr "폴더 업로드 — 하위 폴더가 클러스터가 돼요"
 #: src/components/info/VersionsSection.jsx
 msgid "Upload a new version of this file"
 msgstr "이 파일의 새 버전 업로드"
+
+#: src/components/DocInsertMenu.jsx
+msgid "Upload a picture"
+msgstr "이미지 업로드"
 
 #: src/components/film/FilmPlayer.jsx
 msgid "Upload a version"

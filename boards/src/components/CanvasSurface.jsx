@@ -277,7 +277,7 @@ import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layou
 import { cursorIntervalForPeerCount, shouldBroadcastOwnCursor } from '../lib/presenceTuning.js';
 import { createNoteMeasurer, NOTE_INNER_PAD } from '../lib/noteMeasure.js';
 import { addCanvasRevealer } from '../lib/noteEditorRegistry.js';
-import { revealDelta } from '../lib/noteTouchTyping.js';
+import { revealDelta, coarsePointer } from '../lib/noteTouchTyping.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { afterBoot } from '../lib/afterBoot.js';
 import { earliestEpoch, formatClipTime, parseClipTime, serverNow, setBoardEpoch, syncServerClock } from '../lib/videoSync.js';
@@ -10185,7 +10185,7 @@ export function CanvasSurface({
           }},
           { id: 'pc-pick-image', label: tr`Pick from cluster image…`, run: () => {
             setEyedropFor(c.id);
-            feedback.toast({ type: 'info', message: tr`Click an image to sample a color. Esc to cancel.` });
+            feedback.toast({ type: 'info', message: coarsePointer() ? tr`Tap an image to sample a color.` : tr`Click an image to sample a color. Esc to cancel.` });
           }},
         ]});
       } else if (c.kind === 'note') {
@@ -16384,7 +16384,7 @@ export function CanvasSurface({
             ))}
           </div>
           <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-fine"><Trans>drag an image straight in&ensp;·&ensp;paste&ensp;·&ensp;or double-click to add</Trans></span>
-          <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-coarse"><Trans>drag an image in&ensp;·&ensp;or long-press the canvas to add</Trans></span>
+          <span className="cnv-empty-tiles-sub cnv-empty-tiles-sub-coarse"><Trans>tap + to add&ensp;·&ensp;or press and hold</Trans></span>
         </div>
         );
       })()}
