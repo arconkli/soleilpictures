@@ -11,7 +11,7 @@
 //     served (the answer is public; the column is writable by a workspace);
 //   * the copy missing from the bucket falls back to the original;
 //   * ?v= comes from the board's updated time;
-//   * worker.js takes both the tags and the bytes from here, and migration 0889
+//   * worker.js takes both the tags and the bytes from here, and migration 0890
 //     re-emits get_public_board_meta with og_cover and nothing dropped.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -42,7 +42,7 @@ test('a cover without a copy is the original, with the original\'s size and type
   assert.equal(publicCover({ ...META, og_image_key: `${WS}/a.PNG`, og_cover: null }).type, 'image/png');
 });
 
-test('before migration 0889 (no og_cover) the original is served and no size is claimed', () => {
+test('before migration 0890 (no og_cover) the original is served and no size is claimed', () => {
   const { og_cover, ...old } = META;
   const c = publicCover(old);
   assert.equal(c.key, ORIG);
@@ -152,14 +152,14 @@ test('worker.js writes the tags and serves the bytes from the same pick', () => 
   assert.doesNotMatch(thumb, /meta\?\.og_image_key \|\| meta\?\.thumb_key/);
 });
 
-test('migration 0889 adds og_cover to get_public_board_meta and drops nothing', () => {
+test('migration 0890 adds og_cover to get_public_board_meta and drops nothing', () => {
   const dir = resolve(HERE, '../../../supabase/migrations');
   const fnOf = (sql) => {
     const at = sql.lastIndexOf('function public.get_public_board_meta(');
     return sql.slice(at, sql.indexOf('$$;', at));
   };
   const keysOf = (fn) => [...fn.matchAll(/^\s+'([a-z_]+)',\s/gm)].map((m) => m[1]);
-  const mine = fnOf(readFileSync(resolve(dir, '0889_public_cover_preview.sql'), 'utf8'));
+  const mine = fnOf(readFileSync(resolve(dir, '0890_public_cover_preview.sql'), 'utf8'));
   const before = fnOf(readFileSync(resolve(dir, '0860_post_boards_unlisted.sql'), 'utf8'));
   const added = ['og_cover', 'w', 'h', 'preview_key', 'preview_w', 'preview_h'];
   assert.deepEqual(keysOf(mine).filter((k) => !added.includes(k)), keysOf(before));
@@ -169,7 +169,7 @@ test('migration 0889 adds og_cover to get_public_board_meta and drops nothing', 
   assert.match(mine, /like i\.workspace_id::text \|\| '\/previews\/%\.webp'/);
   assert.match(mine, /i\.deleted_at is null/);
   // It is the newest definition: nothing later re-emits the function without og_cover.
-  for (const f of readdirSync(dir).filter((n) => n > '0889_public_cover_preview.sql')) {
+  for (const f of readdirSync(dir).filter((n) => n > '0890_public_cover_preview.sql')) {
     const sql = readFileSync(resolve(dir, f), 'utf8');
     if (/function public\.get_public_board_meta\(/i.test(sql)) assert.match(fnOf(sql), /'og_cover'/, f);
   }

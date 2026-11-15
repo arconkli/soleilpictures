@@ -7,7 +7,7 @@
 // went out at that size. The app already keeps a share-sized WebP of a picture
 // (images.preview_path, 1280 px on its longest edge, uploads.js and
 // scripts/backfill-image-variants.mjs), and get_public_board_meta returns the
-// cover's as `og_cover` (migration 0889). This module picks it, with the
+// cover's as `og_cover` (migration 0890). This module picks it, with the
 // original as the fallback, and says the type and size of the pick so the
 // og:image tags describe the bytes that are served.
 //
@@ -27,7 +27,7 @@ const dim = (v) => (Number.isInteger(v) && v > 0 && v < 100000 ? v : null);
 
 // A preview is served only from where the app writes one: the same workspace
 // folder as the original, under previews/, a .webp, no path tricks. The
-// database answers with the same rule (0889); this is the second lock, because
+// database answers with the same rule (0890); this is the second lock, because
 // the picture goes out to anyone and preview_path is a column a workspace
 // writer can stamp (set_image_variant).
 export function isCoverPreviewKey(originalKey, previewKey) {

@@ -1,4 +1,4 @@
--- 0889_public_cover_preview.sql
+-- 0890_public_cover_preview.sql
 --
 -- A public cluster's cover (public_boards.og_image_key) is a photo stored as
 -- it was uploaded, and /api/public-thumb/<slug> sent it at that size to every
@@ -90,21 +90,21 @@ begin
   -- A public read: create or replace keeps the ACL, and this proves it.
   foreach v_role in array array['anon', 'authenticated', 'service_role'] loop
     if not has_function_privilege(v_role, v_fn, 'execute') then
-      raise exception '0889: % cannot run %', v_role, v_fn;
+      raise exception '0890: % cannot run %', v_role, v_fn;
     end if;
   end loop;
   if not (select p.prosecdef and 'search_path=public' = any (p.proconfig)
             from pg_proc p where p.oid = v_fn::regprocedure) then
-    raise exception '0889: % lost its definer rights or its search_path', v_fn;
+    raise exception '0890: % lost its definer rights or its search_path', v_fn;
   end if;
   if position('og_cover' in pg_get_functiondef(v_fn::regprocedure)) = 0
      or position('unlisted' in pg_get_functiondef(v_fn::regprocedure)) = 0 then
-    raise exception '0889: % does not return og_cover, or lost unlisted', v_fn;
+    raise exception '0890: % does not return og_cover, or lost unlisted', v_fn;
   end if;
   -- The resolver the page uses stays closed to clients.
   if has_function_privilege('anon', 'public._resolve_published_board(text)', 'execute')
      or has_function_privilege('authenticated', 'public._resolve_published_board(text)', 'execute') then
-    raise exception '0889: _resolve_published_board is callable by a client';
+    raise exception '0890: _resolve_published_board is callable by a client';
   end if;
 end $proof$;
 
