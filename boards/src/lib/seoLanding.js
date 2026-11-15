@@ -231,7 +231,7 @@ const PAGES = [
       { q: 'Do I need to install anything?', a: 'No. Clusters runs in your browser; on a phone or tablet it can be added to the home screen as a web app. There is nothing to download to get started, and no store app yet.' },
           { q: 'Can an AI assistant make the board for me?', a: 'Yes. Connect Claude, ChatGPT, Cursor, VS Code or any other MCP app with one URL and ask. Anyone can try it from Claude or ChatGPT with no account. It creates the cluster, brings in references from links you give it, and arranges them as justified rows or masonry. It works with your own images rather than generating them — see the AI mood board maker page.' },
 ],
-    related: ['/tools/storyboard-maker', '/tools/look-book-maker', '/best/mood-board-apps', '/vs/milanote', '/vs/pureref', '/use-cases', '/tools/ai-mood-board-maker'],
+    related: ['/tools/storyboard-maker', '/tools/look-book-maker', '/tools/reference-board-maker', '/best/mood-board-apps', '/vs/milanote', '/vs/pureref', '/use-cases', '/tools/ai-mood-board-maker'],
   },
 
   // ────────────────────────────────────────────────────────────────────────
