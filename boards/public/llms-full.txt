@@ -7862,7 +7862,7 @@ Q: Is it the same set of tools either way?
 A: Yes, apart from upload_file, which needs a filesystem. Both servers are built from one registry so they cannot drift apart, though the local package's 2.x releases still have the tool names from before 3.0.
 
 Q: Does PureRef have an MCP server?
-A: Not an official one, as of November 14, 2026. PureRef is a desktop program for Windows, Mac and Linux, and neither its site nor the official MCP registry lists a server for it. A community project on GitHub, PureRef MCP, writes .pur files from images on your computer for PureRef to open. Soleil Clusters is a web app with its own MCP server, at https://clusters.soleilpictures.com/api/v1/mcp, so an assistant can build and arrange a reference board there directly.
+A: Not an official one, as of 14 November 2026. PureRef is a desktop program for Windows, Mac and Linux, and neither its site nor the official MCP registry lists a server for it. A community project on GitHub, PureRef MCP, writes .pur files from images on your computer for PureRef to open. Soleil Clusters is a web app with its own MCP server, at https://clusters.soleilpictures.com/api/v1/mcp, so an assistant can build and arrange a reference board there directly.
 
 
 ========================================================================
@@ -8667,7 +8667,7 @@ Yes. In ChatGPT, turn on developer mode under Settings → Apps → Advanced set
 
 ### Which mood board apps have an MCP server?
 
-As of November 14, 2026: Soleil Clusters has one, listed in the official Model Context Protocol registry as com.soleilpictures/clusters. Miro publishes an official MCP server. Storyflow’s pricing page says Claude, ChatGPT, Gemini and Grok work on its boards through MCP. The registry’s one Milanote entry is published by a third party, not by Milanote. PureRef is a desktop program for Windows, Mac and Linux, and neither its site nor the registry lists an MCP server for it; a community project on GitHub, PureRef MCP, writes .pur files from images on your computer for PureRef to open.
+As of 14 November 2026: Soleil Clusters has one, listed in the official Model Context Protocol registry as com.soleilpictures/clusters. Miro publishes an official MCP server. Storyflow’s pricing page says Claude, ChatGPT, Gemini and Grok work on its boards through MCP. The registry’s one Milanote entry is published by a third party, not by Milanote. PureRef is a desktop program for Windows, Mac and Linux, and neither its site nor the registry lists an MCP server for it; a community project on GitHub, PureRef MCP, writes .pur files from images on your computer for PureRef to open.
 
 ### Do I need to be a developer?
 

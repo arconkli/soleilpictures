@@ -4432,7 +4432,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Does PureRef have an MCP server?",
-        "a": "Not an official one, as of November 14, 2026. PureRef is a desktop program for Windows, Mac and Linux, and neither its site nor the official MCP registry lists a server for it. A community project on GitHub, PureRef MCP, writes .pur files from images on your computer for PureRef to open. Soleil Clusters is a web app with its own MCP server, at https://clusters.soleilpictures.com/api/v1/mcp, so an assistant can build and arrange a reference board there directly."
+        "a": "Not an official one, as of 14 November 2026. PureRef is a desktop program for Windows, Mac and Linux, and neither its site nor the official MCP registry lists a server for it. A community project on GitHub, PureRef MCP, writes .pur files from images on your computer for PureRef to open. Soleil Clusters is a web app with its own MCP server, at https://clusters.soleilpictures.com/api/v1/mcp, so an assistant can build and arrange a reference board there directly."
       }
     ]
   },
