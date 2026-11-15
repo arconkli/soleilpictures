@@ -18,6 +18,15 @@
   <link rel="preload" as="style" href="https://use.typekit.net/qtd2rwk.css" />
   <noscript><link rel="stylesheet" href="https://use.typekit.net/qtd2rwk.css" /></noscript>
 
+  <!-- JetBrains Mono (--font-mono). It was an @import at the top of styles.css,
+       which the browser could not see until the app's stylesheet had arrived
+       and then had to wait for before painting anything. Loaded the way Typekit
+       is: warmed here, attached by the script block below, never in the way of
+       first paint. display=swap shows the fallback mono until it lands. -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap" /></noscript>
+
   <!-- Warm the TLS connection to Stripe so the post-checkout redirect is
        faster. No checkout session is created here — purely a connection hint. -->
   <link rel="preconnect" href="https://checkout.stripe.com" crossorigin />
@@ -221,6 +230,13 @@
       tk.rel = 'stylesheet';
       tk.href = 'https://use.typekit.net/qtd2rwk.css';
       document.head.appendChild(tk);
+    } catch (_) {}
+    // JetBrains Mono, the same way (see the preload in <head>).
+    try {
+      var jb = document.createElement('link');
+      jb.rel = 'stylesheet';
+      jb.href = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap';
+      document.head.appendChild(jb);
     } catch (_) {}
   </script>
 

@@ -330,7 +330,7 @@ function cspReportOnlyFor(nonce) {
     "default-src 'self'",
     `script-src 'nonce-${nonce}' 'strict-dynamic' https: 'unsafe-inline'`,
     // Typekit's kit CSS @imports p.typekit.net/p.css (Adobe's page-view count
-    // for the font licence); styles.css @imports JetBrains Mono from Google
+    // for the font licence); index.html loads JetBrains Mono from Google
     // Fonts, and googleFonts.js / customFonts.js / settings/fields.jsx load
     // user-picked Google families. The report window (2026-10-08…18) was
     // mostly these.
