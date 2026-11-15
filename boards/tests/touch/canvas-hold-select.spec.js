@@ -34,12 +34,20 @@ const isEmptyCanvas = (page, p) => page.evaluate(({ x, y }) => {
   return !!el && !!el.closest('.canvas-wrap') && ['cards-layer', 'canvas-wrap', 'grain-canvas', 'cnv-ground'].some((c) => el.classList.contains(c));
 }, p);
 
-// The nearest empty point to `p`, walking out in rings.
-async function emptyNear(page, p) {
+// The nearest empty point to `p`, walking out in rings. With `clear`, the
+// board must be empty that far around it too: Chrome moves a touch onto a
+// title or button within its radius (touch adjustment), and a held title lifts
+// its card.
+async function emptyNear(page, p, clear = 0) {
+  const at = (q, r, a) => ({ x: q.x + r * Math.cos((a * Math.PI) / 180), y: q.y + r * Math.sin((a * Math.PI) / 180) });
+  const roomy = async (q) => {
+    for (let a = 0; a < 360; a += 45) if (!(await isEmptyCanvas(page, at(q, clear, a)))) return false;
+    return true;
+  };
   for (let r = 0; r <= 160; r += 8) {
     for (let a = 0; a < 360; a += 30) {
-      const q = { x: p.x + r * Math.cos((a * Math.PI) / 180), y: p.y + r * Math.sin((a * Math.PI) / 180) };
-      if (await isEmptyCanvas(page, q)) return q;
+      const q = at(p, r, a);
+      if ((await isEmptyCanvas(page, q)) && (!clear || (await roomy(q)))) return q;
       if (r === 0) break;
     }
   }
@@ -72,7 +80,7 @@ const menu = (page) => page.locator('.ctx-menu').first();
 // (on a phone the rail runs down the left edge).
 async function pinchCentre(page) {
   const b = await page.locator('.canvas-wrap').boundingBox();
-  const p = await emptyNear(page, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
+  const p = await emptyNear(page, { x: b.x + b.width / 2, y: b.y + b.height / 2 }, 16);
   const onBoard = (x) => page.evaluate(({ x, y }) => {
     const el = document.elementFromPoint(x, y);
     return !!el && !!el.closest('.canvas-wrap') && !el.closest('button, [role=button], input, .cnv-tools, .cnv-zoom, .tob');
@@ -194,6 +202,59 @@ test.describe('a finger on empty canvas', () => {
     await page.waitForTimeout(300);
     await expect(menu(page)).toBeHidden();
     expect(await selectedIds(page)).toEqual([]);
+  });
+
+  // The second finger of a pinch is the pinch's wherever it lands: on a card
+  // it used to select that card at once and arm a drag.
+  test('a pinch whose second finger lands on a card neither selects nor moves it', async ({ page, browserName }) => {
+    needsHold(test, browserName);
+    await open(page);
+    const id = 'home-note';
+    const note = await rectOf(page, id);
+    const p = await emptyNear(page, { x: note.right + 60, y: note.y }, 16);
+    // A point on the card's body, with a touch's radius of body around it: not
+    // its title, not a button, and off the corner, where Chrome moves a touch
+    // onto the resize grip. The nearest such point to the card's middle.
+    const q = await page.evaluate(({ id, r }) => {
+      const body = (x, y) => {
+        const el = document.elementFromPoint(x, y);
+        return !!el && !!el.closest(`.card[data-card-id="${id}"]`) && !el.closest('.editable, button, [role=button], .card-resize, .card-rotate');
+      };
+      const ring = [[0, 0], [12, 0], [-12, 0], [0, 12], [0, -12], [8, 8], [-8, 8], [8, -8], [-8, -8]];
+      let best = null;
+      for (let y = r.top + 12; y < r.bottom - 12; y += 4) {
+        for (let x = r.left + 12; x < r.right - 12; x += 4) {
+          const d = Math.hypot(x - r.x, y - r.y);
+          if ((!best || d < best.d) && ring.every(([dx, dy]) => body(x + dx, y + dy))) best = { x, y, d };
+        }
+      }
+      return best && { x: best.x, y: best.y };
+    }, { id, r: note });
+    expect(q).not.toBeNull();
+    const placeOf = () => page.locator(`.canvas-wrap .card[data-card-id="${id}"]`).evaluate((el) => ({ x: parseFloat(el.style.left), y: parseFloat(el.style.top) }));
+    const place0 = await placeOf();
+    const z0 = await canvasZoom(page);
+    // The first finger lands beside the card, the second on it, and the two
+    // spread apart along the line between them: the one on the card a little,
+    // the other as far as the board runs.
+    const gap = Math.hypot(p.x - q.x, p.y - q.y);
+    const u = { x: (p.x - q.x) / gap, y: (p.y - q.y) / gap };
+    const b = await page.locator('.canvas-wrap').boundingBox();
+    const far = Math.min(140, u.x > 0 ? (b.x + b.width - 12 - p.x) / u.x : Infinity, u.x < 0 ? (b.x + 12 - p.x) / u.x : Infinity);
+    const at = (d) => [{ x: p.x + u.x * d, y: p.y + u.y * d }, { x: q.x - u.x * d * 0.2, y: q.y - u.y * d * 0.2 }];
+    await touchDown(page, [p]);
+    await page.waitForTimeout(60);
+    await touchDown(page, at(0));
+    for (let d = 10; d <= far; d += 10) {
+      await touchMove(page, at(d));
+      await page.waitForTimeout(16);
+    }
+    await touchUp(page);
+    await expect.poll(() => canvasZoom(page)).toBeGreaterThan(z0 * 1.2);
+    await page.waitForTimeout(300);
+    await expect(menu(page)).toBeHidden();
+    expect(await selectedIds(page)).toEqual([]);
+    expect(await placeOf()).toEqual(place0);
   });
 
   test('Select…: taps add cards and take them out, and Done keeps them', async ({ page, browserName }) => {

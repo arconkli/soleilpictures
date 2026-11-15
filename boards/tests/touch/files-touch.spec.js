@@ -101,7 +101,18 @@ test.describe('Files', () => {
     await hold(page, at);
     await expect(menu(page).getByRole('menuitem').first()).toHaveText('Select');
     const box = await menu(page).boundingBox();
-    expect(Math.hypot(box.x - at.x, box.y - at.y)).toBeLessThan(160);
+    // At the finger: the hold point is on the menu's edge or beside it, even
+    // where a tall menu is lifted to end above the phone's tab bar
+    // (lib/ctxMenuFit.js), which puts the finger halfway down its side.
+    const gap = Math.hypot(
+      Math.max(box.x - at.x, 0, at.x - (box.x + box.width)),
+      Math.max(box.y - at.y, 0, at.y - (box.y + box.height)));
+    expect(gap).toBeLessThan(48);
+    const navTop = await page.evaluate(() => {
+      const r = document.querySelector('.mb-nav')?.getBoundingClientRect();
+      return r && r.height > 0 ? r.top : innerHeight;
+    });
+    expect(box.y + box.height).toBeLessThanOrEqual(navTop);
     await page.waitForTimeout(300);
     await expect(menu(page)).toBeVisible();
     await expect(quickLook(page)).toHaveCount(0);
