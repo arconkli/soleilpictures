@@ -25,13 +25,13 @@ test('the greeting claims the slot before it shows, and only for genuine cards',
   const claim = b.indexOf("claimUpsellSlot('resume')");
   const toast = b.indexOf('feedback.toast(');
   assert.ok(claim > 0 && toast > claim, 'claim first: never stacked on an offer, asks stand down for its minute');
-  assert.match(b, /genuineCards\(ybCardsRef\.current \|\| \[\]\)\.filter\(\(c\) => c\?\.createdBy === uid\)/,
+  assert.match(b, /const genuine = genuineCards\(ybCardsRef\.current \|\| \[\]\);\s+const mine = genuine\.filter\(\(c\) => c\?\.createdBy === uid\)/,
     'only the person\'s own, non-seed cards count as work to come back to');
   assert.match(b, /if \(!gate\.canEdit \|\| gate\.tourActive \|\| gate\.showCoachmark \|\| tier\.loading\) return;/,
     'never on a board they cannot edit, under the tour or coachmark, or before the tier is known');
   assert.match(b, /shouldGreetResume\(\{ awayMs, accountAgeMs: now - created/, 'day-one gate is the pure predicate');
   assert.match(b, /pageState\.greeted = true/, 'once per page — module state, so a Workspace remount cannot replay it');
-  assert.match(app, /resumeGateRef\.current = \{ canEdit: !!canEditCurrent, tourActive: !!tourActive, showCoachmark: !!showCoachmark \}/,
+  assert.match(app, /resumeGateRef\.current = \{\s+canEdit: !!canEditCurrent, tourActive: !!tourActive, showCoachmark: !!showCoachmark,\s+onCanvas: currentSurface === 'board' && view === 'canvas', wsId: workspace\?\.id \|\| null,\s+\}/,
     'the gate values are refreshed every render');
 });
 

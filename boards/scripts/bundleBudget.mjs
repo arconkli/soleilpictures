@@ -169,7 +169,11 @@ export const CEILINGS = {
   // the sign-in wordmark): a CI-style build read main 2de983f3 at 97,280 B,
   // over its 97,200 B ceiling, and 97,388 B with the app's languages on top.
   // The ceiling was 97,300 B.
-  entryCss: 97_400,
+  // 2026-11-15: +0.2 KB for Your place is held: the slate beside a cluster's
+  // name (.cluster-slate, its fold, New cluster stepping aside) and the phone's
+  // line under the bar. A CI-style build read 97,589 B with it on main
+  // 212af73d; the ceiling was 97,400 B.
+  entryCss: 97_600,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
   // they draw (vite.config.js iconSplit), from 687 KB.
@@ -450,7 +454,15 @@ export const CEILINGS = {
   // load with Settings. CI-style builds measured appJs 789,772 B on main
   // b29a7ed7 and 795,932 B with it on ab03f854 (which changed only the
   // Worker); the ceiling moves by the difference, 6,160 B, rounded up.
-  appJs: 796_700,
+  // 2026-11-15: +5.4 KB for Your place is held, which runs as a cluster
+  // opens: the held open's glide and its stops (CanvasSurface.jsx), the
+  // per-device visits, day count, last-worked label and search word
+  // (lib/placeHeld.js), the slate (components/ClusterSlate.jsx) and its
+  // wiring and the welcome back's news (App.jsx, lib/imageSeen.js
+  // readImageSeenNow). A CI-style build read 801,258 B with it on main
+  // 212af73d, against that note's 795,932 B; the ceiling moves by the
+  // difference, 5,326 B, rounded up.
+  appJs: 802_100,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).

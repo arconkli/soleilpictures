@@ -245,7 +245,7 @@ export const DOCS_PAGES = [
     "answer": "Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.",
     "section": "start",
     "order": 3,
-    "updated": "2026-11-09",
+    "updated": "2026-11-15",
     "navLabel": "Keyboard shortcuts",
     "headings": [
       {
@@ -393,10 +393,10 @@ export const DOCS_PAGES = [
     "title": "The Canvas — Soleil Clusters",
     "metaDescription": "The infinite canvas in Soleil Clusters — tools, panning, zooming, selection, right-click menus, drawing, backgrounds and exporting.",
     "h1": "The canvas",
-    "answer": "A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.",
+    "answer": "A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off. After a break of half an hour or more, a cluster opens on the card you last worked on.",
     "section": "canvas",
     "order": 0,
-    "updated": "2026-10-25",
+    "updated": "2026-11-15",
     "navLabel": "Overview",
     "headings": [
       {

@@ -247,7 +247,7 @@ A: No. A personal workspace is created for you the first time you need one, incl
 ========================================================================
 # Keyboard shortcuts
 URL: https://clusters.soleilpictures.com/docs/keyboard-shortcuts
-Updated: 2026-11-09
+Updated: 2026-11-15
 
 Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 
@@ -331,7 +331,7 @@ Q / E | Zoom in · out around the middle of the screen, ⇧ for faster — with 
 Scroll | Pan the canvas — or zoom, if you swap it
 ⌘-scroll | Zoom at the pointer
 
-Zoom and pan are remembered per cluster. Reopening a board puts you back where you were rather than at the origin.
+Zoom and pan are remembered per cluster. Reopening a board puts you back where you were rather than at the origin. After a break of half an hour or more it opens on the card you last worked on instead.
 
 Swapping what the wheel does
 
@@ -599,9 +599,9 @@ A: Files, and screenplays. Everything else is a rebuild — which is why this pa
 ========================================================================
 # The canvas
 URL: https://clusters.soleilpictures.com/docs/canvas
-Updated: 2026-10-25
+Updated: 2026-11-15
 
-A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.
+A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off. After a break of half an hour or more, a cluster opens on the card you last worked on.
 
 The canvas is a cluster's Board view, and where a new cluster opens. It is an unbounded surface — position means something here, which is the whole point. Two images side by side are being compared; an image with a note under it is being annotated.
 
@@ -617,6 +617,8 @@ Fit everything | ⇧1
 Fit selection | ⇧2
 
 Your position is saved per cluster. Close a board deep in a corner of the canvas and it reopens there, not at the origin.
+
+Come back to a cluster after a break of half an hour or more and it opens on the card you last worked on: the whole cluster shows for a moment, then the view glides to that card and selects it. Any click, scroll or key stops it where it is, and with reduced motion on it goes straight there. Beside the cluster's name a quiet count says which working day on it this is (Day 3), counting every day anyone worked on it, and for a few seconds after you come back it also says when you last worked on it, on any of your devices: last worked Tuesday evening. On a phone those words show under the top bar instead, then go.
 
 If scrolling to zoom is the habit you arrived with — it is how PureRef and Miro work — Settings → Appearance → Scroll wheel swaps the two, so a plain scroll zooms at the pointer and ⌘, Alt or Shift pans. Pinching a trackpad zooms in either setting. See keyboard shortcuts.
 

@@ -3598,6 +3598,56 @@ body {
 .crumb.here:hover { background: transparent; }
 .crumb-sep { color: var(--ink-3); font: 400 14px/1 var(--font-sans); flex-shrink: 0; padding: 0 4px; }
 
+/* The slate beside a cluster's name (ClusterSlate.jsx): "· Day 3", and for a few
+   seconds after you come back "· last worked Tuesday evening" too. Ink, never gold:
+   nothing here is active or selected. The last-worked words fade out and then fold
+   away, and show at once; New cluster steps aside while they are there, so the bar
+   makes room for one thing at a time. .is-clipped is the long form that did not fit:
+   it is never seen, so nothing animates. */
+.cluster-slate {
+  display: inline-flex; align-items: center;
+  margin-left: -2px;
+  font: 400 13px/1 var(--font-sans);
+  color: var(--ink-2);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.cluster-slate .cs-dot { color: var(--ink-3); padding: 0 7px; font-weight: 400; }
+.cluster-slate .cs-last {
+  display: inline-flex; align-items: center;
+  overflow: hidden; max-width: 0; opacity: 0;
+  transition: opacity .45s ease, max-width .35s ease .45s;
+}
+.cluster-slate.is-long .cs-last { max-width: 360px; opacity: 1; transition: none; }
+.cluster-slate.is-clipped .cs-last { transition: none; }
+.cluster-slate + .ncl-wrap { transition: opacity .3s ease .8s; }
+.cluster-slate.is-long + .ncl-wrap { opacity: 0; max-width: 0; overflow: hidden; pointer-events: none; transition: none; }
+/* On a phone there is no room beside the name, so the same words hang under the bar
+   for the same few seconds, over the canvas and out of the way of fingers. The wrap is
+   a zero-height row in .main's flow (a box placed absolutely in a flex column starts
+   at the column's top, not under the bar), above the surface that follows it. */
+.cluster-slate-wrap { position: relative; flex: none; height: 0; z-index: 5; pointer-events: none; }
+.cluster-slate-line {
+  position: absolute; top: 6px;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  font: 400 12.5px/1.2 var(--font-sans);
+  color: var(--ink-1);
+  text-shadow: 0 0 6px var(--bg-0), 0 0 2px var(--bg-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .5s ease;
+}
+.cluster-slate-line.is-on { opacity: 1; }
+/* A toast drops into the same spot on a phone: the line gives way to it. */
+body:has(.toast-stack .toast) .cluster-slate-line { opacity: 0; transition-duration: .2s; }
+@media (prefers-reduced-motion: reduce) {
+  .cluster-slate .cs-last,
+  .cluster-slate + .ncl-wrap,
+  .cluster-slate-line { transition: none; }
+}
+
 .view-pill {
   display: inline-flex;
   background: var(--bg-3);

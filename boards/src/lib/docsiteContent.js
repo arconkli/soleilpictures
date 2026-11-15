@@ -3336,7 +3336,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Zoom and pan are remembered per cluster. Reopening a board puts you back where you were rather than at the origin."
+     "v": "Zoom and pan are remembered per cluster. Reopening a board puts you back where you were rather than at the origin. After a break of half an hour or more it opens on the card you last worked on instead."
     }
    ]
   },
@@ -7255,6 +7255,43 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Your position is saved per cluster. Close a board deep in a corner of the canvas and it reopens there, not at the origin."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Come back to a cluster after a break of half an hour or more and it opens on the card you last worked on: the whole cluster shows for a moment, then the view glides to that card and selects it. Any click, scroll or key stops it where it is, and with reduced motion on it goes straight there. Beside the cluster's name a quiet count says which working day on it this is ("
+    },
+    {
+     "t": "strong",
+     "v": "Day 3",
+     "children": [
+      {
+       "t": "text",
+       "v": "Day 3"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "), counting every day anyone worked on it, and for a few seconds after you come back it also says when you last worked on it, on any of your devices: "
+    },
+    {
+     "t": "em",
+     "v": "last worked Tuesday evening",
+     "children": [
+      {
+       "t": "text",
+       "v": "last worked Tuesday evening"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". On a phone those words show under the top bar instead, then go."
     }
    ]
   },

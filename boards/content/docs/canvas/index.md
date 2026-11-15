@@ -5,8 +5,8 @@ h1: The canvas
 navLabel: Overview
 section: canvas
 order: 0
-updated: 2026-10-25
-answer: A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off.
+updated: 2026-11-15
+answer: A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off. After a break of half an hour or more, a cluster opens on the card you last worked on.
 faq:
   - q: How big is the canvas?
     a: There is no boundary. Cards can go anywhere, and Shift-1 fits everything you have made back on screen no matter how far it spread.
@@ -39,6 +39,15 @@ also has its files, listed in the [sidebar](/docs/clusters/sidebar) — press `F
 
 Your position is saved per cluster. Close a board deep in a corner of the canvas
 and it reopens there, not at the origin.
+
+Come back to a cluster after a break of half an hour or more and it opens on the
+card you last worked on: the whole cluster shows for a moment, then the view
+glides to that card and selects it. Any click, scroll or key stops it where it
+is, and with reduced motion on it goes straight there. Beside the cluster's name
+a quiet count says which working day on it this is (**Day 3**), counting every day
+anyone worked on it, and for a few seconds after you come back it also says when
+you last worked on it, on any of your devices: *last worked Tuesday evening*. On a
+phone those words show under the top bar instead, then go.
 
 If scrolling to zoom is the habit you arrived with — it is how PureRef and Miro
 work — **Settings → Appearance → Scroll wheel** swaps the two, so a plain scroll

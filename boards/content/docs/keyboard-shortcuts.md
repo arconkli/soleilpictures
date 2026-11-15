@@ -5,7 +5,7 @@ h1: Keyboard shortcuts
 navLabel: Keyboard shortcuts
 section: start
 order: 3
-updated: 2026-11-09
+updated: 2026-11-15
 answer: Press ? anywhere in Soleil Clusters to see the shortcut list without leaving the page. The essentials are V to select, H or Space to pan, N for a note, A for an arrow, Cmd-K to search everything, Cmd-Z to undo, and Shift-1 to fit the whole board on screen.
 faq:
   - q: How do I see shortcuts without leaving what I am doing?
@@ -119,7 +119,8 @@ With one [grid](/docs/canvas/grids) selected and a box in it clicked:
 | `⌘`-scroll | Zoom at the pointer |
 
 Zoom and pan are remembered per cluster. Reopening a board puts you back where
-you were rather than at the origin.
+you were rather than at the origin. After a break of half an hour or more it opens
+on the card you last worked on instead.
 
 ### Swapping what the wheel does
 

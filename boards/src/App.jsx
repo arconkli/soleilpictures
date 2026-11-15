@@ -65,7 +65,10 @@ import { decodeShowcaseCards, decodeRemixCards } from './lib/showcaseClone.js';
 import { readRemix, clearRemix } from './lib/remix.js';
 import { claimGridLayoutLink, usePublicGridLayout, saveGridLayout, getGridLayout, recordTemplateDownload } from './lib/gridLayoutsApi.js';
 import { genuineCards, isSeedCard, hasGenuineCard } from './lib/firstValueTrigger.js';
-import { shouldGreetResume, lastTouchedCard, LAST_HIDDEN_KEY, resumePageState } from './lib/resumeSitting.js';
+import { shouldGreetResume, LAST_HIDDEN_KEY, resumePageState, RESUME_GAP_MS } from './lib/resumeSitting.js';
+import { SLATE_LONG_MS, deviceStorage, noteVisit, noteWork, noteDays, slateFor, readPlaceHeld, entryOf, lastWorkedBucket, myLastTouch, searchNews } from './lib/placeHeld.js';
+import { readImageSeenNow } from './lib/imageSeen.js';
+import { readWorkspaceAiEnabled } from './hooks/useWorkspaceAiEnabled.js';
 import { start as startFriction, stop as stopFriction } from './lib/frictionSignal.js';
 import { FeedbackButton } from './components/FeedbackButton.jsx';
 import { HelpHost, HelpButton, openHelpHub } from './components/HelpHub.jsx';
@@ -136,6 +139,7 @@ import {
 import { CanvasSurface } from './components/CanvasSurface.jsx';
 import { ViewSwitch } from './components/ViewSwitch.jsx';
 import { NewClusterButton } from './components/NewClusterButton.jsx';
+import ClusterSlate, { slateWords } from './components/ClusterSlate.jsx';
 import { FilesDockLayout, FilesPane } from './components/FilesDock.jsx';
 import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs, dockHintSeen, markDockHintSeen, viewWrite } from './lib/filesDock.js';
 import { placedOf, positionUnplaced, isUnplaced, planPutOnBoard, layoutForPut, PUT_ON_BOARD_MAX, canStore } from './lib/placement.js';
@@ -2236,16 +2240,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // updatedBy/updatedAt on every mutation, in ISO-8601 + uid form. Used
     // by the right-click "Info" panel; replicated by Yjs to all peers.
     const nowIso = () => new Date().toISOString();
-    const stampCreate = (card) => ({
-      createdBy: user?.id || null,
-      createdAt: nowIso(),
-      updatedBy: user?.id || null,
-      updatedAt: nowIso(),
-      ...card,
-    });
+    // The same stamps also keep the day count and "last worked" on this device, for
+    // a card that is later deleted (lib/placeHeld.js): at most one write a minute
+    // and never an error. An onboarding seed was never the person's work.
+    const noteMyWork = () => { try { noteWork(deviceStorage(), user?.id, boardId, Date.now()); } catch (_) {} };
+    const stampCreate = (card) => {
+      if (!isSeedCard(card)) noteMyWork();
+      return {
+        createdBy: user?.id || null,
+        createdAt: nowIso(),
+        updatedBy: user?.id || null,
+        updatedAt: nowIso(),
+        ...card,
+      };
+    };
     const writeUpdateStamp = (ym) => {
       ym.set('updatedBy', user?.id || null);
       ym.set('updatedAt', nowIso());
+      noteMyWork();
     };
 
     // (The demo write-block mirror died with 0188 — editor collaboration is
@@ -9043,12 +9055,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // so it never stacks on an offer and every ambient ask stands down for its
   // minute; it points back at the last card THEY touched, on a board they can
   // edit, and stands down while the tour or coachmark holds the screen.
+  // On the cluster's own canvas the card is already in front (the held open,
+  // lib/placeHeld.js), so there it brings news instead when there is some: the
+  // person's pictures there have all been read and can be searched by what's in
+  // them, with a word from them to try. Elsewhere it offers Show my last card.
   // "Once per page" is module state (resumePageState): <Workspace> remounts on
   // a workspace switch, and a ref would greet again. A visible page CONSUMES
   // the hide stamp it reads, so no later mount can measure from it again.
   const resumeGreetRef = useRef(null);
   // Assigned further down, once canEditCurrent / showCoachmark exist.
-  const resumeGateRef = useRef({ canEdit: false, tourActive: false, showCoachmark: false });
+  const resumeGateRef = useRef({ canEdit: false, tourActive: false, showCoachmark: false, onCanvas: false, wsId: null });
   const ybBoardIdRef = useRef(yb.boardId);
   ybBoardIdRef.current = yb.boardId;
   useEffect(() => {
@@ -9067,37 +9083,82 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const tier = myTierRef.current || {};
       // Stand down without spending the greeting: a later return may still get it.
       if (!gate.canEdit || gate.tourActive || gate.showCoachmark || tier.loading) return;
-      const mine = genuineCards(ybCardsRef.current || []).filter((c) => c?.createdBy === uid);
+      const genuine = genuineCards(ybCardsRef.current || []);
+      const mine = genuine.filter((c) => c?.createdBy === uid);
       if (!shouldGreetResume({ awayMs, accountAgeMs: now - created, genuineCards: mine.length, greeted: pageState.greeted })) return;
+      // Both claimed before the news read below, so nothing else greets or offers meanwhile.
       if (!claimUpsellSlot('resume')) return;
       pageState.greeted = true;
-      const last = lastTouchedCard(mine);
+      const last = myLastTouch(genuine, uid)?.card || null;
       const boardId = ybBoardIdRef.current;
       const limit = Number(tier.effectiveCardLimit);
       const atCap = tier.tier === 'demo' && Number.isFinite(limit) && Number(tier.demoCardCount) >= limit;
-      try { logEvent(EV.RESUME_GREET_SHOWN, { via, gap_min: Math.round(awayMs / 60000), cards: mine.length, at_cap: atCap }); } catch (_) {}
-      feedback.toast({
-        type: 'info',
-        message: atCap
-          ? tr`Welcome back — your board is where you left it.`
-          : tr`Welcome back — your board is where you left it. Paste or drop anything to keep adding.`,
-        ttl: 9000,
-        action: last && boardId ? {
-          label: tr`Show my last card`,
-          onClick: () => {
-            try { logEvent(EV.RESUME_GREET_ACTION, { action: 'jump' }); } catch (_) {}
-            // Navigate the way ⌘K does: the board's own path (never a push onto
-            // whatever stack is open now), on its canvas, then centre the card.
-            // Not when the cluster has gone since (trashed on another device).
-            if (!openBoardAt(boardId)) return;
-            setViewOverride((o) => ({ ...o, [boardId]: 'canvas' }));
-            setCurrentSurface('board');
-            setTimeout(() => {
-              document.dispatchEvent(new CustomEvent('soleil-flash-card', { detail: { boardId, cardId: last.id } }));
-            }, 0);
-          },
-        } : null,
-      });
+      const onItsCanvas = () => !!boardId && !!resumeGateRef.current?.onCanvas && currentIdRef.current === boardId;
+      const show = (found) => {
+        const here = onItsCanvas();
+        const news = here ? found : null;
+        try { logEvent(EV.RESUME_GREET_SHOWN, { via, gap_min: Math.round(awayMs / 60000), cards: mine.length, at_cap: atCap, news: news ? 'search' : null }); } catch (_) {}
+        if (news) {
+          const n = news.n;
+          const word = news.word;
+          feedback.toast({
+            type: 'info',
+            message: tr({
+              message: plural(n, {
+                one: `Welcome back. Your # picture can now be searched by what’s in it. Try “${word}”.`,
+                other: `Welcome back. Your # pictures can now be searched by what’s in them. Try “${word}”.`,
+              }),
+              comment: 'Shown once, on a person’s first day, when they come back after a break. Their pictures on this cluster have been read, so search now finds them by what they show. {word} is a word or short phrase in English taken from those pictures; keep it as it is, in quotation marks.',
+            }),
+            ttl: 9000,
+            action: {
+              label: tr({ message: 'Search', context: 'Button: searches for the word just suggested' }),
+              onClick: () => {
+                try { logEvent(EV.RESUME_GREET_ACTION, { action: 'search' }); } catch (_) {}
+                setPaletteQuery(word);
+                setPaletteOpen(true);
+              },
+            },
+          });
+          return;
+        }
+        feedback.toast({
+          type: 'info',
+          message: atCap
+            ? tr`Welcome back — your cluster is where you left it.`
+            : tr`Welcome back — your cluster is where you left it. Paste or drop anything to keep adding.`,
+          ttl: 9000,
+          action: last && boardId && !here ? {
+            label: tr`Show my last card`,
+            onClick: () => {
+              try { logEvent(EV.RESUME_GREET_ACTION, { action: 'jump' }); } catch (_) {}
+              // Navigate the way ⌘K does: the board's own path (never a push onto
+              // whatever stack is open now), on its canvas, then centre the card.
+              // Not when the cluster has gone since (trashed on another device).
+              if (!openBoardAt(boardId)) return;
+              setViewOverride((o) => ({ ...o, [boardId]: 'canvas' }));
+              setCurrentSurface('board');
+              setTimeout(() => {
+                document.dispatchEvent(new CustomEvent('soleil-flash-card', { detail: { boardId, cardId: last.id } }));
+              }, 0);
+            },
+          } : null,
+        });
+      };
+      // News needs at least three of my pictures here, all read, and AI allowed in
+      // this workspace. At most a second and a half's wait; any failure greets plainly.
+      const pictures = onItsCanvas()
+        ? mine.filter((c) => c?.kind === 'image' && c.unplaced !== true).map((c) => ({ id: c.id, at: Date.parse(c.createdAt || '') }))
+        : [];
+      if (pictures.length < 3) { show(null); return; }
+      const wsId = resumeGateRef.current?.wsId;
+      const read = (async () => {
+        if (!(await readWorkspaceAiEnabled(wsId))) return null;
+        return searchNews({ rows: await readImageSeenNow(boardId), myPictures: pictures });
+      })().catch(() => null);
+      let timer = 0;
+      const late = new Promise((resolve) => { timer = setTimeout(() => resolve(null), 1500); });
+      Promise.race([read, late]).then((found) => { clearTimeout(timer); show(found); });
     };
     // The reopen path runs once the board's cards are in (effect below), and
     // only for a page someone is looking at.
@@ -9335,7 +9396,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   currentIdRef.current = currentId;
   // The day-one resume greeting reads these through a ref (its listeners
   // outlive the render that created them).
-  resumeGateRef.current = { canEdit: !!canEditCurrent, tourActive: !!tourActive, showCoachmark: !!showCoachmark };
+  resumeGateRef.current = {
+    canEdit: !!canEditCurrent, tourActive: !!tourActive, showCoachmark: !!showCoachmark,
+    onCanvas: currentSurface === 'board' && view === 'canvas', wsId: workspace?.id || null,
+  };
   const mainMutatorsRef = useRef(mainMutators);
   mainMutatorsRef.current = mainMutators;
   const aliveRef = useRef(true);
@@ -9431,6 +9495,139 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     try { logEvent(EV.POWER_REVEAL_SHOWN, { reveal: picked.key, board_id: currentId, n_cards: genuine.length }); } catch (_) {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, yb.cards, yb.ready, currentId, tourActive, canEditCurrent, view, mobileShell, showCoachmark, myTier.loading, myTier.onboarding, currentBoardPerm.source]);
+
+  // ── Your place is held (lib/placeHeld.js) ──────────────────────────────────
+  // Back at a cluster after a real break, the canvas glides to the card you last
+  // worked on (CanvasSurface, handed `placeHeld` below) and a quiet slate beside the
+  // cluster's name says which working day this is: "· Day 3", and for a few seconds
+  // "· Day 3 · last worked Tuesday evening". The canvas owns the camera; this owns
+  // the visit stamps, the day count, the words and when they quiet. Main pane only.
+  //
+  // Read in render, before the visit effect below writes this open: the canvas needs
+  // when the cluster was last seen to judge whether this is a break.
+  // Its canvas in front counts as being there: leaving it for Home, Files or the
+  // list and coming back is measured from when it was left, as a switch is.
+  const placeHeldOnCanvas = currentSurface === 'board' && view === 'canvas';
+  const placeHeldMain = useMemo(() => {
+    if (!user?.id || !currentId) return null;
+    const e = entryOf(readPlaceHeld(deviceStorage(), user.id), currentId);
+    return { boardId: currentId, uid: user.id, lastVisitMs: e.l || 0 };
+  }, [user?.id, currentId, placeHeldOnCanvas]);
+  // The cluster is seen when its canvas comes up and again when it goes.
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid || !currentId || !placeHeldOnCanvas) return undefined;
+    noteVisit(deviceStorage(), uid, currentId, Date.now());
+    return () => { noteVisit(deviceStorage(), uid, currentId, Date.now()); };
+  }, [user?.id, currentId, placeHeldOnCanvas]);
+
+  const [slate, setSlate] = useState(null);   // { boardId, n, label, long }
+  const slateRef = useRef(slate);
+  slateRef.current = slate;
+  const slateEnvRef = useRef({ uid: null, shown: false });
+  slateEnvRef.current = { uid: user?.id || null, shown: currentSurface === 'board' && view === 'canvas' };
+  const slateTimerRef = useRef(0);
+  const heldWordsRef = useRef(null);   // what the held open showed, for its event
+  // What the slate says for a cluster now: its cards (the greeting's source) and what
+  // this device kept. Null until that cluster's cards are in: on the navigation
+  // commit yb still holds the previous cluster's.
+  const readSlate = useCallback((id) => {
+    const uid = slateEnvRef.current.uid;
+    if (!uid || !id || ybBoardIdRef.current !== id) return null;
+    const storage = deviceStorage();
+    const r = slateFor({
+      entry: entryOf(readPlaceHeld(storage, uid), id),
+      cards: ybCardsRef.current || [],
+      uid,
+      boardCreatedAt: boardsRef.current?.[id]?.created_at,
+      nowMs: Date.now(),
+    });
+    noteDays(storage, uid, id, r.days);
+    return { n: r.n, label: r.label };
+  }, []);
+  // The long form quiets SLATE_LONG_MS from now.
+  const armSlateTimer = useCallback((id, ms) => {
+    clearTimeout(slateTimerRef.current);
+    slateTimerRef.current = setTimeout(() => {
+      setSlate((s) => (s && s.boardId === id && s.long ? { ...s, long: false } : s));
+    }, ms);
+  }, []);
+  // The long form: recomputed now, and only when there are last-worked words to say;
+  // with none the slate stays short and just takes the day number up to date.
+  // `via` is 'held' (the canvas is gliding) or 'tab' (back to the tab after a break,
+  // which only counts where the slate is on show). Returns what it read.
+  const showSlateLong = useCallback((via) => {
+    const id = currentIdRef.current;
+    if (via === 'tab' && !(slateEnvRef.current.shown && slateRef.current?.boardId === id)) return null;
+    const r = readSlate(id);
+    if (!r) return null;
+    if (!r.label) {
+      setSlate((s) => (s && s.boardId === id ? { ...s, n: r.n } : s));
+      return r;
+    }
+    setSlate({ boardId: id, n: r.n, label: r.label, long: true });
+    armSlateTimer(id, SLATE_LONG_MS);
+    return r;
+  }, [readSlate, armSlateTimer]);
+  // The short form, once the cluster in front has its cards in.
+  useEffect(() => {
+    if (!yb.ready || yb.boardId !== currentId) return;
+    const r = readSlate(currentId);
+    if (!r) return;
+    setSlate((s) => ({ boardId: currentId, n: r.n, label: r.label, long: s?.boardId === currentId ? s.long : false }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [yb.ready, yb.boardId, currentId, user?.id]);
+  // Another cluster in front, or the page going: the last one's slate goes with it.
+  useEffect(() => () => {
+    clearTimeout(slateTimerRef.current);
+    heldWordsRef.current = null;
+    setSlate(null);
+  }, [currentId, user?.id]);
+  // The canvas's glide to the held card (CanvasSurface): the slate goes long as it
+  // starts and quiets SLATE_LONG_MS after it ends. It is armed at the start too, so a
+  // canvas that never reports an end cannot leave it long. The event is the one place
+  // this is counted; it follows board_open, which has already logged the visit.
+  const onPlaceHeld = useCallback(({ phase, boardId, outcome } = {}) => {
+    if (!boardId || boardId !== currentIdRef.current) return;
+    if (phase === 'start') { heldWordsRef.current = showSlateLong('held'); return; }
+    if (phase !== 'end') return;
+    armSlateTimer(boardId, SLATE_LONG_MS);
+    const words = heldWordsRef.current || readSlate(boardId);
+    heldWordsRef.current = null;
+    try {
+      logEvent(EV.PLACE_HELD_SHOWN, {
+        board_id: boardId,
+        outcome,
+        day_n: words && words.n >= 2 ? words.n : null,
+        last_worked: lastWorkedBucket(words?.label),
+      });
+    } catch (_) {}
+  }, [showSlateLong, armSlateTimer, readSlate]);
+  // The tab left and come back. Leaving stamps the cluster as seen, so the next open
+  // measures its break from there; a return after half an hour brings the long slate
+  // up again where there are last-worked words to say. Once per person: these read
+  // the cluster through refs.
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid || typeof document === 'undefined') return undefined;
+    let hiddenAt = 0;
+    const left = () => {
+      const id = currentIdRef.current;
+      if (id) noteVisit(deviceStorage(), uid, id, Date.now());
+      if (!hiddenAt) hiddenAt = Date.now();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') { left(); return; }
+      if (hiddenAt && Date.now() - hiddenAt >= RESUME_GAP_MS) showSlateLong('tab');
+      hiddenAt = 0;
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', left);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', left);
+    };
+  }, [user?.id, showSlateLong]);
 
   // Mint-or-reuse a link for the current board and copy it instantly. Which
   // kind is the Share panel's own answer (deriveAccessMode): your live edit
@@ -11001,6 +11198,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const tbCanEdit = toolbarPane === 'split' ? splitBoardPerm.canEdit : canEditCurrent;
   const showNewCluster = clusterNudgesAllowed() && !mobileShell && currentSurface === 'board'
     && !!activeBoardId && tbCanEdit;
+  // The slate beside the name ("· Day 3 · last worked Tuesday evening", ClusterSlate):
+  // the main pane's canvas, from its second working day. A phone's bar has no room
+  // beside the name, so the long words come as a line under it, from `slate.label`.
+  const slateOnCanvas = toolbarPane === 'main' && currentSurface === 'board' && view === 'canvas'
+    && !!slate && slate.boardId === activeBoardId;
+  const slateShown = !mobileShell && slateOnCanvas && slate.n >= 2;
+  const slatePhoneLine = mobileShell && slateOnCanvas && !!slate.label;
   // Nothing in the pane took it (still loading): make it in the cluster the
   // trail shows, and step inside.
   const newClusterUnhandled = (name) => tbMutators.addNewBoard?.(null, { via: 'topbar', ...(name ? { name } : {}), openAfter: true });
@@ -11302,6 +11506,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                               banner. onboarding_v2 arm C seeds the brand showcase, so
                               map C→'B'; keep the ?showcasepreview clone path. */
                            showcaseArm={isMain ? ((getEnrolledArm('onboarding_v2') === 'C' || board?.id === showcasePreviewBoardId) ? 'B' : 'A') : 'A'}
+                           /* Your place is held (lib/placeHeld.js): the main pane
+                              glides to the card you last worked on after a real
+                              break. Not over the tour or the first-run coachmark,
+                              which own the camera then, nor on a page opened by a
+                              link to a card, which frames that card instead. */
+                           placeHeld={isMain && !tourActive && !showCoachmark && !cardLinkDone.current && placeHeldMain?.boardId === board.id ? placeHeldMain : null}
+                           onPlaceHeld={isMain ? onPlaceHeld : null}
                            defaults={defaults} />
           </Profiler>
     );
@@ -11978,6 +12189,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     </React.Fragment>
                   ))}
                 </div>
+                {slateShown && <ClusterSlate n={slate.n} label={slate.long ? slate.label : null} />}
                 {showNewCluster && (
                   <NewClusterButton boardId={activeBoardId} paneId={toolbarPane}
                                     boardName={activeCrumbs[activeCrumbs.length - 1]?.name}
@@ -12110,6 +12322,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 </React.Fragment>
               ))}
             </div>
+            {slateShown && <ClusterSlate n={slate.n} label={slate.long ? slate.label : null} />}
             {showNewCluster && (
               <NewClusterButton boardId={activeBoardId} paneId={toolbarPane}
                                 boardName={activeCrumbs[activeCrumbs.length - 1]?.name}
@@ -12230,6 +12443,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             </button>
           </div>
         </div>
+        )}
+        {/* A phone's bar has no room beside the name: the slate's words hang under it
+            instead, for the same few seconds. Zero height, so nothing below moves;
+            kept mounted so it fades, and out of the reading order while it is off. */}
+        {slatePhoneLine && (
+          <div className="cluster-slate-wrap" aria-hidden={slate.long ? undefined : 'true'}>
+            <div className={`cluster-slate-line${slate.long ? ' is-on' : ''}`} role="status">{slateWords(slate.n, slate.label)}</div>
+          </div>
         )}
         {altSessionId && (
           <div className="alt-session-banner">
