@@ -1093,7 +1093,7 @@ function loadTemplates() {
 // checking whether this is a maintained product finds evidence either way.
 const CHANGELOG_TITLE = 'Changelog — Soleil Clusters';
 const CHANGELOG_DESCRIPTION =
-  'Every user-visible change to Soleil Clusters, newest first, with dates. Updated weekly.';
+  'Every user-visible change to Soleil Clusters, newest first, in dated entries.';
 const CHANGELOG_H1 = 'Changelog';
 const CHANGELOG_ANSWER = 'Soleil Clusters ships continuously; this page lists every user-visible change, newest first, with the date it went live. Each entry covers one week. Fixes and additions are described in the same list rather than split apart, because the distinction rarely matters to the person reading.';
 
