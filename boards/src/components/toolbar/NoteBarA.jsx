@@ -67,7 +67,7 @@ export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, f
   // On a desktop canvas the bar is the bottom row's middle island, between
   // the rail and the zoom, and folds a step at a time where the row doesn't
   // fit (useIslandFit): fold 1, 2, then 3.
-  const fold = useIslandFit(barRef, { on: input === 'desktop', max: 3 });
+  const fold = useIslandFit(barRef, { on: input === 'desktop', max: 3, touch: input === 'touch' });
   // How far the row is folded: a desktop's as it fits, a finger's to the
   // size in the font's menu (2), a phone's to a button for the font and one
   // for the lists (3).

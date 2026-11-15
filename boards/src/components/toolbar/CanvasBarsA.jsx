@@ -149,7 +149,7 @@ export function DrawBarA({
 }) {
   const input = useInput();
   const phone = input === 'phone';
-  const fold = useIslandFit(barRef, { on: input === 'desktop', max: 3 });
+  const fold = useIslandFit(barRef, { on: input === 'desktop', max: 3, touch: input === 'touch' });
   // How far the row is folded: a desktop's as it fits, a finger's to the
   // one chip.
   const level = input === 'desktop' ? fold : 3;
@@ -312,7 +312,7 @@ export function DrawBarA({
 export function ShapeBarA({ barRef, onKeyDown, opts, setOpts, editing, paletteColors, openPickerAt }) {
   const input = useInput();
   const phone = input === 'phone';
-  const fold = useIslandFit(barRef, { on: input === 'desktop', max: 1 });
+  const fold = useIslandFit(barRef, { on: input === 'desktop', max: 1, touch: input === 'touch' });
   const folded = phone || fold > 0;
   const shape = SHAPES.find((s) => s.id === opts.shape) || SHAPES[0];
   const width = opts.strokeWidth ?? 2;
@@ -382,7 +382,7 @@ export function ShapeBarA({ barRef, onKeyDown, opts, setOpts, editing, paletteCo
 export function LineBarA({ barRef, onKeyDown, stroke, width, dash, angle, onAngle, onChange, paletteColors, openPickerAt }) {
   const input = useInput();
   const phone = input === 'phone';
-  const fold = useIslandFit(barRef, { on: input === 'desktop', max: 1 });
+  const fold = useIslandFit(barRef, { on: input === 'desktop', max: 1, touch: input === 'touch' });
   const folded = phone || fold > 0;
   const setDash = (d) => onChange({ customDash: d === 'solid' ? null : d });
   const angleField = (
@@ -436,7 +436,7 @@ export function LineBarA({ barRef, onKeyDown, stroke, width, dash, angle, onAngl
 // The arrow tool's bar: the path and the style the next arrow takes.
 export function ArrowBarA({ barRef, onKeyDown, options, setOptions }) {
   const input = useInput();
-  useIslandFit(barRef, { on: input === 'desktop', max: 0 });
+  useIslandFit(barRef, { on: input === 'desktop', max: 0, touch: input === 'touch' });
   const set = (patch) => setOptions({ ...options, ...patch });
   return (
     <Island barRef={barRef} label={tr`Arrow`} onKeyDown={onKeyDown} input={input} className="ab-a">

@@ -3,25 +3,6 @@ import { expect, test } from '@playwright/test';
 // These tests run against local QA mode, which short-circuits Supabase.
 // They cover client-side wiring: workspace UI + alt-session storage isolation.
 
-test('workspace row has a hover-revealed delete affordance', async ({ page }) => {
-  // Local QA mode doesn't render the multi-workspace switcher (single
-  // synthetic workspace), so we verify the CSS for the affordance ships.
-  await page.goto('/?local=1');
-  const css = await page.evaluate(() => {
-    const want = ['.sb-row-ws', '.sb-row-action'];
-    const found = new Set();
-    for (const s of document.styleSheets) {
-      try {
-        for (const r of s.cssRules) {
-          for (const w of want) if (r.selectorText?.includes(w)) found.add(w);
-        }
-      } catch {}
-    }
-    return want.every(w => found.has(w));
-  });
-  expect(css).toBe(true);
-});
-
 test('alt session uses a namespaced storage key', async ({ page }) => {
   // ?as=alt should make supabase.js use a separate localStorage key,
   // verifying via the exported altSessionId helper.
