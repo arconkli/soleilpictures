@@ -22,7 +22,7 @@ test('party_board_access answers with the app\'s own predicates, as each person,
 
 test('the board room closes a socket that lost read, or lost write while writing', () => {
   const board = read('../../party/board.ts');
-  const alarm = board.slice(board.indexOf('async onAlarm()'));
+  const alarm = board.slice(board.indexOf('private async check()'), board.indexOf('async onAlarm()'));
   assert.match(alarm, /accessAmong\(this\.env\.SUPABASE_SERVICE_ROLE_KEY, this\.name, ids\)/);
   assert.match(alarm, /if \(may && !may\.canRead\) \{\s+try \{ c\.close\(4401, "access ended"\); \}/, 'no read: 4401, and the client stops');
   assert.match(alarm, /if \(may && stateOf\(c\)\.canWrite === true && !may\.canWrite\) \{\s+try \{ c\.close\(4409, "role changed"\); \}/, 'lost write: 4409, and the client reconnects read-only');

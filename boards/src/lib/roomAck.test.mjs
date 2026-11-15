@@ -80,7 +80,9 @@ test('the board room answers through answerAck, and never while it is resetting 
   assert.equal(ROOM_ANSWERS, '{"t":"acks"}');
   // Its own copy failing to take an update means the answer would prove
   // nothing: both writers set the flag on failure and the compaction clears it.
-  assert.match(board, /this\.unlogged = true;[\s\S]*?this\.problem\("local log append", e\);/);
-  assert.match(board, /this\.local\.compact\(Y\.encodeStateAsUpdate\(this\.document\)\);\s*this\.unlogged = false;/);
-  assert.match(board, /this\.unlogged = true;\s*console\.error\(`\[board \$\{this\.name\}\] local compaction failed`, e\);/);
+  // (markUnlogged sets the flag and remembers it across a nap.)
+  assert.match(board, /this\.markUnlogged\(\);[\s\S]*?this\.problem\("local log append", e\);/);
+  assert.match(board, /this\.local\.compact\(Y\.encodeStateAsUpdate\(this\.document\)\);\s*if \(this\.unlogged\) \{[\s\S]*?this\.unlogged = false;/);
+  assert.match(board, /this\.markUnlogged\(\);\s*console\.error\(`\[board \$\{this\.name\}\] local compaction failed`, e\);/);
+  assert.match(board, /private markUnlogged\(\) \{\s*if \(this\.unlogged\) return;\s*this\.unlogged = true;/);
 });

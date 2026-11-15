@@ -72,7 +72,9 @@ test('the board provider is y-partyserver on the main party, with the liveness k
   assert.match(y, /import YProvider from 'y-partyserver\/provider';/);
   assert.match(y, /new YProvider\(PARTY_HOST, boardId, ydoc, \{\s*party: 'main',/);
   assert.doesNotMatch(y, /from 'y-partykit/);
-  assert.match(y, /if \(socketLooksDead\(provider\.wsLastMessageReceived, lastPingAt\)\) \{/);
+  assert.match(y, /if \(socketLooksDead\(lastHeardFrom\(provider\), lastPingAt\)\) \{/);
+  assert.match(y, /if \(ws\._pings\) \{ ws\.send\(PING\); lastPingAt = Date\.now\(\); return; \}/);
+  assert.match(y, /provider\.sendMessage\(WAKE\)/);
   assert.match(y, /provider\.ws\.send\(encoding\.toUint8Array\(enc\)\);\n      lastPingAt = Date\.now\(\);/);
   assert.match(y, /clearInterval\(keepalive\)/);
   // The reset frame is read raw; the room never prefixes it.

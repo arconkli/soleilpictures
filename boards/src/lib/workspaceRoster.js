@@ -42,6 +42,16 @@ export function isFresh(p, now, staleMs = STALE_MS) {
   return !!(p && p.tabId && p.user && now - (Number(p.lastSeen) || 0) <= staleMs);
 }
 
+// The presence as the room should judge it: a ping the edge answered after the
+// tab's last `here` also proves the tab is here, so lastSeen is the later of the
+// two. pingAt is a Date or ms, or null when the socket never pinged. Returns the
+// same object when the ping adds nothing; never mutates its input.
+export function heardBy(presence, pingAt) {
+  const at = pingAt instanceof Date ? pingAt.getTime() : Number(pingAt);
+  if (!presence || !Number.isFinite(at) || at <= (Number(presence.lastSeen) || 0)) return presence;
+  return { ...presence, lastSeen: at };
+}
+
 // The roster a joining socket is sent: one entry per tab (the freshest, when a
 // reconnecting tab briefly holds two sockets), nothing stale.
 export function rosterFrom(presences, now, staleMs = STALE_MS) {

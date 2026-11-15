@@ -537,3 +537,124 @@ test('a board deleted for good (23503) stops the room: no retries, no timers, on
   await s.retryIfDirty();
   assert.equal(table.calls.length, before, 'nothing more is sent for this room');
 });
+
+// ── a room that naps keeps its baseline ──────────────────────────────────────
+
+test('baseline() and restoreBaseline() round trip, keeping unknown apart from no row', () => {
+  const table = fakeTable();
+  const s = room(table, fakeTimers(), { current: new Y.Doc({ gc: false }) });
+  assert.deepEqual(s.baseline(), { v: 1, seen: null, version: null, dirty: false, dirtySince: null, failures: 0 });
+
+  const fresh = room(table, fakeTimers(), { current: new Y.Doc({ gc: false }) });
+  for (const b of [
+    { v: 1, seen: { at: '2026-10-20T10:00:01.000+00:00' }, version: { n: 3 }, dirty: true, dirtySince: 123, failures: 2 },
+    { v: 1, seen: { at: null }, version: { n: null }, dirty: false, dirtySince: null, failures: 0 },
+    { v: 1, seen: null, version: null, dirty: false, dirtySince: null, failures: 0 },
+  ]) {
+    assert.equal(fresh.restoreBaseline(b), true);
+    assert.deepEqual(fresh.baseline(), b);
+  }
+  fresh.restoreBaseline({ v: 1, seen: { at: null }, version: { n: null }, dirty: false, dirtySince: null, failures: 0 });
+  assert.equal(fresh.lastSeen, null);              // known: no row
+  assert.equal(fresh.versionBaseline, null);
+  fresh.restoreBaseline({ v: 1, seen: null, version: null, dirty: false, dirtySince: null, failures: 0 });
+  assert.equal(fresh.lastSeen, undefined);         // unknown
+  assert.equal(fresh.versionBaseline, undefined);
+  assert.equal(fresh.lastFlushedB64, null);
+});
+
+test('restoreBaseline rejects every invalid shape and changes nothing', () => {
+  const table = fakeTable();
+  const s = room(table, fakeTimers(), { current: new Y.Doc({ gc: false }) });
+  const good = { v: 1, seen: { at: 'x' }, version: { n: 2 }, dirty: false, dirtySince: null, failures: 0 };
+  assert.equal(s.restoreBaseline(good), true);
+  const before = JSON.stringify(s.baseline());
+  const bad = [
+    null, undefined, 'x', 7, {}, { ...good, v: 2 }, { ...good, v: undefined },
+    { ...good, seen: undefined }, { ...good, seen: 'x' }, { ...good, seen: { at: 5 } }, { ...good, seen: {} },
+    { ...good, version: undefined }, { ...good, version: { n: 'a' } }, { ...good, version: { n: NaN } }, { ...good, version: 3 },
+    { ...good, dirty: 'no' }, { ...good, dirty: undefined },
+    { ...good, dirtySince: 'x' }, { ...good, dirtySince: NaN }, { ...good, dirtySince: undefined },
+    { ...good, failures: -1 }, { ...good, failures: 1.5 }, { ...good, failures: '1' },
+  ];
+  for (const b of bad) {
+    assert.equal(s.restoreBaseline(b), false, JSON.stringify(b));
+    assert.equal(JSON.stringify(s.baseline()), before);
+  }
+});
+
+test('onBaseline fires when the baseline changes and not on an unchanged repeat', async () => {
+  const table = fakeTable();
+  table.blind(BOARD, docWith({ a: '1' }));
+  const doc = { current: new Y.Doc({ gc: false }) };
+  const seen = [];
+  const s = room(table, fakeTimers(), doc, { onBaseline: (b) => seen.push(b) });
+  await s.loadInto(doc.current);
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0].seen.at, table.rows.get(BOARD).updated_at);
+
+  doc.current.getMap('cards').set('b', '2');
+  assert.equal(await s.flush(), true);
+  assert.equal(seen.length, 2);                    // lastSeen advanced
+  assert.equal(seen[1].seen.at, table.rows.get(BOARD).updated_at);
+
+  const n = seen.length;
+  s.saved(); s.saved();                            // nothing changed
+  await s.retryIfDirty();
+  assert.equal(seen.length, n);
+
+  table.failNext(1);
+  doc.current.getMap('cards').set('c', '3');
+  await s.flush();
+  const last = seen.at(-1);
+  assert.equal(last.dirty, true);
+  assert.equal(last.failures, 1);
+  assert.equal(typeof last.dirtySince, 'number');
+});
+
+test('a throwing onBaseline stops nothing', async () => {
+  const table = fakeTable();
+  table.blind(BOARD, docWith({ a: '1' }));
+  const doc = { current: new Y.Doc({ gc: false }) };
+  const s = room(table, fakeTimers(), doc, { onBaseline: () => { throw new Error('storage broke'); } });
+  assert.equal(await s.loadInto(doc.current), true);
+  doc.current.getMap('cards').set('b', '2');
+  assert.equal(await s.flush(), true);
+});
+
+// The reason the baseline is kept: a restore made while the room slept.
+async function napThroughRestore({ keepBaseline }) {
+  const table = fakeTable();
+  table.versions.set(BOARD, 4);
+  table.blind(BOARD, docWith({ a: '1', b: '2' }));
+  let kept = null;
+  const doc1 = { current: new Y.Doc({ gc: false }) };
+  const before = room(table, fakeTimers(), doc1, { onBaseline: (b) => { kept = b; } });
+  await before.loadInto(doc1.current);
+  assert.equal(kept.version.n, 4);
+  // ...the room naps, and in the meantime a version restore replaces the board.
+  table.blind(BOARD, docWith({ a: '1' }));
+  table.bumpVersion(BOARD);
+
+  const timers = fakeTimers();
+  const doc2 = { current: docWith({ a: '1', b: '2' }) };   // what the woken room still holds
+  let resets = 0;
+  const woken = room(table, timers, doc2, { onRestore: () => { resets++; } });
+  if (keepBaseline) assert.equal(woken.restoreBaseline(JSON.parse(JSON.stringify(kept))), true);
+  await woken.checkForeign();
+  await timers.runAll();
+  return { resets, table, woken };
+}
+
+test('a woken room with its baseline recognises a restore made while it slept', async () => {
+  const { resets, table } = await napThroughRestore({ keepBaseline: true });
+  assert.equal(resets, 1);
+  assert.deepEqual(cardsOf(table.rows.get(BOARD).doc), { a: '1' });   // not merged back over
+});
+
+test('without the baseline the restore is adopted as the starting point, which is why it is kept', async () => {
+  const { resets, table, woken } = await napThroughRestore({ keepBaseline: false });
+  assert.equal(resets, 0);
+  assert.equal(woken.versionBaseline, 5);                              // adopted the restore's marker
+  assert.deepEqual(cardsOf(table.rows.get(BOARD).doc), { a: '1', b: '2' });   // old board merged back
+});

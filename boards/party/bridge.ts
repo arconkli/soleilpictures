@@ -65,7 +65,7 @@ type Sub = {
 
 // Where a transaction applied from a doc room came from.
 export type DocRoomOrigin = { docRoom: string; actor: string | null };
-const isDocRoomOrigin = (o: unknown): o is DocRoomOrigin =>
+export const isDocRoomOrigin = (o: unknown): o is DocRoomOrigin =>
   !!o && typeof o === "object" && typeof (o as DocRoomOrigin).docRoom === "string";
 
 export class BoardBridge {

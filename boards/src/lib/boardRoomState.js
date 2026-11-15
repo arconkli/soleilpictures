@@ -37,6 +37,16 @@
 // then merges. A /reset inside the window stops this object (stop()) before it
 // merges anything.
 //
+// ── THE ROOM NAPS ────────────────────────────────────────────────────────────
+//
+// Cloudflare evicts a quiet room and rebuilds it on the next event, so what this
+// object keeps only in memory (lastSeen, versionBaseline, the failure streak) is
+// lost. party/board.ts keeps it in its storage: `onBaseline` hands it a fresh
+// baseline() whenever one of those fields changes, and a woken room puts it back
+// with restoreBaseline(). Without that the woken room would read before every
+// save, and worse, would adopt a restore made while it slept as its own
+// versionBaseline (see mergeForeign) and merge the old board back over it.
+//
 // ── FAILURE IS NEVER EMPTINESS ───────────────────────────────────────────────
 //
 // An unreachable database is not an empty board. Every read that fails leaves
@@ -203,6 +213,9 @@ export class BoardRoomState {
     // deleted for good (23503). The room closes its sockets with 4401, which
     // the client treats as "this cluster is gone" and stops reconnecting on.
     onGone = null,
+    // (baseline): called whenever the save baseline changes, so the room can
+    // keep it across a nap. See baseline() and restoreBaseline().
+    onBaseline = null,
   }) {
     this.boardId = boardId;
     this.cfg = { boardId, supabaseUrl, serviceRoleKey, fetchImpl, ...(now ? { now } : {}) };
@@ -233,6 +246,57 @@ export class BoardRoomState {
     // board_state_version.version at load: a number, null (no row), or
     // undefined (the read failed, so no write can be recognised as a restore).
     this.versionBaseline = undefined;
+    this.onBaseline = onBaseline;
+    this.reportedBaseline = null; // JSON of the baseline last handed to onBaseline
+  }
+
+  // The baseline a woken room needs to carry on: what this room last saw of
+  // board_state, the restore marker at load, and the failed-save streak.
+  // undefined (unknown) becomes null; `seen` and `version` are wrapped so null
+  // (known: no row) stays distinguishable from unknown.
+  baseline() {
+    return {
+      v: 1,
+      seen: this.lastSeen === undefined ? null : { at: this.lastSeen },
+      version: this.versionBaseline === undefined ? null : { n: this.versionBaseline },
+      dirty: this.dirty,
+      dirtySince: this.dirtySince,
+      failures: this.failures,
+    };
+  }
+
+  // Put back a baseline() a previous life of this room kept. Anything that does
+  // not validate changes nothing and returns false. lastFlushedB64 stays null,
+  // so the first flush after a nap writes (or reads) rather than assuming.
+  restoreBaseline(b) {
+    const isInt = (n) => Number.isInteger(n) && n >= 0;
+    if (!b || typeof b !== 'object' || b.v !== 1) return false;
+    if (b.seen !== null && !(b.seen && typeof b.seen === 'object' && (b.seen.at === null || typeof b.seen.at === 'string'))) return false;
+    if (b.version !== null && !(b.version && typeof b.version === 'object' && (b.version.n === null || Number.isFinite(b.version.n)))) return false;
+    if (typeof b.dirty !== 'boolean') return false;
+    if (b.dirtySince !== null && !Number.isFinite(b.dirtySince)) return false;
+    if (!isInt(b.failures)) return false;
+    this.lastSeen = b.seen === null ? undefined : b.seen.at;
+    this.versionBaseline = b.version === null ? undefined : b.version.n;
+    this.dirty = b.dirty;
+    this.dirtySince = b.dirtySince;
+    this.failures = b.failures;
+    this.lastFlushedB64 = null;
+    this.reportedBaseline = JSON.stringify(this.baseline());
+    return true;
+  }
+
+  // Hand the baseline to onBaseline when it differs from the last one handed
+  // over. Never throws: keeping it is best effort and must not stop a save.
+  _reportBaseline() {
+    if (!this.onBaseline) return;
+    try {
+      const b = this.baseline();
+      const json = JSON.stringify(b);
+      if (json === this.reportedBaseline) return;
+      this.reportedBaseline = json;
+      this.onBaseline(b);
+    } catch (_) { /* best effort */ }
   }
 
   get pendingForeign() { return this.foreignTimer !== null; }
@@ -251,6 +315,7 @@ export class BoardRoomState {
       this.reported.failing = true;
       this.problem('save', { op: 'room_flush', error: failure(what, r), attempt: this.failures });
     }
+    this._reportBaseline();
   }
 
   saved() {
@@ -258,6 +323,7 @@ export class BoardRoomState {
     this.failures = 0;
     this.dirtySince = null;
     this.reported = { failing: false, unsaved: false };
+    this._reportBaseline();
   }
 
   // Cold start: merge board_state into `doc` (the room's doc-to-be, already
@@ -265,6 +331,14 @@ export class BoardRoomState {
   // the doc is left as it is and lastSeen stays unknown, so the first flush
   // reads again before it writes.
   async loadInto(doc) {
+    try {
+      return await this._loadInto(doc);
+    } finally {
+      this._reportBaseline();
+    }
+  }
+
+  async _loadInto(doc) {
     const [cur, ver] = await Promise.all([
       readBoardState({ ...this.cfg, withDoc: true }),
       readRestoreVersion(this.cfg),
@@ -319,6 +393,14 @@ export class BoardRoomState {
   }
 
   async _flushLoop(force) {
+    try {
+      return await this._flushOnce(force);
+    } finally {
+      this._reportBaseline();
+    }
+  }
+
+  async _flushOnce(force) {
     if (this.stopped) return false;
     // A foreign write is waiting out its grace window; writing now would put
     // this room's view over it before it is merged. The merge flushes.
@@ -391,6 +473,7 @@ export class BoardRoomState {
         error: new Error('its saves have failed for over two minutes'),
       });
     }
+    this._reportBaseline();
   }
 
   deferForeign() {
@@ -406,6 +489,14 @@ export class BoardRoomState {
   //   inside the fence after a reset      → overwrite it; never merge.
   //   anything else                       → merge it and write the union.
   async mergeForeign() {
+    try {
+      return await this._mergeForeign();
+    } finally {
+      this._reportBaseline();
+    }
+  }
+
+  async _mergeForeign() {
     if (this.stopped) return false;
     const [cur, ver] = await Promise.all([
       readBoardState({ ...this.cfg, withDoc: true }),

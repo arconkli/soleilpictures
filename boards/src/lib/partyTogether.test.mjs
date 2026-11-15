@@ -11,12 +11,12 @@ const together = read('../../party/together.ts');
 test('board.ts builds the watch after the base start and feeds it edits and presence', () => {
   assert.match(board, /import \{ TogetherWatch \} from "\.\/together";/);
   assert.ok(board.indexOf('new TogetherWatch(') > board.indexOf('await super.onStart()'));
-  assert.match(board, /this\.document\.on\("update", \(_update: Uint8Array, origin: unknown\) => this\.together\?\.onDocUpdate\(origin\)\)/);
+  assert.match(board, /this\.document\.on\("update", \(_update: Uint8Array, origin: unknown\) => \{\s+this\.together\?\.onDocUpdate\(origin\);/);
   assert.match(board, /awareness\.on\("change",[\s\S]*?this\.together\?\.onAwarenessChange\(/);
 });
 
 test('the minute alarm ticks the watch with the sockets that stay', () => {
-  const alarm = board.slice(board.indexOf('async onAlarm()'));
+  const alarm = board.slice(board.indexOf('private async check()'), board.indexOf('async onAlarm()'));
   const silent = alarm.indexOf('"silent"');
   const tick = alarm.indexOf('this.together?.tick(stays)');
   const retry = alarm.indexOf('this.remote.retryIfDirty()');
