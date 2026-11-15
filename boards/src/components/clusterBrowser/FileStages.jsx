@@ -27,6 +27,8 @@ import { WaitNote } from '../WaitNote.jsx';
 import { Info, Download, EyeOff, BoundingBox } from '../../lib/icons.js';
 import { initialOf, initialsOf, cutGraphemes, exceedsGraphemes } from '../../lib/graphemes.js';
 import './fileStages.css';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const CAP = `${TEXT_STAGE_MAX_BYTES / (1024 * 1024)} MB`;
 
@@ -34,10 +36,10 @@ function CutNotice({ sizeBytes, onDownload }) {
   return (
     <div className="fst-top" role="status">
       <Icon as={Info} size={16} />
-      <span className="fst-grow">Showing the first {CAP}{sizeBytes ? ` of ${humanSize(sizeBytes)}` : ''}.</span>
+      <span className="fst-grow">{sizeBytes ? tr`Showing the first ${CAP} of ${ph({ size: humanSize(sizeBytes) })}.` : tr`Showing the first ${CAP}.`}</span>
       {onDownload && (
         <button type="button" className="fst-btn" onClick={onDownload}>
-          <Icon as={Download} size={14} />Download all of it
+          <Icon as={Download} size={14} /><Trans>Download all of it</Trans>
         </button>
       )}
     </div>
@@ -109,8 +111,9 @@ function TableStage({ got, ext }) {
     ext, complete: got.complete, maxRows: TABLE_STAGE_MAX_ROWS, maxCells: TABLE_STAGE_MAX_CELLS,
   });
   const cells = (r) => Array.from({ length: cols }, (_, i) => cut(r[i] ?? '', 400));
-  const n = body.length.toLocaleString('en-US');
-  const count = `${more ? `First ${n} rows` : `${n} ${body.length === 1 ? 'row' : 'rows'}`} · ${cols} ${cols === 1 ? 'column' : 'columns'}`;
+  const count = more
+    ? tr`${plural(body.length, { one: 'First # rows', other: 'First # rows' })} · ${plural(cols, { one: '# column', other: '# columns' })}`
+    : tr`${plural(body.length, { one: '# row', other: '# rows' })} · ${plural(cols, { one: '# column', other: '# columns' })}`;
   return (
     <Sheet kind="table" top={<div className="fst-count">{count}</div>}>
       <table>
@@ -161,9 +164,9 @@ function FontStage({ font, sizeBytes }) {
   }, [text, px]);
   const sample = text.trim() ? text : FONT_SAMPLE;
   const facts = [
-    ['Style', [info.style, info.weight].filter(Boolean).join(', ')],
-    ['Format', [info.format, sizeBytes ? humanSize(sizeBytes) : ''].filter(Boolean).join(' · ')],
-    ['Licence', info.license],
+    [tr`Style`, [info.style, info.weight].filter(Boolean).join(', ')],
+    [tr`Format`, [info.format, sizeBytes ? humanSize(sizeBytes) : ''].filter(Boolean).join(' · ')],
+    [tr`Licence`, info.license],
   ].filter(([, v]) => v);
   return (
     <Sheet kind="font">
@@ -173,10 +176,10 @@ function FontStage({ font, sizeBytes }) {
       </div>
       <div className="fst-font-try">
         <div className="fst-font-lab">
-          <label htmlFor={id}>Type to try it</label>
+          <label htmlFor={id}><Trans>Type to try it</Trans></label>
           <span className="fst-font-size">
-            <input type="range" min="12" max="160" value={px} aria-label="Size" onChange={(e) => setPx(Number(e.target.value))} />
-            <output>{px} px</output>
+            <input type="range" min="12" max="160" value={px} aria-label={tr`Size`} onChange={(e) => setPx(Number(e.target.value))} />
+            <output><Trans>{px} px</Trans></output>
           </span>
         </div>
         <textarea id={id} ref={field} className="fst-font-field" dir="auto" rows={1} spellCheck={false}
@@ -194,8 +197,8 @@ function FontStage({ font, sizeBytes }) {
 
 // An empty page while its file is read: on the dark ground, in words.
 function PageWait({ item }) {
-  const name = item.card?.fileName || item.name || 'this file';
-  return <div className="qpage-wait" aria-busy="true"><WaitNote label={`Opening ${name}…`} /></div>;
+  const name = item.card?.fileName || item.name || tr`this file`;
+  return <div className="qpage-wait" aria-busy="true"><WaitNote label={tr`Opening ${name}…`} /></div>;
 }
 
 function FontFamily({ item, fallback }) {
@@ -324,7 +327,7 @@ function Attachments({ letter, mail, item, canPut, onClose }) {
   const put = canPut && item.boardId && canPutFiles(item.boardId);
   return (
     <div className="fst-mail-atts">
-      <div className="fst-mail-lab">{n} {n === 1 ? 'attachment' : 'attachments'}</div>
+      <div className="fst-mail-lab">{tr`${plural(n, { one: '# attachment', other: '# attachments' })}`}</div>
       <div className="fst-mail-row">
         {atts.map((a, i) => {
           const name = mail.attachmentName(a, i);
@@ -332,7 +335,7 @@ function Attachments({ letter, mail, item, canPut, onClose }) {
             <div className="fst-mail-att" key={i}>
               <span className="fst-mail-thumb"><Icon as={attachmentGlyph(a.mimeType)} size={22} /></span>
               <span className="fst-mail-att-txt"><span className="fst-mail-nm" dir="auto">{name}</span><span className="fst-mail-sz">{humanSize(a.size)}</span></span>
-              <button type="button" className="fst-mail-dl" aria-label={`Download ${name}`} title={`Download ${name}`} onClick={() => save(a, i)}>
+              <button type="button" className="fst-mail-dl" aria-label={tr`Download ${name}`} title={tr`Download ${name}`} onClick={() => save(a, i)}>
                 <Icon as={Download} size={15} />
               </button>
             </div>
@@ -341,7 +344,7 @@ function Attachments({ letter, mail, item, canPut, onClose }) {
         {put && (
           <button type="button" className="fst-btn is-quiet"
                   onClick={() => { putFiles(item.boardId, files()); onClose?.(); }}>
-            <Icon as={BoundingBox} size={14} />{n === 1 ? 'Put it on board' : n === 2 ? 'Put both on board' : `Put all ${n} on board`}
+            <Icon as={BoundingBox} size={14} />{tr`${plural(n, { 1: 'Put it on board', 2: 'Put both on board', other: 'Put all # on board' })}`}
           </button>
         )}
       </div>
@@ -370,25 +373,25 @@ function MailStage({ letter, mail, item, canPut, onClose }) {
   return (
     <Sheet kind="mail" className={html ? 'is-html' : ''}>
       <div className="fst-mail-in">
-        <h2 className="fst-mail-subj">{letter.subject || 'No subject'}</h2>
+        <h2 className="fst-mail-subj">{letter.subject || tr`No subject`}</h2>
         <div className="fst-mail-who">
           {from && <span className="fst-mail-av" aria-hidden="true">{initials(from)}</span>}
           <div className="fst-mail-from">
             {from && <>{from.name ? <b>{from.name}</b> : null}{from.name && from.address ? ' ' : null}{from.address ? <span>{from.name ? `<${from.address}>` : from.address}</span> : null}<br /></>}
-            {letter.to.length > 0 && `To ${mailPeople(letter.to)}`}
-            {letter.cc.length > 0 && <span>{letter.to.length ? ' · ' : ''}Cc {mailPeople(letter.cc)}</span>}
+            {letter.to.length > 0 && tr`To ${ph({ mailPeople: mailPeople(letter.to) })}`}
+            {letter.cc.length > 0 && <span><Trans>{ph({ value: letter.to.length ? ' · ' : '' })}Cc {ph({ mailPeople: mailPeople(letter.cc) })}</Trans></span>}
           </div>
           {when && <div className="fst-mail-date">{when}</div>}
         </div>
         {page?.hasRemote && !shown && (
           <div className="fst-top fst-mail-hold" role="status">
             <Icon as={EyeOff} size={16} />
-            <span className="fst-grow">Pictures from the web are hidden in this email.</span>
-            <button type="button" className="fst-btn" onClick={() => setShown(true)}>Show pictures</button>
+            <span className="fst-grow"><Trans>Pictures from the web are hidden in this email.</Trans></span>
+            <button type="button" className="fst-btn" onClick={() => setShown(true)}><Trans>Show pictures</Trans></button>
           </div>
         )}
         {html ? (
-          page && <iframe className="fst-mail-frame" title={letter.subject || 'Email'} sandbox="allow-popups allow-popups-to-escape-sandbox"
+          page && <iframe className="fst-mail-frame" title={letter.subject || tr`Email`} sandbox="allow-popups allow-popups-to-escape-sandbox"
                           referrerPolicy="no-referrer" srcDoc={frameDoc(page, shown)} />
         ) : (
           <div className="fst-mail-text">
@@ -412,8 +415,8 @@ function MailFamily({ item, onDownload, canPut, onClose, fallback }) {
     return (
       <div className="fst-big">
         {fallback}
-        <p className="ql-audio-status" role="status">This email is too big to open here.</p>
-        {onDownload && <button type="button" className="ql-btn" onClick={() => onDownload(item)}><Icon as={Download} size={14} />Download</button>}
+        <p className="ql-audio-status" role="status"><Trans>This email is too big to open here.</Trans></p>
+        {onDownload && <button type="button" className="ql-btn" onClick={() => onDownload(item)}><Icon as={Download} size={14} /><Trans>Download</Trans></button>}
       </div>
     );
   }

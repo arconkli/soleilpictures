@@ -11,6 +11,8 @@ import { Icon } from '../Icon.jsx';
 import { R2Image } from '../R2Image.jsx';
 import { registerModalOpen } from '../../lib/modalGuard.js';
 import { InviteStep } from './InviteStep.jsx';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const MAX_PICS = 5;
 
@@ -20,7 +22,7 @@ export default function InviteReask({ workspace, boardIds = [], loadPhotos, isPh
   const counts = useRef({ emails: 0, links: 0 });
   const headRef = useRef(null);
   const closedRef = useRef(false);
-  const name = workspace?.name || 'Your workspace';
+  const name = workspace?.name || t`Your workspace`;
 
   // Their newest pictures: the cluster they're in, then the others asked for.
   useEffect(() => {
@@ -56,7 +58,7 @@ export default function InviteReask({ workspace, boardIds = [], loadPhotos, isPh
     <>
       <div className="su-ra-scrim" aria-hidden="true" onClick={() => close(out ? 'done' : 'close')} />
       <div className={`su-ra${isPhone ? ' is-phone' : ''}`} role="dialog" aria-modal="true" aria-labelledby="su-ra-h">
-        <button type="button" className="su-ra-x" aria-label="Close" onClick={() => close(out ? 'done' : 'close')}>
+        <button type="button" className="su-ra-x" aria-label={t`Close`} onClick={() => close(out ? 'done' : 'close')}>
           <Icon as={X} size={16} weight="regular" />
         </button>
         {pics.length > 0 && (
@@ -64,8 +66,8 @@ export default function InviteReask({ workspace, boardIds = [], loadPhotos, isPh
             {pics.map((p) => <span key={p.id || p.src} className="su-ra-pic"><R2Image src={p.src} alt="" /></span>)}
           </div>
         )}
-        <h2 className="su-ra-h" id="su-ra-h" ref={headRef} tabIndex={-1}>{name} is taking shape.<br />Who should see it?</h2>
-        <p className="su-ra-sub">Send a collaborator or a client the link. They see what you add, as you add it.</p>
+        <h2 className="su-ra-h" id="su-ra-h" ref={headRef} tabIndex={-1}><Trans>{name} is taking shape.<br />Who should see it?</Trans></h2>
+        <p className="su-ra-sub"><Trans>Send a collaborator or a client the link. They see what you add, as you add it.</Trans></p>
         <InviteStep workspaceId={workspace?.id || null} workspaceName={name} surface="reask" isPhone={isPhone}
           onOut={(how) => {
             setOut(true);
@@ -74,8 +76,8 @@ export default function InviteReask({ workspace, boardIds = [], loadPhotos, isPh
           onInvited={(emails) => { counts.current.emails += emails.length; }} />
         <div className="su-ra-foot">
           {out
-            ? <button type="button" className="su-btn su-primary" onClick={() => close('done')}>Done</button>
-            : <button type="button" className="su-btn su-quiet" onClick={() => close('not_now')}>Not now</button>}
+            ? <button type="button" className="su-btn su-primary" onClick={() => close('done')}><Trans>Done</Trans></button>
+            : <button type="button" className="su-btn su-quiet" onClick={() => close('not_now')}><Trans>Not now</Trans></button>}
         </div>
       </div>
     </>

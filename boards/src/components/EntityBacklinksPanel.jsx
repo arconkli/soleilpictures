@@ -21,6 +21,8 @@ import { useEntityNavigate } from '../hooks/useEntityNavigate.js';
 import { supabase } from '../lib/supabase.js';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // `target`, never `ref`: React reserves `ref` and never hands it to a plain
 // function component, so as `ref` this was always undefined and the drawer
@@ -175,19 +177,19 @@ export function EntityBacklinksPanel({ target: targetRef, onClose }) {
     <aside className="ent-backlinks-panel surface-frosted">
       <div className="ent-backlinks-head">
         {TitleIcon && <Icon as={TitleIcon} size={14} />}
-        <span className="ent-backlinks-head-label">Linked from</span>
+        <span className="ent-backlinks-head-label"><Trans>Linked from</Trans></span>
         {entityName && (
           <span className="ent-backlinks-head-target" title={entityName}>{entityName}</span>
         )}
-        <button className="ent-backlinks-close" onClick={() => onClose?.()} title="Close">
+        <button className="ent-backlinks-close" onClick={() => onClose?.()} title={t`Close`}>
           <Icon as={X} size={12} />
         </button>
       </div>
       <div className="ent-backlinks-body">
-        {loading && <div className="ent-backlinks-empty">Loading…</div>}
+        {loading && <div className="ent-backlinks-empty"><Trans>Loading…</Trans></div>}
         {!loading && rows.length === 0 && (
           <div className="ent-backlinks-empty">
-            Nothing links here yet. Mention this from a doc, message, or card.
+            <Trans>Nothing links here yet. Mention this from a doc, message, or card.</Trans>
           </div>
         )}
         {sortedRows.map((r, i) => {
@@ -205,12 +207,12 @@ export function EntityBacklinksPanel({ target: targetRef, onClose }) {
                   <span className="ent-backlinks-row-kind">{labelFor(r.kind)}</span>
                   {r.title && <span className="ent-backlinks-row-title">{r.title}</span>}
                   {r.when && <span className="ent-backlinks-row-when">· {relativeTimeShort(r.when)}</span>}
-                  {r.isExplicit && <span className="ent-backlinks-row-tag" title="Manual link">link</span>}
+                  {r.isExplicit && <span className="ent-backlinks-row-tag" title={t`Manual link`}><Trans>link</Trans></span>}
                 </span>
                 {r.snippet && <span className="ent-backlinks-row-snippet">{r.snippet}</span>}
               </button>
               <button className={`ent-backlinks-row-pin ${isPinned ? 'is-on' : ''}`}
-                      title={isPinned ? 'Unpin from top' : 'Pin to top'}
+                      title={isPinned ? t`Unpin from top` : t`Pin to top`}
                       onClick={(e) => { e.stopPropagation(); togglePin(rowKey); }}>
                 <Icon as={Pin} size={12} />
               </button>
@@ -240,11 +242,11 @@ function sourceIcon(kind) {
 }
 function labelFor(kind) {
   switch (kind) {
-    case 'doc':       return 'Doc';
-    case 'message':   return 'Message';
-    case 'card':      return 'Card';
-    case 'note':      return 'Note';
-    case 'card_title':return 'Card title';
+    case 'doc':       return t`Doc`;
+    case 'message':   return t`Message`;
+    case 'card':      return t`Card`;
+    case 'note':      return t`Note`;
+    case 'card_title':return t`Card title`;
     default:          return kind;
   }
 }

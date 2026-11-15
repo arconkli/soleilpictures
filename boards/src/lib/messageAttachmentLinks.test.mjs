@@ -64,3 +64,17 @@ test('the thread opens at the bottom instantly and re-pins as images load', () =
   const bubble = readFileSync(new URL('../components/MessageBubble.jsx', import.meta.url), 'utf8');
   assert.match(bubble, /style=\{imageBoxStyle\(att\) \|\| undefined\}/);
 });
+
+// ── Sizes in the reader's language (16b) ──
+import { setUiLocale } from './uiLocale.js';
+
+const nb = (s) => s.replace(/[\u00a0\u202f]/g, ' ');
+const inLocale = (l, fn) => { setUiLocale(l); try { return fn(); } finally { setUiLocale('en'); } };
+test('formatAttachmentSize: English as ever; fr and ru write the same numbers their way', () => {
+  assert.equal(formatAttachmentSize(500), '500 B');
+  assert.equal(formatAttachmentSize(5 * 1024 * 1024), '5.0 MB');
+  assert.equal(formatAttachmentSize(20 * 1024 * 1024), '20 MB');
+  assert.equal(nb(inLocale('fr', () => formatAttachmentSize(5 * 1024 * 1024))), '5,0 Mo');
+  assert.equal(nb(inLocale('ru', () => formatAttachmentSize(2048))), '2 кБ');
+  assert.equal(nb(inLocale('fr', () => formatAttachmentSize(3 * 1024 ** 3))), '3,0 Go');
+});

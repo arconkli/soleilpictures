@@ -48,6 +48,7 @@ const WorkspaceSetup = lazyWithReload(() => import('../components/setup/Workspac
 import { UpgradeChip } from '../components/UpgradeChip.jsx';
 import { SoleilMark } from '../components/primitives.jsx';
 import { LoadingScreen } from '../components/LoadingScreen.jsx';
+import { Trans } from '@lingui/react/macro';
 
 export function TierRouter({ children }) {
   const { user, signOut } = useAuth();
@@ -259,15 +260,15 @@ function Suspended({ onSignOut }) {
       <div className="auth-glow" aria-hidden="true" />
       <div className="auth-card auth-card-message">
         <SoleilMark size={32} color="var(--soleil)" />
-        <h1 className="auth-message-title">Account suspended</h1>
+        <h1 className="auth-message-title"><Trans>Account suspended</Trans></h1>
         <p className="auth-message-body t-meta">
-          Your account has been suspended. If you think this is a mistake,
-          we'll take a look.
+          <Trans>Your account has been suspended. If you think this is a mistake,
+          we'll take a look.</Trans>
         </p>
         <a className="auth-btn" href="mailto:hello@soleilpictures.com?subject=Account%20suspended">
-          Email support
+          <Trans>Email support</Trans>
         </a>
-        <button className="auth-btn auth-btn-secondary" onClick={onSignOut}>Sign out</button>
+        <button className="auth-btn auth-btn-secondary" onClick={onSignOut}><Trans>Sign out</Trans></button>
       </div>
     </div>
   );

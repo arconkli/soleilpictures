@@ -52,6 +52,9 @@ import { EV } from '../lib/analyticsEvents.js';
 import { sendShape, errorCode } from '../lib/messageEvents.js';
 import { searchKey } from '../lib/textFold.js';
 import { initialOf } from '../lib/graphemes.js';
+import { formatDate } from '../lib/intlFormat.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Dragging an attachment out of a message onto a canvas makes it a card.
 function attachmentDragStart(e, att) {
@@ -63,6 +66,9 @@ function attachmentDragStart(e, att) {
 
 // Start fetching the previous page this far before the reader hits the top.
 const LOAD_OLDER_THRESHOLD_PX = 120;
+
+// The date and time a message was sent, in the viewer's language (what toLocaleString() gave).
+const fullStamp = (iso) => formatDate(new Date(iso), { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' });
 
 // conversation = { id, title, participants: [{ user_id, left_at, ... }] }
 export function MessageThread({
@@ -154,20 +160,20 @@ export function MessageThread({
 
   const peerLabels = peers.map(p => {
     const u = userProfiles.get(p.user_id);
-    return u?.name || u?.email || 'Member';
+    return u?.name || u?.email || tr`Member`;
   });
-  const titleText = conversation?.title || (peerLabels.length ? peerLabels.join(', ') : 'New conversation');
+  const titleText = conversation?.title || (peerLabels.length ? peerLabels.join(', ') : tr`New conversation`);
   // The card look's faces: the people in it besides you.
   const peerPeople = peers.map(p => {
     const u = userProfiles.get(p.user_id);
-    return { id: p.user_id, name: u?.name || u?.email || 'Member', color: u?.color || pickPresenceColor(p.user_id || '') };
+    return { id: p.user_id, name: u?.name || u?.email || tr`Member`, color: u?.color || pickPresenceColor(p.user_id || '') };
   });
   const firstPeer = (peerLabels[0] || '').split(/[\s@]/)[0];
   // A first name for "Replying to …": you, or whoever wrote it.
   const replyName = (uid) => {
-    if (uid === userId) return 'yourself';
+    if (uid === userId) return tr`yourself`;
     const u = userProfiles.get(uid);
-    return (u?.name || u?.email || 'Member').split(/[\s@]/)[0];
+    return (u?.name || u?.email || tr`Member`).split(/[\s@]/)[0];
   };
   // A face for someone in the card look: theirs, or yours.
   const faceOf = (uid) => {
@@ -175,15 +181,15 @@ export function MessageThread({
     const mine = uid === userId;
     return {
       id: uid,
-      name: u?.name || u?.email || (mine ? currentUser?.name || currentUser?.email : '') || 'Member',
+      name: u?.name || u?.email || (mine ? currentUser?.name || currentUser?.email : '') || tr`Member`,
       color: u?.color || (mine ? currentUser?.color : null) || pickPresenceColor(uid || ''),
     };
   };
   // Who wrote a search result.
   const senderName = (m) => {
-    if (m.sender_id === userId) return 'You';
+    if (m.sender_id === userId) return tr`You`;
     const u = userProfiles.get(m.sender_id);
-    return u?.name || u?.email || m.sender_name || 'Member';
+    return u?.name || u?.email || m.sender_name || tr`Member`;
   };
 
   // ── Focus ────────────────────────────────────────────────────────────
@@ -614,7 +620,7 @@ export function MessageThread({
         console.warn('send failed', e);
         markSendState(opId, 'failed');
         logEvent(EV.MSG_SEND, { ok: false, attempt: tries.n, ms: Date.now() - tries.at, code: errorCode(e), ...sendShape(row) });
-        feedback.toast({ type: 'error', code: 'message_send_failed', message: "Message didn't send — it's kept in the thread with a Retry button." });
+        feedback.toast({ type: 'error', code: 'message_send_failed', message: tr`Message didn't send — it's kept in the thread with a Retry button.` });
         return;
       }
     }
@@ -675,7 +681,7 @@ export function MessageThread({
       console.warn('delete failed', e);
       rollback(opId);
       logEvent(EV.MSG_ACTION, { action: 'delete', ok: false, code: errorCode(e) });
-      feedback.toast({ type: 'error', code: 'message_delete_failed', message: 'Could not delete the message — try again.' });
+      feedback.toast({ type: 'error', code: 'message_delete_failed', message: tr`Could not delete the message — try again.` });
       return;
     }
     settle(opId);
@@ -684,7 +690,7 @@ export function MessageThread({
     // messages aren't in the realtime publication (COMMS-04).
     broadcastConversationChange({ conversationId, changed: 'delete', id: msg.id });
     undoToast(feedback, {
-      message: 'Message deleted',
+      message: tr`Message deleted`,
       onUndo: async () => {
         const back = upsertLocal({ ...msg, deleted_at: null });
         try {
@@ -696,7 +702,7 @@ export function MessageThread({
         catch (e) {
           rollback(back);
           logEvent(EV.MSG_ACTION, { action: 'undo_delete', ok: false, code: errorCode(e) });
-          feedback.toast({ type: 'error', code: 'message_restore_failed', message: 'Could not restore the message — try again.' });
+          feedback.toast({ type: 'error', code: 'message_restore_failed', message: tr`Could not restore the message — try again.` });
         }
       },
     });
@@ -711,7 +717,7 @@ export function MessageThread({
       console.warn('edit failed', e);
       rollback(opId);
       logEvent(EV.MSG_ACTION, { action: 'edit', ok: false, code: errorCode(e) });
-      feedback.toast({ type: 'error', code: 'message_edit_failed', message: 'Could not save your edit — try again.' });
+      feedback.toast({ type: 'error', code: 'message_edit_failed', message: tr`Could not save your edit — try again.` });
       return false;
     }
     settle(opId);
@@ -732,7 +738,7 @@ export function MessageThread({
     } catch (e) {
       rollback(opId);
       logEvent(EV.MSG_ACTION, { action, ok: false, code: errorCode(e) });
-      feedback.toast({ type: 'error', code: 'message_react_failed', message: "Couldn't save your reaction — try again." });
+      feedback.toast({ type: 'error', code: 'message_react_failed', message: tr`Couldn't save your reaction — try again.` });
     }
   }, [conversationId, userId, patchLocal, settle, rollback, feedback]);
 
@@ -767,7 +773,7 @@ export function MessageThread({
     } catch (e) {
       console.warn('pin failed', e);
       rollback(opId);
-      feedback.toast({ type: 'error', code: 'message_pin_failed', message: msg.is_pinned ? "Couldn't unpin the message — try again." : "Couldn't pin the message — try again." });
+      feedback.toast({ type: 'error', code: 'message_pin_failed', message: msg.is_pinned ? tr`Couldn't unpin the message — try again.` : tr`Couldn't pin the message — try again.` });
       logEvent(EV.MSG_ACTION, { action, ok: false, code: errorCode(e) });
     }
   }, [conversationId, patchLocal, settle, rollback, feedback]);
@@ -778,10 +784,10 @@ export function MessageThread({
     try {
       await navigator.clipboard.writeText(url);
       logEvent(EV.MSG_ACTION, { action: 'copy_link', ok: true });
-      feedback.toast({ type: 'success', message: 'Link copied' });
+      feedback.toast({ type: 'success', message: tr`Link copied` });
     } catch (_) {
       logEvent(EV.MSG_ACTION, { action: 'copy_link', ok: false });
-      feedback.toast({ type: 'error', code: 'link_copy_failed', message: "Couldn't copy the link — your browser blocked the clipboard." });
+      feedback.toast({ type: 'error', code: 'link_copy_failed', message: tr`Couldn't copy the link — your browser blocked the clipboard.` });
     }
   }, [feedback]);
 
@@ -812,10 +818,10 @@ export function MessageThread({
     try {
       await navigator.clipboard.writeText(msg.body || '');
       logEvent(EV.MSG_ACTION, { action: 'copy_text', ok: true });
-      feedback.toast({ type: 'success', message: 'Copied' });
+      feedback.toast({ type: 'success', message: tr`Copied` });
     } catch (_) {
       logEvent(EV.MSG_ACTION, { action: 'copy_text', ok: false });
-      feedback.toast({ type: 'error', code: 'text_copy_failed', message: "Couldn't copy — your browser blocked the clipboard." });
+      feedback.toast({ type: 'error', code: 'text_copy_failed', message: tr`Couldn't copy — your browser blocked the clipboard.` });
     }
   }, [feedback]);
   const requestEdit = useCallback((msg) => {
@@ -903,7 +909,7 @@ export function MessageThread({
       onChanged?.();
     } catch (e) {
       console.warn('rename failed', e);
-      feedback.toast({ type: 'error', code: 'chat_rename_failed', message: 'Could not rename the conversation — try again.' });
+      feedback.toast({ type: 'error', code: 'chat_rename_failed', message: tr`Could not rename the conversation — try again.` });
     }
   };
 
@@ -911,9 +917,9 @@ export function MessageThread({
     if (isDm) return;
     setMenuAnchor(null);
     const ok = await feedback.confirm({
-      title: 'Leave conversation',
-      message: `Leave "${titleText}"? You'll stop receiving its messages.`,
-      confirmLabel: 'Leave',
+      title: tr`Leave conversation`,
+      message: tr`Leave "${titleText}"? You'll stop receiving its messages.`,
+      confirmLabel: tr`Leave`,
       danger: true,
     });
     if (!ok) return;
@@ -922,16 +928,16 @@ export function MessageThread({
     const convId = conversationId;
     const left = await leaveConversation({ conversationId: convId, userId });
     if (!left) {
-      feedback.toast({ type: 'error', code: 'chat_leave_failed', message: 'Could not leave the conversation — try again.' });
+      feedback.toast({ type: 'error', code: 'chat_leave_failed', message: tr`Could not leave the conversation — try again.` });
       return;
     }
     onChanged?.();
     onBack?.();
     undoToast(feedback, {
-      message: 'You left the conversation',
+      message: tr`You left the conversation`,
       onUndo: async () => {
         const back = await rejoinConversation({ conversationId: convId, userId });
-        if (!back) { feedback.toast({ type: 'error', code: 'chat_rejoin_failed', message: "Couldn't bring the conversation back — try again." }); return; }
+        if (!back) { feedback.toast({ type: 'error', code: 'chat_rejoin_failed', message: tr`Couldn't bring the conversation back — try again.` }); return; }
         onChanged?.();
       },
     });
@@ -941,9 +947,9 @@ export function MessageThread({
   const isEmpty = !searchOpen && messages.length === 0;
   // Who's typing, for the card look's dots: first names, or one's full name.
   const typingIds = [...typingUsers.keys()];
-  const typingNames = typingIds.map(id => (userProfiles.get(id)?.name || userProfiles.get(id)?.email || 'Someone').split(/[\s@]/)[0]);
+  const typingNames = typingIds.map(id => (userProfiles.get(id)?.name || userProfiles.get(id)?.email || tr`Someone`).split(/[\s@]/)[0]);
   const typingFull = typingIds.length === 1 ? (userProfiles.get(typingIds[0])?.name || typingNames[0]) : '';
-  const subtitle = isDm ? 'DIRECT MESSAGE' : 'GROUP CHAT';
+  const subtitle = isDm ? tr`DIRECT MESSAGE` : tr`GROUP CHAT`;
 
   const showPinned = !searchOpen && pinned.length > 0;
 
@@ -962,27 +968,27 @@ export function MessageThread({
               <input
                 ref={searchInputRef}
                 className="msg-search-input"
-                placeholder={`Search ${titleText}`}
-                aria-label="Search this conversation"
+                placeholder={tr`Search ${titleText}`}
+                aria-label={tr`Search this conversation`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               {searchQuery && (
-                <button type="button" className="msg-search-clear" aria-label="Clear the search"
+                <button type="button" className="msg-search-clear" aria-label={tr`Clear the search`}
                         onClick={() => { setSearchQuery(''); searchInputRef.current?.focus(); }}>
                   <Icon as={X} size={12} weight="regular" />
                 </button>
               )}
             </label>
-            <button type="button" className="msg-search-done" onClick={closeSearch}>Done</button>
+            <button type="button" className="msg-search-done" onClick={closeSearch}><Trans>Done</Trans></button>
           </>
         ) : (
         <>
         <button
           className="msg-panel-icon"
           onClick={() => onBack?.()}
-          title="Back"
-          aria-label="Back"
+          title={tr`Back`}
+          aria-label={tr`Back`}
         >
           <Icon as={ChevronLeft} size={14} />
         </button>
@@ -1026,8 +1032,8 @@ export function MessageThread({
             type="button"
             className={`msg-pins-chip ${pinsFor ? 'is-active' : ''}`}
             onClick={(e) => { const el = e.currentTarget; setPinsFor(cur => (cur ? null : { anchor: el.getBoundingClientRect(), trigger: el })); }}
-            title="Pinned messages"
-            aria-label={`${pinned.length} pinned message${pinned.length === 1 ? '' : 's'}`}
+            title={tr`Pinned messages`}
+            aria-label={tr`${plural(pinned.length, { one: '# pinned message', other: '# pinned messages' })}`}
             aria-expanded={!!pinsFor}
           >
             <Icon as={Pin} size={13} weight="regular" />{pinned.length}
@@ -1037,8 +1043,8 @@ export function MessageThread({
           <button
             className="msg-panel-icon"
             onClick={(e) => setMenuAnchor(e.currentTarget.getBoundingClientRect())}
-            title="Conversation actions"
-            aria-label="Conversation actions"
+            title={tr`Conversation actions`}
+            aria-label={tr`Conversation actions`}
           >
             <Icon as={MoreHorizontal} size={14} />
           </button>
@@ -1049,8 +1055,8 @@ export function MessageThread({
             if (searchOpen) closeSearch();
             else { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 0); }
           }}
-          title="Search messages (⌘F)"
-          aria-label="Search messages"
+          title={tr`Search messages (⌘F)`}
+          aria-label={tr`Search messages`}
         >
           <Icon as={Search} size={14} />
         </button>
@@ -1058,13 +1064,13 @@ export function MessageThread({
           <button
             className={`msg-panel-icon ${menuAnchor ? 'is-active' : ''}`}
             onClick={(e) => setMenuAnchor(e.currentTarget.getBoundingClientRect())}
-            title="Conversation actions"
-            aria-label="Conversation actions"
+            title={tr`Conversation actions`}
+            aria-label={tr`Conversation actions`}
           >
             <Icon as={MoreHorizontal} size={14} />
           </button>
         )}
-        <button className="msg-panel-icon" onClick={onClose} title="Close (Esc)" aria-label="Close messages">
+        <button className="msg-panel-icon" onClick={onClose} title={tr`Close (Esc)`} aria-label={tr`Close messages`}>
           <Icon as={X} size={14} />
         </button>
         </>
@@ -1106,7 +1112,7 @@ export function MessageThread({
           <input
             ref={searchInputRef}
             className="msg-search-input"
-            placeholder="Find in conversation…"
+            placeholder={tr`Find in conversation…`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -1118,7 +1124,7 @@ export function MessageThread({
         <div className={`msg-pinned-strip ${pinnedExpanded ? 'is-expanded' : ''}`}>
           <button className="msg-pinned-head" onClick={() => setPinnedExpanded(v => !v)}>
             <Icon as={Pin} size={11} />
-            <span className="t-eyebrow">PINNED · {pinned.length}</span>
+            <span className="t-eyebrow"><Trans>PINNED · {ph({ count: pinned.length })}</Trans></span>
             <span className="msg-pinned-chev">{pinnedExpanded ? '▾' : '▸'}</span>
           </button>
           {pinnedExpanded && (
@@ -1128,7 +1134,7 @@ export function MessageThread({
                   key={p.id}
                   className="msg-pinned-item"
                   onClick={() => jumpTo(p.id)}
-                  title={`Jump to message · ${new Date(p.created_at).toLocaleString()}`}
+                  title={tr`Jump to message · ${ph({ localeString: fullStamp(p.created_at) })}`}
                 >
                   <span className="msg-pinned-item-body">{(p.body || '').slice(0, 80)}</span>
                 </button>
@@ -1148,18 +1154,18 @@ export function MessageThread({
             onClick={requestOlder}
             disabled={loadingOlder}
           >
-            {loadingOlder ? 'Loading earlier messages…' : 'Load earlier messages'}
+            {loadingOlder ? tr`Loading earlier messages…` : tr`Load earlier messages`}
           </button>
         )}
         {searchOpen && searchQuery.trim() ? (
           <>
             <div className="msg-search-summary t-meta">
-              {searching ? 'Searching…' : card
-                ? `${searchResults.length} message${searchResults.length === 1 ? '' : 's'} in ${titleText}`
-                : `${searchResults.length} result${searchResults.length === 1 ? '' : 's'}`}
+              {searching ? tr`Searching…` : card
+                ? tr`${plural(searchResults.length, { one: '# message', other: '# messages' })} in ${titleText}`
+                : tr`${plural(searchResults.length, { one: '# result', other: '# results' })}`}
             </div>
             {searchResults.length === 0 && !searching && (
-              <div className="msg-empty">No matches for "{searchQuery}".</div>
+              <div className="msg-empty"><Trans>No matches for "{searchQuery}".</Trans></div>
             )}
             {/* A result is one button: who, when, and the words around the
                 match. A whole message inside it put its own buttons inside
@@ -1178,7 +1184,7 @@ export function MessageThread({
                       ? parts.map((p, i) => (p.match
                         ? <mark key={i} className="msg-bubble-mark">{p.text}</mark>
                         : <span key={i}>{p.text}</span>))
-                      : (m.attachments?.[0]?.name || 'Attachment')}
+                      : (m.attachments?.[0]?.name || tr`Attachment`)}
                   </span>
                 </button>
               );
@@ -1187,8 +1193,8 @@ export function MessageThread({
         ) : isEmpty && loadFailed ? (
           // A failed read is not an empty conversation (COMMS-15).
           <div className="msg-empty msg-load-failed" role="alert">
-            <span>Couldn't load messages.</span>
-            <button type="button" className="msg-retry-btn" onClick={() => refetch()}>Retry</button>
+            <span><Trans>Couldn't load messages.</Trans></span>
+            <button type="button" className="msg-retry-btn" onClick={() => refetch()}><Trans>Retry</Trans></button>
           </div>
         ) : isEmpty && loading ? (
           // Still reading this conversation: not "No messages yet". The card
@@ -1200,14 +1206,14 @@ export function MessageThread({
               <MessageFaces people={peerPeople} size={56} />
               <div className="msg-empty-title">{titleText}</div>
               <div className="msg-empty-sub">
-                {isDm && firstPeer ? `This is the start of your conversation with ${firstPeer}.` : `This is the start of ${titleText}.`}
+                {isDm && firstPeer ? tr`This is the start of your conversation with ${firstPeer}.` : tr`This is the start of ${titleText}.`}
               </div>
             </div>
           ) : (
             <div className="msg-empty msg-empty-hero">
               <SoleilMark size={32} color="var(--soleil)" glow />
-              <div className="msg-empty-title">No messages yet</div>
-              <div className="msg-empty-sub">Say hi</div>
+              <div className="msg-empty-title"><Trans>No messages yet</Trans></div>
+              <div className="msg-empty-sub"><Trans>Say hi</Trans></div>
             </div>
           )
         ) : (
@@ -1215,7 +1221,7 @@ export function MessageThread({
             {groupedMessages.map(g => g.kind === 'divider' ? (
               <div key={g.key} className="msg-day-divider"><span>{g.label}</span></div>
             ) : g.kind === 'new' ? (
-              <div key={g.key} className="msg-new-divider" role="separator" aria-label="New messages"><span>New</span></div>
+              <div key={g.key} className="msg-new-divider" role="separator" aria-label={tr`New messages`}><span><Trans>New</Trans></span></div>
             ) : g.msg.kind === 'system' ? (
               <div key={g.key} className="msg-system-row t-meta">{g.msg.body}</div>
             ) : (
@@ -1256,7 +1262,7 @@ export function MessageThread({
             ) : (
               <div className="msg-typing">
                 <span className="msg-typing-dots"><span /><span /><span /></span>
-                <span className="t-meta">{typingUsers.size === 1 ? 'Typing…' : `${typingUsers.size} typing…`}</span>
+                <span className="t-meta">{tr`${plural(typingUsers.size, { 1: 'Typing…', other: '# typing…' })}`}</span>
               </div>
             ))}
           </>
@@ -1267,16 +1273,16 @@ export function MessageThread({
 
       {!searchOpen && !stick.stuck && (card ? (
         // The card look: a round chip with how many are new on its corner.
-        <button type="button" className="msg-jump-pill is-round" onClick={jumpToBottom} title="Latest"
-                aria-label={unseenCount > 0 ? `Jump to the latest, ${unseenCount} new` : 'Jump to the latest'}>
+        <button type="button" className="msg-jump-pill is-round" onClick={jumpToBottom} title={tr`Latest`}
+                aria-label={unseenCount > 0 ? tr`Jump to the latest, ${unseenCount} new` : tr`Jump to the latest`}>
           <Icon as={ArrowDown} size={16} weight="regular" />
           {unseenCount > 0 && <span className="msg-jump-n" aria-hidden="true">{unseenCount > 99 ? '99+' : unseenCount}</span>}
         </button>
       ) : (
         <button type="button" className="msg-jump-pill" onClick={jumpToBottom}
-                aria-label={unseenCount > 0 ? `Jump to the latest, ${unseenCount} new` : 'Jump to the latest'}>
+                aria-label={unseenCount > 0 ? tr`Jump to the latest, ${unseenCount} new` : tr`Jump to the latest`}>
           <Icon as={ArrowDown} size={13} />
-          {unseenCount > 0 ? `${unseenCount} new message${unseenCount === 1 ? '' : 's'}` : 'Latest'}
+          {unseenCount > 0 ? tr`${plural(unseenCount, { one: '# new message', other: '# new messages' })}` : tr`Latest`}
         </button>
       ))}
       </div>
@@ -1289,7 +1295,7 @@ export function MessageThread({
           workspaceId={workspaceId}
           userId={userId}
           draftKey={draftKey}
-          placeholder={card ? `Message ${isDm && firstPeer ? firstPeer : titleText}` : 'Message…'}
+          placeholder={card ? tr`Message ${ph({ value: isDm && firstPeer ? firstPeer : titleText })}` : tr`Message…`}
           card={card}
           editing={card ? editingMsg : null}
           onSaveEdit={saveEdit}
@@ -1361,7 +1367,7 @@ function ThreadSkeleton() {
   }, []);
   if (!shown) return null;
   return (
-    <div className="msg-thread-skel" role="status" aria-label="Loading messages">
+    <div className="msg-thread-skel" role="status" aria-label={tr`Loading messages`}>
       {[[58, 0], [72, 0], [44, 1], [64, 0], [52, 1], [30, 1]].map(([w, mine], i) => (
         <span key={i} className={`msg-skel-bubble${mine ? ' is-mine' : ''}`} style={{ width: `${w}%` }} />
       ))}
@@ -1414,18 +1420,18 @@ function GroupChatMenu({ anchor, onRename, onAdd, onLeave, canLeave, onClose }) 
   return createPortal((
     <div ref={popRef} className="msg-group-menu" style={{ position: 'fixed', top: pos.top, left: pos.left }}>
       <button className="msg-group-menu-item" onClick={onRename}>
-        <Icon as={Edit} size={12} /> Rename
+        <Icon as={Edit} size={12} /> <Trans>Rename</Trans>
       </button>
       <button className="msg-group-menu-item" onClick={onAdd}>
-        <Icon as={UserPlus} size={12} /> Add people
+        <Icon as={UserPlus} size={12} /> <Trans>Add people</Trans>
       </button>
       <button
         className="msg-group-menu-item is-danger"
         onClick={canLeave ? onLeave : undefined}
         disabled={!canLeave}
-        title={canLeave ? 'Leave conversation' : 'Need 3+ members to leave'}
+        title={canLeave ? tr`Leave conversation` : tr`Need 3+ members to leave`}
       >
-        <Icon as={LogOut} size={12} /> Leave
+        <Icon as={LogOut} size={12} /> <Trans>Leave</Trans>
       </button>
     </div>
   ), document.body);
@@ -1481,7 +1487,7 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
         const p = userProfiles.get(m.user_id);
         return {
           user_id: m.user_id,
-          name: p?.name || m.name || p?.email || m.email || 'Member',
+          name: p?.name || m.name || p?.email || m.email || tr`Member`,
           email: p?.email || m.email || '',
           color: p?.color || m.color || pickPresenceColor(m.user_id),
         };
@@ -1497,7 +1503,7 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
     try {
       const joined = await addParticipants({ conversationId, userIds: picked });
       if (!joined.length) {
-        feedback.toast({ type: 'info', message: 'They’re already in this conversation.' });
+        feedback.toast({ type: 'info', message: tr`They’re already in this conversation.` });
         onAdded?.();
         return;
       }
@@ -1513,11 +1519,11 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
         body,
         kind: 'system',
       });
-      feedback.toast({ type: 'success', message: `Added ${names.join(', ')} to the conversation.` });
+      feedback.toast({ type: 'success', message: tr`Added ${ph({ join: names.join(', ') })} to the conversation.` });
       onAdded?.();
     } catch (e) {
       console.warn('add participants failed', e);
-      feedback.toast({ type: 'error', code: 'chat_add_failed', message: 'Could not add people — try again.' });
+      feedback.toast({ type: 'error', code: 'chat_add_failed', message: tr`Could not add people — try again.` });
     } finally {
       setBusy(false);
     }
@@ -1530,8 +1536,8 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
       style={{ position: 'fixed', top: pos.top, left: pos.left, width: 320, maxHeight: pos.maxHeight }}
     >
       <div className="msg-newconv-head">
-        <span className="t-eyebrow">ADD TO THIS CONVERSATION</span>
-        <button className="msg-panel-icon" onClick={onClose} aria-label="Close">
+        <span className="t-eyebrow"><Trans>ADD TO THIS CONVERSATION</Trans></span>
+        <button className="msg-panel-icon" onClick={onClose} aria-label={tr`Close`}>
           <Icon as={X} size={12} />
         </button>
       </div>
@@ -1540,14 +1546,14 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
         <input
           ref={inputRef}
           className="msg-newconv-input"
-          placeholder="Find people…"
+          placeholder={tr`Find people…`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
       </div>
       <div className="msg-newconv-list">
         {visibleMembers.length === 0 && (
-          <div className="msg-empty t-meta">No more people to add.</div>
+          <div className="msg-empty t-meta"><Trans>No more people to add.</Trans></div>
         )}
         {visibleMembers.map(m => {
           const sel = picked.includes(m.user_id);
@@ -1574,7 +1580,7 @@ function AddParticipantsPicker({ workspaceId, conversationId, existingIds, ancho
           disabled={picked.length === 0 || busy}
           onClick={handleAdd}
         >
-          Add {picked.length || ''}
+          <Trans>Add {ph({ value: picked.length || '' })}</Trans>
         </button>
       </div>
     </div>

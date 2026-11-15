@@ -10,6 +10,8 @@
 // takes a second reads as "did that do anything?" and people click twice.
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useFeedback } from '../AppFeedback.jsx';
+import { t as tr, ph } from '@lingui/core/macro';
+import { shownError } from '../../lib/errorWords.js';
 
 // Default is a passthrough so a tab rendered outside the panel (tests, a
 // future standalone page) still works rather than throwing on a missing
@@ -56,7 +58,7 @@ export function useSettingsSaveState() {
       // connection's.
       feedback.toast(err?.userMessage
         ? { type: 'warning', message: err.userMessage, ttl: 9000 }
-        : { type: 'error', code: 'settings_save_failed', message: 'Save failed — check your connection and try again. (' + (err.message || err) + ')' });
+        : { type: 'error', code: 'settings_save_failed', message: tr`Save failed — check your connection and try again. (${ph({ reason: shownError(err) })})` });
       return false;
     } finally {
       pending.current = Math.max(0, pending.current - 1);
@@ -71,7 +73,7 @@ export function SettingsSavedFlash({ saving, savedAt }) {
   return (
     <span className={`settings-saved-flash ${saving || savedAt ? 'is-on' : ''}`}
           aria-live="polite">
-      {saving ? 'Saving…' : 'Saved ✓'}
+      {saving ? tr`Saving…` : tr`Saved ✓`}
     </span>
   );
 }

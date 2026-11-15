@@ -12,6 +12,7 @@
 // whatever the answer allows. Both take `clusterCost` so the tests can pin
 // either rule; the app always uses the default.
 
+import { t as tr } from '@lingui/core/macro';
 import { classifyDropFile } from './fileIngest.js';
 import { CLUSTER_CARD_COST } from './gridCount.js';
 
@@ -31,7 +32,7 @@ function planNode(node, ctx) {
   const children = node.dirs.map((d) => planNode(d, ctx)).filter(Boolean);
   // An empty folder — or one whose every file was left out — makes no cluster.
   if (!items.length && !children.length) return null;
-  return { name: String(node.name || 'Folder').slice(0, 200), items, children };
+  return { name: String(node.name || tr`Folder`).slice(0, 200), items, children };
 }
 
 export function countPlan(nodes, { clusterCost = CLUSTER_CARD_COST } = {}) {

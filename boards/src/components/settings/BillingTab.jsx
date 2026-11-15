@@ -7,7 +7,8 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase.js';
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
-import { planLabel, formatPeriodEnd, grantCopy, statusLabel, PRICING, CTA, STORAGE_ADDON_HELD, STORAGE_ADDON_BLOCK_LABEL, STORAGE_ADDON_MAX_BLOCKS } from '../../lib/billingCopy.js';
+import { STORAGE_ADDON_HELD, STORAGE_ADDON_MAX_BLOCKS } from '../../lib/billingCopy.js';
+import { planLabel, formatPeriodEnd, grantCopy, statusLabel, CTA, billed, addonBlockLabel } from '../../lib/billingCopyWords.js';
 import { creatorTrialEligibility } from '../../lib/creatorTrial.js';
 import { trialEarlyOn } from '../../lib/trialEarly.js';
 import { startPortal, warmPortal } from '../../lib/checkout.js';
@@ -20,6 +21,8 @@ import { fmtBytes } from '../../lib/storageLabel.js';
 import { PricingModal } from '../PricingModal.jsx';
 import { StorageAddonSheet } from '../StorageAddonSheet.jsx';
 import { useBfcacheRestore } from '../../auth/useBfcacheRestore.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 export function BillingTab({ user }) {
   const feedback = useFeedback();
@@ -86,7 +89,7 @@ export function BillingTab({ user }) {
   };
 
   if (loading) {
-    return <div className="settings-section"><div className="settings-empty">Loading…</div></div>;
+    return <div className="settings-section"><div className="settings-empty"><Trans>Loading…</Trans></div></div>;
   }
 
   // The first get_my_tier failed (offline at open, a transient 5xx): there is
@@ -96,11 +99,11 @@ export function BillingTab({ user }) {
   if (!tier && error) {
     return (
       <div className="settings-section">
-        <h3 className="settings-section-title">Plan &amp; billing</h3>
+        <h3 className="settings-section-title"><Trans>Plan &amp; billing</Trans></h3>
         <div className="settings-empty" role="alert">
-          Couldn’t load your plan.{' '}
+          <Trans>Couldn’t load your plan.</Trans>{' '}
           <button type="button" className="settings-link-btn" onClick={() => refetch?.()}>
-            Retry
+            <Trans>Retry</Trans>
           </button>
         </div>
       </div>
@@ -109,9 +112,9 @@ export function BillingTab({ user }) {
 
   return (
     <div className="settings-section">
-      <h3 className="settings-section-title">Plan &amp; billing</h3>
+      <h3 className="settings-section-title"><Trans>Plan &amp; billing</Trans></h3>
       <p className="settings-section-hint">
-        Your current plan and payment management.
+        <Trans>Your current plan and payment management.</Trans>
       </p>
 
       <BillingSummary
@@ -186,12 +189,12 @@ export function StorageMeter() {
     return (
       <div style={{ marginTop: 12 }} role="alert">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-          <span className="settings-billing-label">Storage</span>
+          <span className="settings-billing-label"><Trans>Storage</Trans></span>
           <span className="t-meta" style={{ color: 'var(--ink-3, #9aa0aa)' }}>
-            Couldn’t load storage —{' '}
+            <Trans>Couldn’t load storage —</Trans>{' '}
             <button type="button" className="btn-secondary" style={{ padding: '4px 8px', minHeight: 28 }}
                     onClick={() => usage.refetch()}>
-              Retry
+              <Trans>Retry</Trans>
             </button>
           </span>
         </div>
@@ -201,7 +204,7 @@ export function StorageMeter() {
   return (
     <div style={{ marginTop: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-        <span className="settings-billing-label">Storage</span>
+        <span className="settings-billing-label"><Trans>Storage</Trans></span>
         <span className="settings-billing-value" style={{ fontVariantNumeric: 'tabular-nums' }}>
           {usage.loading ? '…' : `${fmtBytes(usage.used)} / ${usage.quota != null ? fmtBytes(usage.quota) : '—'}`}
         </span>
@@ -217,14 +220,14 @@ export function StorageMeter() {
       </div>
       {!usage.loading && usage.quota != null && (
         <div className="t-meta" style={{ marginTop: 6, fontVariantNumeric: 'tabular-nums', color: near ? '#ef4444' : 'var(--ink-3, #9aa0aa)' }}>
-          {remaining != null ? `${fmtBytes(remaining)} free` : ''}
-          {remaining != null ? ' · ' : ''}
-          {Math.round(pct)}% used
+          {remaining != null
+            ? t`${ph({ size: fmtBytes(remaining) })} free · ${ph({ pct: Math.round(pct) })}% used`
+            : t`${ph({ pct: Math.round(pct) })}% used`}
         </div>
       )}
       {inviteBytes > 0 && (
         <div className="t-meta" style={{ marginTop: 4, color: 'var(--ink-3, #9aa0aa)' }}>
-          Includes {formatBonusBytes(inviteBytes)} from invites
+          <Trans>Includes {ph({ bonusBytes: formatBonusBytes(inviteBytes) })} from invites</Trans>
         </div>
       )}
     </div>
@@ -254,7 +257,8 @@ export function BillingSummary({
   });
   // Say the amount beside the date. A trial screen that shows a date and no
   // figure is the one most likely to end in "I didn't know I'd be charged".
-  const priced = PRICING[sub?.plan] || PRICING.monthly;
+  const priced = billed(sub?.plan);
+  const STORAGE_ADDON_BLOCK_LABEL = addonBlockLabel();
   const grantLine = grantBacked ? grantCopy({ grantActive, grantExpiresAt }) : null;
   // Extra storage (0415), held until Stripe is set up. Only a paying Creator
   // can change it: a trial buys after its first payment, a canceling plan
@@ -268,25 +272,25 @@ export function BillingSummary({
       {tier === 'paid' && !grantBacked && cancelPending && period && (
         <div className="settings-billing-cancel-note">
           {trialing
-            ? <>Trial canceled — you will not be charged. Creator stays on until <b>{period.value}</b>, and anything over the free allowance stays where it is afterwards; you just cannot add more.</>
-            : <>Subscription canceled — Creator access stays on until <b>{period.value}</b>.
-               You can resubscribe anytime before then.</>}
+            ? <><Trans>Trial canceled — you will not be charged. Creator stays on until <b>{ph({ value: period.value })}</b>, and anything over the free allowance stays where it is afterwards; you just cannot add more.</Trans></>
+            : <><Trans>Subscription canceled — Creator access stays on until <b>{ph({ value: period.value })}</b>.
+               You can resubscribe anytime before then.</Trans></>}
         </div>
       )}
       <div className="settings-billing-grid">
-        <span className="settings-billing-label">Plan</span>
+        <span className="settings-billing-label"><Trans>Plan</Trans></span>
         <span className="settings-billing-value">{plan}</span>
 
         {tier === 'paid' && !grantBacked && (
           <>
-            <span className="settings-billing-label">Status</span>
+            <span className="settings-billing-label"><Trans>Status</Trans></span>
             <span className="settings-billing-value">{statusLabel(status)}</span>
             {period && (
               <>
                 <span className="settings-billing-label">{period.label}</span>
                 <span className="settings-billing-value">
                   {period.value}
-                  {trialing && !cancelPending && ` · ${priced.billedLabel}`}
+                  {trialing && !cancelPending && ` · ${priced}`}
                 </span>
               </>
             )}
@@ -295,20 +299,20 @@ export function BillingSummary({
 
         {addonShown && (
           <>
-            <span className="settings-billing-label">Extra storage</span>
+            <span className="settings-billing-label"><Trans>Extra storage</Trans></span>
             <span className="settings-billing-value">
-              {blocks > 0 ? `${STORAGE_ADDON_BLOCK_LABEL} × ${blocks}` : 'None'}
-              {trialing && ' · after your first payment'}
-              {cancelPending && blocks > 0 && period && ` · until ${period.value}`}
+              {blocks > 0 ? `${STORAGE_ADDON_BLOCK_LABEL} × ${blocks}` : t`None`}
+              {trialing && t` · after your first payment`}
+              {cancelPending && blocks > 0 && period && t` · until ${ph({ value: period.value })}`}
             </span>
           </>
         )}
 
         {grantBacked && (
           <>
-            <span className="settings-billing-label">Access</span>
+            <span className="settings-billing-label"><Trans>Access</Trans></span>
             <span className="settings-billing-value">
-              {grantExpiresAt ? `Through ${formatPeriodEnd(grantExpiresAt)?.value || '—'}` : 'No end date'}
+              {grantExpiresAt ? t`Through ${ph({ value: formatPeriodEnd(grantExpiresAt)?.value || '—' })}` : t`No end date`}
             </span>
           </>
         )}
@@ -324,19 +328,19 @@ export function BillingSummary({
 
       {tier === 'admin' && (
         <p className="settings-section-hint" style={{ marginTop: 8 }}>
-          You have unlimited admin access — no subscription needed.
+          <Trans>You have unlimited admin access — no subscription needed.</Trans>
         </p>
       )}
 
       <div className="settings-row-actions">
         {addonChangeable && blocks > 0 && onRemoveStorage && (
           <button type="button" className="settings-btn" onClick={onRemoveStorage}>
-            Remove {STORAGE_ADDON_BLOCK_LABEL}
+            <Trans>Remove {STORAGE_ADDON_BLOCK_LABEL}</Trans>
           </button>
         )}
         {addonChangeable && blocks < STORAGE_ADDON_MAX_BLOCKS && (
           <button type="button" className="settings-btn" onClick={onAddStorage}>
-            Add {STORAGE_ADDON_BLOCK_LABEL}
+            <Trans>Add {STORAGE_ADDON_BLOCK_LABEL}</Trans>
           </button>
         )}
         <span style={{ flex: 1 }} />
@@ -346,14 +350,14 @@ export function BillingSummary({
                   className="settings-btn settings-btn-primary"
                   disabled={busy}
                   onClick={onManage}>
-            {busy ? 'Opening…' : 'Manage billing →'}
+            {busy ? t`Opening…` : t`Manage billing →`}
           </button>
         )}
         {tier === 'demo' && onUpgrade && (
           <button type="button"
                   className="settings-btn settings-btn-primary"
                   onClick={onUpgrade}>
-            {trialOffer ? `${CTA.tryCreator} →` : 'Upgrade to Creator →'}
+            {trialOffer ? `${CTA.tryCreator} →` : t`Upgrade to Creator →`}
           </button>
         )}
       </div>

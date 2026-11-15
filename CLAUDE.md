@@ -93,6 +93,34 @@ between a surface change and stale documentation.
 
 ---
 
+## Languages
+
+The app and its emails speak seven languages (`LOCALES` in `boards/src/lib/uiLocale.js`).
+The public site and the help docs stay English. Every string a person reads in the app goes
+through Lingui (`t`, `<Trans>`, `msg`), and `npm test` and `npm run i18n:check` (both in CI)
+fail while any language is missing a message.
+
+- **One sentence is one message.** Never glue a sentence together from pieces. Counts go
+  through `plural()`. Lists, sizes and prices go through `src/lib/intlFormat.js`.
+- **An English word with two meanings gets a `context`**, e.g. "View" the menu and "View"
+  the permission. The context must be a string literal. The macro accepts anything else
+  silently and drops it; `i18nGuard.test.mjs` catches that.
+- **No `t` or `plural` at module scope**, because it would stay English for good. `msg` is
+  the module-scope form.
+- **After adding or changing English:**
+  1. Run `npm run i18n:extract`.
+  2. Translate the new entries with `node scripts/i18nTranslate.mjs export`, `check`,
+     `apply`, `status`, following `src/locales/GLOSSARY.md`.
+  3. Run `npm run i18n:build`.
+  4. Commit each language's `messages.po` and compiled `messages.mjs`.
+
+  Email text lives in `supabase/functions/_shared/email/strings/<loc>.mjs`.
+- **Translated text runs up to twice as long as English**, and Japanese and Korean glyphs
+  are taller. Let labels wrap or give way. Check with `I18N_LANG=ru` (or `ja`) on
+  `tests/i18n-english.spec.js`, then run `scripts/i18nClipDiff.mjs` against an English run.
+
+---
+
 ## Look before you build
 
 Before writing code for a general problem (parsing, decoding, escaping,

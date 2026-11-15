@@ -53,6 +53,7 @@ import { isZipFile, canUnpackZips, zipGroups, readZips } from './importZips.js';
 import { stoppedTitle, askToRead } from './importResume.js';
 import { entryOfHandle } from './folderWalk.js';
 import { EV } from './analyticsEvents.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
 
 export const WAIT_POLL_MS = 30000;
 
@@ -77,11 +78,11 @@ function takeLane() {
 // The name an import goes by before its folder has been read.
 function firstName(input, zips) {
   const e = input.entries?.[0];
-  if (e?.name) return input.entries.length > 1 ? `${input.entries.length} folders` : e.name;
+  if (e?.name) return input.entries.length > 1 ? tr`${plural(input.entries.length, { one: '# folder', other: '# folders' })}` : e.name;
   const p = input.pickedFiles?.[0]?.webkitRelativePath;
   if (p) return p.split('/')[0];
-  if (zips.length) return zips.length > 1 ? `${zips.length} zips` : String(zips[0].name || 'Zip').replace(/\.zip$/i, '');
-  return input.title || 'Folder';
+  if (zips.length) return zips.length > 1 ? tr`${plural(zips.length, { one: '# zip', other: '# zips' })}` : String(zips[0].name || 'Zip').replace(/\.zip$/i, '');
+  return input.title || tr`Folder`;
 }
 
 // input: { entries (a drop's) | pickedFiles (a folder picker's) | walked,
@@ -143,7 +144,7 @@ export async function startBulkImport(input, env) {
     if (zips.length && !stopped) unzipped = await readZips(zips, { signal: reader.signal, onProgress: show, limits: env.limits });
   } catch (e) {
     env.drop(key);
-    env.toast({ type: 'error', code: 'import_read_failed', message: `The ${kind} could not be read: ${e?.message || e}`, ttl: 8000 });
+    env.toast({ type: 'error', code: 'import_read_failed', message: folder ? tr`The folder could not be read: ${ph({ value: e?.message || e })}` : tr`The zip could not be read: ${ph({ value: e?.message || e })}`, ttl: 8000 });
     return { loose: [], key: null };
   }
   // What isn't part of the tree is added the ordinary way: files beside the
@@ -153,7 +154,7 @@ export async function startBulkImport(input, env) {
   const tree = combineTrees([...(walked ? [treeFromWalk(walked)] : []), ...(unzipped?.trees || [])]);
   const tops = tree.root.dirs;
   if (!tops.length) { env.drop(key); return { loose, key: null }; }
-  title = tops.length === 1 ? tops[0].name : `${tops.length} folders`;
+  title = tops.length === 1 ? tops[0].name : tr`${plural(tops.length, { one: '# folder', other: '# folders' })}`;
   env.put(key, { phase: 'queued', title, reading: { files: tree.stats.files || 0, folders: tree.stats.clusters || 0, bytes: 0 } });
   // A stopped import of these folders into this cluster — the tray's Resume,
   // or the same folders dropped here again — goes on where it stopped, and
@@ -200,7 +201,7 @@ export async function startBulkImport(input, env) {
     if (!plan.totals.files && !plan.clusters.length) {
       turn.free();
       env.drop(key);
-      if (!loose.length) env.toast({ type: 'info', message: 'Nothing in that folder could be added.' });
+      if (!loose.length) env.toast({ type: 'info', message: tr`Nothing in that folder could be added.` });
       return { loose, key: null };
     }
     // run is this import's tray key: every row it logs carries it, and the
@@ -392,7 +393,7 @@ export async function startBulkImport(input, env) {
   } catch (e) {
     turn.free();
     env.drop(key);
-    env.toast({ type: 'error', code: 'import_start_failed', message: `The import could not start: ${e?.message || e}`, ttl: 8000 });
+    env.toast({ type: 'error', code: 'import_start_failed', message: tr`The import could not start: ${ph({ value: e?.message || e })}`, ttl: 8000 });
     return { loose, key: null };
   }
 }
@@ -432,7 +433,8 @@ export async function offerStopped(env, { signal = null, offered = [] } = {}) {
         if (id === 'resume' && canResume) {
           // First, inside the click: the browser's prompt needs it.
           if (!(await askToRead(handles))) {
-            env.toast({ type: 'info', message: `${title} can’t be read again without your permission. Drop it on ${who.targetName || 'its cluster'} again to bring the rest.`, ttl: 8000 });
+            const targetShown = who.targetName || tr`its cluster`;
+            env.toast({ type: 'info', message: tr`${title} can’t be read again without your permission. Drop it on ${targetShown} again to bring the rest.`, ttl: 8000 });
             return;
           }
           const dirs = handles.filter((h) => h.kind === 'directory');

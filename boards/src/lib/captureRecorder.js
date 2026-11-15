@@ -19,6 +19,7 @@
 
 import { cropRectFor } from './captureAspect.js';
 import { safeFileName } from './safeFileName.js';
+import { t } from '@lingui/core/macro';
 
 // mp4/h264 FIRST, because the file has to be editable. A webm drops straight
 // out of most timelines — Premiere and Final Cut either refuse it or need a
@@ -53,17 +54,17 @@ function pickMime() {
  */
 export function recordingSupport() {
   if (typeof navigator === 'undefined' || typeof window === 'undefined') {
-    return { ok: false, reason: 'Not in a browser.' };
+    return { ok: false, reason: t`Not in a browser.` };
   }
   if (!navigator.mediaDevices?.getDisplayMedia) {
     // Overwhelmingly this is iOS. Name the actual way forward.
     return {
       ok: false,
-      reason: 'This browser can’t record a screen. On iPhone and iPad use the OS recorder in Control Centre — the staging here still applies to it.',
+      reason: t`This browser can’t record a screen. On iPhone and iPad use the OS recorder in Control Centre — the staging here still applies to it.`,
     };
   }
   if (!pickMime()) {
-    return { ok: false, reason: 'This browser has no video recorder available.' };
+    return { ok: false, reason: t`This browser has no video recorder available.` };
   }
   return { ok: true, reason: '' };
 }
@@ -293,7 +294,7 @@ function frameFrom(mediaStream) {
 
 export function stillSupport() {
   if (typeof navigator === 'undefined' || typeof window === 'undefined') {
-    return { ok: false, reason: 'Not in a browser.' };
+    return { ok: false, reason: t`Not in a browser.` };
   }
   // A still needs the screen, but not MediaRecorder — so it is available in a
   // couple of places recording is not, and gets its own check rather than
@@ -301,7 +302,7 @@ export function stillSupport() {
   if (!navigator.mediaDevices?.getDisplayMedia) {
     return {
       ok: false,
-      reason: 'This browser can’t read the screen. On iPhone and iPad take the OS screenshot — everything staged here applies to it. The framing guide shows you the crop, so hide it with a three-finger tap before you shoot or it lands in the picture.',
+      reason: t`This browser can’t read the screen. On iPhone and iPad take the OS screenshot — everything staged here applies to it. The framing guide shows you the crop, so hide it with a three-finger tap before you shoot or it lands in the picture.`,
     };
   }
   return { ok: true, reason: '' };

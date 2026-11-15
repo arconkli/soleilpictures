@@ -13,7 +13,7 @@ test('a group and the cluster itself open the real tag picker', () => {
   const canvas = read('../components/CanvasSurface.jsx');
   assert.doesNotMatch(canvas, /Group tagging is coming/, 'the placeholder toast is back');
   assert.match(canvas, /setTagPicker\(\{ kind: 'group', id: gid, anchorRect: r \}\)/);
-  assert.match(canvas, /label: 'Tag this cluster…'/);
+  assert.match(canvas, /label: tr`Tag this cluster…`/);
   // A removal keeps the tag off for the automatic paths, as a card's does.
   assert.match(canvas, /dismissAutotagSuggestion\(\{ workspaceId, targetKind: kind, targetId, tagId: tag\.id, userId \}\)/);
   assert.match(read('../hooks/useWorkspaceTags.js'), /return \{ tags, loaded, byCard, byBoard, byGroup, refresh \};/);
@@ -21,7 +21,7 @@ test('a group and the cluster itself open the real tag picker', () => {
 
 test('a selection in a document can be tagged, one block at a time', () => {
   const doc = read('../components/DocPageEditor.jsx');
-  assert.match(doc, /label="Tag selection…"/);
+  assert.match(doc, /label=\{tt`Tag selection…`\}/);
   assert.match(doc, /onTagSelection=\{editable && scope\?\.docCardId \? openTagSelection : null\}/);
   assert.match(doc, /if \(to > \$from\.end\(depth\)\) return null;/, 'a selection across blocks is refused');
   assert.match(doc, /tagId: tag\.id, source: 'user',\s+sourceAnchor: picked\.anchor,/);
@@ -32,7 +32,7 @@ test('one count: the sidebar counts live tagged things on the server', () => {
   const sql = readFileSync(join(here, '../../../supabase/migrations/0592_tag_item_counts.sql'), 'utf8');
   assert.match(sql, /revoke execute on function public\.tag_item_counts\(uuid\) from public, anon;/);
   assert.match(sql, /has_function_privilege\('anon', 'public\.tag_item_counts\(uuid\)', 'execute'\)/);
-  assert.match(read('../components/TagDetailView.jsx'), /\{taggedCount\} tagged\{insideCount > 0 \?/);
+  assert.match(read('../components/TagDetailView.jsx'), /insideCount > 0 \? tr`\$\{taggedCount\} tagged · \$\{insideCount\} inside` : tr`\$\{taggedCount\} tagged`/);
 });
 
 test('the keyboard reaches tags', () => {
@@ -57,7 +57,7 @@ test('Spotlight (direction A): a chip lights its tag up on the cluster', () => {
   assert.match(canvas, /toggleSpotlight\(t\.id, 'group_chip'\)/);
   assert.match(canvas, /\$\{spotMatched && !spotMatched\.has\(c\.id\) \? ' is-spot-dim' : ''\}/);
   assert.match(canvas, /className="tag-spotlight-pill" role="status"/);
-  assert.match(canvas, /aria-label=\{`Clear filter: \$\{spotlightTag\.name\}`\}/);
+  assert.match(canvas, /aria-label=\{tr`Clear filter: \$\{ph\(\{ name: spotlightTag\.name \}\)\}`\}/);
   assert.match(canvas, /openTagPage\(spotlightTag\.id, 'spotlight'\)/, 'the tag in the pill opens its page');
   assert.match(canvas, /openTagPage\(tag\.id, 'chip_menu'\)/, 'the chip menu opens its page');
   const css = read('../styles.css');
@@ -92,7 +92,7 @@ test('a suggestion shows on its card, kept or dismissed in one tap', () => {
 
 test('several cards at once: the tri-state picker over the selection', () => {
   const canvas = read('../components/CanvasSurface.jsx');
-  assert.match(canvas, /id: 'tag-many', label: `Tag \$\{selected\.size\} cards…`/);
+  assert.match(canvas, /id: 'tag-many', label: tr`Tag \$\{ph\(\{ size: selected\.size \}\)\} cards…`/);
   assert.match(canvas, /<TagManyPicker/);
   assert.match(canvas, /tagManyCards\(ids, tag, 'add', 'drop_selection'\)/, 'a drop on a selected card tags the selection');
   const bar = read('../components/toolbar/SelectionBarA.jsx');
@@ -114,11 +114,11 @@ test('phones reach a tag\'s actions and a tagged item\'s', () => {
   const side = read('../components/SidebarTags.jsx');
   assert.match(side, /className="sb-tag-row-more"/);
   assert.match(side, /if \(prefersSheet\(\)\) \{ setSheetFor\(tag\); return; \}/);
-  assert.match(side, /\{ id: 'delete', label: 'Delete tag', danger: true, run: \(\) => promptDelete\(sheetFor\) \}/);
+  assert.match(side, /\{ id: 'delete', label: tr`Delete tag`, danger: true, run: \(\) => promptDelete\(sheetFor\) \}/);
   const page = read('../components/TagDetailView.jsx');
   assert.match(page, /onPointerDown=\{onItemPressStart\}/);
   assert.match(page, /data-tag-item=\{JSON\.stringify\(menuTarget\)\}/);
-  assert.match(page, /itemSheet\.source \? \{ id: 'remove', label: 'Remove tag', run: \(\) => removeTag\(itemSheet\) \} : null/);
+  assert.match(page, /itemSheet\.source \? \{ id: 'remove', label: tr`Remove tag`, run: \(\) => removeTag\(itemSheet\) \} : null/);
   // The sheet loads on demand: phones alone need it, the sidebar loads with every page.
   assert.match(side, /const TagActionSheet = lazyWithReload\(\(\) => import\('\.\/TagActionSheet\.jsx'\)/);
   assert.doesNotMatch(side, /from '\.\/TagActionSheet\.jsx'/);

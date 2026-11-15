@@ -19,12 +19,14 @@ import { COVER_TINTS, Avatar } from '../primitives.jsx';
 import { Link as LinkIcon, Check, FolderSimple, LinkSimple } from '../../lib/icons.js';
 import { InlineRename } from './InlineRename.jsx';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
+import { t, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Unknown (no card_count yet) says nothing rather than claiming "Empty".
 export function countLabel(n) {
   if (!Number.isFinite(n)) return '';
-  if (n <= 0) return 'Empty';
-  return `${n} item${n === 1 ? '' : 's'}`;
+  if (n <= 0) return t`Empty`;
+  return t`${plural(n, { one: '# item', other: '# items' })}`;
 }
 
 export const FolderTile = memo(function FolderTile({
@@ -51,7 +53,7 @@ export const FolderTile = memo(function FolderTile({
   // choice). Mapped in JS — the inline custom property beats any stylesheet.
   const cover = board?.cover === 'sun' ? 'sand' : (board?.cover || 'neutral');
   const tint = COVER_TINTS[cover] || COVER_TINTS.neutral;
-  const label = name || board?.name || (linked ? 'Linked cluster' : 'Untitled cluster');
+  const label = name || board?.name || (linked ? t`Linked cluster` : t`Untitled cluster`);
   return (
     <div {...divProps}
          draggable={rename ? undefined : divProps.draggable}
@@ -69,20 +71,20 @@ export const FolderTile = memo(function FolderTile({
       <div className="ft-text">
         <div className="ft-line">
           {rename
-            ? <InlineRename value={label} onCommit={rename.onCommit} onCancel={rename.onCancel} label="Cluster name" />
+            ? <InlineRename value={label} onCommit={rename.onCommit} onCancel={rename.onCancel} label={t`Cluster name`} />
             : <div className="ft-name" dir="auto">{label}</div>}
           {linked && (
-            <span className="ft-link" role="img" aria-label="Linked cluster" title="Linked cluster">
+            <span className="ft-link" role="img" aria-label={t`Linked cluster`} title={t`Linked cluster`}>
               <Icon as={LinkIcon} size={12} weight="light" />
             </span>
           )}
         </div>
         {(missing || Number.isFinite(board?.card_count)) && (
-          <div className="ft-meta">{missing ? 'Not available' : countLabel(board.card_count)}</div>
+          <div className="ft-meta">{missing ? t`Not available` : countLabel(board.card_count)}</div>
         )}
       </div>
       {people.length > 0 && (
-        <div className="ft-peers" title={`${people.length} here`}>
+        <div className="ft-peers" title={t`${plural(people.length, { one: '# here', other: '# here' })}`}>
           {people.slice(0, 3).map((u) => <Avatar key={u.id} name={u.name} color={u.color} size={16} ring />)}
         </div>
       )}
@@ -107,10 +109,10 @@ export const FolderRow = memo(function FolderRow({
     seen.add(u.id);
     people.push(u);
   }
-  const label = name || board?.name || (linked ? 'Linked cluster' : 'Untitled cluster');
+  const label = name || board?.name || (linked ? t`Linked cluster` : t`Untitled cluster`);
   const when = dateKey === 'created' ? board?.created_at : (board?.updated_at || board?.created_at);
-  const first = people[0] ? ((people[0].name || '').split(/\s+/)[0] || 'Someone') : null;
-  const kind = linked ? 'Linked cluster' : 'Cluster';
+  const first = people[0] ? ((people[0].name || '').split(/\s+/)[0] || t`Someone`) : null;
+  const kind = linked ? t`Linked cluster` : t`Cluster`;
   return (
     <div {...divProps} role="row"
          draggable={rename ? undefined : divProps.draggable}
@@ -121,11 +123,11 @@ export const FolderRow = memo(function FolderRow({
         <div className="ct-thumb ct-folder-glyph"><Icon as={FolderSimple} size={14} weight="regular" /></div>
         <div className="ct-name-wrap">
           {rename
-            ? <InlineRename value={label} onCommit={rename.onCommit} onCancel={rename.onCancel} label="Cluster name" className="ct-row-rename" />
+            ? <InlineRename value={label} onCommit={rename.onCommit} onCancel={rename.onCancel} label={t`Cluster name`} className="ct-row-rename" />
             : <div className="ct-name" dir="auto">{label}</div>}
         </div>
         {linked && (
-          <span className="ct-folder-link" role="img" aria-label="Linked cluster" title="Linked cluster">
+          <span className="ct-folder-link" role="img" aria-label={t`Linked cluster`} title={t`Linked cluster`}>
             <Icon as={LinkSimple} size={12} weight="regular" />
           </span>
         )}
@@ -140,7 +142,7 @@ export const FolderRow = memo(function FolderRow({
       ) : (
         <>
           <div role="cell" className="ct-cell ct-c-type">{kind}</div>
-          <div role="cell" className="ct-cell ct-c-size">{missing ? 'Not available' : countLabel(board?.card_count)}</div>
+          <div role="cell" className="ct-cell ct-c-size">{missing ? t`Not available` : countLabel(board?.card_count)}</div>
         </>
       )}
       <div role="cell" className="ct-cell ct-c-date">{when ? relativeTimeShort(when) : ''}</div>
@@ -148,7 +150,7 @@ export const FolderRow = memo(function FolderRow({
         {first && (
           <>
             <Avatar name={people[0].name} color={people[0].color} size={18} ring />
-            <span className="ct-status">{first} is in it</span>
+            <span className="ct-status"><Trans>{first} is in it</Trans></span>
           </>
         )}
       </div>

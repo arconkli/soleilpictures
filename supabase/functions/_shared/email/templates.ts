@@ -8,7 +8,10 @@
 //   4. update send-transactional-email's accepted template list
 
 import { renderEmail, renderPlainNote, POSTAL_ADDRESS } from "./layout.ts";
-import { quote, button, list, picture, pText, signoff, strip } from "./theme.ts";
+import { quote, button, list, picture, pText, signoff, strip, type EmailStrings } from "./theme.ts";
+// The words: every sentence below comes from strings/en.mjs (or the reader's
+// language) through `s`, except the templates in ENGLISH_ONLY.
+import { emailStrings } from "./i18n.mjs";
 import { isLegacyLookEdition, LEGACY_KIT, type ProductUpdateKit } from "./legacyNote.ts";
 // Names other people typed, made safe for a subject line: no links, no
 // newlines, a length cap. See safeLabel.mjs for why (migration 0358).
@@ -69,6 +72,22 @@ export const TEMPLATE_NAMES: TemplateName[] = [
   "ops_alert",
 ];
 
+// Templates that read English for everyone, whatever language the reader has.
+// renderTemplate writes them in English even when it is given another locale,
+// and send-transactional-email does not look the reader's language up for them.
+// Their words stay in this file.
+export const ENGLISH_ONLY: ReadonlySet<string> = new Set<TemplateName>([
+  "ops_alert",            // goes to the owner only
+  "product_update",       // every word is written per edition in app_config
+  "whats_new",            // every word is written per edition in app_config
+  "share_activity",       // unreachable since migration 0261
+  "schedule_update",      // the schedule is retired
+  "activate_nudge_2",     // a paused experiment (0359)
+  "nudge_dormant_early",  // a paused experiment (0359)
+  "waitlist_submitted",   // sent to addresses from the English-only public site, before any account language exists
+  "waitlist_accepted",    // same: no account language yet
+]);
+
 export interface RenderedEmail {
   subject: string;
   // Absent only for ops_alert, which goes as plain text (0390).
@@ -123,6 +142,23 @@ function plain(lines: string[]): string {
   return lines.filter((l) => l !== "").join("\n");
 }
 
+// English, for the pieces below that take the reader's words as an optional
+// argument (the templates in ENGLISH_ONLY pass nothing).
+const EN: EmailStrings = emailStrings("en");
+
+// Plain-text lines the templates repeat: a button's line ("Open cluster:
+// <link>"), the line that turns a kind of email off, and a quoted message.
+function ctaLine(s: EmailStrings, label: string, url: string): string {
+  return s.t("common.label_url", { label, url });
+}
+function turnOffLine(s: EmailStrings, unsub: string | undefined): string {
+  return unsub ? s.t("common.turn_off_text", { url: unsub }) : "";
+}
+// A message someone wrote, quoted in the plain-text part (nothing when empty).
+function quotedLine(s: EmailStrings, preview: string): string {
+  return preview ? `\n  ${s.t("common.text_quote", { text: preview })}` : "";
+}
+
 // ── Lifecycle "simple note" helpers ─────────────────────────────────────────
 const UNSUB_BASE = "https://clusters.soleilpictures.com/api/unsubscribe";
 
@@ -167,13 +203,13 @@ function noteP(text: string): string {
 // ending, so the caveat is shown only when the CTA is NOT one: minting can fail
 // (best-effort, like the thumbnails), and on that path the reader really is
 // walking into the OTP wall and deserves to be told.
-function noteBtn(label: string, url: string): string {
+function noteBtn(label: string, url: string, s: EmailStrings = EN): string {
   const walled = !url.startsWith(RESUME_URL);
   return button(
-    `${label} →`,
+    s.t("common.cta_arrow", { label }),
     url,
     "left",
-    walled ? "signed out? we'll email you a 6-digit code — no password to dig up." : undefined,
+    walled ? s.t("common.signed_out_caveat") : undefined,
   );
 }
 
@@ -203,20 +239,33 @@ interface Added { counts: Record<string, number>; items: AddedItem[] }
 
 // Count order: biggest first, ties in this order.
 const ADDED_KINDS = ["image", "video", "note", "link", "doc", "pdf", "file", "audio"];
-const ADDED_NOUN: Record<string, [string, string]> = {
-  image: ["a photo", "photos"],
-  video: ["a video", "videos"],
-  note:  ["a note", "notes"],
-  link:  ["a link", "links"],
-  doc:   ["a doc", "docs"],
-  pdf:   ["a PDF", "PDFs"],
-  file:  ["a file", "files"],
-  audio: ["an audio file", "audio files"],
-};
-const ADDED_KIND_WORD: Record<string, string> = {
-  image: "photo", video: "video", note: "note", link: "link",
-  doc: "doc", pdf: "PDF", file: "file", audio: "audio",
-};
+// One kind of card, counted: "a photo", "38 photos". Keys are literals so the
+// completeness test can find them.
+function addedNoun(s: EmailStrings, kind: string, count: number): string {
+  switch (kind) {
+    case "image": return s.n("added.image", count);
+    case "video": return s.n("added.video", count);
+    case "note":  return s.n("added.note", count);
+    case "link":  return s.n("added.link", count);
+    case "doc":   return s.n("added.doc", count);
+    case "pdf":   return s.n("added.pdf", count);
+    case "audio": return s.n("added.audio", count);
+    default:      return s.n("added.file", count);
+  }
+}
+// The small word above a tile.
+function addedKindWord(s: EmailStrings, kind: string): string {
+  switch (kind) {
+    case "image": return s.t("strip.image");
+    case "video": return s.t("strip.video");
+    case "note":  return s.t("strip.note");
+    case "link":  return s.t("strip.link");
+    case "doc":   return s.t("strip.doc");
+    case "pdf":   return s.t("strip.pdf");
+    case "audio": return s.t("strip.audio");
+    default:      return s.t("strip.file");
+  }
+}
 
 function intIn(v: unknown, max: number): number | undefined {
   return typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= max ? v : undefined;
@@ -261,22 +310,22 @@ function addedTotal(a?: Added): number {
 }
 
 // "38 photos, 4 notes and a PDF"
-function countsPhrase(counts: Record<string, number>): string {
-  const parts = ADDED_KINDS
-    .filter((k) => counts[k] > 0)
-    .sort((a, b) => counts[b] - counts[a])   // stable: ties keep ADDED_KINDS order
-    .map((k) => counts[k] === 1 ? ADDED_NOUN[k][0] : `${counts[k]} ${ADDED_NOUN[k][1]}`);
-  if (parts.length <= 1) return parts[0] ?? "";
-  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+function countsPhrase(s: EmailStrings, counts: Record<string, number>): string {
+  return s.list(
+    ADDED_KINDS
+      .filter((k) => counts[k] > 0)
+      .sort((a, b) => counts[b] - counts[a])   // stable: ties keep ADDED_KINDS order
+      .map((k) => addedNoun(s, k, counts[k])),
+  );
 }
 
 // A row of up to four tiles. Pictures keep their shape (never stretched);
 // everything without a picture is a small text tile.
-function noteStrip(items: AddedItem[], href: string): string {
+function noteStrip(s: EmailStrings, items: AddedItem[], href: string): string {
   if (!items.length) return "";
   return strip(
     items.map((it) => {
-      const kindWord = ADDED_KIND_WORD[it.kind] ?? "file";
+      const kindWord = addedKindWord(s, it.kind);
       return { url: it.url, w: it.w, h: it.h, kind: kindWord, label: it.label, alt: kindWord };
     }),
     href,
@@ -319,7 +368,8 @@ type NoteBlock =
   | { k: "p";    t: string; text?: string }   // `text`, when set, is the plaintext part
   | { k: "img" }
   | { k: "strip" }
-  | { k: "btn";  label: string };
+  | { k: "btn";  label: string }
+  | { k: "signoff" };                         // the team's closing line, in the reader's language
 
 // Everything the arms render against. `img` is pre-rendered by the caller (only
 // the types that embed the user's own thumbnail ever set it) and is "" when
@@ -340,22 +390,21 @@ interface FactorialSpec {
   b0: string;   // control body arm
 }
 
-const SIGNOFF = "talk soon, the clusters team";
-
 // One source for both the HTML and the plaintext part. Every builder used to
 // hand-maintain the two in parallel, which is how they drift apart.
-function composeNote(blocks: NoteBlock[], c: CopyCtx, preheader: string): { html: string; text: string } {
+function composeNote(blocks: NoteBlock[], c: CopyCtx, preheader: string, s: EmailStrings = EN): { html: string; text: string } {
   const html: string[] = [];
   const text: string[] = [];
   for (const b of blocks) {
-    if (b.k === "p") { html.push(b.t === SIGNOFF ? signoff([b.t]) : noteP(b.t)); text.push(b.text ?? b.t); }
+    if (b.k === "p") { html.push(noteP(b.t)); text.push(b.text ?? b.t); }
+    else if (b.k === "signoff") { const line = s.t("common.signoff"); html.push(signoff([line])); text.push(line); }
     else if (b.k === "img") { if (c.img) html.push(c.img); }   // no plaintext equivalent
     else if (b.k === "strip") { if (c.strip) html.push(c.strip); }
-    else { html.push(noteBtn(b.label, c.url)); text.push(`${b.label}: ${c.url}`); }
+    else { html.push(noteBtn(b.label, c.url, s)); text.push(ctaLine(s, b.label, c.url)); }
   }
   return {
-    html: renderPlainNote({ preheader, bodyHtml: html.join(""), unsubscribeUrl: c.unsub }),
-    text: `${text.join("\n\n")}\n\nUnsubscribe: ${c.unsub}`,
+    html: renderPlainNote({ s, preheader, bodyHtml: html.join(""), unsubscribeUrl: c.unsub }),
+    text: `${text.join("\n\n")}\n\n${s.t("common.unsubscribe_text", { url: c.unsub })}`,
   };
 }
 
@@ -434,19 +483,30 @@ interface WorkspaceInviteData {
   workspaceId?: string;
 }
 
-function workspaceInvite(d: WorkspaceInviteData): RenderedEmail {
+function workspaceInvite(d: WorkspaceInviteData, s: EmailStrings): RenderedEmail {
   const role = (d.role || "member").toLowerCase();
-  const headline = `You're in ${d.workspaceName}.`;
-  const subtitle = `${d.inviterName} added you as ${role} — jump in and build together.`;
+  const who = { inviter: d.inviterName, role };
+  const headline = s.t("workspace_invite.headline", { workspace: d.workspaceName });
+  let subtitle: string;
+  switch (role) {
+    case "member":  subtitle = s.t("workspace_invite.subtitle_member", who); break;
+    case "editor":  subtitle = s.t("workspace_invite.subtitle_editor", who); break;
+    case "viewer":  subtitle = s.t("workspace_invite.subtitle_viewer", who); break;
+    case "admin":   subtitle = s.t("workspace_invite.subtitle_admin", who); break;
+    case "coowner": subtitle = s.t("workspace_invite.subtitle_coowner", who); break;
+    default:        subtitle = s.t("workspace_invite.subtitle_other", who);
+  }
   const url = deepLink({ w: d.workspaceId });
+  const cta = s.t("workspace_invite.cta");
   return {
-    subject: `${d.inviterName} added you to ${d.workspaceName}`,
+    subject: s.t("workspace_invite.subject", { inviter: d.inviterName, workspace: d.workspaceName }),
     html: renderEmail({
+      s,
       preheader: subtitle,
-      eyebrow: "Workspace",
+      eyebrow: s.t("workspace_invite.eyebrow"),
       headline,
       subtitle,
-      cta: { label: "Open workspace", url },
+      cta: { label: cta, url },
     }),
     text: plain([
       "CLUSTERS",
@@ -454,7 +514,7 @@ function workspaceInvite(d: WorkspaceInviteData): RenderedEmail {
       headline,
       subtitle,
       "",
-      "Open workspace: " + url,
+      ctaLine(s, cta, url),
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -469,19 +529,24 @@ interface BoardSharedData {
   boardId?: string;
 }
 
-function boardShared(d: BoardSharedData): RenderedEmail {
+function boardShared(d: BoardSharedData, s: EmailStrings): RenderedEmail {
   const role = (d.role || "viewer").toLowerCase();
-  const headline = `${d.sharerName} wants to build with you.`;
-  const subtitle = `You've got ${role} access to "${d.boardName}" — hop in.`;
+  const headline = s.t("board_shared.headline", { sharer: d.sharerName });
+  const v = { board: d.boardName, role };
+  const subtitle = role === "viewer" ? s.t("board_shared.subtitle_viewer", v)
+    : role === "editor" ? s.t("board_shared.subtitle_editor", v)
+    : s.t("board_shared.subtitle_other", v);
   const url = deepLink({ w: d.workspaceId, b: d.boardId });
+  const cta = s.t("board_shared.cta");
   return {
-    subject: `${d.sharerName} shared "${d.boardName}" with you`,
+    subject: s.t("board_shared.subject", { sharer: d.sharerName, board: d.boardName }),
     html: renderEmail({
+      s,
       preheader: subtitle,
-      eyebrow: "Cluster shared",
+      eyebrow: s.t("board_shared.eyebrow"),
       headline,
       subtitle,
-      cta: { label: "Open cluster", url },
+      cta: { label: cta, url },
     }),
     text: plain([
       "CLUSTERS",
@@ -489,7 +554,7 @@ function boardShared(d: BoardSharedData): RenderedEmail {
       headline,
       subtitle,
       "",
-      "Open cluster: " + url,
+      ctaLine(s, cta, url),
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -516,23 +581,28 @@ interface InviteAcceptedData {
 // sentence; a long one says "your workspace" instead.
 const WS_CTA_MAX = 28;
 
-function inviteAccepted(d: InviteAcceptedData): RenderedEmail {
-  if (d.scope === "workspace" && d.workspaceName) return workspaceJoined(d);
+function inviteAccepted(d: InviteAcceptedData, s: EmailStrings): RenderedEmail {
+  if (d.scope === "workspace" && d.workspaceName) return workspaceJoined(d, s);
   const role = (d.role || "editor").toLowerCase();
-  const headline = `${d.joinerName} just joined you.`;
-  const subtitle = `They now have ${role} access to "${d.boardName}" — go say hi and build together.`;
+  const headline = s.t("invite_accepted.headline", { joiner: d.joinerName });
+  const v = { board: d.boardName, role };
+  const subtitle = role === "viewer" ? s.t("invite_accepted.subtitle_viewer", v)
+    : role === "editor" ? s.t("invite_accepted.subtitle_editor", v)
+    : s.t("invite_accepted.subtitle_other", v);
   const url = deepLink(
     { w: d.workspaceId, b: d.boardId },
     { utm_source: "email", utm_medium: "transactional", utm_campaign: "invite_accepted" },
   );
+  const cta = s.t("invite_accepted.cta");
   return {
-    subject: `${d.joinerName} joined "${d.boardName}"`,
+    subject: s.t("invite_accepted.subject", { joiner: d.joinerName, board: d.boardName }),
     html: renderEmail({
+      s,
       preheader: subtitle,
-      eyebrow: "They're in",
+      eyebrow: s.t("invite_accepted.eyebrow"),
       headline,
       subtitle,
-      cta: { label: "Open board", url },
+      cta: { label: cta, url },
     }),
     text: plain([
       "CLUSTERS",
@@ -540,7 +610,7 @@ function inviteAccepted(d: InviteAcceptedData): RenderedEmail {
       headline,
       subtitle,
       "",
-      "Open board: " + url,
+      ctaLine(s, cta, url),
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -549,23 +619,26 @@ function inviteAccepted(d: InviteAcceptedData): RenderedEmail {
 
 // Someone joined the whole workspace: the mail names it, and the button opens
 // the workspace (the app picks its cluster), never the root cluster by name.
-function workspaceJoined(d: InviteAcceptedData): RenderedEmail {
+function workspaceJoined(d: InviteAcceptedData, s: EmailStrings): RenderedEmail {
   const ws = d.workspaceName as string;
   const viewer = (d.role || "").toLowerCase().endsWith("viewer");
-  const headline = `${d.joinerName} just joined you.`;
+  const headline = s.t("invite_accepted.headline", { joiner: d.joinerName });
   const subtitle = viewer
-    ? `They can now see everything in ${ws}, every cluster and file. Go say hi.`
-    : `They can now see and edit everything in ${ws}, every cluster and file. Go say hi and build together.`;
-  const label = [...ws].length <= WS_CTA_MAX ? `Open ${ws}` : "Open your workspace";
+    ? s.t("invite_accepted.workspace_subtitle_viewer", { workspace: ws })
+    : s.t("invite_accepted.workspace_subtitle_editor", { workspace: ws });
+  const label = [...ws].length <= WS_CTA_MAX
+    ? s.t("invite_accepted.workspace_cta_named", { workspace: ws })
+    : s.t("invite_accepted.workspace_cta_generic");
   const url = deepLink(
     { w: d.workspaceId },
     { utm_source: "email", utm_medium: "transactional", utm_campaign: "invite_accepted" },
   );
   return {
-    subject: `${d.joinerName} joined ${ws}`,
+    subject: s.t("invite_accepted.workspace_subject", { joiner: d.joinerName, workspace: ws }),
     html: renderEmail({
+      s,
       preheader: subtitle,
-      eyebrow: "They're in",
+      eyebrow: s.t("invite_accepted.eyebrow"),
       headline,
       subtitle,
       cta: { label, url },
@@ -576,7 +649,7 @@ function workspaceJoined(d: InviteAcceptedData): RenderedEmail {
       headline,
       subtitle,
       "",
-      `${label}: ` + url,
+      ctaLine(s, label, url),
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -595,10 +668,11 @@ interface EditRequestData {
 }
 
 // "Let Sam edit": the first word of a name; an email address or the fallback
-// "Someone" reads better as "them".
-function firstNameOf(name: string): string {
-  const first = name.trim().split(/\s+/)[0] || "";
-  return !first || first.includes("@") || first === "Someone" ? "them" : first;
+// "Someone" (common.fallback_person) reads better as "them" (null here: the button has its own words).
+function firstNameOf(name: string, s: EmailStrings): string | null {
+  const trimmed = name.trim();
+  const first = trimmed.split(/\s+/)[0] || "";
+  return !first || first.includes("@") || trimmed === s.t("common.fallback_person") ? null : first;
 }
 
 // 0863: a friend you invited added their first card, so your invite reward was
@@ -611,22 +685,27 @@ interface InviteRewardData {
   unsubscribeToken?: string;
 }
 
-function inviteReward(d: InviteRewardData): RenderedEmail {
-  const cards = d.cards ? `${d.cards} more cards` : "more cards";
-  const storage = d.storage ? `${d.storage} more storage` : "more storage";
-  const headline = `You earned ${cards}.`;
-  const subtitle = `A friend you invited just added their first card to Clusters, so you get ${cards} and ${storage}.`;
-  const caveat = "You're getting this because you invited someone.";
+function inviteReward(d: InviteRewardData, s: EmailStrings): RenderedEmail {
+  const headline = d.cards ? s.n("invite_reward.headline", d.cards) : s.t("invite_reward.headline_more");
+  const subtitle = d.cards
+    ? (d.storage
+      ? s.n("invite_reward.subtitle_cards_storage", d.cards, { storage: d.storage })
+      : s.n("invite_reward.subtitle_cards", d.cards))
+    : (d.storage
+      ? s.t("invite_reward.subtitle_storage", { storage: d.storage })
+      : s.t("invite_reward.subtitle_plain"));
+  const caveat = s.t("invite_reward.caveat");
   const url = deepLink({}, { utm_source: "email", utm_medium: "transactional", utm_campaign: "invite_reward" });
   const unsub = d.unsubscribeToken ? unsubUrl(d.unsubscribeToken, "email_invite_reward") : undefined;
   return {
-    subject: `You earned ${cards}`,
+    subject: d.cards ? s.n("invite_reward.subject", d.cards) : s.t("invite_reward.subject_more"),
     html: renderEmail({
+      s,
       preheader: subtitle,
-      eyebrow: "Invite reward",
+      eyebrow: s.t("invite_reward.eyebrow"),
       headline,
       subtitle,
-      cta: { label: "Open Clusters", url },
+      cta: { label: s.t("invite_reward.cta"), url },
       caveat,
       unsubscribeUrl: unsub,
     }),
@@ -636,31 +715,33 @@ function inviteReward(d: InviteRewardData): RenderedEmail {
       headline,
       subtitle,
       "",
-      "Open Clusters: " + url,
+      ctaLine(s, s.t("invite_reward.cta"), url),
       "",
       caveat,
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
-      unsub ? "Turn these emails off: " + unsub : "",
+      turnOffLine(s, unsub),
     ]),
   };
 }
 
-function editRequest(d: EditRequestData): RenderedEmail {
-  const headline = `${d.askerName} asked to edit.`;
-  const subtitle = `${d.askerName} can see “${d.boardName}” and asked to edit it.`;
-  const caveat = "Not now? Ignore this. They keep view access.";
-  const label = `Let ${firstNameOf(d.askerName)} edit`;
+function editRequest(d: EditRequestData, s: EmailStrings): RenderedEmail {
+  const headline = s.t("edit_request.headline", { name: d.askerName });
+  const subtitle = s.t("edit_request.subtitle", { name: d.askerName, board: d.boardName });
+  const caveat = s.t("edit_request.caveat");
+  const first = firstNameOf(d.askerName, s);
+  const label = first ? s.t("edit_request.cta_named", { name: first }) : s.t("edit_request.cta_them");
   const base = deepLink(
     { w: d.workspaceId, b: d.boardId },
     { utm_source: "email", utm_medium: "transactional", utm_campaign: "edit_request" },
   );
   const url = base + (base.includes("?") ? "&" : "?") + "asks=1";
   return {
-    subject: `${d.askerName} asked to edit “${d.boardName}”`,
+    subject: s.t("edit_request.subject", { name: d.askerName, board: d.boardName }),
     html: renderEmail({
+      s,
       preheader: subtitle,
-      eyebrow: "Edit request",
+      eyebrow: s.t("edit_request.eyebrow"),
       headline,
       subtitle,
       cta: { label, url },
@@ -672,7 +753,7 @@ function editRequest(d: EditRequestData): RenderedEmail {
       headline,
       subtitle,
       "",
-      `${label}: ` + url,
+      ctaLine(s, label, url),
       "",
       caveat,
       "",
@@ -690,19 +771,22 @@ interface EditGrantedData {
   boardId?: string;
 }
 
-function editGranted(d: EditGrantedData): RenderedEmail {
-  const headline = `${d.sharerName} said yes.`;
-  const subtitle = `You can now edit “${d.boardName}”.`;
-  const label = [...d.boardName].length <= WS_CTA_MAX ? `Open ${d.boardName}` : "Open cluster";
+function editGranted(d: EditGrantedData, s: EmailStrings): RenderedEmail {
+  const headline = s.t("edit_granted.headline", { name: d.sharerName });
+  const subtitle = s.t("edit_granted.subtitle", { board: d.boardName });
+  const label = [...d.boardName].length <= WS_CTA_MAX
+    ? s.t("edit_granted.cta_named", { board: d.boardName })
+    : s.t("edit_granted.cta_generic");
   const url = deepLink(
     { w: d.workspaceId, b: d.boardId },
     { utm_source: "email", utm_medium: "transactional", utm_campaign: "edit_granted" },
   );
   return {
-    subject: `${d.sharerName} said yes: you can edit “${d.boardName}”`,
+    subject: s.t("edit_granted.subject", { name: d.sharerName, board: d.boardName }),
     html: renderEmail({
+      s,
       preheader: subtitle,
-      eyebrow: "You can edit",
+      eyebrow: s.t("edit_granted.eyebrow"),
       headline,
       subtitle,
       cta: { label, url },
@@ -713,7 +797,7 @@ function editGranted(d: EditGrantedData): RenderedEmail {
       headline,
       subtitle,
       "",
-      `${label}: ` + url,
+      ctaLine(s, label, url),
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -735,36 +819,39 @@ interface PendingInviteData {
 // Mirrors REFERRED_START_CARDS in boards/src/lib/billingCopy.js; inviteEmailCards.test.mjs keeps them equal.
 const REFERRED_START_CARDS = 50;
 
-function pendingInvite(d: PendingInviteData): RenderedEmail {
+function pendingInvite(d: PendingInviteData, s: EmailStrings): RenderedEmail {
   const isWorkspace = d.role === "workspace" || !d.boardName;
-  const target = isWorkspace
-    ? d.workspaceName
-    : `"${d.boardName}" in ${d.workspaceName}`;
-  const roleLabel = (() => {
-    if (d.role === "workspace") return "a member";
-    if (d.role === "editor")    return "an editor";
-    return "a viewer";
-  })();
-  const headline = `${d.inviterName} invited you.`;
+  const headline = s.t("pending_invite.headline", { inviter: d.inviterName });
   // An invitee starts at DEMO_CARD_LIMIT + REFERRAL_BONUS_CARDS (the 0163
   // referral bonus a collab invite grants on signup). This is a Deno bundle
   // and cannot import the client lib; the constant above is kept equal to
   // billingCopy.REFERRED_START_CARDS by inviteEmailCards.test.mjs.
-  const subtitle = `You've been invited to join ${target} as ${roleLabel}. You'll start with ${REFERRED_START_CARDS} free cards — sign in and we'll set up your account.`;
+  const cards = REFERRED_START_CARDS;
+  const vars = { workspace: d.workspaceName, board: d.boardName ?? "", cards };
+  const subtitle = isWorkspace
+    ? (d.role === "workspace"
+      ? s.n("pending_invite.subtitle_workspace_member", cards, vars)
+      : d.role === "editor"
+        ? s.n("pending_invite.subtitle_workspace_editor", cards, vars)
+        : s.n("pending_invite.subtitle_workspace_viewer", cards, vars))
+    : (d.role === "editor"
+      ? s.n("pending_invite.subtitle_board_editor", cards, vars)
+      : s.n("pending_invite.subtitle_board_viewer", cards, vars));
   const url = `${APP_URL}?invite=${encodeURIComponent(d.token)}`;
   return {
     // A stranger reads this one. Its subject carries nothing anyone typed —
     // not the cluster name, not the inviter's address (a throwaway account on a
     // look-alike domain puts that domain in the subject). Names stay in the
     // body, cleaned. (0364, the 2026-10-06 audit.)
-    subject: "You've been invited to collaborate on Clusters",
+    subject: s.t("pending_invite.subject"),
     html: renderEmail({
+      s,
       preheader: subtitle,
-      eyebrow: "Invitation",
+      eyebrow: s.t("pending_invite.eyebrow"),
       headline,
       subtitle,
-      cta: { label: "Accept invitation", url },
-      caveat: "We'll email you a 6-digit code to sign in. The invite link works for 30 days.",
+      cta: { label: s.t("pending_invite.cta"), url },
+      caveat: s.n("pending_invite.caveat", 30, { days: 30 }),
     }),
     text: plain([
       "CLUSTERS",
@@ -772,9 +859,9 @@ function pendingInvite(d: PendingInviteData): RenderedEmail {
       headline,
       subtitle,
       "",
-      "Accept invitation: " + url,
+      ctaLine(s, s.t("pending_invite.cta"), url),
       "",
-      "We'll email you a 6-digit code to sign in. The invite link works for 30 days.",
+      s.n("pending_invite.caveat", 30, { days: 30 }),
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -794,20 +881,24 @@ interface TeamInviteData {
   token: string;
 }
 
-function teamInvite(d: TeamInviteData): RenderedEmail {
-  const roleLabel = d.role === "admin" ? "an admin" : d.role === "viewer" ? "a viewer" : "a member";
-  const headline = `${d.inviterName} invited you.`;
-  const subtitle = `Join ${d.teamName} on Clusters as ${roleLabel}. Your own workspaces stay yours: the team never sees them.`;
+function teamInvite(d: TeamInviteData, s: EmailStrings): RenderedEmail {
+  const headline = s.t("team_invite.headline", { inviter: d.inviterName });
+  const subtitle = d.role === "admin"
+    ? s.t("team_invite.subtitle_admin", { team: d.teamName })
+    : d.role === "viewer"
+      ? s.t("team_invite.subtitle_viewer", { team: d.teamName })
+      : s.t("team_invite.subtitle_member", { team: d.teamName });
   const url = `${APP_URL}?teaminvite=${encodeURIComponent(d.token)}`;
-  const caveat = "Sign in with this email address and we'll send you a 6-digit code. The invite works for 30 days.";
+  const caveat = s.n("team_invite.caveat", 30, { days: 30 });
   return {
-    subject: "You've been invited to a team on Clusters",
+    subject: s.t("team_invite.subject"),
     html: renderEmail({
+      s,
       preheader: subtitle,
-      eyebrow: "Team invitation",
+      eyebrow: s.t("team_invite.eyebrow"),
       headline,
       subtitle,
-      cta: { label: "Join the team", url },
+      cta: { label: s.t("team_invite.cta"), url },
       caveat,
     }),
     text: plain([
@@ -816,7 +907,7 @@ function teamInvite(d: TeamInviteData): RenderedEmail {
       headline,
       subtitle,
       "",
-      "Join the team: " + url,
+      ctaLine(s, s.t("team_invite.cta"), url),
       "",
       caveat,
       "",
@@ -849,13 +940,19 @@ function quoteBlock(preview: string, who?: string): string {
   return quote({ who, text: preview });
 }
 
-function mentionEmailTpl(d: MentionEmailData): RenderedEmail {
+function mentionEmailTpl(d: MentionEmailData, s: EmailStrings): RenderedEmail {
+  const vars = { name: d.mentionerName, context: d.surfaceContext };
   const subject = d.surface === "dm"
-    ? `${d.mentionerName} mentioned you`
-    : `${d.mentionerName} mentioned you in ${d.surfaceContext}`;
+    ? s.t("mention_email.subject_dm", vars)
+    : d.surface === "board"
+      ? s.t("mention_email.subject_board", vars)
+      : s.t("mention_email.subject_workspace", vars);
   const subtitle = d.surface === "dm"
-    ? `In a direct message.`
-    : `In ${d.surfaceContext}.`;
+    ? s.t("mention_email.subtitle_dm")
+    : d.surface === "board"
+      ? s.t("mention_email.subtitle_board", vars)
+      : s.t("mention_email.subtitle_workspace", vars);
+  const headline = s.t("mention_email.headline", vars);
   // Board mention → land directly on the board. DM/workspace mention →
   // just open the workspace; the user picks the conversation themselves.
   const url = d.surface === "board"
@@ -866,25 +963,28 @@ function mentionEmailTpl(d: MentionEmailData): RenderedEmail {
   return {
     subject,
     html: renderEmail({
-      preheader: `${d.mentionerName}: ${d.messagePreview || "mentioned you"}`,
-      eyebrow: "Mention",
-      headline: `${d.mentionerName} mentioned you.`,
+      s,
+      preheader: d.messagePreview
+        ? s.t("mention_email.preheader", { name: d.mentionerName, preview: d.messagePreview })
+        : s.t("mention_email.preheader_empty", { name: d.mentionerName }),
+      eyebrow: s.t("mention_email.eyebrow"),
+      headline,
       subtitle,
       bodyHtml: quoteBlock(d.messagePreview, d.mentionerName),
-      cta: { label: "Open in Clusters", url },
+      cta: { label: s.t("mention_email.cta"), url },
       unsubscribeUrl: unsub,
     }),
     text: plain([
       "CLUSTERS",
       "",
-      `${d.mentionerName} mentioned you.`,
+      headline,
       subtitle,
-      d.messagePreview ? `\n  "${d.messagePreview}"` : "",
+      quotedLine(s, d.messagePreview),
       "",
-      "Open in Clusters: " + url,
+      ctaLine(s, s.t("mention_email.cta"), url),
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
-      unsub ? "Turn these emails off: " + unsub : "",
+      turnOffLine(s, unsub),
     ]),
   };
 }
@@ -899,33 +999,37 @@ interface CommentReplyEmailData {
   unsubscribeToken?: string;
 }
 
-function commentReplyEmailTpl(d: CommentReplyEmailData): RenderedEmail {
-  const subtitle = `On "${d.boardName}" in ${d.workspaceName}.`;
+function commentReplyEmailTpl(d: CommentReplyEmailData, s: EmailStrings): RenderedEmail {
+  const subtitle = s.t("comment_reply_email.subtitle", { board: d.boardName, workspace: d.workspaceName });
+  const headline = s.t("comment_reply_email.headline", { name: d.replierName });
   const url = deepLink({ w: d.workspaceId, b: d.boardId });
   // 0369: one click turns reply emails off.
   const unsub = d.unsubscribeToken ? unsubUrl(d.unsubscribeToken, "email_comment_replies") : undefined;
   return {
-    subject: `${d.replierName} replied to your comment`,
+    subject: s.t("comment_reply_email.subject", { name: d.replierName }),
     html: renderEmail({
-      preheader: `${d.replierName}: ${d.replyPreview || "replied to your comment"}`,
-      eyebrow: "Reply",
-      headline: `${d.replierName} replied.`,
+      s,
+      preheader: d.replyPreview
+        ? s.t("comment_reply_email.preheader", { name: d.replierName, preview: d.replyPreview })
+        : s.t("comment_reply_email.preheader_empty", { name: d.replierName }),
+      eyebrow: s.t("comment_reply_email.eyebrow"),
+      headline,
       subtitle,
       bodyHtml: quoteBlock(d.replyPreview, d.replierName),
-      cta: { label: "Open comment", url },
+      cta: { label: s.t("comment_reply_email.cta"), url },
       unsubscribeUrl: unsub,
     }),
     text: plain([
       "CLUSTERS",
       "",
-      `${d.replierName} replied.`,
+      headline,
       subtitle,
-      d.replyPreview ? `\n  "${d.replyPreview}"` : "",
+      quotedLine(s, d.replyPreview),
       "",
-      "Open comment: " + url,
+      ctaLine(s, s.t("comment_reply_email.cta"), url),
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
-      unsub ? "Turn these emails off: " + unsub : "",
+      turnOffLine(s, unsub),
     ]),
   };
 }
@@ -943,11 +1047,11 @@ function fileUrlBase(origin: string): string {
 // A file's name, for an email line. safeLabel strips anything domain-shaped,
 // and most extensions are also top-level domains (.mov, .zip, .app), so the
 // extension moves out of the name: "Cut v3.mov" reads "Cut v3 (mov)".
-function fileLabel(raw: unknown): string {
-  const s = String(raw ?? "").trim();
-  const m = s.match(/^(.+)\.([A-Za-z0-9]{1,8})$/);
-  if (!m) return safeLabel(s, 60, "a file");
-  return `${safeLabel(m[1], 52, "a file")} (${m[2].toLowerCase()})`;
+function fileLabel(raw: unknown, s: EmailStrings): string {
+  const name = String(raw ?? "").trim();
+  const m = name.match(/^(.+)\.([A-Za-z0-9]{1,8})$/);
+  if (!m) return safeLabel(name, 60, s.t("common.fallback_file"));
+  return `${safeLabel(m[1], 52, s.t("common.fallback_file"))} (${m[2].toLowerCase()})`;
 }
 
 interface FileSharedData {
@@ -960,20 +1064,26 @@ interface FileSharedData {
 }
 
 // A doc (0426) is read or edited together; a file is viewed, or commented on.
-function fileShared(d: FileSharedData): RenderedEmail {
+function fileShared(d: FileSharedData, s: EmailStrings): RenderedEmail {
   const doc = d.kind === "doc";
-  const headline = `${d.sharerName} shared ${doc ? "a document" : "a file"} with you.`;
-  const can = doc
-    ? (d.role === "edit" ? "view and edit" : "view")
-    : (d.role === "comment" ? "view and comment on" : "view");
-  const subtitle = `You can ${can} "${d.fileName}".`;
-  const open = doc ? "Open document" : "Open file";
+  const headline = doc
+    ? s.t("file_shared.headline_doc", { name: d.sharerName })
+    : s.t("file_shared.headline_file", { name: d.sharerName });
+  const subtitle = doc
+    ? (d.role === "edit"
+      ? s.t("file_shared.subtitle_doc_edit", { file: d.fileName })
+      : s.t("file_shared.subtitle_doc_view", { file: d.fileName }))
+    : (d.role === "comment"
+      ? s.t("file_shared.subtitle_file_comment", { file: d.fileName })
+      : s.t("file_shared.subtitle_file_view", { file: d.fileName }));
+  const open = doc ? s.t("file_shared.cta_doc") : s.t("file_shared.cta_file");
   const url = fileUrlBase(d.origin) + d.token;
   return {
-    subject: `${d.sharerName} shared "${d.fileName}" with you`,
+    subject: s.t("file_shared.subject", { name: d.sharerName, file: d.fileName }),
     html: renderEmail({
+      s,
       preheader: subtitle,
-      eyebrow: doc ? "Document shared" : "File shared",
+      eyebrow: doc ? s.t("file_shared.eyebrow_doc") : s.t("file_shared.eyebrow_file"),
       headline,
       subtitle,
       cta: { label: open, url },
@@ -984,7 +1094,7 @@ function fileShared(d: FileSharedData): RenderedEmail {
       headline,
       subtitle,
       "",
-      open + ": " + url,
+      ctaLine(s, open, url),
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
     ]),
@@ -1000,32 +1110,36 @@ interface FileCommentedData {
   unsubscribeToken?: string;
 }
 
-function fileCommented(d: FileCommentedData): RenderedEmail {
-  const subtitle = `On "${d.fileName}".`;
+function fileCommented(d: FileCommentedData, s: EmailStrings): RenderedEmail {
+  const subtitle = s.t("file_commented.subtitle", { file: d.fileName });
+  const headline = s.t("file_commented.headline", { name: d.commenterName });
   const url = fileUrlBase(d.origin) + d.token;
   const unsub = d.unsubscribeToken ? unsubUrl(d.unsubscribeToken, "email_comment_replies") : undefined;
   return {
-    subject: `${d.commenterName} commented on "${d.fileName}"`,
+    subject: s.t("file_commented.subject", { name: d.commenterName, file: d.fileName }),
     html: renderEmail({
-      preheader: `${d.commenterName}: ${d.commentPreview || "left a comment"}`,
-      eyebrow: "Comment",
-      headline: `${d.commenterName} commented.`,
+      s,
+      preheader: d.commentPreview
+        ? s.t("file_commented.preheader", { name: d.commenterName, preview: d.commentPreview })
+        : s.t("file_commented.preheader_empty", { name: d.commenterName }),
+      eyebrow: s.t("file_commented.eyebrow"),
+      headline,
       subtitle,
       bodyHtml: quoteBlock(d.commentPreview, d.commenterName),
-      cta: { label: "Open file", url },
+      cta: { label: s.t("file_commented.cta"), url },
       unsubscribeUrl: unsub,
     }),
     text: plain([
       "CLUSTERS",
       "",
-      `${d.commenterName} commented.`,
+      headline,
       subtitle,
-      d.commentPreview ? `\n  "${d.commentPreview}"` : "",
+      quotedLine(s, d.commentPreview),
       "",
-      "Open file: " + url,
+      ctaLine(s, s.t("file_commented.cta"), url),
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
-      unsub ? "Turn these emails off: " + unsub : "",
+      turnOffLine(s, unsub),
     ]),
   };
 }
@@ -1123,36 +1237,49 @@ function openCta(c: CopyCtx): string {
 // One note, two wordings (0790): what they've put on the board so far when
 // there is anything, the plain "first picture" nudge when there is not. `added`
 // absent (the lookup failed) takes the empty wording, as the old copy did.
-function activateNudge1(d: ActivateNudgeData): RenderedEmail {
+function activateNudge1(d: ActivateNudgeData, s: EmailStrings): RenderedEmail {
   const url = deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, utm("activate_nudge_1"));
   const name = ownBoardName(d.boardName);
-  const cta = name ? `open "${name}"` : "open clusters";
+  const cta = name ? s.t("activate_nudge_1.cta_named", { name }) : s.t("activate_nudge_1.cta_plain");
   const total = addedTotal(d.added);
-  const strip = total > 0 && d.added ? noteStrip(d.added.items, url) : "";
+  const strip = total > 0 && d.added ? noteStrip(s, d.added.items, url) : "";
   const c: CopyCtx = { url, unsub: unsubUrl(d.unsubscribeToken), name, img: "", strip };
   if (total > 0 && d.added) {
-    const phrase = countsPhrase(d.added.counts);
-    const lead = name ? `here's what you've put on "${name}" so far` : "here's what you've put on your board so far";
+    const phrase = countsPhrase(s, d.added.counts);
+    const withPhrase = name
+      ? s.t("activate_nudge_1.added_named_phrase", { name, phrase })
+      : s.t("activate_nudge_1.added_plain_phrase", { phrase });
+    const withTiles = name
+      ? s.t("activate_nudge_1.added_named_tiles", { name })
+      : s.t("activate_nudge_1.added_plain_tiles");
     const { html, text } = composeNote([
-      { k: "p", t: "hey, the clusters team here." },
-      { k: "p", t: strip ? `${lead}:` : `${lead}: ${phrase}.`, text: `${lead}: ${phrase}.` },
+      { k: "p", t: s.t("common.note_hello") },
+      { k: "p", t: strip ? withTiles : withPhrase, text: withPhrase },
       { k: "strip" },
-      { k: "p", t: "it's all saved. boards really click at about ten things — paste an image from any tab (⌘V), or drop a whole folder on the canvas and it files itself." },
+      { k: "p", t: s.t("activate_nudge_1.added_body") },
       { k: "btn", label: cta },
-      { k: "p", t: SIGNOFF },
-    ], c, (total === 1 ? "the thing you added is saved." : `the ${total} things you added are saved.`) + " a few more and it starts to take shape.");
-    return { subject: name ? `here's "${name}" so far` : "here's your board so far", html, text };
+      { k: "signoff" },
+    ], c, s.n("activate_nudge_1.added_preheader", total), s);
+    return {
+      subject: name ? s.t("activate_nudge_1.added_subject_named", { name }) : s.t("activate_nudge_1.added_subject_plain"),
+      html,
+      text,
+    };
   }
   const { html, text } = composeNote([
-    { k: "p", t: "hey, the clusters team here." },
+    { k: "p", t: s.t("common.note_hello") },
     { k: "p", t: name
-      ? `you made "${name}" — it's open and waiting for its first picture.`
-      : "your board is open and waiting for its first picture." },
-    { k: "p", t: "the quickest way in: copy an image anywhere on the web and paste it onto the board (⌘V), or drop a whole folder on the canvas and it files itself into clusters." },
+      ? s.t("activate_nudge_1.empty_named", { name })
+      : s.t("activate_nudge_1.empty_plain") },
+    { k: "p", t: s.t("activate_nudge_1.empty_body") },
     { k: "btn", label: cta },
-    { k: "p", t: SIGNOFF },
-  ], c, "paste an image from any tab, or drop a folder. it arranges itself.");
-  return { subject: name ? `"${name}" is ready for its first picture` : "your board is ready for its first picture", html, text };
+    { k: "signoff" },
+  ], c, s.t("activate_nudge_1.empty_preheader"), s);
+  return {
+    subject: name ? s.t("activate_nudge_1.empty_subject_named", { name }) : s.t("activate_nudge_1.empty_subject_plain"),
+    html,
+    text,
+  };
 }
 
 const activateNudge2Spec: FactorialSpec = {
@@ -1194,7 +1321,7 @@ const activateNudge2Spec: FactorialSpec = {
         : "your canvas is still waiting. one photo drop is all it takes to see whether clusters clicks for you — everything you add arranges itself into a board you can share." },
       { k: "p", t: "two minutes, in and out. if it's not your kind of thing, genuinely no hard feelings." },
       { k: "btn", label: openCta(c) },
-      { k: "p", t: SIGNOFF },
+      { k: "signoff" },
     ],
     // Brevity arm.
     b2: () => [
@@ -1213,7 +1340,7 @@ const activateNudge2Spec: FactorialSpec = {
       { k: "p", t: "was it not what you expected? too much work to start? just bad timing? hit reply — one line is plenty, and it reaches a person." },
       { k: "p", t: "and if you'd rather just have a look instead:" },
       { k: "btn", label: openCta(c) },
-      { k: "p", t: SIGNOFF },
+      { k: "signoff" },
     ],
   },
 };
@@ -1239,71 +1366,54 @@ interface ReengageData {
   variant?: string;
 }
 
-function reengage1(d: ReengageData): RenderedEmail {
+function reengage1(d: ReengageData, s: EmailStrings): RenderedEmail {
   const url = deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, utm("reengage_1"));
   const unsub = unsubUrl(d.unsubscribeToken);
   const hasName = !!d.boardName;
+  const name = d.boardName ?? "";
   if (d.variant === "B") {
-    const subjectB  = hasName ? `your board "${d.boardName}" is still here` : "your boards are still here";
-    const ctaLabelB = hasName ? `open "${d.boardName}"` : "open my boards";
-    const nudge     = hasName
-      ? `quick nudge: "${d.boardName}" is still sitting in your workspace.`
-      : "quick nudge: your boards are still sitting in your workspace.";
+    const subjectB  = hasName ? s.t("reengage_1.b_subject_named", { name }) : s.t("reengage_1.b_subject_plain");
+    const ctaLabelB = hasName ? s.t("reengage_1.b_cta_named", { name }) : s.t("reengage_1.b_cta_plain");
+    const nudge     = hasName ? s.t("reengage_1.b_nudge_named", { name }) : s.t("reengage_1.b_nudge_plain");
+    const hello     = s.t("common.note_hello");
+    const body      = s.t("reengage_1.b_body");
+    const leadIn    = s.t("reengage_1.b_lead_in");
     return {
       subject: subjectB,
       html: renderPlainNote({
-        preheader: "the easy place to put whatever's been piling up.",
+        s,
+        preheader: s.t("reengage_1.b_preheader"),
         bodyHtml:
-          noteP("hey, the clusters team here.") +
+          noteP(hello) +
           noteP(nudge) +
-          noteP("if new references or ideas have been piling up, this is the easy place to put them.") +
-          noteP("jump back in:") +
-          noteBtn(ctaLabelB, url),
+          noteP(body) +
+          noteP(leadIn) +
+          noteBtn(ctaLabelB, url, s),
         unsubscribeUrl: unsub,
       }),
-      text:
-`hey, the clusters team here.
-
-${nudge}
-
-if new references or ideas have been piling up, this is the easy place to put them.
-
-jump back in:
-
-${ctaLabelB}: ${url}
-
-Unsubscribe: ${unsub}`,
+      text: [hello, nudge, body, leadIn, ctaLine(s, ctaLabelB, url), s.t("common.unsubscribe_text", { url: unsub })].join("\n\n"),
     };
   }
-  const subject  = hasName ? `"${d.boardName}" is right where you left it` : "your board's right where you left it";
-  const ctaLabel = hasName ? `open "${d.boardName}"` : "open my board";
-  const opener   = hasName
-    ? `you built "${d.boardName}" in clusters, then went quiet. happens to the best of us.`
-    : "you built something real in clusters, then went quiet. happens to the best of us.";
+  const subject  = hasName ? s.t("reengage_1.subject_named", { name }) : s.t("reengage_1.subject_plain");
+  const ctaLabel = hasName ? s.t("reengage_1.cta_named", { name }) : s.t("reengage_1.cta_plain");
+  const opener   = hasName ? s.t("reengage_1.opener_named", { name }) : s.t("reengage_1.opener_plain");
+  const hello    = s.t("common.note_hello");
+  const body     = s.t("reengage_1.body");
+  const leadIn   = s.t("reengage_1.lead_in");
   return {
     subject,
     html: renderPlainNote({
-      preheader: "it's all still there, right where you left it.",
+      s,
+      preheader: s.t("reengage_1.preheader"),
       bodyHtml:
-        noteP("hey, the clusters team here.") +
+        noteP(hello) +
         noteP(opener) +
-        noteP("it's all still there, exactly how you left it. no pressure, but if a few new things have piled up since, this is a good moment to drop them in.") +
-        noteP("pick up where you left off:") +
-        noteBtn(ctaLabel, url),
+        noteP(body) +
+        noteP(leadIn) +
+        noteBtn(ctaLabel, url, s),
       unsubscribeUrl: unsub,
     }),
-    text:
-`hey, the clusters team here.
-
-${opener}
-
-it's all still there, exactly how you left it. no pressure, but if a few new things have piled up since, this is a good moment to drop them in.
-
-pick up where you left off:
-
-${ctaLabel}: ${url}
-
-Unsubscribe: ${unsub}`,
+    text: [hello, opener, body, leadIn, ctaLine(s, ctaLabel, url), s.t("common.unsubscribe_text", { url: unsub })].join("\n\n"),
   };
 }
 
@@ -1336,31 +1446,30 @@ function namedWelcomeBoard(d: WelcomeBoardData): string | null {
 
 // A lot of new users sign up on a phone and never see the full app; a quiet,
 // device-neutral nudge to open it on a computer (the cron has no device signal,
-// so it rides every welcome_board).
-const DESK_TIP = "one tip: open it on your computer when you can — the full studio, a bigger canvas, every tool.";
+// so it rides every welcome_board): the welcome_board.desk_tip words.
 
 // One note since 0790 (the old subject "look what you made" and body b1).
-function welcomeBoard(d: WelcomeBoardData): RenderedEmail {
+function welcomeBoard(d: WelcomeBoardData, s: EmailStrings): RenderedEmail {
   const url = deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, utm("welcome_board"));
   const name = namedWelcomeBoard(d);
   const img = d.thumbUrl && d.thumbUrl.startsWith(EMAIL_THUMB_PREFIX)
-    ? noteImg(d.thumbUrl, name ? `Your board "${name}"` : "Your board", url)
+    ? noteImg(d.thumbUrl, name ? s.t("common.board_alt_named", { name }) : s.t("common.board_alt"), url)
     : "";
   const c: CopyCtx = { url, unsub: unsubUrl(d.unsubscribeToken), name, img };
   const { html, text } = composeNote([
-    { k: "p", t: "hey, the clusters team here." },
+    { k: "p", t: s.t("common.note_hello") },
     { k: "p", t: name
-      ? (img ? `you started "${name}" yesterday — here's how it's looking already.`
-             : `you started "${name}" yesterday — it's already taking shape.`)
-      : (img ? "you started a board yesterday — here's how it's looking already."
-             : "you started a board yesterday — it's already taking shape.") },
+      ? (img ? s.t("welcome_board.opener_named_picture", { name })
+             : s.t("welcome_board.opener_named_text", { name }))
+      : (img ? s.t("welcome_board.opener_plain_picture")
+             : s.t("welcome_board.opener_plain_text")) },
     { k: "img" },
-    { k: "p", t: "it's saved and waiting whenever you want to keep going — drop in more photos, notes, or files and they arrange themselves." },
-    { k: "p", t: DESK_TIP },
-    { k: "btn", label: "pick up where you left off" },
-    { k: "p", t: SIGNOFF },
-  ], c, "one day in, and your board is already taking shape.");
-  return { subject: "look what you made", html, text };
+    { k: "p", t: s.t("welcome_board.body") },
+    { k: "p", t: s.t("welcome_board.desk_tip") },
+    { k: "btn", label: s.t("welcome_board.cta") },
+    { k: "signoff" },
+  ], c, s.t("welcome_board.preheader"), s);
+  return { subject: s.t("welcome_board.subject"), html, text };
 }
 
 // ── board_waiting (migration 0194) ──────────────────────────────────────────
@@ -1371,35 +1480,40 @@ function welcomeBoard(d: WelcomeBoardData): RenderedEmail {
 // board has no stored thumbnail). Reuses WelcomeBoardData — identical shape.
 // One note since 0790 (half held back for six weeks); when the cron sends what
 // they added, a line and a row of small tiles say it.
-function boardWaiting(d: WelcomeBoardData): RenderedEmail {
+function boardWaiting(d: WelcomeBoardData, s: EmailStrings): RenderedEmail {
   const url = deepLink({ w: d.workspaceId, b: d.boardId, rt: d.resumeToken }, utm("board_waiting"));
   const name = ownBoardName(d.boardName);
   const img = d.thumbUrl && d.thumbUrl.startsWith(EMAIL_THUMB_PREFIX)
-    ? noteImg(d.thumbUrl, name ? `Your board "${name}"` : "Your board", url)
+    ? noteImg(d.thumbUrl, name ? s.t("common.board_alt_named", { name }) : s.t("common.board_alt"), url)
     : "";
   const total = addedTotal(d.added);
-  const phrase = d.added ? countsPhrase(d.added.counts) : "";
-  const strip = total > 0 && d.added ? noteStrip(d.added.items, url) : "";
+  const phrase = d.added ? countsPhrase(s, d.added.counts) : "";
+  const strip = total > 0 && d.added ? noteStrip(s, d.added.items, url) : "";
   const opener = name
-    ? (img ? `remember "${name}"? here's how you left it:` : `remember "${name}"? it's still sitting in your workspace.`)
-    : (img ? "remember this? here's how you left it:" : "your board's still sitting in your workspace.");
+    ? (img ? s.t("board_waiting.opener_named_picture", { name }) : s.t("board_waiting.opener_named_text", { name }))
+    : (img ? s.t("board_waiting.opener_plain_picture") : s.t("board_waiting.opener_plain_text"));
   const c: CopyCtx = { url, unsub: unsubUrl(d.unsubscribeToken), name, img, strip };
   const blocks: NoteBlock[] = [
-    { k: "p", t: "hey, the clusters team here." },
+    { k: "p", t: s.t("common.note_hello") },
     { k: "p", t: opener },
     { k: "img" },
   ];
   if (total > 0) {
-    blocks.push({ k: "p", t: `you'd added ${phrase}.` + (strip ? " the last few:" : ""), text: `you'd added ${phrase}.` });
+    const withPhrase = s.t("board_waiting.added_phrase", { phrase });
+    blocks.push({ k: "p", t: strip ? s.t("board_waiting.added_tiles", { phrase }) : withPhrase, text: withPhrase });
     blocks.push({ k: "strip" });
   }
   blocks.push(
-    { k: "p", t: "it's all saved, exactly how you left it. if a few new things have piled up since, this is a good moment to drop them in." },
-    { k: "btn", label: name ? `open "${name}"` : "open my board" },
-    { k: "p", t: SIGNOFF },
+    { k: "p", t: s.t("board_waiting.body") },
+    { k: "btn", label: name ? s.t("board_waiting.cta_named", { name }) : s.t("board_waiting.cta_plain") },
+    { k: "signoff" },
   );
-  const { html, text } = composeNote(blocks, c, "it's saved and waiting whenever you want to pick it back up.");
-  return { subject: name ? `"${name}" is still taking shape` : "your board is still taking shape", html, text };
+  const { html, text } = composeNote(blocks, c, s.t("board_waiting.preheader"), s);
+  return {
+    subject: name ? s.t("board_waiting.subject_named", { name }) : s.t("board_waiting.subject_plain"),
+    html,
+    text,
+  };
 }
 
 // ── nudge_dormant_early (migration 0194) ────────────────────────────────────
@@ -1454,7 +1568,7 @@ const nudgeDormantEarlySpec: FactorialSpec = {
         : "you set up a workspace a little while back, then things went quiet — no worries at all." },
       { k: "p", t: "the whole idea of clusters: drop in photos, notes, or files — camera roll, screenshots, references — and they arrange themselves into something you can actually use and share. two minutes is enough to see if it clicks." },
       { k: "btn", label: openCta(c) },
-      { k: "p", t: SIGNOFF },
+      { k: "signoff" },
     ],
     // Brevity arm.
     b2: (c) => [
@@ -1471,7 +1585,7 @@ const nudgeDormantEarlySpec: FactorialSpec = {
       { k: "p", t: "here's the fastest possible version: open your board, select ten photos from your camera roll, drag them in. they land in a grid you can push around, group, and share as a link." },
       { k: "p", t: "no setup, no folders, nothing to name." },
       { k: "btn", label: openCta(c) },
-      { k: "p", t: SIGNOFF },
+      { k: "signoff" },
     ],
   },
 };
@@ -1900,7 +2014,10 @@ function opsAlertTpl(d: OpsAlertData): RenderedEmail {
   };
 }
 
-export function renderTemplate(name: TemplateName, data: Record<string, unknown>): RenderedEmail {
+// `locale` is the reader's language (one of EMAIL_LOCALES). The templates in
+// ENGLISH_ONLY are always English whatever the caller passes.
+export function renderTemplate(name: TemplateName, data: Record<string, unknown>, locale = "en"): RenderedEmail {
+  const s = emailStrings(ENGLISH_ONLY.has(name) ? "en" : locale);
   switch (name) {
     case "waitlist_submitted":
       return waitlistSubmitted();
@@ -1908,87 +2025,87 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
       return waitlistAccepted();
     case "workspace_invite":
       return workspaceInvite({
-        workspaceName: safeLabel(data.workspaceName, 60, "your workspace"),
-        inviterName:   safePerson(data.inviterName),
+        workspaceName: safeLabel(data.workspaceName, 60, s.t("common.fallback_your_workspace")),
+        inviterName:   safePerson(data.inviterName, 60, s.t("common.fallback_person")),
         role:          data.role != null ? String(data.role) : undefined,
         workspaceId:   data.workspaceId != null ? String(data.workspaceId) : undefined,
-      });
+      }, s);
     case "board_shared":
       return boardShared({
-        boardName:   safeLabel(data.boardName, 60, "a board"),
-        sharerName:  safePerson(data.sharerName),
+        boardName:   safeLabel(data.boardName, 60, s.t("common.fallback_board")),
+        sharerName:  safePerson(data.sharerName, 60, s.t("common.fallback_person")),
         role:        data.role != null ? String(data.role) : undefined,
         workspaceId: data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:     data.boardId != null ? String(data.boardId) : undefined,
-      });
+      }, s);
     case "invite_reward": {
       // Only ever the database's numbers: a whole count and a "0.5GB"-style label.
       const n = Number(data.cards);
-      const s = data.storage != null ? String(data.storage) : "";
+      const stor = data.storage != null ? String(data.storage) : "";
       return inviteReward({
         cards: Number.isInteger(n) && n > 0 && n <= 100000 ? n : undefined,
-        storage: /^\d{1,5}(\.\d)?(GB|TB)$/.test(s) ? s : undefined,
+        storage: /^\d{1,5}(\.\d)?(GB|TB)$/.test(stor) ? stor : undefined,
         unsubscribeToken: unsubTokenOf(data.unsubscribeToken),
-      });
+      }, s);
     }
     case "invite_accepted":
       return inviteAccepted({
-        joinerName:    safePerson(data.joinerName),
-        boardName:     safeLabel(data.boardName, 60, "a board"),
+        joinerName:    safePerson(data.joinerName, 60, s.t("common.fallback_person")),
+        boardName:     safeLabel(data.boardName, 60, s.t("common.fallback_board")),
         role:          data.role != null ? String(data.role) : undefined,
         workspaceId:   data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:       data.boardId != null ? String(data.boardId) : undefined,
         scope:         data.scope === "workspace" ? "workspace" : undefined,
         workspaceName: safeLabel(data.workspaceName, 60) || undefined,
-      });
+      }, s);
     case "edit_request":
       return editRequest({
-        askerName:   safePerson(data.askerName),
-        boardName:   safeLabel(data.boardName, 60, "a cluster"),
+        askerName:   safePerson(data.askerName, 60, s.t("common.fallback_person")),
+        boardName:   safeLabel(data.boardName, 60, s.t("common.fallback_cluster")),
         workspaceId: data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:     data.boardId != null ? String(data.boardId) : undefined,
-      });
+      }, s);
     case "edit_granted":
       return editGranted({
-        sharerName:  safePerson(data.sharerName),
-        boardName:   safeLabel(data.boardName, 60, "a cluster"),
+        sharerName:  safePerson(data.sharerName, 60, s.t("common.fallback_person")),
+        boardName:   safeLabel(data.boardName, 60, s.t("common.fallback_cluster")),
         workspaceId: data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:     data.boardId != null ? String(data.boardId) : undefined,
-      });
+      }, s);
     case "team_invite":
       return teamInvite({
-        teamName:    safeLabel(data.teamName, 60, "a team"),
-        inviterName: safePerson(data.inviterName),
+        teamName:    safeLabel(data.teamName, 60, s.t("common.fallback_team")),
+        inviterName: safePerson(data.inviterName, 60, s.t("common.fallback_person")),
         role:        data.role != null ? String(data.role) : "member",
         token:       data.token != null ? String(data.token) : "",
-      });
+      }, s);
     case "pending_invite":
       // The recipient has no account, so this is the email a stranger reads:
       // the inviter is named by account email (0358's trigger sends it), and a
       // cluster name that sanitises to nothing falls back to the workspace form.
       return pendingInvite({
-        inviterName:   safePerson(data.inviterName),
-        workspaceName: safeLabel(data.workspaceName, 60, "a workspace"),
+        inviterName:   safePerson(data.inviterName, 60, s.t("common.fallback_person")),
+        workspaceName: safeLabel(data.workspaceName, 60, s.t("common.fallback_workspace")),
         boardName:     safeLabel(data.boardName, 60) || undefined,
         role:          String(data.role ?? "viewer"),
         token:         String(data.token ?? ""),
         expiresAt:     data.expiresAt != null ? String(data.expiresAt) : undefined,
-      });
+      }, s);
     case "mention_email": {
       const surfaceRaw = String(data.surface ?? "workspace");
       const surface = (surfaceRaw === "dm" || surfaceRaw === "board" || surfaceRaw === "workspace")
         ? surfaceRaw : "workspace";
       return mentionEmailTpl({
-        mentionerName:  safePerson(data.mentionerName),
+        mentionerName:  safePerson(data.mentionerName, 60, s.t("common.fallback_person")),
         surface,
-        surfaceContext: safeLabel(data.surfaceContext, 60, "your workspace"),
+        surfaceContext: safeLabel(data.surfaceContext, 60, s.t("common.fallback_your_workspace")),
         // 0364: the preview is text a sender typed — the one field 0358 missed.
         // Same cleaning as a name (links out, controls out), at preview length.
         messagePreview: safeLabel(data.messagePreview, 280),
         workspaceId:    data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:        data.boardId != null ? String(data.boardId) : undefined,
         unsubscribeToken: unsubTokenOf(data.unsubscribeToken),
-      });
+      }, s);
     }
     case "schedule_update":
       // An editor's typed text (a day label, a cluster name, a note) mailed to
@@ -2006,39 +2123,39 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
       });
     case "comment_reply_email":
       return commentReplyEmailTpl({
-        replierName:   safePerson(data.replierName),
-        boardName:     safeLabel(data.boardName, 60, "a board"),
-        workspaceName: safeLabel(data.workspaceName, 60, "your workspace"),
+        replierName:   safePerson(data.replierName, 60, s.t("common.fallback_person")),
+        boardName:     safeLabel(data.boardName, 60, s.t("common.fallback_board")),
+        workspaceName: safeLabel(data.workspaceName, 60, s.t("common.fallback_your_workspace")),
         replyPreview:  safeLabel(data.replyPreview, 280),
         workspaceId:   data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:       data.boardId != null ? String(data.boardId) : undefined,
         unsubscribeToken: unsubTokenOf(data.unsubscribeToken),
-      });
+      }, s);
     case "file_shared": {
       const token = String(data.token ?? "");
       if (!/^[0-9a-f-]{36}$/i.test(token)) throw new Error("file_shared needs a token");
       const doc = data.kind === "doc";
       return fileShared({
-        sharerName: safePerson(data.sharerName),
+        sharerName: safePerson(data.sharerName, 60, s.t("common.fallback_person")),
         // A doc's title has no extension to move out of the way.
-        fileName:   doc ? safeLabel(data.fileName, 60, "a document") : fileLabel(data.fileName),
+        fileName:   doc ? safeLabel(data.fileName, 60, s.t("common.fallback_document")) : fileLabel(data.fileName, s),
         role:       data.role === "comment" ? "comment" : data.role === "edit" ? "edit" : "view",
         kind:       doc ? "doc" : "file",
         token,
         origin:     String(data.origin ?? ""),
-      });
+      }, s);
     }
     case "file_commented": {
       const token = String(data.token ?? "");
       if (!/^[0-9a-f-]{36}$/i.test(token)) throw new Error("file_commented needs a token");
       return fileCommented({
-        commenterName:  safePerson(data.commenterName),
-        fileName:       fileLabel(data.fileName),
+        commenterName:  safePerson(data.commenterName, 60, s.t("common.fallback_person")),
+        fileName:       fileLabel(data.fileName, s),
         commentPreview: safeLabel(data.commentPreview, 280),
         token,
         origin:         String(data.origin ?? ""),
         unsubscribeToken: unsubTokenOf(data.unsubscribeToken),
-      });
+      }, s);
     }
     case "activate_nudge_1":
     case "activate_nudge_2": {
@@ -2052,7 +2169,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         variant:          data.variant != null ? String(data.variant) : undefined,
         added:            addedOf(data.added),
       };
-      return name === "activate_nudge_1" ? activateNudge1(nudgeData) : activateNudge2(nudgeData);
+      return name === "activate_nudge_1" ? activateNudge1(nudgeData, s) : activateNudge2(nudgeData);
     }
     case "reengage_1": {
       const boardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
@@ -2063,7 +2180,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
         resumeToken:      resumeTokenOf(data.resumeToken),
         variant:          data.variant != null ? String(data.variant) : undefined,
-      });
+      }, s);
     }
     case "welcome_board": {
       const boardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
@@ -2075,7 +2192,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         unsubscribeToken: String(data.unsubscribeToken ?? ""),
         resumeToken:      resumeTokenOf(data.resumeToken),
         variant:          data.variant != null ? String(data.variant) : undefined,
-      });
+      }, s);
     }
     case "board_waiting": {
       const boardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();
@@ -2088,7 +2205,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         resumeToken:      resumeTokenOf(data.resumeToken),
         variant:          data.variant != null ? String(data.variant) : undefined,
         added:            addedOf(data.added),
-      });
+      }, s);
     }
     case "whats_new": {
       const boardName = String(data.boardName ?? "").replace(/[\r\n]/g, "").slice(0, 80).trim();

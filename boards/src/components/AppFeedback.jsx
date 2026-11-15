@@ -3,6 +3,7 @@ import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { isSilenced } from '../lib/captureState.js';
 import { placeGroupedToast, releaseToastGroup } from '../lib/toastGroup.js';
 import { reportToast } from '../lib/errorReporting.js';
+import { t as tr } from '@lingui/core/macro';
 
 // The visual layer (confirm/prompt dialogs + toast stack) is the only part of
 // this always-mounted provider that pulls in @phosphor-icons + react-dom's
@@ -51,10 +52,10 @@ export function FeedbackProvider({ children }) {
     lastTrigger.current = typeof document !== 'undefined' ? document.activeElement : null;
     setDialog({
       kind: 'confirm',
-      title: options.title || 'Confirm action',
+      title: options.title || tr`Confirm action`,
       message: options.message,
-      confirmLabel: options.confirmLabel || 'Confirm',
-      cancelLabel: options.cancelLabel || 'Cancel',
+      confirmLabel: options.confirmLabel || tr`Confirm`,
+      cancelLabel: options.cancelLabel || tr`Cancel`,
       // Optional third choice between Cancel and Confirm. The promise then
       // resolves 'alt' when it is picked, so a caller that passes one must
       // test for it before treating the result as a yes.
@@ -73,15 +74,15 @@ export function FeedbackProvider({ children }) {
     lastTrigger.current = typeof document !== 'undefined' ? document.activeElement : null;
     setDialog({
       kind: 'prompt',
-      title: options.title || 'Enter value',
+      title: options.title || tr`Enter value`,
       message: options.message,
       label: options.label,
       placeholder: options.placeholder,
       defaultValue: options.defaultValue || '',
       // Optional one-tap quick-fill chips (e.g. canned rejection reasons).
       suggestions: Array.isArray(options.suggestions) ? options.suggestions : null,
-      confirmLabel: options.confirmLabel || 'Save',
-      cancelLabel: options.cancelLabel || 'Cancel',
+      confirmLabel: options.confirmLabel || tr`Save`,
+      cancelLabel: options.cancelLabel || tr`Cancel`,
       resolve,
     });
   }), []);
@@ -149,7 +150,8 @@ export function FeedbackProvider({ children }) {
     const first = list?.[0] || action;
     // Parity from `fresh`, not `id`: a merged toast keeps its id, and the
     // announcement still has to change to be spoken again.
-    const spoken = `${text}${first ? ` — ${(list || [first]).map((a) => a.label || 'Undo').join(', ')} available` : ''}${fresh % 2 ? '\u00a0' : ''}`;
+    const actionLabels = first ? (list || [first]).map((a) => a.label || tr`Undo`).join(', ') : '';
+    const spoken = `${text}${first ? ` ${tr`— ${actionLabels} available`}` : ''}${fresh % 2 ? '\u00a0' : ''}`;
     setAnnounce(type === 'error' ? { polite: '', alert: spoken } : { polite: spoken, alert: '' });
     window.clearTimeout(timersRef.current.get(id));
     timersRef.current.set(id, window.setTimeout(() => dismissToast(id), Math.max(1000, ttl)));

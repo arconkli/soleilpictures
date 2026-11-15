@@ -37,11 +37,12 @@ import { EV } from '../lib/analyticsEvents.js';
 import { tlTip } from '../lib/looks.js';
 import './newClusterButton.css';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // The longest name the from-selection prompt keeps (CanvasSurface).
 const NAME_MAX = 200;
 
-const cardsWord = (n) => (n === 1 ? 'card' : 'cards');
 
 export function NewClusterButton({ boardId, boardName = '', paneId = 'main', onUnhandled = null }) {
   const [open, setOpen] = useState(false);
@@ -145,26 +146,27 @@ export function NewClusterButton({ boardId, boardName = '', paneId = 'main', onU
     if (!detail.handled) onUnhandled?.(clean);
   };
 
-  const help = sweep ? `All ${sweep} loose cards move into it. Undo puts them back.`
-    : n ? (n === 1 ? 'The card you picked moves into it. Undo puts it back.' : `The ${n} cards you picked move into it. Undo puts them back.`)
-    : `It lands on ${boardName || 'this cluster'} as a card and opens, ready to fill.`;
+  const landsOn = boardName || t`this cluster`;
+  const help = sweep ? plural(sweep, { one: 'All # loose cards move into it. Undo puts them back.', other: 'All # loose cards move into it. Undo puts them back.' })
+    : n ? plural(n, { 1: 'The card you picked moves into it. Undo puts it back.', other: 'The # cards you picked move into it. Undo puts them back.' })
+    : t`It lands on ${landsOn} as a card and opens, ready to fill.`;
 
   return (
     <span className="ncl-wrap" ref={wrapRef}>
       <button type="button" ref={btnRef} className="tb-btn tb-newcluster"
               aria-haspopup="dialog" aria-expanded={open}
-              {...tlTip(n ? `New cluster from the ${n} ${cardsWord(n)} you picked` : 'New cluster', n ? null : 'C')}
+              {...tlTip(n ? plural(n, { one: 'New cluster from the # card you picked', other: 'New cluster from the # cards you picked' }) : t`New cluster`, n ? null : 'C')}
               onClick={() => (open ? close({ dismissed: true }) : showNow('topbar'))}>
         <Icon as={Plus} size={14} weight="regular" />
-        <span className="tb-btn-label">New cluster</span>
-        {n > 0 && !(open && sweep) && <span className="ncl-count" aria-label={`${n} ${cardsWord(n)} picked`}>{n}</span>}
+        <span className="tb-btn-label"><Trans>New cluster</Trans></span>
+        {n > 0 && !(open && sweep) && <span className="ncl-count" aria-label={plural(n, { one: '# card picked', other: '# cards picked' })}>{n}</span>}
       </button>
       {open && createPortal(
-        <div className="ncl-pop" role="dialog" aria-label="New cluster" ref={popRef}
+        <div className="ncl-pop" role="dialog" aria-label={t`New cluster`} ref={popRef}
              style={pos || { top: 0, left: 0, visibility: 'hidden' }}>
-          <div className="ncl-pop-h"><Icon as={Folder} size={16} weight="regular" />Name this cluster</div>
+          <div className="ncl-pop-h"><Icon as={Folder} size={16} weight="regular" /><Trans>Name this cluster</Trans></div>
           <input ref={fieldRef} className="ncl-field" dir="auto" type="text" value={name} maxLength={NAME_MAX}
-                 placeholder="Name it, e.g. Short film" aria-label="Cluster name"
+                 placeholder={t`Name it, e.g. Short film`} aria-label={t`Cluster name`}
                  onChange={(e) => setName(e.target.value)}
                  onKeyDown={(e) => {
                    if (isComposingKey(e)) return;
@@ -172,8 +174,8 @@ export function NewClusterButton({ boardId, boardName = '', paneId = 'main', onU
                  }} />
           <div className="ncl-help">{help}</div>
           <div className="ncl-acts">
-            <button type="button" className="ncl-cancel" onClick={() => close({ dismissed: true, refocus: true })}>Cancel</button>
-            <button type="button" className="ncl-create" onClick={create}>Create cluster</button>
+            <button type="button" className="ncl-cancel" onClick={() => close({ dismissed: true, refocus: true })}><Trans>Cancel</Trans></button>
+            <button type="button" className="ncl-create" onClick={create}><Trans>Create cluster</Trans></button>
           </div>
         </div>,
         document.body,

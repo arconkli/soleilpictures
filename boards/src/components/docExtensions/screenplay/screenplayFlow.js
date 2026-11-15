@@ -18,17 +18,8 @@ export const SP_MEMORY = { element: 'spElement', sceneNumber: 'spSceneNumber', d
 // the Tab ring.
 const TAB_RING = ['scene', 'action', 'character', 'parenthetical', 'dialogue', 'transition', 'shot'];
 
-// Display labels for menus/toolbar.
-export const ELEMENT_LABELS = {
-  scene: 'Scene Heading',
-  action: 'Action',
-  character: 'Character',
-  parenthetical: 'Parenthetical',
-  dialogue: 'Dialogue',
-  transition: 'Transition',
-  shot: 'Shot',
-  centered: 'Centered',
-};
+// Display labels for menus/toolbar: lib/screenplayFlowWords.js (this file is shared
+// with the QA harness and the PDF code, which can't read Lingui).
 
 // What pressing Enter at the end of a line of the given element produces for the
 // NEW line. `isEmpty` = the current line has no text. The empty-line cases drive

@@ -13,6 +13,7 @@
 // sends, and a billing reminder is not a reason to redeploy all of them.
 
 import { renderEmail } from "./layout.ts";
+import { emailStrings } from "./i18n.mjs";
 
 const APP_URL = "https://clusters.soleilpictures.com/";
 
@@ -31,33 +32,95 @@ export interface TrialEndingEmail {
 // someone told "October 15" who cancels that morning has already been charged.
 // The headline is relative — "in about three days" is true to within half a
 // day for every send, since the job runs daily — and the body gives the moment.
-export function renderTrialEnding(input: { chargeAt: unknown; amountLabel: unknown }): TrialEndingEmail {
+export function renderTrialEnding(
+  input: { chargeAt: unknown; amountLabel: unknown },
+  locale = "en",
+): TrialEndingEmail {
+  const s = emailStrings(locale);
   const clean = (v: unknown, fallback: string) =>
-    (v == null ? fallback : String(v)).replace(/[\r\n]/g, "").slice(0, 40) || fallback;
-  const at = clean(input.chargeAt, "in about three days");
-  const amount = clean(input.amountLabel, "the Creator price");
+    (v == null ? fallback : String(v)).replace(/[\r\n]/g, "").slice(0, 80) || fallback;
+  const at = clean(input.chargeAt, s.t("trial_ending.fallback_at"));
+  const amount = clean(input.amountLabel, s.t("trial_ending.fallback_amount"));
   const url = `${APP_URL}?settings=billing`;
-  const headline = "Your Creator trial ends in about three days.";
-  const subtitle = `It ends ${at}. If you keep Creator, your card will be charged ${amount} then. ` +
-    `To stop it, cancel before then in Settings → Plan & billing — you won't be charged, ` +
-    `and everything you've made stays exactly where it is.`;
+  const headline = s.t("trial_ending.headline");
+  const subtitle = s.t("trial_ending.subtitle", { at, amount });
+  const cta = s.t("trial_ending.cta");
+  const caveat = s.t("trial_ending.caveat");
   return {
-    subject: "Your Creator trial ends in about three days",
+    subject: s.t("trial_ending.subject"),
     html: renderEmail({
-      preheader: `Nothing has been charged yet. Your trial ends ${at}.`,
-      eyebrow: "Creator trial",
+      s,
+      preheader: s.t("trial_ending.preheader", { at }),
+      eyebrow: s.t("trial_ending.eyebrow"),
       headline,
       subtitle,
-      cta: { label: "Manage billing", url },
-      caveat: "Questions? Reply to this email — a person reads it.",
+      cta: { label: cta, url },
+      caveat,
     }),
     text: [
       "CLUSTERS",
       headline,
       subtitle,
-      "Manage billing: " + url,
-      "Questions? Reply to this email — a person reads it.",
+      s.t("common.label_url", { label: cta, url }),
+      caveat,
       "© Soleil Pictures · clusters.soleilpictures.com",
     ].join("\n"),
   };
+}
+
+// ── What the cron writes into the email (billing-reconcile-cron) ────────────
+// Pure functions, so the cron stays a sender and the words and formats of every
+// language live in one place.
+
+// The exact moment the trial ends, with its zone: "October 15, 2026 at 1:30 AM
+// UTC". English keeps its own long-standing format; every other language uses
+// what Intl writes for it.
+export function formatChargeAt(date: Date, locale = "en"): string {
+  const s = emailStrings(locale);
+  let when: string;
+  if (s.locale === "en" || Number.isNaN(date.getTime())) {
+    when = date.toLocaleString("en-US", {
+      month: "long", day: "numeric", year: "numeric",
+      hour: "numeric", minute: "2-digit", timeZone: "UTC",
+    }).replace(/, (\d{1,2}:\d{2})/, " at $1");
+  } else {
+    when = new Intl.DateTimeFormat(s.locale, { dateStyle: "long", timeStyle: "short", timeZone: "UTC" }).format(date);
+  }
+  return s.t("trial_ending.charge_at", { date: when });
+}
+
+// What the first charge will be, from Stripe's price: "$12/month", "12 EUR/year"
+// in English. `unitAmount` is Stripe's, in hundredths; a whole amount is written
+// without decimals. An interval other than month or year is written as Stripe
+// names it.
+export function formatPriceLabel(
+  unitAmount: number, currency: string | undefined, interval: string, locale = "en",
+): string {
+  const s = emailStrings(locale);
+  const whole = unitAmount % 100 === 0;
+  const code = (currency || "usd").toUpperCase();
+  let price: string | undefined;
+  if (s.locale !== "en") {
+    try {
+      price = new Intl.NumberFormat(s.locale, {
+        style: "currency", currency: code,
+        minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: whole ? 0 : 2,
+      }).format(unitAmount / 100);
+    } catch { /* an unknown currency code: written the English way below */ }
+  }
+  if (price === undefined) {
+    const amount = whole ? String(unitAmount / 100) : (unitAmount / 100).toFixed(2);
+    const symbol = (currency || "usd").toLowerCase() === "usd" ? "$" : "";
+    const suffix = symbol ? "" : ` ${(currency || "").toUpperCase()}`;
+    price = `${symbol}${amount}${suffix}`;
+  }
+  if (interval === "month") return s.t("trial_ending.price_month", { price });
+  if (interval === "year") return s.t("trial_ending.price_year", { price });
+  return `${price}/${interval}`;
+}
+
+// When Stripe cannot be reached: the plan's own cadence, never a guessed number.
+export function fallbackPriceLabel(cadence: string, locale = "en"): string {
+  const s = emailStrings(locale);
+  return cadence === "year" ? s.t("trial_ending.fallback_price_year") : s.t("trial_ending.fallback_price_month");
 }

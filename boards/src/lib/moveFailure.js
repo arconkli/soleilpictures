@@ -10,10 +10,15 @@
 // puts back the card of any live child that has none. A cluster the trash
 // refused stays, card and all, and the message is the step's own.
 
+import { t } from '@lingui/core/macro';
+
 export const MOVE_FAIL_TTL = 8000;
 
-export const madeClusterFailMessage = (name) =>
-  `Couldn’t make “${name || 'Untitled cluster'}”. Your cards are still here — try again.`;
+// The name of a cluster made for these cards: a person's own, else the plain word.
+export const madeClusterFailMessage = (name) => {
+  const shown = name || t`Untitled cluster`;
+  return t`Couldn’t make “${shown}”. Your cards are still here — try again.`;
+};
 
 // Resolves to the error to reject the move with. `acked`: the source was
 // already told it may let go, so the cluster holds the cards and stays.

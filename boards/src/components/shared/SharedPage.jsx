@@ -24,6 +24,8 @@ import { EV } from '../../lib/analyticsEvents.js';
 import { Icon } from '../Icon.jsx';
 import { X, MoreHorizontal } from '../../lib/icons.js';
 import './sharedPage.css';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const SAVEABLE = new Set(['image', 'video', 'audio', 'pdf', 'file']);
 const defaultApi = { hideSharedFile, stopFileShare, undoStopFileShare };
@@ -77,14 +79,14 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
     try { logEvent(EV.SHARED_FILE_HIDE, { hidden: true }); } catch (_) {}
     if (error) {
       setHidden((s) => { const n = new Set(s); n.delete(item.token); return n; });
-      toast({ type: 'error', code: 'shared_file_hide_failed', message: 'Couldn’t remove it. Try again.' });
+      toast({ type: 'error', code: 'shared_file_hide_failed', message: tr`Couldn’t remove it. Try again.` });
       return;
     }
     toast({
       type: 'info',
-      message: `Removed ${item.name || 'the file'} from Shared with me`,
+      message: tr`Removed ${ph({ name: item.name || tr`the file` })} from Shared with me`,
       action: {
-        label: 'Undo',
+        label: tr`Undo`,
         onClick: async () => {
           const res = await api.hideSharedFile(item.token, false);
           try { logEvent(EV.SHARED_FILE_HIDE, { hidden: false }); } catch (_) {}
@@ -103,16 +105,16 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
     const { data, error } = await api.stopFileShare(row.board_id, row.card_id);
     if (error || !data) {
       setStopped((s) => { const n = new Set(s); n.delete(row.token); return n; });
-      toast({ type: 'error', code: 'file_share_stop_failed', message: 'Couldn’t stop sharing. Try again.' });
+      toast({ type: 'error', code: 'file_share_stop_failed', message: tr`Couldn’t stop sharing. Try again.` });
       return;
     }
     notifyFileShareChanged({ boardId: row.board_id, cardId: row.card_id });
     try { logEvent(EV.FILE_SHARE_STOP, { kind: row.kind || null, undone: false }); } catch (_) {}
     toast({
       type: 'info',
-      message: `Stopped sharing ${row.name || 'the file'}`,
+      message: tr`Stopped sharing ${ph({ name: row.name || tr`the file` })}`,
       action: {
-        label: 'Undo',
+        label: tr`Undo`,
         onClick: async () => {
           const res = await api.undoStopFileShare(row.board_id, row.card_id,
             { linkAccess: data.link_access, stoppedAt: data.stopped_at });
@@ -121,7 +123,7 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
             setStopped((s) => { const n = new Set(s); n.delete(row.token); return n; });
             notifyFileShareChanged({ boardId: row.board_id, cardId: row.card_id });
           } else {
-            toast({ type: 'error', code: 'file_share_undo_failed', message: 'Couldn’t undo that. Share it again from the file.' });
+            toast({ type: 'error', code: 'file_share_undo_failed', message: tr`Couldn’t undo that. Share it again from the file.` });
           }
         },
       },
@@ -133,52 +135,52 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
       await navigator.clipboard.writeText(fileShareUrl(row.token));
       toast({
         type: 'success',
-        message: row.link_access === 'none' ? 'Link copied. Only people added can open it.' : 'Link copied',
+        message: row.link_access === 'none' ? tr`Link copied. Only people added can open it.` : tr`Link copied`,
       });
     } catch (_) {
-      toast({ type: 'error', code: 'link_copy_failed', message: 'Couldn’t copy the link.' });
+      toast({ type: 'error', code: 'link_copy_failed', message: tr`Couldn’t copy the link.` });
     }
   };
 
   const withMeMenu = (item) => composeMenuSections([
     { items: [
-      { id: 'open', label: 'Open', run: () => openSharedFile({ token: item.token, via: 'shared_page' }) },
+      { id: 'open', label: tr`Open`, run: () => openSharedFile({ token: item.token, via: 'shared_page' }) },
       ...(onSaveCopy && item.allow_download && SAVEABLE.has(item.kind)
-        ? [{ id: 'copy', label: 'Save a copy…', run: () => onSaveCopy({ token: item.token, res: { file: item, allow_download: true } }) }]
+        ? [{ id: 'copy', label: tr`Save a copy…`, run: () => onSaveCopy({ token: item.token, res: { file: item, allow_download: true } }) }]
         : []),
       // A live card on one of your clusters that opens this file (only the
       // share's token goes on it: components/cards/ShortcutCard.jsx).
       ...(onAddShortcut
-        ? [{ id: 'shortcut', label: 'Add shortcut…', run: () => onAddShortcut({ token: item.token, res: { file: item } }) }]
+        ? [{ id: 'shortcut', label: tr`Add shortcut…`, run: () => onAddShortcut({ token: item.token, res: { file: item } }) }]
         : []),
     ] },
     { header: SECTION.EDIT, items: [
-      { id: 'hide', label: 'Remove from Shared with me', run: () => removeFromList(item) },
+      { id: 'hide', label: tr`Remove from Shared with me`, run: () => removeFromList(item) },
     ] },
   ]);
 
   const byMeMenu = (row) => composeMenuSections([
     { items: [
-      { id: 'manage', label: 'Manage sharing…', run: () => openFileShare({
+      { id: 'manage', label: tr`Manage sharing…`, run: () => openFileShare({
         boardId: row.board_id, cardId: row.card_id,
         card: { id: row.card_id, kind: row.kind, fileName: row.name },
         boardName: row.board_name || null, surface: 'shared_page',
       }) },
-      { id: 'link', label: 'Copy link', run: () => copyLink(row) },
+      { id: 'link', label: tr`Copy link`, run: () => copyLink(row) },
     ] },
     { header: SECTION.EDIT, items: [
-      { id: 'stop', label: 'Stop sharing', danger: true, run: () => stopSharing(row) },
+      { id: 'stop', label: tr`Stop sharing`, danger: true, run: () => stopSharing(row) },
     ] },
   ]);
 
   const openMenu = (items) => (x, y) => setMenu({ x, y, items });
 
   return (
-    <section className="shp" aria-label="Shared">
+    <section className="shp" aria-label={tr`Shared`}>
       <header className="shp-head">
-        <h1 className="shp-title">Shared</h1>
-        <div className="shp-tabs" role="tablist" aria-label="Shared">
-          {[['with_me', 'With me', withMe.length], ['by_me', 'By me', byMe.length]].map(([id, label, n]) => (
+        <h1 className="shp-title"><Trans>Shared</Trans></h1>
+        <div className="shp-tabs" role="tablist" aria-label={tr`Shared`}>
+          {[['with_me', tr`With me`, withMe.length], ['by_me', tr`By me`, byMe.length]].map(([id, label, n]) => (
             <button key={id} type="button" role="tab" aria-selected={tab === id}
                     className={`shp-tab${tab === id ? ' is-on' : ''}`} onClick={() => setTab(id)}>
               {label}{n ? <span className="shp-tab-n">{n}</span> : null}
@@ -186,32 +188,32 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
           ))}
         </div>
         {onClose && (
-          <button type="button" className="shp-close" aria-label="Close" title="Close" onClick={onClose}>
+          <button type="button" className="shp-close" aria-label={tr`Close`} title={tr`Close`} onClick={onClose}>
             <Icon as={X} size={16} />
           </button>
         )}
       </header>
       <div className="shp-body" role="tabpanel">
-        {!shared.loaded && shared.loading && <p className="shp-empty">Loading…</p>}
+        {!shared.loaded && shared.loading && <p className="shp-empty"><Trans>Loading…</Trans></p>}
         {shared.loaded && !list.length && (
           <div className="shp-empty">
             {tab === 'with_me' ? (
               <>
-                <p className="shp-empty-title">Nothing has been shared with you yet.</p>
-                <p>When someone shares a file with you, it shows up here.</p>
+                <p className="shp-empty-title"><Trans>Nothing has been shared with you yet.</Trans></p>
+                <p><Trans>When someone shares a file with you, it shows up here.</Trans></p>
               </>
             ) : (
               <>
-                <p className="shp-empty-title">You haven’t shared any files.</p>
-                <p>Open any file and use Share to send just that file.</p>
+                <p className="shp-empty-title"><Trans>You haven’t shared any files.</Trans></p>
+                <p><Trans>Open any file and use Share to send just that file.</Trans></p>
               </>
             )}
           </div>
         )}
         {shared.error && !shared.loaded && (
           <div className="shp-empty">
-            <p>Couldn’t load this. </p>
-            <button type="button" className="shp-retry" onClick={() => refreshSharedFiles({ force: true })}>Try again</button>
+            <p><Trans>Couldn’t load this.</Trans> </p>
+            <button type="button" className="shp-retry" onClick={() => refreshSharedFiles({ force: true })}><Trans>Try again</Trans></button>
           </div>
         )}
         {!!list.length && (
@@ -223,15 +225,15 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
                         onContextMenu={(e) => { e.preventDefault(); openMenu(withMeMenu(item))(e.clientX, e.clientY); }}>
                   <Thumb item={item} url={shared.thumbs[item.token]?.url || null} />
                   <span className="shp-main">
-                    <span className="shp-name" dir="auto">{item.name || 'File'}</span>
+                    <span className="shp-name" dir="auto">{item.name || tr`File`}</span>
                     <span className="shp-sub">
-                      {item.source === 'link' ? 'Opened from a link' : `Shared by ${item.shared_by?.name || 'someone'}`}
+                      {item.source === 'link' ? tr`Opened from a link` : tr`Shared by ${ph({ name: item.shared_by?.name || tr`someone` })}`}
                       {item.shared_at ? ` · ${relativeTimeShort(item.shared_at)}` : ''}
                     </span>
                   </span>
-                  {item.unread && <span className="shp-dot" aria-label="New" />}
+                  {item.unread && <span className="shp-dot" aria-label={tr({ message: 'New', context: 'badge' })} />}
                 </button>
-                <RowMenuButton label={`More for ${item.name || 'this file'}`} onOpen={openMenu(withMeMenu(item))} />
+                <RowMenuButton label={tr`More for ${ph({ name: item.name || tr`this file` })}`} onOpen={openMenu(withMeMenu(item))} />
               </li>
             )) : byMe.map((row) => (
               <li key={row.token} className="shp-row">
@@ -244,11 +246,11 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
                         onContextMenu={(e) => { e.preventDefault(); openMenu(byMeMenu(row))(e.clientX, e.clientY); }}>
                   <Thumb item={row} url={shared.thumbs[row.token]?.url || null} />
                   <span className="shp-main">
-                    <span className="shp-name" dir="auto">{row.name || 'File'}</span>
+                    <span className="shp-name" dir="auto">{row.name || tr`File`}</span>
                     <span className="shp-sub">{[row.board_name, accessSummary(row)].filter(Boolean).join(' · ')}</span>
                   </span>
                 </button>
-                <RowMenuButton label={`More for ${row.name || 'this file'}`} onOpen={openMenu(byMeMenu(row))} />
+                <RowMenuButton label={tr`More for ${ph({ name: row.name || tr`this file` })}`} onOpen={openMenu(byMeMenu(row))} />
               </li>
             ))}
           </ul>

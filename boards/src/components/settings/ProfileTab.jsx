@@ -27,6 +27,9 @@ import AccountBox from './AccountBox.jsx';
 import { PasskeysSection } from './PasskeysSection.jsx';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import { initialOf } from '../../lib/graphemes.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../../lib/errorWords.js';
 
 export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
   const feedback = useFeedback();
@@ -65,7 +68,7 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
         setOutlinesOk(layoutOutlinesAnswer(p?.settings) === true);
       })
       .catch(() => {
-        feedback.toast({ type: 'error', code: 'profile_load_failed', message: 'Could not load profile.' });
+        feedback.toast({ type: 'error', code: 'profile_load_failed', message: t`Could not load profile.` });
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -130,7 +133,7 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
       // Uploader uses presign-by-workspace because R2 keys are scoped
       // to a workspace for RLS. Without an active workspace we can't
       // ask for an upload URL.
-      feedback.toast({ type: 'error', code: 'avatar_needs_workspace', message: 'Open a workspace before uploading a profile picture.' });
+      feedback.toast({ type: 'error', code: 'avatar_needs_workspace', message: t`Open a workspace before uploading a profile picture.` });
       return;
     }
     setUploadingAvatar(true);
@@ -144,7 +147,7 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
       setAvatarUrl(src || '');
       await commitAvatar(src || '');
     } catch (err) {
-      feedback.toast({ type: 'error', code: 'avatar_upload_failed', message: 'Upload failed: ' + (err.message || err) });
+      feedback.toast({ type: 'error', code: 'avatar_upload_failed', message: t`Upload failed: ${ph({ reason: shownError(err) })}` });
     } finally {
       setUploadingAvatar(false);
     }
@@ -153,11 +156,11 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
   return (
     <div className="settings-section">
       <AccountBox email={user?.email} onSignOut={onSignOut} hint />
-      <h3 className="settings-section-title">Profile</h3>
+      <h3 className="settings-section-title"><Trans>Profile</Trans></h3>
       <p className="settings-section-hint">
-        What everyone you share a cluster with sees. Changes save as you make them.
+        <Trans>What everyone you share a cluster with sees. Changes save as you make them.</Trans>
       </p>
-      <Field label="Profile picture">
+      <Field label={t`Profile picture`}>
         <AvatarUploadRow
           src={avatarUrl}
           fallbackColor={color || presenceFallback}
@@ -168,10 +171,10 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
           onRemove={() => { setAvatarUrl(''); commitAvatar(''); }}
         />
       </Field>
-      <Field label="Display name">
+      <Field label={t`Display name`}>
         <input className="settings-input" dir="auto"
                value={name}
-               placeholder={user?.email?.split('@')[0] || 'Your name'}
+               placeholder={user?.email?.split('@')[0] || t`Your name`}
                onChange={(e) => setName(e.target.value)}
                onBlur={commitName}
                onKeyDown={(e) => {
@@ -181,12 +184,12 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
                }}
                disabled={loading} />
       </Field>
-      <Field label="Presence color">
+      <Field label={t`Presence color`}>
         <div className="settings-color-row">
           <SwatchChip
             refProp={chipRef}
             color={color || presenceFallback}
-            label={color ? color.toUpperCase() : `Default · ${presenceFallback.toUpperCase()}`}
+            label={color ? color.toUpperCase() : t`Default · ${ph({ upperCase: presenceFallback.toUpperCase() })}`}
             dimmed={!color}
             disabled={loading}
             onClick={() => {
@@ -196,7 +199,7 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
           {color && (
             <button type="button" className="settings-link-btn"
                     onClick={() => { setColor(''); commitColor(''); }}
-                    disabled={loading}>Reset</button>
+                    disabled={loading}><Trans>Reset</Trans></button>
           )}
         </div>
       </Field>
@@ -206,14 +209,14 @@ export function ProfileTab({ user, workspaceId, onSaved, onSignOut }) {
       {/* Off until the person says yes (here or on the "Help improve
           Clusters?" ask). The answer is written by set_layout_outlines. */}
       {user?.email && (
-        <SettingsCategory title="Privacy">
+        <SettingsCategory title={t`Privacy`}>
           <Toggle
-            label="Keep outlines of how my clusters are laid out"
+            label={t`Keep outlines of how my clusters are laid out`}
             desc={(
               <>
-                Plain boxes showing where cards sit and how big they are. Never what's in them, and not linked to you, except for up to 8 days after your first week. A shared cluster is left out if anyone on it says no.{' '}
+                <Trans>Plain boxes showing where cards sit and how big they are. Never what's in them, and not linked to you, except for up to 8 days after your first week. A shared cluster is left out if anyone on it says no.{' '}
                 <a href={LAYOUT_OUTLINES_DOC} target="_blank" rel="noopener noreferrer"
-                   onClick={(e) => e.stopPropagation()}>What's kept</a>
+                   onClick={(e) => e.stopPropagation()}>What's kept</a></Trans>
               </>
             )}
             value={outlinesOk}

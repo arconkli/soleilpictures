@@ -14,6 +14,8 @@ import { yUndoPluginKey } from 'y-prosemirror';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { undoToast } from '../lib/undoToast.js';
 import { useFeedback } from './AppFeedback.jsx';
+import { t as tt, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const findKey = new PluginKey('soleilDocFind');
 
@@ -266,10 +268,12 @@ export function DocFindReplace({ editor, editors = [], open, onClose,
     const deleted = !r;
     setReplaced({ n, deleted });
     undoToast(feedback, {
-      message: `${deleted ? 'Deleted' : 'Replaced'} ${n} ${n === 1 ? 'match' : 'matches'}`,
+      message: deleted
+        ? tt`${plural(n, { one: 'Deleted # match', other: 'Deleted # matches' })}`
+        : tt`${plural(n, { one: 'Replaced # match', other: 'Replaced # matches' })}`,
       onUndo: () => {
         if (steps.some(({ um, item }) => um.undoStack[um.undoStack.length - 1] !== item)) {
-          feedback.toast({ type: 'info', message: 'The document changed since — press ⌘Z to step back instead.' });
+          feedback.toast({ type: 'info', message: tt`The document changed since — press ⌘Z to step back instead.` });
           return;
         }
         steps.forEach(({ um }) => um.undo());
@@ -302,37 +306,37 @@ export function DocFindReplace({ editor, editors = [], open, onClose,
   };
 
   return (
-    <div className="doc-find" onKeyDown={onKey} role="search" aria-label="Find in document">
+    <div className="doc-find" onKeyDown={onKey} role="search" aria-label={tt`Find in document`}>
       <input ref={inputRef}
              className="doc-find-input"
-             placeholder="Find"
-             aria-label="Find"
+             placeholder={tt`Find`}
+             aria-label={tt`Find`}
              value={q}
              onChange={(e) => setQ(e.target.value)} />
       <span className="doc-find-count" aria-live="polite">
         {replaced ? `${replaced.n} ${replaced.deleted ? 'deleted' : 'replaced'}`
           : total === 0 ? (q ? '0/0' : '') : `${current + 1}/${total}`}
       </span>
-      <button className="doc-find-btn" onClick={() => goto((current < 0 ? 0 : current) - 1)} title="Previous (⇧⏎)" aria-label="Previous match">↑</button>
-      <button className="doc-find-btn" onClick={() => goto((current < 0 ? 0 : current) + 1)} title="Next (⏎)" aria-label="Next match">↓</button>
+      <button className="doc-find-btn" onClick={() => goto((current < 0 ? 0 : current) - 1)} title={tt`Previous (⇧⏎)`} aria-label={tt`Previous match`}>↑</button>
+      <button className="doc-find-btn" onClick={() => goto((current < 0 ? 0 : current) + 1)} title={tt`Next (⏎)`} aria-label={tt`Next match`}>↓</button>
       {canEdit && (
       <button className={`doc-find-btn ${showReplace ? 'is-active' : ''}`}
-              onClick={() => setShowReplace(s => !s)} title="Replace" aria-label="Toggle replace" aria-pressed={showReplace}>⇄</button>
+              onClick={() => setShowReplace(s => !s)} title={tt`Replace`} aria-label={tt`Toggle replace`} aria-pressed={showReplace}>⇄</button>
       )}
       {canEdit && showReplace && (
         <>
           <span className="doc-find-sep" aria-hidden="true" />
           <input ref={replaceInputRef}
                  className="doc-find-input doc-find-input--replace"
-                 placeholder="Replace"
-                 aria-label="Replace with"
+                 placeholder={tt`Replace`}
+                 aria-label={tt`Replace with`}
                  value={r}
                  onChange={(e) => setR(e.target.value)} />
-          <button className="doc-find-btn doc-find-btn--text" onClick={replaceOne}>One</button>
-          <button className="doc-find-btn doc-find-btn--text" onClick={replaceAll}>All</button>
+          <button className="doc-find-btn doc-find-btn--text" onClick={replaceOne}><Trans>One</Trans></button>
+          <button className="doc-find-btn doc-find-btn--text" onClick={replaceAll}><Trans context="replace">All</Trans></button>
         </>
       )}
-      <button className="doc-find-x" onClick={close} title="Close (Esc)" aria-label="Close find">×</button>
+      <button className="doc-find-x" onClick={close} title={tt`Close (Esc)`} aria-label={tt`Close find`}>×</button>
     </div>
   );
 }

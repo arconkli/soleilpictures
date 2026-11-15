@@ -28,9 +28,12 @@ import {
   computeRundown, formatDuration, parseDuration, fromMinutes,
   RUNDOWN_TUNING,
 } from '../../lib/rundown.js';
-import { clockLabel, parseClock, formatClock } from '../../lib/schedDates.js';
+import { parseClock, formatClock } from '../../lib/schedDates.js';
+import { clockLabel } from '../../lib/schedDatesWords.js';
 import { CellContent } from './gridCellShared.jsx';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const stop = (e) => e.stopPropagation();
 
@@ -41,11 +44,14 @@ const rowHeight = (dur, floor) => Math.max(floor, Math.round(dur * PX_PER_MIN));
 
 // "12m over" / "1h 05m under". Signed minutes read as a duration, never as a
 // bare number — "-25" on a call sheet is not a time anyone can act on.
-function overLabel(mins) {
+function overAmount(mins) {
   const n = Math.abs(mins);
   const h = Math.floor(n / 60), m = n % 60;
-  const amount = h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
-  return `${amount} ${mins > 0 ? 'over' : 'under'}`;
+  return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
+}
+function overLabel(mins) {
+  const amount = overAmount(mins);
+  return mins > 0 ? tr`${amount} over` : tr`${amount} under`;
 }
 
 // ── the duration field ──────────────────────────────────────────────────────
@@ -63,7 +69,7 @@ function DurationField({ value, editable, onCommit }) {
       className="rd-dur rd-dur-in"
       value={shown}
       inputMode="numeric"
-      aria-label="Duration"
+      aria-label={tr`Duration`}
       onPointerDown={stop}
       onChange={(e) => setDraft(e.target.value)}
       onFocus={(e) => e.target.select()}
@@ -96,8 +102,8 @@ function TitleField({ value, onCommit, onCancel }) {
       ref={ref}
       className="rd-title rd-title-in"
       value={draft}
-      placeholder="What happens now?"
-      aria-label="Item"
+      placeholder={tr`What happens now?`}
+      aria-label={tr`Item`}
       onPointerDown={stop}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
@@ -124,7 +130,7 @@ function TimeField({ value, onCommit }) {
       className="rd-t rd-t-in"
       value={shown}
       inputMode="numeric"
-      aria-label="Start time"
+      aria-label={tr`Start time`}
       onPointerDown={stop}
       onChange={(e) => setDraft(e.target.value)}
       onFocus={(e) => e.target.select()}
@@ -171,9 +177,9 @@ function Row({
         type="button"
         className={`rd-pin${row.pinned ? ' is-on' : ''}`}
         title={row.pinned
-          ? `Pinned to ${clockLabel(row.pin)} — unpin to let it move with the day`
-          : 'Pin to this time'}
-        aria-label={row.pinned ? 'Unpin' : 'Pin to this time'}
+          ? tr`Pinned to ${ph({ clockLabel: clockLabel(row.pin) })} — unpin to let it move with the day`
+          : tr`Pin to this time`}
+        aria-label={row.pinned ? tr`Unpin` : tr`Pin to this time`}
         aria-pressed={row.pinned}
         disabled={!editable}
         onPointerDown={stop}
@@ -187,7 +193,7 @@ function Row({
       ) : (
         <span className="rd-t">
           {row.start}
-          {row.startsNextDay && <em className="rd-nextday" title="Next day">+1</em>}
+          {row.startsNextDay && <em className="rd-nextday" title={tr`Next day`}>+1</em>}
         </span>
       )}
 
@@ -227,11 +233,11 @@ function Row({
 
       {editable && (
         <span className="rd-tools">
-          <button type="button" className="rd-tool" title="More" aria-label="More"
+          <button type="button" className="rd-tool" title={tr`More`} aria-label={tr`More`}
             onPointerDown={stop} onClick={(e) => { e.stopPropagation(); onOpenMenu(e); }}>
             <Icon as={MoreHorizontal} size={13} />
           </button>
-          <button type="button" className="rd-tool" title="Remove" aria-label="Remove"
+          <button type="button" className="rd-tool" title={tr`Remove`} aria-label={tr`Remove`}
             onPointerDown={stop} onClick={(e) => { e.stopPropagation(); onRemove(); }}>
             <Icon as={X} size={11} />
           </button>
@@ -246,7 +252,7 @@ function stripHtml(html) {
   return String(html).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 function untitled(kind) {
-  return kind === 'break' ? 'Break' : kind === 'move' ? 'Move' : kind === 'note' ? 'Note' : 'Untitled';
+  return kind === 'break' ? tr`Break` : kind === 'move' ? tr({ message: 'Move', context: 'schedule item' }) : kind === 'note' ? tr`Note` : tr`Untitled`;
 }
 
 // ── the surface ─────────────────────────────────────────────────────────────
@@ -308,11 +314,11 @@ export function ScheduleRundown({
           readable without hunting, so it is the largest type here. */}
       <div className="rd-facts">
         <span className="rd-fact">
-          <span className="rd-fact-k">Call</span>
+          <span className="rd-fact-k"><Trans>Call</Trans></span>
           <span className="rd-fact-v">{clockLabel(model.start) || model.start}</span>
         </span>
         <span className="rd-fact">
-          <span className="rd-fact-k">Wrap est</span>
+          <span className="rd-fact-k"><Trans>Wrap est</Trans></span>
           <span className="rd-fact-v">
             {clockLabel(model.wrap) || model.wrap}
             {model.wrapsNextDay && <em className="rd-nextday">+1</em>}
@@ -321,7 +327,7 @@ export function ScheduleRundown({
         {hasWrapTarget && over !== 0 && (
           <span className={`rd-fact ${over > 0 ? 'is-over' : 'is-under'}`}>
             <span className="rd-fact-v">{overLabel(over)}</span>
-            <span className="rd-fact-note">planned {clockLabel(plannedWrap)}</span>
+            <span className="rd-fact-note"><Trans>planned {ph({ clockLabel: clockLabel(plannedWrap) })}</Trans></span>
           </span>
         )}
         {place && <span className="rd-fact-place">{place}</span>}
@@ -330,11 +336,11 @@ export function ScheduleRundown({
       <div className="rd-body" ref={bodyRef} role="list">
         {untimed.length > 0 && (
           <div className="rd-untimed">
-            <span className="rd-untimed-k">All day</span>
+            <span className="rd-untimed-k"><Trans>All day</Trans></span>
             <span className="rd-untimed-list">
               {untimed.map((u) => (
                 <span key={u.key} className="rd-untimed-item">
-                  {u.title || u.name || stripHtml(u.html) || 'Note'}
+                  {u.title || u.name || stripHtml(u.html) || tr`Note`}
                 </span>
               ))}
             </span>
@@ -343,8 +349,9 @@ export function ScheduleRundown({
 
         {rows.length === 0 ? (
           <p className="rd-empty">
-            Nothing planned yet.
-            {editable ? ' Add the first item and give it a length — everything after it times itself.' : ''}
+            {editable
+              ? <Trans>Nothing planned yet. Add the first item and give it a length — everything after it times itself.</Trans>
+              : <Trans>Nothing planned yet.</Trans>}
           </p>
         ) : rows.map((row, i) => (
           <div key={row.key}>
@@ -352,12 +359,12 @@ export function ScheduleRundown({
                 so it renders there rather than inside either one. */}
             {row.overlapBefore > 0 && (
               <div className="rd-warn" role="status">
-                runs {overLabel(row.overlapBefore).replace(' over', '')} past the pin
+                {tr`runs ${ph({ amount: overAmount(row.overlapBefore) })} past the pin`}
               </div>
             )}
             {row.gapBefore > 0 && (
               <div className="rd-warn is-gap" role="status">
-                {overLabel(row.gapBefore).replace(' over', '')} spare before the pin
+                {tr`${ph({ amount: overAmount(row.gapBefore) })} spare before the pin`}
               </div>
             )}
             {drag?.to === i && drag.from !== i && <div className="rd-dropline" aria-hidden="true" />}
@@ -389,7 +396,7 @@ export function ScheduleRundown({
           <div className="rd-wrap-row">
             <span className="rd-t">{model.wrap}</span>
             <span className="rd-spine" aria-hidden="true" />
-            <span className="rd-col"><span className="rd-title is-quiet">Estimated wrap</span></span>
+            <span className="rd-col"><span className="rd-title is-quiet"><Trans>Estimated wrap</Trans></span></span>
           </div>
         )}
       </div>
@@ -399,7 +406,7 @@ export function ScheduleRundown({
           onPointerDown={stop}
           onClick={(e) => { e.stopPropagation(); onAdd?.(rows.length); }}>
           <Icon as={Plus} size={13} />
-          <span>Add item</span>
+          <span><Trans>Add item</Trans></span>
         </button>
       )}
     </div>

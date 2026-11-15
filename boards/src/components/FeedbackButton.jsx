@@ -28,18 +28,21 @@ import { EV } from '../lib/analyticsEvents.js';
 import { buildFeedbackContext, describeFeedbackContext } from '../lib/feedbackContext.js';
 import { feedbackEnv } from '../lib/feedbackEnv.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t as tr } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../lib/errorWords.js';
 
 const FEEDBACK_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/send-feedback';
 const SUPPORT_EMAIL = 'clusters@soleilpictures.com';
 const MAX_MESSAGE = 4000;
 const TOPICS = [
-  { id: 'broke',           label: 'Something broke',   icon: Bug,        hint: 'What happened, and what did you expect? (optional)' },
-  { id: 'missing_feature', label: 'Missing a feature', icon: Lightbulb,  hint: 'What would you like it to do? (optional)' },
-  { id: 'confusing',       label: 'Confusing',         icon: Question,   hint: 'What was unclear? (optional)' },
-  { id: 'slow',            label: 'Slow',              icon: Hourglass,  hint: 'What was slow, and where? (optional)' },
-  { id: 'pricing',         label: 'Plans and pricing', icon: Tag,        hint: 'What should we know? (optional)' },
-  { id: 'love',            label: 'I love something',  icon: Heart,      hint: 'Tell us what — we like knowing. (optional)' },
-  { id: 'other',           label: 'Other',             icon: ChatCircle, hint: 'Anything at all (optional)' },
+  { id: 'broke',           get label() { return tr`Something broke`; },   icon: Bug,        get hint() { return tr`What happened, and what did you expect? (optional)`; } },
+  { id: 'missing_feature', get label() { return tr`Missing a feature`; }, icon: Lightbulb,  get hint() { return tr`What would you like it to do? (optional)`; } },
+  { id: 'confusing',       get label() { return tr`Confusing`; },         icon: Question,   get hint() { return tr`What was unclear? (optional)`; } },
+  { id: 'slow',            get label() { return tr`Slow`; },              icon: Hourglass,  get hint() { return tr`What was slow, and where? (optional)`; } },
+  { id: 'pricing',         get label() { return tr`Plans and pricing`; }, icon: Tag,        get hint() { return tr`What should we know? (optional)`; } },
+  { id: 'love',            get label() { return tr`I love something`; },  icon: Heart,      get hint() { return tr`Tell us what — we like knowing. (optional)`; } },
+  { id: 'other',           get label() { return tr`Other`; },             icon: ChatCircle, get hint() { return tr`Anything at all (optional)`; } },
 ];
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -52,7 +55,7 @@ const MAX_DATA_URL_BYTES = 2_800_000;  // stay under send-feedback's 3 MB guard
 
 function fileToDownscaledDataUrl(file) {
   return new Promise((resolve, reject) => {
-    if (!file || !file.type?.startsWith('image/')) { reject(new Error('Please choose an image file.')); return; }
+    if (!file || !file.type?.startsWith('image/')) { reject(new Error(tr`Please choose an image file.`)); return; }
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
@@ -65,9 +68,9 @@ function fileToDownscaledDataUrl(file) {
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
       try { resolve(canvas.toDataURL('image/jpeg', 0.82)); }
-      catch (_) { reject(new Error("Couldn't process that image.")); }
+      catch (_) { reject(new Error(tr`Couldn't process that image.`)); }
     };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Couldn't read that image.")); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(tr`Couldn't read that image.`)); };
     img.src = url;
   });
 }
@@ -158,17 +161,17 @@ export function FeedbackButton({ as = 'floating' }) {
     try {
       const dataUrl = await fileToDownscaledDataUrl(file);
       if (dataUrl.length > MAX_DATA_URL_BYTES) {
-        setError('That image is too large even after shrinking — try a smaller one.');
+        setError(tr`That image is too large even after shrinking — try a smaller one.`);
         return;
       }
       setImage({ dataUrl, name: file.name || 'screenshot' });
     } catch (err) {
-      setError(err?.message || 'Could not attach that image.');
+      setError(shownError(err, tr`Could not attach that image.`));
     }
   };
 
   const submit = async () => {
-    if (!topic && !hasText) { setError('Pick a topic, or write a few words.'); return; }
+    if (!topic && !hasText) { setError(tr`Pick a topic, or write a few words.`); return; }
     busyRef.current = true;   // before the re-render: an Escape in between must not close
     setBusy(true);
     setError('');
@@ -213,7 +216,7 @@ export function FeedbackButton({ as = 'floating' }) {
       setContactOk(false);
       setTimeout(() => { setOpen(false); setStatus(null); }, 1600);
     } catch (e) {
-      setError(e?.message || String(e));
+      setError(shownError(e));
       setStatus('error');
     } finally {
       setBusy(false);
@@ -236,16 +239,16 @@ export function FeedbackButton({ as = 'floating' }) {
   };
 
   const Trigger = as === 'icon' ? (
-    <button type="button" className="tb-icon" title="Send feedback" aria-label="Send feedback" onClick={openModal}>
+    <button type="button" className="tb-icon" title={tr`Send feedback`} aria-label={tr`Send feedback`} onClick={openModal}>
       <PaperPlaneTilt size={16} weight="regular" />
     </button>
   ) : (
-    <button type="button" className="feedback-trigger" onClick={openModal} title="Send feedback" aria-label="Send feedback">
-      <PaperPlaneTilt size={14} weight="fill" /> Feedback
+    <button type="button" className="feedback-trigger" onClick={openModal} title={tr`Send feedback`} aria-label={tr`Send feedback`}>
+      <PaperPlaneTilt size={14} weight="fill" /> <Trans>Feedback</Trans>
     </button>
   );
 
-  const activeHint = TOPICS.find((t) => t.id === topic)?.hint || 'Pick a topic above, or just write — either is enough.';
+  const activeHint = TOPICS.find((t) => t.id === topic)?.hint || tr`Pick a topic above, or just write — either is enough.`;
 
   // The modal is rendered through a portal to document.body so a parent with
   // backdrop-filter / transform / contain (which create a containing block for
@@ -257,27 +260,27 @@ export function FeedbackButton({ as = 'floating' }) {
         className="feedback-modal surface-frosted"
         role="dialog"
         aria-modal="true"
-        aria-label="Send feedback"
+        aria-label={tr`Send feedback`}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <header className="feedback-head">
           <div className="feedback-head-title">
             <span className="feedback-head-ico" aria-hidden="true"><PaperPlaneTilt size={16} weight="fill" /></span>
-            <span className="t-h3">Send feedback</span>
+            <span className="t-h3"><Trans>Send feedback</Trans></span>
           </div>
-          <button type="button" className="feedback-x" onClick={close} aria-label="Close" disabled={busy}>×</button>
+          <button type="button" className="feedback-x" onClick={close} aria-label={tr`Close`} disabled={busy}>×</button>
         </header>
 
         {status === 'sent' ? (
           <div className="feedback-success" role="status">
             <span className="feedback-success-ico" aria-hidden="true"><CheckCircle size={40} weight="fill" /></span>
-            <div className="feedback-success-title">Thanks — got it.</div>
-            <div className="feedback-success-sub t-meta">A person here reads every note that comes in.</div>
+            <div className="feedback-success-title"><Trans>Thanks — got it.</Trans></div>
+            <div className="feedback-success-sub t-meta"><Trans>A person here reads every note that comes in.</Trans></div>
           </div>
         ) : (
           <>
             <div className="feedback-body">
-              <div className="feedback-kinds" role="radiogroup" aria-label="What is it about?">
+              <div className="feedback-kinds" role="radiogroup" aria-label={tr`What is it about?`}>
                 {TOPICS.map((t) => {
                   const TIco = t.icon;
                   const active = topic === t.id;
@@ -310,7 +313,7 @@ export function FeedbackButton({ as = 'floating' }) {
                   rows={4}
                   disabled={busy}
                   maxLength={MAX_MESSAGE}
-                  aria-label="Details (optional)"
+                  aria-label={tr`Details (optional)`}
                 />
                 {message.length > 0 && (
                   <span className={`feedback-count t-meta ${message.length >= MAX_MESSAGE ? 'is-max' : ''}`}>
@@ -324,11 +327,11 @@ export function FeedbackButton({ as = 'floating' }) {
                   <div className="feedback-attach-chip">
                     <img src={image.dataUrl} alt="" className="feedback-attach-thumb" />
                     <span className="feedback-attach-name t-meta">{image.name}</span>
-                    <button type="button" className="auth-link" onClick={() => setImage(null)} disabled={busy}>Remove</button>
+                    <button type="button" className="auth-link" onClick={() => setImage(null)} disabled={busy}><Trans>Remove</Trans></button>
                   </div>
                 ) : (
                   <button type="button" className="feedback-attach-add" onClick={() => fileRef.current?.click()} disabled={busy}>
-                    + Add a screenshot
+                    <Trans>+ Add a screenshot</Trans>
                   </button>
                 )}
                 <input ref={fileRef} type="file" accept="image/*" onChange={pickImage} style={{ display: 'none' }} />
@@ -342,23 +345,23 @@ export function FeedbackButton({ as = 'floating' }) {
                     onChange={(e) => setContactOk(e.target.checked)}
                     disabled={busy}
                   />
-                  <span>OK to email me about this</span>
+                  <span><Trans>OK to email me about this</Trans></span>
                 </label>
               )}
 
               {contextLine && (
-                <div className="ask-context">Sent with: {contextLine}</div>
+                <div className="ask-context"><Trans>Sent with:</Trans> {contextLine}</div>
               )}
 
               {error && <div className="feedback-error t-meta" role="alert">{error}</div>}
             </div>
 
             <footer className="feedback-foot">
-              <a className="feedback-email t-meta" href={`mailto:${SUPPORT_EMAIL}`}>Prefer email?</a>
+              <a className="feedback-email t-meta" href={`mailto:${SUPPORT_EMAIL}`}><Trans>Prefer email?</Trans></a>
               <div className="feedback-foot-actions">
-                <button type="button" className="auth-link" onClick={close} disabled={busy}>Cancel</button>
+                <button type="button" className="auth-link" onClick={close} disabled={busy}><Trans>Cancel</Trans></button>
                 <button type="button" className="btn-primary" onClick={submit} disabled={!canSend}>
-                  {busy ? 'Sending…' : 'Send'}
+                  {busy ? tr`Sending…` : tr`Send`}
                 </button>
               </div>
             </footer>

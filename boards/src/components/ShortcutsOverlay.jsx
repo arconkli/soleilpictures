@@ -11,6 +11,8 @@ import { Modal } from './Modal.jsx';
 import { isEditableTarget } from '../lib/isEditableTarget.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 const CMD = isMac ? '⌘' : 'Ctrl';
@@ -20,178 +22,178 @@ const COPY = isMac ? '⌥' : 'Ctrl';
 // From a doc's or a note's text to its toolbar (hooks/useToolbarRoving).
 const TO_BAR = isMac ? '⌥F10' : 'Alt+F10';
 
-const SECTIONS = [
+const SECTIONS = () => [
   {
-    title: 'Tools',
+    title: t`Tools`,
     rows: [
-      [['V'], 'Select / move'],
-      [['H', 'Space'], 'Pan the canvas'],
-      [['N'], 'Add a note'],
-      [['D'], 'Free-draw'],
-      [['A'], 'Arrow'],
-      [['G'], 'Add a grid'],
-      [['C'], 'Add a cluster'],
-      [['Esc'], 'Back to select · close what is on top'],
+      [['V'], t`Select / move`],
+      [['H', t({ message: 'Space', context: 'keyboard key' })], t`Pan the canvas`],
+      [['N'], t`Add a note`],
+      [['D'], t`Free-draw`],
+      [['A'], t`Arrow`],
+      [['G'], t`Add a grid`],
+      [['C'], t`Add a cluster`],
+      [[t({ message: 'Esc', context: 'keyboard key' })], t`Back to select · close what is on top`],
     ],
   },
   {
-    title: 'Navigate',
+    title: t`Navigate`,
     rows: [
-      [[`${CMD}K`, '/'], 'Search & commands'],
-      [[`${CMD}B`], 'Toggle sidebar'],
-      [[`${CMD}.`], 'Clean mode'],
+      [[`${CMD}K`, '/'], t`Search & commands`],
+      [[`${CMD}B`], t`Toggle sidebar`],
+      [[`${CMD}.`], t`Clean mode`],
     ],
   },
   {
-    title: 'Sidebar',
+    title: t`Sidebar`,
     rows: [
-      [['Enter', 'Space'], 'Open the focused cluster'],
-      [['→', '←'], 'Expand · collapse'],
-      [['F2'], 'Rename the cluster'],
-      [['⇧F10', 'Menu'], 'The row menu'],
-      [['↑', '↓'], 'Move through the clusters, or the files'],
-      [['Space'], 'Quick look at the focused file'],
-      [['Enter'], 'Go to the focused file: on its board, or in Files'],
-      [[`${CMD}\\`], 'Hide · show Files'],
-      [[`${COPY}-drag`], 'Copy files instead of moving them'],
+      [[t({ message: 'Enter', context: 'keyboard key' }), t({ message: 'Space', context: 'keyboard key' })], t`Open the focused cluster`],
+      [['→', '←'], t`Expand · collapse`],
+      [['F2'], t`Rename the cluster`],
+      [['⇧F10', t({ message: 'Menu', context: 'keyboard key' })], t`The row menu`],
+      [['↑', '↓'], t`Move through the clusters, or the files`],
+      [[t({ message: 'Space', context: 'keyboard key' })], t`Quick look at the focused file`],
+      [[t({ message: 'Enter', context: 'keyboard key' })], t`Go to the focused file: on its board, or in Files`],
+      [[`${CMD}\\`], t`Hide · show Files`],
+      [[t({ message: `${COPY}-drag`, context: 'keyboard key' })], t`Copy files instead of moving them`],
     ],
   },
   {
-    title: 'Edit',
+    title: t`Edit`,
     rows: [
-      [[`${CMD}Z`, `${CMD}⇧Z`], 'Undo · redo'],
-      [[`${CMD}C`, `${CMD}X`, `${CMD}V`], 'Copy · cut · paste'],
-      [[`${CMD}D`], 'Duplicate'],
-      [[`${CMD}A`], 'Select all'],
-      [[`${CMD}G`], 'Group selection'],
-      [['[', ']'], 'Send backward · forward'],
-      [['⌫', 'Del'], 'Delete selection'],
+      [[`${CMD}Z`, `${CMD}⇧Z`], t`Undo · redo`],
+      [[`${CMD}C`, `${CMD}X`, `${CMD}V`], t`Copy · cut · paste`],
+      [[`${CMD}D`], t`Duplicate`],
+      [[`${CMD}A`], t`Select all`],
+      [[`${CMD}G`], t`Group selection`],
+      [['[', ']'], t`Send backward · forward`],
+      [['⌫', t({ message: 'Del', context: 'keyboard key' })], t`Delete selection`],
     ],
   },
   {
     // A selected grid's boxes (CanvasSurface boxKeyRef).
-    title: 'Grids',
+    title: t`Grids`,
     rows: [
-      [['←', '→', '↑', '↓'], 'Move between the boxes of the selected grid'],
-      [['Enter'], 'Open the box: type in a text box, or its menu'],
-      [['⌫', 'Del'], 'Clear the box (Undo brings it back)'],
-      [['Esc'], 'Let go of the box, keeping the grid selected'],
+      [['←', '→', '↑', '↓'], t`Move between the boxes of the selected grid`],
+      [[t({ message: 'Enter', context: 'keyboard key' })], t`Open the box: type in a text box, or its menu`],
+      [['⌫', t({ message: 'Del', context: 'keyboard key' })], t`Clear the box (Undo brings it back)`],
+      [[t({ message: 'Esc', context: 'keyboard key' })], t`Let go of the box, keeping the grid selected`],
     ],
   },
   {
-    title: 'View',
+    title: t({ message: 'View', context: 'noun' }),
     rows: [
-      [['F'], 'Open or close the full Files page'],
-      [[`${CMD}I`], 'Info — the selection, or the cluster when nothing is selected'],
-      [[`${CMD}0`], 'Reset zoom'],
-      [[`${CMD}+`, `${CMD}−`], 'Zoom in · out'],
-      [['⇧1'], 'Fit everything'],
-      [['⇧2'], 'Fit selection'],
-      [['Space-drag'], 'Pan (any tool)'],
-      [['W', 'A', 'S', 'D'], 'Move around, Shift for faster — turn on in Settings → Appearance'],
-      [['Q', 'E'], 'Zoom in · out, with W A S D turned on'],
-      [['Scroll'], 'Pan · zoom — swap in Settings → Appearance'],
-      [[`${CMD}-scroll`], 'Zoom at the pointer'],
+      [['F'], t`Open or close the full Files page`],
+      [[`${CMD}I`], t`Info — the selection, or the cluster when nothing is selected`],
+      [[`${CMD}0`], t`Reset zoom`],
+      [[`${CMD}+`, `${CMD}−`], t`Zoom in · out`],
+      [['⇧1'], t`Fit everything`],
+      [['⇧2'], t`Fit selection`],
+      [[t({ message: 'Space-drag', context: 'keyboard key' })], t`Pan (any tool)`],
+      [['W', 'A', 'S', 'D'], t`Move around, Shift for faster — turn on in Settings → Appearance`],
+      [['Q', 'E'], t`Zoom in · out, with W A S D turned on`],
+      [[t({ message: 'Scroll', context: 'keyboard key' })], t`Pan · zoom — swap in Settings → Appearance`],
+      [[t({ message: `${CMD}-scroll`, context: 'keyboard key' })], t`Zoom at the pointer`],
     ],
   },
   {
-    title: 'Files',
+    title: t`Files`,
     rows: [
-      [['←', '→', '↑', '↓'], 'Move through files'],
-      [['Enter'], 'Select the highlighted file'],
-      [['⇧Space'], 'Add the highlighted file to the selection · take it out'],
-      [['Space'], 'Quick look — ← → step through, Space or Esc closes'],
-      [[`${CMD}I`], 'Info for the selection, or the cluster'],
-      [['F2'], 'Rename'],
-      [['⇧F10'], 'The right-click menu'],
-      [[`${CMD}A`], 'Select every file showing'],
-      [['Esc'], 'Clear the selection'],
-      [['⌫'], 'Delete the selection'],
-      [[`${CMD}Z`, `${CMD}⇧Z`], 'Undo · redo'],
+      [['←', '→', '↑', '↓'], t`Move through files`],
+      [[t({ message: 'Enter', context: 'keyboard key' })], t`Select the highlighted file`],
+      [[t({ message: '⇧Space', context: 'keyboard key' })], t`Add the highlighted file to the selection · take it out`],
+      [[t({ message: 'Space', context: 'keyboard key' })], t`Quick look — ← → step through, Space or Esc closes`],
+      [[`${CMD}I`], t`Info for the selection, or the cluster`],
+      [['F2'], t`Rename`],
+      [['⇧F10'], t`The right-click menu`],
+      [[`${CMD}A`], t`Select every file showing`],
+      [[t({ message: 'Esc', context: 'keyboard key' })], t`Clear the selection`],
+      [['⌫'], t`Delete the selection`],
+      [[`${CMD}Z`, `${CMD}⇧Z`], t`Undo · redo`],
     ],
   },
   {
-    title: 'Audio',
+    title: t`Audio`,
     rows: [
-      [['Enter'], 'Play · pause the selected clip'],
-      [['L'], 'Loop the selected clip'],
-      [['Space'], 'Audition the highlighted row (Files, list layout)'],
+      [[t({ message: 'Enter', context: 'keyboard key' })], t`Play · pause the selected clip`],
+      [['L'], t`Loop the selected clip`],
+      [[t({ message: 'Space', context: 'keyboard key' })], t`Audition the highlighted row (Files, list layout)`],
     ],
   },
   {
     // The review player (components/film/), while it's open. Mirrors
     // lib/playerKeys.js.
-    title: 'Player',
+    title: t`Player`,
     rows: [
-      [['Space'], 'Play · pause'],
-      [['J', 'K', 'L'], 'Play backward · stop · forward — again to go faster'],
-      [['K+J', 'K+L'], 'Tap: one frame back · forward. Hold: play slowly'],
-      [['←', '→'], 'One frame back · forward'],
-      [[',', '.'], 'One frame back · forward'],
-      [['⇧←', '⇧→'], 'One second back · forward'],
-      [['Home', 'End'], 'First · last frame'],
-      [['⇧<', '⇧>'], 'Slower · faster'],
-      [['0–9'], 'Type a timecode, frame or seconds to jump to'],
-      [['I', 'O'], 'Set in · out'],
-      [['⇧I', '⇧O'], 'Go to in · out'],
-      [['⇧Space'], 'Play from in to out'],
-      [['⌥L'], 'Loop (between in and out, or the whole clip)'],
-      [['⌥X'], 'Clear in and out'],
-      [['⌥=', '⌥−'], 'Zoom the timeline in · out'],
-      [['⌥0'], 'Fit the whole clip in the timeline'],
-      [['⇧Z'], 'Zoom the timeline to in and out'],
-      [['Z'], 'Zoom the picture: fit · 100% · 200% — drag to look around'],
-      [['G'], 'Framing guides — again for the next one'],
-      [['F'], 'Full screen'],
-      [['M'], 'Mute'],
-      [['⇧↑', '⇧↓'], 'Volume up · down'],
-      [['\\'], 'Flip to the version you compare with'],
-      [[`${CMD}C`], 'Copy the timecode'],
-      [[`⇧${CMD}C`], 'Copy a link to this frame'],
-      [['?'], 'Show these shortcuts'],
-      [['Esc'], 'Close the player'],
+      [[t({ message: 'Space', context: 'keyboard key' })], t`Play · pause`],
+      [['J', 'K', 'L'], t`Play backward · stop · forward — again to go faster`],
+      [['K+J', 'K+L'], t`Tap: one frame back · forward. Hold: play slowly`],
+      [['←', '→'], t`One frame back · forward`],
+      [[',', '.'], t`One frame back · forward`],
+      [['⇧←', '⇧→'], t`One second back · forward`],
+      [[t({ message: 'Home', context: 'keyboard key' }), t({ message: 'End', context: 'keyboard key' })], t`First · last frame`],
+      [['⇧<', '⇧>'], t`Slower · faster`],
+      [['0–9'], t`Type a timecode, frame or seconds to jump to`],
+      [['I', 'O'], t`Set in · out`],
+      [['⇧I', '⇧O'], t`Go to in · out`],
+      [[t({ message: '⇧Space', context: 'keyboard key' })], t`Play from in to out`],
+      [['⌥L'], t`Loop (between in and out, or the whole clip)`],
+      [['⌥X'], t`Clear in and out`],
+      [['⌥=', '⌥−'], t`Zoom the timeline in · out`],
+      [['⌥0'], t`Fit the whole clip in the timeline`],
+      [['⇧Z'], t`Zoom the timeline to in and out`],
+      [['Z'], t`Zoom the picture: fit · 100% · 200% — drag to look around`],
+      [['G'], t`Framing guides — again for the next one`],
+      [['F'], t`Full screen`],
+      [['M'], t`Mute`],
+      [['⇧↑', '⇧↓'], t`Volume up · down`],
+      [['\\'], t`Flip to the version you compare with`],
+      [[`${CMD}C`], t`Copy the timecode`],
+      [[`⇧${CMD}C`], t`Copy a link to this frame`],
+      [['?'], t`Show these shortcuts`],
+      [[t({ message: 'Esc', context: 'keyboard key' })], t`Close the player`],
     ],
   },
   {
-    title: 'Notes',
+    title: t`Notes`,
     rows: [
-      [['Double-click'], 'Edit a note or title'],
-      [[`${CMD}Z`, `${CMD}⇧Z`], 'Undo · redo text (history survives closing the note)'],
-      [[`${CMD}B`, `${CMD}I`, `${CMD}U`], 'Bold · italic · underline'],
-      [['Tab', '⇧Tab'], 'Nest · un-nest a list item'],
-      [['@'], 'Mention a board, doc, or card'],
+      [[t({ message: 'Double-click', context: 'keyboard key' })], t`Edit a note or title`],
+      [[`${CMD}Z`, `${CMD}⇧Z`], t`Undo · redo text (history survives closing the note)`],
+      [[`${CMD}B`, `${CMD}I`, `${CMD}U`], t`Bold · italic · underline`],
+      [[t({ message: 'Tab', context: 'keyboard key' }), t({ message: '⇧Tab', context: 'keyboard key' })], t`Nest · un-nest a list item`],
+      [['@'], t`Mention a board, doc, or card`],
     ],
   },
   {
-    title: 'Document',
+    title: t`Document`,
     rows: [
-      [[`${CMD}Z`, `${CMD}⇧Z`], 'Undo · redo (text while typing; pages & structure otherwise)'],
-      [[`${CMD}⌥1`, `${CMD}⌥0`], 'Heading 1 · body'],
-      [[`${CMD}⇧7`, `${CMD}⇧8`, `${CMD}⇧9`], 'Numbered · bullet · task list'],
-      [[`${CMD}⇧H`, `${CMD}E`], 'Highlight · inline code'],
-      [[`${CMD}⇧L`, `${CMD}⇧E`, `${CMD}⇧R`], 'Align left · center · right'],
-      [[`${CMD}K`, `${CMD}⌥M`], 'Link · comment'],
-      [[`${CMD}F`], 'Find in document'],
-      [['Tab', '⇧Tab'], 'Indent · outdent (screenplay: cycle element)'],
+      [[`${CMD}Z`, `${CMD}⇧Z`], t`Undo · redo (text while typing; pages & structure otherwise)`],
+      [[`${CMD}⌥1`, `${CMD}⌥0`], t`Heading 1 · body`],
+      [[`${CMD}⇧7`, `${CMD}⇧8`, `${CMD}⇧9`], t`Numbered · bullet · task list`],
+      [[`${CMD}⇧H`, `${CMD}E`], t`Highlight · inline code`],
+      [[`${CMD}⇧L`, `${CMD}⇧E`, `${CMD}⇧R`], t`Align left · center · right`],
+      [[`${CMD}K`, `${CMD}⌥M`], t`Link · comment`],
+      [[`${CMD}F`], t`Find in document`],
+      [[t({ message: 'Tab', context: 'keyboard key' }), t({ message: '⇧Tab', context: 'keyboard key' })], t`Indent · outdent (screenplay: cycle element)`],
     ],
   },
   {
     // Every role="toolbar" (hooks/useToolbarRoving), and the rail's +.
-    title: 'Toolbars',
+    title: t`Toolbars`,
     rows: [
-      [['Tab'], 'To the next toolbar: each is one stop'],
-      [[TO_BAR, 'Esc'], 'From a doc’s or a note’s text to its toolbar · back to the text'],
-      [['←', '→'], 'The previous · next control in it (↑ ↓ on the tool rail)'],
-      [['Home', 'End'], 'Its first · last control'],
-      [['→', '←'], 'Open · close the tool rail’s + menu'],
+      [[t({ message: 'Tab', context: 'keyboard key' })], t`To the next toolbar: each is one stop`],
+      [[TO_BAR, t({ message: 'Esc', context: 'keyboard key' })], t`From a doc’s or a note’s text to its toolbar · back to the text`],
+      [['←', '→'], t`The previous · next control in it (↑ ↓ on the tool rail)`],
+      [[t({ message: 'Home', context: 'keyboard key' }), t({ message: 'End', context: 'keyboard key' })], t`Its first · last control`],
+      [['→', '←'], t`Open · close the tool rail’s + menu`],
     ],
   },
 ];
 
-const TIPS = [
-  'Right-click the canvas or any card for more actions.',
-  'Drag a card onto a board card to nest it inside.',
-  `Hold Alt while dragging to ignore snapping; hold ${CMD} while resizing an image to break its aspect ratio.`,
+const TIPS = () => [
+  t`Right-click the canvas or any card for more actions.`,
+  t`Drag a card onto a board card to nest it inside.`,
+  t`Hold Alt while dragging to ignore snapping; hold ${CMD} while resizing an image to break its aspect ratio.`,
 ];
 
 export function ShortcutsHost() {
@@ -221,10 +223,10 @@ export function ShortcutsHost() {
 
 export function ShortcutsOverlay({ open, onClose }) {
   return (
-    <Modal open={open} onClose={onClose} className="shortcuts-modal" ariaLabel="Keyboard shortcuts" showClose>
-      <div className="shortcuts-hd">Keyboard shortcuts</div>
+    <Modal open={open} onClose={onClose} className="shortcuts-modal" ariaLabel={t`Keyboard shortcuts`} showClose>
+      <div className="shortcuts-hd"><Trans>Keyboard shortcuts</Trans></div>
       <div className="shortcuts-grid">
-        {SECTIONS.map((s) => (
+        {SECTIONS().map((s) => (
           <section key={s.title} className="shortcuts-sec" aria-label={s.title}>
             <h3>{s.title}</h3>
             {s.rows.map(([keys, label]) => (
@@ -239,14 +241,14 @@ export function ShortcutsOverlay({ open, onClose }) {
         ))}
       </div>
       <div className="shortcuts-tips">
-        <h3>Tips</h3>
+        <h3><Trans>Tips</Trans></h3>
         <ul>
-          {TIPS.map((t) => <li key={t}>{t}</li>)}
+          {TIPS().map((tip) => <li key={tip}>{tip}</li>)}
         </ul>
         <p style={{ marginTop: 12, opacity: 0.7, fontSize: '0.85em' }}>
-          Everything else is written up in the{' '}
+          <Trans>Everything else is written up in the{' '}
           <a href="/docs" target="_blank" rel="noreferrer noopener"
-             onClick={() => logEvent(EV.DOCS_OPEN, { from: 'shortcuts', path: '/docs' })}>documentation</a>.
+             onClick={() => logEvent(EV.DOCS_OPEN, { from: 'shortcuts', path: '/docs' })}>documentation</a>.</Trans>
         </p>
       </div>
     </Modal>

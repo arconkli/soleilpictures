@@ -11,7 +11,7 @@ const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 test('Copy link says it copied, or that it could not', () => {
   const src = read('../components/MessageThread.jsx');
   const fn = src.slice(src.indexOf('const handleCopyLink'), src.indexOf('const handleTyping'));
-  assert.match(fn, /message: 'Link copied'/);
+  assert.match(fn, /message: tr`Link copied`/);
   assert.match(fn, /type: 'error'/);
   assert.doesNotMatch(fn, /catch \(_\) \{\}/);
 });

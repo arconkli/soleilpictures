@@ -22,6 +22,7 @@ import {
 } from './commentKeys.js';
 import { convertFragmentDocMode } from '../components/docExtensions/screenplay/screenplayModeSwitch.js';
 import { cutGraphemes, exceedsGraphemes } from './graphemes.js';
+import { isDefaultName } from './defaultNames.js';
 
 // Origin for doc STRUCTURAL ops (add/rename/delete page·sheet·bookmark·comment,
 // mode). Deliberately NOT 'local' so the board-level Y.UndoManager (which
@@ -982,14 +983,16 @@ export function blankFragment(frag) {
 // rename never clobbers an intentional page name. One rule for the open doc
 // (DocSurface) and the closed card's title field (DocCard): a script dropped and
 // renamed before its first open kept the file's title on its page for good.
-const TRACKING_DEFAULT_NAMES = new Set(['', 'Untitled', 'Untitled doc']);
+// Compared through isDefaultName, so the name the app wrote in any language counts.
+const TRACKING_DEFAULT_NAMES = ['Untitled', 'Untitled doc'];
+const isTrackingDefault = (name) => !name || isDefaultName(TRACKING_DEFAULT_NAMES, name);
 export function followTitle(ydoc, scope, prevTitle, nextTitle) {
   if (!nextTitle || nextTitle === prevTitle) return false;
   const primary = readPages(ydoc, scope)
     .filter((p) => p.parent_id == null)
     .sort(byPageOrder)[0];
   if (!primary) return false;
-  const tracking = primary.name === prevTitle || TRACKING_DEFAULT_NAMES.has(primary.name || '');
+  const tracking = primary.name === prevTitle || isTrackingDefault(primary.name);
   if (tracking) renamePage(ydoc, primary.id, nextTitle, scope);
   return tracking;
 }

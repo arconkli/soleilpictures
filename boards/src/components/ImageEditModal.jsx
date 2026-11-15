@@ -12,6 +12,8 @@ import { Icon } from './Icon.jsx';
 import { X, Download } from '../lib/icons.js';
 import { buildImgStyle, isAdjusted } from '../lib/imageAdjust.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // The portal still bubbles through the React tree: a press or double-click on
 // the image or the rail reached the card that opened the editor and dragged it.
@@ -36,22 +38,22 @@ export function ImageEditModal({ src, title, adjust, cardId, onChange, onReset, 
   };
 
   const node = (
-    <div className="iem" role="dialog" aria-label="Edit photo"
+    <div className="iem" role="dialog" aria-label={t`Edit photo`}
          onPointerDown={(e) => {
            e.stopPropagation();
            if (!e.target.closest('.iem-img') && !e.target.closest('.iem-rail') && !e.target.closest('.iem-download')) onClose?.();
          }}
          onMouseDown={stopBubble} onDoubleClick={stopBubble} onContextMenu={stopBubble}>
-      <button className="iem-x" aria-label="Close" onClick={onClose}><Icon as={X} size={18} /></button>
+      <button className="iem-x" aria-label={t`Close`} onClick={onClose}><Icon as={X} size={18} /></button>
       <div className="iem-stage">
         {src
           ? <R2Image className="iem-img" src={src} alt={title || ''} eager draggable="false" style={imgStyle} />
           : null}
         {/* Single download, at the image's top-right (mirrors the image card's
             top-right download button — one consistent place). */}
-        <button className="iem-download" aria-label="Download" title="Download"
+        <button className="iem-download" aria-label={t`Download`} title={t`Download`}
                 disabled={downloading} onClick={doDownload}><Icon as={Download} size={18} /></button>
-        {comparing && <div className="iem-compare-tag">Original</div>}
+        {comparing && <div className="iem-compare-tag"><Trans>Original</Trans></div>}
       </div>
       <div className="iem-rail">
         <ImageAdjustPanel adjust={adjust} mode="full"

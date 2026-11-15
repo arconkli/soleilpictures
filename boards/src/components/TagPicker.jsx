@@ -9,6 +9,8 @@ import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
 import { tagFallbackColor, resolveTagColor } from '../lib/tagColor.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { searchKey } from '../lib/textFold.js';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const POP_W = 280;
 
@@ -43,7 +45,7 @@ export function TagPicker({
          style={{ position: 'fixed', top, left, width: POP_W }}>
       <input className="tag-picker-input"
              autoFocus
-             placeholder="Filter tags or type a new one…"
+             placeholder={tr`Filter tags or type a new one…`}
              value={query}
              onChange={(e) => { setQuery(e.target.value); setHover(0); }}
              onKeyDown={(e) => {
@@ -66,7 +68,7 @@ export function TagPicker({
              }} />
       <div className="tag-picker-list">
         {matches.length === 0 && !q && (
-          <div className="tag-picker-empty">No tags yet — type a name above.</div>
+          <div className="tag-picker-empty"><Trans>No tags yet — type a name above.</Trans></div>
         )}
         {matches.map((t, i) => {
           const applied = appliedIds.has(t.id);
@@ -84,11 +86,11 @@ export function TagPicker({
         })}
         {q && !hasExact && (
           <button className={`tag-picker-row tag-picker-create ${matches.length === hover ? 'is-hover' : ''}`}
-                  title="Press Enter to create this tag"
+                  title={tr`Press Enter to create this tag`}
                   onClick={() => { onCreate?.(query.trim()); onClose?.(); }}>
             <span className="tag-picker-dot tag-picker-dot-new" style={{ background: tagFallbackColor(q) }}>+</span>
-            <span className="tag-picker-name" dir="auto">Create "<b>{query.trim()}</b>"</span>
-            <span className="tag-picker-kind tag-picker-kind-new">new</span>
+            <span className="tag-picker-name" dir="auto"><Trans>Create "<b>{ph({ trim: query.trim() })}</b>"</Trans></span>
+            <span className="tag-picker-kind tag-picker-kind-new"><Trans>new</Trans></span>
           </button>
         )}
       </div>

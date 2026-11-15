@@ -22,13 +22,16 @@ import { EV } from '../lib/analyticsEvents.js';
 import { qaForceFirstValue, qaForceCapWall, qaForceImportAsk } from '../lib/localMode.js';
 import { ImportCapDialog } from './ImportCapDialog.jsx';
 import { DEMO_CARD_LIMIT, rejectedNoun } from '../lib/demoCardCap.js';
-import { COPY_REV, PRICE_FROM_LABEL, TRIAL_FROM_LABEL, FREE_STORAGE_LABEL, storageAmountLabel } from '../lib/billingCopy.js';
+import { COPY_REV } from '../lib/billingCopy.js';
+import { priceFromLabel, trialFromLabel, storageAmountLabel, freeStorageLabel } from '../lib/billingCopyWords.js';
 import { useStorageUsage } from '../hooks/useStorageUsage.js';
 import { creatorTrialEligibility, trialAwaitingServer } from '../lib/creatorTrial.js';
 import { trialEarlyArm, stampTrialEarlyArm, TRIAL_EARLY_KEY } from '../lib/trialEarly.js';
 import { evaluateUpsell, atCapWall, ELIGIBILITY_REV } from '../lib/upsellEligibility.js';
 import { claimUpsellSlot, upsellSlotHolder } from '../lib/upsellSlot.js';
 import { markPriceSeen } from '../lib/upsellLatches.js';
+import { t, ph } from '@lingui/core/macro';
+import { sizeText } from '../lib/intlFormat.js';
 
 // How long the first-value banner may wait for the server's card count to
 // catch up with the canvas before it shows whatever the server says. The sync
@@ -404,9 +407,9 @@ export function UpgradeChip() {
   const showCount = elig.pressure === 'urgent' || elig.pressure === 'count' || storageNear;
   // The reader's own drive, from my_storage_usage — invites make it larger
   // than the FREE_STORAGE_LABEL a new account starts with.
-  const storageLine = storageNear
-    ? `${storageAmountLabel(storage.used) || '0 MB'} of ${storageAmountLabel(storage.quota) || FREE_STORAGE_LABEL}`
-    : null;
+  const usedLabel = storageAmountLabel(storage.used) || sizeText('0 MB', 0, 'megabyte');
+  const quotaLabel = storageAmountLabel(storage.quota) || freeStorageLabel();
+  const storageLine = storageNear ? t`${ph({ used: usedLabel })} of ${ph({ quota: quotaLabel })}` : null;
   // Once the pill is a meter it also says what lifting the ceiling costs. A
   // label that just reads "Get Creator" sends the one number that decides
   // anything behind a click most people never take.
@@ -546,15 +549,15 @@ export function UpgradePill({ innerRef = null, near, count, limit, storageLine =
       ref={innerRef}
       className={`upgrade-chip ${near ? 'upgrade-chip-near' : ''}`}
       onClick={onClick}
-      aria-label="Upgrade to Creator"
-      title="Upgrade your demo to Creator"
+      aria-label={t`Upgrade to Creator`}
+      title={t`Upgrade your demo to Creator`}
     >
       {/* The chip earns its pressure. It used to read "Get Creator" forever
           and only reveal the count within 10 of the wall, so the ceiling was
           invisible right up until it stopped you. Now the count appears once
           usage is genuinely underway, and the ask sharpens only near the end. */}
       <span className="upgrade-chip-label">
-        {storageLine ? 'Storage almost full' : near ? `${Math.max(0, limit - count)} cards left` : 'Get Creator'}
+        {storageLine ? t`Storage almost full` : near ? t`${ph({ max: Math.max(0, limit - count) })} cards left` : t`Get Creator`}
       </span>
       {storageLine ? (
         <>
@@ -574,12 +577,12 @@ export function UpgradePill({ innerRef = null, near, count, limit, storageLine =
       {showTrial ? (
         <>
           <span className="upgrade-chip-sep">·</span>
-          <span className="upgrade-chip-trial">{TRIAL_FROM_LABEL}</span>
+          <span className="upgrade-chip-trial">{trialFromLabel()}</span>
         </>
       ) : showPrice && (
         <>
           <span className="upgrade-chip-sep">·</span>
-          <span className="upgrade-chip-price">{PRICE_FROM_LABEL}</span>
+          <span className="upgrade-chip-price">{priceFromLabel()}</span>
         </>
       )}
     </button>

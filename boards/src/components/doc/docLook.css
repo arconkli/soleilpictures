@@ -616,11 +616,11 @@ button.dl-drow { cursor: pointer; }
 
 /* The widths lib/docBarFold.js counts on (DOC_BAR_SIZES.desktop; .touch in
    the block under a finger below). */
-.dl-bar .tl-btn.dl-w-doc { width: 80px; }
-.dl-bar .tl-btn.dl-w-script { width: 128px; }
+.dl-bar:not(.dl-acc) .tl-btn.dl-w-doc { min-width: 80px; }
+.dl-bar:not(.dl-acc) .tl-btn.dl-w-script { min-width: 128px; }
 .dl-bar .tl-btn.dl-w-docicon { width: 44px; }
-.dl-bar .tl-btn.dl-w-style { width: 96px; }
-.dl-bar .tl-btn.dl-w-font { width: 86px; }
+.dl-bar:not(.dl-acc) .tl-btn.dl-w-style { min-width: 96px; }
+.dl-bar:not(.dl-acc) .tl-btn.dl-w-font { min-width: 86px; }
 .dl-bar .tl-btn.dl-w-caret { width: 46px; }
 .dl-bar .size-combo-wrap.is-tl { width: 54px; }
 /* A select's icon (Doc's) is a text button's size. */

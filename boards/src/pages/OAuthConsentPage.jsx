@@ -28,11 +28,14 @@ import { Icon } from '../components/Icon.jsx';
 import { Lock, Eye, Edit, Trash2, SealCheck, Monitor, Warning } from '../lib/icons.js';
 import { consentError, consentRequestProblem, consentRequestFault } from '../lib/oauthConsentCopy.js';
 import { connectEventProps } from '../lib/oauthConnect.js';
-import { consentTrust, consentScopes, scopeSentence, returnLabel, SCOPE_CHIPS } from '../lib/oauthTrust.js';
+import { consentScopes } from '../lib/oauthTrust.js';
+import { consentTrust, scopeSentence, returnLabel, SCOPE_CHIPS } from '../lib/oauthTrustWords.js';
 import { logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { initialOf } from '../lib/graphemes.js';
 import './oauthConsent.css';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Direction D, "Trust banner" (the owner's pick, 2026-10-26): who vouches for
 // the app across the top of the card (lib/oauthTrust.js), then the app, the
@@ -183,7 +186,7 @@ export function OAuthConsentPage() {
             icon={Lock}
             title={fatal.title}
             body={fatal.body}
-            action={{ label: 'Go to Clusters', onClick: () => window.location.assign('/') }}
+            action={{ label: t`Go to Clusters`, onClick: () => window.location.assign('/') }}
           />
         </div>
       </Shell>
@@ -193,12 +196,12 @@ export function OAuthConsentPage() {
   if (!client) {
     return (
       <Shell>
-        <div className="oauth-loading">Checking that application…</div>
+        <div className="oauth-loading"><Trans>Checking that application…</Trans></div>
       </Shell>
     );
   }
 
-  const name = client.client_name || 'This app';
+  const name = client.client_name || t`This app`;
   const trust = consentTrust(client, redirectUri);
 
   return (
@@ -211,15 +214,15 @@ export function OAuthConsentPage() {
       <div className="oauth-body">
         <div className="oauth-app" aria-hidden="true">{initialOf(name)}</div>
         <h1 className="oauth-name">{name}</h1>
-        <div className="oauth-wants">wants to connect to your clusters</div>
+        <div className="oauth-wants"><Trans>wants to connect to your clusters</Trans></div>
 
         {/* Signing out leaves this page where it is: AuthGate asks for an
             email, and the same request comes back for whoever signs in. */}
         <button type="button" className="oauth-account" disabled={!!busy} onClick={() => signOut()}
-          title="Connect a different account">
+          title={t`Connect a different account`}>
           <span className="oauth-account-avatar" aria-hidden="true">{initialOf(user?.email)}</span>
           <span className="oauth-account-email">{user?.email}</span>
-          <span className="oauth-account-switch">· Switch</span>
+          <span className="oauth-account-switch"><Trans>· Switch</Trans></span>
         </button>
 
         <div className="oauth-chips">
@@ -231,23 +234,23 @@ export function OAuthConsentPage() {
           {offerDelete && (
             <button type="button" className={`oauth-chip oauth-chip-toggle${allowDelete ? ' is-on' : ''}`}
               aria-pressed={allowDelete} disabled={!!busy} onClick={() => setAllowDelete((on) => !on)}>
-              <Icon as={Trash2} size={14} weight="regular" />{allowDelete ? SCOPE_CHIPS.delete : 'Allow deleting'}
+              <Icon as={Trash2} size={14} weight="regular" />{allowDelete ? SCOPE_CHIPS.delete : t`Allow deleting`}
             </button>
           )}
         </div>
         <div className="oauth-sentence">{scopeSentence(granted)}</div>
 
         <button type="button" className="oauth-allow" disabled={!!busy} onClick={() => send('/oauth/authorize')}>
-          {busy === '/oauth/authorize' ? 'Connecting…' : `Connect ${name}`}
+          {busy === '/oauth/authorize' ? t`Connecting…` : t`Connect ${name}`}
         </button>
         <button type="button" className="oauth-deny" disabled={!!busy} onClick={() => send('/oauth/deny')}>
-          {busy === '/oauth/deny' ? 'Cancelling…' : 'Cancel'}
+          {busy === '/oauth/deny' ? t`Cancelling…` : t`Cancel`}
         </button>
       </div>
 
       <div className="oauth-foot">
-        Returns to <b>{returnLabel(redirectUri)}</b> · Disconnect any time in Settings → Connections ·
-        Everything it does is in your audit log
+        <Trans>Returns to <b>{ph({ returnLabel: returnLabel(redirectUri) })}</b> · Disconnect any time in Settings → Connections ·
+        Everything it does is in your audit log</Trans>
       </div>
     </Shell>
   );

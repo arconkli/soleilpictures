@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { registerModalOpen, registerBackLayer } from '../../lib/modalGuard.js';
+import { t } from '@lingui/core/macro';
 
 const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 function focusables(root) {
@@ -123,7 +124,7 @@ export function Sheet({ open, onClose, title, children, snap = 'full', className
 
   return createPortal(
     <div className={`sheet-root ${className}`.trim()} data-snap={snap} role="dialog" aria-modal="true"
-         aria-labelledby={title ? titleId : undefined} aria-label={title ? undefined : 'Sheet'}
+         aria-labelledby={title ? titleId : undefined} aria-label={title ? undefined : t`Sheet`}
          onKeyDown={onKeyDown}>
       <div className="sheet-backdrop" onClick={onClose} />
       <div

@@ -53,6 +53,8 @@ import { X } from '../../lib/icons.js';
 import { logEventNow } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import './docShareView.css';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const DocSurface = lazyWithReload(() => import('../DocSurface.jsx').then((m) => ({ default: m.DocSurface })));
 const DocHeadA = lazyWithReload(() => import('../doc/DocFrameA.jsx').then((m) => ({ default: m.DocHeadA })));
@@ -157,14 +159,14 @@ export function DocShareView({ token, res, onRefresh, signInHref, api = null }) 
       onRefused: (reason) => {
         if (off) return;
         setNotice(reason === 'doc_full'
-          ? 'This doc has grown too large to edit here. You can still read it.'
-          : "That change couldn't be saved here, so the doc was reloaded.");
+          ? t`This doc has grown too large to edit here. You can still read it.`
+          : t`That change couldn't be saved here, so the doc was reloaded.`);
         setAttempt((n) => n + 1);
       },
       onEnd: ({ code }) => {
         if (off) return;
-        if (code === DOC_ROOM_CLOSE.SUSPENDED) { setPhase('ended'); setNotice("This account can't open shared docs right now."); return; }
-        if (code === DOC_ROOM_CLOSE.TOO_BIG) { setPhase('ended'); setNotice('That change was too large to save.'); return; }
+        if (code === DOC_ROOM_CLOSE.SUSPENDED) { setPhase('ended'); setNotice(t`This account can't open shared docs right now.`); return; }
+        if (code === DOC_ROOM_CLOSE.TOO_BIG) { setPhase('ended'); setNotice(t`That change was too large to save.`); return; }
         // Moved, gone, access ended, refused at the door: the share decides.
         setPhase('reasking');
         onRefreshRef.current?.();
@@ -231,7 +233,7 @@ export function DocShareView({ token, res, onRefresh, signInHref, api = null }) 
   const currentUser = useMemo(() => (hello?.me
     ? { id: userId, name: hello.me.name, color: hello.me.color }
     : null), [hello, userId]);
-  const name = title || res.file?.name || 'Untitled doc';
+  const name = title || res.file?.name || t({ message: 'Untitled doc', context: 'default name' });
   const headCard = useMemo(() => ({ id: cardKey, title: name }), [cardKey, name]);
 
   const retry = () => { setNotice(null); setPhase('reasking'); onRefreshRef.current?.(); };
@@ -244,7 +246,7 @@ export function DocShareView({ token, res, onRefresh, signInHref, api = null }) 
                   canEdit={canEdit} isPublic={!canEdit} guestMode>
           {res.edit_needs_sign_in && !signedIn && (
             <a className="dsv-signin" href={signInHref}
-               onClick={() => logEventNow(EV.FILE_SHARE_SIGNIN_CLICK, { surface: 'doc_edit' })}>Sign in to edit</a>
+               onClick={() => logEventNow(EV.FILE_SHARE_SIGNIN_CLICK, { surface: 'doc_edit' })}><Trans>Sign in to edit</Trans></a>
           )}
         </DocHeadA>
       </Suspense>
@@ -253,7 +255,7 @@ export function DocShareView({ token, res, onRefresh, signInHref, api = null }) 
       {notice && phase !== 'ended' && (
         <div className="dsv-notice" role="status">
           <span className="dsv-notice-t">{notice}</span>
-          <button type="button" className="dsv-notice-x" aria-label="Dismiss" onClick={() => setNotice(null)}>
+          <button type="button" className="dsv-notice-x" aria-label={t`Dismiss`} onClick={() => setNotice(null)}>
             <Icon as={X} size={14} weight="regular" />
           </button>
         </div>
@@ -261,30 +263,30 @@ export function DocShareView({ token, res, onRefresh, signInHref, api = null }) 
       <div className="dsv-body">
         {phase === 'ended' ? (
           <div className="fsp-state" role="status">
-            <h1 className="fsp-state-title">This doc closed.</h1>
-            <p className="fsp-state-body">{notice || 'It is no longer open here.'}</p>
+            <h1 className="fsp-state-title"><Trans>This doc closed.</Trans></h1>
+            <p className="fsp-state-body">{notice || t`It is no longer open here.`}</p>
             <div className="fsp-state-actions">
-              <button type="button" className="fsp-btn" onClick={retry}>Open it again</button>
+              <button type="button" className="fsp-btn" onClick={retry}><Trans>Open it again</Trans></button>
             </div>
           </div>
         ) : phase === 'ready' && !scope ? (
           // Caught up, and the room has no doc under that card: one that was
           // never opened in its cluster has nothing to mirror yet.
           <div className="fsp-state" role="status">
-            <h1 className="fsp-state-title">This doc isn't ready yet.</h1>
-            <p className="fsp-state-body">Ask the person who shared it to open it once, then try again.</p>
+            <h1 className="fsp-state-title"><Trans>This doc isn't ready yet.</Trans></h1>
+            <p className="fsp-state-body"><Trans>Ask the person who shared it to open it once, then try again.</Trans></p>
             <div className="fsp-state-actions">
-              <button type="button" className="fsp-btn" onClick={retry}>Try again</button>
+              <button type="button" className="fsp-btn" onClick={retry}><Trans>Try again</Trans></button>
             </div>
           </div>
         ) : !scope || phase !== 'ready' ? (
           <div className="dsv-wait" role="status" aria-live="polite">
             <span className="fsp-spinner" aria-hidden="true" />
-            <span>{phase === 'reasking' ? 'Reconnecting…' : 'Opening the doc…'}</span>
+            <span>{phase === 'reasking' ? t`Reconnecting…` : t`Opening the doc…`}</span>
           </div>
         ) : (
           <SurfaceErrorBoundary resetKey={cardKey} logKind="doc" retryInPlace
-                                message="This doc hit a problem." retryLabel="Reopen"
+                                message={t`This doc hit a problem.`} retryLabel={t`Reopen`}
                                 fallbackClassName="is-in-doc">
           <Suspense fallback={<DocOpening />}>
             <DocSurface

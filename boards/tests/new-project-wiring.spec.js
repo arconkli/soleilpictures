@@ -45,7 +45,7 @@ test.describe('new project wiring', () => {
   test('the sidebar "+" and cmd-K start a project, each saying which door it was', () => {
     const s = app();
     expect(s).toMatch(/onCreateBoard=\{canEditBoard\(rootBoard\.id\) \? \(\) => \{ mainMutators\.addNewProject\?\.\(\{ via: 'sidebar' \}\); \}/);
-    expect(s).toMatch(/id: 'new-board', label: 'New project'[\s\S]{0,200}addNewProject\?\.\(\{ via: 'palette' \}\)/);
+    expect(s).toMatch(/id: 'new-board', label: tr`New project`[\s\S]{0,800}addNewProject\?\.\(\{ via: 'palette' \}\)/);
     // Neither still makes a nested cluster on whatever canvas is open.
     expect(s).not.toMatch(/onCreateBoard=\{canEditCurrent \? \(\) => \{ setCurrentSurface\('board'\); mainMutators\.addNewBoard/);
   });

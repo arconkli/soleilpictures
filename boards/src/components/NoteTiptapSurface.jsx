@@ -60,6 +60,7 @@ import { inertContainer } from '../lib/inertHtml.js';
 import { TextSelection } from '@tiptap/pm/state';
 import './noteTiptap.css';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t as tr } from '@lingui/core/macro';
 
 const NOTE_AUTOSIZE_MAX = 480;
 // The "Show all" ceiling (the chip in cards.jsx NoteCardCollab). A note that
@@ -468,7 +469,7 @@ function NoteTiptapEditing({
   const editor = useEditor({
     extensions: [
       ...noteExtensions,
-      Placeholder.configure({ placeholder: 'Write a note…', showOnlyWhenEditable: true }),
+      Placeholder.configure({ placeholder: tr`Write a note…`, showOnlyWhenEditable: true }),
       mentionExt,
       candidateExt,
       // Keep per-span colors readable on this note's surface in both themes

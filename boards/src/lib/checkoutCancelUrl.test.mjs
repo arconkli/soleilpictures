@@ -57,7 +57,7 @@ test('the app says a canceled checkout charged nothing, once', () => {
   // about it read as the purchase having gone through, or having vanished.
   const app = read('../App.jsx');
   assert.match(app, /new URLSearchParams\(window\.location\.search\)\.get\('checkout'\) === 'canceled'/);
-  assert.match(app, /feedback\.toast\(\{ type: 'info', message: 'Checkout canceled\. Nothing was charged\.' \}\)/);
+  assert.match(app, /feedback\.toast\(\{ type: 'info', message: tr`Checkout canceled\. Nothing was charged\.` \}\)/);
   // …and the param is stripped, so a reload doesn't repeat it.
   assert.match(app, /u\.searchParams\.delete\('checkout'\);\s*\n\s*window\.history\.replaceState/);
 });

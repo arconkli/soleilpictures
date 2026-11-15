@@ -5,21 +5,15 @@
 // the card). All the logic is lib/cardVersions.js; this lays it out.
 import { useState } from 'react';
 import { liveVersions, versionsOf, currentOf, versionLabel, DELETED_KEEP_DAYS } from '../../lib/cardVersions.js';
-import { formatSize, formatWhen } from '../../lib/cardInfo.js';
+import { formatSize, formatWhen, sizeProgress } from '../../lib/cardInfo.js';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
 import { Icon } from '../Icon.jsx';
 import { Upload, Download, MoreHorizontal } from '../../lib/icons.js';
 import { CardContextMenu } from '../CardContextMenu.jsx';
 import { transferForCard } from '../../lib/activity.js';
 import { useCardTransferKey } from '../../hooks/useActivity.js';
-
-// "8 of 19 MB": the unit once when both sides share it.
-function sizeProgress(sent, total) {
-  const a = formatSize(sent).replace(/\.0 /, ' ');
-  const b = formatSize(total).replace(/\.0 /, ' ');
-  const ua = String(a).split(' ')[1];
-  return ua && ua === String(b).split(' ')[1] ? `${String(a).split(' ')[0]} of ${b}` : `${a} of ${b}`;
-}
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 export function VersionsSection({
   card, canEdit = false, personName = (id) => id, getMeta = null,
@@ -56,19 +50,19 @@ export function VersionsSection({
     return (
       <li key={v.id} className={`cbd-ver${isCur ? ' is-current' : ''}${isDeleted ? ' is-deleted' : ''}`} data-version-id={v.id}>
         <button type="button" className="cbd-ver-main" onClick={() => onOpen?.(v)} disabled={!onOpen || isDeleted}
-                title={onOpen && !isDeleted ? 'Look at this version' : undefined}>
+                title={onOpen && !isDeleted ? t`Look at this version` : undefined}>
           <span className="cbd-ver-n">{versionLabel(v)}</span>
           <span className="cbd-ver-text">
-            <span className="cbd-ver-name">{v.label || v.fileName || v.name || versionLabel(v)}{isCur && <span className="cbd-ver-cur">Current</span>}</span>
+            <span className="cbd-ver-name">{v.label || v.fileName || v.name || versionLabel(v)}{isCur && <span className="cbd-ver-cur"><Trans>Current</Trans></span>}</span>
             <span className="cbd-ver-meta" title={when || undefined}>
               {[name, when ? relativeTimeShort(who.at) : '', size(v)].filter(Boolean).join(' · ')}
             </span>
           </span>
         </button>
         {isDeleted ? (
-          canEdit && <button type="button" className="cbd-ver-act" onClick={() => onRestore?.(v)}>Restore</button>
+          canEdit && <button type="button" className="cbd-ver-act" onClick={() => onRestore?.(v)}><Trans>Restore</Trans></button>
         ) : (
-          <button type="button" className="cbd-ver-more" aria-label={`More for ${versionLabel(v)}`}
+          <button type="button" className="cbd-ver-more" aria-label={t`More for ${ph({ versionLabel: versionLabel(v) })}`}
                   onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setMenu({ x: r.right - 4, y: r.bottom + 2, v }); }}>
             <Icon as={MoreHorizontal} size={16} />
           </button>
@@ -78,25 +72,25 @@ export function VersionsSection({
   };
 
   const menuItems = (v) => [
-    canEdit && v.id !== cur?.id && { id: 'cur', label: 'Make current', run: () => onMakeCurrent?.(v) },
-    onOpen && { id: 'open', label: 'Look at it', run: () => onOpen(v) },
-    onDownload && { id: 'dl', label: 'Download', run: () => onDownload(v) },
-    canEdit && onLabel && { id: 'label', label: v.label ? 'Rename label…' : 'Add a label…', run: () => onLabel(v) },
+    canEdit && v.id !== cur?.id && { id: 'cur', label: t`Make current`, run: () => onMakeCurrent?.(v) },
+    onOpen && { id: 'open', label: t`Look at it`, run: () => onOpen(v) },
+    onDownload && { id: 'dl', label: t`Download`, run: () => onDownload(v) },
+    canEdit && onLabel && { id: 'label', label: v.label ? t`Rename label…` : t`Add a label…`, run: () => onLabel(v) },
     canEdit && live.length > 1 && { divider: true },
-    canEdit && live.length > 1 && { id: 'del', label: 'Delete version', danger: true, run: () => onDelete?.(v) },
+    canEdit && live.length > 1 && { id: 'del', label: t`Delete version`, danger: true, run: () => onDelete?.(v) },
   ].filter(Boolean);
 
   const uploadRow = () => {
     const failed = upload.state === 'failed';
     const pct = Math.min(99, Math.floor((upload.fraction || 0) * 100));
-    const words = failed ? 'Didn’t upload'
-      : upload.state === 'finishing' ? `Version ${upload.version.n} · making a preview…`
-        : upload.state === 'waiting' ? `Version ${upload.version.n} · waiting`
-          : `Version ${upload.version.n} · uploading ${pct}%`;
-    const meta = ['You', upload.bytesTotal > 0 ? sizeProgress(upload.sentBytes || 0, upload.bytesTotal) : ''].filter(Boolean).join(' · ');
+    const words = failed ? t`Didn’t upload`
+      : upload.state === 'finishing' ? t`Version ${ph({ n: upload.version.n })} · making a preview…`
+        : upload.state === 'waiting' ? t`Version ${ph({ n: upload.version.n })} · waiting`
+          : t`Version ${ph({ n: upload.version.n })} · uploading ${pct}%`;
+    const meta = [t`You`, upload.bytesTotal > 0 ? sizeProgress(upload.sentBytes || 0, upload.bytesTotal) : ''].filter(Boolean).join(' · ');
     return (
       <li key="uploading" className="cbd-ver is-uploading" data-version-uploading={upload.version.n}>
-        <button type="button" className="cbd-ver-main" disabled aria-label={`${words}. ${meta}`}>
+        <button type="button" className="cbd-ver-main" disabled aria-label={t`${words}. ${meta}`}>
           <span className="cbd-ver-n">{`v${upload.version.n}`}</span>
           <span className="cbd-ver-text">
             <span className="cbd-ver-name">{words}</span>
@@ -104,19 +98,19 @@ export function VersionsSection({
           </span>
         </button>
         {failed && upload.actions?.retry && (
-          <button type="button" className="cbd-ver-act" onClick={() => upload.actions.retry()}>Retry</button>
+          <button type="button" className="cbd-ver-act" onClick={() => upload.actions.retry()}><Trans>Retry</Trans></button>
         )}
       </li>
     );
   };
 
   return (
-    <section className="cbd-section cbd-versions" aria-label="Versions">
+    <section className="cbd-section cbd-versions" aria-label={t`Versions`}>
       <div className="cbd-section-head">
-        <h3 className="cbd-section-label">Versions <span className="cbd-count">{live.length}</span></h3>
+        <h3 className="cbd-section-label"><Trans>Versions</Trans> <span className="cbd-count">{live.length}</span></h3>
         {canEdit && onUpload && (
-          <button type="button" className="cbd-mini" onClick={onUpload} title="Upload a new version of this file">
-            <Icon as={Upload} size={14} /><span>New version</span>
+          <button type="button" className="cbd-mini" onClick={onUpload} title={t`Upload a new version of this file`}>
+            <Icon as={Upload} size={14} /><span><Trans>New version</Trans></span>
           </button>
         )}
       </div>
@@ -124,11 +118,11 @@ export function VersionsSection({
       {deleted.length > 0 && (
         <div className="cbd-ver-deleted">
           <button type="button" className="cbd-linkbtn" onClick={() => setShowDeleted((s) => !s)} aria-expanded={showDeleted}>
-            Recently deleted ({deleted.length})
+            <Trans>Recently deleted ({ph({ count: deleted.length })})</Trans>
           </button>
           {showDeleted && (
             <>
-              <p className="cbd-hint">Kept for {DELETED_KEEP_DAYS} days, then gone for good.</p>
+              <p className="cbd-hint"><Trans>Kept for {DELETED_KEEP_DAYS} days, then gone for good.</Trans></p>
               <ol className="cbd-ver-list">{[...deleted].reverse().map((v) => row(v, { isDeleted: true }))}</ol>
             </>
           )}

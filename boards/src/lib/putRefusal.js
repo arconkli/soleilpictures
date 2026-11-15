@@ -10,7 +10,10 @@
 // its own words (a TypeError's, say) aren't fit to show: the toast says the
 // plain sentence instead.
 
-export const PUT_FAILED_WORDS = 'Those files couldn’t be put on the board.';
+import { t } from '@lingui/core/macro';
+
+// Read when the toast is built, in the person's language, never at load.
+export const putFailedWords = () => t`Those files couldn’t be put on the board.`;
 
 // reason: 'gone' | 'view_only' | 'not_open' | 'other_opened' | 'capture' | 'replaced'
 export function putRefusal(reason, message) {
@@ -24,7 +27,7 @@ export const putFailReason = (e) => (typeof e?.reason === 'string' && e.reason) 
 // The toast for a Put on board that didn't happen. Each error toast below
 // spells its code as a literal, as errorToastContract.test.mjs requires.
 export function putFailToast(e) {
-  const message = e?.message || PUT_FAILED_WORDS;
+  const message = e?.message || putFailedWords();
   switch (putFailReason(e)) {
     case 'gone': return { type: 'error', code: 'files_put_gone', message };
     case 'view_only': return { type: 'error', code: 'files_put_view_only', message };
@@ -33,6 +36,6 @@ export function putFailToast(e) {
     case 'capture': return { type: 'error', code: 'files_put_capture', message };
     // A second Put on board took this one's place: nothing went wrong.
     case 'replaced': return { type: 'info', message };
-    default: return { type: 'error', code: 'files_put_failed', message: PUT_FAILED_WORDS };
+    default: return { type: 'error', code: 'files_put_failed', message: putFailedWords() };
   }
 }

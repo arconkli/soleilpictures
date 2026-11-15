@@ -2,6 +2,7 @@
 // (components/fileShare/FileShareDialog.jsx). No React, no network, so
 // node --test can pin them.
 import { FILE_SHARE_PEOPLE_PER_CALL } from './fileShares.js';
+import { t, plural } from '@lingui/core/macro';
 
 // The same shape add_file_share_people accepts (0421). Anything else the
 // server would skip, so the dialog marks it before sending.
@@ -83,18 +84,18 @@ export function normalizeSettings(data) {
 export function sharedMessage(addedCount, skippedCount) {
   const a = Math.max(0, Number(addedCount) || 0);
   const s = Math.max(0, Number(skippedCount) || 0);
-  const tail = s ? ` · ${s} skipped` : '';
-  if (!a) return `Nobody was added${tail}`;
-  return `Shared with ${a}${tail}`;
+  const tail = s ? t` · ${s} skipped` : '';
+  if (!a) return t`Nobody was added${tail}`;
+  return t`Shared with ${a}${tail}`;
 }
 
 export function commentsLabel(n) {
   const c = Math.max(0, Number(n) || 0);
-  return `${c} comment${c === 1 ? '' : 's'}`;
+  return plural(c, { one: '# comment', other: '# comments' });
 }
 
 export function fileDisplayName(card) {
   const c = card || {};
   const pick = [c.title, c.fileName, c.name].find((v) => typeof v === 'string' && v.trim());
-  return pick ? pick.trim() : 'File';
+  return pick ? pick.trim() : t`File`;
 }

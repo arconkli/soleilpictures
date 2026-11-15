@@ -20,6 +20,7 @@
 // focus, and a note's touch entry focuses its editor inside the tap.
 
 import { isComposingKey } from './composerKeys.js';
+import { t } from '@lingui/core/macro';
 
 const HOLD_MS = 5000;
 
@@ -39,7 +40,7 @@ export function holdNoteTypeAhead(cardId) {
   el.className = 'note-typeahead';
   // It has the focus for a beat, so a screen reader names it rather than
   // landing on nothing.
-  el.setAttribute('aria-label', 'New note');
+  el.setAttribute('aria-label', t`New note`);
   el.setAttribute('autocomplete', 'off');
   el.tabIndex = -1;
   el.spellcheck = false;

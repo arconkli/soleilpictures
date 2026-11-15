@@ -23,20 +23,27 @@
 import * as Y from 'yjs';
 import { fragmentText } from './docText.js';
 import { initCardDocStore, cardScope, writeScriptBody } from './docState.js';
-import { TREATMENT_SECTIONS, isStarterKind } from './starterSections.js';
+import { isStarterKind } from './starterSections.js';
+import { treatmentSectionWords } from './starterSectionsWords.js';
+import { uiLocale } from './uiLocale.js';
+import { t } from '@lingui/core/macro';
 
 export { TREATMENT_SECTIONS, TREATMENT_EXPORT_STEP, treatmentPageSteps, isStarterKind, STARTER_KINDS } from './starterSections.js';
 
 const heading = (text, level = 1) => ({ type: 'heading', attrs: { level }, content: [{ type: 'text', text }] });
 const paragraph = (text) => ({ type: 'paragraph', content: [{ type: 'text', text }] });
 
+// Getters: a starter is written in the person's language when it is made, so
+// the words are read then, never at load.
 export const STARTER_DOCS = Object.freeze({
   treatment: Object.freeze({
-    title: 'Director’s treatment',
-    pages: Object.freeze([
-      { name: 'Cover', content: [heading('Untitled treatment'), paragraph('Director · Production company · Draft date')] },
-      ...TREATMENT_SECTIONS.map((s) => ({ name: s.t, content: [heading(s.t), paragraph(s.prompt)] })),
-    ]),
+    get title() { return t`Director’s treatment`; },
+    get pages() {
+      return [
+        { name: t`Cover`, content: [heading(t`Untitled treatment`), paragraph(t`Director · Production company · Draft date`)] },
+        ...treatmentSectionWords().map((s) => ({ name: s.t, content: [heading(s.t), paragraph(s.prompt)] })),
+      ];
+    },
   }),
 });
 
@@ -95,9 +102,11 @@ export function writeStarterDoc(ydoc, cardYMap, kind) {
 
 // The fingerprint an untouched starter of `kind` has — built by the same write
 // App does, on a scratch doc, so it cannot drift from it.
+// Kept per language: the words it is built from change with it.
 const _pristine = new Map();
 export function pristineFingerprint(kind) {
-  if (_pristine.has(kind)) return _pristine.get(kind);
+  const key = `${uiLocale()}:${kind}`;
+  if (_pristine.has(key)) return _pristine.get(key);
   if (!isStarterKind(kind)) return null;
   const ydoc = new Y.Doc();
   const ym = new Y.Map();
@@ -106,7 +115,7 @@ export function pristineFingerprint(kind) {
     writeStarterDoc(ydoc, ym, kind);
   });
   const fp = docFingerprint(ym);
-  _pristine.set(kind, fp);
+  _pristine.set(key, fp);
   return fp;
 }
 

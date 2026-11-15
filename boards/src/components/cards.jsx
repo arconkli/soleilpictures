@@ -117,6 +117,8 @@ import { isComposingKey } from '../lib/composerKeys.js';
 import { haptic } from '../lib/haptics.js';
 import { useHapticLabels } from './HapticTap.jsx';
 import { initialOf, cutGraphemes, exceedsGraphemes } from '../lib/graphemes.js';
+import { shownAuthor } from '../lib/commentAuthor.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
 export { ArtCanvasCard } from './cards/ArtCanvasCard.jsx';
 
 // Display-mode renderer for note cards: walks the saved HTML and
@@ -252,7 +254,7 @@ function ListBoardRow({ item, onClick, peersHere = [], peersBelow = [], onJumpTo
          onClick={(e) => { e.stopPropagation(); onClick(); }}
          draggable
          onDragStart={onDragStart}
-         title={item.name + ' · drag onto a canvas to embed'}>
+         title={tr`${ph({ name: item.name })} · drag onto a canvas to embed`}>
       <span className="bc-toc-icon" style={{ color: item.color || 'var(--ink-3)' }}>
         <KindIcon kind={item.kind} />
       </span>
@@ -264,13 +266,15 @@ function ListBoardRow({ item, onClick, peersHere = [], peersBelow = [], onJumpTo
                     className={`bc-toc-peer ${p.exact ? 'is-exact' : 'is-nested'}`}
                     style={{ background: p.user.color || '#4f8df8' }}
                     title={p.exact
-                      ? `${p.user.name || p.user.email} is here — click to jump`
-                      : `${p.user.name || p.user.email} · in ${p.location?.boardName || 'a sub-board'} — click to jump`}
+                      ? tr`${ph({ value: shownAuthor(p.user.name) || p.user.email })} is here — click to jump`
+                      : (p.location?.boardName
+                        ? tr`${ph({ name: shownAuthor(p.user.name) || p.user.email })} · in ${ph({ board: p.location.boardName })} — click to jump`
+                        : tr`${ph({ name: shownAuthor(p.user.name) || p.user.email })} · in a sub-board — click to jump`)}
                     onClick={(e) => { e.stopPropagation(); onJumpToPeer?.(p.location); }} />
           ))}
           {presence.length > 3 && (
             <span className="bc-toc-peers-overflow"
-                  title={`+${presence.length - 3} more`}>+{presence.length - 3}</span>
+                  title={tr`+${ph({ value: presence.length - 3 })} more`}>+{presence.length - 3}</span>
           )}
         </span>
       )}
@@ -289,56 +293,56 @@ function describeListItem(card, boards = {}) {
   };
   if (card.kind === 'board') {
     const target = boards[card.id];
-    return { ...base, boardId: card.id, name: target?.name || 'Untitled cluster',
-             meta: target?.view === 'list' ? 'list' : 'cluster',
+    return { ...base, boardId: card.id, name: target?.name || tr`Untitled cluster`,
+             meta: target?.view === 'list' ? tr`list` : tr`cluster`,
              color: COVER_TINTS[target?.cover || 'neutral'] || dot };
   }
   if (card.kind === 'boardlink') {
     const target = boards[card.target];
-    return { ...base, boardId: card.target, name: target?.name || 'Linked board',
-             meta: 'link', color: COVER_TINTS[target?.cover || 'neutral'] || dot };
+    return { ...base, boardId: card.target, name: target?.name || tr`Linked board`,
+             meta: tr`link`, color: COVER_TINTS[target?.cover || 'neutral'] || dot };
   }
   if (card.kind === 'image') {
     // A caption someone typed first, then the file's own name (fileIngest) —
     // before 2026-10 every photo in list view was a row called "image".
     return { ...base, src: card.src || null,
-             name: card.title || card.label || card.fileName || 'image', meta: 'image' };
+             name: card.title || card.label || card.fileName || tr`image`, meta: tr`image` };
   }
   if (card.kind === 'note') {
     const text = htmlToText(card.html, 80) || cutGraphemes((card.body || '').toString(), 80);
-    return { ...base, name: text || 'Empty note', meta: 'note' };
+    return { ...base, name: text || tr`Empty note`, meta: tr`note` };
   }
   if (card.kind === 'link') {
     // `url` is where /api/v1 and manifest imports put the address.
     const url = card.link || card.source || card.url || null;
-    return { ...base, url, name: card.title || url || 'Untitled link', meta: url || 'link' };
+    return { ...base, url, name: card.title || url || tr`Untitled link`, meta: url || tr`link` };
   }
   if (card.kind === 'palette') {
-    return { ...base, name: card.title || 'Palette',
-             meta: `${(card.swatches || []).length} colors` };
+    return { ...base, name: card.title || tr`Palette`,
+             meta: plural((card.swatches || []).length, { one: '# colors', other: '# colors' }) };
   }
   if (card.kind === 'doc') {
-    return { ...base, name: card.title || 'Doc', meta: 'doc' };
+    return { ...base, name: card.title || tr`Doc`, meta: tr`doc` };
   }
   if (card.kind === 'schedule') {
-    return { ...base, name: card.title || 'Schedule', meta: 'schedule' };
+    return { ...base, name: card.title || tr`Schedule`, meta: tr`schedule` };
   }
   if (card.kind === 'audio') {
-    return { ...base, name: card.title || 'Audio', meta: 'audio' };
+    return { ...base, name: card.title || tr`Audio`, meta: tr`audio` };
   }
   if (card.kind === 'video') {
-    return { ...base, name: card.title || card.fileName || 'Video', meta: 'video' };
+    return { ...base, name: card.title || card.fileName || tr`Video`, meta: tr`video` };
   }
   if (card.kind === 'pdf') {
     return { ...base, src: card.src || null,
-             name: card.name || card.title || 'PDF',
+             name: card.name || card.title || tr`PDF`,
              meta: (Number.isFinite(card.pageCount) && card.pageCount > 0)
-               ? `${card.pageCount} ${card.pageCount === 1 ? 'page' : 'pages'}`
-               : 'pdf' };
+               ? plural(card.pageCount, { one: '# page', other: '# pages' })
+               : tr`pdf` };
   }
   if (card.kind === 'file') {
-    return { ...base, name: card.fileName || card.title || 'File',
-             meta: card.ext ? card.ext.toUpperCase() : 'file' };
+    return { ...base, name: card.fileName || card.title || tr`File`,
+             meta: card.ext ? card.ext.toUpperCase() : tr`file` };
   }
   // shape / unknown — skip from the list
   return null;
@@ -376,14 +380,14 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
     // render the same placeholder — a leaked or stale reference is
     // indistinguishable from a removed one from the client's POV.
     return (
-      <div className="bc bc-locked" title="No access — ask the workspace owner to share this cluster">
+      <div className="bc bc-locked" title={tr`No access — ask the workspace owner to share this cluster`}>
         <div className="bc-locked-icon">
           <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
             <rect x="5" y="9" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
             <path d="M8 9 V6 a3 3 0 0 1 6 0 V9" stroke="currentColor" strokeWidth="1.5"/>
           </svg>
         </div>
-        <div className="bc-locked-label">No access</div>
+        <div className="bc-locked-label">{tr`No access`}</div>
       </div>
     );
   }
@@ -499,8 +503,8 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
         key: 'orphan-' + b.id,
         boardId: b.id,
         kind: b.view === 'list' ? 'list' : 'board',
-        name: b.name || 'Untitled',
-        meta: b.view === 'list' ? 'list' : 'board',
+        name: b.name || tr`Untitled`,
+        meta: b.view === 'list' ? tr`list` : tr`board`,
         color: COVER_TINTS[b.cover || 'neutral'] || COVER_TINTS.neutral,
         card: null,
       })),
@@ -508,8 +512,8 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
     const boardCount = items.filter(it => it.kind === 'board' || it.kind === 'list' || it.kind === 'boardlink').length;
     const cardCount = items.length - boardCount;
     const subParts = [];
-    if (boardCount > 0) subParts.push(`${boardCount} ${boardCount === 1 ? 'cluster' : 'clusters'}`);
-    if (cardCount > 0) subParts.push(`${cardCount} ${cardCount === 1 ? 'card' : 'cards'}`);
+    if (boardCount > 0) subParts.push(plural(boardCount, { one: '# cluster', other: '# clusters' }));
+    if (cardCount > 0) subParts.push(plural(cardCount, { one: '# card', other: '# cards' }));
     const handleItemClick = (it) => {
       if (onOpenItem && onOpenItem(it) === true) return;
       if (it.boardId && onOpenChild) { onOpenChild(it.boardId); return; }
@@ -528,7 +532,7 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
           {onRename
             ? <EditableText className="bc-list-title" value={board.name}
                             onChange={onRename}
-                            placeholder="Untitled cluster"
+                            placeholder={tr`Untitled cluster`}
                             autoFocus={autoFocus}
                             selectAllOnFocus={autoFocus || selectAllNext}
                             editing={editingName} setEditing={setEditingName} />
@@ -555,16 +559,16 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
             })}
           </div>
         ) : (
-          <div className="bc-list-empty">{preview ? 'No items yet' : 'Loading…'}</div>
+          <div className="bc-list-empty">{preview ? tr`No items yet` : tr`Loading…`}</div>
         )}
         {updatedLabel && (
-          <div className="bc-list-foot">Updated {updatedLabel}</div>
+          <div className="bc-list-foot">{tr`Updated ${updatedLabel}`}</div>
         )}
       </div>
     );
   }
 
-  const subLabel = board.meta || 'Board';
+  const subLabel = board.meta || tr`Board`;
 
   return (
     <div ref={rootRef}
@@ -596,7 +600,7 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
           <ImagePlaceholder tone={board.cover || 'neutral'} aspect="16/9" />
         )}
         <div className="bc-cover-ovl">
-          <span className="bc-tag">BOARD</span>
+          <span className="bc-tag">{tr`BOARD`}</span>
           {presenceDots && presenceDots.length > 0 && (
             <BoardCardPresence peers={presenceDots} />
           )}
@@ -609,14 +613,14 @@ function BoardCard({ board, boards = {}, teammates = [], mode = 'tile',
         {onRename
           ? <EditableText className="bc-name" value={board.name}
                           onChange={onRename}
-                          placeholder="Untitled cluster"
+                          placeholder={tr`Untitled cluster`}
                           autoFocus={autoFocus}
                           selectAllOnFocus={autoFocus || selectAllNext}
                           editing={editingName} setEditing={setEditingName} />
           : <div className="bc-name">{board.name}</div>}
         <div className="bc-row">
           <span className="bc-sub">
-            {itemCount > 0 && <span>{itemCount} {itemCount === 1 ? 'item' : 'items'}</span>}
+            {itemCount > 0 && <span>{plural(itemCount, { one: '# item', other: '# items' })}</span>}
             {itemCount > 0 && updatedLabel && <span className="bc-sub-dot">·</span>}
             {updatedLabel && <span>{updatedLabel}</span>}
             {!itemCount && !updatedLabel && <span>{subLabel}</span>}
@@ -636,14 +640,14 @@ function BoardLinkCard({ targetBoard, note, onOpen }) {
   if (!targetBoard) {
     // Linked board the viewer can't access (or that no longer exists).
     return (
-      <div className="blc blc-locked" title="No access — ask the workspace owner to share this cluster">
+      <div className="blc blc-locked" title={tr`No access — ask the workspace owner to share this cluster`}>
         <div className="bc-locked-icon">
           <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
             <rect x="5" y="9" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
             <path d="M8 9 V6 a3 3 0 0 1 6 0 V9" stroke="currentColor" strokeWidth="1.5"/>
           </svg>
         </div>
-        <div className="bc-locked-label">Linked cluster · no access</div>
+        <div className="bc-locked-label">{tr`Linked cluster · no access`}</div>
       </div>
     );
   }
@@ -654,12 +658,12 @@ function BoardLinkCard({ targetBoard, note, onOpen }) {
           <path d="M4 7 L7 4 M3 5 L2 6 A2 2 0 0 0 5 9 L6 8 M8 6 L9 5 A2 2 0 0 0 6 2 L5 3"
                 stroke="currentColor" strokeWidth="1.1" fill="none" strokeLinecap="round"/>
         </svg>
-        <span className="blc-eyebrow">LINKED BOARD</span>
+        <span className="blc-eyebrow">{tr`LINKED BOARD`}</span>
       </div>
       <div className="blc-name">{targetBoard.name}</div>
       {note && <div className="blc-note">{note}</div>}
       <div className="blc-foot">
-        <span className="blc-meta-text">{targetBoard.meta || 'Board'}</span>
+        <span className="blc-meta-text">{targetBoard.meta || tr`Board`}</span>
         <span className="blc-arrow">→</span>
       </div>
     </div>
@@ -737,7 +741,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
           <EditableText
             className="ic-cap editable-overlay"
             value={caption || ''}
-            placeholder="Caption"
+            placeholder={tr`Caption`}
             editing={editingCaption}
             setEditing={setEditingCaption}
             onChange={(v) => onUpdate({ caption: v || null })}
@@ -750,7 +754,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
           <button className="ic-add-caption"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); setEditingCaption(true); }}>
-            + caption
+            {tr`+ caption`}
           </button>
         )}
         {link && (
@@ -771,21 +775,21 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
           // island (toolbarLook.css).
           <div className="ic-actions" onDoubleClick={(e) => e.stopPropagation()}>
             {onEdit && (
-              <button type="button" className="ic-act ic-edit" {...tlTip('Edit photo')} aria-label="Edit photo"
+              <button type="button" className="ic-act ic-edit" {...tlTip(tr`Edit photo`)} aria-label={tr`Edit photo`}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); onEdit((e.currentTarget.closest('.ic-imgwrap') || e.currentTarget).getBoundingClientRect()); }}>
                 <Icon as={Edit} size={15} weight="regular" />
               </button>
             )}
             {onDownload && (
-              <button type="button" className="ic-act ic-download" {...tlTip('Download')} aria-label="Download"
+              <button type="button" className="ic-act ic-download" {...tlTip(tr`Download`)} aria-label={tr`Download`}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); onDownload(); }}>
                 <Icon as={DownloadSimple} size={15} weight="regular" />
               </button>
             )}
             {onExpand && (
-              <button type="button" className="ic-act ic-expand" {...tlTip('View full size')} aria-label="View full size"
+              <button type="button" className="ic-act ic-expand" {...tlTip(tr`View full size`)} aria-label={tr`View full size`}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); onExpand(); }}>
                 <Icon as={CornersOut} size={15} weight="regular" />
@@ -798,7 +802,7 @@ function ImageCard({ src, label, title, link, tone, aspect, caption,
         <EditableText
           className="ic-title editable"
           value={title || ''}
-          placeholder="Title"
+          placeholder={tr`Title`}
           editing={editingTitle}
           setEditing={setEditingTitle}
           onChange={(v) => onUpdate({ title: v || null, label: null })}
@@ -1061,7 +1065,7 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
       <div className="vc-facade">
         <img className="vc-video vc-poster" src={posterUrl} alt="" draggable="false" />
         {resolvedUrl && (
-          <button type="button" className="film-centre-play" tabIndex={-1} aria-label="Play"
+          <button type="button" className="film-centre-play" tabIndex={-1} aria-label={tr`Play`}
                   onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
                   onClick={(e) => { e.stopPropagation(); setPlayOnMount(true); setLive(true); }}>
             <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6a1 1 0 0 0 1.52.85l10.6-6.8a1 1 0 0 0 0-1.7L9.52 4.35A1 1 0 0 0 8 5.2Z" fill="currentColor" /></svg>
@@ -1069,7 +1073,7 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
         )}
       </div>
     )
-    : <ImagePlaceholder label="VIDEO" tone="neutral" />;
+    : <ImagePlaceholder label={tr`VIDEO`} tone="neutral" />;
   return (
     <div className="vc">
       {/* Video had no download affordance ANYWHERE — not on the card, not in
@@ -1080,7 +1084,7 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
         <button type="button" className="vc-download"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); onDownload(); }}
-                aria-label="Download video" title="Download">
+                aria-label={tr`Download video`} title={tr`Download`}>
           <Icon as={Download} size={14} />
         </button>
       )}
@@ -1117,7 +1121,7 @@ function VideoCard({ src, poster, title, autoplay = false, loop = false, onUpdat
         <EditableText
           className="vc-title editable"
           value={title || ''}
-          placeholder="Title"
+          placeholder={tr`Title`}
           editing={editingTitle}
           setEditing={setEditingTitle}
           onChange={(v) => onUpdate({ title: v || null })}
@@ -1330,7 +1334,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
     feedback?.toast({
       type: 'error',
       code: 'note_editor_unavailable',
-      message: "Couldn't open the note editor. Check your connection and try again.",
+      message: tr`Couldn't open the note editor. Check your connection and try again.`,
     });
   };
 
@@ -1480,8 +1484,8 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
       )}
       {overflowing && (
         <button type="button" className="note-more-chip"
-                title="Show all text — fit the note to its content"
-                aria-label="Fit note height to its text"
+                title={tr`Show all text — fit the note to its content`}
+                aria-label={tr`Fit note height to its text`}
                 onPointerDown={(e) => e.stopPropagation()}
                 onDoubleClick={(e) => e.stopPropagation()}
                 onClick={(e) => {
@@ -1489,7 +1493,7 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
                   const bodyEl = ref.current?.querySelector('.note-body');
                   if (bodyEl) onUpdate({ h: Math.round(Math.min(1600, bodyEl.scrollHeight + 30)), manuallyResized: false });
                 }}>
-          Show all
+          {tr`Show all`}
         </button>
       )}
     </div>
@@ -1716,7 +1720,7 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
           {!embedActive && (
             <div
               className="lc-embed-overlay"
-              title="Double-click to interact"
+              title={tr`Double-click to interact`}
               onDoubleClick={(e) => { e.stopPropagation(); setEmbedActive(true); }}
             />
           )}
@@ -1724,18 +1728,18 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
             <button
               type="button"
               className="lc-embed-title-add"
-              title="Add title"
+              title={tr`Add title`}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); setEditingTitle(true); }}
             >
-              + Title
+              {tr`+ Title`}
             </button>
           )}
         </div>
         {showMeta && (
           <div className="lc-meta lc-embed-meta">
             {onUpdate
-              ? <EditableText className="lc-title" value={title || ''} placeholder={embed.provider || 'Embed'}
+              ? <EditableText className="lc-title" value={title || ''} placeholder={embed.provider || tr`Embed`}
                               onChange={(v) => onUpdate({ title: v })}
                               editing={editingTitle}
                               setEditing={setEditingTitle}
@@ -1745,7 +1749,7 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
             <div className="lc-src">
               <span className="lc-provider-badge">{embed.provider}</span>
               {openHref && (
-                <button type="button" className="lc-open" title="Open original"
+                <button type="button" className="lc-open" title={tr`Open original`}
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={openLink}>
                   <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
@@ -1774,7 +1778,7 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
                  onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           )}
           {onUpdate && (
-            <button type="button" className="lc-preview-x" title="Remove preview"
+            <button type="button" className="lc-preview-x" title={tr`Remove preview`}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1785,7 +1789,7 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
       )}
       <div className="lc-meta">
         {onUpdate
-          ? <EditableText className="lc-title" value={title || ''} placeholder="Untitled link"
+          ? <EditableText className="lc-title" value={title || ''} placeholder={tr`Untitled link`}
                           onChange={(v) => onUpdate({ title: v })}
                           editing={editingTitle}
                           setEditing={setEditingTitle}
@@ -1803,10 +1807,10 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
               </svg>
             )}
           {onUpdate
-            ? <EditableText className="lc-src-text" value={source || ''} placeholder="https://…" onChange={changeSource} />
+            ? <EditableText className="lc-src-text" value={source || ''} placeholder={tr`https://…`} onChange={changeSource} />
             : <span>{source}</span>}
           {openHref && (
-            <button type="button" className="lc-open" title="Open link"
+            <button type="button" className="lc-open" title={tr`Open link`}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={openLink}>
               <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
@@ -1865,7 +1869,7 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
   };
   const addSwatch = (e) => {
     e.stopPropagation();
-    onUpdate({ swatches: [...swatches, { name: 'Color', hex: '#888888' }] });
+    onUpdate({ swatches: [...swatches, { name: tr({ message: 'Color', context: 'default name' }), hex: '#888888' }] });
   };
   // Removing a swatch gets the house Undo toast. The inverse is a closure (put
   // the swatch back where it was in the CURRENT list), so an edit made in the
@@ -1876,7 +1880,7 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
     onUpdate({ swatches: swatches.filter((_, idx) => idx !== i) });
     if (!gone) return;
     undoToast(feedback, {
-      message: 'Color removed',
+      message: tr`Color removed`,
       onUndo: () => {
         const cur = [...(swatchesRef.current || [])];
         cur.splice(Math.min(i, cur.length), 0, gone);
@@ -1937,7 +1941,7 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
       <div className={`pc pc-${L.mode}${pureColor ? ' pc-pure' : ''}`}>
         {headerShown && (
           <div className="pc-head">
-            <div className="pc-title">{title || 'Palette'}</div>
+            <div className="pc-title">{title || tr`Palette`}</div>
           </div>
         )}
         <div className={`pc-strip pc-${L.orient}`}>
@@ -1963,7 +1967,7 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
 
   const eyeBtn = (
     <button className="pc-eye-float"
-            title={pureColor ? 'Show labels' : 'Hide labels'}
+            title={pureColor ? tr`Show labels` : tr`Hide labels`}
             aria-pressed={pureColor}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onUpdate({ chipsOnly: !pureColor }); }}>
@@ -1989,7 +1993,7 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
       {eyeBtn}
       {headerShown && (
         <div className="pc-head">
-          <EditableText className="pc-title" value={title || ''} placeholder="Palette"
+          <EditableText className="pc-title" value={title || ''} placeholder={tr`Palette`}
                         onChange={(v) => onUpdate({ title: v })}
                         editing={editingTitle}
                         setEditing={setEditingTitle}
@@ -2009,7 +2013,7 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
                  onDrop={(e) => onCellDrop(i, e)}
                  onDragEnd={onCellDragEnd}>
               <button className="pc-chip" style={{ background: s.hex }}
-                      title={`${hx} — click to edit · drag to reorder`}
+                      title={tr`${hx} — click to edit · drag to reorder`}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => openPicker(i, e)} />
               {(named || hexShown) && (
@@ -2017,28 +2021,28 @@ function PaletteCard({ title, swatches = [], hideHex = false, hideLabels = false
                   {named && <div className="pc-name" style={labelStyle(s.hex)}>{s.name}</div>}
                   {hexShown && (
                     <button className="pc-hex pc-hex-btn" style={labelStyle(s.hex)}
-                            title="Click to copy"
+                            title={tr`Click to copy`}
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={(e) => copyHex(i, hx, e)}>
-                      {copiedIdx === i ? 'COPIED' : hx}
+                      {copiedIdx === i ? tr`COPIED` : hx}
                     </button>
                   )}
                 </div>
               )}
-              <button className="pc-cell-x" title="Remove"
+              <button className="pc-cell-x" title={tr`Remove`}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => removeSwatch(i, e)}>×</button>
             </div>
           );
         })}
         {!pureColor && (
-          <button className="pc-add" title="Add color"
+          <button className="pc-add" title={tr`Add color`}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={addSwatch}>
             <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden="true">
               <path d="M9 3 V15 M3 9 H15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
             </svg>
-            <span className="pc-add-label">Add</span>
+            <span className="pc-add-label">{tr`Add`}</span>
           </button>
         )}
       </div>
@@ -2073,7 +2077,7 @@ function DocCard({ title, lines, author, date, html = null, body = null, onUpdat
           <path d="M8 1 V3 H10" stroke="currentColor" strokeWidth="1" fill="none" />
         </svg>
         {onUpdate
-          ? <EditableText className="doc-title" value={title || ''} placeholder="Untitled"
+          ? <EditableText className="doc-title" value={title || ''} placeholder={tr`Untitled`}
                           onChange={(v) => onUpdate({ title: v })}
                           autoFocus={autoFocus}
                           selectAllOnFocus={autoFocus} />
@@ -2108,7 +2112,7 @@ function ScheduleCard({ title, rows, onUpdate = null, editTitleAt = 0 }) {
   return (
     <div className="sched">
       {onUpdate ? (
-        <EditableText className="sched-title" value={title || ''} placeholder="Schedule"
+        <EditableText className="sched-title" value={title || ''} placeholder={tr`Schedule`}
                       editing={editingTitle}
                       setEditing={setEditingTitle}
                       onChange={(v) => onUpdate({ title: v || null })} />
@@ -2198,7 +2202,7 @@ function ShapeCard({ shape = 'rect', stroke = THEME_INK_STROKE, fill = 'transpar
          onDoubleClick={onUpdate && !isStrokeOnly ? (e) => { e.stopPropagation(); setEditingLabel(true); } : undefined}>
       <ShapeGlyph shape={shape} stroke={stroke} fill={fill} strokeWidth={strokeWidth} dash={dash} />
       {showLabel && (
-        <EditableText className="shape-label" value={label || ''} placeholder="Label"
+        <EditableText className="shape-label" value={label || ''} placeholder={tr`Label`}
                       editing={editingLabel}
                       setEditing={setEditingLabel}
                       onChange={(v) => onUpdate({ label: v || null })} />
@@ -2217,13 +2221,15 @@ function BoardCardPresence({ peers = [] }) {
   const visible = peers.slice(0, 3);
   const overflow = peers.length - visible.length;
   return (
-    <div className="bc-presence" aria-label={`${peers.length} ${peers.length === 1 ? 'person' : 'people'} here`}>
+    <div className="bc-presence" aria-label={plural(peers.length, { one: '# person here', other: '# people here' })}>
       {visible.map(p => {
         const initial = initialOf(p.user.name || p.user.email);
-        const where = p.location?.boardName || 'this board';
+        const who = p.user.name || p.user.email;
         const tip = p.exact
-          ? `${p.user.name || p.user.email} is here`
-          : `${p.user.name || p.user.email} · in ${where}`;
+          ? tr`${ph({ who })} is here`
+          : (p.location?.boardName
+              ? tr`${ph({ who })} · in ${ph({ board: p.location.boardName })}`
+              : tr`${ph({ who })} · in this board`);
         return (
           <span key={p.user.id}
                 className={`bc-presence-dot ${p.exact ? 'exact' : 'nested'}`}
@@ -2234,7 +2240,7 @@ function BoardCardPresence({ peers = [] }) {
         );
       })}
       {overflow > 0 && (
-        <span className="bc-presence-dot bc-presence-overflow" title={`+${overflow} more`}>
+        <span className="bc-presence-dot bc-presence-overflow" title={tr`+${overflow} more`}>
           +{overflow}
         </span>
       )}
@@ -2486,7 +2492,7 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
     <button type="button" className={`ac-play${isPlaying ? ' is-playing' : ''}`}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={togglePlay}
-            aria-label={isPlaying ? 'Pause' : 'Play'}>
+            aria-label={isPlaying ? tr`Pause` : tr`Play`}>
       {isPlaying ? (
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
           <rect x="4" y="3" width="3" height="10" rx="0.8" fill="currentColor" />
@@ -2500,8 +2506,8 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
     </button>
   );
 
-  const status = pc.preparing ? 'Making a playable copy…'
-    : (audioFailed && !pc.handles('decode') ? 'Can’t play here: download it' : null);
+  const status = pc.preparing ? tr`Making a playable copy…`
+    : (audioFailed && !pc.handles('decode') ? tr`Can’t play here: download it` : null);
   const timeDisplay = status
     ? <span className="ac-time" role="status">{status}</span>
     : <span className="ac-time">{formatTime(position)} <span className="ac-time-sep">/</span> {formatTime(dur)}</span>;
@@ -2522,11 +2528,11 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
     <div className="ac-meta" onPointerDown={(e) => e.stopPropagation()}>
       {onUpdate ? (
         <EditableText className="ac-meta-field" value={bpm != null ? String(bpm) : ''}
-                      placeholder="BPM" onChange={commitBpm} singleClickEdit />
+                      placeholder={tr`BPM`} onChange={commitBpm} singleClickEdit />
       ) : (bpm != null && <span className="ac-meta-field">{bpm}</span>)}
       {onUpdate ? (
         <EditableText className="ac-meta-field" value={keyText}
-                      placeholder="Key" onChange={commitKey} singleClickEdit />
+                      placeholder={tr`Key`} onChange={commitKey} singleClickEdit />
       ) : (keyText && <span className="ac-meta-field">{keyText}</span>)}
       {fmt && <span className="ac-meta-fmt">{fmt}</span>}
     </div>
@@ -2536,7 +2542,7 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
     <button type="button" className="ac-download"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onDownload(); }}
-            aria-label="Download audio" title="Download">
+            aria-label={tr`Download audio`} title={tr`Download`}>
       <Icon as={Download} size={14} />
     </button>
   ) : null;
@@ -2545,7 +2551,7 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
     <EditableText
       className="ac-title editable"
       value={title || ''}
-      placeholder="Audio"
+      placeholder={tr`Audio`}
       editing={editingTitle}
       setEditing={setEditingTitle}
       onChange={(v) => onUpdate({ title: v || null })}
@@ -2606,11 +2612,11 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
                   <ellipse cx="17" cy="14" rx="2.4" ry="1.8" stroke="currentColor" strokeWidth="1.4" fill="none"/>
                 </svg>
               </div>}
-          {coverDropMode && <div className="ac-cover-hint">Drop image or click</div>}
+          {coverDropMode && <div className="ac-cover-hint">{tr`Drop image or click`}</div>}
         </div>
         <div className="ac-body">
           <div className="ac-title-row" onDoubleClick={onTitleDouble}>
-            {showTitle ? titleEl : <span className="ac-title ac-title-placeholder">Audio</span>}
+            {showTitle ? titleEl : <span className="ac-title ac-title-placeholder">{tr`Audio`}</span>}
           </div>
           {waveBox}
           <div className="ac-controls">
@@ -2629,7 +2635,7 @@ function AudioCard({ src, title, duration, cover, peaks: peaksB64 = null,
     <div ref={rootRef} className={`ac ${coverDropMode ? 'ac-cover-mode' : ''}`}>
       {audioEl}
       <div className="ac-title-row" onDoubleClick={onTitleDouble}>
-        {showTitle ? titleEl : <span className="ac-title ac-title-placeholder">Audio</span>}
+        {showTitle ? titleEl : <span className="ac-title ac-title-placeholder">{tr`Audio`}</span>}
       </div>
       {waveBox}
       <div className="ac-controls">

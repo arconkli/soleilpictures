@@ -19,8 +19,10 @@ import { KindIcon } from '../cards.jsx';
 import { ArrowSquareOut } from '../../lib/icons.js';
 import { ensureShare, fsRef, shareEntry, subscribeShares } from '../../lib/fileShareUrls.js';
 import './shortcutCard.css';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
-const KIND_WORD = { image: 'Image', video: 'Video', audio: 'Audio', pdf: 'PDF', file: 'File', doc: 'Doc' };
+const kindWord = (kind) => ({ image: tr`Image`, video: tr`Video`, audio: tr`Audio`, pdf: tr`PDF`, file: tr`File`, doc: tr`Doc` }[kind] || tr`File`);
 
 // The share as this viewer sees it: { status, res }.
 function useShare(token, { enabled, api }) {
@@ -61,14 +63,14 @@ export function ShortcutCard({ shareToken, isPublic = false, onRemove = null, ap
       <div className={`sc-card is-empty${gone ? ' is-gone' : ''}`} data-shortcut-state={status}>
         <span className="sc-badge" aria-hidden="true"><Icon as={ArrowSquareOut} size={12} /></span>
         <div className="sc-empty-body">
-          <div className="sc-empty-title">{gone ? 'No longer shared' : 'Shared file'}</div>
+          <div className="sc-empty-title">{gone ? tr`No longer shared` : tr`Shared file`}</div>
           <div className="sc-empty-sub">
-            {gone ? 'The person who shared it stopped sharing it.'
-              : status === 'error' ? "Couldn't reach it just now."
-              : 'Only the people it was shared with can open it.'}
+            {gone ? tr`The person who shared it stopped sharing it.`
+              : status === 'error' ? tr`Couldn't reach it just now.`
+              : tr`Only the people it was shared with can open it.`}
           </div>
           {gone && onRemove && (
-            <button type="button" className="sc-remove" onClick={(e) => { e.stopPropagation(); onRemove(); }}>Remove</button>
+            <button type="button" className="sc-remove" onClick={(e) => { e.stopPropagation(); onRemove(); }}><Trans>Remove</Trans></button>
           )}
         </div>
       </div>
@@ -78,9 +80,10 @@ export function ShortcutCard({ shareToken, isPublic = false, onRemove = null, ap
   const kind = file.kind || 'file';
   const urls = res.urls || {};
   const thumb = urls.poster ? fsRef(shareToken, 'poster') : kind === 'image' && urls.src ? fsRef(shareToken, 'src') : null;
-  const by = res.shared_by?.name || 'Someone on Clusters';
+  const by = res.shared_by?.name || tr`Someone on Clusters`;
+  const fileName = file.name || tr`Shared file`;
   return (
-    <div className="sc-card" data-shortcut-state="ok" title={`${file.name || 'Shared file'}, shared by ${by}`}>
+    <div className="sc-card" data-shortcut-state="ok" title={tr`${ph({ fileName })}, shared by ${by}`}>
       <div className="sc-thumb">
         {thumb
           ? <R2Image src={thumb} alt="" className="sc-thumb-img" />
@@ -88,8 +91,8 @@ export function ShortcutCard({ shareToken, isPublic = false, onRemove = null, ap
         <span className="sc-badge" aria-hidden="true"><Icon as={ArrowSquareOut} size={12} /></span>
       </div>
       <div className="sc-meta">
-        <div className="sc-name">{file.name || 'Shared file'}</div>
-        <div className="sc-sub">{KIND_WORD[kind] || 'File'} · Shared by {by}</div>
+        <div className="sc-name">{fileName}</div>
+        <div className="sc-sub">{tr`${ph({ kindWord: kindWord(kind) })} · Shared by ${by}`}</div>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import { Icon } from './Icon.jsx';
 import HapticTap from './HapticTap.jsx';
 import { haptic } from '../lib/haptics.js';
 import { Check, ChevronRight, Drop, Edit, GitMerge, Shapes, Trash2, X } from '../lib/icons.js';
+import { Trans } from '@lingui/react/macro';
 
 // By the action's id, so the callers import no icons of their own (the
 // sidebar loads with the app; these load with the sheet).
@@ -58,7 +59,7 @@ export function TagActionSheet({ title, sub, lead = null, actions, onClose }) {
         {danger.map(row)}
       </div>
       <div className="tag-sheet-foot">
-        <button type="button" className="tag-sheet-cancel" onClick={onClose}>Cancel</button>
+        <button type="button" className="tag-sheet-cancel" onClick={onClose}><Trans>Cancel</Trans></button>
       </div>
     </Sheet>
   );

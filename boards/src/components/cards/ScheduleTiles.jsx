@@ -21,14 +21,17 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Icon } from '../Icon.jsx';
 import { Plus } from '../../lib/icons.js';
 import { useScrollEdges } from '../../hooks/useScrollEdges.js';
-import { WEEKDAYS, parseISO, clockLabel } from '../../lib/schedDates.js';
+import { parseISO } from '../../lib/schedDates.js';
+import { weekdayShortNames, clockLabel, weekRange } from '../../lib/schedDatesWords.js';
 import { calWeeks, calTracks } from '../../lib/schedCalendar.js';
 import { dayTypeColor, dayTypeName } from '../../lib/dayTypes.js';
 import { CellContent } from './gridCellShared.jsx';
+import { t, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const stop = (e) => e.stopPropagation();
 
-const dayName = (b) => (b.day_label || '').trim() || b.name || 'Day';
+const dayName = (b) => (b.day_label || '').trim() || b.name || t`Day`;
 
 // One day. A tile when it has a board, a dashed placeholder when it does not —
 // the empty state matters as much as the full one, because that is where "set
@@ -66,8 +69,8 @@ function Tile({
       role="button"
       tabIndex={0}
       aria-label={board
-        ? `${label}, ${WEEKDAYS[day.dow]} ${parseISO(day.date)?.d}${board.day_start ? `, ${clockLabel(board.day_start)}` : ''}`
-        : `${WEEKDAYS[day.dow]} ${parseISO(day.date)?.d}, nothing set up`}
+        ? `${label}, ${weekdayShortNames()[day.dow]} ${parseISO(day.date)?.d}${board.day_start ? `, ${clockLabel(board.day_start)}` : ''}`
+        : t`${ph({ value: weekdayShortNames()[day.dow] })} ${ph({ d: parseISO(day.date)?.d })}, nothing set up`}
       onPointerDown={(e) => {
         lastPointer.current = e.pointerType || 'mouse';
         (draggable && board ? onPointerDown : stop)(e);
@@ -118,8 +121,8 @@ function Tile({
         <span className="schedt-ph">
           {editable && (
             <button type="button" className="schedt-add"
-              title={`Set up ${WEEKDAYS[day.dow]} ${parseISO(day.date)?.d}`}
-              aria-label={`Set up ${WEEKDAYS[day.dow]} ${parseISO(day.date)?.d}`}
+              title={t`Set up ${ph({ value: weekdayShortNames()[day.dow] })} ${ph({ d: parseISO(day.date)?.d })}`}
+              aria-label={t`Set up ${ph({ value: weekdayShortNames()[day.dow] })} ${ph({ d: parseISO(day.date)?.d })}`}
               onPointerDown={stop}
               onClick={(e) => { e.stopPropagation(); onAdd?.(); }}>
               <Icon as={Plus} size={15} />
@@ -128,7 +131,7 @@ function Tile({
         </span>
       )}
       <span className="schedt-cap">
-        <span className="schedt-dow">{WEEKDAYS[day.dow]}</span>
+        <span className="schedt-dow">{weekdayShortNames()[day.dow]}</span>
         <span className="schedt-dnum">{parseISO(day.date)?.d}</span>
         {board ? (
           <>
@@ -143,7 +146,7 @@ function Tile({
             )}
           </>
         ) : loose > 0 ? (
-          <span className="schedt-name is-quiet">{loose} item{loose === 1 ? '' : 's'}</span>
+          <span className="schedt-name is-quiet">{plural(loose, { one: '# item', other: '# items' })}</span>
         ) : null}
       </span>
     </div>
@@ -171,14 +174,14 @@ export function ScheduleTiles({
   return (
     <div className="schedt" ref={bodyRef}>
       {weeks.length === 0 ? (
-        <p className="schedt-empty">Nothing in this range.</p>
+        <p className="schedt-empty"><Trans>Nothing in this range.</Trans></p>
       ) : weeks.map((wk) => {
         const live = wk.days.filter((d) => !d.outside && (shootDays[d.date] || []).length).length;
         return (
           <div key={wk.key} className="schedt-week">
             <div className="schedt-wk">
-              <b>{wk.label}</b>
-              <span>{live ? `${live} day${live === 1 ? '' : 's'}` : '—'}</span>
+              <b>{weekRange(wk.from, wk.to)}</b>
+              <span>{live ? plural(live, { one: '# day', other: '# days' }) : '—'}</span>
             </div>
             <div className="schedt-grid" style={{ gridTemplateColumns: calTracks() }}>
               {wk.days.map((d) => {

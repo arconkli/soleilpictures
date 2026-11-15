@@ -14,6 +14,15 @@
 // `body` / `footer` of `shell`). Trusted html is html the caller has already
 // built from these pieces or escaped itself.
 
+import { graphemes } from "./safeLabel.mjs";
+import { emailStrings } from "./i18n.mjs";
+
+// The words of an email in the reader's language (i18n.mjs). Every piece that
+// writes words takes an optional one and reads English without it, so old
+// callers (and the Supabase sign-in template generator) keep working.
+export type EmailStrings = ReturnType<typeof emailStrings>;
+const EN: EmailStrings = emailStrings("en");
+
 export const T = {
   page: "#0a0a0c",
   card: "#121215",
@@ -94,13 +103,38 @@ export function codeTile(code: string): string {
       </td></tr></table>`;
 }
 
+// Same rule as initialsOf in boards/src/lib/graphemes.js (kept self-contained):
+// each word drops its leading invisible characters, punctuation and marks;
+// words left empty are skipped; a second initial joins only when both are
+// ASCII or both are letters of a script that writes initials in pairs.
+const LEADING_JUNK = /^[\p{Cf}\p{P}\p{M}]+/u;
+const LETTERISH = /^[\p{Script=Latin}\p{Script=Cyrillic}\p{Script=Greek}\p{Script=Armenian}\p{N}]/u;
+// Upper-cases one initial unless that would change how many characters it is
+// ("ß" would become "SS").
+function upperKeep(g: string): string {
+  const u = g.toUpperCase();
+  return [...u].length === [...g].length ? u : g;
+}
+function initialsOf(who: string): string {
+  const words = who.trim().split(/\s+/u).map((w) => w.replace(LEADING_JUNK, "")).filter(Boolean);
+  if (!words.length) return "";
+  const a = graphemes(words[0])[0] || "";
+  if (words.length === 1) return upperKeep(a);
+  const b = graphemes(words[1])[0] || "";
+  const bothAscii = a.length === 1 && b.length === 1 && a.charCodeAt(0) < 0x80 && b.charCodeAt(0) < 0x80;
+  if (bothAscii || (LETTERISH.test(a) && LETTERISH.test(b))) return upperKeep(a) + upperKeep(b);
+  return upperKeep(a);
+}
+
 // The line above the quote (the subtitle) already says where it was written,
 // so the quote names only who wrote it.
 export function quote(o: { who?: string; text: string }): string {
-  const text = `<p class="ink1" style="margin:${o.who ? "10px" : "0"} 0 0;font:400 15px/1.6 ${SANS};color:${T.ink1};">${esc(o.text)}</p>`;
+  // dir="auto" so Arabic or Hebrew words in a quote read right to left; text-align:start
+  // follows it (the panel cell's own left is physical). Both are no-ops for English.
+  const text = `<p dir="auto" class="ink1" style="margin:${o.who ? "10px" : "0"} 0 0;font:400 15px/1.6 ${SANS};color:${T.ink1};text-align:start;">${esc(o.text)}</p>`;
   let head = "";
   if (o.who) {
-    const initials = o.who.split(/\s+/).filter(Boolean).map((w) => Array.from(w)[0]).slice(0, 2).join("").toUpperCase();
+    const initials = initialsOf(o.who);
     head = `<table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>
           <td class="avatar" width="28" height="28" align="center" valign="middle" style="width:28px;height:28px;border-radius:14px;background:${T.avatar};font:600 11px/28px ${SANS};color:${T.avatarInk};">${esc(initials)}</td>
           <td style="padding-left:10px;font:600 14px/1.3 ${SANS};"><span class="ink0" style="color:${T.ink0};">${esc(o.who)}</span></td>
@@ -179,22 +213,31 @@ function footerLink(href: string, label: string): string {
   return `<a class="ink3" href="${esc(href)}" style="color:${T.ink3};text-decoration:underline;">${esc(label)}</a>`;
 }
 
-export function footerTx(unsubscribeUrl?: string): string {
+// The brand line stays English in every language.
+export function footerTx(unsubscribeUrl?: string, s: EmailStrings = EN): string {
   const lines = [`Clusters by Soleil Pictures · ${footerLink(SITE_URL, "clusters.soleilpictures.com")}`];
-  if (unsubscribeUrl) lines.push(footerLink(unsubscribeUrl, "Turn these emails off"));
+  if (unsubscribeUrl) lines.push(footerLink(unsubscribeUrl, s.t("common.turn_off_link")));
   return footerRow(lines);
 }
 
-export function footerNote(postalAddress: string, unsubscribeUrl: string): string {
-  return footerRow([esc(postalAddress), `Not into these? ${footerLink(unsubscribeUrl, "Unsubscribe")}.`]);
+// A private-use character stands in for the link while the sentence around it
+// is escaped, so the sentence (whatever a translator wrote) is escaped and the
+// link, built here, is not.
+const LINK_MARK = String.fromCodePoint(0xe000);
+
+export function footerNote(postalAddress: string, unsubscribeUrl: string, s: EmailStrings = EN): string {
+  const link = footerLink(unsubscribeUrl, s.t("common.unsubscribe_link"));
+  const sentence = esc(s.t("common.unsubscribe_note", { link: LINK_MARK })).replace(LINK_MARK, () => link);
+  return footerRow([esc(postalAddress), sentence]);
 }
 
 const PREHEADER_PAD = "&zwnj;&nbsp;".repeat(30);
 
-// `body` and `footer` are TRUSTED html (built from the pieces above).
-export function shell(o: { title?: string; preheader: string; body: string; footer: string }): string {
+// `body` and `footer` are TRUSTED html (built from the pieces above). `lang` is
+// the language of the words ("en" unless the caller says).
+export function shell(o: { title?: string; preheader: string; body: string; footer: string; lang?: string }): string {
   return `<!DOCTYPE html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<html lang="${esc(o.lang ?? "en")}" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">

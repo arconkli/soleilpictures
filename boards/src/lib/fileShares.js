@@ -88,20 +88,8 @@ export function groupComments(list) {
   return out;
 }
 
-export function friendlyShareError(error) {
-  const hint = error?.hint || '';
-  const code = error?.code || '';
-  switch (hint) {
-    case 'invite_limit_reached': return "You've reached today's invite limit. Try again tomorrow.";
-    case 'sending_on_hold': return 'Sharing is paused on your account.';
-    case 'comment_rate_limited': return 'Slow down a little: try again in a few minutes.';
-    case 'new_account_risky': return "New accounts can't open program files to anyone with the link yet.";
-    case 'not_shareable': return "This file can't be shared.";
-    default: break;
-  }
-  if (code === '42501') return "You can't do that on this file.";
-  return 'Something went wrong. Try again.';
-}
+// What a failed call says is in fileSharesWords.js (friendlyShareError), read
+// through Lingui; this module is read by gen-docs and takes no macros.
 
 // ---------------------------------------------------------------------------
 // API. Every rpc resolves { data, error } (never .catch() a builder).

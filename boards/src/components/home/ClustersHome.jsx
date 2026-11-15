@@ -44,11 +44,13 @@ import { useKeyboardInset } from '../../hooks/useKeyboardInset.js';
 import { useToolbarRoving } from '../../hooks/useToolbarRoving.js';
 import './clustersHome.css';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const cardsOf = (b) => Number(b?.card_count) || 0;
 const whenOf = (b) => {
   const w = relativeTimeShort(boardRecency(b));
-  return w === 'Just now' ? 'just now' : w;
+  return w === 'Just now' ? tr`just now` : w;
 };
 const isOwn = (b, workspaceId) => !!b && !b.deleted_at && !b._shared && (!workspaceId || b.workspace_id === workspaceId);
 
@@ -98,7 +100,7 @@ function StarCard({
   useEffect(() => { setRenaming(false); }, [board.id]);
   useEffect(() => { if (renaming) { settledRef.current = false; inputRef.current?.select(); } }, [renaming]);
 
-  const name = board.id === rootId ? (board.name || 'Studio') : clusterName(board);
+  const name = board.id === rootId ? (board.name || tr`Studio`) : clusterName(board);
   const isRoot = board.id === rootId;
   const kids = useMemo(() => Object.values(boards || {})
     .filter(b => isOwn(b, workspaceId) && b.parent_board_id === board.id)
@@ -106,8 +108,8 @@ function StarCard({
   const parent = !isRoot && board.parent_board_id && board.parent_board_id !== rootId ? boards?.[board.parent_board_id] : null;
   const n = cardsOf(board);
   const sub = [
-    isRoot ? 'The top of your workspace' : parent ? `In ${clusterName(parent)}` : null,
-    n ? `${n} card${n === 1 ? '' : 's'}` : 'Empty',
+    isRoot ? tr`The top of your workspace` : parent ? tr`In ${ph({ name: clusterName(parent) })}` : null,
+    n ? plural(n, { one: '# card', other: '# cards' }) : tr`Empty`,
     kids.length ? `${kids.length} inside` : null,
     `edited ${whenOf(board)}`,
   ].filter(Boolean).join(' · ');
@@ -123,13 +125,13 @@ function StarCard({
   return (
     <section className="ch-card" aria-label={name}
              onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape' && !renaming) { e.stopPropagation(); onClose?.(); } }}>
-      <button type="button" className="ch-x" aria-label="Close" title="Close (Esc)" onClick={onClose}>
+      <button type="button" className="ch-x" aria-label={tr`Close`} title={tr`Close (Esc)`} onClick={onClose}>
         <Icon as={X} size={14} weight="regular" />
       </button>
       <Cover board={board} photos={photos} />
       {renaming ? (
         <form className="ch-card-rename" onSubmit={(e) => { e.preventDefault(); commit(); }}>
-          <input ref={inputRef} dir="auto" value={draft} maxLength={120} aria-label="Cluster name"
+          <input ref={inputRef} dir="auto" value={draft} maxLength={120} aria-label={tr`Cluster name`}
                  onChange={(e) => setDraft(e.target.value)} onBlur={commit}
                  onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); } }} />
         </form>
@@ -139,28 +141,28 @@ function StarCard({
       <p className="ch-card-sub">{sub}</p>
       {kids.length > 0 && (
         <p className="ch-card-in">
-          <span className="ch-card-in-label">Inside</span>
+          <span className="ch-card-in-label"><Trans>Inside</Trans></span>
           {kids.slice(0, 4).map((k, i) => (
             <Fragment key={k.id}>
               {i > 0 && <span className="ch-dot" aria-hidden="true">·</span>}
               <button type="button" className="ch-inword" onClick={() => onPick?.(k.id)}>{clusterName(k)}</button>
             </Fragment>
           ))}
-          {kids.length > 4 && <span className="ch-card-more">and {kids.length - 4} more</span>}
+          {kids.length > 4 && <span className="ch-card-more">{plural(kids.length - 4, { one: 'and # more', other: 'and # more' })}</span>}
         </p>
       )}
       {here?.length > 0 && (
         <span className="ch-here"><Faces people={here} />{hereText(here.map(p => firstName(p.name)))}</span>
       )}
       <div className="ch-card-acts">
-        <button type="button" className="ch-primary" onClick={onOpen}>Open</button>
-        {editable && <button type="button" className="ch-word" onClick={() => { setDraft(name); setRenaming(true); }}>Rename</button>}
-        {editable && <button type="button" className="ch-word" onClick={onCover}>Cover</button>}
-        {editable && !isRoot && <button type="button" className="ch-word" onClick={onMove}>Move</button>}
-        {onStar && <button type="button" className="ch-word" aria-pressed={!!starred} onClick={onStar}>{starred ? 'Unstar' : 'Star'}</button>}
-        {editable && !isRoot && <button type="button" className="ch-word is-danger ch-push" onClick={onDelete}>Delete</button>}
+        <button type="button" className="ch-primary" onClick={onOpen}><Trans>Open</Trans></button>
+        {editable && <button type="button" className="ch-word" onClick={() => { setDraft(name); setRenaming(true); }}><Trans>Rename</Trans></button>}
+        {editable && <button type="button" className="ch-word" onClick={onCover}><Trans>Cover</Trans></button>}
+        {editable && !isRoot && <button type="button" className="ch-word" onClick={onMove}><Trans>Move</Trans></button>}
+        {onStar && <button type="button" className="ch-word" aria-pressed={!!starred} onClick={onStar}>{starred ? tr`Unstar` : tr`Star`}</button>}
+        {editable && !isRoot && <button type="button" className="ch-word is-danger ch-push" onClick={onDelete}><Trans>Delete</Trans></button>}
       </div>
-      {!editable && <p className="ch-card-note">You can look around this cluster but not change it.</p>}
+      {!editable && <p className="ch-card-note"><Trans>You can look around this cluster but not change it.</Trans></p>}
     </section>
   );
 }
@@ -287,7 +289,7 @@ export function ClustersHome({
   // (autoFocus on mount comes too late for that).
   const startNamingNow = () => { flushSync(startNaming); namingRef.current?.focus(); };
   const makeCluster = () => { const name = draft.trim(); setNaming(false); onNewProject?.(name || null); };
-  const wsName = (workspace?.name || '').trim() || 'your workspace';
+  const wsName = (workspace?.name || '').trim() || tr`your workspace`;
 
   const newest = useMemo(() => Object.values(boards || {}).filter(b => isOwn(b, workspaceId))
     .reduce((m, b) => Math.max(m, boardRecency(b)), 0), [boards, workspaceId]);
@@ -327,17 +329,17 @@ export function ClustersHome({
 
   // Naming a new cluster: over the map's bottom bar, or under a phone's search.
   const namingForm = (
-    <form className="ch-naming" aria-label="New cluster" onSubmit={(e) => { e.preventDefault(); makeCluster(); }}>
+    <form className="ch-naming" aria-label={tr`New cluster`} onSubmit={(e) => { e.preventDefault(); makeCluster(); }}>
       <label className="ch-naming-field">
-        <span className="ch-sr">Name the new cluster</span>
-        <input ref={namingRef} dir="auto" autoFocus value={draft} maxLength={120} placeholder="Name it" aria-label="Name the new cluster"
+        <span className="ch-sr"><Trans>Name the new cluster</Trans></span>
+        <input ref={namingRef} dir="auto" autoFocus value={draft} maxLength={120} placeholder={tr`Name it`} aria-label={tr`Name the new cluster`}
                onChange={(e) => setDraft(e.target.value)}
                onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); setNaming(false); } }} />
       </label>
-      <p className="ch-naming-sub">At the top of {wsName} · Enter to make it and go in</p>
+      <p className="ch-naming-sub"><Trans>At the top of {wsName} · Enter to make it and go in</Trans></p>
       <div className="ch-card-acts">
-        <button type="submit" className="ch-primary">Make cluster</button>
-        <button type="button" className="ch-word" onClick={() => setNaming(false)}>Cancel</button>
+        <button type="submit" className="ch-primary"><Trans>Make cluster</Trans></button>
+        <button type="button" className="ch-word" onClick={() => setNaming(false)}><Trans>Cancel</Trans></button>
       </div>
     </form>
   );
@@ -351,30 +353,30 @@ export function ClustersHome({
         <div className="ch-find-row">
           <label className="ch-find">
             <Icon as={Search} size={15} weight="regular" />
-            <input ref={findRef} dir="auto" type="search" placeholder="Find a cluster" aria-label="Find a cluster"
+            <input ref={findRef} dir="auto" type="search" placeholder={tr`Find a cluster`} aria-label={tr`Find a cluster`}
                    value={query} onChange={(e) => setQuery(e.target.value)} />
           </label>
           {canCreate && (
             <button type="button" className={`ch-quiet${naming ? ' is-on' : ''}`} aria-pressed={naming}
                     onClick={naming ? () => setNaming(false) : startNamingNow}>
-              <Icon as={Plus} size={14} weight="regular" />New cluster
+              <Icon as={Plus} size={14} weight="regular" /><Trans>New cluster</Trans>
             </button>
           )}
         </div>
         {naming && namingForm}
-        <ul className="ch-rows" aria-label="Clusters">
+        <ul className="ch-rows" aria-label={tr`Clusters`}>
           {rows.map(b => (
             <li key={b.id}>
               <button type="button" className="ch-row" onClick={() => open(b.id, 'row')}>
                 <Cover board={b} />
                 <span className="ch-row-text">
-                  <span className="ch-row-name">{b.id === rootId ? (b.name || 'Studio') : clusterName(b)}</span>
-                  <span className="ch-row-sub">{cardsOf(b) ? `${cardsOf(b)} card${cardsOf(b) === 1 ? '' : 's'}` : 'Empty'} · {whenOf(b)}</span>
+                  <span className="ch-row-name">{b.id === rootId ? (b.name || tr`Studio`) : clusterName(b)}</span>
+                  <span className="ch-row-sub">{cardsOf(b) ? plural(cardsOf(b), { one: '# card', other: '# cards' }) : tr`Empty`} · {whenOf(b)}</span>
                 </span>
               </button>
             </li>
           ))}
-          {lit && !found.length && <li className="ch-none">Nothing called that.</li>}
+          {lit && !found.length && <li className="ch-none"><Trans>Nothing called that.</Trans></li>}
         </ul>
       </div>
     );
@@ -414,10 +416,10 @@ export function ClustersHome({
 
         {onlyStudio && !naming && (
           <div className="ch-empty">
-            <p className="ch-empty-line">Every cluster you make becomes a star here.</p>
+            <p className="ch-empty-line"><Trans>Every cluster you make becomes a star here.</Trans></p>
             {canCreate && (
               <button type="button" className="ch-primary" onClick={startNaming}>
-                <Icon as={Plus} size={14} weight="regular" />New cluster
+                <Icon as={Plus} size={14} weight="regular" /><Trans>New cluster</Trans>
               </button>
             )}
           </div>
@@ -426,10 +428,10 @@ export function ClustersHome({
         {naming && namingForm}
 
         {!onlyStudio && (
-          <div className="ch-bar" ref={barRef} role="toolbar" aria-label="Your clusters" onKeyDown={barKeys}>
+          <div className="ch-bar" ref={barRef} role="toolbar" aria-label={tr`Your clusters`} onKeyDown={barKeys}>
             <label className="ch-find">
               <Icon as={Search} size={15} weight="regular" />
-              <input ref={findRef} dir="auto" type="search" placeholder="Find a cluster" aria-label="Find a cluster"
+              <input ref={findRef} dir="auto" type="search" placeholder={tr`Find a cluster`} aria-label={tr`Find a cluster`}
                      value={query} onChange={(e) => setQuery(e.target.value)}
                      onFocus={() => setFindFocused(true)} onBlur={() => setFindFocused(false)}
                      onKeyDown={(e) => {
@@ -442,19 +444,19 @@ export function ClustersHome({
                          else { setQuery(''); e.currentTarget.blur(); }
                        }
                      }} />
-              {query.trim() && <span className="ch-find-n" aria-live="polite">{found.length ? `${found.length} found` : 'Nothing found'}</span>}
+              {query.trim() && <span className="ch-find-n" aria-live="polite">{found.length ? plural(found.length, { one: '# found', other: '# found' }) : tr`Nothing found`}</span>}
             </label>
             {canCreate && (
               <>
                 <span className="ch-bar-sep" aria-hidden="true" />
                 <button type="button" className={`ch-quiet${naming ? ' is-on' : ''}`} aria-pressed={naming} onClick={naming ? () => setNaming(false) : startNamingNow}>
-                  <Icon as={Plus} size={14} weight="regular" />New cluster
+                  <Icon as={Plus} size={14} weight="regular" /><Trans>New cluster</Trans>
                 </button>
               </>
             )}
           </div>
         )}
-        {!onlyStudio && <p className="ch-hint">{touch ? 'Tap a star to see it · Double-tap to open it' : 'Click a star to see it · Double-click to open it'}</p>}
+        {!onlyStudio && <p className="ch-hint">{touch ? tr`Tap a star to see it · Double-tap to open it` : tr`Click a star to see it · Double-click to open it`}</p>}
         {coverInput}
         {cropWindow}
       </div>

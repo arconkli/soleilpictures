@@ -10,6 +10,7 @@ import { Icon } from './Icon.jsx';
 import { registerModalOpen } from '../lib/modalGuard.js';
 import './feedbackLook.css';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t } from '@lingui/core/macro';
 
 // `warning` was missing here and had no CSS either, so both cap toasts — the
 // approaching-limit warning and the cards-did-not-fit one — fell through to the
@@ -68,13 +69,13 @@ export default function FeedbackOverlay({ dialog, onCloseDialog, toasts, onDismi
                         try { a.onClick?.(); } catch (_) {}
                         onDismissToast(item.id);
                       }}>
-                {a.label || 'Undo'}
+                {a.label || t`Undo`}
               </button>
             ))}
             {/* The X is the HAND-dismiss: it takes the manual path so a toast's
                 onDismiss fires ("seen and closed") — unlike the action button
                 above and the TTL expiry, which both use the plain path. */}
-            <button type="button" className="toast-dismiss" aria-label="Dismiss" onClick={() => (onManualDismiss || onDismissToast)(item.id)}>
+            <button type="button" className="toast-dismiss" aria-label={t`Dismiss`} onClick={() => (onManualDismiss || onDismissToast)(item.id)}>
               <Icon as={X} size={14} weight={look ? 'regular' : undefined} />
             </button>
           </div>
@@ -162,7 +163,7 @@ function FeedbackDialog({ dialog, onClose }) {
       >
         <div className="feedback-hd">
           <div className="feedback-title">{dialog.title}</div>
-          <button type="button" className="modal-x" aria-label="Close" onClick={() => onClose(dialog.kind === 'confirm' ? false : null)}><Icon as={X} size={16} weight={inLook() ? 'regular' : undefined} /></button>
+          <button type="button" className="modal-x" aria-label={t`Close`} onClick={() => onClose(dialog.kind === 'confirm' ? false : null)}><Icon as={X} size={16} weight={inLook() ? 'regular' : undefined} /></button>
         </div>
         {dialog.message && <div className="feedback-message">{dialog.message}</div>}
         {dialog.kind === 'prompt' && (

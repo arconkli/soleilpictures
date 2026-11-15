@@ -20,6 +20,7 @@
 // note's first line, else nothing (and the field shows its placeholder).
 
 import { htmlToText } from './cardIndexRow.js';
+import { isDefaultName } from './defaultNames.js';
 import { isStillUploading } from './abandonedUploads.js';
 import { isUnplaced } from './placement.js';
 
@@ -86,7 +87,8 @@ const GENERIC_STEMS = new Set([
   'download', 'copy', 'new', 'video', 'mov', 'vid', 'clip', 'audio', 'document', 'doc',
 ]);
 const STOP_WORDS = new Set(['at', 'on', 'of', 'the', 'and', 'a', 'an', 'to', 'in', 'for', 'from', 'by', 'with']);
-const GENERIC_GROUPS = new Set(['group', 'untitled group', 'untitled', 'new group']);
+// English names of a group nobody named; isDefaultName adds the ones the app wrote in other languages.
+const GENERIC_GROUPS = ['Group', 'Untitled group', 'Untitled', 'New group'];
 
 const clip = (s) => {
   const t = String(s || '').replace(/\s+/g, ' ').trim();
@@ -135,7 +137,7 @@ const fileNameOf = (c) => (c && !isClusterRef(c) && c.kind !== 'note' && c.kind 
 
 export function suggestClusterName({ groupName = null, cards = [] } = {}) {
   const g = String(groupName || '').replace(/\s+/g, ' ').trim();
-  if (g && !GENERIC_GROUPS.has(g.toLowerCase())) return clip(g);
+  if (g && !isDefaultName(GENERIC_GROUPS, g)) return clip(g);
   const stem = sharedStem((cards || []).map(fileNameOf).filter(Boolean));
   if (stem) return stem;
   for (const c of cards || []) {

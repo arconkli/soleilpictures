@@ -25,11 +25,12 @@ import { checkoutErrorMessage, checkoutErrorKind } from '../lib/checkoutErrors.j
 import { useAuth } from '../auth/AuthGate.jsx';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { BenefitGrid, PlanToggle, CreatorPriceRow, TrialPriceRow } from './PricingBits.jsx';
+import { PRICING, COPY_REV, PLAN_NAME } from '../lib/billingCopy.js';
 import {
-  CTA, PRICING, COPY_REV, PLAN_NAME, TRIAL_FROM_LABEL,
-  creatorBenefits, ownWorkSummary, trialNote, currentPlanRow,
+  CTA, trialFromLabel, creatorBenefits, ownWorkSummary, trialNote, currentPlanRow,
   PRICING_INTENT_COPY, STORAGE_FULL_COPY,
-} from '../lib/billingCopy.js';
+} from '../lib/billingCopyWords.js';
+import { rejectedNotAdded } from '../lib/demoCardCapWords.js';
 import { OwnWorkStrip } from './OwnWorkStrip.jsx';
 import { readOwnWork } from '../lib/ownWork.js';
 import { useStorageUsage } from '../hooks/useStorageUsage.js';
@@ -41,6 +42,8 @@ import { creatorTrialEligibility } from '../lib/creatorTrial.js';
 import { trialEarlyOn } from '../lib/trialEarly.js';
 import { OFFER_DISMISSED } from '../lib/offerEvents.js';
 import { useBfcacheRestore } from '../auth/useBfcacheRestore.js';
+import { t as tr } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 export function PricingModal({ onClose, header = null, surface = 'modal', via = null, clusterCount = null, rejected = null, wallCards = null, tierPreview = null, ownWorkPreview = null, initialPlan = null }) {
   const { user } = useAuth();
@@ -299,7 +302,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
       }}
     >
       <div className="upgrade-modal" ref={modalRef}>
-        <button className="upgrade-close" onClick={() => handleClose('x')} aria-label="Close">×</button>
+        <button className="upgrade-close" onClick={() => handleClose('x')} aria-label={tr`Close`}>×</button>
 
         {/* Four headers, one shape. They were four near-identical JSX branches
             that each re-declared the same eyebrow; the only things that ever
@@ -314,12 +317,12 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
               modal already had once when the offer was wrapped in a card of
               its own. */}
           <h2 className="upgrade-title">
-            {header === 'cap-hit'     ? 'Your work outgrew the demo.'
-             : header === 'near-cap'  ? "You're close to the free limit."
-             : header === 'first-value' ? "You're building something."
+            {header === 'cap-hit'     ? tr`Your work outgrew the demo.`
+             : header === 'near-cap'  ? tr`You're close to the free limit.`
+             : header === 'first-value' ? tr`You're building something.`
              : header === 'storage'   ? STORAGE_FULL_COPY.title
              : header === 'pricing-intent' ? PRICING_INTENT_COPY.title
-             : 'Everything your work deserves.'}
+             : tr`Everything your work deserves.`}
           </h2>
 
           {/* Their work, then their numbers — before a word about ours. This
@@ -338,7 +341,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
               folder and then deleting their own cards to make room. */}
           {header === 'cap-hit' && rejected?.n > 0 && (
             <p className="upgrade-caphit-lost t-body">
-              {rejected.n} {rejected.noun} couldn't be added.
+              {rejectedNotAdded(rejected.noun, rejected.n)}
             </p>
           )}
 
@@ -359,7 +362,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
             <p className="upgrade-sub t-body">{STORAGE_FULL_COPY.sub}</p>
           )}
           {header === 'first-value' && (
-            <p className="upgrade-sub t-body">Your first cluster is taking shape.</p>
+            <p className="upgrade-sub t-body"><Trans>Your first cluster is taking shape.</Trans></p>
           )}
           {header === 'pricing-intent' && (
             <p className="upgrade-sub t-body">{PRICING_INTENT_COPY.sub}</p>
@@ -413,7 +416,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
                 was discoverable only by reading the CTA label — so the
                 surfaces that lead people here led with $25 and hid the free
                 fortnight behind a click. */}
-            {trialOffer && !alreadyPaid && <span className="upgrade-trial-badge">{TRIAL_FROM_LABEL}</span>}
+            {trialOffer && !alreadyPaid && <span className="upgrade-trial-badge">{trialFromLabel()}</span>}
           </div>
 
           <div className="upgrade-price-row">
@@ -433,7 +436,7 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
           <button className="pricing-cta pricing-cta-primary" data-up-cta="creator" data-trial={trialOffer ? '1' : undefined} onClick={onCta} disabled={busy || grantBacked}>
             {busy && <span className="cta-spinner" aria-hidden="true" />}
             {grantBacked
-              ? 'Complimentary access — nothing to manage'
+              ? tr`Complimentary access — nothing to manage`
               : busy
                 ? (alreadyPaid ? CTA.manageBillingBusy : CTA.getCreatorBusy)
                 : (alreadyPaid ? CTA.manageBilling : (trialOffer ? CTA.tryCreator : CTA.getCreator))}
@@ -473,11 +476,11 @@ export function PricingModal({ onClose, header = null, surface = 'modal', via = 
                 onClose?.();
               }}
             >
-              Invite friends for more free cards →
+              <Trans>Invite friends for more free cards →</Trans>
             </button>
           )}
 
-          <button className="upgrade-later" onClick={() => handleClose('maybe_later')}>Maybe later</button>
+          <button className="upgrade-later" onClick={() => handleClose('maybe_later')}><Trans>Maybe later</Trans></button>
         </div>
       </div>
     </div>,

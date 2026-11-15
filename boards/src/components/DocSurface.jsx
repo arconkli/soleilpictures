@@ -42,6 +42,8 @@ import { IconWeightContext } from './Icon.jsx';
 import { readDocPanel, writeDocPanel } from '../lib/docFrame.js';
 import { openableUrl } from '../lib/openableUrl.js';
 import { cutGraphemes } from '../lib/graphemes.js';
+import { t as tr } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // The doc look's side panel, footer and one row of tools
 // (components/doc/DocFrameA.jsx): lazy, so a doc shared on its own
@@ -764,7 +766,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
     if (!canEdit || guestMode) return;
     if (pages.length === 0) {
       seededRef.current = true;
-      const id = addPage(ydoc, { name: titleOverride || board.name || 'Untitled', scope });
+      const id = addPage(ydoc, { name: titleOverride || board.name || tr({ message: 'Untitled', context: 'default name' }), scope });
       setActivePageId(id);
       // The auto-seed must not be the first undoable step: a stray ⌘Z right
       // after opening a brand-new doc deleted its only page, and everything
@@ -822,11 +824,11 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       : null;
     docUndoManager?.stopCapturing();
     undoToast(feedback, {
-      message: 'Page deleted',
+      message: tr`Page deleted`,
       undoManager: docUndoManager,
       stackItem: item,
       onUndo: () => { try { docUndoManager?.undo(); } catch (_) {} },
-      supersededMessage: 'The document changed since — press ⌘Z in it to step back instead.',
+      supersededMessage: tr`The document changed since — press ⌘Z in it to step back instead.`,
     });
   }, [activePageId, ydoc, scope, feedback, docUndoManager]);
 
@@ -1248,10 +1250,10 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       suggested = cutGraphemes(para?.textContent || '', 40);
     } catch (_) {}
     const name = await feedback.prompt({
-      title: 'Add bookmark',
-      label: 'Bookmark name',
+      title: tr`Add bookmark`,
+      label: tr`Bookmark name`,
       defaultValue: suggested || 'Bookmark',
-      confirmLabel: 'Add',
+      confirmLabel: tr`Add`,
     });
     if (name == null) return; // cancelled
     // Store a durable relative anchor (survives edits) alongside the raw int,
@@ -1267,7 +1269,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // its caret (docExtensions/ImageUpload.js, the path a paste or drop takes).
   const pickImageFromDisk = (editor) => {
     if (!editor) return;
-    if (!workspaceId || !userId) { feedback.toast({ type: 'error', code: 'image_needs_signin', message: 'Sign in to add images.' }); return; }
+    if (!workspaceId || !userId) { feedback.toast({ type: 'error', code: 'image_needs_signin', message: tr`Sign in to add images.` }); return; }
     const input = document.createElement('input');
     input.type = 'file'; input.accept = 'image/*';
     input.onchange = () => {
@@ -1320,7 +1322,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             peers={peersOnBoard}
             onJumpToPeer={onJumpToPeer}
             canEdit={canEdit && !isPublic}
-            defaultName={titleOverride || board.name || 'Untitled'}
+            defaultName={titleOverride || board.name || tr({ message: 'Untitled', context: 'default name' })}
           />
         )}
         {(railOpen || mobileRailOpen) && (
@@ -1443,9 +1445,9 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
             ))
           ) : (
             <div className="doc-empty">
-              <span className="t-eyebrow">Pages</span>
-              <div className="doc-state-title">Nothing open yet</div>
-              <div className="doc-state-sub">Pick a page on the left, or create your first one.</div>
+              <span className="t-eyebrow"><Trans>Pages</Trans></span>
+              <div className="doc-state-title"><Trans>Nothing open yet</Trans></div>
+              <div className="doc-state-sub"><Trans>Pick a page on the left, or create your first one.</Trans></div>
             </div>
           )}
           {/* Pages are now created automatically as content flows (DocPagination).

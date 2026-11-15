@@ -22,7 +22,8 @@ import { useAuth } from './AuthGate.jsx';
 import { useBfcacheRestore } from './useBfcacheRestore.js';
 import { useMyTier } from '../hooks/useMyTier.js';
 import { PricingPageView } from './PricingPageView.jsx';
-import { CTA, grantCopy, PRICING, COPY_REV } from '../lib/billingCopy.js';
+import { PRICING, COPY_REV } from '../lib/billingCopy.js';
+import { CTA, grantCopy } from '../lib/billingCopyWords.js';
 import { trackViewContent } from '../lib/metaPixel.js';
 import { markPriceSeen } from '../lib/upsellLatches.js';
 import { stampUpgradePrompt } from '../lib/upgradePrompts.js';
@@ -30,6 +31,8 @@ import { teamPreviewAvailable, readTeamPreview } from '../lib/teamPreview.js';
 import { teamPricingAllowed } from '../lib/appHost.js';
 import { teamStartHref } from '../lib/teamStart.js';
 import { useTeamPricingCard } from './useTeamPricingCard.js';
+import { t as tr } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 export function PricingPage() {
   const { user, signOut } = useAuth();
@@ -131,7 +134,7 @@ export function PricingPage() {
       // free action to offer and the hero/closing bands drop away with it. A
       // waitlist account still has somewhere to go.
       freeCta={isDemo || alreadyPaid ? null : {
-        label: 'Go to Waitlist',
+        label: tr`Go to Waitlist`,
         onClick: (pos = 'demo') => {
           up.outcome('demo_cta');
           logEvent(EV.PRICING_DEMO_CTA, { surface: 'page', pos, tier });
@@ -145,14 +148,14 @@ export function PricingPage() {
         <p className="pricing-card-price-sub t-meta" style={{ marginTop: 4 }}>
           {grantLine
             || (tier === 'admin'
-              ? 'You have unlimited admin access — no subscription needed.'
-              : "You're already on Creator. Manage your plan, payment method, or cancellation below.")}
+              ? tr`You have unlimited admin access — no subscription needed.`
+              : tr`You're already on Creator. Manage your plan, payment method, or cancellation below.`)}
         </p>
       ) : null}
       error={error}
       creatorCta={{
         label: noPortal
-          ? (grantBacked ? 'Complimentary access' : 'Your current plan')
+          ? (grantBacked ? tr`Complimentary access` : tr`Your current plan`)
           : busy
             ? (alreadyPaid ? CTA.manageBillingBusy : CTA.getCreatorBusy)
             : (alreadyPaid ? CTA.manageBilling : CTA.getCreator),
@@ -162,13 +165,13 @@ export function PricingPage() {
       }}
       footer={
         <div className="pp-foot t-meta">
-          Signed in as <b>{user?.email}</b>
+          <Trans>Signed in as</Trans> <b>{user?.email}</b>
           <span className="welcome-foot-sep">·</span>
           <button
             className="auth-link"
             onClick={() => { logEvent(EV.PRICING_SIGNOUT, { surface: 'page' }); signOut(); }}
           >
-            Use a different email
+            <Trans>Use a different email</Trans>
           </button>
         </div>
       }

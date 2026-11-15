@@ -88,6 +88,11 @@ jobs:
         working-directory: boards
         run: npm run docs:check
 
+      # The catalogs under src/locales must be what extract and compile write.
+      - name: Translations are in sync with the code
+        working-directory: boards
+        run: npm run i18n:check
+
   bundle:
     runs-on: ubuntu-latest
     timeout-minutes: 15

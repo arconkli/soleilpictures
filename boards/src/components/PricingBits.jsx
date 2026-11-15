@@ -9,10 +9,10 @@
 // only on the Creator list — DEMO_FEATURES rows carry no Creator keys.
 
 import { Stack, Files, ArrowsOutSimple, UsersThree } from '@phosphor-icons/react';
-import {
-  PRICING, planPerMonth, planBilling, CREATOR_FEATURES, CREATOR_FEATURE_KEYS,
-  CREATOR_BENEFITS, SAVINGS_PCT_LABEL, trialPrice,
-} from '../lib/billingCopy.js';
+import { PRICING, planPerMonth, CREATOR_FEATURES, CREATOR_FEATURE_KEYS } from '../lib/billingCopy.js';
+import { planBilling, CREATOR_BENEFITS, savingsPctLabel, trialPrice } from '../lib/billingCopyWords.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // One glyph per benefit, keyed by the STABLE up_feature_hover key rather than
 // by index — so a reordered list cannot silently hand the cards icon to the
@@ -89,7 +89,7 @@ export function FeatureList({ features = CREATOR_FEATURES, className = 'pricing-
 // the better deal reads at a glance.
 export function PlanToggle({ plan, setPlan, disabled }) {
   return (
-    <div className="pricing-card-toggle" role="tablist" aria-label="Billing interval">
+    <div className="pricing-card-toggle" role="tablist" aria-label={t`Billing interval`}>
       <button
         role="tab"
         aria-selected={plan === 'monthly'}
@@ -98,7 +98,7 @@ export function PlanToggle({ plan, setPlan, disabled }) {
         onClick={() => setPlan('monthly')}
         disabled={disabled}
       >
-        Monthly
+        <Trans>Monthly</Trans>
       </button>
       <button
         role="tab"
@@ -108,8 +108,8 @@ export function PlanToggle({ plan, setPlan, disabled }) {
         onClick={() => setPlan('annual')}
         disabled={disabled}
       >
-        Annual
-        <span className="pricing-card-save">{SAVINGS_PCT_LABEL}</span>
+        <Trans>Annual</Trans>
+        <span className="pricing-card-save">{savingsPctLabel()}</span>
       </button>
     </div>
   );
@@ -145,7 +145,7 @@ export function CreatorPriceRow({ plan }) {
         {was != null && (
           <span className="pricing-card-price-was" aria-hidden="true">${was}</span>
         )}
-        ${planPerMonth(plan)}<span className="pricing-card-price-unit">/mo</span>
+        ${planPerMonth(plan)}<span className="pricing-card-price-unit"><Trans>/mo</Trans></span>
       </div>
       <div className="pricing-card-price-sub t-meta">
         {billing.save ? <>{billing.lead} · <b>{billing.save}</b></> : <>{billing.lead}</>}

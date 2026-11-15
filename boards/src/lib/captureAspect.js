@@ -11,10 +11,11 @@
 // horizontal room the shape has: a square or a landscape frame can carry more
 // across before each card gets too small to read.
 //
-// Zero imports — the CLI pulls this in under plain Node.
+// Zero runtime imports (the Lingui macro below compiles away) — keep it that way.
 
+import { t } from '@lingui/core/macro';
 export const ASPECTS = Object.freeze([
-  { id: null,    label: 'Off',       ratio: null,     cardsAcross: null },
+  { id: null,    get label() { return t`Off`; },       ratio: null,     cardsAcross: null },
   { id: '9:16',  label: '9:16',      ratio: 9 / 16,   cardsAcross: 2.4 },
   { id: '4:5',   label: '4:5',       ratio: 4 / 5,    cardsAcross: 3.0 },
   { id: '1:1',   label: '1:1',       ratio: 1,        cardsAcross: 3.4 },

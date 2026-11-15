@@ -12,6 +12,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import { PLAYER_EVENT } from '../../lib/playerBus.js';
+import { t } from '@lingui/core/macro';
 
 const FilmReview = lazyWithReload(() => import('./FilmReview.jsx').then((m) => ({ default: m.FilmReview })));
 
@@ -52,7 +53,7 @@ export function PlayerHost({ resolveBoard, renderRail = null }) {
     else if (shownRef.current === req) setReq(null);
   }, [req, ok]);
   if (!req || !ok) return null;
-  const title = card.title || card.fileName || 'Video';
+  const title = card.title || card.fileName || t`Video`;
   const hasPos = Number.isFinite(req.frame) || Number.isFinite(req.time);
   return (
     <Suspense fallback={null}>

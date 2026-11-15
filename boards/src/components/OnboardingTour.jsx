@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { onCanvasSettle } from '../lib/canvasScale.js';
 import { Icon } from './Icon.jsx';
 import { Sparkle, Image, FilmStrip, Scroll, FileText, Files, Link } from '../lib/icons.js';
 import { TOUR_WELCOME } from '../lib/onboardingTour.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { tourStepWords, tourChoiceLabel, tourWelcomeWords } from '../lib/onboardingTourWords.js';
 
 const WELCOME_ICONS = { pictures: Image, video: FilmStrip, scripts: Scroll, docs: FileText, files: Files, links: Link };
 
@@ -89,6 +92,7 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction, showWe
   const [pos, setPos] = useState(null);
   const posRef = useRef(null);
   const highlightRef = useRef(null);
+  const kindsRef = useRef(null);
   const stepId = step?.id || null;
 
   // One-time view event per step.
@@ -207,11 +211,43 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction, showWe
   // Reset position when the step changes so the new pill re-anchors.
   useEffect(() => { posRef.current = null; setPos(null); }, [stepId]);
 
+  const welcome = !!step?.welcome && showWelcome;
+  const welcomeWords = welcome ? tourWelcomeWords(TOUR_WELCOME) : null;
+
+  // A translated kind can be too long for a third of the list on a phone (ru Изображения,
+  // es Documentos, ja ドキュメント), so the list takes the most columns, three to one, in
+  // which every label fits. Measured before the first paint, then again on the frame after
+  // the list or a label changes width (a narrower window, a font arriving): changing the
+  // columns changes the list's height, which inside the observer's own pass is a
+  // "ResizeObserver loop" error.
+  const kindsKey = welcomeWords ? welcomeWords.kinds.map((k) => k.label).join('|') : '';
+  useLayoutEffect(() => {
+    const ul = kindsRef.current;
+    if (!ul) return undefined;
+    const labels = Array.from(ul.querySelectorAll('.onboarding-tour-kind'));
+    const fits = () => labels.every((label) => label.getBoundingClientRect().right <= label.parentElement.getBoundingClientRect().right + 0.5);
+    const fit = () => {
+      for (const cols of ['3', '2', '1']) {
+        ul.dataset.cols = cols;
+        if (fits()) return;
+      }
+    };
+    fit();
+    if (typeof ResizeObserver !== 'function') return undefined;
+    let frame = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(fit);
+    });
+    ro.observe(ul);
+    labels.forEach((label) => ro.observe(label));
+    return () => { cancelAnimationFrame(frame); ro.disconnect(); };
+  }, [welcome, kindsKey, stepId]);
+
   if (!step) return null;
 
-  const welcome = !!step.welcome && showWelcome;
-
-  const body = isTouch ? (step.copy.touch || step.copy.body) : step.copy.body;
+  const words = tourStepWords(step);
+  const body = isTouch ? (words.touch || words.body) : words.body;
   const style = pos
     ? { top: `${pos.top}px`, left: `${pos.left}px`, '--tour-max-w': `${pos.maxW}px` }
     : { top: 0, left: 0, visibility: 'hidden' };
@@ -233,14 +269,14 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction, showWe
           <div className="onboarding-tour-welcome">
             <div className="onboarding-tour-welcome-head">
               <div className="onboarding-coachmark-spark" aria-hidden="true"><Icon as={Sparkle} size={18} weight="fill" /></div>
-              <span className="onboarding-tour-welcome-title">{TOUR_WELCOME.title}</span>
+              <span className="onboarding-tour-welcome-title">{welcomeWords.title}</span>
             </div>
-            <div className="onboarding-tour-welcome-body">{TOUR_WELCOME.body}</div>
-            <ul className="onboarding-tour-kinds" aria-label="What a cluster holds">
-              {TOUR_WELCOME.kinds.map((k) => (
+            <div className="onboarding-tour-welcome-body">{welcomeWords.body}</div>
+            <ul ref={kindsRef} className="onboarding-tour-kinds" aria-label={t`What a cluster holds`}>
+              {welcomeWords.kinds.map((k) => (
                 <li key={k.key}>
                   <Icon as={WELCOME_ICONS[k.key]} size={16} weight="regular" aria-hidden="true" />
-                  {k.label}
+                  <span className="onboarding-tour-kind">{k.label}</span>
                 </li>
               ))}
             </ul>
@@ -251,7 +287,7 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction, showWe
         <div className="onboarding-coachmark-spark" aria-hidden="true"><Icon as={Sparkle} size={18} weight="fill" /></div>
       )}
       <div className="onboarding-coachmark-copy">
-        <div className="onboarding-coachmark-title">{step.copy.title}</div>
+        <div className="onboarding-coachmark-title">{words.title}</div>
         <div className="onboarding-coachmark-body">{body}</div>
       </div>
       {/* Intent choices (project_first's ask step): each pick hands off to the
@@ -266,7 +302,7 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction, showWe
               className="onboarding-tour-choice"
               onClick={() => onAction?.('pick_intent', c.key)}
             >
-              {c.label}
+              {tourChoiceLabel(c)}
             </button>
           ))}
         </div>
@@ -283,7 +319,7 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction, showWe
             className="onboarding-coachmark-dismiss"
             onClick={() => onAction?.(step.touchAction.type)}
           >
-            {step.touchAction.label}
+            {words.touchLabel}
           </button>
         )}
         {/* ctaWhenUnanchored steps (the List step) only surface their Got-it
@@ -295,11 +331,11 @@ export function OnboardingTour({ step, onEvent, onSkip, onView, onAction, showWe
             className="onboarding-coachmark-dismiss"
             onClick={() => onEvent?.(step.ackEvent || { type: 'nav_ack' })}
           >
-            {step.cta}
+            {words.cta}
           </button>
         )}
         <button type="button" className="onboarding-tour-skip" onClick={() => onSkip?.()}>
-          Skip
+          <Trans>Skip</Trans>
         </button>
       </div>
     </div>

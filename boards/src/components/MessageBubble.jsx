@@ -19,6 +19,9 @@ import { RelTime } from './RelTime.jsx';
 import { useMinuteNow } from '../hooks/useMinuteNow.js';
 import { MessageThings } from './MessageThings.jsx';
 import { initialOf } from '../lib/graphemes.js';
+import { formatDate } from '../lib/intlFormat.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // One message row in a thread.
 //   msg              — full row from messages table
@@ -72,7 +75,7 @@ export const MessageBubble = memo(function MessageBubble({
     || profile?.email
     || msg.sender_name
     || (msg.sender_email ? emailToFriendly(msg.sender_email) : null)
-    || 'Member';
+    || t`Member`;
   const senderColor = profile?.color || pickPresenceColor(msg.sender_id || '');
 
   // Names the body's @mention pills match against. Without them a pill had
@@ -99,7 +102,7 @@ export const MessageBubble = memo(function MessageBubble({
   }), [msg.body, msg.mentions, msg.attachments, mentionNames, highlight, trie, workspaceId]);
 
   const fullTime = useMemo(() => (msg.created_at
-    ? new Date(msg.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+    ? formatDate(new Date(msg.created_at), { dateStyle: 'medium', timeStyle: 'short' })
     : ''), [msg.created_at]);
 
   // The thread's `e` shortcut asks the focused message to edit itself; nothing
@@ -139,7 +142,7 @@ export const MessageBubble = memo(function MessageBubble({
   const parentProfile = parent && !parentGone ? userProfiles.resolve(parent.sender_id) : null;
   const parentName = parent
     ? (parentProfile?.name || parentProfile?.email || parent.sender_name
-        || (parent.sender_email ? emailToFriendly(parent.sender_email) : null) || 'Member')
+        || (parent.sender_email ? emailToFriendly(parent.sender_email) : null) || t`Member`)
     : '';
   const parentColor = parent ? (parentProfile?.color || pickPresenceColor(parent.sender_id || '')) : '';
   const parentExcerpt = parent ? (parent.body || '').replace(/\s+/g, ' ').trim().slice(0, 80) : '';
@@ -160,11 +163,11 @@ export const MessageBubble = memo(function MessageBubble({
     const showAuthor = !isMine && !inDm && runStart;
     // One quiet line under the run: its time where the talk had paused, and
     // what's news (edited, pinned, seen). A message mid-run says only its news.
-    const news = [msg.edited_at ? 'Edited' : '', msg.is_pinned ? 'Pinned' : ''].filter(Boolean);
+    const news = [msg.edited_at ? t`Edited` : '', msg.is_pinned ? t`Pinned` : ''].filter(Boolean);
     let meta = '';
-    if (sendState === 'sending') meta = runEnd ? 'Sending…' : '';
+    if (sendState === 'sending') meta = runEnd ? t`Sending…` : '';
     else if (!sendState && runEnd && (showTime || news.length || seen)) {
-      meta = [shortClock(msg.created_at), ...news, seen ? 'Seen' : ''].filter(Boolean).join(' · ');
+      meta = [shortClock(msg.created_at), ...news, seen ? t`Seen` : ''].filter(Boolean).join(' · ');
     } else if (!sendState && !runEnd && news.length) meta = news.join(' · ');
     const openMenu = (e) => {
       if (!onOpenMenu || sendState) return;
@@ -180,8 +183,8 @@ export const MessageBubble = memo(function MessageBubble({
       onOpenMenu(msg, { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }, null);
     };
     const more = !sendState && onOpenMenu && (
-      <button type="button" className="msg-bubble-more" aria-label="Message actions" aria-haspopup="menu"
-              aria-expanded={menuOpen} title="Message actions" onClick={openMenu}>
+      <button type="button" className="msg-bubble-more" aria-label={t`Message actions`} aria-haspopup="menu"
+              aria-expanded={menuOpen} title={t`Message actions`} onClick={openMenu}>
         <Icon as={MoreHorizontal} size={16} weight="regular" />
       </button>
     );
@@ -190,13 +193,13 @@ export const MessageBubble = memo(function MessageBubble({
       <div className="msg-bubble-body">
         {parent && (parentGone ? (
           <span className="msg-reply-quote is-gone">
-            {parentGone === 'deleted' ? 'Original message deleted' : 'Original message unavailable'}
+            {parentGone === 'deleted' ? t`Original message deleted` : t`Original message unavailable`}
           </span>
         ) : (
-          <button type="button" className="msg-reply-quote" title={`Go to ${parentName}'s message`}
+          <button type="button" className="msg-reply-quote" title={t`Go to ${parentName}'s message`}
                   onClick={(e) => { e.stopPropagation(); onJumpToMessage?.(parent.id); }}>
-            {!inDm && <span className="msg-reply-quote-who">{parent.sender_id === selfId ? 'You' : parentName}</span>}
-            <span className="msg-reply-quote-text" dir="auto">{parentExcerpt || 'Attachment'}</span>
+            {!inDm && <span className="msg-reply-quote-who">{parent.sender_id === selfId ? t`You` : parentName}</span>}
+            <span className="msg-reply-quote-text" dir="auto">{parentExcerpt || t`Attachment`}</span>
           </button>
         ))}
         {hasText && body}
@@ -220,9 +223,9 @@ export const MessageBubble = memo(function MessageBubble({
         {sendState === 'failed' && (
           <div className="msg-bubble-failed" role="alert">
             <Icon as={WarningCircle} size={14} weight="regular" />
-            <span>Not sent</span>
-            <button type="button" onClick={() => onRetrySend?.(msg)}>Try again</button>
-            <button type="button" onClick={() => onDiscardSend?.(msg)}>Delete</button>
+            <span><Trans>Not sent</Trans></span>
+            <button type="button" onClick={() => onRetrySend?.(msg)}><Trans>Try again</Trans></button>
+            <button type="button" onClick={() => onDiscardSend?.(msg)}><Trans>Delete</Trans></button>
           </div>
         )}
         {meta && <div className="msg-bubble-meta" title={fullTime}>{meta}</div>}
@@ -237,14 +240,14 @@ export const MessageBubble = memo(function MessageBubble({
       {parent && parentGone && (
         <div className="msg-reply-preview is-gone">
           <span className="msg-reply-preview-body">
-            {parentGone === 'deleted' ? 'Original message deleted' : 'Original message unavailable'}
+            {parentGone === 'deleted' ? t`Original message deleted` : t`Original message unavailable`}
           </span>
         </div>
       )}
       {parent && !parentGone && (
         <button type="button"
                 className="msg-reply-preview"
-                title={`Go to ${parentName}'s message`}
+                title={t`Go to ${parentName}'s message`}
                 onClick={(e) => { e.stopPropagation(); onJumpToMessage?.(parent.id); }}>
           <span className="msg-reply-preview-line" style={{ background: parentColor }} aria-hidden="true" />
           <span className="msg-reply-preview-author" style={{ color: parentColor }}>{parentName}</span>
@@ -253,7 +256,7 @@ export const MessageBubble = memo(function MessageBubble({
       )}
       {msg.is_pinned && (
         <div className="msg-bubble-pinned-tag">
-          <Icon as={Pin} size={10} /> Pinned
+          <Icon as={Pin} size={10} /> <Trans>Pinned</Trans>
         </div>
       )}
       <div className="msg-bubble-head">
@@ -271,7 +274,7 @@ export const MessageBubble = memo(function MessageBubble({
                 className="msg-bubble-avatar is-clickable"
                 style={{ background: senderColor }}
                 onClick={() => openDm(msg.sender_id)}
-                title={`Message ${senderName}`}
+                title={t`Message ${senderName}`}
               >
                 {initialOf(senderName, '')}
               </button>
@@ -284,7 +287,7 @@ export const MessageBubble = memo(function MessageBubble({
             )}
             <span className="msg-bubble-author" dir="auto">{senderName}</span>
             {sendState ? (
-              <span className="msg-bubble-time">{sendState === 'sending' ? 'Sending…' : ''}</span>
+              <span className="msg-bubble-time">{sendState === 'sending' ? t`Sending…` : ''}</span>
             ) : (
               <RelTime className="msg-bubble-time" iso={msg.created_at} title={fullTime}
                        suffix={msg.edited_at ? ' · edited' : ''} />
@@ -293,12 +296,12 @@ export const MessageBubble = memo(function MessageBubble({
         )}
         {/* Shown on hover or keyboard focus (CSS), never while editing or sending. */}
         <span className="msg-bubble-actions">
-          {onReply && <button title="Reply" onClick={() => onReply(msg)}><Icon as={MessageSquare} size={12} /></button>}
-          <button title="React" ref={reactBtnRef} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setEmojiAnchor((a) => (a ? null : r)); }}><Icon as={Smile} size={12} /></button>
-          {onPin && <button title={msg.is_pinned ? 'Unpin' : 'Pin'} onClick={() => onPin(msg)} className={msg.is_pinned ? 'is-active' : ''}><Icon as={Pin} size={12} /></button>}
-          {onCopyLink && <button title="Copy link" onClick={() => onCopyLink(msg)}><Icon as={LinkIcon} size={12} /></button>}
-          {isMine && inEditWindow && <button title="Edit"   onClick={() => { setEditBody(msg.body); setEditing(true); }}><Icon as={Edit}   size={12} /></button>}
-          {isMine               && <button title="Delete" onClick={() => onDelete?.(msg)}><Icon as={Trash2} size={12} /></button>}
+          {onReply && <button title={t`Reply`} onClick={() => onReply(msg)}><Icon as={MessageSquare} size={12} /></button>}
+          <button title={t`React`} ref={reactBtnRef} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setEmojiAnchor((a) => (a ? null : r)); }}><Icon as={Smile} size={12} /></button>
+          {onPin && <button title={msg.is_pinned ? t`Unpin` : t`Pin`} onClick={() => onPin(msg)} className={msg.is_pinned ? 'is-active' : ''}><Icon as={Pin} size={12} /></button>}
+          {onCopyLink && <button title={t`Copy link`} onClick={() => onCopyLink(msg)}><Icon as={LinkIcon} size={12} /></button>}
+          {isMine && inEditWindow && <button title={t`Edit`}   onClick={() => { setEditBody(msg.body); setEditing(true); }}><Icon as={Edit}   size={12} /></button>}
+          {isMine               && <button title={t`Delete`} onClick={() => onDelete?.(msg)}><Icon as={Trash2} size={12} /></button>}
         </span>
       </div>
       {editing ? (
@@ -314,8 +317,8 @@ export const MessageBubble = memo(function MessageBubble({
                       if (messageKeyAction(e, { touch: touchKeyboard() }) === 'send') { e.preventDefault(); submitEdit(); }
                     }} />
           <div className="msg-bubble-edit-actions">
-            <button type="button" onClick={() => setEditing(false)}>Cancel</button>
-            <button type="submit" className="msg-composer-send" disabled={!editBody.trim()}>Save</button>
+            <button type="button" onClick={() => setEditing(false)}><Trans>Cancel</Trans></button>
+            <button type="submit" className="msg-composer-send" disabled={!editBody.trim()}><Trans>Save</Trans></button>
           </div>
         </form>
       ) : (
@@ -323,9 +326,9 @@ export const MessageBubble = memo(function MessageBubble({
       )}
       {sendState === 'failed' && (
         <div className="msg-bubble-failed" role="alert">
-          <span>Couldn't send</span>
-          <button type="button" onClick={() => onRetrySend?.(msg)}>Retry</button>
-          <button type="button" onClick={() => onDiscardSend?.(msg)}>Discard</button>
+          <span><Trans>Couldn't send</Trans></span>
+          <button type="button" onClick={() => onRetrySend?.(msg)}><Trans>Retry</Trans></button>
+          <button type="button" onClick={() => onDiscardSend?.(msg)}><Trans>Discard</Trans></button>
         </div>
       )}
       {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
@@ -340,7 +343,7 @@ export const MessageBubble = memo(function MessageBubble({
                   way to get at it but dragging it to a canvas (COMMS-07). */}
               {att.kind === 'image' && att.storage_path && (
                 <a className="msg-attachment-image" href={publicUrl(att.storage_path)}
-                   target="_blank" rel="noopener noreferrer" title={att.name ? `Open ${att.name}` : 'Open image'}>
+                   target="_blank" rel="noopener noreferrer" title={att.name ? t`Open ${ph({ name: att.name })}` : t`Open image`}>
                   <img alt={att.name || ''} src={publicUrl(att.storage_path)}
                        width={att.width || undefined} height={att.height || undefined}
                        style={imageBoxStyle(att) || undefined} />
@@ -351,13 +354,13 @@ export const MessageBubble = memo(function MessageBubble({
                    href={publicAttachmentUrl(att.storage_path, { download: att.name || 'file' })}
                    download={att.name || 'file'}
                    target="_blank" rel="noopener noreferrer"
-                   title={`Download ${att.name || 'file'}`}>
+                   title={att.name ? t`Download ${ph({ name: att.name })}` : t`Download file`}>
                   <Icon as={Download} size={12} />
-                  <span className="msg-attachment-file-name" dir="auto">{att.name || 'file'}</span>
+                  <span className="msg-attachment-file-name" dir="auto">{att.name || t`file`}</span>
                   {attachmentMetaLabel(att) && <span className="msg-attachment-file-meta">{attachmentMetaLabel(att)}</span>}
                 </a>
               ) : (
-                <span className="msg-attachment-file">{att.name || 'file'}</span>
+                <span className="msg-attachment-file">{att.name || t`file`}</span>
               ))}
               {att.kind === 'url' && (
                 <a href={safeExternalHref(att.href) || undefined} target="_blank" rel="noopener noreferrer">{att.title || att.href}</a>
@@ -377,7 +380,7 @@ export const MessageBubble = memo(function MessageBubble({
         </div>
       )}
       {reactions}
-      {seen && <div className="msg-bubble-seen">Seen</div>}
+      {seen && <div className="msg-bubble-seen"><Trans>Seen</Trans></div>}
       {emojiAnchor && (
         <EmojiPalette
           anchor={emojiAnchor}
@@ -412,6 +415,6 @@ function publicUrl(path) {
 // continuation rows, where the full "x ago" header is suppressed.
 function shortClock(iso) {
   if (!iso) return '';
-  return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return formatDate(new Date(iso), { hour: 'numeric', minute: '2-digit' });
 }
 

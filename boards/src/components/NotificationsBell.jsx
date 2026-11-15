@@ -15,6 +15,7 @@ import { Bell } from '../lib/icons.js';
 import { bellAriaLabel, bellCountLabel } from '../lib/notificationsBell.js';
 import { tlTip } from '../lib/looks.js';
 import './notificationsPanel.css';
+import { t } from '@lingui/core/macro';
 
 export const NotificationsBell = forwardRef(function NotificationsBell(
   { unread = 0, open = false, onToggle = null }, ref,
@@ -23,7 +24,7 @@ export const NotificationsBell = forwardRef(function NotificationsBell(
   return (
     <button type="button" ref={ref}
       className={`tb-icon nb-bell${count ? ' has-unread' : ''}${open ? ' is-pressed' : ''}`}
-      {...tlTip('Notifications')} aria-label={bellAriaLabel(unread)}
+      {...tlTip(t`Notifications`)} aria-label={bellAriaLabel(unread)}
       aria-haspopup="dialog" aria-expanded={open}
       onClick={() => onToggle?.()}>
       <Icon as={Bell} size={16} />

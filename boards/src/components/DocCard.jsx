@@ -27,6 +27,10 @@ import { Icon } from './Icon.jsx';
 import { CornersOut, NotePencil, PanelRight } from '../lib/icons.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { initialOf } from '../lib/graphemes.js';
+import { isDefaultName } from '../lib/defaultNames.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownAuthor } from '../lib/commentAuthor.js';
 
 // DocSurface drags the entire TipTap/ProseMirror editor stack (vendor-editor,
 // ~400KB raw) into whichever chunk imports it statically — which used to be
@@ -55,10 +59,13 @@ let openOverlayCount = 0;
 // doc is open at a time; opening the next hands it the layout.
 const OPEN_EVENT = 'soleil-doccard-open';
 
+// Read at render, so the fallback follows the person's language.
+const peerName = (p) => shownAuthor(p.user?.name) || tr`Someone`;
 const NO_SUMMARY = { pages: [], firstText: '', firstPageName: '', empty: false };
 // The titles a doc is given before anyone names it (App addDocCard,
 // addScriptCard).
-const UNNAMED = new Set(['Untitled', 'Untitled doc', 'Untitled script']);
+const UNNAMED = ['Untitled', 'Untitled doc', 'Untitled script'];
+const isUnnamed = (title) => isDefaultName(UNNAMED, title);
 
 // The closed card's preview: the first page's name and opening text, and the
 // page count. It keeps itself fresh, observing this card's own doc store
@@ -345,19 +352,19 @@ export function RichDocCard({
             BoardCard presence stack so the breadcrumb trail (canvas →
             board → doc card → page) reads consistently. */}
         {peersOnCard.length > 0 && (
-          <div className="doc-card-presence" aria-label={`${peersOnCard.length} in this doc`}>
+          <div className="doc-card-presence" aria-label={tr`${plural(peersOnCard.length, { one: '# in this doc', other: '# in this doc' })}`}>
             {peersOnCard.slice(0, 3).map(p => (
               <button key={p.user?.id}
                       className="doc-card-presence-dot"
                       style={{ background: p.user?.color || '#4f8df8' }}
-                      title={`${p.user?.name || 'Someone'} — jump to their page`}
+                      title={tr`${ph({ name: peerName(p) })} — jump to their page`}
                       onClick={(e) => { e.stopPropagation(); onJumpToPeer?.(p.location); }}>
                 {initialOf(p.user?.name || p.user?.email)}
               </button>
             ))}
             {peersOnCard.length > 3 && (
               <span className="doc-card-presence-dot is-overflow"
-                    title={`+${peersOnCard.length - 3} more`}>+{peersOnCard.length - 3}</span>
+                    title={tr`${plural(peersOnCard.length - 3, { one: '+# more', other: '+# more' })}`}>+{peersOnCard.length - 3}</span>
             )}
           </div>
         )}
@@ -366,9 +373,9 @@ export function RichDocCard({
             bottom and the title is never cut off. */}
         {(card.title || autoFocus || onUpdate) && (
           <EditableText
-            className={`doc-card-title editable${UNNAMED.has((card.title || '').trim()) ? ' is-unnamed' : ''}`}
+            className={`doc-card-title editable${isUnnamed(card.title || '') ? ' is-unnamed' : ''}`}
             value={card.title || ''}
-            placeholder="Untitled doc"
+            placeholder={tr`Untitled doc`}
             autoFocus={autoFocus && !startOpen}
             selectAllOnFocus={autoFocus && !startOpen}
             onChange={(v) => {
@@ -395,17 +402,17 @@ export function RichDocCard({
             // its preview, with Beside and Open in words.
             const blank = !!scope?.pages && summary.empty;
             const pagesLabel = summary.pages.length > 0
-              ? `${summary.pages.length} ${summary.pages.length === 1 ? 'page' : 'pages'}` : 'no pages';
+              ? tr({ message: `${plural(summary.pages.length, { one: '# page', other: '# pages' })}`, context: 'doc card' }) : tr`no pages`;
             return (<>
             <div className="doc-card-page">
               {blank ? (canEdit && !isPublic && (
                 <div className="doc-card-start">
                   <button type="button" className="doc-card-start-btn"
                           onClick={(e) => { e.stopPropagation(); openRemembered(); }}>
-                    <Icon as={NotePencil} size={18} weight="regular" />Start writing
+                    <Icon as={NotePencil} size={18} weight="regular" /><Trans>Start writing</Trans>
                   </button>
                   <span className="doc-card-start-hint">
-                    {window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches ? 'or double-tap the card' : 'or double-click the card'}
+                    {window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches ? tr`or double-tap the card` : tr`or double-click the card`}
                   </span>
                 </div>
               )) : (<>
@@ -418,18 +425,18 @@ export function RichDocCard({
               </>)}
             </div>
             <div className="doc-card-foot">
-              <span className="doc-card-tag">DOC</span>
-              <span className="doc-card-meta">{blank ? 'Empty' : pagesLabel}</span>
+              <span className="doc-card-tag"><Trans>DOC</Trans></span>
+              <span className="doc-card-meta">{blank ? tr`Empty` : pagesLabel}</span>
               {!blank && (<>
                 <button type="button" className={`doc-card-act${isDocked ? ' is-active' : ''}`}
-                        title={isDocked ? 'Docked beside the canvas' : undefined}
-                        aria-label="Open beside" aria-pressed={isDocked || undefined}
+                        title={isDocked ? tr`Docked beside the canvas` : undefined}
+                        aria-label={tr`Open beside`} aria-pressed={isDocked || undefined}
                         onClick={(e) => { e.stopPropagation(); open('side'); }}>
-                  <Icon as={PanelRight} size={15} weight="regular" style={{ display: 'block', transform: 'scaleX(-1)' }} />Beside
+                  <Icon as={PanelRight} size={15} weight="regular" style={{ display: 'block', transform: 'scaleX(-1)' }} /><Trans>Beside</Trans>
                 </button>
-                <button type="button" className="doc-card-act" aria-label="Open fullscreen"
+                <button type="button" className="doc-card-act" aria-label={tr`Open fullscreen`}
                         onClick={(e) => { e.stopPropagation(); open('full'); }}>
-                  <Icon as={CornersOut} size={15} weight="regular" />Open
+                  <Icon as={CornersOut} size={15} weight="regular" /><Trans>Open</Trans>
                 </button>
               </>)}
             </div>
@@ -602,7 +609,7 @@ export function DocCardOverlay({
   // as one with no title does; Enter goes on to the text.
   const nameOnOpenRef = useRef(null);
   if (nameOnOpenRef.current === null) {
-    nameOnOpenRef.current = !card.title || (canEdit && !isPublic && UNNAMED.has(card.title.trim())
+    nameOnOpenRef.current = !card.title || (canEdit && !isPublic && isUnnamed(card.title)
       && !!ydoc && !!scope?.pages && readDocSummary(ydoc, 0, scope).empty);
   }
   useEffect(() => {
@@ -684,11 +691,11 @@ export function DocCardOverlay({
           {/* A crash stays in here (SurfaceErrorBoundary): the doc puts itself
               back, its header and the way out stay, and the canvas is left alone. */}
           <SurfaceErrorBoundary resetKey={card.id} logKind="doc" retryInPlace
-                                message="This doc hit a problem." retryLabel="Reopen"
+                                message={tr`This doc hit a problem.`} retryLabel={tr`Reopen`}
                                 fallbackClassName="is-in-doc">
           <Suspense fallback={<DocOpening />}>
           <DocSurface
-            board={{ id: card.id, name: card.title || 'Untitled doc' }}
+            board={{ id: card.id, name: card.title || tr({ message: 'Untitled doc', context: 'default name' }) }}
             ydoc={ydoc}
             ready={!!ydoc && !!scope?.pages}
             scope={scope}
@@ -708,7 +715,7 @@ export function DocCardOverlay({
             isPublic={isPublic}
             pane={pane}
             frame={frame}
-            onRename={canEdit && !isPublic && onUpdate && UNNAMED.has((card.title || 'Untitled').trim())
+            onRename={canEdit && !isPublic && onUpdate && isUnnamed(card.title || 'Untitled')
               ? (title) => onUpdate({ title }) : null}
           />
           </Suspense>

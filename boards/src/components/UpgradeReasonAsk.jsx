@@ -37,6 +37,8 @@ import { feedbackEnv } from '../lib/feedbackEnv.js';
 import { OFFER_DISMISSED } from '../lib/offerEvents.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // The server's closed list (submit_upgrade_reason, 0348) and its labels
 // (_upgrade_reason_label). feedbackContract.test.mjs compares both, in order.
@@ -45,12 +47,12 @@ import { isComposingKey } from '../lib/composerKeys.js';
 // real answer — without it, a reason that is not listed gets forced into one
 // that is, and the price read is the first thing that would be corrupted.
 const CHOICES = [
-  { id: 'enough_room',  label: 'The free plan is enough for me', probe: 'What do you mostly use it for?' },
-  { id: 'price',        label: 'The price',                      probe: 'What would feel fair?' },
-  { id: 'no_card',      label: 'Putting a card in for a trial',  probe: 'What would make it easier?' },
-  { id: 'unsure_value', label: "Not sure what I'd get",          probe: 'What would you want to know first?' },
-  { id: 'just_trying',  label: 'Just trying it out for now',     probe: 'What would make it worth it?' },
-  { id: 'other',        label: 'Something else',                 probe: 'What is it?' },
+  { id: 'enough_room',  get label() { return t`The free plan is enough for me`; }, get probe() { return t`What do you mostly use it for?`; } },
+  { id: 'price',        get label() { return t`The price`; },                      get probe() { return t`What would feel fair?`; } },
+  { id: 'no_card',      get label() { return t`Putting a card in for a trial`; },  get probe() { return t`What would make it easier?`; } },
+  { id: 'unsure_value', get label() { return t`Not sure what I'd get`; },          get probe() { return t`What would you want to know first?`; } },
+  { id: 'just_trying',  get label() { return t`Just trying it out for now`; },     get probe() { return t`What would make it worth it?`; } },
+  { id: 'other',        get label() { return t`Something else`; },                 get probe() { return t`What is it?`; } },
 ];
 
 // PER ACCOUNT, not per device. On a shared computer a device-wide marker meant
@@ -287,17 +289,17 @@ export function UpgradeReasonAsk() {
   if (receipt) {
     return (
       <div className="fv-banner surface-frosted rr-ask ur-ask rr-receipt" role="status" aria-live="polite">
-        <div className="fv-banner-copy"><div className="fv-banner-title">Read. Thank you.</div></div>
+        <div className="fv-banner-copy"><div className="fv-banner-title"><Trans>Read. Thank you.</Trans></div></div>
       </div>
     );
   }
 
   return (
-    <div className="fv-banner surface-frosted rr-ask ur-ask" role="dialog" aria-label="One question" onKeyDown={onKeyDown}>
+    <div className="fv-banner surface-frosted rr-ask ur-ask" role="dialog" aria-label={t`One question`} onKeyDown={onKeyDown}>
       <div className="fv-banner-copy">
-        <div className="fv-banner-title">{picked ? 'Thanks — that helps.' : "What's holding you back?"}</div>
+        <div className="fv-banner-title">{picked ? t`Thanks — that helps.` : t`What's holding you back?`}</div>
         <div className="fv-banner-body">
-          {picked ? current?.probe : 'One tap. We ask once, and a person here reads every answer.'}
+          {picked ? current?.probe : t`One tap. We ask once, and a person here reads every answer.`}
         </div>
 
         <div className="rr-choices" aria-hidden={picked ? 'true' : undefined}>
@@ -323,8 +325,8 @@ export function UpgradeReasonAsk() {
             value={note}
             maxLength={500}
             disabled={busy}
-            placeholder="Optional — a sentence is plenty."
-            aria-label={current?.probe || 'Anything else'}
+            placeholder={t`Optional — a sentence is plenty.`}
+            aria-label={current?.probe || t`Anything else`}
             autoFocus={typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)')?.matches}
             onChange={(e) => { touchedRef.current = true; setNote(e.target.value); }}
             onKeyDown={onNoteKeyDown}
@@ -332,18 +334,18 @@ export function UpgradeReasonAsk() {
         )}
 
         {!picked && contextLine && (
-          <div className="ask-context">Sent with your answer: {contextLine}</div>
+          <div className="ask-context"><Trans>Sent with your answer: {contextLine}</Trans></div>
         )}
       </div>
 
       <div className="fv-banner-actions">
         {picked ? (
           <>
-            <button className="fv-banner-dismiss" onClick={() => dismiss('skip')} disabled={busy}>Skip</button>
-            <button className="rr-send" onClick={send} disabled={busy || !note.trim()}>Send</button>
+            <button className="fv-banner-dismiss" onClick={() => dismiss('skip')} disabled={busy}><Trans>Skip</Trans></button>
+            <button className="rr-send" onClick={send} disabled={busy || !note.trim()}><Trans>Send</Trans></button>
           </>
         ) : (
-          <button className="fv-banner-dismiss" onClick={() => dismiss('x')} disabled={busy}>Not now</button>
+          <button className="fv-banner-dismiss" onClick={() => dismiss('x')} disabled={busy}><Trans>Not now</Trans></button>
         )}
       </div>
     </div>

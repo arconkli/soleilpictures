@@ -4,6 +4,8 @@ import { X } from '../lib/icons.js';
 import { Spinner } from './Spinner.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
 import './panelWait.css';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // What a panel shows while its code loads (the Suspense fallback of lazyPanel
 // and of the panels App opens on demand). The frame and its title appear at
@@ -29,7 +31,7 @@ export function PanelWait({ title, onClose = null, variant = 'modal' }) {
     <div className="panel-wait-head">
       <span className="panel-wait-title" dir="auto">{title}</span>
       {onClose && variant !== 'page' && (
-        <button type="button" className="panel-wait-close" aria-label="Close" onClick={onClose}>
+        <button type="button" className="panel-wait-close" aria-label={t`Close`} onClick={onClose}>
           <Icon as={X} size={16} />
         </button>
       )}
@@ -38,7 +40,7 @@ export function PanelWait({ title, onClose = null, variant = 'modal' }) {
   const body = (
     <div className="panel-wait-body">
       <Spinner size={18} />
-      <span className="panel-wait-say" role="status">Opening <bdi>{title}</bdi>…</span>
+      <span className="panel-wait-say" role="status"><Trans>Opening <bdi>{title}</bdi>…</Trans></span>
     </div>
   );
   if (variant === 'modal') {

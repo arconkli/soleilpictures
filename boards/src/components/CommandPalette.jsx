@@ -22,6 +22,8 @@ import { LoadFailed } from './LoadFailed.jsx';
 import { useRetry } from '../hooks/useRetry.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { searchKey, minSearchLength, searchLength } from '../lib/textFold.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Global search + ⌘K command palette.
 //
@@ -129,17 +131,18 @@ function EmptySearchHelp({ q, emptyHelp, onClose }) {
   return (
     <div className="cmdk-empty-help">
       {short ? (
-        <p>Keep typing — a word finds cluster, group and tag names, notes, docs, captions, file names and what’s in pictures.</p>
+        <p><Trans>Keep typing — a word finds cluster, group and tag names, notes, docs, captions, file names and what’s in pictures.</Trans></p>
       ) : (
         <>
           <p>
-            Search sees cluster, group and tag names, notes, docs, captions, file names and what’s in pictures.
+            <Trans>Search sees cluster, group and tag names, notes, docs, captions, file names and what’s in pictures.</Trans>
+            {' '}
             {emptyHelp.hasImages
-              ? ' A picture is found by what’s in it a few minutes after it lands, unless the workspace’s AI suggestions are off. To find one by your own words, hover it and choose Caption.'
-              : ' Pictures are found by their caption, their file name or what’s in them.'}
+              ? <Trans>A picture is found by what’s in it a few minutes after it lands, unless the workspace’s AI suggestions are off. To find one by your own words, hover it and choose Caption.</Trans>
+              : <Trans>Pictures are found by their caption, their file name or what’s in them.</Trans>}
           </p>
           {emptyHelp.onBrowseList && (
-            <button type="button" className="cmdk-empty-btn" onClick={browse}>Browse this cluster in Files</button>
+            <button type="button" className="cmdk-empty-btn" onClick={browse}><Trans>Browse this cluster in Files</Trans></button>
           )}
         </>
       )}
@@ -384,6 +387,8 @@ export function CommandPalette({
     // `#name`: the tag's page first, then what carries it, opened in place.
     if (!isPick && tagHits?.tag) {
       const { tag, rows } = tagHits;
+      const tagTitle = tag.title || '';
+      const shownCount = rows.length;
       const open = (r) => {
         close();
         if (r.kind === 'board') onOpenBoard?.(r.board_id || r.id);
@@ -392,16 +397,16 @@ export function CommandPalette({
         else onNavigateRef?.({ kind: 'card', boardId: r.board_id, cardId: r.card_id });
       };
       out.push({
-        id: 'tagged', label: `Tagged ${tag.title || ''}`.trim(),
+        id: 'tagged', label: tr`Tagged ${tagTitle}`.trim(),
         items: [
           {
             key: `tag:${tag.id}`, kind: 'tag', accent: tag.meta?.color || tagFallbackColor(tag.title || tag.id),
-            title: `Everything tagged ${tag.title || ''}`.trim(), sub: rows.length ? `${rows.length} shown` : 'Nothing carries it yet',
+            title: tr`Everything tagged ${tagTitle}`.trim(), sub: rows.length ? plural(shownCount, { one: '# shown', other: '# shown' }) : tr`Nothing carries it yet`,
             activate: () => { close(); onNavigateRef?.(rowToTarget(tag)); },
           },
           ...rows.map(r => ({
             key: `tagged:${r.id}`, kind: r.kind, icon: r.kind === 'board' || r.kind === 'group' ? LayoutGrid : (KIND_ICON[r.kind] || FileText),
-            title: r.title || r.meta?.fileName || 'Untitled',
+            title: r.title || r.meta?.fileName || tr`Untitled`,
             sub: r.kind === 'board' ? null : (r.board_name || r.body || null),
             activate: () => open(r),
           })),
@@ -414,10 +419,10 @@ export function CommandPalette({
     if (isPick) {
       const pick = (b) => { close(); onPickBoard?.(b); };
       if (recentBoards.length) out.push({
-        id: 'recent', label: 'Recent',
+        id: 'recent', label: tr({ message: 'Recent', context: 'items' }),
         items: recentBoards.map(b => ({
           key: `recent:${b.id}`, kind: 'board', icon: LayoutGrid,
-          title: b.name || 'Untitled', sub: b.meta || null,
+          title: b.name || tr`Untitled`, sub: b.meta || null,
           activate: () => pick(b),
         })),
       });
@@ -427,10 +432,10 @@ export function CommandPalette({
       ];
       const boardItems = q ? matched : allBoardsList;
       if (boardItems.length) out.push({
-        id: 'boards', label: q ? 'Clusters' : 'All clusters',
+        id: 'boards', label: q ? tr`Clusters` : tr`All clusters`,
         items: boardItems.map(b => ({
           key: `board:${b.id}`, kind: 'board', icon: LayoutGrid,
-          title: b.name || 'Untitled', sub: b.meta || null,
+          title: b.name || tr`Untitled`, sub: b.meta || null,
           activate: () => pick(b),
         })),
       });
@@ -438,7 +443,7 @@ export function CommandPalette({
     }
 
     if (commandHits.length) out.push({
-      id: 'commands', label: 'Actions',
+      id: 'commands', label: tr`Actions`,
       items: commandHits.map(c => ({
         key: `cmd:${c.id}`, kind: 'command', icon: c.icon || LayoutGrid,
         title: c.label, sub: null,
@@ -447,29 +452,29 @@ export function CommandPalette({
     });
 
     if (recentBoards.length) out.push({
-      id: 'recent', label: 'Recent',
+      id: 'recent', label: tr({ message: 'Recent', context: 'items' }),
       items: recentBoards.map(b => ({
         key: `recent:${b.id}`, kind: 'board', icon: LayoutGrid,
-        title: b.name || 'Untitled', sub: b.meta || null,
+        title: b.name || tr`Untitled`, sub: b.meta || null,
         activate: () => { close(); onOpenBoard?.(b.id); },
       })),
     });
 
     const boardItems = [...localBoards, ...asyncGroups.asyncBoards];
     if (boardItems.length) out.push({
-      id: 'boards', label: 'Clusters',
+      id: 'boards', label: tr`Clusters`,
       items: boardItems.map(b => {
         const id = b.id || b.board_id;
         return {
           key: `board:${id}`, kind: 'board', icon: LayoutGrid,
-          title: b.name || b.title || 'Untitled', sub: b.meta || b.body || null,
+          title: b.name || b.title || tr`Untitled`, sub: b.meta || b.body || null,
           activate: () => { close(); onOpenBoard?.(id); },
         };
       }),
     });
 
     if (asyncGroups.cards.length) out.push({
-      id: 'cards', label: 'Cards & notes',
+      id: 'cards', label: tr`Cards & notes`,
       items: asyncGroups.cards.map(r => {
         // Found only by what's in the picture (0595's `seen`): the picture and
         // "In the picture" say why, never the AI's words (owner, 2026-10-28).
@@ -477,8 +482,8 @@ export function CommandPalette({
         return {
           key: r.id, kind: r.kind, icon: KIND_ICON[r.kind] || FileText,
           // A photo usually has no title; its file's own name is the one people type.
-          title: r.title || r.meta?.fileName || 'Untitled',
-          sub: inPicture ? ['In the picture', boards?.[r.board_id]?.name].filter(Boolean).join(' · ') : (r.body || null),
+          title: r.title || r.meta?.fileName || tr`Untitled`,
+          sub: inPicture ? [tr`In the picture`, boards?.[r.board_id]?.name].filter(Boolean).join(' · ') : (r.body || null),
           picture: inPicture ? r.meta.src : null,
           activate: () => { close(); onNavigateRef?.(rowToTarget(r)); },
         };
@@ -488,28 +493,28 @@ export function CommandPalette({
     if (translatedPics?.rows?.length) {
       const items = translatedPics.rows.filter(r => !r.board_id || !!boards?.[r.board_id]).map(r => ({
         key: r.id, kind: r.kind, icon: KIND_ICON[r.kind] || FileText,
-        title: r.title || r.meta?.fileName || 'Untitled',
-        sub: ['In the picture: ' + translatedPics.english, boards?.[r.board_id]?.name].filter(Boolean).join(' · '),
+        title: r.title || r.meta?.fileName || tr`Untitled`,
+        sub: [tr`In the picture: ${ph({ english: translatedPics.english })}`, boards?.[r.board_id]?.name].filter(Boolean).join(' · '),
         picture: r.meta.src,
         activate: () => { close(); onNavigateRef?.(rowToTarget(r)); },
       }));
-      if (items.length) out.push({ id: 'pictures-translated', label: 'Pictures', items });
+      if (items.length) out.push({ id: 'pictures-translated', label: tr`Pictures`, items });
     }
 
     if (asyncGroups.tags.length) out.push({
-      id: 'tags', label: 'Tags',
+      id: 'tags', label: tr`Tags`,
       items: asyncGroups.tags.map(r => ({
         key: r.id, kind: 'tag', accent: r.meta?.color || tagFallbackColor(r.title || r.id),
-        title: r.title || 'Untitled', sub: null,
+        title: r.title || tr`Untitled`, sub: null,
         activate: () => { close(); onNavigateRef?.(rowToTarget(r)); },
       })),
     });
 
     if (asyncGroups.docs.length) out.push({
-      id: 'docs', label: 'Docs',
+      id: 'docs', label: tr`Docs`,
       items: asyncGroups.docs.map(r => ({
         key: r.id, kind: 'doc', icon: FileText,
-        title: r.title || 'Untitled', sub: r.body || null,
+        title: r.title || tr`Untitled`, sub: r.body || null,
         activate: () => { close(); onNavigateRef?.(rowToTarget(r)); },
       })),
     });
@@ -517,7 +522,7 @@ export function CommandPalette({
     // The words inside documents: a page whose text matches, opened AT that
     // page (navigate's doc target takes a pageId).
     if (pageHits.length) out.push({
-      id: 'doc-pages', label: 'Inside docs',
+      id: 'doc-pages', label: tr`Inside docs`,
       items: pageHits.map(h => ({
         key: `${h.docCardId}:${h.pageId}`, kind: 'doc', icon: FileText,
         title: h.pageTitle ? `${h.docTitle} — ${h.pageTitle}` : h.docTitle,
@@ -586,7 +591,7 @@ export function CommandPalette({
         className={`cmdk surface-frosted ${mobileShell ? 'is-mobile' : ''}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label="Search and commands"
+        aria-label={tr`Search and commands`}
       >
         <div className="cmdk-search">
           <Icon as={Search} size={16} className="cmdk-search-icon" />
@@ -594,7 +599,7 @@ export function CommandPalette({
             ref={inputRef}
             className="cmdk-input"
             dir="auto"
-            placeholder={placeholder || (isPick ? 'Search boards to link…' : 'Search boards, cards, tags — or run a command')}
+            placeholder={placeholder || (isPick ? tr`Search boards to link…` : tr`Search boards, cards, tags — or run a command`)}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -602,33 +607,33 @@ export function CommandPalette({
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
-            aria-label="Search"
+            aria-label={tr`Search`}
           />
           {query ? (
             <button
               className="cmdk-clear"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => { setQuery(''); inputRef.current?.focus(); }}
-              aria-label="Clear"
+              aria-label={tr`Clear`}
             >
               <Icon as={X} size={14} />
             </button>
           ) : null}
           {mobileShell ? (
-            <button className="cmdk-close" onClick={onClose} aria-label="Close">
+            <button className="cmdk-close" onClick={onClose} aria-label={tr`Close`}>
               <Icon as={X} size={18} />
             </button>
           ) : (
-            <span className="cmdk-esc">esc</span>
+            <span className="cmdk-esc">{tr({ message: 'esc', context: 'keyboard key' })}</span>
           )}
         </div>
 
         <div className="cmdk-list">
           {showFailed && (
-            <LoadFailed className="cmdk-empty" what="search results" onRetry={() => { retrySearch(); inputRef.current?.focus(); }} />
+            <LoadFailed className="cmdk-empty" what={tr`search results`} onRetry={() => { retrySearch(); inputRef.current?.focus(); }} />
           )}
           {showEmpty && (
-            <div className="cmdk-empty">{isPick ? 'No clusters match.' : `No results for “${q}”.`}</div>
+            <div className="cmdk-empty">{isPick ? tr`No clusters match.` : tr`No results for “${q}”.`}</div>
           )}
           {/* What search can see, said at the moment it found nothing. Most of
               what people store is images without a word on them, so the honest
@@ -640,8 +645,8 @@ export function CommandPalette({
           {!q && !hasResults && !loading && (
             <div className="cmdk-empty">
               {isPick
-                ? 'No boards to link yet.'
-                : 'Search boards, cards, notes, docs and tags — or jump to an action.'}
+                ? tr`No boards to link yet.`
+                : tr`Search boards, cards, notes, docs and tags — or jump to an action.`}
             </div>
           )}
           {sections.map(section => (
@@ -672,7 +677,7 @@ export function CommandPalette({
                       ) : null}
                     </span>
                     {item.kind === 'command' ? (
-                      <span className="cmdk-row-badge">Action</span>
+                      <span className="cmdk-row-badge"><Trans>Action</Trans></span>
                     ) : (
                       <Icon as={ChevronRight} size={14} className="cmdk-row-arrow" />
                     )}
@@ -685,9 +690,9 @@ export function CommandPalette({
 
         {!mobileShell && (
           <div className="cmdk-foot">
-            <span className="cmdk-hint"><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
-            <span className="cmdk-hint"><kbd>↵</kbd> {isPick ? 'link' : 'open'}</span>
-            <span className="cmdk-hint"><kbd>esc</kbd> close</span>
+            <span className="cmdk-hint"><Trans><kbd>↑</kbd><kbd>↓</kbd> navigate</Trans></span>
+            <span className="cmdk-hint">{isPick ? <Trans><kbd>↵</kbd> link</Trans> : <Trans><kbd>↵</kbd> open</Trans>}</span>
+            <span className="cmdk-hint"><Trans><kbd>esc</kbd> close</Trans></span>
           </div>
         )}
       </div>

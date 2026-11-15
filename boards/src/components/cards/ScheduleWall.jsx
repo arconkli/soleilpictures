@@ -13,7 +13,9 @@
 // up between months (Aug 1 is a Saturday, Sep 1 a Tuesday). That is how the
 // paper version works; the faded weekend cells carry the rhythm instead.
 
-import { WEEKDAYS, MONTHS_SHORT, parseISO } from '../../lib/schedDates.js';
+import { t, plural } from '@lingui/core/macro';
+import { parseISO } from '../../lib/schedDates.js';
+import { weekdayShortNames, monthShortNames, monthTitle } from '../../lib/schedDatesWords.js';
 import { wallMonths, CAL_TUNING } from '../../lib/schedCalendar.js';
 import { dayTypeColor, dayTypeName } from '../../lib/dayTypes.js';
 
@@ -28,9 +30,11 @@ export function ScheduleWall({
 
   return (
     <div className="schedw" onPointerDown={stop}>
-      {months.map((m) => (
+      {months.map((m) => {
+        const monthShort = monthShortNames()[parseISO(m.iso).m - 1];
+        return (
         <div key={m.iso} className="schedw-row">
-          <span className="schedw-m" title={m.label}>{m.short}</span>
+          <span className="schedw-m" title={monthTitle(m.iso)}>{monthShort}</span>
           <span className="schedw-days">
             {m.days.map((d) => {
               const days = shootDays[d.date] || [];
@@ -38,9 +42,10 @@ export function ScheduleWall({
               const cancelled = !!live && live.sched_status === 'cancelled';
               const hue = live ? dayTypeColor(live, types) : null;
               const loose = !live && dayCounts[d.date] > 0;
+              const dayName = live ? (live.day_label || live.name || t`Day`) : '';
               const label = live
-                ? `${(live.day_label || live.name || 'Day')}${dayTypeName(live, types) ? ` · ${dayTypeName(live, types)}` : ''}`
-                : loose ? `${dayCounts[d.date]} item${dayCounts[d.date] === 1 ? '' : 's'}` : 'Nothing scheduled';
+                ? `${dayName}${dayTypeName(live, types) ? ` · ${dayTypeName(live, types)}` : ''}`
+                : loose ? t`${plural(dayCounts[d.date], { one: '# item', other: '# items' })}` : t`Nothing scheduled`;
               return (
                 <button
                   key={d.date}
@@ -54,8 +59,8 @@ export function ScheduleWall({
                     selectedDate === d.date ? 'is-selected' : '',
                   ].filter(Boolean).join(' ')}
                   style={hue ? { '--w-hue': hue } : undefined}
-                  title={`${WEEKDAYS[d.dow]} ${MONTHS_SHORT[parseISO(d.date).m - 1]} ${d.day} — ${label}`}
-                  aria-label={`${WEEKDAYS[d.dow]} ${d.day} ${m.short}: ${label}`}
+                  title={`${weekdayShortNames()[d.dow]} ${monthShortNames()[parseISO(d.date).m - 1]} ${d.day} — ${label}`}
+                  aria-label={`${weekdayShortNames()[d.dow]} ${d.day} ${monthShort}: ${label}`}
                   onPointerDown={stop}
                   onClick={(e) => { e.stopPropagation(); onPickDate?.(d.date); }}
                 />
@@ -63,7 +68,8 @@ export function ScheduleWall({
             })}
           </span>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

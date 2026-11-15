@@ -260,10 +260,8 @@ export const COACHMARK_VARIANTS = {
     // Image-first (onboarding_v2 arm B = the shipped default). The data: adding an
     // image is the single behavior that turns a bounce into a retained user, so the
     // first-run nudge points straight at it (drag / paste / Upload an image).
-    title: 'Add your first image',
-    // Mirrors the component's three copy branches (tutorial / touch / desktop).
-    hasTutorial: 'Drag or paste an image to start your moodboard',
-    touch: 'Tap Image on the left — or paste — to drop your first reference.',
-    desktop: 'Drag an image in, paste, or hit Image on the left to start your moodboard.',
+    // The words (a title and the tutorial / touch / desktop lines) are said by
+    // components/OnboardingCoachmark.jsx through Lingui: this module has no imports.
+    imageFirst: true,
   },
 };

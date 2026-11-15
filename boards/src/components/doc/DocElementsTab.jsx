@@ -1,9 +1,11 @@
 import { useId } from 'react';
 import { useEditorState } from '@tiptap/react';
 import { Icon } from '../Icon.jsx';
-import { ELEMENTS, ELEMENT_LABELS } from '../docExtensions/screenplay/screenplayFlow.js';
+import { ELEMENTS } from '../docExtensions/screenplay/screenplayFlow.js';
+import { elementLabel } from '../../lib/screenplayFlowWords.js';
 import { safeRun } from '../../lib/safeEditorCmd.js';
 import { Check, Columns2 } from '../../lib/icons.js';
+import { Trans } from '@lingui/react/macro';
 
 // The side panel's Elements, for a screenplay (the owner's pick of 2026-10-21,
 // mockup dx AC-script): the eight elements, the one the caret's line is
@@ -60,7 +62,7 @@ export function DocElementsTab({
 
   return (
     <div className="dl-els">
-      <h3 className="dl-ish" id={headId}>Element</h3>
+      <h3 className="dl-ish" id={headId}><Trans>Element</Trans></h3>
       <div className="dl-els-list" role="listbox" aria-labelledby={headId} onKeyDown={onKeyDown}>
         {ELEMENTS.map((el) => (
           <div key={el} role="option" data-el={el} className={`dl-el${lit.el === el ? ' is-on' : ''}`}
@@ -68,26 +70,26 @@ export function DocElementsTab({
                tabIndex={el === tabStop ? 0 : -1}
                onMouseDown={(e) => e.preventDefault()}
                onClick={() => set(el)}>
-            <span className="dl-el-t">{ELEMENT_LABELS[el] || el}</span>
+            <span className="dl-el-t">{elementLabel(el)}</span>
             {lit.el === el && <Icon as={Check} size={14} className="dl-el-chk" />}
           </div>
         ))}
       </div>
-      <p className="dl-note">Tab steps through these. Enter picks the one that usually comes next.</p>
-      <h3 className="dl-ish">Script</h3>
+      <p className="dl-note"><Trans>Tab steps through these. Enter picks the one that usually comes next.</Trans></p>
+      <h3 className="dl-ish"><Trans>Script</Trans></h3>
       <button type="button" role="switch" className="dl-drow dl-sw" aria-checked={!!titlePage}
               onMouseDown={(e) => e.preventDefault()} onClick={() => onToggleTitlePage?.()}>
-        <span>Title page</span><span className="dl-tog" aria-hidden="true" />
+        <span><Trans>Title page</Trans></span><span className="dl-tog" aria-hidden="true" />
       </button>
       <button type="button" role="switch" className="dl-drow dl-sw" aria-checked={!!sceneNumbers}
               onMouseDown={(e) => e.preventDefault()} onClick={() => onSetSceneNumbers?.(!sceneNumbers)}>
-        <span>Scene numbers</span><span className="dl-tog" aria-hidden="true" />
+        <span><Trans>Scene numbers</Trans></span><span className="dl-tog" aria-hidden="true" />
       </button>
       <div className="dl-drow dl-drow-pair">
-        <span>Dual dialogue</span>
+        <span><Trans>Dual dialogue</Trans></span>
         <button type="button" className="dl-mini" aria-pressed={lit.dual} disabled={!SPEECH.has(lit.el)}
                 onMouseDown={(e) => e.preventDefault()} onClick={pair}>
-          <Icon as={Columns2} size={13} />Pair with the speech above
+          <Icon as={Columns2} size={13} /><Trans>Pair with the speech above</Trans>
         </button>
       </div>
     </div>

@@ -15,7 +15,9 @@
 //
 // While the chunk loads, and the panel is open, the person sees its frame and
 // title at once (PanelWait; its spinner fades in after 0.3 s):
-//   lazyPanel(factory, { title: 'Settings', variant: 'modal' })
+//   lazyPanel(factory, { title: () => t`Settings`, variant: 'modal' })
+// `title` may be a function, read when the wait is drawn (a translated title
+// can't be built at module load); a plain string works too.
 // It closes with the panel's own `onClose`.
 
 import { Suspense, useState } from 'react';
@@ -28,8 +30,9 @@ export function lazyPanel(factory, { title = null, variant = 'modal' } = {}) {
     const [opened, setOpened] = useState(!!props.open);
     if (props.open && !opened) setOpened(true);
     if (!opened) return null;
-    const wait = title && props.open
-      ? <PanelWait title={title} variant={variant} onClose={props.onClose || null} />
+    const shownTitle = typeof title === 'function' ? title() : title;
+    const wait = shownTitle && props.open
+      ? <PanelWait title={shownTitle} variant={variant} onClose={props.onClose || null} />
       : null;
     return <Suspense fallback={wait}><Panel {...props} /></Suspense>;
   }

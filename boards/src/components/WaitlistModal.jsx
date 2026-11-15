@@ -16,6 +16,9 @@ import { useDwellTime } from '../hooks/useDwellTime.js';
 import { getFbCookies, gpcOn } from '../lib/metaPixel.js';
 import { useAuth } from '../auth/AuthGate.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../lib/errorWords.js';
 
 const EDGE_URL = (import.meta.env.VITE_SUPABASE_URL || '') + '/functions/v1/submit-waitlist';
 
@@ -66,7 +69,7 @@ export function WaitlistModal({ onClose }) {
       window.location.assign('/waitlist/status');
     } catch (err) {
       logEvent(EV.SUBMIT_SOCIALS_ERROR, { message: (err?.message || String(err)).slice(0, 200) });
-      setError(err?.message || String(err));
+      setError(shownError(err));
       setBusy(false);
     }
   };
@@ -96,23 +99,23 @@ export function WaitlistModal({ onClose }) {
   return createPortal(
     <div className="upgrade-backdrop" onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}>
       <div className="upgrade-modal waitlist-modal-card">
-        <button className="upgrade-close" onClick={handleClose} aria-label="Close" disabled={busy}>×</button>
+        <button className="upgrade-close" onClick={handleClose} aria-label={t`Close`} disabled={busy}>×</button>
 
         {/* Header (mirrors PricingModal's intro shape) */}
         <div className="waitlist-card-head">
           <div className="waitlist-card-eyebrow t-eyebrow">
-            Submit your socials <span className="waitlist-optional-tag">Optional</span>
+            <Trans>Submit your socials <span className="waitlist-optional-tag">Optional</span></Trans>
           </div>
-          <h2 className="waitlist-card-title">Show us your work.</h2>
+          <h2 className="waitlist-card-title"><Trans>Show us your work.</Trans></h2>
           <p className="waitlist-card-sub t-body">
-            Drop links to your creative work — Instagram, TikTok, YouTube,
-            portfolio, anything.
+            <Trans>Drop links to your creative work — Instagram, TikTok, YouTube,
+            portfolio, anything.</Trans>
           </p>
         </div>
 
         {/* Form section — matches the pricing-card "field list" feel */}
         <form className="waitlist-card-form" onSubmit={submit}>
-          <label className="waitlist-card-label">Your links <span className="field-required" aria-hidden="true">*</span></label>
+          <label className="waitlist-card-label"><Trans>Your links</Trans> <span className="field-required" aria-hidden="true">*</span></label>
 
           <div className="waitlist-card-fields">
             {rows.map((row, i) => (
@@ -121,10 +124,10 @@ export function WaitlistModal({ onClose }) {
                   className="waitlist-card-input"
                   type="text"
                   placeholder={i === 0
-                    ? 'instagram.com/your-handle'
+                    ? t`instagram.com/your-handle`
                     : i === 1
-                      ? 'tiktok.com/@your-handle'
-                      : 'https:// or @handle'}
+                      ? t`tiktok.com/@your-handle`
+                      : t`https:// or @handle`}
                   value={row}
                   onChange={(e) => updateRow(i, e.target.value)}
                   disabled={busy}
@@ -134,7 +137,7 @@ export function WaitlistModal({ onClose }) {
                   <button type="button"
                           className="waitlist-card-remove"
                           onClick={() => removeRow(i)}
-                          aria-label="Remove">
+                          aria-label={t`Remove`}>
                     ×
                   </button>
                 )}
@@ -149,7 +152,7 @@ export function WaitlistModal({ onClose }) {
               onClick={addRow}
               disabled={busy}
             >
-              + Add another link
+              <Trans>+ Add another link</Trans>
             </button>
           )}
 
@@ -161,18 +164,18 @@ export function WaitlistModal({ onClose }) {
             disabled={busy}
           >
             {busy
-              ? 'Submitting…'
+              ? t`Submitting…`
               : hasLinks
-                ? 'Join the waitlist'
-                : 'Skip & join the waitlist'}
+                ? t`Join the waitlist`
+                : t`Skip & join the waitlist`}
           </button>
           <div className="waitlist-card-hint t-meta">
-            We'll email you within about a week once approved.
+            <Trans>We'll email you within about a week once approved.</Trans>
           </div>
         </form>
 
         <div className="upgrade-foot t-meta">
-          Signed in as <b>{user?.email}</b>
+          <Trans>Signed in as</Trans> <b>{user?.email}</b>
         </div>
       </div>
     </div>,

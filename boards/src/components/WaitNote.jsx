@@ -9,8 +9,10 @@
 import { Spinner } from './Spinner.jsx';
 import { useSlow } from '../hooks/useSlow.js';
 import './waitNote.css';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
-export function WaitNote({ label, slowAfterMs = 15000, onRetry = null, onClose = null, retryLabel = 'Retry', spinnerLabel = null, className = '' }) {
+export function WaitNote({ label, slowAfterMs = 15000, onRetry = null, onClose = null, retryLabel = t`Retry`, spinnerLabel = null, className = '' }) {
   const slow = useSlow(true, slowAfterMs);
   return (
     <div className={`wait-note ${className}`.trim()} role="status">
@@ -18,11 +20,11 @@ export function WaitNote({ label, slowAfterMs = 15000, onRetry = null, onClose =
       <p className="wait-note-line">{label}</p>
       {slow && (
         <>
-          <p className="wait-note-line wait-note-slow">This is taking longer than usual</p>
+          <p className="wait-note-line wait-note-slow"><Trans>This is taking longer than usual</Trans></p>
           {(onRetry || onClose) && (
             <div className="wait-note-btns">
               {onRetry && <button type="button" className="wait-note-btn" onClick={(e) => { e.stopPropagation(); onRetry(); }}>{retryLabel}</button>}
-              {onClose && <button type="button" className="wait-note-btn" onClick={(e) => { e.stopPropagation(); onClose(); }}>Close</button>}
+              {onClose && <button type="button" className="wait-note-btn" onClick={(e) => { e.stopPropagation(); onClose(); }}><Trans>Close</Trans></button>}
             </div>
           )}
         </>

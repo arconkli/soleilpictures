@@ -26,6 +26,7 @@ import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { EntityNavigateContext } from '../hooks/useEntityNavigate.js';
 import { OpenDmContext } from '../hooks/useOpenDm.js';
 import { supabase } from '../lib/supabase.js';
+import { signupLocale } from '../lib/uiLocale.js';
 import { getFirstSource, logEvent, logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { placedOf } from '../lib/placement.js';
@@ -34,7 +35,7 @@ import { fitMargin } from '../lib/captureCamera.js';
 import { emailProblem } from '../lib/emailTypo.js';
 import { resendWait } from '../lib/pendingCode.js';
 import { captchaEnabled, captchaToken } from '../auth/turnstile.js';
-import { FREE_STORAGE_LABEL } from '../lib/billingCopy.js';
+import { freeStorageLabel } from '../lib/billingCopyWords.js';
 import { DEMO_CARD_LIMIT } from '../lib/demoCardCap.js';
 import { signInWords, signupFirstSource, keepFailReason } from '../lib/keepDraft.js';
 import { parseMakeFragment, parseMakeText, MAKE_PATH } from '../lib/makeLink.js';
@@ -42,6 +43,8 @@ import { composeMakeBoard } from '../lib/makeBoard.js';
 import './keepPage.css';
 import { initialOf } from '../lib/graphemes.js';
 import './makePage.css';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const EMPTY = [];
 const EMPTY_OBJ = {};
@@ -86,8 +89,6 @@ const readLink = () => {
   const hash = typeof window !== 'undefined' ? window.location.hash.slice(1) : '';
   return hash ? { kind: 'link', text: hash } : null;
 };
-
-const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 export function MakePage() {
   const [source, setSource] = useState(readLink);  // { kind: 'link'|'text', text } | null
@@ -152,7 +153,7 @@ export function MakePage() {
   const islandKey = useMemo(() => `${source?.kind}:${Date.now()}`, [source]);
   useEffect(() => {
     const name = phase === 'shown' ? (made?.name || '').trim() : '';
-    document.title = name ? `${name} — Soleil Clusters` : 'Make a cluster — Soleil Clusters';
+    document.title = name ? tr`${ph({ name })} — Soleil Clusters` : tr`Make a cluster — Soleil Clusters`;
   }, [made, phase]);
   const shown = useMemo(() => (made ? boardDoc(made) : null), [made]);
   useEffect(() => () => { try { shown?.ydoc.destroy(); } catch (_) {} }, [shown]);
@@ -221,8 +222,8 @@ export function MakePage() {
           <SoleilMark size={42} color="var(--soleil)" glow />
           <div>
             {progress.total
-              ? `Opening the board · ${progress.done} of ${plural(progress.total, 'picture')}`
-              : 'Opening the board…'}
+              ? tr`Opening the board · ${ph({ done: progress.done })} of ${plural(progress.total, { one: '# picture', other: '# pictures' })}`
+              : tr`Opening the board…`}
           </div>
         </div>
       </div>
@@ -287,9 +288,9 @@ export function MakePage() {
 function MakeTopbar({ children = null }) {
   return (
     <div className="public-topbar keep-topbar">
-      <a className="public-brand" href="/" title="Clusters home">
+      <a className="public-brand" href="/" title={tr`Clusters home`}>
         <ClustersMark size={20} />
-        <span className="public-brand-name">Clusters</span>
+        <span className="public-brand-name"><Trans context="brand">Clusters</Trans></span>
       </a>
       {children ? <span className="keep-topbar-rule" aria-hidden="true" /> : null}
       {children}
@@ -301,12 +302,12 @@ function MakeTopbarEnd({ kept, me }) {
   const initial = initialOf(me?.email, '');
   return (
     <>
-      {!kept && <span className="keep-badge">Not saved</span>}
+      {!kept && <span className="keep-badge"><Trans>Not saved</Trans></span>}
       <span className="keep-topbar-spacer" />
       {me ? (
-        initial ? <span className="keep-avatar" title={me.email} aria-label={`Signed in as ${me.email}`}>{initial}</span> : null
+        initial ? <span className="keep-avatar" title={me.email} aria-label={tr`Signed in as ${ph({ email: me.email })}`}>{initial}</span> : null
       ) : me === null && !kept ? (
-        <span className="keep-viewonly"><Eye size={16} weight="regular" aria-hidden="true" /> View only until you keep it</span>
+        <span className="keep-viewonly"><Eye size={16} weight="regular" aria-hidden="true" /> <Trans>View only until you keep it</Trans></span>
       ) : null}
     </>
   );
@@ -321,7 +322,7 @@ function MakePaste({ onMake }) {
     e.preventDefault();
     const board = parseMakeText(text);
     if (!board.count) {
-      setError('There’s no board in that yet: it needs a picture’s link, a note or a palette. Ask the AI for the board as text “for Clusters” and paste all of it.');
+      setError(tr`There’s no board in that yet: it needs a picture’s link, a note or a palette. Ask the AI for the board as text “for Clusters” and paste all of it.`);
       return;
     }
     onMake(text);
@@ -330,26 +331,26 @@ function MakePaste({ onMake }) {
     <div className="keep-state-wrap">
       <form className="keep-state make-paste" onSubmit={submit}>
         <span className="keep-state-icon" aria-hidden="true"><ClipboardText size={20} weight="regular" /></span>
-        <h1 className="keep-state-title">Make a board from what your AI wrote</h1>
+        <h1 className="keep-state-title"><Trans>Make a board from what your AI wrote</Trans></h1>
         <p className="keep-state-body">
-          Ask any AI for a board “for Clusters”, then paste its answer here. Pictures come in by their links.
+          <Trans>Ask any AI for a board “for Clusters”, then paste its answer here. Pictures come in by their links.</Trans>
         </p>
         <textarea
           className="make-paste-text"
           value={text}
           onChange={(e) => { setText(e.target.value); setError(null); }}
-          placeholder={'# Tokyo noir, 1974\n## Look\n![Wet street](https://…)\nPalette: #101820 Ink, #f2aa4c Sodium\n## Story\n### Logline\nA night-shift cabbie…'}
-          aria-label="What your AI wrote"
+          placeholder={tr`# Tokyo noir, 1974\n## Look\n![Wet street](https://…)\nPalette: #101820 Ink, #f2aa4c Sodium\n## Story\n### Logline\nA night-shift cabbie…`}
+          aria-label={tr`What your AI wrote`}
           rows={9}
           spellCheck={false}
         />
         {error && <p className="keep-island-error" role="alert">{error}</p>}
         <div className="keep-state-actions">
           <button type="submit" className="public-cta keep-cta" disabled={!text.trim()}>
-            Make the board <ArrowRight size={16} weight="bold" aria-hidden="true" />
+            <Trans>Make the board</Trans> <ArrowRight size={16} weight="bold" aria-hidden="true" />
           </button>
         </div>
-        <p className="make-paste-foot">Nothing is saved until you keep it.</p>
+        <p className="make-paste-foot"><Trans>Nothing is saved until you keep it.</Trans></p>
       </form>
     </div>
   );
@@ -362,14 +363,14 @@ function MakeEmpty({ cut, fromText, onPaste }) {
     <div className="keep-state-wrap">
       <div className="keep-state">
         <span className="keep-state-icon" aria-hidden="true"><LinkBreak size={20} weight="regular" /></span>
-        <h1 className="keep-state-title">{fromText ? 'There’s no board in that' : 'This link doesn’t open a board'}</h1>
+        <h1 className="keep-state-title">{fromText ? tr`There’s no board in that` : tr`This link doesn’t open a board`}</h1>
         <p className="keep-state-body">
           {cut
-            ? 'The chat cut it short before any of the board came through. Ask the AI for the board as text, and paste it here instead.'
-            : 'It may have been cut short when it was copied. Ask the AI for the link again, or for the board as text to paste here.'}
+            ? tr`The chat cut it short before any of the board came through. Ask the AI for the board as text, and paste it here instead.`
+            : tr`It may have been cut short when it was copied. Ask the AI for the link again, or for the board as text to paste here.`}
         </p>
         <div className="keep-state-actions">
-          <button type="button" className="public-cta keep-cta" onClick={onPaste}>Paste it instead</button>
+          <button type="button" className="public-cta keep-cta" onClick={onPaste}><Trans>Paste it instead</Trans></button>
         </div>
       </div>
     </div>
@@ -382,6 +383,7 @@ function MakeEmpty({ cut, fromText, onPaste }) {
 // "Keep it here". Over the account's room, the island offers the first cards
 // that fit.
 function MakeIsland({ source, parsed, made, sizes, me, kept, onKept, onPaste }) {
+  const FREE_STORAGE_LABEL = freeStorageLabel();
   const [step, setStep] = useState('email');      // email | code | keeping
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -418,7 +420,7 @@ function MakeIsland({ source, parsed, made, sizes, me, kept, onKept, onPaste }) 
       if (!alive) return;
       const list = (data || [])
         .filter((m) => ADDS_CLUSTERS.has(m.role) && m.workspaces?.id)
-        .map((m) => ({ id: m.workspaces.id, name: m.workspaces.name || 'Workspace', own: m.workspaces.created_by === me.id }))
+        .map((m) => ({ id: m.workspaces.id, name: m.workspaces.name || tr`Workspace`, own: m.workspaces.created_by === me.id }))
         .sort((a, b) => Number(b.own) - Number(a.own));
       setSpaces(list);
       setWorkspaceId((cur) => cur || list[0]?.id || null);
@@ -470,32 +472,37 @@ function MakeIsland({ source, parsed, made, sizes, me, kept, onKept, onPaste }) 
       return;
     }
     setError(code === 'unauthorized'
-      ? 'Your sign-in ran out. Enter your email again to keep it.'
+      ? tr`Your sign-in ran out. Enter your email again to keep it.`
       : code === 'forbidden'
-        ? 'You can’t add clusters to that workspace. Pick another, or ask its owner.'
+        ? tr`You can’t add clusters to that workspace. Pick another, or ask its owner.`
         : code === 'rate_limited'
-          ? 'Hold on — too many boards kept just now. Try again in a minute.'
-          : 'It couldn’t be kept just now. Try again in a moment.');
+          ? tr`Hold on — too many boards kept just now. Try again in a minute.`
+          : tr`It couldn’t be kept just now. Try again in a moment.`);
   }, [source, sizes, workspaceId, onKept]);
 
   const sendCode = async (resending = false) => {
     setError(null);
     const address = email.trim().toLowerCase();
     if (emailProblem(address)) {
-      setError('That address is missing its ending, like .com — check the part after the @.');
+      setError(tr`That address is missing its ending, like .com — check the part after the @.`);
       return;
     }
     if (resending) setBusy(true);
     else { setStep('code'); setCode(''); }
     try {
       const firstSource = signupFirstSource(getFirstSource());
+      const locale = signupLocale();
+      const signupData = {
+        ...(firstSource ? { first_source: firstSource } : {}),
+        ...(locale !== 'en' ? { locale } : {}),
+      };
       const challenge = captchaEnabled() ? await captchaToken(captchaRef.current) : '';
       const { error: e } = await supabase.auth.signInWithOtp({
         email: address,
         options: {
           emailRedirectTo: window.location.origin,
           ...(challenge ? { captchaToken: challenge } : {}),
-          ...(firstSource ? { data: { first_source: firstSource } } : {}),
+          ...(Object.keys(signupData).length ? { data: signupData } : {}),
         },
       });
       if (e) throw e;
@@ -517,7 +524,7 @@ function MakeIsland({ source, parsed, made, sizes, me, kept, onKept, onPaste }) 
   const verify = async (typed) => {
     const token6 = String(typed ?? code).replace(/\s+/g, '');
     if (busy) return;
-    if (token6.length < 6) { setError('Enter the 6-digit code from your email.'); return; }
+    if (token6.length < 6) { setError(tr`Enter the 6-digit code from your email.`); return; }
     setError(null);
     setBusy(true);
     try {
@@ -547,38 +554,40 @@ function MakeIsland({ source, parsed, made, sizes, me, kept, onKept, onPaste }) 
   const shownCount = made.cards.length;
   const failedHere = (parsed.problems.find((p) => p.code === 'bad_pictures')?.n || 0) + made.left;
   const meta = [
-    'From a link an AI wrote',
+    source.kind === 'text' ? tr`From what your AI wrote` : tr`From a link an AI wrote`,
     parsed.cut
-      ? `${shownCount} of ${plural(parsed.cut.expected, 'card')} came through`
-      : `${plural(shownCount, 'card')} · not saved yet`,
-    failedHere ? `${plural(failedHere, 'picture')} didn’t load` : null,
+      ? tr`${ph({ shown: shownCount })} of ${plural(parsed.cut.expected, { one: '# card', other: '# cards' })} came through`
+      : tr`${plural(shownCount, { one: '# card', other: '# cards' })} · not saved yet`,
+    failedHere ? tr`${plural(failedHere, { one: '# picture', other: '# pictures' })} didn’t load` : null,
   ].filter(Boolean).join(' · ');
-  const meta2 = source.kind === 'text' ? meta.replace('From a link an AI wrote', 'From what your AI wrote') : meta;
 
   if (kept) {
     // Its workspace by name only for someone with more than one.
     const space = spaces && spaces.length > 1 ? spaces.find((s) => s.id === kept.workspaceId) : null;
+    const roomText = kept.room != null && kept.room > 0 ? plural(kept.room, { one: '# more card', other: '# more cards' }) : null;
+    const keptLine = space
+      ? (roomText ? tr`${ph({ name: made.name })} is in ${ph({ space: space.name })}, with room for ${roomText} on the free plan.` : tr`${ph({ name: made.name })} is in ${ph({ space: space.name })}.`)
+      : (roomText ? tr`${ph({ name: made.name })} is in your Clusters, with room for ${roomText} on the free plan.` : tr`${ph({ name: made.name })} is in your Clusters.`);
     return (
       <section className="keep-island is-kept" aria-live="polite">
         <div className="keep-island-row">
           <span className="keep-kept-mark" aria-hidden="true"><CheckCircle size={22} weight="regular" /></span>
           <div className="keep-island-text">
-            <h2 className="keep-island-title">Kept. It’s yours.</h2>
+            <h2 className="keep-island-title"><Trans>Kept. It’s yours.</Trans></h2>
             <p className="keep-island-meta">
-              {made.name} is in {space ? space.name : 'your Clusters'}
-              {kept.room != null && kept.room > 0 ? `, with room for ${plural(kept.room, 'more card')} on the free plan.` : '.'}
-              {kept.failed ? ` ${plural(kept.failed, 'picture')} couldn’t be copied in, and were left out.` : ''}
-              {kept.over ? ` ${plural(kept.over, 'card')} past your plan’s room were left out.` : ''}
+              {keptLine}
+              {kept.failed ? ` ${plural(kept.failed, { one: '# picture couldn’t be copied in, and were left out.', other: '# pictures couldn’t be copied in, and were left out.' })}` : ''}
+              {kept.over ? ` ${plural(kept.over, { one: '# card past your plan’s room were left out.', other: '# cards past your plan’s room were left out.' })}` : ''}
             </p>
           </div>
           <a className="public-cta keep-cta" href={`/?to=b:${kept.boardId}`}>
-            Open it <ArrowRight size={16} weight="bold" aria-hidden="true" />
+            <Trans>Open it</Trans> <ArrowRight size={16} weight="bold" aria-hidden="true" />
           </a>
         </div>
         <p className="keep-island-foot">
-          Its pictures were copied in, so the board keeps them even if the sites they came from take them down.
+          <Trans>Its pictures were copied in, so the board keeps them even if the sites they came from take them down.
           {' '}Next time your AI can make the board in Clusters itself:{' '}
-          <a className="keep-link" href="/docs/mcp">add the Clusters app to ChatGPT or Claude</a>.
+          <a className="keep-link" href="/docs/mcp">add the Clusters app to ChatGPT or Claude</a>.</Trans>
         </p>
       </section>
     );
@@ -586,33 +595,33 @@ function MakeIsland({ source, parsed, made, sizes, me, kept, onKept, onPaste }) 
 
   const signedIn = !!me;
   const asking = me === undefined;
-  const keepLabel = parsed.cut ? `Keep these ${shownCount}` : 'Keep it';
+  const keepLabel = parsed.cut ? tr`Keep these ${ph({ count: shownCount })}` : tr`Keep it`;
   return (
-    <section className="keep-island" aria-label="Keep this board">
+    <section className="keep-island" aria-label={tr`Keep this board`}>
       <div className="keep-island-row">
         <div className="keep-island-text">
           <h2 className="keep-island-title">{made.name}</h2>
-          <p className="keep-island-meta">{meta2}</p>
+          <p className="keep-island-meta">{meta}</p>
         </div>
         {step === 'keeping' ? (
           <div key="keeping" className="keep-island-actions">
-            <button type="button" className="public-cta keep-cta" disabled>Keeping…</button>
+            <button type="button" className="public-cta keep-cta" disabled><Trans>Keeping…</Trans></button>
           </div>
         ) : room ? (
           <div key="room" className="keep-island-actions">
             {room.room > 0 ? (
               <button type="button" className="public-cta keep-cta" onClick={() => keep(signedIn ? 'signed_in' : 'code', { fit: true })}>
-                Keep the first {room.room}
+                <Trans>Keep the first {ph({ room: room.room })}</Trans>
               </button>
             ) : null}
-            <a className="btn-secondary keep-retry make-plans" href="/pricing">See plans</a>
+            <a className="btn-secondary keep-retry make-plans" href="/pricing"><Trans>See plans</Trans></a>
           </div>
         ) : signedIn && step === 'email' ? (
           <div key="here" className="keep-island-actions">
             {spaces && spaces.length > 1 ? (
               <select
                 className="keep-input make-select"
-                aria-label="Workspace"
+                aria-label={tr`Workspace`}
                 value={workspaceId || ''}
                 onChange={(e) => setWorkspaceId(e.target.value)}
               >
@@ -621,14 +630,14 @@ function MakeIsland({ source, parsed, made, sizes, me, kept, onKept, onPaste }) 
             ) : null}
             <button type="button" className="public-cta keep-cta" disabled={spaces === null}
                     onClick={() => keep('signed_in')}>
-              {parsed.cut ? keepLabel : 'Keep it here'}
+              {parsed.cut ? keepLabel : tr`Keep it here`}
             </button>
           </div>
         ) : step === 'code' ? (
           <form key="code" className="keep-island-form is-code" onSubmit={(e) => { e.preventDefault(); verify(); }}>
             <div className="keep-email-chip">
               <span className="keep-chip">{email.trim().toLowerCase()}</span>
-              <button type="button" className="keep-link" onClick={() => { setStep('email'); setCode(''); setError(null); }}>edit</button>
+              <button type="button" className="keep-link" onClick={() => { setStep('email'); setCode(''); setError(null); }}>{tr`edit`}</button>
             </div>
             <div className="keep-island-actions">
               <input
@@ -639,7 +648,7 @@ function MakeIsland({ source, parsed, made, sizes, me, kept, onKept, onPaste }) 
                 pattern="[0-9]*"
                 maxLength={6}
                 placeholder="••••••"
-                aria-label="6-digit code"
+                aria-label={tr`6-digit code`}
                 value={code}
                 disabled={busy}
                 onChange={(e) => {
@@ -648,7 +657,7 @@ function MakeIsland({ source, parsed, made, sizes, me, kept, onKept, onPaste }) 
                   if (v.length === 6) verify(v);
                 }}
               />
-              <button type="submit" className="public-cta keep-cta" disabled={busy}>{busy ? 'Checking…' : keepLabel}</button>
+              <button type="submit" className="public-cta keep-cta" disabled={busy}>{busy ? tr`Checking…` : keepLabel}</button>
             </div>
           </form>
         ) : (
@@ -658,15 +667,15 @@ function MakeIsland({ source, parsed, made, sizes, me, kept, onKept, onPaste }) 
                 className="keep-input"
                 type="email"
                 autoComplete="email"
-                placeholder="you@studio.com"
-                aria-label="Your email"
+                placeholder={tr`you@studio.com`}
+                aria-label={tr`Your email`}
                 value={email}
                 required
                 disabled={asking}
                 onChange={(e) => setEmail(e.target.value)}
               />
               <button type="submit" className="public-cta keep-cta" disabled={asking}>
-                {parsed.cut ? keepLabel : 'Keep it free'} <ArrowRight size={16} weight="bold" aria-hidden="true" />
+                {parsed.cut ? keepLabel : tr`Keep it free`} <ArrowRight size={16} weight="bold" aria-hidden="true" />
               </button>
             </div>
           </form>
@@ -676,30 +685,32 @@ function MakeIsland({ source, parsed, made, sizes, me, kept, onKept, onPaste }) 
       <p className="keep-island-foot">
         {room ? (
           room.room > 0
-            ? `This board has ${plural(room.needed, 'card')}, and your plan has room for ${room.room} more. Keep the first ${room.room}, or see the plans with room for all of it.`
-            : `Your plan has no room for more cards. See the plans with room for this board.`
+            ? tr`This board has ${plural(room.needed, { one: '# card', other: '# cards' })}, and your plan has room for ${ph({ room: room.room })} more. Keep the first ${ph({ keep: room.room })}, or see the plans with room for all of it.`
+            : tr`Your plan has no room for more cards. See the plans with room for this board.`
         ) : parsed.cut && step !== 'code' ? (
           <>
-            The chat cut this link short: {plural(parsed.cut.missing, 'card')} didn’t come through.
-            {' '}Keep these {shownCount}, or ask the AI for the board as text and{' '}
-            <button type="button" className="keep-link" onClick={onPaste}>paste it instead</button>.
+            {tr`The chat cut this link short: ${plural(parsed.cut.missing, { one: '# card', other: '# cards' })} didn’t come through.`}
+            {' '}<Trans>Keep these {shownCount}, or ask the AI for the board as text and{' '}
+            <button type="button" className="keep-link" onClick={onPaste}>paste it instead</button>.</Trans>
           </>
         ) : step === 'code' ? (
           <>
-            Check your inbox for the 6-digit code — and Spam or Promotions if it isn’t there.{' '}
+            <Trans>Check your inbox for the 6-digit code — and Spam or Promotions if it isn’t there.</Trans>{' '}
             {cooldown > 0
-              ? <span className="keep-wait">Resend in {cooldown}s</span>
-              : <button type="button" className="keep-link" disabled={busy} onClick={() => sendCode(true)}>Resend code</button>}
+              ? <span className="keep-wait"><Trans>Resend in {cooldown}s</Trans></span>
+              : <button type="button" className="keep-link" disabled={busy} onClick={() => sendCode(true)}><Trans>Resend code</Trans></button>}
           </>
         ) : signedIn && step !== 'keeping' ? (
           <>
-            Signed in as {me.email}. It goes into {spaces && spaces.length > 1 ? 'this workspace' : 'your workspace'} as a cluster of its own.{' '}
-            <button type="button" className="keep-link" onClick={switchEmail}>Use another email</button>
+            {spaces && spaces.length > 1
+              ? tr`Signed in as ${ph({ email: me.email })}. It goes into this workspace as a cluster of its own.`
+              : tr`Signed in as ${ph({ email: me.email })}. It goes into your workspace as a cluster of its own.`}{' '}
+            <button type="button" className="keep-link" onClick={switchEmail}><Trans>Use another email</Trans></button>
           </>
         ) : (
           <>
-            We’ll email you a 6-digit code. Free up to {DEMO_CARD_LIMIT} cards and {FREE_STORAGE_LABEL}.
-            {' '}Already on Clusters? Use the email you sign in with.
+            <Trans>We’ll email you a 6-digit code. Free up to {DEMO_CARD_LIMIT} cards and {FREE_STORAGE_LABEL}.
+            {' '}Already on Clusters? Use the email you sign in with.</Trans>
           </>
         )}
       </p>

@@ -39,6 +39,7 @@ import {
 } from "../_shared/teamBillingCore.mjs";
 import { completeTeamCheckout, syncTeam, teamBillingReady, teamFlag } from "../_shared/teamBilling.ts";
 import { failedWith, reported } from "../_shared/reportError.ts";
+import { stripeLocale } from "../_shared/stripeLocale.mjs";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -92,7 +93,7 @@ Deno.serve(reported("team-billing", async (req) => {
     switch (body.action) {
       case "checkout":      return await checkout(userClient, admin, user, body);
       case "verify":        return await verify(admin, user.id, body);
-      case "portal":        return await portal(admin, user.id, body);
+      case "portal":        return await portal(admin, user.id, stripeLocale(user), body);
       case "seats_preview": return await seatsPreview(userClient, admin, body);
       case "seats_add":     return await seatsAdd(userClient, admin, body);
       case "sync":          return await sync(userClient, admin, body);
@@ -111,7 +112,7 @@ Deno.serve(reported("team-billing", async (req) => {
 
 type Client = ReturnType<typeof createClient>;
 
-async function checkout(userClient: Client, admin: Client, user: { id: string; email?: string }, body: Body) {
+async function checkout(userClient: Client, admin: Client, user: { id: string; email?: string; user_metadata?: { locale?: unknown } }, body: Body) {
   const cfg = billingConfig();
   const start = await userClient.rpc("start_team_checkout", {
     p_name: typeof body.name === "string" ? body.name : null,
@@ -167,6 +168,7 @@ async function checkout(userClient: Client, admin: Client, user: { id: string; e
     checkoutId: ck.checkout_id,
     ownerId: user.id,
     orgId: ck.org_id,
+    locale: stripeLocale(user),
     successUrl: `${origin}/team?checkout={CHECKOUT_SESSION_ID}`,
     cancelUrl: `${origin}/team?checkout=canceled`,
   }), { idempotencyKey: `team-checkout:${ck.checkout_id}` });
@@ -194,7 +196,7 @@ async function verify(admin: Client, userId: string, body: Body) {
 // The portal is the owner's: card, invoices, billing details, cancel.
 let portalConfigId: string | null = null;
 
-async function portal(admin: Client, userId: string, body: Body) {
+async function portal(admin: Client, userId: string, locale: string | undefined, body: Body) {
   const orgId = typeof body.org_id === "string" && UUID_RE.test(body.org_id) ? body.org_id : null;
   if (!orgId) return json({ error: "bad_request" }, 400);
   const org = await admin.from("organizations").select("owner_id, closed_at").eq("id", orgId).maybeSingle();
@@ -219,6 +221,7 @@ async function portal(admin: Client, userId: string, body: Body) {
     customer: row.data.stripe_customer_id as string,
     configuration: portalConfigId,
     return_url: returnUrl,
+    ...(locale ? { locale } : {}),
   });
   return json({ ok: true, url: s.url }, 200);
 }

@@ -4082,7 +4082,7 @@ A: iMessage is the confirmed transport. SMS and RCS are not confirmed yet, and n
 ========================================================================
 # Settings
 URL: https://clusters.soleilpictures.com/docs/account/settings
-Updated: 2026-11-04
+Updated: 2026-11-15
 
 Settings is one panel with a rail grouped into You, This workspace and Help. You covers Profile, Appearance, Notifications, Connections, Plan and billing, and Invite and earn. This workspace covers General, Members and Card defaults. Help holds a searchable index of the whole documentation site. Open it from the cog or your avatar in the sidebar, or with Cmd-K and typing settings.
 
@@ -4110,8 +4110,9 @@ Deleting your account lives at the foot of this tab. It is the one thing in Sett
 
 Appearance
 
-How Clusters looks and how the canvas answers your hands, in three sections:
+How Clusters looks and how the canvas answers your hands, in four sections:
 
+Language — the language of menus, dates and the emails we send you: English, Español, Français, Português (Brasil), Русский, 日本語 or 한국어. Automatic follows your browser. Cards and comments stay in the language they were written in. See Theme and defaults.
 Theme — System, Light or Dark, plus accent colour and body font: a curated list of around twenty-five families plus anything from Google Fonts. System follows your device and is what you get before you choose anything, so switching your Mac or phone to dark switches Clusters with it. See Theme and defaults.
 Layout — clean mode, which hides the interface chrome for presenting (⌘.), and whether the sidebar starts open. Collapsing the sidebar with ⌘B sets that preference too, so it follows your account rather than the browser you happen to be in.
 Canvas — whether a plain scroll wheel pans the canvas or zooms it (pinching a trackpad zooms either way), and whether holding W, A, S or D moves you around a board, with Q and E to zoom. That one is off until you turn it on, because A and D are also the Arrow and Free-draw keys.
@@ -4444,11 +4445,21 @@ A: Not until more than 10 people edit. Free and Creator include up to 10 people 
 URL: https://clusters.soleilpictures.com/docs/account/theme-and-defaults
 Updated: 2026-11-15
 
-Appearance covers the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, what a plain scroll wheel does, and whether W, A, S and D move you around a board. Card defaults set what new notes, docs and shapes start as, and whether new clusters open as a board or in Files. Appearance is personal and follows your account between devices; card defaults belong to the workspace.
+Appearance covers your language, the theme — System, Light or Dark, where System follows your device — an accent colour, a body font chosen from a curated list or anything on Google Fonts, what a plain scroll wheel does, and whether W, A, S and D move you around a board. Card defaults set what new notes, docs and shapes start as, and whether new clusters open as a board or in Files. Appearance is personal and follows your account between devices; card defaults belong to the workspace.
 
 Appearance
 
-Settings → Appearance. Personal — these change how Clusters looks and behaves for you, on every device you sign in on, and nobody else in the workspace sees them. Three sections.
+Settings → Appearance. Personal — these change how Clusters looks and behaves for you, on every device you sign in on, and nobody else in the workspace sees them. Four sections.
+
+Language
+
+Menus, dates and the emails we send you come in English, Español, Français, Português (Brasil), Русский, 日本語 or 한국어. Each language is listed in its own words, so anyone can find theirs.
+
+Automatic, the default, follows your browser's language, and is English when your browser asks for none of these.
+A language you choose follows your account to every device you sign in on.
+The emails we send you, checkout and the billing page come in the same language.
+What people make is never translated: cards, clusters, docs and comments stay in the language they were written in.
+This help site and the public pages stay in English.
 
 Theme
 
@@ -4498,6 +4509,9 @@ Beyond the curated list, any Google Fonts family can be added and is then availa
 Screenplays are the exception: they are always Courier, because the format requires it and page count depends on it.
 
 ## Frequently asked questions
+
+Q: Can I use Clusters in another language?
+A: Yes. Settings → Appearance → Language offers English, Spanish, French, Brazilian Portuguese, Russian, Japanese and Korean. Automatic, the default, follows your browser. Cards, clusters and comments stay in the language they were written in.
 
 Q: Does my theme follow me between devices?
 A: Yes. Theme is a per-user account setting, not a browser one, so it syncs everywhere you sign in.

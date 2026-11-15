@@ -9,6 +9,8 @@ import { tagFallbackColor } from '../lib/tagColor.js';
 import { ENTITY_REF_MIME, ENTITY_REF_LIST_MIME } from '../lib/dragMimes.js';
 import { useListboxNav } from '../hooks/useListboxNav.js';
 import { useDismissOnOutside } from '../hooks/useDismissOnOutside.js';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const PAD = 8;
 const WIDTH = 380;
@@ -26,15 +28,15 @@ const KIND_ICON = {
 };
 
 const KIND_LABEL = {
-  board: 'BOARDS',
-  doc: 'DOCS',
-  note: 'NOTES',
-  image: 'IMAGES',
-  palette: 'PALETTES',
-  schedule: 'SCHEDULES',
-  url: 'URLS',
-  user: 'PEOPLE',
-  tag: 'TAGS',
+  get board() { return tr`BOARDS`; },
+  get doc() { return tr`DOCS`; },
+  get note() { return tr`NOTES`; },
+  get image() { return tr`IMAGES`; },
+  get palette() { return tr`PALETTES`; },
+  get schedule() { return tr`SCHEDULES`; },
+  get url() { return tr`URLS`; },
+  get user() { return tr`PEOPLE`; },
+  get tag() { return tr`TAGS`; },
 };
 
 // Universal "what do you want to link?" picker.
@@ -162,13 +164,13 @@ export function EntityPicker({
         <Icon as={Search} size={14} />
         <input
           ref={inputRef}
-          placeholder="Search boards, docs, cards…"
+          placeholder={tr`Search boards, docs, cards…`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
         />
         {query && (
-          <button className="entity-picker-clear" onClick={() => setQuery('')} aria-label="Clear">
+          <button className="entity-picker-clear" onClick={() => setQuery('')} aria-label={tr`Clear`}>
             <Icon as={X} size={12} />
           </button>
         )}
@@ -183,14 +185,14 @@ export function EntityPicker({
             onClick={() => onCommit?.([{ kind: 'url', href: query }])}
           >
             <Icon as={LinkIcon} size={14} />
-            <span className="entity-picker-row-name">Link to {query}</span>
+            <span className="entity-picker-row-name"><Trans>Link to {query}</Trans></span>
           </button>
         )}
         {grouped.length === 0 && searchFailed && (
-          <LoadFailed compact what="search results" onRetry={retrySearch} />
+          <LoadFailed compact what={tr`search results`} onRetry={retrySearch} />
         )}
         {grouped.length === 0 && !searchFailed && (
-          <div className="entity-picker-empty t-meta">{query ? 'No matches.' : 'Start typing.'}</div>
+          <div className="entity-picker-empty t-meta">{query ? tr`No matches.` : tr`Start typing.`}</div>
         )}
         {grouped.map(([kind, rows]) => (
           <div key={kind} className="entity-picker-group">
@@ -211,7 +213,7 @@ export function EntityPicker({
                 ) : (
                   <Icon as={KIND_ICON[kind] || LayoutGrid} size={14} />
                 )}
-                <span className="entity-picker-row-name">{row.title || 'Untitled'}</span>
+                <span className="entity-picker-row-name">{row.title || tr`Untitled`}</span>
                 {multi && isSelected(row) && <Icon as={Check} size={14} />}
               </button>
             ))}
@@ -222,14 +224,14 @@ export function EntityPicker({
       {multi && (
         <div className="entity-picker-foot">
           <span className="entity-picker-count t-meta">
-            {selected.length === 0 ? 'Pick one or more' : `${selected.length} selected`}
+            {selected.length === 0 ? tr`Pick one or more` : tr`${ph({ count: selected.length })} selected`}
           </span>
           <button
             className="btn-primary"
             disabled={selected.length === 0}
             onClick={() => onCommit?.(selected)}
           >
-            Done
+            <Trans>Done</Trans>
           </button>
         </div>
       )}

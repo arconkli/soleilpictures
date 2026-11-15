@@ -6,7 +6,7 @@
 // which would otherwise turn it into the containing block for any fixed
 // descendant and send the submenu somewhere off-screen.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { useFitMenuToViewport } from '../lib/ctxMenuFit.js';
@@ -14,6 +14,8 @@ import { CtxShortcut, CtxSubmenu, rowKeys, walkMenu } from './ctxMenuParts.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
 import HapticTap from './HapticTap.jsx';
 import { haptic } from '../lib/haptics.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 export function CardContextMenu({ open, x, y, above = false, items, onClose, workspaceId, boardId, card }) {
   // Single-flight guard: one action per menu open. The menu closes on the
@@ -88,7 +90,7 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
         const sourceById = new Map((links || []).map(r => [r.target_id, r.source]));
         const hydrated = (tags || []).map(t => ({
           id: t.id,
-          name: t.name || 'Tag',
+          name: t.name || tr`Tag`,
           color: t.color || tagFallbackColor(t.name || t.id),
           source: sourceById.get(t.id) || 'user',
         }));
@@ -134,6 +136,13 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
   const menuRef = useRef(null);
   // `above`: opened from the selection bar's ⋯, it ends at `y`, over the bar.
   useFitMenuToViewport(menuRef, open, y, tagReserve, above);
+  // The width is the content's (a translated label can be wider than the
+  // guess below), so the left edge is clamped after it renders: 8px inside.
+  useLayoutEffect(() => {
+    const el = menuRef.current;
+    if (!open || !el) return;
+    el.style.left = `${Math.max(8, Math.min(el.offsetLeft, window.innerWidth - el.offsetWidth - 8))}px`;
+  });
 
   if (!open) return null;
   const w = 220, hEst = items.length * 30 + 8 + (canHaveTags ? 44 : 0);
@@ -157,7 +166,7 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
       }));
     }}>
       <span className="ctx-label">
-        {refCount === null ? 'Linked from…' : refCount === 0 ? 'Not linked anywhere' : `Linked from ${refCount} ${refCount === 1 ? 'place' : 'places'}`}
+        {refCount === null ? tr`Linked from…` : refCount === 0 ? tr`Not linked anywhere` : plural(refCount, { one: 'Linked from # place', other: 'Linked from # places' })}
       </span>
     </button>
   );
@@ -167,13 +176,13 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
     <div ref={menuRef} className="ctx-menu is-scrollable" style={{ left: px, top: py }} role="menu" onKeyDown={walkMenu}>
       {card?.id && appliedTags.length > 0 && (
         <>
-          <div className="ctx-tags-head">TAGS</div>
+          <div className="ctx-tags-head"><Trans>TAGS</Trans></div>
           <div className="ctx-tags-row">
             {appliedTags.map(t => (
               <button key={t.id}
                       className={`ctx-tag-chip ${t.source && t.source !== 'user' ? 'is-' + t.source : ''}`}
                       style={{ '--tag-c': t.color }}
-                      title={`Open tag "${t.name}"${t.source && t.source !== 'user' ? ' · ' + t.source : ''}`}
+                      title={tr`Open tag "${ph({ name: t.name })}"` + (t.source && t.source !== 'user' ? ' · ' + t.source : '')}
                       onClick={() => openTag(t.id)}>
                 <span className="ctx-tag-dot" aria-hidden="true" />
                 <span className="ctx-tag-name">{t.name}</span>

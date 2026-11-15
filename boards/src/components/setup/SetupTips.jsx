@@ -17,6 +17,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Sparkle } from '@phosphor-icons/react';
 import { Icon } from '../Icon.jsx';
 import { tipsFor } from '../../lib/setupTips.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const GAP = 12;       // between the anchor and the pill
 const MARGIN = 10;    // the pill keeps this far inside the window
@@ -222,11 +224,11 @@ export default function SetupTips({ phone, canImport, onStep, onEnd, onHow, open
         <div className="onboarding-coachmark-title">{tip.title}</div>
         <div className="onboarding-coachmark-body">{tip.body}</div>
         <div className="su-tip-foot">
-          <span className="su-tip-n">{tip.n} of {tip.of}</span>
+          <span className="su-tip-n">{t`${ph({ n: tip.n })} of ${ph({ total: tip.of })}`}</span>
           {tip.how
-            ? <button type="button" className="su-tip-how" onClick={how}>See how<Icon as={ArrowRight} size={12} weight="bold" /></button>
-            : !tip.last && <button type="button" className="onboarding-tour-skip" onClick={() => end('skip')}>Skip</button>}
-          <button type="button" className="su-tip-next" onClick={() => next()}>{tip.last ? 'Done' : 'Next'}</button>
+            ? <button type="button" className="su-tip-how" onClick={how}><Trans>See how</Trans><Icon as={ArrowRight} size={12} weight="bold" /></button>
+            : !tip.last && <button type="button" className="onboarding-tour-skip" onClick={() => end('skip')}><Trans>Skip</Trans></button>}
+          <button type="button" className="su-tip-next" onClick={() => next()}>{tip.last ? t`Done` : t({ message: 'Next', context: 'step' })}</button>
         </div>
       </div>
     </div>

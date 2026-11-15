@@ -16,14 +16,15 @@
 // the per-kind counts from genuineCards(yb.cards) (seeds/showcase excluded)
 // and hands them in, so these rules stay trivially node-testable.
 
+import { t } from '@lingui/core/macro';
 export const POWER_REVEALS = [
   {
     // The visual wow — a resizable layout frame with snap-in cells. The copy
     // must not promise auto-snapping THEIR images: the action places a fresh
     // grid beside their content and they drag shots into its cells.
     key: 'grids',
-    message: 'Try a Grid — a resizable frame with cells that snap your shots into a layout.',
-    actionLabel: 'Try a Grid',
+    get message() { return t`Try a Grid — a resizable frame with cells that snap your shots into a layout.`; },
+    get actionLabel() { return t`Try a Grid`; },
     eligible: (s) => s.imageCards >= 4 && s.gridCards === 0,
   },
   // The organize pitch for a crowded root ('group') was retired with the
@@ -34,22 +35,22 @@ export const POWER_REVEALS = [
     // a real cluster fills up). The copy says "cluster", so it only fires
     // inside one, never on the root.
     key: 'list_drive',
-    message: 'This cluster is also a drive — everything you added is in Files, in the sidebar. Open it full screen to see it lined up in one place. Press F any time.',
-    actionLabel: 'Open Files',
+    get message() { return t`This cluster is also a drive — everything you added is in Files, in the sidebar. Open it full screen to see it lined up in one place. Press F any time.`; },
+    get actionLabel() { return t`Open Files`; },
     eligible: (s) => !s.isRoot && s.nonBoardCards >= 4 && s.view === 'canvas' && !s.viewEverSwitched,
   },
   {
     // Long-form power for the writers.
     key: 'docs',
-    message: 'Notes can grow into full docs — outlines, backlinks, comments, the works.',
-    actionLabel: 'Start a doc',
+    get message() { return t`Notes can grow into full docs — outlines, backlinks, comments, the works.`; },
+    get actionLabel() { return t`Start a doc`; },
     eligible: (s) => s.noteCards >= 3 && s.docCards === 0,
   },
   {
     // Search power once there is enough content for search to feel magic.
     key: 'palette',
-    message: 'Find anything instantly — search every card and doc you’ve made.',
-    actionLabel: 'Try it',
+    get message() { return t`Find anything instantly — search every card and doc you’ve made.`; },
+    get actionLabel() { return t`Try it`; },
     eligible: (s) => s.totalGenuine >= 12,
   },
 ];

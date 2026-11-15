@@ -14,24 +14,24 @@ const app = src('../App.jsx');
 // The right island: from `right={(` to its menuItems; then the ⋯ items.
 const at = app.indexOf('right={(\n              <>');
 const island = app.slice(at, app.indexOf('menuItems={[', at));
-const menu = app.slice(app.indexOf('menuItems={[', at), app.indexOf("{ id: 'help', label: 'Help & feedback'", at));
+const menu = app.slice(app.indexOf('menuItems={[', at), app.indexOf("{ id: 'help', label: tr`Help & feedback`", at));
 
 test('with a mouse, split view is a button in the right island, before the theme switch', () => {
   assert.ok(at > 0, 'the right island is found');
   assert.match(island, /\{!isTouch \? \(\s*<>\s*<button className=\{`tb-icon tb-icon-split\$\{splitId \? ' is-pressed' : ''\}`\}/);
-  assert.match(island, /aria-label="Split view" aria-pressed=\{!!splitId\}/);
+  assert.match(island, /aria-label=\{tr`Split view`\} aria-pressed=\{!!splitId\}/);
   assert.match(island, /<Icon as=\{Columns2\} size=\{16\} \/>\s*<\/button>\s*<button className="tb-icon tb-icon-theme"/);
 });
 
 test('it pins a cluster alongside, or closes the split that is open', () => {
   // Its tip is the toolbar look's glass one (lib/looks.js tlTip).
-  assert.match(island, /\{\.\.\.tlTip\(splitId \? 'Close split view' : 'Pin alongside…'\)\}/);
+  assert.match(island, /\{\.\.\.tlTip\(splitId \? tr`Close split view` : tr`Pin alongside…`\)\}/);
   assert.match(island, /onClick=\{\(\) => \(splitId \? setSplitId\(null\) : setSplitPickerOpen\(true\)\)\}/);
 });
 
 test('⋯ carries split view only under a finger', () => {
   assert.equal((menu.match(/id: 'split'/g) || []).length, 2);
-  assert.match(menu, /\.\.\.\(isTouch \? \[\s*splitId\s*\? \{ id: 'split', label: 'Close split view'[\s\S]*?: \{ id: 'split', label: 'Pin a cluster alongside…'/);
+  assert.match(menu, /\.\.\.\(isTouch \? \[\s*splitId\s*\? \{ id: 'split', label: tr`Close split view`[\s\S]*?: \{ id: 'split', label: tr`Pin a cluster alongside…`/);
 });
 
 test('pressed, it wears the bell\'s chip: ink, never gold', () => {

@@ -22,6 +22,8 @@ import {
   securityOverview, releaseBreaker, sendHeldMail, dropHeldMail, sendHeldMailIds, dropHeldMailIds,
   liftSendingHold, ackAlert, sendTestAlert, banAccount, unbanAccount,
 } from '../../lib/securityAdminApi.js';
+import { shownError } from '../../lib/errorWords.js';
+import { t, ph } from '@lingui/core/macro';
 
 const ACTION_LABEL = {
   ban: 'Banned',
@@ -62,7 +64,7 @@ export function SecurityTab() {
     try {
       setData(await securityOverview());
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'security_load_failed', message: 'Could not load security: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'security_load_failed', message: t`Could not load security: ${ph({ reason: shownError(e) })}` });
     } finally {
       setLoading(false);
     }
@@ -77,7 +79,7 @@ export function SecurityTab() {
       feedback.toast({ type: 'success', message: typeof success === 'function' ? success(result) : success });
       await load();
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'security_action_failed', message: e.message || String(e) });
+      feedback.toast({ type: 'error', code: 'security_action_failed', message: shownError(e) });
     } finally {
       setBusy(false);
     }

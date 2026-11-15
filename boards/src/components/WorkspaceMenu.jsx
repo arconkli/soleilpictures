@@ -16,6 +16,8 @@ import { teamsAllowed } from '../lib/appHost.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { searchKey } from '../lib/textFold.js';
 import { initialOf } from '../lib/graphemes.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Show the filter input once we have more workspaces than this — on
 // small lists it's just visual clutter.
@@ -109,10 +111,10 @@ export function WorkspaceMenu({
     // can't delete it, so their remove action stays "Leave".
     const isCoowner = !isOwner && w._myRole === 'coowner';
     const canManage = isOwner || isCoowner;
-    const subtitle = isPersonal ? 'Personal'
-                  : isOwner    ? 'You own this'
-                  : isCoowner  ? 'You co-own this'
-                  :              'Shared with you';
+    const subtitle = isPersonal ? t`Personal`
+                  : isOwner    ? t`You own this`
+                  : isCoowner  ? t`You co-own this`
+                  :              t`Shared with you`;
     const initial = initialOf(w.name);
     const tint = pickPresenceColor(w.id);
     const iconSrc = w.settings?.icon_url || '';
@@ -146,8 +148,8 @@ export function WorkspaceMenu({
         {hasRowMenu && (
           <>
             <button className={`ws-menu-row-more ${isMenuOpen ? 'is-open' : ''}`}
-                    title="More actions"
-                    aria-label="More actions"
+                    title={t`More actions`}
+                    aria-label={t`More actions`}
                     aria-haspopup="menu"
                     aria-expanded={isMenuOpen}
                     onClick={(e) => {
@@ -167,7 +169,7 @@ export function WorkspaceMenu({
                             onClose?.();
                           }}>
                     <Icon as={Share2} size={12} />
-                    <span>Share workspace…</span>
+                    <span><Trans>Share workspace…</Trans></span>
                   </button>
                 )}
                 {canRename && (
@@ -177,7 +179,7 @@ export function WorkspaceMenu({
                             onOpenSettings?.(w);
                           }}>
                     <Icon as={Edit} size={12} />
-                    <span>Rename &amp; icon…</span>
+                    <span><Trans>Rename &amp; icon…</Trans></span>
                   </button>
                 )}
                 {canRemove && (
@@ -187,7 +189,7 @@ export function WorkspaceMenu({
                             onRemove?.(w, removeAction);
                           }}>
                     <Icon as={removeAction === 'delete' ? Trash2 : LogOut} size={12} />
-                    <span>{removeAction === 'delete' ? 'Delete workspace' : 'Leave workspace'}</span>
+                    <span>{removeAction === 'delete' ? t`Delete workspace` : t`Leave workspace`}</span>
                   </button>
                 )}
               </div>
@@ -199,13 +201,13 @@ export function WorkspaceMenu({
   };
 
   return (
-    <div ref={ref} className="ws-menu" role="menu" aria-label="Switch workspace">
+    <div ref={ref} className="ws-menu" role="menu" aria-label={t`Switch workspace`}>
       {showFilter && (
         <div className="ws-menu-filter">
           <Icon as={Search} size={12} />
           <input autoFocus
                  type="text"
-                 placeholder="Filter workspaces…"
+                 placeholder={t`Filter workspaces…`}
                  value={filter}
                  onChange={(e) => setFilter(e.target.value)}
                  onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); onClose?.(); } }} />
@@ -214,7 +216,7 @@ export function WorkspaceMenu({
       <div className="ws-menu-scroll">
         {team && !q && (
           <>
-            <div className="ws-menu-section">{team.name.toUpperCase()}<span className="ws-menu-tag">TEAM</span></div>
+            <div className="ws-menu-section">{team.name.toUpperCase()}<span className="ws-menu-tag"><Trans>TEAM</Trans></span></div>
             {team.workspaces.map((w) => (
               <button key={w.id} type="button"
                       className={`ws-menu-row ${team.activeId && w.id === team.activeId ? 'is-active' : ''}`}
@@ -223,7 +225,7 @@ export function WorkspaceMenu({
                 <span className="ws-menu-text">
                   <span className="ws-menu-name">{w.name}</span>
                   <span className="ws-menu-sub">
-                    {team.viewOnly ? 'Team · view-only' : w.private ? 'Team · private' : 'Team'}
+                    {team.viewOnly ? t`Team · view-only` : w.private ? t`Team · private` : t`Team`}
                   </span>
                 </span>
                 {w.private && (
@@ -238,8 +240,8 @@ export function WorkspaceMenu({
                     onClick={() => { team.onOpenPage?.(); onClose?.(); }}>
               <span className="ws-menu-avatar is-icon"><Icon as={Users} size={14} weight="regular" /></span>
               <span className="ws-menu-text">
-                <span className="ws-menu-name">Team page</span>
-                <span className="ws-menu-sub">{team.manage ? 'People, seats and billing' : 'Who’s on the team'}</span>
+                <span className="ws-menu-name"><Trans>Team page</Trans></span>
+                <span className="ws-menu-sub">{team.manage ? t`People, seats and billing` : t`Who’s on the team`}</span>
               </span>
               <span className="ws-menu-tail"><Icon as={ChevronRight} size={12} weight="regular" /></span>
             </button>
@@ -247,18 +249,18 @@ export function WorkspaceMenu({
         )}
         {mine.length > 0 && (
           <>
-            <div className="ws-menu-section">YOURS</div>
+            <div className="ws-menu-section"><Trans>YOURS</Trans></div>
             {mine.map(renderRow)}
           </>
         )}
         {shared.length > 0 && (
           <>
-            <div className="ws-menu-section">SHARED WITH YOU</div>
+            <div className="ws-menu-section"><Trans>SHARED WITH YOU</Trans></div>
             {shared.map(renderRow)}
           </>
         )}
         {noResults && (
-          <div className="ws-menu-empty">No workspaces match "{filter}"</div>
+          <div className="ws-menu-empty"><Trans>No workspaces match "{filter}"</Trans></div>
         )}
       </div>
       <div className="ws-menu-divider" />
@@ -268,7 +270,7 @@ export function WorkspaceMenu({
           <Icon as={Plus} size={12} />
         </span>
         <span className="ws-menu-text">
-          <span className="ws-menu-name">New workspace</span>
+          <span className="ws-menu-name"><Trans>New workspace</Trans></span>
         </span>
       </button>
       {countLine && <div className="ws-menu-count">{countLine}</div>}

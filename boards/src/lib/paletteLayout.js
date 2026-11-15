@@ -5,6 +5,8 @@
 // They MUST agree visually, so the layout decision and the contrast math live
 // here and are imported by both. Never reimplement either in a render path.
 
+import { isDefaultName } from './defaultNames.js';
+
 export function hexToRgb(hex) {
   if (typeof hex !== 'string') return null;
   let h = hex.trim().replace(/^#/, '');
@@ -39,12 +41,11 @@ export function surfaceTone(bgColor) {
   return relLuminance(bgColor) > 0.6 ? 'light' : 'dark';
 }
 
-// New swatches default to the literal name 'Color'; only surface names the
-// user actually chose.
-export function hasCustomName(name) {
+// New swatches default to the name 'Color' (written in the person's language,
+// see defaultNames.js); only surface names the user actually chose.
+export function hasCustomName(name, table) {
   if (!name || typeof name !== 'string') return false;
-  const t = name.trim();
-  return t.length > 0 && t.toLowerCase() !== 'color';
+  return name.trim().length > 0 && !isDefaultName('Color', name, table);
 }
 
 // Decide how a palette card lays out for a given box (canvas-space px) and

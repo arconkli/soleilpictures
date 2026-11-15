@@ -9,6 +9,7 @@ import { Icon } from '../Icon.jsx';
 import { iconForFile } from '../cards/FileCard.jsx';
 import { computeCellRects } from '../../lib/gridLayout.js';
 import { Link as LinkIcon, Clapperboard } from '../../lib/icons.js';
+import { t as tr } from '@lingui/core/macro';
 
 const GRID_RECT_CAP = 64;
 
@@ -45,7 +46,7 @@ function CellContent({ cell, rect, basePx, size }) {
     return <span className="cbg-glyph"><Icon as={iconForFile(cell.ext, cell.mime)} size={glyph} /></span>;
   }
   if (cell.type === 'board') {
-    return <span className="cbg-text cbg-board">{cell.name || 'Cluster'}</span>;
+    return <span className="cbg-text cbg-board">{cell.name || tr`Cluster`}</span>;
   }
   return null; // empty
 }

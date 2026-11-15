@@ -16,9 +16,12 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { pickSimilar, similarCardOf, SIMILAR_LIMIT } from '../lib/similarPictures.js';
 import { toListItem } from '../lib/listItem.js';
+import { listItemWords } from '../lib/listItemWords.js';
 import { primeImageMeta } from '../lib/imageMeta.js';
 import { CardPreview } from './clusterBrowser/CardPreview.jsx';
 import './moreLikeThis.css';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Per picture, for a few minutes: stepping back and forth through a walk
 // asks once.
@@ -45,7 +48,7 @@ async function loadSimilar(boardId, cardId, boards) {
     const byKey = new Map((rows || []).map((r) => [keyOf(r.board_id, r.card_id), r]));
     for (const n of near) {
       const card = similarCardOf(byKey.get(keyOf(n.boardId, n.cardId)));
-      const item = card ? toListItem(card, { boards, boardId: n.boardId }) : null;
+      const item = card ? toListItem(card, { boards, boardId: n.boardId, words: listItemWords }) : null;
       if (item) items.push(item);
     }
     // The small stored sizes, before the first paint: without them a
@@ -83,16 +86,16 @@ export default function MoreLikeThis({ boardId, cardId, boards = {}, onOpen = nu
   if (!items?.length) return null;
   return (
     // Clicks stay here: the viewers close on a click that reaches their room.
-    <section className={`mlt${className ? ` ${className}` : ''}`} aria-label="More like this"
+    <section className={`mlt${className ? ` ${className}` : ''}`} aria-label={tr`More like this`}
              onClick={stop} onPointerDown={stop} onDoubleClick={stop}>
       <div className="mlt-head">
-        <span className="mlt-title">More like this</span>
-        <span className="mlt-scope">From this workspace</span>
+        <span className="mlt-title"><Trans>More like this</Trans></span>
+        <span className="mlt-scope"><Trans>From this workspace</Trans></span>
       </div>
       <ul className="mlt-row">
         {items.map((it) => (
           <li key={keyOf(it.boardId, it.id)}>
-            <button type="button" className="mlt-th" title={it.name} aria-label={`Open ${it.name}`}
+            <button type="button" className="mlt-th" title={it.name} aria-label={tr`Open ${ph({ name: it.name })}`}
                     onClick={() => onOpen?.(it)}>
               <CardPreview item={it} size="tile" px={120} />
             </button>

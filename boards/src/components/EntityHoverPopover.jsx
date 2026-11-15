@@ -32,6 +32,8 @@ import { entityTypeLabel } from '../lib/entityTypes.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const PAD = 8;
 const W = 380;
@@ -217,7 +219,7 @@ export function EntityHoverPopover({
       if (error && error.code !== '23505') throw error;
       feedback?.toast?.({ type: 'success', message: okMessage });
     } catch (_) {
-      feedback?.toast?.({ type: 'error', code: 'term_save_failed', message: 'Could not save that' });
+      feedback?.toast?.({ type: 'error', code: 'term_save_failed', message: t`Could not save that` });
     }
     onClose?.();
   };
@@ -253,24 +255,24 @@ export function EntityHoverPopover({
         <div className="ent-pop-head">
           <span className="ent-pop-head-term">{headingTerm}</span>
           {totalCount > 0 && (
-            <span className="ent-pop-head-count">— {totalCount} across workspace</span>
+            <span className="ent-pop-head-count"><Trans>— {totalCount} across workspace</Trans></span>
           )}
-          <button className="ent-pop-close" title="Close" onClick={() => onClose?.()}>
+          <button className="ent-pop-close" title={t`Close`} onClick={() => onClose?.()}>
             <Icon as={X} size={12} />
           </button>
         </div>
       )}
 
       <div className="ent-pop-scroll">
-        {loading && <div className="ent-pop-empty">Looking up…</div>}
+        {loading && <div className="ent-pop-empty"><Trans>Looking up…</Trans></div>}
         {!loading && sortedEntities.length === 0 && appearsIn.length === 0 && (
-          <div className="ent-pop-empty">Nothing linked here yet.</div>
+          <div className="ent-pop-empty"><Trans>Nothing linked here yet.</Trans></div>
         )}
 
         {tagEntities.length > 0 && (
           <div className="ent-pop-section ent-pop-tag-feature">
             <div className="ent-pop-section-head">
-              {tagEntities.length === 1 ? 'TAG' : 'TAGS'}
+              {tagEntities.length === 1 ? t`TAG` : t`TAGS`}
             </div>
             {tagEntities.map(row => (
               <TagFeatureCard
@@ -287,7 +289,7 @@ export function EntityHoverPopover({
         {nonTagEntities.length > 0 && (
           <div className="ent-pop-section">
             <div className="ent-pop-section-head">
-              ENTITIES NAMED THIS <span className="ent-pop-section-count">({nonTagEntities.length})</span>
+              <Trans>ENTITIES NAMED THIS</Trans> <span className="ent-pop-section-count">({nonTagEntities.length})</span>
             </div>
             {nonTagEntities.slice(0, 6).map(row => {
               // Boards (and groups, conceptually) hold contents — let the
@@ -319,7 +321,7 @@ export function EntityHoverPopover({
             })}
             {nonTagEntities.length > 6 && canSeeAll && (
               <button className="ent-pop-more" onClick={seeAll}>
-                + {nonTagEntities.length - 6} more →
+                <Trans>+ {ph({ value: nonTagEntities.length - 6 })} more →</Trans>
               </button>
             )}
           </div>
@@ -328,7 +330,7 @@ export function EntityHoverPopover({
         {appearsIn.length > 0 && (
           <div className="ent-pop-section">
             <div className="ent-pop-section-head">
-              APPEARS IN <span className="ent-pop-section-count">({totalAppears})</span>
+              <Trans>APPEARS IN</Trans> <span className="ent-pop-section-count">({totalAppears})</span>
             </div>
             {appearsIn.slice(0, 5).map((row, i) => (
               <AppearsRow
@@ -343,7 +345,7 @@ export function EntityHoverPopover({
             ))}
             {totalAppears > appearsIn.length && canSeeAll && (
               <button className="ent-pop-more" onClick={seeAll}>
-                + {totalAppears - appearsIn.length} more →
+                <Trans>+ {ph({ value: totalAppears - appearsIn.length })} more →</Trans>
               </button>
             )}
           </div>
@@ -362,15 +364,15 @@ export function EntityHoverPopover({
             // so it has to be awaited for the catch to mean anything.
             try {
               await navigator.clipboard.writeText(url);
-              feedback?.toast?.({ type: 'success', message: 'Link copied' });
+              feedback?.toast?.({ type: 'success', message: t`Link copied` });
             } catch (_) {
-              feedback?.toast?.({ type: 'error', code: 'link_copy_failed', message: 'Could not copy the link' });
+              feedback?.toast?.({ type: 'error', code: 'link_copy_failed', message: t`Could not copy the link` });
             }
             onClose?.();
           }}
           disabled={!sortedEntities.length && !refs?.length}
         >
-          <Icon as={Copy} size={11} /> Copy link
+          <Icon as={Copy} size={11} /> <Trans>Copy link</Trans>
         </button>
         {/* Auto-detect kill switches. Only show for term-driven (auto)
             popovers — manual links shouldn't be killed via this menu.
@@ -380,24 +382,24 @@ export function EntityHoverPopover({
           <button
             className="ent-pop-foot-btn"
             onClick={() => ignoreTerm('doc', docScope.docCardId, `Won't auto-link "${term}" in this doc`)}
-            title="Stop auto-linking this term in this doc only"
+            title={t`Stop auto-linking this term in this doc only`}
           >
-            Don't here
+            <Trans>Don't here</Trans>
           </button>
         )}
         {term && !refs?.length && workspaceId && (
           <button
             className="ent-pop-foot-btn"
             onClick={() => ignoreTerm('workspace', null, `Won't auto-link "${term}" anywhere`)}
-            title="Stop auto-linking this term anywhere in the workspace"
+            title={t`Stop auto-linking this term anywhere in the workspace`}
           >
-            Don't anywhere
+            <Trans>Don't anywhere</Trans>
           </button>
         )}
         {totalCount > 0 && canSeeAll && (
           <button className="ent-pop-foot-btn ent-pop-foot-btn-primary"
                   onClick={seeAll}>
-            See all references
+            <Trans>See all references</Trans>
           </button>
         )}
       </div>
@@ -456,12 +458,12 @@ function TagFeatureCard({ row, workspaceId, onOpenTag, onNavigate }) {
 
   return (
     <div className="ent-pop-tag-card" style={{ '--tag-color': color }}>
-      <button className="tag-pop-header" onClick={onOpenTag} title={`Open ${row.title || 'tag'}`}>
+      <button className="tag-pop-header" onClick={onOpenTag} title={row.title ? t`Open ${ph({ title: row.title })}` : t`Open tag`}>
         <span className="tag-pop-stamp" aria-hidden="true" />
-        <span className="tag-pop-name">{row.title || 'Untitled'}</span>
+        <span className="tag-pop-name">{row.title || t`Untitled`}</span>
         {typeLabel && <span className="tag-pop-type">{typeLabel}</span>}
         {vis?.total > 0 && (
-          <span className="tag-pop-count">{vis.total} {vis.total === 1 ? 'item' : 'items'}</span>
+          <span className="tag-pop-count">{t`${plural(vis.total, { one: '# item', other: '# items' })}`}</span>
         )}
         <span className="ent-pop-tag-arrow" aria-hidden="true">→</span>
       </button>
@@ -472,13 +474,13 @@ function TagFeatureCard({ row, workspaceId, onOpenTag, onNavigate }) {
         </div>
       )}
       {vis && !hasAny && (
-        <div className="tag-pop-empty">No other items tagged.</div>
+        <div className="tag-pop-empty"><Trans>No other items tagged.</Trans></div>
       )}
 
       {thumbs.length > 0 && (
         <div className="tag-pop-images">
           {thumbs.map((im, i) => (
-            <button key={i} className="tag-pop-thumb" title={im.title || 'Image'}
+            <button key={i} className="tag-pop-thumb" title={im.title || t`Image`}
                     onClick={() => setLightboxIdx(i)}>
               <R2Image src={im.src} alt="" />
             </button>
@@ -492,7 +494,7 @@ function TagFeatureCard({ row, workspaceId, onOpenTag, onNavigate }) {
               .map(c => (typeof c === 'string' ? c : c?.hex))
               .filter(Boolean).slice(0, 10);
             return (
-              <button key={i} className="tag-pop-palette" title={p.title || 'Palette'}
+              <button key={i} className="tag-pop-palette" title={p.title || t`Palette`}
                       onClick={() => onNavigate?.(p.navTarget)}>
                 <span className="tag-pop-palette-swatches">
                   {colors.map((c, j) => <span key={j} style={{ background: c }} />)}
@@ -546,11 +548,11 @@ function EntityRow({ row, onClick, expandable = false, expanded = false, onToggl
     <div className={`ent-pop-row ${expandable ? 'is-expandable' : ''}`}>
       <button className="ent-pop-row-main"
               onClick={onClick}
-              title={`Open ${row.title || row.kind}`}>
+              title={row.title ? t`Open ${ph({ value: row.title })}` : t`Open`}>
         <div className="ent-pop-row-head">
           {IconCmp && <Icon as={IconCmp} size={13} />}
           <span className="ent-pop-row-kind">{def?.label || row.kind}</span>
-          <span className="ent-pop-row-title">{row.title || 'Untitled'}</span>
+          <span className="ent-pop-row-title">{row.title || t`Untitled`}</span>
         </div>
         {previewMini && (
           <div className="ent-pop-row-preview">{previewMini(row)}</div>
@@ -559,8 +561,8 @@ function EntityRow({ row, onClick, expandable = false, expanded = false, onToggl
       {expandable && (
         <button className={`ent-pop-row-expand ${expanded ? 'is-on' : ''}`}
                 onClick={onToggleExpand}
-                title={expanded ? 'Hide contents' : 'Show contents'}>
-          {expanded ? 'Hide' : 'Expand'}
+                title={expanded ? t`Hide contents` : t`Show contents`}>
+          {expanded ? t`Hide` : t`Expand`}
         </button>
       )}
     </div>
@@ -594,10 +596,10 @@ function BoardInlineExpansion({ boardId, onNavigate }) {
   }, [boardId]);
 
   if (cards === null) {
-    return <div className="ent-pop-expand-empty">Loading…</div>;
+    return <div className="ent-pop-expand-empty"><Trans>Loading…</Trans></div>;
   }
   if (cards.length === 0) {
-    return <div className="ent-pop-expand-empty">This cluster is empty.</div>;
+    return <div className="ent-pop-expand-empty"><Trans>This cluster is empty.</Trans></div>;
   }
   return (
     <div className="ent-pop-expand">
@@ -634,7 +636,7 @@ function BoardInlineExpansion({ boardId, onNavigate }) {
                 e.stopPropagation();
                 onNavigate?.({ kind: 'board', id: boardId });
               }}>
-        Open full board →
+        <Trans>Open full board →</Trans>
       </button>
     </div>
   );
@@ -654,13 +656,13 @@ function AppearsRow({ row, onClick }) {
   const hasRealTitle = rawTitle.length > 0;
   const title = hasRealTitle
     ? rawTitle
-    : (row.source_kind === 'message' ? 'Message' : 'Untitled');
+    : (row.source_kind === 'message' ? t`Message` : t`Untitled`);
   // Skip rendering a redundant title row when:
   //   - there's no real title AND
   //   - the snippet conveys the entity (notes/messages without titles)
   const showTitleLine = hasRealTitle || !snippet;
   return (
-    <button className="ent-pop-row" onClick={onClick} title="Open">
+    <button className="ent-pop-row" onClick={onClick} title={t`Open`}>
       {showTitleLine ? (
         <div className="ent-pop-row-head">
           <Icon as={IconCmp} size={13} />

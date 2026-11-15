@@ -199,13 +199,14 @@ import { useNotifications } from './hooks/useNotifications.js';
 const LocalBoardsApp = lazyWithReload(() => import('./local/LocalBoardsApp.jsx').then(m => ({ default: m.LocalBoardsApp })));
 import { isLocalQaMode } from './lib/localMode.js';
 import { isSupabaseConfigured, supabase, altSessionId } from './lib/supabase.js';
+import { followAccountLocale, syncAccountLocale } from './lib/accountLocale.js';
 import { passkeyOfferDue, PASSKEY_OFFER_KEY } from './lib/passkeyGate.js';
 import { trackRegistration } from './lib/metaPixel.js';
 import { holdReload } from './lib/buildWatch.js';
 import { ownPersonalCount, isWorkspaceLimitError, workspaceCountFromError, WORKSPACE_LIMIT } from './lib/workspaceLimit.js';
 import { rewardCardsBeyondTogether } from './lib/liveTogether.js';
 import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listPublicLinks, createCollabLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, getMyTogetherStats, syncCardIndex, getProfilesByIds, forgetIndexRefusals } from './lib/boardsApi.js';
-import { rewardToastMessage } from './lib/inviteReward.js';
+import { rewardToastMessage } from './lib/inviteRewardWords.js';
 import { undoToast } from './lib/undoToast.js';
 import { failMove } from './lib/moveFailure.js';
 import { cardIndexWeight } from './lib/cardIndexRow.js';
@@ -222,7 +223,9 @@ import { planImport, planBytes } from './lib/importPreflight.js';
 import { evaluateUpsell, ELIGIBILITY_REV, shouldWarnNearCap, shouldWarnNearCapNow } from './lib/upsellEligibility.js';
 import { nearCapWarnedAt, markNearCapWarned, markPriceSeen } from './lib/upsellLatches.js';
 import { readUpgradePrompts, stampUpgradePrompt } from './lib/upgradePrompts.js';
-import { CTA, nearCapSentence, newProjectSentence, PLAN_NAME, CREATOR_TRIAL_DAYS, CREATOR_STORAGE_LABEL, storageFullMessage, STORAGE_ADDON_HELD, storageAmountLabel } from './lib/billingCopy.js';
+import { PLAN_NAME, CREATOR_TRIAL_DAYS, STORAGE_ADDON_HELD } from './lib/billingCopy.js';
+import { CTA, nearCapSentence, newProjectSentence, storageFullMessage, storageAmountLabel, creatorStorageLabel } from './lib/billingCopyWords.js';
+import { rejectedNotAdded, rejectedMoreDidntFit } from './lib/demoCardCapWords.js';
 import { STORAGE_ADDON_OPEN_EVENT, storageAddonAction } from './lib/storageAddon.js';
 import { StorageAddonSheet } from './components/StorageAddonSheet.jsx';
 import { creatorTrialEligibility, trialAwaitingServer } from './lib/creatorTrial.js';
@@ -252,6 +255,7 @@ import { openDocWhenMounted } from './lib/openDocCard.js';
 import { useStarterIntentResume } from './hooks/useStarterIntentResume.js';
 import { initCardGridStore, setGridCell, clearGridCell, setTemplateLayout, readGridModel, setGridHints, readGridHints } from './lib/gridState.js';
 import { hintsToCellMap, bodyFromGrid, rowFromRecord, SOURCES } from './lib/gridLayoutLibrary.js';
+import { localizeRow } from './lib/gridLayoutWords.js';
 // Generated projection of the kind:'template' seoLanding specs — the preset id
 // and labels only, never the prose. See gen-docs.mjs step 4d.
 import { CURATED_TEMPLATES } from './lib/gridTemplateIndex.js';
@@ -355,11 +359,11 @@ const ListSurface = lazyWithReload(() => import('./components/ListSurface.jsx').
 // of it is downloaded before then. The panels kept mounted behind an `open`
 // prop mount at their first open and stay (lib/lazyPanel.jsx); the rest mount
 // when they're wanted, under their own Suspense.
-const SettingsPanel = lazyPanel(() => import('./components/SettingsPanel.jsx').then(m => ({ default: m.SettingsPanel })), { title: 'Settings' });
-const CommandPalette = lazyPanel(() => import('./components/CommandPalette.jsx').then(m => ({ default: m.CommandPalette })), { title: 'Search' });
-const TrashModal = lazyPanel(() => import('./components/TrashModal.jsx').then(m => ({ default: m.TrashModal })), { title: 'Deleted clusters' });
-const VersionHistoryModal = lazyPanel(() => import('./components/VersionHistoryModal.jsx').then(m => ({ default: m.VersionHistoryModal })), { title: 'Version history' });
-const WorkspaceRecoveryModal = lazyPanel(() => import('./components/WorkspaceRecoveryModal.jsx').then(m => ({ default: m.WorkspaceRecoveryModal })), { title: 'Workspace recovery' });
+const SettingsPanel = lazyPanel(() => import('./components/SettingsPanel.jsx').then(m => ({ default: m.SettingsPanel })), { title: () => tr`Settings` });
+const CommandPalette = lazyPanel(() => import('./components/CommandPalette.jsx').then(m => ({ default: m.CommandPalette })), { title: () => tr`Search` });
+const TrashModal = lazyPanel(() => import('./components/TrashModal.jsx').then(m => ({ default: m.TrashModal })), { title: () => tr`Deleted clusters` });
+const VersionHistoryModal = lazyPanel(() => import('./components/VersionHistoryModal.jsx').then(m => ({ default: m.VersionHistoryModal })), { title: () => tr`Version history` });
+const WorkspaceRecoveryModal = lazyPanel(() => import('./components/WorkspaceRecoveryModal.jsx').then(m => ({ default: m.WorkspaceRecoveryModal })), { title: () => tr`Workspace recovery` });
 const TeamPage = lazyWithReload(() => import('./components/team/TeamPage.jsx'));
 const TeamPageLive = lazyWithReload(() => import('./components/team/TeamPageLive.jsx'));
 const NewWorkspaceDialog = lazyWithReload(() => import('./components/team/NewWorkspaceDialog.jsx'));
@@ -402,6 +406,12 @@ import { holdNoteTypeAhead } from './lib/noteTypeAhead.js';
 import { dropUnclaimedTouchKeyboard } from './lib/touchKeyboard.js';
 import { isComposingKey } from './lib/composerKeys.js';
 import { initialOf } from './lib/graphemes.js';
+import { uiLocale } from './lib/uiLocale.js';
+import { formatDate } from './lib/intlFormat.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { searchWords } from './lib/searchWords.js';
+import { shownError } from './lib/errorWords.js';
 
 // A cluster with nothing on its board but files in Files gets a cover of its
 // pictures (lib/coverMosaic.js). Stored covers reach every host, so only where
@@ -517,9 +527,10 @@ async function restoreBoardsAnnouncing(ids, feedback) {
   }
   if (refused.length) {
     const capHit = refused.find((e) => /past your limit/i.test(e?.message || ''));
+    const reason = refused[0]?.message || tr`unknown error`;
     feedback?.toast(capHit
       ? { type: 'warning', message: capHit.message }
-      : { type: 'error', code: 'cluster_restore_failed', message: 'Could not restore that cluster: ' + (refused[0]?.message || 'unknown error') });
+      : { type: 'error', code: 'cluster_restore_failed', message: tr`Could not restore that cluster: ${reason}` });
   }
   return refused.length === 0;
 }
@@ -653,7 +664,7 @@ export function App() {
         signOut={signOut}
         refused={signInAgain(activeRootError)}
         actionLabel={personalWorkspace && activeWorkspace?.id !== personalWorkspace.id
-          ? 'Back to your workspace' : null}
+          ? tr`Back to your workspace` : null}
         onAction={recoverToPersonalWorkspace}
       />
     );
@@ -904,7 +915,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       type: row?.deleted_at ? 'info' : 'error',
       message: notice.message,
       // Through a ref: the Trash dialog's state is declared further down.
-      ...(notice.openTrash ? { action: { label: 'Open Trash', onClick: () => openTrashRef.current?.() } } : {}),
+      ...(notice.openTrash ? { action: { label: tr`Open Trash`, onClick: () => openTrashRef.current?.() } } : {}),
     });
     return false;
   }, [openBoardAt, workspace.id, workspaces, onSwitchWorkspace, feedback, refreshSharedBoards]);
@@ -915,7 +926,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!pendingSharedOpen) return;
     setPendingSharedOpen(null);
     if (!openBoardAt(pendingSharedOpen)) {
-      feedback.toast({ type: 'error', code: 'cluster_unavailable', message: "That cluster isn't available to you any more." });
+      feedback.toast({ type: 'error', code: 'cluster_unavailable', message: tr`That cluster isn't available to you any more.` });
     }
   }, [pendingSharedOpen, openBoardAt, feedback]);
   const [viewOverride, setViewOverride] = useState(() => initialSession?.viewOverride || {});
@@ -1341,6 +1352,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!mySettingsLoaded) return;
     const ui = mySettings?.ui || {};
     try { localStorage.setItem('soleil.ui', JSON.stringify(ui)); } catch (_) {}
+    // The language (lib/accountLocale.js): this page was drawn in the one this
+    // device remembered, and the account's wins. The account also keeps the
+    // language its emails use.
+    followAccountLocale(ui.lang);
+    if (supabase) syncAccountLocale(supabase.auth, ui.lang);
     // Explicit choice wins; otherwise follow the OS (new users) — without
     // persisting, so a later toggle is what locks their preference in.
     const resolvedTheme = resolveTheme(ui.theme);
@@ -1440,6 +1456,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // An editor-limit notice's "See who can edit" (openNotificationSettings,
     // below, is called only once the toast is pressed).
     onOpenSettings: (tab, wsId) => openNotificationSettings(tab, wsId),
+    // The same names the panel is worded with, so a toast reads like its row.
+    nameOf: (id) => userProfiles.get(id)?.name || '',
   });
 
   // Live inbox: subscribes to user:{uid} broadcast, dispatches toasts +
@@ -1904,7 +1922,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // reports the pick, so the close settles null a microtask later and the pick
   // always wins.
   const [clusterPick, setClusterPick] = useState(null); // { placeholder, excludeIds, resolve }
-  const requestClusterPick = useCallback(({ placeholder = 'Go to cluster…', excludeIds = [] } = {}) => (
+  const requestClusterPick = useCallback(({ placeholder = tr`Go to cluster…`, excludeIds = [] } = {}) => (
     new Promise((resolve) => setClusterPick({ placeholder, excludeIds, resolve }))
   ), []);
 
@@ -2087,7 +2105,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         tourFireRef.current?.({ type: 'view_switched', view: 'list', boardId: currentId });
         if (!dockHintSeen()) {
           markDockHintSeen();
-          feedback.toast({ message: 'Files opens beside your board now — drag files onto it. Drag the edge, or press ⤢, for full screen.', ttl: 7000 });
+          feedback.toast({ message: tr`Files opens beside your board now — drag files onto it. Drag the edge, or press ⤢, for full screen.`, ttl: 7000 });
         }
       }
     }
@@ -2273,7 +2291,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (cs.own) { pitchCapWall(cs); return; }
       feedback.toast({
         type: 'warning',
-        message: `This cluster is at the owner's ${cs.limit}-card limit — they'll need to upgrade or clear space before more cards fit.`,
+        message: tr`This cluster is at the owner's ${ph({ limit: cs.limit })}-card limit — they'll need to upgrade or clear space before more cards fit.`,
       });
     };
     // Approaching-limit warning, fired once per pageload from all three add
@@ -3020,7 +3038,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       ydoc.transact(() => {
         const g = new Y.Map();
         g.set('id', id);
-        g.set('name', (name || 'Group').slice(0, 80));
+        g.set('name', (name || tr({ message: 'Group', context: 'default name' })).slice(0, 80));
         g.set('outline', !!outline);
         g.set('color', null);
         g.set('width', 1);
@@ -3184,10 +3202,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
       const id = `pal-${Date.now()}`;
       addCard({
-        id, kind: 'palette', title: 'Palette',
+        id, kind: 'palette', title: tr`Palette`,
         swatches: Array.isArray(d.swatches) && d.swatches.length
           ? d.swatches
-          : [{ name: 'Color', hex: '#3b82f6' }, { name: 'Color', hex: '#10b981' }],
+          : [{ name: tr({ message: 'Color', context: 'default name' }), hex: '#3b82f6' }, { name: tr({ message: 'Color', context: 'default name' }), hex: '#10b981' }],
         x: Math.max(8, x), y: Math.max(8, y), w, h,
       });
       setAutoFocusId(id);
@@ -3226,7 +3244,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
       const id = `doc-${Date.now()}`;
       addCard({
-        id, kind: 'doc', title: 'Untitled doc',
+        id, kind: 'doc', title: tr({ message: 'Untitled doc', context: 'default name' }),
         ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
         x: Math.max(8, x), y: Math.max(8, y), w, h,
       }, {
@@ -3257,7 +3275,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
       const id = `doc-${Date.now()}`;
       const script = opts?.script || null;
-      const title = (opts && typeof opts.title === 'string' && opts.title.trim()) || 'Untitled script';
+      const title = (opts && typeof opts.title === 'string' && opts.title.trim()) || tr({ message: 'Untitled script', context: 'default name' });
       const placed = addCard({
         id, kind: 'doc', title,
         ...(d.fontFamily ? { fontFamily: d.fontFamily } : null),
@@ -3314,7 +3332,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         await refreshBoards();
       } catch (e) {
         console.error('setBoardBgColor failed', e);
-        feedback.toast({ type: 'error', code: 'cluster_bg_failed', message: 'Could not set background: ' + (e.message || e) });
+        feedback.toast({ type: 'error', code: 'cluster_bg_failed', message: tr`Could not set background: ${ph({ reason: shownError(e) })}` });
       }
     };
 
@@ -3327,7 +3345,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         await refreshBoards();
       } catch (e) {
         console.error('setBoardCover failed', e);
-        feedback.toast({ type: 'error', code: 'cluster_cover_failed', message: 'Could not set cover: ' + (e.message || e) });
+        feedback.toast({ type: 'error', code: 'cluster_cover_failed', message: tr`Could not set cover: ${ph({ reason: shownError(e) })}` });
       }
     };
 
@@ -3407,7 +3425,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           dropImageBlob({ ...up, id: cardId, x: clickPos?.x, y: clickPos?.y, fileName: meaningfulFileName(f) });
         } catch (e) {
           console.error(e);
-          feedback.toast({ type: 'error', code: 'image_upload_failed', message: 'Image upload failed: ' + (e.message || e) });
+          feedback.toast({ type: 'error', code: 'image_upload_failed', message: tr`Image upload failed: ${ph({ reason: shownError(e) })}` });
         }
       };
       input.click();
@@ -3420,7 +3438,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const f = input.files?.[0]; if (!f) return;
         // Re-validate by extension too — some OS pickers report empty MIME.
         if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name || '')) {
-          feedback.toast({ type: 'error', code: 'pdf_wrong_type', message: 'Please choose a PDF file.' });
+          feedback.toast({ type: 'error', code: 'pdf_wrong_type', message: tr`Please choose a PDF file.` });
           return;
         }
         const cardId = `pdf-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
@@ -3458,7 +3476,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           console.error(e);
           // The card goes, so its transfer goes with it; the toast says why.
           removeTransfer(tid);
-          feedback.toast({ type: 'error', code: 'pdf_upload_failed', message: 'PDF upload failed: ' + (e.message || e) });
+          feedback.toast({ type: 'error', code: 'pdf_upload_failed', message: tr`PDF upload failed: ${ph({ reason: shownError(e) })}` });
           deleteCardsSilent([cardId]);
         }
       };
@@ -3557,6 +3575,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // the blocked files are reported in the toast alone.
         const explained = csFiles.own && over === 0 ? pitchStorageGate() : false;
         const biggest = blocked.reduce((m, f) => Math.max(m, f?.size || 0), 0);
+        const blockedCount = blocked.length;
         logEvent(EV.UPLOAD_BLOCKED, {
           reason: 'over_free_cap', surface: 'list', n: blocked.length,
           ext: (blocked[0]?.name || '').split('.').pop()?.toLowerCase()?.slice(0, 12) || null,
@@ -3565,15 +3584,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         feedback.toast({
           type: 'warning',
           message: csFiles.own
-            ? `${blocked.length === 1 ? 'That file is' : `${blocked.length} files are`} over the free ${FREE_FILE_CAP_LABEL} limit and ${blocked.length === 1 ? 'was' : 'were'} left out — Creator takes any size, up to ${CREATOR_STORAGE_LABEL}.`
-            : `${blocked.length === 1 ? 'That file is' : `${blocked.length} files are`} over the free ${FREE_FILE_CAP_LABEL} limit — the cluster's owner would need a paid plan.`,
+            ? plural(blockedCount, {
+              one: `That file is over the free ${FREE_FILE_CAP_LABEL} limit and was left out — Creator takes any size, up to ${ph({ CREATOR_STORAGE_LABEL: creatorStorageLabel() })}.`,
+              other: `# files are over the free ${FREE_FILE_CAP_LABEL} limit and were left out — Creator takes any size, up to ${ph({ CREATOR_STORAGE_LABEL: creatorStorageLabel() })}.`,
+            })
+            : plural(blockedCount, {
+              one: `That file is over the free ${FREE_FILE_CAP_LABEL} limit — the cluster's owner would need a paid plan.`,
+              other: `# files are over the free ${FREE_FILE_CAP_LABEL} limit — the cluster's owner would need a paid plan.`,
+            }),
           ttl: 6000,
           // Only when the modal did NOT open — otherwise the toast offers a
           // second route to the screen already in front of them. When it did
           // stand down, this is the whole route, which is the half of the latch
           // that is easy to forget: quieter must not mean unreachable.
           ...(csFiles.own && !explained
-            ? { action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'list', reason: 'owner_not_paid' }); pitchStorageGate({ force: true }); } } }
+            ? { action: { label: tr`See Creator`, onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'list', reason: 'owner_not_paid' }); pitchStorageGate({ force: true }); } } }
             : {}),
         });
       }
@@ -3650,7 +3675,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           // are the download authority, so renaming the card can never strip
           // the extension off the file someone downloads. Same contract as the
           // canvas path (CanvasSurface.dropAudioFile).
-          card.title = it.file.name || 'Audio';
+          card.title = it.file.name || tr`Audio`;
           card.fileName = it.file.name; card.mime = it.file.type; card.sizeBytes = it.file.size;
           card.ext = (it.file.name?.split('.').pop() || '').toLowerCase();
           // Packs are named by machine — parse the tempo and key out of the
@@ -3678,9 +3703,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const offerBoard = fullFilesBoardRef.current === boardId && canDockMainRef.current;
       feedback.toast({
         type: 'success',
-        message: `Added ${addedIds.length} ${addedIds.length === 1 ? 'file' : 'files'} to Files — not on the board`,
+        message: plural(addedIds.length, { one: 'Added # file to Files — not on the board', other: 'Added # files to Files — not on the board' }),
         // Only while that cluster is still the one in full Files.
-        ...(offerBoard ? { action: { label: 'Open beside board', onClick: () => { if (fullFilesBoardRef.current === boardId) applyFilesEventRef.current?.('shrink', 'toast'); } } } : {}),
+        ...(offerBoard ? { action: { label: tr`Open beside board`, onClick: () => { if (fullFilesBoardRef.current === boardId) applyFilesEventRef.current?.('shrink', 'toast'); } } } : {}),
       });
 
       // One batch in the activity store for the whole drop, one item per file,
@@ -3757,7 +3782,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             const paidNow = ['paid', 'admin'].includes((myTierRef.current || myTier).tier);
             if (err.code === 403) feedback.toast({
               type: 'warning',
-              message: 'That upload was refused — you may no longer be able to edit this cluster.',
+              message: tr`That upload was refused — you may no longer be able to edit this cluster.`,
               ttl: 6000,
             });
             else if (!csFiles.own || paidNow) feedback.toast({
@@ -3773,7 +3798,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               type: 'warning',
               message: storageFullMessage({ own: true, paid: false }),
               ttl: 6000,
-              action: { label: 'See Creator', onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'list', reason: 'server_quota' }); pitchStorageGate({ force: true }); } },
+              action: { label: tr`See Creator`, onClick: () => { logEvent(EV.UP_STORAGE_TOAST_CTA, { surface: 'list', reason: 'server_quota' }); pitchStorageGate({ force: true }); } },
             });
             if (err.code === 402) {
               try { logEventOnce(`storage_wall:list:${csFiles.own ? (paidNow ? 'paid' : 'free') : 'other'}`, EV.STORAGE_WALL_VIEW, { surface: 'list', own: !!csFiles.own, paid: paidNow, offered: false }); } catch (_) {}
@@ -3793,7 +3818,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               size_bucket: sizeBucket(it.file?.size),
             });
           }
-          else if (String(err?.message) !== 'aborted') feedback.toast({ type: 'error', code: 'file_upload_failed', message: 'Upload failed: ' + (err?.message || err) });
+          else if (String(err?.message) !== 'aborted') feedback.toast({ type: 'error', code: 'file_upload_failed', message: tr`Upload failed: ${ph({ reason: shownError(err) })}` });
           // An abort, or a file now waiting in the held-uploads bar, leaves
           // nothing to say here; anything else stays in the tray as failed.
           if (wasHeld || String(err?.message) === 'aborted' || err?.name === 'AbortError') removeTransfer(tid);
@@ -3810,7 +3835,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const view = opts.view || d.view || 'canvas';
       // opts.name = caller-supplied name (the project_first intent seed) — a
       // pre-named cluster also skips the rename autofocus below.
-      const defaultName = opts.name || 'Untitled cluster';
+      const defaultName = opts.name || tr({ message: 'Untitled cluster', context: 'default name' });
       // Ask the cap before the cluster exists, the way addNewProject does: its
       // card on this canvas costs CLUSTER_CARD_COST. Asked only by addCard
       // below, the refusal came after createBoard — a cluster with no card,
@@ -3871,7 +3896,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } catch (e) {
         console.error('createBoard failed', e);
         logClusterCreateFail(opts.seed ? 'seed' : opts.via, madeId ? 'after_create' : 'create', e);
-        feedback.toast({ type: 'error', code: 'cluster_create_failed', message: 'Could not create cluster: ' + (e.message || e) });
+        feedback.toast({ type: 'error', code: 'cluster_create_failed', message: tr`Could not create cluster: ${ph({ reason: shownError(e) })}` });
       }
       return null;
     };
@@ -3915,7 +3940,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const b = await createBoard({
           workspaceId: workspace.id,
           parentBoardId: rootBoard.id,
-          name: name || 'Untitled cluster',
+          name: name || tr({ message: 'Untitled cluster', context: 'default name' }),
           view, userId: user.id,
           cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
         });
@@ -3933,7 +3958,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } catch (e) {
         console.error('createBoard (project) failed', e);
         logClusterCreateFail(via, madeId ? 'after_create' : 'create', e);
-        feedback.toast({ type: 'error', code: 'cluster_create_failed', message: 'Could not create cluster: ' + (e.message || e) });
+        feedback.toast({ type: 'error', code: 'cluster_create_failed', message: tr`Could not create cluster: ${ph({ reason: shownError(e) })}` });
       }
       return null;
     };
@@ -4469,7 +4494,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Global sync (same board): promote an unlinked Grid's layout into a shared
     // gridTemplates record + link the Grid to it, so any other Grid linked to the
     // same template reflows live when this one's dividers move. Returns templateId.
-    const promoteGridToTemplate = (gridId, name = 'Grid layout') => {
+    const promoteGridToTemplate = (gridId, name = tr`Grid layout`) => {
       const m = cardsMap(); const cy = m && m.get(gridId); if (!cy) return null;
       const existing = cy.get('templateId'); if (existing) return existing;
       const layout = cy.get('layout'); if (!layout) return null;
@@ -4532,13 +4557,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (!tplId) {
         const layout = cy.get('layout');
         tplId = `gtpl-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-        ydoc.getMap('gridTemplates').set(tplId, { id: tplId, name: 'Grid layout', layout });
+        ydoc.getMap('gridTemplates').set(tplId, { id: tplId, name: tr`Grid layout`, layout });
         cy.set('templateId', tplId); cy.delete('layout');
       }
       let seqId = cy.get('seqId');
       if (!seqId) {
         seqId = `gseq-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-        ydoc.getMap('gridSequences').set(seqId, { id: seqId, name: 'Sequence', pattern: 'z', format: { startAt: 1 } });
+        ydoc.getMap('gridSequences').set(seqId, { id: seqId, name: tr`Sequence`, pattern: 'z', format: { startAt: 1 } });
         cy.set('seqId', seqId);
       }
       return { tplId, seqId, carry: stampCarryOf(cy) };
@@ -4578,7 +4603,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         groupId = `g-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
         const g = new Y.Map();
         g.set('id', groupId);
-        g.set('name', 'Grid');
+        g.set('name', tr`Grid`);
         g.set('kind', 'gridFamily');
         g.set('outline', true);
         g.set('color', null);
@@ -4705,7 +4730,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Refused up front, as the canvas refuses a drop on a view-only cluster —
     // not after the uploads have started.
     if (!canEditBoard(boardId)) {
-      feedback.toast({ type: 'info', message: `You can view ${boards[boardId].name || 'that cluster'} but not add to it.` });
+      const shown = boards[boardId].name || tr`that cluster`;
+      feedback.toast({ type: 'info', message: tr`You can view ${shown} but not add to it.` });
       return;
     }
     if (boardId === currentId && currentYDoc) { mainMutators.ingestFilesArranged?.(files); return; }
@@ -4729,7 +4755,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const from = payload?.sourceBoardId;
     const cardIds = (payload?.cards || []).map((c) => c.id);
     if (!from || !targetId || from === targetId || !cardIds.length) return false;
-    const nameOf = (id) => boards[id]?.name || 'another cluster';
+    const nameOf = (id) => boards[id]?.name || tr`another cluster`;
     const r = await moveFiles({ from, to: targetId, cardIds, mode: copy ? 'copy' : 'move', at: at || null });
     if (!r.ok) {
       // They reached the other cluster but didn't all leave this one: the same
@@ -4739,8 +4765,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         feedback.toast({
           type: 'error',
           code: 'files_move_partial',
-          message: `Moved to ${nameOf(targetId)}, but they’re still in ${nameOf(from)} too.`,
-          action: { label: 'Finish', onClick: () => moveFilesHere(targetId, payload, at, { what, kinds }) },
+          message: tr`Moved to ${ph({ nameOf: nameOf(targetId) })}, but they’re still in ${ph({ nameOf2: nameOf(from) })} too.`,
+          action: { label: tr`Finish`, onClick: () => moveFilesHere(targetId, payload, at, { what, kinds }) },
         });
         return false;
       }
@@ -4751,17 +4777,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const n = copy ? (r.copied || 0) : (r.moved || 0);
     const late = (r.kept?.length || 0) + (r.skipped?.length || 0);
     if (!n) {
-      feedback.toast({ type: 'info', message: late ? 'Those files are still uploading. Try again when they finish.' : 'Those files aren’t there any more.' });
+      feedback.toast({ type: 'info', message: late ? tr`Those files are still uploading. Try again when they finish.` : tr`Those files aren’t there any more.` });
       return false;
     }
-    const said = what && n === cardIds.length ? what : n === 1 ? '1 file' : `${n} files`;
-    const where = at ? `here from ${nameOf(from)}`
-      : targetId === currentBoard?.id ? `into ${nameOf(targetId)}’s files` : `to ${nameOf(targetId)}`;
-    const extra = late ? ` · ${late} still uploading stayed put` : '';
+    const said = what && n === cardIds.length ? what : plural(n, { one: '# file', other: '# files' });
+    const fromName = nameOf(from);
+    const toName = nameOf(targetId);
+    const here = !!at;
+    const intoFiles = targetId === currentBoard?.id;
+    const extra = late ? tr` · ${late} still uploading stayed put` : '';
+    const movedMessage = copy
+      ? (here ? tr`Copied ${said} here from ${fromName}` : intoFiles ? tr`Copied ${said} into ${toName}’s files` : tr`Copied ${said} to ${toName}`)
+      : (here ? tr`Moved ${said} here from ${fromName}` : intoFiles ? tr`Moved ${said} into ${toName}’s files` : tr`Moved ${said} to ${toName}`);
     const landed = copy ? (r.cards || []).map((c) => c.id) : (r.pairs || []).map((p) => p.to);
     const storable = !kinds || kinds.some((kind) => canStore({ kind }));
     const putOn = !at && storable && landed.length ? {
-      label: 'Put on board',
+      label: tr`Put on board`,
       onClick: () => {
         onPutOnBoard(targetId, landed)
           .catch((e) => feedback.toast(putFailToast(e)))
@@ -4770,7 +4801,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     } : null;
     undoToast(feedback, {
       also: [putOn],
-      message: `${copy ? 'Copied' : 'Moved'} ${said} ${where}${extra}`,
+      message: `${movedMessage}${extra}`,
       onUndo: async () => {
         const u = copy
           ? await removeCards({ boardId: targetId, cardIds: landed })
@@ -4815,17 +4846,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Server-side meta is outside the Yjs UndoManager — the toast closure
       // is the undo engine (skip when the name didn't actually change).
       if (prevName && prevName !== name.trim()) {
+        const newName = name.trim();
         undoToast(feedback, {
-          message: `Renamed to “${name.trim()}”`,
+          message: tr`Renamed to “${newName}”`,
           onUndo: async () => {
             try { await renameBoard(boardId, prevName); await refreshBoards(); }
-            catch (e) { feedback.toast({ type: 'error', code: 'cluster_rename_undo_failed', message: 'Could not restore the name: ' + (e.message || e) }); }
+            catch (e) { feedback.toast({ type: 'error', code: 'cluster_rename_undo_failed', message: tr`Could not restore the name: ${ph({ reason: shownError(e) })}` }); }
           },
         });
       }
     } catch (e) {
       console.error('renameBoard failed', e);
-      feedback.toast({ type: 'error', code: 'cluster_rename_failed', message: 'Could not rename: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'cluster_rename_failed', message: tr`Could not rename: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -4844,11 +4876,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
     if (lastError) {
       const failed = requested.length - ids.length;
+      const detail = lastError?.message;
       feedback.toast({
         type: 'error',
         code: 'cluster_delete_failed',
-        message: (failed === 1 ? "Couldn't delete the cluster" : `Couldn't delete ${failed} clusters`)
-          + (lastError?.message ? ': ' + lastError.message : '.'),
+        message: detail
+          ? plural(failed, { one: `Couldn't delete the cluster: ${detail}`, other: `Couldn't delete # clusters: ${detail}` })
+          : plural(failed, { one: "Couldn't delete the cluster.", other: "Couldn't delete # clusters." }),
       });
     }
     if (!ids.length) return;
@@ -4880,7 +4914,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // Closure-based Undo reverses the soft-delete. refreshBoards() brings the
     // board back to the grid; the drift-reconcile effect re-adds any canvas card.
     undoToast(feedback, {
-      message: ids.length === 1 ? 'Cluster deleted' : `${ids.length} clusters deleted`,
+      message: plural(ids.length, { one: 'Cluster deleted', other: '# clusters deleted' }),
       onUndo: async () => {
         await restoreBoardsAnnouncing(ids, feedback);
         await refreshBoards();
@@ -4963,10 +4997,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const onTeam = myTeams.length > 0 || !!realTeam;
     if (own >= WORKSPACE_LIMIT) { onWorkspacesChanged?.(); setWsLimitAsk({ n: own, surface, via: 'precheck', onTeam }); return; }
     const name = await feedback.prompt({
-      title: 'New workspace',
-      label: 'Workspace name',
-      placeholder: 'e.g. Marketing team',
-      confirmLabel: 'Create workspace',
+      title: tr`New workspace`,
+      label: tr`Workspace name`,
+      placeholder: tr`e.g. Marketing team`,
+      confirmLabel: tr`Create workspace`,
     });
     if (!name?.trim()) return;
     try {
@@ -4984,7 +5018,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         return;
       }
       console.error('addNewWorkspace failed', e);
-      feedback.toast({ type: 'error', code: 'workspace_create_failed', message: 'Could not create workspace: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'workspace_create_failed', message: tr`Could not create workspace: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -4994,7 +5028,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       let wsId = null;
       if (forTeam) {
         const { createTeamWorkspace } = await import('./lib/teamsApi.js');
-        const res = await createTeamWorkspace({ p_org_id: ask.team.org_id, p_name: name, p_root_name: 'Studio', p_private: !!isPrivate });
+        const res = await createTeamWorkspace({ p_org_id: ask.team.org_id, p_name: name, p_root_name: tr`Studio`, p_private: !!isPrivate });
         wsId = res?.workspace_id || null;
       } else {
         const ws = await createWorkspace({ name, userId: user.id });
@@ -5027,14 +5061,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const removeWorkspace = async (ws, kind /* 'delete' | 'leave' */, { thenHome = false } = {}) => {
     const isDelete = kind === 'delete';
     const ok = await feedback.confirm({
-      title: isDelete ? 'Delete workspace' : 'Leave workspace',
+      title: isDelete ? tr`Delete workspace` : tr`Leave workspace`,
       message: isDelete
-        ? `Deleting "${ws.name}" will permanently remove all of its boards, cards, and messages. This cannot be undone.`
-        : `Leave "${ws.name}"? You'll lose access until the owner re-invites you. Clusters shared to you directly in this workspace are unshared as well.`,
-      confirmLabel: isDelete ? 'Delete workspace' : 'Leave',
+        ? tr`Deleting "${ph({ name: ws.name })}" will permanently remove all of its boards, cards, and messages. This cannot be undone.`
+        : tr`Leave "${ph({ name: ws.name })}"? You'll lose access until the owner re-invites you. Clusters shared to you directly in this workspace are unshared as well.`,
+      confirmLabel: isDelete ? tr`Delete workspace` : tr`Leave`,
       danger: true,
       confirmText: isDelete ? (ws.name || '') : null,
-      confirmTextLabel: isDelete ? `Type "${ws.name}" to confirm` : null,
+      confirmTextLabel: isDelete ? tr`Type "${ph({ name: ws.name })}" to confirm` : null,
       confirmTextPlaceholder: isDelete ? ws.name : null,
     });
     if (!ok) return;
@@ -5054,10 +5088,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         onSwitchWorkspace?.(null);
       }
       await onWorkspacesChanged?.();
-      feedback.toast({ type: 'success', message: isDelete ? `Deleted "${ws.name}".` : `Left "${ws.name}".` });
+      feedback.toast({ type: 'success', message: isDelete ? tr`Deleted "${ph({ name: ws.name })}".` : tr`Left "${ph({ name: ws.name })}".` });
     } catch (e) {
       console.error('removeWorkspace failed', e);
-      feedback.toast({ type: 'error', code: 'workspace_remove_failed', message: (isDelete ? 'Delete' : 'Leave') + ' failed: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'workspace_remove_failed', message: isDelete ? tr`Delete failed: ${ph({ reason: shownError(e) })}` : tr`Leave failed: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -5100,7 +5134,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // ── Clone a board (and its Y.Doc state) into my personal workspace ───────
   const cloneBoardToPersonal = async (sourceBoardId) => {
     if (!personalWorkspaceId) {
-      feedback.toast({ type: 'error', code: 'personal_ws_missing', message: 'No personal workspace.' });
+      feedback.toast({ type: 'error', code: 'personal_ws_missing', message: tr`No personal workspace.` });
       return;
     }
     // boardsRef: a cluster made after this board opened is missing from the
@@ -5108,13 +5142,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const sourceBoard = boardsRef.current?.[sourceBoardId];
     if (!sourceBoard) return;
     if (sourceBoard.workspace_id === personalWorkspaceId) {
-      feedback.toast({ type: 'info', message: 'This cluster is already in your workspace.' });
+      feedback.toast({ type: 'info', message: tr`This cluster is already in your workspace.` });
       return;
     }
     const ok = await feedback.confirm({
-      title: 'Copy cluster',
-      message: `Copy "${sourceBoard.name}" to your personal workspace?`,
-      confirmLabel: 'Copy cluster',
+      title: tr`Copy cluster`,
+      message: tr`Copy "${ph({ name: sourceBoard.name })}" to your personal workspace?`,
+      confirmLabel: tr`Copy cluster`,
     });
     if (!ok) return;
     try {
@@ -5132,7 +5166,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const newBoard = await createBoard({
           workspaceId: personalWorkspaceId,
           parentBoardId: personalRootBoard?.id || null,
-          name: sourceBoard.name + ' (copy)',
+          name: tr`${ph({ name: sourceBoard.name })} (copy)`,
           view: sourceBoard.view, cover: sourceBoard.cover, meta: sourceBoard.meta,
           userId: user.id,
         });
@@ -5157,10 +5191,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         await onWorkspacesChanged?.();
       });
       // With the tray on the page its done row says it; without one the toast does.
-      if (!hadTray) feedback.toast({ type: 'success', message: 'Copied to your personal workspace.' });
+      if (!hadTray) feedback.toast({ type: 'success', message: tr`Copied to your personal workspace.` });
     } catch (e) {
       console.error('cloneBoardToPersonal failed', e);
-      feedback.toast({ type: 'error', code: 'cluster_copy_failed', message: 'Copy failed: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'cluster_copy_failed', message: tr`Copy failed: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -5191,7 +5225,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!capHit) return { ok: true, cs };
     try { logEvent(EV.CARD_CREATE_BLOCKED, { reason: 'demo_cap', board_id: id }); } catch (_) {}
     if (cs.own) pitchCapWall(cs);
-    else feedback.toast({ type: 'warning', message: `This cluster is at the owner's ${cs.limit}-card limit — they'll need to upgrade or clear space before more cards fit.` });
+    else feedback.toast({ type: 'warning', message: tr`This cluster is at the owner's ${ph({ limit: cs.limit })}-card limit — they'll need to upgrade or clear space before more cards fit.` });
     return { ok: false, cs };
   };
 
@@ -5210,7 +5244,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const b = await createBoard({
         workspaceId: parent.workspace_id,
         parentBoardId: parentId,
-        name: 'Untitled cluster',
+        name: tr({ message: 'Untitled cluster', context: 'default name' }),
         view, userId: user.id,
         cover: d.cover && d.cover !== 'neutral' ? d.cover : undefined,
       });
@@ -5225,7 +5259,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     } catch (e) {
       console.error('createBoardInside failed', e);
       logClusterCreateFail('sidebar_inside', madeId ? 'after_create' : 'create', e);
-      feedback.toast({ type: 'error', code: 'cluster_create_failed', message: 'Could not create cluster: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'cluster_create_failed', message: tr`Could not create cluster: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -5237,7 +5271,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       await refreshBoards();
     } catch (e) {
       console.error('setBoardBgColorById failed', e);
-      feedback.toast({ type: 'error', code: 'cluster_bg_failed', message: 'Could not set background: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'cluster_bg_failed', message: tr`Could not set background: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -5289,7 +5323,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // its 60-day reclaim clock instead of leaving it locked until 2999.
       demoteThumbRetention(prev.thumbKey);
       undoToast(feedback, {
-        message: 'Custom thumbnail set',
+        message: tr`Custom thumbnail set`,
         onUndo: async () => {
           try {
             if (prev.thumbKey) {
@@ -5302,13 +5336,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             demoteThumbRetention(src); // the just-uploaded key is now unused
             await refreshBoards();
           } catch (e) {
-            feedback.toast({ type: 'error', code: 'thumb_restore_failed', message: 'Could not restore thumbnail: ' + (e.message || e) });
+            feedback.toast({ type: 'error', code: 'thumb_restore_failed', message: tr`Could not restore thumbnail: ${ph({ reason: shownError(e) })}` });
           }
         },
       });
     } catch (e) {
       console.error('setBoardCustomThumbById failed', e);
-      feedback.toast({ type: 'error', code: 'thumb_set_failed', message: 'Could not set thumbnail: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'thumb_set_failed', message: tr`Could not set thumbnail: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -5335,7 +5369,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       await refreshBoards();
       demoteThumbRetention(prev.thumbKey); // custom key out of service
       undoToast(feedback, {
-        message: 'Reverted to auto thumbnail',
+        message: tr`Reverted to auto thumbnail`,
         onUndo: async () => {
           try {
             if (!prev.custom || !prev.thumbKey) return;
@@ -5343,13 +5377,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             relockThumbRetention(prev.thumbKey); // back in service
             await refreshBoards();
           } catch (e) {
-            feedback.toast({ type: 'error', code: 'thumb_restore_failed', message: 'Could not restore thumbnail: ' + (e.message || e) });
+            feedback.toast({ type: 'error', code: 'thumb_restore_failed', message: tr`Could not restore thumbnail: ${ph({ reason: shownError(e) })}` });
           }
         },
       });
     } catch (e) {
       console.error('resetBoardThumbById failed', e);
-      feedback.toast({ type: 'error', code: 'thumb_reset_failed', message: 'Could not reset thumbnail: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'thumb_reset_failed', message: tr`Could not reset thumbnail: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -5361,7 +5395,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       boardId: board.id, name: board.name, view: board.view,
       cover: board.cover, meta: board.meta,
     });
-    feedback.toast({ type: 'info', message: `Copied "${board.name || 'cluster'}".`, ttl: 2500 });
+    const shown = board.name || tr`cluster`;
+    feedback.toast({ type: 'info', message: tr`Copied "${shown}".`, ttl: 2500 });
   };
 
   // Paste the clipboard board as a child of targetId — a SHALLOW duplicate
@@ -5375,14 +5410,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!target) return;
     const source = boards[clip.boardId];
     if (source && source.workspace_id !== target.workspace_id) {
-      feedback.toast({ type: 'error', code: 'cluster_paste_scope', message: 'Can only paste within the same workspace.' });
+      feedback.toast({ type: 'error', code: 'cluster_paste_scope', message: tr`Can only paste within the same workspace.` });
       return;
     }
     try {
       let newId = null;
       const hadTray = opsHaveTray();   // trackOp decides at its start
       const made = await trackOp({
-        kind: 'copy', label: copyWords({ name: clip.name || 'Cluster' }),
+        kind: 'copy', label: copyWords({ name: clip.name || tr`Cluster` }),
         boardId: clip.boardId, boardName: clip.name || null,
         doneLabel: (id) => (id ? copyDoneWords({ personal: false }) : null), lingerMs: 8000,
         open: () => { if (newId) openBoardAt(newId); },
@@ -5411,10 +5446,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       }
       const ask = askCapFor(targetId, CLUSTER_CARD_COST + carried);
       if (!ask.ok) return null;
+      const copyName = tr`Cluster`;
       const newBoard = await createBoard({
         workspaceId: target.workspace_id,
         parentBoardId: targetId,
-        name: (clip.name || 'Cluster') + ' (copy)',
+        name: tr`${ph({ name: clip.name || copyName })} (copy)`,
         view: clip.view, cover: clip.cover, meta: clip.meta,
         userId: user.id,
       });
@@ -5445,10 +5481,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       return newId;
       });
       // With the tray on the page its done row says it; without one the toast does.
-      if (made && !hadTray) feedback.toast({ type: 'success', message: 'Pasted cluster.' });
+      if (made && !hadTray) feedback.toast({ type: 'success', message: tr`Pasted cluster.` });
     } catch (e) {
       console.error('pasteBoardInto failed', e);
-      feedback.toast({ type: 'error', code: 'cluster_paste_failed', message: 'Paste failed: ' + (e.message || e) });
+      feedback.toast({ type: 'error', code: 'cluster_paste_failed', message: tr`Paste failed: ${ph({ reason: shownError(e) })}` });
     }
   };
 
@@ -5480,7 +5516,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (targetBoard?.id) {
         feedback.toast({
           type: 'info', ttl: 3000,
-          message: targetBoard.id === hostId ? "You're already in that cluster." : "The workspace's top cluster can't be linked.",
+          message: targetBoard.id === hostId ? tr`You're already in that cluster.` : tr`The workspace's top cluster can't be linked.`,
         });
       }
       return;
@@ -5596,7 +5632,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // trail of its own, so the trail (and the tab) keep naming the canvas.
   const tabTitle = useMemo(() => {
     if (currentSurface === 'tag') return activeTag?.name || null;
-    if (currentSurface === 'shared') return 'Shared';
+    if (currentSurface === 'shared') return tr`Shared`;
     if (currentSurface !== 'board') return null;   // home graph → served title
     const paneId = (activePaneId === 'split' && splitId && !splitDoc) ? splitId : currentId;
     return boards[paneId]?.name || (paneId === rootBoard.id ? rootBoard.name : null);
@@ -5781,7 +5817,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const { data, error } = await supabase.rpc('request_edit', { p_board_id: boardId });
     if (error) {
       forget();
-      feedback.toast({ type: 'error', code: 'edit_ask_failed', message: error.message || 'Could not send that. Try again in a moment.' });
+      feedback.toast({ type: 'error', code: 'edit_ask_failed', message: shownError(error, tr`Could not send that. Try again in a moment.`) });
       return;
     }
     const row = Array.isArray(data) ? data[0] : data;
@@ -5793,7 +5829,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }
     setAskedEdit((m) => ({ ...m, [boardId]: 'asked' }));
     // Who to name: the share list carries no sharer's name, so it stays "they".
-    feedback.toast({ type: 'success', ttl: 8000, message: 'Asked. We’ll tell you when they say yes.' });
+    feedback.toast({ type: 'success', ttl: 8000, message: tr`Asked. We’ll tell you when they say yes.` });
   }, [feedback, refreshEditAccess]);
   // The bell's "Let them edit" / "Not now": resolves 'yes' | 'not_now' | 'gone'
   // (or the answer someone else already gave); a refusal (the editor limit,
@@ -6098,12 +6134,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // groups too and fired even with the thread open (COMMS-14). Only
       // mentions from while you were away get one, and it opens the thread.
       if (n.live || isWatchingConversation(n.conversation_id)) continue;
-      const who = userProfiles.get(n.mentioned_by)?.name || 'Someone';
+      const who = userProfiles.get(n.mentioned_by)?.name || tr`Someone`;
       feedback.toast({
         type: 'info',
-        message: `${who} mentioned you while you were away.`,
+        message: tr`${who} mentioned you while you were away.`,
         action: n.conversation_id
-          ? { label: 'Open', onClick: () => openConversationFromToast(n.conversation_id) }
+          ? { label: tr`Open`, onClick: () => openConversationFromToast(n.conversation_id) }
           : undefined,
       });
     }
@@ -6123,9 +6159,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const slug = n.detail;
         feedback.toast({
           type: 'success',
-          message: 'Your cluster is now public on Explore.',
+          message: tr`Your cluster is now public on Explore.`,
           ttl: 8000,
-          ...(slug ? { action: { label: 'View', onClick: () => { try { window.open(`/c/${slug}`, '_blank', 'noopener,noreferrer'); } catch (_) {} } } } : {}),
+          ...(slug ? { action: { label: tr`View`, onClick: () => { try { window.open(`/c/${slug}`, '_blank', 'noopener,noreferrer'); } catch (_) {} } } } : {}),
         });
         continue;
       }
@@ -6133,7 +6169,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         feedback.toast({
           type: 'info',
           ttl: 8000,
-          message: `Your cluster wasn’t approved for Explore${n.detail ? `: ${n.detail}` : '.'}`,
+          message: tr`Your cluster wasn’t approved for Explore${ph({ value: n.detail ? `: ${n.detail}` : '.' })}`,
         });
         continue;
       }
@@ -6148,32 +6184,35 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const joinedBoard = boards[n.board_id];
         if (scope === 'workspace') {
           const wsName = joinedBoard ? workspace.name : null;
+          const person = n.detail || tr`Someone`;
           feedback.toast({
             type: 'success',
             ttl: 8000,
-            message: `${n.detail || 'Someone'} joined ${wsName || 'your workspace'} — say hi.`,
-            ...(n.shared_by ? { action: { label: 'Message', onClick: () => { opened(); openDmWith(n.shared_by); } } } : {}),
+            message: wsName ? tr`${person} joined ${wsName} — say hi.` : tr`${person} joined your workspace — say hi.`,
+            ...(n.shared_by ? { action: { label: tr({ message: 'Message', context: 'verb' }), onClick: () => { opened(); openDmWith(n.shared_by); } } } : {}),
           });
           continue;
         }
-        const joinedName = joinedBoard?.name || 'your cluster';
+        const joinedName = joinedBoard?.name || tr`your cluster`;
+        const person = n.detail || tr`Someone`;
         feedback.toast({
           type: 'success',
           ttl: 8000,
-          message: `${n.detail || 'Someone'} joined "${joinedName}" — say hi.`,
-          ...(joinedBoard ? { action: { label: 'Open', onClick: () => { opened(); openBoard(n.board_id); } } } : {}),
+          message: tr`${person} joined "${joinedName}" — say hi.`,
+          ...(joinedBoard ? { action: { label: tr`Open`, onClick: () => { opened(); openBoard(n.board_id); } } } : {}),
         });
         continue;
       }
       // Someone with view access asked to edit a cluster of yours (0830):
       // "Review" opens its Share panel on the asks.
       if (n.kind === 'edit_request') {
-        const askedName = boards[n.board_id]?.name || 'a cluster';
+        const askedName = boards[n.board_id]?.name || tr`a cluster`;
+        const person = n.detail || tr`Someone`;
         feedback.toast({
           type: 'info',
           ttl: 10000,
-          message: `${n.detail || 'Someone'} asked to edit “${askedName}”`,
-          ...(n.board_id ? { action: { label: 'Review', onClick: () => openShareAsks(n.board_id) } } : {}),
+          message: tr`${person} asked to edit “${askedName}”`,
+          ...(n.board_id ? { action: { label: tr`Review`, onClick: () => openShareAsks(n.board_id) } } : {}),
         });
         continue;
       }
@@ -6181,21 +6220,24 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // shared list is refetched so the cluster is editable. The live yes
       // arrives through the bell (the effect after useMyTier below).
       if (n.kind === 'edit_granted') {
-        const grantedName = boards[n.board_id]?.name || 'a cluster';
+        const grantedName = boards[n.board_id]?.name || tr`a cluster`;
+        const person = n.detail || tr`They`;
         feedback.toast({
           type: 'success',
           ttl: 8000,
-          message: `${n.detail || 'They'} said yes: you can edit “${grantedName}”.`,
+          message: tr`${person} said yes: you can edit “${grantedName}”.`,
         });
         forgetIndexRefusals(); forgetCanWrite();
         refreshSharedBoards?.();
         continue;
       }
       const board = boards[n.board_id];
-      const name = board?.name || 'a cluster';
+      const name = board?.name || tr`a cluster`;
       feedback.toast({
         type: 'info',
-        message: `${n.role === 'editor' ? 'Editor access' : 'View access'} to "${name}" was shared with you. Find it in "Shared with me".`,
+        message: n.role === 'editor'
+          ? tr`Editor access to "${name}" was shared with you. Find it in "Shared with me".`
+          : tr`View access to "${name}" was shared with you. Find it in "Shared with me".`,
       });
     }
     // After the user has seen the batch (small delay so the toast renders),
@@ -6316,16 +6358,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [putTick, setPutTick] = useState(0);
   const putFilesOnBoard = (boardId, cardIds) => new Promise((resolve, reject) => {
     const ids = [...new Set((cardIds || []).filter(Boolean))];
-    if (!boardId || !boards[boardId]) { reject(putRefusal('gone', 'That cluster isn’t here any more.')); return; }
-    const name = boards[boardId].name || 'That cluster';
-    if (!canEditBoard(boardId)) { reject(putRefusal('view_only', `${name} is view-only for you.`)); return; }
+    if (!boardId || !boards[boardId]) { reject(putRefusal('gone', tr`That cluster isn’t here any more.`)); return; }
+    const name = boards[boardId].name || tr`That cluster`;
+    if (!canEditBoard(boardId)) { reject(putRefusal('view_only', tr`${name} is view-only for you.`)); return; }
     if (!ids.length) { resolve({ placed: 0, left: 0 }); return; }
     const was = pendingPutRef.current;
-    if (was) { clearTimeout(was.timer); was.reject(putRefusal('replaced', 'Another Put on board took its place.')); }
+    if (was) { clearTimeout(was.timer); was.reject(putRefusal('replaced', tr`Another Put on board took its place.`)); }
     const timer = setTimeout(() => {
       if (pendingPutRef.current?.timer !== timer) return;
       pendingPutRef.current = null;
-      reject(putRefusal('not_open', `${name} didn’t open, so nothing was put on its board.`));
+      reject(putRefusal('not_open', tr`${name} didn’t open, so nothing was put on its board.`));
     }, PUT_OPEN_MS);
     pendingPutRef.current = { boardId, ids, resolve, reject, timer };
     if (mobileShell) setMobileNavOpen(false);
@@ -6357,7 +6399,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (p.boardId !== currentBoard.id) {
       pendingPutRef.current = null;
       clearTimeout(p.timer);
-      p.reject(putRefusal('other_opened', `Another cluster opened before ${boards[p.boardId]?.name || 'that cluster'} did, so nothing was put on its board.`));
+      const openedName = boards[p.boardId]?.name || tr`that cluster`;
+      p.reject(putRefusal('other_opened', tr`Another cluster opened before ${openedName} did, so nothing was put on its board.`));
       return;
     }
     // The first paint is the cache's, which can be behind: wait for the
@@ -6367,13 +6410,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     pendingPutRef.current = null;
     clearTimeout(p.timer);
     const muts = mainMutatorsGuarded;
-    if (muts.captureGuarded) { p.reject(putRefusal('capture', 'The board is showing a capture layout. Put them on once it’s closed.')); return; }
+    if (muts.captureGuarded) { p.reject(putRefusal('capture', tr`The board is showing a capture layout. Put them on once it’s closed.`)); return; }
     const asked = new Set(p.ids);
     const waiting = live.filter((c) => asked.has(c.id) && isUnplaced(c));
     const take = waiting.slice(0, PUT_ON_BOARD_MAX);
     const plan = take.length ? planPutOnBoard(live, take.map((c) => c.id), getViewCenter(p.boardId), { layout: layoutForPut(take) }) : [];
     if (!plan.length) {
-      feedback.toast({ type: 'info', message: live.some((c) => asked.has(c.id)) ? 'Those are already on the board.' : 'Those files aren’t there any more.' });
+      feedback.toast({ type: 'info', message: live.some((c) => asked.has(c.id)) ? tr`Those are already on the board.` : tr`Those files aren’t there any more.` });
       p.resolve({ placed: 0, left: 0 });
       return;
     }
@@ -6385,7 +6428,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const left = waiting.length - plan.length;
     undoToast(feedback, {
       type: 'success',
-      message: `${plan.length === 1 ? 'Put on the board' : `${plan.length} put on the board`}${left ? ` · ${left} still in Files` : ''}`,
+      message: left
+        ? plural(plan.length, { one: `Put on the board · ${left} still in Files`, other: `# put on the board · ${left} still in Files` })
+        : plural(plan.length, { one: 'Put on the board', other: '# put on the board' }),
       undoManager: um, stackItem: item,
       onUndo: () => muts.undo?.(),
     });
@@ -6401,7 +6446,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!files?.length) return;
     const here = currentSurface === 'board' ? currentBoard?.id : null;
     if (here && canEditBoard(here)) { dropFilesOnCluster(here, files); return; }
-    const picked = await requestClusterPick({ placeholder: 'Upload to…' });
+    const picked = await requestClusterPick({ placeholder: tr`Upload to…` });
     if (picked?.id && boards[picked.id]) dropFilesOnCluster(picked.id, files);
   };
   // Live mirror so stable callbacks (e.g. the guided-tour persist fn) read fresh
@@ -6528,7 +6573,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     let canceled = false;
     try { canceled = new URLSearchParams(window.location.search).get('checkout') === 'canceled'; } catch (_) {}
     if (!canceled) return;
-    feedback.toast({ type: 'info', message: 'Checkout canceled. Nothing was charged.' });
+    feedback.toast({ type: 'info', message: tr`Checkout canceled. Nothing was charged.` });
     // A checkout opened beside a tab holding dropped files (lib/heldUploads.js)
     // lands here when backed out of: that tab stops waiting on a payment.
     announceBillingChange('canceled');
@@ -6781,7 +6826,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       type: 'warning',
       message: nearCapSentence({ count, limit, trialOffer }),
       action: {
-        label: trialOffer ? CTA.tryCreatorShort : 'See Creator',
+        label: trialOffer ? CTA.tryCreatorShort : tr`See Creator`,
         onClick: () => {
           logEventNow(EV.UP_CAP_TOAST_CTA, { count, limit, at, trial_shown: trialOffer });
           openNearCapOffer();
@@ -6834,7 +6879,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     clearCheckoutReturn();
     feedback.toast({
       type: 'success',
-      message: `${PLAN_NAME} is on. Drop those files again — all ${ret.importN} will fit.`,
+      message: tr`${PLAN_NAME} is on. Drop those files again — all ${ph({ importN: ret.importN })} will fit.`,
       ttl: 9000,
     });
     // feedback is the stable provider value; the tier is what we wait for.
@@ -6862,8 +6907,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const wall = cs?.own === false ? null : wallCardsOf(cs);
     if (capPitchedAtRef.current === limit) {
       // Already explained at this limit. Say what happened, don't re-interrupt.
+      const lostNoun = rejectedNoun(cs?.kinds, rejected);
       const lost = rejected > 0
-        ? `${rejected} more ${rejectedNoun(cs?.kinds, rejected)} didn't fit. `
+        ? rejectedMoreDidntFit(lostNoun, rejected)
         : '';
       // The second and later refusals used to say "See Creator" even to
       // someone the trial was waiting for; it was the one cap surface that
@@ -6872,10 +6918,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       feedback.toast({
         type: 'warning',
         message: trial
-          ? `${lost}You're at your ${limit}-card limit. Creator lifts it — free for ${CREATOR_TRIAL_DAYS} days, or invite friends to earn more free ones.`
-          : `${lost}You're at your ${limit}-card limit. Creator lifts it — or invite friends to earn more free ones.`,
+          ? tr`${lost}You're at your ${limit}-card limit. Creator lifts it — free for ${CREATOR_TRIAL_DAYS} days, or invite friends to earn more free ones.`
+          : tr`${lost}You're at your ${limit}-card limit. Creator lifts it — or invite friends to earn more free ones.`,
         action: {
-          label: trial ? CTA.tryCreatorShort : 'See Creator',
+          label: trial ? CTA.tryCreatorShort : tr`See Creator`,
           onClick: () => {
             logEventNow(EV.UP_CAP_TOAST_CTA, { count: cs?.count ?? null, limit, at: 'hit', rejected });
             openCapWall({ wallCards: wall });
@@ -7027,7 +7073,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // cards like an upload, so the walls are an upload's: the card limit is
   // checked first for your own clusters, a full drive answers 402.
   const saveSharedCopy = useCallback(async ({ token, res }) => {
-    const picked = await requestClusterPick({ placeholder: 'Save a copy to…' });
+    const picked = await requestClusterPick({ placeholder: tr`Save a copy to…` });
     const dest = picked?.id ? boards[picked.id] : null;
     if (!dest) return;
     const own = dest.workspace_id === workspace?.id && workspace?.created_by === user?.id;
@@ -7053,10 +7099,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         feedback.toast({ type: 'warning', message: storageFullMessage({ own, paid }) });
         return;
       }
-      const msg = out.reason === 'no_download' ? 'The person who shared it turned off downloading.'
-        : out.reason === 'not_writer' ? 'You can’t add files to that cluster.'
-        : out.reason === 'gone' || out.reason === 'no_access' ? 'This file isn’t shared with you anymore.'
-        : 'Couldn’t save a copy. Try again.';
+      const msg = out.reason === 'no_download' ? tr`The person who shared it turned off downloading.`
+        : out.reason === 'not_writer' ? tr`You can’t add files to that cluster.`
+        : out.reason === 'gone' || out.reason === 'no_access' ? tr`This file isn’t shared with you anymore.`
+        : tr`Couldn’t save a copy. Try again.`;
       feedback.toast({ type: 'error', code: 'shared_file_save_failed', message: msg });
       return;
     }
@@ -7064,15 +7110,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!landed?.ok) {
       log(false, landed?.error || 'append');
       if (landed?.error === 'limit_reached' && own) { pitchCapWall({ limit: mt.effectiveCardLimit || DEMO_CARD_LIMIT, rejected: 1, kinds: [out.card.kind] }); return; }
-      feedback.toast({ type: 'error', code: 'shared_file_save_failed', message: failureMessage(landed, 'save') || 'Couldn’t save a copy. Try again.' });
+      feedback.toast({ type: 'error', code: 'shared_file_save_failed', message: failureMessage(landed, 'save') || tr`Couldn’t save a copy. Try again.` });
       return;
     }
     log(true);
     const cardId = landed.cards?.[0]?.id || out.card.id;
+    const savedTo = dest.name || tr`your cluster`;
     feedback.toast({
       type: 'success',
-      message: `Saved to ${dest.name || 'your cluster'}`,
-      action: { label: 'Show', onClick: () => showSidebarFileRef.current?.(dest.id, cardId, { unplaced: true }) },
+      message: tr`Saved to ${savedTo}`,
+      action: { label: tr`Show`, onClick: () => showSidebarFileRef.current?.(dest.id, cardId, { unplaced: true }) },
     });
   }, [boards, workspace, user?.id, myTier, requestClusterPick, pitchCapWall, pitchStorageGate, feedback]);
 
@@ -7081,7 +7128,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // share's token, never the file's name (components/cards/ShortcutCard.jsx).
   // It counts as a card and takes no storage, so only the card wall applies.
   const addSharedShortcut = useCallback(async ({ token, res }) => {
-    const picked = await requestClusterPick({ placeholder: 'Add a shortcut to…' });
+    const picked = await requestClusterPick({ placeholder: tr`Add a shortcut to…` });
     const dest = picked?.id ? boards[picked.id] : null;
     if (!dest) return;
     const kind = res?.file?.kind || null;
@@ -7101,15 +7148,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!landed?.ok) {
       log(false, landed?.error || 'append');
       if (landed?.error === 'limit_reached' && own) { pitchCapWall({ limit, rejected: 1, kinds: ['shortcut'] }); return; }
-      feedback.toast({ type: 'error', code: 'shortcut_add_failed', message: landed?.error === 'forbidden' ? 'You can’t add to that cluster.' : 'Couldn’t add the shortcut. Try again.' });
+      feedback.toast({ type: 'error', code: 'shortcut_add_failed', message: landed?.error === 'forbidden' ? tr`You can’t add to that cluster.` : tr`Couldn’t add the shortcut. Try again.` });
       return;
     }
     log(true);
     const cardId = landed.cards?.[0]?.id || id;
+    const addedTo = dest.name || tr`your cluster`;
     feedback.toast({
       type: 'success',
-      message: `Shortcut added to ${dest.name || 'your cluster'}`,
-      action: { label: 'Show', onClick: () => {
+      message: tr`Shortcut added to ${addedTo}`,
+      action: { label: tr`Show`, onClick: () => {
         setCurrentSurface('board');
         setViewOverride((o) => (o[dest.id] === 'canvas' ? o : { ...o, [dest.id]: 'canvas' }));
         navHandlers.card({ kind: 'card', boardId: dest.id, cardId });
@@ -7167,7 +7215,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (!nodes.length) return { loose: plan.loose, walked, plan };
 
     const ctrl = new AbortController();
-    const label = nodes.length === 1 ? nodes[0].name : `${nodes.length} folders`;
+    const label = nodes.length === 1 ? nodes[0].name : plural(nodes.length, { one: '# folder', other: '# folders' });
     setFolderImport({ name: label, done: 0, total, cancel: () => ctrl.abort() });
     // Closing the tab mid-import loses whatever has not been written yet, and
     // the browser asks before it lets that happen.
@@ -7257,7 +7305,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       });
     } catch (err) {
       res = null;
-      feedback.toast({ type: 'error', code: 'folder_import_failed', message: 'The folder could not be imported: ' + (err?.message || err), ttl: 8000 });
+      feedback.toast({ type: 'error', code: 'folder_import_failed', message: tr`The folder could not be imported: ${ph({ reason: shownError(err) })}`, ttl: 8000 });
     } finally {
       window.removeEventListener('beforeunload', guard);
       releaseReloadHold();
@@ -7279,27 +7327,33 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
     const nClusters = res.created.length;
     if (res.placed > 0) {
-      const parts = [`${res.placed} ${res.placed === 1 ? 'file' : 'files'} in ${nClusters} ${nClusters === 1 ? 'cluster' : 'clusters'}`];
+      const placed = res.placed;
+      // One message, so a translator can inflect "clusters" after "in".
+      const summary = tr`${plural(placed, { one: '# file', other: '# files' })} in ${plural(nClusters, { one: '# cluster', other: '# clusters' })}`;
       const notes = [];
-      if (res.cancelled) notes.push('stopped where you cancelled');
-      if (res.failed + res.writeFailed > 0) notes.push(`${res.failed + res.writeFailed} could not be added`);
-      if (walked.truncated) notes.push(`only the first ${walked.files} files were read`);
-      if (walked.skipped.packages) notes.push(`${walked.skipped.packages} app or project ${walked.skipped.packages === 1 ? 'bundle was' : 'bundles were'} left out`);
-      if (walked.skipped.icloud) notes.push(`${walked.skipped.icloud} not yet downloaded from iCloud`);
+      if (res.cancelled) notes.push(tr`stopped where you cancelled`);
+      const notAdded = res.failed + res.writeFailed;
+      if (notAdded > 0) notes.push(tr`${notAdded} could not be added`);
+      if (walked.truncated) notes.push(tr`only the first ${ph({ files: walked.files })} files were read`);
+      const skippedPackages = walked.skipped.packages;
+      if (skippedPackages) notes.push(plural(skippedPackages, { one: '# app or project bundle was left out', other: '# app or project bundles were left out' }));
+      const skippedIcloud = walked.skipped.icloud;
+      if (skippedIcloud) notes.push(tr`${skippedIcloud} not yet downloaded from iCloud`);
+      const noteText = notes.join('; ');
       feedback.toast({
         type: notes.length ? 'warning' : 'success',
-        message: `Imported ${parts[0]}${notes.length ? ` — ${notes.join('; ')}` : ''}.`,
+        message: notes.length ? tr`Imported ${summary} — ${noteText}.` : tr`Imported ${summary}.`,
         ttl: 10000,
         // Deleting shows an undo; so does making forty clusters at once.
         action: {
-          label: 'Undo',
+          label: tr`Undo`,
           onClick: async () => {
             try {
               await undoFolderImport(res, { deleteCluster, removeTopCard });
               await refreshBoards();
               logEvent(EV.FOLDER_IMPORT_UNDO, { board_id: targetBoardId, n_clusters: nClusters });
             } catch (e) {
-              feedback.toast({ type: 'error', code: 'folder_import_undo_failed', message: 'Undo failed — the clusters are still in the sidebar: ' + (e?.message || e) });
+              feedback.toast({ type: 'error', code: 'folder_import_undo_failed', message: tr`Undo failed — the clusters are still in the sidebar: ${ph({ reason: shownError(e) })}` });
             }
           },
         },
@@ -7308,7 +7362,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // lone cluster card on a blank canvas.
       if (boardWasEmpty && res.tops.length === 1 && targetBoardId === currentBoard?.id && !res.cancelled) openBoardRef.current(res.tops[0]);
     } else if (!res.stopped) {
-      feedback.toast({ type: 'info', message: res.cancelled ? 'Folder import cancelled — nothing was added.' : 'Nothing in that folder could be added.' });
+      feedback.toast({ type: 'info', message: res.cancelled ? tr`Folder import cancelled — nothing was added.` : tr`Nothing in that folder could be added.` });
     }
     if (res.stopped && res.stopped.code !== 'cap') {
       // Out of storage: the one pitch, after what landed is safe — or, for a
@@ -7323,9 +7377,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (plan.blocked.length && !res.stopped) {
       feedback.toast({
         type: 'warning',
-        message: `${plan.blocked.length} ${plan.blocked.length === 1 ? 'file is' : 'files are'} over the free ${FREE_FILE_CAP_LABEL} limit and ${plan.blocked.length === 1 ? 'was' : 'were'} left out — Creator takes any size, up to ${CREATOR_STORAGE_LABEL}.`,
+        message: plural(plan.blocked.length, {
+          one: `# file is over the free ${FREE_FILE_CAP_LABEL} limit and was left out — Creator takes any size, up to ${ph({ CREATOR_STORAGE_LABEL: creatorStorageLabel() })}.`,
+          other: `# files are over the free ${FREE_FILE_CAP_LABEL} limit and were left out — Creator takes any size, up to ${ph({ CREATOR_STORAGE_LABEL: creatorStorageLabel() })}.`,
+        }),
         ttl: 7000,
-        action: { label: 'See Creator', onClick: () => pitchStorageGate({ force: true }) },
+        action: { label: tr`See Creator`, onClick: () => pitchStorageGate({ force: true }) },
       });
     }
     return { loose: plan.loose, walked, plan, res };
@@ -7374,7 +7431,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         }).eligible,
         addon: own && paid && !trialing && !STORAGE_ADDON_HELD,
         interval: 'month',
-        firstPayment: end && Number.isFinite(end.getTime()) ? end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null,
+        firstPayment: end && Number.isFinite(end.getTime()) ? (uiLocale() === 'en' ? end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : formatDate(end, { month: 'short', day: 'numeric' })) : null,
       };
     },
     makeDeps: ({ targetBoardId, canAttemptFiles, kind, sourceRef, placeTops }) => makeImportDeps({
@@ -7424,8 +7481,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       try { await refreshBoards(); } catch (_) {}
       myTierRef.current?.refetch?.();
       feedback.toast({
-        type: 'info', message: `Removed ${title} — its clusters are in the trash.`, ttl: 10000,
-        action: { label: 'Undo', onClick: async () => {
+        type: 'info', message: tr`Removed ${title} — its clusters are in the trash.`, ttl: 10000,
+        action: { label: tr`Undo`, onClick: async () => {
           await restoreBoardsAnnouncing(topIds, feedback);
           try { await refreshBoards(); } catch (_) {}
           myTierRef.current?.refetch?.();
@@ -7493,8 +7550,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     });
     if (out?.loose?.length) dropFilesOnCluster(target, out.loose);
   };
-  const uploadFolderFromSidebar = (files) => (files?.length ? uploadTreeFromSidebar({ pickedFiles: files, source: 'picker' }, 'Import into…') : null);
-  const uploadZipsFromSidebar = (files) => (files?.length ? uploadTreeFromSidebar({ zips: files, askZips: false, source: 'zip' }, 'Unpack into…') : null);
+  const uploadFolderFromSidebar = (files) => (files?.length ? uploadTreeFromSidebar({ pickedFiles: files, source: 'picker' }, tr`Import into…`) : null);
+  const uploadZipsFromSidebar = (files) => (files?.length ? uploadTreeFromSidebar({ zips: files, askZips: false, source: 'zip' }, tr`Unpack into…`) : null);
   // The tray's guide (lib/importGuide.js): the cluster its drops go into,
   // what fits there now, and its drops and picks, which import as the Upload
   // menu's do (a zip unpacks without asking: that is what the guide is for).
@@ -7503,7 +7560,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const w = bulkImportEnv().who(here?.id);
     const st = sidebarStorage;
     return {
-      target: here ? here.name || 'this cluster' : null,
+      target: here ? here.name || tr`this cluster` : null,
       room: {
         own: here ? w.own : workspace?.created_by === user?.id,
         plan: w.plan,
@@ -7515,7 +7572,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // webkitdirectory and still opens a file picker, and other tablets'
       // can't be counted on either. The guide says zip it.
       canFolder: !mobileShell && !isTouch,
-      onImport: (input) => uploadTreeFromSidebar({ ...input, askZips: false, source: 'guide' }, 'Import into…'),
+      onImport: (input) => uploadTreeFromSidebar({ ...input, askZips: false, source: 'guide' }, tr`Import into…`),
     };
   };
   // Imports a reload or a closed tab stopped, offered in the tray once this
@@ -7600,7 +7657,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (bulkImportAllowed() && args.source !== 'held') return startBulkImportHere(args);
     while (folderImportBusyRef.current && args.source === 'held') await folderImportIdleRef.current;
     if (folderImportBusyRef.current) {
-      feedback.toast({ type: 'info', message: 'A folder is still importing. Drop this one again when it has finished.', ttl: 6000 });
+      feedback.toast({ type: 'info', message: tr`A folder is still importing. Drop this one again when it has finished.`, ttl: 6000 });
       return { loose: [] };
     }
     folderImportBusyRef.current = true;
@@ -7705,7 +7762,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             message: rewardToastMessage({ deltaCards: rest, asInviter }),
             // The highest-intent re-share moment — turn the celebration back into
             // the loop instead of dead-ending. Longer ttl so the CTA is clickable.
-            action: { label: asInviter ? 'Invite more' : 'Invite someone', onClick: () => openInviteFriends('reward_toast') },
+            action: { label: asInviter ? tr`Invite more` : tr`Invite someone`, onClick: () => openInviteFriends('reward_toast') },
             ttl: 12000,
           });
         } catch (_) {}
@@ -7760,13 +7817,18 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // nothing. Say so, quietly — a toast, never the wall. Visible board
         // only, and once per card (syncCardIndex announces each id once).
         if (rejectedBoardId === currentId && !(Number(e?.detail?.rejected) > 0)) {
-          const one = nKept === 1;
           try {
             feedback.toast({
               type: 'warning',
-              message: `${nKept} card${one ? '' : 's'} here ${one ? "isn't" : "aren't"} counted — `
-                + (ownRejected ? "you're at your card limit. " : "this cluster's owner is at their card limit. ")
-                + `${one ? 'It stays' : 'They stay'} on the canvas, but won't show in search or tags until there's room.`,
+              message: ownRejected
+                ? plural(nKept, {
+                  one: "# card here isn't counted — you're at your card limit. It stays on the canvas, but won't show in search or tags until there's room.",
+                  other: "# cards here aren't counted — you're at your card limit. They stay on the canvas, but won't show in search or tags until there's room.",
+                })
+                : plural(nKept, {
+                  one: "# card here isn't counted — this cluster's owner is at their card limit. It stays on the canvas, but won't show in search or tags until there's room.",
+                  other: "# cards here aren't counted — this cluster's owner is at their card limit. They stay on the canvas, but won't show in search or tags until there's room.",
+                }),
               ttl: 9000,
             });
           } catch (_) {}
@@ -7829,15 +7891,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         });
       } else {
         const capInfo = boardCapacity.get?.(rejectedBoardId);
-        const limitTxt = capInfo?.cap ? `${capInfo.cap}-card limit` : 'card limit';
+        const capLimit = capInfo?.cap;
+        const limitTxt = capLimit ? tr`${capLimit}-card limit` : tr`card limit`;
         // Name the loss here too — a collaborator whose drop half-vanished is
         // owed the same accounting as an owner, even though the fix isn't theirs.
+        const lostNoun = rejectedNoun(rejectedKinds, nRejected);
         const lead = nRejected > 0
-          ? `${nRejected} ${rejectedNoun(rejectedKinds, nRejected)} couldn't be added. This cluster is at the owner's ${limitTxt}`
-          : `This cluster is at the owner's ${limitTxt}`;
+          ? tr`${ph({ lead: rejectedNotAdded(lostNoun, nRejected) })} This cluster is at the owner's ${limitTxt}`
+          : tr`This cluster is at the owner's ${limitTxt}`;
         feedback.toast({
           type: 'warning',
-          message: `${lead} — they'll need to upgrade or clear space before more cards fit.`,
+          message: tr`${lead} — they'll need to upgrade or clear space before more cards fit.`,
         });
       }
     };
@@ -8176,12 +8240,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             markMomentumHintSeen();
             try { logEvent(EV.MOMENTUM_NUDGE_SHOWN, { board_id: currentId, after: genuineCards(yb.cards).length }); } catch (_) {}
             feedback.toast({
-              message: 'Nice start — boards get good at 3+. Add a few more?',
+              message: tr`Nice start — boards get good at 3+. Add a few more?`,
               ttl: 6000,
-              action: { label: 'Add more', onClick: () => document.dispatchEvent(new CustomEvent('soleil-pick-photos', { detail: { boardId: currentId } })) },
+              action: { label: tr`Add more`, onClick: () => document.dispatchEvent(new CustomEvent('soleil-pick-photos', { detail: { boardId: currentId } })) },
             });
           } else {
-            feedback.toast({ type: 'success', message: 'You’re set — tip: open Clusters on your computer for the full studio.', ttl: 5000 });
+            feedback.toast({ type: 'success', message: tr`You’re set — tip: open Clusters on your computer for the full studio.`, ttl: 5000 });
           }
         } else if (tour.state.variant === 'project_first') {
           // Keyboardless devices (touch iPads run this variant too — isPhone is
@@ -8198,19 +8262,19 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             try { logEvent(EV.MOMENTUM_NUDGE_SHOWN, { board_id: currentId, after: genuineCards(yb.cards).length, source: 'project_first_completion' }); } catch (_) {}
             feedback.toast({
               message: coarse
-                ? 'Nice start — boards get good at 3+. Add a few more?'
-                : 'Nice start — boards get good at 3+. Paste or drag in a few more.',
+                ? tr`Nice start — boards get good at 3+. Add a few more?`
+                : tr`Nice start — boards get good at 3+. Paste or drag in a few more.`,
               ttl: 6000,
             });
           } else {
             feedback.toast({
               type: 'success',
-              message: coarse ? 'You’re set — drag in anything you like.' : 'You’re set — drag in anything, and ⌘Z undoes.',
+              message: coarse ? tr`You’re set — drag in anything you like.` : tr`You’re set — drag in anything, and ⌘Z undoes.`,
               ttl: 5000,
             });
           }
         } else {
-          feedback.toast({ type: 'success', message: 'That’s the tour — tip: Files shows any cluster like a drive. Press F to switch.', ttl: 5000 });
+          feedback.toast({ type: 'success', message: tr`That’s the tour — tip: Files shows any cluster like a drive. Press F to switch.`, ttl: 5000 });
         }
       } catch (_) {}
     }
@@ -8374,7 +8438,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           const b = await createBoard({
             workspaceId: workspace.id,
             parentBoardId: rootBoard.id,
-            name: 'Ideas',
+            name: tr`Ideas`,
             view: 'canvas',
             userId: user.id,
           });
@@ -8435,9 +8499,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     (async () => {
       try {
         const b = await createBoard({ workspaceId: workspace.id, parentBoardId: rootBoard.id, name: 'Showcase preview', view: 'canvas', userId: user.id });
-        if (!b?.id) { feedback.toast({ type: 'error', code: 'showcase_create_failed', message: 'Showcase preview: could not create the cluster.' }); return; }
+        if (!b?.id) { feedback.toast({ type: 'error', code: 'showcase_create_failed', message: tr`Showcase preview: could not create the cluster.` }); return; }
         const res = await supabase.rpc('prepare_showcase', { p_board_id: b.id });
-        if (res.error) { feedback.toast({ type: 'error', code: 'showcase_prepare_failed', message: 'Showcase preview failed: ' + (res.error.message || 'RPC error') }); }
+        if (res.error) { const reason = res.error.message || tr`RPC error`; feedback.toast({ type: 'error', code: 'showcase_prepare_failed', message: tr`Showcase preview failed: ${reason}` }); }
         const tpl = res.data;
         if (tpl?.snapshot) {
           // Stamp the cloned cards seed:true + showcase:true (decodeShowcaseCards) so
@@ -8456,16 +8520,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           // the image grant. Best-effort: if the party is unreachable, proceed.
           try { await forceResetBoardRoom(b.id); } catch (e) { console.warn('[showcasepreview] room reset failed (continuing)', e); }
         } else {
-          feedback.toast({ type: 'error', code: 'showcase_empty', message: 'Showcase preview: no content returned (showcase disabled in config?).' });
+          feedback.toast({ type: 'error', code: 'showcase_empty', message: tr`Showcase preview: no content returned (showcase disabled in config?).` });
         }
         try { await refreshBoards(); } catch (_) {}
         setStack([b.id]);
-        if (tpl?.snapshot) feedback.toast({ type: 'success', message: 'Showcase preview ready — delete this cluster when done.' });
+        if (tpl?.snapshot) feedback.toast({ type: 'success', message: tr`Showcase preview ready — delete this cluster when done.` });
         // strip the param so a reload doesn't make a second copy
         try { const u = new URL(window.location.href); u.searchParams.delete('showcasepreview'); window.history.replaceState({}, '', u.toString()); } catch (_) {}
       } catch (e) {
         console.error('[showcasepreview] failed', e);
-        feedback.toast({ type: 'error', code: 'showcase_failed', message: 'Showcase preview failed: ' + (e?.message || e) });
+        feedback.toast({ type: 'error', code: 'showcase_failed', message: tr`Showcase preview failed: ${ph({ reason: shownError(e) })}` });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -8543,23 +8607,23 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               : await claimGridLayoutLink(src.value);  // a private share token
             saved = await getGridLayout(id);
           }
-          feedback.toast({ message: 'Grid template added' });
+          feedback.toast({ message: tr`Grid template added` });
           // rowFromRecord is the same reader the panel uses, so the prompt gets a
           // sanitized tree, reading-order hints and a clamped size by the one path
           // that has always produced them. A row that fails to parse simply means
           // no prompt — the template is still saved and the toast still fired.
           const row = saved ? rowFromRecord(saved, SOURCES.DOWNLOADED) : null;
-          if (row) setJustAddedTemplate(row);
+          if (row) setJustAddedTemplate(localizeRow(row));
         } catch (e) {
-          feedback.toast({ type: 'info', message: 'That template is no longer live.' });
+          feedback.toast({ type: 'info', message: tr`That template is no longer live.` });
         }
       })();
       return;
     }
     (async () => {
       try {
-        const b = await createBoard({ workspaceId: workspace.id, parentBoardId: rootBoard.id, name: 'Remix', view: 'canvas', userId: user.id });
-        if (!b?.id) { feedback.toast({ type: 'error', code: 'remix_create_failed', message: 'Could not start your copy — try again.' }); return; }
+        const b = await createBoard({ workspaceId: workspace.id, parentBoardId: rootBoard.id, name: tr`Remix`, view: 'canvas', userId: user.id });
+        if (!b?.id) { feedback.toast({ type: 'error', code: 'remix_create_failed', message: tr`Could not start your copy — try again.` }); return; }
         const res = await supabase.rpc('prepare_remix', {
           p_token: src.kind === 'token' ? src.value : null,
           p_slug:  src.kind === 'slug'  ? src.value : null,
@@ -8568,7 +8632,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const tpl = res?.data;
         if (res?.error || !tpl?.snapshot) {
           try { logEvent(EV.REMIX_FAILED, { kind: src.kind, stage: 'prepare', reason: String(res?.error?.message || 'no_snapshot').slice(0, 120) }); } catch (_) {}
-          feedback.toast({ type: 'error', code: 'remix_prepare_failed', message: 'That cluster could not be copied (the link may have expired).' });
+          feedback.toast({ type: 'error', code: 'remix_prepare_failed', message: tr`That cluster could not be copied (the link may have expired).` });
           try { await deleteBoard(b.id); } catch (_) {}
           return;
         }
@@ -8576,7 +8640,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (!cards.length) {
           try { logEvent(EV.REMIX_FAILED, { kind: src.kind, stage: 'decode', reason: 'empty' }); } catch (_) {}
           try { await deleteBoard(b.id); } catch (_) {}
-          feedback.toast({ type: 'info', message: 'That cluster had nothing to copy.' });
+          feedback.toast({ type: 'info', message: tr`That cluster had nothing to copy.` });
           return;
         }
         if (tpl.name) { try { await renameBoard(b.id, `${tpl.name} (remix)`); } catch (_) {} }
@@ -8590,7 +8654,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       } catch (e) {
         console.error('[remix] consume failed', e);
         try { logEvent(EV.REMIX_FAILED, { kind: src.kind, stage: 'consume', reason: String(e?.message || e).slice(0, 120) }); } catch (_) {}
-        feedback.toast({ type: 'error', code: 'remix_finish_failed', message: 'Could not finish your copy — try again.' });
+        feedback.toast({ type: 'error', code: 'remix_finish_failed', message: tr`Could not finish your copy — try again.` });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -8616,17 +8680,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const requested = res.requested ?? pend.cards.length;
       if (added === 0) {
         try { logEvent(EV.REMIX_FAILED, { kind: pend.kind, stage: 'seed', reason: 'demo_cap_full' }); } catch (_) {}
-        feedback.toast({ type: 'info', message: 'Your copy is ready, but the demo is full — upgrade to add these cards.' });
+        feedback.toast({ type: 'info', message: tr`Your copy is ready, but the demo is full — upgrade to add these cards.` });
       } else {
         try { logEvent(EV.REMIX_CLONE, { kind: pend.kind, n: added, source_board_id: pend.source || null }); } catch (_) {}
         feedback.toast(added < requested
-          ? { type: 'success', message: `Copied ${added} of ${requested} cards — upgrade for the rest.` }
-          : { type: 'success', message: 'Copied to your workspace — make it your own.' });
+          ? { type: 'success', message: plural(requested, {
+              one: `Copied ${added} of # card — upgrade for the rest.`,
+              other: `Copied ${added} of # cards — upgrade for the rest.`,
+            }) }
+          : { type: 'success', message: tr`Copied to your workspace — make it your own.` });
       }
     } catch (e) {
       console.error('[remix] seed failed', e);
       try { logEvent(EV.REMIX_FAILED, { kind: pend.kind, stage: 'seed', reason: String(e?.message || e).slice(0, 120) }); } catch (_) {}
-      feedback.toast({ type: 'error', code: 'remix_seed_failed', message: 'Could not finish your copy — try again.' });
+      feedback.toast({ type: 'error', code: 'remix_seed_failed', message: tr`Could not finish your copy — try again.` });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentId, currentYDoc, yb.ready, yb.boardId, yb.cards.length, mainMutators]);
@@ -8700,7 +8767,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (META_REG_BAR === 'first_card') fireMetaReg();
         // A small confirming beat on the very first genuine card — once per account
         // (the fcKey stamp guards it, so a reload never re-fires it).
-        try { feedback.toast({ type: 'success', message: 'Nice — your first card is on the cluster', ttl: 3500 }); } catch (_) {}
+        try { feedback.toast({ type: 'success', message: tr`Nice — your first card is on the cluster`, ttl: 3500 }); } catch (_) {}
         // First value reached → end any passive escalation immediately (the
         // dedicated effect below also stops the friction signal on this change).
         setFrictionStuck(false);
@@ -8907,11 +8974,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       feedback.toast({
         type: 'info',
         message: atCap
-          ? 'Welcome back — your board is where you left it.'
-          : 'Welcome back — your board is where you left it. Paste or drop anything to keep adding.',
+          ? tr`Welcome back — your board is where you left it.`
+          : tr`Welcome back — your board is where you left it. Paste or drop anything to keep adding.`,
         ttl: 9000,
         action: last && boardId ? {
-          label: 'Show my last card',
+          label: tr`Show my last card`,
           onClick: () => {
             try { logEvent(EV.RESUME_GREET_ACTION, { action: 'jump' }); } catch (_) {}
             // Navigate the way ⌘K does: the board's own path (never a push onto
@@ -9317,11 +9384,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setSharedBoardIds((prev) => (prev.has(currentBoard.id) ? prev : new Set(prev).add(currentBoard.id)));
       feedback.toast(copied
         ? { type: 'success',
-            message: kind === 'invite' ? 'Link copied. Anyone with it can join and edit.' : 'Link copied. Anyone with it can view and join.',
-            action: { label: 'Manage access', onClick: () => setShareOpen(true) }, ttl: 9000 }
+            message: kind === 'invite' ? tr`Link copied. Anyone with it can join and edit.` : tr`Link copied. Anyone with it can view and join.`,
+            action: { label: tr`Manage access`, onClick: () => setShareOpen(true) }, ttl: 9000 }
         : { type: 'info', message: url, ttl: 9000 });
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'share_link_failed', message: 'Could not create a share link — try again.' });
+      feedback.toast({ type: 'error', code: 'share_link_failed', message: tr`Could not create a share link — try again.` });
     } finally {
       setQuickShareBusy(false);
     }
@@ -9386,10 +9453,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       try { logEvent(EV.SHARE_ASK_SHOWN, { board_id: boardId, cards, at: SHARE_ASK_MIN_CARDS }); } catch (_) {}
       shareAskSkippedRef.current.add(boardId);
       feedback.toast({
-        message: 'This cluster is looking good — send it to someone?',
+        message: tr`This cluster is looking good — send it to someone?`,
         ttl: 9000,
         action: {
-          label: 'Copy link',
+          label: tr`Copy link`,
           onClick: () => {
             try { logEventNow(EV.SHARE_ASK_TAKEN, { board_id: boardId, cards, at: SHARE_ASK_MIN_CARDS }); } catch (_) {}
             quickCopyShareLinkRef.current?.();
@@ -9754,7 +9821,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             && movedCards.some((c) => isSeedCard(c))) {
           logEvent(EV.ONBOARDING_NEST, { board_id: targetBoardId, source_board_id: sourceBoardId, n: movedCards.length });
           try { setJourneyState({ phase: JOURNEY_PHASE.NEST }); } catch (_) {}
-          feedback.toast({ type: 'success', message: 'Nice — that’s how you organize' });
+          feedback.toast({ type: 'success', message: tr`Nice — that’s how you organize` });
           // Never let a mid-tour nest kill the guided tour (arm B has no
           // tutorialBoardId today, so this is insurance; the body flag is the
           // live source of truth inside this long-lived listener closure).
@@ -9841,7 +9908,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         if (!snap) {
           console.error('[xbm] aborting: target board_state is empty', { targetBoardId, sourceBoardId });
           await fail(new Error('target board_state empty'),
-            'Could not load the destination cluster’s state. Move cancelled to prevent data loss. Try again in a moment.', 'load');
+            tr`Could not load the destination cluster’s state. Move cancelled to prevent data loss. Try again in a moment.`, 'load');
           return;
         }
         const tmp = boardDoc(targetBoardId);
@@ -9927,7 +9994,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           });
           tmp.destroy();
           await fail(new Error('tmp card count below expected'),
-            'Move cancelled — the destination cluster’s state looked unsafe to overwrite.', 'verify');
+            tr`Move cancelled — the destination cluster’s state looked unsafe to overwrite.`, 'verify');
           return;
         }
         const tmpFinalCount = tmp.getMap('cards').size;
@@ -9937,7 +10004,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         } catch (saveErr) {
           console.error('[xbm:save] saveBoardSnapshot threw', saveErr);
           tmp.destroy();
-          await fail(saveErr, 'Could not save destination cluster: ' + (saveErr.message || saveErr), 'save');
+          await fail(saveErr, tr`Could not save destination cluster: ${ph({ reason: saveErr.message || saveErr })}`, 'save');
           return;
         }
         console.log('[xbm:save] done');
@@ -9959,7 +10026,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         } catch (resetErr) {
           console.error('[xbm] target room reset failed; NOT acking (source keeps cards)', resetErr);
           await fail(resetErr,
-            'Move incomplete — could not finalize the destination cluster. Your cards are safe on this cluster; try again.', 'room_reset');
+            tr`Move incomplete — could not finalize the destination cluster. Your cards are safe on this cluster; try again.`, 'room_reset');
           return;
         }
         // If the target happens to be open (e.g. the split pane / another
@@ -10010,14 +10077,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // later edits, and both boards get the room-reset treatment any
         // out-of-band board_state write requires. The pre-drop snapshots
         // remain the catastrophic fallback.
-        const targetName = createdBoardName || boards[targetBoardId]?.name || 'cluster';
+        const targetName = createdBoardName || boards[targetBoardId]?.name || tr`cluster`;
         undoToast(feedback, {
           type: 'success',
           message: createdBoardId
-            ? (movedCards.length === 1 ? `Made “${targetName}” from 1 card` : `Made “${targetName}” from ${movedCards.length} cards`)
-            : movedCards.length === 1
-              ? `Moved card to “${targetName}”`
-              : `Moved ${movedCards.length} cards to “${targetName}”`,
+            ? plural(movedCards.length, { one: `Made “${targetName}” from # card`, other: `Made “${targetName}” from # cards` })
+            : plural(movedCards.length, { one: `Moved card to “${targetName}”`, other: `Moved # cards to “${targetName}”` }),
           onUndo: async () => {
             try {
               // 1) Strip the copies from the TARGET (same snapshot
@@ -10113,7 +10178,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               feedback.toast({
                 type: 'error',
                 code: 'card_xmove_undo_failed',
-                message: 'Undo failed — the pre-move snapshots are still available for recovery. ' + (undoErr.message || undoErr),
+                message: tr`Undo failed — the pre-move snapshots are still available for recovery. ${ph({ reason: undoErr.message || undoErr })}`,
                 ttl: 8000,
               });
             }
@@ -10122,7 +10187,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
 
       } catch (err) {
         console.error('cross-board move failed', err);
-        await fail(err, 'Move failed: ' + (err?.message || err), acked ? 'after_ack' : 'other');
+        await fail(err, tr`Move failed: ${ph({ reason: shownError(err) })}`, acked ? 'after_ack' : 'other');
       }
     };
     document.addEventListener('soleil-card-into-board-drop', onDrop);
@@ -10169,7 +10234,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       if (e.defaultPrevented || isEditablePointerTarget(e)) return;
       if (!isDataDrag(e)) return;
       e.preventDefault(); // stop the browser navigating to / opening the drop
-      try { feedback?.toast?.({ type: 'info', message: 'Drop onto a cluster’s canvas to add it.' }); } catch (_) {}
+      try { feedback?.toast?.({ type: 'info', message: tr`Drop onto a cluster’s canvas to add it.` }); } catch (_) {}
     };
     window.addEventListener('dragover', onDragOver);
     window.addEventListener('drop', onDrop);
@@ -10190,15 +10255,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // tree is still 100% correct and the only artifact is a cosmetic card that
   // the reconcile-drift effect / planCanvasReconcile heal on next open.
   useEffect(() => {
-    const REASON_TEXT = {
-      cycle: "can't put a board inside itself",
-      self: "can't drop a board onto itself",
-      'same-parent': 'already there',
-      'cross-workspace': 'different workspace',
-      'no-write': 'no edit access',
-      missing: 'not found',
-      'target-missing': 'destination not found',
-    };
+    const REASON_TEXT = () => ({
+      cycle: tr`can't put a board inside itself`,
+      self: tr`can't drop a board onto itself`,
+      'same-parent': tr`already there`,
+      'cross-workspace': tr`different workspace`,
+      'no-write': tr`no edit access`,
+      missing: tr`not found`,
+      'target-missing': tr`destination not found`,
+    });
     const onReparent = async (e) => {
       const { childIds, targetId = null, onDone, onFailed } = e.detail || {};
       const done = (r) => { try { onDone?.(r); } catch (_) {} };
@@ -10209,8 +10274,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const { movable, skipped } = planReparent(boards, childIds, targetId);
       if (!movable.length) {
         if (skipped.length) {
-          const reasons = [...new Set(skipped.map(s => REASON_TEXT[s.reason] || s.reason))];
-          feedback.toast({ type: 'info', message: `Nothing moved — ${reasons.join(', ')}.` });
+          const reasonText = REASON_TEXT();
+          const reasons = [...new Set(skipped.map(s => reasonText[s.reason] || s.reason))];
+          feedback.toast({ type: 'info', message: tr`Nothing moved — ${ph({ join: reasons.join(', ') })}.` });
         }
         done({ moved: [], skipped });
         return;
@@ -10220,7 +10286,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       //    to clean up afterward.
       const prevParents = new Map();
       for (const id of movable) prevParents.set(id, boards[id]?.parent_board_id ?? null);
-      const targetName = targetId ? (boards[targetId]?.name || 'board') : 'top level';
+      const toTop = !targetId;
+      const targetName = targetId ? (boards[targetId]?.name || tr`board`) : tr`top level`;
 
       // 2b) Optimistically hide each moved card from its OLD parent's canvas
       //     right now, so it doesn't snap back to its drag-origin and linger
@@ -10271,7 +10338,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         result = await moveBoardsUnder(movable, targetId, { userId: user?.id || null, sessionId: yb?.sessionId || null });
       } catch (err) {
         console.error('[reparent] move_boards_under failed', err);
-        feedback.toast({ type: 'error', code: 'cluster_move_failed', message: 'Move failed: ' + (err.message || err) });
+        feedback.toast({ type: 'error', code: 'cluster_move_failed', message: tr`Move failed: ${ph({ reason: shownError(err) })}` });
         clearPending(); // un-hide — the move didn't happen, restore the card
         fail(err);
         return;
@@ -10356,11 +10423,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       //    back. The closure returns every moved board to its previous
       //    parent through the same sanctioned move_boards_under path.
       if (moved.length) {
+        const firstName = boards[moved[0]]?.name || tr`board`;
         const msg = moved.length === 1
-          ? `Moved “${boards[moved[0]]?.name || 'board'}” into ${targetName === 'top level' ? 'top level' : `“${targetName}”`}`
-          : `Moved ${moved.length} boards into ${targetName === 'top level' ? 'top level' : `“${targetName}”`}`;
-        const extra = (result?.skipped?.length)
-          ? ` · skipped ${result.skipped.length}`
+          ? (toTop ? tr`Moved “${firstName}” into top level` : tr`Moved “${firstName}” into “${targetName}”`)
+          : toTop
+            ? plural(moved.length, { one: 'Moved # board into top level', other: 'Moved # boards into top level' })
+            : plural(moved.length, { one: `Moved # board into “${targetName}”`, other: `Moved # boards into “${targetName}”` });
+        const skippedCount = result?.skipped?.length;
+        const extra = skippedCount
+          ? tr` · skipped ${skippedCount}`
           : '';
         const homes = new Map(); // previous parent (null = top level) → ids
         for (const id of moved) {
@@ -10380,13 +10451,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               // Stale mirror cards on the target are hidden by the orphan
               // render filter and healed by reconcile-drift on next open.
             } catch (err) {
-              feedback.toast({ type: 'error', code: 'cluster_move_undo_failed', message: 'Undo failed: ' + (err.message || err) });
+              feedback.toast({ type: 'error', code: 'cluster_move_undo_failed', message: tr`Undo failed: ${ph({ reason: shownError(err) })}` });
             }
           },
         });
       } else if (result?.skipped?.length) {
-        const reasons = [...new Set(result.skipped.map(s => REASON_TEXT[s.reason] || s.reason))];
-        feedback.toast({ type: 'info', message: `Nothing moved — ${reasons.join(', ')}.` });
+        const reasonText = REASON_TEXT();
+        const reasons = [...new Set(result.skipped.map(s => reasonText[s.reason] || s.reason))];
+        feedback.toast({ type: 'info', message: tr`Nothing moved — ${ph({ join: reasons.join(', ') })}.` });
       }
       // Un-hide: on success the moved card is already gone from the doc (step 6
       // removal ran in this same sync continuation), so clearing now can't
@@ -10407,7 +10479,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       const name = boards[e?.detail?.boardId]?.name;
       feedback.toast({
         type: 'warning',
-        message: `${name ? `“${name}”` : 'A cluster'} hit a sync error and was reloaded from the server. If a very recent edit looks missing, it may need to be redone.`,
+        message: name
+          ? tr`“${name}” hit a sync error and was reloaded from the server. If a very recent edit looks missing, it may need to be redone.`
+          : tr`A cluster hit a sync error and was reloaded from the server. If a very recent edit looks missing, it may need to be redone.`,
         ttl: 10000,
       });
     };
@@ -10486,62 +10560,88 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Command palette actions. Per-shell so each closure captures the right
   // setters; `available` gates rows that need an editable board / a real board.
   const appCommands = useMemo(() => [
-    { id: 'new-board', label: 'New project', icon: LayoutGrid, keywords: ['new', 'add', 'create', 'cluster', 'board', 'project'],
+    { id: 'new-board', label: tr`New project`, icon: LayoutGrid, keywords: searchWords(['new', 'add', 'create', 'cluster', 'board', 'project'],
+        tr({ message: 'new, add, create, cluster, board, project', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       available: canEditBoard(rootBoard.id),
       run: async () => {
         // Named at birth: a project made from cmd-K landed as "Untitled
         // cluster", and most of those never got a name.
         if (!clusterNudgesAllowed()) { mainMutators.addNewProject?.({ via: 'palette' }); return; }
         const typed = await feedback.prompt({
-          title: 'New project',
-          message: 'A cluster of its own, at the top level. You land inside it.',
-          label: 'Name', placeholder: 'e.g. Kitchen refs', confirmLabel: 'Create cluster',
+          title: tr`New project`,
+          message: tr`A cluster of its own, at the top level. You land inside it.`,
+          label: tr`Name`, placeholder: tr`e.g. Kitchen refs`, confirmLabel: tr`Create cluster`,
         });
         if (typed == null) return;
         const name = String(typed).trim().slice(0, 200);
         mainMutators.addNewProject?.({ via: 'palette', ...(name ? { name } : {}) });
       } },
-    { id: 'new-note', label: 'New note', icon: StickyNote, keywords: ['note', 'text', 'add', 'sticky'],
+    { id: 'new-note', label: tr`New note`, icon: StickyNote, keywords: searchWords(['note', 'text', 'add', 'sticky'],
+        tr({ message: 'note, text, add, sticky', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       available: canEditCurrent && view !== 'list' && currentSurface === 'board',
       run: () => { setCurrentSurface('board'); mainMutators.addNote?.(); } },
-    { id: 'home', label: 'Go to Home', icon: Home, keywords: ['home', 'graph', 'overview'],
+    { id: 'home', label: tr`Go to Home`, icon: Home, keywords: searchWords(['home', 'graph', 'overview'],
+        tr({ message: 'home, graph, overview', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       run: () => setCurrentSurface('home') },
     // Admin only, and deliberately NOT in the shortcuts modal: that modal's
     // SECTIONS is a documented public surface, and this is internal staging.
     // The palette is the discoverable door; Settings → Capture is the manual.
-    { id: 'capture', label: capture.on ? 'Turn off capture mode' : 'Capture mode',
-      icon: Camera, keywords: ['capture', 'screenshot', 'record', 'demo', 'marketing', 'clean'],
+    { id: 'capture', label: capture.on ? tr`Turn off capture mode` : tr`Capture mode`,
+      icon: Camera, keywords: searchWords(['capture', 'screenshot', 'record', 'demo', 'marketing', 'clean'],
+        tr({ message: 'capture, screenshot, record, demo, marketing, clean', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       available: captureAllowed,
       run: () => setCapture({ on: !capture.on, clean: true, silence: true, freeze: true }) },
     // Same doctrine, same reason for being here and not in the shortcuts modal.
-    { id: 'gallery', label: 'Surface gallery', icon: LayoutGrid,
-      keywords: ['gallery', 'surface', 'preview', 'popup', 'modal', 'screen', 'browse', 'design'],
+    { id: 'gallery', label: tr`Surface gallery`, icon: LayoutGrid,
+      keywords: searchWords(['gallery', 'surface', 'preview', 'popup', 'modal', 'screen', 'browse', 'design'],
+        tr({ message: 'gallery, surface, preview, popup, modal, screen, browse, design', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       available: captureAllowed,
       run: () => openGallery() },
-    { id: 'view-switch', label: switchMode === 'off' ? 'Show Files' : 'Hide Files',
+    { id: 'view-switch', label: switchMode === 'off' ? tr`Show Files` : tr`Hide Files`,
       icon: switchMode === 'off' ? FilesIcon : BoundingBox,
-      keywords: ['files', 'board', 'canvas', 'list', 'grid', 'gallery', 'table', 'view', 'drive', 'browse', 'switch', 'panel'],
+      keywords: searchWords(['files', 'board', 'canvas', 'list', 'grid', 'gallery', 'table', 'view', 'drive', 'browse', 'switch', 'panel'],
+        tr({ message: 'files, board, canvas, list, grid, gallery, table, view, drive, browse, switch, panel', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       available: currentSurface === 'board',
       run: () => (switchInSplit
         ? setPaneView(nextView(switchView), 'palette', switchBoardId)
         : applyFilesEventRef.current('toggle', 'palette')) },
-    { id: 'link-board', label: 'Link a cluster onto canvas', icon: LinkIcon, keywords: ['link', 'embed', 'reference', 'cluster', 'board'],
+    { id: 'link-board', label: tr`Link a cluster onto canvas`, icon: LinkIcon, keywords: searchWords(['link', 'embed', 'reference', 'cluster', 'board'],
+        tr({ message: 'link, embed, reference, cluster, board', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       available: canEditCurrent && currentSurface === 'board',
       run: () => openBoardLinkPicker() },
-    { id: 'split', label: 'Open split view', icon: Columns2, keywords: ['split', 'side by side', 'compare'],
+    { id: 'split', label: tr`Open split view`, icon: Columns2, keywords: searchWords(['split', 'side by side', 'compare'],
+        tr({ message: 'split, side by side, compare', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       run: () => setSplitPickerOpen(true) },
-    { id: 'share', label: 'Share this cluster', icon: Share2, keywords: ['share', 'invite', 'collaborate', 'public link'],
+    { id: 'share', label: tr`Share this cluster`, icon: Share2, keywords: searchWords(['share', 'invite', 'collaborate', 'public link'],
+        tr({ message: 'share, invite, collaborate, public link', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       available: currentSurface === 'board', run: () => setShareOpen(true) },
-    { id: 'messages', label: 'Messages', icon: MessageSquare, keywords: ['messages', 'chat', 'dm', 'comments'],
+    { id: 'messages', label: tr`Messages`, icon: MessageSquare, keywords: searchWords(['messages', 'chat', 'dm', 'comments'],
+        tr({ message: 'messages, chat, dm, comments', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       run: () => setTweak('showMessages', !tweak.showMessages) },
-    { id: 'theme', label: 'Toggle theme', icon: themeMode === 'dark' ? Sun : Moon, keywords: ['theme', 'dark', 'light', 'mode'],
+    { id: 'theme', label: tr`Toggle theme`, icon: themeMode === 'dark' ? Sun : Moon, keywords: searchWords(['theme', 'dark', 'light', 'mode'],
+        tr({ message: 'theme, dark, light, mode', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       run: () => setTheme(themeMode === 'dark' ? 'light' : 'dark') },
-    { id: 'sidebar', label: 'Toggle sidebar', icon: PanelLeftClose, keywords: ['sidebar', 'collapse', 'hide', 'panel'],
+    { id: 'sidebar', label: tr`Toggle sidebar`, icon: PanelLeftClose, keywords: searchWords(['sidebar', 'collapse', 'hide', 'panel'],
+        tr({ message: 'sidebar, collapse, hide, panel', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       run: () => toggleSidebarNow() },
     // The files sidebar's files card: hidden, it folds to its
     // heading under the clusters; ⌘\ does the same (ClusterSidebar).
-    { id: 'sidebar-files', label: pageFilesId || sidebarLayout.filesHidden ? 'Show files in the sidebar' : 'Hide files in the sidebar',
-      icon: FilesIcon, keywords: ['files', 'sidebar', 'hide', 'show', 'panel'],
+    { id: 'sidebar-files', label: pageFilesId || sidebarLayout.filesHidden ? tr`Show files in the sidebar` : tr`Hide files in the sidebar`,
+      icon: FilesIcon, keywords: searchWords(['files', 'sidebar', 'hide', 'show', 'panel'],
+        tr({ message: 'files, sidebar, hide, show, panel', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       // Hiding needs the sidebar open to mean anything; Show opens it too.
       // While the full Files page folds the card, Show shrinks the page back.
       available: filesSidebar && !mobileShell && (sidebarShownNow || !!sidebarLayout.filesHidden || !!pageFilesId),
@@ -10555,39 +10655,59 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // what they expect ("scroll", "wheel", "zoom") rather than for the name of
     // the setting, which they have no reason to know.
     { id: 'wheel-mode',
-      label: wheelModeState === 'zoom' ? 'Scroll wheel: zoom → pan' : 'Scroll wheel: pan → zoom',
-      icon: Search, keywords: ['scroll', 'wheel', 'zoom', 'pan', 'mouse', 'trackpad'],
+      label: wheelModeState === 'zoom' ? tr`Scroll wheel: zoom → pan` : tr`Scroll wheel: pan → zoom`,
+      icon: Search, keywords: searchWords(['scroll', 'wheel', 'zoom', 'pan', 'mouse', 'trackpad'],
+        tr({ message: 'scroll, wheel, zoom, pan, mouse, trackpad', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       run: () => {
         const m = setWheelMode(wheelModeState === 'zoom' ? 'pan' : 'zoom');
         try { logEvent(EV.WHEEL_MODE_SET, { mode: m, source: 'palette' }); } catch (_) {}
       } },
-    { id: 'trash', label: 'Open trash', icon: Trash2, keywords: ['trash', 'deleted', 'restore', 'bin'],
+    { id: 'trash', label: tr`Open trash`, icon: Trash2, keywords: searchWords(['trash', 'deleted', 'restore', 'bin'],
+        tr({ message: 'trash, deleted, restore, bin', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       run: () => setTrashOpen(true) },
-    { id: 'version-history', label: 'Version history', icon: History, keywords: ['history', 'versions', 'snapshots', 'restore', 'rollback', 'time travel'],
+    { id: 'version-history', label: tr`Version history`, icon: History, keywords: searchWords(['history', 'versions', 'snapshots', 'restore', 'rollback', 'time travel'],
+        tr({ message: 'history, versions, snapshots, restore, rollback, time travel', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       available: currentSurface === 'board',
       run: () => setVersionsOpen(true) },
-    { id: 'settings', label: 'Open settings', icon: Settings,
-      keywords: ['settings', 'preferences', 'workspace', 'appearance', 'theme', 'display', 'defaults'],
+    { id: 'settings', label: tr`Open settings`, icon: Settings,
+      keywords: searchWords(['settings', 'preferences', 'workspace', 'appearance', 'theme', 'display', 'defaults'],
+        tr({ message: 'settings, preferences, workspace, appearance, theme, display, defaults', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       run: () => openSettings('appearance') },
     // New tab: the docs are a separate reading surface, and losing an unsaved
     // canvas to a same-tab navigation would be a poor trade for a help link.
-    { id: 'docs', label: 'Documentation', icon: BookOpen,
-      keywords: ['docs', 'documentation', 'guide', 'manual', 'api', 'mcp', 'how to'],
+    { id: 'docs', label: tr`Documentation`, icon: BookOpen,
+      keywords: searchWords(['docs', 'documentation', 'guide', 'manual', 'api', 'mcp', 'how to'],
+        tr({ message: 'docs, documentation, guide, manual, api, mcp, how to', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       run: () => { logEvent(EV.DOCS_OPEN, { from: 'palette', path: '/docs' }); window.open('/docs', '_blank', 'noopener'); } },
     // The Help hub (components/HelpHub.jsx): one screen naming every kind of
     // card, with the doors to shortcuts, guides, the changelog and feedback.
     // Two commands for the two ways people ask — "help" and "what can I add".
-    { id: 'help', label: 'Help', icon: Question,
-      keywords: ['help', 'how', 'learn', 'tips', 'guide', 'support', 'what can i do'],
+    { id: 'help', label: tr`Help`, icon: Question,
+      keywords: searchWords(['help', 'how', 'learn', 'tips', 'guide', 'support', 'what can i do'],
+        tr({ message: 'help, how, learn, tips, guide, support, what can i do', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       run: () => openHelpHub('palette') },
-    { id: 'add-anything', label: 'What can I add here?', icon: Question,
-      keywords: ['add', 'what', 'kinds', 'cards', 'image', 'note', 'doc', 'script', 'grid', 'cluster', 'file', 'video', 'pdf', 'palette', 'arrow'],
+    { id: 'add-anything', label: tr`What can I add here?`, icon: Question,
+      keywords: searchWords(['add', 'what', 'kinds', 'cards', 'image', 'note', 'doc', 'script', 'grid', 'cluster', 'file', 'video', 'pdf', 'palette', 'arrow'],
+        tr({ message: 'add, what, kinds, cards, image, note, doc, script, grid, cluster, file, video, pdf, palette, arrow', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       run: () => openHelpHub('palette_add') },
-    { id: 'account', label: 'Account & billing', icon: User, keywords: ['account', 'profile', 'billing', 'plan'],
+    { id: 'account', label: tr`Account & billing`, icon: User, keywords: searchWords(['account', 'profile', 'billing', 'plan'],
+        tr({ message: 'account, profile, billing, plan', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       run: () => openSettings('profile') },
-    { id: 'invite', label: 'Invite friends', icon: UserPlus, keywords: ['invite', 'referral', 'friends', 'earn'],
+    { id: 'invite', label: tr`Invite friends`, icon: UserPlus, keywords: searchWords(['invite', 'referral', 'friends', 'earn'],
+        tr({ message: 'invite, referral, friends, earn', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       run: () => openInviteFriends('palette') },
-    { id: 'signout', label: 'Sign out', icon: LogOut, keywords: ['sign out', 'log out', 'logout', 'exit', 'switch account', 'change account', 'log in as'],
+    { id: 'signout', label: tr`Sign out`, icon: LogOut, keywords: searchWords(['sign out', 'log out', 'logout', 'exit', 'switch account', 'change account', 'log in as'],
+        tr({ message: 'sign out, log out, logout, exit, switch account, change account, log in as', context: 'command search words',
+          comment: 'Words people might type to find this command, comma-separated.' })),
       run: () => signOut?.() },
   ], [canEditCurrent, canEditBoard, rootBoard.id, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, sidebarOpen,
       twoDocs, sidebarAskedBack,
@@ -10612,21 +10732,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           type: 'error',
           code: 'day_move_failed',
           message: res?.error === 'forbidden'
-            ? 'You don’t have permission to move this day.'
-            : 'Could not move that day.',
+            ? tr`You don’t have permission to move this day.`
+            : tr`Could not move that day.`,
         });
         return;
       }
       await refreshBoards();
       // Moving a published day pages the whole crew, so say how many were told
       // — and offer the way back, matching the delete/undo-toast convention.
-      const moved = res.notified
-        ? `Moved — ${res.notified} notified`
-        : 'Moved';
+      const notified = res.notified;
+      const moved = notified
+        ? tr`Moved — ${notified} notified`
+        : tr`Moved`;
       feedback.toast({
         type: 'success', message: moved, ttl: 6000,
         action: prevDate ? {
-          label: 'Undo',
+          label: tr`Undo`,
           onClick: async () => {
             try {
               await setBoardSchedule(bId, prevDate, prevEnd);
@@ -10637,7 +10758,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       });
     } catch (e) {
       console.error('setBoardSchedule failed', e);
-      feedback.toast({ type: 'error', code: 'day_move_failed', message: 'Could not move that day.' });
+      feedback.toast({ type: 'error', code: 'day_move_failed', message: tr`Could not move that day.` });
     }
   }, [boards, refreshBoards, feedback]);
 
@@ -10677,13 +10798,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       feedback.toast({
         type: res.failed.length ? 'info' : 'success',
         message: res.failed.length
-          ? `Added ${n} of ${res.requested} days — ${res.failed.length} failed`
-          : `Added ${n} shoot day${n === 1 ? '' : 's'}`,
+          ? tr`Added ${n} of ${ph({ requested: res.requested })} days — ${ph({ count: res.failed.length })} failed`
+          : plural(n, { one: 'Added # shoot day', other: 'Added # shoot days' }),
         ttl: 6000,
         // Matches the delete/undo-toast convention: a bulk add is exactly the
         // kind of thing you want to take back in one press.
         action: n ? {
-          label: 'Undo',
+          label: tr`Undo`,
           onClick: async () => {
             try {
               await Promise.all(res.made.map((d) => deleteBoard(d.id)));
@@ -10694,7 +10815,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       });
     } catch (e) {
       console.error('addShootDays failed', e);
-      feedback.toast({ type: 'error', code: 'day_add_failed', message: 'Could not add those days.' });
+      feedback.toast({ type: 'error', code: 'day_add_failed', message: tr`Could not add those days.` });
     }
   }, [boards, workspace?.id, user.id, refreshBoards, feedback]);
 
@@ -10870,7 +10991,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // With the files sidebar there's no pill to go back with: full Files
     // shrinks back into the sidebar with the same icon that opened it, turned
     // around, and the board returns.
-    const shrinkToSidebar = { shrinkLabel: 'Shrink back to the sidebar', shrinkTitle: 'Shrink back to the sidebar (F)' };
+    const shrinkToSidebar = { shrinkLabel: tr`Shrink back to the sidebar`, shrinkTitle: tr`Shrink back to the sidebar (F)` };
     const dockControls = isMain ? {
       canShrink: canDockMain || filesSidebar,
       onExpand: () => applyFilesEvent('expand', 'button'),
@@ -11068,7 +11189,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           <BoardOpening
             key={board.id}
             name={board.name}
-            backLabel={isMain ? 'Go back' : 'Close'}
+            backLabel={isMain ? tr`Go back` : tr`Close`}
             onBack={isMain ? (stack.length > 1 ? () => goTo(stack.length - 2) : null) : () => setSplitId(null)}
           />
         )}
@@ -11148,7 +11269,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     <div className="sb-mid-head">
       <button className="sb-ws-trigger"
               onClick={() => setWsMenuOpen(o => !o)}
-              title={`${workspace.name} · click to switch`}
+              title={tr`${ph({ name: workspace.name })} · click to switch`}
               aria-haspopup="menu" aria-expanded={wsMenuOpen}>
         {(() => {
           const iconSrc = workspace.settings?.icon_url || '';
@@ -11173,16 +11294,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           everywhere is this icon (and ⌘K). */}
       {filesSidebar && (
         <button className="sb-mid-search" onClick={() => setPaletteOpen(true)}
-                title="Search (⌘K)" aria-label="Search">
+                title={tr`Search (⌘K)`} aria-label={tr`Search`}>
           <Icon as={Search} size={16} weight="regular" />
         </button>
       )}
       {/* A phone's way into /admin (the phone panel): first thing in the
           menu, beside its close, since the top bar has no room (SHELL-06). */}
       {mobileShell && myTier.tier === 'admin' && (
-        <button className="sb-admin-btn" title="Admin dashboard"
+        <button className="sb-admin-btn" title={tr`Admin dashboard`}
                 onClick={() => window.location.assign('/admin')}>
-          Admin
+          <Trans>Admin</Trans>
         </button>
       )}
       {/* In the drawer this is the drawer's close. It used to write the
@@ -11190,8 +11311,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           drawer open with every row hidden. */}
       <button className="sb-mid-collapse"
               onClick={() => (mobileShell ? setMobileNavOpen(false) : toggleSidebarNow())}
-              title={mobileShell ? 'Close menu' : 'Collapse sidebar (⌘B)'}
-              aria-label={mobileShell ? 'Close menu' : 'Collapse sidebar'}>
+              title={mobileShell ? tr`Close menu` : tr`Collapse sidebar (⌘B)`}
+              aria-label={mobileShell ? tr`Close menu` : tr`Collapse sidebar`}>
         <Icon as={PanelLeftClose} size={filesSidebar ? 16 : 14} weight={filesSidebar ? 'regular' : undefined} />
       </button>
       {wsMenuOpen && (
@@ -11218,7 +11339,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             manage: team.me.role !== 'member',
             viewOnly: team.status === 'view_only',
             onOpenPage: () => openTeamPage(),
-            onPickWorkspace: (w) => feedback.toast({ type: 'info', message: `Preview: ${w.name} is an example workspace in the test team.` }),
+            onPickWorkspace: (w) => feedback.toast({ type: 'info', message: tr`Preview: ${ph({ name: w.name })} is an example workspace in the test team.` }),
           } : realTeamMenu}
         />
       )}
@@ -11248,31 +11369,31 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         return <SidebarWho line={line} />;
       }
       const subtitle = isPersonal
-        ? 'Personal'
+        ? tr`Personal`
         : isOwner
-          ? 'Yours'
+          ? tr`Yours`
           // A shared workspace names its owner by address, right under
           // the workspace title — the most prominent leak on the screen.
           : workspace._myRole === 'coowner'
-            ? `Co-owner · shared by ${sharedBy}`
-            : `Shared by ${sharedBy}`;
+            ? tr`Co-owner · shared by ${sharedBy}`
+            : tr`Shared by ${sharedBy}`;
       const visibleMembers = workspaceMembers.slice(0, 6);
       const overflow = workspaceMembers.length - visibleMembers.length;
       return (
         <>
           <div className="sb-mid-subtitle">{subtitle}</div>
           {workspaceMembers.length > 0 && (
-            <div className="sb-members" title={`${workspaceMembers.length} member${workspaceMembers.length === 1 ? '' : 's'}`}>
+            <div className="sb-members" title={plural(workspaceMembers.length, { one: '# member', other: '# members' })}>
               {visibleMembers.map(m => {
                 const online = onlineIds.has(m.user_id);
                 const peer = peerById.get(m.user_id);
                 const tip = peer?.user?.name || peer?.user?.email
-                  || (m.user_id === user.id ? 'You' : 'Member');
+                  || (m.user_id === user.id ? tr`You` : tr`Member`);
                 return (
                   <span key={m.user_id}
                         className={`sb-member ${online ? 'is-online' : ''}`}
                         style={{ background: pickPresenceColor(m.user_id) }}
-                        title={tip + (online ? ' · online' : '')} />
+                        title={online ? tr`${tip} · online` : tip} />
                 );
               })}
               {overflow > 0 && <span className="sb-member sb-member-overflow">+{overflow}</span>}
@@ -11283,9 +11404,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     })()}
 
     {!filesSidebar && (
-      <button className="sb-search" onClick={() => setPaletteOpen(true)} title="Search (⌘K)">
+      <button className="sb-search" onClick={() => setPaletteOpen(true)} title={tr`Search (⌘K)`}>
         <Icon as={Search} size={13} />
-        <span>Search…</span>
+        <span><Trans>Search…</Trans></span>
         <span className="sb-search-kbd">⌘K</span>
       </button>
     )}
@@ -11296,13 +11417,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     <div className={`sb-row ${currentSurface === 'home' ? 'active' : ''}`}
          {...rowButtonProps(() => setCurrentSurface('home'))}>
       <Icon as={Home} size={14} />
-      <span className="sb-row-label">Home</span>
+      <span className="sb-row-label">{tr`Home`}</span>
     </div>
     <div className={`sb-row ${tweak.showMessages ? 'active' : ''}`}
          {...rowButtonProps(() => setTweak('showMessages', !tweak.showMessages))}
-         title={tweak.showMessages ? 'Hide messages' : 'Show messages'}>
+         title={tweak.showMessages ? tr`Hide messages` : tr`Show messages`}>
       <Icon as={MessageSquare} size={14} />
-      <span className="sb-row-label">Messages</span>
+      <span className="sb-row-label"><Trans>Messages</Trans></span>
       {messagesUnread > 0 && (
         <span className="sb-row-count t-meta has-unread">{messagesUnread}</span>
       )}
@@ -11323,9 +11444,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
            }
            setNotifOpen(v => !v);
          })}
-         title={notifOpen ? 'Hide notifications' : 'Show notifications'}>
+         title={notifOpen ? tr`Hide notifications` : tr`Show notifications`}>
       <Icon as={Bell} size={14} />
-      <span className="sb-row-label">Notifications</span>
+      <span className="sb-row-label"><Trans>Notifications</Trans></span>
       {notifications.unread > 0 && (
         <span className="sb-row-count t-meta has-unread">{notifications.unread}</span>
       )}
@@ -11338,14 +11459,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       <div className="sb-row"
            {...rowButtonProps(() => { setMobileNavOpen(false); setVersionsOpen(true); })}>
         <Icon as={History} size={14} />
-        <span className="sb-row-label">Version history</span>
+        <span className="sb-row-label"><Trans>Version history</Trans></span>
       </div>
     )}
     {mobileShell && isTouch && currentSurface === 'board' && (
       <div className="sb-row"
            {...rowButtonProps(() => { setMobileNavOpen(false); setFocusMode(true); })}>
         <Icon as={Maximize2} size={14} />
-        <span className="sb-row-label">Focus view</span>
+        <span className="sb-row-label"><Trans>Focus view</Trans></span>
       </div>
     )}
     </div>
@@ -11356,7 +11477,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const sbFoot = (
     <div className="sb-foot">
       <HelpButton as="foot" via="sidebar" />
-      <button className="sb-foot-icon" title="Settings" aria-label="Settings"
+      <button className="sb-foot-icon" title={tr`Settings`} aria-label={tr`Settings`}
               onClick={() => openSettings('general')}>
         <Icon as={Settings} size={filesSidebar ? 16 : 14} weight={filesSidebar ? 'regular' : undefined} />
       </button>
@@ -11364,14 +11485,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const avatarSrc = ownProfile?.avatar_url || '';
         if (avatarSrc) {
           return (
-            <button className="sb-foot-avatar sb-foot-avatar-img" title="Account"
+            <button className="sb-foot-avatar sb-foot-avatar-img" title={tr`Account`}
                     onClick={() => openSettings('profile')}>
               <R2Image src={avatarSrc} alt="" />
             </button>
           );
         }
         return (
-          <button className="sb-foot-avatar" title="Account"
+          <button className="sb-foot-avatar" title={tr`Account`}
                   style={{ background: userInfo.color || pickPresenceColor(user.id) }}
                   onClick={() => openSettings('profile')}>
             {/* With no avatar set this is the first letter of your
@@ -11412,8 +11533,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     .catch(() => {});
                 }
               }}
-              title="Exit focus view">
-        <Icon as={Minimize2} size={14} /> <span className="clean-mode-exit-label">Exit focus</span>
+              title={tr`Exit focus view`}>
+        <Icon as={Minimize2} size={14} /> <span className="clean-mode-exit-label"><Trans>Exit focus</Trans></span>
       </button>
       {mobileShell && mobileNavOpen && (
         <div className="sidebar-mobile-backdrop"
@@ -11431,7 +11552,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
              aria-hidden={mobileShell && !mobileNavOpen ? 'true' : undefined}
              role={mobileShell && mobileNavOpen ? 'dialog' : undefined}
              aria-modal={mobileShell && mobileNavOpen ? 'true' : undefined}
-             aria-label={mobileShell && mobileNavOpen ? 'Menu' : undefined}>
+             aria-label={mobileShell && mobileNavOpen ? tr`Menu` : undefined}>
         {/* Single-column sidebar. Workspace switcher is now a popover
             triggered from the header (Notion-style) instead of the
             old icon rail. Settings + avatar live at the bottom. */}
@@ -11665,21 +11786,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             left={(
               <>
                 {!sidebarShownNow && (
-                  <button className="tb-icon" {...tlTip('Open sidebar', 'Mod+B')}
-                          aria-label="Open sidebar" aria-keyshortcuts={ariaKeys('Mod+B')}
+                  <button className="tb-icon" {...tlTip(tr`Open sidebar`, 'Mod+B')}
+                          aria-label={tr`Open sidebar`} aria-keyshortcuts={ariaKeys('Mod+B')}
                           onClick={showSidebarNow}>
                     <Icon as={PanelLeftOpen} size={16} />
                   </button>
                 )}
-                <button className="tb-brand" {...tlTip('Home')} aria-label="Clusters home"
+                <button className="tb-brand" {...tlTip(tr`Home`)} aria-label={tr`Clusters home`}
                         onClick={() => setCurrentSurface('home')}>
                   <ClustersMark size={20} />
                 </button>
-                <button className="tb-icon tb-hist" {...tlTip('Back')} aria-label="Back"
+                <button className="tb-icon tb-hist" {...tlTip(tr`Back`)} aria-label={tr`Back`}
                         disabled={!activeNavCaps.back} onClick={() => navHistGo(-1, toolbarPane)}>
                   <Icon as={ChevronLeft} size={15} />
                 </button>
-                <button className="tb-icon tb-hist" {...tlTip('Forward')} aria-label="Forward"
+                <button className="tb-icon tb-hist" {...tlTip(tr`Forward`)} aria-label={tr`Forward`}
                         disabled={!activeNavCaps.fwd} onClick={() => navHistGo(1, toolbarPane)}>
                   <Icon as={ChevronRight} size={15} />
                 </button>
@@ -11699,7 +11820,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                                     onUnhandled={newClusterUnhandled} />
                 )}
                 {!canEditCurrent && (
-                  <span className="tb-viewonly" title="You have view-only access to this cluster"><Icon as={Eye} size={14} weight="regular" />View only</span>
+                  <span className="tb-viewonly" title={tr`You have view-only access to this cluster`}><Icon as={Eye} size={14} weight="regular" /><Trans>View only</Trans></span>
                 )}
               </>
             )}
@@ -11709,20 +11830,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     the bar's buttons are 40px and the trail needs the room
                     beside the files, so the pill and the theme wait in ⋯. */}
                 {myTier.tier === 'admin' && !isTouch && (
-                  <button className="tb-admin-btn" {...tlTip('Admin dashboard')}
+                  <button className="tb-admin-btn" {...tlTip(tr`Admin dashboard`)}
                           onClick={() => window.location.assign('/admin')}>
-                    Admin
+                    <Trans>Admin</Trans>
                   </button>
                 )}
-                <button className="tb-icon" {...tlTip('Undo', 'Mod+Z')} aria-label="Undo"
+                <button className="tb-icon" {...tlTip(tr`Undo`, 'Mod+Z')} aria-label={tr`Undo`}
                         aria-keyshortcuts={ariaKeys('Mod+Z')} disabled={!tbYb.canUndo} onClick={() => tbMutators.undo?.()}>
                   <Icon as={Undo} size={16} />
                 </button>
-                <button className="tb-icon" {...tlTip('Redo', 'Mod+Shift+Z')} aria-label="Redo"
+                <button className="tb-icon" {...tlTip(tr`Redo`, 'Mod+Shift+Z')} aria-label={tr`Redo`}
                         aria-keyshortcuts={ariaKeys('Mod+Shift+Z')} disabled={!tbYb.canRedo} onClick={() => tbMutators.redo?.()}>
                   <Icon as={Redo} size={16} />
                 </button>
-                <button className="tb-icon" {...tlTip('Search', 'Mod+K')} aria-label="Search"
+                <button className="tb-icon" {...tlTip(tr`Search`, 'Mod+K')} aria-label={tr`Search`}
                         aria-keyshortcuts={ariaKeys('Mod+K')} onClick={() => setPaletteOpen(true)}>
                   <Icon as={Search} size={16} />
                 </button>
@@ -11735,12 +11856,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 {!isTouch ? (
                   <>
                     <button className={`tb-icon tb-icon-split${splitId ? ' is-pressed' : ''}`}
-                            {...tlTip(splitId ? 'Close split view' : 'Pin alongside…')}
-                            aria-label="Split view" aria-pressed={!!splitId}
+                            {...tlTip(splitId ? tr`Close split view` : tr`Pin alongside…`)}
+                            aria-label={tr`Split view`} aria-pressed={!!splitId}
                             onClick={() => (splitId ? setSplitId(null) : setSplitPickerOpen(true))}>
                       <Icon as={Columns2} size={16} />
                     </button>
-                    <button className="tb-icon tb-icon-theme" {...tlTip('Toggle theme')} aria-label="Toggle theme"
+                    <button className="tb-icon tb-icon-theme" {...tlTip(tr`Toggle theme`)} aria-label={tr`Toggle theme`}
                             onClick={() => setTheme(themeMode === 'dark' ? 'light' : 'dark')}>
                       <Icon as={themeMode === 'dark' ? Sun : Moon} size={16} />
                     </button>
@@ -11754,38 +11875,38 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 {/* In view on touch, as in the bar: a tablet has no ⌘. for clean mode. */}
                 {isTouch && (
                   <button className="tb-icon tb-icon-focus" onClick={() => setFocusMode(true)}
-                          {...tlTip('Focus view — hide everything but the cluster')}
-                          aria-label="Enter focus view">
+                          {...tlTip(tr`Focus view — hide everything but the cluster`)}
+                          aria-label={tr`Enter focus view`}>
                     <Icon as={Maximize2} size={16} />
                   </button>
                 )}
                 {canAskToEdit && <AskToEditButton state={askEditState} onAsk={() => askToEdit(currentBoard.id)} />}
-                <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} {...tlTip('Share this cluster')} aria-label="Share this cluster">
-                  <Icon as={Share2} size={14} weight="regular" /> <span className="tb-btn-label">Share</span>
+                <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} {...tlTip(tr`Share this cluster`)} aria-label={tr`Share this cluster`}>
+                  <Icon as={Share2} size={14} weight="regular" /> <span className="tb-btn-label"><Trans>Share</Trans></span>
                 </button>
               </>
             )}
             menuItems={[
-              { id: 'versions', label: 'Version history', icon: History, run: () => setVersionsOpen(true) },
-              { id: 'trash', label: 'Deleted clusters', icon: Trash2, run: () => setTrashOpen(true) },
+              { id: 'versions', label: tr`Version history`, icon: History, run: () => setVersionsOpen(true) },
+              { id: 'trash', label: tr`Deleted clusters`, icon: Trash2, run: () => setTrashOpen(true) },
               ...(isTouch ? [
                 splitId
-                  ? { id: 'split', label: 'Close split view', icon: Columns2, run: () => setSplitId(null) }
-                  : { id: 'split', label: 'Pin a cluster alongside…', icon: Columns2, run: () => setSplitPickerOpen(true) },
-                { id: 'theme', label: themeMode === 'dark' ? 'Light theme' : 'Dark theme', icon: themeMode === 'dark' ? Sun : Moon,
+                  ? { id: 'split', label: tr`Close split view`, icon: Columns2, run: () => setSplitId(null) }
+                  : { id: 'split', label: tr`Pin a cluster alongside…`, icon: Columns2, run: () => setSplitPickerOpen(true) },
+                { id: 'theme', label: themeMode === 'dark' ? tr`Light theme` : tr`Dark theme`, icon: themeMode === 'dark' ? Sun : Moon,
                   run: () => setTheme(themeMode === 'dark' ? 'light' : 'dark') },
-                ...(myTier.tier === 'admin' ? [{ id: 'admin', label: 'Admin dashboard', icon: LayoutGrid, run: () => window.location.assign('/admin') }] : []),
+                ...(myTier.tier === 'admin' ? [{ id: 'admin', label: tr`Admin dashboard`, icon: LayoutGrid, run: () => window.location.assign('/admin') }] : []),
               ] : []),
               { sep: true },
-              { id: 'help', label: 'Help & feedback', icon: Question, run: () => openHelpHub('topbar') },
+              { id: 'help', label: tr`Help & feedback`, icon: Question, run: () => openHelpHub('topbar') },
             ]}
           />
         ) : (
         <div className={`topbar${showNewCluster ? ' topbar-centered' : ''}`}>
           <div className="tb-left">
             {(!sidebarShownNow || mobileShell) && (
-              <button className="tb-icon" title={mobileShell ? 'Open menu' : 'Open sidebar (⌘B)'}
-                      aria-label={mobileShell ? 'Open menu' : 'Open sidebar'}
+              <button className="tb-icon" title={mobileShell ? tr`Open menu` : tr`Open sidebar (⌘B)`}
+                      aria-label={mobileShell ? tr`Open menu` : tr`Open sidebar`}
                       onClick={() => {
                         if (mobileShell) setMobileNavOpen(true);
                         else showSidebarNow();
@@ -11798,17 +11919,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 the drawer's first row; the crumbs below go up a level. */}
             {!mobileShell && (
               <>
-                <button className="tb-brand" title="Home" aria-label="Clusters home"
+                <button className="tb-brand" title={tr`Home`} aria-label={tr`Clusters home`}
                         onClick={() => setCurrentSurface('home')}>
                   <ClustersMark size={22} />
-                  <span className="tb-brand-text">Clusters</span>
+                  <span className="tb-brand-text"><Trans context="brand">Clusters</Trans></span>
                 </button>
                 <span className="tb-brand-sep" aria-hidden="true" />
-                <button className="tb-icon" title="Back" aria-label="Back"
+                <button className="tb-icon" title={tr`Back`} aria-label={tr`Back`}
                         disabled={!activeNavCaps.back} onClick={() => navHistGo(-1, toolbarPane)}>
                   <Icon as={ChevronLeft} size={15} />
                 </button>
-                <button className="tb-icon" title="Forward" aria-label="Forward"
+                <button className="tb-icon" title={tr`Forward`} aria-label={tr`Forward`}
                         disabled={!activeNavCaps.fwd} onClick={() => navHistGo(1, toolbarPane)}>
                   <Icon as={ChevronRight} size={15} />
                 </button>
@@ -11852,13 +11973,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 ~540px in a 390px bar and pushed Share off-screen (SHELL-06). */}
             {myTier.tier === 'admin' && !mobileShell && (
               <button className="tb-admin-btn"
-                      title="Admin dashboard"
+                      title={tr`Admin dashboard`}
                       onClick={() => window.location.assign('/admin')}>
-                Admin
+                <Trans>Admin</Trans>
               </button>
             )}
             {!mobileShell && (
-              <button className="tb-icon" title="Search (⌘K)" aria-label="Search"
+              <button className="tb-icon" title={tr`Search (⌘K)`} aria-label={tr`Search`}
                       onClick={() => setPaletteOpen(true)}>
                 <Icon as={Search} size={16} />
               </button>
@@ -11867,20 +11988,20 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 of two buttons that can never be enabled. */}
             {(!mobileShell || canEditCurrent) && (
               <>
-                <button className="tb-icon" title="Undo (⌘Z)" aria-label="Undo" disabled={!tbYb.canUndo} onClick={() => tbMutators.undo?.()}>
+                <button className="tb-icon" title={tr`Undo (⌘Z)`} aria-label={tr`Undo`} disabled={!tbYb.canUndo} onClick={() => tbMutators.undo?.()}>
                   <Icon as={Undo} size={16} />
                 </button>
-                <button className="tb-icon" title="Redo (⌘⇧Z)" aria-label="Redo" disabled={!tbYb.canRedo} onClick={() => tbMutators.redo?.()}>
+                <button className="tb-icon" title={tr`Redo (⌘⇧Z)`} aria-label={tr`Redo`} disabled={!tbYb.canRedo} onClick={() => tbMutators.redo?.()}>
                   <Icon as={Redo} size={16} />
                 </button>
               </>
             )}
             {!mobileShell && (
               <>
-                <button className="tb-icon" title="Version history" onClick={() => setVersionsOpen(true)}>
+                <button className="tb-icon" title={tr`Version history`} onClick={() => setVersionsOpen(true)}>
                   <Icon as={History} size={16} />
                 </button>
-                <button className="tb-icon tb-icon-trash" title="Deleted clusters (Trash)" onClick={() => setTrashOpen(true)}>
+                <button className="tb-icon tb-icon-trash" title={tr`Deleted clusters (Trash)`} onClick={() => setTrashOpen(true)}>
                   <Icon as={Trash2} size={16} />
                 </button>
                 <HelpButton as="tb" via="topbar" />
@@ -11899,12 +12020,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             {/* On a phone the Ask to edit button takes the pill's room (the
                 bar has none to spare): it says the same, and presses. */}
             {!canEditCurrent && !(mobileShell && canAskToEdit) && (
-              <span className="tb-viewonly" title="You have view-only access to this cluster"><Icon as={Eye} size={14} weight="regular" />View only</span>
+              <span className="tb-viewonly" title={tr`You have view-only access to this cluster`}><Icon as={Eye} size={14} weight="regular" /><Trans>View only</Trans></span>
             )}
             {isTouch && !mobileShell && (
               <button className="tb-icon tb-icon-focus" onClick={() => setFocusMode(true)}
-                      title="Focus view — hide everything but the cluster"
-                      aria-label="Enter focus view">
+                      title={tr`Focus view — hide everything but the cluster`}
+                      aria-label={tr`Enter focus view`}>
                 <Icon as={Maximize2} size={16} />
               </button>
             )}
@@ -11931,16 +12052,16 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 invitations. */}
             {canAskToEdit && <AskToEditButton state={askEditState} onAsk={() => askToEdit(currentBoard.id)} />}
             {notifBell}
-            <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} title="Share this cluster" aria-label="Share this cluster">
-              <Icon as={Share2} size={14} weight="regular" /> <span className="tb-btn-label">Share</span>
+            <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} title={tr`Share this cluster`} aria-label={tr`Share this cluster`}>
+              <Icon as={Share2} size={14} weight="regular" /> <span className="tb-btn-label"><Trans>Share</Trans></span>
             </button>
-            <button className="tb-icon tb-icon-theme" title="Toggle theme"
+            <button className="tb-icon tb-icon-theme" title={tr`Toggle theme`}
                     onClick={() => setTheme(themeMode === 'dark' ? 'light' : 'dark')}>
               <Icon as={themeMode === 'dark' ? Sun : Moon} size={16} />
             </button>
             <button className="tb-icon tb-icon-split"
                     onClick={() => splitId ? setSplitId(null) : setSplitPickerOpen(true)}
-                    title={splitId ? 'Close split view' : 'Pin alongside…'}>
+                    title={splitId ? tr`Close split view` : tr`Pin alongside…`}>
               <Icon as={Columns2} size={16} />
             </button>
           </div>
@@ -11948,7 +12069,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         )}
         {altSessionId && (
           <div className="alt-session-banner">
-            Test session ({altSessionId}) — sign in as a different account here, then collab with the main window.
+            <Trans>Test session ({altSessionId}) — sign in as a different account here, then collab with the main window.</Trans>
           </div>
         )}
 
@@ -12001,7 +12122,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 await renameWorkspace(workspace.id, name);
                 await onWorkspacesChanged?.();
               } catch (e) {
-                feedback.toast({ type: 'error', code: 'workspace_rename_failed', message: 'Could not rename the workspace: ' + (e.message || e) });
+                feedback.toast({ type: 'error', code: 'workspace_rename_failed', message: tr`Could not rename the workspace: ${ph({ reason: shownError(e) })}` });
               }
             }}
             onOpenBoard={(id, via) => {
@@ -12018,7 +12139,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               // The tree's drag-to-nest, with its pre-validation, mirror
               // cleanup and Undo: the same event, from a picked cluster.
               const exclude = [id, ...collectDescendantIds(boards, id)];
-              const target = await requestClusterPick({ placeholder: `Move “${boards[id]?.name || 'cluster'}” into…`, excludeIds: exclude });
+              const moveName = boards[id]?.name || tr`cluster`;
+              const target = await requestClusterPick({ placeholder: tr`Move “${moveName}” into…`, excludeIds: exclude });
               logHomeClusterAction(target?.id ? 'move' : 'move_cancelled');
               if (!target?.id) return;
               document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', { detail: { childIds: [id], targetId: target.id } }));
@@ -12164,27 +12286,27 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       {/* The admin preview's test team page (look only): lazy, over the board
           column and beside the sidebar. */}
       {team && teamPage && (
-        <Suspense fallback={<PanelWait title="Team" variant="page" />}>
+        <Suspense fallback={<PanelWait title={tr`Team`} variant="page" />}>
           <TeamPage key={`${team.me.id}:${team.status}`} team={team} initialTab={teamPage.tab} onClose={closeTeamPage}
                     onToast={(message) => feedback.toast({ type: 'info', message })} />
         </Suspense>
       )}
 
       {!team && realTeam && teamPage && (
-        <Suspense fallback={<PanelWait title="Team" variant="page" />}>
+        <Suspense fallback={<PanelWait title={tr`Team`} variant="page" />}>
           <TeamPageLive key={realTeam.org_id} orgId={realTeam.org_id} initialTab={teamPage.tab} onClose={closeRealTeamPage}
                         onToast={(message) => feedback.toast({ type: 'info', message })} />
         </Suspense>
       )}
 
       {wsLimitAsk && (
-        <Suspense fallback={<PanelWait title="Workspaces" onClose={() => setWsLimitAsk(null)} />}>
+        <Suspense fallback={<PanelWait title={tr`Workspaces`} onClose={() => setWsLimitAsk(null)} />}>
           <WorkspaceLimitDialog {...wsLimitAsk} onClose={() => setWsLimitAsk(null)} />
         </Suspense>
       )}
 
       {newWsAsk && (
-        <Suspense fallback={<PanelWait title="New workspace" onClose={() => setNewWsAsk(null)} />}>
+        <Suspense fallback={<PanelWait title={tr`New workspace`} onClose={() => setNewWsAsk(null)} />}>
           <NewWorkspaceDialog team={newWsAsk.team}
                               userName={user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || ''}
                               defaultFor={workspace?.org_id === newWsAsk.team.org_id ? 'team' : 'me'}
@@ -12208,7 +12330,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         rootId={rootBoard.id}
         recents={recents.recents}
         mobileShell={mobileShell}
-        placeholder="Search boards to link…"
+        placeholder={tr`Search boards to link…`}
         onPickBoard={(b) => addLink(b, linkPickerPosRef.current)}
       />
 
@@ -12224,7 +12346,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         rootId={rootBoard.id}
         recents={recents.recents}
         mobileShell={mobileShell}
-        placeholder="Open a cluster…"
+        placeholder={tr`Open a cluster…`}
         onPickBoard={(b) => {
           setStack(ancestorPath(boards, b.id));
           recents.push(b.id);
@@ -12243,7 +12365,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         rootId={rootBoard.id}
         recents={recents.recents}
         mobileShell={mobileShell}
-        placeholder="Open a board in split view…"
+        placeholder={tr`Open a board in split view…`}
         onPickBoard={(b) => { setSplitId(b.id); setSplitPickerOpen(false); }}
       />
 
@@ -12262,7 +12384,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         rootId={rootBoard.id}
         recents={recents.recents}
         mobileShell={mobileShell}
-        placeholder={clusterPick?.placeholder || 'Go to cluster…'}
+        placeholder={clusterPick?.placeholder || tr`Go to cluster…`}
         onPickBoard={(b) => { const pending = clusterPick; setClusterPick(null); pending?.resolve(b); }}
       />
 
@@ -12363,7 +12485,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         // With the files sidebar Messages wears its card (messagesLook.js).
         <MessagesLookContext.Provider value={filesSidebar ? 'card' : null}>
         <MessagesBoardsContext.Provider value={msgBoardInfo}>
-        <Suspense fallback={<PanelWait title="Messages" variant="dock" onClose={() => setTweak('showMessages', false)} />}>
+        <Suspense fallback={<PanelWait title={tr`Messages`} variant="dock" onClose={() => setTweak('showMessages', false)} />}>
         <MessagesPanel
           workspaceId={workspace.id}
           currentUser={userInfo}
@@ -12409,11 +12531,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         const shareWs = !foreignWs ? workspace : {
           id: shareTarget.workspace_id,
           name: (sharedBoards || []).find((r) => r.source_workspace_id === shareTarget.workspace_id)?.source_workspace_name
-            || 'their workspace',
+            || tr`their workspace`,
           created_by: null,
         };
         return (
-          <Suspense fallback={<PanelWait title="Share" onClose={() => { setShareOpen(false); setShareInitialSection(null); setShareScope('cluster'); setShareBoardId(null); }} />}>
+          <Suspense fallback={<PanelWait title={tr`Share`} onClose={() => { setShareOpen(false); setShareInitialSection(null); setShareScope('cluster'); setShareBoardId(null); }} />}>
           <ShareModal
             board={shareTarget}
             workspace={shareWs}
@@ -12511,12 +12633,15 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       {folderImport && (
         <div className="folder-import-status" role="status" aria-live="polite">
           <span className="folder-import-label">
-            Importing “{folderImport.name}” — {folderImport.done} of {folderImport.total} {folderImport.total === 1 ? 'file' : 'files'}
+            {plural(folderImport.total, {
+              one: `Importing “${ph({ name: folderImport.name })}” — ${ph({ done: folderImport.done })} of # file`,
+              other: `Importing “${ph({ name: folderImport.name })}” — ${ph({ done: folderImport.done })} of # files`,
+            })}
           </span>
           <span className="folder-import-track" aria-hidden="true">
             <span className="folder-import-fill" style={{ width: `${Math.round((100 * folderImport.done) / Math.max(1, folderImport.total))}%` }} />
           </span>
-          <button type="button" className="folder-import-cancel" onClick={folderImport.cancel}>Cancel</button>
+          <button type="button" className="folder-import-cancel" onClick={folderImport.cancel}><Trans>Cancel</Trans></button>
         </div>
       )}
 
@@ -12598,7 +12723,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onClose={() => setStorageAddonSurface(null)}
           onDone={({ quotaBytes }) => feedback.toast({
             type: 'success',
-            message: quotaBytes ? `Added — your drive is now ${storageAmountLabel(quotaBytes)}.` : 'Added.',
+            message: quotaBytes ? tr`Added — your drive is now ${ph({ storageAmountLabel: storageAmountLabel(quotaBytes) })}.` : tr`Added.`,
           })} />
       )}
 
@@ -12798,13 +12923,13 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             : 'home'
           }
           tabs={[
-            { key: 'home',     label: 'Home',     icon: <Icon as={Home} size={20} /> },
-            { key: 'search',   label: 'Search',   icon: <Icon as={Search} size={20} /> },
+            { key: 'home',     label: tr`Home`,     icon: <Icon as={Home} size={20} /> },
+            { key: 'search',   label: tr`Search`,   icon: <Icon as={Search} size={20} /> },
             // The unread count the drawer row and the tab title already show;
             // the always-visible tab said nothing until the drawer was opened.
-            { key: 'messages', label: 'Messages', icon: <Icon as={MessageSquare} size={20} />,
+            { key: 'messages', label: tr`Messages`, icon: <Icon as={MessageSquare} size={20} />,
               badge: messagesUnread > 0 ? (messagesUnread > 99 ? '99+' : messagesUnread) : null },
-            { key: 'settings', label: 'Settings', icon: <Icon as={Settings} size={20} /> },
+            { key: 'settings', label: tr`Settings`, icon: <Icon as={Settings} size={20} /> },
           ]}
           onChange={(k) => {
             // Each tap is a destination; closing the others keeps the
@@ -12905,8 +13030,8 @@ function SplitContainer({ left, right, ratio = 0.5, onRatio, showSplit = true, a
               to the split rather than to either board, so it collides with no
               canvas overlay and sits between the two panes it governs.
               stopPropagation, or pressing it would start a resize drag. */}
-          <button className="split-close" title="Close split view"
-                  aria-label="Close split view"
+          <button className="split-close" title={tr`Close split view`}
+                  aria-label={tr`Close split view`}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onClose?.(); }}>
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none"
@@ -12932,8 +13057,8 @@ function AskToEditButton({ state = null, onAsk }) {
   return (
     <button type="button" className={`ask-edit${asked ? ' is-asked' : ''}`}
             disabled={asked || state === 'busy'} onClick={() => onAsk?.()}
-            title={asked ? 'Asked. We’ll tell you when they say yes.' : 'Ask the people who shared this to let you edit'}>
-      {asked ? 'Asked' : 'Ask to edit'}
+            title={asked ? tr`Asked. We’ll tell you when they say yes.` : tr`Ask the people who shared this to let you edit`}>
+      {asked ? tr`Asked` : tr`Ask to edit`}
     </button>
   );
 }
@@ -12957,14 +13082,14 @@ function TopbarAddMenu({ onAddBoard, onAddDoc, onLinkBoard }) {
 
   return (
     <div className="topbar-add">
-      <button className="tb-btn ghost" title="Add" aria-label="Topbar add menu" aria-expanded={open} onClick={() => setOpen(value => !value)}>
+      <button className="tb-btn ghost" title={tr`Add`} aria-label={tr`Topbar add menu`} aria-expanded={open} onClick={() => setOpen(value => !value)}>
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 2 V11 M2 6.5 H11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
-        Add
+        <Trans>Add</Trans>
       </button>
       {open && (
-        <div className="topbar-add-menu" role="menu" aria-label="Add">
-          <button role="menuitem" onClick={() => { setOpen(false); onAddBoard(); }}>Cluster</button>
-          <button role="menuitem" onClick={() => { setOpen(false); onLinkBoard(); }}>Linked cluster</button>
+        <div className="topbar-add-menu" role="menu" aria-label={tr`Add`}>
+          <button role="menuitem" onClick={() => { setOpen(false); onAddBoard(); }}><Trans>Cluster</Trans></button>
+          <button role="menuitem" onClick={() => { setOpen(false); onLinkBoard(); }}><Trans>Linked cluster</Trans></button>
           {/* Docs are added as canvas cards now — use Add → Doc inside a board. */}
         </div>
       )}
@@ -13010,9 +13135,9 @@ function FullScreenError({ error, signOut, actionLabel = null, onAction = null, 
     return (
       <div className="auth-screen">
         <div className="auth-card">
-          <div className="auth-title">Sign in again to open your clusters</div>
-          <div className="auth-sub" style={{ marginBottom: 14 }}>This sign-in can't open your account. Sign in with the code we email you and everything will be there.</div>
-          <button className="auth-btn" onClick={signOut}>Sign in with your email code</button>
+          <div className="auth-title"><Trans>Sign in again to open your clusters</Trans></div>
+          <div className="auth-sub" style={{ marginBottom: 14 }}><Trans>This sign-in can't open your account. Sign in with the code we email you and everything will be there.</Trans></div>
+          <button className="auth-btn" onClick={signOut}><Trans>Sign in with your email code</Trans></button>
         </div>
       </div>
     );
@@ -13021,13 +13146,13 @@ function FullScreenError({ error, signOut, actionLabel = null, onAction = null, 
   return (
     <div className="auth-screen">
       <div className="auth-card">
-        <div className="auth-title">Something went wrong</div>
-        <div className="auth-sub" style={{ marginBottom: 14 }}>Your clusters couldn't be opened just now. Nothing is lost.</div>
+        <div className="auth-title"><Trans>Something went wrong</Trans></div>
+        <div className="auth-sub" style={{ marginBottom: 14 }}><Trans>Your clusters couldn't be opened just now. Nothing is lost.</Trans></div>
         <pre style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)', whiteSpace: 'pre-wrap', marginBottom: 14 }}>
-          {String(error?.message || error)}
+          {String(shownError(error))}
         </pre>
-        <button className="auth-btn" onClick={own ? onAction : () => window.location.reload()} style={{ marginBottom: 8 }}>{own ? actionLabel : 'Try again'}</button>
-        <button className="auth-btn" onClick={signOut}>Sign out</button>
+        <button className="auth-btn" onClick={own ? onAction : () => window.location.reload()} style={{ marginBottom: 8 }}>{own ? actionLabel : tr`Try again`}</button>
+        <button className="auth-btn" onClick={signOut}><Trans>Sign out</Trans></button>
       </div>
     </div>
   );

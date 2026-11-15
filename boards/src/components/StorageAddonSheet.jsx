@@ -3,10 +3,12 @@ import { Modal } from './Modal.jsx';
 import { supabase } from '../lib/supabase.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
-import { storageAddonCopy } from '../lib/billingCopy.js';
+import { storageAddonCopy } from '../lib/billingCopyWords.js';
 import { applyStorageAddon, newAddonRequestId, previewStorageAddon, storageAddonErrorMessage } from '../lib/storageAddon.js';
 import { announceBillingChange, noteAwaitingPayment } from '../lib/heldUploads.js';
 import './importCapDialog.css';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Add (or remove) 1TB of extra storage in one click, on the card the Creator
 // plan already bills — no checkout (owner decision 2026-10-17).
@@ -125,20 +127,20 @@ export function StorageAddonSheet({ open, mode = 'add', surface = 'settings', on
       initialFocusRef={primaryRef}
     >
       <div className="impcap-head">
-        <div className="impcap-kicker">Extra storage</div>
+        <div className="impcap-kicker"><Trans>Extra storage</Trans></div>
         <div className="impcap-title" id="addon-title">
-          {copy ? copy.title : (removing ? 'Remove extra storage' : 'Add more storage')}
+          {copy ? copy.title : (removing ? t`Remove extra storage` : t`Add more storage`)}
         </div>
       </div>
 
       <div className="impcap-body">
-        {phase === 'loading' && <p className="impcap-lede">Checking the price…</p>}
+        {phase === 'loading' && <p className="impcap-lede"><Trans>Checking the price…</Trans></p>}
         {(phase === 'ready' || phase === 'working') && copy && <p className="impcap-lede">{copy.body}</p>}
         {phase === 'pay' && (
           <p className="impcap-lede">
-            Your bank wants to confirm this payment. Finish it on the Stripe page that just opened
-            {payUrl ? <> (or <a href={payUrl} target="_blank" rel="noopener noreferrer">open it again</a>)</> : null}
-            {' '}— the storage is added the moment it’s paid. Nothing changes until then.
+            <Trans>Your bank wants to confirm this payment. Finish it on the Stripe page that just opened</Trans>
+            {payUrl ? <> <Trans>(or <a href={payUrl} target="_blank" rel="noopener noreferrer">open it again</a>)</Trans></> : null}
+            {' '}<Trans>— the storage is added the moment it’s paid. Nothing changes until then.</Trans>
           </p>
         )}
         {phase === 'error' && <p className="impcap-lede" role="alert">{message}</p>}
@@ -146,7 +148,7 @@ export function StorageAddonSheet({ open, mode = 'add', surface = 'settings', on
 
       <div className="impcap-actions">
         <button type="button" className="impcap-btn" onClick={onClose}>
-          {phase === 'pay' ? 'Done' : (removing ? 'Keep it' : 'Not now')}
+          {phase === 'pay' ? t`Done` : (removing ? t`Keep it` : t`Not now`)}
         </button>
         {(phase === 'ready' || phase === 'working') && copy && (
           <button
@@ -156,7 +158,7 @@ export function StorageAddonSheet({ open, mode = 'add', surface = 'settings', on
             disabled={phase === 'working'}
             onClick={confirm}
           >
-            {phase === 'working' ? 'Working…' : copy.cta}
+            {phase === 'working' ? t`Working…` : copy.cta}
           </button>
         )}
         {phase === 'error' && failedAt && (
@@ -168,7 +170,7 @@ export function StorageAddonSheet({ open, mode = 'add', surface = 'settings', on
             // charging for it again. A failed preview simply asks again.
             onClick={() => (failedAt === 'apply' ? confirm() : setAttempt((n) => n + 1))}
           >
-            Try again
+            <Trans>Try again</Trans>
           </button>
         )}
       </div>

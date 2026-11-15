@@ -10,6 +10,8 @@
 // re-runs when the boards map changes. App asks the boards table instead and
 // says why it won't open.
 
+import { t } from '@lingui/core/macro';
+
 // The toast for an id that isn't in the boards map, from the boards row the
 // lookup found (null when RLS returned nothing). The Trash button is offered
 // only for this workspace's Trash, which is the only one the Trash dialog
@@ -17,11 +19,11 @@
 export function unopenableClusterNotice(row, currentWorkspaceId) {
   if (row && row.deleted_at) {
     return {
-      message: 'That cluster is in the Trash.',
+      message: t`That cluster is in the Trash.`,
       openTrash: !!currentWorkspaceId && row.workspace_id === currentWorkspaceId,
     };
   }
-  return { message: "That cluster isn't available to you any more.", openTrash: false };
+  return { message: t`That cluster isn't available to you any more.`, openTrash: false };
 }
 
 // Resolve true as soon as ready() holds, or false once `timeout` ms pass

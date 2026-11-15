@@ -4,6 +4,7 @@ import { swatchBg } from '../ToolOptionsBar.jsx';
 import { MenuHead, useMenu } from './Menu.jsx';
 import { Swatch } from './Toolbar.jsx';
 import { Plus } from '../../lib/icons.js';
+import { t } from '@lingui/core/macro';
 
 const keep = (e) => e.preventDefault();
 
@@ -31,7 +32,7 @@ export function colourChoices(recent, palette, own, n) {
 // background", "No fill"), and stays out of the recents, where it would be an
 // invisible swatch on the rows that don't checkerboard it; `recent` false
 // keeps every pick out of them (a shape's colour before there's a shape).
-export function ColourRows({ head, swatches, paletteColors, current, onPick, onCustom, clear = 'No background', recent = true, ink = false }) {
+export function ColourRows({ head, swatches, paletteColors, current, onPick, onCustom, clear, recent = true, ink = false }) {
   const menu = useMenu();
   const recentColors = useRecentColors();
   const all = colourChoices(recentColors, paletteColors, swatches, 16);
@@ -40,13 +41,13 @@ export function ColourRows({ head, swatches, paletteColors, current, onPick, onC
       <MenuHead>{head}</MenuHead>
       <div className="tl-swrow" role="group" aria-label={head}>
         {all.map((c) => (
-          <Swatch key={c} color={ink ? inkBg(c) : swatchBg(c)} label={c === 'transparent' ? clear : `Color ${c}`}
+          <Swatch key={c} color={ink ? inkBg(c) : swatchBg(c)} label={c === 'transparent' ? (clear === undefined ? t`No background` : clear) : t`Color ${c}`}
                   className={c === 'transparent' ? 'is-clear' : undefined}
                   role="menuitemradio" aria-checked={current === c} aria-pressed={undefined} tabIndex={-1}
                   on={current === c} onMouseDown={keep}
                   onClick={() => { onPick(c); if (recent && c !== 'transparent') addRecentColor(c); menu?.close('select'); }} />
         ))}
-        <Swatch add icon={Plus} label="Custom color" role="menuitem" tabIndex={-1} onMouseDown={keep}
+        <Swatch add icon={Plus} label={t`Custom color`} role="menuitem" tabIndex={-1} onMouseDown={keep}
                 onClick={(e) => { menu?.close('select'); onCustom(e); }} />
       </div>
     </>

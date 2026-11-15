@@ -15,16 +15,21 @@
 // sentence. The toast's code still names the failure in Admin › Issues, and
 // the callers still log the raw error.
 import { uploadErrorStatus } from './uploadRetry.js';
+import { t as tr } from '@lingui/core/macro';
 
 const FOR_PEOPLE = /^(?:Storage is full\b|(?:Audio|PDF|Video|Image|File) too (?:large|long)\b|Could not (?:finish|read)\b|Not signed in$)/;
 
-const ZIP_WORDS = {
-  not_zip: "Couldn't open that zip: it isn't a zip file.",
-  truncated: "Couldn't open that zip: it's damaged or incomplete.",
-  crc: "Couldn't open that file: it's damaged inside the zip.",
-  no_inflate: "This browser can't open zip files. Try updating it.",
-  too_big: 'That zip is too big for this browser to open.',
-};
+// A zip's own failure codes (zipRead.js ZipReadError.code) and their plain words.
+function zipWords(code) {
+  switch (code) {
+    case 'not_zip': return tr`Couldn't open that zip: it isn't a zip file.`;
+    case 'truncated': return tr`Couldn't open that zip: it's damaged or incomplete.`;
+    case 'crc': return tr`Couldn't open that file: it's damaged inside the zip.`;
+    case 'no_inflate': return tr`This browser can't open zip files. Try updating it.`;
+    case 'too_big': return tr`That zip is too big for this browser to open.`;
+    default: return null;
+  }
+}
 
 function rawText(err) {
   return String(err?.message ?? err ?? '').trim();
@@ -32,20 +37,23 @@ function rawText(err) {
 
 // A failure with plain words of its own, or null.
 function ownWords(err, raw) {
-  if (err?.name === 'ZipReadError' && Object.hasOwn(ZIP_WORDS, err.code)) return ZIP_WORDS[err.code];
-  if (/^Storage returned 404\b/.test(raw)) return "Couldn't find that file. It may have been deleted.";
-  if (/Not allowed to upload|not_writer/.test(raw)) return "You can't add files to this cluster.";
+  if (err?.name === 'ZipReadError') {
+    const words = zipWords(err.code);
+    if (words) return words;
+  }
+  if (/^Storage returned 404\b/.test(raw)) return tr`Couldn't find that file. It may have been deleted.`;
+  if (/Not allowed to upload|not_writer/.test(raw)) return tr`You can't add files to this cluster.`;
   return null;
 }
 
-export function uploadFailedWords(err, plain = "Couldn't upload that file. Try again.") {
+export function uploadFailedWords(err, plain = tr`Couldn't upload that file. Try again.`) {
   const raw = rawText(err);
-  return ownWords(err, raw) || (FOR_PEOPLE.test(raw) ? `Upload failed: ${raw}` : plain);
+  return ownWords(err, raw) || (FOR_PEOPLE.test(raw) ? tr`Upload failed: ${raw}` : plain);
 }
 
-export function downloadFailedWords(err, plain = "Couldn't download that file. Try again.") {
+export function downloadFailedWords(err, plain = tr`Couldn't download that file. Try again.`) {
   const raw = rawText(err);
-  return ownWords(err, raw) || (FOR_PEOPLE.test(raw) ? `Download failed: ${raw}` : plain);
+  return ownWords(err, raw) || (FOR_PEOPLE.test(raw) ? tr`Download failed: ${raw}` : plain);
 }
 
 const NETWORKY = /network error|stalled|failed to fetch|load failed|networkerror|timed? ?out/i;

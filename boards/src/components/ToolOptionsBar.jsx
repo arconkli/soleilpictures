@@ -21,6 +21,7 @@ import { safeRun } from '../lib/safeEditorCmd.js';
 import { noteFontSizePatch } from '../lib/noteFontSize.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { tlTip } from '../lib/looks.js';
+import { t } from '@lingui/core/macro';
 
 // Subscribe to the active collaborative-note Tiptap editor (set by
 // NoteTiptapSurface while a note is being edited). When present, the note
@@ -93,9 +94,9 @@ const TRANSPARENT_SWATCH_BG = 'repeating-linear-gradient(45deg,#222 0 4px,#444 4
 export const swatchBg = (c) => (c === 'transparent' ? TRANSPARENT_SWATCH_BG : c);
 export const DRAW_THICKNESS = [2, 4, 8, 16];
 export const FONTS = [
-  { id: 'sans', name: 'Sans', css: 'Inter, system-ui, sans-serif' },
-  { id: 'serif', name: 'Serif', css: 'ui-serif, Georgia, "Times New Roman", serif' },
-  { id: 'mono', name: 'Mono', css: 'JetBrains Mono, ui-monospace, monospace' },
+  { id: 'sans', stored: 'Sans', get name() { return t`Sans`; }, css: 'Inter, system-ui, sans-serif' },
+  { id: 'serif', stored: 'Serif', get name() { return t`Serif`; }, css: 'ui-serif, Georgia, "Times New Roman", serif' },
+  { id: 'mono', stored: 'Mono', get name() { return t`Mono`; }, css: 'JetBrains Mono, ui-monospace, monospace' },
 ];
 export const SIZES = [11, 13, 15, 18, 24, 32, 48, 64];
 // The fields of a note card that its bar shows or seeds a picker with.
@@ -765,7 +766,7 @@ function NoteRichTextBar({ paletteColors, openPickerAt, noteLook, onUpdateEditin
   if (!Bar) return null;
   return (
     <Bar barRef={barRef} onKeyDown={barKeys}
-         label={selectedBox ? 'Box style' : 'Text formatting'} text={!selectedBox}
+         label={selectedBox ? t`Box style` : t`Text formatting`} text={!selectedBox}
          show={{ typography: showTypography, emphasis: showEmphasis, cell: cellStyleMode, card: cardLevel || cellStyleMode }}
          fmt={fmt} display={display} fore={currentFore} balanced={balanced} cellPinned={cellPinned}
          bg={(cellStyleMode ? editingCellStyle?.bg : noteLook?.bgColor) || null}
@@ -846,8 +847,8 @@ export function LineAngleInput({ angle, onCommit }) {
         if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); e.currentTarget.blur(); }
         if (e.key === 'Escape') { e.stopPropagation(); cancelRef.current = true; e.currentTarget.blur(); }
       }}
-      aria-label="Angle"
-      {...tlTip('Angle in degrees: 0 is right, 90 straight down')}
+      aria-label={t`Angle`}
+      {...tlTip(t`Angle in degrees: 0 is right, 90 straight down`)}
     />
   );
 }
@@ -855,7 +856,7 @@ export function LineAngleInput({ angle, onCommit }) {
 // Free-form pixel input for line stroke width. Same UX shape as
 // LineAngleInput — no spinner arrows, no forced decimal display,
 // commits on blur or Enter. Clamps to >= 0 (0 means "no line").
-export function LinePxInput({ value, onCommit, label = 'Width' }) {
+export function LinePxInput({ value, onCommit, label }) {
   const [draft, setDraft] = useState(() => formatAngleForDisplay(value));
   const [editing, setEditing] = useState(false);
   useEffect(() => {
@@ -889,7 +890,7 @@ export function LinePxInput({ value, onCommit, label = 'Width' }) {
         if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); e.currentTarget.blur(); }
         if (e.key === 'Escape') { e.stopPropagation(); cancelRef.current = true; e.currentTarget.blur(); }
       }}
-      aria-label={label}
+      aria-label={label === undefined ? t`Width` : label}
     />
   );
 }

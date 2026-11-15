@@ -39,6 +39,8 @@ import { viewKindOfKey, isDrawnFamily } from '../../lib/fileView.js';
 import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import './filesPage.css';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const FileStages = lazyWithReload(() => import('./FileStages.jsx'));
 const ZipStage = lazyWithReload(() => import('./ZipStage.jsx'));
@@ -74,6 +76,7 @@ function Media({ kind, src, poster, title, playSrc = null }) {
   // A sign that fails or comes back empty says so, with Retry (the nonce),
   // rather than spinning for ever.
   const [nonce, setNonce] = useState(0);
+  const shownTitle = title || tr`this file`;
   const res = useResolvedMedia(pc.source, nonce);
   const url = res.url;
   useEffect(() => {
@@ -101,17 +104,17 @@ function Media({ kind, src, poster, title, playSrc = null }) {
       audioBus.release(stop);
     };
   }, [url]);
-  if (pc.preparing) return <p className="ql-audio-status" role="status">Making a version this browser can play…</p>;
+  if (pc.preparing) return <p className="ql-audio-status" role="status"><Trans>Making a version this browser can play…</Trans></p>;
   if (!url && res.error && !pc.busy) {
     return (
       <div className="wait-note" role="alert">
-        <p className="wait-note-line wait-note-slow">{`Couldn’t open ${title || 'this file'}`}</p>
-        <div className="wait-note-btns"><button type="button" className="wait-note-btn" onClick={() => setNonce((n) => n + 1)}>Retry</button></div>
+        <p className="wait-note-line wait-note-slow">{tr`Couldn’t open ${shownTitle}`}</p>
+        <div className="wait-note-btns"><button type="button" className="wait-note-btn" onClick={() => setNonce((n) => n + 1)}><Trans>Retry</Trans></button></div>
       </div>
     );
   }
   if (!url || pc.busy) {
-    return <WaitNote key={nonce} label={`Opening ${title || 'this file'}…`} onRetry={() => setNonce((n) => n + 1)} />;
+    return <WaitNote key={nonce} label={tr`Opening ${shownTitle}…`} onRetry={() => setNonce((n) => n + 1)} />;
   }
   if (kind === 'video') {
     return <video ref={ref} className="ql-video" src={url} poster={posterUrl || undefined} controls autoPlay playsInline aria-label={title} />;
@@ -146,7 +149,7 @@ function DocStage({ item, docKey }) {
   return (
     <div className="ql-card">
       <div className="ql-card-preview"><CardPreview item={item} size="tile" px={640} /></div>
-      {now.making && <p className="ql-audio-status" role="status">Making a preview…</p>}
+      {now.making && <p className="ql-audio-status" role="status"><Trans>Making a preview…</Trans></p>}
     </div>
   );
 }
@@ -231,7 +234,7 @@ function Stage({ item, playerRef = null, modalHandle = null, onDownload = null, 
           {raw && <div className="ql-link-url" title={raw}>{raw}</div>}
           {href && (
             <a className="cbt-btn ql-open" href={href} target="_blank" rel="noopener noreferrer">
-              <Icon as={ArrowSquareOut} size={16} weight="light" />Open link
+              <Icon as={ArrowSquareOut} size={16} weight="light" /><Trans>Open link</Trans>
             </a>
           )}
         </div>
@@ -249,7 +252,7 @@ const FOCUSABLE = 'button, a[href], input:not([type="hidden"]), textarea, select
 
 export default function QuickLook({
   items, index, onIndex, onClose,
-  onShowOnBoard = null, showLabel = 'Show on board',
+  onShowOnBoard = null, showLabel = tr`Show on board`,
   onDownload = null,
   onPutOnBoard = null,   // (item) => put a file that's waiting in Files on the board
   infoOpen = false, onToggleInfo = null,
@@ -369,18 +372,18 @@ export default function QuickLook({
         </button>
       )}
       {onPutOnBoard && item.unplaced && (
-        <button type="button" className="ql-btn" onClick={() => onPutOnBoard(item)} title="Put on the board">
-          <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
+        <button type="button" className="ql-btn" onClick={() => onPutOnBoard(item)} title={tr`Put on the board`}>
+          <Icon as={BoundingBox} size={14} weight="light" /><span><Trans>Put on board</Trans></span>
         </button>
       )}
       {item.kind === 'video' && item.card?.src && item.boardId && !isPublicSurface() && (
-        <button type="button" className="ql-btn" title="Open in the review player"
+        <button type="button" className="ql-btn" title={tr`Open in the review player`}
                 onClick={() => {
                   const st = playerRef.current?.getState?.();
                   playerRef.current?.pause?.();
                   openPlayer({ boardId: item.boardId, cardId: item.id, card: item.card, time: st?.time ?? null, playing: !!st?.playing });
                 }}>
-          <Icon as={ArrowsOutSimple} size={14} weight="light" /><span>Player</span>
+          <Icon as={ArrowsOutSimple} size={14} weight="light" /><span><Trans>Player</Trans></span>
         </button>
       )}
       {itemCanEdit && item.boardId && !isPublicSurface() && fileSharesAllowed() && isShareableCard(item.card) && (
@@ -388,20 +391,20 @@ export default function QuickLook({
                          boardId={item.boardId} cardId={item.id} card={item.card} boardName={null} />
       )}
       {canDownload && (
-        <button type="button" className="ql-btn" onClick={() => onDownload(item)} title="Download">
-          <Icon as={Download} size={14} weight="light" /><span>Download</span>
+        <button type="button" className="ql-btn" onClick={() => onDownload(item)} title={tr`Download`}>
+          <Icon as={Download} size={14} weight="light" /><span><Trans>Download</Trans></span>
         </button>
       )}
       {onToggleInfo && (
         <button type="button" className={`ql-btn${infoOpen ? ' is-on' : ''}`} onClick={onToggleInfo}
-                aria-pressed={infoOpen} title="Info (⌘I)">
-          <Icon as={Info} size={14} weight="light" /><span>Info</span>
+                aria-pressed={infoOpen} title={tr`Info (⌘I)`}>
+          <Icon as={Info} size={14} weight="light" /><span><Trans>Info</Trans></span>
         </button>
       )}
     </>
   );
   const close = (
-    <button type="button" className="ql-btn ql-x" onClick={onClose} aria-label="Close" title="Close (Esc)">
+    <button type="button" className="ql-btn ql-x" onClick={onClose} aria-label={tr`Close`} title={tr`Close (Esc)`}>
       <Icon as={X} size={16} weight="light" />
     </button>
   );
@@ -411,12 +414,12 @@ export default function QuickLook({
   return createPortal(
     <IconWeightContext.Provider value={sb ? 'regular' : null}>
     <div className={`ql${infoOpen ? ' has-info' : ''}`} ref={rootRef} tabIndex={-1} data-look={sb ? look : undefined}
-         role="dialog" aria-modal="true" aria-label={`Quick look: ${item.name}`}
+         role="dialog" aria-modal="true" aria-label={tr`Quick look: ${ph({ name: item.name })}`}
          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="ql-bar">
         <div className="ql-title">
           <span className="ql-name" dir="auto" title={item.name}>{item.name}</span>
-          <span className="ql-meta">{item.typeLabel}{n > 1 && !detour ? ` · ${index + 1} of ${n}` : ''}</span>
+          <span className="ql-meta">{item.typeLabel}{n > 1 && !detour ? tr` · ${ph({ value: index + 1 })} of ${n}` : ''}</span>
         </div>
         {sb ? (
           <div className="ql-acts">{acts}<span className="ql-acts-sep" aria-hidden="true" />{close}</div>
@@ -428,7 +431,7 @@ export default function QuickLook({
         <div className={`ql-main${n > 1 ? '' : ' is-single'}`} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
           <div className="ql-row" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
             {n > 1 && (
-              <button type="button" className="ql-nav ql-prev" onClick={() => go(-1)} aria-label="Previous file" title="Previous (←)">
+              <button type="button" className="ql-nav ql-prev" onClick={() => go(-1)} aria-label={tr`Previous file`} title={tr`Previous (←)`}>
                 <Icon as={ChevronLeft} size={20} weight="light" />
               </button>
             )}
@@ -437,7 +440,7 @@ export default function QuickLook({
                      canPut={itemCanEdit} onClose={onClose} />
             </div>
             {n > 1 && (
-              <button type="button" className="ql-nav ql-next" onClick={() => go(1)} aria-label="Next file" title="Next (→)">
+              <button type="button" className="ql-nav ql-next" onClick={() => go(1)} aria-label={tr`Next file`} title={tr`Next (→)`}>
                 <Icon as={ChevronRight} size={20} weight="light" />
               </button>
             )}

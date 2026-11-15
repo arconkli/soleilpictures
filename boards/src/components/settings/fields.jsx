@@ -9,6 +9,8 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { ColorPicker } from '../ColorPicker.jsx';
 import { R2Image } from '../R2Image.jsx';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // ── Fonts ───────────────────────────────────────────────────────────────
 // Curated quick-pick fonts + a "Custom…" escape hatch that pulls from
@@ -16,8 +18,8 @@ import { isComposingKey } from '../../lib/composerKeys.js';
 // name (or null for system fonts that don't need a remote load).
 export const FONT_PRESETS = [
   // System / brand
-  { id: 'aileron',  name: 'Aileron (default)', css: 'aileron, -apple-system, system-ui, sans-serif', gf: null },
-  { id: 'system',   name: 'System sans',       css: '-apple-system, BlinkMacSystemFont, system-ui, sans-serif', gf: null },
+  { id: 'aileron',  get name() { return tr`Aileron (default)`; }, css: 'aileron, -apple-system, system-ui, sans-serif', gf: null },
+  { id: 'system',   get name() { return tr`System sans`; }, css: '-apple-system, BlinkMacSystemFont, system-ui, sans-serif', gf: null },
   // Sans
   { id: 'inter',    name: 'Inter',             css: '"Inter", system-ui, sans-serif', gf: 'Inter' },
   { id: 'manrope',  name: 'Manrope',           css: '"Manrope", system-ui, sans-serif', gf: 'Manrope' },
@@ -33,19 +35,19 @@ export const FONT_PRESETS = [
   { id: 'fraunces', name: 'Fraunces',          css: '"Fraunces", Georgia, serif', gf: 'Fraunces' },
   { id: 'crimson',  name: 'Crimson Pro',       css: '"Crimson Pro", Georgia, serif', gf: 'Crimson+Pro' },
   { id: 'plex-serif', name: 'IBM Plex Serif',  css: '"IBM Plex Serif", Georgia, serif', gf: 'IBM+Plex+Serif' },
-  { id: 'serif',    name: 'Georgia (system)',  css: 'Georgia, "Times New Roman", serif', gf: null },
+  { id: 'serif',    get name() { return tr`Georgia (system)`; }, css: 'Georgia, "Times New Roman", serif', gf: null },
   // Display
   { id: 'syne',     name: 'Syne',              css: '"Syne", sans-serif', gf: 'Syne' },
   { id: 'unbounded',name: 'Unbounded',         css: '"Unbounded", sans-serif', gf: 'Unbounded' },
   { id: 'bricolage',name: 'Bricolage Grotesque', css: '"Bricolage Grotesque", sans-serif', gf: 'Bricolage+Grotesque' },
   // Handwritten
-  { id: 'caveat',   name: 'Caveat (handwritten)', css: '"Caveat", cursive', gf: 'Caveat' },
+  { id: 'caveat',   get name() { return tr`Caveat (handwritten)`; }, css: '"Caveat", cursive', gf: 'Caveat' },
   { id: 'kalam',    name: 'Kalam',             css: '"Kalam", cursive', gf: 'Kalam' },
   { id: 'reenie',   name: 'Reenie Beanie',     css: '"Reenie Beanie", cursive', gf: 'Reenie+Beanie' },
   // Mono
   { id: 'plex-mono',name: 'IBM Plex Mono',     css: '"IBM Plex Mono", ui-monospace, monospace', gf: 'IBM+Plex+Mono' },
   { id: 'jetbrains',name: 'JetBrains Mono',    css: '"JetBrains Mono", ui-monospace, monospace', gf: 'JetBrains+Mono' },
-  { id: 'mono',     name: 'System mono',       css: 'ui-monospace, "SF Mono", Menlo, monospace', gf: null },
+  { id: 'mono',     get name() { return tr`System mono`; }, css: 'ui-monospace, "SF Mono", Menlo, monospace', gf: null },
 ];
 
 // Inject a Google Fonts stylesheet on demand. Idempotent — same family
@@ -113,16 +115,16 @@ export function FontField({ value, onChange, disabled }) {
               value={mode}
               disabled={disabled}
               onChange={onSelect}>
-        <option value="">Default</option>
+        <option value="">{tr`Default`}</option>
         {FONT_PRESETS.map(f => (
           <option key={f.id} value={f.id} style={{ fontFamily: f.css }}>{f.name}</option>
         ))}
-        <option value="__custom">Custom…</option>
+        <option value="__custom">{tr`Custom…`}</option>
       </select>
       {mode === '__custom' && (
         <input className="settings-input settings-font-custom"
                type="text"
-               placeholder="e.g. Atkinson Hyperlegible"
+               placeholder={tr`e.g. Atkinson Hyperlegible`}
                value={custom}
                disabled={disabled}
                onChange={(e) => setCustom(e.target.value)}
@@ -187,7 +189,7 @@ export function AccentPicker({ value: saved, onChange }) {
               type="button"
               className={`settings-accent-dot settings-accent-dot-custom ${isCustom ? 'is-active' : ''}`}
               style={isCustom ? { background: value } : undefined}
-              title={isCustom ? `Custom — ${value}` : 'Custom color'}
+              title={isCustom ? tr`Custom — ${value}` : tr`Custom color`}
               onClick={() => {
                 const r = customRef.current?.getBoundingClientRect();
                 if (r) setPickerPos({ x: r.left + r.width / 2, y: r.bottom + 8 });
@@ -196,7 +198,7 @@ export function AccentPicker({ value: saved, onChange }) {
       </button>
       <button type="button"
               className={`settings-accent-dot settings-accent-dot-clear ${!value ? 'is-active' : ''}`}
-              title="Default soleil gold"
+              title={tr`Default soleil gold`}
               onClick={() => onChange(null)}>×</button>
       {pickerPos && (
         <ColorPicker value={value || '#ffa500'}
@@ -239,8 +241,8 @@ export function SwatchInput({ value: saved, fallback, onChange, disabled, allowT
   const isEmpty = effective == null || effective === 'transparent';
   let label;
   if (value) label = value.toUpperCase();
-  else if (isEmpty) label = 'No fill';
-  else label = `Default · ${String(fallback).toUpperCase()}`;
+  else if (isEmpty) label = tr`No fill`;
+  else label = tr`Default · ${ph({ upperCase: String(fallback).toUpperCase() })}`;
   return (
     <div className="settings-color-row">
       <SwatchChip
@@ -256,7 +258,7 @@ export function SwatchInput({ value: saved, fallback, onChange, disabled, allowT
       {value && (
         <button type="button" className="settings-link-btn"
                 onClick={() => onChange(null)}
-                disabled={disabled}>Reset</button>
+                disabled={disabled}><Trans>Reset</Trans></button>
       )}
       {pickerPos && (
         <ColorPicker
@@ -290,13 +292,13 @@ export function AvatarUploadRow({ src, fallbackColor, fallbackInitial, uploading
         <button type="button" className="settings-btn"
                 onClick={() => fileRef.current?.click()}
                 disabled={disabled || uploading}>
-          {uploading ? 'Uploading…' : (src ? 'Replace' : 'Upload')}
+          {uploading ? tr`Uploading…` : (src ? tr`Replace` : tr`Upload`)}
         </button>
         {src && (
           <button type="button" className="settings-link-btn"
                   onClick={onRemove}
                   disabled={disabled || uploading}>
-            Remove
+            <Trans>Remove</Trans>
           </button>
         )}
       </div>

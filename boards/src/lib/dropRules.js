@@ -18,17 +18,8 @@
 //
 // Pure, so the rules can be tested without a drag.
 
+import { t, plural } from '@lingui/core/macro';
 import { cutGraphemes, exceedsGraphemes } from './graphemes.js';
-
-const NOUNS = {
-  image: ['photo', 'photos'],
-  video: ['video', 'videos'],
-  audio: ['audio file', 'audio files'],
-  pdf: ['PDF', 'PDFs'],
-  doc: ['doc', 'docs'],
-  note: ['note', 'notes'],
-  link: ['link', 'links'],
-};
 
 export function isMacPlatform(nav = typeof navigator !== 'undefined' ? navigator : null) {
   return /mac/i.test(nav?.platform || '');
@@ -42,7 +33,7 @@ export function copyKeyHeld(e, mac = isMacPlatform()) {
 }
 
 export function copyKeyName(mac = isMacPlatform()) {
-  return mac ? 'Option (⌥)' : 'Ctrl';
+  return mac ? t`Option (⌥)` : t`Ctrl`;
 }
 
 const clip = (s, n = 28) => {
@@ -56,8 +47,18 @@ export function whatOf(files) {
   if (list.length === 1 && list[0]?.name) return clip(list[0].name);
   const kinds = new Set(list.map((f) => f?.kind));
   const one = kinds.size === 1 ? [...kinds][0] : null;
-  const [s, p] = (one && NOUNS[one]) || ['file', 'files'];
-  return list.length === 1 ? `1 ${s}` : `${list.length} ${p}`;
+  const n = list.length;
+  // One whole message per kind, so a language can inflect the noun its own way.
+  switch (one) {
+    case 'image': return plural(n, { one: '# photo', other: '# photos' });
+    case 'video': return plural(n, { one: '# video', other: '# videos' });
+    case 'audio': return plural(n, { one: '# audio file', other: '# audio files' });
+    case 'pdf': return plural(n, { one: '# PDF', other: '# PDFs' });
+    case 'doc': return plural(n, { one: '# doc', other: '# docs' });
+    case 'note': return plural(n, { one: '# note', other: '# notes' });
+    case 'link': return plural(n, { one: '# link', other: '# links' });
+    default: return plural(n, { one: '# file', other: '# files' });
+  }
 }
 
 // files     what's being dragged: [{ id, kind, name?, boardId, uploading?,
@@ -86,23 +87,28 @@ export function decideDrop({
   });
   const ids = (list) => list.map((f) => f.id);
   if (!target?.boardId || !files.length) return none('nothing', '');
-  const name = clip(target.name || 'Untitled', 32);
+  const name = clip(target.name || t`Untitled`, 32);
 
   if (target.workspaceId && workspaceId && target.workspaceId !== workspaceId) {
-    const there = target.owner ? `${clip(target.owner, 24)}’s workspace`
-      : target.workspaceName ? clip(target.workspaceName, 28) : 'another workspace';
+    const owner = target.owner ? clip(target.owner, 24) : '';
+    const there = owner ? t`${owner}’s workspace`
+      : target.workspaceName ? clip(target.workspaceName, 28) : t`another workspace`;
+    const within = workspaceName ? clip(workspaceName, 24) : '';
     return none('workspace',
-      `${name} is in ${there}`,
-      workspaceName ? `Files can only move within ${clip(workspaceName, 24)}` : 'Files stay in their own workspace');
+      t`${name} is in ${there}`,
+      workspaceName ? t`Files can only move within ${within}` : t`Files stay in their own workspace`);
   }
-  if (!target.writable) return none('view-only', `${name} is view only`, 'You can’t add files to it');
+  if (!target.writable) return none('view-only', t`${name} is view only`, t`You can’t add files to it`);
 
   // A file in a cluster shared with you from another workspace stays in that
   // workspace: nothing here takes it. Beside files that can go, it stays put.
   const abroad = target.workspaceId
     ? files.filter((f) => f.workspaceId && f.workspaceId !== target.workspaceId) : [];
   if (abroad.length === files.length) {
-    return none('workspace', `${whatOf(files)} ${files.length === 1 ? 'is' : 'are'} in another workspace`, 'Files stay in their own workspace');
+    const named = whatOf(files);
+    return none('workspace',
+      files.length === 1 ? t`${named} is in another workspace` : t`${named} are in another workspace`,
+      t`Files stay in their own workspace`);
   }
   const ours = abroad.length ? files.filter((f) => !abroad.includes(f)) : files;
 
@@ -112,13 +118,14 @@ export function decideDrop({
 
   if (!ready.length) {
     if (target.where === 'board' && here.length) {
+      const named = whatOf(here);
       return {
         action: 'place', reason: null, move: [], copy: [], place: here, moveIds: [], copyIds: [], placeIds: ids(here), effect: 'move',
-        label: { top: `Put ${whatOf(here)} here`, sub: 'Onto the board, where you let go', hint: '', no: false },
+        label: { top: t`Put ${named} here`, sub: t`Onto the board, where you let go`, hint: '', no: false },
       };
     }
-    if (away.length) return none('uploading', 'Still uploading', 'Try again when they’ve finished');
-    return none('same', `Already in ${name}`, `Drop ${here.length === 1 ? 'it' : 'them'} on another cluster`);
+    if (away.length) return none('uploading', t`Still uploading`, t`Try again when they’ve finished`);
+    return none('same', t`Already in ${name}`, here.length === 1 ? t`Drop it on another cluster` : t`Drop them on another cluster`);
   }
 
   const copying = ready.filter((f) => copy || f.canMove === false);
@@ -130,18 +137,24 @@ export function decideDrop({
   const from = clip(sourceName, 24);
 
   let top;
-  if (action === 'mixed') top = `Move ${moving.length} and copy ${copying.length} to ${name}`;
-  else top = `${action === 'move' ? 'Move' : 'Copy'} ${what} to ${name}`;
+  const movingCount = moving.length;
+  const copyingCount = copying.length;
+  if (action === 'mixed') top = t`Move ${movingCount} and copy ${copyingCount} to ${name}`;
+  else if (action === 'move') top = t`Move ${what} to ${name}`;
+  else top = t`Copy ${what} to ${name}`;
 
   let sub;
-  if (target.where === 'files') sub = 'Into its files, not onto its board';
-  else if (action === 'copy') sub = 'Onto the board, where you let go';
-  else sub = `Onto the board · ${one ? 'it leaves' : 'they leave'} ${from || 'where they were'}`;
+  if (target.where === 'files') sub = t`Into its files, not onto its board`;
+  else if (action === 'copy') sub = t`Onto the board, where you let go`;
+  else {
+    const where = from || t`where they were`;
+    sub = one ? t`Onto the board · it leaves ${where}` : t`Onto the board · they leave ${where}`;
+  }
 
   let hint = '';
-  if (action === 'move') hint = `Hold ${copyKeyName(mac)} to copy instead`;
-  else if (copy) hint = from ? `The ${one ? 'original stays' : 'originals stay'} in ${from}` : '';
-  else hint = from ? `${from} is view only, so ${one ? 'it’s' : 'they’re'} copied` : 'Some are view only, so they’re copied';
+  if (action === 'move') { const key = copyKeyName(mac); hint = t`Hold ${key} to copy instead`; }
+  else if (copy) hint = from ? (one ? t`The original stays in ${from}` : t`The originals stay in ${from}`) : '';
+  else hint = from ? (one ? t`${from} is view only, so it’s copied` : t`${from} is view only, so they’re copied`) : t`Some are view only, so they’re copied`;
 
   return {
     action, reason: null, move: moving, copy: copying, place: placing,

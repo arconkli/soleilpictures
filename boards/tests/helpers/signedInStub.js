@@ -11,6 +11,9 @@
 // rpc[name]   a value, or (body) => value, or { status, body } for an error.
 // rest[table] a value, or (url, method) => value, or { status, body }.
 // functions[name] a value, or (body) => value, or { status, body }.
+// userMetadata merged over the default user_metadata ({ full_name }). A PUT to
+//             /auth/v1/user merges body.data into it; every /auth/v1/user request
+//             is recorded in calls as { path: 'auth/user', method, body }.
 // Use only @example.com addresses.
 
 export const USER_ID = '11111111-1111-4111-8111-111111111111';
@@ -23,7 +26,7 @@ const DEV_HOSTS = new Set(['127.0.0.1', 'localhost']);
 
 const b64url = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
 
-function sessionFor(email) {
+function sessionFor(email, userMetadata = {}) {
   const now = Math.floor(Date.now() / 1000);
   const jwt = [
     b64url({ alg: 'HS256', typ: 'JWT' }),
@@ -38,16 +41,16 @@ function sessionFor(email) {
     expires_at: now + 3600,
     user: {
       id: USER_ID, email, aud: 'authenticated', role: 'authenticated',
-      user_metadata: { full_name: 'Sam Rivera' }, app_metadata: {},
+      user_metadata: { full_name: 'Sam Rivera', ...userMetadata }, app_metadata: {},
     },
   };
 }
 
 const hasStatus = (v) => v && typeof v === 'object' && !Array.isArray(v) && typeof v.status === 'number';
 
-export async function bootSignedIn(page, { rpc = {}, rest = {}, functions = {}, email = 'sam@example.com', path = '/' } = {}) {
+export async function bootSignedIn(page, { rpc = {}, rest = {}, functions = {}, email = 'sam@example.com', path = '/', userMetadata = {} } = {}) {
   const calls = [];
-  const session = sessionFor(email);
+  const session = sessionFor(email, userMetadata);
   const created = '2026-10-01T00:00:00Z';
   const workspace = { id: WS_ID, name: 'Studio work', created_by: USER_ID, org_id: null, created_at: created };
   const root = {
@@ -93,7 +96,13 @@ export async function bootSignedIn(page, { rpc = {}, rest = {}, functions = {}, 
     try { body = req.postDataJSON(); } catch (_) { body = req.postData() || null; }
     const p = url.pathname;
 
-    if (p.startsWith('/auth/v1/user')) return send(route, session.user);
+    if (p.startsWith('/auth/v1/user')) {
+      calls.push({ path: 'auth/user', method, body });
+      if (method === 'PUT' && body && typeof body === 'object' && body.data) {
+        session.user = { ...session.user, user_metadata: { ...session.user.user_metadata, ...body.data } };
+      }
+      return send(route, session.user);
+    }
     if (p.startsWith('/auth/v1/token')) return send(route, session);
     if (p.startsWith('/auth/v1/')) return send(route, {});
 

@@ -7,6 +7,8 @@ import { encodeRemixParam } from '../lib/remix.js';
 import { templateStoreAllowed } from '../lib/appHost.js';
 import { NotFoundPage } from './NotFoundPage.jsx';
 import './templateSharePage.css';
+import { t, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // /t/<token> — someone sent you a grid template.
 //
@@ -61,7 +63,7 @@ function TemplateShare({ token }) {
         // A row whose geometry won't survive sanitizing is as unusable as no row
         // at all — better one honest dead-end than a page rendering nothing.
         if (!tree) { setStatus('invalid'); return; }
-        setTpl({ name: row.name || 'Untitled template', tree });
+        setTpl({ name: row.name || t`Untitled template`, tree });
         setStatus('ok');
       })
       .catch(() => { if (on) setStatus('invalid'); });
@@ -74,20 +76,20 @@ function TemplateShare({ token }) {
   return (
     <div className="tshare-root">
       <div className="public-topbar">
-        <a className="public-brand" href={ctaHref(token, 'badge')} title="Clusters home">
+        <a className="public-brand" href={ctaHref(token, 'badge')} title={t`Clusters home`}>
           <ClustersMark size={20} />
-          <span className="public-brand-name">Clusters</span>
+          <span className="public-brand-name"><Trans context="brand">Clusters</Trans></span>
         </a>
         <div className="public-topbar-actions">
-          <a className="public-signin-quiet" href={ctaHref(token, 'signin')}>Sign in</a>
+          <a className="public-signin-quiet" href={ctaHref(token, 'signin')}><Trans>Sign in</Trans></a>
           {status === 'ok'
-            ? <a className="public-cta" href={href}>Use this template</a>
-            : <a className="public-cta" href={ctaHref(token, 'topbar')}>Try Clusters free</a>}
+            ? <a className="public-cta" href={href}><Trans>Use this template</Trans></a>
+            : <a className="public-cta" href={ctaHref(token, 'topbar')}><Trans>Try Clusters free</Trans></a>}
         </div>
       </div>
 
       <main className="tshare-main">
-        {status === 'loading' && <div className="tshare-msg">Loading…</div>}
+        {status === 'loading' && <div className="tshare-msg"><Trans>Loading…</Trans></div>}
 
         {/* No second call to action here on purpose. The topbar already carries
             one, and repeating it verbatim is the three-CTA mistake
@@ -95,8 +97,8 @@ function TemplateShare({ token }) {
             reads as two choices for one question. */}
         {status === 'invalid' && (
           <div className="tshare-msg">
-            <h1 className="tshare-h1">This link is no longer live</h1>
-            <p>The template may have been deleted, or the link revoked.</p>
+            <h1 className="tshare-h1"><Trans>This link is no longer live</Trans></h1>
+            <p><Trans>The template may have been deleted, or the link revoked.</Trans></p>
           </div>
         )}
 
@@ -104,16 +106,15 @@ function TemplateShare({ token }) {
           <>
             <h1 className="tshare-h1">{tpl.name}</h1>
             <p className="tshare-sub">
-              A grid template — {cells} {cells === 1 ? 'cell' : 'cells'} ready to fill with images,
-              text, links or video.
+              {t`A grid template — ${plural(cells, { one: '# cell', other: '# cells' })} ready to fill with images, text, links or video.`}
             </p>
             <div className="tshare-preview" aria-hidden="true">
               <GridLayoutThumb tree={tpl.tree} title={tpl.name} />
             </div>
-            <a className="public-cta tshare-cta" href={href}>Use this template</a>
+            <a className="public-cta tshare-cta" href={href}><Trans>Use this template</Trans></a>
             <p className="tshare-fine">
-              Adds it to your own templates. You can rename it, change it, or delete it —
-              the person who shared it keeps theirs.
+              <Trans>Adds it to your own templates. You can rename it, change it, or delete it —
+              the person who shared it keeps theirs.</Trans>
             </p>
           </>
         )}

@@ -30,6 +30,8 @@ import { logEvent, logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { SignInBackdrop } from '../auth/SignInBackdrop.jsx';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL || ''}/functions/v1/resume-session`;
 
@@ -156,18 +158,18 @@ export function ResumePage() {
         {failed ? (
           <div className="auth-form">
             <p className="auth-hint t-meta" style={{ marginTop: 0 }}>
-              That link has already been used or has expired. Signing in takes a
-              moment and gets you to the same place.
+              <Trans>That link has already been used or has expired. Signing in takes a
+              moment and gets you to the same place.</Trans>
             </p>
-            <a className="auth-btn" href={appUrl({ w, b })}>Sign in</a>
+            <a className="auth-btn" href={appUrl({ w, b })}><Trans>Sign in</Trans></a>
           </div>
         ) : (
           <div className="auth-form">
             <p className="auth-hint t-meta" style={{ marginTop: 0 }}>
-              Welcome back — pick up where you left off.
+              <Trans>Welcome back — pick up where you left off.</Trans>
             </p>
             <button className="auth-btn" type="button" onClick={resume} disabled={busy}>
-              {busy ? 'Opening…' : 'Open my clusters'}
+              {busy ? t`Opening…` : t`Open my clusters`}
             </button>
           </div>
         )}

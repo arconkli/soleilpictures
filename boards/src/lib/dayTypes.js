@@ -35,6 +35,8 @@ export const DEFAULT_DAY_TYPES = Object.freeze([
 // majority of dated clusters someone creates are the working days themselves.
 export const DEFAULT_DAY_TYPE = 'main';
 
+import { t as tr } from '@lingui/core/macro';
+
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 const MAX_TYPES = 12;
 
@@ -88,9 +90,28 @@ export function dayTypeColor(board, types) {
   return resolveDayType(board.day_type, types)?.color || null;
 }
 
+// The name to show for one type. The defaults are stored in English (a
+// production's palette is data, and serializeDayTypes compares the names), so a
+// default shows in the person's language only while its stored name is still the
+// default's English; a name the team typed shows as typed.
+export function dayTypeLabel(type) {
+  if (!type) return '';
+  const stored = type.name;
+  switch (type.id) {
+    case 'prep': return stored === 'Prep' ? tr`Prep` : stored;
+    case 'main': return stored === 'Production' ? tr`Production` : stored;
+    case 'travel': return stored === 'Travel' ? tr`Travel` : stored;
+    case 'off': return stored === 'Off' ? tr({ message: 'Off', context: 'day type' }) : stored;
+    case 'wrap': return stored === 'Wrap' ? tr`Wrap` : stored;
+    case 'milestone': return stored === 'Milestone' ? tr`Milestone` : stored;
+    default: return stored;
+  }
+}
+
 // Human label for a day's type, for the row's second line and the type picker.
 export function dayTypeName(board, types) {
-  return resolveDayType(board?.day_type, types)?.name || '';
+  const type = resolveDayType(board?.day_type, types);
+  return type ? dayTypeLabel(type) || '' : '';
 }
 
 // What to persist. Returns null when the palette is unchanged from the

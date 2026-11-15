@@ -8,11 +8,14 @@ import { useFeedback } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
 import { Icon } from './Icon.jsx';
 import { BookmarkSimple, X } from '../lib/icons.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 export function DocBookmarkList({ ydoc, scope, bookmarks = [], pages = [], onJump, canEdit = true }) {
   const feedback = useFeedback();
   if (!bookmarks.length) return null;
-  const pageName = (id) => pages.find(p => p.id === id)?.name || 'Untitled';
+  const pageName = (id) => pages.find(p => p.id === id)?.name || t`Untitled`;
+  const shownName = (b) => b.name || t`Bookmark`;
   const remove = (b) => {
     const um = getDocUndoManager(ydoc, scope);
     um?.stopCapturing();
@@ -20,7 +23,7 @@ export function DocBookmarkList({ ydoc, scope, bookmarks = [], pages = [], onJum
     const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
     um?.stopCapturing();
     undoToast(feedback, {
-      message: 'Bookmark removed',
+      message: t`Bookmark removed`,
       undoManager: um,
       stackItem: item,
       onUndo: () => { try { um?.undo(); } catch (_) {} },
@@ -28,18 +31,18 @@ export function DocBookmarkList({ ydoc, scope, bookmarks = [], pages = [], onJum
   };
   return (
     <div className="doc-bookmarks">
-      <div className="doc-bookmarks-head t-eyebrow">Bookmarks</div>
+      <div className="doc-bookmarks-head t-eyebrow"><Trans>Bookmarks</Trans></div>
       {bookmarks.map(b => (
         <div key={b.id} className="doc-bookmarks-row">
           <Icon as={BookmarkSimple} size={16} />
           <button type="button" className="doc-bookmarks-item"
-                  title={`${b.name || 'Bookmark'} — ${pageName(b.pageId)}`}
+                  title={t`${ph({ name: shownName(b) })} — ${ph({ page: pageName(b.pageId) })}`}
                   onClick={() => onJump?.(b.id)}>
-            {b.name || 'Bookmark'}
+            {shownName(b)}
           </button>
           {canEdit && (
             <button type="button" className="doc-bookmarks-x"
-                    title="Remove bookmark" aria-label={`Remove bookmark ${b.name || ''}`.trim()}
+                    title={t`Remove bookmark`} aria-label={t`Remove bookmark ${ph({ name: b.name || '' })}`.trim()}
                     onClick={() => remove(b)}><Icon as={X} size={12} /></button>
           )}
         </div>

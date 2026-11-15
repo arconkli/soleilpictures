@@ -7,6 +7,8 @@ import { DOWNLOADABLE } from '../../lib/cardAssetName.js';
 import { InlineRename } from './InlineRename.jsx';
 import { captionOf } from '../../lib/listItem.js';
 import { formatDuration } from '../../lib/loopMeta.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // One gallery tile: a large preview, name + type badge, and a live presence
 // overlay (peer color border + avatar) when a teammate has this card open.
@@ -35,8 +37,8 @@ export const ClusterTile = memo(function ClusterTile({
   // small ring in the picture's corner, the sidebar's mark; "a copy is on
   // board" is left to Info there.
   const flag = markUnplaced && item.unplaced
-    ? { cls: 'is-off', label: 'Not on board', title: 'Not on board — in this cluster, not placed on its board' }
-    : onBoard ? { cls: 'is-on', label: 'On board', title: 'A copy of this file is already on the board' } : null;
+    ? { cls: 'is-off', label: t`Not on board`, title: t`Not on board — in this cluster, not placed on its board` }
+    : onBoard ? { cls: 'is-on', label: t`On board`, title: t`A copy of this file is already on the board` } : null;
   const canDownload = !!onDownload && !item.pending && DOWNLOADABLE.has(item.kind);
   const canAudition = !!onAudition && item.kind === 'audio' && !item.pending;
   const off = captionless && markUnplaced && item.unplaced;
@@ -55,13 +57,13 @@ export const ClusterTile = memo(function ClusterTile({
       <div className="ct-tile-preview" data-face={['r2', 'swatches'].includes(item.preview?.mode) ? 'photo' : 'paper'}>
         <CardPreview item={item} size="tile" px={px} />
         {item.pending && <span className="ct-thumb-spin ct-tile-spin" aria-hidden="true" />}
-        {captionless && item.pending && <span className="ct-tile-pend">Uploading…</span>}
-        {off && <span className="ct-tile-off" role="img" aria-label="Not on board"><i /></span>}
+        {captionless && item.pending && <span className="ct-tile-pend"><Trans>Uploading…</Trans></span>}
+        {off && <span className="ct-tile-off" role="img" aria-label={t`Not on board`}><i /></span>}
         {dur && <span className="ct-tile-dur"><Icon as={Play} size={9} weight="fill" />{dur}</span>}
         {/* Add to (or take out of) the selection without a modifier key —
             the way to multi-select on a trackpad or a touchscreen. */}
         <button type="button" className="ct-tile-check" tabIndex={-1}
-                aria-label={selected ? `Deselect ${item.name}` : `Select ${item.name}`}
+                aria-label={selected ? t`Deselect ${ph({ name: item.name })}` : t`Select ${ph({ name: item.name })}`}
                 aria-pressed={!!selected}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -77,8 +79,8 @@ export const ClusterTile = memo(function ClusterTile({
         </button>
         {canAudition && (
           <button type="button" className="ct-tile-play"
-                  aria-label={playing ? `Pause ${item.name}` : `Play ${item.name}`}
-                  title={playing ? 'Pause' : 'Play'}
+                  aria-label={playing ? t`Pause ${ph({ name: item.name })}` : t`Play ${ph({ name: item.name })}`}
+                  title={playing ? t`Pause` : t`Play`}
                   onClick={(e) => { e.stopPropagation(); onAudition(item); }}>
             {playing ? (
               <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
@@ -93,8 +95,8 @@ export const ClusterTile = memo(function ClusterTile({
           </button>
         )}
         {canDownload && (
-          <button type="button" className="ct-tile-dl" title={`Download ${item.name}`}
-                  aria-label={`Download ${item.name}`}
+          <button type="button" className="ct-tile-dl" title={t`Download ${ph({ name: item.name })}`}
+                  aria-label={t`Download ${ph({ name: item.name })}`}
                   onClick={(e) => { e.stopPropagation(); onDownload(item); }}>
             <Icon as={Download} size={14} weight="light" />
           </button>
@@ -112,8 +114,8 @@ export const ClusterTile = memo(function ClusterTile({
           {flag && !rename && <span className={`ct-tile-flag ${flag.cls}`} role="img" aria-label={flag.label} title={flag.title} />}
           {rename
             ? <InlineRename value={item.name} onCommit={rename.onCommit} onCancel={rename.onCancel} className="ct-tile-rename" />
-            : <div className="ct-tile-name" dir="auto" title={item.name}>{caption}{item.version && <span className="ct-version-chip" title="Versions are in Info">{item.version}</span>}</div>}
-          <div className="ct-tile-type">{item.pending ? 'Uploading…' : (item.sub || item.typeLabel)}</div>
+            : <div className="ct-tile-name" dir="auto" title={item.name}>{caption}{item.version && <span className="ct-version-chip" title={t`Versions are in Info`}>{item.version}</span>}</div>}
+          <div className="ct-tile-type">{item.pending ? t`Uploading…` : (item.sub || item.typeLabel)}</div>
         </div>
       )}
     </div>

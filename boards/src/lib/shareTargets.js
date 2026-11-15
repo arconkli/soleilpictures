@@ -16,6 +16,7 @@
 // pitch-less buttons. navigator.share covers mobile (where those apps live).
 
 import { REFERRED_START_CARDS } from './billingCopy.js';
+import { t } from '@lingui/core/macro';
 
 export const REFERRAL_PITCH =
   `Come build with me on Clusters — an infinite canvas for photos, ideas, and projects. You start with ${REFERRED_START_CARDS} free cards.`;
@@ -35,10 +36,10 @@ export function buildShareTargets(link, pitch = REFERRAL_PITCH) {
   const ePitch = encodeURIComponent(pitch);
   const eSubject = encodeURIComponent(`Here are ${REFERRED_START_CARDS} free cards on Clusters`);
   return [
-    { key: 'whatsapp', label: 'WhatsApp', href: `https://wa.me/?text=${msg}` },
+    { key: 'whatsapp', label: t`WhatsApp`, href: `https://wa.me/?text=${msg}` },
     { key: 'x',        label: 'X',        href: `https://twitter.com/intent/tweet?text=${ePitch}&url=${eLink}` },
-    { key: 'email',    label: 'Email',    href: `mailto:?subject=${eSubject}&body=${msg}` },
+    { key: 'email',    label: t({ message: 'Email', context: 'share target' }),    href: `mailto:?subject=${eSubject}&body=${msg}` },
     // sms:?&body= is the most cross-platform form (iOS wants the leading &).
-    { key: 'sms',      label: 'Text',     href: `sms:?&body=${msg}` },
+    { key: 'sms',      label: t({ message: 'Text', context: 'sms' }),     href: `sms:?&body=${msg}` },
   ];
 }

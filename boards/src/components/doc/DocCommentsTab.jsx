@@ -13,11 +13,15 @@ import { deleteCommentThreadUndoably } from '../../lib/commentThreadDelete.js';
 import { detectMentionToken, matchMentions } from '../../lib/commentMentionText.js';
 import { notifyCommentMentions } from '../../lib/commentMentions.js';
 import { pickPresenceColor } from '../../lib/presenceColor.js';
-import { relativeTimeCompact } from '../../lib/relativeTime.js';
+import { relativeTimeCompact, relativeTimeKind } from '../../lib/relativeTime.js';
 import { caretRect } from '../../lib/caretRect.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import { ArrowUp, Check, Trash2 } from '../../lib/icons.js';
 import { initialOf as initialOfName } from '../../lib/graphemes.js';
+import { t as tr } from '@lingui/core/macro';
+import { formatDate } from '../../lib/intlFormat.js';
+import { shownAuthor } from '../../lib/commentAuthor.js';
+import { Trans } from '@lingui/react/macro';
 
 // The side panel's Comments (the owner's pick of 2026-10-21, mockup dx
 // AC-comments): every thread of the doc, open and resolved, in the doc's
@@ -30,7 +34,8 @@ import { initialOf as initialOfName } from '../../lib/graphemes.js';
 // in their own name, as anyone who can edit it does, but deletes only a
 // thread they started: the doc's room refuses the rest (lib/docRoomBridge.js).
 
-const FILTERS = [['all', 'All'], ['open', 'Open'], ['resolved', 'Resolved']];
+// Read at render, so the words follow the person's language.
+const filters = () => [['all', tr`All`], ['open', tr({ message: 'Open', context: 'status' })], ['resolved', tr`Resolved`]];
 
 // What's typed in a card's reply and not sent, kept while the doc's open
 // elsewhere (another tab of the panel, the panel shut) for this session.
@@ -78,11 +83,11 @@ export function DocCommentsTab({
   return (
     <div className="dl-cmts">
       <div className="dl-cmts-f">
-        <DocSeg label="Show" value={filter} onChange={setFilter}
-                options={FILTERS.map(([value, label]) => ({ value, label, count: counts[value] }))} />
+        <DocSeg label={tr`Show`} value={filter} onChange={setFilter}
+                options={filters().map(([value, label]) => ({ value, label, count: counts[value] }))} />
       </div>
       {shown.length ? (
-        <ul ref={listRef} className="dl-ths" aria-label="Comments">
+        <ul ref={listRef} className="dl-ths" aria-label={tr`Comments`}>
           {shown.map((t) => (
             <li key={t.id}>
               <ThreadCard thread={t} anchor={anchors.get(t.id) || null} selected={t.id === selectedId} ctx={ctx} />
@@ -93,13 +98,13 @@ export function DocCommentsTab({
         <div className="dl-cmts-none">
           {counts.all === 0 ? (
             <>
-              <p className="dl-cmts-none-t">No comments yet</p>
-              {canEdit && <p>Select some words, then Comment <Caps keys="Mod+Alt+M" /></p>}
+              <p className="dl-cmts-none-t"><Trans>No comments yet</Trans></p>
+              {canEdit && <p><Trans>Select some words, then Comment</Trans> <Caps keys="Mod+Alt+M" /></p>}
             </>
           ) : filter === 'open' ? (
-            <p className="dl-cmts-none-t">Nothing open: every comment is resolved</p>
+            <p className="dl-cmts-none-t"><Trans>Nothing open: every comment is resolved</Trans></p>
           ) : (
-            <p className="dl-cmts-none-t">Nothing resolved yet</p>
+            <p className="dl-cmts-none-t"><Trans>Nothing resolved yet</Trans></p>
           )}
         </div>
       )}
@@ -143,10 +148,11 @@ const faceColor = (color, who) => (!color || /soleil|#ffa500/i.test(color) ? pic
 
 const when = (ts) => {
   const s = relativeTimeCompact(ts);
-  return s === 'Just now' ? 'just now' : s === 'Yesterday' ? 'yesterday' : /^\d+[mh]$/.test(s) ? `${s} ago` : s;
+  const kind = relativeTimeKind(ts);
+  return kind === 'now' ? tr`just now` : kind === 'yesterday' ? tr`yesterday` : (kind === 'minutes' || kind === 'hours') ? tr`${s} ago` : s;
 };
 const fullDate = (ts) => {
-  try { return new Date(ts).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }); } catch (_) { return ''; }
+  try { return formatDate(new Date(ts), { dateStyle: 'medium', timeStyle: 'short' }); } catch (_) { return ''; }
 };
 
 function ThreadCard({ thread, anchor, selected, ctx }) {
@@ -158,29 +164,33 @@ function ThreadCard({ thread, anchor, selected, ctx }) {
     { id: thread.id, author: thread.author, authorId: thread.authorId, authorColor: thread.authorColor, ts: thread.ts, body: thread.body },
     ...(thread.replies || []),
   ];
-  const nameOf = (who) => (who.authorId && who.authorId === me ? 'You' : who.author || 'Someone');
+  const nameOf = (who) => (who.authorId && who.authorId === me ? tr`You` : shownAuthor(who.author) || tr`Someone`);
   // A face is the person's own initial, yours too.
-  const initialOf = (who) => initialOfName(String(who.author || '').trim() || nameOf(who));
+  const initialOf = (who) => initialOfName(String(shownAuthor(who.author) || '').trim() || nameOf(who));
   const resolver = !thread.resolved ? null
-    : thread.resolvedBy && thread.resolvedBy === me ? 'you'
+    : thread.resolvedBy && thread.resolvedBy === me ? tr`you`
       : thread.resolvedByName
-        || (thread.resolvedBy && items.find((i) => i.authorId === thread.resolvedBy)?.author)
+        || (thread.resolvedBy && shownAuthor(items.find((i) => i.authorId === thread.resolvedBy)?.author))
         || null;
   const go = () => { onSelect?.(thread.id); onJump?.(thread.id, anchor?.pageId || thread.pageId || null); };
   const quote = anchor?.quote || '';
+  const by = nameOf(thread);
+  const ariaLabel = thread.resolved
+    ? (quote ? tr`Resolved comment by ${by} on “${quote}”` : tr`Resolved comment by ${by}`)
+    : (quote ? tr`Comment by ${by} on “${quote}”` : tr`Comment by ${by}`);
   const cls = `dl-th${selected ? ' is-on' : ''}${thread.resolved ? ' is-res' : ''}`;
   return (
     <article className={cls} data-thread={thread.id}
-             aria-label={`${thread.resolved ? 'Resolved comment' : 'Comment'} by ${nameOf(thread)}${quote ? ` on “${quote}”` : ''}`}
+             aria-label={ariaLabel}
              onClick={(e) => {
                // Not from a control, nor from the mention picker (portaled
                // out, but its clicks still come up through here).
                if (e.currentTarget.contains(e.target) && !e.target.closest('button, input, a')) go();
              }}>
       {quote ? (
-        <button type="button" className="dl-th-q" onClick={go} title="Show it in the doc">“{quote}”</button>
+        <button type="button" className="dl-th-q" onClick={go} title={tr`Show it in the doc`}>“{quote}”</button>
       ) : (
-        <p className="dl-th-q is-gone">The words it was on are gone</p>
+        <p className="dl-th-q is-gone"><Trans>The words it was on are gone</Trans></p>
       )}
       {items.map((it, i) => (
         <div key={it.id || i} className="dl-cm">
@@ -194,7 +204,7 @@ function ThreadCard({ thread, anchor, selected, ctx }) {
               {/* The thread's delete, at the end of its first line, so the
                   words it's on keep the card's width. */}
               {i === 0 && canDelete && (
-                <button type="button" className="dl-th-del" aria-label="Delete thread" title="Delete thread"
+                <button type="button" className="dl-th-del" aria-label={tr`Delete thread`} title={tr`Delete thread`}
                         onClick={() => deleteCommentThreadUndoably(ydoc, scope, thread.id, feedback)}>
                   <Icon as={Trash2} size={14} />
                 </button>
@@ -207,13 +217,13 @@ function ThreadCard({ thread, anchor, selected, ctx }) {
       {thread.resolved ? (
         <div className="dl-th-a">
           <span className="dl-th-by">
-            {resolver ? `Resolved by ${resolver}` : 'Resolved'}
+            {resolver ? tr`Resolved by ${resolver}` : tr`Resolved`}
             {thread.resolvedAt ? <> · <time dateTime={new Date(thread.resolvedAt).toISOString()} title={fullDate(thread.resolvedAt)}>{when(thread.resolvedAt)}</time></> : null}
           </span>
           {canEdit && (
             <button type="button" className="dl-mini"
                     onClick={() => resolveComment(ydoc, thread.id, false, scope, { by: me, byName: currentUser?.name || null })}>
-              Reopen
+              <Trans>Reopen</Trans>
             </button>
           )}
         </div>
@@ -235,6 +245,7 @@ function ReplyRow({ thread, ctx }) {
     setText(v);
     if (v) drafts.set(thread.id, v); else drafts.delete(thread.id);
   };
+  const replyTo = shownAuthor(thread.author) || tr`this comment`;
   const send = () => {
     const body = text.trim();
     if (!body) return;
@@ -255,7 +266,7 @@ function ReplyRow({ thread, ctx }) {
   return (
     <div className="dl-th-a">
       <div className="dl-reply">
-        <input ref={inputRef} value={text} placeholder="Reply" aria-label={`Reply to ${thread.author || 'this comment'}`}
+        <input ref={inputRef} value={text} placeholder={tr`Reply`} aria-label={tr`Reply to ${replyTo}`}
                onChange={(e) => {
                  const v = e.target.value;
                  put(v);
@@ -269,12 +280,12 @@ function ReplyRow({ thread, ctx }) {
                  else if (e.key === 'Enter') e.preventDefault();
                }} />
         {text.trim() && (
-          <button type="button" className="dl-reply-send" aria-label="Send reply" title="Send reply" onClick={send}>
+          <button type="button" className="dl-reply-send" aria-label={tr`Send reply`} title={tr`Send reply`} onClick={send}>
             <Icon as={ArrowUp} size={13} />
           </button>
         )}
       </div>
-      <button type="button" className="dl-mini" onClick={resolve}><Icon as={Check} size={13} />Resolve</button>
+      <button type="button" className="dl-mini" onClick={resolve}><Icon as={Check} size={13} /><Trans>Resolve</Trans></button>
       {mention && workspaceId && (
         <EntityPicker
           workspaceId={workspaceId}

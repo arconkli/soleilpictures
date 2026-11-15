@@ -15,6 +15,7 @@
 // fail the build when one drifts from the constant that pays it.
 
 import { REFERRAL_BONUS_CARDS } from './billingCopy.js';
+import { sizeText } from './intlFormat.js';
 
 export { REFERRAL_BONUS_CARDS };
 
@@ -31,7 +32,9 @@ export function formatBonusBytes(bytes) {
   const n = Math.max(0, Number(bytes) || 0);
   const one = (x) => String(Math.round(x * 10) / 10);
   const gib = n / 1024 ** 3;
-  return gib >= 1024 ? `${one(gib / 1024)}TB` : `${one(gib)}GB`;
+  const tb = gib >= 1024;
+  const v = Number(one(tb ? gib / 1024 : gib));
+  return sizeText(`${v}${tb ? 'TB' : 'GB'}`, v, tb ? 'terabyte' : 'gigabyte', Number.isInteger(v) ? 0 : 1);
 }
 
 export const INVITE_BONUS_STORAGE_LABEL = formatBonusBytes(INVITE_BONUS_STORAGE_BYTES);

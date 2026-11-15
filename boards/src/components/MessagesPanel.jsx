@@ -22,6 +22,8 @@ import { useKeyboardInset } from '../hooks/useKeyboardInset.js';
 import { swallowNextClick } from '../lib/swallowClick.js';
 import { touchKeyboard, isComposingKey } from '../lib/composerKeys.js';
 import { initialOf, cutGraphemes } from '../lib/graphemes.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const NO_PARTICIPANTS = [];
 
@@ -175,24 +177,24 @@ export function MessagesPanel({
     const isGroup = !isDmConversation(participantsByConv.get(convId));
     if (isGroup) {
       const ok = await feedback.confirm({
-        title: 'Leave conversation',
-        message: "Leave this group? You'll stop receiving its messages.",
-        confirmLabel: 'Leave',
+        title: t`Leave conversation`,
+        message: t`Leave this group? You'll stop receiving its messages.`,
+        confirmLabel: t`Leave`,
         danger: true,
       });
       if (!ok) return;
     }
     const done = await leaveConversation({ conversationId: convId, userId });
     if (!done) {
-      feedback.toast({ type: 'error', code: 'chat_leave_failed', message: isGroup ? "Couldn't leave the conversation — try again." : "Couldn't hide the conversation — try again." });
+      feedback.toast({ type: 'error', code: 'chat_leave_failed', message: isGroup ? t`Couldn't leave the conversation — try again.` : t`Couldn't hide the conversation — try again.` });
       return;
     }
     onRefreshRequested?.();
     undoToast(feedback, {
-      message: isGroup ? 'You left the conversation' : 'Conversation hidden',
+      message: isGroup ? t`You left the conversation` : t`Conversation hidden`,
       onUndo: async () => {
         const back = await rejoinConversation({ conversationId: convId, userId });
-        if (!back) { feedback.toast({ type: 'error', code: 'chat_rejoin_failed', message: "Couldn't bring the conversation back — try again." }); return; }
+        if (!back) { feedback.toast({ type: 'error', code: 'chat_rejoin_failed', message: t`Couldn't bring the conversation back — try again.` }); return; }
         onRefreshRequested?.();
       },
     });
@@ -286,24 +288,24 @@ export function MessagesPanel({
       <div className="msg-panel-head">
         <div className="msg-panel-title">
           {card ? (
-            <div className="msg-panel-name">Messages</div>
+            <div className="msg-panel-name"><Trans>Messages</Trans></div>
           ) : (
             <>
-              <div className="t-eyebrow msg-panel-eyebrow">MESSAGES</div>
-              <div className="msg-panel-name">All conversations</div>
+              <div className="t-eyebrow msg-panel-eyebrow"><Trans>MESSAGES</Trans></div>
+              <div className="msg-panel-name"><Trans>All conversations</Trans></div>
             </>
           )}
         </div>
         <button
           className="msg-panel-icon"
           onClick={(e) => setComposeAnchor(e.currentTarget.getBoundingClientRect())}
-          title={canSendMessages ? 'New chat' : readOnlyCopy(readOnlyReason).newChatTitle}
-          aria-label="New chat"
+          title={canSendMessages ? t`New chat` : readOnlyCopy(readOnlyReason).newChatTitle}
+          aria-label={t`New chat`}
           disabled={!canSendMessages}
         >
           <Icon as={Plus} size={14} />
         </button>
-        <button className="msg-panel-icon" onClick={onClose} title="Close (Esc)" aria-label="Close messages">
+        <button className="msg-panel-icon" onClick={onClose} title={t`Close (Esc)`} aria-label={t`Close messages`}>
           <Icon as={X} size={14} />
         </button>
       </div>
@@ -311,7 +313,7 @@ export function MessagesPanel({
       {card && visibleConversations.length > 0 && (
         <label className="msg-find">
           <Icon as={Search} size={14} />
-          <input type="search" value={find} placeholder="Find a conversation" aria-label="Find a conversation"
+          <input type="search" value={find} placeholder={t`Find a conversation`} aria-label={t`Find a conversation`}
                  onChange={(e) => setFind(e.target.value)}
                  onKeyDown={(e) => {
                    if (isComposingKey(e)) return;
@@ -340,17 +342,17 @@ export function MessagesPanel({
           // A failed read is not an empty inbox (COMMS-15). Anything listed
           // below is the last good read.
           <div className="msg-load-failed t-meta" role="alert">
-            <span>Couldn't load your conversations.</span>
-            <button type="button" className="msg-retry-btn" onClick={() => { retry().then(null, () => {}); }}>Retry</button>
+            <span><Trans>Couldn't load your conversations.</Trans></span>
+            <button type="button" className="msg-retry-btn" onClick={() => { retry().then(null, () => {}); }}><Trans>Retry</Trans></button>
           </div>
         )}
         {loaded && !failed && visibleConversations.length === 0 && (
           <div className="msg-empty t-meta">
-            No conversations yet. Click <span className="msg-empty-plus"><Icon as={Plus} size={11} /></span> to start one.
+            <Trans>No conversations yet. Click <span className="msg-empty-plus"><Icon as={Plus} size={11} /></span> to start one.</Trans>
           </div>
         )}
         {card && find.trim() && visibleConversations.length > 0 && shownConversations.length === 0 && (
-          <div className="msg-empty t-meta">No conversations match “{find.trim()}”.</div>
+          <div className="msg-empty t-meta"><Trans>No conversations match “{ph({ trim: find.trim() })}”.</Trans></div>
         )}
         {shownConversations.map(conv => (
           <ConversationRow
@@ -416,10 +418,10 @@ function ConversationRow({ card = false, conv, participants, unreadCount, curren
     id: p.user_id,
     name: userProfiles.get(p.user_id)?.name
        || userProfiles.get(p.user_id)?.email
-       || 'Member',
+       || t`Member`,
     color: userProfiles.get(p.user_id)?.color || pickPresenceColor(p.user_id || ''),
   }));
-  const title = conv.title || peerProfiles.map(p => p.name).join(', ') || 'New conversation';
+  const title = conv.title || peerProfiles.map(p => p.name).join(', ') || t`New conversation`;
 
   // Avatar: 1 peer = single circle. Multi = stacked 2-3 (two faces in the card look).
   const avatarPeers = peerProfiles.slice(0, card ? 2 : 3);
@@ -430,20 +432,21 @@ function ConversationRow({ card = false, conv, participants, unreadCount, curren
   if (card && conv.last_message_kind !== 'system') {
     const words = previewText(conv.last_message_body);
     const mine = conv.last_message_sender_id === currentUserId;
-    const who = mine ? 'You' : (userProfiles.get(conv.last_message_sender_id)?.name || conv.last_message_sender_email || 'Someone').split(/[\s@]/)[0];
+    const who = mine ? t`You` : (userProfiles.get(conv.last_message_sender_id)?.name || conv.last_message_sender_email || t`Someone`).split(/[\s@]/)[0];
     preview = words
-      ? (mine ? `You: ${words}` : !isDm && conv.last_message_sender_id ? `${who}: ${words}` : words)
-      : conv.last_message_at ? `${who} sent an attachment` : '';
+      ? (mine ? t`You: ${words}` : !isDm && conv.last_message_sender_id ? t`${who}: ${words}` : words)
+      : conv.last_message_at ? t`${who} sent an attachment` : '';
   } else if (conv.last_message_kind === 'system') {
-    preview = preview || '— event —';
+    preview = preview || t`— event —`;
   } else if (!isDm && conv.last_message_sender_id && conv.last_message_sender_id !== currentUserId) {
     const senderName =
       userProfiles.get(conv.last_message_sender_id)?.name
       || conv.last_message_sender_email
-      || 'Member';
-    preview = `${senderName.split(' ')[0]}: ${preview}`;
+      || t`Member`;
+    const senderFirst = senderName.split(' ')[0];
+    preview = t`${senderFirst}: ${preview}`;
   } else if (conv.last_message_sender_id === currentUserId && preview) {
-    preview = `You: ${preview}`;
+    preview = t`You: ${preview}`;
   }
 
   return (
@@ -484,7 +487,7 @@ function ConversationRow({ card = false, conv, participants, unreadCount, curren
           </span>
           <span className="msg-row-line">
             <span className="msg-row-preview">{cutGraphemes(preview, 80)}</span>
-            {isUnread && <span className="msg-row-count" aria-label={`${unreadCount} unread`}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
+            {isUnread && <span className="msg-row-count" aria-label={t`${unreadCount} unread`}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
           </span>
         </span>
       ) : (
@@ -532,11 +535,11 @@ function ConversationRowMenu({ x, y, isGroup, onPick, onClose }) {
     <div ref={popRef} className="msg-group-menu" role="menu" style={{ position: 'fixed', top: pos.top, left: pos.left }}>
       {isGroup ? (
         <button type="button" role="menuitem" className="msg-group-menu-item is-danger" onClick={onPick}>
-          <Icon as={LogOut} size={12} /> Leave…
+          <Icon as={LogOut} size={12} /> <Trans>Leave…</Trans>
         </button>
       ) : (
         <button type="button" role="menuitem" className="msg-group-menu-item" onClick={onPick}>
-          <Icon as={EyeOff} size={12} /> Hide conversation
+          <Icon as={EyeOff} size={12} /> <Trans>Hide conversation</Trans>
         </button>
       )}
     </div>
@@ -548,8 +551,9 @@ function relTime(iso) {
   const d = new Date(iso);
   const ms = Date.now() - d.getTime();
   const sec = Math.floor(ms / 1000);
-  if (sec < 60)    return `${sec}s`;
-  if (sec < 3600)  return `${Math.floor(sec / 60)}m`;
-  if (sec < 86400) return `${Math.floor(sec / 3600)}h`;
-  return `${Math.floor(sec / 86400)}d`;
+  // relativeTimeCompact says "Just now" and dates where this says seconds and days, so these are messages of their own.
+  if (sec < 60)    { const s = sec; return t`${s}s`; }
+  if (sec < 3600)  { const m = Math.floor(sec / 60); return t`${m}m`; }
+  if (sec < 86400) { const h = Math.floor(sec / 3600); return t`${h}h`; }
+  { const d = Math.floor(sec / 86400); return t`${d}d`; }
 }

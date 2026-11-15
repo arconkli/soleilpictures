@@ -21,6 +21,8 @@ import { Icon } from './Icon.jsx';
 import { X } from '../lib/icons.js';
 import { trackStroke } from '../lib/pointerStroke.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const FRAME_W = 1200;          // output canvas — matches renderThumbnail.js FRAME_W/H
 const FRAME_H = 675;
@@ -43,19 +45,19 @@ export function ThumbnailCropModal({ file, saving = false, onCancel, onSave }) {
   // Decode the picked file. Object URL is revoked on unmount / re-pick.
   useEffect(() => {
     if (!file) return;
-    if (!/^image\//.test(file.type || '')) { setError('That file isn’t an image.'); return; }
+    if (!/^image\//.test(file.type || '')) { setError(t`That file isn’t an image.`); return; }
     let revoked = false;
     const url = URL.createObjectURL(file);
     const el = new Image();
     el.onload = () => {
       if (revoked) return;
       if (!el.naturalWidth || !el.naturalHeight || el.naturalWidth > MAX_DECODE || el.naturalHeight > MAX_DECODE) {
-        setError('That image is too large to use — try one under 6000px.');
+        setError(t`That image is too large to use — try one under 6000px.`);
         return;
       }
       setImg({ el, w: el.naturalWidth, h: el.naturalHeight });
     };
-    el.onerror = () => { if (!revoked) setError('Couldn’t read that image.'); };
+    el.onerror = () => { if (!revoked) setError(t`Couldn’t read that image.`); };
     el.src = url;
     return () => { revoked = true; URL.revokeObjectURL(url); };
   }, [file]);
@@ -120,7 +122,7 @@ export function ThumbnailCropModal({ file, saving = false, onCancel, onSave }) {
     const canvas = document.createElement('canvas');
     canvas.width = FRAME_W; canvas.height = FRAME_H;
     const ctx = canvas.getContext('2d');
-    if (!ctx) { setError('Couldn’t prepare the image.'); return; }
+    if (!ctx) { setError(t`Couldn’t prepare the image.`); return; }
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     const destW = imgW * k, destH = imgH * k;
@@ -128,18 +130,18 @@ export function ThumbnailCropModal({ file, saving = false, onCancel, onSave }) {
     const destY = (FRAME_H - destH) / 2 + offset.y * k;
     ctx.drawImage(img.el, destX, destY, destW, destH);
     canvas.toBlob(
-      (blob) => { if (blob) onSave?.(blob); else setError('Couldn’t encode the image.'); },
+      (blob) => { if (blob) onSave?.(blob); else setError(t`Couldn’t encode the image.`); },
       'image/webp', 0.85,
     );
   };
 
   const node = (
-    <div style={S.overlay} role="dialog" aria-label="Set cluster thumbnail" aria-modal="true"
+    <div style={S.overlay} role="dialog" aria-label={t`Set cluster thumbnail`} aria-modal="true"
          onPointerDown={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) onCancel?.(); }}>
       <div style={S.panel}>
         <div style={S.head}>
-          <div style={S.title}>Set cluster thumbnail</div>
-          <button style={S.x} aria-label="Cancel" onClick={onCancel}><Icon as={X} size={16} /></button>
+          <div style={S.title}><Trans>Set cluster thumbnail</Trans></div>
+          <button style={S.x} aria-label={t`Cancel`} onClick={onCancel}><Icon as={X} size={16} /></button>
         </div>
 
         {error ? (
@@ -148,7 +150,7 @@ export function ThumbnailCropModal({ file, saving = false, onCancel, onSave }) {
           <>
             <div ref={frameRef} style={S.frame}
                  onPointerDown={onPointerDown}
-                 title="Drag to reposition">
+                 title={t`Drag to reposition`}>
               {img && frameW > 0 && (
                 <img src={img.el.src} alt="" draggable={false}
                      style={{
@@ -158,26 +160,26 @@ export function ThumbnailCropModal({ file, saving = false, onCancel, onSave }) {
                        userSelect: 'none', pointerEvents: 'none',
                      }} />
               )}
-              {!img && <div style={S.frameLoading}>Loading…</div>}
-              <div style={S.frameHint}>Drag to reposition</div>
+              {!img && <div style={S.frameLoading}><Trans>Loading…</Trans></div>}
+              <div style={S.frameHint}><Trans>Drag to reposition</Trans></div>
             </div>
 
             <label style={S.zoomRow}>
-              <span style={S.zoomLabel}>Zoom</span>
+              <span style={S.zoomLabel}><Trans>Zoom</Trans></span>
               <input type="range" min={1} max={MAX_ZOOM} step={0.01} value={zoom}
                      disabled={!img}
                      onChange={(e) => setZoom(Number(e.target.value))}
-                     style={S.range} aria-label="Zoom" />
+                     style={S.range} aria-label={t`Zoom`} />
             </label>
           </>
         )}
 
         <div style={S.actions}>
-          <button style={S.btn} onClick={onCancel}>Cancel</button>
+          <button style={S.btn} onClick={onCancel}><Trans>Cancel</Trans></button>
           <button style={{ ...S.btn, ...S.btnPrimary, ...((!img || error || saving) ? S.btnDisabled : null) }}
                   disabled={!img || !!error || saving}
                   onClick={doSave}>
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? t`Saving…` : t`Save`}
           </button>
         </div>
       </div>

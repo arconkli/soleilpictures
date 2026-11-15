@@ -12,6 +12,7 @@
 import { logEvent } from './analytics.js';
 import { EV } from './analyticsEvents.js';
 import { skippedFilesNotice } from './fileIngest.js';
+import { t } from '@lingui/core/macro';
 // The script parser is loaded only when a screenplay actually arrives: this
 // module sits in the app shell (App.jsx imports it for the list drop), and a
 // parser for a rare drop has no business in the bundle every visit downloads.
@@ -31,9 +32,10 @@ export function reportSkippedFiles({ partial = [], pureref = [] } = {}, { surfac
   return true;
 }
 
-export const SCRIPT_UNREADABLE = "Couldn't read that file — it doesn't look like Fountain or Final Draft.";
-export const SCRIPT_EMPTY = 'Nothing importable found in that file.';
-export const SCRIPT_ONE_AT_A_TIME = 'One script at a time — the first is on the board; drop the next on its own.';
+// Read when a toast is built, in the person's language, never at load.
+export const scriptUnreadable = () => t`Couldn't read that file — it doesn't look like Fountain or Final Draft.`;
+export const scriptEmpty = () => t`Nothing importable found in that file.`;
+export const scriptOneAtATime = () => t`One script at a time — the first is on the board; drop the next on its own.`;
 
 // Turn the FIRST screenplay in a gesture into a script card, its title page and
 // body written into the card's doc as it is made (App's addScriptCard). One per gesture: every script in a drop would be
@@ -52,14 +54,14 @@ export async function importDroppedScripts(files, { addScriptCard, pos = null, s
     parsed = mod.parseScriptText(await file.text(), file?.name || '');
   } catch (err) {
     console.error('[drop] screenplay parse failed', err);
-    toast?.({ type: 'error', code: 'screenplay_read_failed', message: SCRIPT_UNREADABLE });
+    toast?.({ type: 'error', code: 'screenplay_read_failed', message: scriptUnreadable() });
     return null;
   }
-  if (mod.isEmptyScript(parsed)) { toast?.({ type: 'error', code: 'import_empty', message: SCRIPT_EMPTY }); return null; }
+  if (mod.isEmptyScript(parsed)) { toast?.({ type: 'error', code: 'import_empty', message: scriptEmpty() }); return null; }
   const id = addScriptCard?.(pos, { title: parsed.title, script: { titlePage: parsed.titlePage, body: mod.scriptBody(parsed) } });
   if (!id) return null;
   try { logEvent(EV.SCRIPT_IMPORTED, { source, format: parsed.format, blocks: parsed.blocks.length }); } catch (_) {}
   // Said only once the first one is really on the board.
-  if (files.length > 1) toast?.({ type: 'info', message: SCRIPT_ONE_AT_A_TIME, ttl: 6000 });
+  if (files.length > 1) toast?.({ type: 'info', message: scriptOneAtATime(), ttl: 6000 });
   return id;
 }

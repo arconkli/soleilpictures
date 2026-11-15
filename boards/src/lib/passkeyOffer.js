@@ -11,6 +11,7 @@ import { PASSKEY_OFFER_KEY } from './passkeyGate.js';
 import { passkeyErrorWords, passkeyFailReason } from './passkeyWords.js';
 import { logEvent } from './analytics.js';
 import { EV } from './analyticsEvents.js';
+import { t } from '@lingui/core/macro';
 
 let asked = false;
 
@@ -28,11 +29,11 @@ export async function offerPasskey({ feedback }) {
   const dismissed = () => { try { logEvent(EV.PASSKEY_OFFER_DISMISSED); } catch (_) {} };
   feedback.toast({
     type: 'info',
-    message: 'Skip the code next time? Save a passkey and sign in on this device with your face or fingerprint.',
+    message: t`Skip the code next time? Save a passkey and sign in on this device with your face or fingerprint.`,
     ttl: 20000,
     actions: [
-      { label: 'Save a passkey', onClick: () => { save(feedback); } },
-      { label: 'Not now', onClick: dismissed },
+      { label: t`Save a passkey`, onClick: () => { save(feedback); } },
+      { label: t`Not now`, onClick: dismissed },
     ],
     onDismiss: dismissed,
   });
@@ -42,10 +43,10 @@ async function save(feedback) {
   const { error } = await savePasskey();
   if (!error) {
     try { logEvent(EV.PASSKEY_SAVED, { via: 'offer' }); } catch (_) {}
-    feedback.toast({ type: 'success', message: 'Passkey saved. Next time, tap the email box and pick it.' });
+    feedback.toast({ type: 'success', message: t`Passkey saved. Next time, tap the email box and pick it.` });
     return;
   }
   try { logEvent(EV.PASSKEY_SAVE_FAILED, { via: 'offer', reason: passkeyFailReason(error) }); } catch (_) {}
   const words = passkeyErrorWords(error, { saving: true });
-  if (words) feedback.toast({ type: 'error', code: 'passkey_save_failed', message: `${words} You can add one any time in Settings › Profile.` });
+  if (words) feedback.toast({ type: 'error', code: 'passkey_save_failed', message: t`${words} You can add one any time in Settings › Profile.` });
 }

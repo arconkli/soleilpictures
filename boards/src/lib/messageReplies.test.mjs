@@ -28,7 +28,7 @@ test('a quote whose original isn’t loaded is read by id; a deleted one says so
   assert.match(thread, /r\.deleted_at \? \{ id, unavailable: 'deleted' \} : r/);
   assert.match(thread, /onJumpToMessage=\{jumpTo\}/, 'clicking a quote pages back to an old original');
   const bubble = read('../components/MessageBubble.jsx');
-  assert.match(bubble, /'Original message deleted' : 'Original message unavailable'/);
+  assert.match(bubble, /t`Original message deleted` : t`Original message unavailable`/);
 });
 
 test('Escape in the composer lets a reply go before it closes anything', () => {

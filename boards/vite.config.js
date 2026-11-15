@@ -1,7 +1,8 @@
 import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { appPreloadList, withoutList, adminPreloadLists, preloadScript, WORKSPACE_SETUP_MODULE } from './src/lib/appPreloadList.mjs';
+import { appPreloadList, catalogList, withoutList, adminPreloadLists, preloadScript, WORKSPACE_SETUP_MODULE } from './src/lib/appPreloadList.mjs';
+import { needsLingui, linguiTransform } from './scripts/linguiTransform.mjs';
 import { PDFJS_ASSET_DIRS, pdfjsAssetBase } from './src/lib/pdfAssets.js';
 import { existsSync, createReadStream, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -38,6 +39,24 @@ function pdfjsAssets() {
   };
 }
 
+// Runs Lingui's macro (t, plural, <Trans>…) on the source files that use it,
+// and turns each English message into its compiled form
+// (scripts/linguiTransform.mjs; the same transform `npm test` loads in node).
+// A plugin of its own, before React's, and not plugin-react's babel option,
+// which would run Babel on every file in the build.
+function linguiMacros() {
+  return {
+    name: 'soleil-lingui-macros',
+    enforce: 'pre',
+    async transform(code, id) {
+      if (id.includes('/node_modules/') || id.includes('\0')) return;
+      if (!/\.(js|jsx|mjs)$/.test(id.split('?')[0])) return;
+      if (!needsLingui(code)) return;
+      return linguiTransform(code, id);
+    },
+  };
+}
+
 // Build-time release tag stamped onto first-party client error logs
 // (public.client_errors via errorReporting.js, which reads VITE_RELEASE). The
 // short git SHA makes prod errors attributable to a deploy. Cloudflare Workers
@@ -67,7 +86,8 @@ function appPreload() {
         const app = appPreloadList(ctx.bundle);
         if (!app) return;
         const setup = withoutList(appPreloadList(ctx.bundle, WORKSPACE_SETUP_MODULE), app);
-        const script = preloadScript({ app, ...(setup ? { setup } : {}), ...adminPreloadLists(ctx.bundle, app) });
+        const catalogs = catalogList(ctx.bundle);
+        const script = preloadScript({ app, ...(setup ? { setup } : {}), ...adminPreloadLists(ctx.bundle, app), catalogs });
         // Right after <meta charset>, which must stay inside the first 1024
         // bytes, and above every stylesheet: an inline script waits for the
         // stylesheets before it to load, and this one has to run at once.
@@ -138,7 +158,7 @@ function iconSplit() {
 }
 
 export default defineConfig({
-  plugins: [react(), appPreload(), iconSplit(), pdfjsAssets()],
+  plugins: [linguiMacros(), react(), appPreload(), iconSplit(), pdfjsAssets()],
   define: {
     'import.meta.env.VITE_RELEASE': JSON.stringify(release),
   },
@@ -178,6 +198,8 @@ export default defineConfig({
           if (id.includes('/node_modules/three/')) return 'vendor-three';
           if (id.includes('react-force-graph') || id.includes('three-') || id.includes('d3-force-3d')) return 'vendor-graph3d';
           if (id.includes('@cosmograph')) return 'vendor-cosmograph';
+          // Lingui's runtime, before the react rule: '/@lingui/react/' holds '/react/'.
+          if (id.includes('/@lingui/')) return 'vendor-i18n';
           if (id.includes('@tiptap') || id.includes('prosemirror')) return 'vendor-editor';
           if (id.includes('/yjs/') || id.includes('y-partykit') || id.includes('y-protocol') || id.includes('partysocket') || id.includes('/partykit/')) return 'vendor-yjs';
           if (id.includes('recharts') || id.includes('/d3-') || id.includes('victory')) return 'vendor-charts';

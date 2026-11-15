@@ -4,6 +4,8 @@
 // not an action, so nothing here is gold.
 import { Users as UsersIcon, Check as CheckIcon } from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 export function EditorLimitNote({ note, onSeeWho = null, onAsk = null, asking = false }) {
   if (!note) return null;
@@ -15,16 +17,16 @@ export function EditorLimitNote({ note, onSeeWho = null, onAsk = null, asking = 
       <div className="lim-note-text">
         <span className="lim-note-lead">{note.lead}</span> {note.body}
         {note.seeWho === 'link' && onSeeWho && (
-          <> <button type="button" className="share-linkish" onClick={onSeeWho}>See who</button></>
+          <> <button type="button" className="share-linkish" onClick={onSeeWho}><Trans>See who</Trans></button></>
         )}
         {(seeWhoButton || askButton) && (
           <div className="lim-note-acts">
             {seeWhoButton && (
-              <button type="button" className="lim-btn" onClick={onSeeWho}>See who can edit</button>
+              <button type="button" className="lim-btn" onClick={onSeeWho}><Trans>See who can edit</Trans></button>
             )}
             {askButton && (
               <button type="button" className="lim-btn" onClick={onAsk} disabled={asking}>
-                {asking ? 'Asking…' : note.ask}
+                {asking ? t`Asking…` : note.ask}
               </button>
             )}
           </div>

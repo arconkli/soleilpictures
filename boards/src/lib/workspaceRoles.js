@@ -12,13 +12,16 @@
 // The server is the authority (can_manage_workspace); these only decide what
 // the UI offers.
 
+import { t as tr } from '@lingui/core/macro';
+
+// Getters, read at render: a label read at load would freeze the language.
 export const WORKSPACE_ROLE_LABEL = {
-  owner: 'Owner',
-  coowner: 'Co-owner',
-  admin: 'Admin',
-  editor: 'Editor',
-  viewer: 'Viewer',
-  service: 'Service account',
+  get owner() { return tr`Owner`; },
+  get coowner() { return tr`Co-owner`; },
+  get admin() { return tr({ message: 'Admin', context: 'role' }); },
+  get editor() { return tr`Editor`; },
+  get viewer() { return tr`Viewer`; },
+  get service() { return tr`Service account`; },
 };
 
 // People, roles, every share and link, name and icon.

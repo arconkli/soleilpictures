@@ -18,6 +18,8 @@ import { useOnline } from '../hooks/useOnline.js';
 import { ActivityTrayContext } from './activityTrayContext.js';
 import './importTray.css';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // The bulk import's tray (the owner's pick A, 2026-10-19): bottom-right, just
 // above the zoom control, showing the import that is going now and folding to
@@ -106,12 +108,12 @@ function Guide({ app, guide, aboveNav, inTray = false }) {
              onDragLeave={() => { depth.current = Math.max(0, depth.current - 1); if (!depth.current) setOver(false); }}
              onDrop={onDrop}>
       <header className="imptray-head">
-        <span className="imptray-title" id="imptray-guide-title">Bring files from another app</span>
-        <button type="button" className="imptray-ib" aria-label="Close" onClick={closeImportGuide}>
+        <span className="imptray-title" id="imptray-guide-title"><Trans>Bring files from another app</Trans></span>
+        <button type="button" className="imptray-ib" aria-label={t`Close`} onClick={closeImportGuide}>
           <Icon as={X} size={13} weight="regular" />
         </button>
       </header>
-      <div className="imptray-guide-tabs" role="tablist" aria-label="Apps" ref={tabsRef} onKeyDown={onTabKey}>
+      <div className="imptray-guide-tabs" role="tablist" aria-label={t`Apps`} ref={tabsRef} onKeyDown={onTabKey}>
         {GUIDE_APPS.map((id) => (
           <button key={id} type="button" role="tab" data-app={id} id={`imptray-guide-tab-${id}`}
                   className="imptray-guide-tab" aria-selected={id === app} aria-controls="imptray-guide-panel"
@@ -244,15 +246,15 @@ export function ImportTray({ aboveNav = false, initialMinimized = false, guide =
 
   const fin = m.finished;
   return (
-    <section className={'imptray' + place} aria-label="Imports">
+    <section className={'imptray' + place} aria-label={t`Imports`}>
       <header className="imptray-head">
         <span className="imptray-title"><span aria-live="polite">{m.title}</span></span>
         {m.close === 'close' ? (
-          <button type="button" className="imptray-ib" aria-label="Close" onClick={() => { act('close'); dropImportJob(lead.key); }}>
+          <button type="button" className="imptray-ib" aria-label={t`Close`} onClick={() => { act('close'); dropImportJob(lead.key); }}>
             <Icon as={X} size={13} weight="regular" />
           </button>
         ) : (
-          <button type="button" className="imptray-ib" aria-label="Minimize" onClick={fold}>
+          <button type="button" className="imptray-ib" aria-label={t`Minimize`} onClick={fold}>
             <Icon as={CaretDown} size={14} weight="regular" />
           </button>
         )}
@@ -270,11 +272,11 @@ export function ImportTray({ aboveNav = false, initialMinimized = false, guide =
           <div className="imptray-row-actions">
             {fin.resume && (
               <button type="button" className="imptray-btn is-sm" onClick={() => act('resume')}>
-                <Icon as={Play} size={13} weight="regular" />Resume
+                <Icon as={Play} size={13} weight="regular" /><Trans>Resume</Trans>
               </button>
             )}
             {fin.open && <button type="button" className="imptray-btn is-sm" onClick={() => act('open')}>{fin.open.label}</button>}
-            {fin.remove && <button type="button" className="imptray-btn is-sm is-quiet" onClick={() => act('remove')}>Remove this import</button>}
+            {fin.remove && <button type="button" className="imptray-btn is-sm is-quiet" onClick={() => act('remove')}><Trans>Remove this import</Trans></button>}
           </div>
         )}
       </div>
@@ -284,7 +286,7 @@ export function ImportTray({ aboveNav = false, initialMinimized = false, guide =
           {m.rows.map((r) => (
             <div key={r.key} className={'imptray-row' + (r.state === 'now' ? ' is-now' : r.state === 'later' ? ' is-later' : r.state === 'part' ? ' is-part' : '')}>
               <span className="ok">{r.state === 'done' && <Icon as={Check} size={12} weight="regular" />}</span>
-              <span className="n" dir="auto">{r.name}</span>
+              <span className="n" dir="auto" title={r.name}>{r.name}</span>
               {r.state === 'now' && <span className="imptray-minibar" aria-hidden="true"><span style={{ width: `${r.pct}%` }} /></span>}
               <span className="c">{r.count}</span>
             </div>
@@ -315,7 +317,7 @@ export function ImportTray({ aboveNav = false, initialMinimized = false, guide =
           {m.fails.more && <div className="imptray-meta">{m.fails.more}</div>}
           {m.fails.retry && (
             <div className="imptray-row-actions" style={{ marginTop: 6 }}>
-              <button type="button" className="imptray-btn is-sm" onClick={() => act('retry')}>Try these again</button>
+              <button type="button" className="imptray-btn is-sm" onClick={() => act('retry')}><Trans>Try these again</Trans></button>
             </div>
           )}
         </div>
@@ -324,7 +326,7 @@ export function ImportTray({ aboveNav = false, initialMinimized = false, guide =
       {(m.foot || more > 0) && (
         <footer className="imptray-foot">
           {m.foot?.meta && <span className="imptray-meta">{m.foot.meta}</span>}
-          {more > 0 && <span className="imptray-meta">{`${more} more ${more === 1 ? 'import' : 'imports'} after this`}</span>}
+          {more > 0 && <span className="imptray-meta">{t`${plural(more, { one: '# more import after this', other: '# more imports after this' })}`}</span>}
           <span className="imptray-gap" />
           {(m.foot?.actions || []).map((a) => (
             <button key={a.id} type="button" className="imptray-btn is-sm is-quiet" onClick={() => act(a.id)}>

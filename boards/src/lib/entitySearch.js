@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { t as tr } from '@lingui/core/macro';
 import { entitySearchFilter, entitySearchRank, docPageSearchFilter, cleanSearchTerm, isMissingColumn } from './entitySearchFilter.js';
 import { searchKey } from './textFold.js';
 import { snippetAround } from './docText.js';
@@ -96,7 +97,7 @@ export async function searchDocPages({ workspaceId, query, limit = 8 }) {
       docCardId: r.doc_card_id,
       pageId: r.page_id,
       pageTitle: r.page_title || '',
-      docTitle: byId.get(r.doc_card_id)?.title || 'Untitled doc',
+      docTitle: byId.get(r.doc_card_id)?.title || tr`Untitled doc`,
       boardId: byId.get(r.doc_card_id)?.board_id || null,
       snippet: snippetAround(r.page_text, term),
     }));

@@ -39,7 +39,7 @@ test('the canvas draws it, opens it on double-click and from its menu, nothing o
   const c = src('../components/CanvasSurface.jsx');
   assert.match(c, /else if \(c\.kind === 'shortcut'\)  inner = <ShortcutCard shareToken=\{c\.shareToken\} isPublic=\{isPublic\}\s+onRemove=\{canEdit && !isPublic \? \(\) => doDeleteIds\(\[c\.id\]\) : null\} \/>;/);
   assert.match(c, /if \(c\.kind === 'shortcut'\) \{\s+if \(c\.shareToken && !isPublic\) \{ e\.stopPropagation\?\.\(\); openSharedFile\(\{ token: c\.shareToken, via: 'shortcut' \}\); \}\s+return;\s+\}/);
-  assert.match(c, /\} else if \(c\.kind === 'shortcut' && c\.shareToken && !isPublic\) \{\s+openItems\.push\(\{ id: 'open', label: 'Open', run: \(\) => openSharedFile\(\{ token: c\.shareToken, via: 'shortcut' \}\) \}\);/);
+  assert.match(c, /\} else if \(c\.kind === 'shortcut' && c\.shareToken && !isPublic\) \{\s+openItems\.push\(\{ id: 'open', label: tr`Open`, run: \(\) => openSharedFile\(\{ token: c\.shareToken, via: 'shortcut' \}\) \}\);/);
   // Never "Share file…": a shortcut is not the file.
   assert.match(src('./fileShares.js'), /export const SHAREABLE_KINDS = Object\.freeze\(\['image', 'video', 'audio', 'pdf', 'file'\]\);/);
 });

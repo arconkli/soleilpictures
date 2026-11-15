@@ -42,7 +42,8 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.3";
 import Stripe from "npm:stripe@17.7.0";
 import { activateUserFromSubscription, billingConfig, mirrorRow } from "../_shared/activate.ts";
 import { activationDecision, entitlementFromSubscription, subscriptionItems } from "../_shared/activateCore.mjs";
-import { renderTrialEnding } from "../_shared/email/trialEnding.ts";
+import { fallbackPriceLabel, formatChargeAt, formatPriceLabel, renderTrialEnding } from "../_shared/email/trialEnding.ts";
+import { emailLocale } from "../_shared/email/i18n.mjs";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -264,20 +265,18 @@ async function sendTrialReminders(admin: ReturnType<typeof createClient>) {
       const email = u.data?.user?.email;
       if (!email) { out.skipped++; continue; }                // keep the claim: nobody to tell
 
+      // The reader's own language, as the account saved it.
+      const locale = emailLocale(u.data?.user?.user_metadata?.locale);
       // The exact moment, with its zone — see renderTrialEnding for why a bare
       // date is not enough.
-      const chargeAt = new Date(row.current_period_end as string)
-        .toLocaleString("en-US", {
-          month: "long", day: "numeric", year: "numeric",
-          hour: "numeric", minute: "2-digit", timeZone: "UTC",
-        }).replace(/, (\d{1,2}:\d{2})/, " at $1") + " UTC";
-      const amountLabel = await chargeLabel(row.stripe_subscription_id as string | null, row.plan as string | null);
+      const chargeAt = formatChargeAt(new Date(row.current_period_end as string), locale);
+      const amountLabel = await chargeLabel(row.stripe_subscription_id as string | null, row.plan as string | null, locale);
 
       // Sent from here rather than through send-transactional-email so that
       // adding a billing notice never means redeploying the sender every other
       // email depends on. The log row it writes is the same one that function
       // writes, so the admin email views see this send like any other.
-      const mail = renderTrialEnding({ chargeAt, amountLabel });
+      const mail = renderTrialEnding({ chargeAt, amountLabel }, locale);
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -308,25 +307,20 @@ async function sendTrialReminders(admin: ReturnType<typeof createClient>) {
 // typed here — a hand-typed amount is exactly how public copy drifts from the
 // thing that charges. Falls back to the plan's cadence alone if Stripe can't
 // be reached, never to a guessed number.
-async function chargeLabel(subId: string | null, plan: string | null): Promise<string> {
+async function chargeLabel(subId: string | null, plan: string | null, locale: string): Promise<string> {
   const cadence = plan === "annual" ? "year" : "month";
-  if (!subId) return `the Creator ${plan === "annual" ? "annual" : "monthly"} price`;
+  if (!subId) return fallbackPriceLabel(cadence, locale);
   try {
     const sub = await stripe.subscriptions.retrieve(subId);
     // The plan's own price, never whichever item Stripe lists first.
     const price = subscriptionItems(sub, billingConfig()).creator?.price;
     const cents = price?.unit_amount;
     const interval = price?.recurring?.interval || cadence;
-    if (typeof cents === "number") {
-      const amount = cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2);
-      const symbol = (price?.currency || "usd").toLowerCase() === "usd" ? "$" : "";
-      const suffix = symbol ? "" : ` ${(price?.currency || "").toUpperCase()}`;
-      return `${symbol}${amount}${suffix}/${interval}`;
-    }
+    if (typeof cents === "number") return formatPriceLabel(cents, price?.currency, interval, locale);
   } catch (e) {
     console.warn("[billing-reconcile] price lookup failed", subId, (e as Error)?.message || String(e));
   }
-  return `the Creator ${cadence === "year" ? "annual" : "monthly"} price`;
+  return fallbackPriceLabel(cadence, locale);
 }
 
 // The universal email_sends row (migration 0175), written exactly as

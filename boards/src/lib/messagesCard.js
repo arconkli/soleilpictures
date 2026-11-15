@@ -1,15 +1,18 @@
 // Words for Messages in the files sidebar's card look (components/
 // messagesLook.js). Pure, for the panel and its tests.
 
+import { t, ph, plural } from '@lingui/core/macro';
+
 const first = (label) => String(label || '').trim().split(/\s+/)[0];
 
 // Under a group's name: "Lena, Jon, Sam and you"; a bigger group names two
 // and counts the rest, you included: "Lena, Jon and 4 others".
 export function membersLine(labels) {
   const names = (labels || []).map(first).filter(Boolean);
-  if (!names.length) return 'Just you';
-  if (names.length <= 3) return `${names.join(', ')} and you`;
-  return `${names[0]}, ${names[1]} and ${names.length - 1} others`;
+  if (!names.length) return t`Just you`;
+  if (names.length <= 3) return t`${ph({ names: names.join(', ') })} and you`;
+  const rest = names.length - 1;
+  return t`${ph({ first: names[0] })}, ${ph({ second: names[1] })} and ${plural(rest, { one: '# other', other: '# others' })}`;
 }
 
 // A conversation matches a find when every word of it is in its title, its
@@ -39,5 +42,5 @@ export function previewText(body) {
 // sidebar's "Maya and Jon are here" reads; nothing when they aren't (a line
 // that says "Direct message" told you nothing).
 export function dmSubline(peerHere) {
-  return peerHere ? 'Here now' : '';
+  return peerHere ? t`Here now` : '';
 }

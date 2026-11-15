@@ -129,7 +129,19 @@ export const CEILINGS = {
   // auth/AuthGate.jsx). All three read lib/graphemes.js, so it ships in the
   // entry. A CI-style build on this worktree's own npm ci (which reads what
   // CI reads) measured entryJs 173,117 B on main ba2e6e95 and 173,932 B with it.
-  entryJs: 174_400,
+  // 2026-11-09: +3.9 KB for Lingui's runtime (@lingui/core + @lingui/react,
+  // vendor-i18n) for the app's six languages, and the language pick and boot in
+  // the entry (lib/i18n.js, i18nBoot.js, uiLocale.js). A CI-style build
+  // measured entryJs 173,922 B on main 490dc74c and 177,859 B with it.
+  // 2026-11-14: +0.9 KB for step 11b of the app's languages: the frame's
+  // English (sidebar, menus, toasts, dialogs, ⌘K, App.jsx) is now read through
+  // Lingui, about 25 bytes per message before compression. A CI-style build
+  // read entryJs 179,043 B with it; the ceiling was 178,159 B.
+  // 2026-11-14: +2.0 KB for step 13 of the app's languages: the settings tabs,
+  // team, pricing and onboarding screens, and the plural and default-name
+  // fixes, read through Lingui. A CI-style build read entryJs 181,057 B with
+  // it; the ceiling was 180,043 B.
+  entryJs: 182_100,
   // 2026-11-09: +0.2 KB for d2b3c2f0's rules in styles.css, over this
   // ceiling in the same run: 96,166 B on 1c770b58, 96,291 B on d2b3c2f0.
   // 2026-11-09: +0.1 KB for where those words sit and fade in under the sun
@@ -148,10 +160,15 @@ export const CEILINGS = {
   // (dir=auto), links that keep their own direction, and Impact named for
   // Latin only, so a title in another script draws in a font that has it.
   // 96,771 B on main ba2e6e95, 97,135 B with it.
-  // Production only (release 2026-11-15): +0.2 KB for the line under the
-  // sign-in wordmark and the tour's welcome block (ac341a6b) with layout
-  // outlines' rules (d2b3c2f0). A CI-style build on this release's own npm ci
-  // read 97.3 KB. Main carries the same 97_400 for the same rules.
+  // 2026-11-15: +0.1 KB for the app in other languages (styles.css): translated
+  // words keep their room. The studio bar wraps, and on a phone it centres to the
+  // right of the comments button, which a long bar covered; the doc card's page
+  // count gives way before Beside and Open; Cluster info's file kinds wrap.
+  // Read 97,227 B with them; the ceiling was 97,200 B.
+  // 2026-11-15: +0.1 KB for main's own CSS since then (among it the line under
+  // the sign-in wordmark): a CI-style build read main 2de983f3 at 97,280 B,
+  // over its 97,200 B ceiling, and 97,388 B with the app's languages on top.
+  // The ceiling was 97,300 B.
   entryCss: 97_400,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
@@ -379,13 +396,29 @@ export const CEILINGS = {
   // character maps load only where they are used. A CI-style build on this
   // worktree's own npm ci measured appJs 735,343 B on main ba2e6e95 and
   // 743,320 B with it; the ceiling moves by the difference, 7,977 B.
-  // Production only (release 2026-11-15): +3.5 KB for layout outlines' ask
-  // and canvas tool counts (d2b3c2f0, 3e9c82c5), haptics on touch with
-  // @capacitor/haptics (4add2b17) and the tour's welcome block (ac341a6b),
-  // less the "New idea?" toast (a6691905). A CI-style build on this
-  // release's own npm ci read 746.7 KB; main's ceiling is higher because it
-  // also carries the languages.
-  appJs: 747_400,
+  // 2026-11-09: +0.6 KB for dates and times in the reader's language
+  // (lib/relativeTime.js reading lib/intlFormat.js, which the app's chunks
+  // share). A CI-style build measured appJs 743,296 B on main 490dc74c and
+  // 743,910 B with it; the ceiling moves by the difference, 614 B.
+  // 2026-11-14: +10.9 KB for step 11b of the app's languages: the frame's
+  // English (sidebar, menus, toasts, dialogs, ⌘K, App.jsx) is now read through
+  // Lingui, about 25 bytes per message before compression. A CI-style build
+  // read appJs 754,425 B with it; the ceiling was 744,514 B.
+  // 2026-11-14: +15.5 KB for step 12 of the app's languages: the work area's
+  // English (canvas, cards, docs, lists, imports, uploads, messages, film
+  // player) is now read through Lingui, about 25 bytes per message before
+  // compression. A CI-style build read appJs 769,938 B with it; the ceiling
+  // was 755,425 B.
+  // 2026-11-14: +10.1 KB for step 13 of the app's languages: the settings tabs,
+  // team, pricing and onboarding screens, and the plural and default-name
+  // fixes, read through Lingui. A CI-style build read appJs 780.0 KB with it;
+  // the ceiling was 770,950 B.
+  // 2026-11-15: +3.2 KB for main's own app since 490dc74c (among it vibration
+  // on touch, lib/haptics.js with @capacitor/haptics, and the tour's welcome
+  // block): a CI-style build read main 2de983f3 at 746,698 B, 3,402 B more than
+  // on 490dc74c and over its 743,900 B ceiling. With the app's languages on top
+  // it read 783,343 B, 36,645 B over main; the ceiling was 781,000 B.
+  appJs: 784_200,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).
@@ -448,6 +481,12 @@ export const LAZY_IN_APP = [
   'pendingJoinClaim',
 ];
 
+// The compiled catalogs (src/locales/<locale>/messages.mjs): one chunk per
+// language, fetched only for the language chosen (lib/i18nBoot.js). English has
+// none. A static import of one anywhere would put every language's words in
+// the entry or the app for everybody. A built chunk no longer shows its module
+// ids, so catalogMisses reads the catalog chunks off the preload list in
+// index.html, which vite.config.js writes from each chunk's facadeModuleId.
 const br = (buf) => brotliCompressSync(buf, { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } }).length;
 
 // "assets/CanvasSurface-DiqxAXy4.js" → "CanvasSurface". The hash is Vite's 8
@@ -516,6 +555,16 @@ export function lazyMisses(dist, inClosure) {
   return misses;
 }
 
+// The catalog chunks, as the build named them in the preload list in index.html
+// (read off each chunk's module ids, which a minified chunk no longer shows),
+// that are in `inClosure`. Plus any chunk still named after the catalog file.
+export function catalogMisses(dist, lists, inClosure) {
+  const named = Object.values(lists?.catalogs || {}).map((h) => h.replace(/^\//, ''));
+  const chunks = readdirSync(join(dist, 'assets')).filter((f) => f.endsWith('.js')).map((f) => `assets/${f}`);
+  const all = new Set([...named, ...chunks.filter((f) => chunkName(f) === 'messages')]);
+  return [...all].filter(inClosure);
+}
+
 export function measure(dist) {
   const read = (f) => readFileSync(join(dist, f), 'utf8');
   const html = read('index.html');
@@ -545,6 +594,7 @@ export function measure(dist) {
     rows: { entryJs: entryJsRows, entryCss: entryCssRows, appJs: appJsRows, appCss: appCssRows },
     forbidden: app.filter((f) => NEVER_IN_APP.includes(chunkName(f))),
     lazy: lazyMisses(dist, (f) => app.includes(f) || entryClosure.has(f)),
+    catalogs: catalogMisses(dist, lists, (f) => app.includes(f) || entryClosure.has(f)),
     preload: preloaded && {
       missing: app.filter((f) => !preloaded.includes(f)),
       extra: preloaded.filter((f) => !app.includes(f)),
@@ -571,6 +621,11 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     failed = true;
     console.log(`\nImported lazily on purpose, but now: ${m.lazy.join(', ')}`);
     console.log('Something imports them statically. Find it and import them lazily again (LAZY_IN_APP says where they live).');
+  }
+  if (m.catalogs.length) {
+    failed = true;
+    console.log(`\nA language's catalog is in the entry or the app's critical closure: ${m.catalogs.join(', ')}`);
+    console.log('Something imports src/locales/*/messages.mjs statically. Catalogs load only through lib/i18nBoot.js (import.meta.glob), for the language chosen.');
   }
   if (!m.preload) {
     failed = true;

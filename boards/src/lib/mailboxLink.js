@@ -8,23 +8,24 @@
 // code step stays where it is. Work and school servers are the other slow path:
 // they quarantine or delay unknown senders, and those addresses never reached
 // the app far more often than consumer ones.
+import { t } from '@lingui/core/macro';
 const GMAIL_SEARCH = 'in:anywhere from:soleilpictures newer_than:1d';
 
 // href receives the address: Gmail's authuser= opens THAT account even when
 // another Google account is signed in first (/u/0/ would search the wrong
 // mailbox, find nothing, and say the code never came).
 const PROVIDERS = Object.freeze([
-  { id: 'gmail',   label: 'Open Gmail',       test: /^(gmail|googlemail)\.com$/,
+  { id: 'gmail',   get label() { return t`Open Gmail`; },       test: /^(gmail|googlemail)\.com$/,
     href: (email) => `https://mail.google.com/mail/?authuser=${encodeURIComponent(email)}#search/${encodeURIComponent(GMAIL_SEARCH)}` },
-  { id: 'outlook', label: 'Open Outlook',     test: /^(outlook|hotmail|live|msn)\.[a-z.]+$/,
+  { id: 'outlook', get label() { return t`Open Outlook`; },     test: /^(outlook|hotmail|live|msn)\.[a-z.]+$/,
     href: () => 'https://outlook.live.com/mail/0/' },
-  { id: 'yahoo_jp', label: 'Open Yahoo! Mail', test: /^yahoo\.co\.jp$/,      // a separate service with separate accounts
+  { id: 'yahoo_jp', get label() { return t`Open Yahoo! Mail`; }, test: /^yahoo\.co\.jp$/,      // a separate service with separate accounts
     href: () => 'https://mail.yahoo.co.jp/' },
-  { id: 'yahoo',   label: 'Open Yahoo Mail',  test: /^(yahoo|ymail)\.[a-z.]+$/,
+  { id: 'yahoo',   get label() { return t`Open Yahoo Mail`; },  test: /^(yahoo|ymail)\.[a-z.]+$/,
     href: () => 'https://mail.yahoo.com/' },
-  { id: 'icloud',  label: 'Open iCloud Mail', test: /^(icloud|me|mac)\.com$/,
+  { id: 'icloud',  get label() { return t`Open iCloud Mail`; }, test: /^(icloud|me|mac)\.com$/,
     href: () => 'https://www.icloud.com/mail' },
-  { id: 'proton',  label: 'Open Proton Mail', test: /^(proton\.me|protonmail\.(com|ch)|pm\.me)$/,
+  { id: 'proton',  get label() { return t`Open Proton Mail`; }, test: /^(proton\.me|protonmail\.(com|ch)|pm\.me)$/,
     href: () => 'https://mail.proton.me/u/0/inbox' },
 ]);
 

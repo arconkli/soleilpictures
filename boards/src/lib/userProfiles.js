@@ -29,6 +29,7 @@ import { pickPresenceColor } from './presenceColor.js';
 import { maskProfile } from './captureIdentity.js';
 import { getProfilesByIds } from './boardsApi.js';
 import { emailToName } from './personName.js';
+import { t } from '@lingui/core/macro';
 
 export { emailToName };
 
@@ -66,7 +67,7 @@ export function get(userId) {
   return maskProfile(userId, cache.get(userId) || null);
 }
 
-export function getName(userId, fallback = 'Member') {
+export function getName(userId, fallback = t`Member`) {
   if (!userId) return fallback;
   const e = maskProfile(userId, cache.get(userId));
   return e?.name || e?.email || fallback;

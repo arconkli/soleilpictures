@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { SoleilMark } from './primitives.jsx';
 import { useOnline } from '../hooks/useOnline.js';
+import { t as tr } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // How long a cluster may take to open before it says it is still connecting.
 export const BOARD_OPENING_STALL_MS = 10000;
@@ -11,7 +13,7 @@ export const BOARD_OPENING_STALL_MS = 10000;
 // under the sun, with a reload and, where there is somewhere to go back to, a
 // way out (`onBack`, labelled `backLabel`). A screen reader hears "Opening …"
 // from the start. The overlay ignores the pointer, but the words' buttons do not.
-export function BoardOpening({ name = '', onBack = null, backLabel = 'Go back', force }) {
+export function BoardOpening({ name = '', onBack = null, backLabel = tr`Go back`, force }) {
   const [stalled, setStalled] = useState(false);
   const online = useOnline();
   useEffect(() => {
@@ -19,7 +21,7 @@ export function BoardOpening({ name = '', onBack = null, backLabel = 'Go back', 
     return () => clearTimeout(t);
   }, []);
   const isStalled = typeof force === 'number' ? force > 0 : stalled;
-  const label = name || 'this cluster';
+  const label = name || tr`this cluster`;
   return (
     <div className={`board-loading-overlay${isStalled ? ' is-stalled' : ''}`}>
       <div className="board-loading-ghosts" aria-hidden="true">
@@ -32,19 +34,19 @@ export function BoardOpening({ name = '', onBack = null, backLabel = 'Go back', 
       <div role="status" className={isStalled ? 'doc-opening-say' : 'sr-only'}>
         {isStalled ? (
           <>
-            <span className="t-eyebrow">Cluster</span>
-            <div className="doc-state-title">Still connecting to {label}…</div>
+            <span className="t-eyebrow"><Trans>Cluster</Trans></span>
+            <div className="doc-state-title"><Trans>Still connecting to {label}…</Trans></div>
             <div className="doc-state-sub">
               {online
-                ? 'The cluster opens as soon as it arrives. If your connection dropped, reload the page.'
-                : 'You’re offline. The cluster opens as soon as you’re back online.'}
+                ? tr`The cluster opens as soon as it arrives. If your connection dropped, reload the page.`
+                : tr`You’re offline. The cluster opens as soon as you’re back online.`}
             </div>
           </>
-        ) : `Opening ${label}…`}
+        ) : tr`Opening ${label}…`}
       </div>
       {isStalled && (
         <div className="doc-opening-actions">
-          <button type="button" className="surface-error-btn" onClick={() => window.location.reload()}>Reload page</button>
+          <button type="button" className="surface-error-btn" onClick={() => window.location.reload()}><Trans>Reload page</Trans></button>
           {onBack && <button type="button" className="surface-error-btn" onClick={onBack}>{backLabel}</button>}
         </div>
       )}

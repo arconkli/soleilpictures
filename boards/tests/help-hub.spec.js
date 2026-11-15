@@ -72,8 +72,8 @@ test('the real App mounts the host with feedback and wires the sidebar foot', as
   expect(src).toContain('<HelpHost feedback={<FeedbackButton as="icon" />} />');
   expect(src).toContain('<HelpButton as="foot" via="sidebar" />');
   expect(src).toContain('<HelpButton as="tb" via="topbar" />');
-  expect(src).toMatch(/id: 'help', label: 'Help'/);
-  expect(src).toMatch(/id: 'add-anything', label: 'What can I add here\?'/);
+  expect(src).toMatch(/id: 'help', label: tr`Help`/);
+  expect(src).toMatch(/id: 'add-anything', label: tr`What can I add here\?`/);
 });
 
 test('the ⌘K commands open the same hub', async ({ page }) => {

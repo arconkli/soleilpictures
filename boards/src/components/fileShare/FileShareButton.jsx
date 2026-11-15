@@ -7,6 +7,7 @@
 // "Shared" is neutral ink, like "Share": gold is only for active / selection
 // / focus states. The callers keep their own gates (fileSharesAllowed(),
 // canEdit, isShareableCard); this only draws the button.
+import { t } from '@lingui/core/macro';
 import { Icon } from '../Icon.jsx';
 import { Share2 } from '../../lib/icons.js';
 import { openFileShare } from '../../lib/fileShareBus.js';
@@ -30,9 +31,9 @@ export function FileShareButton({ boardId, cardId, card = null, boardName = null
   const v = VARIANT[variant] || VARIANT.ql;
   const { shared } = useFileShareState({ boardId, cardId, enabled: !!(boardId && cardId), api });
   const isShared = shared === true;
-  const label = isShared ? 'Shared' : 'Share';
-  const aria = isShared ? 'Shared - manage sharing' : 'Share file';
-  const ariaLabel = variant === 'doc' && !isShared ? 'Share doc' : aria;
+  const label = isShared ? t({ message: 'Shared', context: 'state' }) : t`Share`;
+  const aria = isShared ? t`Shared - manage sharing` : t`Share file`;
+  const ariaLabel = variant === 'doc' && !isShared ? t`Share doc` : aria;
   return (
     <button type="button"
             className={`${v.className}${isShared ? ' is-shared' : ''}`}

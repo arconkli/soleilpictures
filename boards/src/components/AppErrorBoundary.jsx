@@ -10,6 +10,7 @@
 import { Component } from 'react';
 import { logClientError } from '../lib/errorReporting.js';
 import { looksLikeStaleChunk, reloadIfStaleChunk } from '../lib/lazyWithReload.js';
+import { t } from '@lingui/core/macro';
 
 export class AppErrorBoundary extends Component {
   constructor(props) {
@@ -98,8 +99,8 @@ export class AppErrorBoundary extends Component {
                       font: '400 14px/1.45 system-ui, sans-serif', color: '#e7e7ea',
                       textAlign: 'center' }}>
           <div>
-            <div style={{ font: '600 16px/1.2 system-ui, sans-serif' }}>Updating…</div>
-            <div style={{ marginTop: 4, opacity: 0.7 }}>A new version is loading.</div>
+            <div style={{ font: '600 16px/1.2 system-ui, sans-serif' }}>{t`Updating…`}</div>
+            <div style={{ marginTop: 4, opacity: 0.7 }}>{t`A new version is loading.`}</div>
           </div>
         </div>
       );
@@ -110,17 +111,17 @@ export class AppErrorBoundary extends Component {
         <div className="app-error-boundary">
           <div className="app-error-panel" role="alertdialog" aria-modal="true">
             <div className="app-error-header">
-              <span className="app-error-title">Couldn't load this page.</span>
+              <span className="app-error-title">{t`Couldn't load this page.`}</span>
               <span className="app-error-sub">
-                Part of it didn't download. Check your connection and try again.
+                {t`Part of it didn't download. Check your connection and try again.`}
               </span>
             </div>
             <div className="app-error-actions">
               <button className="app-error-btn" onClick={this.copy}>
-                Copy error
+                {t`Copy error`}
               </button>
               <button className="app-error-btn is-primary" onClick={this.reload}>
-                Reload
+                {t`Reload`}
               </button>
             </div>
           </div>
@@ -131,20 +132,21 @@ export class AppErrorBoundary extends Component {
     // Trim component stack to the top ~15 frames for the on-screen
     // view. The clipboard copy gets the full thing.
     const compStack = (info?.componentStack || '').trim().split('\n').slice(0, 15).join('\n');
+    // The error's own name (a JS identifier, as the log and the clipboard copy have it), not a translated word.
+    const errorName = error.name || 'Error';
 
     return (
       <div className="app-error-boundary">
         <div className="app-error-panel" role="alertdialog" aria-modal="true">
           <div className="app-error-header">
-            <span className="app-error-title">Something broke.</span>
+            <span className="app-error-title">{t`Something broke.`}</span>
             <span className="app-error-sub">
-              The screen would normally go blank — this panel is here so
-              you can see what happened.
+              {t`The screen would normally go blank — this panel is here so you can see what happened.`}
             </span>
           </div>
 
           <div className="app-error-message">
-            <div className="app-error-name">{error.name || 'Error'}</div>
+            <div className="app-error-name">{errorName}</div>
             <div className="app-error-text">{error.message || String(error)}</div>
           </div>
 
@@ -154,13 +156,13 @@ export class AppErrorBoundary extends Component {
 
           <div className="app-error-actions">
             <button className="app-error-btn" onClick={this.copy}>
-              Copy error
+              {t`Copy error`}
             </button>
             <button className="app-error-btn" onClick={this.resetLocalState}>
-              Reset view state
+              {t`Reset view state`}
             </button>
             <button className="app-error-btn is-primary" onClick={this.reload}>
-              Reload
+              {t`Reload`}
             </button>
           </div>
         </div>

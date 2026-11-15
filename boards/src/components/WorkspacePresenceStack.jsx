@@ -13,12 +13,15 @@ import { relativeTimeShort } from '../lib/relativeTime.js';
 import { useOpenDm } from '../hooks/useOpenDm.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { initialOf } from '../lib/graphemes.js';
+import { t, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../lib/errorWords.js';
 
 const STATUS_LABEL = {
-  connecting: 'Connecting…',
-  connected:  'Live',
-  error:      'Reconnecting…',
-  disconnected: 'Offline',
+  get connecting() { return t`Connecting…`; },
+  get connected() { return t`Live`; },
+  get error() { return t`Reconnecting…`; },
+  get disconnected() { return t`Offline`; },
 };
 
 export function WorkspacePresenceStack({ peers, status, selfId, onJumpTo, workspaceId, max = 4 }) {
@@ -51,15 +54,16 @@ export function WorkspacePresenceStack({ peers, status, selfId, onJumpTo, worksp
                  : 'pending';
 
   return (
-    <div className="ws-presence" aria-label={`${list.length} ${list.length === 1 ? 'person' : 'people'} online`}>
+    <div className="ws-presence" aria-label={plural(list.length, { one: '# person online', other: '# people online' })}>
       <span className={`ws-presence-status ${dotClass}`} title={STATUS_LABEL[status] || status} />
       {visible.map(p => {
         const initial = initialOf(p.user.name || p.user.email);
         const inactive = p.location?.isActive === false;
+        const who = p.user.name || p.user.email;
         const baseLabel = p.location?.boardName
-          ? `${p.user.name || p.user.email} · in ${p.location.boardName}`
-          : `${p.user.name || p.user.email}`;
-        const where = inactive ? `${baseLabel} · (away)` : baseLabel;
+          ? t`${who} · in ${ph({ boardName: p.location.boardName })}`
+          : `${who}`;
+        const where = inactive ? t`${baseLabel} · (away)` : baseLabel;
         return (
           <button key={p.key}
                   className={`ws-presence-avatar${inactive ? ' is-inactive' : ''}`}
@@ -70,13 +74,13 @@ export function WorkspacePresenceStack({ peers, status, selfId, onJumpTo, worksp
                     const rect = e.currentTarget.getBoundingClientRect();
                     setAuditPeer({ peer: p, anchorRect: rect });
                   }}
-                  title={`${where} · click to jump · right-click for recent comments`}>
+                  title={t`${where} · click to jump · right-click for recent comments`}>
             {initial}
           </button>
         );
       })}
       {overflow > 0 && (
-        <span className="ws-presence-avatar ws-presence-overflow" title={`+${overflow} more`}>
+        <span className="ws-presence-avatar ws-presence-overflow" title={t`+${overflow} more`}>
           +{overflow}
         </span>
       )}
@@ -102,7 +106,7 @@ function PeerCommentsAudit({ peer, anchorRect, workspaceId, onClose, onJumpTo })
     let cancelled = false;
     listCommentsByAuthor({ workspaceId, authorId: peer.user.id, limit: 30 })
       .then(data => { if (!cancelled) setRows(data); })
-      .catch(err => { if (!cancelled) setError(err.message || String(err)); });
+      .catch(err => { if (!cancelled) setError(shownError(err)); });
     return () => { cancelled = true; };
   }, [workspaceId, peer?.user?.id]);
 
@@ -135,22 +139,22 @@ function PeerCommentsAudit({ peer, anchorRect, workspaceId, onClose, onJumpTo })
         <span className="ws-presence-audit-name">
           {peer.user.name || peer.user.email}
         </span>
-        <span className="ws-presence-audit-sub">recent comments</span>
+        <span className="ws-presence-audit-sub"><Trans>recent comments</Trans></span>
         {openDm && peer?.user?.id && (
           <button
             className="ws-presence-audit-dm"
             onClick={() => { openDm(peer.user.id); onClose?.(); }}
-            title="Send a direct message"
+            title={t`Send a direct message`}
           >
-            Message
+            <Trans context="verb">Message</Trans>
           </button>
         )}
       </div>
       <div className="ws-presence-audit-body">
-        {error && <div className="ws-presence-audit-empty">Couldn't load comments.</div>}
-        {!error && rows == null && <div className="ws-presence-audit-empty">Loading…</div>}
+        {error && <div className="ws-presence-audit-empty"><Trans>Couldn't load comments.</Trans></div>}
+        {!error && rows == null && <div className="ws-presence-audit-empty"><Trans>Loading…</Trans></div>}
         {!error && rows && rows.length === 0 && (
-          <div className="ws-presence-audit-empty">No comments yet.</div>
+          <div className="ws-presence-audit-empty"><Trans>No comments yet.</Trans></div>
         )}
         {!error && rows && rows.length > 0 && rows.map(r => (
           <button key={r.id}
@@ -162,8 +166,8 @@ function PeerCommentsAudit({ peer, anchorRect, workspaceId, onClose, onJumpTo })
             <div className="ws-presence-audit-row-body">{r.body}</div>
             <div className="ws-presence-audit-row-meta">
               {relativeTimeShort(r.created_at)}
-              {r.resolved && <span className="ws-presence-audit-tag">resolved</span>}
-              {r.hidden && <span className="ws-presence-audit-tag is-muted">hidden</span>}
+              {r.resolved && <span className="ws-presence-audit-tag"><Trans>resolved</Trans></span>}
+              {r.hidden && <span className="ws-presence-audit-tag is-muted"><Trans>hidden</Trans></span>}
             </div>
           </button>
         ))}

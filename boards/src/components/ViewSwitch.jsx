@@ -15,19 +15,21 @@ import { Icon } from './Icon.jsx';
 import { BoundingBox, Files } from '../lib/icons.js';
 import { VIEW_LABELS, formatFilesCount } from '../lib/viewSwitch.js';
 import { switchSegments } from '../lib/filesDock.js';
+import { t } from '@lingui/core/macro';
 
-const TITLES = {
-  off:   { board: 'Board', files: 'Files — open beside the board (F)' },
-  panel: { board: 'Board only — put Files away (F)', files: 'Files is open beside the board' },
-  full:  { board: 'Back to the board (F)', files: 'Files' },
-};
+// A function, not a constant: the words are read through Lingui when drawn.
+const titlesFor = (mode) => ({
+  off:   { board: t`Board`, files: t`Files — open beside the board (F)` },
+  panel: { board: t`Board only — put Files away (F)`, files: t`Files is open beside the board` },
+  full:  { board: t`Back to the board (F)`, files: t`Files` },
+}[mode] || { board: t`Board`, files: t`Files — open beside the board (F)` });
 
 export function ViewSwitch({ mode = 'off', filesCount = 0, onSegment }) {
   const pressed = switchSegments(mode);
-  const titles = TITLES[mode] || TITLES.off;
+  const titles = titlesFor(mode);
   const count = formatFilesCount(filesCount);
   return (
-    <div className="view-pill view-pill--primary" role="group" aria-label="View">
+    <div className="view-pill view-pill--primary" role="group" aria-label={t({ message: 'View', context: 'noun' })}>
       <button type="button"
               className={`view-pill-btn ${pressed.board ? 'on' : ''}`}
               aria-pressed={pressed.board}

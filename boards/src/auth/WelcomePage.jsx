@@ -13,6 +13,7 @@ import { EV } from '../lib/analyticsEvents.js';
 import { useDwellTime } from '../hooks/useDwellTime.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { WaitlistModal } from '../components/WaitlistModal.jsx';
+import { Trans } from '@lingui/react/macro';
 
 export function WelcomePage() {
   const { user, signOut } = useAuth();
@@ -60,41 +61,41 @@ export function WelcomePage() {
       </header>
 
       <div className="welcome-contact t-meta">
-        To report an issue or submit a suggestion please email us at:{' '}
-        <a href="mailto:clusters@soleilpictures.com" className="auth-link">clusters@soleilpictures.com</a>
+        <Trans>To report an issue or submit a suggestion please email us at:{' '}
+        <a href="mailto:clusters@soleilpictures.com" className="auth-link">clusters@soleilpictures.com</a></Trans>
       </div>
 
       <div className="surface-frosted welcome-request-card">
         <p className="waitlist-status-sub t-body">
-          If you are a singular user requesting access to our demo, please
+          <Trans>If you are a singular user requesting access to our demo, please
           submit artist socials for evaluation. Want instant access? Skip the
-          wait with a subscription.
+          wait with a subscription.</Trans>
         </p>
         <div className="waitlist-status-cta-row">
           <button
             className="pricing-cta pricing-cta-secondary waitlist-status-cta"
             onClick={() => { engagedRef.current = true; logEvent(EV.WELCOME_CTA, { target: 'waitlist' }); setSocialsOpen(true); }}
           >
-            Submit Socials
+            <Trans>Submit Socials</Trans>
           </button>
           <button
             className="pricing-cta pricing-cta-primary waitlist-status-cta"
             onClick={() => { engagedRef.current = true; logEventNow(EV.WELCOME_CTA, { target: 'pricing' }); window.location.assign('/pricing'); }}
           >
-            See Pricing →
+            <Trans>See Pricing →</Trans>
           </button>
         </div>
         <div className="welcome-card-foot t-meta">
-          Most invites go out within about a week
+          <Trans>Most invites go out within about a week
           <span className="welcome-foot-sep">·</span>
-          You'll receive an email once approved
+          You'll receive an email once approved</Trans>
         </div>
       </div>
 
       <footer className="pricing-foot t-meta">
-        Signed in as <b>{user?.email}</b>
+        <Trans>Signed in as</Trans> <b>{user?.email}</b>
         <span className="welcome-foot-sep">·</span>
-        <button className="auth-link" onClick={() => { logEvent(EV.WELCOME_SIGNOUT); signOut(); }}>Use a different email</button>
+        <button className="auth-link" onClick={() => { logEvent(EV.WELCOME_SIGNOUT); signOut(); }}><Trans>Use a different email</Trans></button>
       </footer>
 
       {socialsOpen && (

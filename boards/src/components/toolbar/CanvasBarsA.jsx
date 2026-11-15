@@ -17,6 +17,8 @@ import {
   ArrowRight, ArrowsHorizontal, Circle, CornersOut, DiamondShape, Eraser, HandPointing, Hexagon, Lasso, LineSegment,
   Minus, MoreHorizontal, PenNib, Plus, Square, Star, Trash2, Triangle, Undo,
 } from '../../lib/icons.js';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // The canvas's tool bars in the toolbar look (the owner's pick "A · Islands",
 // 2026-10-21; the toolbar canvas's A-draw and A-parts frames), the note bar's
@@ -102,11 +104,11 @@ function WidthRow({ label, value, onStep }) {
   const what = label.toLowerCase();
   return (
     <div className="tl-mrow is-indent" role="group" aria-label={label}>
-      <span className="tl-mrow-l">Width</span>
+      <span className="tl-mrow-l"><Trans>Width</Trans></span>
       <span className="tl-seg">
-        <Btn icon={Minus} label={`Decrease ${what}`} role="menuitem" tabIndex={-1} onClick={() => onStep(value - 1)} />
+        <Btn icon={Minus} label={tr`Decrease ${what}`} role="menuitem" tabIndex={-1} onClick={() => onStep(value - 1)} />
         <span className="tl-mval" aria-live="polite">{value}</span>
-        <Btn icon={Plus} label={`Increase ${what}`} role="menuitem" tabIndex={-1} onClick={() => onStep(value + 1)} />
+        <Btn icon={Plus} label={tr`Increase ${what}`} role="menuitem" tabIndex={-1} onClick={() => onStep(value + 1)} />
       </span>
     </div>
   );
@@ -118,9 +120,9 @@ function WidthStep({ name, value, onSet }) {
   const what = name.toLowerCase();
   return (
     <span className="tl-step">
-      <Btn icon={Minus} label={`Decrease ${what}`} onClick={() => onSet(clampWidth(value - 1))} />
+      <Btn icon={Minus} label={tr`Decrease ${what}`} onClick={() => onSet(clampWidth(value - 1))} />
       <LinePxInput value={value} label={name} onCommit={onSet} />
-      <Btn icon={Plus} label={`Increase ${what}`} onClick={() => onSet(clampWidth(value + 1))} />
+      <Btn icon={Plus} label={tr`Increase ${what}`} onClick={() => onSet(clampWidth(value + 1))} />
     </span>
   );
 }
@@ -134,7 +136,7 @@ function DashRows({ current, onDash }) {
 function DashMenu({ current, onDash }) {
   const now = DASH_STYLES.find((d) => d.id === current) || DASH_STYLES[0];
   return (
-    <MenuButton label={`Line style: ${now.label}`} menuLabel="Line style" text={now.label} select caret side="above"
+    <MenuButton label={tr`Line style: ${ph({ label: now.label })}`} menuLabel={tr`Line style`} text={now.label} select caret side="above"
                 className="tl-dash" menuClassName={MENU} scrim>
       <DashRows current={now.id} onDash={onDash} />
     </MenuButton>
@@ -161,7 +163,7 @@ export function DrawBarA({
   const width = isEraser ? options.eraserWidth : options.width;
   const set = (patch) => setOptions({ ...options, ...patch });
   const setWidth = (w) => set(isEraser ? { eraserWidth: w } : { width: w });
-  const widthName = (w) => (isEraser ? `Eraser size ${w}` : `Stroke width ${w}`);
+  const widthName = (w) => (isEraser ? tr`Eraser size ${w}` : tr`Stroke width ${w}`);
   const customColour = (e) => openPickerAt(e, {
     value: color,
     onChange: (c) => { set({ color: c }); addRecentColor(c); },
@@ -173,7 +175,7 @@ export function DrawBarA({
     <Btn icon={icon} label={name} tip={tip} toggle on={on} onClick={() => set({ mode: m })} />
   );
   const brushMenu = (
-    <MenuButton label={`Brush: ${BRUSH_LABELS[brush]}`} menuLabel="Brush" face={<BrushFace id={brush} />} caret
+    <MenuButton label={tr`Brush: ${ph({ value: BRUSH_LABELS[brush] })}`} menuLabel={tr`Brush`} face={<BrushFace id={brush} />} caret
                 side="above" className="db-brush" menuClassName={`${MENU} db-brush-menu`} scrim>
       {BRUSH_ORDER.map((id) => (
         <MenuItem key={id} icon={BRUSH_ICONS[id]} label={BRUSH_LABELS[id]} radio checked={brush === id}
@@ -182,13 +184,13 @@ export function DrawBarA({
     </MenuButton>
   );
   const colourRows = (
-    <ColourRows head="Color" swatches={DRAW_COLORS} paletteColors={paletteColors} current={color} ink
+    <ColourRows head={tr`Color`} swatches={DRAW_COLORS} paletteColors={paletteColors} current={color} ink
                 onPick={(c) => set({ color: c })} onCustom={customColour} />
   );
   // The chip under a finger (and a desktop's row folded all the way): what
   // it draws with, as a dot of its colour as wide as its width, and a menu
   // of the three, the brush and the width picked in place.
-  const chipName = isEraser ? 'Eraser size' : 'Brush, color and width';
+  const chipName = isEraser ? tr`Eraser size` : tr`Brush, color and width`;
   const chip = (
     <MenuButton label={chipName} caret side="above" align="center" className="db-chip"
                 menuClassName={`${MENU} db-menu`} scrim
@@ -196,8 +198,8 @@ export function DrawBarA({
                             style={{ '--chip': inkBg(color), '--d': `${Math.min(16, Math.max(8, width + 4))}px` }} />}>
       {inking && (
         <>
-          <MenuHead>Brush</MenuHead>
-          <div className="db-row" role="group" aria-label="Brush">
+          <MenuHead>{tr`Brush`}</MenuHead>
+          <div className="db-row" role="group" aria-label={tr`Brush`}>
             {BRUSH_ORDER.map((id) => (
               <Btn key={id} label={BRUSH_LABELS[id]} role="menuitemradio" aria-checked={brush === id} tabIndex={-1}
                    on={brush === id} className="db-brush" onClick={() => set({ brush: id })}>
@@ -208,8 +210,8 @@ export function DrawBarA({
           {colourRows}
         </>
       )}
-      <MenuHead>{isEraser ? 'Eraser size' : 'Width'}</MenuHead>
-      <div className="db-row" role="group" aria-label={isEraser ? 'Eraser size' : 'Width'}>
+      <MenuHead>{isEraser ? tr`Eraser size` : tr`Width`}</MenuHead>
+      <div className="db-row" role="group" aria-label={isEraser ? tr`Eraser size` : tr`Width`}>
         {DRAW_THICKNESS.map((w) => (
           <Btn key={w} label={widthName(w)} role="menuitemradio" aria-checked={width === w} tabIndex={-1}
                on={width === w} className="db-width" onClick={() => setWidth(w)}>
@@ -224,19 +226,19 @@ export function DrawBarA({
 
   const groups = [];
   if (onUndo) {
-    groups.push(<Group key="undo"><Btn icon={Undo} label="Undo" keys="Mod+Z" onClick={onUndo} /></Group>);
+    groups.push(<Group key="undo"><Btn icon={Undo} label={tr`Undo`} keys="Mod+Z" onClick={onUndo} /></Group>);
   }
   groups.push(
     <Group key="modes" style={share(stylus ? 4 : 3)}>
-      {mode('pen', PenNib, 'Pen', inking)}
-      {mode('eraser', Eraser, 'Eraser', isEraser)}
-      {mode('lasso', Lasso, 'Lasso', isLasso, 'Lasso: circle strokes to select them')}
+      {mode('pen', PenNib, tr`Pen`, inking)}
+      {mode('eraser', Eraser, tr`Eraser`, isEraser)}
+      {mode('lasso', Lasso, tr`Lasso`, isLasso, tr`Lasso: circle strokes to select them`)}
       {/* Only once the device has shown it has a stylus: before that the
           finger is the only way to draw (lib/pointerPolicy.js). */}
       {stylus && (
-        <Btn icon={HandPointing} label="Draw with finger" toggle on={fingerDraws} onClick={onFinger}
-             tip={fingerDraws ? 'Your finger draws. Turn off to let it pan while the stylus draws.'
-               : 'Your finger pans and only the stylus draws. Turn on to draw with either.'} />
+        <Btn icon={HandPointing} label={tr`Draw with finger`} toggle on={fingerDraws} onClick={onFinger}
+             tip={fingerDraws ? tr`Your finger draws. Turn off to let it pan while the stylus draws.`
+               : tr`Your finger pans and only the stylus draws. Turn on to draw with either.`} />
       )}
     </Group>,
   );
@@ -244,7 +246,7 @@ export function DrawBarA({
     groups.push(
       <Group key="brushes">
         {BRUSH_ORDER.map((id) => (
-          <Btn key={id} label={`${BRUSH_LABELS[id]} brush`} tip={BRUSH_LABELS[id]} toggle on={brush === id}
+          <Btn key={id} label={tr`${ph({ value: BRUSH_LABELS[id] })} brush`} tip={BRUSH_LABELS[id]} toggle on={brush === id}
                className="db-brush" onClick={() => set({ brush: id })}>
             <BrushFace id={id} />
           </Btn>
@@ -257,10 +259,10 @@ export function DrawBarA({
     groups.push(
       <Group key="colours" className="db-colours">
         {colourChoices(recentColors, paletteColors, DRAW_COLORS, 9).map((c) => (
-          <Swatch key={c} color={inkBg(c)} label={`Color ${c}`} on={color === c}
+          <Swatch key={c} color={inkBg(c)} label={tr`Color ${c}`} on={color === c}
                   onClick={() => { set({ color: c }); addRecentColor(c); }} />
         ))}
-        <Swatch add icon={Plus} label="Custom color" onClick={customColour} />
+        <Swatch add icon={Plus} label={tr`Custom color`} onClick={customColour} />
       </Group>,
     );
   }
@@ -268,7 +270,7 @@ export function DrawBarA({
     groups.push(
       <Group key="brush">
         {brushMenu}
-        <MenuButton label={`Color: ${color}`} menuLabel="Color" face={<Chip color={color} shape="dot" ink />} caret
+        <MenuButton label={tr`Color: ${color}`} menuLabel={tr`Color`} face={<Chip color={color} shape="dot" ink />} caret
                     side="above" menuClassName={`${MENU} db-colour-menu`} scrim>
           {colourRows}
         </MenuButton>
@@ -279,7 +281,7 @@ export function DrawBarA({
     groups.push(
       <Group key="widths">
         {DRAW_THICKNESS.map((w) => (
-          <Btn key={w} label={widthName(w)} tip={`${w}px`} toggle on={width === w} className="db-width"
+          <Btn key={w} label={widthName(w)} tip={tr`${w}px`} toggle on={width === w} className="db-width"
                onClick={() => setWidth(w)}>
             <WidthFace w={w} />
           </Btn>
@@ -288,17 +290,17 @@ export function DrawBarA({
     );
   }
   if (!isLasso && level === 3) groups.push(<Group key="chip">{chip}</Group>);
-  if (isLasso && !phone) groups.push(<Group key="hint"><span className="db-hint">Circle strokes to select</span></Group>);
+  if (isLasso && !phone) groups.push(<Group key="hint"><span className="db-hint"><Trans>Circle strokes to select</Trans></span></Group>);
   if (onOpenSketchpad) {
     groups.push(
       <Group key="canvas">
-        <Btn icon={CornersOut} text={canvasWords ? 'Canvas' : undefined} label="Open a fullscreen drawing canvas"
-             tip="Open a fullscreen drawing canvas" className="tob-canvas-btn" onClick={onOpenSketchpad} />
+        <Btn icon={CornersOut} text={canvasWords ? tr`Canvas` : undefined} label={tr`Open a fullscreen drawing canvas`}
+             tip={tr`Open a fullscreen drawing canvas`} className="tob-canvas-btn" onClick={onOpenSketchpad} />
       </Group>,
     );
   }
   return (
-    <Island barRef={barRef} label="Drawing" onKeyDown={onKeyDown} input={input} className="db-a">
+    <Island barRef={barRef} label={tr`Drawing`} onKeyDown={onKeyDown} input={input} className="db-a">
       {groups}
     </Island>
   );
@@ -318,7 +320,7 @@ export function ShapeBarA({ barRef, onKeyDown, opts, setOpts, editing, paletteCo
 
   const groups = [
     <Group key="shape">
-      <MenuButton label={`Shape: ${shape.label}`} menuLabel="Shape" icon={SHAPE_ICONS[shape.id]} text={shape.label}
+      <MenuButton label={tr`Shape: ${ph({ label: shape.label })}`} menuLabel={tr`Shape`} icon={SHAPE_ICONS[shape.id]} text={shape.label}
                   select caret side="above" className="sb-shape" menuClassName={MENU} scrim>
         {SHAPES.map((s) => (
           <MenuItem key={s.id} icon={SHAPE_ICONS[s.id]} label={s.label} radio checked={s.id === shape.id}
@@ -327,17 +329,17 @@ export function ShapeBarA({ barRef, onKeyDown, opts, setOpts, editing, paletteCo
       </MenuButton>
     </Group>,
     <Group key="colours" style={phone ? { flexGrow: 2 } : undefined}>
-      <MenuButton label="Stroke color" face={<Chip color={opts.stroke} shape="ring" ink />} side="above"
+      <MenuButton label={tr`Stroke color`} face={<Chip color={opts.stroke} shape="ring" ink />} side="above"
                   menuClassName={`${MENU} sb-colour-menu`} scrim>
-        <ColourRows head="Stroke color" swatches={STROKE_COLORS} paletteColors={paletteColors} current={opts.stroke}
+        <ColourRows head={tr`Stroke color`} swatches={STROKE_COLORS} paletteColors={paletteColors} current={opts.stroke}
                     ink recent={editing} onPick={(c) => set({ stroke: c })}
                     onCustom={(e) => openPickerAt(e, {
                       value: opts.stroke, onChange: (c) => set({ stroke: c }), disableRecent: !editing,
                     })} />
       </MenuButton>
-      <MenuButton label="Fill" face={<Chip color={opts.fill} />} side="above"
+      <MenuButton label={tr`Fill`} face={<Chip color={opts.fill} />} side="above"
                   menuClassName={`${MENU} sb-colour-menu`} scrim>
-        <ColourRows head="Fill" clear="No fill" swatches={FILL_COLORS} paletteColors={paletteColors} current={opts.fill}
+        <ColourRows head={tr`Fill`} clear={tr`No fill`} swatches={FILL_COLORS} paletteColors={paletteColors} current={opts.fill}
                     recent={editing} onPick={(c) => set({ fill: c })}
                     onCustom={(e) => openPickerAt(e, {
                       // The picker's pad can't show 'transparent' (its None
@@ -353,11 +355,11 @@ export function ShapeBarA({ barRef, onKeyDown, opts, setOpts, editing, paletteCo
   if (folded) {
     groups.push(
       <Group key="more">
-        <MenuButton label="More shape options" icon={MoreHorizontal} side="above" align="end"
+        <MenuButton label={tr`More shape options`} icon={MoreHorizontal} side="above" align="end"
                     menuClassName={`${MENU} sb-more`} scrim>
-          <WidthRow label="Stroke width" value={width} onStep={(n) => set({ strokeWidth: clampWidth(n) })} />
+          <WidthRow label={tr`Stroke width`} value={width} onStep={(n) => set({ strokeWidth: clampWidth(n) })} />
           <MenuSep />
-          <MenuHead>Line style</MenuHead>
+          <MenuHead>{tr`Line style`}</MenuHead>
           <DashRows current={opts.dash} onDash={(d) => set({ dash: d })} />
         </MenuButton>
       </Group>,
@@ -369,7 +371,7 @@ export function ShapeBarA({ barRef, onKeyDown, opts, setOpts, editing, paletteCo
     );
   }
   return (
-    <Island barRef={barRef} label="Shape" onKeyDown={onKeyDown} input={input} className="sb-a">
+    <Island barRef={barRef} label={tr`Shape`} onKeyDown={onKeyDown} input={input} className="sb-a">
       {groups}
     </Island>
   );
@@ -392,9 +394,9 @@ export function LineBarA({ barRef, onKeyDown, stroke, width, dash, angle, onAngl
 
   const groups = [
     <Group key="colour">
-      <MenuButton label="Line color" face={<Chip color={stroke} shape="ring" ink />} side="above"
+      <MenuButton label={tr`Line color`} face={<Chip color={stroke} shape="ring" ink />} side="above"
                   menuClassName={`${MENU} ln-colour-menu`} scrim>
-        <ColourRows head="Line color" swatches={STROKE_COLORS} paletteColors={paletteColors} current={stroke}
+        <ColourRows head={tr`Line color`} swatches={STROKE_COLORS} paletteColors={paletteColors} current={stroke}
                     ink onPick={(c) => onChange({ customStroke: c })}
                     onCustom={(e) => openPickerAt(e, { value: stroke, onChange: (c) => onChange({ customStroke: c }) })} />
       </MenuButton>
@@ -406,13 +408,13 @@ export function LineBarA({ barRef, onKeyDown, stroke, width, dash, angle, onAngl
   if (folded) {
     groups.push(
       <Group key="more">
-        <MenuButton label="More line options" icon={MoreHorizontal} side="above" align="end"
+        <MenuButton label={tr`More line options`} icon={MoreHorizontal} side="above" align="end"
                     menuClassName={`${MENU} ln-more`} scrim>
-          <MenuHead>Line style</MenuHead>
+          <MenuHead>{tr`Line style`}</MenuHead>
           <DashRows current={dash} onDash={setDash} />
           <MenuSep />
-          <div className="tl-mrow is-indent" role="group" aria-label="Angle">
-            <span className="tl-mrow-l">Angle</span>
+          <div className="tl-mrow is-indent" role="group" aria-label={tr`Angle`}>
+            <span className="tl-mrow-l"><Trans>Angle</Trans></span>
             {angleField}
           </div>
         </MenuButton>
@@ -425,7 +427,7 @@ export function LineBarA({ barRef, onKeyDown, stroke, width, dash, angle, onAngl
     );
   }
   return (
-    <Island barRef={barRef} label="Line" onKeyDown={onKeyDown} input={input} className="ln-a">
+    <Island barRef={barRef} label={tr`Line`} onKeyDown={onKeyDown} input={input} className="ln-a">
       {groups}
     </Island>
   );
@@ -437,14 +439,14 @@ export function ArrowBarA({ barRef, onKeyDown, options, setOptions }) {
   useIslandFit(barRef, { on: input === 'desktop', max: 0 });
   const set = (patch) => setOptions({ ...options, ...patch });
   return (
-    <Island barRef={barRef} label="Arrow" onKeyDown={onKeyDown} input={input} className="ab-a">
-      <Group label="Path">
-        <Btn text="Curved" toggle on={!options.straight} onClick={() => set({ straight: false })} />
-        <Btn text="Straight" toggle on={!!options.straight} onClick={() => set({ straight: true })} />
+    <Island barRef={barRef} label={tr`Arrow`} onKeyDown={onKeyDown} input={input} className="ab-a">
+      <Group label={tr`Path`}>
+        <Btn text={tr`Curved`} toggle on={!options.straight} onClick={() => set({ straight: false })} />
+        <Btn text={tr`Straight`} toggle on={!!options.straight} onClick={() => set({ straight: true })} />
       </Group>
-      <Group label="Style">
-        <Btn text="Solid" toggle on={!options.dashed} onClick={() => set({ dashed: false })} />
-        <Btn text="Dashed" toggle on={!!options.dashed} onClick={() => set({ dashed: true })} />
+      <Group label={tr`Style`}>
+        <Btn text={tr`Solid`} toggle on={!options.dashed} onClick={() => set({ dashed: false })} />
+        <Btn text={tr`Dashed`} toggle on={!!options.dashed} onClick={() => set({ dashed: true })} />
       </Group>
     </Island>
   );
@@ -461,12 +463,13 @@ export function ArrowBarA({ barRef, onKeyDown, options, setOptions }) {
 //
 // Its colours are the arrow's own (lib/arrowGeometry.js: ink and five more,
 // or one from the picker), not a bar's hex swatches.
-const ARROW_WIDTHS = [['thin', 'Thin', 2], ['medium', 'Medium', 3], ['thick', 'Thick', 4.5]];
-const WIDTH_ICONS = Object.fromEntries(ARROW_WIDTHS.map(([id, , w]) => [id, function ArrowWidthIcon() { return <WidthFace w={w} />; }]));
-const ARROW_HEADS = [
-  ['none', 'No arrowheads', Minus, { head: 'none', bidir: false }],
-  ['single', 'Single arrowhead', ArrowRight, { head: 'single', bidir: false }],
-  ['double', 'Double arrowhead', ArrowsHorizontal, { head: 'double', bidir: true }],
+const WIDTH_PX = [['thin', 2], ['medium', 3], ['thick', 4.5]];
+const arrowWidths = () => [['thin', tr`Thin`, 2], ['medium', tr`Medium`, 3], ['thick', tr`Thick`, 4.5]];
+const WIDTH_ICONS = Object.fromEntries(WIDTH_PX.map(([id, w]) => [id, function ArrowWidthIcon() { return <WidthFace w={w} />; }]));
+const arrowHeads = () => [
+  ['none', tr`No arrowheads`, Minus, { head: 'none', bidir: false }],
+  ['single', tr`Single arrowhead`, ArrowRight, { head: 'single', bidir: false }],
+  ['double', tr`Double arrowhead`, ArrowsHorizontal, { head: 'double', bidir: true }],
 ];
 const pathIcon = (d) => function PathIcon() {
   return (
@@ -477,25 +480,25 @@ const pathIcon = (d) => function PathIcon() {
 };
 // A path as one corner to the other, so Straight's face isn't the heads'
 // "no heads" line.
-const ARROW_PATHS = [[false, 'Curved', pathIcon('M4 19 Q6.7 6 20 5')], [true, 'Straight', pathIcon('M4 19 L20 5')]];
-const ARROW_DASHES = [[false, 'Solid', DASH_ICONS.solid], [true, 'Dashed', DASH_ICONS.dashed]];
+const arrowPaths = () => [[false, tr`Curved`, pathIcon('M4 19 Q6.7 6 20 5')], [true, tr`Straight`, pathIcon('M4 19 L20 5')]];
+const arrowDashes = () => [[false, tr`Solid`, DASH_ICONS.solid], [true, tr`Dashed`, DASH_ICONS.dashed]];
 
 function ArrowColourRows({ token, custom, onPick, onCustom }) {
   const menu = useMenu();
   return (
     <>
-      <MenuHead>Arrow color</MenuHead>
-      <div className="tl-swrow" role="group" aria-label="Arrow color">
+      <MenuHead>{tr`Arrow color`}</MenuHead>
+      <div className="tl-swrow" role="group" aria-label={tr`Arrow color`}>
         {ARROW_COLOR_KEYS.map((k) => (
-          <Swatch key={k} color={ARROW_COLOR_TOKENS[k]} label={`Color ${k}`} role="menuitemradio" aria-checked={token === k}
+          <Swatch key={k} color={ARROW_COLOR_TOKENS[k]} label={tr`Color ${k}`} role="menuitemradio" aria-checked={token === k}
                   aria-pressed={undefined} tabIndex={-1} on={token === k}
                   onClick={() => { onPick(k); menu?.close('select'); }} />
         ))}
         {custom ? (
-          <Swatch color={custom} label={`Color ${custom}`} role="menuitemradio" aria-checked aria-pressed={undefined}
+          <Swatch color={custom} label={tr`Color ${custom}`} role="menuitemradio" aria-checked aria-pressed={undefined}
                   tabIndex={-1} on onClick={() => menu?.close('select')} />
         ) : null}
-        <Swatch add icon={Plus} label="Custom color" role="menuitem" tabIndex={-1}
+        <Swatch add icon={Plus} label={tr`Custom color`} role="menuitem" tabIndex={-1}
                 onClick={() => { menu?.close('select'); onCustom(); }} />
       </div>
     </>
@@ -514,7 +517,7 @@ export function PickedArrowBarA({ arrow, arrowIndex, midPoint, canvasToViewport,
   const straight = !!arrow.straight;
   const dashed = !!arrow.dashed;
   const set = (patch) => onChange?.(patch);
-  const setHead = (id) => set(ARROW_HEADS.find((h) => h[0] === id)[3]);
+  const setHead = (id) => set(arrowHeads().find((h) => h[0] === id)[3]);
 
   // A set to pick one of, in the row (toggles, as the arrow tool's bar's
   // pairs are: a radio would keep the arrow keys from the bar) or as one of
@@ -537,11 +540,11 @@ export function PickedArrowBarA({ arrow, arrowIndex, midPoint, canvasToViewport,
       </span>
     </div>
   );
-  const widthRows = ARROW_WIDTHS.map(([id, name]) => [id, name, WIDTH_ICONS[id]]);
+  const widthRows = arrowWidths().map(([id, name]) => [id, name, WIDTH_ICONS[id]]);
 
   const colour = (
     <Group key="colour">
-      <MenuButton label="Arrow color" menuLabel="Arrow color" side="above"
+      <MenuButton label={tr`Arrow color`} menuLabel={tr`Arrow color`} side="above"
                   face={<span className="tl-chip is-ring" style={{ '--chip': arrowColor(arrow.color) }} aria-hidden="true" />}
                   menuClassName={`${MENU} pa-colour-menu`} scrim>
         <ArrowColourRows token={token} custom={custom} onPick={(k) => set({ color: k })}
@@ -549,22 +552,22 @@ export function PickedArrowBarA({ arrow, arrowIndex, midPoint, canvasToViewport,
       </MenuButton>
     </Group>
   );
-  const heads = radios('Arrow heads', ARROW_HEADS, head, setHead);
+  const heads = radios(tr`Arrow heads`, arrowHeads(), head, setHead);
   const label = (
     <Group key="label">
-      <input type="text" className="tl-field pa-label ap-label-input" placeholder="Label…" {...labelProps} />
+      <input type="text" className="tl-field pa-label ap-label-input" placeholder={tr`Label…`} {...labelProps} />
     </Group>
   );
-  const del = <Group key="delete"><Btn icon={Trash2} label="Delete arrow" onClick={() => onDelete?.()} /></Group>;
+  const del = <Group key="delete"><Btn icon={Trash2} label={tr`Delete arrow`} onClick={() => onDelete?.()} /></Group>;
 
   let groups;
   if (input === 'desktop') {
     groups = [
       colour,
-      radios('Width', widthRows, width, (t) => set({ thickness: t })),
+      radios(tr`Width`, widthRows, width, (t) => set({ thickness: t })),
       heads,
-      radios('Path', ARROW_PATHS, straight, (s) => set({ straight: s })),
-      <Group key="dash"><Btn icon={DASH_ICONS.dashed} label="Dashed" toggle on={dashed} onClick={() => set({ dashed: !dashed })} /></Group>,
+      radios(tr`Path`, arrowPaths(), straight, (s) => set({ straight: s })),
+      <Group key="dash"><Btn icon={DASH_ICONS.dashed} label={tr`Dashed`} toggle on={dashed} onClick={() => set({ dashed: !dashed })} /></Group>,
       label,
       del,
     ];
@@ -575,19 +578,19 @@ export function PickedArrowBarA({ arrow, arrowIndex, midPoint, canvasToViewport,
       phone ? null : heads,
       label,
       <Group key="more">
-        <MenuButton label="More arrow options" menuLabel="More arrow options" icon={MoreHorizontal} side="above" align="end"
+        <MenuButton label={tr`More arrow options`} menuLabel={tr`More arrow options`} icon={MoreHorizontal} side="above" align="end"
                     menuClassName={`${MENU} pa-more`} scrim>
-          {phone ? menuRadios('Heads', 'Arrow heads', ARROW_HEADS, head, setHead) : null}
-          {menuRadios('Width', 'Width', widthRows, width, (t) => set({ thickness: t }))}
-          {menuRadios('Path', 'Path', ARROW_PATHS, straight, (s) => set({ straight: s }))}
-          {menuRadios('Style', 'Style', ARROW_DASHES, dashed, (d) => set({ dashed: d }))}
+          {phone ? menuRadios(tr`Heads`, tr`Arrow heads`, arrowHeads(), head, setHead) : null}
+          {menuRadios(tr`Width`, tr`Width`, widthRows, width, (t) => set({ thickness: t }))}
+          {menuRadios(tr`Path`, tr`Path`, arrowPaths(), straight, (s) => set({ straight: s }))}
+          {menuRadios(tr`Style`, tr`Style`, arrowDashes(), dashed, (d) => set({ dashed: d }))}
         </MenuButton>
       </Group>,
       del,
     ];
   }
   return (
-    <Toolbar label="Selected arrow" barRef={barRef} className={`pa-a is-${input === 'desktop' ? 'desk' : input}`}
+    <Toolbar label={tr`Selected arrow`} barRef={barRef} className={`pa-a is-${input === 'desktop' ? 'desk' : input}`}
              style={{ left: pos.x, top: pos.y }}
              onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}>
       {groups}

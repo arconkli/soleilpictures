@@ -44,8 +44,8 @@
 
 .imptray-head { flex: none; display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 8px 0 16px; }
 .imptray-title {
-  flex: 1; min-width: 0; color: var(--ink-0); font: 600 13px/1 var(--font-sans);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 1; min-width: 0; color: var(--ink-0); font: 600 13px/1.2 var(--font-sans);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
 }
 .imptray-sum { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 0 16px 14px; }
 .imptray-line { color: var(--ink-1); font: 400 13px/1.35 var(--font-sans); font-variant-numeric: tabular-nums; }

@@ -24,6 +24,9 @@ import {
 } from '../../lib/icons.js';
 import { cutGraphemes } from '../../lib/graphemes.js';
 import './familyFace.css';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { formatDate } from '../../lib/intlFormat.js';
 
 const GLYPHS = { markdown: FileMd, text: FileTxt, table: FileCsv, subtitles: Subtitles, code: CodeIcon, font: Type, mail: EnvelopeSimple };
 // A design file's: its app's, a brush for the painting apps', a pen nib for
@@ -141,12 +144,12 @@ function useLetter(src, sizeBytes) {
 export const mailFrom = (p) => (p ? (p.name && p.address ? `${p.name} <${p.address}>` : p.name || p.address) : '');
 export function mailPeople(list, max = 3) {
   const names = (list || []).map((p) => p.name || p.address);
-  return names.length > max ? `${names.slice(0, max).join(', ')} and ${names.length - max} more` : names.join(', ');
+  return names.length > max ? tr`${ph({ names: names.slice(0, max).join(', ') })} and ${ph({ count: names.length - max })} more` : names.join(', ');
 }
 export function mailWhen(iso) {
   const d = iso ? new Date(iso) : null;
   return d && !Number.isNaN(d.getTime())
-    ? d.toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+    ? formatDate(d, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })
     : '';
 }
 // An attachment's icon by its type.
@@ -225,13 +228,13 @@ function SpecimenPage({ font }) {
   const face = { fontFamily: `${cssFamily}, var(--font-sans)` };
   return (
     <div className="fpg-spec">
-      <div className="fpg-spec-aa" style={face}>Aa</div>
+      <div className="fpg-spec-aa" style={face}><Trans>Aa</Trans></div>
       <div className="fpg-spec-side">
         <div className="fpg-spec-fam" style={face}>{fontName(info)}</div>
         <div className="fpg-spec-sty">{[info.style, info.format].filter(Boolean).join(' · ')}</div>
         <div className="fpg-spec-smp" style={face}>{FONT_SAMPLE}</div>
       </div>
-      <div className="fpg-spec-abc" style={face}>ABCDEFGHIJKLM abcdefghijklm 0123456789</div>
+      <div className="fpg-spec-abc" style={face}><Trans>ABCDEFGHIJKLM abcdefghijklm 0123456789</Trans></div>
     </div>
   );
 }
@@ -239,10 +242,10 @@ function SpecimenPage({ font }) {
 // The letter: its subject, who it's from and to and when, its first lines,
 // and its attachments' names.
 function LetterPage({ letter }) {
-  const rows = [['From', mailFrom(letter.from)], ['To', mailPeople(letter.to)], ['Date', mailWhen(letter.date)]].filter(([, v]) => v);
+  const rows = [[tr`From`, mailFrom(letter.from)], [tr`To`, mailPeople(letter.to)], [tr`Date`, mailWhen(letter.date)]].filter(([, v]) => v);
   return (
     <div className="fpg-mail">
-      <div className="fpg-mail-subj">{letter.subject || 'No subject'}</div>
+      <div className="fpg-mail-subj">{letter.subject || tr`No subject`}</div>
       {rows.length > 0 && (
         <div className="fpg-mail-hdr">{rows.map(([k, v]) => [<span key={`k${k}`} className="fpg-mail-k">{k}</span>, <span key={`v${k}`}>{v}</span>])}</div>
       )}
@@ -325,7 +328,7 @@ function LetterFace({ src, sizeBytes, w, h, fallback, onMeta }) {
   const n = letter?.attachments?.length || 0;
   useEffect(() => {
     if (!onMeta) return undefined;
-    onMeta(n ? `${n} ${n === 1 ? 'attachment' : 'attachments'}` : null);
+    onMeta(n ? plural(n, { one: '# attachment', other: '# attachments' }) : null);
     return () => onMeta(null);
   }, [n, onMeta]);
   if (letter === null) return fallback;

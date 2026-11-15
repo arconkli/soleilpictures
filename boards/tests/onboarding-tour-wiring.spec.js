@@ -39,7 +39,7 @@ test.describe('guided tour wiring', () => {
     // the full Files page from it completes the step. The switch keeps its
     // anchor for the old sidebar's branch.
     const sb = read('src/components/sidebar/ClusterSidebar.jsx');
-    expect(sb).toMatch(/aria-label="Open in the full Files page"[^>]*\s+data-tour="view-toggle"/);
+    expect(sb).toMatch(/aria-label=\{tr`Open in the full Files page`\}[^>]*\s+data-tour="view-toggle"/);
     expect(app()).toMatch(/onOpenShelf=\{\(boardId, shelfId\) => \{[\s\S]{0,700}?tourFireRef\.current\?\.\(\{ type: 'view_switched', view: 'list', boardId \}\)/);
     expect(read('src/components/ViewSwitch.jsx')).toContain('data-tour="view-toggle"');
   });

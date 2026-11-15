@@ -167,7 +167,7 @@ export function trialEndingSoon({ status, trialEnd, now = Date.now() }) {
 // codes, one hour to finish. Never a client_reference_id: stripe-webhook's
 // event log reads that field as a person's id.
 export function teamCheckoutParams({
-  customerId, priceId, seats, trial, checkoutId, ownerId, orgId = null, successUrl, cancelUrl, nowMs = Date.now(),
+  customerId, priceId, seats, trial, checkoutId, ownerId, orgId = null, locale, successUrl, cancelUrl, nowMs = Date.now(),
 }) {
   const metadata = {
     soleil_kind: TEAM_KIND,
@@ -178,6 +178,7 @@ export function teamCheckoutParams({
   return {
     mode: "subscription",
     customer: customerId,
+    ...(locale ? { locale } : {}),
     line_items: [{ price: priceId, quantity: seats }],
     success_url: successUrl,
     cancel_url: cancelUrl,

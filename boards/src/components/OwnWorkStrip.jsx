@@ -12,6 +12,7 @@
 // say "you have built nothing" on the screen asking you to pay for more room.
 
 import { R2Image } from './R2Image.jsx';
+import { Trans } from '@lingui/react/macro';
 
 export function OwnWorkStrip({ items = [], summary = null }) {
   const shown = (items || []).filter((it) => it && (it.key || it.url));
@@ -44,7 +45,7 @@ export function OwnWorkStrip({ items = [], summary = null }) {
           ))}
         </div>
       )}
-      {summary && <p className="own-work-line t-body">You've built {summary}.</p>}
+      {summary && <p className="own-work-line t-body"><Trans>You've built {summary}.</Trans></p>}
     </div>
   );
 }

@@ -14,6 +14,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { SettingsCategory } from './fields.jsx';
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Settings → Documentation is one of the few doors into the docs from inside
 // the app; docs_open counts the people who walk through it (0365 reach read).
@@ -69,33 +71,33 @@ export function DocsTab() {
 
   return (
     <div className="settings-section">
-      <h3 className="settings-section-title">Documentation</h3>
+      <h3 className="settings-section-title"><Trans>Documentation</Trans></h3>
       <p className="settings-section-hint">
-        Every page of the handbook, including the{' '}
+        <Trans>Every page of the handbook, including the{' '}
         <a href="/docs/api" target="_blank" rel="noreferrer noopener">REST API</a> and{' '}
         <a href="/docs/mcp" target="_blank" rel="noreferrer noopener">MCP</a> reference.
-        {' '}Links open in a new tab so you never lose what is on your canvas.
+        {' '}Links open in a new tab so you never lose what is on your canvas.</Trans>
       </p>
 
       <input
         className="settings-input"
         type="search"
-        placeholder="Search the docs — try “scroll wheel” or “export”"
-        aria-label="Search documentation"
+        placeholder={t`Search the docs — try “scroll wheel” or “export”`}
+        aria-label={t`Search documentation`}
         value={q}
         onChange={(e) => setQ(e.target.value)} />
 
       {failed ? (
         <p className="settings-section-hint">
-          Couldn’t load the index.{' '}
-          <a href="/docs" target="_blank" rel="noreferrer noopener">Open the docs site</a> instead.
+          <Trans>Couldn’t load the index.{' '}
+          <a href="/docs" target="_blank" rel="noreferrer noopener">Open the docs site</a> instead.</Trans>
         </p>
       ) : !reg ? (
-        <div className="settings-empty">Loading…</div>
+        <div className="settings-empty"><Trans>Loading…</Trans></div>
       ) : !hits ? (
         <p className="settings-section-hint">
-          Nothing matches “{q.trim()}”. Try a different word, or{' '}
-          <a href="/docs" target="_blank" rel="noreferrer noopener">browse the docs site</a>.
+          <Trans>Nothing matches “{ph({ trim: q.trim() })}”. Try a different word, or{' '}
+          <a href="/docs" target="_blank" rel="noreferrer noopener">browse the docs site</a>.</Trans>
         </p>
       ) : (
         groups.map((s) => (
@@ -115,9 +117,9 @@ export function DocsTab() {
       )}
 
       <p className="settings-section-hint" style={{ marginTop: 16 }}>
-        <a href="/docs" target="_blank" rel="noreferrer noopener" onClick={() => opened('/docs')}>Open the full documentation →</a>
+        <Trans><a href="/docs" target="_blank" rel="noreferrer noopener" onClick={() => opened('/docs')}>Open the full documentation →</a>
         {' '}It is also readable as plain Markdown at <code>/docs/*.md</code>, and
-        {' '}as <code>/llms.txt</code> for AI agents.
+        {' '}as <code>/llms.txt</code> for AI agents.</Trans>
       </p>
     </div>
   );

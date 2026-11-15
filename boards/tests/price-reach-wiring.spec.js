@@ -81,7 +81,7 @@ test.describe('price reach wiring', () => {
     // The AMBIENT surfaces — the pill, the banner, the toast — carry the
     // compact "from $N/mo" label, because they have room for a label and not a
     // price row.
-    expect(chip()).toMatch(/PRICE_FROM_LABEL/);
+    expect(chip()).toMatch(/priceFromLabel\(\)/);
     expect(chip()).toMatch(/upgrade-chip-price/);
     expect(banner()).toMatch(/firstValueSentence\(trialOffer\)/);
     const copy = read('src/lib/billingCopy.js');

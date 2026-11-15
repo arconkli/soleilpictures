@@ -14,14 +14,15 @@ import { pickPresenceColor } from '../../lib/presenceColor.js';
 import {
   setWorkspaceMemberRole, shareBoard, removeWorkspaceMember, unshareBoard, revokePendingInvite,
 } from '../../lib/boardsApi.js';
-import {
-  accountEditorSub, editorLimitStage, makeViewerOps, removeOps, revokeOps, ownerPlan,
-} from '../../lib/editorLimit.js';
+import { editorLimitStage, makeViewerOps, removeOps, revokeOps } from '../../lib/editorLimit.js';
+import { accountEditorSub } from '../../lib/editorLimitWords.js';
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { initialOf } from '../../lib/graphemes.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
-const EXAMPLE_TITLE = 'An example person, for the preview';
+const exampleTitle = () => t`An example person, for the preview`;
 
 const RUN = {
   member_role: (o) => setWorkspaceMemberRole({ workspaceId: o.workspaceId, userId: o.userId, role: o.role }),
@@ -43,10 +44,12 @@ export function AccountEditorsCard({ cap, editors = [], ownerName = null, selfId
   }, []);
 
   const desc = owner
-    ? `Across all your workspaces. Your plan has room for ${cap.limit}, and viewers don’t count. Making someone a viewer frees their place and keeps them in.`
-    : `Across all of ${ownerName ? `${ownerName}’s` : 'the owner’s'} workspaces. ${ownerPlan(ownerName, { start: true })} has room for ${cap.limit}, and viewers don’t count.`;
+    ? t`Across all your workspaces. Your plan has room for ${ph({ limit: cap.limit })}, and viewers don’t count. Making someone a viewer frees their place and keeps them in.`
+    : ownerName
+      ? t`Across all of ${ph({ owner: ownerName })}’s workspaces. ${ph({ owner: ownerName })}’s plan has room for ${ph({ limit: cap.limit })}, and viewers don’t count.`
+      : t`Across all of the owner’s workspaces. The owner’s plan has room for ${ph({ limit: cap.limit })}, and viewers don’t count.`;
 
-  const nameOf = (row) => row.display_name || row.email || 'Someone';
+  const nameOf = (row) => row.display_name || row.email || t`Someone`;
 
   const run = async (row, action, ops, done) => {
     setBusy(row.slot_key);
@@ -58,16 +61,16 @@ export function AccountEditorsCard({ cap, editors = [], ownerName = null, selfId
     try { logEvent(EV.EDITOR_LIMIT_MAKE_ROOM, { action, ok: failed === 0, grants: ops.length }); } catch (_) {}
     feedback.toast(failed === 0
       ? { type: 'success', message: done }
-      : { type: 'warning', message: 'Some of that didn’t go through. Try again.', ttl: 8000 });
+      : { type: 'warning', message: t`Some of that didn’t go through. Try again.`, ttl: 8000 });
     await onChanged?.();
   };
 
   const makeViewer = async (row) => {
     const who = nameOf(row);
     const ok = await feedback.confirm({
-      title: `Make ${who} a viewer?`,
-      message: 'They’ll still open everything they can now, but they won’t be able to change anything. Their place frees up.',
-      confirmLabel: 'Make viewer',
+      title: t`Make ${who} a viewer?`,
+      message: t`They’ll still open everything they can now, but they won’t be able to change anything. Their place frees up.`,
+      confirmLabel: t`Make viewer`,
     });
     if (!ok) return;
     run(row, 'make_viewer', makeViewerOps(row), `${who} can view now. Their place is free.`);
@@ -76,9 +79,9 @@ export function AccountEditorsCard({ cap, editors = [], ownerName = null, selfId
   const remove = async (row) => {
     const who = nameOf(row);
     const ok = await feedback.confirm({
-      title: `Remove ${who}?`,
-      message: 'They’ll lose access to everything they can edit in your workspaces. Anything they can only view stays as it is.',
-      confirmLabel: 'Remove',
+      title: t`Remove ${who}?`,
+      message: t`They’ll lose access to everything they can edit in your workspaces. Anything they can only view stays as it is.`,
+      confirmLabel: t`Remove`,
       danger: true,
     });
     if (!ok) return;
@@ -88,9 +91,9 @@ export function AccountEditorsCard({ cap, editors = [], ownerName = null, selfId
   // Same words as Members' own Revoke.
   const revoke = async (row) => {
     const ok = await feedback.confirm({
-      title: `Revoke invite to ${row.email}?`,
-      message: `They'll no longer get access if they sign up.`,
-      confirmLabel: 'Revoke',
+      title: t`Revoke invite to ${ph({ email: row.email })}?`,
+      message: t`They'll no longer get access if they sign up.`,
+      confirmLabel: t`Revoke`,
       danger: true,
     });
     if (!ok) return;
@@ -98,7 +101,7 @@ export function AccountEditorsCard({ cap, editors = [], ownerName = null, selfId
   };
 
   return (
-    <SettingsCategory title="People who can edit" aside={`${cap.taken} of ${cap.limit}`} desc={desc}>
+    <SettingsCategory title={t`People who can edit`} aside={t`${ph({ taken: cap.taken })} of ${ph({ limit: cap.limit })}`} desc={desc}>
       {owner && (
         <ul className="settings-editor-list">
           {editors.map((row) => {
@@ -110,24 +113,24 @@ export function AccountEditorsCard({ cap, editors = [], ownerName = null, selfId
                       style={pending ? undefined : { background: pickPresenceColor(row.user_id || row.email) }}
                       aria-hidden="true">{initialOf(name, '')}</span>
                 <span className="settings-editor-who">
-                  <span className="settings-editor-name">{name}{row.user_id && row.user_id === selfId ? ' (you)' : ''}</span>
+                  <span className="settings-editor-name">{name}{row.user_id && row.user_id === selfId ? t` (you)` : ''}</span>
                   <span className="settings-editor-sub">{accountEditorSub(row)}</span>
                 </span>
                 {row.source === 'owner' ? (
-                  <span className="settings-editor-role">Owner</span>
+                  <span className="settings-editor-role"><Trans>Owner</Trans></span>
                 ) : (
                   <span className={`settings-editor-acts${pending ? ' is-pending' : ''}`}>
                     {pending ? (
                       <button type="button" className="settings-link-btn" disabled={!!busy}
-                              onClick={() => revoke(row)}>Revoke</button>
+                              onClick={() => revoke(row)}><Trans>Revoke</Trans></button>
                     ) : (
                       <>
                         <button type="button" className="settings-link-btn" disabled={!!busy || !!row.preview}
-                                title={row.preview ? EXAMPLE_TITLE : undefined}
-                                onClick={() => makeViewer(row)}>Make viewer</button>
+                                title={row.preview ? exampleTitle() : undefined}
+                                onClick={() => makeViewer(row)}><Trans>Make viewer</Trans></button>
                         <button type="button" className="settings-link-btn is-danger" disabled={!!busy || !!row.preview}
-                                title={row.preview ? EXAMPLE_TITLE : undefined}
-                                onClick={() => remove(row)}>Remove</button>
+                                title={row.preview ? exampleTitle() : undefined}
+                                onClick={() => remove(row)}><Trans>Remove</Trans></button>
                       </>
                     )}
                   </span>
@@ -138,7 +141,7 @@ export function AccountEditorsCard({ cap, editors = [], ownerName = null, selfId
         </ul>
       )}
       {previewing && (
-        <p className="settings-section-hint">Preview: pretend numbers and example people, only you see them. Settings › Preview turns it off.</p>
+        <p className="settings-section-hint"><Trans>Preview: pretend numbers and example people, only you see them. Settings › Preview turns it off.</Trans></p>
       )}
     </SettingsCategory>
   );

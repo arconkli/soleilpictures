@@ -14,18 +14,21 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { listWorkspaceAlerts, acknowledgeAlert } from '../lib/boardsApi.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 function relTime(iso) {
   if (!iso) return '';
   const t = new Date(iso).getTime();
   const diff = Date.now() - t;
   const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
+  if (s < 60) return tr`${s}s ago`;
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return tr`${m}m ago`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
+  if (h < 24) return tr`${h}h ago`;
+  const d = Math.floor(h / 24);
+  return tr`${d}d ago`;
 }
 
 export function WorkspaceAlertBanner({ workspaceId, onOpenRecovery }) {
@@ -72,15 +75,15 @@ export function WorkspaceAlertBanner({ workspaceId, onOpenRecovery }) {
   const more = openAlerts.length - 1;
 
   const labelFor = (a) => {
-    if (a.kind === 'mass_delete') return 'Unusual deletion activity detected';
-    if (a.kind === 'velocity_spike') return 'Unusual edit velocity detected';
-    return a.kind || 'Anomaly detected';
+    if (a.kind === 'mass_delete') return tr`Unusual deletion activity detected`;
+    if (a.kind === 'velocity_spike') return tr`Unusual edit velocity detected`;
+    return a.kind || tr`Anomaly detected`;
   };
   const metaFor = (a) => {
     const parts = [];
-    if (a.payload?.delete_count != null) parts.push(`${a.payload.delete_count} deletes`);
-    if (a.payload?.window_seconds != null) parts.push(`in ${a.payload.window_seconds}s`);
-    if (a.board_ids?.length) parts.push(`${a.board_ids.length} board${a.board_ids.length === 1 ? '' : 's'}`);
+    if (a.payload?.delete_count != null) parts.push(plural(a.payload.delete_count, { one: '# deletes', other: '# deletes' }));
+    if (a.payload?.window_seconds != null) parts.push(tr`in ${ph({ seconds: a.payload.window_seconds })}s`);
+    if (a.board_ids?.length) parts.push(plural(a.board_ids.length, { one: '# board', other: '# boards' }));
     parts.push(relTime(a.detected_at));
     return parts.join(' · ');
   };
@@ -98,28 +101,28 @@ export function WorkspaceAlertBanner({ workspaceId, onOpenRecovery }) {
       <div className="ws-alert-banner-body">
         <div className="ws-alert-banner-title">
           {labelFor(primary)}
-          {more > 0 && <span className="ws-alert-banner-more">+{more} more</span>}
+          {more > 0 && <span className="ws-alert-banner-more"><Trans>+{more} more</Trans></span>}
         </div>
         <div className="ws-alert-banner-meta">{metaFor(primary)}</div>
       </div>
       <div className="ws-alert-banner-actions">
         {onOpenRecovery ? (
           <button type="button" className="tb-btn tb-btn-primary" onClick={onOpenRecovery}>
-            Open recovery
+            <Trans>Open recovery</Trans>
           </button>
         ) : (
           // Only the owner can run the rewind; offering it to anyone else
           // ends in a refusal.
-          <span className="ws-alert-banner-meta">The workspace owner can rewind this.</span>
+          <span className="ws-alert-banner-meta"><Trans>The workspace owner can rewind this.</Trans></span>
         )}
         <button type="button" className="tb-btn" onClick={() => onDismiss(primary)}>
-          Dismiss
+          <Trans>Dismiss</Trans>
         </button>
         <button type="button"
                 className="tb-btn tb-btn-sm"
-                title="Hide the banner for 1 hour without acknowledging the alert"
+                title={tr`Hide the banner for 1 hour without acknowledging the alert`}
                 onClick={() => setHideUntil(Date.now() + 60 * 60 * 1000)}>
-          Hide 1h
+          <Trans>Hide 1h</Trans>
         </button>
       </div>
     </div>

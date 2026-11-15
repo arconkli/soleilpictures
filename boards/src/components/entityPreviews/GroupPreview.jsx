@@ -1,5 +1,7 @@
 // Group preview — member count + outline color swatch.
 
+import { t, plural } from '@lingui/core/macro';
+
 export function previewMini(row) {
   const meta = row?.meta || {};
   const count = meta.memberCount || 0;
@@ -12,7 +14,7 @@ export function previewMini(row) {
           background: color, borderRadius: 2,
         }} />
       )}
-      <span>{count} {count === 1 ? 'card' : 'cards'}</span>
+      <span>{t`${plural(count, { one: '# card', other: '# cards' })}`}</span>
     </div>
   );
 }

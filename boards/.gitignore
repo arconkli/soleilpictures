@@ -16,3 +16,6 @@ playwright-report/
 # slash: anchored to boards/, so it does NOT swallow scripts/shots/, which holds
 # the committed shot lists that produce them.
 /shots/
+
+# English snapshots and pseudo sweeps (tests/i18n-english.spec.js).
+.i18n-snapshot/

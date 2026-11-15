@@ -5,6 +5,8 @@ import { COACHMARK_VARIANTS } from '../lib/experiments.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { Icon } from './Icon.jsx';
 import { Sparkle } from '../lib/icons.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // First-run coachmark. A small dismissible pill anchored bottom-center of the
 // canvas, shown ONCE to a brand-new user right after we seed their starter
@@ -23,7 +25,12 @@ export function OnboardingCoachmark({ boardId, onDismiss, hasTutorialBoard = fal
   const { isTouch } = useBreakpoint();
   // A/B copy variant (experiments.js). A null/'A'/missing variant = the original
   // copy below, so the control arm and a disabled experiment are zero-regression.
-  const v = COACHMARK_VARIANTS[arm] || null;
+  const v = COACHMARK_VARIANTS[arm]?.imageFirst ? {
+    title: t`Add your first image`,
+    hasTutorial: t`Drag or paste an image to start your moodboard`,
+    touch: t`Tap Image on the left — or paste — to drop your first reference.`,
+    desktop: t`Drag an image in, paste, or hit Image on the left to start your moodboard.`,
+  } : null;
   // "Got it" animates out before App.jsx unmounts us; external dismissals
   // (first card placed, note nested) still remove the pill immediately —
   // the user is mid-action there and never watches it go.
@@ -43,20 +50,20 @@ export function OnboardingCoachmark({ boardId, onDismiss, hasTutorialBoard = fal
     <div className={`onboarding-coachmark surface-frosted${leaving ? ' is-leaving' : ''}${escalated ? ' is-escalated' : ''}`} role="status">
       <div className="onboarding-coachmark-spark" aria-hidden="true"><Icon as={Sparkle} size={18} weight="fill" /></div>
       <div className="onboarding-coachmark-copy">
-        <div className="onboarding-coachmark-title">{v?.title || 'Make it yours'}</div>
+        <div className="onboarding-coachmark-title">{v?.title || t`Make it yours`}</div>
         <div className="onboarding-coachmark-body">
           {hasTutorialBoard
-            ? (v?.hasTutorial || 'Drag the note into the “Ideas” board to organize it')
+            ? (v?.hasTutorial || t`Drag the note into the “Ideas” board to organize it`)
             : isTouch
-              ? (v?.touch || 'Tap a tool on the toolbar at the left, or long-press the canvas, to add your first card.')
-              : (v?.desktop || 'Right-click, use the toolbar on the left, or drag an image straight in to add your first card.')}
+              ? (v?.touch || t`Tap a tool on the toolbar at the left, or long-press the canvas, to add your first card.`)
+              : (v?.desktop || t`Right-click, use the toolbar on the left, or drag an image straight in to add your first card.`)}
         </div>
       </div>
       <button
         className="onboarding-coachmark-dismiss"
         onClick={dismiss}
       >
-        Got it
+        <Trans>Got it</Trans>
       </button>
     </div>
   );

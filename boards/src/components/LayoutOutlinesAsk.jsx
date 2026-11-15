@@ -74,6 +74,8 @@ import {
   LAYOUT_OUTLINES_DOC, LAYOUT_OUTLINES_EVENT, layoutOutlinesAsks, localDateKey,
   setLayoutOutlines, shouldAskLayoutOutlines,
 } from '../lib/layoutOutlines.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Same clock as ReturnReasonAsk, without its 'soleil:returned' trigger.
 const VISIBLE_MS = 20_000;
@@ -280,18 +282,18 @@ export function LayoutOutlinesAsk({ userId = null, settings = null, settingsLoad
       ref={rootRef}
       className={`fv-banner surface-frosted lo-ask${leaving ? ' is-leaving' : ''}`}
       role="dialog"
-      aria-label="Help improve Clusters?"
+      aria-label={t`Help improve Clusters?`}
       onKeyDown={onKeyDown}
     >
       <div className="fv-banner-copy">
-        <div className="fv-banner-title">Help improve Clusters?</div>
+        <div className="fv-banner-title"><Trans>Help improve Clusters?</Trans></div>
         <div className="fv-banner-body">
-          <a className="lo-ask-link" href={LAYOUT_OUTLINES_DOC} target="_blank" rel="noopener noreferrer">Learn more</a>
+          <a className="lo-ask-link" href={LAYOUT_OUTLINES_DOC} target="_blank" rel="noopener noreferrer"><Trans>Learn more</Trans></a>
         </div>
       </div>
       <div className="fv-banner-actions">
-        <button type="button" className="fv-banner-dismiss" onClick={() => answer(false)} disabled={leaving}>No thanks</button>
-        <button type="button" className="lo-ok" onClick={() => answer(true)} disabled={leaving}>Sure</button>
+        <button type="button" className="fv-banner-dismiss" onClick={() => answer(false)} disabled={leaving}><Trans>No thanks</Trans></button>
+        <button type="button" className="lo-ok" onClick={() => answer(true)} disabled={leaving}><Trans>Sure</Trans></button>
       </div>
     </div>
   );

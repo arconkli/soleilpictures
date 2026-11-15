@@ -13,6 +13,7 @@
 //
 // `also`: buttons shown before Undo, for a toast that offers another way on
 // ("Moved 3 photos into Feature film's files · Put on board · Undo").
+import { t } from '@lingui/core/macro';
 export function undoToast(feedback, {
   message,
   type = 'info',
@@ -20,12 +21,12 @@ export function undoToast(feedback, {
   undoManager = null,
   stackItem = null,
   onUndo,
-  supersededMessage = 'The board changed since — press ⌘Z to step back instead.',
+  supersededMessage = t`The board changed since — press ⌘Z to step back instead.`,
   also = null,
 }) {
   if (!feedback?.toast || !message) return;
   const undo = {
-    label: 'Undo',
+    label: t`Undo`,
     onClick: () => {
       if (undoManager && stackItem) {
         const top = undoManager.undoStack[undoManager.undoStack.length - 1];

@@ -12,6 +12,7 @@ import {
   commentsMap, deleteCommentThread, getDocUndoManager, snapshotThread, restoreThread,
 } from './docState.js';
 import { undoToast } from './undoToast.js';
+import { t } from '@lingui/core/macro';
 
 const STRIP_AFTER_MS = 6500;
 
@@ -29,7 +30,7 @@ export function deleteCommentThreadUndoably(ydoc, scope, threadId, feedback) {
     const item = docUm.undoStack.length ? docUm.undoStack[docUm.undoStack.length - 1] : null;
     docUm.stopCapturing();
     undoToast(feedback, {
-      message: 'Comment thread deleted',
+      message: t`Comment thread deleted`,
       undoManager: docUm,
       stackItem: item,
       onUndo: () => { try { docUm.undo(); } catch (_) {} },
@@ -40,7 +41,7 @@ export function deleteCommentThreadUndoably(ydoc, scope, threadId, feedback) {
   const saved = snapshotThread(ydoc, threadId, scope);
   deleteCommentThread(ydoc, threadId, scope);
   undoToast(feedback, {
-    message: 'Comment thread deleted',
+    message: t`Comment thread deleted`,
     onUndo: () => { try { restoreThread(ydoc, saved, scope); } catch (_) {} },
   });
   stripIfGone();

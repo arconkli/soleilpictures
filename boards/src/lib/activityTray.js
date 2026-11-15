@@ -12,17 +12,20 @@
 
 import { batchEtaMs, canCancelTransfer } from './activity.js';
 import { etaWords, etaShort, opWords } from './activityWords.js';
-import { sizeLabel, countLabel } from './importCopy.js';
+import { sizeLabel, sizeNumber, countLabel } from './importCopy.js';
+import { rich } from './richParts.js';
+import { uiLocale } from './uiLocale.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
 
 export const SHOW_AFTER_MS = 1000;      // an upload batch done inside this never shows
 export const OFFLINE_AFTER_MS = 2000;   // offline for less than this shows nothing
 const ROW_CAP = 50;
 
 const ACTIVE = new Set(['waiting', 'running', 'finishing']);
-const DIDNT = 'Didn’t upload';
 const UNITS = { TB: 1024 ** 4, GB: 1024 ** 3, MB: 1024 ** 2, KB: 1024, B: 1 };
 
-const filesOf = (n) => `${countLabel(n)} ${n === 1 ? 'file' : 'files'}`;
+// A count as the whole number `plural` takes (countLabel's own rounding).
+const cnt = (n) => Math.max(0, Math.round(Number(n) || 0));
 const plain = (parts) => parts.map((p) => (typeof p === 'string' ? p : p.b)).join('');
 const pctOf = (it) => Math.min(99, Math.floor((it.fraction || 0) * 100));
 
@@ -31,14 +34,16 @@ const pctOf = (it) => Math.min(99, Math.floor((it.fraction || 0) * 100));
 function sizePair(sent, bytes) {
   const total = sizeLabel(bytes);
   const unit = total.split(' ')[1];
-  if (!(sent > 0)) return `0 of ${total}`;
+  if (!(sent > 0)) return tr`0 of ${total}`;
   const v = sent / (UNITS[unit] || 1);
-  return `${v >= 100 ? Math.round(v) : Math.round(v * 10) / 10} of ${total}`;
+  const sentText = sizeNumber(v >= 100 ? Math.round(v) : Math.round(v * 10) / 10);
+  return tr`${sentText} of ${total}`;
 }
 
 function withLabel(chip) {
   if (!chip || chip.label) return chip;
-  return { ...chip, label: `${plain(chip.parts)}${chip.chevron ? '. Open' : ''}` };
+  const text = plain(chip.parts);
+  return { ...chip, label: chip.chevron ? tr`${text}. Open` : text };
 }
 
 const chipOf = (parts, icon, { pct = null, tone = null, action = null, chevron = true } = {}) => withLabel({
@@ -49,9 +54,10 @@ function failRow(it) {
   return {
     key: it.id, tid: it.id, state: 'fail', name: it.label, thumb: it.thumb || null, mime: it.mime || '',
     pct: null, c: null,
-    why: it.retryOnline ? `${DIDNT} · connection dropped` : (it.error && it.error !== DIDNT ? it.error : DIDNT),
+    // A transfer's own error text, else the plain words; the generic failure stores no error.
+    why: it.retryOnline ? tr`Didn’t upload · connection dropped` : (it.error || tr`Didn’t upload`),
     retry: !!it.actions?.retry,
-    button: it.actions?.remove ? { id: 'remove', label: it.version ? 'Dismiss' : 'Remove this file' } : { id: 'dismiss-row', label: 'Dismiss' },
+    button: it.actions?.remove ? { id: 'remove', label: it.version ? tr`Dismiss` : tr`Remove this file` } : { id: 'dismiss-row', label: tr`Dismiss` },
   };
 }
 
@@ -89,15 +95,29 @@ function batchSection(batch, all, now) {
     ? batch.createdAt + SHOW_AFTER_MS : null;
   if (!visible) return { visible: false, wake };
 
-  const where = batch.boardName ? ` to ${batch.boardName}` : '';
-  const title = active ? `Uploading ${filesOf(n.total)}${where}`
-    : n.done === 0 && n.failed > 0 ? `${DIDNT}${where}` : `Uploaded${where}`;
+  const boardName = batch.boardName;
+  const totalCount = cnt(n.total);
+  const failedCount = cnt(n.failed);
+  const doneCount = cnt(n.done);
+  let title;
+  if (active) {
+    title = boardName
+      ? tr`Uploading ${plural(totalCount, { one: '# file', other: '# files' })} to ${boardName}`
+      : tr`Uploading ${plural(totalCount, { one: '# file', other: '# files' })}`;
+  } else if (n.done === 0 && n.failed > 0) title = boardName ? tr`Didn’t upload to ${boardName}` : tr`Didn’t upload`;
+  else title = boardName ? tr`Uploaded to ${boardName}` : tr`Uploaded`;
   const pct = finished ? 100
     : bytes > 0 ? Math.min(100, Math.floor((sent / bytes) * 100))
       : n.total ? Math.min(100, Math.floor((n.done / n.total) * 100)) : 0;
   const eta = active && !paused ? batchEtaMs(batch, mine, now) : null;
-  const ofTotal = `${countLabel(n.done)} of ${countLabel(n.total)}`;
-  const failedBit = n.failed ? ` · ${countLabel(n.failed)} didn’t upload` : '';
+  const totalText = countLabel(n.total);
+  const ofTotal = tr`${ph({ done: countLabel(n.done) })} of ${totalText}`;
+  // "3 of 10 uploaded": the verb agrees with the done count, so it is one plural on it.
+  const ofTotalUploaded = plural(doneCount, { one: `**# of ${ph({ total: totalText })}** uploaded`, other: `**# of ${ph({ total: totalText })}** uploaded` });
+  // " · 2 didn’t upload": a segment of its own after the " · " glue.
+  const failedBit = n.failed ? ` · ${plural(failedCount, { other: '# didn’t upload' })}` : '';
+  const etaLong = etaWords(eta);
+  const etaCard = etaShort(eta);
 
   let line;
   let chipParts;
@@ -105,31 +125,31 @@ function batchSection(batch, all, now) {
   let chipTone = null;
   if (single && active) {
     const p = Math.min(99, pct);
-    if (paused) { line = ['Paused']; chipParts = ['Paused']; chipIcon = 'pause'; }
+    if (paused) { line = [tr`Paused`]; chipParts = [tr`Paused`]; chipIcon = 'pause'; }
     else {
-      line = [{ b: `${p}%` }, bytes > 0 ? ` · ${sizePair(sent, bytes)}` : null, etaWords(eta) ? ` · ${etaWords(eta)}` : null].filter(Boolean);
-      chipParts = ['Uploading · ', { b: `${p}%` }, etaShort(eta) ? ` · ${etaShort(eta)}` : null].filter(Boolean);
+      line = [{ b: `${p}%` }, bytes > 0 ? ` · ${sizePair(sent, bytes)}` : null, etaLong ? ` · ${etaLong}` : null].filter(Boolean);
+      chipParts = [...rich(tr`Uploading · **${p}%**`), etaCard ? ` · ${etaCard}` : null].filter(Boolean);
       chipIcon = 'ring';
     }
   } else if (active) {
     if (paused) {
-      line = [{ b: ofTotal }, ' uploaded · paused'];
-      chipParts = ['Paused · ', { b: ofTotal }];
+      line = rich(plural(doneCount, { one: `**# of ${ph({ total: totalText })}** uploaded · paused`, other: `**# of ${ph({ total: totalText })}** uploaded · paused` }));
+      chipParts = rich(tr`Paused · **${ofTotal}**`);
       chipIcon = 'pause';
     } else {
-      line = [{ b: ofTotal }, ' uploaded', bytes > 0 ? ` · ${sizePair(sent, bytes)}` : null,
-        etaWords(eta) ? ` · ${etaWords(eta)}` : null, failedBit || null].filter(Boolean);
-      chipParts = ['Uploading · ', { b: ofTotal }, etaShort(eta) ? ` · ${etaShort(eta)}` : null, failedBit || null].filter(Boolean);
+      line = [...rich(ofTotalUploaded), bytes > 0 ? ` · ${sizePair(sent, bytes)}` : null,
+        etaLong ? ` · ${etaLong}` : null, failedBit || null].filter(Boolean);
+      chipParts = [...rich(tr`Uploading · **${ofTotal}**`), etaCard ? ` · ${etaCard}` : null, failedBit || null].filter(Boolean);
       chipIcon = 'ring';
     }
   } else if (n.done > 0) {
-    line = [{ b: ofTotal }, ' uploaded', failedBit || null].filter(Boolean);
-    if (n.failed) { chipParts = [{ b: ofTotal }, ` uploaded${failedBit}`]; chipIcon = 'warning'; chipTone = 'err'; }
-    else { chipParts = ['Uploaded · ', { b: ofTotal }]; chipIcon = 'check'; chipTone = 'quiet'; }
-    if (single) { chipParts = ['Uploaded']; }
+    line = [...rich(ofTotalUploaded), failedBit || null].filter(Boolean);
+    if (n.failed) { chipParts = rich(tr`**${ofTotal}** uploaded · ${plural(failedCount, { other: '# didn’t upload' })}`); chipIcon = 'warning'; chipTone = 'err'; }
+    else { chipParts = rich(tr`Uploaded · **${ofTotal}**`); chipIcon = 'check'; chipTone = 'quiet'; }
+    if (single) { chipParts = [tr`Uploaded`]; }
   } else {
-    line = [{ b: filesOf(n.failed) }, ' didn’t upload'];
-    chipParts = single ? [DIDNT] : [{ b: filesOf(n.failed) }, ' didn’t upload'];
+    line = rich(plural(failedCount, { one: '**# file** didn’t upload', other: '**# files** didn’t upload' }));
+    chipParts = single ? [tr`Didn’t upload`] : rich(plural(failedCount, { one: '**# file** didn’t upload', other: '**# files** didn’t upload' }));
     chipIcon = 'warning';
     chipTone = 'err';
   }
@@ -145,31 +165,31 @@ function batchSection(batch, all, now) {
     if (it.state === 'running') {
       const p = pctOf(it);
       rows.push(row(it, 'now', it.etaText ? `${p}% · ${it.etaText}` : `${p}%`, {
-        pct: p, button: canCancelTransfer(it) ? { id: 'cancel', label: 'Cancel this upload' } : null,
+        pct: p, button: canCancelTransfer(it) ? { id: 'cancel', label: tr`Cancel this upload` } : null,
       }));
     } else if (it.state === 'finishing') {
-      rows.push(row(it, 'busy', 'Making a preview…'));
+      rows.push(row(it, 'busy', tr`Making a preview…`));
     } else {
-      rows.push(row(it, 'later', it.paused ? 'Paused' : 'Waiting', {
-        button: canCancelTransfer(it) ? { id: 'cancel', label: 'Remove this file' } : null,
+      rows.push(row(it, 'later', it.paused ? tr`Paused` : tr`Waiting`, {
+        button: canCancelTransfer(it) ? { id: 'cancel', label: tr`Remove this file` } : null,
       }));
     }
   }
   if (order.length > ROW_CAP) {
-    rows.push({ key: 'more', tid: null, state: 'more', name: null, thumb: null, mime: '', pct: null, c: `${countLabel(order.length - ROW_CAP)} more waiting`, why: null, retry: false, button: null });
+    rows.push({ key: 'more', tid: null, state: 'more', name: null, thumb: null, mime: '', pct: null, c: plural(cnt(order.length - ROW_CAP), { one: '# more waiting', other: '# more waiting' }), why: null, retry: false, button: null });
   }
   const failedItems = mine.filter((i) => i.state === 'failed');
   for (const it of failedItems.slice(0, ROW_CAP)) rows.push(failRow(it));
   if (failedItems.length > ROW_CAP) {
-    rows.push({ key: 'more-failed', tid: null, state: 'more', name: null, thumb: null, mime: '', pct: null, c: `${countLabel(failedItems.length - ROW_CAP)} more didn’t upload`, why: null, retry: false, button: null });
+    rows.push({ key: 'more-failed', tid: null, state: 'more', name: null, thumb: null, mime: '', pct: null, c: plural(cnt(failedItems.length - ROW_CAP), { one: '# more didn’t upload', other: '# more didn’t upload' }), why: null, retry: false, button: null });
   }
   if (n.done > 0) {
     const doneItems = mine.filter((i) => i.state === 'done');
     const doneNames = doneItems.slice(0, ROW_CAP).map((i) => ({ key: i.id, name: i.label }));
-    if (doneItems.length > ROW_CAP) doneNames.push({ key: 'more-done', name: `${countLabel(doneItems.length - ROW_CAP)} more` });
+    if (doneItems.length > ROW_CAP) doneNames.push({ key: 'more-done', name: plural(cnt(doneItems.length - ROW_CAP), { one: '# more', other: '# more' }) });
     rows.push({
       key: 'done-fold', tid: null, state: 'done-fold', name: null, thumb: null, mime: '', pct: null,
-      c: `${countLabel(n.done)} uploaded`, why: null, retry: false, button: null,
+      c: plural(doneCount, { one: '# uploaded', other: '# uploaded' }), why: null, retry: false, button: null,
       done: doneNames,
     });
   }
@@ -185,7 +205,7 @@ function batchSection(batch, all, now) {
       title, announce: title, line, meta: null, pct, active, paused, failed: n.failed, finished,
       counts: { ...n, bytes, sent },
       headAction: active && (n.waiting > 0 || paused)
-        ? { id: paused ? 'resume' : 'pause', label: paused ? 'Resume' : 'Pause' } : null,
+        ? { id: paused ? 'resume' : 'pause', label: paused ? tr`Resume` : tr`Pause` } : null,
       close: finished ? 'dismiss' : 'fold',
       rows, chip,
     },
@@ -218,9 +238,11 @@ function opSection(batch, all, now) {
   const ratio = (it.fraction || 0) > 0 ? it.fraction : total > 0 ? (it.count.done || 0) / total : null;
   const pct = done ? 100 : ratio == null ? null : Math.min(99, Math.floor(ratio * 100));
   const opens = it.kind === 'copy' || (it.kind === 'download' && total >= 2);
-  const subject = it.kind === 'download' ? (it.label || 'download') : null;
+  const subject = it.kind === 'download' ? (it.label || tr`download`) : null;
   const stem = String(title).replace(/…$/, '');
-  const cancelAria = subject ? `Cancel download of ${subject}` : `Cancel ${lowerFirst(stem)}`;
+  // English reads the title as a verb phrase ("Cancel preparing …"); another language keeps it as written.
+  const stemShown = uiLocale() === 'en' ? lowerFirst(stem) : stem;
+  const cancelAria = subject ? tr`Cancel download of ${subject}` : tr`Cancel ${stemShown}`;
   const icon = done ? 'check' : OP_ICON[it.kind] || 'download';
   const tone = done ? 'quiet' : null;
   const chipParts = [title, !done && pct != null ? ' · ' : null, !done && pct != null ? { b: `${pct}%` } : null].filter(Boolean);
@@ -231,61 +253,62 @@ function opSection(batch, all, now) {
     wake,
     section: {
       key: `op:${batch.id}`, kind: 'op', opKind: it.kind, batchId: batch.id, itemId: it.id, opens, chipOnly: !opens,
-      title, announce: it.kind === 'download' && active && total >= 2 ? `Preparing download of ${total} files` : title,
+      title, announce: it.kind === 'download' && active && total >= 2 ? plural(total, { other: 'Preparing download of # files' }) : title,
       icon, tone, pct, subject,
-      headAction: active && it.cancel ? { label: 'Cancel', aria: cancelAria, run: it.cancel } : null,
-      open: done && it.actions?.open ? { label: 'Open', aria: it.kind === 'copy' ? 'Open the copy' : `Open: ${title}`, run: it.actions.open } : null,
-      close: done ? 'dismiss' : 'fold', dismissAria: `Dismiss: ${title}`,
+      headAction: active && it.cancel ? { label: tr`Cancel`, aria: cancelAria, run: it.cancel } : null,
+      open: done && it.actions?.open ? { label: tr`Open`, aria: it.kind === 'copy' ? tr`Open the copy` : tr`Open: ${title}`, run: it.actions.open } : null,
+      close: done ? 'dismiss' : 'fold', dismissAria: tr`Dismiss: ${title}`,
       active, finished: done, chip,
     },
   };
 }
 
 function connSection({ conn, items, batches, offlineForMs, canRetryConnection }) {
-  const keptLine = conn?.kept ? 'Changes you make are kept on this device' : 'Keep this tab open until you’re back online';
+  const keptLine = conn?.kept ? tr`Changes you make are kept on this device` : tr`Keep this tab open until you’re back online`;
   const offline = offlineForMs != null && offlineForMs >= OFFLINE_AFTER_MS;
   const liveBatch = new Set(batches.filter((b) => b.kind === 'upload' && !b.hidden).map((b) => b.id));
   const mineItems = items.filter((i) => liveBatch.has(i.batch) && !i.parked);
   const pausedItems = mineItems.filter((i) => ACTIVE.has(i.state) || (i.state === 'failed' && i.retryOnline));
   if (offline && (conn || pausedItems.length)) {
     const n = pausedItems.length;
+    const pausedCount = cnt(n);
     const line = n > 0
-      ? `${countLabel(n)} ${n === 1 ? 'upload paused, it’ll' : 'uploads paused, they’ll'} continue when you’re back`
-      : conn ? keptLine : 'You’re offline';
-    const meta = n > 0 && conn ? (conn.kept ? 'Changes are kept on this device' : 'Keep this tab open until you’re back online') : null;
+      ? plural(pausedCount, { one: '# upload paused, it’ll continue when you’re back', other: '# uploads paused, they’ll continue when you’re back' })
+      : conn ? keptLine : tr`You’re offline`;
+    const meta = n > 0 && conn ? (conn.kept ? tr`Changes are kept on this device` : tr`Keep this tab open until you’re back online`) : null;
     const rows = [];
     for (const it of pausedItems.slice(0, ROW_CAP)) {
       const f = pctOf(it);
-      rows.push(row(it, 'later', (it.fraction || 0) > 0 ? `Paused at ${f}%` : 'Waiting', { pct: (it.fraction || 0) > 0 ? f : null }));
+      rows.push(row(it, 'later', (it.fraction || 0) > 0 ? tr`Paused at ${f}%` : tr`Waiting`, { pct: (it.fraction || 0) > 0 ? f : null }));
     }
-    if (n > ROW_CAP) rows.push({ key: 'more', tid: null, state: 'more', name: null, thumb: null, mime: '', pct: null, c: `${countLabel(n - ROW_CAP)} more waiting`, why: null, retry: false, button: null });
+    if (n > ROW_CAP) rows.push({ key: 'more', tid: null, state: 'more', name: null, thumb: null, mime: '', pct: null, c: plural(cnt(n - ROW_CAP), { one: '# more waiting', other: '# more waiting' }), why: null, retry: false, button: null });
     const batchesWithPaused = new Set(pausedItems.map((i) => i.batch));
     const chosen = new Set(pausedItems.map((i) => i.id));
     for (const it of mineItems) {
       if (it.state === 'failed' && !chosen.has(it.id) && batchesWithPaused.has(it.batch)) rows.push(failRow(it));
     }
-    const chip = chipOf([n > 0 ? `Offline · ${countLabel(n)} paused` : 'Offline'], 'offline');
+    const chip = chipOf([n > 0 ? plural(pausedCount, { one: 'Offline · # paused', other: 'Offline · # paused' }) : tr`Offline`], 'offline');
     chip.key = 'conn';
-    return { key: 'conn', kind: 'conn', opens: true, chipOnly: false, title: 'Offline', announce: 'Offline', icon: 'offline', tone: null, line: [line], meta, pct: null, headAction: null, close: 'fold', rows, chip, conn: 'offline' };
+    return { key: 'conn', kind: 'conn', opens: true, chipOnly: false, title: tr`Offline`, announce: tr`Offline`, icon: 'offline', tone: null, line: [line], meta, pct: null, headAction: null, close: 'fold', rows, chip, conn: 'offline' };
   }
   if (conn?.state === 'error') {
-    const retry = canRetryConnection ? { id: 'retry-conn', label: 'Retry' } : null;
+    const retry = canRetryConnection ? { id: 'retry-conn', label: tr`Retry` } : null;
     const line = conn.kept
-      ? 'Your changes are kept on this device and will save when the connection is back'
-      : 'Your latest changes aren’t saved yet. Keep this tab open.';
-    const chip = chipOf(['Couldn’t save'], 'warning', { tone: 'err', action: retry });
+      ? tr`Your changes are kept on this device and will save when the connection is back`
+      : tr`Your latest changes aren’t saved yet. Keep this tab open.`;
+    const chip = chipOf([tr`Couldn’t save`], 'warning', { tone: 'err', action: retry });
     chip.key = 'conn';
-    return { key: 'conn', kind: 'conn', opens: true, chipOnly: false, title: 'Couldn’t save', announce: 'Couldn’t save', icon: 'warning', tone: 'err', line: [line], meta: null, pct: null, headAction: retry, close: 'fold', rows: [], chip, conn: 'error' };
+    return { key: 'conn', kind: 'conn', opens: true, chipOnly: false, title: tr`Couldn’t save`, announce: tr`Couldn’t save`, icon: 'warning', tone: 'err', line: [line], meta: null, pct: null, headAction: retry, close: 'fold', rows: [], chip, conn: 'error' };
   }
   if (conn?.state === 'reconnecting' && conn.everLive) {
-    const chip = chipOf(['Reconnecting…'], 'reconnecting', { chevron: false });
+    const chip = chipOf([tr`Reconnecting…`], 'reconnecting', { chevron: false });
     chip.key = 'conn';
-    return { key: 'conn', kind: 'conn', opens: false, chipOnly: true, title: 'Reconnecting…', announce: 'Reconnecting…', icon: 'reconnecting', tone: null, line: null, meta: null, pct: null, headAction: null, close: 'fold', rows: [], chip, conn: 'reconnecting' };
+    return { key: 'conn', kind: 'conn', opens: false, chipOnly: true, title: tr`Reconnecting…`, announce: tr`Reconnecting…`, icon: 'reconnecting', tone: null, line: null, meta: null, pct: null, headAction: null, close: 'fold', rows: [], chip, conn: 'reconnecting' };
   }
   if (conn?.state === 'saved') {
-    const chip = chipOf(['Saved'], 'check', { tone: 'quiet', chevron: false });
+    const chip = chipOf([tr`Saved`], 'check', { tone: 'quiet', chevron: false });
     chip.key = 'conn';
-    return { key: 'conn', kind: 'conn', opens: false, chipOnly: true, title: 'Saved', announce: 'Saved', icon: 'check', tone: 'quiet', line: null, meta: null, pct: null, headAction: null, close: 'fold', rows: [], chip, conn: 'saved' };
+    return { key: 'conn', kind: 'conn', opens: false, chipOnly: true, title: tr`Saved`, announce: tr`Saved`, icon: 'check', tone: 'quiet', line: null, meta: null, pct: null, headAction: null, close: 'fold', rows: [], chip, conn: 'saved' };
   }
   return null;
 }
@@ -296,12 +319,12 @@ function heldSection(held) {
   const count = entries.reduce((n, e) => n + (Number(e.count) || 0), 0);
   const allReady = entries.every((e) => e.ready);
   const paying = !allReady && !!held.awaiting;
-  const nf = filesOf(count);
-  const chip = allReady ? chipOf(['Ready to upload · ', { b: nf }], 'check')
-    : paying ? chipOf(['Waiting for payment · ', { b: nf }], 'clock')
-      : chipOf(['Waiting for room · ', { b: nf }], 'clock');
+  const heldCount = cnt(count);
+  const chip = allReady ? chipOf(rich(tr`Ready to upload · ${plural(heldCount, { one: '**# file**', other: '**# files**' })}`), 'check')
+    : paying ? chipOf(rich(tr`Waiting for payment · ${plural(heldCount, { one: '**# file**', other: '**# files**' })}`), 'clock')
+      : chipOf(rich(tr`Waiting for room · ${plural(heldCount, { one: '**# file**', other: '**# files**' })}`), 'clock');
   chip.key = 'held';
-  const title = allReady ? 'Ready to upload' : 'Waiting for room';
+  const title = allReady ? tr`Ready to upload` : tr`Waiting for room`;
   return { key: 'held', kind: 'held', opens: true, chipOnly: false, title, announce: title, count, allReady, paying, chip };
 }
 
@@ -312,16 +335,17 @@ function importSection(importLead, guideOpen) {
   if (importLead) {
     const c = importLead.chip || {};
     key = `import:${importLead.key}`;
+    const chipText = c.text;
     chip = {
-      key, parts: ['Import · ', { b: c.text }], icon: c.kind === 'ring' ? 'ring' : c.icon,
+      key, parts: rich(tr`Import · **${chipText}**`), icon: c.kind === 'ring' ? 'ring' : c.icon,
       pct: c.kind === 'ring' ? (c.pct ?? null) : null, tone: null, action: null, chevron: true, label: c.label,
     };
   } else {
     key = 'guide';
-    chip = chipOf(['Import'], 'clock');
+    chip = chipOf([tr`Import`], 'clock');
     chip.key = key;
   }
-  return { key, kind: 'import', opens: true, chipOnly: false, title: 'Import', announce: 'Import', chip };
+  return { key, kind: 'import', opens: true, chipOnly: false, title: tr`Import`, announce: tr`Import`, chip };
 }
 
 export function trayModel({

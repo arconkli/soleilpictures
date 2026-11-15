@@ -7,8 +7,9 @@
 // Delete is a soft delete with the house undo toast (restore_file_comment).
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  FILE_COMMENT_MAX_CHARS, formatAt, groupComments, friendlyShareError,
+  FILE_COMMENT_MAX_CHARS, formatAt, groupComments,
 } from '../../lib/fileShares.js';
+import { friendlyShareError } from '../../lib/fileSharesWords.js';
 import { relativeTimeShort } from '../../lib/relativeTime.js';
 import { logEvent, logEventNow } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
@@ -16,6 +17,8 @@ import { useOptionalFeedback } from '../AppFeedback.jsx';
 import { undoToast } from '../../lib/undoToast.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import { initialOf } from '../../lib/graphemes.js';
+import { t, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const POLL_MS = 15000;
 const COUNTER_FROM = 1800;
@@ -97,8 +100,8 @@ function Composer({ kind, reply = null, getAnchor, currentPage, onFocusCompose, 
   };
 
   // A time pin appears once the composer has read the playhead (on focus).
-  const pinText = timed ? (atMs != null ? `at ${formatAt(atMs)}` : null)
-    : paged ? `on page ${currentPage || 1}` : null;
+  const pinText = timed ? (atMs != null ? t`at ${ph({ time: formatAt(atMs) })}` : null)
+    : paged ? t`on page ${ph({ page: currentPage || 1 })}` : null;
 
   return (
     <div className={`fsc-composer${reply ? ' is-reply' : ''}`}>
@@ -109,8 +112,8 @@ function Composer({ kind, reply = null, getAnchor, currentPage, onFocusCompose, 
         value={body}
         maxLength={FILE_COMMENT_MAX_CHARS}
         rows={reply ? 2 : 3}
-        placeholder={reply ? 'Reply…' : 'Add a comment…'}
-        aria-label={reply ? 'Reply' : 'Add a comment'}
+        placeholder={reply ? t`Reply…` : t`Add a comment…`}
+        aria-label={reply ? t`Reply` : t`Add a comment`}
         onChange={(e) => { setBody(e.target.value); if (err) setErr(''); }}
         onFocus={onFocus}
         onKeyDown={onKeyDown}
@@ -119,18 +122,18 @@ function Composer({ kind, reply = null, getAnchor, currentPage, onFocusCompose, 
       <div className="fsc-composer-row">
         {pinText && (
           <button type="button" className={`fsc-pin${pinned ? ' is-on' : ''}`} aria-pressed={pinned}
-                  onClick={togglePin} title={pinned ? 'Unpin from this moment' : 'Pin to this moment'}>
-            {pinned ? pinText : 'Not pinned'}
+                  onClick={togglePin} title={pinned ? t`Unpin from this moment` : t`Pin to this moment`}>
+            {pinned ? pinText : t`Not pinned`}
           </button>
         )}
         <span className="fsc-spacer" />
         {body.length >= COUNTER_FROM && (
           <span className="fsc-count" aria-live="polite">{body.length} / {FILE_COMMENT_MAX_CHARS}</span>
         )}
-        {reply && <button type="button" className="fsc-btn" onClick={onCancel}>Cancel</button>}
+        {reply && <button type="button" className="fsc-btn" onClick={onCancel}><Trans>Cancel</Trans></button>}
         <button type="button" className="fsc-btn fsc-btn--send" disabled={!trimmed || busy} onClick={send}
-                title="Send (⌘↵)">
-          {reply ? 'Reply' : 'Comment'}
+                title={t`Send (⌘↵)`}>
+          {reply ? t`Reply` : t`Comment`}
         </button>
       </div>
     </div>
@@ -144,7 +147,7 @@ function CommentRow({ c, isReply = false, activeId, canCompose, replying, onRepl
     if (active) ref.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
   }, [active]);
   const anchor = anchorLabel(c);
-  const name = c.author?.name || 'Someone';
+  const name = c.author?.name || t`Someone`;
   return (
     <div ref={ref} className={`fsc-row${isReply ? ' is-reply' : ''}${active ? ' is-active' : ''}${c.deleted ? ' is-deleted' : ''}`}
          data-comment-id={c.id}>
@@ -154,30 +157,30 @@ function CommentRow({ c, isReply = false, activeId, canCompose, replying, onRepl
         <span className="fsc-time" title={c.created_at || ''}>{relativeTimeShort(c.created_at)}</span>
       </div>
       {c.deleted ? (
-        <p className="fsc-body fsc-body--deleted">Comment deleted</p>
+        <p className="fsc-body fsc-body--deleted"><Trans>Comment deleted</Trans></p>
       ) : (
         <>
           {(anchor || c.on_current === false) && (
             <div className="fsc-meta">
               {anchor && (
                 <button type="button" className="fsc-chip" onClick={() => onSeek(c)}
-                        aria-label={c.at_ms != null ? `Go to ${anchor}` : `Go to page ${c.page}`}>
+                        aria-label={c.at_ms != null ? t`Go to ${anchor}` : t`Go to page ${ph({ page: c.page })}`}>
                   {anchor}
                 </button>
               )}
-              {c.on_current === false && <span className="fsc-old">on an earlier version</span>}
+              {c.on_current === false && <span className="fsc-old"><Trans>on an earlier version</Trans></span>}
             </div>
           )}
           <p className="fsc-body">{c.body}</p>
           <div className="fsc-actions">
             {!isReply && canCompose && !replying && (
-              <button type="button" className="fsc-link" onClick={() => onReply(c.id)}>Reply</button>
+              <button type="button" className="fsc-link" onClick={() => onReply(c.id)}><Trans>Reply</Trans></button>
             )}
             {!isReply && c.can_resolve && (
-              <button type="button" className="fsc-link" onClick={() => onResolve(c)}>{c.resolved ? 'Reopen' : 'Resolve'}</button>
+              <button type="button" className="fsc-link" onClick={() => onResolve(c)}>{c.resolved ? t`Reopen` : t`Resolve`}</button>
             )}
             {c.can_delete && (
-              <button type="button" className="fsc-link" onClick={() => onDelete(c)}>Delete</button>
+              <button type="button" className="fsc-link" onClick={() => onDelete(c)}><Trans>Delete</Trans></button>
             )}
           </div>
         </>
@@ -239,7 +242,7 @@ export function FileComments({
     if (error) { feedback?.toast?.({ type: 'error', code: 'file_comment_delete_failed', message: friendlyShareError(error) }); return; }
     load();
     undoToast(feedback, {
-      message: 'Comment deleted',
+      message: t`Comment deleted`,
       onUndo: async () => {
         const r = await api.restoreFileComment(c.id);
         if (r?.error) feedback?.toast?.({ type: 'error', code: 'file_comment_restore_failed', message: friendlyShareError(r.error) });
@@ -273,27 +276,27 @@ export function FileComments({
   );
 
   return (
-    <section className="fsc" aria-label="Comments">
+    <section className="fsc" aria-label={t`Comments`}>
       <header className="fsc-head">
-        <h2 className="fsc-title">Comments</h2>
+        <h2 className="fsc-title"><Trans>Comments</Trans></h2>
         {total != null && total > 0 && <span className="fsc-total">{total}</span>}
       </header>
       <div className="fsc-list" aria-live="polite">
-        {list === null && !loadErr && <p className="fsc-empty">Loading comments…</p>}
+        {list === null && !loadErr && <p className="fsc-empty"><Trans>Loading comments…</Trans></p>}
         {loadErr && list === null && (
-          <p className="fsc-empty">Couldn't load comments. <button type="button" className="fsc-link" onClick={load}>Try again</button></p>
+          <p className="fsc-empty"><Trans>Couldn't load comments.</Trans> <button type="button" className="fsc-link" onClick={load}><Trans>Try again</Trans></button></p>
         )}
         {list && groups.open.length === 0 && groups.resolved.length === 0 && (
           <p className="fsc-empty">{canCompose
-            ? (TIMED.has(kind) ? 'No comments yet. Pause anywhere and leave the first one.' : 'No comments yet.')
-            : 'No comments yet.'}</p>
+            ? (TIMED.has(kind) ? t`No comments yet. Pause anywhere and leave the first one.` : t`No comments yet.`)
+            : t`No comments yet.`}</p>
         )}
         {groups.open.length > 0 && <ul className="fsc-threads">{groups.open.map(renderThread)}</ul>}
         {groups.resolved.length > 0 && (
           <div className="fsc-resolved">
             <button type="button" className="fsc-link fsc-resolved-toggle" aria-expanded={showResolved}
                     onClick={() => setShowResolved((v) => !v)}>
-              {showResolved ? 'Hide resolved' : `Show ${groups.resolved.length} resolved`}
+              {showResolved ? t`Hide resolved` : plural(groups.resolved.length, { other: 'Show # resolved' })}
             </button>
             {showResolved && <ul className="fsc-threads is-resolved">{groups.resolved.map(renderThread)}</ul>}
           </div>
@@ -306,10 +309,10 @@ export function FileComments({
         ) : !signedIn ? (
           <a className="fsc-signin" href={signInHref}
              onClick={() => logEventNow(EV.FILE_SHARE_SIGNIN_CLICK, { surface: 'comments' })}>
-            Sign in to comment
+            <Trans>Sign in to comment</Trans>
           </a>
         ) : (
-          <p className="fsc-empty">You can read comments on this file, but not add them.</p>
+          <p className="fsc-empty"><Trans>You can read comments on this file, but not add them.</Trans></p>
         )}
       </footer>
     </section>

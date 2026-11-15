@@ -55,6 +55,8 @@ import { isReturnQaMode } from '../lib/localMode.js';
 import { buildFeedbackContext, describeFeedbackContext } from '../lib/feedbackContext.js';
 import { feedbackEnv } from '../lib/feedbackEnv.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // VISIBLE time, not wall time. The old 45s was a plain setTimeout, so it ran
 // while the tab was backgrounded — opening the app and walking away spent the
@@ -105,11 +107,11 @@ const TERMINAL = new Set(['23514', '22023', '42501', '42883', '23505']);
 // this collects, randomising only adds variance and destroys the ability to
 // compare one month with the next. A known position bias beats an unknown one.
 const CHOICES = [
-  { id: 'resuming',  label: 'Picking up where I left off',           probe: 'What are you picking up?' },
-  { id: 'adding',    label: "Adding material I've collected since",  probe: 'Where did you find it?' },
-  { id: 'starting',  label: 'Starting something new',                probe: 'What are you starting?' },
-  { id: 'reviewing', label: "Looking back through what I've got",    probe: 'What are you looking for?' },
-  { id: 'sharing',   label: 'Showing it to someone, or working together', probe: "Who's it for?" },
+  { id: 'resuming', get label() { return t`Picking up where I left off`; }, get probe() { return t`What are you picking up?`; } },
+  { id: 'adding', get label() { return t`Adding material I've collected since`; }, get probe() { return t`Where did you find it?`; } },
+  { id: 'starting', get label() { return t`Starting something new`; }, get probe() { return t`What are you starting?`; } },
+  { id: 'reviewing', get label() { return t`Looking back through what I've got`; }, get probe() { return t`What are you looking for?`; } },
+  { id: 'sharing', get label() { return t`Showing it to someone, or working together`; }, get probe() { return t`Who's it for?`; } },
 ];
 
 // Recorded as a real answer rather than as a refusal. A costless truthful null
@@ -125,12 +127,12 @@ const NOTHING = 'nothing';
 // server's closed list and the labels its _role_label; feedbackContract.test
 // compares both. Skipped once this device has answered it.
 const ROLES = [
-  { id: 'filmmaker',    label: 'Filmmaker' },
-  { id: 'photographer', label: 'Photographer' },
-  { id: 'designer',     label: 'Designer' },
-  { id: 'artist',       label: 'Artist or illustrator' },
-  { id: 'student',      label: 'Student' },
-  { id: 'other',        label: 'Something else' },
+  { id: 'filmmaker', get label() { return t`Filmmaker`; } },
+  { id: 'photographer', get label() { return t`Photographer`; } },
+  { id: 'designer', get label() { return t`Designer`; } },
+  { id: 'artist', get label() { return t`Artist or illustrator`; } },
+  { id: 'student', get label() { return t`Student`; } },
+  { id: 'other', get label() { return t`Something else`; } },
 ];
 // Per account: on a shared computer a device-wide role marker would skip the
 // question for the next account, and a pending role written in one session
@@ -145,11 +147,11 @@ const ROLE_PENDING_KEY = 'soleil.role.pending.v1';
 // band. Per account, with the role's delivery. feedbackContract.test compares
 // the ids and labels with the server's.
 const AGES = [
-  { id: 'under_18', label: 'Under 18' },
-  { id: '18_24',    label: '18–24' },
-  { id: '25_34',    label: '25–34' },
-  { id: '35_44',    label: '35–44' },
-  { id: '45_plus',  label: '45+' },
+  { id: 'under_18', get label() { return t`Under 18`; } },
+  { id: '18_24', get label() { return t`18–24`; } },
+  { id: '25_34', get label() { return t`25–34`; } },
+  { id: '35_44', get label() { return t`35–44`; } },
+  { id: '45_plus', get label() { return t`45+`; } },
 ];
 const ageKey = (uid) => `soleil.age.v1:${uid || 'anon'}`;
 const AGE_PENDING_KEY = 'soleil.age.pending.v1';
@@ -616,7 +618,7 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
   if (receipt) {
     return (
       <div className="fv-banner surface-frosted rr-ask rr-receipt" role="status" aria-live="polite">
-        <div className="fv-banner-copy"><div className="fv-banner-title">Read. Thank you.</div></div>
+        <div className="fv-banner-copy"><div className="fv-banner-title"><Trans>Read. Thank you.</Trans></div></div>
       </div>
     );
   }
@@ -626,19 +628,19 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
       ref={rootRef}
       className="fv-banner surface-frosted rr-ask"
       role="dialog"
-      aria-label="One question"
+      aria-label={t`One question`}
       onKeyDown={onKeyDown}
     >
       <div className="fv-banner-copy">
-        <div className="fv-banner-title">{picked ? 'Thanks.' : 'What brings you back today?'}</div>
+        <div className="fv-banner-title">{picked ? t`Thanks.` : t`What brings you back today?`}</div>
         <div className="fv-banner-body">
           {showRoles
-            ? 'And what best describes you?'
-            : picked ? current?.probe : 'One tap. We only ask once, and a person here reads every answer.'}
+            ? t`And what best describes you?`
+            : picked ? current?.probe : t`One tap. We only ask once, and a person here reads every answer.`}
         </div>
 
         {showRoles ? (
-          <div className="rr-choices rr-roles" role="group" aria-label="What best describes you?">
+          <div className="rr-choices rr-roles" role="group" aria-label={t`What best describes you?`}>
             {ROLES.map((r) => (
               <button
                 key={r.id}
@@ -669,8 +671,8 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
         )}
 
         {showAge && (
-          <div className="rr-age" role="group" aria-label="Your age, optional">
-            <div className="rr-age-label" aria-hidden="true">Your age<span>optional</span></div>
+          <div className="rr-age" role="group" aria-label={t`Your age, optional`}>
+            <div className="rr-age-label" aria-hidden="true"><Trans>Your age<span>optional</span></Trans></div>
             <div className="rr-ages">
               {AGES.map((a) => (
                 <button
@@ -695,8 +697,8 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
             value={note}
             maxLength={500}
             disabled={busy}
-            placeholder={showRoles && current?.probe ? `${current.probe} A sentence is plenty.` : 'A sentence is plenty.'}
-            aria-label={current?.probe || 'Anything else'}
+            placeholder={showRoles && current?.probe ? t`${ph({ probe: current.probe })} A sentence is plenty.` : t`A sentence is plenty.`}
+            aria-label={current?.probe || t`Anything else`}
             // Focus is already inside the banner — the user just clicked here,
             // so taking it is expected. Only on a fine pointer: on touch an
             // autofocus throws the software keyboard over the canvas, which is
@@ -708,7 +710,7 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
         )}
 
         {!picked && contextLine && (
-          <div className="ask-context">Sent with your answer: {contextLine}</div>
+          <div className="ask-context"><Trans>Sent with your answer: {contextLine}</Trans></div>
         )}
       </div>
 
@@ -722,13 +724,13 @@ export function ReturnReasonAsk({ askedOnServer = false, onAsked, contextInput =
                       try { logEvent(EV.RETURN_REASON_DISMISSED, { days_since_last_seen: daysRef.current, via: 'skip' }); } catch (_) {}
                       setOpen(false);
                     }}
-                    disabled={busy}>Skip</button>
-            <button className="rr-send" onClick={send} disabled={busy || !note.trim()}>Send</button>
+                    disabled={busy}><Trans>Skip</Trans></button>
+            <button className="rr-send" onClick={send} disabled={busy || !note.trim()}><Trans>Send</Trans></button>
           </>
         ) : (
           <>
-            <button className="rr-nothing" onClick={() => bank(NOTHING)} disabled={busy}>Nothing in particular</button>
-            <button className="fv-banner-dismiss" onClick={dismiss} disabled={busy}>Not now</button>
+            <button className="rr-nothing" onClick={() => bank(NOTHING)} disabled={busy}><Trans>Nothing in particular</Trans></button>
+            <button className="fv-banner-dismiss" onClick={dismiss} disabled={busy}><Trans>Not now</Trans></button>
           </>
         )}
       </div>

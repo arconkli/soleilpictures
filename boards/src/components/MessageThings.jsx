@@ -9,6 +9,7 @@ import { attachmentMetaLabel, imageBoxStyle } from '../lib/messageAttachmentLink
 import { publicAttachmentUrl } from '../lib/messageAttachmentUrls.js';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
 import { useMessagesBoard, useMessagesLook } from './messagesLook.js';
+import { t, ph, plural } from '@lingui/core/macro';
 
 // The tallest a lone picture stands in the card look's thread.
 const PICTURE_MAX_H = 260;
@@ -42,7 +43,7 @@ function Picture({ att, onDragStart, tile = false }) {
   return (
     <div className={`msg-thing is-image${tile ? ' is-tile' : ''}`} draggable onDragStart={(e) => onDragStart?.(e, att)}>
       <a className="msg-thing-pic" href={src} target="_blank" rel="noopener noreferrer"
-         title={att.name ? `Open ${att.name}` : 'Open image'}>
+         title={att.name ? t`Open ${ph({ name: att.name })}` : t`Open image`}>
         <img alt={att.name || ''} src={src} draggable={false}
              width={att.width || undefined} height={att.height || undefined}
              style={tile ? undefined : (imageBoxStyle(att, PICTURE_MAX_H) || undefined)} />
@@ -70,7 +71,7 @@ function Thing({ att, workspaceId, onDragStart }) {
       <div className="msg-thing is-file" draggable onDragStart={drag}>
         {att.storage_path ? (
           <a className="msg-thing-body" href={publicAttachmentUrl(att.storage_path, { download: name })}
-             download={name} target="_blank" rel="noopener noreferrer" title={`Download ${name}`}>{inner}</a>
+             download={name} target="_blank" rel="noopener noreferrer" title={t`Download ${name}`}>{inner}</a>
         ) : <span className="msg-thing-body">{inner}</span>}
       </div>
     );
@@ -99,8 +100,8 @@ function Thing({ att, workspaceId, onDragStart }) {
       <EntityLink refs={[ref].filter(Boolean)} workspaceId={workspaceId} asTag="span" className="msg-thing-body">
         <span className="msg-thing-icon"><Icon as={isDoc ? FileText : StickyNote} size={18} weight="regular" /></span>
         <span className="msg-thing-text">
-          <span className="msg-thing-name" dir="auto">{String(att.title || att.name || (isDoc ? 'Document' : 'Card'))}</span>
-          <span className="msg-thing-meta">{isDoc ? 'Document' : 'Card'}</span>
+          <span className="msg-thing-name" dir="auto">{String(att.title || att.name || (isDoc ? t`Document` : t`Card`))}</span>
+          <span className="msg-thing-meta">{isDoc ? t`Document` : t`Card`}</span>
         </span>
       </EntityLink>
     </div>
@@ -113,12 +114,12 @@ function ClusterThing({ att, onDragStart }) {
   const ref = coerceRef(att);
   const info = useMessagesBoard(ref?.id);
   const navigate = useEntityNavigate();
-  const name = info?.name || att.title || att.name || 'Cluster';
-  const where = info?.parentName ? `Cluster in ${info.parentName}` : 'Cluster';
-  const cards = info?.cards ? `${info.cards} card${info.cards === 1 ? '' : 's'}` : '';
+  const name = info?.name || att.title || att.name || t`Cluster`;
+  const where = info?.parentName ? t`Cluster in ${ph({ parent: info.parentName })}` : t`Cluster`;
+  const cards = info?.cards ? t`${plural(info.cards, { one: '# card', other: '# cards' })}` : '';
   return (
     <div className={`msg-thing is-cluster${info?.thumbKey ? ' has-cover' : ''}`} draggable onDragStart={onDragStart}>
-      <button type="button" className="msg-thing-body" title={`Open ${name}`} onClick={() => { if (ref) navigate(ref); }}>
+      <button type="button" className="msg-thing-body" title={t`Open ${name}`} onClick={() => { if (ref) navigate(ref); }}>
         {info?.thumbKey
           ? <span className="msg-thing-cover"><R2Image src={info.thumbKey} bust={info.bust} alt="" /></span>
           : <span className="msg-thing-icon"><Icon as={LayoutGrid} size={18} weight="regular" /></span>}

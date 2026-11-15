@@ -21,6 +21,7 @@
 // cluster came back without is told of by the workspace
 // (settleOrphanedDocResets).
 
+import { t as tr } from '@lingui/core/macro';
 export const RELOAD_EVENT = 'soleil-board-reloading';
 
 // The page as it was, kept on this device: support can recover it, as they
@@ -108,8 +109,8 @@ export function noteDocReset(entry, { feedback = null, now = Date.now() } = {}) 
     feedback.toast({
       type: 'info',
       message: reasonOf(e) === 'restore'
-        ? 'This cluster was restored to an earlier version — reopening the doc.'
-        : 'This cluster was updated elsewhere — reopening the doc.',
+        ? tr`This cluster was restored to an earlier version — reopening the doc.`
+        : tr`This cluster was updated elsewhere — reopening the doc.`,
       ttl: ANNOUNCE_TTL,
       group: `doc-reset:${e.cardId}`,
     });
@@ -182,12 +183,12 @@ function tell(e, { place, after, feedback, copy, now }) {
       ttl: offer ? OFFER_TTL : TOLD_TTL,
       group: `doc-reset:${e.cardId}`,
       action: offer ? {
-        label: 'Copy what you had',
+        label: tr`Copy what you had`,
         onClick: async () => {
           const ok = await copy(offer);
           feedback.toast(ok
-            ? { type: 'success', message: 'Copied — paste it anywhere.' }
-            : { type: 'error', code: 'text_copy_failed', message: 'Couldn’t copy it — this browser didn’t allow it.' });
+            ? { type: 'success', message: tr`Copied — paste it anywhere.` }
+            : { type: 'error', code: 'text_copy_failed', message: tr`Couldn’t copy it — this browser didn’t allow it.` });
         },
       } : null,
     });
@@ -213,34 +214,33 @@ export function lostWriting(before, after) {
 // place: 'same' (the doc and its page are back), 'page' (the doc is back
 // without the page it was on), 'doc' (the cluster is back without the doc).
 export function resetNotice({ reason = 'reset', local = false, lost = false, place = 'same', title = '' }) {
-  const doc = title ? `“${title}”` : 'this doc';
   if (reason === 'heal') {
     if (!lost) return null;
-    if (place === 'doc') return `${title ? doc : 'This doc'} didn’t make it through the sync error.`;
+    if (place === 'doc') return title ? tr`“${title}” didn’t make it through the sync error.` : tr`This doc didn’t make it through the sync error.`;
     return place === 'page'
-      ? 'The page you were on didn’t make it through the sync error.'
-      : 'Your last edits on this page didn’t make it through the sync error.';
+      ? tr`The page you were on didn’t make it through the sync error.`
+      : tr`Your last edits on this page didn’t make it through the sync error.`;
   }
   if (local) {
     // Their own restore or move: a doc it took away was theirs to take.
     if (!lost || place === 'doc') return null;
     if (reason === 'restore') {
-      return place === 'page' ? 'The version you restored didn’t have the page you were on.' : 'The restore changed the page you had open.';
+      return place === 'page' ? tr`The version you restored didn’t have the page you were on.` : tr`The restore changed the page you had open.`;
     }
-    return place === 'page' ? 'The cluster reloaded without the page you were on.' : 'Your last edits on this page didn’t make it before the cluster reloaded.';
+    return place === 'page' ? tr`The cluster reloaded without the page you were on.` : tr`Your last edits on this page didn’t make it before the cluster reloaded.`;
   }
   if (reason === 'restore') {
-    if (place === 'doc') return `This cluster was restored to a version from before ${doc} existed.`;
-    if (!lost) return 'This cluster was restored to an earlier version.';
+    if (place === 'doc') return title ? tr`This cluster was restored to a version from before “${title}” existed.` : tr`This cluster was restored to a version from before this doc existed.`;
+    if (!lost) return tr`This cluster was restored to an earlier version.`;
     return place === 'page'
-      ? 'This cluster was restored to an earlier version, without the page you were on.'
-      : 'This cluster was restored to an earlier version, which changed this page.';
+      ? tr`This cluster was restored to an earlier version, without the page you were on.`
+      : tr`This cluster was restored to an earlier version, which changed this page.`;
   }
-  if (place === 'doc') return `This cluster was updated elsewhere, and ${doc} isn’t in it any more.`;
-  if (!lost) return 'This cluster was updated elsewhere and reloaded.';
+  if (place === 'doc') return title ? tr`This cluster was updated elsewhere, and “${title}” isn’t in it any more.` : tr`This cluster was updated elsewhere, and this doc isn’t in it any more.`;
+  if (!lost) return tr`This cluster was updated elsewhere and reloaded.`;
   return place === 'page'
-    ? 'This cluster was updated elsewhere and reloaded without the page you were on.'
-    : 'This cluster was updated elsewhere and reloaded, and your last edits on this page didn’t make it.';
+    ? tr`This cluster was updated elsewhere and reloaded without the page you were on.`
+    : tr`This cluster was updated elsewhere and reloaded, and your last edits on this page didn’t make it.`;
 }
 
 // ── how it reopens ─────────────────────────────────────────────────────────

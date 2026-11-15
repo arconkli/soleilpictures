@@ -1,8 +1,12 @@
 import { useRef } from 'react';
 import { Modal } from './Modal.jsx';
 import { rejectedNoun } from '../lib/demoCardCap.js';
-import { CTA, CREATOR_TRIAL_DAYS, CREATOR_STORAGE_LABEL, PLAN_NAME, STORAGE_ADDON_BLOCK_LABEL, storageAmountLabel } from '../lib/billingCopy.js';
+import { rich } from '../lib/richParts.js';
+import { CREATOR_TRIAL_DAYS, PLAN_NAME } from '../lib/billingCopy.js';
+import { CTA, storageAmountLabel, creatorStorageLabel, addonBlockLabel } from '../lib/billingCopyWords.js';
 import './importCapDialog.css';
+import { t, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // The over-cap folder drop, asked BEFORE anything uploads.
 //
@@ -47,32 +51,81 @@ import './importCapDialog.css';
 // `holds`: whatever this answer leaves out waits in the tab and uploads once
 // there is room (lib/heldUploads.js) — true on the person's own plan, so the
 // note can say they will not have to drop the files again.
+// A rich line (strings and { b } runs) drawn with <strong>, the dialog's own bold.
+const Strong = ({ parts }) => parts.map((p, i) => (typeof p === 'string' ? p : <strong key={i}>{p.b}</strong>));
+
 export function ImportCapDialog({ open, n, take, over, count, limit, kinds, folder = null, trialOffer = false,
   limitKind = 'cards', bytesNeeded = null, bytesLeft = null, canUpgrade = true, onAddStorage = null, holds = false,
   onTakePartial, onUpgrade, onCancel }) {
   const primaryRef = useRef(null);
   if (!open) return null;
+  const CREATOR_STORAGE_LABEL = creatorStorageLabel();
+  const STORAGE_ADDON_BLOCK_LABEL = addonBlockLabel();
 
   // Name the actual thing. A user who just dropped a folder of photographs and
   // is told "cards" has to translate; rejectedNoun already owns this decision
-  // and already falls back to the neutral noun for a mixed batch.
-  const noun = rejectedNoun(kinds, n);
-  const takeNoun = rejectedNoun(kinds, take);
+  // and already falls back to the neutral noun for a mixed batch. Asked with 2
+  // only to learn which noun it picked: the words themselves are whole
+  // messages below, one per noun, so a language can inflect each.
+  const photos = rejectedNoun(kinds, 2) === 'photos';
   const storage = limitKind === 'storage';
   const weighs = storageAmountLabel(bytesNeeded);
-  const left = storageAmountLabel(bytesLeft) || 'no room';
+  const showWeighs = storage && !!weighs;
+  const left = storageAmountLabel(bytesLeft) || t`no room`;
   // What releases a held drop by itself is the plan or the drive growing
   // (lib/heldUploads readyFor), never a delete: room made that way is the
   // bar's Upload now. A folder cut down to what fits is not held at all (App
-  // importFolderOnce): only the whole of one waits.
-  const unlock = canUpgrade ? 'upgrade' : onAddStorage ? `add ${STORAGE_ADDON_BLOCK_LABEL}` : null;
-  const goesOn = unlock
-    ? `goes on by itself when you ${unlock} \u2014 no dropping it again`
-    : 'goes on when you make room and press Upload now';
+  // importFolderOnce): only the whole of one waits. One whole message per
+  // variant, never the clause stitched into the sentence.
+  const goes = canUpgrade ? 'upgrade' : onAddStorage ? 'storage' : 'room';
   const waits = !holds ? ''
     : folder && take > 0
-      ? ` Add what fits and the rest stays on your computer. Otherwise, unless you cancel, the folder waits in this tab and ${goesOn}.`
-      : ` Unless you cancel, whatever doesn\u2019t go on now waits in this tab and ${goesOn}.`;
+      ? (goes === 'upgrade'
+        ? t`Add what fits and the rest stays on your computer. Otherwise, unless you cancel, the folder waits in this tab and goes on by itself when you upgrade — no dropping it again.`
+        : goes === 'storage'
+          ? t`Add what fits and the rest stays on your computer. Otherwise, unless you cancel, the folder waits in this tab and goes on by itself when you add ${STORAGE_ADDON_BLOCK_LABEL} — no dropping it again.`
+          : t`Add what fits and the rest stays on your computer. Otherwise, unless you cancel, the folder waits in this tab and goes on when you make room and press Upload now.`)
+      : (goes === 'upgrade'
+        ? t`Unless you cancel, whatever doesn’t go on now waits in this tab and goes on by itself when you upgrade — no dropping it again.`
+        : goes === 'storage'
+          ? t`Unless you cancel, whatever doesn’t go on now waits in this tab and goes on by itself when you add ${STORAGE_ADDON_BLOCK_LABEL} — no dropping it again.`
+          : t`Unless you cancel, whatever doesn’t go on now waits in this tab and goes on when you make room and press Upload now.`);
+
+  // The title: whole sentences, with the drive's size or without.
+  let title;
+  if (folder) {
+    title = showWeighs
+      ? t`You dropped ${plural(folder.files, { one: '# file', other: '# files' })} in ${plural(folder.clusters, { one: '# folder', other: '# folders' })} (${weighs}).`
+      : t`You dropped ${plural(folder.files, { one: '# file', other: '# files' })} in ${plural(folder.clusters, { one: '# folder', other: '# folders' })}.`;
+  } else if (photos) {
+    title = showWeighs
+      ? plural(n, { one: `You dropped # photo (${weighs}).`, other: `You dropped # photos (${weighs}).` })
+      : plural(n, { one: 'You dropped # photo.', other: 'You dropped # photos.' });
+  } else {
+    title = showWeighs
+      ? plural(n, { one: `You dropped # card (${weighs}).`, other: `You dropped # cards (${weighs}).` })
+      : plural(n, { one: 'You dropped # card.', other: 'You dropped # cards.' });
+  }
+  const addFirst = photos
+    ? plural(take, { one: 'Add the first # photo', other: 'Add the first # photos' })
+    : plural(take, { one: 'Add the first # card', other: 'Add the first # cards' });
+
+  // The lede: whole sentences too.
+  let lede;
+  if (storage) {
+    if (take > 0) {
+      lede = canUpgrade
+        ? t`Your free storage has **${left}** left — enough for the first **${take}**.`
+        : t`This drive has **${left}** left — enough for the first **${take}**.`;
+    } else {
+      lede = canUpgrade ? t`Your free storage has **${left}** left.` : t`This drive has **${left}** left.`;
+    }
+  } else {
+    lede = plural(limit, {
+      one: `This free cluster holds **${take}** more — you’re at ${count} of # card.`,
+      other: `This free cluster holds **${take}** more — you’re at ${count} of # cards.`,
+    });
+  }
 
   return (
     <Modal
@@ -84,27 +137,15 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, fold
       initialFocusRef={primaryRef}
     >
       <div className="impcap-head">
-        <div className="impcap-kicker">{storage ? 'Storage limit' : 'Card limit'}</div>
-        <div className="impcap-title" id="impcap-title">
-          {folder
-            ? <>You dropped {folder.files} {folder.files === 1 ? 'file' : 'files'} in {folder.clusters} {folder.clusters === 1 ? 'folder' : 'folders'}{storage && weighs ? ` (${weighs})` : ''}.</>
-            : <>You dropped {n} {noun}{storage && weighs ? ` (${weighs})` : ''}.</>}
-        </div>
+        <div className="impcap-kicker">{storage ? t`Storage limit` : t`Card limit`}</div>
+        <div className="impcap-title" id="impcap-title">{title}</div>
       </div>
 
       <div className="impcap-body">
-        {storage ? (
-          <p className="impcap-lede">
-            {canUpgrade ? 'Your free storage has ' : 'This drive has '}
-            <strong>{left}</strong> left
-            {take > 0 ? <> — enough for the first <strong>{take}</strong>.</> : '.'}
-          </p>
-        ) : (
-          <p className="impcap-lede">
-            This free cluster holds <strong>{take}</strong> more — you&rsquo;re at {count} of {limit} cards.
-            {folder ? ' Each file is a card, and so is each folder, which becomes a cluster.' : ''}
-          </p>
-        )}
+        <p className="impcap-lede">
+          <Strong parts={rich(lede)} />
+          {!storage && folder ? ' ' + t`Each file is a card, and so is each folder, which becomes a cluster.` : ''}
+        </p>
         {/* The meter is information, not pressure: it shows what the number
             already is rather than dramatising how little is left. Hidden at
             zero, where an empty track reads as a stray divider and says
@@ -117,30 +158,36 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, fold
         <p className="impcap-note">
           {storage
             ? (canUpgrade
-              ? `Nothing has been uploaded yet. ${PLAN_NAME} gives you ${CREATOR_STORAGE_LABEL}${trialOffer ? `, and it's free for ${CREATOR_TRIAL_DAYS} days` : ''}.`
+              ? (trialOffer
+                ? t`Nothing has been uploaded yet. ${PLAN_NAME} gives you ${CREATOR_STORAGE_LABEL}, and it's free for ${CREATOR_TRIAL_DAYS} days.`
+                : t`Nothing has been uploaded yet. ${PLAN_NAME} gives you ${CREATOR_STORAGE_LABEL}.`)
               : onAddStorage
-                ? `Nothing has been uploaded yet. Add ${STORAGE_ADDON_BLOCK_LABEL} more${holds ? '' : ' and drop them again'}, or delete files or empty the trash to make room.`
-                : 'Nothing has been uploaded yet. Deleting files or emptying the trash makes room.')
+                ? (holds
+                  ? t`Nothing has been uploaded yet. Add ${STORAGE_ADDON_BLOCK_LABEL} more, or delete files or empty the trash to make room.`
+                  : t`Nothing has been uploaded yet. Add ${STORAGE_ADDON_BLOCK_LABEL} more and drop them again, or delete files or empty the trash to make room.`)
+                : t`Nothing has been uploaded yet. Deleting files or emptying the trash makes room.`)
             : !canUpgrade
-              ? 'Nothing has been uploaded yet. This cluster is on its owner’s plan, so their plan sets the limit.'
-              : `Nothing has been uploaded yet. Creator removes the limit entirely${trialOffer ? `, and it's free for ${CREATOR_TRIAL_DAYS} days` : ''}.`}
-          {waits}
+              ? t`Nothing has been uploaded yet. This cluster is on its owner’s plan, so their plan sets the limit.`
+              : (trialOffer
+                ? t`Nothing has been uploaded yet. Creator removes the limit entirely, and it's free for ${CREATOR_TRIAL_DAYS} days.`
+                : t`Nothing has been uploaded yet. Creator removes the limit entirely.`)}
+          {waits ? ' ' + waits : ''}
         </p>
       </div>
 
       <div className="impcap-actions">
         <button type="button" className="impcap-btn" onClick={onCancel}>
-          Cancel
+          <Trans>Cancel</Trans>
         </button>
         {take > 0 && (
           <button type="button" className="impcap-btn" onClick={onTakePartial}
                   ref={canUpgrade ? undefined : primaryRef}>
-            {folder ? 'Add what fits' : <>Add the first {take} {takeNoun}</>}
+            {folder ? t`Add what fits` : addFirst}
           </button>
         )}
         {storage && !canUpgrade && onAddStorage && (
           <button type="button" className="impcap-btn impcap-btn-primary" onClick={onAddStorage}>
-            Add {STORAGE_ADDON_BLOCK_LABEL}
+            <Trans>Add {STORAGE_ADDON_BLOCK_LABEL}</Trans>
           </button>
         )}
         {canUpgrade && (
@@ -151,8 +198,8 @@ export function ImportCapDialog({ open, n, take, over, count, limit, kinds, fold
             onClick={onUpgrade}
           >
             {trialOffer
-              ? `${CTA.tryCreatorShort} — keep all ${folder ? folder.files : n}`
-              : `Upgrade — keep all ${folder ? folder.files : n}`}
+              ? t`${ph({ tryCreatorShort: CTA.tryCreatorShort })} — keep all ${ph({ value: folder ? folder.files : n })}`
+              : t`Upgrade — keep all ${ph({ value: folder ? folder.files : n })}`}
           </button>
         )}
       </div>

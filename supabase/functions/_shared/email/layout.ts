@@ -6,9 +6,14 @@
 // invite, cluster shared, mentions, ...) so the brand surface stays consistent.
 // Only the look is here: the words of an email come from the builder.
 
-import { button, eyebrow as eyebrowPiece, footerNote, footerTx, h1, lead, shell, small } from "./theme.ts";
+import { button, eyebrow as eyebrowPiece, footerNote, footerTx, h1, lead, shell, small, type EmailStrings } from "./theme.ts";
+import { emailStrings } from "./i18n.mjs";
+
+const EN: EmailStrings = emailStrings("en");
 
 export interface RenderEmailOpts {
+  // The words of the footer and the page's language; English when absent.
+  s?: EmailStrings;
   preheader: string;
   eyebrow?: string;
   headline: string;
@@ -23,6 +28,7 @@ export interface RenderEmailOpts {
 
 export function renderEmail(opts: RenderEmailOpts): string {
   const { preheader, eyebrow, headline, subtitle, bodyHtml, cta, caveat, unsubscribeUrl } = opts;
+  const s = opts.s ?? EN;
 
   let body = "";
   if (eyebrow) body += eyebrowPiece(eyebrow, "center");
@@ -39,7 +45,7 @@ export function renderEmail(opts: RenderEmailOpts): string {
   }
   if (caveat) body += small(caveat, "center");
 
-  return shell({ title: headline, preheader, body, footer: footerTx(unsubscribeUrl) });
+  return shell({ title: headline, preheader, body, footer: footerTx(unsubscribeUrl, s), lang: s.locale });
 }
 
 // ── Founder-note layout ─────────────────────────────────────────────────────
@@ -55,6 +61,7 @@ export function renderEmail(opts: RenderEmailOpts): string {
 export const POSTAL_ADDRESS = "Soleil Pictures · 800 Peachtree St NE, Apt 8210, Atlanta, GA 30308";
 
 export interface RenderPlainNoteOpts {
+  s?: EmailStrings;            // the words of the footer and the page's language; English when absent
   preheader: string;
   bodyHtml: string;            // already-escaped <p> paragraphs
   cta?: { label: string; url: string };
@@ -63,6 +70,7 @@ export interface RenderPlainNoteOpts {
 
 export function renderPlainNote(opts: RenderPlainNoteOpts): string {
   const { preheader, bodyHtml, cta, unsubscribeUrl } = opts;
-  const body = cta ? bodyHtml + button(`${cta.label} →`, cta.url, "left") : bodyHtml;
-  return shell({ preheader, body, footer: footerNote(POSTAL_ADDRESS, unsubscribeUrl) });
+  const s = opts.s ?? EN;
+  const body = cta ? bodyHtml + button(s.t("common.cta_arrow", { label: cta.label }), cta.url, "left") : bodyHtml;
+  return shell({ preheader, body, footer: footerNote(POSTAL_ADDRESS, unsubscribeUrl, s), lang: s.locale });
 }

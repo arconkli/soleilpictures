@@ -6,6 +6,7 @@ import {
   AlignCardsBottom, AlignCardsCenter, AlignCardsLeft, AlignCardsMiddle, AlignCardsRight, AlignCardsTop, ArrowBendUpRight,
   BoundingBox, DistributeAcross, DistributeDown, FolderSimplePlus, LayoutGrid, MoreHorizontal, Tag, Trash2,
 } from '../../lib/icons.js';
+import { t, plural } from '@lingui/core/macro';
 
 // The selection's bar in the toolbar look (the owner's pick "A · Islands",
 // 2026-10-21; the toolbar canvas's A-select frame). Two or more things picked
@@ -58,22 +59,22 @@ function SelectionBar({ count, items, api, canDelete, tagOpen = false }) {
   const move = find(items, 'move-cards-to-board');
   const tagMany = find(items, 'tag-many');
   return (
-    <Toolbar label="Selection" barRef={barRef} className="sel-a" onPointerDown={(e) => e.stopPropagation()}>
-      <Group><span className="sel-count">{count} selected</span></Group>
+    <Toolbar label={t`Selection`} barRef={barRef} className="sel-a" onPointerDown={(e) => e.stopPropagation()}>
+      <Group><span className="sel-count">{plural(count, { one: '# selected', other: '# selected' })}</span></Group>
       {(tidy || align) && (
         <Group>
           {tidy && (
-            <MenuButton icon={LayoutGrid} text="Tidy up" caret side="above" menuLabel="Tidy up" menuClassName="sel-a-menu">
+            <MenuButton icon={LayoutGrid} text={t`Tidy up`} caret side="above" menuLabel={t`Tidy up`} menuClassName="sel-a-menu">
               <Rows rows={tidy.submenu} onPick={(sub) => run('tidy', sub)} />
             </MenuButton>
           )}
           {align && (
-            <MenuButton icon={AlignCardsLeft} label="Align" caret side="above" menuClassName="sel-a-menu">
+            <MenuButton icon={AlignCardsLeft} label={t`Align`} caret side="above" menuClassName="sel-a-menu">
               <Rows rows={align.submenu} icons={EDGES} onPick={(sub) => run('align', sub)} />
               {spread && (
                 <>
                   <MenuSep />
-                  <MenuHead>Distribute</MenuHead>
+                  <MenuHead>{t`Distribute`}</MenuHead>
                   <Rows rows={spread.submenu} icons={EDGES} onPick={(sub) => run('distribute', sub)} />
                 </>
               )}
@@ -83,9 +84,9 @@ function SelectionBar({ count, items, api, canDelete, tagOpen = false }) {
       )}
       {(group || cluster || move || tagMany) && (
         <Group>
-          {group && <Btn icon={BoundingBox} text="Group" keys="Mod+G" onClick={() => run('group')} />}
+          {group && <Btn icon={BoundingBox} text={t({ message: 'Group', context: 'verb' })} keys="Mod+G" onClick={() => run('group')} />}
           {tagMany && (
-            <Btn icon={Tag} text="Tag" aria-haspopup="dialog" aria-expanded={tagOpen} data-tag-many-trigger=""
+            <Btn icon={Tag} text={t({ message: 'Tag', context: 'verb' })} aria-haspopup="dialog" aria-expanded={tagOpen} data-tag-many-trigger=""
                  onClick={(e) => find(api.items(), 'tag-many')?.run?.(e.currentTarget.getBoundingClientRect())} />
           )}
           {cluster && <Btn icon={FolderSimplePlus} label={cluster.label} onClick={() => run('new-cluster-from')} />}
@@ -98,9 +99,9 @@ function SelectionBar({ count, items, api, canDelete, tagOpen = false }) {
       )}
       <Group>
         {items.length > 0 && (
-          <Btn icon={MoreHorizontal} label="More" onClick={(e) => api.more(e.currentTarget.getBoundingClientRect())} />
+          <Btn icon={MoreHorizontal} label={t`More`} onClick={(e) => api.more(e.currentTarget.getBoundingClientRect())} />
         )}
-        {canDelete && <Btn icon={Trash2} label="Delete" keys="Backspace" onClick={() => api.del()} />}
+        {canDelete && <Btn icon={Trash2} label={t`Delete`} keys="Backspace" onClick={() => api.del()} />}
       </Group>
     </Toolbar>
   );

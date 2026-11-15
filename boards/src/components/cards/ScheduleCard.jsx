@@ -39,9 +39,10 @@ import {
 import { setViewAnchor, clearViewAnchor } from '../../lib/schedViewRegistry.js';
 import { nextDayNumber as nextShootDayNumber } from '../../lib/productionDayPlan.js';
 import {
-  todayISO, addDays, addMonths, monthTitle, weekTitle, dayTitle, hourTitle,
+  todayISO, addDays, addMonths,
   monthMatrix, startOfWeek, daysBetween,
 } from '../../lib/schedDates.js';
+import { monthTitle, weekTitle, dayTitle, hourTitle, hourLabel } from '../../lib/schedDatesWords.js';
 import { getCanvasScale } from '../../lib/canvasScale.js';
 import { useCanvasSettleTick } from '../../hooks/useCanvasSettleTick.js';
 import { useBreakpoint } from '../../hooks/useBreakpoint.js';
@@ -65,6 +66,8 @@ import './gridCard.css';
 import './scheduleCard.css';
 import { safeExternalHref } from '../../lib/safeExternalHref.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const stop = (e) => e.stopPropagation();
 // Same as `stop`, but first lets a one-finger drag scroll the clipped editor
@@ -80,20 +83,33 @@ const MONTH_SPANS = [1, 3, 6];
 // one thing a month grid is genuinely good at. Tiles is the production default
 // because in a production nearly every day is a board, and a tile can show it.
 const DENSITIES = [
-  { id: 'tiles', label: '▦', tip: 'Day tiles' },
-  { id: 'list',  label: '☰', tip: 'List' },
-  { id: 'grid',  label: '▤', tip: 'Month grid' },
+  { id: 'tiles', label: '▦', get tip() { return tr`Day tiles`; } },
+  { id: 'list',  label: '☰', get tip() { return tr`List`; } },
+  { id: 'grid',  label: '▤', get tip() { return tr`Month grid`; } },
 ];
-const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+// The time label a slot draws: the band over a day, an hour, or ':15' minutes.
+// schedLayout writes them in English (its slots also feed non-app readers);
+// here they read in the person's language.
+function slotTimeLabel(s) {
+  if (s.kind === 'hour' && Number.isInteger(s.hour)) return hourLabel(s.hour);
+  if (s.kind === 'day' && s.band) return tr`All day`;
+  return s.label;
+}
+const weekdayLabels = () => [
+  tr({ message: 'Mon', context: 'weekday, short' }), tr({ message: 'Tue', context: 'weekday, short' }),
+  tr({ message: 'Wed', context: 'weekday, short' }), tr({ message: 'Thu', context: 'weekday, short' }),
+  tr({ message: 'Fri', context: 'weekday, short' }), tr({ message: 'Sat', context: 'weekday, short' }),
+  tr({ message: 'Sun', context: 'weekday, short' }),
+];
 
 // Hour view is gone. Its whole job was subdividing one hour into four
 // 15-minute buckets, which is meaningless once an item can be 2h15 — it only
 // ever existed as a workaround for not having durations. A stored
 // schedView:'hour' coerces to 'day' in readSchedModel so old cards still open.
 const VIEWS = [
-  { id: 'month', label: 'M', tip: 'Month' },
-  { id: 'week', label: 'W', tip: 'Week' },
-  { id: 'day', label: 'D', tip: 'Day' },
+  { id: 'month', label: 'M', get tip() { return tr`Month`; } },
+  { id: 'week', label: 'W', get tip() { return tr`Week`; } },
+  { id: 'day', label: 'D', get tip() { return tr`Day`; } },
 ];
 
 function viewTitle(view, anchor, anchorHour, months = 1) {
@@ -142,7 +158,7 @@ function shootDaysByDate(boards, parentId) {
 function ChipX({ onRemove }) {
   if (!onRemove) return null;
   return (
-    <button type="button" className="schedc-chip-x" title="Remove" aria-label="Remove"
+    <button type="button" className="schedc-chip-x" title={tr`Remove`} aria-label={tr`Remove`}
       onPointerDown={stop} onClick={(e) => { e.stopPropagation(); e.preventDefault(); onRemove(); }}>
       <Icon as={X} size={9} />
     </button>
@@ -161,13 +177,15 @@ function ChipX({ onRemove }) {
 // running every day is published and the whole grid is one wall of green. The
 // version badge moved to the rail row, where there is room to read it.
 function DayTile({ board, hue, compact = false, draggable, dragging, onPointerDown, onOpen }) {
-  const label = board.day_label || board.name || 'Day';
+  const label = board.day_label || board.name || tr`Day`;
   const status = board.sched_status || 'draft';
   const published = status === 'published' && board.sched_version > 0;
+  const version = board.sched_version;
   const title = status === 'cancelled'
-    ? `${label} — cancelled`
-    : `${label}${published ? ` — call sheet v${board.sched_version}` : ' — not published yet'}`
-      + (draggable ? ' · drag to another date to move it' : '');
+    ? tr`${label} — cancelled`
+    : (published
+        ? (draggable ? tr`${label} — call sheet v${version} · drag to another date to move it` : tr`${label} — call sheet v${version}`)
+        : (draggable ? tr`${label} — not published yet · drag to another date to move it` : tr`${label} — not published yet`));
   return (
     <span
       className={[
@@ -199,7 +217,7 @@ function SlotChip({ itemKey, cell, boards, onOpenBoard, onRemove = null, passive
   if (type === 'board' && cell.boardId) {
     const b = boards?.[cell.boardId];
     const missing = !b;
-    const name = b?.name || cell.name || 'Cluster';
+    const name = b?.name || cell.name || tr`Cluster`;
     if (passive) {
       // Month/week grid chips are pure ink — the CELL is the interactive
       // element (click opens the day); pointer-events:none in CSS makes
@@ -207,17 +225,17 @@ function SlotChip({ itemKey, cell, boards, onOpenBoard, onRemove = null, passive
       return (
         <span className={`schedc-chip is-board${missing ? ' is-missing' : ''}`} data-cell-id={itemKey}>
           <span className="schedc-chip-dot" aria-hidden="true" />
-          <span className="schedc-chip-txt">{missing ? `${name} (removed)` : name}</span>
+          <span className="schedc-chip-txt">{missing ? tr`${name} (removed)` : name}</span>
         </span>
       );
     }
     return (
       <span className={`schedc-chip is-board${missing ? ' is-missing' : ''}`} data-cell-id={itemKey}
         role="button" tabIndex={missing ? -1 : 0} onPointerDown={stop}
-        title={missing ? 'This cluster was removed' : `Open ${name}`}
+        title={missing ? tr`This cluster was removed` : tr`Open ${name}`}
         onClick={(e) => { e.stopPropagation(); if (!missing) onOpenBoard?.(cell.boardId); }}>
         <span className="schedc-chip-dot" aria-hidden="true" />
-        <span className="schedc-chip-txt">{missing ? `${name} (removed)` : name}</span>
+        <span className="schedc-chip-txt">{missing ? tr`${name} (removed)` : name}</span>
         <ChipX onRemove={onRemove} />
       </span>
     );
@@ -247,9 +265,9 @@ function SlotChip({ itemKey, cell, boards, onOpenBoard, onRemove = null, passive
   }
   if (type === 'image' && cell.src) {
     return (
-      <span className="schedc-chip is-image" data-cell-id={itemKey} title={cell.title || 'Image'}>
+      <span className="schedc-chip is-image" data-cell-id={itemKey} title={cell.title || tr`Image`}>
         <span className="schedc-chip-ico"><Icon as={ImageIcon} size={10} /></span>
-        <span className="schedc-chip-txt">{cell.title || 'Image'}</span>
+        <span className="schedc-chip-txt">{cell.title || tr`Image`}</span>
         <ChipX onRemove={onRemove} />
       </span>
     );
@@ -258,25 +276,25 @@ function SlotChip({ itemKey, cell, boards, onOpenBoard, onRemove = null, passive
     const txt = String(cell.html || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').trim();
     return (
       <span className="schedc-chip is-text" data-cell-id={itemKey} title={txt}>
-        <span className="schedc-chip-txt">{txt || 'Text'}</span>
+        <span className="schedc-chip-txt">{txt || tr`Text`}</span>
         <ChipX onRemove={onRemove} />
       </span>
     );
   }
   if (type === 'video') {
     return (
-      <span className="schedc-chip is-video" data-cell-id={itemKey} title="Video">
+      <span className="schedc-chip is-video" data-cell-id={itemKey} title={tr`Video`}>
         <span className="schedc-chip-ico"><Icon as={Clapperboard} size={10} /></span>
-        <span className="schedc-chip-txt">Video</span>
+        <span className="schedc-chip-txt"><Trans>Video</Trans></span>
         <ChipX onRemove={onRemove} />
       </span>
     );
   }
   if (type === 'file') {
     return (
-      <span className="schedc-chip is-file" data-cell-id={itemKey} title={cell.fileName || 'File'}>
+      <span className="schedc-chip is-file" data-cell-id={itemKey} title={cell.fileName || tr`File`}>
         <span className="schedc-chip-ico"><Icon as={FileText} size={10} /></span>
-        <span className="schedc-chip-txt">{cell.fileName || 'File'}</span>
+        <span className="schedc-chip-txt">{cell.fileName || tr`File`}</span>
         <ChipX onRemove={onRemove} />
       </span>
     );
@@ -317,7 +335,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
 
   const editable = canEdit && !!gridActions;
   // Removing an item (a chip ×, a rundown row ×) gets the house Undo toast.
-  const removeWithUndo = (fn) => (gridActions?.withUndoToast ? gridActions.withUndoToast('Item removed', fn) : fn());
+  const removeWithUndo = (fn) => (gridActions?.withUndoToast ? gridActions.withUndoToast(tr`Item removed`, fn) : fn());
   const model = readSchedModel(card, ydoc);
   const cellKeys = Object.keys(model.cells);
   const todayIso = todayISO();
@@ -898,14 +916,14 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
               // overflow:hidden, so a fourth day on a busy date vanished with
               // nothing to say it existed.
               <span className="schedc-daytile is-more"
-                title={`${tiles.length - tileCap} more on this date`}>
+                title={tr`${ph({ value: tiles.length - tileCap })} more on this date`}>
                 <span className="schedc-daytile-txt">+{tiles.length - tileCap}</span>
               </span>
             )}
           </div>
         )}
         {(s.band || timeLabel) && (
-          <span className="schedc-time-label">{s.label}</span>
+          <span className="schedc-time-label">{slotTimeLabel(s)}</span>
         )}
         {editingHere ? (
           <div className="schedc-item-full gc-text-edit" onPointerDown={stopWithTouchScroll}>
@@ -928,7 +946,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
               textStyle={cellTextStyle(effectiveCellStyle(null, items[0].cell))}
               cardId={card.id} cellId={items[0].k} />
             {editable && !passive && (
-              <button type="button" className="schedc-item-x" title="Remove" aria-label="Remove"
+              <button type="button" className="schedc-item-x" title={tr`Remove`} aria-label={tr`Remove`}
                 onPointerDown={stop}
                 onClick={(e) => { e.stopPropagation(); removeWithUndo(() => gridActions.removeCellRecord?.(card.id, items[0].k)); }}>
                 <Icon as={X} size={11} />
@@ -945,13 +963,13 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
             {overflow > 0 && (passive ? (
               // Passive marker on the grid — the CELL opens the day.
               <span className="schedc-chip is-more">
-                <span className="schedc-chip-txt">+{overflow} more</span>
+                <span className="schedc-chip-txt"><Trans>+{overflow} more</Trans></span>
               </span>
             ) : (
-              <button type="button" className="schedc-chip is-more" title={`${overflow} more — open day`}
+              <button type="button" className="schedc-chip is-more" title={tr`${overflow} more — open day`}
                 onPointerDown={stop}
                 onClick={s.date ? (e) => { e.stopPropagation(); openPeek(s, e.currentTarget); } : undefined}>
-                <span className="schedc-chip-txt">+{overflow} more</span>
+                <span className="schedc-chip-txt"><Trans>+{overflow} more</Trans></span>
               </button>
             ))}
           </div>
@@ -959,7 +977,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
           passive ? (
             <span className="schedc-count">{items.length}</span>
           ) : (
-            <button type="button" className="schedc-count" title={`${items.length} item${items.length > 1 ? 's' : ''} — open day`}
+            <button type="button" className="schedc-count" title={plural(items.length, { one: '# item — open day', other: '# items — open day' })}
               onPointerDown={stop}
               onClick={s.date ? (e) => { e.stopPropagation(); openPeek(s, e.currentTarget); } : undefined}>
               {items.length}
@@ -967,16 +985,16 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
           )
         ) : null}
         {slotUploading(s.key) && (
-          <div className="gridc-cell-uploading" aria-label="Uploading">
-            <Spinner size={16} tone="on-dark" label="Uploading" />
+          <div className="gridc-cell-uploading" aria-label={tr`Uploading`}>
+            <Spinner size={16} tone="on-dark" label={tr`Uploading`} />
           </div>
         )}
         {!passive && (peekable || (editable && (!s.expanded || s.band))) && (
           <div className="schedc-slottools">
             {peekable && (
               <button type="button" className="schedc-peek-btn"
-                title={s.kind === 'hour' ? 'Open hour' : 'Open day'}
-                aria-label={s.kind === 'hour' ? 'Open hour' : 'Open day'}
+                title={s.kind === 'hour' ? tr`Open hour` : tr`Open day`}
+                aria-label={s.kind === 'hour' ? tr`Open hour` : tr`Open day`}
                 onPointerDown={stop}
                 onClick={(e) => { e.stopPropagation(); openPeek(s, e.currentTarget); }}>
                 <Icon as={Maximize2} size={11} />
@@ -987,7 +1005,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
               // slot — with the grid read-only they're the only menu-based
               // day-level add left, so they keep the mini.
               <button type="button" className="gridc-pill-mini schedc-mini"
-                title="Add content" aria-label="Add content"
+                title={tr`Add content`} aria-label={tr`Add content`}
                 onPointerDown={stop}
                 onClick={(e) => { e.stopPropagation(); setMenu({ slotKey: s.key, anchorRect: (e.currentTarget.closest('.schedc-slot') || e.currentTarget).getBoundingClientRect(), surface, band: !!s.band }); }}>
                 <span className="gridc-ico"><Icon as={items.length ? MoreHorizontal : Plus} size={14} /></span>
@@ -1172,13 +1190,13 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
               link can page to next month too. What writes the card (view,
               density, month span) stays editor-only below. */}
           {canNav && (
-            <button type="button" className="schedc-nav" title="Previous" aria-label="Previous"
+            <button type="button" className="schedc-nav" title={tr`Previous`} aria-label={tr`Previous`}
               onPointerDown={stop} onClick={(e) => { e.stopPropagation(); shift(-1); }}>
               <Icon as={ChevronLeft} size={13} />
             </button>
           )}
           {canNav ? (
-            <button type="button" className="schedc-title" title={`${fullTitle} — jump to date`}
+            <button type="button" className="schedc-title" title={tr`${fullTitle} — jump to date`}
               aria-haspopup="dialog"
               onPointerDown={stop}
               onClick={(e) => {
@@ -1195,25 +1213,25 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
             <span className="schedc-title" title={fullTitle}>{title}</span>
           )}
           {canNav && (
-            <button type="button" className="schedc-nav" title="Next" aria-label="Next"
+            <button type="button" className="schedc-nav" title={tr`Next`} aria-label={tr`Next`}
               onPointerDown={stop} onClick={(e) => { e.stopPropagation(); shift(1); }}>
               <Icon as={ChevronRight} size={13} />
             </button>
           )}
           <span className="schedc-spring" />
           {canNav && (
-            <button type="button" className="schedc-today" title="Go to today" aria-label="Go to today"
+            <button type="button" className="schedc-today" title={tr`Go to today`} aria-label={tr`Go to today`}
               onPointerDown={stop} onClick={(e) => { e.stopPropagation(); goTo(todayISO()); }}>
               <span className="schedc-today-dot" aria-hidden="true" />
             </button>
           )}
           {editable && model.view === 'month' && (
-            <span className="schedc-pill schedc-months" role="group" aria-label="Months shown">
+            <span className="schedc-pill schedc-months" role="group" aria-label={tr`Months shown`}>
               {MONTH_SPANS.map((n) => (
                 <button key={n} type="button"
                   className={`schedc-mbtn${months === n ? ' is-active' : ''}`}
-                  title={n === 1 ? 'One month' : `${n} months at once`}
-                  aria-label={n === 1 ? 'Show one month' : `Show ${n} months`}
+                  title={plural(n, { 1: 'One month', other: '# months at once' })}
+                  aria-label={plural(n, { 1: 'Show one month', other: 'Show # months' })}
                   onPointerDown={stop}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -1230,8 +1248,8 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
           )}
           {(squeeze < 3 || full) && (
             <button type="button" className="schedc-nav schedc-full"
-              title={full ? 'Exit full screen (Esc)' : 'Full screen'}
-              aria-label={full ? 'Exit full screen' : 'Full screen'}
+              title={full ? tr`Exit full screen (Esc)` : tr`Full screen`}
+              aria-label={full ? tr`Exit full screen` : tr`Full screen`}
               aria-pressed={full}
               onPointerDown={stop}
               onClick={(e) => { e.stopPropagation(); setFull((v) => !v); }}>
@@ -1239,7 +1257,7 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
             </button>
           )}
           {editable && model.view !== 'day' && lod === 'full' && squeeze < 1 && (
-            <span className="schedc-pill schedc-dens" role="group" aria-label="Calendar density">
+            <span className="schedc-pill schedc-dens" role="group" aria-label={tr`Calendar density`}>
               {DENSITIES.map((d) => (
                 <button key={d.id} type="button"
                   className={`schedc-dbtn${density === d.id ? ' is-active' : ''}`}
@@ -1252,11 +1270,11 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
             </span>
           )}
           {editable && (
-            <span className="schedc-pill" role="group" aria-label="Schedule view">
+            <span className="schedc-pill" role="group" aria-label={tr`Schedule view`}>
               {VIEWS.map((v) => (
                 <button key={v.id} type="button"
                   className={`schedc-pill-btn${model.view === v.id ? ' is-active' : ''}`}
-                  title={v.tip} aria-label={`${v.tip} view`}
+                  title={v.tip} aria-label={tr`${ph({ tip: v.tip })} view`}
                   onPointerDown={stop}
                   onClick={(e) => { e.stopPropagation(); if (model.view !== v.id) onUpdate?.({ schedView: v.id }); }}>
                   {v.label}
@@ -1355,13 +1373,13 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
               <div className="schedc-mcap" style={{
                 left: b.captionRect.x, top: b.captionRect.y,
                 width: b.captionRect.w, height: b.captionRect.h,
-              }}>{b.label}</div>
+              }}>{monthTitle(b.iso)}</div>
               {lod === 'full' && (
                 <div className="schedc-weekdays is-block" style={{
                   left: b.weekdayRect.x, top: b.weekdayRect.y,
                   width: b.weekdayRect.w, height: b.weekdayRect.h,
                 }}>
-                  {WEEKDAY_LABELS.map((d) => <span key={d} className="schedc-wd">{d}</span>)}
+                  {weekdayLabels().map((d) => <span key={d} className="schedc-wd">{d}</span>)}
                 </div>
               )}
             </div>
@@ -1392,20 +1410,20 @@ export function ScheduleCard({ card, w, h, ydoc, cardYMap, canEdit = false,
             const items = [];
             // Bands ARE the surface they'd "open"/"break" — plain add only.
             if (slot?.kind === 'day' && !menu.band) {
-              items.push({ id: 'open-day', label: 'Open day', icon: Maximize2, onClick: () => openPeek({ kind: 'day', date: slot.date }, null, menu.anchorRect) });
+              items.push({ id: 'open-day', label: tr`Open day`, icon: Maximize2, onClick: () => openPeek({ kind: 'day', date: slot.date }, null, menu.anchorRect) });
               // A shoot day is a dated CLUSTER, not a slot item — it outlives
               // this card and every crew member sees the same one.
               if (onAddShootDay) {
-                items.push({ id: 'shoot-day', label: 'Add a day', icon: Clapperboard,
+                items.push({ id: 'shoot-day', label: tr`Add a day`, icon: Clapperboard,
                   onClick: () => onAddShootDay({ from: slot.date, to: slot.date, scaffold: true, parentBoardId: boardId }) });
-                items.push({ id: 'shoot-days', label: 'Add days…', icon: Clapperboard,
+                items.push({ id: 'shoot-days', label: tr`Add days…`, icon: Clapperboard,
                   onClick: () => setRangePop({ anchorRect: menu.anchorRect, date: slot.date }) });
               }
-              if (gridActions.setSlotExpand) items.push({ id: 'break-hours', label: 'Break into hours', onClick: () => gridActions.setSlotExpand(card.id, menu.slotKey, 'hours') });
+              if (gridActions.setSlotExpand) items.push({ id: 'break-hours', label: tr`Break into hours`, onClick: () => gridActions.setSlotExpand(card.id, menu.slotKey, 'hours') });
             }
             if (slot?.kind === 'hour' && !menu.band) {
-              items.push({ id: 'open-hour', label: 'Open hour', icon: Maximize2, onClick: () => openPeek({ kind: 'hour', date: slot.date, hour: slot.hour }, null, menu.anchorRect) });
-              if (gridActions.setSlotExpand) items.push({ id: 'break-minutes', label: 'Break into minutes', onClick: () => gridActions.setSlotExpand(card.id, menu.slotKey, 'minutes') });
+              items.push({ id: 'open-hour', label: tr`Open hour`, icon: Maximize2, onClick: () => openPeek({ kind: 'hour', date: slot.date, hour: slot.hour }, null, menu.anchorRect) });
+              if (gridActions.setSlotExpand) items.push({ id: 'break-minutes', label: tr`Break into minutes`, onClick: () => gridActions.setSlotExpand(card.id, menu.slotKey, 'minutes') });
             }
             return items.length ? items : null;
           })()}

@@ -15,41 +15,55 @@
 // Pure + dependency-free so it can be unit-tested under node (see the sibling
 // .test.mjs).
 
+import { t as tr } from '@lingui/core/macro';
+
 export const SUPPORT_EMAIL = 'hello@soleilpictures.com';
 
-const GENERIC = `Checkout didn't open — that's on us, not you. Try again in a moment, and if it keeps happening email ${SUPPORT_EMAIL}.`;
+// The words are functions, read when a message is built, never at module scope.
+const generic = () => tr`Checkout didn't open — that's on us, not you. Try again in a moment, and if it keeps happening email ${SUPPORT_EMAIL}.`;
 
 // Keyed by the exact `error` strings the edge functions return
 // (supabase/functions/create-checkout-session, create-portal-session) plus the
-// one client-side throw from checkout.js's authedToken().
-const COPY = {
-  // Session/auth — recoverable by the user, so say how.
-  'Not signed in.':  'Your session expired. Sign in again and the upgrade will pick up where it left off.',
-  'auth required':   'Your session expired. Sign in again and the upgrade will pick up where it left off.',
-  'invalid token':   'Your session expired. Sign in again and the upgrade will pick up where it left off.',
+// one client-side throw from checkout.js's authedToken(). The keys stay as the
+// server says them; only the line a buyer reads is ours.
+function copyFor(raw) {
+  switch (raw) {
+    // Session/auth — recoverable by the user, so say how.
+    case 'Not signed in.':
+    case 'auth required':
+    case 'invalid token':
+      return tr`Your session expired. Sign in again and the upgrade will pick up where it left off.`;
 
-  // The user already has access — this is good news, phrased as such. Happens
-  // to comped/admin-granted accounts with no Stripe customer record.
-  already_subscribed: "You already have Creator — there's nothing to buy. If you're trying to change a payment method or cancel, use Manage billing in Settings.",
+    // The user already has access — this is good news, phrased as such. Happens
+    // to comped/admin-granted accounts with no Stripe customer record.
+    case 'already_subscribed':
+      return tr`You already have Creator — there's nothing to buy. If you're trying to change a payment method or cancel, use Manage billing in Settings.`;
 
-  // Portal-specific: no Stripe customer exists to manage.
-  'no subscription found': "There's no Stripe subscription on this account to manage. If you have complimentary access, there's no billing to change.",
+    // Portal-specific: no Stripe customer exists to manage.
+    case 'no subscription found':
+      return tr`There's no Stripe subscription on this account to manage. If you have complimentary access, there's no billing to change.`;
 
-  // The server declined the trial (already had one, or not yet eligible by
-  // its own read). Creator itself is still for sale — say so, don't dead-end.
-  trial_not_available: "The trial isn't available on this account, but Creator is — choose a plan above and it starts right away.",
+    // The server declined the trial (already had one, or not yet eligible by
+    // its own read). Creator itself is still for sale — say so, don't dead-end.
+    case 'trial_not_available':
+      return tr`The trial isn't available on this account, but Creator is — choose a plan above and it starts right away.`;
 
-  // Not a failure at all: the admin Surface Gallery refused a real checkout
-  // from a preview. Says so plainly rather than borrowing the outage copy,
-  // because the button did exactly what it should have.
-  gallery_preview: 'Preview only — no checkout session was created. Open this surface outside the gallery to buy for real.',
+    // Not a failure at all: the admin Surface Gallery refused a real checkout
+    // from a preview. Says so plainly rather than borrowing the outage copy,
+    // because the button did exactly what it should have.
+    case 'gallery_preview':
+      return tr`Preview only — no checkout session was created. Open this surface outside the gallery to buy for real.`;
 
-  // Shouldn't reach a user (the client always sends a valid plan/JSON/method),
-  // so keep them generic rather than exposing protocol detail.
-  'POST only':    GENERIC,
-  'invalid json': GENERIC,
-  "plan must be 'monthly' or 'annual'": GENERIC,
-};
+    // Shouldn't reach a user (the client always sends a valid plan/JSON/method),
+    // so keep them generic rather than exposing protocol detail.
+    case 'POST only':
+    case 'invalid json':
+    case "plan must be 'monthly' or 'annual'":
+      return generic();
+    default:
+      return null;
+  }
+}
 
 // A misconfiguration, as Stripe or the edge function would word it: a price ID
 // from the wrong mode (live key, test price), a missing or malformed APP_URL
@@ -59,9 +73,9 @@ const COPY = {
 // on screen or in the funnel. No non-zero live charge has ever cleared this
 // account, so this class is unproven rather than ruled out.
 const CONFIG_RE = /no such price|no such plan|resource_missing|price .{0,40}(not found|does not exist|is not)|invalid price|success_url|cancel_url|not a valid url|invalid url|app_url|invalid api key|api key provided|provide an api key|no api key/i;
-const CONFIG = `Checkout isn't set up right on our side — that's ours to fix, and it needs a human. Email ${SUPPORT_EMAIL} and we'll sort it out.`;
+const config = () => tr`Checkout isn't set up right on our side — that's ours to fix, and it needs a human. Email ${SUPPORT_EMAIL} and we'll sort it out.`;
 
-const NETWORK = "Couldn't reach the checkout server — check your connection and try again.";
+const network = () => tr`Couldn't reach the checkout server — check your connection and try again.`;
 
 // checkoutErrorKind(err) -> 'auth' | 'already' | 'no_subscription' | 'trial'
 //                        | 'preview' | 'config' | 'network' | 'generic'
@@ -86,23 +100,24 @@ export function checkoutErrorKind(err) {
 // raw server/HTTP string.
 export function checkoutErrorMessage(err) {
   const raw = (err?.message ?? (typeof err === 'string' ? err : String(err ?? ''))).trim();
-  if (!raw) return GENERIC;
+  if (!raw) return generic();
 
-  if (Object.prototype.hasOwnProperty.call(COPY, raw)) return COPY[raw];
+  const known = copyFor(raw);
+  if (known) return known;
 
   // Not transient: say so, and say it needs us.
-  if (CONFIG_RE.test(raw)) return CONFIG;
+  if (CONFIG_RE.test(raw)) return config();
 
   // `HTTP 500` / `HTTP 404` — checkout.js's fallback when the body carried no
   // `error` field. A 5xx is ours; a 4xx here means a malformed request we sent.
   const http = /^HTTP (\d{3})$/.exec(raw);
-  if (http) return GENERIC;
+  if (http) return generic();
 
   // Network-layer failures (fetch rejects before any status).
-  if (/failed to fetch|networkerror|load failed/i.test(raw)) return NETWORK;
+  if (/failed to fetch|networkerror|load failed/i.test(raw)) return network();
 
   // Anything else is an unmapped Stripe SDK message off the 500 branch.
-  return GENERIC;
+  return generic();
 }
 
 // Convenience for surfaces that show the support address alongside the message.

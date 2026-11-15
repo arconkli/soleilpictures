@@ -39,6 +39,8 @@ import { WorkspaceGeneralTab, CardDefaultsTab } from './settings/WorkspaceTab.js
 import { editorLimitPreviewAvailable } from '../lib/editorLimitPreview.js';
 import { MembersTab } from './settings/MembersTab.jsx';
 import { DocsTab } from './settings/DocsTab.jsx';
+import { t as tr } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 // Lazy so nobody but an admin who opens the tab ever downloads it — the same
 // reason AdminPage is lazy in TierRouter.
 const CaptureTab = lazyWithReload(() => import('./settings/CaptureTab.jsx').then(m => ({ default: m.CaptureTab })));
@@ -51,16 +53,16 @@ const SecurityTab = lazyWithReload(() => import('./settings/SecurityTab.jsx').th
 // and `invite` is deep-linked from five surfaces — so they stay put even where
 // the label moved.
 const TABS = [
-  { id: 'profile',       label: 'Profile',        group: 'you' },
-  { id: 'appearance',    label: 'Appearance',     group: 'you' },
-  { id: 'notifications', label: 'Notifications',  group: 'you' },
-  { id: 'connections',   label: 'Connections',    group: 'you' },
-  { id: 'billing',       label: 'Plan & billing', group: 'you' },
-  { id: 'invite',        label: 'Invite & earn',  group: 'you' },
-  { id: 'general',       label: 'General',        group: 'workspace' },
-  { id: 'members',       label: 'Members',        group: 'workspace' },
-  { id: 'defaults',      label: 'Card defaults',  group: 'workspace' },
-  { id: 'docs',          label: 'Documentation',  group: 'help' },
+  { id: 'profile',       get label() { return tr`Profile`; },        group: 'you' },
+  { id: 'appearance',    get label() { return tr`Appearance`; },     group: 'you' },
+  { id: 'notifications', get label() { return tr`Notifications`; },  group: 'you' },
+  { id: 'connections',   get label() { return tr`Connections`; },    group: 'you' },
+  { id: 'billing',       get label() { return tr`Plan & billing`; }, group: 'you' },
+  { id: 'invite',        get label() { return tr`Invite & earn`; },  group: 'you' },
+  { id: 'general',       get label() { return tr`General`; },        group: 'workspace' },
+  { id: 'members',       get label() { return tr`Members`; },        group: 'workspace' },
+  { id: 'defaults',      get label() { return tr`Card defaults`; },  group: 'workspace' },
+  { id: 'docs',          get label() { return tr`Documentation`; },  group: 'help' },
 ];
 
 // Admin-only tabs, appended to the rail at render time for tier === 'admin'.
@@ -80,19 +82,19 @@ const TABS = [
 // If you ever add a tab here that real users can see, it belongs in TABS and it
 // needs a docs page. That is the whole distinction.
 const ADMIN_TABS = [
-  { id: 'capture', label: 'Capture', group: 'admin' },
-  { id: 'gallery', label: 'Gallery', group: 'admin' },
+  { id: 'capture', get label() { return tr`Capture`; }, group: 'admin' },
+  { id: 'gallery', get label() { return tr`Gallery`; }, group: 'admin' },
   // Where every security alert email lands (?settings=security, 0369).
-  { id: 'security', label: 'Security', group: 'admin' },
+  { id: 'security', get label() { return tr`Security`; }, group: 'admin' },
   // Show my own account in a launch's states (preview and dev only).
   { id: 'preview', label: 'Preview', group: 'admin' },
 ];
 
 const GROUPS = [
-  { id: 'you',       label: 'You' },
-  { id: 'workspace', label: 'This workspace' },
-  { id: 'help',      label: 'Help' },
-  { id: 'admin',     label: 'Admin' },
+  { id: 'you',       get label() { return tr`You`; } },
+  { id: 'workspace', get label() { return tr`This workspace`; } },
+  { id: 'help',      get label() { return tr`Help`; } },
+  { id: 'admin',     get label() { return tr`Admin`; } },
 ];
 
 // Tabs that merged into another one. A stale deep-link should land somewhere
@@ -256,10 +258,11 @@ export function SettingsPanel({
   };
 
   const signOut = async () => {
+    const who = user?.email || tr`this account`;
     const ok = await feedback.confirm({
-      title: 'Sign out',
-      message: `Sign out of ${user?.email || 'this account'}?`,
-      confirmLabel: 'Sign out',
+      title: tr`Sign out`,
+      message: tr`Sign out of ${who}?`,
+      confirmLabel: tr`Sign out`,
     });
     if (ok) { onClose?.(); onSignOut?.(); }
   };
@@ -269,25 +272,25 @@ export function SettingsPanel({
   return createPortal(
     <div className="settings-bg" onMouseDown={onClose}>
       <div className="settings-modal" ref={modalRef}
-           role="dialog" aria-modal="true" aria-label="Settings" tabIndex={-1}
+           role="dialog" aria-modal="true" aria-label={tr`Settings`} tabIndex={-1}
            onMouseDown={(e) => e.stopPropagation()}>
         <div className="settings-head">
           {showBack && (
             <button type="button" className="settings-back"
-                    onClick={() => setDetail(false)} aria-label="Back to settings">
+                    onClick={() => setDetail(false)} aria-label={tr`Back to settings`}>
               <Icon as={ChevronLeft} size={16} />
             </button>
           )}
-          <span className="settings-title">{showBack ? current.label : 'Settings'}</span>
+          <span className="settings-title">{showBack ? current.label : tr`Settings`}</span>
           <span style={{ flex: 1 }} />
           <SettingsSavedFlash saving={saving} savedAt={savedAt} />
           <button type="button" className="settings-x"
-                  onClick={onClose} aria-label="Close">
+                  onClick={onClose} aria-label={tr`Close`}>
             <Icon as={X} size={14} />
           </button>
         </div>
         <div className={`settings-body${stacked ? (detail ? ' is-detail' : ' is-list') : ''}`}>
-          <nav className="settings-tabs" role="tablist" aria-label="Settings"
+          <nav className="settings-tabs" role="tablist" aria-label={tr`Settings`}
                aria-orientation="vertical" onKeyDown={onRailKeyDown}>
             {stacked && onSignOut && <AccountBox email={user?.email} onSignOut={signOut} />}
             {groups.map(g => (
@@ -316,7 +319,7 @@ export function SettingsPanel({
             {onSignOut && !stacked && (
               <div className="settings-tabs-foot">
                 <button type="button" className="settings-tab settings-tab-signout"
-                        onClick={signOut}>Sign out</button>
+                        onClick={signOut}><Trans>Sign out</Trans></button>
                 <span className="settings-tabs-foot-email" title={user?.email || ''}>{user?.email}</span>
               </div>
             )}

@@ -9,9 +9,11 @@
 // owner). This component is purely presentational + fires nothing on its own.
 
 import { useEffect, useRef, useState } from 'react';
-import { CTA, firstValueSentence } from '../lib/billingCopy.js';
+import { CTA, firstValueSentence } from '../lib/billingCopyWords.js';
 import { Icon } from './Icon.jsx';
 import { Sparkle } from '../lib/icons.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 export function FirstValueUpgradeBanner({ trialOffer = false, onSeeCreator, onDismiss }) {
   // "Not now" animates out before App.jsx unmounts us. "See Creator" stays
@@ -25,10 +27,10 @@ export function FirstValueUpgradeBanner({ trialOffer = false, onSeeCreator, onDi
     leaveTimer.current = setTimeout(() => onDismiss?.(), 190);
   };
   return (
-    <div className={`fv-banner surface-frosted${leaving ? ' is-leaving' : ''}`} role="dialog" aria-label="Upgrade to Creator">
+    <div className={`fv-banner surface-frosted${leaving ? ' is-leaving' : ''}`} role="dialog" aria-label={t`Upgrade to Creator`}>
       <div className="fv-banner-spark" aria-hidden="true"><Icon as={Sparkle} size={18} weight="fill" /></div>
       <div className="fv-banner-copy">
-        <div className="fv-banner-title">You're building something.</div>
+        <div className="fv-banner-title"><Trans>You're building something.</Trans></div>
         {/* The offer is on the banner itself. This is the surface people read
             longest (several times the wall's dwell), and it used to send them
             to a modal for the one thing that decides anything — first for the
@@ -37,9 +39,9 @@ export function FirstValueUpgradeBanner({ trialOffer = false, onSeeCreator, onDi
       </div>
       <div className="fv-banner-actions">
         <button className="fv-banner-cta" onClick={onSeeCreator}>
-          {trialOffer ? CTA.tryCreatorShort : 'See Creator'}
+          {trialOffer ? CTA.tryCreatorShort : t`See Creator`}
         </button>
-        <button className="fv-banner-dismiss" onClick={dismiss}>Not now</button>
+        <button className="fv-banner-dismiss" onClick={dismiss}><Trans>Not now</Trans></button>
       </div>
     </div>
   );

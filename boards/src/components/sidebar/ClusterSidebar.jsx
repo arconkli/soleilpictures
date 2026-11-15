@@ -47,6 +47,7 @@
 
 import { Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { lazyWithReload } from '../../lib/lazyWithReload.js';
+import { uiLocale } from '../../lib/uiLocale.js';
 import { putFailReason, putFailToast } from '../../lib/putRefusal.js';
 import { createPortal } from 'react-dom';
 import { CardContextMenu } from '../CardContextMenu.jsx';
@@ -75,6 +76,7 @@ import { arrangementOf, frameVars, toggledLayout, withFilesHidden } from '../../
 import { initialExpandState, expandReducer, isExpanded, persistManual, shelfKey, toggleShelf } from '../../lib/sidebarExpand.js';
 import { cardFromItem } from '../../lib/indexRowCard.js';
 import { toListItem } from '../../lib/listItem.js';
+import { listItemWords } from '../../lib/listItemWords.js';
 import { downloadOneTracked, downloadManyTracked } from '../../lib/downloadOps.js';
 import { FILES_DRAG_MIME, buildFilesPayload, parseFilesPayload } from '../../lib/filesDrag.js';
 import { moveFiles, appendCards, removeCards, failureMessage } from '../../lib/clustersApi.js';
@@ -90,12 +92,14 @@ import { logEvent, noteSessionCounter } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import './clusterSidebar.css';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const QuickLook = lazyWithReload(() => import('../clusterBrowser/QuickLook.jsx'));
 
 const PREFS_KEY = 'soleil.sidebar.prefs';
 const unfoldedKey = (ws) => `soleil.sidebar.unfolded.${ws}`;
-const GROUP_LABELS = { type: 'Type', canvas: 'Canvas groups' };
+const GROUP_LABELS = { get type() { return tr`Type`; }, get canvas() { return tr`Canvas groups`; } };
 
 function readJson(key, fallback) {
   try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch (_) { return fallback; }
@@ -123,7 +127,7 @@ function QuickBtn({ label, active = false, pressed = false, unread = 0, onClick 
   return (
     <button type="button" className={`sbf-quickbtn${active ? ' is-on' : ''}${pressed ? ' is-pressed' : ''}`} aria-pressed={active || pressed} onClick={onClick}>
       <span className="sbf-quick-label">{label}</span>
-      {unread > 0 && <span className="sbf-quick-count" aria-label={`${unread} unread`}>{unread > 99 ? '99+' : unread}</span>}
+      {unread > 0 && <span className="sbf-quick-count" aria-label={tr`${unread} unread`}>{unread > 99 ? '99+' : unread}</span>}
     </button>
   );
 }
@@ -312,9 +316,9 @@ export function ClusterSidebar({
     setShown(to === 'cluster' ? null : to);
   };
   const tabs = [
-    ...(clusterBoard ? [{ id: 'cluster', label: clusterBoard.name || 'Untitled', select: () => showTab('cluster') }] : []),
-    { id: 'recent', label: 'Recent', select: () => showTab('recent') },
-    { id: 'starred', label: 'Starred', select: () => showTab('starred') },
+    ...(clusterBoard ? [{ id: 'cluster', label: clusterBoard.name || tr`Untitled`, select: () => showTab('cluster') }] : []),
+    { id: 'recent', label: tr({ message: 'Recent', context: 'items' }), select: () => showTab('recent') },
+    { id: 'starred', label: tr`Starred`, select: () => showTab('starred') },
   ];
   const tabsId = useId();
   // ←/→ (and Home/End) move along the tabs and show what they move to; ↓ on
@@ -408,7 +412,7 @@ export function ClusterSidebar({
   useEffect(() => { clearTimeout(quickTimer.current); }, [activeBoardId]);
   const openQuick = useCallback((item, siblings, e) => {
     const list = (siblings && siblings.length ? siblings : [item])
-      .map((it) => toListItem({ ...cardFromItem(it), boardId: it.boardId }, { boards: allBoards, boardId: it.boardId }))
+      .map((it) => toListItem({ ...cardFromItem(it), boardId: it.boardId }, { boards: allBoards, boardId: it.boardId, words: listItemWords }))
       .filter(Boolean);
     const index = Math.max(0, list.findIndex((l) => l.id === item.cardId));
     if (!list.length) return;
@@ -482,8 +486,8 @@ export function ClusterSidebar({
         toast({
           type: 'error',
           code: 'files_move_partial',
-          message: `Moved to ${nameOf(to)}, but they’re still in ${nameOf(from)} too.`,
-          action: { label: 'Finish', onClick: () => runMove({ from, to, cardIds, via: 'finish' }) },
+          message: tr`Moved to ${ph({ nameOf: nameOf(to) })}, but they’re still in ${ph({ nameOf2: nameOf(from) })} too.`,
+          action: { label: tr`Finish`, onClick: () => runMove({ from, to, cardIds, via: 'finish' }) },
         });
         return;
       }
@@ -500,21 +504,25 @@ export function ClusterSidebar({
       toast({
         type: 'info',
         // A copy skips only what's still uploading (every other kind copies).
-        message: kept || skipped ? 'Those files are still uploading. Try again when they finish.'
-          : 'Those files aren’t there any more.',
+        message: kept || skipped ? tr`Those files are still uploading. Try again when they finish.`
+          : tr`Those files aren’t there any more.`,
       });
       return;
     }
-    const said = what && n === cardIds.length ? what : n === 1 ? '1 file' : `${n} files`;
+    const said = what && n === cardIds.length ? what : plural(n, { one: '# file', other: '# files' });
     const late = kept + skipped;
-    const extra = late ? ` · ${late} still uploading stayed put` : '';
+    const extra = late ? ` · ${plural(late, { one: '# still uploading stayed put', other: '# still uploading stayed put' })}` : '';
     // Into the files of the cluster on the board, nothing new shows there:
     // the words say where they went.
-    const where = to === activeBoardId ? `into ${nameOf(to)}’s files` : `to ${nameOf(to)}`;
+    const dest = nameOf(to);
+    const into = to === activeBoardId;
+    const movedMessage = copy
+      ? (into ? tr`Copied ${said} into ${dest}’s files` : tr`Copied ${said} to ${dest}`)
+      : (into ? tr`Moved ${said} into ${dest}’s files` : tr`Moved ${said} to ${dest}`);
     const landed = copy ? (r.cards || []).map((c) => c.id) : (r.pairs || []).map((p) => p.to);
     const storable = !kinds || kinds.some((kind) => canStore({ kind }));
     const putOn = onPutOnBoard && storable && landed.length ? {
-      label: 'Put on board',
+      label: tr`Put on board`,
       onClick: () => {
         Promise.resolve(onPutOnBoard(to, landed))
           .then(() => logEvent(EV.FILES_PUT, { from: 'toast', n: landed.length, ok: true }))
@@ -527,7 +535,7 @@ export function ClusterSidebar({
     } : null;
     undoToast(feedback, {
       also: [putOn],
-      message: `${copy ? 'Copied' : 'Moved'} ${said} ${where}${extra}`,
+      message: `${movedMessage}${extra}`,
       onUndo: async () => {
         const u = copy
           ? await api.removeCards({ boardId: to, cardIds: (r.cards || []).map((c) => c.id) })
@@ -726,7 +734,7 @@ export function ClusterSidebar({
   // you can only view can be copied, not moved.
   const selItems = useMemo(() => [...selected.values()], [selected]);
   const sendTo = async (group, copy, via = 'menu') => {
-    const to = pickedId(await onPickCluster?.({ placeholder: copy ? 'Copy to…' : 'Move to…' }));
+    const to = pickedId(await onPickCluster?.({ placeholder: copy ? tr`Copy to…` : tr`Move to…` }));
     if (!to) { logEvent(EV.FILES_MOVE, { via, copy, n: group.length, outcome: 'cancelled' }); return; }
     for (const [from, items] of groupByCluster(group)) {
       if (from !== to) await runMove({ from, to, cardIds: items.map((x) => x.cardId), copy, what: whatOf(items), kinds: items.map((x) => x.kind), via });
@@ -742,7 +750,7 @@ export function ClusterSidebar({
   const putting = useRef(false);
   const putItems = async (list, via = 'menu') => {
     const from = new Set(list.map((x) => x.boardId));
-    if (from.size > 1) { toast({ type: 'info', message: 'Put on board takes one cluster’s files at a time. Select files from one cluster.' }); return; }
+    if (from.size > 1) { toast({ type: 'info', message: tr`Put on board takes one cluster’s files at a time. Select files from one cluster.` }); return; }
     if (!from.size || putting.current) return;
     putting.current = true;
     try {
@@ -763,12 +771,12 @@ export function ClusterSidebar({
     const gone = (props) => logEvent(EV.FILES_DELETE, { from, ...props });
     for (const [boardId, items] of groupByCluster(list)) {
       const ids = items.map((x) => x.cardId);
-      const what = ids.length === 1 ? '1 file' : `${ids.length} files`;
+      const what = plural(ids.length, { one: '# file', other: '# files' });
       if (boardId === liveBoardId && liveMutators?.deleteCards) {
         const deleted = await liveMutators.deleteCards(ids);
         gone({ n: ids.length, done: deleted !== null ? ids.length : 0, outcome: deleted !== null ? 'ok' : 'failed', live: true });
         if (deleted !== null) undoToast(feedback, {
-          message: `Deleted ${what}`,
+          message: tr`Deleted ${what}`,
           undoManager: liveMutators.undoManager, stackItem: deleted?.stackItem || null,
           onUndo: () => liveMutators.undo?.(),
         });
@@ -784,10 +792,10 @@ export function ClusterSidebar({
       // files (someone else deleted them meanwhile).
       const removed = r.removed?.length || 0;
       gone({ n: ids.length, done: removed, outcome: removed ? 'ok' : 'gone', live: false });
-      if (!removed) { toast({ type: 'info', message: 'Those files aren’t there any more.' }); continue; }
-      const said = removed === 1 ? '1 file' : `${removed} files`;
+      if (!removed) { toast({ type: 'info', message: tr`Those files aren’t there any more.` }); continue; }
+      const said = plural(removed, { one: '# file', other: '# files' });
       undoToast(feedback, {
-        message: `Deleted ${said} from ${nameOf(boardId)}`,
+        message: tr`Deleted ${said} from ${ph({ cluster: nameOf(boardId) })}`,
         onUndo: async () => {
           const u = await api.appendCards({ boardId, cards: r.removed || [] });
           logEvent(EV.FILES_DELETE, { undo: true, ok: !!u.ok });
@@ -817,7 +825,7 @@ export function ClusterSidebar({
       && !!boardsSectionProps?.canEditBoard?.(m.item.boardId);
     // Select, first in a hold's menu: a check on every file, for a finger to
     // pick several. The one held starts picked.
-    const select = m.viaTouch && touchPass && !selecting && { id: 'select', label: 'Select', run: () => {
+    const select = m.viaTouch && touchPass && !selecting && { id: 'select', label: tr`Select`, run: () => {
       setSelected((cur) => (cur.has(m.item.key) ? cur : new Map([[m.item.key, m.item]])));
       setSelecting(true);
       logEvent(EV.TOUCH_SELECT, { where: 'sidebar', via: 'menu', n: group.length });
@@ -826,20 +834,20 @@ export function ClusterSidebar({
     // drag them there.
     const put = onPutOnBoard && group.every((x) => x.unplaced) && movable(group)
       && new Set(group.map((x) => x.boardId)).size === 1
-      && { id: 'put', label: many ? `Put ${group.length} on board` : 'Put on board', run: () => putItems(group, 'menu') };
+      && { id: 'put', label: many ? tr`Put ${ph({ count: group.length })} on board` : tr`Put on board`, run: () => putItems(group, 'menu') };
     return composeMenuSections([
       { items: [select] },
       { items: [
-        { id: 'quick', label: 'Quick look', run: () => openQuick(m.item, m.siblings, { detail: 0 }) },
-        { id: 'show', label: m.item.unplaced ? 'Show in Files' : 'Show on board', run: () => openItem(m.item) },
+        { id: 'quick', label: tr`Quick look`, run: () => openQuick(m.item, m.siblings, { detail: 0 }) },
+        { id: 'show', label: m.item.unplaced ? tr`Show in Files` : tr`Show on board`, run: () => openItem(m.item) },
         put,
-        { id: 'star', label: starredNow ? 'Unstar' : 'Star', run: () => {
+        { id: 'star', label: starredNow ? tr`Unstar` : tr`Star`, run: () => {
           files.toggleStar(m.item.boardId, m.item.cardId);
           logEvent(EV.FILES_STAR, { on: !starredNow, what: 'file' });
         } },
       ] },
       { header: SECTION.EDIT, items: [
-        { id: 'download', label: many ? `Download ${group.length}` : 'Download', run: () => {
+        { id: 'download', label: many ? tr`Download ${ph({ count: group.length })}` : tr`Download`, run: () => {
           const cards = group.map((x) => cardFromItem(x));
           // Name the cluster on the tray row only when the whole group is from one.
           const from = new Set(group.map((x) => x.boardId));
@@ -848,12 +856,12 @@ export function ClusterSidebar({
           if (cards.length === 1) downloadOneTracked(cards[0], cards[0].kind, where);
           else downloadManyTracked(cards.map((c) => ({ card: c, kind: c.kind })), { ...where, zipName: 'files.zip' });
         } },
-        ...(shareable ? [{ id: 'share', label: 'Share file…', run: () => openFileShare({
+        ...(shareable ? [{ id: 'share', label: tr`Share file…`, run: () => openFileShare({
           boardId: m.item.boardId, cardId: m.item.cardId, card, boardName: nameOf(m.item.boardId), surface: 'sidebar',
         }) }] : []),
-        ...(onPickCluster && movable(group) ? [{ id: 'move', label: many ? `Move ${group.length} to…` : 'Move to…', run: () => sendTo(group, false) }] : []),
-        ...(onPickCluster ? [{ id: 'copy', label: many ? `Copy ${group.length} to…` : 'Copy to…', run: () => sendTo(group, true) }] : []),
-        { id: 'delete', label: many ? `Delete ${group.length}` : 'Delete', danger: true, run: () => { deleteItems(group, 'menu'); clearSelection(); } },
+        ...(onPickCluster && movable(group) ? [{ id: 'move', label: many ? tr`Move ${ph({ count: group.length })} to…` : tr`Move to…`, run: () => sendTo(group, false) }] : []),
+        ...(onPickCluster ? [{ id: 'copy', label: many ? tr`Copy ${ph({ count: group.length })} to…` : tr`Copy to…`, run: () => sendTo(group, true) }] : []),
+        { id: 'delete', label: many ? tr`Delete ${ph({ count: group.length })}` : tr`Delete`, danger: true, run: () => { deleteItems(group, 'menu'); clearSelection(); } },
       ] },
     ]);
   };
@@ -875,14 +883,14 @@ export function ClusterSidebar({
     springOpen,
     springLeave,
     menuItems: (board, canEdit) => [
-      { id: 'star', label: files.isStarred(board.id) ? 'Unstar' : 'Star', run: () => {
+      { id: 'star', label: files.isStarred(board.id) ? tr`Unstar` : tr`Star`, run: () => {
         const on = !files.isStarred(board.id);
         files.toggleStar(board.id);
         logEvent(EV.FILES_STAR, { on, what: 'cluster' });
       } },
       ...(canEdit && onSetOpensAs ? [{
         id: 'opens-as',
-        label: board.view === 'list' ? 'Open on the board by default' : 'Always open in Files',
+        label: board.view === 'list' ? tr`Open on the board by default` : tr`Always open in Files`,
         run: () => onSetOpensAs(board.id, board.view === 'list' ? 'canvas' : 'list'),
       }] : []),
     ],
@@ -915,7 +923,7 @@ export function ClusterSidebar({
     next.scrollIntoView?.({ block: 'nearest' });
   };
 
-  const nameOf = (id) => allBoards?.[id]?.name || 'a cluster';
+  const nameOf = (id) => allBoards?.[id]?.name || tr`a cluster`;
 
   // ── The files section's subject ───────────────────────────────────────────
   const shownBoard = view === 'cluster' ? allBoards?.[shownId] : null;
@@ -952,21 +960,21 @@ export function ClusterSidebar({
     return Object.values(allBoards || {})
       .filter((b) => b && b.parent_board_id === shownId && !b.deleted_at)
       .sort((x, y) => (x.name || '').localeCompare(y.name || ''))
-      .map((b) => ({ id: b.id, board: b, name: b.name || 'Untitled' }));
+      .map((b) => ({ id: b.id, board: b, name: b.name || tr`Untitled` }));
   }, [view, shownId, allBoards, files.starred]);
   const starredClusters = view === 'starred' && chip === 'all' && !query.trim() ? subs : [];
-  const title = view === 'recent' ? 'Recent' : view === 'starred' ? 'Starred' : (shownBoard?.name || 'Untitled');
-  const emptyNote = view === 'cluster' && subs.length ? `Nothing in ${title} itself — open one of its clusters.` : undefined;
+  const title = view === 'recent' ? tr({ message: 'Recent', context: 'items' }) : view === 'starred' ? tr`Starred` : (shownBoard?.name || tr`Untitled`);
+  const emptyNote = view === 'cluster' && subs.length ? tr`Nothing in ${title} itself — open one of its clusters.` : undefined;
   // The one control above the files: what they show, and in its menu the sort
   // and the grouping too (it replaced a row of chips and a ⇅ button).
-  const chipLabel = chip === 'all' ? 'All files' : (FILTER_CHIPS.find((c) => c.id === chip)?.label || 'All files');
+  const chipLabel = chip === 'all' ? tr`All files` : (FILTER_CHIPS.find((c) => c.id === chip)?.label || tr`All files`);
   const nothing = !contents.loading && !(contents.shelves || []).some((sh) => sh.total > 0 || sh.items?.length);
   // A read that failed says so, instead of "Nothing added lately." or "Nothing
   // matches": only when there is nothing from an earlier read to show.
   const failedLine = !nothing ? null
-    : query.trim() && view === 'cluster' && files.searchFailed ? { say: 'Couldn’t load search results', retry: files.retrySearch }
-      : !query.trim() && view === 'recent' && files.recentFailed ? { say: 'Couldn’t load your files', retry: files.retryRecent }
-        : !query.trim() && view === 'starred' && files.starredFailed && starredClusters.length === 0 ? { say: 'Couldn’t load your files', retry: files.retryStarred }
+    : query.trim() && view === 'cluster' && files.searchFailed ? { say: tr`Couldn’t load search results`, retry: files.retrySearch }
+      : !query.trim() && view === 'recent' && files.recentFailed ? { say: tr`Couldn’t load your files`, retry: files.retryRecent }
+        : !query.trim() && view === 'starred' && files.starredFailed && starredClusters.length === 0 ? { say: tr`Couldn’t load your files`, retry: files.retryStarred }
           : null;
   // The search's last settled shape, kept until it ends (endSearch above).
   const resultsN = (contents.shelves || []).reduce((sum, sh) => sum + (Number(sh.total) || sh.items?.length || 0), 0);
@@ -1025,9 +1033,9 @@ export function ClusterSidebar({
       <div className={`sbf-frame${side ? ' is-side' : ''}${folded ? ' is-files-hidden' : ''}`} ref={frameRef} style={floating ? frameVars(layout, { coarse, roomy, snug }) : undefined}>
       <div className="sbf-card is-tree" ref={treeCardRef}>
       {top}
-      <nav className="sbf-quick" aria-label="Go to">
-        {quickNav?.home && <QuickBtn label="Home" {...quickNav.home} />}
-        {quickNav?.messages && <QuickBtn label="Messages" {...quickNav.messages} />}
+      <nav className="sbf-quick" aria-label={tr`Go to`}>
+        {quickNav?.home && <QuickBtn label={tr`Home`} {...quickNav.home} />}
+        {quickNav?.messages && <QuickBtn label={tr`Messages`} {...quickNav.messages} />}
       </nav>
 
       <div className="sb-list sbf-nav" ref={navRef} onKeyDown={onListKeyDown}>
@@ -1042,30 +1050,30 @@ export function ClusterSidebar({
            onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) focusInFiles.current = false; }}>
       {folded && (pageFold ? (
         <button type="button" className="sbf-files-bar is-page" ref={showRef}
-                aria-label="Shrink Files back into the sidebar" title="Shrink Files back into the sidebar (F)"
+                aria-label={tr`Shrink Files back into the sidebar`} title={tr`Shrink Files back into the sidebar (F)`}
                 onClick={() => onShrinkPage?.('sidebar_fold')}>
-          <span className="sbf-files-heading-label">Files</span>
-          <span className="sbf-files-note">full screen</span>
-          <span className="sbf-files-show is-shrink" aria-hidden="true"><Icon as={ArrowsInSimple} size={12} weight="regular" />Shrink</span>
+          <span className="sbf-files-heading-label"><Trans>Files</Trans></span>
+          <span className="sbf-files-note"><Trans>full screen</Trans></span>
+          <span className="sbf-files-show is-shrink" aria-hidden="true"><Icon as={ArrowsInSimple} size={12} weight="regular" /><Trans>Shrink</Trans></span>
         </button>
       ) : (
-        <button type="button" className="sbf-files-bar" ref={showRef} aria-label="Show files" title="Show files (⌘\)"
+        <button type="button" className="sbf-files-bar" ref={showRef} aria-label={tr`Show files`} title={tr`Show files (⌘\\)`}
                 aria-expanded="false" onClick={() => setFilesHidden(false, 'hide')}>
-          <span className="sbf-files-heading-label">Files</span>
-          <span className="sbf-files-show" aria-hidden="true">Show</span>
+          <span className="sbf-files-heading-label"><Trans>Files</Trans></span>
+          <span className="sbf-files-show" aria-hidden="true"><Trans>Show</Trans></span>
         </button>
       ))}
-      <section className={`sbf-files${dropping ? ' is-dropping' : ''}`} aria-label={`Files: ${title}`} {...sectionDrop}
+      <section className={`sbf-files${dropping ? ' is-dropping' : ''}`} aria-label={tr`Files: ${title}`} {...sectionDrop}
                {...(view === 'cluster' && shownId ? { 'data-drop-board': shownId, 'data-drop-where': 'files' } : {})}>
         {floating && onLayout && (
           <div className="sbf-files-heading">
-            <span className="sbf-files-heading-label">Files</span>
-            <button type="button" className="sbf-files-hide" ref={hideRef} aria-label="Hide files" title="Hide files (⌘\)"
-                    aria-expanded="true" onClick={() => setFilesHidden(true, 'show')}>Hide</button>
+            <span className="sbf-files-heading-label"><Trans>Files</Trans></span>
+            <button type="button" className="sbf-files-hide" ref={hideRef} aria-label={tr`Hide files`} title={tr`Hide files (⌘\\)`}
+                    aria-expanded="true" onClick={() => setFilesHidden(true, 'show')}><Trans>Hide</Trans></button>
           </div>
         )}
         <header className="sbf-files-head">
-          <div className="sbf-tabs" role="tablist" aria-label="Show files from" onKeyDown={onTabsKeyDown} ref={tabsRef}>
+          <div className="sbf-tabs" role="tablist" aria-label={tr`Show files from`} onKeyDown={onTabsKeyDown} ref={tabsRef}>
             {tabs.map((t) => {
               const on = view === t.id;
               const isCluster = t.id === 'cluster';
@@ -1075,7 +1083,7 @@ export function ClusterSidebar({
                         aria-selected={on} aria-controls={`${tabsId}-panel`} tabIndex={on ? 0 : -1}
                         {...(isCluster ? { 'aria-haspopup': 'dialog', 'aria-expanded': switchOpen && !switchClosing } : {})}
                         className={`sbf-tab${isCluster ? ' is-cluster' : ''}${on ? ' is-on' : ''}${isCluster && switchOpen && !switchClosing ? ' is-open' : ''}`}
-                        title={isCluster ? (on ? `${t.label} · press to see another cluster’s files` : t.label) : undefined}
+                        title={isCluster ? (on ? tr`${ph({ label: t.label })} · press to see another cluster’s files` : t.label) : undefined}
                         onClick={() => {
                           if (!on) { t.select(); return; }
                           if (isCluster) { if (switchOpen && !switchClosing) closeSwitch(); else openSwitch(); }
@@ -1088,8 +1096,8 @@ export function ClusterSidebar({
           </div>
           {floating && onLayout && (coarse || snug) && (
             <button type="button" className={`sbf-iconbtn is-reveal${kept ? ' is-kept' : ''}`}
-                    aria-label={side ? 'Show files under the clusters' : 'Show files beside the clusters'}
-                    title={side ? (kept ? 'Kept side by side · show files under the clusters' : 'Show files under the clusters') : 'Show files beside the clusters'}
+                    aria-label={side ? tr`Show files under the clusters` : tr`Show files beside the clusters`}
+                    title={side ? (kept ? tr`Kept side by side · show files under the clusters` : tr`Show files under the clusters`) : tr`Show files beside the clusters`}
                     aria-pressed={side}
                     onClick={toggleSide}>
               <Icon as={Columns2} size={14} weight="regular" />
@@ -1097,7 +1105,7 @@ export function ClusterSidebar({
           )}
           {onOpenShelf && (view === 'cluster' ? (
             // The guided tour's last step points here (data-tour, lib/onboardingTour.js).
-            <button type="button" className="sbf-iconbtn is-expand" aria-label="Open in the full Files page" title="Open in the full Files page"
+            <button type="button" className="sbf-iconbtn is-expand" aria-label={tr`Open in the full Files page`} title={tr`Open in the full Files page`}
                     data-tour="view-toggle"
                     onClick={() => onOpenShelf(shownId, null)}>
               <Icon as={ArrowsOutSimple} size={14} weight="regular" />
@@ -1111,11 +1119,11 @@ export function ClusterSidebar({
 
         {away && (
           <div className="sbf-away">
-            <button type="button" className="sbf-away-btn" onClick={() => setBrowseId(null)} title={`Back to ${nameOf(clusterId)}’s files`}>
-              <Icon as={ChevronLeft} size={11} weight="regular" />Back to {nameOf(clusterId)}
+            <button type="button" className="sbf-away-btn" onClick={() => setBrowseId(null)} title={tr`Back to ${ph({ nameOf: nameOf(clusterId) })}’s files`}>
+              <Icon as={ChevronLeft} size={11} weight="regular" /><Trans>Back to {ph({ nameOf: nameOf(clusterId) })}</Trans>
             </button>
-            <button type="button" className="sbf-away-btn is-open" onClick={() => onOpenBoard?.(picked)} title={`Open ${clusterBoard?.name || 'Untitled'} on the board`}>
-              Open {clusterBoard?.name || 'Untitled'}
+            <button type="button" className="sbf-away-btn is-open" onClick={() => onOpenBoard?.(picked)} title={tr`Open ${ph({ name: clusterBoard?.name || tr`Untitled` })} on the board`}>
+              <Trans>Open {ph({ name: clusterBoard?.name || tr`Untitled` })}</Trans>
             </button>
           </div>
         )}
@@ -1127,8 +1135,8 @@ export function ClusterSidebar({
           <div className="sbf-search">
             <Icon as={Search} size={14} weight="regular" />
             <input type="search" dir="auto" value={query}
-                   placeholder={`Search ${title}`}
-                   aria-label={`Search ${title}`}
+                   placeholder={tr`Search ${title}`}
+                   aria-label={tr`Search ${title}`}
                    onChange={(e) => setQuery(e.target.value)}
                    onKeyDown={(e) => {
                      if (isComposingKey(e)) return;
@@ -1137,19 +1145,19 @@ export function ClusterSidebar({
                      if (e.key === 'Enter' && (nothing || e.metaKey || e.ctrlKey)) { e.preventDefault(); endSearch('palette'); onOpenPalette?.(query); }
                    }} />
             {query && (
-              <button type="button" className="sbf-search-clear" aria-label="Clear" onClick={() => setQuery('')}><Icon as={X} size={12} weight="regular" /></button>
+              <button type="button" className="sbf-search-clear" aria-label={tr`Clear`} onClick={() => setQuery('')}><Icon as={X} size={12} weight="regular" /></button>
             )}
           </div>
           <FilesShowMenu
             label={chipLabel} on={chip !== 'all'} hidden={folded}
-            title={`Showing ${chipLabel.toLowerCase()} · sorted by ${SORT_LABELS[prefs.sort].toLowerCase()} · grouped by ${GROUP_LABELS[prefs.groupBy].toLowerCase()}`}
+            title={tr`Showing ${ph({ lowerCase: chipLabel.toLocaleLowerCase(uiLocale()) })} · sorted by ${ph({ lowerCase2: SORT_LABELS[prefs.sort].toLocaleLowerCase(uiLocale()) })} · grouped by ${ph({ lowerCase3: GROUP_LABELS[prefs.groupBy].toLocaleLowerCase(uiLocale()) })}`}
             sections={[
-              { id: 'show', label: 'Show', items: chips.map((c) => ({
-                key: c.id, label: c.id === 'all' ? 'All files' : c.label, count: chipCounts[c.id] || 0,
+              { id: 'show', label: tr`Show`, items: chips.map((c) => ({
+                key: c.id, label: c.id === 'all' ? tr`All files` : c.label, count: chipCounts[c.id] || 0,
                 checked: chip === c.id, onPick: () => setChip(c.id) })) },
-              { id: 'sort', label: 'Sort', items: SORTS.map((so) => ({
+              { id: 'sort', label: tr`Sort`, items: SORTS.map((so) => ({
                 key: so, label: SORT_LABELS[so], checked: prefs.sort === so, onPick: () => setPref('sort', so) })) },
-              { id: 'group', label: 'Group by', items: Object.keys(GROUP_LABELS).map((g) => ({
+              { id: 'group', label: tr`Group by`, items: Object.keys(GROUP_LABELS).map((g) => ({
                 key: g, label: GROUP_LABELS[g], checked: prefs.groupBy === g, onPick: () => setPref('groupBy', g) })) },
             ]} />
         </div>
@@ -1160,14 +1168,14 @@ export function ClusterSidebar({
           {/* While the import that made this cluster waits for room: how many, why, and the tray's step. */}
           {view === 'cluster' && <ImportWaitRow boardId={shownId} name={shownBoard?.name} />}
           {starredClusters.length > 0 && (
-            <div className="sbf-block" role="group" aria-label="Starred clusters">
+            <div className="sbf-block" role="group" aria-label={tr`Starred clusters`}>
               <div className="sbf-shelf sbf-starred-head">
-                <span className="sbf-shelf-label">Clusters</span>
+                <span className="sbf-shelf-label"><Trans>Clusters</Trans></span>
                 <span className="sbf-shelf-count">{starredClusters.length}</span>
               </div>
               {starredClusters.map((c) => (
                 <button type="button" key={c.id} className="sbf-file sbf-cluster-link" onClick={() => onOpenBoard?.(c.id)}
-                        title={`Open ${c.name}`}>
+                        title={tr`Open ${ph({ name: c.name })}`}>
                   <span className="sbf-file-name" dir="auto">{c.name}</span>
                 </button>
               ))}
@@ -1176,18 +1184,18 @@ export function ClusterSidebar({
           {failedLine ? (
             <div className="sbf-note is-error" role="alert">
               <span>{failedLine.say}</span>
-              <button type="button" className="sbf-more-btn" onClick={failedLine.retry}>Retry</button>
+              <button type="button" className="sbf-more-btn" onClick={failedLine.retry}><Trans>Retry</Trans></button>
             </div>
           ) : nothing && view !== 'cluster' ? (
             starredClusters.length > 0 ? null : (
               <div className="sbf-files-empty">
-                {query.trim() ? `Nothing in ${title.toLowerCase()} matches “${query.trim()}”. Press Enter to search everywhere.`
-                  : view === 'recent' ? 'Nothing added lately.'
-                    : 'Star a file or a cluster from its menu and it stays here.'}
+                {query.trim() ? (view === 'recent' ? tr`Nothing in recent matches “${ph({ trim: query.trim() })}”. Press Enter to search everywhere.` : tr`Nothing in starred matches “${ph({ trim: query.trim() })}”. Press Enter to search everywhere.`)
+                  : view === 'recent' ? tr`Nothing added lately.`
+                    : tr`Star a file or a cluster from its menu and it stays here.`}
               </div>
             )
           ) : nothing && query.trim() ? (
-            <div className="sbf-files-empty">Nothing in {title} matches “{query.trim()}”. Press Enter to search everywhere.</div>
+            <div className="sbf-files-empty"><Trans>Nothing in {title} matches “{ph({ trim: query.trim() })}”. Press Enter to search everywhere.</Trans></div>
           ) : (
             <ClusterShelves
               boardId={view === 'cluster' ? shownId : view}
@@ -1216,16 +1224,16 @@ export function ClusterSidebar({
         </div>
 
         {(selected.size > 0 || selecting) && (
-          <div className="sbf-bulk" role="toolbar" aria-label="Selected files" ref={bulkRef} onKeyDown={bulkKeys}>
-            <span className="sbf-bulk-count">{selected.size || !selecting ? `${selected.size} selected` : 'Select files'}</span>
+          <div className="sbf-bulk" role="toolbar" aria-label={tr`Selected files`} ref={bulkRef} onKeyDown={bulkKeys}>
+            <span className="sbf-bulk-count">{selected.size || !selecting ? plural(selected.size, { one: '# selected', other: '# selected' }) : tr`Select files`}</span>
             {selecting
-              ? <button type="button" className="sbf-bulk-btn is-done" onClick={clearSelection}>Done</button>
-              : <button type="button" className="sbf-bulk-btn is-clear" aria-label="Clear selection" onClick={clearSelection}>✕</button>}
+              ? <button type="button" className="sbf-bulk-btn is-done" onClick={clearSelection}><Trans>Done</Trans></button>
+              : <button type="button" className="sbf-bulk-btn is-clear" aria-label={tr`Clear selection`} onClick={clearSelection}>✕</button>}
             {selected.size > 0 && <div className="sbf-bulk-acts">
-              {onPutOnBoard && waitingSel.length > 0 && movable(waitingSel) && <button type="button" className="sbf-bulk-btn is-lead" onClick={putSelection}>Put on board</button>}
-              {onPickCluster && movable(selItems) && <button type="button" className="sbf-bulk-btn" onClick={moveSelection}>Move…</button>}
-              {onPickCluster && <button type="button" className="sbf-bulk-btn" onClick={copySelection}>Copy…</button>}
-              <button type="button" className="sbf-bulk-btn is-danger" onClick={() => deleteSelection('bar')}>Delete</button>
+              {onPutOnBoard && waitingSel.length > 0 && movable(waitingSel) && <button type="button" className="sbf-bulk-btn is-lead" onClick={putSelection}><Trans>Put on board</Trans></button>}
+              {onPickCluster && movable(selItems) && <button type="button" className="sbf-bulk-btn" onClick={moveSelection}><Trans>Move…</Trans></button>}
+              {onPickCluster && <button type="button" className="sbf-bulk-btn" onClick={copySelection}><Trans>Copy…</Trans></button>}
+              <button type="button" className="sbf-bulk-btn is-danger" onClick={() => deleteSelection('bar')}><Trans>Delete</Trans></button>
             </div>}
           </div>
         )}

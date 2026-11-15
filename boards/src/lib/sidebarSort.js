@@ -10,6 +10,7 @@
 import { SHELVES, SHELF_IDS } from './sidebarShelves.js';
 import { nameSortKey } from './indexRowCard.js';
 import { searchKey } from './textFold.js';
+import { t } from '@lingui/core/macro';
 
 export const SORTS = ['newest', 'name', 'size', 'canvas'];
 export const DEFAULT_SORT = 'newest';
@@ -67,6 +68,7 @@ function byType(items) {
 export function groupItems(items, { groupBy = 'type' } = {}) {
   if (groupBy !== 'canvas') return byType(items);
   const groups = new Map();
+  const named = new Set(); // group ids whose name has arrived
   const loose = [];
   for (const item of items) {
     const gid = item.meta?.groupId;
@@ -74,12 +76,13 @@ export function groupItems(items, { groupBy = 'type' } = {}) {
     if (!groups.has(gid)) {
       groups.set(gid, {
         id: `group:${gid}`,
-        label: item.meta?.groupName || 'Untitled group',
+        label: item.meta?.groupName || t`Untitled group`,
         items: [],
       });
+      if (item.meta?.groupName) named.add(gid);
     }
     const g = groups.get(gid);
-    if (g.label === 'Untitled group' && item.meta?.groupName) g.label = item.meta.groupName;
+    if (!named.has(gid) && item.meta?.groupName) { g.label = item.meta.groupName; named.add(gid); }
     g.items.push(item);
   }
   const shelves = [...groups.values()]

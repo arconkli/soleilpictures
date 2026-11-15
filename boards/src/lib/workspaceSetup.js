@@ -21,6 +21,7 @@
 // enough for the entry chunk, which asks before the rest of this has arrived.
 export { SETUP_EPOCH, isSetupCandidate, workspaceSetupOn } from './setupRule.js';
 import { dropStrayJoiners } from './joiners.js';
+import { t, plural } from '@lingui/core/macro';
 
 export const NAME_MAX = 60;           // the invite emails cut names here too (safeLabel)
 export const REASK_MIN_CARDS = 6;     // where day-one return stops climbing slowly
@@ -30,20 +31,20 @@ export const REASK_SETTLE_MS = 4_000;      // after the card that tipped it over
 export const MAX_INVITE_ROWS = 8;
 
 export const TEAM_OPTIONS = Object.freeze([
-  { id: 'solo', label: 'Just me' },
-  { id: 'few', label: 'A few people' },
-  { id: 'team', label: 'A team' },
+  { id: 'solo', get label() { return t`Just me`; } },
+  { id: 'few', get label() { return t`A few people`; } },
+  { id: 'team', get label() { return t`A team`; } },
 ]);
 
 export const WORK_OPTIONS = Object.freeze([
-  { id: 'film', label: 'Film & video' },
-  { id: 'photo', label: 'Photo' },
-  { id: 'design', label: 'Design' },
-  { id: 'ads', label: 'Ads & brand' },
-  { id: 'music', label: 'Music' },
-  { id: 'school', label: 'School' },
-  { id: 'personal', label: 'Personal' },
-  { id: 'other', label: 'Something else' },
+  { id: 'film', get label() { return t`Film & video`; } },
+  { id: 'photo', get label() { return t`Photo`; } },
+  { id: 'design', get label() { return t`Design`; } },
+  { id: 'ads', get label() { return t`Ads & brand`; } },
+  { id: 'music', get label() { return t`Music`; } },
+  { id: 'school', get label() { return t`School`; } },
+  { id: 'personal', get label() { return t`Personal`; } },
+  { id: 'other', get label() { return t`Something else`; } },
 ]);
 
 const TEAM_IDS = new Set(TEAM_OPTIONS.map((o) => o.id));
@@ -97,37 +98,37 @@ export function workToFirstBoardKind(work) {
 // a link were the ones who went on to add cards. `rows` stays so the step has
 // one place that says how many rows it opens with.
 export function inviteCopyFor(team, workspaceName) {
-  const ws = normalizeWorkspaceName(workspaceName) || 'your workspace';
+  const ws = normalizeWorkspaceName(workspaceName) || t`your workspace`;
   if (team === 'solo') {
-    return { head: 'Want a second pair of eyes?', sub: `Invite a collaborator, a client or a friend to ${ws}. They see what you add, as you add it.`, rows: 1 };
+    return { head: t`Want a second pair of eyes?`, sub: t`Invite a collaborator, a client or a friend to ${ws}. They see what you add, as you add it.`, rows: 1 };
   }
   if (team === 'few') {
-    return { head: 'Invite the people you work with', sub: `They’ll see every cluster and file in ${ws}, and what you add as you add it.`, rows: 1 };
+    return { head: t`Invite the people you work with`, sub: t`They’ll see every cluster and file in ${ws}, and what you add as you add it.`, rows: 1 };
   }
   if (team === 'team') {
-    return { head: `Bring your team into ${ws}`, sub: 'Add a few emails, or share one link with everyone.', rows: 1 };
+    return { head: t`Bring your team into ${ws}`, sub: t`Add a few emails, or share one link with everyone.`, rows: 1 };
   }
-  return { head: `Invite people to ${ws}`, sub: 'They’ll see every cluster and file in it, and what you add as you add it.', rows: 1 };
+  return { head: t`Invite people to ${ws}`, sub: t`They’ll see every cluster and file in it, and what you add as you add it.`, rows: 1 };
 }
 
 // What a workspace invite link does, from its row (0451), never typed in: a
 // new account's link is shorter and smaller than an older one's. null until
 // the terms are known, and the step says only the first sentence.
 export function linkTermsLine({ workspaceName, role, expiresAt, maxUses, uses = 0, now } = {}) {
-  const ws = normalizeWorkspaceName(workspaceName) || 'your workspace';
+  const ws = normalizeWorkspaceName(workspaceName) || t`your workspace`;
   const lead = role === 'viewer'
-    ? `Anyone with the link can join ${ws} and see everything in it.`
-    : `Anyone with the link can join ${ws} and edit.`;
+    ? t`Anyone with the link can join ${ws} and see everything in it.`
+    : t`Anyone with the link can join ${ws} and edit.`;
   const end = Date.parse(expiresAt || '');
   const at = Number.isFinite(now) ? now : Date.parse(now || '');
   const left = Math.max(0, (Number(maxUses) || 0) - (Number(uses) || 0));
   if (!Number.isFinite(end) || !Number.isFinite(at) || !(Number(maxUses) > 0)) return lead;
   const days = Math.max(1, Math.round((end - at) / 86400000));
-  const span = days === 1 ? 'a day' : `${days} days`;
+  const span = plural(days, { 1: 'a day', other: '# days' });
   const who = Number(uses) > 0
-    ? (left === 1 ? 'one more person' : `${left} more people`)
-    : (left === 1 ? 'one person' : `up to ${left} people`);
-  return `${lead} It works for ${span}, for ${who}.`;
+    ? plural(left, { 1: 'one more person', other: '# more people' })
+    : plural(left, { 1: 'one person', other: 'up to # people' });
+  return t`${lead} It works for ${span}, for ${who}.`;
 }
 
 // ── Progress ────────────────────────────────────────────────────────────────

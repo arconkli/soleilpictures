@@ -28,6 +28,7 @@
 
 import { assignArm } from './experiments.js';
 import { BOARD_MORE_EPOCH, BOARD_MORE_OVERRIDE_PARAM, BOARD_MORE_OVERRIDE_KEY } from './boardMoreEpoch.js';
+import { t as tr } from '@lingui/core/macro';
 
 export { BOARD_MORE_EPOCH, BOARD_MORE_OVERRIDE_PARAM, BOARD_MORE_OVERRIDE_KEY };
 export const BOARD_MORE_KEY = 'first_board_more';
@@ -123,11 +124,11 @@ export function isPictureCard(c) {
 // stay short because the toast sets two buttons beside them: the buttons say
 // what to do, and "Add a note" lands the note beside the pictures.
 export function boardMoreCopy({ canFolder } = {}) {
-  const message = 'Good start. Add more?';
+  const message = tr`Good start. Add more?`;
   if (canFolder) {
-    return { message, actions: [{ id: 'folder', label: 'Bring in a folder' }, { id: 'note', label: 'Add a note' }] };
+    return { message, actions: [{ id: 'folder', label: tr`Bring in a folder` }, { id: 'note', label: tr`Add a note` }] };
   }
-  return { message, actions: [{ id: 'photos', label: 'Add photos' }, { id: 'note', label: 'Add a note' }] };
+  return { message, actions: [{ id: 'photos', label: tr`Add photos` }, { id: 'note', label: tr`Add a note` }] };
 }
 
 const NOTE_W = 200;

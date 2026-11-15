@@ -4,6 +4,8 @@
 // node --test can pin it: the count, the label, where the panel goes, when a
 // phone sheet replaces it, and where a row leads.
 
+import { t, plural } from '@lingui/core/macro';
+
 export const PANEL_WIDTH = 340;
 export const PANEL_GUTTER = 16;   // the panel never comes closer to a viewport edge
 export const PANEL_GAP = 8;       // under the island's bottom edge
@@ -18,7 +20,7 @@ export function bellCountLabel(unread) {
 
 export function bellAriaLabel(unread) {
   const n = Math.floor(Number(unread) || 0);
-  return n > 0 ? `Notifications, ${n} unread` : 'Notifications';
+  return n > 0 ? plural(n, { one: 'Notifications, # unread', other: 'Notifications, # unread' }) : t`Notifications`;
 }
 
 // {top, right} for a position:fixed panel: its right edge on the island's,

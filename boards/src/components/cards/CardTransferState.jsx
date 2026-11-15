@@ -17,11 +17,13 @@ import { useCanvasSettleTick } from '../../hooks/useCanvasSettleTick.js';
 import { getCanvasScale } from '../../lib/canvasScale.js';
 import { initialOf } from '../../lib/graphemes.js';
 import './cardTransferState.css';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const noopSubscribe = () => () => {};
 const PICTURE_KINDS = new Set(['image', 'video']);
 
-const firstName = (n) => String(n || '').trim().split(/\s+/)[0] || 'Someone';
+const firstName = (n) => String(n || '').trim().split(/\s+/)[0] || t`Someone`;
 
 // Presence codes (peerUploads): 0..100 percent, -1 waiting, -2 didn't upload,
 // -3 making a preview.
@@ -31,10 +33,10 @@ function mateWords(v) {
     return { ...w, mate: v.mine ? null : v };
   }
   const name = firstName(v.name);
-  const lead = v.mine ? 'Uploading in another tab' : `${name} is uploading`;
-  if (v.code === -3) return { tone: 'busy', text: 'Making a preview…', sub: null, pct: null };
-  if (v.code === -2) return { tone: 'fail', text: 'Didn’t upload', sub: null, pct: null };
-  if (v.code < 0) return { tone: 'wait', text: lead, sub: 'Waiting', pct: null, mate: v.mine ? null : v };
+  const lead = v.mine ? t`Uploading in another tab` : t`${name} is uploading`;
+  if (v.code === -3) return { tone: 'busy', text: t`Making a preview…`, sub: null, pct: null };
+  if (v.code === -2) return { tone: 'fail', text: t`Didn’t upload`, sub: null, pct: null };
+  if (v.code < 0) return { tone: 'wait', text: lead, sub: t`Waiting`, pct: null, mate: v.mine ? null : v };
   const pct = Math.min(100, v.code);
   return { tone: 'up', text: lead, sub: `${pct}%`, pct, mate: v.mine ? null : v };
 }
@@ -81,8 +83,8 @@ export const CardTransferState = memo(function CardTransferState({
   } else if (peers && pending) {
     const v = peers.view(card);
     if (v.kind === 'mate' || v.kind === 'away') words = mateWords(v);
-    else if (v.kind === 'legacy') words = { tone: 'up', text: `${firstName(v.name)} is uploading`, sub: null, pct: null, mate: v };
-    else if (v.kind === 'quiet') words = { tone: 'up', text: 'Uploading…', sub: null, pct: null };
+    else if (v.kind === 'legacy') words = { tone: 'up', text: t`${ph({ name: firstName(v.name) })} is uploading`, sub: null, pct: null, mate: v };
+    else if (v.kind === 'quiet') words = { tone: 'up', text: t`Uploading…`, sub: null, pct: null };
     else gone = v;
   }
   if (!words && !gone) return null;
@@ -95,21 +97,21 @@ export const CardTransferState = memo(function CardTransferState({
     const bigGone = sw >= 200 && sh >= 140;
     if (!bigGone && !tiny) {
       return (
-        <div className="cts" data-cts="gone" role="group" aria-label="This upload didn’t finish">
+        <div className="cts" data-cts="gone" role="group" aria-label={t`This upload didn’t finish`}>
           <div className="cts-strip is-compact is-gone" style={strip}>
             <div className="cts-txt" aria-hidden="true">
-              <span className="cts-ic"><span className="cts-line1">Didn’t finish</span></span>
+              <span className="cts-ic"><span className="cts-line1"><Trans>Didn’t finish</Trans></span></span>
             </div>
           </div>
           {canEdit && (
             <div className="cts-ibwrap" style={{ transform: `scale(${1 / s})`, width: sw }}>
               {canReplace && (
-                <button type="button" className="cts-ib is-2" aria-label="Replace this file" title="Replace"
+                <button type="button" className="cts-ib is-2" aria-label={t`Replace this file`} title={t`Replace`}
                         onPointerDown={stop} onClick={(e) => { stop(e); onPickReplace(cardId); }}>
                   <Icon as={UploadSimple} size={13} weight="regular" />
                 </button>
               )}
-              <button type="button" className="cts-ib" aria-label="Remove this card" title="Remove"
+              <button type="button" className="cts-ib" aria-label={t`Remove this card`} title={t`Remove`}
                       onPointerDown={stop} onClick={(e) => { stop(e); onRemove?.(cardId); }}>
                 <Icon as={Trash2} size={13} weight="regular" />
               </button>
@@ -119,22 +121,22 @@ export const CardTransferState = memo(function CardTransferState({
       );
     }
     return (
-      <div className="cts" data-cts="gone" role="group" aria-label="This upload didn’t finish">
+      <div className="cts" data-cts="gone" role="group" aria-label={t`This upload didn’t finish`}>
         {tiny ? (
           <div className="cts-strip is-bare" style={strip}>
             <span className="cts-line is-fail"><i style={{ width: '100%' }} /></span>
           </div>
         ) : (
           <div className="cts-gone" style={{ transform: `scale(${1 / s})`, width: sw, height: sh }}>
-            <span className="cts-gone-txt">This upload didn’t finish</span>
+            <span className="cts-gone-txt"><Trans>This upload didn’t finish</Trans></span>
             {canEdit && (
               <span className="cts-gone-btns">
                 {canReplace && (
-                  <button type="button" className="cts-tb" aria-label="Replace this file"
-                          onPointerDown={stop} onClick={(e) => { stop(e); onPickReplace(cardId); }}>Replace</button>
+                  <button type="button" className="cts-tb" aria-label={t`Replace this file`}
+                          onPointerDown={stop} onClick={(e) => { stop(e); onPickReplace(cardId); }}><Trans>Replace</Trans></button>
                 )}
-                <button type="button" className="cts-tb" aria-label="Remove this card"
-                        onPointerDown={stop} onClick={(e) => { stop(e); onRemove?.(cardId); }}>Remove</button>
+                <button type="button" className="cts-tb" aria-label={t`Remove this card`}
+                        onPointerDown={stop} onClick={(e) => { stop(e); onRemove?.(cardId); }}><Trans>Remove</Trans></button>
               </span>
             )}
           </div>
@@ -176,12 +178,12 @@ export const CardTransferState = memo(function CardTransferState({
       {showRetry && !tiny && (
         <div className="cts-ibwrap" style={{ transform: `scale(${1 / s})`, width: sw }}>
           {isVersion && !!item.actions?.remove && (
-            <button type="button" className="cts-ib" aria-label="Dismiss" title="Dismiss"
+            <button type="button" className="cts-ib" aria-label={t`Dismiss`} title={t`Dismiss`}
                     onPointerDown={stop} onClick={(e) => { stop(e); item.actions.remove(); }}>
               <Icon as={X} size={13} weight="regular" />
             </button>
           )}
-          <button type="button" className={`cts-ib${isVersion && item.actions?.remove ? ' is-2' : ''}`} aria-label="Retry this upload" title="Retry"
+          <button type="button" className={`cts-ib${isVersion && item.actions?.remove ? ' is-2' : ''}`} aria-label={t`Retry this upload`} title={t`Retry`}
                   onPointerDown={stop}
                   onClick={(e) => { stop(e); if (isVersion) item.actions.retry(); else onRetry?.(cardId); }}>
             <Icon as={ArrowClockwise} size={13} weight="regular" />

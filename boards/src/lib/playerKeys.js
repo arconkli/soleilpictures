@@ -7,39 +7,51 @@
 // against (playerKeysDocs.test.mjs). `future` rows belong to frame comments,
 // which haven't shipped: nothing lists them yet.
 import { isComposingKey } from './composerKeys.js';
+import { t as tr } from '@lingui/core/macro';
 
 export const PLAYER_KEYS = [
-  { group: 'Transport', keys: ['Space'], label: 'Play · pause' },
-  { group: 'Transport', keys: ['J', 'K', 'L'], label: 'Play backward · stop · forward — again to go faster' },
-  { group: 'Transport', keys: ['K+J', 'K+L'], label: 'Tap: one frame back · forward. Hold: play slowly' },
-  { group: 'Transport', keys: ['←', '→'], label: 'One frame back · forward' },
-  { group: 'Transport', keys: [',', '.'], label: 'One frame back · forward' },
-  { group: 'Transport', keys: ['⇧←', '⇧→'], label: 'One second back · forward' },
-  { group: 'Transport', keys: ['Home', 'End'], label: 'First · last frame' },
-  { group: 'Transport', keys: ['⇧<', '⇧>'], label: 'Slower · faster' },
-  { group: 'Transport', keys: ['0–9'], label: 'Type a timecode, frame or seconds to jump to' },
-  { group: 'Marking', keys: ['I', 'O'], label: 'Set in · out' },
-  { group: 'Marking', keys: ['⇧I', '⇧O'], label: 'Go to in · out' },
-  { group: 'Marking', keys: ['⇧Space'], label: 'Play from in to out' },
-  { group: 'Marking', keys: ['⌥L'], label: 'Loop (between in and out, or the whole clip)' },
-  { group: 'Marking', keys: ['⌥X'], label: 'Clear in and out' },
-  { group: 'View', keys: ['⌥=', '⌥−'], label: 'Zoom the timeline in · out' },
-  { group: 'View', keys: ['⌥0'], label: 'Fit the whole clip in the timeline' },
-  { group: 'View', keys: ['⇧Z'], label: 'Zoom the timeline to in and out' },
-  { group: 'View', keys: ['Z'], label: 'Zoom the picture: fit · 100% · 200% — drag to look around' },
-  { group: 'View', keys: ['G'], label: 'Framing guides — again for the next one' },
-  { group: 'View', keys: ['F'], label: 'Full screen' },
-  { group: 'View', keys: ['M'], label: 'Mute' },
-  { group: 'View', keys: ['⇧↑', '⇧↓'], label: 'Volume up · down' },
-  { group: 'Review', keys: ['\\'], label: 'Flip to the version you compare with' },
-  { group: 'Review', keys: [`⌘C`], label: 'Copy the timecode' },
-  { group: 'Review', keys: [`⇧⌘C`], label: 'Copy a link to this frame' },
-  { group: 'Review', keys: ['?'], label: 'Show these shortcuts' },
-  { group: 'Review', keys: ['Esc'], label: 'Close the player' },
-  { group: 'Review', keys: ['↑', '↓'], label: 'Previous · next comment', future: true },
-  { group: 'Review', keys: ['C'], label: 'Comment on this frame', future: true },
-  { group: 'Review', keys: ['D'], label: 'Draw on this frame', future: true },
+  { group: 'Transport', get keys() { return [tr({ message: 'Space', context: 'keyboard key' })]; }, get label() { return tr`Play · pause`; } },
+  { group: 'Transport', keys: ['J', 'K', 'L'], get label() { return tr`Play backward · stop · forward — again to go faster`; } },
+  { group: 'Transport', keys: ['K+J', 'K+L'], get label() { return tr`Tap: one frame back · forward. Hold: play slowly`; } },
+  { group: 'Transport', keys: ['←', '→'], get label() { return tr`One frame back · forward`; } },
+  { group: 'Transport', keys: [',', '.'], get label() { return tr`One frame back · forward`; } },
+  { group: 'Transport', keys: ['⇧←', '⇧→'], get label() { return tr`One second back · forward`; } },
+  { group: 'Transport', get keys() { return [tr({ message: 'Home', context: 'keyboard key' }), tr({ message: 'End', context: 'keyboard key' })]; }, get label() { return tr`First · last frame`; } },
+  { group: 'Transport', keys: ['⇧<', '⇧>'], get label() { return tr`Slower · faster`; } },
+  { group: 'Transport', keys: ['0–9'], get label() { return tr`Type a timecode, frame or seconds to jump to`; } },
+  { group: 'Marking', keys: ['I', 'O'], get label() { return tr`Set in · out`; } },
+  { group: 'Marking', keys: ['⇧I', '⇧O'], get label() { return tr`Go to in · out`; } },
+  { group: 'Marking', get keys() { return [tr({ message: '⇧Space', context: 'keyboard key' })]; }, get label() { return tr`Play from in to out`; } },
+  { group: 'Marking', keys: ['⌥L'], get label() { return tr`Loop (between in and out, or the whole clip)`; } },
+  { group: 'Marking', keys: ['⌥X'], get label() { return tr`Clear in and out`; } },
+  { group: 'View', keys: ['⌥=', '⌥−'], get label() { return tr`Zoom the timeline in · out`; } },
+  { group: 'View', keys: ['⌥0'], get label() { return tr`Fit the whole clip in the timeline`; } },
+  { group: 'View', keys: ['⇧Z'], get label() { return tr`Zoom the timeline to in and out`; } },
+  { group: 'View', keys: ['Z'], get label() { return tr`Zoom the picture: fit · 100% · 200% — drag to look around`; } },
+  { group: 'View', keys: ['G'], get label() { return tr`Framing guides — again for the next one`; } },
+  { group: 'View', keys: ['F'], get label() { return tr`Full screen`; } },
+  { group: 'View', keys: ['M'], get label() { return tr`Mute`; } },
+  { group: 'View', keys: ['⇧↑', '⇧↓'], get label() { return tr`Volume up · down`; } },
+  { group: 'Review', keys: ['\\'], get label() { return tr`Flip to the version you compare with`; } },
+  { group: 'Review', keys: [`⌘C`], get label() { return tr`Copy the timecode`; } },
+  { group: 'Review', keys: [`⇧⌘C`], get label() { return tr`Copy a link to this frame`; } },
+  { group: 'Review', keys: ['?'], get label() { return tr`Show these shortcuts`; } },
+  { group: 'Review', get keys() { return [tr({ message: 'Esc', context: 'keyboard key' })]; }, get label() { return tr`Close the player`; } },
+  { group: 'Review', keys: ['↑', '↓'], get label() { return tr`Previous · next comment`; }, future: true },
+  { group: 'Review', keys: ['C'], get label() { return tr`Comment on this frame`; }, future: true },
+  { group: 'Review', keys: ['D'], get label() { return tr`Draw on this frame`; }, future: true },
 ];
+
+// The heading a group is shown under. `group` stays the grouping key.
+export function playerKeyGroupLabel(group) {
+  switch (group) {
+    case 'Transport': return tr`Transport`;
+    case 'Marking': return tr`Marking`;
+    case 'View': return tr({ message: 'View', context: 'noun' });
+    case 'Review': return tr`Review`;
+    default: return group;
+  }
+}
 
 // Actions a held key may repeat: stepping and volume. Everything else (J/L
 // doubling, I/O, loop…) acts once per press — an OS key-repeat must not

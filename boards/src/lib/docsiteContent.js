@@ -43970,7 +43970,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "How Clusters looks and how the canvas answers your hands, in three sections:"
+     "v": "How Clusters looks and how the canvas answers your hands, in four sections:"
     }
    ]
   },
@@ -43978,6 +43978,51 @@ export const DOCS_CONTENT = {
    "type": "list",
    "ordered": false,
    "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Language",
+      "children": [
+       {
+        "t": "text",
+        "v": "Language"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — the language of menus, dates and the emails we send you: English, Español, Français, Português (Brasil), Русский, 日本語 or 한국어. "
+     },
+     {
+      "t": "strong",
+      "v": "Automatic",
+      "children": [
+       {
+        "t": "text",
+        "v": "Automatic"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " follows your browser. Cards and comments stay in the language they were written in. See "
+     },
+     {
+      "t": "link",
+      "v": "Theme and defaults",
+      "href": "/docs/account/theme-and-defaults#language",
+      "children": [
+       {
+        "t": "text",
+        "v": "Theme and defaults"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
     [
      {
       "t": "strong",
@@ -46993,8 +47038,173 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " Personal — these change how Clusters looks and behaves for you, on every device you sign in on, and nobody else in the workspace sees them. Three sections."
+     "v": " Personal — these change how Clusters looks and behaves for you, on every device you sign in on, and nobody else in the workspace sees them. Four sections."
     }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Language",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Language"
+    }
+   ],
+   "id": "language"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Menus, dates and the emails we send you come in "
+    },
+    {
+     "t": "strong",
+     "v": "English",
+     "children": [
+      {
+       "t": "text",
+       "v": "English"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Español",
+     "children": [
+      {
+       "t": "text",
+       "v": "Español"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Français",
+     "children": [
+      {
+       "t": "text",
+       "v": "Français"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Português (Brasil)",
+     "children": [
+      {
+       "t": "text",
+       "v": "Português (Brasil)"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Русский",
+     "children": [
+      {
+       "t": "text",
+       "v": "Русский"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "日本語",
+     "children": [
+      {
+       "t": "text",
+       "v": "日本語"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or "
+    },
+    {
+     "t": "strong",
+     "v": "한국어",
+     "children": [
+      {
+       "t": "text",
+       "v": "한국어"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Each language is listed in its own words, so anyone can find theirs."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Automatic",
+      "children": [
+       {
+        "t": "text",
+        "v": "Automatic"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", the default, follows your browser's language, and is English when your browser asks for none of these."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A language you choose follows your account to every device you sign in on."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The emails we send you, checkout and the billing page come in the same language."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "What people make is never translated: cards, clusters, docs and comments stay in the language they were written in."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "This help site and the public pages stay in English."
+     }
+    ]
    ]
   },
   {

@@ -37,7 +37,7 @@ test('a doc’s two rooms come from the room get_file_share named', () => {
 
 test('every way in is held: the open doc’s header, the canvas menu, the list menu', () => {
   const bus = src('./fileShareBus.js');
-  assert.match(bus, /return docSharesAllowed\(\) && isShareableDoc\(card\) \? 'Share doc…' : null;/);
+  assert.match(bus, /return docSharesAllowed\(\) && isShareableDoc\(card\) \? t`Share doc…` : null;/);
   // The open doc's header is the doc look's, docked or full screen.
   const head = src('../components/doc/DocFrameA.jsx');
   assert.match(head, /const share = !isPublic && canEdit && scope\?\.boardId && docSharesAllowed\(\) && isShareableDoc\(card\) \? \(\s+<FileShareButton variant="doc" surface="doc" boardId=\{scope\.boardId\}/);
@@ -92,7 +92,7 @@ test('the shared doc wears the doc look, with a guest’s header', () => {
   const head = src('../components/doc/DocFrameA.jsx');
   assert.match(head, /const canRename = canEdit && !guestMode;/);
   assert.match(head, /readOnly=\{!canRename\}/);
-  assert.match(head, /\{onClose && <Btn icon=\{X\} label="Close document" onClick=\{onClose\} \/>\}/);
+  assert.match(head, /\{onClose && <Btn icon=\{X\} label=\{tr`Close document`\} onClick=\{onClose\} \/>\}/);
   assert.match(head, /\{isPublic \|\| !onSetMode \? null : mode === 'full'/);
   assert.match(head, /showSave=\{!guestMode && f\.showSave !== false\}/, 'a guest’s saving is the room’s');
   const s = src('../components/DocSurface.jsx');

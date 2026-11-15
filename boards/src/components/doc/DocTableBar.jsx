@@ -11,6 +11,7 @@ import { isComposingKey } from '../../lib/composerKeys.js';
 import {
   Check, Columns2, ColumnsPlusLeft, ColumnsPlusRight, Rows, RowsPlusBottom, RowsPlusTop, Trash2,
 } from '../../lib/icons.js';
+import { t as tr } from '@lingui/core/macro';
 
 // A table's own bar (the owner's pick of 2026-10-21, mockup G-table): with the
 // caret in a table, over the table's top right edge, Row and Column add one
@@ -146,45 +147,45 @@ export function DocTableBar({ editor, paperRef }) {
     if (!ok) return;
     const step = um ? um.undoStack[um.undoStack.length - 1] || null : null;
     undoToast(feedback, {
-      message: 'Table deleted',
+      message: tr`Table deleted`,
       undoManager: step ? um : null,
       stackItem: step,
-      supersededMessage: 'The doc changed since — press ⌘Z to step back instead.',
+      supersededMessage: tr`The doc changed since — press ⌘Z to step back instead.`,
       onUndo: () => { if (step) um.undo(); },
     });
   };
   const words = (text) => (compact ? { label: text } : { text });
 
   return (
-    <Toolbar label="Table" barRef={barRef} text={() => editor}
+    <Toolbar label={tr`Table`} barRef={barRef} text={() => editor}
              className={compact ? 'dl-tbar is-compact' : 'dl-tbar'}
              style={at ? { top: at.top, right: at.right } : { top: 0, right: 0, visibility: 'hidden' }}>
       <Group>
-        <MenuButton {...words('Row')} icon={Rows} caret keepFocus menuLabel="Row">
-          <MenuItem icon={RowsPlusTop} label="Add row above" onSelect={() => run('addRowBefore', 'doc:table-row-above')} />
-          <MenuItem icon={RowsPlusBottom} label="Add row below" onSelect={() => run('addRowAfter', 'doc:table-row-below')} />
-          {compact && <MenuItem label="Header row" checked={t.header} onSelect={toggleHeader} />}
+        <MenuButton {...words(tr`Row`)} icon={Rows} caret keepFocus menuLabel={tr`Row`}>
+          <MenuItem icon={RowsPlusTop} label={tr`Add row above`} onSelect={() => run('addRowBefore', 'doc:table-row-above')} />
+          <MenuItem icon={RowsPlusBottom} label={tr`Add row below`} onSelect={() => run('addRowAfter', 'doc:table-row-below')} />
+          {compact && <MenuItem label={tr`Header row`} checked={t.header} onSelect={toggleHeader} />}
           <MenuSep />
-          <MenuItem icon={Trash2} label="Delete row" danger disabled={!t.rowGoes}
+          <MenuItem icon={Trash2} label={tr`Delete row`} danger disabled={!t.rowGoes}
                     onSelect={() => run('deleteRow', 'doc:table-row-delete')} />
         </MenuButton>
-        <MenuButton {...words('Column')} icon={Columns2} caret keepFocus menuLabel="Column">
-          <MenuItem icon={ColumnsPlusLeft} label="Add column left" onSelect={() => run('addColumnBefore', 'doc:table-col-left')} />
-          <MenuItem icon={ColumnsPlusRight} label="Add column right" onSelect={() => run('addColumnAfter', 'doc:table-col-right')} />
+        <MenuButton {...words(tr`Column`)} icon={Columns2} caret keepFocus menuLabel={tr`Column`}>
+          <MenuItem icon={ColumnsPlusLeft} label={tr`Add column left`} onSelect={() => run('addColumnBefore', 'doc:table-col-left')} />
+          <MenuItem icon={ColumnsPlusRight} label={tr`Add column right`} onSelect={() => run('addColumnAfter', 'doc:table-col-right')} />
           <MenuSep />
-          <MenuItem icon={Trash2} label="Delete column" danger disabled={!t.colGoes}
+          <MenuItem icon={Trash2} label={tr`Delete column`} danger disabled={!t.colGoes}
                     onSelect={() => run('deleteColumn', 'doc:table-col-delete')} />
         </MenuButton>
       </Group>
       {!compact && (
         <Group>
-          <Btn text="Header row" icon={t.header ? Check : undefined} toggle on={t.header}
+          <Btn text={tr`Header row`} icon={t.header ? Check : undefined} toggle on={t.header}
                className={t.header ? 'dl-tb-head' : 'dl-tb-head is-off'}
                onMouseDown={keep} onClick={toggleHeader} />
         </Group>
       )}
       <Group>
-        <Btn icon={Trash2} label="Delete table" onMouseDown={keep} onClick={deleteTable} />
+        <Btn icon={Trash2} label={tr`Delete table`} onMouseDown={keep} onClick={deleteTable} />
       </Group>
     </Toolbar>
   );

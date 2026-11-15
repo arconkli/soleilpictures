@@ -46,6 +46,9 @@ import { shareTargetForRef } from '../lib/fileShareBus.js';
 import { TagActionSheet } from './TagActionSheet.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { cutGraphemes, exceedsGraphemes } from '../lib/graphemes.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { shownError } from '../lib/errorWords.js';
 
 // Patch missing meta.src on image-kind card_index rows by looking up
 // `images.storage_path` via card_id. card_index.meta.src is populated
@@ -86,6 +89,18 @@ const KIND_ICON = {
 };
 
 function kindIcon(kind) { return KIND_ICON[kind] || StickyNote; }
+
+// "empty note" etc., one whole message per kind so each language words it itself.
+function emptyKindLabel(kind) {
+  switch (kind) {
+    case 'note': return tr`empty note`;
+    case 'card': return tr`empty card`;
+    case 'doc': return tr`empty doc`;
+    case 'link': return tr`empty link`;
+    case 'schedule': return tr`empty schedule`;
+    default: return tr`empty ${ph({ kind })}`;
+  }
+}
 
 // Is this get_things_tagged row the item a menu action targeted?
 // target: { id, boardId } as built by the render helpers' menuTarget.
@@ -206,7 +221,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
       try { logEvent(EV.TAG_SET_TYPE, { tag_id: tag.id, entity_type: next }); } catch (_) {}
     } catch (err) {
       setEntityType(prev);
-      feedback?.toast?.({ type: 'error', code: 'tag_type_failed', message: 'Could not set type' });
+      feedback?.toast?.({ type: 'error', code: 'tag_type_failed', message: tr`Could not set type` });
     }
   };
 
@@ -533,7 +548,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
       // One click used to be a hard delete + a permanent suppression row.
       // The undo re-applies the tag AND lifts the "never suggest again".
       undoToast(feedback, {
-        message: 'Tag removed',
+        message: tr`Tag removed`,
         onUndo: async () => {
           try {
             const ws = workspaceId || tag.workspace_id;
@@ -547,12 +562,12 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
             await undismissAutotagSuggestion({ workspaceId: ws, targetKind, targetId: target.id, tagId: tag.id });
             reloadRowsRef.current?.();
           } catch (err) {
-            feedback?.toast?.({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
+            feedback?.toast?.({ type: 'error', code: 'tag_restore_failed', message: tr`Restore failed: ${ph({ reason: shownError(err) })}` });
           }
         },
       });
     } catch (err) {
-      feedback?.toast?.({ type: 'error', code: 'tag_remove_failed', message: 'Remove failed: ' + (err.message || err) });
+      feedback?.toast?.({ type: 'error', code: 'tag_remove_failed', message: tr`Remove failed: ${ph({ reason: shownError(err) })}` });
     }
   };
 
@@ -594,7 +609,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
       // Optimistic local update — realtime will catch up too.
       setSuggestions(prev => prev.filter(p => !(p.source_kind === s.source_kind && p.source_id === s.source_id)));
     } catch (err) {
-      feedback?.toast?.({ type: 'error', code: 'tag_accept_failed', message: 'Accept failed: ' + (err.message || err) });
+      feedback?.toast?.({ type: 'error', code: 'tag_accept_failed', message: tr`Accept failed: ${ph({ reason: shownError(err) })}` });
     }
   };
 
@@ -611,7 +626,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
       if (error) throw error;
       setSuggestions(prev => prev.filter(p => !(p.source_kind === s.source_kind && p.source_id === s.source_id)));
     } catch (err) {
-      feedback?.toast?.({ type: 'error', code: 'tag_dismiss_failed', message: 'Dismiss failed: ' + (err.message || err) });
+      feedback?.toast?.({ type: 'error', code: 'tag_dismiss_failed', message: tr`Dismiss failed: ${ph({ reason: shownError(err) })}` });
     }
   };
 
@@ -621,30 +636,30 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
   const removeDocTag = async (target) => {
     const ws = workspaceId || tag.workspace_id;
     if (!target.pageId) {
-      feedback?.toast?.({ type: 'error', code: 'tag_doc_no_page', message: 'Open the page to remove this tag.' });
+      feedback?.toast?.({ type: 'error', code: 'tag_doc_no_page', message: tr`Open the page to remove this tag.` });
       return;
     }
     try {
       const removed = await untagDocPage({ workspaceId: ws, docCardId: target.id, pageId: target.pageId, tagId: tag.id, userId });
       if (removed.length === 0) {
-        feedback?.toast?.({ type: 'error', code: 'tag_remove_noop', message: 'Nothing was removed. Reload and try again.' });
+        feedback?.toast?.({ type: 'error', code: 'tag_remove_noop', message: tr`Nothing was removed. Reload and try again.` });
         reloadRowsRef.current?.();
         return;
       }
       setRows(prev => prev.filter(r => !isRowFor(r, 'doc', target)));
       undoToast(feedback, {
-        message: 'Tag removed',
+        message: tr`Tag removed`,
         onUndo: async () => {
           try {
             await restoreDocTagRows({ workspaceId: ws, docCardId: target.id, pageId: target.pageId, tagId: tag.id, rows: removed });
             reloadRowsRef.current?.();
           } catch (err) {
-            feedback?.toast?.({ type: 'error', code: 'tag_restore_failed', message: 'Restore failed: ' + (err.message || err) });
+            feedback?.toast?.({ type: 'error', code: 'tag_restore_failed', message: tr`Restore failed: ${ph({ reason: shownError(err) })}` });
           }
         },
       });
     } catch (err) {
-      feedback?.toast?.({ type: 'error', code: 'tag_remove_failed', message: 'Remove failed: ' + (err.message || err) });
+      feedback?.toast?.({ type: 'error', code: 'tag_remove_failed', message: tr`Remove failed: ${ph({ reason: shownError(err) })}` });
     }
   };
 
@@ -655,13 +670,13 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
           ? await confirmAppliedTag({ sourceKind: 'doc', sourceId: target.id, sourcePageId: target.pageId, tagId: tag.id })
           : 0;
         if (n === 0) {
-          feedback?.toast?.({ type: 'error', code: 'tag_confirm_noop', message: 'Nothing to confirm on this page.' });
+          feedback?.toast?.({ type: 'error', code: 'tag_confirm_noop', message: tr`Nothing to confirm on this page.` });
           return;
         }
         try { logEvent(EV.TAG_CONFIRM, { tag_id: tag.id, target_kind: 'doc' }); } catch (_) {}
         reloadRowsRef.current?.();
       } catch (err) {
-        feedback?.toast?.({ type: 'error', code: 'tag_confirm_failed', message: 'Confirm failed: ' + (err.message || err) });
+        feedback?.toast?.({ type: 'error', code: 'tag_confirm_failed', message: tr`Confirm failed: ${ph({ reason: shownError(err) })}` });
       }
       return;
     }
@@ -673,7 +688,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
       await confirmAppliedTag({ sourceKind, sourceId: target.id, sourceBoardId, tagId: tag.id });
       try { logEvent(EV.TAG_CONFIRM, { tag_id: tag.id, target_kind: sourceKind }); } catch (_) {}
     } catch (err) {
-      feedback?.toast?.({ type: 'error', code: 'tag_confirm_failed', message: 'Confirm failed: ' + (err.message || err) });
+      feedback?.toast?.({ type: 'error', code: 'tag_confirm_failed', message: tr`Confirm failed: ${ph({ reason: shownError(err) })}` });
     }
   };
 
@@ -777,8 +792,8 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
       <button key={`c:${c.board_id}:${c.card_id}`}
               className={`tag-detail-card-preview ${isVisualKind ? 'is-visual' : ''} ${richPreview ? 'has-rich' : ''}`}
               title={c.kind === 'image' && c.meta?.src
-                ? 'Click to preview · right-click for actions'
-                : 'Click to open · right-click for actions'}
+                ? tr`Click to preview · right-click for actions`
+                : tr`Click to open · right-click for actions`}
               onClick={onPreviewClick}
               onContextMenu={(e) => openMenu(e, menuTarget)}
               data-tag-item={JSON.stringify(menuTarget)}>
@@ -792,7 +807,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
           <span className="tag-detail-card-preview-text">
             {excerpt || (isVisualKind
               ? null
-              : <span className="tag-detail-card-preview-empty">empty {c.kind}</span>)}
+              : <span className="tag-detail-card-preview-empty">{emptyKindLabel(c.kind)}</span>)}
           </span>
           {directSource && directSource !== 'user' && (
             <span className="tag-detail-card-preview-badge">{directSource}</span>
@@ -823,11 +838,11 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
         <div className="tag-detail-block-head">
           <Icon as={LayoutGrid} size={12} />
           <button className="tag-detail-block-title-link"
-                  title="Click to open the parent cluster · right-click for actions"
+                  title={tr`Click to open the parent cluster · right-click for actions`}
                   onClick={() => navigate(navTarget)}
                   onContextMenu={(e) => openMenu(e, menuTarget)}
               data-tag-item={JSON.stringify(menuTarget)}>
-            {g.title || 'Group'}
+            {g.title || tr`Group`}
           </button>
           {opts.boardCrumb && g.board_name && (
             <span className="tag-detail-block-crumb">{g.board_name}</span>
@@ -848,8 +863,8 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
           // show the real count + a way in, not a dead "no cards" line.
           <button className="tag-detail-block-peek"
                   onClick={() => navigate(navTarget)}
-                  title="Open the cluster to view its cards">
-            {g.member_count} {g.member_count === 1 ? 'item' : 'items'} · open the cluster to view
+                  title={tr`Open the cluster to view its cards`}>
+            {tr`${plural(g.member_count, { one: '# item', other: '# items' })} · open the cluster to view`}
           </button>
         ) : null /* genuinely-empty name-match auto-tag → just its title row */}
       </div>
@@ -875,11 +890,11 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
         <div className="tag-detail-block-head is-board">
           <Icon as={LayoutGrid} size={13} />
           <button className="tag-detail-block-title-link"
-                  title="Click to open · right-click for actions"
+                  title={tr`Click to open · right-click for actions`}
                   onClick={() => navigate(navTarget)}
                   onContextMenu={(e) => openMenu(e, menuTarget)}
               data-tag-item={JSON.stringify(menuTarget)}>
-            {b.title || 'Board'}
+            {b.title || tr`Board`}
           </button>
           {sourceBadge && (
             <span className={`tag-detail-block-attr is-${sourceBadge}`}>{sourceBadge}</span>
@@ -1010,6 +1025,32 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
     const def = getKind(k);
     return def?.label || k;
   };
+  // The label with the old trailing "s" written out as its own message per kind.
+  const typeLabelPlural = (k) => {
+    switch (k) {
+      case 'image': return tr`Images`;
+      case 'palette': return tr`Palettes`;
+      case 'note': return tr`Notes`;
+      case 'card': return tr`Cards`;
+      case 'doc': return tr`Docs`;
+      case 'link': return tr`Link cards`;
+      case 'schedule': return tr`Schedules`;
+      default: return `${typeLabel(k)}s`;
+    }
+  };
+  // "No images tagged." etc., one whole message per type; the old built-up one stays as the fallback.
+  const noneTaggedLabel = (k) => {
+    switch (k) {
+      case 'image': return tr`No images tagged.`;
+      case 'palette': return tr`No palettes tagged.`;
+      case 'note': return tr`No notes tagged.`;
+      case 'card': return tr`No cards tagged.`;
+      case 'doc': return tr`No docs tagged.`;
+      case 'link': return tr`No link cards tagged.`;
+      case 'schedule': return tr`No schedules tagged.`;
+      default: return tr`No ${ph({ lowerCase: typeLabel(k).toLowerCase() })}s tagged.`;
+    }
+  };
 
   return (
     <div className="tag-detail tag-profile">
@@ -1017,32 +1058,32 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
       <div className="tag-detail-head" style={{ '--tag-color': dot }}>
         <span className="tag-detail-dot" style={{ background: dot }} />
         <h1 className="tag-detail-name">{tag.name}</h1>
-        <div className="tag-profile-typeswitch" role="group" aria-label="Entity type">
+        <div className="tag-profile-typeswitch" role="group" aria-label={tr`Entity type`}>
           {ENTITY_TYPES.map(t => (
             <button key={t.value}
                     className={`tag-profile-type-chip ${entityType === t.value ? 'is-on' : ''}`}
                     onClick={() => changeType(t.value)}
-                    title={entityType === t.value ? `Clear ${t.label}` : `Mark as ${t.label}`}>
+                    title={entityType === t.value ? tr`Clear ${ph({ label: t.label })}` : tr`Mark as ${ph({ label: t.label })}`}>
               <Icon as={t.Icon} size={12} />
               <span>{t.label}</span>
             </button>
           ))}
         </div>
         <span className="tag-detail-count"
-              title="Tagged: the things carrying this tag, as the sidebar counts them. Inside: what's in the tagged clusters and groups.">
-          {taggedCount} tagged{insideCount > 0 ? ` · ${insideCount} inside` : ''}
+              title={tr`Tagged: the things carrying this tag, as the sidebar counts them. Inside: what's in the tagged clusters and groups.`}>
+          {insideCount > 0 ? tr`${taggedCount} tagged · ${insideCount} inside` : tr`${taggedCount} tagged`}
         </span>
         <span className="tag-detail-spacer" />
         <button className={`tag-detail-manage-btn ${manageOpen ? 'is-on' : ''}`}
                 onClick={() => setManageOpen(o => !o)}
-                title="Source filter and pending suggestions">
-          Manage
+                title={tr`Source filter and pending suggestions`}>
+          <Trans>Manage</Trans>
           {pendingSuggestions.length > 0 && (
             <span className="tag-detail-manage-badge">{pendingSuggestions.length}</span>
           )}
         </button>
         {onClose && (
-          <button className="tag-detail-close" onClick={onClose} aria-label="Close">×</button>
+          <button className="tag-detail-close" onClick={onClose} aria-label={tr`Close`}>×</button>
         )}
       </div>
 
@@ -1055,7 +1096,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
               <div className="tag-profile-images">
                 {vis.images.slice(0, 8).map((im, i) => (
                   <button key={i} className="tag-profile-thumb"
-                          title={im.title || 'Image'}
+                          title={im.title || tr`Image`}
                           onClick={() => navigate({
                             kind: 'image',
                             id: `${im.navTarget?.boardId}:${im.navTarget?.cardId}`,
@@ -1073,7 +1114,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
                     .map(c => (typeof c === 'string' ? c : c?.hex))
                     .filter(Boolean).slice(0, 12);
                   return (
-                    <span key={i} className="tag-profile-palette" title={p.title || 'Palette'}>
+                    <span key={i} className="tag-profile-palette" title={p.title || tr`Palette`}>
                       {colors.map((c, j) => <span key={j} style={{ background: c }} />)}
                     </span>
                   );
@@ -1092,15 +1133,15 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
             <div className="tag-detail-filter">
               <button className={`tag-detail-filter-pill ${sourceFilter === 'all' ? 'is-on' : ''}`}
                       onClick={() => setFilter('all')}>
-                All <span className="tag-detail-filter-count">{counts.all}</span>
+                <Trans>All</Trans> <span className="tag-detail-filter-count">{counts.all}</span>
               </button>
               <button className={`tag-detail-filter-pill ${sourceFilter === 'user' ? 'is-on' : ''}`}
                       onClick={() => setFilter('user')}>
-                Manual <span className="tag-detail-filter-count">{counts.user}</span>
+                <Trans>Manual</Trans> <span className="tag-detail-filter-count">{counts.user}</span>
               </button>
               <button className={`tag-detail-filter-pill ${sourceFilter === 'auto' ? 'is-on' : ''}`}
                       onClick={() => setFilter('auto')}>
-                Auto <span className="tag-detail-filter-count">{counts.auto}</span>
+                <Trans>Auto</Trans> <span className="tag-detail-filter-count">{counts.auto}</span>
               </button>
             </div>
           )}
@@ -1108,7 +1149,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
             <div className="tag-profile-suggest">
               <div className="tag-detail-block-head">
                 <Icon as={FileText} size={12} />
-                <span className="tag-detail-block-title">Pending suggestions</span>
+                <span className="tag-detail-block-title"><Trans>Pending suggestions</Trans></span>
                 <span className="tag-detail-block-attr is-count">{pendingSuggestions.length}</span>
               </div>
               <div className="tag-detail-suggestions">
@@ -1125,17 +1166,17 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
                   return (
                     <div key={`sug:${s.source_kind}:${s.source_id}`} className="tag-detail-suggestion-row">
                       <button className="tag-detail-suggestion-preview"
-                              title={navTarget ? 'Click to open' : ''}
+                              title={navTarget ? tr`Click to open` : ''}
                               onClick={navTarget ? () => navigate(navTarget) : undefined}>
                         <Icon as={Icn} size={12} />
                         <span className="tag-detail-suggestion-title">{titleText}</span>
-                        <span className="tag-detail-suggestion-score">{distPct}% match</span>
+                        <span className="tag-detail-suggestion-score"><Trans>{distPct}% match</Trans></span>
                       </button>
                       <div className="tag-detail-suggestion-actions">
                         <button className="tag-detail-suggestion-accept"
-                                onClick={() => acceptSuggestion(s)} title="Apply this tag">Accept</button>
+                                onClick={() => acceptSuggestion(s)} title={tr`Apply this tag`}><Trans>Accept</Trans></button>
                         <button className="tag-detail-suggestion-dismiss"
-                                onClick={() => dismissSuggestion(s)} title="Don't suggest this again">Dismiss</button>
+                                onClick={() => dismissSuggestion(s)} title={tr`Don't suggest this again`}><Trans>Dismiss</Trans></button>
                       </div>
                     </div>
                   );
@@ -1144,7 +1185,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
             </div>
           )}
           {rows.length === 0 && pendingSuggestions.length === 0 && (
-            <div className="tag-profile-manage-empty">Nothing to manage.</div>
+            <div className="tag-profile-manage-empty"><Trans>Nothing to manage.</Trans></div>
           )}
         </div>
       )}
@@ -1154,7 +1195,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
         <div className="tag-detail-filter tag-detail-filter-type">
           <button className={`tag-detail-filter-pill ${activeType === 'all' ? 'is-on' : ''}`}
                   onClick={() => setTypeFilterPersist('all')}>
-            All types <span className="tag-detail-filter-count">{allCardsFlat.length}</span>
+            <Trans>All types</Trans> <span className="tag-detail-filter-count">{allCardsFlat.length}</span>
           </button>
           {TYPE_PILL_ORDER.filter(k => typeCounts.get(k)).map(k => {
             const def = getKind(k);
@@ -1183,12 +1224,12 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
              e.preventDefault();
              e.stopPropagation();
            }}>
-        {loading && <div className="tag-detail-empty">Looking up…</div>}
+        {loading && <div className="tag-detail-empty"><Trans>Looking up…</Trans></div>}
         {!loading && rows.length === 0 && (
           <div className="tag-detail-empty">
-            Nothing connected to <strong>{tag.name}</strong> yet.
+            <Trans>Nothing connected to <strong>{ph({ name: tag.name })}</strong> yet.</Trans>
             <div className="tag-detail-empty-hint">
-              Right-click a card and choose Tag…, or drag this tag onto something.
+              <Trans>Right-click a card and choose Tag…, or drag this tag onto something.</Trans>
             </div>
           </div>
         )}
@@ -1198,24 +1239,24 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
         {!loading && rows.length > 0 && sourceFilter !== 'all' && !manageOpen && filteredRows.length > 0 && (
           <div className="tag-detail-filter">
             <button className="tag-detail-filter-pill is-on"
-                    title="Show auto-applied and manual items"
+                    title={tr`Show auto-applied and manual items`}
                     onClick={() => setFilter('all')}>
-              {sourceFilter === 'auto' ? 'Auto-applied only' : 'Manual only'} <span aria-hidden="true">×</span>
+              {sourceFilter === 'auto' ? tr`Auto-applied only` : tr`Manual only`} <span aria-hidden="true">×</span>
             </button>
           </div>
         )}
         {!loading && rows.length > 0 && filteredRows.length === 0 && (
           <div className="tag-detail-empty">
-            No {sourceFilter === 'auto' ? 'auto-applied' : 'manually applied'} items.
+            {sourceFilter === 'auto' ? tr`No auto-applied items.` : tr`No manually applied items.`}
             <div className="tag-detail-empty-hint">
               <button className="tag-detail-filter-pill" onClick={() => setFilter('all')}>
-                Show all {rows.length}
+                <Trans>Show all {ph({ count: rows.length })}</Trans>
               </button>
             </div>
           </div>
         )}
         {!loading && filteredRows.length > 0 && (
-          <div className="tag-profile-section-head">Everything connected</div>
+          <div className="tag-profile-section-head"><Trans>Everything connected</Trans></div>
         )}
 
         {activeType === 'all' ? (
@@ -1227,7 +1268,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
               <div className="tag-detail-loose-cards">
                 <div className="tag-detail-block-head">
                   <Icon as={StickyNote} size={12} />
-                  <span className="tag-detail-block-title">Other items</span>
+                  <span className="tag-detail-block-title"><Trans>Other items</Trans></span>
                   <span className="tag-detail-block-attr is-count">{orphanCards.length}</span>
                 </div>
                 <div className="tag-detail-card-grid">
@@ -1250,7 +1291,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
               <div className="tag-detail-block-head">
                 <Icon as={getKind(activeType)?.icon || StickyNote} size={12} />
                 <span className="tag-detail-block-title">
-                  {typeLabel(activeType)}{typedFlat.length === 1 ? '' : 's'}
+                  {typedFlat.length === 1 ? typeLabel(activeType) : typeLabelPlural(activeType)}
                 </span>
                 <span className="tag-detail-block-attr is-count">{typedFlat.length}</span>
               </div>
@@ -1260,14 +1301,14 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
             </div>
           ) : (
             <div className="tag-detail-empty">
-              No {typeLabel(activeType).toLowerCase()}s tagged.
+              {noneTaggedLabel(activeType)}
             </div>
           )
         )}
 
         {mentionsShown.length > 0 && (
           <div className="tag-detail-mentions">
-            <div className="tag-profile-section-head">Appears in</div>
+            <div className="tag-profile-section-head"><Trans>Appears in</Trans></div>
             <div className="tag-detail-mention-list">
               {mentionsShown.map(m => {
                 // 'docPos': App routes it through the entity navigator, which
@@ -1277,12 +1318,12 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
                 const navTarget = m.kind === 'doc'
                   ? { kind: 'docPos', id: m.doc_card_id, board_id: m.board_id, card_id: m.doc_card_id, page_id: m.page_id }
                   : null;
-                const title = m.page_title || m.doc_title || 'Untitled';
+                const title = m.page_title || m.doc_title || tr`Untitled`;
                 return (
                   <button key={`mention:${m.doc_card_id}:${m.page_id || ''}`}
                           className="tag-detail-mention-row"
                           onClick={() => navTarget && navigate(navTarget)}
-                          title={navTarget ? 'Open page' : ''}>
+                          title={navTarget ? tr`Open page` : ''}>
                     <span className="tag-detail-mention-head">
                       <Icon as={FileText} size={11} />
                       <span className="tag-detail-mention-title" dir="auto">{title}</span>
@@ -1302,7 +1343,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
 
         {related.length > 0 && (
           <div className="tag-detail-related">
-            <div className="tag-profile-section-head">Related</div>
+            <div className="tag-profile-section-head"><Trans>Related</Trans></div>
             <div className="tag-profile-related-list">
               {related.map(r => {
                 const rdot = resolveTagColor(r);
@@ -1310,7 +1351,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
                   <button key={r.tag_id}
                           className="tag-profile-related-row"
                           style={{ '--tag-color': rdot }}
-                          title={`Open ${r.name}`}
+                          title={tr`Open ${ph({ name: r.name })}`}
                           onClick={() => document.dispatchEvent(
                             new CustomEvent('soleil-open-tag', { detail: { tagId: r.tag_id } }))}>
                     <span className="tag-profile-related-dot" style={{ background: rdot }} />
@@ -1319,7 +1360,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
                       <span className="tag-pop-type">{entityTypeLabel(r.entity_type)}</span>
                     )}
                     <span className="tag-profile-related-shared">
-                      {r.shared} {r.shared === 1 ? 'board' : 'boards'}
+                      {tr`${plural(r.shared, { one: '# board', other: '# boards' })}`}
                     </span>
                   </button>
                 );
@@ -1336,7 +1377,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
         const pic = visual ? (getKind(r.kind)?.previewMini?.(r) || null) : null;
         return (
           <TagActionSheet
-            title={itemSheet.title || 'Item'}
+            title={itemSheet.title || tr`Item`}
             lead={(
               <span className={`tag-sheet-thumb${pic ? ' has-pic' : ''}`}>
                 {pic || <Icon as={kindIcon(itemSheet.kind)} size={18} />}
@@ -1349,13 +1390,13 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
                   <span className="card-tag-chip-dot" />
                   <span className="card-tag-chip-name" dir="auto">{tag.name}</span>
                 </span>
-                {auto && 'added automatically'}
+                {auto && tr`added automatically`}
               </>
             )}
             onClose={() => setItemSheet(null)}
             actions={[
-              auto ? { id: 'confirm', label: 'Confirm tag', run: () => confirmTag(itemSheet) } : null,
-              itemSheet.source ? { id: 'remove', label: 'Remove tag', run: () => removeTag(itemSheet) } : null,
+              auto ? { id: 'confirm', label: tr`Confirm tag`, run: () => confirmTag(itemSheet) } : null,
+              itemSheet.source ? { id: 'remove', label: tr`Remove tag`, run: () => removeTag(itemSheet) } : null,
             ]}
           />
         );
@@ -1367,7 +1408,7 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
              onMouseDown={(e) => e.stopPropagation()}>
           <button className="tag-detail-menu-item" role="menuitem"
                   onClick={() => { const m = menu; setMenu(null); openItem(m); }}>
-            Open
+            <Trans>Open</Trans>
           </button>
           {/* Info (lib/infoBus.js): the live card when its cluster is open in
               a pane, else what the tag index knows about it. */}
@@ -1378,24 +1419,24 @@ function TagDetailViewBody({ tag, workspaceId, userId, onOpenItem, onClose }) {
                     else if (m.kind === 'group') openInfo({ boardId: m.boardId, groupId: m.id });
                     else openInfo({ boardId: m.boardId, cardIds: [m.id], cards: [{ id: m.id, kind: m.kind, title: m.title || undefined }] });
                   }}>
-            Info
+            <Trans>Info</Trans>
           </button>
           {menu.source && menu.source !== 'user' && (
             <button className="tag-detail-menu-item" role="menuitem"
                     onClick={() => { const m = menu; setMenu(null); confirmTag(m); }}>
-              Confirm tag
+              <Trans>Confirm tag</Trans>
             </button>
           )}
           {menu.source && (
             <button className="tag-detail-menu-item" role="menuitem"
-                    title="Removes this tag and won't auto-apply it here again. Drag it back to undo."
+                    title={tr`Removes this tag and won't auto-apply it here again. Drag it back to undo.`}
                     onClick={() => { const m = menu; setMenu(null); removeTag(m); }}>
-              Remove tag
+              <Trans>Remove tag</Trans>
             </button>
           )}
           {!menu.source && (
             <span className="tag-detail-menu-hint">
-              This card isn't tagged directly — it shows here because its board/group is.
+              <Trans>This card isn't tagged directly — it shows here because its board/group is.</Trans>
             </span>
           )}
         </div>

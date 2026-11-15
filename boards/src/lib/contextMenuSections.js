@@ -12,11 +12,13 @@
 //   - a header-less, non-first bucket is separated by a plain {divider}
 // Handlers/labels/submenus are untouched — this only orders + separates them.
 
+import { t } from '@lingui/core/macro';
+
 export const SECTION = {
-  EDIT: 'EDIT',
-  ANNOTATE: 'ANNOTATE',
-  ARRANGE: 'ARRANGE',
-  CLIPBOARD: 'CLIPBOARD',
+  get EDIT() { return t`EDIT`; },
+  get ANNOTATE() { return t`ANNOTATE`; },
+  get ARRANGE() { return t`ARRANGE`; },
+  get CLIPBOARD() { return t`CLIPBOARD`; },
 };
 
 // sections: ordered array of { header?: string, items: any[] }.

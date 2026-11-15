@@ -15,6 +15,7 @@
 // parseScriptText is the ONE parse path: DocExportMenu's own import uses it
 // too, so a dropped script and an imported one can never come out different.
 
+import { t } from '@lingui/core/macro';
 import { parseFountainTitlePage, fountainToBlocks, fdxToBlocks, fdxToTitlePage, blocksToDocJSON } from './screenplayIO.js';
 
 export const SCRIPT_FILE_RE = /\.(fountain|fdx)$/i;
@@ -41,7 +42,7 @@ export function parseScriptText(text, name = '') {
     format: isFdx ? 'fdx' : 'fountain',
     blocks: Array.isArray(blocks) ? blocks : [],
     titlePage: titlePage || null,
-    title: (fromTitlePage || base || 'Untitled script').slice(0, 120),
+    title: (fromTitlePage || base || t({ message: 'Untitled script', context: 'default name' })).slice(0, 120),
   };
 }
 

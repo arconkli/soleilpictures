@@ -28,6 +28,10 @@
 //   invited: { role: 'editor' | 'viewer', sentAt } | null }
 // Request = { id, personId, name, workspace, color }
 //
+// The sentences this page says (role names, "Sent 5 min ago", "Approving adds a seat…")
+// are in teamModelWords.js, read through Lingui: this file is also read by the
+// Worker, so it keeps the rules, the ids and the numbers.
+//
 // Prices here are the owner's decisions of 2026-10-20 and drive the preview
 // only. S3 makes Stripe's Team prices the source and moves the claim into
 // billingCopy.js, which names the code enforcing every price.
@@ -48,10 +52,6 @@ export const SEAT_PERK_STORAGE = 50e9;
 
 const DAY = 864e5;
 const PERIOD_MS = { month: 30 * DAY, year: 365 * DAY };
-
-export const ROLE_LABEL = Object.freeze({
-  owner: 'Owner', admin: 'Admin', member: 'Member', guest: 'Guest', viewer: 'Viewer',
-});
 
 // ── Who may do what ─────────────────────────────────────────────────────
 // The owner: everything. Admins: people, seats, joining and the when-full
@@ -135,42 +135,6 @@ export function filterPeople(people, { query = '', show = 'all', fold = (s) => S
   return { rows, viewersFolded };
 }
 
-export function whereLabel(p) {
-  return p.everywhere ? 'Everywhere' : p.where.join(', ');
-}
-
-export function lastHereLabel(p, now = Date.now()) {
-  if (p.invited) return `Sent ${agoLabel(p.invited.sentAt, now).toLowerCase()}`;
-  if (p.online) return 'Here now';
-  if (!p.lastSeenAt) return '';
-  return agoLabel(p.lastSeenAt, now);
-}
-
-function agoLabel(at, now) {
-  const mins = (now - at) / 60000;
-  if (mins < 60) return `${Math.max(1, Math.round(mins))} min ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 6) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
-  const midnight = new Date(now);
-  midnight.setHours(0, 0, 0, 0);
-  const start = midnight.getTime();
-  if (at >= start) return 'Today';
-  if (at >= start - DAY) return 'Yesterday';
-  const days = Math.floor((start - at) / DAY) + 1;
-  if (days < 7) return `${days} days ago`;
-  if (days < 14) return 'Last week';
-  if (days < 60) return `${Math.floor(days / 7)} weeks ago`;
-  return 'A while ago';
-}
-
-// "Alex and Ben", "Alex, Ben and Mia": the owner and admins by first name,
-// for the line a member reads under the list.
-export function adminNames(team) {
-  const names = team.admins.map((a) => a.name.split(' ')[0]);
-  if (names.length <= 1) return names.join('');
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
-}
-
 // ── Money and sizes ─────────────────────────────────────────────────────
 export function money(n) {
   const cents = Math.round(n * 100);
@@ -191,27 +155,10 @@ export function seatPrice(plan) {
   return TEAM_SEAT_PRICE[plan.interval];
 }
 
-export function seatPriceLabel(plan) {
-  return `${money(seatPrice(plan))} a ${plan.interval}`;
-}
-
 // What one seat costs today: the rest of the period, prorated by the day.
 export function proratedToday(plan, now = Date.now()) {
   const left = Math.max(0, Math.min(PERIOD_MS[plan.interval], plan.renewsAt - now));
   return Math.round(seatPrice(plan) * (left / PERIOD_MS[plan.interval]) * 100) / 100;
-}
-
-export function seatAddLine(plan, n = 1, now = Date.now()) {
-  const each = n === 1 ? '' : ' each';
-  return `${seatPriceLabel(plan)}${each}, ${money(proratedToday(plan, now) * n)} today`;
-}
-
-// The line under a join request: a free seat is used first; only when none
-// is left does approving buy one.
-export function approveLine(team, now = Date.now()) {
-  const free = seatsFree(team);
-  if (free > 0) return `Approving uses one of the ${free} free seat${free === 1 ? '' : 's'}.`;
-  return `Approving adds a seat: ${seatAddLine(team.plan, 1, now)}.`;
 }
 
 export function storageQuota(seats) {

@@ -11,6 +11,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { initialOf } from '../lib/graphemes.js';
+import { shownAuthor } from '../lib/commentAuthor.js';
+import { t as tr, plural } from '@lingui/core/macro';
 
 const MAX_AVATARS = 4;
 
@@ -26,7 +28,7 @@ function readPeers(awareness, selfId) {
     if (!u || !u.id) return;
     if (selfId && u.id === selfId) return; // you, in another tab or device
     if (!byUser.has(u.id)) {
-      byUser.set(u.id, { id: u.id, name: u.name || 'Someone', color: u.color || '#4f8df8' });
+      byUser.set(u.id, { id: u.id, name: shownAuthor(u.name) || tr`Someone`, color: u.color || '#4f8df8' });
     }
   });
   return [...byUser.values()];
@@ -70,7 +72,7 @@ export function PresenceStack({ getAwareness, selfId = null }) {
 
   const visible = peers.slice(0, MAX_AVATARS);
   const overflow = peers.length - visible.length;
-  const label = `${peers.length} other ${peers.length === 1 ? 'person' : 'people'} here`;
+  const label = plural(peers.length, { one: '# other person here', other: '# other people here' });
 
   return (
     <div className="presence-stack-wrap"
@@ -85,7 +87,7 @@ export function PresenceStack({ getAwareness, selfId = null }) {
           </span>
         ))}
         {overflow > 0 && (
-          <span className="presence-dot presence-overflow" title={`+${overflow} more`}>
+          <span className="presence-dot presence-overflow" title={tr`+${overflow} more`}>
             +{overflow}
           </span>
         )}

@@ -14,6 +14,8 @@ import {
   AlignCenter, AlignCenterVertical, AlignLeft, AlignRight, Bold, ChatCircleText, Italic, List, ListChecks, ListOrdered,
   Minus, MoreHorizontal, Plus, Strikethrough, TextAUnderline, TextTSlash, Type, Underline,
 } from '../../lib/icons.js';
+import { t, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // The note bar in the toolbar look (the owner's pick "A · Islands",
 // 2026-10-21; the toolbar canvas's A-note, A-ipad and A-phone frames), on a
@@ -44,14 +46,14 @@ import {
 const keep = (e) => e.preventDefault();
 const MENU = 'tob-menu';
 const ALIGNS = [
-  { value: 'left', label: 'Align left', icon: AlignLeft },
-  { value: 'center', label: 'Align center', icon: AlignCenter },
-  { value: 'right', label: 'Align right', icon: AlignRight },
+  { value: 'left', get label() { return t`Align left`; }, icon: AlignLeft },
+  { value: 'center', get label() { return t`Align center`; }, icon: AlignCenter },
+  { value: 'right', get label() { return t`Align right`; }, icon: AlignRight },
 ];
 const LISTS = [
-  { type: 'ul', label: 'Bulleted list', icon: List },
-  { type: 'ol', label: 'Numbered list', icon: ListOrdered },
-  { type: 'task', label: 'Checklist', icon: ListChecks },
+  { type: 'ul', get label() { return t`Bulleted list`; }, icon: List },
+  { type: 'ol', get label() { return t`Numbered list`; }, icon: ListOrdered },
+  { type: 'task', get label() { return t`Checklist`; }, icon: ListChecks },
 ];
 // The font under the caret, by its first family as the CSS names it, in a
 // name's case: the app's own face is "aileron" there.
@@ -78,10 +80,10 @@ export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, f
 
   const cell = show.cell;
   const align = cell ? (display.align || 'left') : fmt.align;
-  const fontLabel = display.fontFamily ? fontName(display.fontFamily) : 'Font';
+  const fontLabel = display.fontFamily ? fontName(display.fontFamily) : t`Font`;
   const size = display.fontSize ?? null;
   const listNow = LISTS.find((l) => l.type === fmt.listType) || null;
-  const bgLabel = cell ? 'Box background' : 'Card background';
+  const bgLabel = cell ? t`Box background` : t`Card background`;
   // No background of its own: a note shows the card's surface, a box the
   // swatch that puts it back (No background).
   const bgNow = bg || (cell ? 'transparent' : null);
@@ -91,9 +93,9 @@ export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, f
     <Btn key={cmd} icon={icon} label={name} keys={keys} toggle on={on} onMouseDown={keep} onPointerDown={keep}
          onClick={() => act.toggle(cmd, !on)} />
   );
-  const bold = fmtBtn(Bold, 'Bold', 'bold', fmt.bold, 'Mod+B');
-  const italic = fmtBtn(Italic, 'Italic', 'italic', fmt.italic, 'Mod+I');
-  const underline = fmtBtn(Underline, 'Underline', 'underline', fmt.underline, 'Mod+U');
+  const bold = fmtBtn(Bold, t`Bold`, 'bold', fmt.bold, 'Mod+B');
+  const italic = fmtBtn(Italic, t`Italic`, 'italic', fmt.italic, 'Mod+I');
+  const underline = fmtBtn(Underline, t`Underline`, 'underline', fmt.underline, 'Mod+U');
   // ⌘⇧S is the note's (Tiptap's); a box's plain text has no such key.
   const strikeKeys = cell ? undefined : 'Mod+Shift+S';
   const listBtns = LISTS.map((l) => (
@@ -104,9 +106,9 @@ export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, f
     <FontRows current={display.fontFamily} onFont={act.font} onManage={() => setFontsOpen(true)} />
   );
   const colour = (
-    <MenuButton keepFocus label="Text color" icon={TextAUnderline} className="nb-colour" side="above"
+    <MenuButton keepFocus label={t`Text color`} icon={TextAUnderline} className="nb-colour" side="above"
                 menuClassName={`${MENU} nb-colour-menu`} style={{ '--nb-ink': fore }}>
-      <ColourRows head="Text color" swatches={TEXT_COLORS} paletteColors={paletteColors} current={fore}
+      <ColourRows head={t`Text color`} swatches={TEXT_COLORS} paletteColors={paletteColors} current={fore}
                   onPick={act.color} onCustom={act.customColor} />
     </MenuButton>
   );
@@ -121,10 +123,10 @@ export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, f
     </MenuButton>
   );
   const scope = (
-    <Group key="scope" label="Style scope">
-      <Btn text="All boxes" toggle on={!cellPinned} tip="Changes apply to every box in this grid"
+    <Group key="scope" label={t`Style scope`}>
+      <Btn text={t`All boxes`} toggle on={!cellPinned} tip={t`Changes apply to every box in this grid`}
            onMouseDown={keep} onPointerDown={keep} onClick={() => act.scope('all')} />
-      <Btn text="This box" toggle on={!!cellPinned} tip="Changes apply to only this box"
+      <Btn text={t`This box`} toggle on={!!cellPinned} tip={t`Changes apply to only this box`}
            onMouseDown={keep} onPointerDown={keep} onClick={() => act.scope('box')} />
     </Group>
   );
@@ -137,7 +139,7 @@ export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, f
   if (show.typography) {
     groups.push(tight ? (
       <Group key="type">
-        <MenuButton keepFocus label={`Font: ${fontLabel}${size ? `, size ${size}` : ''}`} side="above"
+        <MenuButton keepFocus label={size ? t`Font: ${fontLabel}, size ${size}` : t`Font: ${fontLabel}`} side="above"
                     {...(compact ? { icon: Type } : { text: `${fontLabel} ${size ?? ''}`.trim(), select: true })} caret
                     className="nb-font" menuClassName={`${MENU} nb-font-pop`}>
           <SizeRow size={size} onSize={act.size} />
@@ -147,15 +149,15 @@ export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, f
       </Group>
     ) : (
       <Group key="type">
-        <MenuButton keepFocus label={`Font: ${fontLabel}`} text={fontLabel} select caret side="above"
+        <MenuButton keepFocus label={t`Font: ${fontLabel}`} text={fontLabel} select caret side="above"
                     className="nb-font" menuClassName={`${MENU} nb-font-pop`}>
           {fontRows}
         </MenuButton>
         <span className="nb-step">
-          <Btn icon={Minus} label="Decrease font size" onMouseDown={keep} onPointerDown={keep}
+          <Btn icon={Minus} label={t`Decrease font size`} onMouseDown={keep} onPointerDown={keep}
                onClick={() => act.size((size ?? 15) - 1)} />
           <SizeInput look value={size} placeholder="" presets={SIZES} className="nb-size-in" dropUp onCommit={act.size} />
-          <Btn icon={Plus} label="Increase font size" onMouseDown={keep} onPointerDown={keep}
+          <Btn icon={Plus} label={t`Increase font size`} onMouseDown={keep} onPointerDown={keep}
                onClick={() => act.size((size ?? 15) + 1)} />
         </span>
       </Group>
@@ -165,8 +167,8 @@ export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, f
     groups.push(level === 0 ? (
       <Group key="emph">
         {bold}{italic}{underline}
-        {fmtBtn(Strikethrough, 'Strikethrough', 'strikeThrough', fmt.strike, strikeKeys)}
-        <Btn icon={TextTSlash} label="Clear formatting" keys="Mod+\" onMouseDown={keep} onPointerDown={keep} onClick={act.clear} />
+        {fmtBtn(Strikethrough, t`Strikethrough`, 'strikeThrough', fmt.strike, strikeKeys)}
+        <Btn icon={TextTSlash} label={t`Clear formatting`} keys="Mod+\" onMouseDown={keep} onPointerDown={keep} onClick={act.clear} />
       </Group>
     ) : (
       <Group key="emph" style={share(3)}>{bold}{italic}{underline}</Group>
@@ -174,7 +176,7 @@ export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, f
     groups.push(
       <Group key="lists">
         {compact ? (
-          <MenuButton keepFocus label={listNow ? `Lists: ${listNow.label}` : 'Lists'} icon={listNow?.icon || List} caret
+          <MenuButton keepFocus label={listNow ? t`Lists: ${ph({ label: listNow.label })}` : t`Lists`} icon={listNow?.icon || List} caret
                       on={!!listNow} side="above" menuClassName={MENU}>
             {LISTS.map((l) => (
               <MenuItem key={l.type} icon={l.icon} label={l.label} checked={fmt.listType === l.type}
@@ -192,7 +194,7 @@ export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, f
           <Btn key={a.value} icon={a.icon} label={a.label} toggle on={align === a.value} onMouseDown={keep} onPointerDown={keep}
                onClick={() => act.align(a.value)} />
         ))}
-        <Btn icon={AlignCenterVertical} label="Center in the box" toggle on={balanced} onMouseDown={keep} onPointerDown={keep}
+        <Btn icon={AlignCenterVertical} label={t`Center in the box`} toggle on={balanced} onMouseDown={keep} onPointerDown={keep}
              onClick={act.balance} />
         {!cell && <CommentBtn />}
       </Group>,
@@ -204,20 +206,20 @@ export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, f
   if (level > 0 && writes) {
     groups.push(
       <Group key="more">
-        <MenuButton keepFocus label="More formatting" icon={MoreHorizontal} side="above" align="end"
+        <MenuButton keepFocus label={t`More formatting`} icon={MoreHorizontal} side="above" align="end"
                     menuClassName={`${MENU} nb-more`}>
           {show.emphasis && (
             <>
-              <MenuItem icon={Strikethrough} label="Strikethrough" keys={strikeKeys} checked={fmt.strike}
+              <MenuItem icon={Strikethrough} label={t`Strikethrough`} keys={strikeKeys} checked={fmt.strike}
                         onSelect={() => act.toggle('strikeThrough', !fmt.strike)} />
-              <MenuItem icon={TextTSlash} label="Clear formatting" keys="Mod+\" onSelect={act.clear} />
+              <MenuItem icon={TextTSlash} label={t`Clear formatting`} keys="Mod+\" onSelect={act.clear} />
             </>
           )}
           {show.typography && (
             <>
               {show.emphasis && <MenuSep />}
               <AlignRow align={align} onAlign={act.align} />
-              <MenuItem icon={AlignCenterVertical} label="Center in the box" checked={balanced} onSelect={act.balance} />
+              <MenuItem icon={AlignCenterVertical} label={t`Center in the box`} checked={balanced} onSelect={act.balance} />
             </>
           )}
           {!cell && <CommentRow />}
@@ -235,9 +237,9 @@ export function NoteBarA({ barRef, onKeyDown, label, text, show, fmt, display, f
           {cell && !scopeOn && (
             <>
               <MenuSep />
-              <MenuHead>Changes apply to</MenuHead>
-              <MenuItem label="All boxes" radio checked={!cellPinned} onSelect={() => act.scope('all')} />
-              <MenuItem label="This box" radio checked={!!cellPinned} onSelect={() => act.scope('box')} />
+              <MenuHead>{t`Changes apply to`}</MenuHead>
+              <MenuItem label={t`All boxes`} radio checked={!cellPinned} onSelect={() => act.scope('all')} />
+              <MenuItem label={t`This box`} radio checked={!!cellPinned} onSelect={() => act.scope('box')} />
             </>
           )}
         </MenuButton>
@@ -269,8 +271,8 @@ function CommentBtn() {
   const comment = useNoteComment();
   if (!comment) return null;
   return (
-    <Btn icon={ChatCircleText} label="Add comment" keys="Mod+Alt+M"
-         tip={comment.hasSelection ? 'Comment on the selection' : 'Select text to comment on'}
+    <Btn icon={ChatCircleText} label={t`Add comment`} keys="Mod+Alt+M"
+         tip={comment.hasSelection ? t`Comment on the selection` : t`Select text to comment on`}
          disabled={!comment.hasSelection} onMouseDown={keep} onPointerDown={keep} onClick={() => comment.open()} />
   );
 }
@@ -280,8 +282,8 @@ function CommentRow() {
   return (
     <>
       <MenuSep />
-      <MenuItem icon={ChatCircleText} label="Comment" keys="Mod+Alt+M"
-                sub={comment.hasSelection ? undefined : 'Select text to comment on'}
+      <MenuItem icon={ChatCircleText} label={t`Comment`} keys="Mod+Alt+M"
+                sub={comment.hasSelection ? undefined : t`Select text to comment on`}
                 disabled={!comment.hasSelection} onSelect={() => comment.open()} />
     </>
   );
@@ -296,13 +298,13 @@ function BgChip() {
 // and the menu stays open to see it change.
 function SizeRow({ size, onSize }) {
   return (
-    <div className="tl-mrow nb-size-row" role="group" aria-label="Font size">
-      <span className="tl-mrow-l">Size</span>
+    <div className="tl-mrow nb-size-row" role="group" aria-label={t`Font size`}>
+      <span className="tl-mrow-l"><Trans>Size</Trans></span>
       <span className="tl-seg">
-        <Btn icon={Minus} label="Decrease font size" role="menuitem" tabIndex={-1} onMouseDown={keep}
+        <Btn icon={Minus} label={t`Decrease font size`} role="menuitem" tabIndex={-1} onMouseDown={keep}
              onClick={() => onSize((size ?? 15) - 1)} />
         <span className="nb-size-val" aria-live="polite">{size ?? '–'}</span>
-        <Btn icon={Plus} label="Increase font size" role="menuitem" tabIndex={-1} onMouseDown={keep}
+        <Btn icon={Plus} label={t`Increase font size`} role="menuitem" tabIndex={-1} onMouseDown={keep}
              onClick={() => onSize((size ?? 15) + 1)} />
       </span>
     </div>
@@ -312,9 +314,9 @@ function SizeRow({ size, onSize }) {
 // The aligns as one row of ⋯, picked in place.
 function AlignRow({ align, onAlign }) {
   return (
-    <div className="tl-mrow nb-align-row" role="group" aria-label="Align">
+    <div className="tl-mrow nb-align-row" role="group" aria-label={t`Align`}>
       <span className="nb-mind" />
-      <span className="tl-mrow-l">Align</span>
+      <span className="tl-mrow-l"><Trans>Align</Trans></span>
       <span className="tl-seg">
         {ALIGNS.map((a) => (
           <Btn key={a.value} icon={a.icon} label={a.label} role="menuitemradio" aria-checked={align === a.value}
@@ -339,7 +341,7 @@ function FontRows({ current, onFont, onManage }) {
   const previewed = useRef(false);
   useLayoutEffect(() => () => { if (!picked.current && previewed.current) live.current.cancel(); }, []);
   // The font under the caret is named by its first family ("Inter").
-  const isCurrent = (f) => !!current && (f.label === current
+  const isCurrent = (f) => !!current && (f.stored === current
     || (f.css || '').split(',')[0].trim().replace(/^["']|["']$/g, '') === current);
   const row = (f, key) => (
     <MenuItem key={key} label={f.label} radio checked={isCurrent(f)} style={{ fontFamily: f.css }}
@@ -355,15 +357,15 @@ function FontRows({ current, onFont, onManage }) {
     <div className="nb-font-rows" onMouseLeave={() => { if (previewed.current) live.current.preview(null); }}>
       {recentFonts.length > 0 && (
         <>
-          <MenuHead>Recent</MenuHead>
-          {recentFonts.map((f) => row({ ...f, label: f.name }, `r:${f.css}`))}
+          <MenuHead>{t`Recent`}</MenuHead>
+          {recentFonts.map((f) => row({ ...f, label: f.name, stored: f.name }, `r:${f.css}`))}
           <MenuSep />
         </>
       )}
-      <MenuHead>Fonts</MenuHead>
+      <MenuHead>{t`Fonts`}</MenuHead>
       {allFonts.map((f) => row(f, f.key))}
       <MenuSep />
-      <MenuItem icon={Plus} label="Add a custom font…" onSelect={() => { picked.current = true; live.current.cancel(); onManage(); }} />
+      <MenuItem icon={Plus} label={t`Add a custom font…`} onSelect={() => { picked.current = true; live.current.cancel(); onManage(); }} />
     </div>
   );
 }

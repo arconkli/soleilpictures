@@ -12,6 +12,7 @@
 // same way, and the timings can be asserted without a browser.
 
 import { DEFAULT_EASE } from './captureCamera.js';
+import { t as tr } from '@lingui/core/macro';
 
 // ── Moves ──────────────────────────────────────────────────────────────────
 //
@@ -56,8 +57,8 @@ export function takeDuration(moves) {
 export const TAKES = Object.freeze([
   {
     id: 'establish',
-    label: 'Establish',
-    blurb: 'Frame everything, hold, go in on the selection, hold, come back out.',
+    get label() { return tr`Establish`; },
+    get blurb() { return tr`Frame everything, hold, go in on the selection, hold, come back out.`; },
     moves: [
       { type: 'fit', ms: 1100, ease: 'settle' },
       { type: 'hold', ms: 1100 },
@@ -69,8 +70,8 @@ export const TAKES = Object.freeze([
   },
   {
     id: 'reveal',
-    label: 'Reveal',
-    blurb: 'Open tight on the work, then pull back to show how much there is.',
+    get label() { return tr`Reveal`; },
+    get blurb() { return tr`Open tight on the work, then pull back to show how much there is.`; },
     moves: [
       { type: 'zoom', by: 2.4, ms: 0 },
       { type: 'hold', ms: 900 },
@@ -80,8 +81,8 @@ export const TAKES = Object.freeze([
   },
   {
     id: 'sweep',
-    label: 'Sweep',
-    blurb: 'Travel across the board at reading size, then settle on the whole thing.',
+    get label() { return tr`Sweep`; },
+    get blurb() { return tr`Travel across the board at reading size, then settle on the whole thing.`; },
     moves: [
       { type: 'fit', ms: 0 },
       { type: 'zoom', by: 1.9, ms: 700, ease: 'settle' },
@@ -94,8 +95,8 @@ export const TAKES = Object.freeze([
   },
   {
     id: 'drift',
-    label: 'Drift',
-    blurb: 'Barely-there ambient motion. Loops cleanly behind a title card.',
+    get label() { return tr`Drift`; },
+    get blurb() { return tr`Barely-there ambient motion. Loops cleanly behind a title card.`; },
     // The only take that does NOT end on a hold, deliberately: its pans cancel
     // out, so the last frame is the first frame and two copies butt-splice
     // invisibly. A trailing beat would put a stutter at the seam.
@@ -109,8 +110,8 @@ export const TAKES = Object.freeze([
   },
   {
     id: 'punch',
-    label: 'Punch in',
-    blurb: 'One fast move onto the selection. For a clip that has to land in three seconds.',
+    get label() { return tr`Punch in`; },
+    get blurb() { return tr`One fast move onto the selection. For a clip that has to land in three seconds.`; },
     moves: [
       { type: 'fit', ms: 0 },
       { type: 'hold', ms: 500 },

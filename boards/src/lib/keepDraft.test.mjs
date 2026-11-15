@@ -107,7 +107,9 @@ test("the sign-in words are the sign-in page's, word for word", () => {
     return src.slice(at + header.length, end)
       .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n').replace(/\s+/g, ' ').trim();
   };
-  const gate = bodyOf(read('../auth/AuthGate.jsx'), 'function humanError(e, { resent = false } = {}) {');
+  // The sign-in form shows its own sentences through shownError (the public page keeps the English).
+  const gate = bodyOf(read('../auth/AuthGate.jsx'), 'function humanError(e, { resent = false } = {}) {')
+    .replace('shownError(e, tr`Something went wrong.`)', 'e?.message || String(e || tr`Something went wrong.`)');
   const keep = bodyOf(read('./keepDraft.js'), 'export function signInWords(e, { resent = false } = {}) {');
   assert.equal(keep, gate, "AuthGate's humanError changed: say the same in keepDraft.js signInWords");
   assert.equal(signInWords({ message: 'Token has expired or is invalid' }, { resent: true }),

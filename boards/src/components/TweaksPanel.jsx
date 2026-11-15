@@ -6,6 +6,7 @@ import React from 'react';
 import { Settings } from './../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t } from '@lingui/core/macro';
 
 const __TWEAKS_STORAGE_KEY = 'soleil-boards-tweaks';
 
@@ -187,8 +188,8 @@ export function TweaksPanel({ title = 'Tweaks', children }) {
     <>
       <style>{__TWEAKS_STYLE}</style>
       {!open && (
-        <button className="twk-gear" aria-label="Open settings (⌘.)"
-                title="Settings (⌘.)"
+        <button className="twk-gear" aria-label={t`Open settings (⌘.)`}
+                title={t`Settings (⌘.)`}
                 onClick={() => setOpen(true)}>
           <Icon as={Settings} size={14} />
         </button>
@@ -198,7 +199,7 @@ export function TweaksPanel({ title = 'Tweaks', children }) {
              style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
           <div className="twk-hd" onPointerDown={onDragStart} style={{ touchAction: 'none' }}>
             <b>{title}</b>
-            <button className="twk-x" aria-label="Close tweaks"
+            <button className="twk-x" aria-label={t`Close tweaks`}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => setOpen(false)}>✕</button>
           </div>

@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  fileRefOf, isShareableCard, isRiskyFile, fileShareUrl, formatAt, groupComments, friendlyShareError,
+  fileRefOf, isShareableCard, isRiskyFile, fileShareUrl, formatAt, groupComments,
 } from './fileShares.js';
 import { FILE_SHARE_EVENT, openFileShare } from './fileShareBus.js';
+import { friendlyShareError } from './fileSharesWords.js';
 
 test('formatAt', () => {
   assert.equal(formatAt(0), '0:00');

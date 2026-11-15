@@ -15,6 +15,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { paragraphStarts } from '../lib/paragraphHash.js';
+import { t, ph } from '@lingui/core/macro';
 
 const NONE = [];
 
@@ -108,7 +109,9 @@ export function DocTagGutter({ editor, ranges, onOpen, onLeave }) {
             left: (4 - p.leftStep * 11) + 'px',
             background: p.range.tagColor,
           }}
-          title={`${p.range.tagName || 'Tag'} · ${labelForSource(p.range.source)}`}
+          title={p.range.tagName
+            ? t`${ph({ tag: p.range.tagName })} · ${ph({ source: labelForSource(p.range.source) })}`
+            : t`Tag · ${ph({ source: labelForSource(p.range.source) })}`}
           onClick={(e) => onOpen?.(e, p.range)}
           onMouseEnter={(e) => onOpen?.(e, p.range, { hover: true })}
           onMouseLeave={() => onLeave?.()}
@@ -118,12 +121,14 @@ export function DocTagGutter({ editor, ranges, onOpen, onLeave }) {
   );
 }
 
-const SOURCE_LABEL = {
-  'auto-paragraph': 'paragraph',
-  'auto-sentence':  'sentence',
-  'auto-word':      'word',
-  'auto':           'auto',
-  'auto-doc':       'page',
-  'user':           'manual',
-};
-function labelForSource(s) { return SOURCE_LABEL[s] || s || 'tag'; }
+function labelForSource(s) {
+  switch (s) {
+    case 'auto-paragraph': return t`paragraph`;
+    case 'auto-sentence': return t`sentence`;
+    case 'auto-word': return t`word`;
+    case 'auto': return t`auto`;
+    case 'auto-doc': return t`page`;
+    case 'user': return t`manual`;
+    default: return s || t`tag`;
+  }
+}

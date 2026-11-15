@@ -24,6 +24,8 @@ import { createPortal } from 'react-dom';
 import { Icon } from './Icon.jsx';
 import { ENTITY_TYPES } from '../lib/entityTypes.js';
 import { isComposingKey } from '../lib/composerKeys.js';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const PAD = 8;
 const W = 264;
@@ -88,13 +90,13 @@ export function CandidatePromptPopover({ anchor, name, count, sample, suggestedT
         <span className="cand-pop-name">{name}</span>
         {n > 0 && <span className="tag-pop-count">{n}×</span>}
       </div>
-      <div className="cand-pop-q">Make this a…</div>
+      <div className="cand-pop-q"><Trans>Make this a…</Trans></div>
       <div className="cand-pop-actions">
         {ENTITY_TYPES.map((t) => (
           <button key={t.value}
                   className={`cand-pop-btn ${t.value === suggestedType ? 'is-suggested' : ''}`}
                   disabled={busy}
-                  title={t.value === suggestedType ? `${t.label} (suggested)` : t.label}
+                  title={t.value === suggestedType ? tr`${ph({ label: t.label })} (suggested)` : t.label}
                   onClick={() => onPromote?.(t.value)}>
             <Icon as={t.Icon} size={14} /> {t.label}
           </button>
@@ -102,7 +104,7 @@ export function CandidatePromptPopover({ anchor, name, count, sample, suggestedT
       </div>
       {sample && <div className="cand-pop-sample">“…{sample}…”</div>}
       <button className="cand-pop-dismiss" disabled={busy} onClick={() => onDismiss?.()}>
-        Not a name
+        <Trans>Not a name</Trans>
       </button>
     </div>,
     document.body,

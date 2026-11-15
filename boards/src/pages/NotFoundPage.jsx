@@ -15,35 +15,37 @@ import { useEffect } from 'react';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { SoleilMark } from '../components/primitives.jsx';
 import { useLandingEngagement } from '../hooks/useLandingEngagement.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 export function NotFoundPage() {
   const lp = useLandingEngagement({ page: '/404', pageKind: 'not_found', scroll: 'none' });
-  useEffect(() => { document.title = 'Page not found — Soleil Clusters'; }, []);
+  useEffect(() => { document.title = t`Page not found — Soleil Clusters`; }, []);
   return (
     // public-dark like every page that links here: a light-OS visitor otherwise
     // fell out of the dark brand world onto a light grey 404, between a dark
     // boot splash and the dark page they came from.
     <div className="public-shell public-dark">
       <div className="public-topbar">
-        <a className="public-brand" href="/" title="Clusters home">
+        <a className="public-brand" href="/" title={t`Clusters home`}>
           <ClustersMark size={20} />
-          <span className="public-brand-name">Clusters</span>
+          <span className="public-brand-name"><Trans context="brand">Clusters</Trans></span>
         </a>
         <div className="public-topbar-spacer" />
         <div className="public-topbar-actions">
-          <a className="public-cta" href="/" {...lp.ctaProps('topbar', '/')}>Try Clusters free</a>
+          <a className="public-cta" href="/" {...lp.ctaProps('topbar', '/')}><Trans>Try Clusters free</Trans></a>
         </div>
       </div>
       <div className="public-empty">
         <SoleilMark size={36} color="var(--soleil)" glow />
-        <div className="public-empty-title">Page not found</div>
+        <div className="public-empty-title"><Trans>Page not found</Trans></div>
         <div className="public-empty-sub">
-          This page doesn’t exist — it may have moved or been unpublished.
+          <Trans>This page doesn’t exist — it may have moved or been unpublished.</Trans>
         </div>
         <div className="public-empty-actions">
-          <a className="auth-link" href="/use-cases">Use cases</a>
-          <a className="auth-link" href="/explore">Explore boards</a>
-          <a className="auth-link" href="/pricing">Pricing</a>
+          <a className="auth-link" href="/use-cases"><Trans>Use cases</Trans></a>
+          <a className="auth-link" href="/explore"><Trans>Explore boards</Trans></a>
+          <a className="auth-link" href="/pricing"><Trans>Pricing</Trans></a>
         </div>
       </div>
     </div>

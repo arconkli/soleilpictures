@@ -5,12 +5,14 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  chipLabel, chipShortLabel, chipAria, togetherTitle, rateLine, monthLine, capLine,
+  chipLabel, chipEarned, chipShortLabel, chipAria, togetherTitle, rateLine, monthLine, capLine,
   groupHint, arrivalNote,
-} from '../lib/liveTogether.js';
+} from '../lib/liveTogetherWords.js';
 import './togetherChip.css';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { initialOf } from '../lib/graphemes.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const RING = 40.84;   // 2 * PI * 6.5
 const NOTE_KEY = 'soleil:together-note-day';
@@ -141,12 +143,12 @@ export default function TogetherChip({ state, peers, selfId, compact = false, on
         </svg>
         {compact ? (earned > 0 && <span className="tg-lbl"><b>{chipShortLabel(earned)}</b></span>) : (
           <span className="tg-lbl">
-            {earned > 0 ? (<>Together<i>·</i><b>{chipLabel(earned).split('· ')[1]}</b></>) : chipLabel(earned)}
+            {earned > 0 ? (<><Trans>Together</Trans><i>·</i><b>{chipEarned(earned)}</b></>) : chipLabel(earned)}
           </span>
         )}
       </button>
       {open && pos && createPortal(
-        <div ref={popRef} id={popId} tabIndex={-1} className="presence-roster tg-pop" role="dialog" aria-label="Working together"
+        <div ref={popRef} id={popId} tabIndex={-1} className="presence-roster tg-pop" role="dialog" aria-label={t`Working together`}
              style={{ top: pos.top, left: pos.left, width: pos.width }}>
           <div className="tg-title">{togetherTitle(namesOrNone, others)}</div>
           <div className="tg-sub">{capped ? capLine(cap) : rateLine(boost)}</div>

@@ -33,11 +33,16 @@ import { b64ToBytes, readCards } from '../lib/yhelpers.js';
 // match. An untagged temp doc reports boardId:null, which heals nothing.
 import { boardDoc } from '../lib/yboard.js';
 import { useFeedback } from './AppFeedback.jsx';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
+import { formatDate } from '../lib/intlFormat.js';
+import { shownError } from '../lib/errorWords.js';
+import { REVERTIBLE_FIELDS, jsonbToPlain, changeLine, revertedText } from '../lib/versionFields.js';
 
 function fmtDate(iso) {
   if (!iso) return '';
   const d = new Date(iso);
-  return d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+  return formatDate(d, { dateStyle: 'short', timeStyle: 'short' });
 }
 
 function relTime(iso) {
@@ -45,35 +50,35 @@ function relTime(iso) {
   const t = new Date(iso).getTime();
   const diff = Date.now() - t;
   const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
+  if (s < 60) return tr`${s}s ago`;
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return tr`${m}m ago`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return tr`${h}h ago`;
   const d = Math.floor(h / 24);
-  if (d === 1) return 'yesterday';
-  if (d < 30) return `${d}d ago`;
+  if (d === 1) return tr`yesterday`;
+  if (d < 30) return tr`${d}d ago`;
   const mo = Math.floor(d / 30);
-  return `${mo}mo ago`;
+  return tr`${mo}mo ago`;
 }
 
 // Human labels for trigger_kind / label values. Anything unlisted renders
 // as-is — better an ugly chip than a hidden provenance.
 const KIND_LABEL = {
-  idle: 'auto',
-  periodic: 'auto',
-  destroy: 'on close',
-  manual: 'manual',
-  api: 'API',
-  'undo-move': 'move undo',
-  'pre-bulk-delete': 'before bulk delete',
-  'pre-paste': 'before paste',
-  'pre-drop': 'before drag',
-  'pre-drop-target': 'before receiving drop',
-  'pre-drop-source': 'before drag out',
-  'pre-board-delete': 'before cluster delete',
-  'pre-reparent': 'before move',
-  'pre-restore': 'before restore',
+  get idle() { return tr`auto`; },
+  get periodic() { return tr`auto`; },
+  get destroy() { return tr`on close`; },
+  get manual() { return tr`manual`; },
+  get api() { return tr`API`; },
+  get 'undo-move'() { return tr`move undo`; },
+  get 'pre-bulk-delete'() { return tr`before bulk delete`; },
+  get 'pre-paste'() { return tr`before paste`; },
+  get 'pre-drop'() { return tr`before drag`; },
+  get 'pre-drop-target'() { return tr`before receiving drop`; },
+  get 'pre-drop-source'() { return tr`before drag out`; },
+  get 'pre-board-delete'() { return tr`before cluster delete`; },
+  get 'pre-reparent'() { return tr`before move`; },
+  get 'pre-restore'() { return tr`before restore`; },
 };
 
 // Group consecutive rows that share a session_id so 200 checkpoints read as
@@ -173,7 +178,7 @@ export function VersionHistoryModal({
     try {
       const b64 = await loadBoardVersionDoc(row.id);
       if (stale()) return;
-      if (!b64) { setPreview({ id: row.id, error: 'Snapshot unavailable' }); return; }
+      if (!b64) { setPreview({ id: row.id, error: tr`Snapshot unavailable` }); return; }
       const tmp = boardDoc(boardId);
       Y.applyUpdate(tmp, b64ToBytes(b64));
       const cards = readCards(tmp);
@@ -192,16 +197,17 @@ export function VersionHistoryModal({
       tmp.destroy();
     } catch (e) {
       if (stale()) return;
-      setPreview({ id: row.id, error: String(e?.message || e) });
+      setPreview({ id: row.id, error: String(shownError(e)) });
     }
   };
 
   const restoreVersion = async (row) => {
     if (!canEdit) return;
+    const shownName = boardName || tr`This cluster`;
     const ok = await feedback.confirm({
-      title: 'Restore this version?',
-      message: `“${boardName || 'This cluster'}” goes back to how it was ${relTime(row.snapshot_at)} (${fmtDate(row.snapshot_at)}). The current state is snapshotted first, so this restore is itself restorable. Collaborators see the change immediately.`,
-      confirmLabel: 'Restore',
+      title: tr`Restore this version?`,
+      message: tr`“${shownName}” goes back to how it was ${ph({ when: relTime(row.snapshot_at) })} (${ph({ date: fmtDate(row.snapshot_at) })}). The current state is snapshotted first, so this restore is itself restorable. Collaborators see the change immediately.`,
+      confirmLabel: tr`Restore`,
       danger: true,
     });
     if (!ok) return;
@@ -234,11 +240,11 @@ export function VersionHistoryModal({
       const b64 = (preview?.id === row.id && preview?.b64) ? preview.b64 : await loadBoardVersionDoc(row.id);
       if (!b64) throw new Error('snapshot unavailable');
       await bulletproofRestore(boardId, b64);
-      feedback.toast({ type: 'success', message: `Restored “${boardName || 'cluster'}” to ${relTime(row.snapshot_at)}.` });
+      feedback.toast({ type: 'success', message: tr`Restored “${ph({ name: boardName || tr`cluster` })}” to ${ph({ when: relTime(row.snapshot_at) })}.` });
       onRestored?.();
       onClose?.();
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'version_restore_failed', message: 'Restore failed: ' + (e?.message || e) });
+      feedback.toast({ type: 'error', code: 'version_restore_failed', message: tr`Restore failed: ${ph({ reason: shownError(e) })}` });
     } finally {
       setBusy(false);
     }
@@ -247,28 +253,22 @@ export function VersionHistoryModal({
   // Meta revert — only fields with a sanctioned write path. Shoot-day dates
   // were revertible here too until schedules were retired (owner, 2026-10-20).
   // board_meta_history stores values as jsonb, so strings can arrive quoted;
-  // unwrap before re-writing.
-  const REVERTIBLE = new Set(['name', 'bg_color', 'cover', 'view']);
-  const jsonbToPlain = (v) => {
-    if (v == null) return null;
-    if (typeof v === 'string') return v;
-    try { return JSON.parse(JSON.stringify(v)); } catch (_) { return v; }
-  };
+  // unwrap before re-writing (and the { v } some writers wrap a value in).
   const revertMeta = async (row) => {
     if (!canEdit) return;
     setBusy(true);
     try {
       const before = jsonbToPlain(row.before_value);
       if (row.field === 'name') {
-        await renameBoard(boardId, before || 'Untitled cluster');
+        await renameBoard(boardId, before || tr({ message: 'Untitled cluster', context: 'default name' }));
       } else {
         await updateBoardMeta(boardId, { [row.field]: before ?? null });
       }
-      feedback.toast({ type: 'success', message: `Reverted ${row.field}.` });
+      feedback.toast({ type: 'success', message: revertedText(row.field) });
       onRestored?.();
       setMeta((await listBoardMetaHistory(boardId).catch(() => null)) || meta);
     } catch (e) {
-      feedback.toast({ type: 'error', code: 'version_revert_failed', message: 'Revert failed: ' + (e?.message || e) });
+      feedback.toast({ type: 'error', code: 'version_revert_failed', message: tr`Revert failed: ${ph({ reason: shownError(e) })}` });
     } finally {
       setBusy(false);
     }
@@ -278,7 +278,7 @@ export function VersionHistoryModal({
 
   const renderVersionRow = (row) => {
     const delta = deltaById.get(row.id);
-    const kind = KIND_LABEL[row.label] || KIND_LABEL[row.trigger_kind] || row.label || row.trigger_kind || 'auto';
+    const kind = KIND_LABEL[row.label] || KIND_LABEL[row.trigger_kind] || row.label || row.trigger_kind || tr`auto`;
     const isSel = selectedId === row.id;
     return (
       <div key={row.id} className={`hist-row ${isSel ? 'is-selected' : ''}`}
@@ -288,7 +288,7 @@ export function VersionHistoryModal({
           <div className="hist-when" title={fmtDate(row.snapshot_at)}>
             {relTime(row.snapshot_at)}
             {typeof row.card_count === 'number' && (
-              <span className="hist-when-meta"> · {row.card_count} card{row.card_count === 1 ? '' : 's'}</span>
+              <span className="hist-when-meta"> {plural(row.card_count, { one: '· # card', other: '· # cards' })}</span>
             )}
             {typeof delta === 'number' && delta !== 0 && (
               <span className="hist-when-meta"> ({delta > 0 ? `+${delta}` : delta})</span>
@@ -297,18 +297,18 @@ export function VersionHistoryModal({
           <div className="hist-sub">
             <span className="hist-label">{kind}</span>
             {isSel && preview?.id === row.id && !preview.error && (
-              <span> · {preview.cards} cards, {preview.arrows} arrows, {preview.strokes} drawings
+              <span> <Trans>· {ph({ cards: preview.cards })} cards, {ph({ arrows: preview.arrows })} arrows, {ph({ strokes: preview.strokes })} drawings</Trans>
                 {preview.titles.length > 0 && <> — {preview.titles.join(' · ')}</>}
               </span>
             )}
             {isSel && preview?.id === row.id && preview.error && <span> · {preview.error}</span>}
-            {isSel && preview?.id !== row.id && <span> · loading preview…</span>}
+            {isSel && preview?.id !== row.id && <span> <Trans>· loading preview…</Trans></span>}
           </div>
         </div>
         <button className="tb-btn" disabled={busy || !canEdit}
-                title={canEdit ? undefined : 'View only — ask an editor to restore'}
+                title={canEdit ? undefined : tr`View only — ask an editor to restore`}
                 onClick={(e) => { e.stopPropagation(); restoreVersion(row); }}>
-          Restore
+          <Trans>Restore</Trans>
         </button>
       </div>
     );
@@ -318,38 +318,38 @@ export function VersionHistoryModal({
     <Modal open={open} onClose={onClose} className="modal" labelledBy="verhist-title">
       <div className="modal-hd">
         <div className="modal-title" id="verhist-title">
-          Version history{boardName ? ` — ${boardName}` : ''}
+          <Trans>Version history</Trans>{boardName ? ` — ${boardName}` : ''}
         </div>
-        <button className="modal-x" onClick={onClose} aria-label="Close">✕</button>
+        <button className="modal-x" onClick={onClose} aria-label={tr`Close`}>✕</button>
       </div>
 
       <div className="modal-actions">
-        <div className="hist-tabs" role="tablist" aria-label="History">
+        <div className="hist-tabs" role="tablist" aria-label={tr`History`}>
           <button className={`tb-btn ${tab === 'versions' ? 'is-active' : ''}`} role="tab"
-                  aria-selected={tab === 'versions'} onClick={() => setTab('versions')}>Snapshots</button>
+                  aria-selected={tab === 'versions'} onClick={() => setTab('versions')}><Trans>Snapshots</Trans></button>
           <button className={`tb-btn ${tab === 'changes' ? 'is-active' : ''}`} role="tab"
-                  aria-selected={tab === 'changes'} onClick={() => setTab('changes')}>Name & appearance</button>
+                  aria-selected={tab === 'changes'} onClick={() => setTab('changes')}><Trans>Name & appearance</Trans></button>
         </div>
         <span className="modal-hint">
           {!canEdit
-            ? 'View only — you can browse and preview. Ask an editor to restore or revert.'
+            ? tr`View only — you can browse and preview. Ask an editor to restore or revert.`
             : tab === 'versions'
-            ? 'Snapshots are saved automatically while you work and before risky operations. Restoring always snapshots the current state first.'
-            : 'Rename, color, cover and view changes — each can be reverted.'}
+            ? tr`Snapshots are saved automatically while you work and before risky operations. Restoring always snapshots the current state first.`
+            : tr`Rename, color, cover and view changes — each can be reverted.`}
         </span>
       </div>
 
       <div className="modal-body">
-        {loading && <div className="modal-empty">Loading…</div>}
+        {loading && <div className="modal-empty"><Trans>Loading…</Trans></div>}
 
         {!loading && tab === 'versions' && versionsFailed && rows.length === 0 && (
           <div className="modal-empty" role="alert">
-            Couldn’t load version history{' '}
-            <button type="button" className="tb-btn tb-btn-sm" onClick={retryLoad}>Retry</button>
+            <Trans>Couldn’t load version history</Trans>{' '}
+            <button type="button" className="tb-btn tb-btn-sm" onClick={retryLoad}><Trans>Retry</Trans></button>
           </div>
         )}
         {!loading && tab === 'versions' && !versionsFailed && rows.length === 0 && (
-          <div className="modal-empty">No snapshots yet — they accumulate as you edit.</div>
+          <div className="modal-empty"><Trans>No snapshots yet — they accumulate as you edit.</Trans></div>
         )}
         {!loading && tab === 'versions' && groups.length > 0 && (
           <div className="hist-list">
@@ -363,7 +363,7 @@ export function VersionHistoryModal({
                   {rest.length > 0 && !isOpen && (
                     <button className="tb-btn tb-btn-sm" style={{ margin: '2px 0 8px 12px' }}
                             onClick={() => setExpanded(prev => new Set(prev).add(key))}>
-                      {rest.length} earlier in this session…
+                      {plural(rest.length, { one: '# earlier in this session…', other: '# earlier in this session…' })}
                     </button>
                   )}
                   {rest.length > 0 && isOpen && rest.map(renderVersionRow)}
@@ -375,12 +375,12 @@ export function VersionHistoryModal({
 
         {!loading && tab === 'changes' && metaFailed && meta.length === 0 && (
           <div className="modal-empty" role="alert">
-            Couldn’t load version history{' '}
-            <button type="button" className="tb-btn tb-btn-sm" onClick={retryLoad}>Retry</button>
+            <Trans>Couldn’t load version history</Trans>{' '}
+            <button type="button" className="tb-btn tb-btn-sm" onClick={retryLoad}><Trans>Retry</Trans></button>
           </div>
         )}
         {!loading && tab === 'changes' && !metaFailed && meta.length === 0 && (
-          <div className="modal-empty">No name or appearance changes recorded.</div>
+          <div className="modal-empty"><Trans>No name or appearance changes recorded.</Trans></div>
         )}
         {!loading && tab === 'changes' && meta.length > 0 && (
           <div className="hist-list">
@@ -388,15 +388,15 @@ export function VersionHistoryModal({
               <div key={row.id} className="hist-row">
                 <div className="hist-meta">
                   <div className="hist-when" title={fmtDate(row.changed_at)}>
-                    {row.field}: {String(row.before_value ?? '—')} → {String(row.after_value ?? '—')}
+                    {changeLine(row)}
                   </div>
                   <div className="hist-sub"><span>{relTime(row.changed_at)}</span></div>
                 </div>
-                {REVERTIBLE.has(row.field) && (
+                {REVERTIBLE_FIELDS.has(row.field) && (
                   <button className="tb-btn tb-btn-sm" disabled={busy || !canEdit}
-                          title={canEdit ? undefined : 'View only — ask an editor to revert'}
+                          title={canEdit ? undefined : tr`View only — ask an editor to revert`}
                           onClick={() => revertMeta(row)}>
-                    Revert
+                    <Trans>Revert</Trans>
                   </button>
                 )}
               </div>

@@ -5,6 +5,8 @@ import { useFeedback } from '../AppFeedback.jsx';
 import { getDocMode, setTitlePage, switchDocMode, writeScriptIntoPage } from '../../lib/docState.js';
 import { isEmptyScript, parseScriptText, scriptBody } from '../../lib/scriptImport.js';
 import { Clapperboard, DownloadSimple } from '../../lib/icons.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // An empty doc's other ways in (the owner's pick of 2026-10-21, mockup
 // S-open): under its "Start writing…", "Or start from" A screenplay and
@@ -31,11 +33,11 @@ export function DocStarters({ editor, paperRef, ydoc, scope, pageId, onScreenpla
       let parsed;
       try { parsed = parseScriptText(await f.text(), f.name); } catch (err) {
         console.error('[import] screenplay parse failed', err);
-        feedback.toast({ type: 'error', code: 'screenplay_read_failed', message: 'Couldn’t read that file — it doesn’t look like Fountain or Final Draft.' });
+        feedback.toast({ type: 'error', code: 'screenplay_read_failed', message: t`Couldn’t read that file — it doesn’t look like Fountain or Final Draft.` });
         return;
       }
       if (isEmptyScript(parsed)) {
-        feedback.toast({ type: 'error', code: 'import_empty', message: 'Nothing importable found in that file.' });
+        feedback.toast({ type: 'error', code: 'import_empty', message: t`Nothing importable found in that file.` });
         return;
       }
       if (getDocMode(ydoc, scope) !== 'screenplay') switchDocMode(ydoc, scope, 'screenplay');
@@ -70,13 +72,13 @@ export function DocStarters({ editor, paperRef, ydoc, scope, pageId, onScreenpla
   }, [empty, editor, paperRef]);
   if (!empty || !at) return null;
   return (
-    <div className="dl-starters" role="group" aria-label="Or start from" style={{ top: at.top, left: at.left }}>
-      <span aria-hidden="true">Or start from</span>
+    <div className="dl-starters" role="group" aria-label={t`Or start from`} style={{ top: at.top, left: at.left }}>
+      <span aria-hidden="true"><Trans>Or start from</Trans></span>
       <button type="button" className="dl-starter" onMouseDown={keep} onClick={onScreenplay}>
-        <Icon as={Clapperboard} size={16} />A screenplay
+        <Icon as={Clapperboard} size={16} /><Trans>A screenplay</Trans>
       </button>
       <button type="button" className="dl-starter" onMouseDown={keep} onClick={importScript}>
-        <Icon as={DownloadSimple} size={16} />Import a script
+        <Icon as={DownloadSimple} size={16} /><Trans>Import a script</Trans>
       </button>
     </div>
   );

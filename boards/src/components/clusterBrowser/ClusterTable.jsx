@@ -3,6 +3,9 @@ import { ClusterRow } from './ClusterRow.jsx';
 import { CardPreview } from './CardPreview.jsx';
 import { Icon } from '../Icon.jsx';
 import { ChevronRight } from '../../lib/icons.js';
+import { uiLocale } from '../../lib/uiLocale.js';
+import { t, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Dense sortable table. The single Date column shows "Modified" (updatedAt) by
 // default; when the active sort is 'created' it flips to "Added" (createdAt).
@@ -48,8 +51,8 @@ export function ClusterTable({
   // Where the sorted column is folded away (a phone, a narrow pane), the Name
   // header says what the list is sorted by — otherwise nothing on screen
   // does. Always in the DOM; CSS shows it at the widths that hide that column.
-  const sortNote = SORT_NOTE[sortKey]
-    ? <span className="ct-th-sortnote" data-col={sortKey}>· {SORT_NOTE[sortKey]} {sortDir === 'asc' ? '↑' : '↓'}</span>
+  const sortNote = sortNoteOf(sortKey)
+    ? <span className="ct-th-sortnote" data-col={sortKey}>· {sortNoteOf(sortKey)} {sortDir === 'asc' ? '↑' : '↓'}</span>
     : null;
 
   // Every row in screen order: a family's header, then its members when open.
@@ -156,25 +159,25 @@ export function ClusterTable({
     />
   ));
   return (
-    <div className={`ct-table${virtual ? ' is-windowed' : ''}${classic ? ' is-classic' : ''}${bare ? ' is-bare' : ''}`} role="table" aria-label="Files" aria-rowcount={virtual ? rows.length + firstRowIndex - 1 : undefined}
+    <div className={`ct-table${virtual ? ' is-windowed' : ''}${classic ? ' is-classic' : ''}${bare ? ' is-bare' : ''}`} role="table" aria-label={t`Files`} aria-rowcount={virtual ? rows.length + firstRowIndex - 1 : undefined}
          data-cols={audioMode ? 'audio' : undefined}>
       {!bare && (
         <div className="ct-head" role="row" aria-rowindex={virtual ? 1 : undefined}>
-          {th('ct-c-name', 'name', 'Name', sortNote)}
+          {th('ct-c-name', 'name', t`Name`, sortNote)}
           {audioMode ? (
             <>
-              {th('ct-c-dur', 'duration', 'Time')}
-              {th('ct-c-bpm', 'bpm', 'BPM')}
-              {th('ct-c-key', 'key', 'Key')}
-              {th('ct-c-fmt', 'format', 'Format')}
+              {th('ct-c-dur', 'duration', t`Time`)}
+              {th('ct-c-bpm', 'bpm', t`BPM`)}
+              {th('ct-c-key', 'key', t`Key`)}
+              {th('ct-c-fmt', 'format', t`Format`)}
             </>
           ) : (
             <>
-              {th('ct-c-type', 'type', classic ? 'Kind' : 'Type')}
-              {th('ct-c-size', 'size', 'Size')}
+              {th('ct-c-type', 'type', classic ? t`Kind` : t`Type`)}
+              {th('ct-c-size', 'size', t`Size`)}
             </>
           )}
-          {th('ct-c-date', dateKey, dateKey === 'created' ? 'Added' : 'Modified')}
+          {th('ct-c-date', dateKey, dateKey === 'created' ? t`Added` : t`Modified`)}
           <div className="ct-th ct-c-presence" role="columnheader" />
         </div>
       )}
@@ -199,9 +202,19 @@ export function ClusterTable({
 // text, which reflowed the whole header row on every sort. aria-sort is what
 // tells a screen reader that the arrow means anything.
 // The menu's words for each sort, for the Name header's note.
-const SORT_NOTE = {
-  type: 'Type', size: 'Size', updated: 'Modified', created: 'Added',
-  duration: 'Length', bpm: 'Tempo', key: 'Key', format: 'Format',
+// A function, read at render, so each follows the person's language.
+const sortNoteOf = (key) => {
+  switch (key) {
+    case 'type': return t`Type`;
+    case 'size': return t`Size`;
+    case 'updated': return t`Modified`;
+    case 'created': return t`Added`;
+    case 'duration': return t`Length`;
+    case 'bpm': return t`Tempo`;
+    case 'key': return t`Key`;
+    case 'format': return t`Format`;
+    default: return undefined;
+  }
 };
 
 function SortTh({ cls, col, label, sortKey, sortDir, onSort, note = null }) {
@@ -214,7 +227,7 @@ function SortTh({ cls, col, label, sortKey, sortDir, onSort, note = null }) {
     <div className="ct-thw" role="columnheader" aria-sort={sorted ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
       <button
         type="button"
-        title={`Sort by ${label.toLowerCase()}`}
+        title={t`Sort by ${ph({ lowerCase: label.toLocaleLowerCase(uiLocale()) })}`}
         className={`ct-th ${cls}${sorted ? ' is-sorted' : ''}`}
         onClick={() => onSort(col)}
       >
@@ -239,7 +252,7 @@ function GroupRow({ group, expanded, selected, active, registerRow, onGroupClick
         <div className="ct-thumb"><CardPreview item={group} size="row" /></div>
         <div className="ct-name-wrap">
           <div className="ct-name" dir="auto" title={group.name}>{group.name}</div>
-          <div className="ct-sub">{group.count} grids</div>
+          <div className="ct-sub">{t`${plural(group.count, { one: '# grids', other: '# grids' })}`}</div>
         </div>
       </div>
       {audioMode ? (
@@ -247,11 +260,11 @@ function GroupRow({ group, expanded, selected, active, registerRow, onGroupClick
           <div role="cell" className="ct-cell ct-c-dur" />
           <div role="cell" className="ct-cell ct-c-bpm" />
           <div role="cell" className="ct-cell ct-c-key" />
-          <div role="cell" className="ct-cell ct-c-fmt">Grid family</div>
+          <div role="cell" className="ct-cell ct-c-fmt"><Trans>Grid family</Trans></div>
         </>
       ) : (
         <>
-          <div role="cell" className="ct-cell ct-c-type">Grid family</div>
+          <div role="cell" className="ct-cell ct-c-type"><Trans>Grid family</Trans></div>
           <div role="cell" className="ct-cell ct-c-size" />
         </>
       )}

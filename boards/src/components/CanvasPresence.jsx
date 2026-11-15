@@ -3,6 +3,7 @@ import { LiveCursor } from './primitives.jsx';
 import { PRESENCE_TUNING } from '../lib/presenceTuning.js';
 import * as perf from '../lib/perf.js';
 import { cssColor, cssString } from '../lib/presenceCss.js';
+import { shownAuthor } from '../lib/commentAuthor.js';
 
 // Identity-only fingerprint of a peer — everything the render below actually
 // draws (user, selections, marquee) but NOT cursor position or awareness
@@ -287,7 +288,7 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId, getCa
         {selectionPeers.flatMap(p => {
           if (!getCardById) return [];
           const color = p.user.color || '#5b8def';
-          const name = (p.user.name || '?').split(' ')[0];
+          const name = (shownAuthor(p.user.name) || '?').split(' ')[0];
           return (p.cardIds || []).map(id => {
             const c = getCardById(id);
             if (!c) return null;
@@ -310,7 +311,7 @@ export function CanvasPresence({ getAwareness, boardId, pan, zoom, selfId, getCa
             key={clientId}
             x={sx}
             y={sy}
-            name={(c.user.name || '?').split(' ')[0]}
+            name={(shownAuthor(c.user.name) || '?').split(' ')[0]}
             color={c.user.color || 'var(--soleil)'}
           />
         ))}

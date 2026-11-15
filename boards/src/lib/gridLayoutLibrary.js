@@ -77,6 +77,10 @@ export function rowFromRecord(rec, source) {
     // actions offer Publish or Remove based on it, never both.
     publishedSlug: rec.published_slug || null,
     slug: rec.slug || null,
+    // The record had no name and 'Untitled' stands in: the panel shows the
+    // person's own word for it (gridLayoutWords.localizeRow), the stand-in
+    // stays English here.
+    ...(rec.name ? {} : { unnamed: true }),
   });
 }
 

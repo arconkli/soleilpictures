@@ -26,6 +26,7 @@
 // painted centroid on the card center. Brittle in theory but exact in
 // practice — no math, just measure-and-correct.
 import { useEffect, useRef, useState } from 'react';
+import { Trans } from '@lingui/react/macro';
 
 export function SoleilWordmark({ size = 'display', color = 'var(--ink-0)' }) {
   const isDisplay = size === 'display';
@@ -109,7 +110,7 @@ export function SoleilWordmark({ size = 'display', color = 'var(--ink-0)' }) {
       }}
     >
       <ClustersMark size={markSize} />
-      <span ref={textRef} style={{ whiteSpace: 'nowrap', minWidth: 0 }}>Clusters</span>
+      <span ref={textRef} style={{ whiteSpace: 'nowrap', minWidth: 0 }}><Trans context="brand">Clusters</Trans></span>
     </div>
   );
 }

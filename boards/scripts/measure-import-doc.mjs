@@ -3,10 +3,11 @@
 // cards a batch at a time, /patch replaces each finished card whole
 // (scoutBoard.updateCardsOnBoard), and every call opens the whole doc first.
 // The numbers behind importPlan.CLUSTER_FILE_CEILING; re-run it when a card's
-// shape or the routes change.
+// shape or the routes change. The modules it imports are wrapped for translation,
+// and the loader compiles their macros.
 //
-//   node scripts/measure-import-doc.mjs              500 1,000 2,000 5,000
-//   node scripts/measure-import-doc.mjs 2000 20000   any sizes (20,000 takes minutes)
+//   node --import ./scripts/linguiNode.mjs scripts/measure-import-doc.mjs              500 1,000 2,000 5,000
+//   node --import ./scripts/linguiNode.mjs scripts/measure-import-doc.mjs 2000 20000   any sizes (20,000 takes minutes)
 import * as Y from 'yjs';
 import { cardToYMap, readCards, bytesToB64 } from '../src/lib/yhelpers.js';
 import { pendingCard, finishFields, spotFor } from '../src/lib/importJob.js';

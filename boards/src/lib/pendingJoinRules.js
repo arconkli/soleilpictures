@@ -4,6 +4,7 @@
 // never the entry) and tested in node.
 
 import { cleanText } from './pendingJoin.js';
+import { t } from '@lingui/core/macro';
 
 // What `run` returns when the claim could not settle for a reason that is not
 // about the link (a network error, a 5xx, 42501 while the session settles): the
@@ -54,12 +55,12 @@ export function joinFailureMessage(failure, sharer) {
   const who = cleanText(sharer, 40);
   if (failure === 'one_cluster') {
     return who
-      ? `This link can’t be joined. Ask ${who} to invite you.`
-      : 'This link can’t be joined. Ask the person who sent it to invite you.';
+      ? t`This link can’t be joined. Ask ${who} to invite you.`
+      : t`This link can’t be joined. Ask the person who sent it to invite you.`;
   }
   return who
-    ? `This link was turned off. Ask ${who} for a new one.`
-    : 'This link was turned off. Ask the person who sent it for a new one.';
+    ? t`This link was turned off. Ask ${who} for a new one.`
+    : t`This link was turned off. Ask the person who sent it for a new one.`;
 }
 
 // The toast after a claim, or null when there is nothing to say ('noop': the
@@ -67,13 +68,13 @@ export function joinFailureMessage(failure, sharer) {
 export function joinSuccessMessage(status, name) {
   const n = cleanText(name);
   if (status === 'joined') {
-    return n ? `You joined “${n}”. It stays in your sidebar.` : 'You joined the cluster. It stays in your sidebar.';
+    return n ? t`You joined “${n}”. It stays in your sidebar.` : t`You joined the cluster. It stays in your sidebar.`;
   }
   if (status === 'upgraded') {
-    return n ? `You can now edit “${n}”.` : 'You can now edit this cluster.';
+    return n ? t`You can now edit “${n}”.` : t`You can now edit this cluster.`;
   }
   if (status === 'already') {
-    return n ? `You’re already in “${n}”.` : 'You’re already in this cluster.';
+    return n ? t`You’re already in “${n}”.` : t`You’re already in this cluster.`;
   }
   return null;
 }

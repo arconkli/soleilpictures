@@ -8,6 +8,7 @@
 // note's or a doc's words.
 
 import { graphemes, dropLastGrapheme } from './graphemes.js';
+import { t } from '@lingui/core/macro';
 
 export const CARD_W = 1200;
 export const CARD_H = 630;
@@ -79,7 +80,7 @@ function ellipsize(line, fontPx, maxW, measure) {
 // The name: as big as fits in at most three lines, shrinking for long names;
 // past the smallest size the third line ends in an ellipsis.
 export function layoutName(name, measure) {
-  const text = String(name == null ? '' : name).replace(/\s+/g, ' ').trim() || 'Untitled cluster';
+  const text = String(name == null ? '' : name).replace(/\s+/g, ' ').trim() || t`Untitled cluster`;
   const maxW = NAME_BOX.w;
   // Two lines at a still-big size read better than three at the biggest.
   for (let px = FONT_MAX; px >= TWO_LINE_MIN; px -= 2) {

@@ -10,6 +10,7 @@
 
 import { boardRecency } from './projectsHome.js';
 import { searchKey } from './textFold.js';
+import { t as tr } from '@lingui/core/macro';
 
 // Sorts one parent's children in place, and returns them.
 export function sortSiblings(arr, parentId, rootId) {
@@ -53,7 +54,7 @@ export function findClusters(rows, query, byId = null) {
   const get = (id) => (index instanceof Map ? index.get(id) : index[id]) || null;
   return rows
     .map((r, i) => {
-      const name = r.board.name || 'Untitled';
+      const name = r.board.name || tr`Untitled`;
       const plain = plainText(name);
       const at = plain.indexOf(q);
       if (at < 0) return null;

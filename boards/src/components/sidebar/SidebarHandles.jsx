@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { EDGE, SIZES, arrangementOf, dragLayout, frameVars, handleList, handleSpecs, keyLayout, resetLayout, shownArrangement, sidebarFootprint } from '../../lib/sidebarLayout.js';
 import { tapIsDouble } from '../../lib/doubleTap.js';
+import { t as tt, ph } from '@lingui/core/macro';
 
 const CURSOR = { v: 'ew-resize', h: 'ns-resize', grip: 'ns-resize', corner: 'nwse-resize' };
 // A card's rounded corner, 12px, with a little of each edge (the corner sits
@@ -291,7 +292,7 @@ export function SidebarHandles({ layout, coarse = false, roomy = true, snug = tr
              aria-label={h.focus ? h.label : undefined}
              aria-hidden={h.focus ? undefined : 'true'}
              tabIndex={h.focus ? 0 : -1}
-             title={`${h.label} · double-click to put it back`}
+             title={tt`${ph({ label: h.label })} · double-click to put it back`}
              onPointerDown={(e) => onPointerDown(e, h.id, h.kind)}
              onDoubleClick={() => resetHandle(h.id)}
              onKeyDown={h.focus ? (e) => onKeyDown(e, h.id, h.kind) : undefined}>

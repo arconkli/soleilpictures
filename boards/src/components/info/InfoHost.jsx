@@ -7,6 +7,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import { toListItem } from '../../lib/listItem.js';
+import { listItemWords } from '../../lib/listItemWords.js';
 import { getMeta } from '../../lib/imageMeta.js';
 // A namespace import: production's modal guard predates registerBackLayer.
 import * as modalGuard from '../../lib/modalGuard.js';
@@ -18,6 +19,7 @@ import { getViewCenter } from '../../lib/viewCenter.js';
 import { undoToast } from '../../lib/undoToast.js';
 import { uploadContext } from '../../lib/uploadContext.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t } from '@lingui/core/macro';
 
 // The drawer's panel is its own chunk, fetched the first time Info opens: the
 // host is mounted with every app shell, the panel only when something asks.
@@ -65,7 +67,7 @@ export function resolveInfoTarget(req, { boards = {}, resolveBoard }) {
     const cid = c.kind === 'board' ? c.id : c.kind === 'boardlink' ? c.target : null;
     if (cid && boards[cid]) return clusterTarget(cid);
   }
-  const item = toListItem(cards[0], { boards, getMeta, boardId: req.boardId, gridTemplates: live?.gridTemplates || {} });
+  const item = toListItem(cards[0], { boards, getMeta, boardId: req.boardId, gridTemplates: live?.gridTemplates || {}, words: listItemWords });
   return item ? { type: 'card', item, live } : null;
 }
 
@@ -186,14 +188,14 @@ export function InfoHost({ boards = {}, resolveBoard, selfId = null, onOpenClust
     muts.updateCards?.(plan);
     const item = um?.undoStack?.length ? um.undoStack[um.undoStack.length - 1] : null;
     muts.breakUndo?.();
-    undoToast(feedback, { type: 'success', message: 'Put on the board', undoManager: um, stackItem: item, onUndo: () => muts.undo?.() });
+    undoToast(feedback, { type: 'success', message: t`Put on the board`, undoManager: um, stackItem: item, onUndo: () => muts.undo?.() });
     onReveal?.(req.boardId, [id]);
   } : null;
   const deleteCards = muts ? async (ids) => {
-    const ok = await feedback.confirm({ title: 'Delete', danger: true, confirmLabel: 'Delete', message: 'Delete this card?' });
+    const ok = await feedback.confirm({ title: t`Delete`, danger: true, confirmLabel: t`Delete`, message: t`Delete this card?` });
     if (!ok) return;
     const deleted = await muts.deleteCards?.(ids);
-    undoToast(feedback, { message: 'Card deleted', undoManager: muts.undoManager, stackItem: deleted?.stackItem || null, onUndo: () => muts.undo?.() });
+    undoToast(feedback, { message: t`Card deleted`, undoManager: muts.undoManager, stackItem: deleted?.stackItem || null, onUndo: () => muts.undo?.() });
   } : null;
   // Versions are editable where the cluster is open and you can edit it.
   const versionEnv = target.type === 'card' && live?.canEdit && live?.mutators ? {

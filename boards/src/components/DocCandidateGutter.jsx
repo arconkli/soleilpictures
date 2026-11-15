@@ -17,6 +17,7 @@
 // time re-rendered the gutter on every keystroke, suggestions or none.
 
 import { useEffect, useRef, useState } from 'react';
+import { t, ph } from '@lingui/core/macro';
 
 const NONE = [];
 const sameItems = (a, b) => a.length === b.length && a.every((it, i) => {
@@ -120,11 +121,11 @@ export function DocCandidateGutter({ editor, editable, onConfirm, onDismiss }) {
              onMouseEnter={() => hot(it.key, true)}
              onMouseLeave={() => hot(it.key, false)}>
           <span className="doc-cand-name" title={it.name}>{it.name}</span>
-          <button className="doc-cand-yes" title={`Make “${it.name}” a tag`}
+          <button className="doc-cand-yes" title={t`Make “${ph({ name: it.name })}” a tag`}
                   onClick={(e) => onConfirm?.(candFor(it), e.currentTarget.getBoundingClientRect())}>
             ✓
           </button>
-          <button className="doc-cand-no" title={`Not a tag — dismiss “${it.name}”`}
+          <button className="doc-cand-no" title={t`Not a tag — dismiss “${ph({ name: it.name })}”`}
                   onClick={() => {
                     actedRef.current.add(it.key);
                     show(itemsRef.current.filter((p) => p.key !== it.key));

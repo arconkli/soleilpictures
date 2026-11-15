@@ -18,6 +18,7 @@ import {
 import { frameCentre } from '../../lib/timecode.js';
 import { Icon } from '../Icon.jsx';
 import { Plus, Minus } from '../../lib/icons.js';
+import { t as tr } from '@lingui/core/macro';
 
 const fmtSec = (s) => {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = Math.floor(s % 60);
@@ -363,7 +364,7 @@ export const FilmTimeline = forwardRef(function FilmTimeline({
         const s = Math.round(fpsValue || 24);
         const sign = d < 0 ? '−' : '+';
         const a = Math.abs(d);
-        hoverOffRef.current.textContent = d === 0 ? 'Playhead' : `${sign}${a >= s ? `${Math.floor(a / s)}s ` : ''}${a % s}f`;
+        hoverOffRef.current.textContent = d === 0 ? tr`Playhead` : `${sign}${a >= s ? `${Math.floor(a / s)}s ` : ''}${a % s}f`;
       }
     }
     if (previewUrl) seekPreview(f);
@@ -386,7 +387,7 @@ export const FilmTimeline = forwardRef(function FilmTimeline({
   if (!full) {
     return (
       <div className={`ft ft--compact${scrubbing ? ' is-scrubbing' : ''}`}>
-        <div className="ft-track" ref={trackRef} role="slider" aria-label="Timeline"
+        <div className="ft-track" ref={trackRef} role="slider" aria-label={tr`Timeline`}
              aria-valuemin={0} aria-valuemax={Math.max(0, n - 1)} tabIndex={-1}
              onPointerDown={onPointerDown}>
           <div className="ft-rail"><div className="ft-played" ref={playedRef} /></div>
@@ -430,7 +431,7 @@ export const FilmTimeline = forwardRef(function FilmTimeline({
             </>
           )}
         </div>
-        <div className="ft-track" ref={trackRef} role="slider" aria-label="Timeline"
+        <div className="ft-track" ref={trackRef} role="slider" aria-label={tr`Timeline`}
              aria-valuemin={0} aria-valuemax={Math.max(0, n - 1)} tabIndex={-1}
              onPointerDown={onPointerDown} onPointerEnter={onEnter} onPointerMove={onMove} onPointerLeave={onLeave}>
           <div className="ft-clip">
@@ -464,7 +465,7 @@ export const FilmTimeline = forwardRef(function FilmTimeline({
                 ? { left: `${xOf(m.frame)}px`, width: `${Math.max(4, xOf(m.endFrame + 1) - xOf(m.frame))}px` }
                 : { transform: `translateX(${xOf(m.frame + 0.5)}px)` };
               return (
-                <button key={m.id} type="button" tabIndex={-1} aria-label={m.label || 'Comment'}
+                <button key={m.id} type="button" tabIndex={-1} aria-label={m.label || tr`Comment`}
                         className={`ft-marker${isRange ? ' is-range' : ''}${m.active ? ' is-active' : ''}`} style={style}
                         onPointerEnter={(e) => setMarkerCard({ m, x: e.currentTarget.getBoundingClientRect().left - trackRef.current.getBoundingClientRect().left })}
                         onPointerLeave={() => setMarkerCard(null)}
@@ -503,17 +504,17 @@ export const FilmTimeline = forwardRef(function FilmTimeline({
           )}
         </div>
       </div>
-      <div className="ft-zoom" role="group" aria-label="Timeline zoom">
-        <button type="button" className="film-btn film-btn--sm" data-tip="Zoom out" data-key="⌥−"
-                onClick={() => zoomAround(frameRef.current + 0.5, 2)} disabled={!zoomed} aria-label="Zoom the timeline out">
+      <div className="ft-zoom" role="group" aria-label={tr`Timeline zoom`}>
+        <button type="button" className="film-btn film-btn--sm" data-tip={tr`Zoom out`} data-key="⌥−"
+                onClick={() => zoomAround(frameRef.current + 0.5, 2)} disabled={!zoomed} aria-label={tr`Zoom the timeline out`}>
           <Icon as={Minus} size={14} weight="regular" />
         </button>
-        <button type="button" className="ft-zoom-chip" data-tip={zoomed ? 'Fit the whole clip' : 'Zoom to in and out'} data-key={zoomed ? '⌥0' : '⇧Z'}
+        <button type="button" className="ft-zoom-chip" data-tip={zoomed ? tr`Fit the whole clip` : tr`Zoom to in and out`} data-key={zoomed ? '⌥0' : '⇧Z'}
                 onClick={zoomed ? fit : zoomToRange}>
-          {zoomed ? `×${Math.max(1, Math.round(n / (view.viewEnd - view.viewStart)))}` : 'Fit'}
+          {zoomed ? `×${Math.max(1, Math.round(n / (view.viewEnd - view.viewStart)))}` : tr`Fit`}
         </button>
-        <button type="button" className="film-btn film-btn--sm" data-tip="Zoom in" data-key="⌥="
-                onClick={() => zoomAround(frameRef.current + 0.5, 0.5)} disabled={n <= 24 || (view.viewEnd - view.viewStart) <= 24.5} aria-label="Zoom the timeline in">
+        <button type="button" className="film-btn film-btn--sm" data-tip={tr`Zoom in`} data-key="⌥="
+                onClick={() => zoomAround(frameRef.current + 0.5, 0.5)} disabled={n <= 24 || (view.viewEnd - view.viewStart) <= 24.5} aria-label={tr`Zoom the timeline in`}>
           <Icon as={Plus} size={14} weight="regular" />
         </button>
       </div>

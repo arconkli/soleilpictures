@@ -5,6 +5,7 @@ import { useAnchoredPopover } from '../hooks/useAnchoredPopover.js';
 import { Icon } from './Icon.jsx';
 import { Check, ChevronDown } from '../lib/icons.js';
 import { tlTip } from '../lib/looks.js';
+import { t } from '@lingui/core/macro';
 
 // Compact editable font-size combobox shared by the note (NoteBarA) and doc
 // (DocBarA) bars. The user can type an EXACT px size, or pick a
@@ -33,7 +34,7 @@ import { tlTip } from '../lib/looks.js';
 //   look       — in the toolbar look (the doc look's bar, components/doc/
 //                DocBarA.jsx): Phosphor's caret, and the presets a list in the
 //                look's menu (components/toolbar/toolbar.css)
-export function SizeInput({ value = null, presets = [], onCommit, className = '', min = 6, max = 200, disabled = false, dropUp = false, look = false, placeholder = 'Size' }) {
+export function SizeInput({ value = null, presets = [], onCommit, className = '', min = 6, max = 200, disabled = false, dropUp = false, look = false, placeholder }) {
   const [draft, setDraft] = useState(() => (value ? String(value) : ''));
   const [focused, setFocused] = useState(false);
   const [open, setOpen] = useState(false);
@@ -86,10 +87,10 @@ export function SizeInput({ value = null, presets = [], onCommit, className = ''
         inputMode="numeric"
         className={`size-combo ${className}`.trim()}
         value={draft}
-        placeholder={placeholder}
-        title={look ? undefined : 'Font size — type an exact px value or pick one'}
-        {...(look ? tlTip('Font size') : null)}
-        aria-label="Font size"
+        placeholder={placeholder === undefined ? t`Size` : placeholder}
+        title={look ? undefined : t`Font size — type an exact px value or pick one`}
+        {...(look ? tlTip(t`Font size`) : null)}
+        aria-label={t`Font size`}
         disabled={disabled}
         onFocus={(e) => { setFocused(true); e.target.select(); }}
         onChange={(e) => { const v = e.target.value; if (/^\d{0,3}$/.test(v)) setDraft(v); }}
@@ -111,15 +112,15 @@ export function SizeInput({ value = null, presets = [], onCommit, className = ''
         }}
       />
       {presets.length > 0 && (
-        <button type="button" className={look ? 'size-combo-arrow tl-btn' : 'size-combo-arrow'} title={look ? undefined : 'Preset sizes'}
-                aria-label="Preset sizes" aria-expanded={open}
+        <button type="button" className={look ? 'size-combo-arrow tl-btn' : 'size-combo-arrow'} title={look ? undefined : t`Preset sizes`}
+                aria-label={t`Preset sizes`} aria-expanded={open}
                 aria-haspopup={look ? 'listbox' : undefined}
                 disabled={disabled}
                 onMouseDown={pd} onPointerDown={pd}
                 onClick={() => setOpen(o => !o)}>{look ? <Icon as={ChevronDown} size={10} className="tl-caret" /> : '▾'}</button>
       )}
       {open && typeof document !== 'undefined' && createPortal(
-        <span className={look ? 'tl-menu size-combo-tl' : 'size-combo-pop is-portaled'} role="listbox" aria-label={look ? 'Font size' : undefined}
+        <span className={look ? 'tl-menu size-combo-tl' : 'size-combo-pop is-portaled'} role="listbox" aria-label={look ? t`Font size` : undefined}
               ref={pop.popRef} style={pop.style}>
           {presets.map(s => (
             <button key={s} type="button" role="option"

@@ -9,6 +9,8 @@
 // the ones a panel needs with page.route.
 import React, { useEffect, useState } from 'react';
 import * as ReactDOM from 'react-dom/client';
+import { I18nProvider } from '@lingui/react';
+import { i18n } from '../../src/lib/i18n.js';
 
 import { FeedbackProvider, useFeedback } from '../../src/components/AppFeedback.jsx';
 import { TagDetailView } from '../../src/components/TagDetailView.jsx';
@@ -36,7 +38,7 @@ function mountInto(el, hostStyle = null) {
   if (hostStyle) Object.assign(host.style, hostStyle);
   document.body.appendChild(host);
   const root = ReactDOM.createRoot(host);
-  root.render(h(FeedbackProvider, null, h(ToastHook), el));
+  root.render(h(I18nProvider, { i18n }, h(FeedbackProvider, null, h(ToastHook), el)));
   return host;
 }
 

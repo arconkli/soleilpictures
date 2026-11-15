@@ -60,7 +60,7 @@ test('Settings > Notifications has the Invite rewards switch', () => {
 test('a live invite.reward is quiet: no toast, no browser notification', () => {
   const ret = hook.indexOf("payload.kind === 'invite.reward'");
   assert.ok(ret > 0);
-  assert.ok(ret < hook.indexOf('noticeToastText(payload)'));
+  assert.ok(ret < hook.indexOf('noticeToastText(worded(payload))'));
   assert.ok(hook.slice(ret, ret + 80).includes('return;'));
 });
 

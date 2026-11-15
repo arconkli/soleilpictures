@@ -7,6 +7,7 @@
 // nothing optimistic for capRefusal to roll back. Field for field, each kind
 // ends where the matching drop path in CanvasSurface ends.
 
+import { t } from '@lingui/core/macro';
 import { meaningfulFileName, fitImageDims } from './fileIngest.js';
 import { parseLoopMeta } from './loopMeta.js';
 
@@ -54,7 +55,7 @@ export function cardFromUpload({ id, item, up, rect }) {
     // download authority (CanvasSurface.dropAudioFile says why).
     return {
       id, kind,
-      title: file?.name || 'Audio', fileName: file?.name || null,
+      title: file?.name || t`Audio`, fileName: file?.name || null,
       mime: file?.type || null, sizeBytes: file?.size || null, ext,
       ...(up.duration ? { duration: up.duration } : {}),
       ...(up.peaks ? { peaks: up.peaks, sampleRate: up.sampleRate || null, channels: up.channels || null } : {}),
@@ -72,7 +73,7 @@ export function cardFromUpload({ id, item, up, rect }) {
   }
   return {
     id, kind: 'file',
-    fileSrc: up.src, fileName: up.fileName || file?.name || 'File',
+    fileSrc: up.src, fileName: up.fileName || file?.name || t`File`,
     mime: up.mime || file?.type || null, sizeBytes: up.sizeBytes ?? file?.size ?? null,
     ext: up.ext || ext, ...pos,
   };

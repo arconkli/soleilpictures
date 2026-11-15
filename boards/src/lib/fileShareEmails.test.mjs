@@ -29,11 +29,11 @@ test('both names are USER_TRIGGERED; file_commented is list-unsubscribable', () 
 
 test('the switch sanitises every attacker-typed field', () => {
   const sw = tpl.slice(tpl.indexOf('case "file_shared"'), tpl.indexOf('case "activate_nudge_1"'));
-  assert.match(sw, /sharerName:\s+safePerson\(data\.sharerName\)/);
+  assert.match(sw, /sharerName:\s+safePerson\(data\.sharerName, 60, s\.t\("common\.fallback_person"\)\)/);
   // The extension moves out of the name before safeLabel sees it (fileLabel).
-  assert.match(sw, /fileName:\s+doc \? safeLabel\(data\.fileName, 60, "a document"\) : fileLabel\(data\.fileName\)/);
-  assert.match(tpl, /function fileLabel\(raw: unknown\): string \{[\s\S]*?safeLabel\(m\[1\], 52, "a file"\)/);
-  assert.match(sw, /commenterName:\s+safePerson\(data\.commenterName\)/);
+  assert.match(sw, /fileName:\s+doc \? safeLabel\(data\.fileName, 60, s\.t\("common\.fallback_document"\)\) : fileLabel\(data\.fileName, s\)/);
+  assert.match(tpl, /function fileLabel\(raw: unknown, s: EmailStrings\): string \{[\s\S]*?safeLabel\(m\[1\], 52, s\.t\("common\.fallback_file"\)\)/);
+  assert.match(sw, /commenterName:\s+safePerson\(data\.commenterName, 60, s\.t\("common\.fallback_person"\)\)/);
   assert.match(sw, /commentPreview: safeLabel\(data\.commentPreview, 280\)/);
   assert.match(sw, /role:\s+data\.role === "comment" \? "comment" : data\.role === "edit" \? "edit" : "view"/);
   assert.match(sw, /kind:\s+doc \? "doc" : "file"/);
@@ -55,13 +55,28 @@ test('the link origin is production unless it is exactly the preview origin', ()
 });
 
 // 0426: the invitation names a doc and the edit role (the trigger sends both).
+// The words moved into strings/en.mjs, so this reads what the email says (the
+// rendered English) and keeps the source pins on which role picks which line.
+const { renderTemplate } = await import(new URL('_shared/email/templates.ts', root));
+const TOKEN = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
+const shared = (kind, role) => renderTemplate('file_shared', {
+  sharerName: 'Sam', fileName: 'Notes', kind, role, token: TOKEN, origin: '',
+});
+
 test('a doc is "a document" you can view, or view and edit', () => {
   const fn = tpl.slice(tpl.indexOf('function fileShared('), tpl.indexOf('interface FileCommentedData'));
-  assert.match(fn, /shared \$\{doc \? "a document" : "a file"\} with you\./);
-  assert.match(fn, /\? \(d\.role === "edit" \? "view and edit" : "view"\)/);
-  assert.match(fn, /: \(d\.role === "comment" \? "view and comment on" : "view"\);/);
-  assert.match(fn, /const open = doc \? "Open document" : "Open file";/);
-  assert.match(fn, /eyebrow: doc \? "Document shared" : "File shared",/);
+  assert.match(fn, /d\.role === "edit"\s+\? s\.t\("file_shared\.subtitle_doc_edit"[\s\S]*?: s\.t\("file_shared\.subtitle_doc_view"/);
+  assert.match(fn, /d\.role === "comment"\s+\? s\.t\("file_shared\.subtitle_file_comment"[\s\S]*?: s\.t\("file_shared\.subtitle_file_view"/);
+  const text = (m) => m.text;
+  assert.match(text(shared('doc', 'edit')), /Sam shared a document with you\.\nYou can view and edit "Notes"\./);
+  assert.match(text(shared('doc', 'view')), /You can view "Notes"\./);
+  assert.match(text(shared('file', 'comment')), /Sam shared a file with you\.\nYou can view and comment on "Notes"\./);
+  assert.match(text(shared('file', 'view')), /You can view "Notes"\./);
+  assert.match(text(shared('doc', 'edit')), /Open document: /);
+  assert.match(text(shared('file', 'view')), /Open file: /);
+  assert.match(shared('doc', 'edit').html, /Document shared/);
+  assert.match(shared('file', 'view').html, /File shared/);
+  assert.equal(shared('doc', 'edit').subject, 'Sam shared "Notes" with you');
 });
 
 test('file_commented carries the comment-reply unsubscribe', () => {

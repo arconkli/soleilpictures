@@ -26,8 +26,17 @@
 // script preloads it after the app. /admin uses it for the admin's own files
 // (adminPreloadLists).
 //
+// The same script starts the chosen language's catalog (src/locales/<locale>/
+// messages.mjs, a chunk of its own) on every page the interface is translated
+// on, at normal priority: main.jsx holds the first paint until it arrives, so
+// it is on the critical path, unlike the app. pickLocale and englishOnlyPath
+// come from lib/uiLocale.js, serialised with the script, so the rule the
+// script uses is the rule main.jsx uses.
+//
 // Pure apart from preloadRuntime, which runs in the page; vite.config.js
 // serialises it into the HTML, and appPreloadList.test.mjs runs both in node.
+
+import { LOCALES, pickLocale, englishOnlyPath } from './uiLocale.js';
 
 // The paths a signed-in visitor opens the app on: `/` and the pages TierRouter
 // serves itself. Every other path is a public page that never needs the app.
@@ -78,6 +87,18 @@ export function appPreloadList(bundle, moduleSuffix = APP_SHELL_MODULE, { base =
   return { js: js.map((f) => base + f), css: css.map((f) => base + f) };
 }
 
+// { es: '/assets/messages-….js', … }: each language's compiled catalog chunk.
+// English has none: its messages are in the code.
+export function catalogList(bundle, { base = '/' } = {}) {
+  const out = {};
+  for (const c of Object.values(bundle)) {
+    if (!c || c.type !== 'chunk') continue;
+    const m = /\/src\/locales\/([^/]+)\/messages\.mjs$/.exec(String(c.facadeModuleId || '').replace(/\\/g, '/'));
+    if (m && m[1] !== 'en') out[m[1]] = base + c.fileName;
+  }
+  return out;
+}
+
 // What `list` adds over `already`.
 export function withoutList(list, already) {
   if (!list) return null;
@@ -105,7 +126,7 @@ export function adminPreloadLists(bundle, app) {
 // Runs in the page, from an inline script at the top of <head>. Keep it
 // self-contained ES5 with no comments inside: it is serialised with
 // toString(), and index.html is scanned for public claims.
-export function preloadRuntime(lists, paths) {
+export function preloadRuntime(lists, paths, pickLocale, englishOnlyPath, locales) {
   var d = document;
   var nonce = (d.currentScript && d.currentScript.nonce) || '';
   var seen = {};
@@ -130,17 +151,23 @@ export function preloadRuntime(lists, paths) {
   window.__soleilAppPreload = { run: function (name) { run(name, false); } };
   try {
     var p = (location.pathname.replace(/\/+$/, '') || '/').toLowerCase();
-    if (paths.indexOf(p) < 0) return;
+    var signedIn = false;
     for (var k = 0; k < localStorage.length; k++) {
       var key = localStorage.key(k);
-      if (key && key.indexOf('sb-') === 0 && key.indexOf('auth-token') > 0) {
-        run('app', true);
-        for (var name in lists) {
-          var l = lists[name];
-          if (l && l.path === p && (!l.media || (window.matchMedia && window.matchMedia(l.media).matches))) run(name, true);
-        }
-        return;
+      if (key && key.indexOf('sb-') === 0 && key.indexOf('auth-token') > 0) { signedIn = true; break; }
+    }
+    if (signedIn && paths.indexOf(p) >= 0) {
+      run('app', true);
+      for (var name in lists) {
+        var l = lists[name];
+        if (l && l.path === p && (!l.media || (window.matchMedia && window.matchMedia(l.media).matches))) run(name, true);
       }
+    }
+    if (lists.catalogs && !englishOnlyPath(p, signedIn)) {
+      var choice = null;
+      try { choice = JSON.parse(localStorage.getItem('soleil.ui') || '{}').lang; } catch (e) {}
+      var locale = pickLocale(choice, navigator.languages || [navigator.language], locales);
+      if (locale !== 'en' && lists.catalogs[locale]) add(lists.catalogs[locale], false, false);
     }
   } catch (e) {}
 }
@@ -149,5 +176,5 @@ export function preloadRuntime(lists, paths) {
 // slow link the entry's own JS and CSS arrive first: the entry is what starts
 // the session and the boot queries.
 export function preloadScript(lists, paths = APP_PRELOAD_PATHS) {
-  return `(${preloadRuntime.toString()})(${JSON.stringify(lists)},${JSON.stringify(paths)});`;
+  return `(${preloadRuntime.toString()})(${JSON.stringify(lists)},${JSON.stringify(paths)},${pickLocale.toString()},${englishOnlyPath.toString()},${JSON.stringify(LOCALES)});`;
 }

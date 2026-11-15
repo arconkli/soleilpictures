@@ -63,7 +63,7 @@ import { Sheet } from '../shell/Sheet.jsx';
 import { MobileDrawer } from '../shell/MobileDrawer.jsx';
 import { MobileBottomNav } from '../shell/MobileBottomNav.jsx';
 import { POWER_REVEALS } from '../../lib/powerReveals.js';
-import { CTA, nearCapSentence } from '../../lib/billingCopy.js';
+import { CTA, nearCapSentence } from '../../lib/billingCopyWords.js';
 
 // ── Surfaces that are not on every branch ─────────────────────────────────
 // `main` carries stacks that `production` does not (the templates work, among

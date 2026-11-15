@@ -20,7 +20,7 @@ test.describe('surface gallery wiring', () => {
     const tabs = s.slice(s.indexOf('const TABS ='), s.indexOf('const ADMIN_TABS'));
     expect(tabs).not.toMatch(/gallery/i);
     const adminTabs = s.slice(s.indexOf('const ADMIN_TABS'), s.indexOf('const GROUPS'));
-    expect(adminTabs).toMatch(/\{ id: 'gallery', label: 'Gallery', group: 'admin' \}/);
+    expect(adminTabs).toMatch(/\{ id: 'gallery', get label\(\) \{ return tr`Gallery`; \}, group: 'admin' \}/);
     // The pane re-checks isAdmin independently, so a mid-session tier drop
     // cannot leave the tab rendering.
     expect(s).toMatch(/tab === 'gallery' && isAdmin &&/);

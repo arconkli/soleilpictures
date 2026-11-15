@@ -9,6 +9,7 @@ import { isComposingKey } from '../../lib/composerKeys.js';
 import { menuMove, menuTypeahead } from '../../lib/menuKeys.js';
 import { Btn, Caps } from './Toolbar.jsx';
 import './toolbar.css';
+import { t, ph } from '@lingui/core/macro';
 
 // A menu in the toolbar look (the owner's pick "A · Islands", 2026-10-21):
 // glass, rows with an icon, their words, a value or the shortcut's keys, and
@@ -216,7 +217,7 @@ export function Menu({ open, onClose, anchorRef, label, side = 'below', align = 
              onKeyDown={onKeyDown}>
           {stepped ? (
             <>
-              <MenuItem icon={ChevronLeft} className="is-back" label={label} aria-label={`${label}, back to ${parent.label}`}
+              <MenuItem icon={ChevronLeft} className="is-back" label={label} aria-label={t`${label}, back to ${ph({ label2: parent.label })}`}
                         keepOpen onSelect={() => close('escape')} />
               <MenuSep />
               <div ref={bodyRef} className="tl-mstep-body">{children}</div>

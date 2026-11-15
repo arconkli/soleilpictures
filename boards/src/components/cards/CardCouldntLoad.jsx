@@ -11,6 +11,8 @@ import { ArrowClockwise } from '../../lib/icons.js';
 import { useCanvasSettleTick } from '../../hooks/useCanvasSettleTick.js';
 import { getCanvasScale } from '../../lib/canvasScale.js';
 import './cardCouldntLoad.css';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 export function CardCouldntLoad({ rootRef, onRetry, className = '', ...rest }) {
   useCanvasSettleTick();
@@ -43,19 +45,19 @@ export function CardCouldntLoad({ rootRef, onRetry, className = '', ...rest }) {
   const icon = !tiny && (w < 72 || h < 40);
   return (
     <div ref={rootRef} {...rest} className={`r2-img r2-img-blocked ccl ${className}`.trim()} data-ccl={tiny ? 'none' : icon ? 'icon' : 'full'}
-         {...(tiny ? { role: 'img', 'aria-label': 'Couldn’t load' } : {})}>
+         {...(tiny ? { role: 'img', 'aria-label': t`Couldn’t load` } : {})}>
       {!tiny && (
         <div className="ccl-in" style={{ width: w, height: h, transform: `scale(${1 / s})` }}>
           {icon ? (
-            <button type="button" className="ccl-btn is-icon" aria-label="Couldn’t load. Retry" title="Retry"
+            <button type="button" className="ccl-btn is-icon" aria-label={t`Couldn’t load. Retry`} title={t`Retry`}
                     onPointerDown={stop} onClick={retry}>
               <Icon as={ArrowClockwise} size={13} weight="regular" />
             </button>
           ) : (
             <>
-              <span className="ccl-txt">Couldn’t load</span>
-              <button type="button" className="ccl-btn" aria-label="Retry loading this picture"
-                      onPointerDown={stop} onClick={retry}>Retry</button>
+              <span className="ccl-txt"><Trans>Couldn’t load</Trans></span>
+              <button type="button" className="ccl-btn" aria-label={t`Retry loading this picture`}
+                      onPointerDown={stop} onClick={retry}><Trans>Retry</Trans></button>
             </>
           )}
         </div>

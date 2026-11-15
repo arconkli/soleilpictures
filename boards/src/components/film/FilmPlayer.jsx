@@ -50,6 +50,8 @@ import { usePlayCopy } from '../../hooks/usePlayCopy.js';
 import { Icon } from '../Icon.jsx';
 import { Spinner } from '../Spinner.jsx';
 import { SpeakerHigh, SpeakerSlash, ArrowsOutSimple } from '../../lib/icons.js';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // An r2: key → a signed URL, from the cache when it's there (no black flash on
 // a card that's already been seen), with the failure kept so the player can
@@ -78,7 +80,7 @@ export function useResolvedMedia(src, nonce = 0) {
 export function useResolvedUrl(src) { return useResolvedMedia(src).url; }
 
 export const GUIDES = [
-  { id: 'off', label: 'Off' },
+  { id: 'off', get label() { return tr`Off`; } },
   { id: '2.39', label: '2.39:1', ar: 2.39 },
   { id: '2.00', label: '2.00:1', ar: 2 },
   { id: '1.90', label: '1.90:1', ar: 1.9 },
@@ -87,13 +89,13 @@ export const GUIDES = [
   { id: '4:3', label: '4:3', ar: 4 / 3 },
   { id: '1:1', label: '1:1', ar: 1 },
   { id: '9:16', label: '9:16', ar: 9 / 16 },
-  { id: 'safe', label: 'Action & title safe' },
+  { id: 'safe', get label() { return tr`Action & title safe`; } },
 ];
 const TC_MODES = [
-  { id: 'tc', label: 'Source timecode', chip: 'TC' },
-  { id: 'clip', label: 'Clip timecode', chip: 'CLIP' },
-  { id: 'frames', label: 'Frames', chip: 'FR' },
-  { id: 'seconds', label: 'Seconds', chip: 'SEC' },
+  { id: 'tc', get label() { return tr`Source timecode`; }, chip: 'TC' },
+  { id: 'clip', get label() { return tr`Clip timecode`; }, chip: 'CLIP' },
+  { id: 'frames', get label() { return tr`Frames`; }, chip: 'FR' },
+  { id: 'seconds', get label() { return tr`Seconds`; }, chip: 'SEC' },
 ];
 
 function formatSeconds(t) {
@@ -605,7 +607,8 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
       hud(hudText('side', { side: next, label: next === 'B' ? (compareLabel || 'B') : (label || 'A') }));
     };
     if (Number.isFinite(incoming.duration) && frameCentre(f, st.fpsEff, st.t0) > incoming.duration) {
-      hud(`${next} ends at ${fmtRef.current(Math.max(0, Math.floor(incoming.duration * st.fpsV) - 1))}`);
+      const endsAt = fmtRef.current(Math.max(0, Math.floor(incoming.duration * st.fpsV) - 1));
+      hud(tr`${next} ends at ${endsAt}`);
     }
     if (incoming.readyState >= 1 && Math.abs(incoming.currentTime - t) < 1e-3) { swap(); return; }
     const done = () => { incoming.removeEventListener('seeked', done); swap(); };
@@ -704,7 +707,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
       }
       if (v.videoWidth) setNatural({ w: v.videoWidth, h: v.videoHeight });
       else if (S.current && mediaProp?.w > 0) {
-        setFailure({ reason: 'no_picture', title: `This browser can’t show this video`, body: 'Its sound may play, but there is no picture — download it, or upload a version in a common format.' });
+        setFailure({ reason: 'no_picture', title: tr`This browser can’t show this video`, body: tr`Its sound may play, but there is no picture — download it, or upload a version in a common format.` });
       }
     };
     const onResize = () => { if (v.videoWidth) setNatural({ w: v.videoWidth, h: v.videoHeight }); };
@@ -712,8 +715,8 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
       const code = mediaProp?.codec;
       const name = codecName(code);
       setFailure(APPLE_ONLY.has(code)
-        ? { reason: 'decode', title: `This browser can’t play ${name}`, body: 'Safari on a Mac plays it. Or upload an H.264 version — notes stay on this file.' }
-        : { reason: 'decode', title: 'This video can’t be played here', body: name ? `It’s ${name}, which this browser doesn’t decode. Download it, or upload a version in a common format.` : 'Download it, or upload a version in a common format.' });
+        ? { reason: 'decode', title: tr`This browser can’t play ${name}`, body: tr`Safari on a Mac plays it. Or upload an H.264 version — notes stay on this file.` }
+        : { reason: 'decode', title: tr`This video can’t be played here`, body: name ? tr`It’s ${name}, which this browser doesn’t decode. Download it, or upload a version in a common format.` : tr`Download it, or upload a version in a common format.` });
     };
     v.addEventListener('play', onPlay);
     v.addEventListener('timeupdate', onTime);
@@ -762,7 +765,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
     if (!v || !url) return undefined;
     if (v.readyState >= 2) return undefined;
     const t = setTimeout(() => {
-      if (v.readyState < 2 && !v.error) setFailure((f) => f || { reason: 'stalled', title: 'This video isn’t loading', body: 'The file may be very large or in a format this browser can’t read. Try again, or download it.' });
+      if (v.readyState < 2 && !v.error) setFailure((f) => f || { reason: 'stalled', title: tr`This video isn’t loading`, body: tr`The file may be very large or in a format this browser can’t read. Try again, or download it.` });
     }, compact ? 15000 : 8000);
     const ok = () => clearTimeout(t);
     v.addEventListener('loadeddata', ok);
@@ -928,7 +931,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
     const i = steps.findIndex((x) => x.mode === pz.mode);
     const next = steps[(i + 1) % steps.length];
     setPz({ scale: next.scale, x: 0, y: 0, mode: next.mode });
-    hud(next.mode === 'fit' ? 'Fit' : next.mode);
+    hud(next.mode === 'fit' ? tr`Fit` : next.mode);
     void st;
   };
   const clampPan = (x, y, scale) => {
@@ -1172,13 +1175,13 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
     setMenu({ id, anchor: r, ignore: isEl ? anchorEl : null, ...opts });
   };
   const speedItems = () => [
-    ...(shuttleRef.current.dir && shuttleRef.current.rate !== 1 ? [{ id: 'sh', label: `Shuttle ${shuttleText(shuttleRef.current)}`, disabled: true }, { divider: true }] : []),
+    ...(shuttleRef.current.dir && shuttleRef.current.rate !== 1 ? [{ id: 'sh', label: tr`Shuttle ${ph({ shuttleText: shuttleText(shuttleRef.current) })}`, disabled: true }, { divider: true }] : []),
     ...[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2].map((r) => ({
-      id: `r${r}`, label: r === 1 ? 'Normal' : `${r}×`, checked: Math.abs(S.current.userRate - r) < 1e-6,
+      id: `r${r}`, label: r === 1 ? tr`Normal` : `${r}×`, checked: Math.abs(S.current.userRate - r) < 1e-6,
       hint: r === 1 ? '1×' : undefined, run: () => { setRate(r); hud(hudText('speed', { rate: r })); },
     })),
     { divider: true },
-    { id: 'keys', label: 'Slower · faster', hint: '⇧< ⇧>', disabled: true },
+    { id: 'keys', label: tr`Slower · faster`, hint: '⇧< ⇧>', disabled: true },
   ];
   const guideItems = () => [
     ...GUIDES.map((g) => ({
@@ -1188,41 +1191,41 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
       run: () => { setGuide(g.id); if (g.id !== 'off') writePrefs({ guide: g.id }); },
     })),
     { divider: true },
-    { id: 'thirds', label: 'Thirds', checked: guideOpts.thirds, radio: false, keepOpen: true, run: () => setGuideOpts((o) => ({ ...o, thirds: !o.thirds })) },
-    { id: 'cross', label: 'Centre cross', checked: guideOpts.cross, radio: false, keepOpen: true, run: () => setGuideOpts((o) => ({ ...o, cross: !o.cross })) },
+    { id: 'thirds', label: tr`Thirds`, checked: guideOpts.thirds, radio: false, keepOpen: true, run: () => setGuideOpts((o) => ({ ...o, thirds: !o.thirds })) },
+    { id: 'cross', label: tr`Centre cross`, checked: guideOpts.cross, radio: false, keepOpen: true, run: () => setGuideOpts((o) => ({ ...o, cross: !o.cross })) },
   ];
   const tcItems = () => [
     ...TC_MODES.map((m) => ({
-      id: m.id, label: m.id === 'tc' && media?.tc ? `${m.label} · from ${frameToTC(0, fpsEff, { df, start: startFrames })}` : m.label,
+      id: m.id, label: m.id === 'tc' && media?.tc ? tr`${ph({ label: m.label })} · from ${ph({ frameToTC: frameToTC(0, fpsEff, { df, start: startFrames }) })}` : m.label,
       checked: effMode === m.id, disabled: m.id === 'tc' && !media?.tc,
-      sub: m.id === 'tc' && !media?.tc ? 'This file has no start timecode' : undefined,
+      sub: m.id === 'tc' && !media?.tc ? tr`This file has no start timecode` : undefined,
       run: () => setTcMode(m.id),
     })),
     { divider: true },
-    { id: 'copy', label: 'Copy timecode', hint: fullKeys ? '⌘C' : undefined, run: copyTc },
+    { id: 'copy', label: tr`Copy timecode`, hint: fullKeys ? '⌘C' : undefined, run: copyTc },
   ];
   const rangeItems = () => {
     const r = S.current.range;
     return [
-      { id: 'gin', label: 'Go to in', hint: '⇧I', disabled: r.in == null, run: () => runRef.current('goIn') },
-      { id: 'gout', label: 'Go to out', hint: '⇧O', disabled: r.out == null, run: () => runRef.current('goOut') },
-      { id: 'pio', label: 'Play in to out', hint: '⇧Space', run: playInOut },
+      { id: 'gin', label: tr`Go to in`, hint: '⇧I', disabled: r.in == null, run: () => runRef.current('goIn') },
+      { id: 'gout', label: tr`Go to out`, hint: '⇧O', disabled: r.out == null, run: () => runRef.current('goOut') },
+      { id: 'pio', label: tr`Play in to out`, hint: '⇧Space', run: playInOut },
       { divider: true },
-      { id: 'cin', label: 'Clear in', disabled: r.in == null, run: () => setRangeState((x) => ({ ...x, in: null })) },
-      { id: 'cout', label: 'Clear out', disabled: r.out == null, run: () => setRangeState((x) => ({ ...x, out: null })) },
-      { id: 'cboth', label: 'Clear both', hint: '⌥X', run: clearRange },
+      { id: 'cin', label: tr`Clear in`, disabled: r.in == null, run: () => setRangeState((x) => ({ ...x, in: null })) },
+      { id: 'cout', label: tr`Clear out`, disabled: r.out == null, run: () => setRangeState((x) => ({ ...x, out: null })) },
+      { id: 'cboth', label: tr`Clear both`, hint: '⌥X', run: clearRange },
     ];
   };
   const stageItems = () => [
-    { id: 'copy', label: 'Copy timecode', hint: fullKeys ? '⌘C' : undefined, run: copyTc },
-    ...(canCopyLink ? [{ id: 'link', label: 'Copy link to this frame', hint: fullKeys ? '⇧⌘C' : undefined, run: () => runRef.current('copyLink') }] : []),
+    { id: 'copy', label: tr`Copy timecode`, hint: fullKeys ? '⌘C' : undefined, run: copyTc },
+    ...(canCopyLink ? [{ id: 'link', label: tr`Copy link to this frame`, hint: fullKeys ? '⇧⌘C' : undefined, run: () => runRef.current('copyLink') }] : []),
     { divider: true },
-    { id: 'zoom', label: pz.mode === 'fit' ? 'Zoom the picture to 100%' : 'Fit the picture', hint: fullKeys ? 'Z' : undefined, run: cyclePictureZoom },
-    { id: 'loop', label: 'Loop', checked: looping, radio: false, hint: fullKeys ? '⌥L' : undefined, run: toggleLoop },
-    { id: 'guides', label: guide === 'off' ? 'Show framing guides' : 'Hide framing guides', hint: fullKeys ? 'G' : undefined,
+    { id: 'zoom', label: pz.mode === 'fit' ? tr`Zoom the picture to 100%` : tr`Fit the picture`, hint: fullKeys ? 'Z' : undefined, run: cyclePictureZoom },
+    { id: 'loop', label: tr`Loop`, checked: looping, radio: false, hint: fullKeys ? '⌥L' : undefined, run: toggleLoop },
+    { id: 'guides', label: guide === 'off' ? tr`Show framing guides` : tr`Hide framing guides`, hint: fullKeys ? 'G' : undefined,
       run: () => { if (guide === 'off') { setGuide(prefs.guide || '2.39'); } else setGuide('off'); } },
-    { id: 'mute', label: muted ? 'Unmute' : 'Mute', hint: keyboard ? 'M' : undefined, run: toggleMute },
-    ...(canFull ? [{ id: 'full', label: isFull ? 'Exit full screen' : 'Full screen', hint: fullKeys ? 'F' : undefined, run: toggleFull }] : []),
+    { id: 'mute', label: muted ? tr`Unmute` : tr`Mute`, hint: keyboard ? 'M' : undefined, run: toggleMute },
+    ...(canFull ? [{ id: 'full', label: isFull ? tr`Exit full screen` : tr`Full screen`, hint: fullKeys ? 'F' : undefined, run: toggleFull }] : []),
   ];
   const stageMenu = (e) => {
     if (compact) return;
@@ -1278,7 +1281,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
   const hudView = hudT ? { text: hudT.text, id: hudT.id } : (hudP ? { text: hudP, id: 'p', persist: true }
     : (buffering && !compact ? { text: hudText(online ? 'buffering' : 'bufferingOffline'), id: 'b', persist: true } : null));
   const err = (failure && !pc.handles(failure.reason) ? failure : null)
-    || (signError ? { title: 'Couldn’t load the video', body: 'The link to the file couldn’t be made. Check your connection and try again.', retry: true } : null);
+    || (signError ? { title: tr`Couldn’t load the video`, body: tr`The link to the file couldn’t be made. Check your connection and try again.`, retry: true } : null);
   const preparing = pc.preparing && !err;
 
   const ctl = {
@@ -1316,7 +1319,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
   return (
     <div ref={rootRef}
          className={`film film--${mode}${isFull ? ' is-fullscreen' : ''}${playing ? ' is-playing' : ''}${idle ? ' is-idle' : ''}${loading ? ' is-loading' : ''}${err ? ' is-error' : ''}${touchedState ? ' is-touched' : ''} ${className}`}
-         data-frame={frameState} data-side={side} data-zoom={pz.mode} aria-label={title ? `Player: ${title}` : 'Player'}
+         data-frame={frameState} data-side={side} data-zoom={pz.mode} aria-label={title ? tr`Player: ${title}` : tr`Player`}
          style={{ '--ar': pictureAr }}
          onPointerMove={isFull ? wake : compact || preview ? onCompactMove : undefined}
          onPointerOver={compact ? undefined : onTipOver} onPointerOut={compact ? undefined : onTipOut}
@@ -1331,15 +1334,15 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
         <div className="film-zoomwrap" style={pz.mode === 'fit' ? undefined : { transform: `translate(${pz.x}px, ${pz.y}px) scale(${pz.scale})` }}>
         {url && (
           <video ref={setElA} className={`film-video${side === 'B' ? ' is-hidden' : ''}`} src={url} poster={posterUrl || undefined}
-                 preload={compact ? 'metadata' : 'auto'} playsInline muted={muted || side !== 'A'} aria-label={title || 'Video'} />
+                 preload={compact ? 'metadata' : 'auto'} playsInline muted={muted || side !== 'A'} aria-label={title || tr`Video`} />
         )}
         {shownCompareUrl && (
           <video ref={setElB} className={`film-video film-video--b${side === 'B' ? '' : ' is-hidden'}`} src={shownCompareUrl}
-                 preload="metadata" playsInline muted aria-label={compareLabel || 'Other version'} />
+                 preload="metadata" playsInline muted aria-label={compareLabel || tr`Other version`} />
         )}
         {loading && posterUrl && <img className="film-poster" src={posterUrl} alt="" />}
-        {(loading || (buffering && !compact)) && !err && !preparing && <span className="film-spinner"><Spinner size={compact ? 20 : 28} tone="on-dark" label={loading ? 'Loading video' : 'Buffering'} /></span>}
-        {loading && !err && !preparing && !compact && <p className="film-opening">{`Opening ${title || 'this video'}…`}</p>}
+        {(loading || (buffering && !compact)) && !err && !preparing && <span className="film-spinner"><Spinner size={compact ? 20 : 28} tone="on-dark" label={loading ? tr`Loading video` : tr`Buffering`} /></span>}
+        {loading && !err && !preparing && !compact && <p className="film-opening">{title ? tr`Opening ${title}…` : tr`Opening this video…`}</p>}
         {!compact && guideDef && guideDef.id !== 'off' && picture.w > 0 && <FramingGuide guide={guideDef} picture={picture} />}
         {!compact && (guideOpts.thirds || guideOpts.cross) && picture.w > 0 && <GuideExtras opts={guideOpts} picture={picture} />}
         {!compact && overlay && picture.w > 0 && (
@@ -1357,12 +1360,12 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
         {flash && <span key={flash.id} className="film-flash" aria-hidden="true">{flash.kind === 'pause' ? <PauseGlyph size={30} /> : <PlayGlyph size={30} />}</span>}
         {preparing && (
           <div className="film-error film-preparing" role="status">
-            <Spinner size={compact ? 18 : 24} tone="on-dark" label="Making a playable copy" />
-            <strong>{compact ? 'Making a playable copy' : 'Making a version this browser can play'}</strong>
-            {!compact && <span>It takes a minute or two for most clips, and it happens once: it plays here when it’s ready, for everyone. Download still gives you the original.</span>}
+            <Spinner size={compact ? 18 : 24} tone="on-dark" label={tr`Making a playable copy`} />
+            <strong>{compact ? tr`Making a playable copy` : tr`Making a version this browser can play`}</strong>
+            {!compact && <span><Trans>It takes a minute or two for most clips, and it happens once: it plays here when it’s ready, for everyone. Download still gives you the original.</Trans></span>}
             {!compact && onDownload && (
               <div className="film-error-actions">
-                <button type="button" className="film-pill" onClick={onDownload}>Download</button>
+                <button type="button" className="film-pill" onClick={onDownload}><Trans>Download</Trans></button>
               </div>
             )}
           </div>
@@ -1373,9 +1376,9 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
             {!compact && <span>{err.body}</span>}
             {!compact && (
               <div className="film-error-actions">
-                {err.retry && <button type="button" className="film-pill" onClick={ctl.onRetry}>Retry</button>}
-                {onDownload && <button type="button" className="film-pill" onClick={onDownload}>Download</button>}
-                {onUploadVersion && <button type="button" className="film-pill" onClick={onUploadVersion}>Upload a version</button>}
+                {err.retry && <button type="button" className="film-pill" onClick={ctl.onRetry}><Trans>Retry</Trans></button>}
+                {onDownload && <button type="button" className="film-pill" onClick={onDownload}><Trans>Download</Trans></button>}
+                {onUploadVersion && <button type="button" className="film-pill" onClick={onUploadVersion}><Trans>Upload a version</Trans></button>}
               </div>
             )}
           </div>
@@ -1409,7 +1412,7 @@ export const FilmPlayer = forwardRef(function FilmPlayer({
 function CompactCentre({ playing, onToggle }) {
   if (playing) return null;
   return (
-    <button type="button" className="film-centre-play" tabIndex={-1} aria-label="Play"
+    <button type="button" className="film-centre-play" tabIndex={-1} aria-label={tr`Play`}
             onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
             onClick={(e) => { e.stopPropagation(); onToggle(); }}>
       <PlayGlyph size={20} />
@@ -1425,22 +1428,22 @@ function CompactBar({ ctl, timeline }) {
   return (
     <div className="film-cbar" onPointerDown={(e) => { if (e.target.closest('button, .ft-track')) e.stopPropagation(); }}>
       <div className="film-cbar-row">
-        <button {...btn({ className: 'film-btn', onClick: (e) => { e.stopPropagation(); ctl.toggle(); }, 'aria-label': ctl.playing ? 'Pause' : 'Play' })}>
+        <button {...btn({ className: 'film-btn', onClick: (e) => { e.stopPropagation(); ctl.toggle(); }, 'aria-label': ctl.playing ? tr`Pause` : tr`Play` })}>
           {ctl.playing ? <PauseGlyph size={16} /> : <PlayGlyph size={16} />}
         </button>
-        <button {...btn({ className: 'film-btn film-cbar-step', onClick: (e) => { e.stopPropagation(); ctl.step(-1); }, 'aria-label': 'Back one frame' })}>
+        <button {...btn({ className: 'film-btn film-cbar-step', onClick: (e) => { e.stopPropagation(); ctl.step(-1); }, 'aria-label': tr`Back one frame` })}>
           <FrameBack size={16} />
         </button>
-        <button {...btn({ className: 'film-btn film-cbar-step', onClick: (e) => { e.stopPropagation(); ctl.step(1); }, 'aria-label': 'Forward one frame' })}>
+        <button {...btn({ className: 'film-btn film-cbar-step', onClick: (e) => { e.stopPropagation(); ctl.step(1); }, 'aria-label': tr`Forward one frame` })}>
           <FrameFwd size={16} />
         </button>
         <span className="film-tc" ref={ctl.tcRef}>{ctl.format(0)}</span>
         <span className="film-cbar-spacer" />
-        <button {...btn({ className: 'film-btn', onClick: (e) => { e.stopPropagation(); ctl.toggleMute(); }, 'aria-label': ctl.muted ? 'Unmute' : 'Mute' })}>
+        <button {...btn({ className: 'film-btn', onClick: (e) => { e.stopPropagation(); ctl.toggleMute(); }, 'aria-label': ctl.muted ? tr`Unmute` : tr`Mute` })}>
           <Icon as={ctl.muted ? SpeakerSlash : SpeakerHigh} size={16} weight="regular" />
         </button>
         {ctl.onExpand && (
-          <button {...btn({ className: 'film-btn', onClick: (e) => { e.stopPropagation(); ctl.onExpand(); }, 'aria-label': 'Open in the review player', title: 'Open in the review player' })}>
+          <button {...btn({ className: 'film-btn', onClick: (e) => { e.stopPropagation(); ctl.onExpand(); }, 'aria-label': tr`Open in the review player`, title: tr`Open in the review player` })}>
             <Icon as={ArrowsOutSimple} size={16} weight="regular" />
           </button>
         )}
@@ -1458,24 +1461,24 @@ function PreviewBar({ ctl, timeline }) {
     <div className="film-pbar" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
       <div className="film-pbar-timeline">{timeline}</div>
       <div className="film-pbar-row">
-        <button type="button" className="film-btn" onPointerDown={keep} onClick={ctl.toggle} aria-label={ctl.playing ? 'Pause' : 'Play'}>
+        <button type="button" className="film-btn" onPointerDown={keep} onClick={ctl.toggle} aria-label={ctl.playing ? tr`Pause` : tr`Play`}>
           {ctl.playing ? <PauseGlyph size={20} /> : <PlayGlyph size={20} />}
         </button>
-        <button type="button" className="film-btn" onPointerDown={keep} onClick={() => ctl.step(-1)} aria-label="Back one frame" data-tip="Back one frame" data-key=",">
+        <button type="button" className="film-btn" onPointerDown={keep} onClick={() => ctl.step(-1)} aria-label={tr`Back one frame`} data-tip={tr`Back one frame`} data-key=",">
           <FrameBack size={18} />
         </button>
-        <button type="button" className="film-btn" onPointerDown={keep} onClick={() => ctl.step(1)} aria-label="Forward one frame" data-tip="Forward one frame" data-key=".">
+        <button type="button" className="film-btn" onPointerDown={keep} onClick={() => ctl.step(1)} aria-label={tr`Forward one frame`} data-tip={tr`Forward one frame`} data-key=".">
           <FrameFwd size={18} />
         </button>
         <span className="film-pbar-tc"><span ref={ctl.tcRef}>{ctl.format(0)}</span><span className="film-pbar-len"> / {ctl.lengthText}</span></span>
         <span className="film-cbar-spacer" />
         <button type="button" className="film-btn" onPointerDown={keep} onClick={ctl.toggleMute} disabled={!ctl.hasAudio}
-                aria-label={!ctl.hasAudio ? 'No audio track' : ctl.muted ? 'Unmute' : 'Mute'}>
+                aria-label={!ctl.hasAudio ? tr`No audio track` : ctl.muted ? tr`Unmute` : tr`Mute`}>
           <Icon as={!ctl.hasAudio || ctl.muted ? SpeakerSlash : SpeakerHigh} size={18} weight="regular" />
         </button>
         {ctl.onOpenPlayer && (
           <button type="button" className="film-pbar-open" onPointerDown={keep} onClick={ctl.onOpenPlayer}>
-            <Icon as={ArrowsOutSimple} size={14} weight="regular" /><span>Open in player</span>
+            <Icon as={ArrowsOutSimple} size={14} weight="regular" /><span><Trans>Open in player</Trans></span>
           </button>
         )}
       </div>

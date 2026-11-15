@@ -9,6 +9,7 @@
 // rather than closing it and opening it again in the same click.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { t } from '@lingui/core/macro';
 import * as modalGuard from '../../lib/modalGuard.js';
 import { pushFilmLayer } from '../../lib/filmLayers.js';
 import { Icon } from '../Icon.jsx';
@@ -20,7 +21,7 @@ const selectable = (it) => it && !it.divider && !it.header && !it.disabled;
 //   container  the element to portal into (the player root, or the review)
 //   items      [{ id, label, hint?, checked?, disabled?, divider?, header?, thumb?, sub?, run }]
 //   ignore     the element that opened it: a press there is its own toggle
-export function FilmMenu({ anchor, container, items, onClose, label = 'Menu', placement = 'above', align = 'start', className = '', ignore = null }) {
+export function FilmMenu({ anchor, container, items, onClose, label = t`Menu`, placement = 'above', align = 'start', className = '', ignore = null }) {
   const ref = useRef(null);
   const [pos, setPos] = useState(null);
   const [active, setActive] = useState(() => {

@@ -52,7 +52,7 @@ body:has(.ql, .sidebar.is-mobile-open, .wn-hint.is-phone, .su-tip.is-phone) :is(
 .atr-seg { white-space: nowrap; }
 
 /* A download, export or copy: head only, a meter under it when the progress is known. */
-.atr-op .imptray-title.atr-op-t { flex: 1; min-width: 0; line-height: 1.3; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.atr-op .imptray-title.atr-op-t { display: block; flex: 1; min-width: 0; line-height: 1.3; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 .atr-op-sum { padding-top: 0; }
 
 /* Rows: the import tray's 28px rhythm, with a thumb. */
@@ -68,7 +68,7 @@ body:has(.ql, .sidebar.is-mobile-open, .wn-hint.is-phone, .su-tip.is-phone) :is(
 .atr-row.is-now .c { color: var(--ink-1); }
 .atr-row.is-later { color: var(--ink-2); }
 .atr-row.is-later .c { color: var(--ink-3); }
-.atr-row.is-fail { height: 44px; }
+.atr-row.is-fail { height: auto; min-height: 44px; padding-top: 4px; padding-bottom: 4px; }
 .atr-row.is-done { color: var(--ink-2); }
 button.atr-row-btn {
   width: 100%; border: 0; background: transparent; text-align: left; cursor: pointer;
@@ -79,7 +79,7 @@ button.atr-row-btn {
 button.atr-row-btn:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
 .atr-two { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .atr-two .n { flex: none; color: var(--ink-0); }
-.atr-two .w { color: var(--msg-err); font-size: 12px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.atr-two .w { color: var(--msg-err); font-size: 12px; line-height: 1.2; overflow-wrap: anywhere; }
 
 .atr-th {
   flex: none; width: 22px; height: 22px; border-radius: 4px; background-size: cover; background-position: 50% 50%;

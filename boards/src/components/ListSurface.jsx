@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
+import { uiLocale } from '../lib/uiLocale.js';
 import { TEAMMATES } from '../data.js';
 import { INBOX_MIME, BOARD_REF_MIME, BOARD_REF_LIST_MIME, FILES_DRAG_MIME, readBoardRefIds, inboxItemToCard } from '../lib/dragMimes.js';
 import { canDragFromFiles, canCopyCard, buildFilesPayload, parseFilesPayload } from '../lib/filesDrag.js';
@@ -27,6 +28,7 @@ import { undoToast } from '../lib/undoToast.js';
 import { logEvent, logEventNow, logEventOnce } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { toListItem, sortItems, filterItems, matchItems } from '../lib/listItem.js';
+import { listItemWords } from '../lib/listItemWords.js';
 import { defaultFilesLayout, readFilesLayout, writeFilesLayout } from '../lib/filesLayout.js';
 import { formatDuration } from '../lib/loopMeta.js';
 import { searchEntities } from '../lib/entitySearch.js';
@@ -99,6 +101,8 @@ import {
 import './clusterBrowser/filesPage.css';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { searchKey } from '../lib/textFold.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 
@@ -153,10 +157,22 @@ function useSelbarFit() {
   }, []);
 }
 
-// Bucket labels for the filter menu (order = display order).
-const BUCKET_LABELS = {
-  image: 'Images', pdf: 'PDFs', video: 'Video', audio: 'Audio', file: 'Files',
-  note: 'Notes', link: 'Links', doc: 'Docs', palette: 'Palettes', other: 'Other',
+// Bucket labels for the filter menu (order = display order). Read at render, so
+// each follows the person's language.
+const bucketLabel = (k) => {
+  switch (k) {
+    case 'image': return tr`Images`;
+    case 'pdf': return tr`PDFs`;
+    case 'video': return tr({ message: 'Video', context: 'plural' });
+    case 'audio': return tr`Audio`;
+    case 'file': return tr`Files`;
+    case 'note': return tr`Notes`;
+    case 'link': return tr`Links`;
+    case 'doc': return tr`Docs`;
+    case 'palette': return tr`Palettes`;
+    case 'other': return tr({ message: 'Other', context: 'files' });
+    default: return undefined;
+  }
 };
 const BUCKET_ORDER = ['image', 'pdf', 'video', 'audio', 'file', 'note', 'link', 'doc', 'palette', 'other'];
 
@@ -395,7 +411,7 @@ export function ListSurface({
   // card fields + primed meta (getMeta is a stable module accessor).
   const items = useMemo(
     () => otherCards.map(c => {
-      const it = toListItem(c, { boards, getMeta, boardId: board.id, gridTemplates });
+      const it = toListItem(c, { boards, getMeta, boardId: board.id, gridTemplates, words: listItemWords });
       // For a grid, swap the abstract schematic for its REAL cell content when
       // the live resolver is available (App threads getGridModel; the ?local
       // harness doesn't, so it keeps the schematic).
@@ -430,7 +446,7 @@ export function ListSurface({
   const availableBuckets = useMemo(() => {
     const counts = new Map();
     for (const it of items) counts.set(it.typeBucket, (counts.get(it.typeBucket) || 0) + 1);
-    return BUCKET_ORDER.filter(k => counts.has(k)).map(k => ({ key: k, label: BUCKET_LABELS[k] || k, count: counts.get(k) }));
+    return BUCKET_ORDER.filter(k => counts.has(k)).map(k => ({ key: k, label: bucketLabel(k) || k, count: counts.get(k) }));
   }, [items]);
 
   // Search → filter → sort pipeline (all pure).
@@ -522,15 +538,15 @@ export function ListSurface({
     if (!audioMode) return null;
     const audio = visibleItems.filter(it => it.kind === 'audio');
     if (!audio.length) return null;
-    const parts = [`${audio.length} audio ${audio.length === 1 ? 'file' : 'files'}`];
+    const parts = [tr`${plural(audio.length, { one: '# audio file', other: '# audio files' })}`];
     const bpms = audio.map(it => it.bpm).filter(n => Number.isFinite(n));
     if (bpms.length) {
       const lo = Math.min(...bpms);
       const hi = Math.max(...bpms);
-      parts.push(lo === hi ? `${lo} BPM` : `${lo}–${hi} BPM`);
+      parts.push(lo === hi ? tr`${lo} BPM` : tr`${lo}–${hi} BPM`);
     }
     const secs = audio.reduce((a, it) => a + (Number.isFinite(it.durationSec) ? it.durationSec : 0), 0);
-    if (secs > 0) parts.push(`${formatDuration(secs)} total`);
+    if (secs > 0) parts.push(tr`${ph({ duration: formatDuration(secs) })} total`);
     return parts.join(' · ');
   }, [audioMode, visibleItems]);
 
@@ -852,7 +868,7 @@ export function ListSurface({
         const hits = (rows || [])
           .filter(r => r.board_id && descSet.has(r.board_id) && r.card_id)
           .slice(0, 12)
-          .map(r => ({ id: r.card_id || r.id, name: r.title || r.meta?.fileName || 'Untitled', kind: r.kind, boardId: r.board_id, clusterName: boards[r.board_id]?.name || 'Sub-cluster' }));
+          .map(r => ({ id: r.card_id || r.id, name: r.title || r.meta?.fileName || tr`Untitled`, kind: r.kind, boardId: r.board_id, clusterName: boards[r.board_id]?.name || tr`Sub-cluster` }));
         setDescHits(hits);
       } catch (_) { if (!cancelled) { setDescHits([]); setDescFailed(true); } }
     }, 250);
@@ -1038,8 +1054,8 @@ export function ListSurface({
     const list = (ids || []).filter(Boolean);
     if (!list.length) return false;
     const ok = await feedback.confirm({
-      title: 'Delete', danger: true, confirmLabel: 'Delete',
-      message: list.length === 1 ? 'Delete this card?' : `Delete ${list.length} cards?`,
+      title: tr`Delete`, danger: true, confirmLabel: tr`Delete`,
+      message: tr`${plural(list.length, { one: 'Delete this card?', other: 'Delete # cards?' })}`,
     });
     if (!ok) return false;
     const deleted = await mutators.deleteCards?.(list);
@@ -1052,7 +1068,7 @@ export function ListSurface({
     // Same delete→Undo-toast affordance as the canvas (this path used to
     // rely on the user knowing Cmd+Z would work from list view).
     undoToast(feedback, {
-      message: list.length === 1 ? 'Card deleted' : `${list.length} cards deleted`,
+      message: tr`${plural(list.length, { one: 'Card deleted', other: '# cards deleted' })}`,
       undoManager: mutators.undoManager,
       stackItem: deleted?.stackItem || null,
       onUndo: () => mutators.undo?.(),
@@ -1072,14 +1088,17 @@ export function ListSurface({
     const cn = cIds.length;
     let msg;
     if (bn > 0 && cn === 0) msg = bn === 1
-      ? `Delete cluster "${boards[bIds[0]]?.name || ''}" and all its content?\n\nYou can undo this — it's recoverable for 30 days.`
-      : `Delete ${bn} clusters and all their content?\n\nYou can undo this — they're recoverable for 30 days.`;
-    else if (bn === 0 && cn > 0) msg = cn === 1 ? 'Delete this card?' : `Delete ${cn} cards?`;
-    else msg = `Delete ${total} items, including ${bn} cluster${bn > 1 ? 's' : ''}?\n\nYou can undo this — anything deleted is recoverable for 30 days.`;
+      ? tr`Delete cluster "${ph({ name: boards[bIds[0]]?.name || '' })}" and all its content?\n\nYou can undo this — it's recoverable for 30 days.`
+      : tr`Delete ${ph({ count: bn })} clusters and all their content?\n\nYou can undo this — they're recoverable for 30 days.`;
+    else if (bn === 0 && cn > 0) msg = tr`${plural(cn, { one: 'Delete this card?', other: 'Delete # cards?' })}`;
+    else msg = tr`${plural(bn, {
+      one: `Delete ${total} items, including # cluster?\n\nYou can undo this — anything deleted is recoverable for 30 days.`,
+      other: `Delete ${total} items, including # clusters?\n\nYou can undo this — anything deleted is recoverable for 30 days.`,
+    })}`;
     const ok = await feedback.confirm({
-      title: 'Delete selection',
+      title: tr`Delete selection`,
       message: msg,
-      confirmLabel: 'Delete',
+      confirmLabel: tr`Delete`,
       danger: true,
     });
     if (!ok) return;
@@ -1088,7 +1107,7 @@ export function ListSurface({
       const deleted = await mutators.deleteCards?.(cIds);
       // null: nothing was deleted, so no Undo (see onDeleteItems).
       if (deleted !== null) undoToast(feedback, {
-        message: cIds.length === 1 ? 'Card deleted' : `${cIds.length} cards deleted`,
+        message: tr`${plural(cIds.length, { one: 'Card deleted', other: '# cards deleted' })}`,
         undoManager: mutators.undoManager,
         stackItem: deleted?.stackItem || null,
         onUndo: () => mutators.undo?.(),
@@ -1115,7 +1134,7 @@ export function ListSurface({
     const all = (from.cards || []).filter((c) => idSet.has(c.id) && c.kind !== 'board' && c.kind !== 'boardlink');
     const moving = all.filter((c) => !isStillUploading(c));
     if (moving.length < all.length) {
-      feedback.toast({ type: 'info', ttl: 7000, message: 'Cards that are still uploading stayed where they were — move them once they have finished.' });
+      feedback.toast({ type: 'info', ttl: 7000, message: tr`Cards that are still uploading stayed where they were — move them once they have finished.` });
     }
     if (!moving.length) return false;
     // With the drop rules, by the route: the same cards, kept in the other
@@ -1163,26 +1182,26 @@ export function ListSurface({
     if (!canEdit || !mutators.addNewBoard) return;
     const plan = planClusterFromSelection({ cards, ids: [...selectedCards], wholeGroups: false, clusters });
     if (plan.held.length) {
-      feedback.toast({ type: 'info', ttl: 7000, message: 'Cards that are still uploading stayed where they were — move them once they have finished.' });
+      feedback.toast({ type: 'info', ttl: 7000, message: tr`Cards that are still uploading stayed where they were — move them once they have finished.` });
     }
     if (plan.refused || !plan.ids.length) return;
     let name = given;
     if (given === undefined) {
       const n = plan.ids.length;
       const typed = await feedback.prompt({
-        title: 'Name this cluster',
-        message: n === 1 ? 'The card moves into it. Undo puts it back.' : `The ${n} cards move into it. Undo puts them back.`,
-        label: 'Name',
-        placeholder: 'e.g. Kitchen refs',
+        title: tr`Name this cluster`,
+        message: tr`${plural(n, { one: 'The card moves into it. Undo puts it back.', other: 'The # cards move into it. Undo puts them back.' })}`,
+        label: tr`Name`,
+        placeholder: tr`e.g. Kitchen refs`,
         defaultValue: suggestClusterName({ cards: plan.cards }) || '',
-        confirmLabel: 'Create cluster',
+        confirmLabel: tr`Create cluster`,
       });
       if (typed == null) return;
       name = String(typed).trim().slice(0, 200) || null;
     }
     const newId = await mutators.addNewBoard(plan.center, { via, ...(name ? { name } : {}), untracked: true });
     if (!newId) return;
-    await moveCardsTo(plan.ids, newId, null, { createdBoardId: newId, createdBoardName: name || 'Untitled cluster' });
+    await moveCardsTo(plan.ids, newId, null, { createdBoardId: newId, createdBoardName: name || tr({ message: 'Untitled cluster', context: 'default name' }) });
   }, [canEdit, mutators, cards, selectedCards, feedback, moveCardsTo]);
 
   // The top bar's "+ New cluster" (NewClusterButton), when this list is what
@@ -1240,7 +1259,7 @@ export function ListSurface({
     mutators.breakUndo?.();
     undoToast(feedback, {
       type: 'success',
-      message: plan.length === 1 ? 'Put on the board' : `${plan.length} put on the board`,
+      message: tr`${plural(plan.length, { one: 'Put on the board', other: '# put on the board' })}`,
       undoManager: um, stackItem: item,
       onUndo: () => mutators.undo?.(),
     });
@@ -1253,7 +1272,7 @@ export function ListSurface({
     if (!onPickCluster) return;
     const bIds = [...selectedBoards];
     const cIds = [...selectedCards];
-    const picked = await onPickCluster({ placeholder: 'Move to cluster…', excludeIds: [board.id, ...bIds] });
+    const picked = await onPickCluster({ placeholder: tr`Move to cluster…`, excludeIds: [board.id, ...bIds] });
     if (!picked?.id) return;
     if (bIds.length) {
       document.dispatchEvent(new CustomEvent('soleil-board-reparent-drop', {
@@ -1273,10 +1292,10 @@ export function ListSurface({
     const list = (cards || []).filter((c) => ids.has(c.id) && c.kind !== 'boardlink');
     const ready = list.filter(canCopyCard);
     if (!ready.length) {
-      if (list.length) feedback.toast({ type: 'info', message: 'Those files are still uploading. Copy them when they finish.' });
+      if (list.length) feedback.toast({ type: 'info', message: tr`Those files are still uploading. Copy them when they finish.` });
       return;
     }
-    const picked = await onPickCluster({ placeholder: 'Copy to cluster…', excludeIds: [board.id] });
+    const picked = await onPickCluster({ placeholder: tr`Copy to cluster…`, excludeIds: [board.id] });
     if (!picked?.id) return;
     const ok = await onMoveFiles({
       from: board.id, to: picked.id, cardIds: ready.map((c) => c.id), copy: true,
@@ -1618,7 +1637,7 @@ export function ListSurface({
     const el = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('[data-item-id]');
     const c = el ? (cardsLiveRef.current || []).find((x) => x.id === el.getAttribute('data-item-id')) : null;
     if (!c || !canVersion(c) || kindFromMime(items[0].type) !== c.kind) return null;
-    return { el, card: c, label: `Drop to add as v${liveVersions(c).length + 1}` };
+    return { el, card: c, label: tr`Drop to add as v${ph({ value: liveVersions(c).length + 1 })}` };
   };
   const handleDragOver = (e) => {
     const types = e.dataTransfer.types;
@@ -1700,8 +1719,8 @@ export function ListSurface({
       feedback?.toast?.({
         type: 'info',
         message: browsingFrom
-          ? 'Open this cluster to add files to it.'
-          : 'This cluster is view-only — drops are disabled.',
+          ? tr`Open this cluster to add files to it.`
+          : tr`This cluster is view-only — drops are disabled.`,
       });
       return;
     }
@@ -1760,7 +1779,7 @@ export function ListSurface({
       return;
     }
     // URLs / plain text still have no home in list view — nudge to canvas.
-    feedback?.toast?.({ type: 'info', message: 'Switch to Board to drop links or text onto a cluster.' });
+    feedback?.toast?.({ type: 'info', message: tr`Switch to Board to drop links or text onto a cluster.` });
   };
 
   // The toolbar is sticky (the panel's whole header beside the board), and so
@@ -1859,6 +1878,8 @@ export function ListSurface({
     () => (browsingFrom ? [] : [...selectedCards].filter((id) => unplacedIds.has(id))),
     [browsingFrom, selectedCards, unplacedIds]);
   const cmdKey = isMac ? '⌘' : 'Ctrl';
+  const selAllKey = isMac ? '⌘A' : 'Ctrl+A';
+  const shiftKey = isMac ? '⇧' : tr({ message: 'Shift', context: 'keyboard key' });
   // The selection bar teaches the keys until someone has made a selection of
   // more than one (the hover check shows the rest); then it gets out of the way.
   const [multiHintSeen, setMultiHintSeen] = useState(() => {
@@ -1956,11 +1977,15 @@ export function ListSurface({
   const emptyHere = sb && visibleItems.length === 0 && !loading && !failed && !narrowed;
   const canDownloadAll = downloadableVisible.length > 1 && bulkDownloadSupported();
   // Full Files' page header: what's in the cluster, in one line.
+  // The cluster's name, or a word for it, in the sentences that name it.
+  const boardOrThis = board?.name || tr`this cluster`;
+  const boardOrIt = board?.name || tr`it`;
+  const boardOrCluster = board?.name || tr`cluster`;
   const pageMeta = [
-    sb && !otherCards.length ? (loading || failed ? null : 'No files')
-      : `${otherCards.length} ${otherCards.length === 1 ? 'file' : 'files'}`,
-    subBoards.length ? `${subBoards.length} ${subBoards.length === 1 ? 'cluster' : 'clusters'}` : null,
-    unplacedTotal ? `${unplacedTotal} not on board` : null,
+    sb && !otherCards.length ? (loading || failed ? null : tr`No files`)
+      : tr`${plural(otherCards.length, { one: '# file', other: '# files' })}`,
+    subBoards.length ? tr`${plural(subBoards.length, { one: '# cluster', other: '# clusters' })}` : null,
+    unplacedTotal ? tr`${unplacedTotal} not on board` : null,
   ].filter(Boolean).join(' · ');
   const downloadAll = useCallback(
     () => downloadMany(downloadableVisible), [downloadMany, downloadableVisible]);
@@ -2193,15 +2218,15 @@ export function ListSurface({
   // While files are dragged over Files: what a drop does, said in the header
   // in place of the search row.
   const dropLine = dragNote === 'move'
-    ? { text: `Drop to move to ${board?.name || 'this cluster'}` }
+    ? { text: tr`Drop to move to ${boardOrThis}` }
     : dragNote === 'copy'
-    ? { text: `Drop to copy to ${board?.name || 'this cluster'}` }
+    ? { text: tr`Drop to copy to ${boardOrThis}` }
     : dragNote === 'version'
-    ? { text: 'Drop on the file to add a new version — hold ⌥ to add it as a separate file' }
+    ? { text: tr`Drop on the file to add a new version — hold ⌥ to add it as a separate file` }
     : dragNote === 'files'
-    ? { text: `Drop to add to ${board?.name || 'this cluster'} — they wait in Files, off the board` }
+    ? { text: tr`Drop to add to ${boardOrThis} — they wait in Files, off the board` }
     : dragNote === 'blocked'
-      ? { text: browsingFrom ? `Open ${board?.name || 'this cluster'} to add files` : 'This cluster is view-only', blocked: true }
+      ? { text: browsingFrom ? tr`Open ${boardOrThis} to add files` : tr`This cluster is view-only`, blocked: true }
       : null;
   const onUpsell = () => {
     try { logEventNow(EV.LIST_UPSELL_CTA, { board_id: board.id }); } catch (_) {}
@@ -2281,29 +2306,29 @@ export function ListSurface({
     const bIds = [...selectedBoards];
     const n = cIds.length + bIds.length;
     const canMove = canEdit && !!onPickCluster && movableSel > 0;
-    const copyTo = canCopyTo && { id: 'copy-to', label: 'Copy to…', run: copySelection };
+    const copyTo = canCopyTo && { id: 'copy-to', label: tr`Copy to…`, run: copySelection };
     // A hold's menu starts with Select: a check on everything, for a finger to
     // pick several (what ⌘-click and ⇧-click are to a keyboard).
-    const selectItem = ctxMenu?.viaTouch && !selecting && { id: 'select', label: 'Select', run: () => {
+    const selectItem = ctxMenu?.viaTouch && !selecting && { id: 'select', label: tr`Select`, run: () => {
       setSelecting(true);
       try { logEvent(EV.TOUCH_SELECT, { where: 'files', via: 'menu', n }); } catch (_) {}
     } };
     const select = { items: [selectItem] };
     // The menu's header already says how many; Delete needn't repeat it.
-    const del = canEdit && { id: 'del', label: 'Delete', danger: true, shortcut: '⌫', run: deleteSelection };
+    const del = canEdit && { id: 'del', label: tr`Delete`, danger: true, shortcut: '⌫', run: deleteSelection };
     // Info on anything: in full Files it's the panel beside the list, which
     // describes the selection; docked, it's the app's Info drawer.
     const info = (req) => (isPanel
-      ? req && { id: 'info', label: 'Get info', shortcut: `${cmdKey}I`, run: () => showInfo(req) }
-      : { id: 'info', label: infoOpen ? 'Hide info' : 'Get info', shortcut: `${cmdKey}I`, run: toggleInfo });
+      ? req && { id: 'info', label: tr`Get info`, shortcut: `${cmdKey}I`, run: () => showInfo(req) }
+      : { id: 'info', label: infoOpen ? tr`Hide info` : tr`Get info`, shortcut: `${cmdKey}I`, run: toggleInfo });
     if (n === 1 && bIds.length) {
       const id = bIds[0];
       return composeMenuSections([
         select,
-        { items: [{ id: 'open', label: 'Open', run: () => onOpenBoard(id) }] },
+        { items: [{ id: 'open', label: tr`Open`, run: () => onOpenBoard(id) }] },
         { items: [
-          renamable(id) && { id: 'rename', label: 'Rename', shortcut: 'F2', run: () => startRename(id) },
-          canMove && { id: 'move', label: 'Move to…', run: moveSelection },
+          renamable(id) && { id: 'rename', label: tr`Rename`, shortcut: 'F2', run: () => startRename(id) },
+          canMove && { id: 'move', label: tr`Move to…`, run: moveSelection },
           info({ clusterId: id }),
         ] },
         { items: [del] },
@@ -2313,9 +2338,9 @@ export function ListSurface({
     if (card?.kind === 'boardlink') {
       return composeMenuSections([
         select,
-        { items: [boards[card.target] && { id: 'open', label: 'Open', run: () => onOpenBoard(card.target) }] },
+        { items: [boards[card.target] && { id: 'open', label: tr`Open`, run: () => onOpenBoard(card.target) }] },
         { items: [boards[card.target] && info({ clusterId: card.target })] },
-        { items: [canEdit && { id: 'unlink', label: 'Remove link', danger: true, run: deleteSelection }] },
+        { items: [canEdit && { id: 'unlink', label: tr`Remove link`, danger: true, run: deleteSelection }] },
       ]);
     }
     const item = card ? items.find((it) => it.id === card.id) : null;
@@ -2323,20 +2348,20 @@ export function ListSurface({
       return composeMenuSections([
         select,
         { items: [
-          { id: 'ql', label: 'Quick look', shortcut: 'Space', run: () => setQuickId(item.id) },
-          item.kind === 'video' && card.src && !item.pending && onRevealOnCanvas && { id: 'player', label: 'Open in player', run: () => openPlayer({ boardId: board.id, cardId: card.id, card }) },
-          onRevealOnCanvas && !item.unplaced && { id: 'show', label: browsingFrom ? 'Show in cluster' : 'Show on board', run: () => onRevealOnCanvas([item.id]) },
-          canEdit && item.unplaced && { id: 'put', label: 'Put on board', run: () => putOnBoard([item.id]) },
+          { id: 'ql', label: tr`Quick look`, shortcut: tr({ message: 'Space', context: 'keyboard key' }), run: () => setQuickId(item.id) },
+          item.kind === 'video' && card.src && !item.pending && onRevealOnCanvas && { id: 'player', label: tr`Open in player`, run: () => openPlayer({ boardId: board.id, cardId: card.id, card }) },
+          onRevealOnCanvas && !item.unplaced && { id: 'show', label: browsingFrom ? tr`Show in cluster` : tr`Show on board`, run: () => onRevealOnCanvas([item.id]) },
+          canEdit && item.unplaced && { id: 'put', label: tr`Put on board`, run: () => putOnBoard([item.id]) },
         ] },
         { items: [
-          renamable(item.id) && { id: 'rename', label: 'Rename', shortcut: 'F2', run: () => startRename(item.id) },
-          canVersionHere && canVersion(card) && { id: 'newversion', label: 'Upload new version…', run: () => pickVersionFile(versionEnv(), card.id) },
-          DOWNLOADABLE.has(item.kind) && !item.pending && { id: 'dl', label: 'Download', run: () => downloadOne(item) },
-          fileSharesAllowed() && canEdit && isShareableCard(card) && { id: 'share', label: 'Share file…', run: () => openFileShare({ boardId: board.id, cardId: card.id, card, boardName: board.name, surface: 'list' }) },
+          renamable(item.id) && { id: 'rename', label: tr`Rename`, shortcut: 'F2', run: () => startRename(item.id) },
+          canVersionHere && canVersion(card) && { id: 'newversion', label: tr`Upload new version…`, run: () => pickVersionFile(versionEnv(), card.id) },
+          DOWNLOADABLE.has(item.kind) && !item.pending && { id: 'dl', label: tr`Download`, run: () => downloadOne(item) },
+          fileSharesAllowed() && canEdit && isShareableCard(card) && { id: 'share', label: tr`Share file…`, run: () => openFileShare({ boardId: board.id, cardId: card.id, card, boardName: board.name, surface: 'list' }) },
           canEdit && docShareLabel(card) && { id: 'share-doc', label: docShareLabel(card), run: () => openFileShare({ boardId: board.id, cardId: card.id, card, boardName: board.name, surface: 'list' }) },
           // An app action: a signed-out visitor's link wouldn't resolve.
-          onRevealOnCanvas && { id: 'link', label: 'Copy link', run: () => copyCardLink(item.id, board.id, feedback) },
-          canMove && { id: 'move', label: 'Move to…', run: moveSelection },
+          onRevealOnCanvas && { id: 'link', label: tr`Copy link`, run: () => copyCardLink(item.id, board.id, feedback) },
+          canMove && { id: 'move', label: tr`Move to…`, run: moveSelection },
           copyTo,
           info({ boardId: board.id, cardIds: [item.id] }),
         ] },
@@ -2347,14 +2372,14 @@ export function ListSurface({
     }
     const offSel = cIds.filter((id) => items.find((it) => it.id === id)?.unplaced);
     return composeMenuSections([
-      { header: `${n} selected`, items: [
+      { header: tr`${n} selected`, items: [
         selectItem,
-        canEdit && offSel.length > 0 && { id: 'put', label: offSel.length === 1 ? 'Put 1 on board' : `Put ${offSel.length} on board`, run: () => putOnBoard(offSel) },
+        canEdit && offSel.length > 0 && { id: 'put', label: tr`${plural(offSel.length, { one: 'Put # on board', other: 'Put # on board' })}`, run: () => putOnBoard(offSel) },
         downloadableSelected.length > 0 && {
           // "Download" when it's all of them; else say which part can go.
-          id: 'dl', label: downloadableSelected.length === n ? 'Download' : `Download ${downloadableSelected.length} of ${n}`, run: downloadSelected,
+          id: 'dl', label: downloadableSelected.length === n ? tr`Download` : tr`Download ${ph({ count: downloadableSelected.length })} of ${n}`, run: downloadSelected,
         },
-        canMove && { id: 'move', label: 'Move to…', run: moveSelection },
+        canMove && { id: 'move', label: tr`Move to…`, run: moveSelection },
         copyTo,
         info({ boardId: board.id, cardIds: cIds, clusterIds: bIds }),
       ] },
@@ -2372,60 +2397,59 @@ export function ListSurface({
   const renderSelbar = () => {
     const count = (
       <span className="list-selbar-count" aria-live="polite"
-            title={`${isMac ? '⌘A' : 'Ctrl+A'} selects all · ${cmdKey}-click adds · ${isMac ? '⇧' : 'Shift'}-click selects a range`}>{totalSel || !selecting ? `${totalSel} selected` : 'Select items'}</span>
+            title={tr`${selAllKey} selects all · ${cmdKey}-click adds · ${shiftKey}-click selects a range`}>{totalSel || !selecting ? tr`${totalSel} selected` : tr`Select items`}</span>
     );
     const download = downloadableSelected.length > 0 && (
       <button type="button" className="list-selbar-act" onClick={downloadSelected} disabled={zipping}
-              title={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}
-              aria-label={downloadableSelected.length === 1 ? 'Download' : `Download ${downloadableSelected.length}`}>
+              title={tr`${plural(downloadableSelected.length, { one: 'Download', other: 'Download #' })}`}
+              aria-label={tr`${plural(downloadableSelected.length, { one: 'Download', other: 'Download #' })}`}>
         <Icon as={sb ? DownloadSimple : Download} size={14} weight="light" />
-        <span>{zipping ? 'Preparing…'
-             : downloadableSelected.length === 1 ? 'Download'
-             : `Download ${downloadableSelected.length}`}</span>
+        <span>{zipping ? tr`Preparing…`
+             : tr`${plural(downloadableSelected.length, { one: 'Download', other: 'Download #' })}`}</span>
       </button>
     );
     // A visitor on a shared link can't move or delete, so those aren't offered.
     const put = canEdit && selectedUnplaced.length > 0 && (
       <button type="button" className="list-selbar-act" onClick={() => putOnBoard(selectedUnplaced)}
-              title="Put on the board" aria-label="Put on board">
-        <Icon as={BoundingBox} size={14} weight="light" /><span>Put on board</span>
+              title={tr`Put on the board`} aria-label={tr`Put on board`}>
+        <Icon as={BoundingBox} size={14} weight="light" /><span><Trans>Put on board</Trans></span>
       </button>
     );
     const move = canEdit && onPickCluster && movableSel > 0 && (
-      <button type="button" className="list-selbar-act" onClick={moveSelection} title="Move to…" aria-label="Move to…">
-        <Icon as={ArrowBendUpRight} size={14} weight="light" /><span>Move to…</span>
+      <button type="button" className="list-selbar-act" onClick={moveSelection} title={tr`Move to…`} aria-label={tr`Move to…`}>
+        <Icon as={ArrowBendUpRight} size={14} weight="light" /><span><Trans>Move to…</Trans></span>
       </button>
     );
     // With no right-click to find it, a finger gets Copy to… here.
     const copy = touchPass && (selecting || isTouch) && canCopyTo && (
-      <button type="button" className="list-selbar-act" onClick={copySelection} title="Copy to…" aria-label="Copy to…">
-        <Icon as={Copy} size={14} weight="light" /><span>Copy to…</span>
+      <button type="button" className="list-selbar-act" onClick={copySelection} title={tr`Copy to…`} aria-label={tr`Copy to…`}>
+        <Icon as={Copy} size={14} weight="light" /><span><Trans>Copy to…</Trans></span>
       </button>
     );
     const newCluster = canEdit && clusterNudgesAllowed() && mutators.addNewBoard && selectedCards.size > 0 && selectedBoards.size === 0 && (
       <button type="button" className="list-selbar-act" onClick={() => newClusterFromSelection()}
-              title="Move them into a new cluster" aria-label="New cluster">
-        <Icon as={sb ? FolderSimplePlus : Folder} size={14} weight="light" /><span>New cluster</span>
+              title={tr`Move them into a new cluster`} aria-label={tr`New cluster`}>
+        <Icon as={sb ? FolderSimplePlus : Folder} size={14} weight="light" /><span><Trans>New cluster</Trans></span>
       </button>
     );
     const del = canEdit && totalSel > 0 && (
-      <button type="button" className={`list-selbar-act${sb ? ' is-danger' : ''}`} onClick={deleteSelection} title="Delete" aria-label="Delete">
-        <Icon as={Trash2} size={14} weight="light" /><span>Delete</span>
+      <button type="button" className={`list-selbar-act${sb ? ' is-danger' : ''}`} onClick={deleteSelection} title={tr`Delete`} aria-label={tr`Delete`}>
+        <Icon as={Trash2} size={14} weight="light" /><span><Trans>Delete</Trans></span>
       </button>
     );
     const info = totalSel > 0 && (
       <button type="button" className={`list-selbar-act${!isPanel && infoOpen ? ' is-on' : ''}`} onClick={() => showInfo()}
-              aria-pressed={isPanel ? undefined : infoOpen} title={`Info (${cmdKey}I)`} aria-label="Info">
-        <Icon as={Info} size={14} weight="light" /><span>Info</span>
+              aria-pressed={isPanel ? undefined : infoOpen} title={tr`Info (${cmdKey}I)`} aria-label={tr`Info`}>
+        <Icon as={Info} size={14} weight="light" /><span><Trans>Info</Trans></span>
       </button>
     );
     const done = selecting ? (
       <button type="button" className="list-selbar-act list-selbar-done"
               onClick={() => { setSelecting(false); setSelectedCards(new Set()); setSelectedBoards(new Set()); setSelectedGroupId(null); }}>
-        Done
+        <Trans>Done</Trans>
       </button>
     ) : (
-      <button type="button" className="list-selbar-act list-selbar-clear" aria-label="Clear selection" title="Clear selection (Esc)"
+      <button type="button" className="list-selbar-act list-selbar-clear" aria-label={tr`Clear selection`} title={tr`Clear selection (Esc)`}
               onClick={() => { setSelectedCards(new Set()); setSelectedBoards(new Set()); setSelectedGroupId(null); }}>
         <Icon as={X} size={14} weight="light" />
       </button>
@@ -2433,7 +2457,7 @@ export function ListSurface({
     // Keys to teach a keyboard; a finger has none of them.
     const hint = !isPanel && !multiHintSeen && !isTouch && (
       <span className="list-selbar-hint">
-        <kbd>{isMac ? '⌘A' : 'Ctrl+A'}</kbd> all · <kbd>{cmdKey}</kbd>-click add · <kbd>{isMac ? '⇧' : 'Shift'}</kbd>-click range
+        <Trans><kbd>{selAllKey}</kbd> all · <kbd>{cmdKey}</kbd>-click add · <kbd>{shiftKey}</kbd>-click range</Trans>
       </span>
     );
     return (
@@ -2453,13 +2477,13 @@ export function ListSurface({
   const pageSort = sidebarSortOf(sortKey, sortDir);
   const menuLabel = chipLabelOf(pageChip);
   const pageMenu = sb ? {
-    label: menuLabel, on: pageChip !== 'all', ariaLabel: 'Show and sort',
-    title: `Showing ${menuLabel.toLowerCase()} · sorted by ${(pageSort ? SORT_LABELS[pageSort] : sortLabelOf(sortKey, sortDir)).toLowerCase()}`,
+    label: menuLabel, on: pageChip !== 'all', ariaLabel: tr`Show and sort`,
+    title: tr`Showing ${ph({ show: menuLabel.toLocaleLowerCase(uiLocale()) })} · sorted by ${ph({ sort: (pageSort ? SORT_LABELS[pageSort] : sortLabelOf(sortKey, sortDir)).toLocaleLowerCase(uiLocale()) })}`,
     sections: [
-      { id: 'show', label: 'Show', items: pageChipsOf(chipCounts, pageChip).map((c) => ({
-        key: c.id, label: c.id === 'all' ? 'All files' : c.label, count: chipCounts?.[c.id] || 0,
+      { id: 'show', label: tr`Show`, items: pageChipsOf(chipCounts, pageChip).map((c) => ({
+        key: c.id, label: c.id === 'all' ? tr`All files` : c.label, count: chipCounts?.[c.id] || 0,
         checked: pageChip === c.id, onPick: () => pickChip(c.id) })) },
-      { id: 'sort', label: 'Sort', items: [
+      { id: 'sort', label: tr`Sort`, items: [
         ...SORTS.map((so) => ({ key: so, label: SORT_LABELS[so], checked: pageSort === so, onPick: () => setPageSort(SORT_TO_PAGE[so]) })),
         // A column head's sort the menu has no word for: shown, in force.
         ...(pageSort ? [] : [{ key: 'custom', label: sortLabelOf(sortKey, sortDir), checked: true, onPick: () => {} }]),
@@ -2470,10 +2494,10 @@ export function ListSurface({
         <div className="sbf-menu-sep" role="separator" />
         {/* A phone's line has no room for Grid | List: it's here. */}
         {phoneShell && (
-          <div className="fp-size-row" role="group" aria-label="Layout">
-            <span className="fp-size-label">Layout</span>
+          <div className="fp-size-row" role="group" aria-label={tr`Layout`}>
+            <span className="fp-size-label"><Trans>Layout</Trans></span>
             <div className="sbf-tabs">
-              {[['gallery', 'Grid'], ['table', 'List']].map(([id, label]) => (
+              {[['gallery', tr`Grid`], ['table', tr`List`]].map(([id, label]) => (
                 <button type="button" key={id} role="menuitemradio" aria-checked={viewMode === id}
                         className={`sbf-tab${viewMode === id ? ' is-on' : ''}`} onClick={() => onViewMode(id)}>
                   {label}
@@ -2483,10 +2507,10 @@ export function ListSurface({
           </div>
         )}
         {viewMode === 'gallery' && (
-          <div className="fp-size-row" role="group" aria-label="Tile size">
-            <span className="fp-size-label">Size</span>
+          <div className="fp-size-row" role="group" aria-label={tr`Tile size`}>
+            <span className="fp-size-label"><Trans>Size</Trans></span>
             <div className="sbf-tabs">
-              {[['s', 'Small'], ['m', 'Medium'], ['l', 'Large']].map(([k, label]) => (
+              {[['s', tr`Small`], ['m', tr`Medium`], ['l', tr`Large`]].map(([k, label]) => (
                 <button type="button" key={k} role="menuitemradio" aria-checked={tileSize === k} aria-label={label}
                         className={`sbf-tab${tileSize === k ? ' is-on' : ''}`} onClick={() => onTileSize(k)}>
                   {k.toUpperCase()}
@@ -2532,10 +2556,10 @@ export function ListSurface({
             <FilesPageHead board={board} boards={boards} phone={phoneShell}
               meta={phoneShell ? '' : pageMeta}
               download={canDownloadAll && !phoneShell ? {
-                label: zipping ? 'Preparing…' : narrowed ? `Download ${downloadableVisible.length}` : 'Download all',
+                label: zipping ? tr`Preparing…` : narrowed ? tr`Download ${ph({ count: downloadableVisible.length })}` : tr`Download all`,
                 busy: zipping, onClick: downloadAll } : null}
               shrink={dockControls?.canShrink && dockControls?.onShrink ? {
-                label: dockControls.shrinkLabel || 'Beside board', title: dockControls.shrinkTitle, onClick: dockControls.onShrink } : null}
+                label: dockControls.shrinkLabel || tr`Beside board`, title: dockControls.shrinkTitle, onClick: dockControls.onShrink } : null}
               trail={hasTrail ? fullPathBar : null}
               switchable={clusterSwitch}
               onOpenBoard={onOpenBoard} />
@@ -2547,12 +2571,12 @@ export function ListSurface({
               </div>
             ) : otherCards.length > 0 ? (
               <FilesPageTools query={query} onQuery={setQuery} searchRef={searchRef}
-                placeholder={`Search ${board?.name || 'this cluster'}`}
+                placeholder={tr`Search ${boardOrThis}`}
                 menu={pageMenu}
                 // A pack is read whenever there is one, narrowed or not: it
                 // re-reads what's showing, so narrowing to 128 says what that
                 // leaves. Otherwise a search or filter says how many it leaves.
-                found={loading ? '' : packSummary || (narrowed ? `${visibleItems.length} of ${otherCards.length}` : '')}
+                found={loading ? '' : packSummary || (narrowed ? tr`${ph({ shown: visibleItems.length })} of ${ph({ total: otherCards.length })}` : '')}
                 foundPack={!loading && !!packSummary}
                 faces={phoneShell ? null : facePeers}
                 viewMode={phoneShell ? null : viewMode} onViewMode={onViewMode}
@@ -2568,20 +2592,20 @@ export function ListSurface({
         {!isPanel && !sb && (
           <header className={`cb-pagehead${hasTrail ? ' has-trail' : ''}`}>
             {hasTrail && <div className="cb-pagehead-trail"><PathBar {...fullPathBar} /></div>}
-            <h1 className="cb-pagehead-title">{board?.name || 'Untitled cluster'}</h1>
+            <h1 className="cb-pagehead-title">{board?.name || tr`Untitled cluster`}</h1>
             <span className="cb-pagehead-meta">{pageMeta}</span>
             {canDownloadAll && (
               <button type="button" className="list-section-act cb-pagehead-dl" onClick={downloadAll} disabled={zipping}>
                 <Icon as={Download} size={16} weight="light" />
-                <span>{zipping ? 'Preparing…'
-                     : narrowed ? `Download ${downloadableVisible.length}`
-                     : 'Download all'}</span>
+                <span>{zipping ? tr`Preparing…`
+                     : narrowed ? tr`Download ${ph({ count: downloadableVisible.length })}`
+                     : tr`Download all`}</span>
               </button>
             )}
             {dockControls?.canShrink && dockControls?.onShrink && (
               <button type="button" className="cbt-iconbtn cbt-shrink" onClick={dockControls.onShrink}
-                      aria-label={dockControls.shrinkLabel || 'Beside board'}
-                      title={dockControls.shrinkTitle || dockControls.shrinkLabel || 'Put Files beside the board'}>
+                      aria-label={dockControls.shrinkLabel || tr`Beside board`}
+                      title={dockControls.shrinkTitle || dockControls.shrinkLabel || tr`Put Files beside the board`}>
                 <Icon as={ArrowsInSimple} size={16} weight="light" />
               </button>
             )}
@@ -2591,15 +2615,15 @@ export function ListSurface({
         {!isPanel && !sb && filesBlockShown && <div className={`cb-head${headStuck ? ' is-stuck' : ''}`} ref={lpHeadRef}>{toolbarJsx}</div>}
         {!isPanel && !sb && clusterEmpty && (
           <div className="list-empty">
-            <div className="list-empty-title">Empty cluster</div>
+            <div className="list-empty-title"><Trans>Empty cluster</Trans></div>
             <div className="list-empty-sub">
-              {canEdit ? 'Drop files anywhere here, or start with one of these.' : 'Nothing here yet.'}
+              {canEdit ? tr`Drop files anywhere here, or start with one of these.` : tr`Nothing here yet.`}
             </div>
             {canEdit && (
               <div className="list-empty-acts">
-                <button className="tb-btn" onClick={openAddPicker}><Icon as={Plus} size={16} weight="light" /> Add files</button>
-                {mutators.addNewBoard && <button className="tb-btn" onClick={() => mutators.addNewBoard(null, { via: 'files_empty' })}>New cluster</button>}
-                {onOpenPicker && <button className="tb-btn" onClick={onOpenPicker}><Icon as={LinkIcon} size={16} weight="light" /> Link a cluster</button>}
+                <button className="tb-btn" onClick={openAddPicker}><Icon as={Plus} size={16} weight="light" /> <Trans>Add files</Trans></button>
+                {mutators.addNewBoard && <button className="tb-btn" onClick={() => mutators.addNewBoard(null, { via: 'files_empty' })}><Trans>New cluster</Trans></button>}
+                {onOpenPicker && <button className="tb-btn" onClick={onOpenPicker}><Icon as={LinkIcon} size={16} weight="light" /> <Trans>Link a cluster</Trans></button>}
               </div>
             )}
           </div>
@@ -2607,7 +2631,7 @@ export function ListSurface({
         {isPanel && hasFolders && (
           <>
             <div className="list-section">
-              <span>Clusters</span><span className="list-section-count">{folderCount}</span>
+              <span><Trans>Clusters</Trans></span><span className="list-section-count">{folderCount}</span>
             </div>
             <div className="ft-grid is-panel" ref={ftGridRef}>
               {subBoards.slice(0, folderShown).map(renderSubFolder)}
@@ -2615,7 +2639,7 @@ export function ListSurface({
             </div>
             {folderCount > folderCapN && (
               <button type="button" className="ft-more" onClick={toggleFolders} aria-expanded={foldersOpen}>
-                {foldersOpen ? 'Show fewer' : `Show all ${folderCount}`}
+                {foldersOpen ? tr`Show fewer` : tr`Show all ${folderCount}`}
                 <Icon as={foldersOpen ? ChevronUp : ChevronDown} size={12} weight="light" />
               </button>
             )}
@@ -2624,7 +2648,7 @@ export function ListSurface({
         {!isPanel && !sb && subBoards.length > 0 && (
           <>
             <div className="list-section">
-              <span>Clusters</span><span className="list-section-count">{subBoards.length}</span>
+              <span><Trans>Clusters</Trans></span><span className="list-section-count">{subBoards.length}</span>
             </div>
             <div className="ft-grid is-full">{subBoards.map(renderSubFolder)}</div>
           </>
@@ -2632,7 +2656,7 @@ export function ListSurface({
         {!isPanel && !sb && linkedCards.length > 0 && (
           <>
             <div className="list-section">
-              <span>Linked</span><span className="list-section-count">{linkedCards.length}</span>
+              <span><Trans>Linked</Trans></span><span className="list-section-count">{linkedCards.length}</span>
             </div>
             <div className="ft-grid is-full">{linkedCards.map(renderLinkedFolder)}</div>
           </>
@@ -2654,47 +2678,47 @@ export function ListSurface({
                   <ClusterTable {...tableProps} items={displayItems} variant="classic" leadRows={folderRows} />
                 )}
                 {visibleItems.length === 0 && (loading ? (
-                  <div className="fp-loading" role="status">Loading files…</div>
+                  <div className="fp-loading" role="status"><Trans>Loading files…</Trans></div>
                 ) : failed ? (
-                  <LoadFailed what="this cluster’s files" onRetry={onRetry} />
+                  <LoadFailed what={tr`this cluster’s files`} onRetry={onRetry} />
                 ) : narrowed ? (
                   descHits.length === 0 && shownFolders.length === 0 && (
                     <div className="fp-nomatch">
-                      <span>No files match.</span>
-                      <button type="button" className="fp-word" onClick={() => { setQuery(''); onClearFilters(); }}>Clear filters</button>
+                      <span><Trans>No files match.</Trans></span>
+                      <button type="button" className="fp-word" onClick={() => { setQuery(''); onClearFilters(); }}><Trans>Clear filters</Trans></button>
                     </div>
                   )
                 ) : (
                   <div className={`fp-empty${canEdit ? '' : ' is-readonly'}`}>
                     {canEdit && <span className="fp-empty-ico" aria-hidden="true"><Icon as={UploadSimple} size={20} weight="regular" /></span>}
-                    <div className="fp-empty-title">No files in {board?.name || 'this cluster'}</div>
+                    <div className="fp-empty-title"><Trans>No files in {boardOrThis}</Trans></div>
                     <div className="fp-empty-sub">
-                      {canEdit ? 'Drop files here or add them. They wait in Files until you put them on the board.'
-                        : browsingFrom ? `Open ${board?.name || 'it'} to add files.` : 'Nothing here yet.'}
+                      {canEdit ? tr`Drop files here or add them. They wait in Files until you put them on the board.`
+                        : browsingFrom ? tr`Open ${boardOrIt} to add files.` : tr`Nothing here yet.`}
                     </div>
                     {canEdit ? (
                       <div className="fp-empty-acts">
                         <button type="button" className="sbf-upload fp-add" onClick={openAddPicker}>
-                          <Icon as={Plus} size={14} weight="regular" /><span className="fp-add-label">Add files</span>
+                          <Icon as={Plus} size={14} weight="regular" /><span className="fp-add-label"><Trans>Add files</Trans></span>
                         </button>
                         {!shownFolders.length && mutators.addNewBoard && (
-                          <button type="button" className="fp-word" onClick={() => mutators.addNewBoard(null, { via: 'files_empty' })}>New cluster</button>
+                          <button type="button" className="fp-word" onClick={() => mutators.addNewBoard(null, { via: 'files_empty' })}><Trans>New cluster</Trans></button>
                         )}
                         {!shownFolders.length && onOpenPicker && (
-                          <button type="button" className="fp-word" onClick={onOpenPicker}>Link a cluster</button>
+                          <button type="button" className="fp-word" onClick={onOpenPicker}><Trans>Link a cluster</Trans></button>
                         )}
                       </div>
                     ) : browsingFrom && dockControls?.onExpand ? (
-                      <button type="button" className="fp-word" onClick={dockControls.onExpand}>Open {board?.name || 'cluster'}</button>
+                      <button type="button" className="fp-word" onClick={dockControls.onExpand}><Trans>Open {boardOrCluster}</Trans></button>
                     ) : null}
                   </div>
                 ))}
-                {descFailed && <LoadFailed compact what="search results" onRetry={retryDesc} />}
+                {descFailed && <LoadFailed compact what={tr`search results`} onRetry={retryDesc} />}
                 {/* Hits in clusters under this one aren't loaded cards: rows
                     that open the cluster they're in. */}
                 {descHits.length > 0 && (
                   <>
-                    <FilesShelfHead id="desc" label="In sub-clusters" count={descHits.length}
+                    <FilesShelfHead id="desc" label={tr`In sub-clusters`} count={descHits.length}
                       first={visibleItems.length === 0 && shownFolders.length === 0} />
                     <div className="fp-desc">
                       {descHits.map((h) => (
@@ -2715,8 +2739,8 @@ export function ListSurface({
           <div className="cluster-browser">
             {(hasFolders || (!isPanel && packSummary)) && (
               <div className="list-section list-section-files">
-                <span>Files</span>
-                <span className="list-section-count">{loading ? '…' : narrowed ? `${visibleItems.length} of ${otherCards.length}` : otherCards.length}</span>
+                <span><Trans>Files</Trans></span>
+                <span className="list-section-count">{loading ? '…' : narrowed ? tr`${ph({ count: visibleItems.length })} of ${ph({ count2: otherCards.length })}` : otherCards.length}</span>
                 {!isPanel && packSummary && <span className="list-section-meta">{packSummary}</span>}
               </div>
             )}
@@ -2726,27 +2750,27 @@ export function ListSurface({
                    onDragEnd={filesDraggable ? onFilesDragEnd : undefined}>
                 {visibleItems.length === 0 && descHits.length === 0 ? (
                   loading ? (
-                    <div className="list-loading" role="status">Loading files…</div>
+                    <div className="list-loading" role="status"><Trans>Loading files…</Trans></div>
                   ) : failed ? (
-                    <LoadFailed what="this cluster’s files" onRetry={onRetry} />
+                    <LoadFailed what={tr`this cluster’s files`} onRetry={onRetry} />
                   ) : query || filters.size || unplacedOnly ? (
                     <div className="cluster-browser-empty">
-                      <div>No files match.</div>
+                      <div><Trans>No files match.</Trans></div>
                       <button type="button" className="cbt-btn cb-empty-clear"
-                              onClick={() => { setQuery(''); onClearFilters(); }}>Clear filters</button>
+                              onClick={() => { setQuery(''); onClearFilters(); }}><Trans>Clear filters</Trans></button>
                     </div>
                   ) : (
                     <div className={`list-empty is-compact${canEdit ? "" : " is-readonly"}`}>
                       {canEdit && <span className="list-empty-ico"><Icon as={Upload} size={16} weight="light" /></span>}
-                      <div className="list-empty-title">No files in {board?.name || 'this cluster'}</div>
+                      <div className="list-empty-title"><Trans>No files in {boardOrThis}</Trans></div>
                       <div className="list-empty-sub">
-                        {canEdit ? 'Drop files here or add them. They wait in Files until you put them on the board.'
-                          : browsingFrom ? `Open ${board?.name || 'it'} to add files.` : 'Nothing here yet.'}
+                        {canEdit ? tr`Drop files here or add them. They wait in Files until you put them on the board.`
+                          : browsingFrom ? tr`Open ${boardOrIt} to add files.` : tr`Nothing here yet.`}
                       </div>
                       {canEdit ? (
-                        <button type="button" className="cbt-btn" onClick={openAddPicker}><Icon as={Plus} size={16} weight="light" />Add files</button>
+                        <button type="button" className="cbt-btn" onClick={openAddPicker}><Icon as={Plus} size={16} weight="light" /><Trans>Add files</Trans></button>
                       ) : browsingFrom && dockControls?.onExpand ? (
-                        <button type="button" className="cbt-btn" onClick={dockControls.onExpand}>Open {board?.name || 'cluster'}</button>
+                        <button type="button" className="cbt-btn" onClick={dockControls.onExpand}><Trans>Open {boardOrCluster}</Trans></button>
                       ) : null}
                     </div>
                   )
@@ -2755,10 +2779,10 @@ export function ListSurface({
                 ) : (
                   <ClusterTable {...tableProps} items={displayItems} />
                 )}
-                {descFailed && <LoadFailed compact what="search results" onRetry={retryDesc} />}
+                {descFailed && <LoadFailed compact what={tr`search results`} onRetry={retryDesc} />}
                 {descHits.length > 0 && (
                   <div className="cb-descendants">
-                    <div className="cb-desc-label">In sub-clusters</div>
+                    <div className="cb-desc-label"><Trans>In sub-clusters</Trans></div>
                     {descHits.map(h => (
                       <button key={`${h.boardId}:${h.id}`} className="cb-desc-row" onClick={() => onOpenBoard(h.boardId)}>
                         <span className="cb-desc-name">{h.name}</span>
@@ -2798,7 +2822,7 @@ export function ListSurface({
               }}
               onClose={() => setQuickId(null)}
               onShowOnBoard={onRevealOnCanvas && !quickItems[quickIndex]?.unplaced ? (it) => { setQuickId(null); onRevealOnCanvas([it.id]); } : null}
-              showLabel={browsingFrom ? 'Show in cluster' : 'Show on board'}
+              showLabel={browsingFrom ? tr`Show in cluster` : tr`Show on board`}
               onDownload={downloadOne}
               onPutOnBoard={canEdit && !browsingFrom ? (it) => { setQuickId(null); putOnBoard([it.id]); } : null}
               infoOpen={infoOpen} onToggleInfo={toggleInfo}

@@ -19,6 +19,8 @@ import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { workspaceMenuPlacement } from '../../lib/projectsHome.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import { initialOf } from '../../lib/graphemes.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 export function HomeWorkspace({
   workspace, workspaces, personalWorkspaceId, selfUserId, wsPeers,
@@ -77,7 +79,7 @@ export function HomeWorkspace({
   useEffect(() => { setRenaming(false); setPlace(null); }, [workspace?.id]);
 
   if (!workspace) return null;
-  const saved = (workspace.name || '').trim() || 'Workspace';
+  const saved = (workspace.name || '').trim() || t`Workspace`;
   const name = saving || saved;
   const iconSrc = workspace.settings?.icon_url || '';
 
@@ -105,7 +107,7 @@ export function HomeWorkspace({
         )}
         {renaming ? (
           <form className="ch-ws-rename" onSubmit={(e) => { e.preventDefault(); commit(); }}>
-            <input ref={inputRef} value={draft} maxLength={120} aria-label="Workspace name"
+            <input ref={inputRef} value={draft} maxLength={120} aria-label={t`Workspace name`}
                    onChange={(e) => setDraft(e.target.value)}
                    onBlur={commit}
                    onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); } }} />
@@ -114,18 +116,18 @@ export function HomeWorkspace({
           <h1 className="ch-ws-name" title={name}>{name}</h1>
         )}
         <button ref={triggerRef} type="button" className={`ch-ws-switch${open ? ' is-open' : ''}`} onClick={toggle}
-                aria-label="Switch workspace" title="Switch workspace" aria-haspopup="menu" aria-expanded={open}>
+                aria-label={t`Switch workspace`} title={t`Switch workspace`} aria-haspopup="menu" aria-expanded={open}>
           <Icon as={ChevronDown} size={14} weight="regular" />
         </button>
         {!renaming && (
           <span className="ch-ws-acts">
-            {canManage && <button type="button" className="ch-quiet" onClick={startRename}>Rename</button>}
-            {canManage && <button type="button" className="ch-quiet" onClick={() => onInvite?.(workspace)}>Invite</button>}
-            <button type="button" className="ch-quiet" onClick={() => { setPlace(null); onNew?.(); }}>New workspace</button>
+            {canManage && <button type="button" className="ch-quiet" onClick={startRename}><Trans>Rename</Trans></button>}
+            {canManage && <button type="button" className="ch-quiet" onClick={() => onInvite?.(workspace)}><Trans>Invite</Trans></button>}
+            <button type="button" className="ch-quiet" onClick={() => { setPlace(null); onNew?.(); }}><Trans>New workspace</Trans></button>
           </span>
         )}
       </div>
-      <p className="ch-ws-meta">{renaming ? 'Enter to save · Esc to cancel' : line}</p>
+      <p className="ch-ws-meta">{renaming ? t`Enter to save · Esc to cancel` : line}</p>
       {open && typeof document !== 'undefined' && createPortal(
         <div ref={popRef} className="ph-ws-pop" style={{ top: place.top, left: place.left, width: place.width }}>
           <WorkspaceMenu

@@ -27,9 +27,12 @@ import { Suspense } from 'react';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { ClustersMark } from '../components/SoleilWordmark.jsx';
 import { FeatureList, BenefitGrid, PlanToggle, CreatorPriceRow } from '../components/PricingBits.jsx';
-import { DEMO_FEATURES, PRICING_PAGE, PLAN_COMPARISON, PRICING_FAQ, PLAN_NAME, CREATOR_BENEFITS } from '../lib/billingCopy.js';
+import { PLAN_NAME } from '../lib/billingCopy.js';
+import { demoFeatures, PRICING_PAGE, PLAN_COMPARISON, PRICING_FAQ, CREATOR_BENEFITS } from '../lib/billingCopyWords.js';
 import { PRICING_ANSWER } from '../lib/pricingCrawlable.js';
 import '../pages/seoLanding.css';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // The Team card, which both pricing pages pass (appHost teamPricingAllowed,
 // open everywhere since the launch). Lazy, so the card's own code loads after
@@ -80,14 +83,14 @@ export function PricingPageView({
        screen. Here it is the second one. */
     <div className="public-shell seo-shell public-dark pp-shell">
       <div className="public-topbar">
-        <a className="public-brand" href="/" title="Clusters home">
+        <a className="public-brand" href="/" title={t`Clusters home`}>
           <ClustersMark size={20} />
-          <span className="public-brand-name">Clusters</span>
+          <span className="public-brand-name"><Trans context="brand">Clusters</Trans></span>
         </a>
         <div className="public-topbar-spacer" />
         <div className="public-topbar-actions">
-          <a className="public-signin-quiet" href="/explore" {...ctaProps('topbar_explore', '/explore', { intent: 'nav' })}>Explore</a>
-          <a className="public-signin-quiet" href="/docs" {...ctaProps('topbar_docs', '/docs', { intent: 'nav' })}>Docs</a>
+          <a className="public-signin-quiet" href="/explore" {...ctaProps('topbar_explore', '/explore', { intent: 'nav' })}><Trans>Explore</Trans></a>
+          <a className="public-signin-quiet" href="/docs" {...ctaProps('topbar_docs', '/docs', { intent: 'nav' })}><Trans context="documentation">Docs</Trans></a>
           {freeCta && (
             <button type="button" className="public-cta" onClick={() => freeCta.onClick('topbar_demo')}>{freeCta.label}</button>
           )}
@@ -130,7 +133,7 @@ export function PricingPageView({
                 <span className="pp-plan-unit">{PRICING_PAGE.freeCardUnit}</span>
               </div>
               <p className="pp-plan-sub t-meta">{PRICING_PAGE.freeCardSub}</p>
-              <FeatureList features={DEMO_FEATURES} className="pricing-features pp-free-list" />
+              <FeatureList features={demoFeatures()} className="pricing-features pp-free-list" />
               {freeCta
                 ? (
                   <button type="button" className="pricing-cta pp-plan-cta"
@@ -143,7 +146,7 @@ export function PricingPageView({
                      "Start free" would be nonsense, and leaving the slot empty
                      would misalign the two cards' buttons — so the card states
                      the fact and holds the row. */
-                  <div className="pp-plan-current">Your current plan</div>
+                  <div className="pp-plan-current"><Trans>Your current plan</Trans></div>
                 )}
             </article>
 
@@ -233,7 +236,7 @@ export function PricingPageView({
               {/* Lowercase `fetchpriority`, as in R2Image: React 18 has no
                   camelCase fetchPriority prop and warns on every load. */}
               <img src={`/landing/${shot.slug}.webp`}
-                   alt="The Clusters brand book, built in Clusters"
+                   alt={t`The Clusters brand book, built in Clusters`}
                    width="2048" height="1000" fetchpriority="high" />
             </a>
             <figcaption className="seo-frame-cap">{shot.caption}</figcaption>
@@ -257,7 +260,7 @@ export function PricingPageView({
                 <thead>
                   <tr>
                     <th scope="col">&nbsp;</th>
-                    <th scope="col">Free</th>
+                    <th scope="col"><Trans>Free</Trans></th>
                     <th scope="col" className="seo-us-col">{PLAN_NAME}</th>
                   </tr>
                 </thead>
@@ -284,7 +287,7 @@ export function PricingPageView({
           </section>
 
           <section className="seo-section seo-faq">
-            <h2 className="seo-h2">Frequently asked questions</h2>
+            <h2 className="seo-h2"><Trans>Frequently asked questions</Trans></h2>
             {PRICING_FAQ.map((f, i) => (
               <details className="seo-faq-item" key={i}
                        onToggle={(ev) => { if (ev.currentTarget.open) onFaqOpen?.(i, f.q); }}>
@@ -307,12 +310,12 @@ export function PricingPageView({
           <footer className="seo-footer">
             {footer}
             <p className="seo-updated pp-machine">
-              <a href="/docs/account/plans">Plans, limits and billing in the docs</a>
-              {' · '}Machine-readable: <a href="/pricing.md">/pricing.md</a> · <a href="/llms.txt">/llms.txt</a>
+              <Trans><a href="/docs/account/plans">Plans, limits and billing in the docs</a>
+              {' · '}Machine-readable: <a href="/pricing.md">/pricing.md</a> · <a href="/llms.txt">/llms.txt</a></Trans>
             </p>
             <div className="seo-footer-brand">
               <ClustersMark size={16} />
-              <span>Soleil Clusters — a creative workspace &amp; moodboard for production teams.</span>
+              <span><Trans>Soleil Clusters — a creative workspace &amp; moodboard for production teams.</Trans></span>
             </div>
           </footer>
         </article>

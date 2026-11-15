@@ -28,6 +28,8 @@ import { firstBoardCopy } from '../../lib/firstBoardCopy.js';
 import { pickPresenceColor } from '../../lib/presenceColor.js';
 import { InviteStep } from './InviteStep.jsx';
 import { initialOf } from '../../lib/graphemes.js';
+import { t as tr, ph, plural } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const TEAM_ICONS = { solo: User, few: Users, team: UsersThree };
 const WORK_ICONS = {
@@ -44,11 +46,11 @@ export function Behind({ name }) {
     <>
       <div className="su-behind" aria-hidden="true">
         <div className="su-bd-side">
-          <div className="su-bd-ws"><span className="su-bd-av">{initial(name)}</span><span className="su-bd-name">{name || 'Your workspace'}</span></div>
-          <div className="su-bd-eyebrow">Clusters</div>
+          <div className="su-bd-ws"><span className="su-bd-av">{initial(name)}</span><span className="su-bd-name">{name || tr`Your workspace`}</span></div>
+          <div className="su-bd-eyebrow"><Trans>Clusters</Trans></div>
           <div className="su-bd-row is-on" />
           <div className="su-bd-row is-short" />
-          <div className="su-bd-eyebrow">Files</div>
+          <div className="su-bd-eyebrow"><Trans>Files</Trans></div>
           <div className="su-bd-row" /><div className="su-bd-row is-short" /><div className="su-bd-row" />
         </div>
         <div className="su-bd-top"><span className="su-bd-pill" /><span className="su-bd-pill is-round" /></div>
@@ -184,7 +186,7 @@ export default function WorkspaceSetup({ user, initialState, invitee, onDone }) 
     if (busy) return;
     const v = validateWorkspaceName(typed);
     if (!v.ok) {
-      setNameError(v.reason === 'too_long' ? `Keep it to ${NAME_MAX} characters.` : 'Give your workspace a name to continue.');
+      setNameError(v.reason === 'too_long' ? tr`Keep it to ${NAME_MAX} characters.` : tr`Give your workspace a name to continue.`);
       return;
     }
     setBusy(true);
@@ -199,7 +201,7 @@ export default function WorkspaceSetup({ user, initialState, invitee, onDone }) 
       const next = move({ type: 'name', name: v.name }, { chars: [...v.name].length });
       persist(next);
     } catch (err) {
-      setNameError('That didn’t save. Try again.');
+      setNameError(tr`That didn’t save. Try again.`);
       try { logEvent(EV.SETUP_ERROR, { op: 'workspace', reason: String(err?.message || err).slice(0, 80) }); } catch (_) {}
     } finally {
       setBusy(false);
@@ -226,11 +228,11 @@ export default function WorkspaceSetup({ user, initialState, invitee, onDone }) 
   const kind = workToFirstBoardKind(step === 'who' ? work : (state?.work ?? work));
   const firstHead = firstBoardCopy(kind).head;
   const stripLine = invitee
-    ? (invitee.kind === 'board' ? 'Shared with you' : 'Studio')
+    ? (invitee.kind === 'board' ? tr`Shared with you` : tr`Studio`)
     : step === 'invite'
-      ? (invited.length ? `${invited.length} invited` : out ? 'Invite link ready' : 'Studio')
-      : (firstHead || 'Studio');
-  const wsName = ws?.name || typed.trim() || 'your workspace';
+      ? (invited.length ? plural(invited.length, { other: '# invited' }) : out ? tr`Invite link ready` : tr`Studio`)
+      : (firstHead || tr`Studio`);
+  const wsName = ws?.name || typed.trim() || tr`your workspace`;
   // The team answer shows as empty seats on the workspace card, which the
   // people invited on the next step fill.
   const teamNow = step === 'who' ? team : (state?.team ?? null);
@@ -239,10 +241,10 @@ export default function WorkspaceSetup({ user, initialState, invitee, onDone }) 
   const stepNo = SETUP_STEPS.indexOf(step) + 1;
 
   const strip = (
-    <div className="su-strip" aria-label="Your workspace, as you set it up">
+    <div className="su-strip" aria-label={tr`Your workspace, as you set it up`}>
       <span className="su-strip-av" aria-hidden="true">{initial(shownName)}</span>
       <span className="su-strip-text">
-        <span className={`su-strip-name${shownName ? '' : ' is-empty'}`}>{shownName || 'Your workspace'}</span>
+        <span className={`su-strip-name${shownName ? '' : ' is-empty'}`}>{shownName || tr`Your workspace`}</span>
         <span className="su-strip-line">{stripLine}</span>
       </span>
       {invitee?.faces?.length > 0 && (
@@ -267,43 +269,43 @@ export default function WorkspaceSetup({ user, initialState, invitee, onDone }) 
         <main className="su-panel" ref={panelRef} tabIndex={-1} aria-labelledby="su-h">
           {!invitee && stepNo > 1 && (
             <button type="button" className="su-back" onClick={back} disabled={busy}>
-              <Icon as={CaretLeft} size={14} weight="regular" />Back
+              <Icon as={CaretLeft} size={14} weight="regular" /><Trans>Back</Trans>
             </button>
           )}
           {!invitee && stepNo > 0 && (
-            <div className="su-steps" aria-label={`Step ${stepNo} of ${SETUP_STEPS.length}`}>
+            <div className="su-steps" aria-label={tr`Step ${stepNo} of ${ph({ count: SETUP_STEPS.length })}`}>
               <span className="su-bars" aria-hidden="true">
                 {SETUP_STEPS.map((s, i) => <span key={s} className={`su-bar${i + 1 < stepNo ? ' is-done' : i + 1 === stepNo ? ' is-now' : ''}`} />)}
               </span>
-              <span className="su-stepof">Step {stepNo} of {SETUP_STEPS.length}</span>
+              <span className="su-stepof"><Trans>Step {stepNo} of {ph({ count: SETUP_STEPS.length })}</Trans></span>
             </div>
           )}
 
           {step === 'name' && (
             <form className="su-step su-step-name" onSubmit={submitName} noValidate>
-              <h1 className="su-h" id="su-h">Name your workspace</h1>
-              <p className="su-sub">It’s where your clusters, files and people live. You can rename it any time.</p>
+              <h1 className="su-h" id="su-h"><Trans>Name your workspace</Trans></h1>
+              <p className="su-sub"><Trans>It’s where your clusters, files and people live. You can rename it any time.</Trans></p>
               <div className="su-field">
-                <label className="su-label" htmlFor="su-wsname">Workspace name</label>
+                <label className="su-label" htmlFor="su-wsname"><Trans>Workspace name</Trans></label>
                 <input id="su-wsname" className="su-input su-input-name" type="text" autoComplete="off" maxLength={NAME_MAX * 2}
-                  placeholder="e.g. Lost Time, Northlight Studio" value={typed} data-autofocus disabled={busy}
+                  placeholder={tr`e.g. Lost Time, Northlight Studio`} value={typed} data-autofocus disabled={busy}
                   aria-invalid={!!nameError} aria-describedby={nameError ? 'su-name-err' : undefined}
                   onChange={(e) => { setTyped(e.target.value); if (nameError) setNameError(null); }} />
                 {nameError && <p className="su-error" id="su-name-err" role="alert">{nameError}</p>}
               </div>
               <div className="su-actions">
-                <button type="submit" className="su-btn su-primary" disabled={busy || !typed.trim()}>{busy ? 'Saving…' : 'Continue'}</button>
-                <span className="su-enter" aria-hidden="true">or press <kbd>Enter</kbd></span>
+                <button type="submit" className="su-btn su-primary" disabled={busy || !typed.trim()}>{busy ? tr`Saving…` : tr`Continue`}</button>
+                <span className="su-enter" aria-hidden="true"><Trans>or press <kbd>Enter</kbd></Trans></span>
               </div>
             </form>
           )}
 
           {step === 'who' && (
             <div className="su-step su-step-who">
-              <h1 className="su-h" id="su-h" tabIndex={-1} data-autofocus>Tell us about {wsName}</h1>
-              <p className="su-sub">Two taps. We’ll set up your first cluster to match.</p>
+              <h1 className="su-h" id="su-h" tabIndex={-1} data-autofocus><Trans>Tell us about {wsName}</Trans></h1>
+              <p className="su-sub"><Trans>Two taps. We’ll set up your first cluster to match.</Trans></p>
               <fieldset className="su-group">
-                <legend className="su-legend">Who’s working in it?</legend>
+                <legend className="su-legend"><Trans>Who’s working in it?</Trans></legend>
                 <div className="su-opts">
                   {TEAM_OPTIONS.map((o) => {
                     const on = team === o.id;
@@ -316,12 +318,12 @@ export default function WorkspaceSetup({ user, initialState, invitee, onDone }) 
                 </div>
               </fieldset>
               <fieldset className="su-group">
-                <legend className="su-legend">What kind of work?</legend>
+                <legend className="su-legend"><Trans>What kind of work?</Trans></legend>
                 <Chips value={work} onPick={setWork} />
               </fieldset>
               <div className="su-actions">
-                <button type="button" className="su-btn su-primary" onClick={() => submitWho(false)}>Continue</button>
-                <button type="button" className="su-btn su-quiet" onClick={() => submitWho(true)}>Skip</button>
+                <button type="button" className="su-btn su-primary" onClick={() => submitWho(false)}><Trans>Continue</Trans></button>
+                <button type="button" className="su-btn su-quiet" onClick={() => submitWho(true)}><Trans>Skip</Trans></button>
               </div>
             </div>
           )}
@@ -335,8 +337,8 @@ export default function WorkspaceSetup({ user, initialState, invitee, onDone }) 
                 onInvited={(emails) => setInvited((prev) => [...prev, ...emails])} />
               <div className="su-actions-lf">
                 {out
-                  ? <button ref={wayOnRef} type="button" className="su-btn su-primary" disabled={busy} onClick={() => finish({ type: 'invite_sent' }, { emails: invited.length, links })}>Open {wsName}</button>
-                  : <button type="button" className="su-skip" disabled={busy} onClick={() => finish({ type: 'invite_skipped' })}>Skip for now</button>}
+                  ? <button ref={wayOnRef} type="button" className="su-btn su-primary" disabled={busy} onClick={() => finish({ type: 'invite_sent' }, { emails: invited.length, links })}><Trans>Open {wsName}</Trans></button>
+                  : <button type="button" className="su-skip" disabled={busy} onClick={() => finish({ type: 'invite_skipped' })}><Trans>Skip for now</Trans></button>}
               </div>
             </div>
           )}
@@ -351,12 +353,12 @@ export default function WorkspaceSetup({ user, initialState, invitee, onDone }) 
               <h1 className="su-h" id="su-h" tabIndex={-1} data-autofocus>{invitee.head}</h1>
               <p className="su-sub">{invitee.sub}</p>
               <fieldset className="su-group">
-                <legend className="su-legend">What kind of work do you do?<span className="su-opt-note">Optional</span></legend>
+                <legend className="su-legend"><Trans>What kind of work do you do?<span className="su-opt-note">Optional</span></Trans></legend>
                 <Chips value={work} onPick={setWork} />
               </fieldset>
               <div className="su-actions">
                 <button type="button" className="su-btn su-primary" disabled={busy} onClick={() => finish({ type: 'invitee_done', work }, { work, kind: invitee.kind })}>
-                  {invitee.name ? `Open ${invitee.name}` : 'Open it'}
+                  {invitee.name ? tr`Open ${ph({ name: invitee.name })}` : tr`Open it`}
                 </button>
               </div>
             </div>

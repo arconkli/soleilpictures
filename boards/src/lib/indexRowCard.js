@@ -13,6 +13,7 @@
 import { buildCardIndexRow } from './cardIndexRow.js';
 import { shelfOf } from './sidebarShelves.js';
 import { cutGraphemes } from './graphemes.js';
+import { t } from '@lingui/core/macro';
 
 const SNIPPET_MAX = 160;
 const NAME_MAX = 80;
@@ -20,14 +21,14 @@ const NAME_MAX = 80;
 // What a card is called when nothing on it names it. Every kind the canvas
 // makes has a word here: "Item" told nobody anything (owner, 2026-10-18).
 const KIND_FALLBACK = {
-  image: 'Photo', video: 'Video', audio: 'Audio', pdf: 'PDF',
-  file: 'File', note: 'Note', doc: 'Untitled doc',
-  grid: 'Grid', palette: 'Palette', schedule: 'Schedule', art: 'Drawing',
-  vote: 'Vote', shape: 'Shape',
+  get image() { return t`Photo`; }, get video() { return t`Video`; }, get audio() { return t`Audio`; }, get pdf() { return t`PDF`; },
+  get file() { return t`File`; }, get note() { return t`Note`; }, get doc() { return t`Untitled doc`; },
+  get grid() { return t`Grid`; }, get palette() { return t`Palette`; }, get schedule() { return t`Schedule`; }, get art() { return t`Drawing`; },
+  get vote() { return t`Vote`; }, get shape() { return t`Shape`; },
   // A shortcut's index row is nameless by design (the file is someone else's).
-  shortcut: 'Shortcut',
+  get shortcut() { return t`Shortcut`; },
 };
-const SHAPE_NAMES = { rect: 'Rectangle', ellipse: 'Ellipse', line: 'Line', arrow: 'Arrow' };
+const SHAPE_NAMES = { get rect() { return t`Rectangle`; }, get ellipse() { return t`Ellipse`; }, get line() { return t`Line`; }, get arrow() { return t`Arrow`; } };
 
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
 
@@ -41,10 +42,10 @@ function kindFallback(kind, meta) {
       const host = new URL(meta?.url).hostname.replace(/^www\./, '');
       if (host) return host;
     } catch { /* not a URL */ }
-    return 'Link';
+    return t`Link`;
   }
   if (kind === 'shape' && SHAPE_NAMES[meta?.shape]) return SHAPE_NAMES[meta.shape];
-  return KIND_FALLBACK[kind] || 'Card';
+  return KIND_FALLBACK[kind] || t`Card`;
 }
 
 export function displayName({ kind, title, meta, snippet } = {}) {

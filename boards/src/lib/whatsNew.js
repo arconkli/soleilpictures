@@ -9,6 +9,7 @@
 // decides when.
 
 import { SETUP_EPOCH } from './workspaceSetup.js';
+import { t, ph } from '@lingui/core/macro';
 
 export const WHATS_NEW_HINT = 'files_card';            // the hint's name; all its event carries besides the action
 export const WHATS_NEW_KEY = 'whats_new_files_card';   // profiles.settings key; WhatsNewHint is its one writer
@@ -60,15 +61,15 @@ export function whatsNewEligible({ createdAt, record = null, seenHere = false } 
 // keeps any file uploaded to it (the owner, 2026-10-21). The phone's bubble
 // sits over the drawer's own list, so it says less.
 export function whatsNewCopy({ phone = false, cluster = '' } = {}) {
-  const name = String(cluster ?? '').trim() || 'Untitled';
+  const name = String(cluster ?? '').trim() || t`Untitled`;
   return {
-    eyebrow: 'New',
-    title: 'A visual refresh, and a home for your files',
+    eyebrow: t({ message: 'New', context: 'badge' }),
+    title: t`A visual refresh, and a home for your files`,
     body: phone
-      ? 'Upload any file and it stays here in Files. Search it, or open it as a full page.'
-      : `Upload any file and it stays here in Files, whether it’s on a board or not. This lists every file in ${name}. Search it, or open it as a full page.`,
-    link: 'What else is new',
-    ok: 'Got it',
+      ? t`Upload any file and it stays here in Files. Search it, or open it as a full page.`
+      : t`Upload any file and it stays here in Files, whether it’s on a board or not. This lists every file in ${ph({ name })}. Search it, or open it as a full page.`,
+    link: t`What else is new`,
+    ok: t`Got it`,
   };
 }
 

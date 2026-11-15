@@ -332,7 +332,7 @@ test('one-click unsubscribe covers mentions and replies, and its three allowlist
 test('the Security tab is admin-only, its alert link opens it, and it calls only admin-gated RPCs', () => {
   const panel = read('../components/SettingsPanel.jsx');
   const adminTabs = panel.slice(panel.indexOf('const ADMIN_TABS = ['), panel.indexOf('];', panel.indexOf('const ADMIN_TABS = [')));
-  assert.match(adminTabs, /\{ id: 'security', label: 'Security', group: 'admin' \}/, 'Security belongs in the admin rail');
+  assert.match(adminTabs, /\{ id: 'security', get label\(\) \{ return tr`Security`; \}, group: 'admin' \}/, 'Security belongs in the admin rail');
   const publicTabs = panel.slice(panel.indexOf('const TABS = ['), panel.indexOf('];', panel.indexOf('const TABS = [')));
   assert.doesNotMatch(publicTabs, /'security'/, 'a tab no non-admin can render stays out of TABS');
   assert.match(panel, /\{tab === 'security' && isAdmin && \(/, 'the pane re-checks isAdmin');
@@ -546,8 +546,8 @@ test('a referral pays the inviter once the friend opened the app and placed a fi
   assert.equal(REFERRAL_REWARDS_PER_30_DAYS, per30, 'inviteReward.js REFERRAL_REWARDS_PER_30_DAYS');
   const tab = read('../components/settings/InviteTab.jsx');
   assert.ok(tab.includes("from '../../lib/inviteReward.js'"));
-  assert.ok(tab.includes('You earn {REFERRAL_REWARD_CARDS} free cards (plus {INVITE_BONUS_STORAGE_LABEL} of storage) for each friend who gets started'));
-  assert.ok(tab.includes('for up to {REFERRAL_REWARDS_PER_30_DAYS} friends a month'));
+  assert.ok(tab.includes('You earn ${REFERRAL_REWARD_CARDS} free cards (plus ${INVITE_BONUS_STORAGE_LABEL} of storage) for each friend who gets started'));
+  assert.ok(tab.includes('for up to ${REFERRAL_REWARDS_PER_30_DAYS} friends a month'));
   assert.doesNotMatch(tab, /days old/, 'nothing waits for an account to age any more');
   assert.match(read('./boardsApi.js'), /rewardsWaiting:\s+Number\(row\?\.rewards_waiting \?\? 0\)/);
 

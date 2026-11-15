@@ -2,7 +2,7 @@
 // on a small fake DOM: no jsdom here, so the tree is hand-built.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { wantsDirAuto, ownsDirection, markTextDirection, strongDirection, unsettleTextDirection } from './textDirection.js';
+import { wantsDirAuto, ownsDirection, markTextDirection, strongDirection, unsettleTextDirection, htmlWithoutDirection, directedHtml } from './textDirection.js';
 
 const el = (tag, children = [], attrs = {}) => {
   const node = {
@@ -610,7 +610,9 @@ test('the plugin state equals an uncached full rebuild after every transaction (
 // ── the static pass agrees with the editor ───────────────────────────────────
 // A small DOM that can be built, marked, serialized and cloned: enough for
 // markTextDirection, directedHtml and htmlWithoutDirection.
-const { markTextDirection: mark, htmlWithoutDirection: withoutDir, directedHtml: directed } = await import('./textDirection.js');
+// Static, not an await: a top-level await here let the fuzz test above start
+// before DOM_TAGS below was set.
+const mark = markTextDirection, withoutDir = htmlWithoutDirection, directed = directedHtml;
 
 function ser(n) {
   if (n.nodeType === 3) return n.nodeValue;

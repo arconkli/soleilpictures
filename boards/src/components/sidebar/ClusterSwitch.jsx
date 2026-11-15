@@ -26,6 +26,8 @@ import { useScrollEdges } from '../../hooks/useScrollEdges.js';
 import { clustersInTreeOrder, findClusters } from '../../lib/clusterSwitchList.js';
 import { keyboardInset } from '../../lib/keyboardInset.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const STEP = 16;          // a level of nesting, as in the tree
 const SHEET_STEP = 18;
@@ -182,10 +184,10 @@ export function ClusterSwitch({
       <Icon as={Search} size={sheet ? 16 : 14} weight="regular" />
       <input ref={inputRef} dir="auto" type="text" role="combobox" aria-expanded="true" aria-controls={listId}
              aria-autocomplete="list" aria-activedescendant={activeId ? optId(activeId) : undefined}
-             value={find} placeholder="Find a cluster" aria-label="Find a cluster" autoComplete="off" spellCheck={false}
+             value={find} placeholder={tr`Find a cluster`} aria-label={tr`Find a cluster`} autoComplete="off" spellCheck={false}
              onChange={(e) => { setFind(e.target.value); setActive(null); setByKeys(false); }} />
       {find && (
-        <button type="button" className="sbf-switch-clear" aria-label="Clear" title="Clear (esc)"
+        <button type="button" className="sbf-switch-clear" aria-label={tr`Clear`} title={tr`Clear (esc)`}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => { setFind(''); setActive(null); inputRef.current?.focus(); }}>
           <Icon as={XCircle} size={16} weight="fill" />
@@ -194,9 +196,9 @@ export function ClusterSwitch({
     </label>
   );
   const listEl = (
-    <div ref={listRef} id={listId} role="listbox" aria-label="Clusters" className="sbf-switch-list">
+    <div ref={listRef} id={listId} role="listbox" aria-label={tr`Clusters`} className="sbf-switch-list">
       {rows.map(({ board: b, depth, hit, parentName }) => {
-        const name = b.name || 'Untitled';
+        const name = b.name || tr`Untitled`;
         const shown = b.id === shownId;
         return (
           <div key={b.id} id={optId(b.id)} role="option" aria-selected={shown}
@@ -215,15 +217,15 @@ export function ClusterSwitch({
                 </>
               ) : name}
             </span>
-            {finding && parentName && <span className="sbf-switch-where">in {parentName}</span>}
-            {away && b.id === boardId && <span className="sbf-switch-note">Open now</span>}
+            {finding && parentName && <span className="sbf-switch-where"><Trans>in {parentName}</Trans></span>}
+            {away && b.id === boardId && <span className="sbf-switch-note"><Trans>Open now</Trans></span>}
             <span className="sbf-switch-check" aria-hidden="true">
               {shown && <Icon as={Check} size={sheet ? 18 : 14} weight="bold" />}
             </span>
           </div>
         );
       })}
-      {!rows.length && <div className="sbf-switch-empty">No cluster is called “{find.trim()}”</div>}
+      {!rows.length && <div className="sbf-switch-empty"><Trans>No cluster is called “{ph({ trim: find.trim() })}”</Trans></div>}
     </div>
   );
 
@@ -232,11 +234,11 @@ export function ClusterSwitch({
       <>
         <div className={`sbf-switch-scrim${closing ? ' is-closing' : ''}`} aria-hidden="true" onClick={onClose} />
         <div ref={popRef} className={`sbf-switch is-sheet${closing ? ' is-closing' : ''}${byKeys ? ' by-keys' : ''}`} role="dialog"
-             aria-label="Show the files of" tabIndex={-1} onKeyDown={onKeyDown}>
+             aria-label={tr`Show the files of`} tabIndex={-1} onKeyDown={onKeyDown}>
           <div className="sbf-switch-grabber" aria-hidden="true" />
           <div className="sbf-switch-head">
-            <span className="sbf-switch-title">Show files from</span>
-            <button type="button" className="sbf-switch-done" onClick={onClose}>Done</button>
+            <span className="sbf-switch-title"><Trans>Show files from</Trans></span>
+            <button type="button" className="sbf-switch-done" onClick={onClose}><Trans>Done</Trans></button>
           </div>
           {findRow}
           {listEl}
@@ -246,7 +248,7 @@ export function ClusterSwitch({
   }
   return (
     <div ref={popRef} className={`sbf-switch${closing ? ' is-closing' : ''}${pos?.bottom != null ? ' is-above' : ''}`}
-         role="dialog" aria-label="Show the files of" tabIndex={-1} onKeyDown={onKeyDown}
+         role="dialog" aria-label={tr`Show the files of`} tabIndex={-1} onKeyDown={onKeyDown}
          style={pos
            ? { left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom, maxHeight: pos.maxHeight }
            : { left: 0, top: 0, visibility: 'hidden' }}>

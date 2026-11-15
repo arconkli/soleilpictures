@@ -15,12 +15,25 @@ import { uploadQueue } from '../lib/uploadQueue.js';
 import { isComposingKey, messageKeyAction, touchKeyboard } from '../lib/composerKeys.js';
 import { ENTITY_REF_MIME, ENTITY_REF_LIST_MIME } from '../lib/dragMimes.js';
 import { coerceRef } from '../lib/entityRef.js';
+import { t as tr, ph } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // What a pending entity attachment's chip says: its title when the drag or
 // the picker carried one, else what kind of thing it is.
-const REF_KIND_LABEL = { board: 'Cluster', card: 'Card', doc: 'Document', docPos: 'Document section', tag: 'Tag', url: 'Link', message: 'Message' };
+function refKindLabel(kind) {
+  switch (kind) {
+    case 'board': return tr`Cluster`;
+    case 'card': return tr`Card`;
+    case 'doc': return tr`Document`;
+    case 'docPos': return tr`Document section`;
+    case 'tag': return tr`Tag`;
+    case 'url': return tr`Link`;
+    case 'message': return tr`Message`;
+    default: return undefined;
+  }
+}
 function refChipLabel(ref) {
-  return ref?.title || ref?.name || REF_KIND_LABEL[ref?.kind] || 'Attachment';
+  return ref?.title || ref?.name || refKindLabel(ref?.kind) || tr`Attachment`;
 }
 
 // Upload files into a conversation's draft, three at a time across the app.
@@ -102,7 +115,7 @@ function chipLabel(item) {
 // there when you come back, files still uploading included. The field grows
 // with what you write and is never disabled; Send waits for the uploads.
 export const MessageComposer = forwardRef(function MessageComposer({
-  onSend, onTyping, busy, workspaceId, userId, draftKey, placeholder = 'Message…',
+  onSend, onTyping, busy, workspaceId, userId, draftKey, placeholder = tr`Message…`,
   replyTo = null, replyToName = '', onCancelReply, onEditLast,
   card = false, editing = null, onSaveEdit, onCancelEdit,
 }, ref) {
@@ -321,7 +334,7 @@ export const MessageComposer = forwardRef(function MessageComposer({
       <GrowingTextarea
         ref={inputRef}
         className="msg-composer-input"
-        placeholder={editing ? 'Edit your message' : placeholder}
+        placeholder={editing ? tr`Edit your message` : placeholder}
         value={editing ? editText : body}
         onPaste={handlePaste}
         onChange={(e) => {
@@ -367,15 +380,15 @@ export const MessageComposer = forwardRef(function MessageComposer({
           onDragOver={(e) => { if (hasDragData(e)) e.preventDefault(); }}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}>
-      {dragOver && <div className="msg-composer-drop">Drop to attach</div>}
+      {dragOver && <div className="msg-composer-drop"><Trans>Drop to attach</Trans></div>}
       {editing ? (
         <div className="msg-reply-bar is-edit">
           <Icon as={Edit} size={14} weight="regular" />
           <span className="msg-reply-bar-text">
-            <span className="msg-reply-bar-who">Editing your message</span>
-            {!touchKeyboard() && <span className="msg-reply-bar-body">Enter saves, Esc cancels</span>}
+            <span className="msg-reply-bar-who"><Trans>Editing your message</Trans></span>
+            {!touchKeyboard() && <span className="msg-reply-bar-body"><Trans>Enter saves, Esc cancels</Trans></span>}
           </span>
-          <button type="button" className="msg-reply-bar-x" aria-label="Cancel the edit" title="Cancel (Esc)"
+          <button type="button" className="msg-reply-bar-x" aria-label={tr`Cancel the edit`} title={tr`Cancel (Esc)`}
                   onClick={() => { onCancelEdit?.(); inputRef.current?.focus({ preventScroll: true }); }}>
             <Icon as={X} size={12} />
           </button>
@@ -384,10 +397,10 @@ export const MessageComposer = forwardRef(function MessageComposer({
         <div className="msg-reply-bar">
           <Icon as={Reply} size={13} />
           <span className="msg-reply-bar-text">
-            <span className="msg-reply-bar-who">Replying to {replyToName}</span>
-            <span className="msg-reply-bar-body">{(replyTo.body || '').replace(/\s+/g, ' ').trim() || 'Attachment'}</span>
+            <span className="msg-reply-bar-who"><Trans>Replying to {replyToName}</Trans></span>
+            <span className="msg-reply-bar-body">{(replyTo.body || '').replace(/\s+/g, ' ').trim() || tr`Attachment`}</span>
           </span>
-          <button type="button" className="msg-reply-bar-x" aria-label="Cancel the reply" title="Cancel (Esc)"
+          <button type="button" className="msg-reply-bar-x" aria-label={tr`Cancel the reply`} title={tr`Cancel (Esc)`}
                   onClick={() => { onCancelReply?.(); inputRef.current?.focus({ preventScroll: true }); }}>
             <Icon as={X} size={12} />
           </button>
@@ -406,8 +419,8 @@ export const MessageComposer = forwardRef(function MessageComposer({
                 {item.status === 'uploading' && (
                   <>
                     {/* The percent changes every tick: shown, not announced. */}
-                    <span className="msg-composer-att-state" aria-hidden="true">{Number.isFinite(item.pct) ? `Uploading · ${item.pct}%` : 'Uploading…'}</span>
-                    <span className="sr-only" role="status">Uploading {label}</span>
+                    <span className="msg-composer-att-state" aria-hidden="true">{Number.isFinite(item.pct) ? tr`Uploading · ${ph({ pct: item.pct })}%` : tr`Uploading…`}</span>
+                    <span className="sr-only" role="status"><Trans>Uploading {label}</Trans></span>
                   </>
                 )}
                 {item.status === 'uploading' && Number.isFinite(item.pct) && (
@@ -415,11 +428,11 @@ export const MessageComposer = forwardRef(function MessageComposer({
                 )}
                 {item.status === 'failed' && (
                   <>
-                    <span className="msg-composer-att-state" role="alert">Couldn't upload</span>
-                    <button type="button" className="msg-composer-att-retry" onClick={() => retryItem(item)}>Retry</button>
+                    <span className="msg-composer-att-state" role="alert"><Trans>Couldn't upload</Trans></span>
+                    <button type="button" className="msg-composer-att-retry" onClick={() => retryItem(item)}><Trans>Retry</Trans></button>
                   </>
                 )}
-                <button type="button" className="msg-composer-att-x" aria-label="Remove attachment" onClick={() => removeItem(item)}>
+                <button type="button" className="msg-composer-att-x" aria-label={tr`Remove attachment`} onClick={() => removeItem(item)}>
                   <Icon as={X} size={11} />
                 </button>
               </div>
@@ -428,7 +441,7 @@ export const MessageComposer = forwardRef(function MessageComposer({
           {pendingEntityRefs.map((r, i) => (
             <div key={`ref-${i}`} className="msg-composer-att-chip is-done">
               <span className="msg-composer-att-name">{refChipLabel(r)}</span>
-              <button type="button" className="msg-composer-att-x" aria-label="Remove attachment" onClick={() => setPendingEntityRefs(prev => prev.filter((_, idx) => idx !== i))}>
+              <button type="button" className="msg-composer-att-x" aria-label={tr`Remove attachment`} onClick={() => setPendingEntityRefs(prev => prev.filter((_, idx) => idx !== i))}>
                 <Icon as={X} size={11} />
               </button>
             </div>
@@ -438,7 +451,7 @@ export const MessageComposer = forwardRef(function MessageComposer({
       {card ? (
         <div className="msg-composer-field">
           {!editing && (
-            <button type="button" className="msg-composer-btn msg-composer-attach" title="Attach files" aria-label="Attach files"
+            <button type="button" className="msg-composer-btn msg-composer-attach" title={tr`Attach files`} aria-label={tr`Attach files`}
                     onClick={() => fileInputRef.current?.click()}>
               <Icon as={Plus} size={17} weight="regular" />
             </button>
@@ -446,19 +459,19 @@ export const MessageComposer = forwardRef(function MessageComposer({
           {field}
           <button type="button" ref={emojiBtnRef}
                   className={`msg-composer-btn ${emojiAnchor ? 'is-active' : ''}`}
-                  title="Emoji" aria-label="Emoji"
+                  title={tr`Emoji`} aria-label={tr`Emoji`}
                   onClick={(e) => setEmojiAnchor(emojiAnchor ? null : e.currentTarget.getBoundingClientRect())}>
             <Icon as={Smile} size={17} weight="regular" />
           </button>
           {editing ? (
             <button type="submit" className={`msg-composer-send is-icon${editText.trim() ? ' is-armed' : ''}`} disabled={!editText.trim()}
-                    title="Save (Enter)" aria-label="Save the edit">
+                    title={tr`Save (Enter)`} aria-label={tr`Save the edit`}>
               <Icon as={Check} size={16} weight="bold" />
             </button>
           ) : (
             <button type="submit" className={`msg-composer-send is-icon${canSend ? ' is-armed' : ''}`} disabled={!canSend}
-                    title={uploading ? 'Sending waits for your uploads' : 'Send'}
-                    aria-label={uploading ? 'Send, once the uploads finish' : 'Send'}>
+                    title={uploading ? tr`Sending waits for your uploads` : tr`Send`}
+                    aria-label={uploading ? tr`Send, once the uploads finish` : tr`Send`}>
               <Icon as={ArrowUp} size={16} weight="bold" />
             </button>
           )}
@@ -472,7 +485,7 @@ export const MessageComposer = forwardRef(function MessageComposer({
             className="msg-composer-link-input"
             type="url"
             autoFocus
-            placeholder="https://…"
+            placeholder={tr`https://…`}
             value={linkDraft}
             onChange={(e) => setLinkDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -481,29 +494,29 @@ export const MessageComposer = forwardRef(function MessageComposer({
               if (e.key === 'Escape') { e.preventDefault(); cancelLink(); }
             }}
           />
-          <button type="button" className="msg-composer-btn" onClick={commitLink}>Add</button>
-          <button type="button" className="msg-composer-btn" onClick={cancelLink}>Cancel</button>
+          <button type="button" className="msg-composer-btn" onClick={commitLink}><Trans>Add</Trans></button>
+          <button type="button" className="msg-composer-btn" onClick={cancelLink}><Trans>Cancel</Trans></button>
         </div>
       )}
       {!card && <div className="msg-composer-actions">
-        <button type="button" className="msg-composer-btn" title="Attach"
+        <button type="button" className="msg-composer-btn" title={tr`Attach`}
                 onClick={() => fileInputRef.current?.click()}>
           <Icon as={Paperclip} size={14} />
         </button>
         <button type="button"
                 className={`msg-composer-btn ${linkOpen ? 'is-active' : ''}`}
-                title="Link"
+                title={tr`Link`}
                 onClick={() => { setLinkOpen(o => !o); setLinkDraft(''); }}>
           <Icon as={LinkIcon} size={14} />
         </button>
         <button type="button" ref={emojiBtnRef}
                 className={`msg-composer-btn ${emojiAnchor ? 'is-active' : ''}`}
-                title="Emoji"
+                title={tr`Emoji`}
                 onClick={(e) => setEmojiAnchor(emojiAnchor ? null : e.currentTarget.getBoundingClientRect())}>
           <Icon as={Smile} size={14} />
         </button>
         <button type="submit" className="msg-composer-send" disabled={isBusy || (!body.trim() && !hasPayload)}>
-          {uploading ? 'Uploading…' : 'Send'}
+          {uploading ? tr`Uploading…` : tr`Send`}
         </button>
       </div>}
 

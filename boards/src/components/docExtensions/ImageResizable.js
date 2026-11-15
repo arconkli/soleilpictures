@@ -8,6 +8,7 @@
 
 import Image from '@tiptap/extension-image';
 import { resolveSrc, getSignedUrl } from '../../lib/r2.js';
+import { t } from '@lingui/core/macro';
 
 // Apply a (possibly r2:-sentinel) src to an <img>. For r2: srcs we
 // resolve to a fresh signed URL via the cache and schedule a refresh
@@ -126,7 +127,7 @@ export const ImageResizable = Image.extend({
       // Resize handle (bottom-right). Only visible when the image is selected.
       const handle = document.createElement('div');
       handle.className = 'tt-img-resize';
-      handle.title = 'Drag to resize';
+      handle.title = t`Drag to resize`;
       frame.appendChild(handle);
 
       // Alignment toolbar (top, floating). Only visible when selected.
@@ -152,12 +153,12 @@ export const ImageResizable = Image.extend({
         });
         return b;
       };
-      tb.appendChild(mkBtn('⇤', 'left', 'Align left'));
-      tb.appendChild(mkBtn('≡', 'center', 'Align center'));
-      tb.appendChild(mkBtn('⇥', 'right', 'Align right'));
-      tb.appendChild(mkBtn('▭', 'full', 'Full width'));
+      tb.appendChild(mkBtn('⇤', 'left', t`Align left`));
+      tb.appendChild(mkBtn('≡', 'center', t`Align center`));
+      tb.appendChild(mkBtn('⇥', 'right', t`Align right`));
+      tb.appendChild(mkBtn('▭', 'full', t`Full width`));
       const sep = document.createElement('span'); sep.className = 'tt-img-tb-sep'; tb.appendChild(sep);
-      const remove = mkBtn('×', null, 'Delete image');
+      const remove = mkBtn('×', null, t`Delete image`);
       remove.addEventListener('click', (e) => {
         e.preventDefault();
         if (!editor.isEditable) return;

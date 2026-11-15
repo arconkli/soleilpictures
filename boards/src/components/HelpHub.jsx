@@ -20,6 +20,8 @@ import { Question } from '../lib/icons.js';
 import { ADD_KINDS, HUB_ACTIONS, guideLinks } from '../lib/helpHub.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 const OPEN_EVENT = 'soleil-open-help-hub';
 
@@ -32,7 +34,7 @@ export function openHelpHub(via = 'other') {
 export function HelpButton({ as = 'tb', via = 'topbar' }) {
   const cls = as === 'foot' ? 'sb-foot-icon' : 'tb-icon';
   return (
-    <button className={cls} title="Help" aria-label="Help" onClick={() => openHelpHub(via)}>
+    <button className={cls} title={t`Help`} aria-label={t`Help`} onClick={() => openHelpHub(via)}>
       <Icon as={Question} size={as === 'foot' ? 15 : 16} />
     </button>
   );
@@ -92,11 +94,11 @@ export function HelpHub({ open, onClose, feedback = null }) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} className="shortcuts-modal help-hub" ariaLabel="Help" showClose>
-      <div className="shortcuts-hd">What can I add here?</div>
+    <Modal open={open} onClose={onClose} className="shortcuts-modal help-hub" ariaLabel={t`Help`} showClose>
+      <div className="shortcuts-hd"><Trans>What can I add here?</Trans></div>
       <p className="help-hub-sub">
-        Everything below goes on any cluster. Paste or drag from wherever it already is; the canvas
-        takes care of the rest.
+        <Trans>Everything below goes on any cluster. Paste or drag from wherever it already is; the canvas
+        takes care of the rest.</Trans>
       </p>
       <div className="help-kinds" role="list">
         {ADD_KINDS.map((k) => (
@@ -105,7 +107,7 @@ export function HelpHub({ open, onClose, feedback = null }) {
             <div className="help-kind-line">{k.line}</div>
             <button type="button" className="help-kind-more"
                     onClick={() => { take('learn', { kind: k.id }); openDocs(k.docs, 'help'); }}>
-              Learn more →
+              <Trans>Learn more →</Trans>
             </button>
           </div>
         ))}
@@ -136,13 +138,12 @@ export function HelpHub({ open, onClose, feedback = null }) {
       </div>
 
       {guidesOpen && (
-        <div className="help-guides" aria-label="Guides">
+        <div className="help-guides" aria-label={t`Guides`}>
           {!reg ? (
-            <div className="help-guides-loading">Loading…</div>
+            <div className="help-guides-loading"><Trans>Loading…</Trans></div>
           ) : guides.length === 0 ? (
             <div className="help-guides-loading">
-              Couldn’t load the index —{' '}
-              <button type="button" className="help-kind-more" onClick={() => openDocs('/docs', 'help')}>open the docs site</button>.
+              <Trans>Couldn’t load the index — <button type="button" className="help-kind-more" onClick={() => openDocs('/docs', 'help')}>open the docs site</button>.</Trans>
             </div>
           ) : guides.map((g) => (
             <button key={g.id} type="button" className="help-guide"
@@ -155,11 +156,11 @@ export function HelpHub({ open, onClose, feedback = null }) {
       )}
 
       <p className="help-hub-foot">
-        The whole handbook is at{' '}
+        <Trans>The whole handbook is at{' '}
         <button type="button" className="help-kind-more" onClick={() => { take('docs'); openDocs('/docs', 'help'); }}>
           /docs
         </button>
-        , also readable as plain Markdown at <code>/docs/*.md</code>.
+        , also readable as plain Markdown at <code>/docs/*.md</code>.</Trans>
       </p>
     </Modal>
   );

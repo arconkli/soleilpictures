@@ -8,8 +8,9 @@
 
 import { useEffect, useRef } from 'react';
 import { isComposingKey } from '../../lib/composerKeys.js';
+import { t } from '@lingui/core/macro';
 
-export function InlineRename({ value = '', onCommit, onCancel, className = '', label = 'Name' }) {
+export function InlineRename({ value = '', onCommit, onCancel, className = '', label = t`Name` }) {
   const ref = useRef(null);
   const doneRef = useRef(false);
 

@@ -6,6 +6,8 @@
 
 import { useEditorState } from '@tiptap/react';
 import { computeSceneNumbers } from './docExtensions/screenplay/screenplayFlow.js';
+import { t } from '@lingui/core/macro';
+import { Trans } from '@lingui/react/macro';
 
 // Numbering via the SAME engine as the gutters and the PDF
 // (computeSceneNumbers: auto by order, or locked A/B once any scene carries
@@ -24,7 +26,7 @@ function readScenes(doc) {
     heads.push({ element: 'scene', sceneNumber: node.attrs.sceneNumber || null, text: node.textContent });
   });
   const nums = computeSceneNumbers(heads);
-  scenes = heads.map((h, i) => ({ num: nums.get(i), text: (h.text || '').trim() || 'Untitled scene' }));
+  scenes = heads.map((h, i) => ({ num: nums.get(i), text: (h.text || '').trim() || t`Untitled scene` }));
   scenesByDoc.set(doc, scenes);
   return scenes;
 }
@@ -57,13 +59,13 @@ export function ScreenplaySceneNav({ editor, titlePageEnabled = false, onJumpTit
 
   return (
     <div className="sp-scenenav">
-      <div className="sp-scenenav-head t-eyebrow">Scenes</div>
+      <div className="sp-scenenav-head t-eyebrow"><Trans>Scenes</Trans></div>
       {titlePageEnabled && (
         <button type="button" className="sp-scenenav-item sp-scenenav-title" onClick={() => onJumpTitlePage?.()}>
-          Title Page
+          <Trans>Title Page</Trans>
         </button>
       )}
-      {scenes.length === 0 && <div className="sp-scenenav-empty">No scenes yet</div>}
+      {scenes.length === 0 && <div className="sp-scenenav-empty"><Trans>No scenes yet</Trans></div>}
       {scenes.map((s, i) => (
         <button type="button" key={`${s.num}:${i}`} className="sp-scenenav-item" onClick={() => jump(i)} title={s.text}>
           <span className="sp-scenenav-num">{s.num}</span>
