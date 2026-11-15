@@ -31,12 +31,27 @@
 // file, and lets the rest go. Storage counting decodes its own gc:true copy
 // (storage-liveness).
 //
-// One alarm per object (a Durable Object has one): every minute while anyone
-// is connected it closes sockets of accounts suspended since they connected
-// (4403) and sockets that have gone silent (SILENT_CLOSE_MS), retries a failed
-// flush, and probes board_state for writes made some other way; for 15 minutes
-// after the room empties it keeps probing, so a write from a tab still on the
-// old host is merged even with nobody here.
+// HIBERNATION. The room sleeps between events: Cloudflare evicts it after a
+// quiet spell and wakes it for the next message, close or alarm, and it is not
+// billed while asleep. A tab's keepalive is a text ping the edge answers
+// (lib/partyPing.js) without waking it. What survives a nap, and where:
+//   * the document: RoomLog (this object's SQLite);
+//   * the save baseline (what the room last saw of board_state), the together
+//     state and when the periodic checks last ran: this object's storage;
+//   * each socket's account, workspace, when it was last heard and its own
+//     presence: the socket's attachment (connection.state).
+// Anything else held in memory is gone on a wake, so nothing here may depend on
+// a timer or a field that was not put back in onStart.
+//
+// One alarm per object (a Durable Object has one). While anyone is connected it
+// comes every minute when people are working and every few minutes when nothing
+// has happened (lib/roomWake.js: nextAlarmIn); an edit or a cursor move that
+// finds the checks due runs them at once. The checks close sockets of accounts
+// suspended since they connected (4403) and sockets that have gone silent
+// (SILENT_CLOSE_MS), retry a failed flush, and probe board_state for writes made
+// some other way. An empty room with its saves done keeps no alarm: a write made
+// while nobody is here is merged by the next cold start's load, or by the probe
+// a connect triggers.
 
 import { YServer } from "y-partyserver";
 import type { Connection, ConnectionContext } from "partyserver";
@@ -49,36 +64,55 @@ import { FLUSH_DEBOUNCE_MS, FLUSH_MAX_WAIT_MS, bytesToB64 } from "../src/lib/boa
 import { BoardRoomState, MERGE_ORIGIN } from "../src/lib/boardRoomState.js";
 import { roomGcFilter } from "../src/lib/roomGc.js";
 import { answerEmptyClose } from "../src/lib/partyClose.js";
+import { PING, PONG, PINGS_HELLO, WAKE } from "../src/lib/partyPing.js";
+import {
+  ACTIVE_ALARM_MS, ACTIVITY_SAVE_EVERY_MS, HEARD_SAVE_EVERY_MS, PRESENCE_KEY,
+  checkDue, isSilent, keptPresence, lastHeardAt, nextAlarmIn, restorePresence, sameEntries,
+} from "../src/lib/roomWake.js";
 import { ROOM_ANSWERS, answerAck } from "../src/lib/roomAck.js";
-import { BoardBridge } from "./bridge";
+import { BoardBridge, isDocRoomOrigin } from "./bridge";
 import { bindReports, reportParty } from "./report";
 import { TogetherWatch } from "./together";
 
-const ALARM_MS = 60_000;
-const IDLE_WATCH_MS = 15 * 60_000;
 // After a reset, writes from elsewhere are stale echoes of the board before it
 // (see boardRoomState.js): overwrite them instead of merging, for this long.
 const RESET_FENCE_MS = 30_000;
 const FENCE_KEY = "resetFenceUntil";
+// The last activity (an edit or a presence move from a socket), for the alarm's pace.
 const ACTIVE_KEY = "lastActiveAt";
+// A local-log append or compaction failed and none has caught up since: kept so a nap does not forget it.
+const UNLOGGED_KEY = "unlogged";
+const BASELINE_KEY = "saveBaseline";
+const TOGETHER_KEY = "together";
+const CHECKED_KEY = "lastCheckAt";
 // Close code the client treats as "this room was reset; reload from board_state".
 const RESET_CLOSE = 4030;
 // A socket that has said nothing for this long is dead or frozen: a live tab
 // sends its keepalive every 15 s (lib/yPartyKit.js), and a hidden one, however
 // hard the browser throttles its timers, at least once a minute until it parks
-// (lib/partyPark.js). This room is billed for every second a socket is open, so
-// a frozen tab's socket held it for hours (2026-10-18: one sent 6 frames in
-// 1.8 h). Closing costs a live client one ordinary reconnect: YProvider
-// reconnects on any close, and SILENT_CLOSE means nothing more to it.
-const SILENT_CLOSE_MS = 5 * 60_000;
+// (lib/partyPark.js). The edge answers a PING without waking the room, and the
+// room counts that answer as hearing the socket (getWebSocketAutoResponseTimestamp).
+// A frozen tab's socket held a room open for hours (2026-10-18: one sent 6
+// frames in 1.8 h). Closing costs a live client one ordinary reconnect:
+// YProvider reconnects on any close, and SILENT_CLOSE means nothing more to it.
+// The limit is SILENT_CLOSE_MS in lib/roomWake.js (isSilent).
 const SILENT_CLOSE = 4000;
 
-type ConnState = { userId?: string; canWrite?: boolean } | null;
-const stateOf = (c: Connection) => (c.state as ConnState) || {};
+// The socket's attachment: it survives hibernation. PRESENCE_KEY holds the
+// socket's own presence (lib/roomWake.js); __ypsAwarenessIds is y-partyserver's
+// record of which awareness ids the socket owns.
+type ConnState = {
+  userId?: string; canWrite?: boolean; workspaceId?: string; heardAt?: number;
+  __ypsAwarenessIds?: unknown; [key: string]: unknown;
+} | null;
+const stateOf = (c: Connection) => ((c.state as ConnState) || {}) as NonNullable<ConnState>;
+// A Yjs origin that is a socket: the sender of an edit or a presence move.
+const isSocket = (o: unknown): boolean =>
+  !!o && typeof o === "object" && typeof (o as { send?: unknown }).send === "function" && "id" in (o as object);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class BoardParty extends YServer<Env> {
-  static options = { hibernate: false };
+  static options = { hibernate: true };
   static callbackOptions = {
     debounceWait: FLUSH_DEBOUNCE_MS,
     debounceMaxWait: FLUSH_MAX_WAIT_MS,
@@ -92,18 +126,38 @@ export class BoardParty extends YServer<Env> {
   // Who is working here together, for the cards it earns (party/together.ts).
   private together: TogetherWatch | null = null;
   private resetting = false;
+  // This life of the object began with sockets already open (a nap, not a cold
+  // start): the document is what the room held and the baseline came back.
+  private woke = false;
+  private lastCheckAt = 0;
+  private lastActivityAt = 0;
+  private activitySavedAt = 0;
+  private checking: Promise<void> | null = null;
   private opLogWired = false;
   private localHeldContent = false;
   // The local copy failed to take an update, and no compaction has caught up
   // since: until one does, this room can't say a change is stored (onCustomMessage).
   private unlogged = false;
+  // The edge answers PING (set in the constructor); the hello goes out only then.
+  private pingsAnswered = false;
   // When each socket last sent anything. Keyed by the connection OBJECT:
   // connection.id is stable across a tab's reconnects.
   private lastHeard = new WeakMap<Connection, number>();
+  // Sockets whose close is being handled right now. By then the runtime may no
+  // longer list them and getConnections() never does, yet a close is often what
+  // wakes a napping room.
+  private closing = new Set<WebSocket>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     bindReports(env);
+    // The edge answers a tab's keepalive without waking this room.
+    try {
+      this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(PING, PONG));
+      this.pingsAnswered = true;
+    } catch (e) {
+      console.warn("[board] could not set the keepalive auto-response", e);
+    }
     // Before anything is applied to it — see the header.
     this.document.gc = true;
     this.document.gcFilter = roomGcFilter;
@@ -117,15 +171,50 @@ export class BoardParty extends YServer<Env> {
     void reportParty({ kind, what, error, boardId: this.name }, this.ctx);
   }
 
+  // A write to this object's storage. Not while resetting: the reset wipes it.
+  private put(key: string, value: unknown) {
+    if (this.resetting) return;
+    void this.ctx.storage.put(key, value).catch((e) => this.problem("room storage", e));
+  }
+
+  // Every socket the room holds, plus the ones whose close is being handled:
+  // getConnections() yields only open sockets, and a close that wakes the room
+  // arrives after its socket stopped being open (the runtime may not list it at
+  // all, so this.closing carries it). A socket the room closed itself, for
+  // silence or access, can stay listed as CLOSING when its client never answers;
+  // it is not someone present, so only open sockets and the one closing now
+  // count. partyserver keeps {__pk, __user} in the attachment, and __user is
+  // what connection.state returns.
+  private heldStates(): NonNullable<ConnState>[] {
+    const out: NonNullable<ConnState>[] = [];
+    const seen = new Set<WebSocket>();
+    for (const ws of [...this.ctx.getWebSockets(), ...this.closing]) {
+      if (seen.has(ws)) continue;
+      seen.add(ws);
+      if (ws.readyState !== WebSocket.READY_STATE_OPEN && !this.closing.has(ws)) continue;
+      try {
+        const a = WebSocket.prototype.deserializeAttachment.call(ws) as { __pk?: unknown; __user?: unknown } | null;
+        if (!a || typeof a !== "object" || !a.__pk || typeof a.__pk !== "object") continue;
+        out.push(((a.__user as ConnState) || {}) as NonNullable<ConnState>);
+      } catch (_) { /* not one of ours */ }
+    }
+    return out;
+  }
+
   async onStart() {
     this.local = new RoomLog(this.ctx.storage as any);
-    const fenceUntil = Number(await this.ctx.storage.get(FENCE_KEY)) || 0;
+    const saved = await this.ctx.storage.get([FENCE_KEY, BASELINE_KEY, TOGETHER_KEY, CHECKED_KEY, ACTIVE_KEY, UNLOGGED_KEY]);
+    const fenceUntil = Number(saved.get(FENCE_KEY)) || 0;
+    const held = this.heldStates();
     this.remote = new BoardRoomState({
       boardId: this.name,
       supabaseUrl: this.supabaseUrl,
       serviceRoleKey: this.env.SUPABASE_SERVICE_ROLE_KEY,
       getDoc: () => this.document,
       fenceUntil,
+      // A save that failed has a retry coming, even in a room nobody is in, until
+      // retryWanted says an empty room has tried long enough.
+      onBaseline: (b: unknown) => { this.put(BASELINE_KEY, b); if ((b as any)?.dirty && this.retryWanted()) void this.armSoon(); },
       onRestore: () => { void this.resetRoom("restore marker"); },
       report: (kind: string, info: Record<string, unknown>) => { void reportParty({ kind, ...info }, this.ctx); },
       // The board was deleted for good (its board_state write hit 23503), so no
@@ -138,21 +227,43 @@ export class BoardParty extends YServer<Env> {
       },
     });
 
+    // Sockets held at start, closing ones included, mean a wake: the baseline
+    // comes back with them, or this is treated as a cold start (onLoad). A failed
+    // local append before the nap means the log may lack an update, so that is a
+    // cold start too: it loads and merges board_state, and compactLocal then
+    // rewrites a complete log and clears the flag.
+    if (saved.get(UNLOGGED_KEY)) this.unlogged = true;
+    this.woke = held.length > 0 && !this.unlogged && saved.get(BASELINE_KEY) != null
+      && this.remote.restoreBaseline(saved.get(BASELINE_KEY));
+    this.lastCheckAt = Number(saved.get(CHECKED_KEY)) || 0;
+    this.lastActivityAt = Number(saved.get(ACTIVE_KEY)) || 0;
+    this.activitySavedAt = this.lastActivityAt;
+
     // onLoad runs inside this; YServer then wires the broadcast and the
-    // debounced onSave to the document.
+    // debounced onSave to the document, and says hello to every open socket.
     await super.onStart();
+    // The room's awareness lives in memory and a nap emptied it. Put each
+    // socket's own presence back before anything listens, so a newcomer sees who
+    // is here and a close removes the person (YServer's onClose can only remove
+    // ids the awareness holds).
+    if (held.length) {
+      const now = Date.now();
+      for (const state of held) {
+        try { restorePresence(this.document.awareness, state[PRESENCE_KEY], now); } catch (_) { /* skip this one */ }
+      }
+    }
 
     this.document.on("update", (update: Uint8Array) => {
       if (this.resetting) return;
       try {
         if (!this.local.append(update) || this.local.pending > MAX_PENDING_UPDATES) this.compactLocal();
       } catch (e) {
-        this.unlogged = true;
+        this.markUnlogged();
         console.error(`[board ${this.name}] local log append failed`, e);
         this.problem("local log append", e);
       }
     });
-    this.compactLocal();
+    if (!this.woke || this.local.pending > 0 || this.unlogged) this.compactLocal();
     // A shared doc's mirror hears about every transaction that touches its doc;
     // with no mirror subscribed this returns at its first line.
     this.bridge = new BoardBridge({
@@ -172,15 +283,30 @@ export class BoardParty extends YServer<Env> {
       supabaseUrl: this.supabaseUrl,
       serviceKey: this.env.SUPABASE_SERVICE_ROLE_KEY,
       send: (conn, message) => this.sendCustomMessage(conn, message),
+      persist: (snapshot) => this.put(TOGETHER_KEY, snapshot),
     });
-    this.document.on("update", (_update: Uint8Array, origin: unknown) => this.together?.onDocUpdate(origin));
+    this.together.restore(saved.get(TOGETHER_KEY));
+    // An edit or a presence move from a socket is also what keeps the alarm at
+    // its working pace and runs the checks when they are due (noteActivity). So is
+    // an edit from a shared doc's guests, which arrives through the bridge with a
+    // doc-room origin and is broadcast to every socket all the same.
+    this.document.on("update", (_update: Uint8Array, origin: unknown) => {
+      this.together?.onDocUpdate(origin);
+      if (isSocket(origin) || isDocRoomOrigin(origin)) this.noteActivity();
+    });
     this.document.awareness.on("change",
-      (changes: { added: number[]; updated: number[]; removed: number[] }, origin: unknown) =>
-        this.together?.onAwarenessChange(changes, origin, this.document.awareness.getStates()));
+      (changes: { added: number[]; updated: number[]; removed: number[] }, origin: unknown) => {
+        this.together?.onAwarenessChange(changes, origin, this.document.awareness.getStates());
+        if (isSocket(origin)) this.noteActivity();
+      });
     // The local copy held something: make sure the database gets it now
     // rather than at the next edit. The write is a compare-and-set, so this can
     // only add to what is stored.
-    if (this.localHeldContent) void this.remote.flush({ force: true });
+    if (!this.woke && this.localHeldContent) void this.remote.flush({ force: true });
+    for (const state of held) {
+      const ws = state.workspaceId;
+      if (ws) { this.wireOpLog(ws); break; }
+    }
   }
 
   async onLoad() {
@@ -196,6 +322,16 @@ export class BoardParty extends YServer<Env> {
       }
     }
     this.localHeldContent = applied > 0;
+    // A nap: the local copy is exactly what the room held, and the save baseline
+    // came back from storage, so there is nothing to read or merge.
+    if (this.woke && applied > 0) {
+      // A room can't nap with a save pending (the save's debounce timer keeps it awake), so a clean baseline
+      // means this doc is what board_state holds: the last close's flush then has nothing to write.
+      if (!this.remote.dirty) this.remote.noteStored(bytesToB64(Y.encodeStateAsUpdate(doc)));
+      return doc;
+    }
+    // Woke with nothing local to go on: treat it as a cold start.
+    this.woke = false;
     const loaded = await this.remote.loadInto(doc);
     // Nothing local: the doc IS the row, so the first flush has nothing to say
     // until someone edits.
@@ -206,16 +342,26 @@ export class BoardParty extends YServer<Env> {
   async onSave() {
     if (this.resetting) return;
     await this.remote.flush();
-    if (this.local.pending > 0) this.compactLocal();
+    if (this.local.pending > 0 || this.unlogged) this.compactLocal();
+  }
+
+  // A failed append or compaction: remember it across a nap (onStart), once.
+  private markUnlogged() {
+    if (this.unlogged) return;
+    this.unlogged = true;
+    this.put(UNLOGGED_KEY, true);
   }
 
   private compactLocal() {
     if (this.resetting) return;
     try {
       this.local.compact(Y.encodeStateAsUpdate(this.document));
-      this.unlogged = false;
+      if (this.unlogged) {
+        if (!this.resetting) void this.ctx.storage.delete(UNLOGGED_KEY).catch((e) => this.problem("room storage", e));
+        this.unlogged = false;
+      }
     } catch (e) {
-      this.unlogged = true;
+      this.markUnlogged();
       console.error(`[board ${this.name}] local compaction failed`, e);
       this.problem("local compaction", e);
     }
@@ -230,42 +376,77 @@ export class BoardParty extends YServer<Env> {
       try { conn.close(RESET_CLOSE, "room reset"); } catch (_) { /* already gone */ }
       return;
     }
-    this.lastHeard.set(conn, Date.now());
+    const now = Date.now();
+    this.lastHeard.set(conn, now);
     const h = ctx.request.headers;
     conn.setState((prev: unknown) => ({
       ...((prev as object) || {}),
       userId: h.get("x-user-id") || "",
       canWrite: h.get("x-can-write") === "1",
+      workspaceId: h.get("x-workspace-id") || "",
+      heardAt: now,
     }));
     super.onConnect(conn, ctx);
     // This room answers a doc's save line (onCustomMessage): said ahead of its
     // sync reply, so a device that syncs without it knows not to wait for one.
     this.sendCustomMessage(conn, ROOM_ANSWERS);
+    // The tab switches its keepalive to PING only after hearing this, so either
+    // side can be released first.
+    // Only when the edge will answer: a tab that switched to PING with no answer
+    // would see no PONG and reconnect every half minute.
+    if (this.pingsAnswered) this.sendCustomMessage(conn, PINGS_HELLO);
 
-    // The op log (and the mass-delete detector it feeds) is wired once per
-    // object, on the first connection, which is where the workspace id comes
-    // from.
-    if (!this.opLogWired) {
-      this.opLogWired = true;
-      try {
-        installOpLogCapture({
-          boardId: this.name,
-          workspaceId: h.get("x-workspace-id") || undefined,
-          yDoc: this.document,
-          supabaseUrl: this.supabaseUrl,
-          serviceRoleKey: this.env.SUPABASE_SERVICE_ROLE_KEY,
-        });
-      } catch (e) {
-        console.warn(`[board ${this.name}] opLog install failed`, e);
-        this.problem("op log install", e, "op_log");
-      }
+    this.wireOpLog(h.get("x-workspace-id") || undefined);
+    this.noteActivity();
+    // A room with sockets must always have an alarm.
+    await this.armSoon();
+  }
+
+  // The op log (and the mass-delete detector it feeds) is wired once per
+  // object, on the first connection, which is where the workspace id comes
+  // from (after a nap, from a socket's attachment).
+  private wireOpLog(workspaceId: string | undefined) {
+    if (this.opLogWired) return;
+    this.opLogWired = true;
+    try {
+      installOpLogCapture({
+        boardId: this.name,
+        workspaceId,
+        yDoc: this.document,
+        supabaseUrl: this.supabaseUrl,
+        serviceRoleKey: this.env.SUPABASE_SERVICE_ROLE_KEY,
+      });
+    } catch (e) {
+      console.warn(`[board ${this.name}] opLog install failed`, e);
+      this.problem("op log install", e, "op_log");
     }
-    await this.armAlarm();
   }
 
   onMessage(conn: Connection, message: string | ArrayBuffer | ArrayBufferView) {
-    this.lastHeard.set(conn, Date.now());
+    const now = Date.now();
+    this.lastHeard.set(conn, now);
+    if (now - (Number(stateOf(conn).heardAt) || 0) >= HEARD_SAVE_EVERY_MS) {
+      conn.setState((prev: unknown) => ({ ...((prev as object) || {}), heardAt: now }));
+    }
     super.onMessage(conn, message);
+    // y-protocols messageAwareness is 1.
+    const first = message instanceof ArrayBuffer ? new Uint8Array(message)[0]
+      : ArrayBuffer.isView(message) ? new Uint8Array(message.buffer, message.byteOffset, message.byteLength)[0]
+      : undefined;
+    if (first === 1) this.savePresence(conn);
+  }
+
+  // The room's awareness lives in memory; after a nap it is rebuilt from what
+  // each socket kept here, so a newcomer sees who is here and a close still
+  // tells everyone the person left.
+  private savePresence(conn: Connection) {
+    try {
+      const ids = stateOf(conn).__ypsAwarenessIds || [];
+      const entries = keptPresence(ids, this.document.awareness);
+      if (!sameEntries(entries, stateOf(conn)[PRESENCE_KEY])) {
+        conn.setState((prev: unknown) => ({ ...((prev as object) || {}), [PRESENCE_KEY]: entries }));
+      }
+    } catch (_) { /* newcomers see this cursor when it next moves */ }
   }
 
   // A doc's save line asking whether this room has stored its changes
@@ -273,34 +454,102 @@ export class BoardParty extends YServer<Env> {
   // leaves this object). Nothing else is spoken this way, so anything else
   // gets no answer, as does any question while the answer would prove nothing.
   onCustomMessage(conn: Connection, message: string) {
+    if (message === WAKE) return;   // a tab reaching for a napping cluster wakes it ahead of its first change (lib/partyPing.js); nothing to answer
     if (this.resetting || this.unlogged) return;
     const reply = answerAck(this.document, message, { canWrite: !this.isReadOnly(conn) });
     if (reply) this.sendCustomMessage(conn, reply);
   }
 
-  // A close with no status code gets its answer (lib/partyClose.js).
-  onClose(conn: Connection, code: number, reason: string, wasClean: boolean) {
-    try { super.onClose(conn, code, reason, wasClean); } finally { answerEmptyClose(conn, code); }
+  // The Durable Object entry point for a close. Marks the socket as closing for
+  // the duration, so a wake caused by this close still finds it (heldStates).
+  async webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean) {
+    this.closing.add(ws);
+    try { await super.webSocketClose(ws, code, reason, wasClean); } finally { this.closing.delete(ws); }
   }
 
-  private async armAlarm() {
+  // Same for a socket that ended in an error: it is no longer open either.
+  async webSocketError(ws: WebSocket, error: unknown) {
+    this.closing.add(ws);
+    try { await super.webSocketError(ws, error); } finally { this.closing.delete(ws); }
+  }
+
+  // A close with no status code gets its answer (lib/partyClose.js).
+  async onClose(conn: Connection, code: number, reason: string, wasClean: boolean) {
+    // A close can be what wakes the room; put the closing socket's presence back
+    // if the wake missed it, so YServer's onClose removes it for everyone
+    // (restorePresence skips ids already held).
+    try { restorePresence(this.document.awareness, stateOf(conn)[PRESENCE_KEY], Date.now()); } catch (_) { /* nothing to put back */ }
+    try { super.onClose(conn, code, reason, wasClean); } finally { answerEmptyClose(conn, code); }
+    if (!this.resetting && ![...this.getConnections()].some((c) => c !== conn)) await this.roomEmptied();
+  }
+
+  // The last person left: save now (a no-op when nothing changed) and drop the
+  // alarm unless a save failed.
+  private async roomEmptied() {
+    // The room emptying starts a failed save's retry window (lib/roomWake.js
+    // nextAlarmIn); kept in storage so the alarm's cold start sees it.
+    this.lastActivityAt = this.activitySavedAt = Date.now();
+    this.put(ACTIVE_KEY, this.lastActivityAt);
+    await this.remote.flush();
+    if (this.local.pending > 0 || this.unlogged) this.compactLocal();
+    await this.armNext();
+  }
+
+  // An edit or a presence move from a socket: keeps the alarm at its working
+  // pace and runs the checks when they are due. Runs inside Yjs's emits, so it
+  // must never throw.
+  private noteActivity() {
     try {
-      await this.ctx.storage.put(ACTIVE_KEY, Date.now());
-      if ((await this.ctx.storage.getAlarm()) == null) {
-        await this.ctx.storage.setAlarm(Date.now() + ALARM_MS);
+      const now = Date.now();
+      this.lastActivityAt = now;
+      if (now - this.activitySavedAt >= ACTIVITY_SAVE_EVERY_MS) {
+        this.activitySavedAt = now;
+        this.put(ACTIVE_KEY, now);
       }
+      // The check only acts on board sockets, so a room with none (a guest typing
+      // in a shared doc of a board nobody has open) skips it and its alarm.
+      if (checkDue(now, this.lastCheckAt) && !this.checking && !this.resetting && this.hasSockets()) {
+        void this.runCheck();
+        void this.armSoon();
+      }
+    } catch (_) { /* counting is never worth an edit */ }
+  }
+
+  private hasSockets(): boolean {
+    for (const _ of this.getConnections()) return true;
+    return false;
+  }
+
+  // Make sure an alarm is set within the working pace (never pushes one back).
+  private async armSoon() {
+    if (this.resetting) return;
+    try {
+      const at = await this.ctx.storage.getAlarm();
+      const want = Date.now() + ACTIVE_ALARM_MS;
+      if (at == null || at > want) await this.ctx.storage.setAlarm(want);
     } catch (e) {
       console.warn(`[board ${this.name}] could not arm the alarm`, e);
       this.problem("alarm", e);
     }
   }
 
-  async onAlarm() {
+  private runCheck(): Promise<void> {
+    if (!this.checking) this.checking = this.check().finally(() => { this.checking = null; });
+    return this.checking;
+  }
+
+  private autoResponseAt(c: Connection): Date | null {
+    try { return this.ctx.getWebSocketAutoResponseTimestamp(c as unknown as WebSocket); } catch { return null; }
+  }
+
+  // The periodic checks, run from the alarm or from an edit that finds them due.
+  private async check() {
     if (this.resetting) return;
+    const checkedAt = Date.now();
+    this.lastCheckAt = checkedAt;
+    this.put(CHECKED_KEY, checkedAt);
     const conns = [...this.getConnections()];
-    let keepGoing = conns.length > 0;
     if (conns.length) {
-      try { await this.ctx.storage.put(ACTIVE_KEY, Date.now()); } catch (_) { /* best effort */ }
       // Audit AC-2: an account banned mid-session stops editing within a minute.
       // And so does anyone who has lost access since they connected: no read
       // closes the socket with 4401, after which the client stops reconnecting
@@ -328,9 +577,9 @@ export class BoardParty extends YServer<Env> {
           try { c.close(4409, "role changed"); } catch (_) { /* already gone */ }
           continue;
         }
-        const heard = this.lastHeard.get(c);
-        if (heard == null) { this.lastHeard.set(c, now); stays.push(c); continue; }
-        if (now - heard > SILENT_CLOSE_MS) {
+        const heard = lastHeardAt(this.lastHeard.get(c), stateOf(c).heardAt, this.autoResponseAt(c));
+        if (!heard) { this.lastHeard.set(c, now); stays.push(c); continue; }
+        if (isSilent(now, heard)) {
           try { c.close(SILENT_CLOSE, "silent"); } catch (_) { /* already gone */ }
           continue;
         }
@@ -339,15 +588,46 @@ export class BoardParty extends YServer<Env> {
       // Working together: who among those still here earned cards this minute
       // (party/together.ts; it never throws, and fails closed).
       try { await this.together?.tick(stays); } catch (e) { this.problem("together tick", e, "together"); }
-    } else {
-      const lastActive = Number(await this.ctx.storage.get(ACTIVE_KEY)) || 0;
-      keepGoing = Date.now() - lastActive < IDLE_WATCH_MS;
     }
     await this.remote.retryIfDirty();
     await this.remote.checkForeign();
     if (this.local.pending > 0) this.compactLocal();
-    if (keepGoing && !this.resetting) {
-      try { await this.ctx.storage.setAlarm(Date.now() + ALARM_MS); } catch (_) { /* next connect re-arms */ }
+  }
+
+  async onAlarm() {
+    if (this.resetting) return;
+    if ([...this.getConnections()].length) await this.runCheck();
+    else await this.remote.retryIfDirty();
+    await this.armNext();
+  }
+
+  // The next alarm, or none: an empty room with its saves done keeps no alarm,
+  // so it costs nothing until someone opens the cluster.
+  private alarmDelay(): number | null {
+    return nextAlarmIn({
+      now: Date.now(),
+      sockets: [...this.getConnections()].length,
+      lastActivityAt: this.lastActivityAt,
+      dirty: this.remote.dirty,
+      dirtySince: this.remote.dirtySince,
+      busy: this.remote.pendingForeign || this.remote.inFlight != null,
+    });
+  }
+
+  // Whether a failed save should keep an alarm coming; never throws.
+  private retryWanted(): boolean {
+    try { return this.alarmDelay() != null; } catch (_) { return false; }
+  }
+
+  private async armNext() {
+    if (this.resetting) return;
+    try {
+      const delay = this.alarmDelay();
+      if (delay == null) await this.ctx.storage.deleteAlarm();
+      else await this.ctx.storage.setAlarm(Date.now() + delay);
+    } catch (e) {
+      console.warn(`[board ${this.name}] could not set the next alarm`, e);
+      this.problem("alarm", e);
     }
   }
 

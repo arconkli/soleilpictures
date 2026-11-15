@@ -21,6 +21,14 @@
 //   {type:'leave', tabId}                        ← client → server (on close)
 //   {type:'leave', from}                         ← server → other clients
 //   {type:'roster', peers: [...]}                ← server → newly-joined client
+//   {type:'pings'}                               ← server → client, on connect
+//   {type:'stale'}                               ← server → a client the sweep found stale (it answers with 'here')
+//   'ping' (text)                                ← client → server, answered 'pong'
+//                                                  by the edge without waking the
+//                                                  room; counts as the tab still
+//                                                  being here
+// A client sends the text ping (and `here` only on a change) once it has heard
+// {type:'pings'}; an older client keeps sending `here` every heartbeat.
 //
 // Auth: ?access_token=<supabase JWT>; verified against workspace membership.
 
@@ -28,7 +36,8 @@ import { Server, type Connection, type ConnectionContext } from "partyserver";
 import type { Env } from "./env";
 import { workspaceAccessAmong } from "./auth";
 import { bindReports, reportParty } from "./report";
-import { heldElsewhere, isFresh, rosterFrom, shouldAnnounce } from "../src/lib/workspaceRoster.js";
+import { heardBy, heldElsewhere, isFresh, rosterFrom, shouldAnnounce } from "../src/lib/workspaceRoster.js";
+import { PING, PONG, WORKSPACE_PINGS_HELLO } from "../src/lib/partyPing.js";
 import { answerEmptyClose } from "../src/lib/partyClose.js";
 
 // What one socket carries (see lib/workspaceRoster.js).
@@ -46,24 +55,54 @@ interface Presence {
 // socket open but silent; without a sweep it stayed in everyone's topbar for as
 // long as nobody else came or went (COMMS-21). The alarm runs every PRUNE_MS
 // while anyone is present and lapses once nobody is. Clients need nothing new:
-// a stale tab leaves as the `leave` delta they already handle.
+// a stale tab leaves as the `leave` delta they already handle. With tabs pinging
+// at the edge, the sweep is what wakes a quiet room; each wake is brief, so it
+// keeps its pace: a stale tab leaves others' topbars within about a minute and
+// twenty seconds.
 const PRUNE_MS = 20_000;
 const ACCESS_CHECK_MS = 60_000;
+const ACCESS_CHECKED_KEY = "accessCheckedAt";
 
 export class WorkspaceParty extends Server<Env> {
   static options = { hibernate: true };
 
+  // The edge answers PING (set in the constructor); the hello goes out only then.
+  private pingsAnswered = false;
+
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     bindReports(env);
+    // The tab's keepalive is answered by the edge, so it never wakes the room.
+    try {
+      this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(PING, PONG));
+      this.pingsAnswered = true;
+    } catch (e) {
+      console.warn(`[workspace ${this.name}] could not set the ping auto-response`, e);
+    }
   }
 
   private presenceOf(conn: Connection): Presence {
     return (conn.state as Presence | null) ?? { sid: "" };
   }
 
+  // When the edge last answered this socket's ping, in ms (null if never).
+  private autoResponseAt(conn: Connection): number | null {
+    try {
+      const at = this.ctx.getWebSocketAutoResponseTimestamp(conn as unknown as WebSocket);
+      return at ? at.getTime() : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // A socket's presence as of now: an answered ping counts as the tab still
+  // being here. Only for reading; what the socket stores stays its own.
+  private heard(conn: Connection): Presence {
+    return heardBy(this.presenceOf(conn), this.autoResponseAt(conn));
+  }
+
   private presences(): Presence[] {
-    return [...this.getConnections()].map((c) => this.presenceOf(c));
+    return [...this.getConnections()].map((c) => this.heard(c));
   }
 
   // Auth is index.ts beforeConnect: the token must belong to a member of this
@@ -73,6 +112,10 @@ export class WorkspaceParty extends Server<Env> {
     conn.setState({ sid: crypto.randomUUID(), userId: ctx.request.headers.get("x-user-id") || undefined });
     // Everyone present, so the joiner sees existing peers immediately.
     conn.send(JSON.stringify({ type: "roster", peers: rosterFrom(this.presences(), Date.now()) }));
+    // The tab switches to pings only after this, so either side can be released first.
+    // Only when the edge will answer: a tab that switched to PING with no answer
+    // would see no PONG and reconnect every half minute.
+    if (this.pingsAnswered) conn.send(WORKSPACE_PINGS_HELLO);
   }
 
   // In memory, so a steady heartbeat costs no storage call while the room is
@@ -93,8 +136,8 @@ export class WorkspaceParty extends Server<Env> {
     }
   }
 
-  // When the room last asked who may still be in it (in memory: a woken room
-  // asks again on its first sweep).
+  // When the room last asked who may still be in it. Kept in storage too, so a
+  // woken room checks at most once a minute, not on every wake.
   private accessCheckedAt = 0;
 
   async onAlarm() {
@@ -103,8 +146,14 @@ export class WorkspaceParty extends Server<Env> {
     let conns = [...this.getConnections()];
     // A removed member or a suspended account leaves within a minute: the same
     // question as the door (party_workspace_access), at most once a minute.
+    if (conns.length && this.accessCheckedAt === 0) {
+      try {
+        this.accessCheckedAt = Number(await this.ctx.storage.get(ACCESS_CHECKED_KEY)) || 0;
+      } catch (_) { /* unreadable: check now */ }
+    }
     if (conns.length && now - this.accessCheckedAt >= ACCESS_CHECK_MS) {
       this.accessCheckedAt = now;
+      void this.ctx.storage.put(ACCESS_CHECKED_KEY, now).catch(() => {});
       const ids = conns.map((c) => this.presenceOf(c).userId || "");
       const access = await workspaceAccessAmong(this.env.SUPABASE_SERVICE_ROLE_KEY, this.name, ids);
       conns = conns.filter((c) => {
@@ -116,7 +165,7 @@ export class WorkspaceParty extends Server<Env> {
         return true;
       });
     }
-    const all = conns.map((c) => this.presenceOf(c));
+    const all = conns.map((c) => this.heard(c));
     let anyonePresent = false;
     conns.forEach((conn, i) => {
       const p = all[i];
@@ -124,12 +173,16 @@ export class WorkspaceParty extends Server<Env> {
       if (isFresh(p, now)) { anyonePresent = true; return; }
       // Stale: out of every roster from now on, and gone from everyone's
       // topbar unless the tab is still here through another socket.
-      const cleared: Presence = { sid: p.sid, userId: p.userId };
+      const cleared: Presence = { sid: p.sid, userId: p.userId };  // the socket's own state, not the heard-by view
       conn.setState(cleared);
       all[i] = cleared;
       if (!heldElsewhere(all, p.tabId, p.sid, now)) {
         this.broadcast(JSON.stringify({ type: "leave", from: p.tabId }));
       }
+      // A live tab whose pings were late (a hidden tab's throttled timers, a network blip) now says 'here'
+      // only on a change, so it would stay out of every topbar; told it was swept, it answers with a fresh
+      // 'here' (lib/workspacePartyKit.js). A dead one never reads this.
+      try { conn.send(JSON.stringify({ type: "stale" })); } catch (_) { /* already gone */ }
     });
     if (anyonePresent) await this.armPrune();   // an empty room lets the alarm lapse
   }

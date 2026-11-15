@@ -125,3 +125,64 @@ export function settleTick(told, answer, now) {
   }
   return { told: next, say, ended };
 }
+
+// ── Across a nap ─────────────────────────────────────────────────────────────
+//
+// The board room hibernates between events, and TogetherWatch's memory goes
+// with it. party/board.ts saves this snapshot to its storage at most every
+// TOGETHER_SAVE_EVERY_MS and reads it back on waking, so a nap neither forgets
+// who has been working together nor restarts the seconds from scratch. A
+// snapshot older than TOGETHER_SNAPSHOT_MAX_AGE_MS is stale (every run in it has
+// long since lapsed) and is dropped.
+export const TOGETHER_SAVE_EVERY_MS = 15_000;
+export const TOGETHER_SNAPSHOT_MAX_AGE_MS = 10 * 60_000;
+// Only the newest signatures matter: they tell a reconnect's re-sent state from
+// real input, and a client id is not reused.
+export const TOGETHER_SEEN_MAX = 200;
+
+// people  Map id → { lastAt, since }      seen       Map clientId → signature
+// told    Map id → { at, earned }         turnedAway Map id → until (ms)
+export function togetherSnapshot({ people, seen, told, lastTickAt, offUntil, turnedAway }, now) {
+  return {
+    v: 1,
+    at: now,
+    people: [...people].map(([id, p]) => [id, p.lastAt, p.since]),
+    seen: [...seen].slice(-TOGETHER_SEEN_MAX),
+    told: [...told].map(([id, t]) => [id, t.at, t.earned]),
+    lastTickAt: Number.isFinite(lastTickAt) ? lastTickAt : null,
+    offUntil: Number.isFinite(offUntil) ? offUntil : 0,
+    turnedAway: [...turnedAway],
+  };
+}
+
+// → { people, seen, told, lastTickAt, offUntil, turnedAway } as Maps, or null
+// when `snap` is not a snapshot this version wrote or is too old. A malformed
+// row is skipped on its own; the rest still count.
+export function restoreTogether(snap, now) {
+  if (!snap || typeof snap !== 'object' || snap.v !== 1) return null;
+  if (!Number.isFinite(snap.at) || now - snap.at > TOGETHER_SNAPSHOT_MAX_AGE_MS) return null;
+  const rows = (a) => (Array.isArray(a) ? a.filter(Array.isArray) : []);
+  const num = Number.isFinite;
+  const people = new Map();
+  for (const [id, lastAt, since] of rows(snap.people)) {
+    if (typeof id === 'string' && num(lastAt) && num(since)) people.set(id, { lastAt, since });
+  }
+  const seen = new Map();
+  for (const [cid, sig] of rows(snap.seen)) {
+    if (num(cid) && typeof sig === 'string') seen.set(cid, sig);
+  }
+  const told = new Map();
+  for (const [id, at, earned] of rows(snap.told)) {
+    if (typeof id === 'string' && num(at) && num(earned)) told.set(id, { at, earned });
+  }
+  const turnedAway = new Map();
+  for (const [id, until] of rows(snap.turnedAway)) {
+    if (typeof id === 'string' && num(until)) turnedAway.set(id, until);
+  }
+  return {
+    people, seen, told,
+    lastTickAt: num(snap.lastTickAt) ? snap.lastTickAt : undefined,
+    offUntil: num(snap.offUntil) ? snap.offUntil : 0,
+    turnedAway,
+  };
+}

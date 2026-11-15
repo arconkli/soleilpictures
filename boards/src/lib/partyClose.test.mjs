@@ -30,7 +30,7 @@ const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 test('both rooms answer it from onClose', () => {
   assert.match(src('../../party/board.ts'),
-    /onClose\(conn: Connection, code: number, reason: string, wasClean: boolean\) \{\s*try \{ super\.onClose\(conn, code, reason, wasClean\); \} finally \{ answerEmptyClose\(conn, code\); \}/);
+    /onClose\(conn: Connection, code: number, reason: string, wasClean: boolean\) \{[\s\S]{0,480}?try \{ super\.onClose\(conn, code, reason, wasClean\); \} finally \{ answerEmptyClose\(conn, code\); \}/);
   assert.match(src('../../party/workspace.ts'),
     /onClose\(conn: Connection, code: number\) \{\s*this\.depart\(conn\);\s*answerEmptyClose\(conn, code\);/);
 });

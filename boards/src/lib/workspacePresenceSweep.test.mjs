@@ -34,10 +34,32 @@ test('the wire protocol is unchanged: stale and closed tabs leave as `leave` del
   assert.match(src, /type: "roster", peers: rosterFrom\(this\.presences\(\), Date\.now\(\)\)/);
 });
 
+test('a swept tab is told so, and answers with a fresh here', () => {
+  const alarm = src.slice(src.indexOf('async onAlarm()'), src.indexOf('onMessage('));
+  assert.match(alarm, /conn\.send\(JSON\.stringify\(\{ type: "stale" \}\)\)/);
+  const client = readFileSync(new URL('./workspacePartyKit.js', import.meta.url), 'utf8');
+  assert.match(client, /msg\?\.type === 'stale'\) \{[\s\S]*?sendLocation\(\);/);
+});
+
 test('the room hibernates and keeps no roster in memory', () => {
   assert.match(src, /static options = \{ hibernate: true \};/);
   assert.doesNotMatch(src, /new Map\(|new WeakMap\(/, 'presence must ride on the sockets, which survive hibernation');
   // The identity check survives: a `here` claiming another member is dropped.
   assert.match(src, /if \(mine\.userId && String\(msg\.user\.id\) !== mine\.userId\)/);
   assert.match(src, /userId: ctx\.request\.headers\.get\("x-user-id"\) \|\| undefined/);
+});
+
+test('the edge answers the tab ping, the room says so on connect, and pings count as presence', () => {
+  assert.match(src, /setWebSocketAutoResponse\(new WebSocketRequestResponsePair\(PING, PONG\)\)/);
+  const connect = src.slice(src.indexOf('onConnect('), src.indexOf('private pruneArmed'));
+  assert.match(connect, /conn\.send\(WORKSPACE_PINGS_HELLO\);/);
+  assert.match(src, /getWebSocketAutoResponseTimestamp\(/);
+  assert.match(src, /heardBy\(this\.presenceOf\(conn\), this\.autoResponseAt\(conn\)\)/);
+});
+
+test('a woken room reads its last access check from storage and stores each new one', () => {
+  const alarm = src.slice(src.indexOf('async onAlarm()'), src.indexOf('onMessage('));
+  assert.match(alarm, /storage\.get\(ACCESS_CHECKED_KEY\)/);
+  assert.match(alarm, /storage\.put\(ACCESS_CHECKED_KEY, now\)/);
+  assert.match(src, /const ACCESS_CHECKED_KEY = "accessCheckedAt";/);
 });

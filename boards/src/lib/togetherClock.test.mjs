@@ -6,6 +6,7 @@ import { TOGETHER_ACTIVE_SECONDS, TOGETHER_ENDED, readTogether } from './liveTog
 import {
   ACTIVE_WINDOW_MS, MAX_TICK_SECONDS, INPUT_FIELDS, inputSignature, inputMoved,
   noteActivity, activeNow, togetherSeconds, settleTick,
+  TOGETHER_SAVE_EVERY_MS, TOGETHER_SNAPSHOT_MAX_AGE_MS, TOGETHER_SEEN_MAX, togetherSnapshot, restoreTogether,
 } from './togetherClock.js';
 
 const S = 1000;
@@ -140,4 +141,78 @@ test('togetherSeconds: someone the database turned away never starts a stretch',
   assert.equal(r.get('a'), 5); assert.equal(r.get('b'), 5);
   assert.ok(r.has('x'), 'still sent, so the database can say again');
   assert.equal(togetherSeconds([A, X], 60 * S, 0, skip).size, 0, 'one real person is not together');
+});
+
+// ── across a nap ──
+
+const full = () => ({
+  people: new Map([['a', { lastAt: 50 * S, since: 10 * S }], ['b', { lastAt: 55 * S, since: 20 * S }]]),
+  seen: new Map([[1, '[null]'], [2, '[1]']]),
+  told: new Map([['a', { at: 30 * S, earned: 2 }]]),
+  lastTickAt: 40 * S,
+  offUntil: 99 * S,
+  turnedAway: new Map([['x', 70 * S]]),
+});
+
+test('a snapshot restores to the same state', () => {
+  const state = full();
+  const snap = JSON.parse(JSON.stringify(togetherSnapshot(state, 60 * S)));
+  assert.equal(snap.v, 1);
+  assert.equal(snap.at, 60 * S);
+  assert.deepEqual(restoreTogether(snap, 61 * S), state);
+  const empty = togetherSnapshot({ ...full(), lastTickAt: undefined, offUntil: undefined }, 1);
+  assert.equal(empty.lastTickAt, null);
+  const back = restoreTogether(empty, 2);
+  assert.equal(back.lastTickAt, undefined);
+  assert.equal(back.offUntil, 0);
+});
+
+test('a snapshot keeps only the newest signatures', () => {
+  const seen = new Map();
+  for (let i = 0; i < TOGETHER_SEEN_MAX + 25; i++) seen.set(i, 's');
+  const snap = togetherSnapshot({ ...full(), seen }, 1);
+  assert.equal(snap.seen.length, TOGETHER_SEEN_MAX);
+  assert.equal(snap.seen[0][0], 25);
+  assert.equal(snap.seen.at(-1)[0], TOGETHER_SEEN_MAX + 24);
+});
+
+test('a snapshot too old, or not one of ours, is dropped', () => {
+  const snap = togetherSnapshot(full(), 0);
+  assert.notEqual(restoreTogether(snap, TOGETHER_SNAPSHOT_MAX_AGE_MS), null);
+  assert.equal(restoreTogether(snap, TOGETHER_SNAPSHOT_MAX_AGE_MS + 1), null);
+  for (const bad of [null, undefined, 'x', 3, {}, { ...snap, v: 2 }, { ...snap, at: 'now' }, { ...snap, at: NaN }]) {
+    assert.equal(restoreTogether(bad, 1), null);
+  }
+  assert.equal(TOGETHER_SAVE_EVERY_MS, 15_000);
+});
+
+test('malformed rows are skipped one by one', () => {
+  const snap = {
+    v: 1, at: 1,
+    people: [['a', 5, 1], ['b', 'x', 1], [7, 1, 1], ['c', 1], null, 'junk'],
+    seen: [[1, 'ok'], ['1', 'no'], [2, 5]],
+    told: [['a', 1, 2], ['b', 1], ['c', NaN, 1]],
+    lastTickAt: 'x', offUntil: 'y',
+    turnedAway: [['x', 9], ['y', 'z'], [3, 4]],
+  };
+  const r = restoreTogether(snap, 2);
+  assert.deepEqual([...r.people.keys()], ['a']);
+  assert.deepEqual([...r.seen], [[1, 'ok']]);
+  assert.deepEqual([...r.told.keys()], ['a']);
+  assert.deepEqual([...r.turnedAway], [['x', 9]]);
+  assert.equal(r.lastTickAt, undefined);
+  assert.equal(r.offUntil, 0);
+  const none = restoreTogether({ v: 1, at: 1 }, 2);
+  assert.equal(none.people.size + none.seen.size + none.told.size + none.turnedAway.size, 0);
+});
+
+test('togetherSeconds after a restore counts from the restored lastTickAt, not from scratch', () => {
+  const people = new Map([['a', { lastAt: 100 * S, since: 0 }], ['b', { lastAt: 100 * S, since: 0 }]]);
+  const connected = new Set(['a', 'b']);
+  const snap = JSON.parse(JSON.stringify(togetherSnapshot({ ...full(), people, lastTickAt: 90 * S }, 100 * S)));
+  const r = restoreTogether(snap, 105 * S);
+  const active = activeNow(r.people, connected, 105 * S);
+  assert.equal(togetherSeconds(active, 105 * S, r.lastTickAt).get('a'), 15);
+  // a room that forgot would count the whole run
+  assert.equal(togetherSeconds(activeNow(people, connected, 105 * S), 105 * S, undefined).get('a'), 105);
 });

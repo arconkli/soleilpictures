@@ -14,7 +14,10 @@
 // A failed or missing function pays nothing and tells nobody anything new.
 
 import type { Connection } from "partyserver";
-import { activeNow, inputMoved, noteActivity, settleTick, togetherSeconds } from "../src/lib/togetherClock.js";
+import {
+  TOGETHER_SAVE_EVERY_MS, activeNow, inputMoved, noteActivity, restoreTogether, settleTick, togetherSeconds,
+  togetherSnapshot,
+} from "../src/lib/togetherClock.js";
 import { callFailed, reportParty } from "./report";
 
 type Person = { lastAt: number; since: number };
@@ -61,10 +64,47 @@ export class TogetherWatch {
     supabaseUrl: string;
     serviceKey: string | undefined;
     send: (conn: Connection, message: string) => void;
+    // The room naps between events and forgets what it kept in memory: this
+    // hands the room a snapshot to keep in its storage, so a session's together
+    // time carries across naps.
+    persist?: (snapshot: unknown) => void;
   };
+  private savedAt = 0;
 
   constructor(opts: TogetherWatch["opts"]) {
     this.opts = opts;
+  }
+
+  // Put back what a previous life of this room kept (null when it kept nothing
+  // usable or it is too old).
+  restore(snap: unknown) {
+    try {
+      const r = restoreTogether(snap, Date.now());
+      if (!r) return;
+      this.people = r.people;
+      this.seen = r.seen;
+      this.told = r.told;
+      this.lastTickAt = r.lastTickAt;
+      this.offUntil = r.offUntil;
+      this.turnedAway = r.turnedAway;
+    } catch (_) { /* start fresh */ }
+  }
+
+  // Keep the state in the room's storage, at most every TOGETHER_SAVE_EVERY_MS
+  // (an edit or a cursor move can come many times a second), and always when a
+  // tick has settled.
+  private save(force: boolean) {
+    const persist = this.opts.persist;
+    if (!persist) return;
+    const now = Date.now();
+    if (!force && now - this.savedAt < TOGETHER_SAVE_EVERY_MS) return;
+    this.savedAt = now;
+    try {
+      persist(togetherSnapshot({
+        people: this.people, seen: this.seen, told: this.told, lastTickAt: this.lastTickAt,
+        offUntil: this.offUntil, turnedAway: this.turnedAway,
+      }, now));
+    } catch (_) { /* a missed save costs a minute of together time at most */ }
   }
 
   // An edit that reached the doc (Y.Doc 'update'; the origin is the sender's
@@ -75,6 +115,7 @@ export class TogetherWatch {
     try {
       const uid = userIdOf(origin);
       if (uid) noteActivity(this.people, uid, Date.now());
+      this.save(false);
     } catch (_) { /* counting is never worth an edit */ }
   }
 
@@ -89,7 +130,7 @@ export class TogetherWatch {
     try {
       for (const id of changes.removed) this.seen.delete(id);
       const uid = userIdOf(origin);
-      if (!uid) return;
+      if (!uid) { this.save(false); return; }
       const now = Date.now();
       for (const id of [...changes.added, ...changes.updated]) {
         const { moved, sig } = inputMoved(this.seen.get(id), states.get(id));
@@ -97,6 +138,7 @@ export class TogetherWatch {
         this.seen.set(id, sig);
         if (moved) noteActivity(this.people, uid, now);
       }
+      this.save(false);
     } catch (_) { /* nor a cursor */ }
   }
 
@@ -118,7 +160,7 @@ export class TogetherWatch {
         // Nothing known: leave everyone as they were. This minute is credited by
         // the next tick that gets through (and the database never pays the same
         // second twice).
-        if (!answer) return;
+        if (!answer) { this.save(true); return; }
         for (const r of answer.results) {
           if (r.eligible) this.turnedAway.delete(r.id);
           else this.turnedAway.set(r.id, now + TURNED_AWAY_MS);
@@ -134,6 +176,7 @@ export class TogetherWatch {
       if (!message) continue;
       try { this.opts.send(c, message); } catch (_) { /* socket already gone */ }
     }
+    this.save(true);
     if (ended.length) await this.ask(ended, true);
   }
 

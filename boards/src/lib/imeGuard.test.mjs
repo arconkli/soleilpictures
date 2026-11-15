@@ -128,7 +128,7 @@ const UNRESOLVED = [
   { file: 'components/film/FilmDock.jsx', snippet: "(e) => { if (e.key === 'Enter' || e.key === ' ') { e.prevent" },
   { file: 'lib/journey.js', snippet: 'function onKey(e) { if (!OPEN) return; lastInteractionAt = _' },
   // addEventListener calls whose event type is a loop variable or a parameter
-  // (pointer, touch and activity events, a perf wrapper); none passes a key event.
+  // (pointer, touch, activity and wake-on-intent events, a perf wrapper); none passes a key event.
   { file: 'components/DocSurface.jsx', snippet: 'paper.addEventListener(t, stop, { passive: true })' },
   { file: 'components/ListSurface.jsx', snippet: 'el.addEventListener(t, settle, { passive: true })' },
   { file: 'components/OnboardingTour.jsx', snippet: 'window.addEventListener(ev, wake, opts)' },
@@ -139,6 +139,7 @@ const UNRESOLVED = [
   { file: 'lib/heartbeat.js', snippet: 'window.addEventListener(ev, markActivity, opts)' },
   { file: 'lib/journey.js', snippet: 'window.addEventListener(ev, markActivity, opts)' },
   { file: 'lib/partyPark.js', snippet: 'win.addEventListener(ev, onInput, opts)' },
+  { file: 'lib/yPartyKit.js', snippet: 'window.addEventListener(ev, onWakeIntent, wakeOpts)' },
   { file: 'lib/passkeys.js', snippet: 'window.addEventListener(e, seen, { capture: true, passive: t' },
   { file: 'lib/perf.js', snippet: 'super.addEventListener(type, _wrap(listener, this._perfTag),' },
   { file: 'lib/perf.js', snippet: 'super.addEventListener(type, listener, options)' },

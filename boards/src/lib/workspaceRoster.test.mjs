@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { STALE_MS, heldElsewhere, isFresh, rosterFrom, sameUserLoc, shouldAnnounce } from './workspaceRoster.js';
+import { STALE_MS, heardBy, heldElsewhere, isFresh, rosterFrom, sameUserLoc, shouldAnnounce } from './workspaceRoster.js';
 
 const NOW = 10_000_000;
 const ann = { id: 'u1', name: 'Ann', color: '#4f8df8' };
@@ -74,4 +74,22 @@ test('a closing socket announces `leave` only when no other live socket still ca
   assert.equal(heldElsewhere([old, here('s3', 't2')], 't1', 's1', NOW), false, 'another tab does not count');
   assert.equal(heldElsewhere([old, here('s2', 't1', { lastSeen: NOW - STALE_MS - 1 })], 't1', 's1', NOW), false,
     'nor does a stale socket for the same tab');
+});
+
+test('an answered ping extends freshness; no ping, or an older one, changes nothing', () => {
+  const tab = here('s', 't', { lastSeen: NOW - STALE_MS - 5_000 });
+  assert.equal(isFresh(tab, NOW), false);
+  assert.equal(isFresh(heardBy(tab, NOW - 1_000), NOW), true);
+  assert.equal(isFresh(heardBy(tab, new Date(NOW - 1_000)), NOW), true);
+  assert.equal(heardBy(tab, NOW - 1_000).lastSeen, NOW - 1_000);
+  assert.equal(heardBy(tab, null), tab);
+  assert.equal(heardBy(tab, tab.lastSeen - 1), tab);
+});
+
+test('heardBy never mutates its input', () => {
+  const tab = Object.freeze({ sid: 's', tabId: 't', user: { id: 'u' }, lastSeen: 100 });
+  const out = heardBy(tab, 500);
+  assert.notEqual(out, tab);
+  assert.equal(tab.lastSeen, 100);
+  assert.equal(out.lastSeen, 500);
 });

@@ -20,10 +20,12 @@
 // neither: it stops awareness renewals (so peers do not time out) and has no
 // watchdog, so a socket that died without a close — a laptop waking from
 // sleep, a network that changed under it — looked connected while every edit
-// stayed local. The keepalive below puts both back: a presence renewal every
-// KEEPALIVE_MS, which the room echoes to every socket including this one, and
-// a close when the previous renewal was never answered (partyKeepalive.js —
-// never "silent for N seconds", which a throttled hidden tab always is).
+// stayed local. The keepalive below puts both back: a ping every KEEPALIVE_MS
+// and a close when the previous one was never answered (partyKeepalive.js —
+// never "silent for N seconds", which a throttled hidden tab always is). A room
+// that hibernates says so on connect (partyPing.js) and Cloudflare answers the
+// text PING with PONG without waking it; an older room gets today's presence
+// renewal instead, which it echoes to every socket including this one.
 //
 // The previous design destroyed + reconstructed the entire provider on
 // every TOKEN_REFRESHED/SIGNED_IN pair (URL-token limitation workaround):
@@ -38,7 +40,8 @@ import { createStaleTokenReconnector } from './partyTokenRefresh.js';
 import { getGestureActiveUntil } from './perfReport.js';
 import * as perf from './perf.js';
 import { PARTY_HOST } from './partyHost.js';
-import { socketLooksDead } from './partyKeepalive.js';
+import { socketLooksDead, lastHeardFrom } from './partyKeepalive.js';
+import { PING, PONG, PINGS_HELLO, WAKE, shouldWake } from './partyPing.js';
 import { stuckVerdict } from './stuckSync.js';
 import { parkWhileHidden, parkWhileIdle } from './partyPark.js';
 import { pageBusy } from './buildWatch.js';
@@ -179,11 +182,15 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
   ydoc.on('update', onRemoteUpdate);
   awareness.on('change', onAwarenessChange);
 
-  // Liveness (see the header).
+  // Liveness (see the header). With a room that answers pings the keepalive no
+  // longer wakes the room, and awareness is no longer renewed every tick, which
+  // nothing needs: YProvider clears the awareness check interval, so remote
+  // states never time out.
   let lastPingAt = 0;
   const keepalive = setInterval(() => {
     if (destroyed || !provider.wsconnected || !provider.ws) { lastPingAt = 0; return; }
-    if (socketLooksDead(provider.wsLastMessageReceived, lastPingAt)) {
+    const ws = provider.ws;
+    if (socketLooksDead(lastHeardFrom(provider), lastPingAt)) {
       console.warn('[partykit] board', boardId, 'socket never answered its keepalive; reconnecting');
       perf.bump('partykit.deadSocket');
       lastPingAt = 0;
@@ -191,6 +198,7 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       return;
     }
     try {
+      if (ws._pings) { ws.send(PING); lastPingAt = Date.now(); return; }
       const enc = encoding.createEncoder();
       encoding.writeVarUint(enc, MESSAGE_AWARENESS);
       encoding.writeVarUint8Array(enc, encodeAwarenessUpdate(awareness, [ydoc.clientID]));
@@ -213,6 +221,10 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     // A room that answers a doc's save line says so first (lib/roomAck.js);
     // the socket keeps it for a line that opens later (lib/docSaveStatus.js).
     if (e.data === '__YPS:{"t":"acks"}') { e.target._acks = true; return; }
+    // A room that hibernates answers PING with PONG at the edge and says so
+    // first (lib/partyPing.js); both are the keepalive's, never Yjs's.
+    if (e.data === PONG) { e.target._pongAt = Date.now(); return; }
+    if (e.data === '__YPS:' + PINGS_HELLO) { e.target._pings = true; return; }
     let msg;
     try { msg = JSON.parse(e.data); } catch (_) { return; }
     if (!msg || msg.type !== 'soleil-board-reset') return;
@@ -371,6 +383,28 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
     for (const ev of HERE_EVENTS) window.addEventListener(ev, onHereInput, hereOpts);
   }
 
+  // Wake on intent (lib/partyPing.js): someone reaching for the cluster on
+  // screen wakes a napping room ahead of the change that follows.
+  const WAKE_EVENTS = ['pointerdown', 'keydown', 'touchstart'];
+  const wakeOpts = { passive: true, capture: true };
+  let lastWakeAt = 0;
+  const onWakeIntent = () => {
+    if (destroyed || boardId !== hereBoardId || !provider.wsconnected || !provider.ws) return;
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+    const now = Date.now();
+    if (!shouldWake({ pings: provider.ws._pings === true, now, lastReceived: provider.wsLastMessageReceived, lastWakeAt })) return;
+    lastWakeAt = now;
+    try { provider.sendMessage(WAKE); } catch (_) {}
+  };
+  const onWakeVisible = () => { if (document.visibilityState === 'visible') onWakeIntent(); };
+  // The window coming back into focus, not every element taking focus: no capture.
+  const wakeFocusOpts = { passive: true };
+  if (typeof window !== 'undefined') {
+    for (const ev of WAKE_EVENTS) window.addEventListener(ev, onWakeIntent, wakeOpts);
+    window.addEventListener('focus', onWakeIntent, wakeFocusOpts);
+  }
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onWakeVisible);
+
   // The tray's Retry on "Couldn't save": open the socket again now rather than at
   // the next backoff step. Not while parked or after access ended.
   provider.retryNow = () => {
@@ -423,7 +457,10 @@ export function attachRealtime(ydoc, boardId, { user } = {}) {
       try { provider.off('custom-message', onTogether); } catch (_) {}
       if (typeof window !== 'undefined') {
         for (const ev of HERE_EVENTS) { try { window.removeEventListener(ev, onHereInput, hereOpts); } catch (_) {} }
+        for (const ev of WAKE_EVENTS) { try { window.removeEventListener(ev, onWakeIntent, wakeOpts); } catch (_) {} }
+        try { window.removeEventListener('focus', onWakeIntent, wakeFocusOpts); } catch (_) {}
       }
+      try { document.removeEventListener('visibilitychange', onWakeVisible); } catch (_) {}
       reconnector.dispose();
       closeSocket('left');
       try { provider.destroy(); } catch (_) {}

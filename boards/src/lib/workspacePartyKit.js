@@ -12,10 +12,12 @@ import { supabase } from './supabase.js';
 import { PARTY_HOST as PARTYKIT_HOST } from './partyHost.js';
 import { parkWhileHidden } from './partyPark.js';
 import { pageBusy } from './buildWatch.js';
+import { PING } from './partyPing.js';
+import { workspaceTick } from './partyKeepalive.js';
 
 // Workspace presence (who's in the workspace / which board) tolerates a few
-// seconds of staleness — live board cursors are a separate 250ms-throttled
-// system (yPartyKit awareness). 15s matches the Supabase realtime workspace
+// seconds of staleness — live board cursors are a separate system
+// (yPartyKit awareness). 15s matches the Supabase realtime workspace
 // cadence and cuts steady-state presence traffic 3x while users sit idle.
 const HEARTBEAT_MS = 15000;
 
@@ -65,15 +67,34 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
     },
   });
 
+  // Per socket, reset on every open: whether the room said it answers pings
+  // (its hello), and the last 'here' payload this tab sent on the socket.
+  let roomPings = false;
+  let lastHere = null;
+
+  const herePayload = () => JSON.stringify({
+    user: user ? { id: user.id, name: user.name, color: user.color, email: user.email } : null,
+    location: getLocation?.(),
+  });
+
   const sendLocation = () => {
     if (destroyed || !socket || socket.readyState !== WebSocket.OPEN) return;
-    const location = getLocation?.();
-    socket.send(JSON.stringify({
-      type: 'here',
-      tabId: TAB_ID,
-      user: user ? { id: user.id, name: user.name, color: user.color, email: user.email } : null,
-      location,
-    }));
+    const payload = herePayload();
+    lastHere = payload;
+    const { user: u, location } = JSON.parse(payload);
+    socket.send(JSON.stringify({ type: 'here', tabId: TAB_ID, user: u, location }));
+  };
+
+  // The workspace room hibernates, and a heartbeat that says nothing new would
+  // wake it every tick for every tab. A room that announced pings counts the
+  // edge-answered PING as the tab still being here (party/workspace.ts), so
+  // the tick sends 'here' only when it changed; an older room gets 'here'
+  // every tick as before. Callers' ping/broadcastLocation still send at once.
+  const heartbeat = () => {
+    if (destroyed || !socket || socket.readyState !== WebSocket.OPEN) return;
+    const next = herePayload();
+    if (workspaceTick({ pings: roomPings, lastSent: lastHere, next }) === 'here') sendLocation();
+    else { try { socket.send(PING); } catch (_) {} }
   };
 
   // partysocket re-dispatches events from each underlying connection on the
@@ -81,13 +102,17 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
   socket.addEventListener('open', () => {
     console.log('[partykit] workspace', workspaceId, 'OPEN');
     onStatus?.('connected');
+    roomPings = false;
+    lastHere = null;
     sendLocation();
-    if (!heartbeatTimer) heartbeatTimer = setInterval(sendLocation, HEARTBEAT_MS);
+    if (!heartbeatTimer) heartbeatTimer = setInterval(heartbeat, HEARTBEAT_MS);
   });
 
   socket.addEventListener('close', (event) => {
     console.log('[partykit] workspace', workspaceId, 'CLOSE');
     onStatus?.('disconnected');
+    roomPings = false;
+    lastHere = null;
     if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
     if (event && (event.code === 4401 || event.code === 4403)) {
       accessEnded = true;
@@ -108,8 +133,14 @@ export function attachWorkspacePresence(workspaceId, { user, getLocation, onPeer
 
   socket.addEventListener('message', (event) => {
     let msg;
-    try { msg = JSON.parse(event.data); } catch { return; }
-    if (msg?.type === 'roster' && Array.isArray(msg.peers)) {
+    try { msg = JSON.parse(event.data); } catch { return; }   // the edge's 'pong' is not JSON
+    if (msg?.type === 'pings') {
+      roomPings = true;
+    } else if (msg?.type === 'stale') {
+      // The room swept this tab as stale; say where it is again.
+      lastHere = null;
+      sendLocation();
+    } else if (msg?.type === 'roster' && Array.isArray(msg.peers)) {
       peers.clear();
       for (const p of msg.peers) {
         if (!p?.tabId || p.tabId === TAB_ID || !p?.user) continue;

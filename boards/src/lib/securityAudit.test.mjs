@@ -783,15 +783,18 @@ test('an upload URL carries its size, and the images row takes that size, not th
 
 // ── A ban reaches the open board sockets (AC-2) ─────────────────────────────
 
-test('a banned account is refused at connect and dropped from open boards within a minute', () => {
+test('a banned account is refused at connect and dropped from an open board within a minute of anything happening there, five at most', () => {
   const auth = read('../../party/auth.ts');
   assert.match(auth, /export async function bannedAmong\(serviceKey: string \| undefined, userIds: string\[\]\)/);
   assert.match(auth, /profiles\?user_id=in\.\(\$\{ids\.join\(","\)\}\)&banned_at=not\.is\.null&select=user_id/,
     'read with the service role — the banned token itself still passes PostgREST for up to an hour');
   // Since the move off PartyKit (October 2026) the connect check is the party
   // Worker's onBeforeConnect (party/index.ts), which every socket passes
-  // through before it reaches a room; the minute sweep is the board room's
-  // one alarm.
+  // through before it reaches a room. The sweep is the board room's check()
+  // (party/board.ts), run by its alarm every minute while people work and every
+  // five while nothing happens, and at once by the first edit or cursor move that
+  // finds the last check a minute old, so a suspended account's first change
+  // after a quiet spell is its last.
   const entry = read('../../party/index.ts');
   assert.match(entry, /onBeforeConnect: \(req: Request, lobby: Lobby\) => beforeConnect\(req, lobby, env\)/);
   assert.match(entry, /async function beforeConnect\(req: Request, lobby: Lobby, env: Env\): Promise<Request \| Response> \{\n  stripTrusted\(req\);/,
@@ -799,9 +802,13 @@ test('a banned account is refused at connect and dropped from open boards within
   assert.match(entry, /if \(auth\.userId && banned\.has\(auth\.userId\)\) return new Response\("Account suspended", \{ status: 403 \}\);/);
   const board = read('../../party/board.ts');
   assert.match(board, /userId: h\.get\("x-user-id"\) \|\| "",/);
-  assert.match(board, /await this\.armAlarm\(\);/);
-  assert.match(board, /async onAlarm\(\) \{[\s\S]*?c\.close\(4403, "account suspended"\)/);
-  assert.match(board, /const ALARM_MS = 60_000;/);
+  assert.match(board, /await this\.armSoon\(\);/);
+  assert.match(board, /private async check\(\) \{[\s\S]*?c\.close\(4403, "account suspended"\)/);
+  assert.match(board, /async onAlarm\(\) \{[\s\S]*?this\.runCheck\(\)/);
+  assert.match(board, /checkDue\(now, this\.lastCheckAt\)[\s\S]{0,120}void this\.runCheck\(\)/);
+  const wake = read('../../src/lib/roomWake.js');
+  assert.match(wake, /export const CHECK_EVERY_MS = 60_000;/);
+  assert.match(wake, /export const QUIET_ALARM_MS = 5 \* 60_000;/);
 });
 
 // ── 0388: a deleted account's workspace goes to someone who can edit it ──────
