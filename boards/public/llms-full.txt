@@ -12379,7 +12379,7 @@ Updated: 2026-11-10
 
 # Changelog
 
-> Soleil Clusters ships continuously; this page lists every user-visible change, newest first, with the date it went live. Each entry covers one week. Fixes and additions are described in the same list rather than split apart, because the distinction rarely matters to the person reading.
+> Soleil Clusters ships continuously; this page lists every user-visible change, newest first, with the date it went live. Fixes and additions are described in the same list rather than split apart, because the distinction rarely matters to the person reading.
 
 _Source: https://clusters.soleilpictures.com/changelog · Feed: https://clusters.soleilpictures.com/changelog.xml_
 
@@ -13079,8 +13079,8 @@ Storage works differently from today, on every plan.
 
 ### Plans
 
-- The free plan holds 50 cards at the time, or
-  5GB of files, whichever you reach first — and takes any
+- The free plan holds 50 cards (the limit at the
+  time) or 5GB of files, whichever you reach first — and takes any
   file at any size. The
   per-file limits on video, audio, PDFs and other files are gone; the drive is
   the only limit. See [plans and pricing](/docs/account/plans).
