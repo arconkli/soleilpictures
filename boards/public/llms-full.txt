@@ -45,6 +45,10 @@ Building a board with an AI assistant — what it can and cannot do for you
 For production departments: Shared reference boards for art teams · Director’s treatment · Production design · Costume design · Cinematography lookbook
 Coming from another tool — PureRef, Milanote, Miro and the rest
 
+Help
+
+If something is not working or you cannot find it here, Help and support says who to email and what to include, how to disconnect an AI app, and how to restore a deleted cluster.
+
 What changed, and when
 
 These pages describe the product as it is today. They do not say when any of it arrived, which matters if you are deciding whether something you remember being missing has since shipped.
@@ -5165,6 +5169,14 @@ GET /service-accounts/:id/tokens | Its tokens and when each was last used
 DELETE /service-accounts/:id/tokens/:tokenId | Revoke one token
 
 GET /api/v1 returns this list plus your current scopes, so the one URL a person types by hand answers usefully.
+
+Comments, docs and tags
+
+Three groups of endpoints have a page of their own:
+
+Comments — read every thread on a board, docs included, and add, reply, resolve or delete
+Docs — read and write a doc card's pages as Markdown, without overwriting anyone's changes
+Tags — list a workspace's tags, see what carries one, and tag cards or untag them
 
 Authentication
 

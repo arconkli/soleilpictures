@@ -83,6 +83,14 @@ permissions to drift out of step with app permissions.
 `GET /api/v1` returns this list plus your current scopes, so the one URL a
 person types by hand answers usefully.
 
+## Comments, docs and tags
+
+Three groups of endpoints have a page of their own:
+
+- **[Comments](/docs/api/comments)** — read every thread on a board, docs included, and add, reply, resolve or delete
+- **[Docs](/docs/api/docs)** — read and write a doc card's pages as Markdown, without overwriting anyone's changes
+- **[Tags](/docs/api/tags)** — list a workspace's tags, see what carries one, and tag cards or untag them
+
 ## Authentication
 
 Two ways in, both ending at a bearer token that resolves to one person's own
