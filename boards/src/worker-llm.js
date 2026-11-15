@@ -48,6 +48,7 @@ export function responseText(out) {
 // Run a text model on env.AI with a system + user message pair. Returns the
 // raw response string (''. on empty). Throws on binding/model error — the
 // caller decides the fallback (we never want an AI hiccup to break a flow).
+// `opts.noThinking` turns off a reasoning model's thinking (Gemma 4 returns nothing without it).
 export async function runWorkersAiChat(env, model, system, user, opts = {}) {
   const out = await env.AI.run(model, {
     messages: [
@@ -56,6 +57,7 @@ export async function runWorkersAiChat(env, model, system, user, opts = {}) {
     ],
     max_tokens: opts.max_tokens ?? 1024,
     temperature: opts.temperature ?? 0.2,
+    ...(opts.noThinking ? { chat_template_kwargs: { enable_thinking: false } } : {}),
   });
   return responseText(out);
 }

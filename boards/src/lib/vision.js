@@ -44,9 +44,10 @@ const SYSTEM = 'You caption pictures for a reference library. You reply with one
 // add image when there are no user-supplied nor system-supplied messages",
 // 2026-10-27), so the system message goes first in both shapes. A model that
 // reasons first (gemma-4) spends the whole answer on it and returns nothing,
-// so `noThinking` turns that off.
-export function visionRequest(shape, dataUri, { prompt = VISION_PROMPT, noThinking = false, maxTokens = MAX_TOKENS } = {}) {
-  const system = { role: 'system', content: SYSTEM };
+// so `noThinking` turns that off. `system` replaces the default JSON-caption
+// system message in both shapes.
+export function visionRequest(shape, dataUri, { prompt = VISION_PROMPT, noThinking = false, maxTokens = MAX_TOKENS, system: systemText = SYSTEM } = {}) {
+  const system = { role: 'system', content: systemText };
   const extra = noThinking ? { chat_template_kwargs: { enable_thinking: false } } : {};
   if (shape === 'part') {
     return {

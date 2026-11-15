@@ -36,6 +36,7 @@ export async function runChat(env, model, system, user, opts) {
         ],
         max_tokens: opts?.max_tokens ?? 1024,
         temperature: opts?.temperature ?? 0.2,
+        ...(opts?.noThinking ? { chat_template_kwargs: { enable_thinking: false } } : {}),
       }),
       signal: AbortSignal.timeout(20_000),
     },
@@ -45,12 +46,10 @@ export async function runChat(env, model, system, user, opts) {
   return responseText(body?.result);
 }
 
-// 8b rather than the 3b used for candidate classification: the `topic` becomes
-// a visible section header on the user's canvas, and 3b mangles film vocabulary
-// ("tech scout", "gaffer", "recce", "Scene 4 int. diner"). Cloudflare retired
-// the plain llama-3.1-8b-instruct id on 2026-05-30 (error 5028); the fp8 build
-// is the same model, quantized.
-const MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8';
+// Gemma 4, because the `topic` becomes a visible section header on the user's
+// canvas and small models mangle film vocabulary ("tech scout", "gaffer",
+// "recce", "Scene 4 int. diner"). Llama 3.1 8B retired on 2026-11-20.
+const MODEL = '@cf/google/gemma-4-26b-a4b-it';
 
 const SYSTEM = [
   'You read short messages sent by film crew to an ingest bot and extract intent.',
@@ -167,7 +166,7 @@ export async function extractIntent(env, { text, attachmentCount = 0 }) {
 
   try {
     const out = await runChat(env, MODEL, SYSTEM, user, {
-      max_tokens: 200, temperature: 0.1,
+      max_tokens: 200, temperature: 0.1, noThinking: true,
     });
     const parsed = parseJsonLoose(out);
     if (!parsed) return fallbackIntent(raw);

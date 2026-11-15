@@ -11,7 +11,7 @@
 //
 // COST DESIGN — uses as little AI as possible (the user's last AI attempt,
 // gpt-4o per-card-per-keystroke, blew the bill):
-//   * tiny model (llama-3.2-3b), free in-worker tier, no API key.
+//   * small model (Gemma 4 26B, 4B active), thinking off, in-worker, no API key.
 //   * per-CANDIDATE cache in candidate_ai_cache (0163): the model runs ONLY
 //     on names never seen before -> ~once per brand-new name per workspace,
 //     ever. After warmup almost every request is a 100% cache hit = ZERO
@@ -28,7 +28,7 @@ import { parseJsonArrayLoose, runWorkersAiChat } from './worker-llm.js';
 import { verifyUserToken } from './lib/workerAuth.js';
 import { answeredWith } from './lib/workerErrors.js';
 
-const MODEL = '@cf/meta/llama-3.2-3b-instruct';
+const MODEL = '@cf/google/gemma-4-26b-a4b-it';
 const MAX_CANDIDATES = 60;     // matches get_candidate_names p_limit
 const SAMPLE_MAXLEN = 200;
 const WS_DAILY_CAP = 200;      // candidates classified per workspace per day
@@ -252,7 +252,7 @@ async function handleClassifyCandidates(request, env, token) {
       candidates: misses.map((c) => ({ name: c.name, context: c.sample, count: c.n })),
     }) + '\n\nReturn ONLY a JSON array, one object per candidate in the same order: '
       + `[{"name": string, "type": one of ${JSON.stringify(VALID_TYPES)}, "keep": boolean, "confidence": number between 0 and 1}]. No markdown, no prose.`;
-    const resp = await runWorkersAiChat(env, MODEL, CLASSIFY_SYSTEM, userMsg, { max_tokens: 900, temperature: 0.2 });
+    const resp = await runWorkersAiChat(env, MODEL, CLASSIFY_SYSTEM, userMsg, { max_tokens: 900, temperature: 0.2, noThinking: true });
     aiArr = parseJsonArrayLoose(resp);
   } catch { aiArr = null; }
 

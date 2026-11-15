@@ -3,7 +3,7 @@
 // Two routes:
 //
 //   POST /api/tags/embed         — Workers AI (bge-m3) embeddings in batch
-//   POST /api/tags/apply         — Workers AI (llama) word verdicts, batched
+//   POST /api/tags/apply         — Workers AI (Gemma 4) word verdicts, batched
 //
 // (The route that named "emergent themes", which no screen showed, was
 // retired with them on 2026-10-25.)
@@ -41,10 +41,9 @@ import { answeredWith } from './lib/workerErrors.js';
 // verdict quality matters. Embeddings: bge-m3, chosen over qwen3-embedding-0.6b
 // on 2026-10-18 by re-embedding the stored cards — equal rank agreement with
 // the OpenAI vectors (Spearman ~0.60), better-spread scores near the top, and a
-// fifth of the cold-call latency. Cloudflare retired the plain
-// llama-3.1-8b-instruct id on 2026-05-30 (error 5028, so /apply had failed every
-// call since); the fp8 build is the same model, quantized.
-const APPLY_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8';    // /api/tags/apply
+// fifth of the cold-call latency. Llama 3.1 8B retired on
+// 2026-11-20 and Gemma 4 replaced it (thinking off).
+const APPLY_MODEL = '@cf/google/gemma-4-26b-a4b-it';    // /api/tags/apply
 const EMBEDDING_MODEL = '@cf/baai/bge-m3';
 const EMBEDDING_DIM = 1024;   // pgvector columns are vector(1024) since 0418
 
@@ -260,7 +259,7 @@ async function handleApply(request, env) {
     // request open the whole time; give up at APPLY_TIMEOUT_MS and let the
     // client's 5xx cooldown retry later.
     resp = await Promise.race([
-      runWorkersAiChat(env, APPLY_MODEL, APPLY_SYSTEM_PROMPT, userMsg, { max_tokens: 2000, temperature: 0.1 }),
+      runWorkersAiChat(env, APPLY_MODEL, APPLY_SYSTEM_PROMPT, userMsg, { max_tokens: 2000, temperature: 0.1, noThinking: true }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('model timed out')), APPLY_TIMEOUT_MS)),
     ]);
   } catch (e) {
@@ -278,8 +277,20 @@ async function handleApply(request, env) {
   // context supports the tag). The embedding pre-filter keeps unrelated
   // tags from reaching the model in the first place; the prompt rules
   // above tell the model when context-continuity is enough.
-  const verdicts = Array.isArray(parsed.verdicts) ? parsed.verdicts : [];
-  return json({ verdicts, usage: null }, 200);
+  return json({ verdicts: verdictsOf(parsed), usage: null }, 200);
+}
+
+// The verdicts in the shape the client reads (aiParagraphCascade.js: card_id,
+// tag_id). Gemma 4 sometimes names them `id`, as the request's cards and tags
+// do (live check 2026-11-15), and an unread tag_id would drop every verdict.
+export function verdictsOf(parsed) {
+  if (!Array.isArray(parsed?.verdicts)) return [];
+  return parsed.verdicts.filter((v) => v && typeof v === 'object').map((v) => ({
+    ...v,
+    card_id: v.card_id ?? v.id,
+    tags: (Array.isArray(v.tags) ? v.tags : []).filter((t) => t && typeof t === 'object')
+      .map((t) => ({ ...t, tag_id: t.tag_id ?? t.id })),
+  }));
 }
 
 // ─────────────────────────────────────────────────────────────────────

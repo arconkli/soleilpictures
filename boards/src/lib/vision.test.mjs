@@ -47,6 +47,12 @@ test('a request carries the picture beside the messages or inside them, always a
   assert.equal(visionRequest('top', uri, { prompt: 'p', maxTokens: 16 }).max_tokens, 16);
 });
 
+test('a caller can replace the system message, in both shapes', () => {
+  assert.equal(visionRequest('part', 'data:x', { system: 'S' }).messages[0].content, 'S');
+  assert.equal(visionRequest('top', 'data:x', { system: 'S' }).messages[0].content, 'S');
+  assert.match(visionRequest('part', 'data:x').messages[0].content, /one JSON object/);
+});
+
 test('a big picture becomes base64 without overflowing the call stack', () => {
   const bytes = new Uint8Array(300_000).fill(65);
   assert.ok(dataUriOf(bytes, 'image/jpeg').startsWith('data:image/jpeg;base64,QUFB'));
