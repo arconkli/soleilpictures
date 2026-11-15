@@ -183,9 +183,11 @@ const NEW_ALERTS = ['Index coverage check stale', 'Index coverage check failing'
                     'Pages not indexed after 14 days', 'IndexNow failing'];
 
 test('the live body is 0480’s, and every new alert is raised under a fixed name', () => {
-  // 0867 re-emits 0480's body with only the AEO-failing reason added;
-  // aeoAlertReason.test.mjs proves nothing else moved.
-  assert.equal(def.file, '0867_aeo_alert_says_why.sql');
+  // 0867 re-emits 0480's body with only the AEO-failing reason added
+  // (aeoAlertReason.test.mjs proves nothing else moved); 0885 re-emits 0867's
+  // with public clusters and Soft 404 added to the two page alerts
+  // (indexAlertsPublicClusters.test.mjs).
+  assert.equal(def.file, '0885_index_alerts_public_clusters_soft_404.sql');
   // admin_markers (0372) folds re-fires by name: a page or a count in the name
   // would make every morning a new marker.
   const literals = [...def.body.matchAll(/_discovery_alert\('([^']+)',/g)].map((m) => m[1]);
@@ -222,7 +224,7 @@ test('the impressions that widen the de-index alert are page-level web rows', ()
 
 test('page lists lead with their count: _discovery_alert keeps 500 characters', () => {
   assert.match(def.body, /v_cnt \|\| ' page\(s\) Google had on its index/);
-  assert.match(def.body, /v_cnt \|\| ' marketing page\(s\) still off Google/);
+  assert.match(def.body, /v_cnt \|\| ' page\(s\) still off Google/);
 });
 
 test('IndexNow failing means a recent build used all three attempts without one landing', () => {

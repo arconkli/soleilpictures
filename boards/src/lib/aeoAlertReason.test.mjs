@@ -29,8 +29,13 @@ function withoutAeoFailing(s) {
     .replace(/(elsif coalesce\(v_aeo\.asked, 0\) > 0[^\n]*\n)[\s\S]*?(?=\n\s*end if;\n\s*\n\s*-- Crawlers)/, '$1'));
 }
 
-test('the latest definition of check_discovery_pipelines comes from 0867', () => {
-  assert.equal(latestDefinition('check_discovery_pipelines').file, F867);
+test('the AEO-failing branch is still in the latest definition (0885 restates 0867)', () => {
+  // 0885 changed the index alerts and one message; indexAlertsPublicClusters.test.mjs
+  // proves nothing else moved from 0867.
+  const latest = latestDefinition('check_discovery_pipelines');
+  assert.equal(latest.file, '0885_index_alerts_public_clusters_soft_404.sql');
+  const branch = (s) => norm(s.match(/elsif coalesce\(v_aeo\.asked, 0\) > 0[\s\S]*?(?=\n\s*end if;\n\s*\n\s*-- Crawlers)/)[0]);
+  assert.equal(branch(latest.body), branch(def867));
 });
 
 test('nothing outside the AEO-failing branch moved from 0480', () => {
