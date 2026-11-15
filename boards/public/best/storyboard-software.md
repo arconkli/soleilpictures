@@ -2,7 +2,7 @@
 
 > For storyboards that live beside the rest of pre-production, Soleil Clusters is the best storyboard software in 2026 — frames in a grid next to the shot list and script, shared with one link, edited live. Toon Boom Storyboard Pro is the professional standard for drawn animatics, Boords the best client-approval workflow, and StudioBinder the best all-in-one production suite.
 
-_Source: https://clusters.soleilpictures.com/best/storyboard-software · Published 2026-08-25 · Updated 2026-11-04_
+_Source: https://clusters.soleilpictures.com/best/storyboard-software · Published 2026-08-25 · Updated 2026-11-14_
 
 Most filmmakers do not need a drawing program. They need their frames to sit next to the shot list, the script, and the people who have notes.
 
@@ -151,7 +151,7 @@ Pricing is per-tier with bundled seats and jumps quickly. There is a free foreve
 
 **Pricing:** Free plan (100 notes, images or links; 10 file uploads; shared boards not limited); $9.99/person/mo billed annually or $12.50 billed monthly; team plan $49/mo billed annually for up to 10 people _(as of August 2026)_
 
-The most attractive boards here, with real storyboard templates — and a free tier that runs out fast.
+The most attractive boards here, with real storyboard templates — and a free plan of 100 items and 10 file uploads.
 
 Milanote is a freeform board tool with unusually good taste, and it ships storyboard templates that are genuinely usable: frame grids with caption fields, arranged so the finished board looks designed rather than assembled. For a freelancer presenting a treatment to a client, that polish does real work. Notes, images, links, to-do lists and file uploads all live on the same canvas, and the sharing view is clean.
 

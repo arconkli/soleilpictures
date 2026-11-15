@@ -1676,7 +1676,7 @@ const PAGES = [
         },
         {
           "name": "The free tier tells the truth",
-          "why": "A free plan that dies at 20 uploads or 100 items is a trial with better marketing. We measured whether each survives one real project."
+          "why": "A free plan only counts if one real project fits in it. We checked what each one holds, ours included, and say where it stops."
         },
         {
           "name": "Handles real media",
@@ -2368,7 +2368,7 @@ const PAGES = [
     "answer": "For storyboards that live beside the rest of pre-production, Soleil Clusters is the best storyboard software in 2026 — frames in a grid next to the shot list and script, shared with one link, edited live. Toon Boom Storyboard Pro is the professional standard for drawn animatics, Boords the best client-approval workflow, and StudioBinder the best all-in-one production suite.",
     "disclosure": "Soleil Clusters is our app — we are Soleil Pictures, a working film studio, and we built it for our own productions. We rank it first for exactly one job: storyboards that stay attached to the shot list, the script and the crew. It is not a drawing program, and we did not give it the highest score on this page — Toon Boom Storyboard Pro earned that. If you draw your boards frame by frame, buy Toon Boom and skip us.",
     "published": "2026-08-25",
-    "updated": "2026-11-04",
+    "updated": "2026-11-14",
     "thesis": {
       "heading": "The Two Storyboards",
       "paras": [
@@ -2557,7 +2557,7 @@ const PAGES = [
         "name": "Milanote",
         "anchor": "milanote",
         "bestFor": "Presentable boards for clients who will judge the layout",
-        "verdict": "The most attractive boards here, with real storyboard templates — and a free tier that runs out fast.",
+        "verdict": "The most attractive boards here, with real storyboard templates — and a free plan of 100 items and 10 file uploads.",
         "paras": [
           "Milanote is a freeform board tool with unusually good taste, and it ships storyboard templates that are genuinely usable: frame grids with caption fields, arranged so the finished board looks designed rather than assembled. For a freelancer presenting a treatment to a client, that polish does real work. Notes, images, links, to-do lists and file uploads all live on the same canvas, and the sharing view is clean.",
           "Where it stops is depth. There is no shot-list structure, no script tooling, no schedule and no animatic playback — it is a beautiful pinboard, not a pre-production system. It is also not a drawing tool. For a treatment or a look book handed over once, that is the right amount of tool. For a board that has to survive four revisions while the schedule moves, it will not hold the rest of the production.",
