@@ -91,6 +91,1274 @@ export const CHANGELOG_CONTENT = {
    ]
   }
  ],
+ "2026-11-09": [
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Any language",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Any language"
+    }
+   ],
+   "id": "2026-11-09-any-language"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Chinese, Japanese and Korean keyboards no longer lose a word when "
+     },
+     {
+      "t": "code",
+      "v": "Enter"
+     },
+     {
+      "t": "text",
+      "v": " picks a candidate or "
+     },
+     {
+      "t": "code",
+      "v": "Esc"
+     },
+     {
+      "t": "text",
+      "v": " closes the candidate list."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Hebrew, Arabic, Persian and Urdu run right to left wherever you write and read: notes, documents, comments, messages and names. Each paragraph goes by its own first letter. See "
+     },
+     {
+      "t": "link",
+      "v": "notes",
+      "href": "/docs/canvas/notes#right-to-left",
+      "children": [
+       {
+        "t": "text",
+        "v": "notes"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Search ignores accents, so "
+     },
+     {
+      "t": "code",
+      "v": "cafe"
+     },
+     {
+      "t": "text",
+      "v": " finds "
+     },
+     {
+      "t": "code",
+      "v": "Café"
+     },
+     {
+      "t": "text",
+      "v": ", and one character is enough in Chinese, Japanese and Korean. A search in another language also finds pictures by what is in them, where the workspace allows AI. See "
+     },
+     {
+      "t": "link",
+      "v": "search",
+      "href": "/docs/organize/search",
+      "children": [
+       {
+        "t": "text",
+        "v": "search"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Tags are found as whole words in any script."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Files keep their own names. Downloads, exports and shared files are named in their own letters, and a zip made by older Windows or Japanese tools opens with readable folder names."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A PDF that names a Chinese, Japanese or Korean font it doesn't carry shows its text. A screenplay in Greek or Cyrillic exports as a PDF, and one in any other script opens as a page to print or save."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Notes",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Notes"
+    }
+   ],
+   "id": "2026-11-09-notes"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Opening a note moves nothing: the caret lands where you clicked or tapped, and a tall note keeps its size. See "
+     },
+     {
+      "t": "link",
+      "v": "notes",
+      "href": "/docs/canvas/notes",
+      "children": [
+       {
+        "t": "text",
+        "v": "notes"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "code",
+      "v": "Tab"
+     },
+     {
+      "t": "text",
+      "v": " nests and un-nests a list item and never deletes text. "
+     },
+     {
+      "t": "code",
+      "v": "Enter"
+     },
+     {
+      "t": "text",
+      "v": " in a checklist starts an unticked item. Pasted text keeps its blank lines, and a named link keeps its address."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Notes shrink as text is deleted, and resizing never cuts text off."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "On a phone or a tablet, tap a selected note to type where you tapped. The keyboard comes up at once, the board glides so the line you are typing stays above it, and Safari no longer zooms in. Autocorrect and capitals are on, checkboxes are bigger to tap, and Apple Pencil writes."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Opening a note with no connection keeps it readable and says why, instead of reloading the page."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Uploads and loading",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Uploads and loading"
+    }
+   ],
+   "id": "2026-11-09-uploads-and-loading"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "One activity tray, bottom right (a sheet on a phone), holds everything that moves: uploads, files waiting for room, imports, downloads, exports and cluster copies. It says how far along each is and about how long is left, with "
+     },
+     {
+      "t": "strong",
+      "v": "Retry",
+      "children": [
+       {
+        "t": "text",
+        "v": "Retry"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Pause",
+      "children": [
+       {
+        "t": "text",
+        "v": "Pause"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and "
+     },
+     {
+      "t": "strong",
+      "v": "Cancel",
+      "children": [
+       {
+        "t": "text",
+        "v": "Cancel"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". See "
+     },
+     {
+      "t": "link",
+      "v": "files",
+      "href": "/docs/files",
+      "children": [
+       {
+        "t": "text",
+        "v": "files"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A card says what its upload is doing, and you can see a teammate's upload on its card. An upload cut off by a lost connection keeps its card and carries on when the connection is back."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Closing or reloading while something is still uploading asks first."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Loading screens say what they are waiting for and offer a reload when it takes too long. Lists that fail to load say "
+     },
+     {
+      "t": "strong",
+      "v": "Couldn't load",
+      "children": [
+       {
+        "t": "text",
+        "v": "Couldn't load"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " with "
+     },
+     {
+      "t": "strong",
+      "v": "Retry",
+      "children": [
+       {
+        "t": "text",
+        "v": "Retry"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " instead of looking empty."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "The look",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The look"
+    }
+   ],
+   "id": "2026-11-09-the-look"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "The film grain is one fine, still grain everywhere, about a third quieter than before. Cards and pictures stay clean."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "ChatGPT and Claude",
+   "inline": [
+    {
+     "t": "text",
+     "v": "ChatGPT and Claude"
+    }
+   ],
+   "id": "2026-11-09-chatgpt-and-claude"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Asking an assistant for a cluster by name finds it again."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "An assistant that brings web pictures into a second cluster gets them, even when the same pictures already sit on another cluster. See "
+     },
+     {
+      "t": "link",
+      "v": "import",
+      "href": "/docs/api/import",
+      "children": [
+       {
+        "t": "text",
+        "v": "import"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A document an assistant puts at the top of a cluster no longer sits on the first section's name."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A new "
+     },
+     {
+      "t": "link",
+      "v": "support",
+      "href": "/docs/account/support",
+      "children": [
+       {
+        "t": "text",
+        "v": "support"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " page says who to email, how to disconnect an AI app and how to get a deleted cluster back."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Also",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Also"
+    }
+   ],
+   "id": "2026-11-09-also"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Someone invited to edit one shared cluster can save there, rename it and make sub-clusters that its owner sees."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A file that can't be dropped on a cluster says why."
+     }
+    ]
+   ]
+  }
+ ],
+ "2026-11-05": [
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Security",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Security"
+    }
+   ],
+   "id": "2026-11-05-security"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Clusters has a public "
+     },
+     {
+      "t": "link",
+      "v": "security page",
+      "href": "/docs/security",
+      "children": [
+       {
+        "t": "text",
+        "v": "security page"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", also at "
+     },
+     {
+      "t": "code",
+      "v": "/security"
+     },
+     {
+      "t": "text",
+      "v": ". It says where your data lives, how it is encrypted, how sign-in works, who can see what, what connected apps and assistants can reach, how backups and deleting an account work, and what Clusters does not have yet."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "It says how to report a vulnerability."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Policies",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Policies"
+    }
+   ],
+   "id": "2026-11-05-policies"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "The Privacy Policy, the Terms and the Cookie Policy describe what Clusters does today. Privacy gains a section on the apps and AI assistants you connect: what they can reach, what we receive, and how to disconnect one."
+     }
+    ]
+   ]
+  }
+ ],
+ "2026-11-04": [
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Working together",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Working together"
+    }
+   ],
+   "id": "2026-11-04-working-together"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Working live with someone earns cards. While you and someone else are both active in the same cluster, you each earn a bonus card every 2 minutes, up to 25 a calendar month. See "
+     },
+     {
+      "t": "link",
+      "v": "earn by working together",
+      "href": "/docs/account/referrals#earn-by-working-together",
+      "children": [
+       {
+        "t": "text",
+        "v": "earn by working together"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "When a friend you invited adds their first card, a note in your bell says what you earned, and an email says so if you are away. "
+     },
+     {
+      "t": "strong",
+      "v": "Settings → Notifications",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings → Notifications"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " turns the email off. See "
+     },
+     {
+      "t": "link",
+      "v": "notifications",
+      "href": "/docs/collaborate/notifications",
+      "children": [
+       {
+        "t": "text",
+        "v": "notifications"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "ChatGPT, Claude and coding apps",
+   "inline": [
+    {
+     "t": "text",
+     "v": "ChatGPT, Claude and coding apps"
+    }
+   ],
+   "id": "2026-11-04-chatgpt-claude-and-coding-apps"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Settings → Connections",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings → Connections"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and the help page have one-click install links for Cursor and VS Code. See "
+     },
+     {
+      "t": "link",
+      "v": "MCP",
+      "href": "/docs/mcp",
+      "children": [
+       {
+        "t": "text",
+        "v": "MCP"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Claude Code, Codex, Cursor, VS Code and Windsurf can connect on your account's first day, as ChatGPT and Claude do."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "An assistant's search finds a picture by what is in it, where the workspace allows AI, and finds the words inside a document's pages, naming the document, the page and the cluster. See "
+     },
+     {
+      "t": "link",
+      "v": "search",
+      "href": "/docs/api/search",
+      "children": [
+       {
+        "t": "text",
+        "v": "search"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "An assistant reading a cluster can learn what is in its pictures."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Three or more cards an assistant adds at once are laid out for it, and a note too short for its text grows to fit."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Workspaces",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Workspaces"
+    }
+   ],
+   "id": "2026-11-04-workspaces"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Free and Creator accounts can own up to 10 workspaces of their own. Workspaces you are invited into or that belong to a team don't count, and Team has no limit. An account that already has more keeps every one. See "
+     },
+     {
+      "t": "link",
+      "v": "plans and pricing",
+      "href": "/docs/account/plans",
+      "children": [
+       {
+        "t": "text",
+        "v": "plans and pricing"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Signing in and out",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Signing in and out"
+    }
+   ],
+   "id": "2026-11-04-signing-in-and-out"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Settings → Profile",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings → Profile"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " opens with the email you are signed in as and a "
+     },
+     {
+      "t": "strong",
+      "v": "Sign out",
+      "children": [
+       {
+        "t": "text",
+        "v": "Sign out"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " button. On a phone it heads the Settings list. See "
+     },
+     {
+      "t": "link",
+      "v": "settings",
+      "href": "/docs/account/settings",
+      "children": [
+       {
+        "t": "text",
+        "v": "settings"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A computer whose clock is an hour or more off stays signed in. It used to be signed out again and again."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Signing in with a passkey opens your own account. For its first few days it could open an empty one; nothing was lost."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Also",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Also"
+    }
+   ],
+   "id": "2026-11-04-also"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "A failed upload or download says what happened in a plain sentence. Pasting or dropping onto a view-only cluster says it is view-only."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "After an update, a page or panel that hadn't loaded yet reloads once instead of breaking."
+     }
+    ]
+   ]
+  }
+ ],
+ "2026-11-01": [
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Sharing",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Sharing"
+    }
+   ],
+   "id": "2026-11-01-sharing"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "A view link can be joined. The shared page says who sent it and has a "
+     },
+     {
+      "t": "strong",
+      "v": "Join",
+      "children": [
+       {
+        "t": "text",
+        "v": "Join"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " button: joining asks for a sign-in, then keeps the cluster in that person's own Clusters, live and view-only. You get a note that they joined, and they show in "
+     },
+     {
+      "t": "strong",
+      "v": "Who has access",
+      "children": [
+       {
+        "t": "text",
+        "v": "Who has access"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". See "
+     },
+     {
+      "t": "link",
+      "v": "sharing",
+      "href": "/docs/collaborate/sharing#joining-from-a-view-link",
+      "children": [
+       {
+        "t": "text",
+        "v": "sharing"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Someone who joined can press "
+     },
+     {
+      "t": "strong",
+      "v": "Ask to edit",
+      "children": [
+       {
+        "t": "text",
+        "v": "Ask to edit"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". You, or the cluster's owner, answer from the bell, the email or the Share panel."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A cluster's first link starts as "
+     },
+     {
+      "t": "strong",
+      "v": "Can edit",
+      "children": [
+       {
+        "t": "text",
+        "v": "Can edit"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", so the people you send it to can join in. A cluster with a view link already out keeps handing out that one."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A link pasted into a chat or a message shows a picture of the cluster with who shared it."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Video",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Video"
+    }
+   ],
+   "id": "2026-11-01-video"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Autoplaying videos keep one time for everyone on a board: they start together, and anyone who joins lands on the same frame."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "To line clips up against each other, give one a start point. Right-click an autoplaying video for "
+     },
+     {
+      "t": "strong",
+      "v": "Start here",
+      "children": [
+       {
+        "t": "text",
+        "v": "Start here"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", "
+     },
+     {
+      "t": "strong",
+      "v": "Start at…",
+      "children": [
+       {
+        "t": "text",
+        "v": "Start at…"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " or "
+     },
+     {
+      "t": "strong",
+      "v": "Clear start point",
+      "children": [
+       {
+        "t": "text",
+        "v": "Clear start point"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ". It is saved on the card, so everyone sees the same alignment. See "
+     },
+     {
+      "t": "link",
+      "v": "video and audio",
+      "href": "/docs/files/video-and-audio",
+      "children": [
+       {
+        "t": "text",
+        "v": "video and audio"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A video that waits for a click shows a small play mark in its corner."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Grids",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Grids"
+    }
+   ],
+   "id": "2026-11-01-grids"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Drop several files or cards on a box and they fill it and the empty boxes after it, in reading order. Anything left over lands beside the grid. See "
+     },
+     {
+      "t": "link",
+      "v": "grids",
+      "href": "/docs/canvas/grids",
+      "children": [
+       {
+        "t": "text",
+        "v": "grids"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Drag a filled box by its grip onto another box to swap them, or onto an empty box to move it."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A selected grid's boxes take the keyboard: the arrows move between them, "
+     },
+     {
+      "t": "code",
+      "v": "Enter"
+     },
+     {
+      "t": "text",
+      "v": " types in a box and "
+     },
+     {
+      "t": "code",
+      "v": "Delete"
+     },
+     {
+      "t": "text",
+      "v": " clears one, with an undo."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "The bar under a selected grid cuts it into an even set of boxes, and "
+     },
+     {
+      "t": "strong",
+      "v": "Even out",
+      "children": [
+       {
+        "t": "text",
+        "v": "Even out"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " makes every box the same size. "
+     },
+     {
+      "t": "strong",
+      "v": "Spacing",
+      "children": [
+       {
+        "t": "text",
+        "v": "Spacing"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " is in the right-click menu."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A grid's "
+     },
+     {
+      "t": "strong",
+      "v": "+",
+      "children": [
+       {
+        "t": "text",
+        "v": "+"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " puts its copy right against that side. It used to land over the grid or far from it."
+     }
+    ]
+   ]
+  }
+ ],
+ "2026-10-29": [
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Passkeys",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Passkeys"
+    }
+   ],
+   "id": "2026-10-29-passkeys"
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "text",
+      "v": "Save a "
+     },
+     {
+      "t": "strong",
+      "v": "passkey",
+      "children": [
+       {
+        "t": "text",
+        "v": "passkey"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " and the next sign-in skips the emailed code. On the sign-in screen the email box suggests a saved passkey, and "
+     },
+     {
+      "t": "strong",
+      "v": "Use a passkey",
+      "children": [
+       {
+        "t": "text",
+        "v": "Use a passkey"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " under it opens your device's own sheet. See "
+     },
+     {
+      "t": "link",
+      "v": "getting started",
+      "href": "/docs/getting-started",
+      "children": [
+       {
+        "t": "text",
+        "v": "getting started"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "After you sign in with a code, a note in the corner offers to save one. It shows once on each device."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Settings → Profile → Passkeys",
+      "children": [
+       {
+        "t": "text",
+        "v": "Settings → Profile → Passkeys"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " lists your passkeys with when each was added and last used, adds one and removes one, with an undo. The emailed code always still works. See "
+     },
+     {
+      "t": "link",
+      "v": "settings",
+      "href": "/docs/account/settings",
+      "children": [
+       {
+        "t": "text",
+        "v": "settings"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ]
+   ]
+  }
+ ],
  "2026-10-28": [
   {
    "type": "heading",
@@ -3444,7 +4712,7 @@ export const CHANGELOG_CONTENT = {
     [
      {
       "t": "text",
-      "v": "The free plan holds 50 cards or 5GB of files, whichever you reach first — and takes any file at any size. The per-file limits on video, audio, PDFs and other files are gone; the drive is the only limit. See "
+      "v": "The free plan holds 50 cards at the time, or 5GB of files, whichever you reach first — and takes any file at any size. The per-file limits on video, audio, PDFs and other files are gone; the drive is the only limit. See "
      },
      {
       "t": "link",
@@ -4456,7 +5724,7 @@ export const CHANGELOG_CONTENT = {
     [
      {
       "t": "text",
-      "v": "Plans, pricing and marketing pages stop calling clusters unlimited. There is no separate limit on clusters, but each one sits on its parent's canvas as a card, and on the free plan it counts as one of your 50."
+      "v": "Plans, pricing and marketing pages stop calling clusters unlimited. There is no separate limit on clusters, but each one sits on its parent's canvas as a card, and on the free plan it counts as one of your cards (50 at the time)."
      }
     ],
     [

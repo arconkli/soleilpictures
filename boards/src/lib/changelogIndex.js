@@ -18,6 +18,41 @@ export const CHANGELOG_ENTRIES = [
     "headings": []
   },
   {
+    "date": "2026-11-09",
+    "anchor": "2026-11-09",
+    "title": "Any language, notes that feel right, and one tray for everything that moves",
+    "summary": "Write, search, tag and name things in any language, right to left included. Notes behave on every screen, and one activity tray shows uploads, downloads, imports and exports.",
+    "headings": []
+  },
+  {
+    "date": "2026-11-05",
+    "anchor": "2026-11-05",
+    "title": "A public security page",
+    "summary": "A security page says in plain words where your data lives, how sign-in works, who can see what, and how to report a problem. The Privacy Policy, Terms and Cookie Policy are brought up to date.",
+    "headings": []
+  },
+  {
+    "date": "2026-11-04",
+    "anchor": "2026-11-04",
+    "title": "Cards for working together, one-click installs for coding apps, and a clearer sign out",
+    "summary": "Working live with someone in a cluster earns you both cards. Cursor and VS Code install the Clusters connector in one click, assistants can find pictures by what is in them, and Sign out is easy to find.",
+    "headings": []
+  },
+  {
+    "date": "2026-11-01",
+    "anchor": "2026-11-01",
+    "title": "Join a cluster from its link, videos that line up, and better grids",
+    "summary": "Anyone who opens a view link can join the cluster and ask to edit. Autoplaying videos stay in step for everyone and can start from a point you choose, and grids fill, move and swap their boxes.",
+    "headings": []
+  },
+  {
+    "date": "2026-10-29",
+    "anchor": "2026-10-29",
+    "title": "Sign in with a passkey",
+    "summary": "Save a passkey and the next sign-in skips the emailed code. The email box suggests it, and Settings lists, adds and removes your passkeys.",
+    "headings": []
+  },
+  {
     "date": "2026-10-28",
     "anchor": "2026-10-28",
     "title": "The board, in the chat",

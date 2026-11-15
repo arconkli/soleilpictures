@@ -18,6 +18,210 @@ Clusters may ask whether it can keep plain outlines of how your clusters are lai
   whether you came back. See [Layout outlines](/docs/account/data-and-privacy#layout-outlines).
 - Change your answer any time in **Settings → Profile**.
 
+## 2026-11-09 — Any language, notes that feel right, and one tray for everything that moves
+
+Write, search, tag and name things in any language, right to left included. Notes behave on every screen, and one activity tray shows uploads, downloads, imports and exports.
+
+### Any language
+
+- Chinese, Japanese and Korean keyboards no longer lose a word when `Enter`
+  picks a candidate or `Esc` closes the candidate list.
+- Hebrew, Arabic, Persian and Urdu run right to left wherever you write and
+  read: notes, documents, comments, messages and names. Each paragraph goes by
+  its own first letter. See [notes](/docs/canvas/notes#right-to-left).
+- Search ignores accents, so `cafe` finds `Café`, and one character is enough
+  in Chinese, Japanese and Korean. A search in another language also finds
+  pictures by what is in them, where the workspace allows AI. See
+  [search](/docs/organize/search).
+- Tags are found as whole words in any script.
+- Files keep their own names. Downloads, exports and shared files are named in
+  their own letters, and a zip made by older Windows or Japanese tools opens
+  with readable folder names.
+- A PDF that names a Chinese, Japanese or Korean font it doesn't carry shows
+  its text. A screenplay in Greek or Cyrillic exports as a PDF, and one in any
+  other script opens as a page to print or save.
+
+### Notes
+
+- Opening a note moves nothing: the caret lands where you clicked or tapped,
+  and a tall note keeps its size. See [notes](/docs/canvas/notes).
+- `Tab` nests and un-nests a list item and never deletes text. `Enter` in a
+  checklist starts an unticked item. Pasted text keeps its blank lines, and a
+  named link keeps its address.
+- Notes shrink as text is deleted, and resizing never cuts text off.
+- On a phone or a tablet, tap a selected note to type where you tapped. The
+  keyboard comes up at once, the board glides so the line you are typing stays
+  above it, and Safari no longer zooms in. Autocorrect and capitals are on,
+  checkboxes are bigger to tap, and Apple Pencil writes.
+- Opening a note with no connection keeps it readable and says why, instead
+  of reloading the page.
+
+### Uploads and loading
+
+- One activity tray, bottom right (a sheet on a phone), holds everything that
+  moves: uploads, files waiting for room, imports, downloads, exports and
+  cluster copies. It says how far along each is and about how long is left,
+  with **Retry**, **Pause** and **Cancel**. See [files](/docs/files).
+- A card says what its upload is doing, and you can see a teammate's upload on
+  its card. An upload cut off by a lost connection keeps its card and carries
+  on when the connection is back.
+- Closing or reloading while something is still uploading asks first.
+- Loading screens say what they are waiting for and offer a reload when it
+  takes too long. Lists that fail to load say **Couldn't load** with
+  **Retry** instead of looking empty.
+
+### The look
+
+- The film grain is one fine, still grain everywhere, about a third quieter
+  than before. Cards and pictures stay clean.
+
+### ChatGPT and Claude
+
+- Asking an assistant for a cluster by name finds it again.
+- An assistant that brings web pictures into a second cluster gets them, even
+  when the same pictures already sit on another cluster. See
+  [import](/docs/api/import).
+- A document an assistant puts at the top of a cluster no longer sits on the
+  first section's name.
+- A new [support](/docs/account/support) page says who to email, how to
+  disconnect an AI app and how to get a deleted cluster back.
+
+### Also
+
+- Someone invited to edit one shared cluster can save there, rename it and
+  make sub-clusters that its owner sees.
+- A file that can't be dropped on a cluster says why.
+
+## 2026-11-05 — A public security page
+
+A security page says in plain words where your data lives, how sign-in works, who can see what, and how to report a problem. The Privacy Policy, Terms and Cookie Policy are brought up to date.
+
+### Security
+
+- Clusters has a public [security page](/docs/security), also at `/security`.
+  It says where your data lives, how it is encrypted, how sign-in works, who
+  can see what, what connected apps and assistants can reach, how backups and
+  deleting an account work, and what Clusters does not have yet.
+- It says how to report a vulnerability.
+
+### Policies
+
+- The Privacy Policy, the Terms and the Cookie Policy describe what Clusters
+  does today. Privacy gains a section on the apps and AI assistants you
+  connect: what they can reach, what we receive, and how to disconnect one.
+
+## 2026-11-04 — Cards for working together, one-click installs for coding apps, and a clearer sign out
+
+Working live with someone in a cluster earns you both cards. Cursor and VS Code install the Clusters connector in one click, assistants can find pictures by what is in them, and Sign out is easy to find.
+
+### Working together
+
+- Working live with someone earns cards. While you and someone else are both
+  active in the same cluster, you each earn a bonus card every
+  2 minutes, up to 25 a
+  calendar month. See
+  [earn by working together](/docs/account/referrals#earn-by-working-together).
+- When a friend you invited adds their first card, a note in your bell says
+  what you earned, and an email says so if you are away. **Settings →
+  Notifications** turns the email off. See
+  [notifications](/docs/collaborate/notifications).
+
+### ChatGPT, Claude and coding apps
+
+- **Settings → Connections** and the help page have one-click install links
+  for Cursor and VS Code. See [MCP](/docs/mcp).
+- Claude Code, Codex, Cursor, VS Code and Windsurf can connect on your
+  account's first day, as ChatGPT and Claude do.
+- An assistant's search finds a picture by what is in it, where the workspace
+  allows AI, and finds the words inside a document's pages, naming the
+  document, the page and the cluster. See [search](/docs/api/search).
+- An assistant reading a cluster can learn what is in its pictures.
+- Three or more cards an assistant adds at once are laid out for it, and a
+  note too short for its text grows to fit.
+
+### Workspaces
+
+- Free and Creator accounts can own up to 10
+  workspaces of their own. Workspaces you are invited into or that belong to
+  a team don't count, and Team has no limit. An account that already has more
+  keeps every one. See [plans and pricing](/docs/account/plans).
+
+### Signing in and out
+
+- **Settings → Profile** opens with the email you are signed in as and a
+  **Sign out** button. On a phone it heads the Settings list. See
+  [settings](/docs/account/settings).
+- A computer whose clock is an hour or more off stays signed in. It used to
+  be signed out again and again.
+- Signing in with a passkey opens your own account. For its first few days it
+  could open an empty one; nothing was lost.
+
+### Also
+
+- A failed upload or download says what happened in a plain sentence.
+  Pasting or dropping onto a view-only cluster says it is view-only.
+- After an update, a page or panel that hadn't loaded yet reloads once
+  instead of breaking.
+
+## 2026-11-01 — Join a cluster from its link, videos that line up, and better grids
+
+Anyone who opens a view link can join the cluster and ask to edit. Autoplaying videos stay in step for everyone and can start from a point you choose, and grids fill, move and swap their boxes.
+
+### Sharing
+
+- A view link can be joined. The shared page says who sent it and has a
+  **Join** button: joining asks for a sign-in, then keeps the cluster in that
+  person's own Clusters, live and view-only. You get a note that they joined,
+  and they show in **Who has access**. See
+  [sharing](/docs/collaborate/sharing#joining-from-a-view-link).
+- Someone who joined can press **Ask to edit**. You, or the cluster's owner,
+  answer from the bell, the email or the Share panel.
+- A cluster's first link starts as **Can edit**, so the people you send it to
+  can join in. A cluster with a view link already out keeps handing out that
+  one.
+- A link pasted into a chat or a message shows a picture of the cluster with
+  who shared it.
+
+### Video
+
+- Autoplaying videos keep one time for everyone on a board: they start
+  together, and anyone who joins lands on the same frame.
+- To line clips up against each other, give one a start point. Right-click an
+  autoplaying video for **Start here**, **Start at…** or **Clear start
+  point**. It is saved on the card, so everyone sees the same alignment. See
+  [video and audio](/docs/files/video-and-audio).
+- A video that waits for a click shows a small play mark in its corner.
+
+### Grids
+
+- Drop several files or cards on a box and they fill it and the empty boxes
+  after it, in reading order. Anything left over lands beside the grid. See
+  [grids](/docs/canvas/grids).
+- Drag a filled box by its grip onto another box to swap them, or onto an
+  empty box to move it.
+- A selected grid's boxes take the keyboard: the arrows move between them,
+  `Enter` types in a box and `Delete` clears one, with an undo.
+- The bar under a selected grid cuts it into an even set of boxes, and **Even
+  out** makes every box the same size. **Spacing** is in the right-click menu.
+- A grid's **+** puts its copy right against that side. It used to land over
+  the grid or far from it.
+
+## 2026-10-29 — Sign in with a passkey
+
+Save a passkey and the next sign-in skips the emailed code. The email box suggests it, and Settings lists, adds and removes your passkeys.
+
+### Passkeys
+
+- Save a **passkey** and the next sign-in skips the emailed code. On the
+  sign-in screen the email box suggests a saved passkey, and **Use a passkey**
+  under it opens your device's own sheet. See
+  [getting started](/docs/getting-started).
+- After you sign in with a code, a note in the corner offers to save one. It
+  shows once on each device.
+- **Settings → Profile → Passkeys** lists your passkeys with when each was
+  added and last used, adds one and removes one, with an undo. The emailed
+  code always still works. See [settings](/docs/account/settings).
+
 ## 2026-10-28 — The board, in the chat
 
 ChatGPT and Claude can show a cluster inside the conversation, drawn as it is on its canvas. Clusters an assistant makes are laid out to suit them, and Tidy up keeps each group together.
@@ -496,8 +700,9 @@ Storage works differently from today, on every plan.
 
 ### Plans
 
-- The free plan holds 50 cards or 5GB of
-  files, whichever you reach first — and takes any file at any size. The
+- The free plan holds 50 cards at the time, or
+  5GB of files, whichever you reach first — and takes any
+  file at any size. The
   per-file limits on video, audio, PDFs and other files are gone; the drive is
   the only limit. See [plans and pricing](/docs/account/plans).
 - Creator's drive grows to 1TB. During a trial it
@@ -661,7 +866,8 @@ depending on the page it came from.
   **Settings → Plan & billing**.
 - Plans, pricing and marketing pages stop calling clusters unlimited. There is
   no separate limit on clusters, but each one sits on its parent's canvas as a
-  card, and on the free plan it counts as one of your 50.
+  card, and on the free plan it counts as one of your cards
+  (50 at the time).
 - The pricing page can be read without JavaScript, by search engines and
   assistants, and as Markdown at [/pricing.md](/pricing.md). The Milanote, Miro,
   Storyflow, Eagle and Google Drive comparisons, and the five professional
