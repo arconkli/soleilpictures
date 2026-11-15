@@ -125,7 +125,7 @@ export function RichNoteEditor({
   // tokenRange is a live DOM Range covering the @<query> text so we
   // can replace it on commit without re-finding the position.
   const [mention, setMention] = useState(null);
-  // Clipped-text cue: fades the bottom edge + shows the "Show all" chip.
+  // Clipped-text cue: shows the "Show all" chip.
   const overflowing = useNoteOverflow(ref, [html, body, fontSize, fontSizeV, fontFamily, editing, peerLiveHtml, manuallyResized]);
 
   useEffect(() => {
@@ -168,8 +168,8 @@ export function RichNoteEditor({
   // grows/shrinks with the typed text. Once `manuallyResized` becomes true,
   // we stop reporting and the card keeps its hand-set size.
   // NOTE_AUTOSIZE_MAX (the cap) is module-scoped above so useNoteOverflow can
-  // share it. Past the cap a long note is held fixed and the fade + "Show all"
-  // chip take over; the user can still drag-resize bigger (flips manuallyResized).
+  // share it. Past the cap a long note is held fixed and the "Show all"
+  // chip takes over; the user can still drag-resize bigger (flips manuallyResized).
   const measureAndReport = () => {
     if (manuallyResized) return;
     if (!editing) return;
@@ -211,7 +211,7 @@ export function RichNoteEditor({
   // card-level font props change. This fixes the font-display:swap drift —
   // a height saved against fallback metrics used to persist (slightly
   // clipping the note) even after the custom font loaded. Growth past the
-  // auto-size cap is left to the fade + "Show all" chip, and a ≤2px delta
+  // auto-size cap is left to the "Show all" chip, and a ≤2px delta
   // is ignored so multi-peer clients can't ping-pong patches.
   const fitOutsideEditRef = useRef(null);
   fitOutsideEditRef.current = () => {
@@ -729,18 +729,17 @@ export function RichNoteEditor({
 }
 
 // Shared overflow detector for note cards (editable + read-only paths).
-// Drives the bottom fade-out cue + the "Show all" chip so clipped text is
-// never invisible. The ref may point at the .note-body itself or any
+// Drives the "Show all" chip so clipped text is never out of reach. The ref may point at the .note-body itself or any
 // ancestor containing one.
 //
 // The decision is kept SELF-CONSISTENT with the fit model rather than reading
 // raw scrollHeight > clientHeight: a note auto-fit to its content sizes its
 // card to cardHeightForBody (= ceil(scrollHeight)+pad), and font-swap /
 // sub-pixel rounding used to leave scrollHeight a few px over clientHeight —
-// fading a note that visually fits. Instead we compare the height the note
+// flagging a note that visually fits. Instead we compare the height the note
 // WANTS (cardHeightForBody) against the height it actually HAS (the .note's
 // own box). A fit-sized note has want ≈ have, so it can't trip; only a note
-// pinned/held meaningfully shorter than its text fades.
+// pinned/held meaningfully shorter than its text is flagged.
 export function useNoteOverflow(ref, deps = []) {
   const [overflowing, setOverflowing] = useState(false);
   useEffect(() => {
