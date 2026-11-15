@@ -10,7 +10,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
 import { useFitMenuToViewport } from '../lib/ctxMenuFit.js';
-import { CtxShortcut, CtxSubmenu, rowKeys, walkMenu } from './ctxMenuParts.jsx';
+import { CtxShortcut, CtxStepView, CtxSubmenu, rowKeys, stepMenuKeys, useCtxStep, walkMenu } from './ctxMenuParts.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
 import HapticTap from './HapticTap.jsx';
 import { haptic } from '../lib/haptics.js';
@@ -100,6 +100,12 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
     return () => { cancelled = true; };
   }, [open, workspaceId, boardId, card?.id, card?.title, card?.name]);
 
+  // A submenu stepped into the menu's own box (a phone: ctxMenuParts.jsx).
+  const menuRef = useRef(null);
+  const step = useCtxStep(open, items, menuRef);
+  const stepBackRef = useRef(step.back);
+  stepBackRef.current = step.back;
+
   const openTag = (tagId) => {
     onClose();
     document.dispatchEvent(new CustomEvent('soleil-open-tag', { detail: { tagId } }));
@@ -113,7 +119,12 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
       const inside = e.target.closest?.('.ctx-menu');
       if (!inside) onClose();
     };
-    const onKey = (e) => { if (isComposingKey(e)) return; if (e.key === 'Escape') onClose(); };
+    // Escape in a stepped-in submenu goes back a level first.
+    const onKey = (e) => {
+      if (isComposingKey(e) || e.key !== 'Escape') return;
+      if (stepBackRef.current()) { e.preventDefault(); e.stopPropagation(); return; }
+      onClose();
+    };
     // Capture phase + both pointer and mouse so a card's stopPropagation can't
     // swallow the outside-tap on touch (pointerdown fires before mousedown).
     document.addEventListener('pointerdown', onDocDown, true);
@@ -133,9 +144,11 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
   const tagReserve = canHaveTags && appliedTags.length === 0 ? 44 : 0;
   // The row-count guess below only seeds the first render; this measures the
   // rendered menu and re-fits it before paint (see lib/ctxMenuFit.js).
-  const menuRef = useRef(null);
   // `above`: opened from the selection bar's ⋯, it ends at `y`, over the bar.
-  useFitMenuToViewport(menuRef, open, y, tagReserve, above);
+  // Stepped in, the submenu starts where the menu did, and moves up only if
+  // it is the taller.
+  const stepped = !!step.item;
+  useFitMenuToViewport(menuRef, open, stepped && !above ? step.top : y, stepped ? 0 : tagReserve, above);
   // The width is the content's (a translated label can be wider than the
   // guess below), so the left edge is clamped after it renders: 8px inside.
   useLayoutEffect(() => {
@@ -172,6 +185,15 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
   );
   const hasBacklinksPlaceholder = items.some(it => it.backlinks);
 
+  if (stepped) {
+    return (
+      <div ref={menuRef} className="ctx-menu is-step" style={{ left: px, top: py, width: step.width }}
+           role="menu" aria-label={step.item.label} onKeyDown={stepMenuKeys(step)}>
+        <CtxStepView item={step.item} root="card menu" onBack={step.back} onClose={onClose} claimFire={claimFire} />
+      </div>
+    );
+  }
+
   return (
     <div ref={menuRef} className="ctx-menu is-scrollable" style={{ left: px, top: py }} role="menu" onKeyDown={walkMenu}>
       {card?.id && appliedTags.length > 0 && (
@@ -196,7 +218,7 @@ export function CardContextMenu({ open, x, y, above = false, items, onClose, wor
         if (it.divider) return <div key={`d-${i}`} className="ctx-divider" />;
         if (it.header) return <div key={`h-${i}`} className="ctx-header" aria-hidden="true">{it.header}</div>;
         if (it.backlinks) return card?.id ? backlinksButton(it.id || `bl-${i}`) : null;
-        if (it.submenu) return <CtxSubmenu key={it.id || i} item={it} onClose={onClose} claimFire={claimFire} />;
+        if (it.submenu) return <CtxSubmenu key={it.id || i} item={it} onClose={onClose} claimFire={claimFire} onStep={step.stepIn} />;
         return (
           <button
             key={it.id || i}
