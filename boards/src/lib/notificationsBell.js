@@ -48,10 +48,19 @@ export function wantsNotificationSheet({ mobileShell = false, viewportWidth = In
   return Number(viewportWidth) < PANEL_WIDTH + 2 * PANEL_GUTTER;
 }
 
+// team.* rows that are about the bill, and the ones that answer a person.
+const TEAM_BILLING_KINDS = new Set(['team.seats_full', 'team.payment_failed', 'team.view_only', 'team.active_again']);
+const TEAM_ANSWER_KINDS = new Set(['team.request_approved', 'team.kept_viewer', 'team.joined_as_viewer']);
+
 // Where a row leads:
 //   { kind: 'file', token, inApp }            a file.* row with a link token
 //   { kind: 'settings', tab, workspaceId }    an editor-limit row: Members; an
 //                                             invite reward: Invite & earn
+//   { kind: 'team', tab, orgId }              a team.* row: the Team page on
+//                                             People ('people') or Seats &
+//                                             billing ('billing'), of the team
+//                                             the row's data.org_id names
+//                                             (null when it names none)
 //   { kind: 'board', boardId }                anything else with a board
 //   null                                      nothing to open
 // fileShares / sharedFiles are the appHost holds, passed in so this stays pure.
@@ -67,6 +76,14 @@ export function notificationTarget(n, { fileShares = true, sharedFiles = true } 
     if (workspaceId) return { kind: 'settings', tab: 'members', workspaceId };
   }
   if (kind === 'invite.reward') return { kind: 'settings', tab: 'invite' };
+  // team.* rows. A team that ended has nothing to open, and the board rule
+  // below must not catch it.
+  if (kind === 'team.removed' || kind === 'team.closed') return null;
+  const orgId = typeof n.data?.org_id === 'string' && n.data.org_id ? n.data.org_id : null;
+  if (kind === 'team.join_request' || kind === 'team.joined') return { kind: 'team', tab: 'people', orgId };
+  if (TEAM_BILLING_KINDS.has(kind)) return { kind: 'team', tab: 'billing', orgId };
+  // An answer about a cluster opens the cluster; one about the team alone, People.
+  if (TEAM_ANSWER_KINDS.has(kind) && !n.board_id) return { kind: 'team', tab: 'people', orgId };
   if (n.board_id) return { kind: 'board', boardId: n.board_id };
   return null;
 }

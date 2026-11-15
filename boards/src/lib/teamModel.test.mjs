@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  teamCan, holdsSeat, seatsUsed, seatsFree, roleChoices, peopleCounts, filterPeople,
+  teamCan, holdsSeat, seatsUsed, seatsFree, roleChoices, peopleCounts, filterPeople, moveOutReceivers,
   money, proratedToday,
   storageQuota, sizeLabel, teamReducer, teamHeroLine, TEAM_SEAT_MIN,
 } from './teamModel.js';
@@ -196,10 +196,46 @@ test('the reducer: joining and the name', () => {
   t = teamReducer(t, { type: 'addDomain', domain: '@Northlight.TV' });
   assert.deepEqual(t.joining.domains[1], { domain: 'northlight.tv', verified: false, on: true });
   assert.equal(teamReducer(t, { type: 'addDomain', domain: 'northlight.tv' }).joining.domains.length, 2);
+  const gone = teamReducer(t, { type: 'removeDomain', domain: '@Northlight.TV' });
+  assert.deepEqual(gone.joining.domains.map((d) => d.domain), [t.joining.domains[0].domain]);
+  assert.equal(teamReducer(t, { type: 'removeDomain', domain: 'nowhere.co' }).joining.domains.length, 2);
   t = teamReducer(t, { type: 'rename', name: '  lumen pictures ' });
   assert.equal(t.name, 'lumen pictures');
   assert.equal(t.letter, 'L');
   assert.equal(teamReducer(t, { type: 'rename', name: '   ' }).name, 'lumen pictures');
+});
+
+test('workspaces: admins make one private or move it out, anyone with a seat moves one in', () => {
+  for (const r of ['owner', 'admin']) {
+    assert.equal(teamCan(r, 'manageWorkspaces'), true, r);
+    assert.equal(teamCan(r, 'moveWorkspaceIn'), true, r);
+  }
+  assert.equal(teamCan('member', 'manageWorkspaces'), false);
+  assert.equal(teamCan('member', 'moveWorkspaceIn'), true);
+  assert.equal(teamCan('viewer', 'manageWorkspaces'), false);
+  assert.equal(teamCan('viewer', 'moveWorkspaceIn'), false);
+  // A workspace leaving the team goes to someone in it with a seat: never a
+  // guest, a viewer or an invite that hasn't been answered.
+  const got = moveOutReceivers(sampleTeam('owner', NOW));
+  assert.deepEqual(got.map((p) => p.id), ['p-alex', 'p-ben', 'p-maya', 'p-jon', 'p-priya', 'p-omar', 'p-june', 'p-theo', 'p-sam']);
+});
+
+test('the reducer: a workspace goes private and back, moves out, and one of yours moves in once', () => {
+  let t = sampleTeam('owner', NOW);
+  t = teamReducer(t, { type: 'workspacePrivate', workspaceId: 'sample-ws-studio', private: true });
+  assert.deepEqual(t.workspaces.map((w) => w.private), [true, false, true]);
+  t = teamReducer(t, { type: 'workspacePrivate', workspaceId: 'sample-ws-music', private: false });
+  assert.deepEqual(t.workspaces.map((w) => w.private), [true, false, false]);
+  t = teamReducer(t, { type: 'moveOut', workspaceId: 'sample-ws-commercials' });
+  assert.deepEqual(t.workspaces.map((w) => w.name), ['Studio', 'Music videos']);
+  const pitch = t.ownWorkspaces[0];
+  t = teamReducer(t, { type: 'moveIn', workspaceId: pitch.id, workspace: pitch });
+  assert.deepEqual(t.workspaces.map((w) => w.name), ['Studio', 'Music videos', 'Pitch decks']);
+  assert.deepEqual(t.workspaces[2], { id: 'sample-ws-pitch', name: 'Pitch decks', letter: 'P', color: '#b88958', private: false });
+  assert.deepEqual(t.ownWorkspaces.map((w) => w.name), ['Scratch']);
+  // Twice is once, and a move with no workspace changes nothing.
+  assert.equal(teamReducer(t, { type: 'moveIn', workspaceId: pitch.id, workspace: pitch }), t);
+  assert.equal(teamReducer(t, { type: 'moveIn', workspaceId: 'x' }), t);
 });
 
 // ── Money and sizes in the reader's language (16b) ──

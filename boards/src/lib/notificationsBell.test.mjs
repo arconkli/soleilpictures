@@ -88,3 +88,50 @@ test('editors.joined_as_viewer and plain rows open their board', () => {
   assert.equal(notificationTarget({ kind: 'workspace.rewind' }), null);
   assert.equal(notificationTarget(null), null);
 });
+
+test('team.* rows open the Team page on the tab they are about', () => {
+  const people = { kind: 'team', tab: 'people', orgId: null };
+  const billing = { kind: 'team', tab: 'billing', orgId: null };
+  // Who joined, who asked: People. A board on the row does not change it.
+  assert.deepEqual(notificationTarget({ kind: 'team.join_request', data: { org_id: 'o1' } }), { ...people, orgId: 'o1' });
+  assert.deepEqual(notificationTarget({ kind: 'team.join_request', board_id: 'b1' }), people);
+  assert.deepEqual(notificationTarget({ kind: 'team.joined', data: { org_id: 'o1', count: 3 } }), { ...people, orgId: 'o1' });
+  // The bill: Seats & billing.
+  for (const kind of ['team.seats_full', 'team.payment_failed', 'team.view_only', 'team.active_again']) {
+    assert.deepEqual(notificationTarget({ kind }), billing, kind);
+    assert.deepEqual(notificationTarget({ kind, board_id: 'b1' }), billing, `${kind} with a board`);
+    assert.deepEqual(notificationTarget({ kind, data: { org_id: 'o2' } }), { ...billing, orgId: 'o2' }, `${kind} with a team`);
+  }
+});
+
+test('a team row carries its team: the notice\'s data.org_id when it is a non-empty string, else null', () => {
+  const orgOf = (data) => notificationTarget({ kind: 'team.join_request', data }).orgId;
+  assert.equal(orgOf({ org_id: 'org-7' }), 'org-7');
+  assert.equal(orgOf({ org_id: '' }), null);
+  assert.equal(orgOf({ org_id: 42 }), null);
+  assert.equal(orgOf({ org_id: null }), null);
+  assert.equal(orgOf({}), null);
+  assert.equal(orgOf(undefined), null);
+  assert.equal(orgOf(null), null);
+});
+
+test('an answer about a cluster opens the cluster, one about the team opens People', () => {
+  for (const kind of ['team.request_approved', 'team.kept_viewer', 'team.joined_as_viewer']) {
+    assert.deepEqual(notificationTarget({ kind, board_id: 'b1' }), { kind: 'board', boardId: 'b1' }, kind);
+    assert.deepEqual(notificationTarget({ kind, board_id: null }), { kind: 'team', tab: 'people', orgId: null }, `${kind} without a board`);
+    assert.deepEqual(notificationTarget({ kind }), { kind: 'team', tab: 'people', orgId: null }, `${kind} bare`);
+    assert.deepEqual(notificationTarget({ kind, data: { org_id: 'o3' } }), { kind: 'team', tab: 'people', orgId: 'o3' }, `${kind} with a team`);
+  }
+});
+
+test('team.removed and team.closed open nothing, even with a board on the row', () => {
+  assert.equal(notificationTarget({ kind: 'team.removed' }), null);
+  assert.equal(notificationTarget({ kind: 'team.removed', board_id: 'b1' }), null);
+  assert.equal(notificationTarget({ kind: 'team.closed' }), null);
+  assert.equal(notificationTarget({ kind: 'team.closed', board_id: 'b1' }), null);
+});
+
+test('a kind the team routes do not name still takes the generic rule', () => {
+  assert.deepEqual(notificationTarget({ kind: 'team.workspace_moved_out', board_id: 'b4' }), { kind: 'board', boardId: 'b4' });
+  assert.equal(notificationTarget({ kind: 'team.workspace_moved_out' }), null);
+});

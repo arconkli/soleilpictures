@@ -1,0 +1,23 @@
+/* Seats & billing additions (the Team billing mockup): the pill beside the
+   plan's name, the "People's own workspaces" row and the receipts list.
+   Imported by TeamBilling.jsx only, so it rides the Team page's lazy chunk and
+   the signed-in app's CSS budget doesn't move. Classes are tpb-; the switch,
+   the pill and the card are team.css's own. */
+.tp-card-big.tpb-has-badge { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+
+.tpb-swrow { display: flex; align-items: flex-start; gap: 14px; }
+.tpb-swrow .tp-card-t { flex: 1; min-width: 0; }
+
+/* A receipt: date, status, amount, link. The status column gives way and wraps,
+   so a longer translation never pushes the amount or the link out of the card. */
+.tpb-receipts { display: flex; flex-direction: column; }
+.tpb-rc {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 4px 12px;
+  min-height: 34px; padding: 6px 0; border-bottom: 1px solid var(--line-1);
+  font: 400 12px/1.3 var(--tp-font); color: var(--ink-2);
+}
+.tpb-rc:last-child { border-bottom: 0; }
+.tpb-rc > span { min-width: 0; overflow-wrap: anywhere; }
+.tpb-rc .tpb-amt { color: var(--ink-0); font-weight: 600; text-align: right; }
+a.tp-link.tpb-rc-link { display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
+a.tpb-rc-link:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; border-radius: 2px; }

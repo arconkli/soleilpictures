@@ -1,10 +1,13 @@
 import { expect, test } from '@playwright/test';
+import { bootSignedIn, USER_ID, ORG } from './helpers/signedInStub.js';
 
 // The notifications bell (placement C, owner's pick, 2026-10-21) on the sidebar
 // QA harness: the real NotificationsBell in the board's right island after the
 // theme switch, with the mockup's five rows (three unread), and the real
 // NotificationsPanel under the island. The phone sheet is
-// tests/mobile/notifications-bell.spec.js.
+// tests/mobile/notifications-bell.spec.js. The last block is the real signed-in
+// app with Supabase stubbed (helpers/signedInStub.js): the harness has no team
+// rows and no Team page behind them.
 
 async function open(page, query = '') {
   await page.goto(`/?sidebarqa=1${query}`);
@@ -137,5 +140,71 @@ test.describe('the notifications bell', () => {
     await row.click();
     await expect(bell(page).locator('.nb-count')).toHaveText('3');
     expect(await page.evaluate(() => window.__sidebarqaSettings)).toEqual(['invite', undefined]);
+  });
+});
+
+// The real app, Supabase stubbed: a team.* notice opens the Team page on the tab
+// it is about (lib/notificationsBell.js notificationTarget). The harness above
+// has no Team page behind its rows.
+test.describe('team notices in the bell, on the real app', () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+  // The signed-in app boots slower than the harness, and more so with workers in parallel.
+  const slow = { timeout: 15000 };
+
+  const stamp = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const notice = (id, kind, title, body) => ({
+    id, user_id: USER_ID, kind, title, body, created_at: stamp, read_at: null,
+    board_id: null, workspace_id: null, data: { org_id: ORG },
+  });
+  const TEAM_ROW = { org_id: ORG, name: 'Northlight Films', letter: 'N', color: '#5b8def', role: 'owner', holds_seat: true };
+  const GET_TEAM = {
+    id: ORG, name: 'Northlight Films', letter: 'N', color: '#5b8def', sample: false, status: 'active',
+    me: { id: USER_ID, role: 'owner' },
+    admins: [{ id: USER_ID, name: 'Sam Rivera' }],
+    people: [{ id: USER_ID, name: 'Sam Rivera', email: 'sam@example.com', role: 'owner', invited: null, color: '#5b8def', where: [], everywhere: true }],
+    requests: [], plan: null, storage: null, unpaid: null,
+    seats: { bought: 5, used: 1, pending: 0, ceiling: 20 },
+    whenFull: { mode: 'auto', monthlyLimit: 4 },
+    joining: { link: { on: false, token: null, role: null }, domains: [] },
+    workspaces: [{ id: '22222222-2222-4222-8222-222222222222', name: 'Studio work', letter: 'S', color: null, private: false }],
+  };
+  const GET_BILLING = {
+    status: 'active', is_owner: true, seats: 5, plan: 'annual', subscription_status: 'active',
+    current_period_end: '2027-01-02T00:00:00Z', trial_end: null, cancel_at_period_end: false,
+    auto_added_this_month: 0, storage_used_bytes: 100, storage_quota_bytes: 1e12,
+    view_only_since: null, past_due_since: null, grace_ends_at: null,
+  };
+
+  async function bootWithNotices(page, rows) {
+    await bootSignedIn(page, {
+      rpc: { list_my_teams: [TEAM_ROW], get_team: GET_TEAM, get_team_billing: GET_BILLING },
+      rest: { notifications: rows },
+      functions: { 'team-billing': { ok: false } },
+    });
+    await expect(page.locator('.nb-bell')).toBeVisible(slow);
+  }
+
+  test('a join request opens the Team page on People', async ({ page }) => {
+    await bootWithNotices(page, [
+      notice('n-team-1', 'team.join_request', 'Lena Fischer asked to edit Studio work', 'Approve or keep her as a viewer.'),
+    ]);
+    await page.locator('.nb-bell').click();
+    await page.locator('.ntf-row[data-kind="team.join_request"]').click();
+    const sheet = page.locator('[data-team-page]');
+    await expect(sheet.getByRole('heading', { name: 'Northlight Films' })).toBeVisible(slow);
+    await expect(sheet.getByRole('tab', { name: /People/ })).toHaveAttribute('aria-selected', 'true');
+    // The list closes behind it.
+    await expect(page.locator('.ntf-shell')).toHaveCount(0);
+  });
+
+  test('a payment problem opens the Team page on Seats & billing', async ({ page }) => {
+    await bootWithNotices(page, [
+      notice('n-team-2', 'team.payment_failed', 'Northlight Films’ payment didn’t go through', 'Update the card to keep editing.'),
+    ]);
+    await page.locator('.nb-bell').click();
+    await page.locator('.ntf-row[data-kind="team.payment_failed"]').click();
+    const sheet = page.locator('[data-team-page]');
+    await expect(sheet.getByRole('heading', { name: 'Northlight Films' })).toBeVisible(slow);
+    await expect(sheet.getByRole('tab', { name: /Seats & billing/ })).toHaveAttribute('aria-selected', 'true');
   });
 });

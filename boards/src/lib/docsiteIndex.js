@@ -2818,7 +2818,7 @@ export const DOCS_PAGES = [
     "answer": "Team is for groups where more than 10 people edit. Everyone who can edit holds a seat, at $25 a month or $240 a year; viewers are free. Seats are shared across the team's workspaces, each seat adds 1TB to one shared drive, and the team owns its workspaces, with admins to run it. It starts with a 14-day trial.",
     "section": "account",
     "order": 1.5,
-    "updated": "2026-10-27",
+    "updated": "2026-11-15",
     "navLabel": "Team",
     "headings": [
       {
@@ -2838,6 +2838,10 @@ export const DOCS_PAGES = [
         "text": "People"
       },
       {
+        "id": "workspaces",
+        "text": "Workspaces"
+      },
+      {
         "id": "joining",
         "text": "Joining"
       },
@@ -2850,8 +2854,8 @@ export const DOCS_PAGES = [
         "text": "Your own workspaces"
       },
       {
-        "id": "payments",
-        "text": "Payments"
+        "id": "seats-billing",
+        "text": "Seats & billing"
       },
       {
         "id": "closing-a-team",
@@ -2883,6 +2887,10 @@ export const DOCS_PAGES = [
       {
         "q": "Does joining a team change my own workspaces?",
         "a": "No. The team never sees, opens or bills them. While you hold a seat in a team that is paid up, they get unlimited cards and 50GB more drive; if you leave, they go back to your own plan and nothing is removed."
+      },
+      {
+        "q": "Can I move one of my own workspaces into a team?",
+        "a": "Yes, from the team's Workspaces tab. It says first whether the people who edit in it fit in the team's free seats; when they don't, the owner or an admin sees the price before seats are added. The team then owns the workspace, and everyone in it keeps what they had."
       },
       {
         "q": "Do we need Team to work together?",

@@ -523,6 +523,7 @@ export const EV = Object.freeze({
   EDITOR_LIMIT_ASK_SENT:   'editor_limit_ask_sent',       // "Ask Alex for room" {result:'sent'|'already_sent'|'not_full'|'owner'|'error', surface}
   EDITOR_LIMIT_SEE_WHO:    'editor_limit_see_who',        // the note's See who opened Members {surface, stage}
   EDITOR_LIMIT_MAKE_ROOM:  'editor_limit_make_room',      // the owner freed a place from "People who can edit" {action:'make_viewer'|'remove'|'revoke', ok, grants}
+  EDITOR_LIMIT_TEAM_START: 'editor_limit_team_start',     // "More than 10 people? Start a Team" pressed {stage:'near'|'full'|'over', surface:'share_modal'|'members'}
   EDITOR_LIMIT_NOTICE_OPEN:'editor_limit_notice_open',    // an editors.limit_reached notice opened Members {via:'toast'|'bell'}
   // The 10-workspace limit (0856): at most 10 workspaces of your own outside a team.
   WORKSPACE_LIMIT_SEEN:    'workspace_limit_seen',        // the "You have N workspaces" box opened, or a seat holder's New workspace opened with "Just me" off {surface:'menu'|'home'|'new_dialog', n, via:'precheck'|'server'}

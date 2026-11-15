@@ -30,6 +30,14 @@ export const SAMPLE_SETUP_WORKSPACES = Object.freeze([
     editors: ['p-alex'] },
 ]);
 
+// The Workspaces tab's "Move one of yours in": the viewer's own workspaces
+// outside the team, with what the server's look at each would answer (how
+// many people can edit it, and how many more seats moving it in takes).
+export const SAMPLE_OWN_WORKSPACES = Object.freeze([
+  { id: 'sample-ws-pitch', name: 'Pitch decks', letter: 'P', color: '#b88958', editors: 4, seatsNeeded: 2 },
+  { id: 'sample-ws-scratch', name: 'Scratch', letter: 'S', color: '#6b9088', editors: 1, seatsNeeded: 0 },
+]);
+
 // `name` (the team name typed in the walk-through) replaces "Northlight Films".
 export function sampleTeam(as = 'owner', now = Date.now(), { name } = {}) {
   const member = as === 'member';
@@ -108,6 +116,7 @@ export function sampleTeam(as = 'owner', now = Date.now(), { name } = {}) {
     },
     unpaid: unpaid ? { failedAt, deleteAt: failedAt + 14 * DAY + 365 * DAY } : null,
     workspaces,
+    ownWorkspaces: SAMPLE_OWN_WORKSPACES.map((w) => ({ ...w })),
   };
 
   if (!member) return team;

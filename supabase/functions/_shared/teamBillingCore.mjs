@@ -265,3 +265,47 @@ export function seatAddKey(orgId, requestId) {
   if (!UUID_RE.test(String(requestId || ""))) return null;
   return `team-seats-add:${orgId}:${String(requestId).toLowerCase()}`;
 }
+
+// The billing tab's card, next charge and receipts (team-billing "summary").
+// A subscription has a next charge while it is trialing, active or past due
+// and is not set to end with the period; the function asks Stripe for a
+// preview only then, and teamBillingSummary shows `next` by the same rule.
+export function teamHasNextCharge(sub) {
+  if (!sub || sub.cancel_at_period_end) return false;
+  return sub.status === "trialing" || sub.status === "active" || sub.status === "past_due";
+}
+
+const RECEIPT_STATUSES = ["paid", "open", "uncollectible"];
+export const TEAM_RECEIPTS_MAX = 12;
+
+// { card, next, receipts } from what Stripe returned, all in the units the
+// page shows: amounts in the currency's minor unit, dates in milliseconds.
+// Drafts and voids were never bills the team owes, so they are not receipts.
+export function teamBillingSummary({ sub, paymentMethod, invoices, preview }) {
+  const pm = paymentMethod;
+  const card = !pm ? null
+    : pm.type === "card"
+      ? { brand: pm.card?.brand ?? null, last4: pm.card?.last4 ?? null, expMonth: pm.card?.exp_month ?? null, expYear: pm.card?.exp_year ?? null }
+      : { brand: pm.type ?? null, last4: null, expMonth: null, expYear: null };
+
+  let next = null;
+  if (teamHasNextCharge(sub) && preview) {
+    const at = sub.status === "trialing" ? sub.trial_end : sub.current_period_end;
+    next = { amount: preview.amount_due, currency: preview.currency, date: at ? at * 1000 : null };
+  }
+
+  const receipts = (invoices || [])
+    .filter((inv) => RECEIPT_STATUSES.includes(inv?.status))
+    .slice(0, TEAM_RECEIPTS_MAX)
+    .map((inv) => ({
+      id: inv.id,
+      number: inv.number ?? null,
+      date: (inv.status_transitions?.paid_at || inv.created) * 1000,
+      amount: inv.status === "paid" ? inv.amount_paid : inv.amount_due,
+      currency: inv.currency,
+      status: inv.status,
+      url: inv.hosted_invoice_url ?? null,
+    }));
+
+  return { card, next, receipts };
+}

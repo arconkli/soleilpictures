@@ -112,7 +112,7 @@ function anchorBox(el) {
 
 export function NotificationsPanel({
   items = [], unread = 0, loading = false,
-  onOpenBoard = null, onOpenSettings = null, onMarkRead = null, onClose = null,
+  onOpenBoard = null, onOpenSettings = null, onOpenTeam = null, onMarkRead = null, onClose = null,
   onAnswerEdit = null, nameOf = null,
   anchorRef = null, mobileShell = false,
 }) {
@@ -194,6 +194,12 @@ export function NotificationsPanel({
         try { logEvent(EV.EDITOR_LIMIT_NOTICE_OPEN, { via: 'bell' }); } catch (_) {}
       }
       onOpenSettings?.(target.tab, target.workspaceId);
+      onCloseRef.current?.();
+      return;
+    }
+    if (target.kind === 'team') {
+      // A team notice: that team's page, on People or Seats & billing.
+      onOpenTeam?.(target.tab, target.orgId);
       onCloseRef.current?.();
       return;
     }

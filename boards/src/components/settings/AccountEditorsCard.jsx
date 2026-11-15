@@ -14,11 +14,13 @@ import { pickPresenceColor } from '../../lib/presenceColor.js';
 import {
   setWorkspaceMemberRole, shareBoard, removeWorkspaceMember, unshareBoard, revokePendingInvite,
 } from '../../lib/boardsApi.js';
-import { editorLimitStage, makeViewerOps, removeOps, revokeOps } from '../../lib/editorLimit.js';
+import { editorLimitStage, editorLimitTeamLine, makeViewerOps, removeOps, revokeOps } from '../../lib/editorLimit.js';
 import { accountEditorSub } from '../../lib/editorLimitWords.js';
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { initialOf } from '../../lib/graphemes.js';
+import { useMyTeams } from '../../hooks/useMyTeams.js';
+import { TeamLine } from '../EditorLimitNote.jsx';
 import { t, ph } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
@@ -36,6 +38,9 @@ export function AccountEditorsCard({ cap, editors = [], ownerName = null, selfId
   const feedback = useFeedback();
   const [busy, setBusy] = useState(null);   // the slot_key whose change is running
   const owner = !!cap?.isAccountOwner;
+  const teamLineIf = editorLimitTeamLine(cap, { inTeam: false });
+  const myTeams = useMyTeams(teamLineIf ? { id: selfId } : null);
+  const teamLine = teamLineIf && myTeams.loaded && myTeams.teams.length === 0 ? teamLineIf : null;
 
   useEffect(() => {
     try { logEvent(EV.EDITOR_LIMIT_SEEN, { surface: 'members', stage: editorLimitStage(cap), owner }); } catch (_) {}
@@ -140,6 +145,7 @@ export function AccountEditorsCard({ cap, editors = [], ownerName = null, selfId
           })}
         </ul>
       )}
+      <TeamLine teamLine={teamLine} surface="members" buttonClass="settings-link-btn" />
       {previewing && (
         <p className="settings-section-hint"><Trans>Preview: pretend numbers and example people, only you see them. Settings › Preview turns it off.</Trans></p>
       )}

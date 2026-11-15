@@ -5,7 +5,7 @@ h1: Team
 navLabel: Team
 section: account
 order: 1.5
-updated: 2026-10-27
+updated: 2026-11-15
 answer: Team is for groups where more than {{fact:editorLimit}} people edit. Everyone who can edit holds a seat, at {{fact:teamSeatMonthly}} a month or {{fact:teamSeatAnnual}} a year; viewers are free. Seats are shared across the team's workspaces, each seat adds {{fact:teamStoragePerSeat}} to one shared drive, and the team owns its workspaces, with admins to run it. It starts with a {{fact:teamTrialDays}}-day trial.
 faq:
   - q: Who needs a seat?
@@ -18,6 +18,8 @@ faq:
     a: The team keeps editing for {{fact:teamGraceDays}} days while the card is sorted out. After that its workspaces are view-only — everything still opens — until the team is paid again.
   - q: Does joining a team change my own workspaces?
     a: No. The team never sees, opens or bills them. While you hold a seat in a team that is paid up, they get unlimited cards and {{fact:teamSeatPerkStorage}} more drive; if you leave, they go back to your own plan and nothing is removed.
+  - q: Can I move one of my own workspaces into a team?
+    a: Yes, from the team's Workspaces tab. It says first whether the people who edit in it fit in the team's free seats; when they don't, the owner or an admin sees the price before seats are added. The team then owns the workspace, and everyone in it keeps what they had.
   - q: Do we need Team to work together?
     a: Not until more than {{fact:editorLimit}} people edit. Free and {{fact:planName}} include up to {{fact:editorLimit}} people who can edit, at no extra cost, and as many viewers as you like.
 related:
@@ -70,22 +72,52 @@ need an account to send one.
 
 ## People
 
-The team's page, at `/team`, has three tabs: **People**, **Seats & billing**
-and **Joining**.
+The team's page, at `/team`, has four tabs: **People**, **Workspaces**,
+**Seats & billing** and **Joining**. Members and viewers see the first two.
 
 - **The owner** can do everything, and is the only one who changes the card,
   the plan or closes the team.
-- **Admins** add seats (the price is shown first), manage people, joining and
-  what happens when seats run out.
-- **Members** hold a seat and can make new workspaces for the team.
+- **Admins** add and remove seats (adding shows the price first, removing asks
+  first), and manage people, workspaces, joining and what happens when seats
+  run out.
+- **Members** hold a seat, can make new workspaces for the team and can move
+  one of their own into it.
 - **Viewers** can open and comment, and need no seat.
 
 Everyone in the team sees everyone's name. Only the owner and admins see email
 addresses.
 
-Team workspaces are open to the whole team by default. An admin can make one
-private; the owner and admins can still open a private workspace, so work can
-always be handed over.
+Removing someone, revoking an invite or removing a domain shows **Undo** for a
+few seconds before it happens.
+
+Admins hear in the bell when people join the team; joins share one notice
+until it's read. A team notice in the bell opens the team's page on the tab
+it's about.
+
+### Asking to edit
+
+A viewer in a team workspace sees **Ask to edit** at the top of a cluster, as
+on a shared cluster. The request goes to the team's admins, who answer it in
+**People**, and the person hears back either way.
+
+## Workspaces
+
+The **Workspaces** tab lists the team's workspaces and who can open each one.
+A team workspace is open to the whole team by default.
+
+- **Private**: the owner or an admin can make a workspace private. Anyone who
+  opens it only through the team loses it; the owner, admins and people added
+  to it keep it, so work can always be handed over.
+- **Move one of yours in**: pick one of your own workspaces, and the tab says
+  first whether the people who edit in it fit in the team's free seats. When
+  they don't, the owner or an admin sees the price before seats are added; a
+  member asks an admin. The team then owns the workspace, and everyone in it
+  keeps what they had.
+- **Move out**: the owner or an admin can hand a workspace to one person, the
+  team's owner or someone else with a seat whom the owner picks. Anyone who
+  opens it only through the team loses it; people added to it directly keep it.
+
+Making a workspace private and moving one out both ask first.
 
 ## Joining
 
@@ -111,11 +143,19 @@ Admins pick one:
 
 The team never sees, opens or bills your own workspaces. While you hold a seat
 in a team that is paid up, they get unlimited cards and
-{{fact:teamSeatPerkStorage}} more drive (admins can turn this off for the team).
+{{fact:teamSeatPerkStorage}} more drive (admins can turn this off for the team,
+on **Seats & billing**).
 If you leave the team, your own workspaces go back to your own plan and nothing
 in them is removed.
 
-## Payments
+## Seats & billing
+
+The **Seats & billing** tab shows the plan and its seats, and when the trial
+ends and the first charge comes. Once the owner has ended the plan, it shows
+the day the team ends, and the owner can keep the team until then. It says how
+many seats were added automatically this month. The owner and admins see the
+card the team pays with and its recent receipts; only the owner changes the
+card.
 
 If a payment fails, the team keeps editing for {{fact:teamGraceDays}} days while
 the card is sorted out. After that its workspaces are view-only: everything

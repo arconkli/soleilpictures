@@ -36,6 +36,14 @@ export function openTeamPortal(orgId) {
   return calls.teamBilling('portal', { org_id: orgId });
 }
 
+// The billing tab's card on file, next charge and receipts (owner and
+// admins): { ok, card, next, receipts }. Like every call here it resolves
+// { ok:false, error } on any failure; an older function answers an unknown
+// action 400 bad_request until the release that adds it.
+export function teamBillingSummary(orgId) {
+  return calls.teamBilling('summary', { org_id: orgId });
+}
+
 // What buying up to `seats` (the TOTAL wanted) costs today.
 export function previewTeamSeatsCost(orgId, seats) {
   return calls.teamBilling('seats_preview', { org_id: orgId, seats });

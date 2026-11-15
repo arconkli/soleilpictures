@@ -52,7 +52,9 @@ When an account is full:
 If an account ends up with more than 10 — a workspace handed
 over to it, for example — everyone keeps editing, and nobody new can be made an
 editor until it is back at 10 or fewer. Groups that need more
-use [Team](/docs/account/team).
+use [Team](/docs/account/team): as an account gets close to full, its owner
+sees **More than 10 people? Start a Team** in the share panel
+and in **Settings → Members**.
 
 ## Inviting
 

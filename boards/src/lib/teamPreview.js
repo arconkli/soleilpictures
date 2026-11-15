@@ -83,13 +83,16 @@ export function useTeamPreview() {
 }
 
 // ── The team page: open or not, and on which tab ───────────────────────────
-let page = null; // null, or { tab }
+// null, or { tab, orgId, at }: orgId is the team asked for (null: the person's
+// own), at counts every request so opening the same tab again is a new one.
+let page = null;
+let requests = 0;
 const listeners = new Set();
 
-export const TEAM_PAGE_TABS = ['people', 'billing', 'joining'];
+export const TEAM_PAGE_TABS = ['people', 'workspaces', 'billing', 'joining'];
 
-export function openTeamPage(tab = 'people') {
-  page = { tab: TEAM_PAGE_TABS.includes(tab) ? tab : 'people' };
+export function openTeamPage(tab = 'people', orgId = null) {
+  page = { tab: TEAM_PAGE_TABS.includes(tab) ? tab : 'people', orgId: typeof orgId === 'string' && orgId ? orgId : null, at: ++requests };
   for (const fn of listeners) { try { fn(); } catch (_) {} }
 }
 

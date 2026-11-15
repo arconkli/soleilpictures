@@ -1,5 +1,5 @@
 // teamModel — the Team page's rules, apart from React (the owner's pick B,
-// 2026-10-21: a page of its own, tabs People · Seats & billing · Joining).
+// 2026-10-21: a page of its own, tabs People · Workspaces · Seats & billing · Joining).
 //
 // The page renders a TeamSnapshot. Until the server lands (S2a–S4), the only
 // snapshot is Settings › Preview's test team (lib/teamSample.js), and
@@ -21,6 +21,8 @@
 //   joining: { link: { on, token, role: 'editor' | 'viewer' }, domains: [{ domain, verified, on }] } | null,
 //   unpaid: { failedAt, deleteAt } | null,
 //   workspaces: [{ id, name, letter, color, private }],
+//   ownWorkspaces: [{ id, name, editors, seatsNeeded }],   // the test team only: the viewer's
+//                                            // own workspaces outside it, and what moving each in takes
 // }
 // Person = { id, name, email (null for a member), role: 'owner' | 'admin' |
 //   'member' | 'guest' | 'viewer', outside (a guest, or a viewer from outside
@@ -71,6 +73,10 @@ const CAN = {
   closeTeam: ['owner'],
   leaveTeam: ['admin', 'member'],
   renameTeam: ['owner', 'admin'],
+  // The Workspaces tab: the owner and admins make one private or move it out;
+  // anyone with a seat moves one of their own in. A viewer only opens them.
+  manageWorkspaces: ['owner', 'admin'],
+  moveWorkspaceIn: ['owner', 'admin', 'member'],
 };
 
 export function teamCan(role, action) {
@@ -100,6 +106,13 @@ export function roleChoices(team, person) {
   if (person.role === 'admin' && !teamCan(role, 'makeAdmins')) return null;
   if (person.outside) return ['guest', 'viewer'];
   return teamCan(role, 'makeAdmins') ? ['admin', 'member', 'viewer'] : ['member', 'viewer'];
+}
+
+// Who a workspace leaving the team can go to: anyone in the team with a seat
+// (move_workspace_out_of_team, 0532). The owner picks among them; an admin's
+// goes to the owner.
+export function moveOutReceivers(team) {
+  return team.people.filter((p) => !p.invited && !p.outside && ['owner', 'admin', 'member'].includes(p.role));
 }
 
 // ── The People list ─────────────────────────────────────────────────────
@@ -288,9 +301,34 @@ export function teamReducer(team, action) {
         domains: [...team.joining.domains, { domain, verified: false, on: true }],
       });
     }
+    case 'removeDomain': {
+      if (!team.joining) return team;
+      const domain = String(action.domain || '').trim().toLowerCase().replace(/^@/, '');
+      return withJoining(team, { domains: team.joining.domains.filter((d) => d.domain !== domain) });
+    }
     case 'rename': {
       const name = String(action.name || '').trim();
       return name ? { ...team, name, letter: firstLetter(name) } : team;
+    }
+    case 'workspacePrivate': {
+      return {
+        ...team,
+        workspaces: team.workspaces.map((w) => (w.id === action.workspaceId ? { ...w, private: !!action.private } : w)),
+      };
+    }
+    case 'moveOut': {
+      return { ...team, workspaces: team.workspaces.filter((w) => w.id !== action.workspaceId) };
+    }
+    case 'moveIn': {
+      const w = action.workspace;
+      if (!w || team.workspaces.some((x) => x.id === w.id)) return team;
+      return {
+        ...team,
+        workspaces: [...team.workspaces, {
+          id: w.id, name: w.name, letter: w.letter || firstLetter(w.name), color: w.color || null, private: false,
+        }],
+        ownWorkspaces: (team.ownWorkspaces || []).filter((x) => x.id !== w.id),
+      };
     }
     default:
       return team;

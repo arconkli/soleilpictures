@@ -53,6 +53,13 @@ export function useTeam(orgId) {
 
   const reload = useCallback(() => load(orgRef.current), [load]);
 
+  // "Try again" on a page that never loaded: back to "Loading…" until it answers.
+  // (A reload after a change keeps the page it has, so it never touches loading.)
+  const retry = useCallback(() => {
+    setState((s) => ({ ...s, loading: true, error: null }));
+    return load(orgRef.current);
+  }, [load]);
+
   const act = useCallback(async (type, payload) => {
     const id = orgRef.current;
     const res = await runTeamAction(realApi, id, type, payload);
@@ -60,5 +67,5 @@ export function useTeam(orgId) {
     return res;
   }, [load]);
 
-  return { team: state.team, loading: state.loading, error: state.error, reload, act };
+  return { team: state.team, loading: state.loading, error: state.error, reload, retry, act };
 }

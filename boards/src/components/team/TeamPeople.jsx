@@ -7,6 +7,8 @@ import {
 } from '../../lib/teamModel.js';
 import { whereLabel, lastHereLabel, approveLine, adminNames, ROLE_LABEL } from '../../lib/teamModelWords.js';
 import { searchKey } from '../../lib/textFold.js';
+import { removedLine } from '../../lib/teamCopy.js';
+import { personKey } from '../../lib/teamPendingRemovals.js';
 import { TeamMenu } from './TeamMenu.jsx';
 import { initialOf } from '../../lib/graphemes.js';
 import { t as tr, ph, plural } from '@lingui/core/macro';
@@ -25,7 +27,7 @@ function firstName(name) {
   return String(name || '').split(' ')[0];
 }
 
-export default function TeamPeople({ t, now, viewOnly, onAction, onToast, live, go, ask, priceThen }) {
+export default function TeamPeople({ t, now, viewOnly, onAction, onToast, live, go, priceThen, removeLater, track, isBusy }) {
   const role = t.me.role;
   const manager = teamCan(role, 'managePeople');
   const [query, setQuery] = useState('');
@@ -34,6 +36,11 @@ export default function TeamPeople({ t, now, viewOnly, onAction, onToast, live, 
   const counts = peopleCounts(t.people);
   const { rows, viewersFolded } = filterPeople(t.people, { query, show, fold: searchKey });
   const lock = viewOnly ? { disabled: true, title: frozen() } : {};
+  // While a row's own call runs its controls wait; the frozen lock comes first.
+  const off = (busy) => (viewOnly ? lock : busy ? { disabled: true } : {});
+  const requestKey = (r) => `request:${r.id}`;
+  const roleKey = (p) => `role:${p.id}`;
+  const resendKey = (p) => `resend:${p.id}`;
 
   const approve = (r) => {
     const buys = seatsFree(t) === 0;
@@ -42,10 +49,10 @@ export default function TeamPeople({ t, now, viewOnly, onAction, onToast, live, 
       if (buys) onToast(tr`Preview: that added a seat. Nothing was charged.`);
       return;
     }
-    if (!buys) { go('approve', { requestId: r.id }); return; }
+    if (!buys) { track(requestKey(r), () => go('approve', { requestId: r.id })); return; }
     // No seat is free: the price first, and nothing happens unless confirmed.
     priceThen(t.plan.seats + 1, tr`Add a seat and approve`,
-      () => go('approve', { requestId: r.id, addSeat: true }),
+      () => track(requestKey(r), () => go('approve', { requestId: r.id, addSeat: true })),
       'approve');
   };
 
@@ -54,43 +61,48 @@ export default function TeamPeople({ t, now, viewOnly, onAction, onToast, live, 
     const needsSeat = p.role === 'viewer' && next !== 'viewer';
     if (needsSeat && seatsFree(t) === 0 && t.plan) {
       priceThen(t.plan.seats + 1, tr`Add a seat and change the role`,
-        () => go('role', { personId: p.id, role: next, addSeats: true }),
+        () => track(roleKey(p), () => go('role', { personId: p.id, role: next, addSeats: true })),
         'role');
       return;
     }
-    go('role', { personId: p.id, role: next });
+    track(roleKey(p), () => go('role', { personId: p.id, role: next }));
   };
 
-  const removePerson = (p) => {
-    if (!live) { onAction('remove', { personId: p.id }); return; }
-    ask({
-      message: p.outside
-        ? tr`Remove their access?`
-        : tr`Remove ${ph({ name: p.name })} from the team? They lose access to the team’s workspaces.`,
-      confirmLabel: tr`Remove`,
-      danger: true,
-      run: () => go('remove', { personId: p.id }),
-    });
-  };
+  // Gone at once, with an Undo toast; the call is made a few seconds on.
+  const removePerson = (p) => removeLater({
+    key: personKey(p.id),
+    type: 'remove',
+    payload: { personId: p.id },
+    line: removedLine(p.outside ? 'outside' : 'person', p.name),
+  });
+  const revokeInvite = (p) => removeLater({
+    key: personKey(p.id),
+    type: 'revoke',
+    payload: { personId: p.id },
+    line: removedLine('invite', p.email || p.name),
+  });
 
   const segs = [['all', tr`All`, counts.all], ['edit', tr`Can edit`, counts.edit], ['view', tr`Can view`, counts.view]];
   if (manager) segs.push(['invited', tr({ message: 'Invited', context: 'filter' }), counts.invited]);
 
   return (
     <>
-      {manager && (t.requests || []).map((r) => (
-        <div className="tp-req" key={r.id}>
-          <span className="tp-av" style={{ background: r.color }}>{initialOf(r.name, '', { upper: false })}</span>
-          <span className="tp-req-t">
-            <b><Trans>{ph({ name: r.name })} asked to edit {ph({ workspace: r.workspace })}</Trans></b>
-            <span><Trans>{ph({ firstName: firstName(r.name) })} can view it now. {ph({ value: live ? liveApproveLine(t) : approveLine(t, now) })}</Trans></span>
-          </span>
-          <span className="tp-req-acts">
-            <button type="button" className="tp-link" onClick={() => (live ? go('keepViewer', { requestId: r.id }) : onAction('keepViewer', { requestId: r.id }))}><Trans>Keep as viewer</Trans></button>
-            <button type="button" className="tp-btn tp-btn-sm" onClick={() => approve(r)} {...lock}><Trans>Approve</Trans></button>
-          </span>
-        </div>
-      ))}
+      {manager && (t.requests || []).map((r) => {
+        const requestBusy = isBusy(requestKey(r));
+        return (
+          <div className="tp-req" key={r.id}>
+            <span className="tp-av" style={{ background: r.color }}>{initialOf(r.name, '', { upper: false })}</span>
+            <span className="tp-req-t">
+              <b><Trans>{ph({ name: r.name })} asked to edit {ph({ workspace: r.workspace })}</Trans></b>
+              <span><Trans>{ph({ firstName: firstName(r.name) })} can view it now. {ph({ value: live ? liveApproveLine(t) : approveLine(t, now) })}</Trans></span>
+            </span>
+            <span className="tp-req-acts">
+              <button type="button" className="tp-link" disabled={requestBusy} onClick={() => (live ? track(requestKey(r), () => go('keepViewer', { requestId: r.id })) : onAction('keepViewer', { requestId: r.id }))}><Trans>Keep as viewer</Trans></button>
+              <button type="button" className="tp-btn tp-btn-sm" onClick={() => approve(r)} {...off(requestBusy)}><Trans>Approve</Trans></button>
+            </span>
+          </div>
+        );
+      })}
 
       <div className="tp-tools">
         <label className="tp-search">
@@ -126,6 +138,8 @@ export default function TeamPeople({ t, now, viewOnly, onAction, onToast, live, 
           const choices = roleChoices(t, p);
           const isMe = p.id === t.me.id;
           const here = lastHereLabel(p, now);
+          const savingRole = isBusy(roleKey(p));
+          const resending = isBusy(resendKey(p));
           return (
             <div className="tp-tr" role="row" key={p.id}>
               <span className="tp-who">
@@ -148,7 +162,7 @@ export default function TeamPeople({ t, now, viewOnly, onAction, onToast, live, 
                       aria-haspopup="menu"
                       aria-expanded={menu === `role:${p.id}`}
                       onClick={() => setMenu(menu === `role:${p.id}` ? null : `role:${p.id}`)}
-                      {...lock}
+                      {...off(savingRole)}
                     >
                       {ROLE_LABEL[p.role]}<Icon as={ChevronDown} size={10} weight="regular" />
                     </button>
@@ -167,21 +181,22 @@ export default function TeamPeople({ t, now, viewOnly, onAction, onToast, live, 
               <span className="tp-cell">{whereLabel(p)}</span>
               <span className={`tp-cell${here === 'Here now' ? ' is-now' : ''}`}>{manager ? here : ''}</span>
               <span className="tp-rowacts">
+                {savingRole && <span className="tp-busy"><Trans>Saving…</Trans></span>}
                 {manager && p.invited && (
                   <>
                     {(!live || String(p.id).startsWith('invite:')) && (
-                      <button type="button" className="tp-link" {...lock} onClick={() => {
-                        if (live) { go('resend', { personId: p.id }); return; }
+                      <button type="button" className="tp-link" {...off(resending)} onClick={() => {
+                        if (live) { track(resendKey(p), () => go('resend', { personId: p.id })); return; }
                         onAction('resend', { personId: p.id, now: Date.now() });
                         onToast(tr`Preview: nobody was emailed.`);
                       }}><Trans>Resend</Trans></button>
                     )}
                     {(!live || String(p.id).startsWith('invite:')) && (
-                      <button type="button" className="tp-link" onClick={() => (live ? go('revoke', { personId: p.id }) : onAction('revoke', { personId: p.id }))} {...lock}><Trans>Revoke</Trans></button>
+                      <button type="button" className="tp-link" onClick={() => revokeInvite(p)} {...off(resending)}><Trans>Revoke</Trans></button>
                     )}
                   </>
                 )}
-                {manager && !p.invited && p.role !== 'owner' && !isMe && (
+                {manager && !p.invited && p.role !== 'owner' && !isMe && !savingRole && (
                   <span className="tp-dotswrap">
                     <button
                       type="button"

@@ -6,6 +6,26 @@ import { Users as UsersIcon, Check as CheckIcon } from '../lib/icons.js';
 import { Icon as Glyph } from './Icon.jsx';
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { logEventNow } from '../lib/analytics.js';
+import { EV } from '../lib/analyticsEvents.js';
+
+// "More than 10 people? Start a Team": the way out of the limit for a personal
+// plan's owner (editorLimitTeamLine says when). Opens Team's setup, which
+// preselects the person's workspaces. Settings › Members draws it too.
+export function TeamLine({ teamLine, surface = 'share_modal', buttonClass = 'share-linkish' }) {
+  if (!teamLine) return null;
+  const { limit, stage } = teamLine;
+  const start = () => {
+    try { logEventNow(EV.EDITOR_LIMIT_TEAM_START, { stage, surface }); } catch (_) {}
+    window.location.assign('/team/new');
+  };
+  return (
+    // Inline: styles.css is the entry stylesheet and has no room to spare.
+    <div className="lim-line" style={{ paddingTop: 7, borderTop: '1px solid var(--line-2)' }}>
+      <Trans>More than {limit} people? <button type="button" className={buttonClass} onClick={start}>Start a Team</button></Trans>
+    </div>
+  );
+}
 
 export function EditorLimitNote({ note, onSeeWho = null, onAsk = null, asking = false }) {
   if (!note) return null;
@@ -36,6 +56,7 @@ export function EditorLimitNote({ note, onSeeWho = null, onAsk = null, asking = 
             <Glyph as={CheckIcon} size={13} weight="regular" />{note.done}
           </div>
         )}
+        <TeamLine teamLine={note.teamLine} />
       </div>
     </div>
   );

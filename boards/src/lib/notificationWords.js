@@ -75,6 +75,20 @@ function schedule(n, data) {
   }
 }
 
+// team.joined's body for one person (0897): how they came in, then what they
+// can do, each its own sentence. Null when `data` lacks either.
+function joinedBody(data) {
+  const role = text(data.role);
+  if (!role || !has(data, 'via')) return null;
+  const how = data.via === 'invite' ? t`They accepted an invite.`
+    : data.via === 'link' ? t`They joined through the team link.`
+    : data.via === 'domain' ? t`They joined with their work email.`
+    : data.via === 'request' ? t`An admin approved their request.`
+    : t`They joined the team.`;
+  const can = role === 'viewer' ? t`They can view.` : t`They can edit.`;
+  return `${how} ${can}`;
+}
+
 // The title and body to show for a notifications row. `nameOf(userId)` is the
 // person's name (userProfiles); an empty answer means the name is not known.
 export function notificationText(n, { nameOf = null } = {}) {
@@ -134,6 +148,38 @@ export function notificationText(n, { nameOf = null } = {}) {
               one: `You earned # more card and ${storage} more storage.`,
               other: `You earned # more cards and ${storage} more storage.`,
             }),
+          };
+        }
+        break;
+      }
+      case 'team.joined': {
+        // 0897. One row per admin per team that counts up for a day: `count`
+        // is how many joined, `name` the latest.
+        const name = text(data.name);
+        const team = text(data.team_name);
+        const count = whole(data.count);
+        if (!name || !team || count === null || count < 1) break;
+        const body = count > 1 ? t`See who in People.` : joinedBody(data);
+        if (!body) break;
+        built = {
+          title: count === 1
+            ? t`${name} joined ${team}`
+            : plural(count - 1, {
+              one: `${name} and # other joined ${team}`,
+              other: `${name} and # others joined ${team}`,
+            }),
+          body,
+        };
+        break;
+      }
+      case 'team.kept_viewer': {
+        // 0897. The person an admin kept as a viewer.
+        const target = text(data.target_name);
+        const team = text(data.team_name);
+        if (target && team) {
+          built = {
+            title: t`You can keep viewing “${target}”`,
+            body: t`An admin of ${team} kept you as a viewer for now.`,
           };
         }
         break;

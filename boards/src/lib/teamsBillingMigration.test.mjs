@@ -41,7 +41,12 @@ test('0538 is written, not applied: one transaction that proves its grants and c
 test('every function lives in 0538, once, and the helpers are server-only', () => {
   assert.deepEqual([...code(sql).matchAll(/create or replace function public\.(\w+)\(/g)].map((m) => m[1]).sort(),
     [...HELPERS, ...CLIENT].sort(), '0538 defines exactly its share');
-  for (const fn of [...HELPERS, ...CLIENT]) assert.equal(def(fn).file, F, `${fn}'s latest definition must be ${F}`);
+  // 0897 re-created get_team_billing to add seat_perk; teamFinishMigration.test.mjs pins that file.
+  const LATER = { get_team_billing: '0897_team_finish.sql' };
+  for (const fn of [...HELPERS, ...CLIENT]) {
+    const want = LATER[fn] || F;
+    assert.equal(def(fn).file, want, `${fn}'s latest definition must be ${want}`);
+  }
   const c = code(sql);
   for (const fn of HELPERS) {
     assert.match(c, new RegExp(`revoke execute on function public\\.${fn}\\([^)]*\\) from public, anon, authenticated;`),

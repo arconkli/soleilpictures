@@ -306,3 +306,46 @@ test('a team member with every seat in use still invites to view only', async ({
   await expect(panel.getByRole('button', { name: 'Invite', exact: true })).toBeEnabled();
   expect(await page.evaluate(() => window.__limit.previews)).toEqual([]);
 });
+
+// "More than 10 people? Start a Team": an account owner on a personal plan, in
+// no team, close to or at the limit (editorLimitTeamLine). The share panel asks
+// list_my_teams only when the line could show, and shows it only on an answer
+// of no team.
+const TEAM_ROW = { org_id: 'org-x', name: 'Northlight Films', letter: 'N', color: '#5b8def', role: 'owner', holds_seat: true };
+const teamLine = (panel) => panel.locator('.lim-note .lim-line', { hasText: 'More than 10 people?' });
+
+test('near the limit with no team: the share panel offers Start a Team, and its button goes to /team/new', async ({ page }) => {
+  await boot(page, { get_editor_capacity: capRow({ used: 8 }), list_my_teams: [] });
+  // The destination is only a stub page: the press must leave for /team/new.
+  await page.route((url) => url.pathname === '/team/new', (route) => route.fulfill({
+    status: 200, contentType: 'text/html', body: '<!doctype html><title>team new</title>',
+  }));
+  const panel = await mountPanel(page);
+  await expect(panel.locator('.lim-note')).toContainText('2 places left for people who can edit.');
+  const line = teamLine(panel);
+  await expect(line).toBeVisible();
+  await line.getByRole('button', { name: 'Start a Team' }).click();
+  await page.waitForURL((url) => url.pathname === '/team/new');
+});
+
+test('a person already in a team is not offered Start a Team', async ({ page }) => {
+  let asked = 0;
+  await boot(page, {
+    get_editor_capacity: capRow({ used: 8 }),
+    list_my_teams: (route) => { asked += 1; return answer(route, [TEAM_ROW]); },
+  });
+  const panel = await mountPanel(page);
+  await expect(panel.locator('.lim-note')).toContainText('2 places left for people who can edit.');
+  // The line waits for the answer; once it is in, there is no line.
+  await expect.poll(() => asked).toBeGreaterThan(0);
+  await page.waitForTimeout(500);
+  await expect(teamLine(panel)).toHaveCount(0);
+});
+
+test('someone who does not own the plan is not offered Start a Team', async ({ page }) => {
+  await boot(page, { get_editor_capacity: capRow({ used: 10, is_full: true, i_am_account_owner: false }), list_my_teams: [] });
+  const panel = await mountPanel(page, { owner: false, members: [{ user_id: ME, role: 'editor' }] });
+  await expect(panel.locator('.lim-note')).toContainText('Alex’s plan has room for 10.');
+  await page.waitForTimeout(500);
+  await expect(teamLine(panel)).toHaveCount(0);
+});

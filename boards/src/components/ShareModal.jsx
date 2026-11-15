@@ -52,8 +52,9 @@ import {
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { ASSIGNABLE_ROLES } from '../lib/workspaceRoles.js';
 import { parseEmails } from '../lib/inviteSubmit.js';
-import { editorLimitFull, editorLimitRefusal, firstName, holdsPlace } from '../lib/editorLimit.js';
+import { editorLimitFull, editorLimitRefusal, editorLimitTeamLine, firstName, holdsPlace } from '../lib/editorLimit.js';
 import { editorLimitNote, editorLimitRefusalMessage } from '../lib/editorLimitWords.js';
+import { useMyTeams } from '../hooks/useMyTeams.js';
 import { editorLimitAllowed } from '../lib/appHost.js';
 import { useEditorLimit } from '../hooks/useEditorLimit.js';
 import { EditorLimitNote } from './EditorLimitNote.jsx';
@@ -689,7 +690,14 @@ export function ShareModal({
     : ownerName
       ? tr`They sign in, then join as viewers while ${ownerName}’s plan is full`
       : tr`They sign in, then join as viewers while the owner’s plan is full`);
-  const limitNote = editorLimitNote(limitCap, { ownerName, asked: askState === 'sent', canBuySeat: seatBuyer });
+  // list_my_teams is asked only when the Team line could show; until it
+  // answers "no team" the line stays hidden.
+  const teamLineIf = editorLimitTeamLine(limitCap, { inTeam: false, teamWorkspace: !!workspace?.org_id });
+  const myTeams = useMyTeams(teamLineIf ? { id: selfUserId } : null);
+  const teamLine = teamLineIf && myTeams.loaded && myTeams.teams.length === 0 ? teamLineIf : null;
+  const baseNote = editorLimitNote(limitCap, { ownerName, asked: askState === 'sent', canBuySeat: seatBuyer });
+  // The words twin (editorLimitWords) says the note; the Team line is added here.
+  const limitNote = baseNote && teamLine ? { ...baseNote, teamLine } : baseNote;
   // With addresses to invite to edit, the note gives the seats' price, or why
   // there is none.
   const seatWho = seatFor.length === 1 ? seatFor[0] : tr`${plural(seatFor.length, { one: '# person', other: '# people' })}`;

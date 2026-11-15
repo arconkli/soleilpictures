@@ -55,6 +55,7 @@ test('member: no billing, so plan, storage and unpaid are null and nothing is in
   assert.equal(t.requests, null);
   assert.equal(t.joining, null);
   assert.equal(t.seats, null);
+  assert.equal(t.seatPerk, null);
   assert.equal(t.people[0].email, null);
   assert.equal(JSON.stringify(t).includes('@'), false);
 });
@@ -80,4 +81,13 @@ test('view-only: deleteAt is 365 days after view_only_since', () => {
   assert.equal(t.unpaid.viewOnly, true);
   assert.equal(t.unpaid.failedAt, Date.parse('2026-10-01T00:00:00Z'));
   assert.equal(t.unpaid.deleteAt, Date.parse(since) + 365 * DAY);
+});
+
+test('seatPerk follows billing.seat_perk, and is null when billing or the field is missing', () => {
+  assert.equal(toTeamSnapshot(TEAM, { ...BILLING, seat_perk: true }).seatPerk, true);
+  assert.equal(toTeamSnapshot(TEAM, { ...BILLING, seat_perk: false }).seatPerk, false);
+  // Before 0897 is applied get_team_billing has no seat_perk: unknown, not false.
+  assert.equal(toTeamSnapshot(TEAM, BILLING).seatPerk, null);
+  assert.equal(toTeamSnapshot(TEAM, { ...BILLING, seat_perk: null }).seatPerk, null);
+  assert.equal(toTeamSnapshot(TEAM, null).seatPerk, null);
 });

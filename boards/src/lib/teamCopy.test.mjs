@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TEAM_HINT } from './teamHints.js';
-import { refusalLine, successLine, seatPriceLine, addSeatInviteLine, domainCheckLine, teamJoinLine, teamDomainJoinLine, teamInviteRefusalLine, teamInvitesClaimedLine } from './teamCopy.js';
+import { refusalLine, successLine, seatPriceLine, addSeatInviteLine, domainCheckLine, teamJoinLine, teamDomainJoinLine, teamInviteRefusalLine, teamInvitesClaimedLine, moveInNeedLine, moveInAskLine, ownEditorsLine, removedLine, removeSeatLines, undoLabel } from './teamCopy.js';
 
 const DEFAULT = refusalLine({ code: 'nonsense' });
 
@@ -50,12 +50,29 @@ test('a trialing preview charges nothing and names the trial end', () => {
 });
 
 test('success lines are short and plain', () => {
-  for (const t of ['rename', 'close', 'leave', 'addSeats', 'newLink', 'nonsense']) {
+  for (const t of ['rename', 'close', 'leave', 'addSeats', 'newLink', 'moveIn', 'moveOut', 'workspacePrivate', 'nonsense']) {
     const s = successLine(t);
     assert.ok(s.length > 3 && !s.includes('!'), t);
   }
   assert.match(domainCheckLine({ verified: true }, 'a.com'), /verified/);
   assert.match(domainCheckLine({ verified: false }, 'a.com'), /isn’t verified/);
+});
+
+test('the Workspaces tab: what a move in takes, who edits one of yours, and what a move answers', () => {
+  assert.equal(moveInNeedLine(1), 'It needs 1 more seat.');
+  assert.equal(moveInNeedLine(2), 'It needs 2 more seats.');
+  assert.equal(moveInAskLine(1), 'Ask an admin to add it.');
+  assert.equal(moveInAskLine(3), 'Ask an admin to add them.');
+  assert.equal(ownEditorsLine(0), 'Only you.');
+  assert.equal(ownEditorsLine(1), 'Only you.');
+  assert.equal(ownEditorsLine(2), 'You and 1 other can edit it.');
+  assert.equal(ownEditorsLine(4), 'You and 3 others can edit it.');
+  assert.equal(successLine('moveIn'), 'Moved into the team.');
+  assert.equal(successLine('moveOut'), 'Moved out of the team.');
+  assert.equal(successLine('workspacePrivate'), 'Saved.');
+  // A move in that can't happen says why in the words the page already has.
+  assert.equal(refusalLine({ code: 'team_seats_ceiling' }), 'That’s more seats than a team can have here. Talk to us for more.');
+  assert.equal(refusalLine({ code: 'team_view_only' }), 'The team is view-only until it’s paid.');
 });
 
 test('teamJoinLine: every status', () => {
@@ -106,4 +123,23 @@ test('the share panel prices the seats an invite to edit adds', () => {
   const trial = { ok: true, seats: 4, from_seats: 3, unit_amount: 2500, interval: 'month', trialing: true, amount_today: 0, trial_end: end };
   assert.equal(addSeatInviteLine(trial, 'lena@example.com'),
     'Inviting lena@example.com to edit adds a seat: $25 a month, nothing until your trial ends November 12, 2026.');
+});
+
+test('the removal toasts say what went, for a person, an outsider, an invite and a domain', () => {
+  assert.equal(undoLabel(), 'Undo');
+  assert.equal(removedLine('person', 'Lena Fischer'), 'Lena Fischer removed from the team.');
+  assert.equal(removedLine('outside', 'Sam Lee'), 'Removed Sam Lee’s access.');
+  assert.equal(removedLine('invite', 'lena@example.com'), 'Invite to lena@example.com revoked.');
+  assert.equal(removedLine('domain', 'northlight.film'), 'northlight.film removed from the team’s domains.');
+});
+
+test('the remove-a-seat confirm counts the seats now, after, and still free', () => {
+  assert.deepEqual(removeSeatLines(15, 2), {
+    lead: 'Remove a seat?',
+    detail: 'The team goes from 15 seats to 14, and the bill follows. 2 seats will still be free to give.',
+  });
+  assert.equal(removeSeatLines(5, 1).detail,
+    'The team goes from 5 seats to 4, and the bill follows. 1 seat will still be free to give.');
+  assert.equal(removeSeatLines(4, 0).detail,
+    'The team goes from 4 seats to 3, and the bill follows. None will still be free to give.');
 });

@@ -563,7 +563,7 @@ export function App() {
   if (isLocalQaMode() || !isSupabaseConfigured) return <Suspense fallback={null}><LocalBoardsApp user={user} signOut={signOut} /></Suspense>;
 
   const { loading: wsLoading, workspace: personalWorkspace, rootBoard: personalRoot, error: wsError } = useWorkspace();
-  const { workspaces, loading: wsListLoading, refresh: refreshWorkspaces } = useAllWorkspaces(user);
+  const { workspaces, loading: wsListLoading, teamsLoading: wsTeamsLoading, refresh: refreshWorkspaces } = useAllWorkspaces(user);
 
   // First-signup race: useAllWorkspaces fetches workspace_members for the
   // user in parallel with useWorkspace's bootstrap RPC. For brand-new
@@ -684,11 +684,12 @@ export function App() {
   // filter effect corrects it. Better to show LoadingShell for that
   // tick than to flash the wrong canvas.
   //
-  // Same for a stored team workspace whose membership row hasn't arrived yet:
-  // activeWorkspace falls back to the personal one while the list is empty,
-  // which mounted the personal workspace (its board, its PartyKit room) for a
-  // beat before the team one replaced it.
-  const storedWsPending = !!activeWorkspaceId && wsListLoading
+  // Same for a stored team workspace that hasn't arrived yet: activeWorkspace
+  // falls back to the personal one while the list lacks it, which mounted the
+  // personal workspace (its board, its PartyKit room) for a beat before the team
+  // one replaced it. A team workspace has no membership row: it comes from a
+  // second read after the list's first, so wait for both (wsTeamsLoading).
+  const storedWsPending = !!activeWorkspaceId && (wsListLoading || wsTeamsLoading)
     && activeWorkspaceId !== personalWorkspace?.id
     && !workspaces.some((w) => w.id === activeWorkspaceId);
   loadingShellName = storedWsPending ? null : (activeWorkspace?.name || workspaces.find((w) => w.id === activeWorkspaceId)?.name || null);
@@ -1471,6 +1472,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     // An editor-limit notice's "See who can edit" (openNotificationSettings,
     // below, is called only once the toast is pressed).
     onOpenSettings: (tab, wsId) => openNotificationSettings(tab, wsId),
+    // A team notice's toast opens that team's page on the tab it is about.
+    onOpenTeam: (tab, orgId) => openTeamPage(tab, orgId),
     // The same names the panel is worded with, so a toast reads like its row.
     nameOf: (id) => userProfiles.get(id)?.name || '',
   });
@@ -5825,10 +5828,50 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       try { window.dispatchEvent(new CustomEvent('soleil-board-reset', { detail: { boardId: id, reason: 'access' } })); } catch (_) {}
     }
   }, [refreshSharedBoards]);
-  const askToEdit = useCallback(async (boardId) => {
+  // `viaTeam` ({ workspaceId, name }): a viewer through a team's workspace asks
+  // the team's admins (ask_team_for_edit), who answer in People and the bell;
+  // `name` is the team's, when it is known.
+  const askToEdit = useCallback(async (boardId, viaTeam = null) => {
     if (!boardId) return;
     const forget = () => setAskedEdit((m) => { const { [boardId]: _gone, ...rest } = m; return rest; });
     setAskedEdit((m) => ({ ...m, [boardId]: 'busy' }));
+    if (viaTeam?.workspaceId) {
+      let sent = null;
+      try {
+        const { askTeamForEdit } = await import('./lib/teamsApi.js');
+        sent = await askTeamForEdit({ p_workspace_id: viaTeam.workspaceId, p_board_id: boardId });
+      } catch (error) {
+        forget();
+        feedback.toast({ type: 'error', code: 'edit_ask_failed', message: shownError(error, tr`Could not send that. Try again in a moment.`) });
+        return;
+      }
+      if (sent === 'can_edit') {
+        // Already allowed to edit (a stale role): just pick up the access.
+        forget();
+        await refreshEditAccess(boardId);
+        return;
+      }
+      if (sent === 'not_in_team') {
+        forget();
+        feedback.toast({ type: 'error', code: 'edit_ask_not_in_team', message: tr`You’re not in this team anymore.` });
+        return;
+      }
+      if (sent !== 'sent' && sent !== 'already_sent') {
+        forget();
+        feedback.toast({ type: 'error', code: 'edit_ask_failed', message: tr`Could not send that. Try again in a moment.` });
+        return;
+      }
+      setAskedEdit((m) => ({ ...m, [boardId]: 'asked' }));
+      const teamName = viaTeam.name || '';
+      feedback.toast({
+        type: 'success',
+        ttl: 8000,
+        message: teamName
+          ? tr`Asked. The admins of ${teamName} will see it, and you’ll hear back here.`
+          : tr`Asked. The team’s admins will see it, and you’ll hear back here.`,
+      });
+      return;
+    }
     const { data, error } = await supabase.rpc('request_edit', { p_board_id: boardId });
     if (error) {
       forget();
@@ -6511,6 +6554,14 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     if (team) return null;
     return myTeams.find((t) => t.role === 'owner') || myTeams[0] || null;
   }, [team, myTeams]);
+  // The team the page shows: the one a request named (the bell's team notices
+  // carry their org_id), else realTeam. Null exactly when realTeam is, so the
+  // effect below still closes the page when there is no team.
+  const pageTeam = useMemo(() => {
+    if (team) return null;
+    const asked = teamPage?.orgId;
+    return (asked && myTeams.find((t) => t.org_id === asked)) || realTeam;
+  }, [team, teamPage?.orgId, myTeams, realTeam]);
   useEffect(() => { if (!team && !realTeam && myTeamsLoaded) closeTeamPage(); }, [team, realTeam, myTeamsLoaded]);
   const closeRealTeamPage = useCallback(() => {
     closeTeamPage();
@@ -6520,6 +6571,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     reloadMyTeams();
     onWorkspacesChanged?.();
   }, [reloadMyTeams, onWorkspacesChanged]);
+  // The Team page's toasts: a string, or { message, ttl, action: { label,
+  // onClick }, type } (the "Removed … Undo" ones).
+  const teamToast = (toast) => feedback.toast(typeof toast === 'string'
+    ? { type: 'info', message: toast }
+    : { type: 'info', ...toast });
   const selectWorkspaceFromMenu = (id) => {
     // From Home (the files sidebar's has no switcher of its own), land
     // on Home in the other workspace too.
@@ -9088,8 +9144,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const canEditCurrent = currentBoardPerm.canEdit;
   // A viewer through a share (not a workspace member, whatever their role
   // there) can ask the people who shared the cluster to let them edit.
-  const canAskToEdit = !canEditCurrent && currentBoardPerm.source === 'share'
+  const canAskViaShare = !canEditCurrent && currentBoardPerm.source === 'share'
     && currentBoardPerm.role === 'viewer' && !!currentBoard?.id;
+  // A viewer through the team of a team workspace asks the team's admins
+  // instead (ask_team_for_edit). A person who reaches the workspace only
+  // through the team has no workspace_members row; the mirror above reads their
+  // team role (workspace._myRole, from list_my_team_workspaces) as a workspace
+  // viewer, the same as a member with the viewer role.
+  const askTeamOrgId = workspace?.org_id || null;
+  const canAskViaTeam = !canEditCurrent && !canAskViaShare && !!askTeamOrgId && !!currentBoard?.id
+    && currentBoard.workspace_id === workspace.id
+    && currentBoardPerm.source === 'workspace' && currentBoardPerm.role === 'viewer';
+  const canAskToEdit = canAskViaShare || canAskViaTeam;
+  const askViaTeam = canAskViaTeam
+    ? { workspaceId: workspace.id, name: (myTeams.find((m) => m.org_id === askTeamOrgId) || {}).name || '' }
+    : null;
   const askEditState = (canAskToEdit && askedEdit[currentBoard.id]) || null;
   // "Start a treatment" pressed on its page before signing in (lib/starterIntent):
   // the document it promised lands on the first cluster this person can write,
@@ -11920,7 +11989,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     <Icon as={Maximize2} size={16} />
                   </button>
                 )}
-                {canAskToEdit && <AskToEditButton state={askEditState} onAsk={() => askToEdit(currentBoard.id)} />}
+                {canAskToEdit && <AskToEditButton state={askEditState} team={!!askViaTeam} onAsk={() => askToEdit(currentBoard.id, askViaTeam)} />}
                 <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} {...tlTip(tr`Share this cluster`)} aria-label={tr`Share this cluster`}>
                   <Icon as={Share2} size={14} weight="regular" /> <span className="tb-btn-label"><Trans>Share</Trans></span>
                 </button>
@@ -12090,7 +12159,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 circle on a phone where the label is hidden. Grey text among grey
                 icons was easy to miss, and it is the way people reach
                 invitations. */}
-            {canAskToEdit && <AskToEditButton state={askEditState} onAsk={() => askToEdit(currentBoard.id)} />}
+            {canAskToEdit && <AskToEditButton state={askEditState} team={!!askViaTeam} onAsk={() => askToEdit(currentBoard.id, askViaTeam)} />}
             {notifBell}
             <button className="tb-btn tb-share" onClick={() => { setShareBoardId(toolbarPane === 'split' ? splitId : null); setShareOpen(true); }} title={tr`Share this cluster`} aria-label={tr`Share this cluster`}>
               <Icon as={Share2} size={14} weight="regular" /> <span className="tb-btn-label"><Trans>Share</Trans></span>
@@ -12327,15 +12396,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           column and beside the sidebar. */}
       {team && teamPage && (
         <Suspense fallback={<PanelWait title={tr`Team`} variant="page" />}>
-          <TeamPage key={`${team.me.id}:${team.status}`} team={team} initialTab={teamPage.tab} onClose={closeTeamPage}
-                    onToast={(message) => feedback.toast({ type: 'info', message })} />
+          <TeamPage key={`${team.me.id}:${team.status}`} team={team} initialTab={teamPage.tab} tabKey={teamPage.at} onClose={closeTeamPage}
+                    onToast={teamToast} />
         </Suspense>
       )}
 
-      {!team && realTeam && teamPage && (
+      {!team && pageTeam && teamPage && (
         <Suspense fallback={<PanelWait title={tr`Team`} variant="page" />}>
-          <TeamPageLive key={realTeam.org_id} orgId={realTeam.org_id} initialTab={teamPage.tab} onClose={closeRealTeamPage}
-                        onToast={(message) => feedback.toast({ type: 'info', message })} />
+          {/* onOpenWorkspace: leave the page, then the sidebar switcher's own switch. */}
+          <TeamPageLive key={pageTeam.org_id} orgId={pageTeam.org_id} initialTab={teamPage.tab} tabKey={teamPage.at} onClose={closeRealTeamPage}
+                        onOpenWorkspace={(workspaceId) => { closeRealTeamPage(); selectWorkspaceFromMenu(workspaceId); }}
+                        onToast={teamToast} />
         </Suspense>
       )}
 
@@ -12518,6 +12589,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onMarkRead={notifications.markRead}
           onOpenBoard={(id) => { openBoardAnywhere(id); setCurrentSurface('board'); setNotifOpen(false); }}
           onOpenSettings={openNotificationSettings}
+          onOpenTeam={(tab, orgId) => openTeamPage(tab, orgId)}
           onAnswerEdit={answerEditRequest}
           nameOf={(id) => userProfiles.get(id)?.name || ''}
           onClose={() => setNotifOpen(false)}
@@ -13095,14 +13167,17 @@ function SplitContainer({ left, right, ratio = 0.5, onRatio, showSplit = true, a
 }
 
 // "Ask to edit" in the top bar of a cluster shared with you as a viewer.
-// state: null (can ask), 'busy' (asking) or 'asked' (this session). Neutral ink:
+// state: null (can ask), 'busy' (asking) or 'asked' (this session); team: the
+// ask goes to a team's admins, not to whoever shared the cluster. Neutral ink:
 // gold is for active and selected.
-function AskToEditButton({ state = null, onAsk }) {
+function AskToEditButton({ state = null, team = false, onAsk }) {
   const asked = state === 'asked';
   return (
     <button type="button" className={`ask-edit${asked ? ' is-asked' : ''}`}
             disabled={asked || state === 'busy'} onClick={() => onAsk?.()}
-            title={asked ? tr`Asked. We’ll tell you when they say yes.` : tr`Ask the people who shared this to let you edit`}>
+            title={team
+              ? (asked ? tr`Asked. We’ll tell you when an admin answers.` : tr`Ask the team’s admins to let you edit`)
+              : (asked ? tr`Asked. We’ll tell you when they say yes.` : tr`Ask the people who shared this to let you edit`)}>
       {asked ? tr`Asked` : tr`Ask to edit`}
     </button>
   );

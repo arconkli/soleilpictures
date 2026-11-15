@@ -98,6 +98,23 @@ export async function runTeamAction(api, orgId, type, payload = {}) {
         return billing(await api.openTeamPortal(orgId));
       case 'seatPerk':
         return ok(await api.setTeamSeatPerk({ ...org, p_on: !!p.on }));
+      // The Workspaces tab (0532).
+      case 'workspacePrivate':
+        return ok(await api.setTeamWorkspacePrivate({ p_workspace_id: p.workspaceId, p_private: !!p.private }));
+      // No `toUserId` is the team's owner: the only receiver an admin may name.
+      case 'moveOut':
+        return ok(await api.moveWorkspaceOutOfTeam({ p_workspace_id: p.workspaceId, p_to_user: p.toUserId ?? null }));
+      // Never buys seats itself: the page shows the price and adds them first.
+      case 'moveIn':
+        return ok(await api.moveWorkspaceIntoTeam({ p_workspace_id: p.workspaceId, ...org, p_add_seats: false }));
+      // A look only, nothing moves: how many more seats moving it in takes.
+      // `editors` counts who would edit it once it is the team's, its new
+      // owner among them. The function returns one row.
+      case 'previewMoveIn': {
+        const rows = await api.previewMoveIntoTeam({ p_workspace_id: p.workspaceId, ...org });
+        const row = (Array.isArray(rows) ? rows[0] : rows) || {};
+        return ok({ seatsNeeded: Math.max(0, Number(row.seats_needed) || 0), editors: Math.max(0, Number(row.editors) || 0) });
+      }
       default:
         return { ok: false, refusal: { code: 'unsupported' } };
     }
