@@ -1,10 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-// On touch (coarse pointer) the card resize/rotate handles — the only card
-// affordances that weren't finger-sized — are enlarged, and each gets an
-// invisible expanded hit area. Verify the coarse-pointer bump actually applies.
+// On touch (coarse pointer) the selected card's resize/rotate handles are
+// drawn outside the card, in the selection layer (.sel-handle), at a fixed
+// finger size on screen with an invisible expanded hit area: inside the card
+// its clip cut the rotate handle away and both shrank with the zoom. Verify
+// the coarse-pointer sizes apply. (tests/touch/handles-drag.spec.js drags them
+// with a real finger.)
 //
-// Touch-only (the bump lives in @media (hover:none) and (pointer:coarse)), so
+// Touch-only (the sizes live in @media (hover:none) and (pointer:coarse)), so
 // skip the mouse desktop project.
 
 test.beforeEach(async ({ page }, testInfo) => {
@@ -41,9 +44,12 @@ test('resize + rotate handles are finger-sized on touch, with expanded hit areas
 
   await expect(page.locator('.cards-layer .card.is-selected')).toHaveCount(1);
 
+  // The selected card's own handles give way to the selection layer's.
+  await expect(page.locator('.cards-layer .card.is-selected > .card-resize, .cards-layer .card.is-selected > .card-rotate')).toHaveCount(0);
+
   const dims = await page.evaluate(() => {
-    const r = document.querySelector('.cards-layer .card.is-selected .card-resize');
-    const rot = document.querySelector('.cards-layer .card.is-selected .card-rotate');
+    const r = document.querySelector('.canvas .sel-handle > .card-resize');
+    const rot = document.querySelector('.canvas .sel-handle > .card-rotate');
     return {
       resizeW: r ? getComputedStyle(r).width : null,
       rotateW: rot ? getComputedStyle(rot).width : null,
@@ -51,9 +57,9 @@ test('resize + rotate handles are finger-sized on touch, with expanded hit areas
     };
   });
 
-  // Resize handle bumped from 14px → 22px, with a content:'' expanded hit area.
-  expect(dims.resizeW).toBe('22px');
+  // Resize handle: a 26px puck on screen, with a content:'' expanded hit area.
+  expect(dims.resizeW).toBe('26px');
   expect(dims.resizeBeforeContent).toBe('""');
-  // Rotate handle (only on rotatable cards) bumped from 12px → 18px.
-  if (dims.rotateW) expect(dims.rotateW).toBe('18px');
+  // Rotate handle (only on rotatable cards wide enough on screen): 24px.
+  if (dims.rotateW) expect(dims.rotateW).toBe('24px');
 });

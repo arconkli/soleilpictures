@@ -7848,6 +7848,15 @@ body:has(.dev-banner) .upgrade-chip { top: calc(28px + env(safe-area-inset-top))
 /* Placed from the corner by CanvasSurface (left / top), which keeps it on
    screen and clear of a small selection. */
 .sel-menu > .card-menu-btn { right: auto; pointer-events: auto; }
+/* The selection's handles under a finger: points on the selection like
+   .sel-menu, one per handle, turned with the card. Sized in the coarse block. */
+.sel-handle {
+  position: absolute;
+  width: 0; height: 0;
+  transform-origin: 0 0;
+  z-index: 999995;
+  pointer-events: none;
+}
 .card-menu-btn {
   display: none;
   position: absolute;
@@ -8980,6 +8989,17 @@ body:has(> .ncl-pop) .cnv-studio-bar { visibility: hidden; }
 .note.is-editing { box-shadow: 0 0 0 2px var(--ink-1); }
 .note .note-body { flex: 1; min-height: 0; outline: none; overflow: auto; max-width: 100%; }
 .note .note-body[contenteditable="true"] { user-select: text; cursor: text; }
+/* A scroll container takes the browser's own panning even inside
+   .canvas-wrap { touch-action: none }, so Android Chrome claimed a finger's
+   drag that began on a note's text and sent pointercancel: the lifted card
+   went back where it was. The board scrolls these by hand under a finger
+   (lib/touchScroll.js CONTAINERS, the ones armed by selecting the card), so
+   the browser's pan is not needed. The live editor keeps its own. */
+.cards-layer .note .note-body:not([contenteditable="true"]),
+.cards-layer .gridc-cell .gc-text,
+.cards-layer .rd-body,
+.cards-layer .schedt,
+.cards-layer .schedc-rail-body { touch-action: none; }
 /* Surface-tone default ink for explicitly painted notes — bidirectional and
    theme-independent (a light sticky reads dark text in BOTH themes, a dark one
    light text). Set on .note so .note-body inherits it; an explicit per-card
@@ -21544,11 +21564,15 @@ button, [role="button"], a {
   .ic .ic-title.is-placeholder,
   .doc-tree-add,
   .doc-bookmark-x,
-  .pc-cell-x,
   .pc-eye-float,
   .ic-add-caption {
     opacity: 1 !important;
   }
+  /* A palette's remove-colour x shows once the palette is selected, and only
+     then takes a finger: shown on every palette, the tap that selects one
+     could land on an x and delete a colour. */
+  .card.is-selected .pc-cell-x { opacity: 1 !important; }
+  .card:not(.is-selected) .pc-cell-x { pointer-events: none; }
 
   /* Generic small icon buttons across the chrome that sit below 40px
      get a comfy tap-target floor. Explicit class list keeps the rule
@@ -21600,6 +21624,39 @@ button, [role="button"], a {
   .card-resize::before { content: ''; position: absolute; inset: -8px; }
   .card-rotate { width: 18px; height: 18px; margin-left: -9px; }
   .card-rotate::after { content: ''; position: absolute; inset: -11px; }
+
+  /* The one selected card's handles (and several cards' resize corner) are
+     drawn outside the cards, at a point that undoes the zoom (.sel-handle,
+     CanvasSurface), so these sizes are screen pixels at every zoom: a 24px
+     rotate dot 36px above the card on a 12px stalk, a 26px resize puck on the
+     corner, each 44px to a finger (the hit insets count from inside the 2px
+     border). */
+  .sel-handle > .card-rotate {
+    top: -36px; left: -12px; margin: 0;
+    width: 24px; height: 24px; box-sizing: border-box;
+    pointer-events: auto;
+  }
+  .sel-handle > .card-rotate::before { height: 14px; }
+  .sel-handle > .card-rotate::after { inset: -12px; border-radius: 50%; }
+  .sel-handle > .card-resize {
+    left: -16px; top: -16px; right: auto; bottom: auto;
+    width: 26px !important; height: 26px !important; box-sizing: border-box;
+    pointer-events: auto;
+    opacity: 1 !important;
+    border-radius: 50%;
+    background: var(--select);
+    border: 2px solid var(--bg-0);
+    box-shadow: 0 1px 4px rgba(0,0,0,.3);
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(0,0,0,.78);
+    touch-action: none;
+  }
+  .sel-handle > .card-resize::before { inset: -11px; border-radius: 50%; }
+  .sel-handle > .card-resize svg { width: 14px; height: 14px; display: block; }
+
+  /* A link card's open button is an 11px glyph: 39px to a finger at 100%. */
+  .lc-open { position: relative; }
+  .lc-open::before { content: ''; position: absolute; inset: -12px; }
 
   /* The rest of what a finger met under 40px where the desktop layout draws
      on a touch screen, an iPad held sideways (tests/touch/touch-targets.spec.js).

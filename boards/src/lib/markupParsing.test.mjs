@@ -120,6 +120,7 @@ const OPENERS = [
   ['components/cards.jsx', "window.open(openHref,", 'link card, vetted by openableUrl'],
   ['components/CanvasSurface.jsx', "window.open('/templates',", 'our own page'],
   ['components/CanvasSurface.jsx', "if (href) window.open(href,", 'link card menu, vetted by openableUrl'],
+  ['components/CanvasSurface.jsx', "window.open(viewerLinkHref,", "a viewer's tap on a link card, vetted by openableUrl and http(s) only"],
   ['components/StorageAddonSheet.jsx', "window.open(answer.hosted_invoice_url,", 'Stripe invoice address from our server'],
   ['components/NotificationsPanel.jsx', "window.open('/f/' + encodeURIComponent(", 'our own page'],
   ['hooks/useNotifications.js', "window.open('/f/' + encodeURIComponent(", 'our own page'],
