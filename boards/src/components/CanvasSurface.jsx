@@ -8320,11 +8320,6 @@ export function CanvasSurface({
   const onCardPointerDown = (e, c) => {
     if (e.button === 1) { startPan(e); return; }
     if (e.button !== 0) return;
-    // A second finger on a card is the pinch's (useGesture hears it as a
-    // touch), not the card's: it neither selects, lifts nor opens it. Only a
-    // finger that landed on a title used to dodge this, by the .editable bail
-    // below, which a resting title no longer takes on touch.
-    if (e.pointerType === 'touch' && e.isPrimary === false) return;
     // Selecting any card that isn't a grid cell drops grid-cell focus so a
     // following paste isn't misrouted into a stale cell. (A grid cell's own
     // onPointerDownCapture sets focus first; its target IS a [data-cell-id], so
@@ -9310,9 +9305,6 @@ export function CanvasSurface({
 
   const onResizePointerDown = (e, c) => {
     if (e.button !== 0) return;
-    // A pinch's second finger, moved onto the grip by the browser's touch
-    // adjustment, is the pinch's (as in onCardPointerDown).
-    if (e.pointerType === 'touch' && e.isPrimary === false) return;
     e.stopPropagation();
     e.currentTarget.setPointerCapture?.(e.pointerId);
     setSelected(new Set([c.id]));
@@ -9474,9 +9466,6 @@ export function CanvasSurface({
   // clamp the whole scale so the union doesn't deform.
   const onMultiResizePointerDown = (e, handle, items, startBounds) => {
     if (e.button !== 0) return;
-    // A pinch's second finger, moved onto the grip by the browser's touch
-    // adjustment, is the pinch's (as in onCardPointerDown).
-    if (e.pointerType === 'touch' && e.isPrimary === false) return;
     e.stopPropagation();
     e.currentTarget.setPointerCapture?.(e.pointerId);
     const anchor = oppositeCorner(handle, startBounds);
@@ -9581,9 +9570,6 @@ export function CanvasSurface({
 
   const onRotatePointerDown = (e, c) => {
     if (e.button !== 0) return;
-    // A pinch's second finger, moved onto the grip by the browser's touch
-    // adjustment, is the pinch's (as in onCardPointerDown).
-    if (e.pointerType === 'touch' && e.isPrimary === false) return;
     e.stopPropagation();
     setSelected(new Set([c.id]));
     // Under a finger the handle is drawn outside the card (.sel-handle).
