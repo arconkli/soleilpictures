@@ -114,7 +114,7 @@
     "@babel/core": "7.29.7",
     "@babel/parser": "7.29.9",
     "@babel/traverse": "7.29.10",
-    "@capacitor/assets": "^3.0.5",
+    "@capacitor/assets": "^4.0.0",
     "@lingui/babel-plugin-lingui-macro": "6.12.0",
     "@lingui/cli": "6.12.0",
     "@lingui/conf": "6.12.0",
