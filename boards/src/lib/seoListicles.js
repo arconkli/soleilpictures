@@ -1648,7 +1648,7 @@ const PAGES = [
     "answer": "Soleil Clusters is the best mood board app for film and photo production in 2026: a free real-time canvas where the board is argued over live, approved with one link, and carried into look books and shot lists. Milanote is best for structured solo boards, Canva when the board itself is the deliverable, and Pinterest for pure discovery.",
     "disclosure": "Soleil Clusters is our app — we are Soleil Pictures, the film studio that builds it and uses it on our own productions. We rank it first for exactly one job: production mood boards a crew and a client must act on. For solo planning, polished deliverables, and offline reference walls, other tools here beat us, and we say so in each review.",
     "published": "2026-08-04",
-    "updated": "2026-10-02",
+    "updated": "2026-11-14",
     "thesis": {
       "heading": "A mood board is a decision document",
       "paras": [
@@ -2068,35 +2068,35 @@ const PAGES = [
         "bestFor": "AI-assisted mood boards where the AI reads the whole canvas",
         "verdict": "The most interesting AI thesis in the category, from the smallest and riskiest vendor on the list.",
         "paras": [
-          "Storyflow's idea is real: the AI has the whole board as context. It reads everything on the canvas, remembers the project across sessions on paid tiers, lets you @-mention any canvas element, and generates working boards — moodboards, storyboards, shot lists, script breakdowns — from a prompt, staged as a proposal you accept or discard. For filmmakers who want a first pass generated rather than gathered, nothing else here attempts as much.",
-          "Development is visibly rapid — real-time cursors shipped July 27, 2026, atop a near-daily changelog — and no plan, including the coming free one, limits boards or objects. But there is no free plan yet: Storyflow is paid-only during early access, with a Free plan announced for before the end of 2026 that will cap uploads at 20 and AI at a one-time allowance (anyone invited by a paid member can join free today). Meaningful AI use effectively starts at Pro, $14 a month billed annually.",
+          "Storyflow's idea is real: the AI has the whole board as context. It reads everything on the canvas, remembers the project across sessions on its Pro and Max tiers, lets you @-mention any canvas element, and generates working boards — moodboards, storyboards, shot lists, script breakdowns — from a prompt, staged as a proposal you accept or discard. For filmmakers who want a first pass generated rather than gathered, nothing else here attempts as much.",
+          "Development is visibly rapid — real-time cursors shipped July 27, 2026, atop a near-daily changelog — and every paid plan carries unlimited objects. But there is no free plan yet: as of 14 November 2026 Storyflow is paid-only during early access, and its pricing page marks the Free plan 'Coming soon' — 3 projects, 100 images, 10 file and video uploads and 1 GB, with no in-app AI (anyone invited by a paid member can join free today). Meaningful AI use effectively starts at Pro, $14 a month billed annually.",
           "Then there is the vendor itself: a 2-to-10-person operation, web-only, in a category that buried four tools in three years. For a decision document a production depends on, that scale is a real risk. Promising, worth watching, not yet a system of record."
         ],
         "features": [
-          "Whole-canvas AI context: the AI reads the board and remembers the project (paid)",
+          "Whole-canvas AI context: the AI reads the board and, on Pro and Max, remembers the project",
           "Prompt-to-board generation of moodboards, storyboards, shot lists, and breakdowns",
           "200+ 'Tactics' creative frameworks that drop onto the canvas half-built",
           "AI image generation with background removal and upscaling (Pro and up)",
           "Real-time cursors; read-only share links with comments — web-only, no apps"
         ],
         "pricing": {
-          "summary": "Paid-only during early access: Plus $9.99/mo ($7.99/mo billed annually); Pro $19/mo ($14 annually); Max $49/mo ($39 annually). A Free plan (20 uploads) is announced for before the end of 2026",
-          "asOf": "September 2026"
+          "summary": "Paid-only during early access: Plus $9.99/mo ($7.99/mo billed annually); Pro $19/mo ($14 annually); Max $49/mo ($39 annually). A Free plan (3 projects, 100 images, 10 uploads, 1 GB, no in-app AI) is listed as coming soon",
+          "asOf": "November 2026"
         },
         "pros": [
           "Deepest AI-on-the-canvas integration in the category, aimed at filmmakers",
-          "No object or board limit on any plan, including the coming free one; invited collaborators join free",
+          "Unlimited objects and shared boards on every paid plan; invited collaborators join free",
           "Shipping near-daily through late July 2026"
         ],
         "cons": [
-          "No free plan during early access; the announced one caps uploads at 20",
-          "Free's AI is a one-time allowance (up to 10 generations) and Plus renews at 6× that — real usage starts at Pro",
+          "No free plan during early access; the one its pricing page describes caps uploads at 10 and images at 100",
+          "The planned free plan has no in-app AI, and Pro carries 10× the AI allowance of Plus — real usage starts at Pro",
           "Tiny vendor (2-10 people), web-only — longevity risk in a category with a body count"
         ],
         "rating": 7.6
       }
     ],
-    "tableIntro": "All twelve at a glance. Prices verified against each vendor's own pages, August 2026; Storyflow re-verified September 2026.",
+    "tableIntro": "All twelve at a glance. Prices verified against each vendor's own pages, August 2026; Storyflow re-verified November 2026.",
     "columns": [
       "Best for",
       "Price",
@@ -2185,7 +2185,7 @@ const PAGES = [
       "storyflow": [
         "AI-assisted boards",
         "Paid early access; Plus from $7.99/mo (annual)",
-        "Not yet — announced for late 2026",
+        "Not yet — listed as coming soon",
         "Read-only links with comments",
         "7.6/10"
       ]
@@ -2229,7 +2229,7 @@ const PAGES = [
       {
         "who": "A filmmaker who wants AI to draft the first pass of boards and shot lists",
         "pick": "Storyflow",
-        "why": "Whole-canvas AI and prompt-to-board generation — accept the small-vendor risk knowingly, and note there is no free plan until late 2026."
+        "why": "Whole-canvas AI and prompt-to-board generation — accept the small-vendor risk knowingly, and note its free plan is still listed as coming soon (November 2026)."
       }
     ],
     "honorableMentions": [
