@@ -2722,7 +2722,7 @@ export const DOCS_PAGES = [
     "answer": "The free Demo plan gives you 25 cards or 5GB of files, whichever comes first, up to 10 people who edit, and any file at any size; clusters cost no cards. Creator costs $25/mo billed monthly or $20/mo billed annually, and changes two things: the card cap is removed, and your drive grows to 1TB. Limits are charged to the workspace owner, so one plan covers everyone in that workspace, with no per-seat charges. Team is for more than 10 people who edit, at $25 a seat a month.",
     "section": "account",
     "order": 1,
-    "updated": "2026-10-27",
+    "updated": "2026-11-14",
     "navLabel": "Plans and pricing",
     "headings": [
       {

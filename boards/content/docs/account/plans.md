@@ -5,7 +5,7 @@ h1: Plans and pricing
 navLabel: Plans and pricing
 section: account
 order: 1
-updated: 2026-10-27
+updated: 2026-11-14
 answer: The free Demo plan gives you {{fact:demoCardLimit}} cards or {{fact:freeStorage}} of files, whichever comes first, up to {{fact:editorLimit}} people who edit, and any file at any size; clusters cost no cards. Creator costs {{fact:priceMonthly}} billed monthly or {{fact:priceAnnualPerMonth}}/mo billed annually, and changes two things: the card cap is removed, and your drive grows to {{fact:creatorStorage}}. Limits are charged to the workspace owner, so one plan covers everyone in that workspace, with no per-seat charges. Team is for more than {{fact:editorLimit}} people who edit, at {{fact:teamSeatMonthly}} a seat a month.
 faq:
   - q: What is actually limited on the free plan?
@@ -118,8 +118,10 @@ work across several, the one that matters is the workspace the cluster lives in.
 > Plan & billing, and it is the one enforced.
 > [Referral credits](/docs/account/referrals) add to whichever cap you have.
 
-> **Note:** There is no separate cap on clusters — each one is a card, and counts
-> as one. Collaborators, editing, sharing, [public links](/docs/collaborate/sharing),
+> **Note:** There is no cap on clusters, and making or nesting one costs none of
+> your cards; a [linked cluster](/docs/clusters#nesting), a reference to a cluster
+> that lives elsewhere, counts as one.
+> Collaborators, editing, sharing, [public links](/docs/collaborate/sharing),
 > comments, documents, [screenplay mode](/docs/documents/screenplay) and the
 > [API](/docs/api) are not capped at all. No file has a size cap on any plan —
 > the drive is the only limit.
