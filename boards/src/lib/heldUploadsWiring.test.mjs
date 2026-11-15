@@ -56,7 +56,8 @@ test('the canvas keeps what did not fit, and a file the drive refused mid-upload
   assert.match(ingest, /files: accepted\.slice\(keep\)\.map\(\(it\) => it\.file\)/);
   // A release never lands on what is already there.
   // …and neither do a grid multi-drop's leftovers (opts.beside).
-  assert.match(ingest, /if \(\(source === 'held' \|\| beside\) && rects\.length\) \{[\s\S]*nearestFreeSpot\(solid, beside \|\| \{ x: left, y: top \}/);
+  // …and neither does a finger's add from the + sheet or the Add menu (opts.free).
+  assert.match(ingest, /if \(\(source === 'held' \|\| beside \|\| free\) && rects\.length\) \{[\s\S]*nearestFreeSpot\(solid, beside \|\| \{ x: left, y: top \}/);
   const reject = region(canvas, 'const handleUploadReject = useCallback(', "} else if (err?.code === 403) {");
   assert.match(reject, /if \(ownsWorkspace && retry\?\.file && dropBoardId\) \{[\s\S]*holdDrop\(\{[\s\S]*limit: 'storage', files: \[retry\.file\]/);
   assert.match(reject, /storageRoom\(dropBoardId\)\.then\(\(r\) => setHeldBaseline\(held, r\?\.quota\)\)/,

@@ -196,13 +196,20 @@ test.describe('while typing on touch', () => {
   test('the keyboard never covers the line being typed', async ({ page }) => {
     await boardOpen(page);
     await noteOpen(page);
-    for (const [i, line] of ['Scout the pier', 'Rain cover', 'Second unit at six', 'Wrap by ten'].entries()) {
-      if (i) await page.keyboard.press('Enter');
-      await page.keyboard.type(line);
-    }
-    await page.waitForTimeout(300);
     const vp = page.viewportSize();
     const kbHeight = Math.round(vp.height * 0.55);
+    // A phone zooms in to a new note with its top near the top of the board,
+    // so the note is typed until its last line reaches where a keyboard sits.
+    const lines = ['Scout the pier', 'Rain cover', 'Second unit at six', 'Wrap by ten', 'Lenses back by noon',
+      'Catering at one', 'Grip truck on pier three', 'Drone permit', 'Night exteriors', 'Hot bricks',
+      'Call the harbour master', 'Tide at four', 'Fog machine', 'Second camera'];
+    for (const [i, line] of lines.entries()) {
+      if (i) await page.keyboard.press('Enter');
+      await page.keyboard.type(line);
+      await page.waitForTimeout(150);
+      if (i >= 3 && (await lastLine(page)).bottom > kbHeight - 60) break;
+    }
+    await page.waitForTimeout(300);
     const before = await lastLine(page);
     // The keyboard (a shorter visual viewport) would cover the line.
     expect(before.bottom, 'the line starts where a keyboard would cover it').toBeGreaterThan(kbHeight - 60);

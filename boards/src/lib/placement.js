@@ -140,3 +140,37 @@ export function besideContent(placed, gap = 40) {
   if (!Number.isFinite(right)) return { x: 80, y: 80 };
   return { x: Math.round(right + gap), y: Math.round(top) };
 }
+
+// A finger's add (the phone's + sheet, the rail's Add menu on a tablet) points
+// at no spot: the card goes in the free space nearest the middle of the view,
+// not on top of what is there. The canvas marks such a pos with `clear`, the
+// solid set to stay off (withGeometry of the board's cards); a click's or a
+// tap's own point carries none and comes back as it is.
+//
+// The mutators centre a card on the pos they get, at a size only they know (a
+// workspace's defaults, a template's proportions), and never left of or above
+// NEW_CARD_MIN. So each calls this with its size and gets back the pos that
+// centres the card on the free spot. `top`: the mutator pins the card's TOP
+// edge to pos.y (a note).
+const NEW_CARD_MIN = 8;
+export function freeAddPos(pos, w, h, { top = false, gap = 24 } = {}) {
+  if (!pos || !Array.isArray(pos.clear)) return pos;
+  // Two walls keep the answer where the mutators' own clamp would leave it.
+  const far = 1e7;
+  const edge = NEW_CARD_MIN - gap;
+  const solid = [
+    ...pos.clear,
+    { x: -far, y: -far, w: far + edge, h: 2 * far },
+    { x: -far, y: -far, w: 2 * far, h: far + edge },
+  ];
+  const want = {
+    x: Math.max(NEW_CARD_MIN, Math.round(pos.x - w / 2)),
+    y: Math.max(NEW_CARD_MIN, Math.round(top ? pos.y : pos.y - h / 2)),
+  };
+  let spot = nearestFreeSpot(solid, want, w, h, gap);
+  if (!spot) {
+    const b = besideContent(pos.clear);
+    spot = { x: Math.max(NEW_CARD_MIN, b.x), y: Math.max(NEW_CARD_MIN, b.y) };
+  }
+  return { x: spot.x + w / 2, y: top ? spot.y : spot.y + h / 2 };
+}

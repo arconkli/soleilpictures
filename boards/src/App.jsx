@@ -145,7 +145,7 @@ import { NewClusterButton } from './components/NewClusterButton.jsx';
 import ClusterSlate, { slateWords } from './components/ClusterSlate.jsx';
 import { FilesDockLayout, FilesPane } from './components/FilesDock.jsx';
 import { canDock, filesModeOf, planFilesEvent, readDockPrefs, writeDockPrefs, dockHintSeen, markDockHintSeen, viewWrite } from './lib/filesDock.js';
-import { placedOf, positionUnplaced, isUnplaced, planPutOnBoard, layoutForPut, PUT_ON_BOARD_MAX, canStore } from './lib/placement.js';
+import { placedOf, positionUnplaced, isUnplaced, planPutOnBoard, layoutForPut, PUT_ON_BOARD_MAX, canStore, freeAddPos } from './lib/placement.js';
 import { putRefusal, putFailToast } from './lib/putRefusal.js';
 import { getViewCenter } from './lib/viewCenter.js';
 import { filesCountOf, isViewSwitchKey, nextView, overlayOpen } from './lib/viewSwitch.js';
@@ -3386,6 +3386,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const addShape = (clickPos = null, opts = {}) => {
       const d = defaultsRef.current?.shape || {};
       const w = opts.w || d.w || 160, h = opts.h || d.h || 100;
+      clickPos = freeAddPos(clickPos, w, h);   // a finger's add: free space (lib/placement.js)
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
       const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
       addCard({
@@ -3402,6 +3403,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const addPalette = (clickPos = null) => {
       const d = defaultsRef.current?.palette || {};
       const w = d.w || 300, h = d.h || 180;
+      clickPos = freeAddPos(clickPos, w, h);   // a finger's add: free space (lib/placement.js)
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
       const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
       const id = `pal-${Date.now()}`;
@@ -3431,6 +3433,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const SCHED_SIZES = { month: [920, 580], week: [640, 260], day: [460, 560] };
     const addSchedule = (clickPos = null, view = 'month') => {
       const [w, h] = SCHED_SIZES[view] || SCHED_SIZES.month;
+      clickPos = freeAddPos(clickPos, w, h);   // a finger's add: free space (lib/placement.js)
       const x = clickPos ? Math.round(clickPos.x - w / 2) : 60;
       const y = clickPos ? Math.round(clickPos.y - h / 2) : 60;
       addCard({
@@ -3444,6 +3447,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const addDocCard = (clickPos = null) => {
       const d = defaultsRef.current?.doc || {};
       const w = d.w || 320, h = d.h || 240;
+      clickPos = freeAddPos(clickPos, w, h);   // a finger's add: free space (lib/placement.js)
       const x = clickPos ? Math.round(clickPos.x - w/2) : 60;
       const y = clickPos ? Math.round(clickPos.y - h/2) : 60;
       const id = `doc-${Date.now()}`;
@@ -3560,6 +3564,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // workspace-wide default in Settings → Defaults → Notes.
       const d = defaultsRef.current?.note || {};
       const w = d.w || 200, h = d.h || 200;
+      clickPos = freeAddPos(clickPos, w, h, { top: true });   // a finger's add: free space (lib/placement.js)
       // Horizontally centered on the click, but anchor the TOP edge to the
       // click (not the vertical center): a note auto-sizes its height down to
       // fit content right after creation, so centering on h would leave it
@@ -4063,6 +4068,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         });
         madeId = b.id;
         const w = d.w || 280, h = d.h || 220;
+        clickPos = freeAddPos(clickPos, w, h);   // a finger's add: free space (lib/placement.js)
         const x = clickPos ? Math.round(clickPos.x - w/2) : 60 + Math.floor(Math.random() * 600);
         const y = clickPos ? Math.round(clickPos.y - h/2) : 60 + Math.floor(Math.random() * 200);
         // opts.untracked: a cluster made FROM cards is undone by the move's
@@ -4231,6 +4237,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const addGrid = (clickPos = null, opts = {}) => {
       const preset = opts.preset || 'storyboard-1-2';
       const w = opts.w || 360, h = opts.h || 300;
+      clickPos = freeAddPos(clickPos, w, h);   // a finger's add: free space (lib/placement.js)
       const x = clickPos ? Math.round(clickPos.x - w / 2) : 60;
       const y = clickPos ? Math.round(clickPos.y - h / 2) : 60;
       const id = `grid-${Date.now()}`;

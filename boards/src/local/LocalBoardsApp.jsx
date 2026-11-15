@@ -56,7 +56,7 @@ import { isTopLevelProject, spotBesideContent } from '../lib/projectsHome.js';
 import { ancestorPath } from '../lib/boardTree.js';
 import { arrowsBetween } from '../lib/filesDrag.js';
 import { layoutDrop } from '../lib/layoutEngine.js';
-import { placedOf, positionUnplaced } from '../lib/placement.js';
+import { placedOf, positionUnplaced, freeAddPos } from '../lib/placement.js';
 import { classifyDropFile, fileMetaFor } from '../lib/fileIngest.js';
 import { useFeedback } from '../components/AppFeedback.jsx';
 import { failMove } from '../lib/moveFailure.js';
@@ -825,6 +825,7 @@ export function LocalBoardsApp({ user, signOut }) {
     }));
     const w = 280;
     const h = 220;
+    clickPos = freeAddPos(clickPos, w, h);   // a finger's add: free space (lib/placement.js)
     addCard({
       id,
       kind: 'board',
@@ -918,6 +919,7 @@ export function LocalBoardsApp({ user, signOut }) {
     const id = createId('note');
     const w = 240;
     const h = 160;
+    clickPos = freeAddPos(clickPos, w, h, { top: true });   // a finger's add: free space (lib/placement.js)
     addCard({
       id,
       kind: 'note',
@@ -952,6 +954,7 @@ export function LocalBoardsApp({ user, signOut }) {
     const id = createId('pal');
     const w = 300;
     const h = 180;
+    clickPos = freeAddPos(clickPos, w, h);   // a finger's add: free space (lib/placement.js)
     addCard({
       id,
       kind: 'palette',
@@ -977,6 +980,7 @@ export function LocalBoardsApp({ user, signOut }) {
   const addSchedule = (clickPos = null, view = 'month') => {
     const id = createId('sched');
     const [w, h] = SCHED_SIZES[view] || SCHED_SIZES.month;
+    clickPos = freeAddPos(clickPos, w, h);   // a finger's add: free space (lib/placement.js)
     addCard({
       id, kind: 'schedule',
       schedView: SCHED_SIZES[view] ? view : 'month',
@@ -997,6 +1001,7 @@ export function LocalBoardsApp({ user, signOut }) {
     const id = createId('doc');
     const w = 320;
     const h = 240;
+    clickPos = freeAddPos(clickPos, w, h);   // a finger's add: free space (lib/placement.js)
     addCard({
       id,
       kind: 'doc',
@@ -1022,6 +1027,7 @@ export function LocalBoardsApp({ user, signOut }) {
   const addShape = (clickPos = null, opts = {}) => {
     const w = opts.w || 160;
     const h = opts.h || 100;
+    clickPos = freeAddPos(clickPos, w, h);   // a finger's add: free space (lib/placement.js)
     addCard({
       id: createId('shape'),
       kind: 'shape',
@@ -1129,6 +1135,7 @@ export function LocalBoardsApp({ user, signOut }) {
   const addGrid = (clickPos = null, opts = {}) => {
     const preset = opts.preset || 'storyboard-1-2';
     const w = opts.w || 360, h = opts.h || 300;
+    clickPos = freeAddPos(clickPos, w, h);   // a finger's add: free space (lib/placement.js)
     const x = clickPos ? Math.round(clickPos.x - w / 2) : 60;
     const y = clickPos ? Math.round(clickPos.y - h / 2) : 60;
     const mkCellId = () => 'gc_' + Math.random().toString(36).slice(2, 9);

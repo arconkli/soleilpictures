@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   isUnplaced, placedOf, countUnplaced, canUnplace, positionUnplaced, planPutOnBoard, besideContent, nearestFreeSpot,
-  layoutForPut, PUT_ON_BOARD_MAX,
+  layoutForPut, PUT_ON_BOARD_MAX, freeAddPos,
 } from './placement.js';
 
 const card = (id, extra = {}) => ({ id, kind: 'image', x: 0, y: 0, w: 100, h: 100, ...extra });
@@ -128,4 +128,47 @@ test('layout, starter docs and "beside the content" all ignore files that are no
   assert.deepEqual(spotBesideContent([on, off]), { x: 140, y: 0 });
   assert.equal(starterDocSpot([off]), null);
   assert.ok(starterDocSpot([on, off]).x < 1000);
+});
+
+// What a mutator does with the pos it gets: centre the card on it (a note
+// pins its top edge), never left of or above 8.
+const landsAt = (pos, w, h, top = false) => ({
+  x: Math.max(8, Math.round(pos.x - w / 2)),
+  y: Math.max(8, Math.round(top ? pos.y : pos.y - h / 2)),
+  w, h,
+});
+const overlaps = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+test('a pos without `clear` (a click, a tap) comes back as it is', () => {
+  const pos = { x: 300, y: 200 };
+  assert.equal(freeAddPos(pos, 200, 200), pos);
+  assert.equal(freeAddPos(null, 200, 200), null);
+});
+
+test("a finger's add centres on the anchor when nothing is there", () => {
+  const at = freeAddPos({ x: 500, y: 400, clear: [] }, 200, 100);
+  assert.deepEqual(landsAt(at, 200, 100), { x: 400, y: 350, w: 200, h: 100 });
+  const note = freeAddPos({ x: 500, y: 400, clear: [] }, 200, 200, { top: true });
+  assert.deepEqual(landsAt(note, 200, 200, true), { x: 400, y: 400, w: 200, h: 200 });
+});
+
+test("a finger's add lands off every card, as near the anchor as it can", () => {
+  const solid = [card('a', { x: 380, y: 300, w: 300, h: 300 }), card('b', { x: 700, y: 300, w: 300, h: 300 })];
+  for (const top of [false, true]) {
+    const at = freeAddPos({ x: 520, y: 420, clear: solid }, 200, 160, { top });
+    const r = landsAt(at, 200, 160, top);
+    for (const c of solid) assert.equal(overlaps(r, c), false, `clear of ${c.id}`);
+    assert.ok(Math.hypot(r.x + 100 - 520, r.y + 80 - 420) < 500, 'near the anchor');
+  }
+});
+
+test("a finger's add never needs the mutators' clamp, which would push it back onto a card", () => {
+  // The nearest gap is left of x = 8: taken, the clamp would slide the card under `a`.
+  const solid = [card('a', { x: 40, y: 8, w: 400, h: 400 })];
+  const at = freeAddPos({ x: 120, y: 200, clear: solid }, 200, 160);
+  const r = landsAt(at, 200, 160);
+  assert.ok(r.x >= 8 && r.y >= 8);
+  assert.equal(overlaps(r, solid[0]), false);
+  assert.equal(at.x - 100, r.x, 'the clamp moved nothing');
+  assert.equal(at.y - 80, r.y);
 });

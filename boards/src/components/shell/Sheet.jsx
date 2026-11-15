@@ -70,6 +70,11 @@ export function Sheet({ open, onClose, title, children, snap = 'full', className
       cancelAnimationFrame(raf);
       unregister();
       unBack();
+      // A field that took the focus as the sheet closed keeps it (the keyboard
+      // held for a note the Add sheet just made, lib/touchKeyboard.js): moving
+      // the focus to the trigger would drop the phone's keyboard.
+      const now = document.activeElement;
+      if (now && now !== document.body && isTextEntry(now)) return;
       if (trigger && typeof trigger.focus === 'function' && document.contains(trigger)) {
         try { trigger.focus({ preventScroll: true }); } catch (_) { /* noop */ }
       }
