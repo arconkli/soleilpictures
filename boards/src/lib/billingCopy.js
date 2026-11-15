@@ -523,12 +523,14 @@ export const PRICING_PAGE = {
   // crawlable body and public/pricing.md) from this one object, so the three say
   // the same words. Pages here are plain paths; none is a price claim.
   teamSecurity: { lead: 'Wondering how a team\u2019s work is kept safe?', label: 'Read how Clusters handles security', href: '/docs/security' },
+  // /vs/milanote joins this list on 2026-11-20, not before: its title test
+  // (pre-registered above its spec in seoLanding.js) is graded through 11-19,
+  // and a new link from this page could move its position inside that window.
   moreLinks: {
     lead: 'See what the free plan makes, or how Clusters compares:',
     links: [
       { label: 'Free mood board maker', href: '/tools/free-mood-board-maker' },
       { label: 'Mood board maker', href: '/tools/mood-board-maker' },
-      { label: 'Clusters vs Milanote', href: '/vs/milanote' },
       { label: 'Mood board apps, ranked', href: '/best/mood-board-apps' },
     ],
   },

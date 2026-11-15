@@ -17,7 +17,7 @@
       "updated": "2026-11-14"
     },
     "/pricing": {
-      "hash": "74d31471af0d396075b4",
+      "hash": "ea7171cebd21b7f4661b",
       "updated": "2026-11-14"
     },
     "/scout": {
@@ -192,6 +192,13 @@
         "/tools/ai-mood-board-maker"
       ],
       "reason": "date style on /tools/ai-mood-board-maker, same day as its 2026-11-14 date"
+    },
+    {
+      "date": "2026-11-15",
+      "paths": [
+        "/pricing"
+      ],
+      "reason": "2026-11-14: /pricing holds back its new link to /vs/milanote until that page's title test is graded (through 11-19); the link returns 11-20. Same day, so the date stays."
     }
   ]
 }
