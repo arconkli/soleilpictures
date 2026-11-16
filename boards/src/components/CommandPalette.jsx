@@ -20,6 +20,7 @@ import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { registerModalOpen } from '../lib/modalGuard.js';
 import { useBackLayer } from '../hooks/useBackLayer.js';
+import { useKeyboardInset } from '../hooks/useKeyboardInset.js';
 import { LoadFailed } from './LoadFailed.jsx';
 import { useRetry } from '../hooks/useRetry.js';
 import { isComposingKey } from '../lib/composerKeys.js';
@@ -612,6 +613,9 @@ export function CommandPalette({
   }, [open]);
   // Under a finger, the phone's Back closes it.
   useBackLayer(open, onClose);
+  // An upright tablet's window ends above the keyboard (styles.css reads
+  // --kb-inset there; a phone's sheet and a computer's dialog don't).
+  const kbInset = useKeyboardInset(open && mobileShell);
 
   if (!open) return null;
 
@@ -626,7 +630,7 @@ export function CommandPalette({
   const showEmpty = !!q && !hasResults && !loading && !searchFailed;
 
   return createPortal(
-    <div className="cmdk-bg" onClick={onClose}>
+    <div className="cmdk-bg" onClick={onClose} style={kbInset ? { '--kb-inset': `${kbInset}px` } : undefined}>
       <div
         className={`cmdk surface-frosted ${mobileShell ? 'is-mobile' : ''}`}
         onClick={(e) => e.stopPropagation()}

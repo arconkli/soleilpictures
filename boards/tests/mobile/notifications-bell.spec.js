@@ -2,7 +2,8 @@ import { expect, test } from '@playwright/test';
 
 // The notifications bell on a phone (placement C): in the top bar right
 // before Share, and the list as a full-screen sheet with a ×. Runs on the
-// sidebar QA harness's Files page, which keeps App's phone top bar.
+// sidebar QA harness's Files page, which keeps App's phone top bar. On an
+// upright tablet the list is a centred window (tablet-windows.spec.js).
 
 async function open(page) {
   await page.goto('/?sidebarqa=1&surface=files&drawer=0');
@@ -10,7 +11,7 @@ async function open(page) {
 }
 const rect = (loc) => loc.evaluate((el) => el.getBoundingClientRect().toJSON());
 
-test('the bell sits before Share and opens a full-screen sheet that × closes', async ({ page }) => {
+test('the bell sits before Share and opens the list, a full-screen sheet on a phone, that × closes', async ({ page }, testInfo) => {
   await open(page);
   const bell = page.locator('.topbar .tb-right .nb-bell');
   await expect(bell).toBeVisible();
@@ -29,12 +30,18 @@ test('the bell sits before Share and opens a full-screen sheet that × closes', 
   await bell.tap();
   const sheet = page.locator('.ntf-shell.is-sheet');
   await expect(sheet).toBeVisible();
-  const s = await rect(sheet);
+  const s = await rect(sheet.locator('.ntf-panel'));
   const vh = page.viewportSize().height;
-  expect(s.left).toBe(0);
-  expect(s.top).toBe(0);
-  expect(Math.round(s.width)).toBe(vw);
-  expect(Math.round(s.height)).toBe(vh);
+  if (testInfo.project.name === 'tablet') {
+    // The window, not the sheet: narrower than the screen and centred.
+    expect(s.width).toBeLessThanOrEqual(640);
+    expect(Math.abs(s.left - (vw - s.right))).toBeLessThanOrEqual(2);
+  } else {
+    expect(s.left).toBe(0);
+    expect(s.top).toBe(0);
+    expect(Math.round(s.width)).toBe(vw);
+    expect(Math.round(s.height)).toBe(vh);
+  }
   // Head: 56px, Mark all read and a 44px ×.
   expect(Math.round((await rect(sheet.locator('.ntf-head'))).height)).toBe(56);
   await expect(sheet.locator('.ntf-markall')).toBeVisible();

@@ -19,6 +19,7 @@ import { Icon } from './Icon.jsx';
 // Settings, which keeps its own shell and so cannot wrap in this component.
 import { registerModalOpen, isTopModal, focusablesIn as focusables, trapTabKey } from '../lib/modalGuard.js';
 import { useBackLayer } from '../hooks/useBackLayer.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { t as tr } from '@lingui/core/macro';
 
@@ -123,7 +124,10 @@ export function Modal({
   if (!open) return null;
 
   const onBackdropDown = (e) => {
-    if (closeOnBackdrop && e.target === e.currentTarget) onClose?.();
+    if (!closeOnBackdrop || e.target !== e.currentTarget) return;
+    // Under a finger the tap's click would land on what the scrim covered.
+    if (e.pointerType === 'touch') swallowNextClick();
+    onClose?.();
   };
 
   return createPortal(

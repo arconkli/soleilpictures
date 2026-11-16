@@ -23,6 +23,7 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
 import { registerModalOpen, registerBackLayer, isTopModal, focusablesIn, trapTabKey } from '../lib/modalGuard.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
 import { X, ChevronLeft, ChevronRight } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
 import { useFeedback } from './AppFeedback.jsx';
@@ -293,7 +294,17 @@ export function SettingsPanel({
     : null;
 
   return createPortal(
-    <div className="settings-bg" onMouseDown={onClose}>
+    // pointerdown, as Modal.jsx: iOS sends a bare <div> no mouse events, and
+    // on an upright tablet the scrim around the window is the way out.
+    <div
+      className="settings-bg"
+      onPointerDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        // Under a finger the tap's click would land on what the scrim covered.
+        if (e.pointerType === 'touch') swallowNextClick();
+        onClose?.();
+      }}
+    >
       <div className="settings-modal" ref={modalRef}
            role="dialog" aria-modal="true" aria-label={tr`Settings`} tabIndex={-1}
            onMouseDown={(e) => e.stopPropagation()}>

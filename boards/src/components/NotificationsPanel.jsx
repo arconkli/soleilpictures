@@ -19,6 +19,8 @@ import { X, Check } from '../lib/icons.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { escapeClosesPanel } from '../lib/panelEscape.js';
+import { registerModalOpen } from '../lib/modalGuard.js';
+import { swallowNextClick } from '../lib/swallowClick.js';
 import { fileSharesAllowed, sharedFilesAllowed } from '../lib/appHost.js';
 import { openSharedFile } from '../lib/sharedFileBus.js';
 import { notificationTarget, placeUnderIsland, wantsNotificationSheet } from '../lib/notificationsBell.js';
@@ -130,8 +132,14 @@ export function NotificationsPanel({
     // A press outside the panel and the bell closes it (the bell toggles it
     // itself, so a press there must not close it first and reopen it).
     const onDown = (e) => {
-      if (shellRef.current?.contains(e.target)) return;
+      // The shell itself shows only as the scrim around an upright tablet's
+      // window (styles.css); everywhere else the panel covers it.
+      if (shellRef.current?.contains(e.target) && e.target !== shellRef.current) return;
       if (anchorRef?.current?.contains(e.target)) return;
+      // A finger on the scrim: its click would land on what the scrim covered
+      // (the bell would reopen the window). A press outside the desktop
+      // popover is meant to go through.
+      if (e.target === shellRef.current && e.pointerType === 'touch') swallowNextClick();
       onCloseRef.current?.();
     };
     document.addEventListener('pointerdown', onDown, true);
@@ -165,6 +173,21 @@ export function NotificationsPanel({
     if (island && typeof ResizeObserver === 'function') { ro = new ResizeObserver(measure); ro.observe(island); }
     return () => { window.removeEventListener('resize', measure); ro?.disconnect(); };
   }, [mobileShell, anchorRef]);
+
+  // The sheet (a phone) and the window (an upright tablet) cover the app, so
+  // they are a layer in lib/modalGuard: the canvas's keys stand down behind
+  // them, and Escape closes them wherever the focus is. With the focus in the
+  // panel its own handler above decides (a field holding words keeps it open).
+  useEffect(() => {
+    if (!sheet) return undefined;
+    return registerModalOpen({
+      onEscape: (e) => {
+        if (e?.target?.closest?.('.ntf-panel')) return false;
+        onCloseRef.current?.();
+        return true;
+      },
+    });
+  }, [sheet]);
 
   const open = (n) => {
     // `kind` says which producer a click came from: a notification nobody

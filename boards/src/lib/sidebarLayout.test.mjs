@@ -5,6 +5,7 @@ import {
   defaultLayout, sanitizeLayout, layoutFromOldWidth, readSidebarLayout, writeSidebarLayout,
   sidebarFootprint, arrangementOf, frameVars, toggledLayout, handleSpecs, dragLayout, resetLayout, resetAllSizes, keyLayout,
   SIDE_FITS_QUERY, KEPT_FITS_QUERY, shownArrangement, withFilesHidden, handleList, shownLayout, keepStoredFold,
+  TOUCH_FILES_QUERY, filesFolded,
 } from './sidebarLayout.js';
 
 const memory = (init = {}) => {
@@ -412,4 +413,57 @@ test('the full Files page folds the files card in what shows, never in what is k
   assert.equal(kept.filesHidden, false);
   assert.equal(kept.stack.tw, sanitizeLayout(dragged).stack.tw);
   assert.equal(keepStoredFold(sanitizeLayout({ filesHidden: true }), dragged).filesHidden, true);
+});
+
+test('a touch screen narrower than an iPad mini held sideways starts with the files folded, until shown', () => {
+  const tight = { coarse: true, roomy: true, snug: true, tight: true };
+  const wide = { coarse: true, roomy: true, snug: true, tight: false };
+  const mouse = { coarse: false, roomy: true, snug: true };
+  assert.equal(TOUCH_FILES_QUERY, '(min-width: 1133px)');
+  const d = defaultLayout();
+  assert.equal(shownArrangement(d, tight), 'hidden');
+  assert.equal(filesFolded(d, tight), true);
+  // Folded, the clusters' card keeps its side-by-side width.
+  assert.equal(sidebarFootprint(d, tight), EDGE + LAYOUT_DEFAULT.touchSide.tw);
+  assert.equal(frameVars(d, tight)['--sbf-tw'], `${LAYOUT_DEFAULT.touchSide.tw}px`);
+  // The arrangement under the fold is the touch screen's own.
+  assert.equal(arrangementOf(d, tight), 'side');
+  // Show: the files beside the clusters, and it stays that way.
+  const shown = withFilesHidden(d, false, tight);
+  assert.equal(shown.tightShown, true);
+  assert.equal(shown.filesHidden, false);
+  assert.equal(shownArrangement(shown, tight), 'side');
+  assert.equal(shownArrangement(sanitizeLayout(shown), tight), 'side');
+  const s = memory();
+  writeSidebarLayout(shown, s);
+  assert.equal(shownArrangement(readSidebarLayout(s), tight), 'side');
+  assert.equal(sanitizeLayout({ tightShown: 'yes' }).tightShown, false, 'only true shows them');
+  // Hide folds them again.
+  const hidden = withFilesHidden(shown, true, tight);
+  assert.deepEqual([hidden.tightShown, hidden.filesHidden], [false, false]);
+  assert.equal(shownArrangement(hidden, tight), 'hidden');
+  // What a tight screen chose changes nothing wider, or under a mouse.
+  for (const l of [d, shown, hidden]) {
+    assert.equal(shownArrangement(l, wide), 'side');
+    assert.equal(shownArrangement(l, mouse), 'stack');
+    assert.equal(sidebarFootprint(l, wide), sidebarFootprint(d, wide));
+    assert.deepEqual(frameVars(l, mouse), frameVars(d, mouse));
+  }
+  // And Hide there is not a tight screen's.
+  const wideHidden = withFilesHidden(shown, true, wide);
+  assert.equal(shownArrangement(wideHidden, wide), 'hidden');
+  assert.equal(shownArrangement(wideHidden, tight), 'side');
+  // The flag without a touch screen does nothing.
+  assert.equal(shownArrangement(d, { ...mouse, tight: true }), 'stack');
+  assert.deepEqual(withFilesHidden(d, true, { ...mouse, tight: true }), withFilesHidden(d, true));
+});
+
+test('the full Files page folds a tight screen’s shown files too, and keeps the choice', () => {
+  const tight = { coarse: true, roomy: true, snug: true, tight: true };
+  const stored = withFilesHidden(defaultLayout(), false, tight);
+  const shown = shownLayout(stored, { pageOpen: true });
+  assert.equal(shownArrangement(shown, tight), 'hidden');
+  assert.equal(shownArrangement(shown, { coarse: false }), 'hidden');
+  const kept = keepStoredFold(stored, shown);
+  assert.deepEqual([kept.tightShown, kept.filesHidden], [true, false]);
 });
