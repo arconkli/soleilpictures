@@ -10,7 +10,7 @@
 //     --project=tablet-landscape --project=tablet-landscape-chrome
 // A real iPhone must still confirm the keyboard comes up: no emulator raises one.
 import { test, expect } from '@playwright/test';
-import { bootSignedIn } from '../helpers/signedInStub.js';
+import { bootSignedIn, USER_ID } from '../helpers/signedInStub.js';
 import { emptyCanvasPoint, tap } from './helpers.js';
 
 const rpc = { get_my_tier: [{ tier: 'demo', demo_card_count: 0, onboarding: { seeded: true, done: true } }] };
@@ -21,6 +21,12 @@ const NOTE = '.cards-layer .card.card-kind-note';
 async function openBoard(page) {
   // A power reveal can hold the screen; mark this tab's as spent.
   await page.addInitScript(() => { try { sessionStorage.setItem('soleil.revealSession', '1'); } catch {} });
+  // This account has had its first card (App.jsx's once-per-account stamp): the
+  // "your first card" toast lies along a phone's top, where a new note now sits
+  // zoomed in under the top bar, and a tap on the note's first line hit it.
+  await page.addInitScript((uid) => {
+    try { localStorage.setItem(`soleil_first_card_logged_${uid}`, '1'); } catch {}
+  }, USER_ID);
   await bootSignedIn(page, { rpc });
   await page.waitForSelector('.canvas-wrap', { timeout: 30_000 });
   await page.waitForTimeout(3500); // a board's first 3s are the doc arriving
@@ -198,11 +204,14 @@ test.describe('while typing on touch', () => {
     await noteOpen(page);
     const vp = page.viewportSize();
     const kbHeight = Math.round(vp.height * 0.55);
-    // A phone zooms in to a new note with its top near the top of the board,
-    // so the note is typed until its last line reaches where a keyboard sits.
+    // A phone or an upright iPad zooms in to a new note with its top near the
+    // top of the board, so the note is typed until its last line reaches where
+    // a keyboard sits (on a tall iPad that takes about twenty lines).
     const lines = ['Scout the pier', 'Rain cover', 'Second unit at six', 'Wrap by ten', 'Lenses back by noon',
       'Catering at one', 'Grip truck on pier three', 'Drone permit', 'Night exteriors', 'Hot bricks',
-      'Call the harbour master', 'Tide at four', 'Fog machine', 'Second camera'];
+      'Call the harbour master', 'Tide at four', 'Fog machine', 'Second camera', 'Slate check',
+      'Batteries charged', 'Walkies on channel two', 'Lunch for forty', 'Gels and flags', 'Dolly track',
+      'Rain towers', 'Wet-down at dusk', 'Extras holding at five', 'Wrap call'];
     for (const [i, line] of lines.entries()) {
       if (i) await page.keyboard.press('Enter');
       await page.keyboard.type(line);
