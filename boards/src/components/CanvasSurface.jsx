@@ -143,7 +143,7 @@ import { parseFilesPayload, planSameClusterDrop, planCrossDrop, summarizeDrop, a
 import { decideDrop, copyKeyHeld, whatOf } from '../lib/dropRules.js';
 import { dragSession } from '../lib/springLoad.js';
 import { openClusterForMove, returnToCluster, repointComments } from '../lib/moveFromCluster.js';
-import { unlinkGridForCopy, gridLinkOf, relinkGrid, readGridModel } from '../lib/gridState.js';
+import { unlinkGridForCopy, gridLinkOf, relinkGrid, readGridModel, setGridCell } from '../lib/gridState.js';
 import { yMapToCard } from '../lib/yhelpers.js';
 import { wouldCreateCycle } from '../lib/boardTree.js';
 import { coerceRef } from '../lib/entityRef.js';
@@ -268,6 +268,7 @@ import { makeCastAwareness } from '../lib/castAwareness.js';
 import { classifyDropFile, sizeBucket, fitImageDims, FALLBACK_DIMS, meaningfulFileName, fileMetaFor, FREE_FILE_CAP_LABEL } from '../lib/fileIngest.js';
 import { saveWebImageCopy } from '../lib/webImageClient.js';
 import { pickHotlinks, isHotlinkImage, noteTried, loadTried, saveTried, stopsThePass, HOTLINK_PER_OPEN } from '../lib/hotlinkBackfill.js';
+import { pickLinkPictures, pictureTag, isWebAddress, isKept, keptFields, loadLinkTried, saveLinkTried, LINK_PER_OPEN } from '../lib/linkPictureKeep.js';
 import { captureDropEntries, captureDropHandles, hasDirectory } from '../lib/folderWalk.js';
 import { importDroppedScripts, reportSkippedFiles } from '../lib/dropOutcomes.js';
 import { layoutDrop, rearrange, alignCards, distributeCards } from '../lib/layoutEngine.js';
@@ -5155,6 +5156,75 @@ export function CanvasSurface({
     }, 8000);
     return () => clearTimeout(t);
   }, [board?.id, hotlinkSig, canEdit, isPublic, useLocalImages, boardSynced]);
+
+  // Our own copy of each link card's picture (lib/linkPictureKeep.js), kept the
+  // first time a writer's browser sees it: the same gate as the hotlink pass
+  // above (writers, a settled board, the server's snapshot in, one request at
+  // a time, the same stops), a few more per open. Link cards made this session
+  // are caught the same way: their picture arrives from /api/og a moment after
+  // the card does. Silent: a card that cannot be kept keeps drawing the site's
+  // own picture.
+  const linkPassRef = useRef({ boardId: null, n: 0, busy: false, attempted: new Set() });
+  // Keyed on what the pass looks at — the link cards still to keep, and which
+  // cards are grids (their cells are nested Y.Maps the card object does not
+  // carry, so they are read when the pass runs, not on every cards change).
+  const linkSig = useMemo(() => cards
+    .filter((c) => c.kind === 'grid' || (c.kind === 'link' && isWebAddress(c.image) && !isKept(c)))
+    .map((c) => (c.kind === 'grid' ? c.id : pictureTag(c.id, null, c.image))).join('\n'), [cards]);
+  useEffect(() => {
+    if (!canEdit || isPublic || useLocalImages || !board?.id || !boardSynced) return undefined;
+    if (linkPassRef.current.boardId !== board.id) linkPassRef.current = { boardId: board.id, n: 0, busy: false, attempted: new Set() };
+    const pass = linkPassRef.current;
+    const store = (() => { try { return window.localStorage; } catch (_) { return null; } })();
+    const cellsOf = (c) => readGridModel(c, ydocRef.current, null).cells;
+    const next = () => pickLinkPictures(cardsRef.current, {
+      cellsOf, attempted: pass.attempted, tried: loadLinkTried(store), limit: 1,
+    })[0] || null;
+    if (pass.n >= LINK_PER_OPEN || !next()) return undefined;
+    const passBoardId = board.id;
+    const t = setTimeout(async () => {
+      // One pass at a time: it asks for the next card each round, so what
+      // arrived while it ran is picked up by it.
+      if (pass.busy) return;
+      pass.busy = true;
+      try {
+        for (;;) {
+          if (pass.n >= LINK_PER_OPEN || boardIdRef.current !== passBoardId) return;
+          const c = next();
+          if (!c) return;
+          pass.attempted.add(c.tag);
+          pass.n += 1;
+          const res = await saveWebImageCopy({
+            url: c.image, boardId: passBoardId, purpose: 'link',
+            getToken: async () => (await supabase?.auth.getSession())?.data?.session?.access_token || null,
+          });
+          if (!res?.ok) {
+            const code = res?.code || 'unknown';
+            if (stopsThePass(code)) return;
+            saveLinkTried(store, noteTried(loadLinkTried(store), c.image, code));
+            continue;
+          }
+          if (boardIdRef.current !== passBoardId) return;
+          // Judged as the card or cell is NOW: one re-pointed meanwhile is left alone.
+          const card = (cardsRef.current || []).find((x) => x.id === c.cardId);
+          const live = c.cellId ? (card ? cellsOf(card)[c.cellId] : null) : card;
+          if (!live || live.image !== c.image || (c.cellId && live.type !== 'link')) continue;
+          // Keeping a copy isn't an edit: no "modified by" stamp, and off the
+          // undo stack (updateCardMeta). A cell has no such mutator —
+          // setGridCellContent is the person's own undoable write — so it goes
+          // through gridState's setGridCell with the same off-stack origin.
+          if (c.cellId) {
+            const cardYMap = ydocRef.current?.getMap?.('cards')?.get?.(c.cardId);
+            if (cardYMap) setGridCell(ydocRef.current, cardYMap, c.cellId, keptFields(res.src, c.image), 'upload');
+          } else {
+            const m = sweepMutatorsRef.current;
+            (m?.updateCardMeta || m?.updateCardSilent)?.(c.cardId, keptFields(res.src, c.image));
+          }
+        }
+      } finally { pass.busy = false; }
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [board?.id, linkSig, canEdit, isPublic, useLocalImages, boardSynced]);
 
   // Drop a PDF: add a pending card immediately, then upload + render the
   // page-1 thumbnail in the background (same optimistic pattern as images).
@@ -12782,7 +12852,10 @@ export function CanvasSurface({
                                                 tapToType={selectedTool === 'select' && !touchSelecting && selected.size === 1 && selected.has(c.id)}
                                                 onEditingChange={(editing) => setEditingNoteId(editing ? c.id : (prev => (prev === c.id ? null : prev)))} />;
     else if (c.kind === 'link')      inner = <LinkCard title={c.title} source={c.source} link={c.link} url={c.url} target={c.target}
-                                                       image={c.image} description={c.description} favicon={c.favicon}
+                                                       image={c.image} imageKey={c.imageKey} imageKeyOf={c.imageKeyOf}
+                                                       w={Math.round(c.w)} h={Math.round(c.h)}
+                                                       cardId={c.id} boardId={board.id} backfillEnabled={canEdit}
+                                                       description={c.description} favicon={c.favicon}
                                                        embed={c.embed}
                                                        isSelected={isSelected}
                                                        onUpdate={onUpdate} autoFocus={af}

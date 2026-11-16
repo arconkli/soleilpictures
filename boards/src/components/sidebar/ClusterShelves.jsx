@@ -23,6 +23,7 @@ import { contentRows, layoutRows, visibleRange, INDENT } from '../../lib/sidebar
 import { uiLocale } from '../../lib/uiLocale.js';
 import { getMeta, subscribeMeta, primeImageMeta } from '../../lib/imageMeta.js';
 import { viewKindOfKey, isCardViewKind, docFamily, extOfKey } from '../../lib/fileView.js';
+import { pickVariantKey } from '../../lib/imageVariantPick.js';
 import { t, ph, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
@@ -101,7 +102,11 @@ function useViewThumb(item) {
     return unsub;
   }, [key]);
   const m = key ? getMeta(key) : null;
-  const view = m?.previewSmKey || m?.previewKey;
+  // A 24-28px thumb: pickVariantKey gives the quick picture when there is one,
+  // else the small view; the original is never a view (nothing made yet).
+  const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+  const picked = m ? pickVariantKey(key, m, 28 * dpr) : null;
+  const view = picked && picked !== key ? picked : null;
   if (!view) return null;
   const pos = viewKindOfKey(key) === 'design' ? 'center' : docFamily(extOfKey(key)) === 'sheet' ? 'left top' : 'center top';
   return { src: `r2:${view}`, pos };

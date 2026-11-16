@@ -95,6 +95,7 @@ import { fetchLinkPreview, previewPatch } from '../lib/linkPreview.js';
 import { PdfCard } from './cards/PdfCard.jsx';
 import { FileCard } from './cards/FileCard.jsx';
 import { GridCard } from './cards/GridCard.jsx';
+import { LinkPicture } from './cards/gridCellShared.jsx';
 import { safeExternalHref } from '../lib/safeExternalHref.js';
 import { openableUrl } from '../lib/openableUrl.js';
 import { ensureFontsFromHtml, ensureFontForCss } from '../lib/googleFonts.js';
@@ -1571,7 +1572,8 @@ function NoteCard({ body, html, bgColor, textColor, fontFamily, fontSize, fontSi
   );
 }
 
-function LinkCard({ title, source: sourceProp, link = null, url = null, target, image, description, favicon, embed: storedEmbed, isSelected = false, onUpdate, autoFocus = false, editTitleAt = 0 }) {
+function LinkCard({ title, source: sourceProp, link = null, url = null, target, image, imageKey = null, imageKeyOf = null, description, favicon, embed: storedEmbed, isSelected = false, onUpdate, autoFocus = false, editTitleAt = 0,
+                    w, h, cardId = null, boardId = null, backfillEnabled = false }) {
   // The app writes the address to `source` (and `link`); cards made through
   // /api/v1 or a manifest import carry it only as `url`. Reading just `source`
   // left those cards with no address, no open button and no way to fix it
@@ -1770,12 +1772,19 @@ function LinkCard({ title, source: sourceProp, link = null, url = null, target, 
       {hasPreview && (
         <div className="lc-preview" onPointerDown={(e) => e.stopPropagation()} onClick={openLink} title={openHref || ''}>
           {image && (
-            // No native loading="lazy" on canvas imagery — the browser's
-            // lazy-loader doesn't re-evaluate when the canvas's ancestor
-            // transform (zoom/pan) moves a card on-screen, leaving the image
-            // unfetched until an unrelated style invalidation (see R2Image).
-            <img className="lc-preview-img" src={image} alt=""
-                 onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            // Our own copy of the site's picture when there is one
+            // (lib/linkPictureKeep.js); the site's own picture otherwise.
+            <LinkPicture image={image} imageKey={imageKey} imageKeyOf={imageKeyOf}
+                         w={w} h={h} cardId={cardId} boardId={boardId} backfillEnabled={backfillEnabled}
+                         className="lc-preview-img"
+                         fallback={(
+                           // No native loading="lazy" on canvas imagery — the browser's
+                           // lazy-loader doesn't re-evaluate when the canvas's ancestor
+                           // transform (zoom/pan) moves a card on-screen, leaving the image
+                           // unfetched until an unrelated style invalidation (see R2Image).
+                           <img className="lc-preview-img" src={image} alt=""
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                         )} />
           )}
           {onUpdate && (
             <button type="button" className="lc-preview-x" title={tr`Remove preview`}

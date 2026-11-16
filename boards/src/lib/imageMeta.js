@@ -15,11 +15,17 @@
 // On board open, useYBoard primes this with the snapshot's image keys in one
 // RLS-protected query. R2Image (progressive mode) reads it synchronously via
 // getMeta() and subscribes for the value arriving after a cold open.
+//
+// A repeat open doesn't wait for that query: yboard keeps each board's picture
+// info (PIC_FIELDS, exportImageMeta) in its IndexedDB snapshot record and seeds
+// it back here (seedImageMeta) before the cached snapshot is applied, so the
+// first paint already knows each picture's blur and previews. A seeded entry is
+// marked `seeded`; the network prime replaces it with the fresh row.
 
 import { supabase } from './supabase.js';
 import * as perf from './perf.js';
 
-const cache = new Map();        // storage_path → { blur, previewKey, previewW, previewH, previewSmKey, previewSmW, previewSmH, w, h, sizeBytes, uploadedBy, uploadedAt, originalName }
+const cache = new Map();        // storage_path → { blur, previewKey, previewW, previewH, previewSmKey, previewSmW, previewSmH, previewXsKey, previewXsW, previewXsH, w, h, sizeBytes, uploadedBy, uploadedAt, originalName, seeded? }
 const inflight = new Set();     // storage_path currently being fetched (dedupe)
 const subscribers = new Map();  // storage_path → Set<cb>
 
@@ -47,7 +53,7 @@ function notifyAll() {
 // under what name are fetched only when Info asks (primeFileFacts) — every
 // board open would otherwise carry them for every image, other workspaces'
 // included.
-const META_COLS = 'storage_path,blur_hash,preview_path,preview_w,preview_h,preview_sm_path,preview_sm_w,preview_sm_h,width,height,size_bytes';
+const META_COLS = 'storage_path,blur_hash,preview_path,preview_w,preview_h,preview_sm_path,preview_sm_w,preview_sm_h,preview_xs_path,preview_xs_w,preview_xs_h,width,height,size_bytes';
 
 function rowToMeta(row) {
   return {
@@ -60,6 +66,10 @@ function rowToMeta(row) {
     previewSmKey: row.preview_sm_path || null,
     previewSmW:   row.preview_sm_w ?? null,
     previewSmH:   row.preview_sm_h ?? null,
+    // Quick tier (~256px): the smallest rung, for first paint on big boards.
+    previewXsKey: row.preview_xs_path || null,
+    previewXsW:   row.preview_xs_w ?? null,
+    previewXsH:   row.preview_xs_h ?? null,
     w:            row.width ?? null,
     h:            row.height ?? null,
     sizeBytes:    row.size_bytes ?? null,
@@ -76,6 +86,77 @@ function fillMissing(prev, row) {
   const next = { ...prev };
   for (const [k, v] of Object.entries(row)) if (next[k] == null && v != null) next[k] = v;
   return next;
+}
+
+// The fields kept per picture in a board's IndexedDB snapshot record and seeded
+// back on the next open (exportImageMeta / seedImageMeta): what first paint
+// needs to pick a preview and draw the blur, nothing the Info drawer reads.
+export const PIC_FIELDS = ['blur', 'previewKey', 'previewW', 'previewH', 'previewSmKey', 'previewSmW', 'previewSmH', 'previewXsKey', 'previewXsW', 'previewXsH', 'w', 'h'];
+const PIC_NUMBER_FIELDS = new Set(['previewW', 'previewH', 'previewSmW', 'previewSmH', 'previewXsW', 'previewXsH', 'w', 'h']);
+const blankMeta = () => Object.fromEntries(PIC_FIELDS.map((f) => [f, null]));
+
+// What a row does to the entry already cached for its key. A seeded entry is
+// only the last visit's copy, so the row (network truth) replaces it and drops
+// `seeded`; any other entry keeps its local values and only gains what it lacks.
+export function mergeMetaRow(prev, rowMeta) {
+  if (!prev) return rowMeta;
+  return prev.seeded ? rowMeta : fillMissing(prev, rowMeta);
+}
+
+export function picFieldsDiffer(a, b) {
+  return PIC_FIELDS.some((f) => (a ? a[f] : null) !== (b ? b[f] : null));
+}
+
+// The picture info of these keys' network-sourced entries, for the snapshot
+// record: only PIC_FIELDS, nulls left out, plus `checked: true` when the server
+// had confirmed the row's variants, at most `max` entries. A seeded entry
+// is never written back (it is already stored; only the network refreshes it),
+// and an entry with no preview and no blur — the null placeholder for a key
+// with no row — has nothing worth keeping.
+export function exportImageMeta(keys, max = 1500) {
+  const out = {};
+  if (!Array.isArray(keys)) return out;
+  const done = new Set();
+  for (const key of keys) {
+    if (done.size >= max) break;
+    if (!key || typeof key !== 'string' || done.has(key)) continue;
+    const m = cache.get(key);
+    if (!m || m.seeded || !(m.previewKey || m.previewXsKey || m.blur)) continue;
+    const pic = {};
+    for (const f of PIC_FIELDS) if (m[f] != null) pic[f] = m[f];
+    if (m.checked === true) pic.checked = true;
+    out[key] = pic;
+    done.add(key);
+  }
+  return out;
+}
+
+// Seed the cache from a snapshot record's picture info (yboard, before the
+// cached snapshot is applied) so the first paint knows each picture's blur and
+// previews without waiting for the network prime. Never overwrites an entry —
+// anything already cached is at least as fresh — and ignores malformed input.
+// A seeded entry carries `checked` only when the record held `checked: true`
+// (exportImageMeta writes it for a confirmed row), so a blur-only picture (a
+// GIF) reads as settled (imageVariantPick.variantsSettled) and is not
+// downloaded and decoded for a backfill on every repeat open before the network
+// row lands. Anything but boolean true is ignored; the row replaces the entry.
+export function seedImageMeta(pics) {
+  if (_resolver) return;  // public viewer: metadata comes from the bundle
+  if (!pics || typeof pics !== 'object' || Array.isArray(pics)) return;
+  for (const [key, m] of Object.entries(pics)) {
+    if (!key || !m || typeof m !== 'object' || cache.has(key)) continue;
+    const entry = blankMeta();
+    for (const f of PIC_FIELDS) {
+      const v = m[f];
+      const ok = PIC_NUMBER_FIELDS.has(f) ? (typeof v === 'number' && Number.isFinite(v)) : (typeof v === 'string' && v !== '');
+      if (ok) entry[f] = v;
+    }
+    if (!(entry.previewKey || entry.previewXsKey || entry.blur)) continue;
+    if (m.checked === true) entry.checked = true;
+    entry.seeded = true;
+    cache.set(key, entry);
+    notify(key);
+  }
 }
 
 // variants_checked_at arrived in migration 0402; until it is applied,
@@ -136,15 +217,17 @@ export async function primeImageMeta(keys) {
         // Never clobber an entry that landed mid-flight — these keys had no
         // cache entry when this prime started (the dedupe above), so anything
         // present now came from setMetaLocal (a just-finished backfill/upload)
-        // or the board-id prime, both fresher than this query's snapshot.
-        if (!cache.has(row.storage_path)) cache.set(row.storage_path, rowToMeta(row));
+        // or the board-id prime, both fresher than this query's snapshot. A
+        // seeded entry (last visit's copy) is the one exception: the row wins.
+        const prev = cache.get(row.storage_path);
+        if (!prev || prev.seeded) cache.set(row.storage_path, mergeMetaRow(prev, rowToMeta(row)));
         seen.add(row.storage_path);
       }
       // Keys with no row (RLS-hidden or not yet inserted) get a null-meta
       // entry so we don't re-query them every render; a later setMetaLocal
       // (e.g. after the upload's variant generation) overwrites it.
       for (const k of chunk) {
-        if (!seen.has(k) && !cache.has(k)) cache.set(k, { blur: null, previewKey: null, previewW: null, previewH: null, previewSmKey: null, previewSmW: null, previewSmH: null, w: null, h: null, checked: false });
+        if (!seen.has(k) && !cache.has(k)) cache.set(k, { ...blankMeta(), checked: false });
         inflight.delete(k);
         notify(k);
       }
@@ -166,13 +249,28 @@ export async function primeImageMeta(keys) {
 // boards (referenced_in_board_ids). Already-cached keys are never clobbered
 // (an in-session setMetaLocal from a backfill/upload wins). Fire-and-forget;
 // once per board per session — the key-based primeImageMeta stays the safety
-// net for keys this query can't see.
+// net for keys this query can't see. Resolves to the storage_paths the rows
+// carried ([] on an error, a public viewer or a bad id); the promise is kept
+// per board (whenBoardMetaPrimed) so yboard can store what arrived.
 const primedBoards = new Set();
-export async function primeImageMetaForBoard(boardId) {
-  if (_resolver) return;  // public viewer: metadata comes from the bundle
-  if (!boardId || !/^[0-9a-f-]{36}$/i.test(String(boardId))) return;
-  if (primedBoards.has(boardId)) return;
+const primedPromises = new Map();   // boardId → Promise<string[]>
+export function primeImageMetaForBoard(boardId) {
+  if (_resolver) return Promise.resolve([]);  // public viewer: metadata comes from the bundle
+  if (!boardId || !/^[0-9a-f-]{36}$/i.test(String(boardId))) return Promise.resolve([]);
+  if (primedBoards.has(boardId)) return primedPromises.get(boardId) || Promise.resolve([]);
   primedBoards.add(boardId);
+  const p = primeBoardRows(boardId);
+  primedPromises.set(boardId, p);
+  return p;
+}
+
+// The promise of this board's prime, or null when none was started this
+// session (or the last one failed).
+export function whenBoardMetaPrimed(boardId) {
+  return primedPromises.get(boardId) || null;
+}
+
+async function primeBoardRows(boardId) {
   const _t0 = perf.isEnabled() ? performance.now() : 0;
   try {
     // Two queries, not one .or(). PostgREST turns
@@ -187,14 +285,27 @@ export async function primeImageMetaForBoard(boardId) {
     // Deduping is free: the loop below skips any key already in the cache, so
     // a row matching both halves is written once. Deliberately NOT filtered on
     // deleted_at — a soft-deleted image still renders during its undo window.
+    //
+    // Both halves skip the derived preview rows (up to three per picture, under
+    // <ws>/previews/<uuid>.webp); link pictures live in <ws>/previews/link/ and stay.
+    const NOT_DERIVED = 'storage_path.not.like.*/previews/*,storage_path.like.*/previews/link/*';
     const [own, ref] = await Promise.all([
-      selectMeta((cols) => supabase.from('images').select(cols).eq('board_id', boardId)),
-      selectMeta((cols) => supabase.from('images').select(cols).contains('referenced_in_board_ids', [boardId])),
+      selectMeta((cols) => supabase.from('images').select(cols).eq('board_id', boardId).or(NOT_DERIVED)),
+      selectMeta((cols) => supabase.from('images').select(cols).contains('referenced_in_board_ids', [boardId]).or(NOT_DERIVED)),
     ]);
-    if (own.error && ref.error) { primedBoards.delete(boardId); return; }
+    if (own.error && ref.error) { primedBoards.delete(boardId); primedPromises.delete(boardId); return []; }
+    const received = new Set();
     for (const row of [...(own.data || []), ...(ref.data || [])]) {
+      received.add(row.storage_path);
       const prev = cache.get(row.storage_path);
-      const next = prev ? fillMissing(prev, rowToMeta(row)) : rowToMeta(row);
+      const next = mergeMetaRow(prev, rowToMeta(row));
+      if (prev && prev.seeded) {
+        // Last visit's copy replaced by the row; only a changed picture
+        // field is news to a card (the rest it never drew from).
+        cache.set(row.storage_path, next);
+        if (picFieldsDiffer(prev, next)) notify(row.storage_path);
+        continue;
+      }
       if (prev && Object.keys(next).every((k) => next[k] === prev[k])) continue;
       cache.set(row.storage_path, next);
       notify(row.storage_path);
@@ -203,8 +314,13 @@ export async function primeImageMetaForBoard(boardId) {
       perf.mark('imageMeta.primeBoard.ms', performance.now() - _t0);
       perf.gauge('imageMeta.cacheSize', cache.size);
     }
+    // One half failing still fills the cache with the other's rows, but only a
+    // whole answer is worth storing as the board's picture info.
+    return own.error || ref.error ? [] : [...received];
   } catch (_) {
     primedBoards.delete(boardId);
+    primedPromises.delete(boardId);
+    return [];
   }
 }
 
@@ -228,7 +344,7 @@ export async function primeFileFacts(keys) {
         ...rowToMeta(row),
         uploadedBy: row.uploaded_by || null, uploadedAt: row.created_at || null, originalName: row.original_name || null,
       };
-      cache.set(row.storage_path, fillMissing(cache.get(row.storage_path) || {}, facts));
+      cache.set(row.storage_path, mergeMetaRow(cache.get(row.storage_path) || {}, facts));
       notify(row.storage_path);
     }
   } catch (_) {

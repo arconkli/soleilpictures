@@ -11,14 +11,18 @@
 //      Tier 0  an instant blurred placeholder from the image's thumbhash
 //              (zero image bytes), so a zoomed-out board "shows everything"
 //              immediately.
-//      Tier 1  a downscaled WebP preview (preview_path) for canvas display.
+//      Tier 1  downscaled WebP previews for canvas display, a ladder of rungs:
+//              xs (~256px, the quick one that paints at once), sm (640px) and
+//              lg (1280px, preview_path). A card mounts on the rung its
+//              on-screen size needs (often via xs first) and the image-tier
+//              scheduler climbs or steps it down from there.
 //      Tier 2  the original — swapped in on idle ("upgrade to full"), and used
 //              when no preview exists yet. Writers also lazily BACKFILL the
 //              preview + thumbhash from the decoded original the first time an
 //              un-backfilled image is seen.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { cachedUrl, resolveSrc, getSignedUrl, notifyImageAuthError, signFailure, CACHE_TTL_MS } from '../lib/r2.js';
+import { cachedUrl, resolveSrc, getSignedUrl, notifyImageAuthError, signFailure, isWarm, markLoaded, CACHE_TTL_MS } from '../lib/r2.js';
 import { CardCouldntLoad } from './cards/CardCouldntLoad.jsx';
 import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
 import { isAnimatedImageKey } from '../lib/fileIngest.js';
@@ -29,7 +33,7 @@ import * as perf from '../lib/perf.js';
 import { bumpPerf, getGestureActiveUntil } from '../lib/perfReport.js';
 import { getImageTierScale } from '../lib/canvasScale.js';
 import { getImageTierScheduler } from '../lib/imageTierScheduler.js';
-import { lowMemoryDevice } from '../lib/device.js';
+import { lowMemoryDevice, constrainedConnection } from '../lib/device.js';
 import './r2Image.css';
 import { bootMark } from '../lib/bootMarks.js';
 import { t as tr } from '@lingui/core/macro';
@@ -104,84 +108,178 @@ function markBust(key, version) {
 // dozens of those alive at once is how canvas raster tiles get dropped).
 // Below it, a warm original is comparable to the 1280px preview (~1.6MP).
 const MAX_WARM_ORIGINAL_PX = 2_500_000;
+// A big original (above MAX_WARM_ORIGINAL_PX) reaches the canvas only when it
+// is drawn well past the lg preview, is no bigger than this, and fewer than
+// MAX_CANVAS_ORIGINALS cards hold one at once: one sharp photo under a deep
+// zoom, never a wall of 48MB decodes.
+const MAX_CANVAS_ORIGINAL_PX = 24_000_000;
+const MAX_CANVAS_ORIGINALS = 4;
+// cardIds currently showing a big original (see the release paths in the card).
+const _canvasOriginals = new Set();
+
+// Hysteresis: a card climbs to a rung once it is drawn at 85% of the rung
+// below's width, and steps down to a rung once it is drawn under 70% of that
+// rung's width. The band between keeps a card at a boundary from flapping.
+const PROMOTE_AT = 0.85;
+const DEMOTE_BELOW = 0.7;
+const RUNGS = ['xs', 'sm', 'lg', 'original'];
+const rungIndex = (r) => RUNGS.indexOf(r);
 
 // The image metadata this card tiers on. A GIF's preview is its first frame, so
 // a GIF card never tiers: it is read as having no preview, which keeps it on
 // the (animated) original through mount, promotion and demotion alike. Rows
 // uploaded before the upload path stopped making GIF previews still carry one;
 // this is what un-freezes them. The blur placeholder is kept.
+// A small original gets a quick (xs) rung but no lg: it is its own top
+// preview. It is read with previewKey = the original (previewIsOriginal), so
+// every preview path treats the original as the lg rung and none of them
+// backfills, upgrades past it or demotes into it.
+const _readMetaMemo = new WeakMap();
 function readMeta(key) {
   const m = key ? getMeta(key) : null;
-  if (!m || !m.previewKey || !isAnimatedImageKey(key)) return m;
-  return { ...m, previewKey: null, previewW: null, previewH: null, previewSmKey: null, previewSmW: null, previewSmH: null };
+  if (!m) return m;
+  const memo = _readMetaMemo.get(m);
+  if (memo && memo.key === key) return memo.out;
+  let out = m;
+  if (isAnimatedImageKey(key)) {
+    if (m.previewKey || m.previewSmKey || m.previewXsKey) {
+      out = { ...m, previewKey: null, previewW: null, previewH: null, previewSmKey: null, previewSmW: null, previewSmH: null,
+              previewXsKey: null, previewXsW: null, previewXsH: null };
+    }
+  } else if (!m.previewKey && m.previewXsKey && !drawsNowhere(key)) {
+    out = { ...m, previewKey: key, previewW: m.w ?? null, previewH: m.h ?? null, previewIsOriginal: true };
+  }
+  // Same object for the same row, so setMeta(readMeta(…)) re-renders only
+  // when the row itself changed.
+  _readMetaMemo.set(m, { key, out });
+  return out;
 }
 
-// Pick which tier to mount/show before anything has loaded. Prefer the
-// preview ONLY when it's at least as warm as the original:
-//   preview signed URL cached → preview (smaller decode, the fast path)
-//   both cold                 → preview (smaller cold download)
-//   original warm, preview cold → original IF it's small (≤2.5MP, unknown
-//     dims count as too big): a URL signed this session/recently means the
-//     bytes are near-certainly in the browser disk cache, so a culling
-//     remount right after a mid-session backfill must not downgrade to a
-//     cold preview key and re-blur. Large originals take the cold preview
-//     anyway — one blur-up, bounded GPU memory; the preview is warm from
-//     then on (its URL is pre-warmed by generateAndUploadVariants).
-// Public viewer: cachedUrl resolves via the share bundle, so every bundled
-// key counts as warm and the preview keeps winning there.
-function pickTierSrc(src, originalKey) {
-  const m = readMeta(originalKey);
-  if (!m || !m.previewKey) return src;
-  const pv = `r2:${m.previewKey}`;
-  if (cachedUrl(pv) || !cachedUrl(src) || drawsNowhere(originalKey)) return pv;
-  if (!(m.w && m.h && m.w * m.h <= MAX_WARM_ORIGINAL_PX)) return pv;
-  // Memory-constrained clients (iOS Safari's per-tab budget, ≤4GB) never warm a
-  // full-res original on the canvas — a handful of decodes OOM-crashes the tab.
-  // The 1280px lg preview is already retina on a phone; detail lives in the
-  // lightbox (basic mode, unaffected).
-  if (lowMemoryDevice()) return pv;
-  return src;
+// The picture's width-to-height, from the original's size, else the lg
+// preview's; 0 when unknown.
+function aspectOf(m) {
+  if (m && m.w > 0 && m.h > 0) return m.w / m.h;
+  if (m && m.previewW > 0 && m.previewH > 0) return m.previewW / m.previewH;
+  return 0;
+}
+// How wide the picture is drawn in a w×h box: object-fit cover fills the box
+// (the overflowing side is cropped), contain fits inside it. Unknown aspect →
+// the box's width.
+function drawnWidth(w, h, fit, aspect) {
+  if (!(w > 0)) return 0;
+  if (!(aspect > 0) || !(h > 0)) return w;
+  return fit === 'contain' ? Math.min(w, h * aspect) : Math.max(w, h * aspect);
 }
 
-// Pick the floor tier a card's ON-SCREEN size justifies at mount/src-change.
-// Generalizes pickTierSrc to also reach the 640px sm variant: a card whose
-// device-pixel width at the current settled canvas scale fits inside sm gets
-// sm, not the 1280px lg preview (~4× the texture bytes). This is the SOLE
-// first-paint tier decision now that the canvas imgs no longer carry a srcset
-// — the browser's w-descriptor picker never downgraded an already-chosen
-// candidate, and on a fit-all open the scale hint was 1.0 on first render, so
-// every tiny card decoded lg. The sm/lg/original ladder still climbs from here
-// via the promotion effect when a card is zoomed in.
-//
-// `displayedPx` needs the card's board-coordinate width × the settled canvas
-// scale × DPR (the canvas zooms via an ancestor transform, so layout width is
-// zoom-invariant). When width/scale are unknown it degrades to exactly
-// pickTierSrc (lg-or-original) — never worse than before.
-//
-// The warm-original guard is identical to pickTierSrc's: a viewport-culling
-// remount right after a mid-session backfill must not downgrade a disk-cached
-// original to a cold variant key and re-blur. Public viewer: bundle meta has
-// no w/h, so the guard's `m.w && m.h` is false and the floor variant (sm/lg)
-// wins — exactly what we want on /share.
-function pickInitialTier(src, originalKey, w) {
-  const m = readMeta(originalKey);
-  if (!m || !m.previewKey) return src;
+// The r2 key of each rung that exists, with its width (null when unknown).
+function rungKey(m, rung) {
+  if (!m) return null;
+  if (rung === 'xs') return m.previewXsKey || null;
+  if (rung === 'sm') return m.previewSmKey || null;
+  if (rung === 'lg') return m.previewKey || null;
+  return null;
+}
+function rungWidth(m, rung) {
+  if (!m) return null;
+  if (rung === 'xs') return m.previewXsW || null;
+  if (rung === 'sm') return m.previewSmW || null;
+  if (rung === 'lg') return m.previewW || null;
+  return null;
+}
+
+// The rung the screen needs: the smallest of xs / sm / lg whose width is
+// known and covers needPx with headroom; else lg. needPx 0 (unknown size) →
+// lg, never worse than before the smaller rungs existed. The original is
+// reached only by promotion (and the warm-small-original guard).
+function needRung(m, needPx) {
+  if (needPx > 0) {
+    for (const r of ['xs', 'sm']) {
+      const wd = rungWidth(m, r);
+      if (rungKey(m, r) && wd && needPx < PROMOTE_AT * wd) return r;
+    }
+  }
+  return 'lg';
+}
+// The next rung up that exists (lg has none: the original is not a rung the
+// mount picks on its own).
+function rungAbove(m, rung) {
+  for (let i = rungIndex(rung) + 1; i < 3; i++) if (rungKey(m, RUNGS[i])) return RUNGS[i];
+  return null;
+}
+
+// Which rung `activeSrc` is. With previewIsOriginal the original IS lg, so it
+// reads as the top rung and never as 'original'.
+function rungOf(m, activeSrc, src) {
+  if (!m || typeof activeSrc !== 'string') return null;
+  if (m.previewXsKey && activeSrc === `r2:${m.previewXsKey}`) return 'xs';
+  if (m.previewSmKey && activeSrc === `r2:${m.previewSmKey}`) return 'sm';
+  if (m.previewKey && activeSrc === `r2:${m.previewKey}`) return 'lg';
+  if (activeSrc === src) return 'original';
+  return null;
+}
+
+// What a non-r2 src (a blob during upload, a legacy https URL, data:) costs
+// is not ours to know; it renders at once as it always has.
+function warmNow(s) {
+  if (typeof s !== 'string' || !s) return false;
+  return s.startsWith('r2:') ? isWarm(s) : true;
+}
+
+// Device pixels the card needs: its drawn width × any zoom of its own (a grid
+// cell's crop zoom) × the settled canvas scale × DPR. 0 when unknown.
+function needPxFor(m, { w, h, fit = 'cover', tierScale = 1 } = {}) {
+  const drawn = drawnWidth(typeof w === 'number' ? w : 0, typeof h === 'number' ? h : 0, fit, aspectOf(m));
+  if (!drawn) return 0;
   const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
-  const displayedPx = (typeof w === 'number' && w > 0)
-    ? Math.round(w) * getImageTierScale() * dpr : 0;
-  const smSrc = m.previewSmKey ? `r2:${m.previewSmKey}` : null;
-  const wantSm = !!smSrc && !!m.previewSmW && displayedPx > 0 && displayedPx <= m.previewSmW;
-  const floor = wantSm ? smSrc : `r2:${m.previewKey}`;
-  if (cachedUrl(floor) || !cachedUrl(src) || drawsNowhere(originalKey)) return floor;
-  // Low-mem: keep the floor variant — never mount a card straight on the warm
-  // original (see pickTierSrc / originalWorthUpgrade). Prevents a viewport-cull
-  // remount from decoding a disk-cached original the promote path just refused.
-  if (!lowMemoryDevice() && m.w && m.h && m.w * m.h <= MAX_WARM_ORIGINAL_PX) return src;
-  return floor;
+  const k = typeof tierScale === 'number' && tierScale > 0 ? tierScale : 1;
+  return drawn * k * getImageTierScale() * dpr;
 }
 
-// The Tier-2 upgrade only pays when the original genuinely has more pixels
-// than the preview AND decodes within the GPU-tile budget:
+// Pick the rung a card mounts on, before anything has loaded. In order:
+//   1. the rung the screen needs, when its URL is warm (its bytes loaded under
+//      this URL, so the disk cache has them — isWarm, not merely signed: the
+//      share viewer signs every key up front);
+//   2. the rung directly above that, when warm (one rung only — sharper for
+//      free, but not a 1280px decode for a thumbnail);
+//   3. a warm original IF it's small (≤2.5MP, unknown dims count as too big)
+//      and the device isn't memory-constrained: a culling remount right after
+//      a mid-session backfill must not downgrade a disk-cached original to a
+//      cold variant key and re-blur;
+//   4. the quick xs rung, for a card the scheduler will climb (canDetour):
+//      ~10 KB that paints at once, then sharpens to what the screen needs
+//      once the wave of first paints goes quiet. Not on Save-Data / 2G, where
+//      the detour is a second download the person pays for;
+//   5. the rung the screen needs.
+// Before CanvasSurface's layout effect runs, getImageTierScale() can be
+// stale; that is why a card that isn't warm renders nothing until its
+// IntersectionObserver reports (after that effect), and the pre-load switch
+// effect re-picks then. An original no browser draws is never chosen.
+function pickInitialTier(src, originalKey, opts = {}) {
+  const m = readMeta(originalKey);
+  if (!m || !m.previewKey) return src;
+  const need = needRung(m, needPxFor(m, opts));
+  const needSrc = `r2:${rungKey(m, need)}`;
+  if (isWarm(needSrc)) return needSrc;
+  const above = rungAbove(m, need);
+  if (above && isWarm(`r2:${rungKey(m, above)}`)) return `r2:${rungKey(m, above)}`;
+  if (!drawsNowhere(originalKey) && !m.previewIsOriginal && isWarm(src)
+      && m.w && m.h && m.w * m.h <= MAX_WARM_ORIGINAL_PX && !lowMemoryDevice()) return src;
+  if (opts.canDetour && rungIndex(need) > rungIndex('xs')) {
+    // A rung below the need whose bytes are already here paints at once for
+    // nothing and is sharper than the quick one; the scheduler climbs it the
+    // same way. Largest first.
+    for (let i = rungIndex(need) - 1; i >= 0; i--) {
+      const k = rungKey(m, RUNGS[i]);
+      if (k && isWarm(`r2:${k}`)) return `r2:${k}`;
+    }
+    if (m.previewXsKey && !constrainedConnection()) return `r2:${m.previewXsKey}`;
+  }
+  return needSrc;
+}
+
+// Whether the Tier-2 original URL is worth warming ahead of a promotion:
+// only when the original genuinely has more pixels than the preview AND
+// decodes within the GPU-tile budget:
 //   - native-resolution webp previews (the ≤1280px byte-heavy re-encode
 //     path) have previewW == original width — upgrading re-downloads a
 //     multi-hundred-KB original for ZERO extra pixels;
@@ -190,16 +288,39 @@ function pickInitialTier(src, originalKey, w) {
 // Unknown dims keep the legacy behavior (upgrade) — can't prove zero gain.
 function originalWorthUpgrade(m) {
   // Memory-constrained clients (iOS Safari's per-tab budget, ≤4GB): the Tier-2
-  // original never pays. The public /share bundle ships no original w/h, so the
-  // MAX_WARM_ORIGINAL_PX guard below is inert there — an unbounded 12–24MP photo
-  // is otherwise eligible, and a pinch-zoom-in rolling several through decode is
-  // exactly what OOM-crashes the WebKit renderer ("A problem repeatedly
-  // occurred"). Cap the canvas at the 1280px lg preview instead.
+  // original never pays — a pinch-zoom-in rolling several 12–24MP photos
+  // through decode is exactly what OOM-crashes the WebKit renderer ("A problem
+  // repeatedly occurred"). Cap the canvas at the 1280px lg preview instead.
   if (lowMemoryDevice()) return false;
   if (!m) return true;
+  if (m.previewIsOriginal) return false;      // the original is already the top rung
   if (m.w && m.previewW && m.w <= m.previewW) return false;
   if (m.w && m.h && m.w * m.h > MAX_WARM_ORIGINAL_PX) return false;
   return true;
+}
+
+// Whether a card drawn at displayedPx may climb from lg to its original.
+// A small original (≤2.5MP): from 85% of the lg width, as before. A big one
+// (or dims unknown): only past 120% of lg — real extra detail on screen —
+// within MAX_CANVAS_ORIGINAL_PX, on a device and connection that can afford
+// it, and while fewer than MAX_CANVAS_ORIGINALS cards hold one. `ignoreCap`
+// skips only that last test: a card that wants an original while the slots are
+// full must still read as unsettled (the commit in evaluate() checks the cap
+// itself), or the scheduler would record it as done at this scale and never
+// climb it once a slot frees.
+function originalAllowed(m, displayedPx, { ignoreCap = false } = {}) {
+  if (!m || m.previewIsOriginal || !m.previewW) return false;
+  if (lowMemoryDevice()) return false;
+  if (m.w && m.w <= m.previewW) return false;   // no extra pixels to gain
+  const known = !!(m.w && m.h);
+  if (known && m.w * m.h <= MAX_WARM_ORIGINAL_PX) return displayedPx >= PROMOTE_AT * m.previewW;
+  if (displayedPx <= 1.2 * m.previewW) return false;
+  if (known && m.w * m.h > MAX_CANVAS_ORIGINAL_PX) return false;
+  if (constrainedConnection()) return false;
+  return ignoreCap || _canvasOriginals.size < MAX_CANVAS_ORIGINALS;
+}
+function isBigOriginal(m) {
+  return !(m && m.w && m.h && m.w * m.h <= MAX_WARM_ORIGINAL_PX);
 }
 
 // Decode a base64 thumbhash to a data URL once (cheap, but cache anyway).
@@ -488,7 +609,12 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
          decoding="async"
          fetchpriority={eager ? 'high' : 'low'}
          {...rest}
-         onLoad={(e) => { resignedRef.current = false; rest.onLoad?.(e); }}
+         onLoad={(e) => {
+           resignedRef.current = false;
+           // These bytes are in the disk cache now: a canvas card may mount on them.
+           if (typeof shown === 'string' && shown.startsWith('r2:')) markLoaded(shown, url);
+           rest.onLoad?.(e);
+         }}
          onError={(e) => {
            if (typeof shown === 'string' && shown.startsWith('r2:') && !resignedRef.current) {
              // Force a fresh sign (evicts the cached string) — the URL we were
@@ -529,23 +655,43 @@ function R2ImageBasic({ src, alt = '', eager = false, onError, w, h,
 // padlock. A document's file card passes its glyph.
 function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
                               backfillEnabled = false, upgradeToFull = true, boardId = null,
-                              cardId = null, className, style, draggable, placeholder = null, ...rest }) {
+                              cardId = null, className, style, draggable, placeholder = null,
+                              // How the picture sits in its w×h box ('cover' | 'contain'),
+                              // any zoom of the card's own on top of the canvas's (a grid
+                              // cell's crop zoom), and styles for the picture layers
+                              // themselves (object-fit / object-position) — the wrapper
+                              // keeps `style`.
+                              fit = 'cover', tierScale = 1, imgStyle, ...rest }) {
   const originalKey = (typeof src === 'string' && src.startsWith('r2:')) ? src.slice(3) : null;
   // A format no browser draws (a raw, a .psd, OpenEXR): the original is never
   // fetched, shown or promoted to; the card shows its view, or waits for one.
   const undrawable = drawsNowhere(originalKey);
 
   const [meta, setMeta] = useState(() => readMeta(originalKey));
+  // What pickInitialTier needs, current every render. Only a card the
+  // scheduler will climb (canvas, not eager, upgrades on) may detour via xs.
+  const pickOpts = { w, h, fit, tierScale, canDetour: !eager && !!cardId && upgradeToFull };
   // The r2 sentinel currently being shown. Prefers the warmest tier at mount
   // (pickInitialTier); before load it only ever switches via the pre-load
   // switch effect below. AFTER load it moves both ways under the image-tier
   // SCHEDULER (lib/imageTierScheduler.js): the card registers a handle and the
-  // scheduler drives promotion (climb a tier when displayed near/past the
-  // variant's native size) and demotion (step down on idle) with a global
-  // budget, so a fit-all settle can't fire ~70 texture swaps at once. Demotes
-  // are probe-decoded before the swap, so a loaded image never re-blurs.
-  const [activeSrc, setActiveSrc] = useState(() => pickInitialTier(src, originalKey, w));
-  const initialUrl = cachedUrl(activeSrc);
+  // scheduler drives promotion (climb a rung when displayed near/past the
+  // rung's native size) and demotion (step down on idle) with a global
+  // budget, so a fit-all settle can't fire ~70 texture swaps at once. Swaps
+  // are probe-decoded first, so a loaded image never re-blurs.
+  const [activeSrc, setActiveSrc] = useState(() => pickInitialTier(src, originalKey, pickOpts));
+  // A card starts with a URL only when it is eager or its bytes are warm. A
+  // URL that is merely signed (every key on the share viewer, whose bundle
+  // map answers cachedUrl at once) would be fetched by every mounted card at
+  // once, at a rung picked from a canvas scale that isn't set yet. Without a
+  // URL the card waits for its IntersectionObserver (below), which reports
+  // after CanvasSurface's layout effect has set the scale, and the pre-load
+  // switch effect re-picks before the first byte is asked for.
+  const initialUrlRef = useRef(undefined);
+  if (initialUrlRef.current === undefined) {
+    initialUrlRef.current = (eager || warmNow(activeSrc)) ? cachedUrl(activeSrc) : null;
+  }
+  const initialUrl = initialUrlRef.current;
   const [url, setUrl] = useState(initialUrl);
   const [failed, setFailed] = useState(false);
   // Retry on the "Couldn't load" tile: a new run of the sign effect.
@@ -571,6 +717,10 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // and fell back to the original — stops the prefer-preview effect from
   // flipping back (ping-pong). Reset on src change.
   const fellBackRef = useRef(false);
+  // Set once a failing xs or sm rung fell back to the lg preview (before the
+  // original, which can be a 40MP decode): the pre-load switch must not flip the
+  // card back to the rung that just failed. Reset on src change.
+  const rungFellBackRef = useRef(false);
   // One failed→retry re-arm per mount (see the resolve effect) so a transient
   // sign-reads outage doesn't brick the card until reload.
   const rearmedRef = useRef(false);
@@ -591,6 +741,19 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // the scheduler never promotes it again: a card showing a good preview must
   // not turn into "Preview not available" just because someone zoomed in.
   const originalBrokenRef = useRef(undrawable);
+  // The id this card holds in _canvasOriginals while it shows a big original.
+  // Released when it leaves the original (a demote, a give-up), on src change
+  // and on unmount, so the cap counts only big originals actually on screen.
+  const originalSlotRef = useRef(null);
+  const releaseOriginalSlot = () => {
+    if (originalSlotRef.current != null) {
+      const freed = _canvasOriginals.delete(originalSlotRef.current);
+      originalSlotRef.current = null;
+      // A card that wanted an original while the slots were full is waiting
+      // on this one: have the scheduler collect it again.
+      if (freed) { try { getImageTierScheduler().nudge(); } catch (_) {} }
+    }
+  };
   // Fast-load fade skip: when fetch+decode completes quickly (bytes were in
   // the browser disk cache — the common case for a viewport-culling remount),
   // the 0.35s blur-fade would only delay an instant paint, so onImgLoad sets
@@ -633,6 +796,7 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     upgradedRef.current = false;
     hitMarkedRef.current = false;
     fellBackRef.current = false;
+    rungFellBackRef.current = false;
     rearmedRef.current = false;
     rearmsRef.current = 0;
     resignedForRef.current = null;
@@ -643,10 +807,21 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     setLoaded(false);
     setFailed(false);
     setUnavailable(false);
-    const next = pickInitialTier(src, originalKey, w);
+    releaseOriginalSlot();
+    const next = pickInitialTier(src, originalKey, pickOpts);
     urlSetAtRef.current = cachedUrl(next) ? performance.now() : 0;
     setActiveSrc(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
+
+  // A big original's slot goes when the card leaves the original, however it
+  // left (a demote, a give-up to a preview, a src change), and on unmount.
+  useEffect(() => {
+    if (activeSrc !== src) releaseOriginalSlot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSrc, src]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => () => releaseOriginalSlot(), []);
 
   // Viewport gate (same as basic; rootRef on the always-present wrapper).
   useEffect(() => {
@@ -671,14 +846,17 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   }, [visible, originalKey]);
 
   // Before anything has loaded, re-evaluate the tier when metadata lands
-  // (late prime, or a mid-session backfill's setMetaLocal). pickTierSrc keeps
-  // a warm original in place — a backfill completing must NOT flip a
-  // disk-cached original to a cold preview while the user is panning.
+  // (late prime, or a mid-session backfill's setMetaLocal), when the card
+  // turns visible (the canvas scale is set by then) and when its box changes.
+  // pickInitialTier keeps a warm original in place — a backfill completing
+  // must NOT flip a disk-cached original to a cold preview while the user is
+  // panning.
   useEffect(() => {
-    if (loaded || upgradedRef.current || fellBackRef.current) return;
-    const want = pickInitialTier(src, originalKey, w);
+    if (loaded || upgradedRef.current || fellBackRef.current || rungFellBackRef.current) return;
+    const want = pickInitialTier(src, originalKey, pickOpts);
     if (want !== activeSrc) setActiveSrc(want);
-  }, [meta, loaded, activeSrc, src, originalKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meta, loaded, activeSrc, src, originalKey, visible, w, h, fit, tierScale]);
 
   // An undrawable original with no view in its (read) meta waits for one.
   const blockOriginal = undrawable && activeSrc === src;
@@ -691,6 +869,15 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // Resolve the active src → signed URL; refresh before TTL expiry.
   useEffect(() => {
     if (!visible || blockOriginal) return;
+    // Before the first load, never ask for a rung the pre-load switch is about
+    // to replace: when the card has just turned visible, this effect and that
+    // one run in the same flush, and this one still holds the rung picked from
+    // the stale first-render scale. Switch here instead (the same pick), and
+    // this effect runs again for the rung that will actually be shown.
+    if (!loaded && !upgradedRef.current && !fellBackRef.current && !rungFellBackRef.current) {
+      const want = pickInitialTier(src, originalKey, pickOpts);
+      if (want !== activeSrc) { setActiveSrc(want); return; }
+    }
     let cancelled = false;
     let refreshTimer = null;
     let retryTimer = null;
@@ -708,6 +895,18 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
           attempt += 1;
           retryTimer = setTimeout(tick, SIGN_RETRY_BASE_MS * 2 ** (attempt - 1));
           return;
+        }
+        // A quick or sm rung that won't sign tries the lg preview before the
+        // original, which can be a 40MP decode on a phone with little memory.
+        const m = readMeta(originalKey);
+        if (originalKey && !rungFellBackRef.current && m && m.previewKey
+            && `r2:${m.previewKey}` !== activeSrc) {
+          const rung = rungOf(m, activeSrc, src);
+          if (rung === 'xs' || rung === 'sm') {
+            rungFellBackRef.current = true;
+            setActiveSrc(`r2:${m.previewKey}`);
+            return;
+          }
         }
         // The preview tier exhausted its retries, but the original may still
         // resolve (its URL is often already cached). Fall back ONCE per
@@ -790,21 +989,25 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   // GPU-promoted .canvas layer: at fit-all that was the multi-hundred-ms
   // compositor freeze ("everything DIES"). Instead the card registers a handle
   // and the global scheduler (lib/imageTierScheduler.js) measures + commits
-  // transitions with a budget (≤3 swaps/frame, promotes viewport-gated ~150ms
-  // after a settle, demotes only after ~1.5s of true idle).
+  // transitions with a budget (a few in flight at once, promotes
+  // viewport-gated and nearest the centre first after a settle or once a wave
+  // of first paints goes quiet, demotes only after ~1.5s of true idle).
   //
   // evaluate() reads the LATEST render state through stateRef (the handle
   // OBJECT is created once, so register/unregister doesn't churn), takes the
   // ONE getBoundingClientRect at execution time, and returns the single tier
-  // transition the card's current on-screen size justifies — or null. Promotes
-  // jump straight to the best tier (sm→original directly when displayed large
-  // enough) so a deep zoom-in is one swap, not two. Demotes probe-decode the
-  // target BEFORE swapping, so a loaded image never re-blurs. Hysteresis:
-  // promote at ≥85% of the target's native width, demote at <70% — a wide
-  // non-overlapping band, and target-relative so it needs no original w/h
-  // (the public share bundle's meta has none).
+  // transition the card's current on-screen size justifies — or null.
+  // Promotes go straight to the rung the screen needs (xs→lg in one swap),
+  // and probe-decode it first so the card swaps to bytes that are ready; the
+  // old texture stays up meanwhile. A climb to the original from below lg
+  // goes via lg (returned as 'step': the scheduler measures again and comes
+  // back for the original), so a big original never downloads under a blur.
+  // Demotes probe-decode their target too, so a loaded image never re-blurs.
+  // Hysteresis: promote to a rung at ≥85% of the width of the rung below,
+  // demote below 70% of the target's width — a non-overlapping band at every
+  // boundary (xs↔sm, sm↔lg, lg↔original), so no card can loop.
   const stateRef = useRef(null);
-  stateRef.current = { meta, activeSrc, src, originalKey, upgradeToFull, loaded, failed };
+  stateRef.current = { meta, activeSrc, src, originalKey, upgradeToFull, loaded, failed, fit, cardId };
 
   const handleRef = useRef(null);
   if (!handleRef.current) {
@@ -819,7 +1022,9 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
         let rect;
         try { rect = el.getBoundingClientRect(); } catch (_) { return null; }
         const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
-        const displayedPx = (rect.width || 0) * dpr;
+        // The rect already includes the canvas zoom and any transform on the
+        // card's own wrapper (a grid cell's crop zoom).
+        const displayedPx = drawnWidth(rect.width || 0, rect.height || 0, st.fit, aspectOf(m)) * dpr;
         if (!displayedPx) return null;
         const area = (rect.width || 0) * (rect.height || 0);
         const vw = (typeof window !== 'undefined' && window.innerWidth) || 0;
@@ -827,10 +1032,11 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
         const mx = vw * 0.25, my = vh * 0.25;
         const inViewport = rect.right > -mx && rect.left < vw + mx
                         && rect.bottom > -my && rect.top < vh + my;
+        const dist = Math.hypot(rect.left + rect.width / 2 - vw / 2, rect.top + rect.height / 2 - vh / 2);
 
-        const atSm = !!m.previewSmKey && st.activeSrc === `r2:${m.previewSmKey}`;
-        const atPreview = st.activeSrc === `r2:${m.previewKey}`;
-        const atOriginal = st.activeSrc === st.src;
+        const current = rungOf(m, st.activeSrc, st.src);
+        if (!current) return null;
+        const at = rungIndex(current);
 
         // A FLAP is this card reversing its last tier decision — promote after a
         // demote, or the other way round. Oscillation around a threshold is the
@@ -846,57 +1052,94 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
           }
           lastTierDirRef.current = dir;
         };
+        const gestureOn = () => {
+          try { return performance.now() < getGestureActiveUntil(); } catch (_) { return false; }
+        };
+        // Swap to `next`, and let a re-evaluation in the same drain see it
+        // before React re-renders.
+        const commit = (next) => {
+          stateRef.current = { ...stateRef.current, activeSrc: next };
+          setActiveSrc(next);
+        };
+        // Sign, fetch and decode a rung off screen, then swap to it: the card
+        // keeps its current texture until the new one is ready. True only if
+        // the swap committed; any abort leaves the card re-evaluatable.
+        const probeSwap = async (key, dir) => {
+          // The card owns the no-mid-gesture invariant (the scheduler gates
+          // too — belt + suspenders, since the presign+decode takes time).
+          if (gestureOn()) return false;
+          const u = await getSignedUrl(key);
+          if (!u) return false;
+          try {
+            const probe = new Image();
+            probe.fetchPriority = 'low';
+            probe.src = u;
+            await probe.decode();
+          } catch (_) { return false; }
+          if (gestureOn()) return false;
+          markLoaded(key, u);
+          commit(`r2:${key}`);
+          noteSwap(dir);
+          return true;
+        };
 
-        // PROMOTE toward the best justified tier (jump sm→original directly).
+        // PROMOTE to the rung the screen needs, or past lg to the original.
         if (st.upgradeToFull) {
-          const wantOriginal = !upgradedRef.current && !originalBrokenRef.current && originalWorthUpgrade(m)
-            && m.previewW && displayedPx >= m.previewW * 0.85;
-          if ((atSm || atPreview) && wantOriginal) {
-            return { kind: 'promote', area, inViewport, run: () => {
-              upgradedRef.current = true;
-              setActiveSrc(st.src);                 // original (Tier 2)
-              noteSwap('up');
-              perf.bump('image.tier2Upgrade'); bumpPerf('image.tier2Upgrade');
-              return true;
-            } };
+          let target = needRung(m, displayedPx);
+          if (!upgradedRef.current && !originalBrokenRef.current && m.previewW
+              && displayedPx >= PROMOTE_AT * m.previewW
+              && originalAllowed(m, displayedPx, { ignoreCap: true })) {
+            target = 'original';
           }
-          if (atSm && m.previewSmW && displayedPx >= m.previewSmW * 0.85) {
-            return { kind: 'promote', area, inViewport, run: () => {
-              setActiveSrc(`r2:${m.previewKey}`); // sm → lg preview
-              noteSwap('up');
-              perf.bump('image.tierPromote'); bumpPerf('image.tierPromote');
-              return true;
-            } };
+          if (rungIndex(target) > at) {
+            if (target === 'original' && current === 'lg') {
+              return { kind: 'promote', area, dist, inViewport, run: () => {
+                // Several cards measured in one drain may all have seen room
+                // under the cap; the first ones to commit take it.
+                if (isBigOriginal(m) && _canvasOriginals.size >= MAX_CANVAS_ORIGINALS) return false;
+                upgradedRef.current = true;
+                if (isBigOriginal(m) && st.cardId) {
+                  _canvasOriginals.add(st.cardId);
+                  originalSlotRef.current = st.cardId;
+                }
+                commit(st.src);                     // original (Tier 2)
+                noteSwap('up');
+                perf.bump('image.tier2Upgrade'); bumpPerf('image.tier2Upgrade');
+                return true;
+              } };
+            }
+            // A preview rung, or lg on the way to the original ('step').
+            const stepping = target === 'original';
+            const key = rungKey(m, stepping ? 'lg' : target);
+            if (key) {
+              return { kind: 'promote', area, dist, inViewport, run: async () => {
+                const ok = await probeSwap(key, 'up');
+                if (!ok) return false;
+                perf.bump('image.tierPromote'); bumpPerf('image.tierPromote');
+                return stepping ? 'step' : true;
+              } };
+            }
           }
         }
 
-        // DEMOTE to the smallest variant that still covers the on-screen size.
-        if (atOriginal || atPreview) {
-          const DEMOTE_HEADROOM = 0.7;
-          let targetKey = null;
-          if (m.previewSmKey && m.previewSmW && displayedPx < m.previewSmW * DEMOTE_HEADROOM) {
-            targetKey = m.previewSmKey;            // smallest variant that covers
-          } else if (atOriginal && m.previewW && displayedPx < m.previewW * DEMOTE_HEADROOM) {
-            targetKey = m.previewKey;              // no/too-small sm → lg preview
-          }
-          if (targetKey && st.activeSrc !== `r2:${targetKey}`) {
-            return { kind: 'demote', area, inViewport, run: async () => {
-              // The card owns the no-mid-gesture invariant (the scheduler gates
-              // too — belt + suspenders, since the presign+decode takes time).
-              // Returns true ONLY if the swap committed; any abort leaves the
-              // card re-evaluatable so the next idle drain retries it.
-              try { if (performance.now() < getGestureActiveUntil()) return false; } catch (_) {}
-              const u = await getSignedUrl(targetKey);
-              if (!u) return false;
-              try { const probe = new Image(); probe.src = u; await probe.decode(); } catch (_) { return false; }
-              try { if (performance.now() < getGestureActiveUntil()) return false; } catch (_) {}
-              upgradedRef.current = false;          // zooming back in may re-promote
-              setActiveSrc(`r2:${targetKey}`);
-              noteSwap('down');
-              perf.bump('image.tierDemote'); bumpPerf('image.tierDemote');
-              return true;
-            } };
-          }
+        // DEMOTE to the smallest rung that still covers the on-screen size:
+        // xs first, then sm, then (from the original) lg.
+        let targetKey = null;
+        if (m.previewXsKey && m.previewXsW && displayedPx < DEMOTE_BELOW * m.previewXsW && at > rungIndex('xs')) {
+          targetKey = m.previewXsKey;
+        } else if (m.previewSmKey && m.previewSmW && displayedPx < DEMOTE_BELOW * m.previewSmW && at > rungIndex('sm')) {
+          targetKey = m.previewSmKey;
+        } else if (current === 'original' && m.previewW && displayedPx < DEMOTE_BELOW * m.previewW) {
+          targetKey = m.previewKey;              // no/too-small sm → lg preview
+        }
+        if (targetKey && st.activeSrc !== `r2:${targetKey}`) {
+          return { kind: 'demote', area, dist, inViewport, run: async () => {
+            const ok = await probeSwap(targetKey, 'down');
+            if (!ok) return false;
+            upgradedRef.current = false;          // zooming back in may re-promote
+            perf.bump('image.tierDemote'); bumpPerf('image.tierDemote');
+            return true;
+          } };
         }
         return null;
       },
@@ -914,16 +1157,31 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     return sched.register(cardId, handleRef.current);
   }, [eager, cardId, visible, loaded, originalKey, hasPreview]);
 
+  // A loaded card whose box changed (a grid cell's crop zoom, Fit/Fill, a
+  // resize) needs measuring again: the scheduler skips a card whose canvas
+  // scale hasn't moved. Not on mount: `loaded` is false until the first load,
+  // and the scheduler learns the card then (notePaint).
+  useEffect(() => {
+    if (!loaded || eager || !cardId) return;
+    try { getImageTierScheduler().touch(cardId); } catch (_) {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [w, h, fit, tierScale]);
+
   const onImgLoad = () => {
     // Boot timing: the first picture on the canvas this load, and which size
     // it was. An original here on a cold open is a multi-MB download that a
     // preview would have spared; `meta` says whether the preview was known.
     bootMark('image', {
-      tier: !(meta && meta.previewKey) ? 'original'
-        : activeSrc === `r2:${meta.previewSmKey}` ? 'sm'
-        : activeSrc === `r2:${meta.previewKey}` ? 'lg' : 'original',
+      tier: !(meta && meta.previewKey) ? 'original' : (rungOf(meta, activeSrc, src) || 'original'),
       meta: !!(meta && meta.previewKey),
     });
+    // These bytes are in the disk cache under this URL now: a remount, or a
+    // reload within the URL's life, may mount straight on them (isWarm).
+    // Only when this URL is the one signed for the rung on screen: a URL left
+    // over from the previous rung can still fire its load after a pre-load
+    // re-pick switched activeSrc.
+    if (url && typeof activeSrc === 'string' && activeSrc.startsWith('r2:')
+        && url === cachedUrl(activeSrc)) markLoaded(activeSrc, url);
     // Fade skip is decided by MEASURED fetch+decode time from the moment the
     // URL was handed to the <img> — disk-cache loads come in well under the
     // threshold, network loads don't. Set before setLoaded so the is-loaded
@@ -934,14 +1192,22 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
     setLoaded(true);
     if (!hitMarkedRef.current) {
       hitMarkedRef.current = true;
-      const showingPreview = !!(meta && meta.previewKey) && activeSrc === `r2:${meta.previewKey}`;
+      // Any preview rung (xs / sm / lg) is a hit; only the original is not.
+      const firstRung = meta && meta.previewKey ? rungOf(meta, activeSrc, src) : null;
+      const showingPreview = !!firstRung && firstRung !== 'original';
       if (showingPreview) { perf.bump('image.preview.hit'); bumpPerf('image.preview.hit'); }
       else if (originalKey && !(meta && meta.previewKey)) { perf.bump('image.preview.miss'); bumpPerf('image.preview.miss'); }
       // Two distinct third paths, counted separately so the warm-tier
-      // strategy stays observable: warmOriginal = pickTierSrc deliberately
+      // strategy stays observable: warmOriginal = pickInitialTier deliberately
       // kept the warm original; fellBack = the preview tier failed to
       // resolve and we recovered on the original.
       else if (originalKey) perf.bump(fellBackRef.current ? 'image.preview.fellBack' : 'image.preview.warmOriginal');
+      // A canvas card's first picture (often the quick xs rung) joins the
+      // scheduler's paint wave: once the wave goes quiet, the cards on screen
+      // climb to what the screen needs.
+      if (!eager && cardId) {
+        try { getImageTierScheduler().notePaint(getImageTierScale()); } catch (_) {}
+      }
     }
     // When we loaded the original because no preview existed, generate one.
     // Fetch-based (cache-bypassing) — never reads the displayed element's
@@ -1017,22 +1283,26 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
   }
   if (awaitingView || blockOriginal) {
     if (placeholder) return stand(awaitingView ? 'making' : 'idle');
-    return <div ref={rootRef} className={`r2p ${className || ''}`} style={style} {...rest}><div className="r2p-layer r2-img-loading" /></div>;
+    return <div ref={rootRef} className={`r2p ${className || ''}`} style={style} {...rest}><div className="r2p-layer r2-img-loading" style={imgStyle} /></div>;
   }
 
+  // fetchpriority 'auto', not 'low', for canvas cards: Chrome raises
+  // in-viewport images itself, and 'low' held on-screen first paints behind
+  // off-screen ones.
   return (
     <div ref={rootRef} className={`r2p ${className || ''}`} style={style} {...rest}>
-      {blurUrl && blurMounted && <img className="r2p-blur" src={blurUrl} alt="" aria-hidden="true" draggable="false" />}
-      {!blurUrl && (placeholder ? blurMounted && placeholder('idle') : !url && <div className="r2p-layer r2-img-loading" />)}
+      {blurUrl && blurMounted && <img className="r2p-blur" src={blurUrl} alt="" aria-hidden="true" draggable="false" style={imgStyle} />}
+      {!blurUrl && (placeholder ? blurMounted && placeholder('idle') : !url && <div className="r2p-layer r2-img-loading" style={imgStyle} />)}
       {url && (
         <img ref={imgRef}
              className={`r2p-img ${loaded ? 'is-loaded' : ''}${fastLoadRef.current ? ' r2p-warm' : ''}`}
+             style={imgStyle}
              src={url}
              alt={alt}
              width={w}
              height={h}
              decoding="async"
-             fetchpriority={eager ? 'high' : 'low'}
+             fetchpriority={eager ? 'high' : 'auto'}
              draggable={draggable}
              onLoad={onImgLoad}
              onError={(e) => {
@@ -1050,15 +1320,30 @@ function R2ImageProgressive({ src, alt = '', eager = false, onError, w, h,
                // (and pins it there); only with neither left is it "Preview
                // not available", with a Download.
                const isR2 = typeof activeSrc === 'string' && activeSrc.startsWith('r2:');
+               // The variant an original falls back to: lg, or for a small
+               // original that is its own lg, the largest rung below it.
+               const fallbackKey = meta?.previewIsOriginal
+                 ? (meta.previewSmKey || meta.previewXsKey || null)
+                 : (meta?.previewKey || null);
                const giveUp = () => {
+                 releaseOriginalSlot();
+                 // A quick or sm rung that won't load tries the lg preview
+                 // before the original (a possible 40MP decode).
+                 const rung = rungOf(meta, activeSrc, src);
+                 if ((rung === 'xs' || rung === 'sm') && meta.previewKey
+                     && `r2:${meta.previewKey}` !== activeSrc && !rungFellBackRef.current) {
+                   rungFellBackRef.current = true;
+                   setActiveSrc(`r2:${meta.previewKey}`);
+                   return;
+                 }
                  if (originalKey && activeSrc !== src && !fellBackRef.current && !originalBrokenRef.current) {
                    fellBackRef.current = true;
                    setActiveSrc(src);
-                 } else if (originalKey && activeSrc === src && meta?.previewKey
+                 } else if (originalKey && activeSrc === src && fallbackKey
                             && !fellBackRef.current && !originalBrokenRef.current) {
                    originalBrokenRef.current = true;
                    upgradedRef.current = true;   // keeps the pre-load switch + warm-up off too
-                   setActiveSrc(`r2:${meta.previewKey}`);
+                   setActiveSrc(`r2:${fallbackKey}`);
                  } else {
                    noPicture();
                  }

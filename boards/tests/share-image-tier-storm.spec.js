@@ -24,17 +24,22 @@ async function openDense(page) {
 }
 
 // Snapshot each mounted canvas img: where it is vs the viewport, and which
-// tier it's showing.
+// tier it's showing. The gate counts a card within a quarter viewport of the
+// edge as on screen, since it is about to scroll in (R2Image evaluate(): mx,
+// my), so a card is only "past the gate" beyond that band. At this zoom the
+// row above the centre ends ~50px over the top edge, inside the band.
 function snapshotTiles(page) {
   return page.evaluate(() => {
     const vw = window.innerWidth, vh = window.innerHeight;
+    const mx = vw * 0.25, my = vh * 0.25;
     return [...document.querySelectorAll('.r2p-img')].map((el) => {
       const r = el.getBoundingClientRect();
       const inView = r.right > 0 && r.left < vw && r.bottom > 0 && r.top < vh;
+      const pastGate = !(r.right > -mx && r.left < vw + mx && r.bottom > -my && r.top < vh + my);
       const src = el.currentSrc || el.src || '';
       const tier = src.includes('-sm.webp') ? 'sm' : src.includes('-lg.webp') ? 'lg'
         : src.includes('-orig.png') ? 'orig' : 'other';
-      return { inView, tier };
+      return { inView, pastGate, tier };
     });
   });
 }
@@ -91,10 +96,10 @@ test('zoom-in promotes only on-screen cards; off-screen mounted cards stay sm; n
   await page.waitForTimeout(650);   // settle + promote drain + batches
   const tiles = await snapshotTiles(page);
 
-  const offView = tiles.filter((t) => !t.inView);
-  // The test is only meaningful if some cards are mounted but off-viewport.
+  const offView = tiles.filter((t) => t.pastGate);
+  // The test is only meaningful if some cards are mounted but past the gate.
   expect(offView.length).toBeGreaterThanOrEqual(1);
-  // THE bound: the viewport gate never promotes an off-screen card (pre-fix,
+  // THE bound: the viewport gate never promotes a card past it (pre-fix,
   // every mounted card promoted to the original regardless of position —
   // image.tier2Upgrade=67 on the real board).
   for (const t of offView) expect(t.tier).toBe('sm');

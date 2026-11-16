@@ -7,6 +7,7 @@
 // arrow key lands on, and which stored size of a picture a tile should load.
 
 import { justifiedRows } from './layoutEngine.js';
+import { pickVariantKey } from './imageVariantPick.js';
 
 // Row height per tile size (S / M / L in the View menu) — the preview's
 // height; the caption sits under it.
@@ -111,6 +112,18 @@ export function gridNeighbor(tiles, index, dir) {
 export function tileImageSrc(src, meta, devicePx) {
   if (typeof src !== 'string' || !src.startsWith('r2:') || !meta) return src;
   const need = Number(devicePx) || 0;
+  // The quick picture (~256px) for a tile that small, once it exists:
+  // pickVariantKey only answers with it when the drawn size fits that rung.
+  // `need` is the tile box's longest edge and the tile covers its box, so a
+  // picture shaped unlike the box is drawn larger than the box along its own
+  // long side (a 9:16 portrait in a wide box): take the quick picture only when
+  // its longest edge covers that. Unknown shape reads as square.
+  const picked = pickVariantKey(src.slice(3), meta, need);
+  if (meta.previewXsKey && picked === meta.previewXsKey) {
+    const xsEdge = Math.max(meta.previewXsW || 0, meta.previewXsH || 0);
+    const a = ratio(meta.w, meta.h) ?? ratio(meta.previewW, meta.previewH) ?? 1;
+    if (need * Math.max(a, 1 / a) <= xsEdge) return `r2:${picked}`;
+  }
   if (meta.previewSmKey && need <= (meta.previewSmW || 640)) return `r2:${meta.previewSmKey}`;
   if (meta.previewKey && need <= (meta.previewW || 1280)) return `r2:${meta.previewKey}`;
   if (meta.previewKey && !(meta.w > 0)) return `r2:${meta.previewKey}`;

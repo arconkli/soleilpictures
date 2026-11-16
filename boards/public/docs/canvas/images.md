@@ -2,7 +2,7 @@
 
 > Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.
 
-_Source: https://clusters.soleilpictures.com/docs/canvas/images · Updated 2026-10-27_
+_Source: https://clusters.soleilpictures.com/docs/canvas/images · Updated 2026-11-15_
 
 Images are the reason most boards exist. Getting them in is meant to be
 thoughtless: select the files you want and drop them where you are, and they
@@ -73,14 +73,26 @@ Sometimes no copy can be made: the image sits behind a login, is larger than
 browser can show (SVG and HEIC from the web stay as links). The card then keeps showing the image from
 the page it came from, the way every web image did before.
 
+A [link card](/docs/canvas/cards) keeps its picture the same way. The first
+times someone who can edit the cluster has it open, Clusters keeps its own copy
+of each link's picture, a few at a time, and the card draws from that: it loads
+like any image on the board and stays when the page changes it. These copies
+don't count against storage.
+
 ## Progressive loading
 
-An image appears in three stages: a tiny blurred placeholder that arrives
-almost instantly, then a preview, then the full file. On a board with hundreds
-of images this is the difference between usable and not.
+An image appears in stages. A tiny blurred placeholder arrives almost
+instantly, then a small quick picture, so a board with hundreds of images fills
+in at once. Once those have landed and you stay where you are, each card
+sharpens, a few at a time, to the size it is drawn at on your screen.
 
-Full resolution is fetched as you zoom in, and released again as you zoom out,
-so a board stays responsive no matter how much is on it.
+The full file is fetched only when you zoom in far enough to see its extra
+detail, and released again as you zoom out, so a board stays responsive no
+matter how much is on it. On a slow connection, or a phone short on memory,
+cards keep the sharp preview instead of the full file.
+
+Coming back to a board is quicker still. Your browser remembers which pictures
+it already has, and each card starts on the sharpest of those.
 
 If a picture can't be fetched — the connection dropped, or storage didn't
 answer — its card says **Couldn't load** with **Retry**, and tries again by

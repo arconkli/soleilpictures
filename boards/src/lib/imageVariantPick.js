@@ -3,7 +3,8 @@
 // hover prefetch share one rule and node tests can pin it.
 //
 // The tiers: the original (any size, often a 12 MP camera JPEG), the ~1280px
-// preview (`previewKey`) and the ~640px small preview (`previewSmKey`), all
+// preview (`previewKey`), the ~640px small preview (`previewSmKey`) and the
+// ~256px quick picture (`previewXsKey`), all
 // from images rows via imageMeta.rowToMeta. Readers that drew or warmed the
 // ORIGINAL paid a full download plus a full decode for something shown at a
 // few hundred pixels (PERF-01, PERF-06).
@@ -12,7 +13,8 @@ import { drawsNowhere } from './fileView.js';
 
 // `meta` is getMeta(origKey) (or null when it has not been primed);
 // `drawnPx` is the longest edge the image will occupy, in device pixels.
-// Returns a bare storage key (no r2: prefix): the small preview when it covers
+// Returns a bare storage key (no r2: prefix): the quick picture when it covers
+// the draw, else the small preview when it covers
 // the draw, else the 1280 preview, else the original, or null for a format no
 // browser draws (a raw, a .psd: lib/fileView.js drawsNowhere) with no preview
 // yet, whose original would be downloaded whole only to fail. When even the 1280
@@ -24,6 +26,8 @@ export function pickVariantKey(origKey, meta, drawnPx = Infinity) {
   if (!origKey || typeof origKey !== 'string') return null;
   const original = drawsNowhere(origKey) ? null : origKey;
   if (!meta) return original;
+  const xsEdge = Math.max(meta.previewXsW || 0, meta.previewXsH || 0);
+  if (meta.previewXsKey && xsEdge > 0 && drawnPx <= xsEdge) return meta.previewXsKey;
   const smEdge = Math.max(meta.previewSmW || 0, meta.previewSmH || 0);
   if (meta.previewSmKey && smEdge > 0 && drawnPx <= smEdge) return meta.previewSmKey;
   if (meta.previewKey) return meta.previewKey;

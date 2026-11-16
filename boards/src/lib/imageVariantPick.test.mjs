@@ -24,6 +24,17 @@ test('the small preview when it covers the draw, else the large one', () => {
   assert.equal(pickVariantKey('ws/b/a.jpg', META), META.previewKey);
 });
 
+test('the quick picture when the draw is tiny, the small one between, and nothing changes without it', () => {
+  const XS = { ...META, previewXsKey: 'ws/b/a.preview-xs.webp', previewXsW: 256, previewXsH: 171 };
+  assert.equal(pickVariantKey('ws/b/a.jpg', XS, 100), XS.previewXsKey);
+  assert.equal(pickVariantKey('ws/b/a.jpg', XS, 256), XS.previewXsKey);
+  assert.equal(pickVariantKey('ws/b/a.jpg', XS, 257), XS.previewSmKey);
+  assert.equal(pickVariantKey('ws/b/a.jpg', XS, 641), XS.previewKey);
+  assert.equal(pickVariantKey('ws/b/a.jpg', XS), XS.previewKey, 'default drawnPx is unchanged');
+  assert.equal(pickVariantKey('ws/b/a.jpg', META, 100), META.previewSmKey, 'no quick picture: sm');
+  assert.equal(pickVariantSrc('r2:ws/b/a.jpg', () => XS, 100), `r2:${XS.previewXsKey}`);
+});
+
 test('the original only when there is nothing smaller', () => {
   assert.equal(pickVariantKey('ws/b/a.jpg', null, 300), 'ws/b/a.jpg');
   assert.equal(pickVariantKey('ws/b/a.gif', { blur: 'x', previewKey: null, previewSmKey: null }, 300), 'ws/b/a.gif');

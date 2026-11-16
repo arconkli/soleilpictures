@@ -46,6 +46,20 @@
 // No previews are made here (a Worker has no decoder). The canvas makes them
 // the first time a writer sees the image, which is immediately: R2Image's
 // on-view backfill, the path every image without previews already takes.
+//
+// LINK PICTURES (body `purpose: 'link'`). A link card draws the site's og:image
+// from the site's own server on every view, slow and sometimes gone, so the
+// canvas keeps a copy of it (lib/linkPictureKeep.js). It goes through every
+// guard above — the same fetch, the same sniffing, the same can_write_board,
+// the same row-or-delete — but it is not the person's upload, so it is not
+// charged to them: it is stored under `<workspace>/previews/link/<uuid>.<ext>`,
+// a path storage counting already leaves out (/(previews|thumbs)/), and skips
+// authorize_image_upload and record_upload_intent (which only accepts the
+// `<workspace>/<uuid>.<ext>` shape of an original). The path is the marker; no
+// column says "link". The card keeps the `r2:<key>` string that stops the
+// sweep reclaiming it. The cap is 8 MiB, since the largest og:image worth
+// drawing is far below an upload's; its row has no card (card_id null).
+// Any other `purpose` behaves as a drag-in always has.
 
 import { verifyUser } from './lib/workerAuth.js';
 import { userSelect, userRpc, userInsert } from './lib/apiAuth.js';
@@ -60,6 +74,10 @@ import {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CARD_ID_RE = /^[\w-]{1,100}$/;
+// What a link card's copy of a site's picture may weigh (purpose 'link'). It is
+// a preview, not a file somebody uploaded, so it is held to far less than
+// WEB_IMAGE.maxBytes.
+const LINK_PICTURE_MAX_BYTES = 8 * 1024 * 1024;
 // A response that says it is a page or data is not read at all. The bytes
 // still decide every YES; this only saves pulling a page to learn it is one.
 const NOT_A_PICTURE_RE = /^(text\/|application\/(json|xml|javascript|xhtml\+xml)|image\/svg)/i;
@@ -97,13 +115,15 @@ export async function handleMediaRoute(url, request, env, deps = {}) {
   try { body = await request.json(); } catch (_) { /* answered below */ }
   const sourceUrl = typeof body?.url === 'string' ? body.url.trim() : '';
   const boardId = typeof body?.boardId === 'string' ? body.boardId : '';
-  const cardId = typeof body?.cardId === 'string' && CARD_ID_RE.test(body.cardId) ? body.cardId : null;
+  // A link card's picture (see the header): its row has no card of its own.
+  const linkPicture = body?.purpose === 'link';
+  const cardId = !linkPicture && typeof body?.cardId === 'string' && CARD_ID_RE.test(body.cardId) ? body.cardId : null;
   if (!UUID_RE.test(boardId)) return json({ error: 'bad_request', detail: 'boardId' }, 400);
   const problem = webImageUrlProblem(sourceUrl);
   if (problem) return json({ error: 'unsafe_url', detail: problem }, 422);
 
   try {
-    const out = await saveWebImage({ env, token, userId: auth.userId, sourceUrl, boardId, cardId, d });
+    const out = await saveWebImage({ env, token, userId: auth.userId, sourceUrl, boardId, cardId, linkPicture, d });
     return json(out, 200);
   } catch (err) {
     if (err instanceof SaveError) return json({ error: err.code }, err.status);
@@ -115,7 +135,7 @@ export async function handleMediaRoute(url, request, env, deps = {}) {
   }
 }
 
-async function saveWebImage({ env, token, userId, sourceUrl, boardId, cardId, d }) {
+async function saveWebImage({ env, token, userId, sourceUrl, boardId, cardId, linkPicture, d }) {
   // The board, as the caller sees it: a board they cannot read is a 404, and
   // its workspace — not anything the request said — is where the copy goes.
   const boards = await d.userSelect(env, token, 'boards',
@@ -147,47 +167,57 @@ async function saveWebImage({ env, token, userId, sourceUrl, boardId, cardId, d 
 
   // Reserve the memory this save will hold before reading a byte of it, and
   // give it back however the save ends.
+  const maxBytes = linkPicture ? LINK_PICTURE_MAX_BYTES : WEB_IMAGE.maxBytes;
   const declared = declaredLength(res);
-  if (declared != null && declared > WEB_IMAGE.maxBytes) {
+  if (declared != null && declared > maxBytes) {
     try { await res.body?.cancel?.(); } catch (_) { /* already closed */ }
     throw new SaveError('too_large', 413);
   }
-  const reserved = reservationFor(declared);
+  const reserved = reservationFor(declared, maxBytes);
   if (!d.budget.take(reserved)) {
     try { await res.body?.cancel?.(); } catch (_) { /* already closed */ }
     throw new SaveError('busy', 503);
   }
   try {
-    return await storeFetched({ env, token, userId, sourceUrl, finalUrl, boardId, cardId, workspaceId, res, d });
+    return await storeFetched({ env, token, userId, sourceUrl, finalUrl, boardId, cardId, workspaceId, linkPicture, maxBytes, res, d });
   } finally {
     d.budget.give(reserved);
   }
 }
 
-async function storeFetched({ env, token, userId, sourceUrl, finalUrl, boardId, cardId, workspaceId, res, d }) {
-  const bytes = await readCapped(res, WEB_IMAGE.maxBytes);
+async function storeFetched({ env, token, userId, sourceUrl, finalUrl, boardId, cardId, workspaceId, linkPicture, maxBytes, res, d }) {
+  const bytes = await readCapped(res, maxBytes);
   const type = sniffImageType(bytes);
   const ext = type ? SAVEABLE_TYPES[type] : null;
   if (!ext) throw new SaveError('not_an_image', 415);
 
-  // The owner-pays storage ceiling, asked with the real size. Fails OPEN on
-  // an RPC error — the presign gate's trade, for the same reason.
-  const verdictRows = await d.userRpc(env, token, 'authorize_image_upload',
-    { p_board_id: boardId, p_bytes: bytes.length }).catch(() => null);
-  const verdict = Array.isArray(verdictRows) ? verdictRows[0] : verdictRows;
-  if (verdict && verdict.allow !== true && verdict.reason === 'over_quota') {
-    throw new SaveError('over_quota', 402);
+  // A link card's copy is counted nowhere (see the header): no storage ceiling
+  // to ask about and no space to reserve, and a key under previews/link/ that
+  // storage counting leaves out.
+  if (!linkPicture) {
+    // The owner-pays storage ceiling, asked with the real size. Fails OPEN on
+    // an RPC error — the presign gate's trade, for the same reason.
+    const verdictRows = await d.userRpc(env, token, 'authorize_image_upload',
+      { p_board_id: boardId, p_bytes: bytes.length }).catch(() => null);
+    const verdict = Array.isArray(verdictRows) ? verdictRows[0] : verdictRows;
+    if (verdict && verdict.allow !== true && verdict.reason === 'over_quota') {
+      throw new SaveError('over_quota', 402);
+    }
   }
 
-  const key = `${workspaceId}/${d.uuid()}.${ext}`;
+  const key = linkPicture
+    ? `${workspaceId}/previews/link/${d.uuid()}.${ext}`
+    : `${workspaceId}/${d.uuid()}.${ext}`;
   const dims = imageDimensions(bytes);
   const fileName = nameFromImageUrl(sourceUrl) || (finalUrl !== sourceUrl ? nameFromImageUrl(finalUrl) : null);
-  // The space itself is reserved before the bytes are written (0610); this
-  // one fails CLOSED, unlike the check above.
-  const held = await reserveUploadSpace((fn, params) => d.userRpc(env, token, fn, params),
-    { key, bytes: bytes.length, boardId });
-  if (held === 'full') throw new SaveError('over_quota', 402);
-  if (held !== 'reserved') throw new SaveError('busy', 503);
+  if (!linkPicture) {
+    // The space itself is reserved before the bytes are written (0610); this
+    // one fails CLOSED, unlike the check above.
+    const held = await reserveUploadSpace((fn, params) => d.userRpc(env, token, fn, params),
+      { key, bytes: bytes.length, boardId });
+    if (held === 'full') throw new SaveError('over_quota', 402);
+    if (held !== 'reserved') throw new SaveError('busy', 503);
+  }
   await env.IMAGES.put(key, bytes, { httpMetadata: { contentType: type } });
   try {
     await d.userInsert(env, token, 'images', [{

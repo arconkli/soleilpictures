@@ -462,7 +462,17 @@ export const CEILINGS = {
   // readImageSeenNow). A CI-style build read 801,258 B with it on main
   // 212af73d, against that note's 795,932 B; the ceiling moves by the
   // difference, 5,326 B, rounded up.
-  appJs: 802_100,
+  // 2026-11-15: +1.9 KB for picture loading tiers, which run as every picture
+  // card paints: the quick rung, the warm start and the rung fallback
+  // (components/R2Image.jsx), the paint waves that climb cards once things go
+  // quiet (lib/imageTierScheduler.js), which URLs loaded (lib/r2.js), a
+  // cluster's picture facts kept with its snapshot (lib/snapshotCache.js,
+  // lib/imageMeta.js), the lightest-rung picks (lib/imageVariantPick.js,
+  // lib/justifiedGrid.js) and the link-picture pass (lib/linkPictureKeep.js,
+  // CanvasSurface.jsx, cards/gridCellShared.jsx). A CI-style build read
+  // 803,092 B with it on main f2ff9698, against that note's 801,258 B; the
+  // ceiling moves by the difference, 1,834 B, rounded up.
+  appJs: 804_000,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).

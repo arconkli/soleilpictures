@@ -28,6 +28,17 @@ test('a landed copy comes back as an r2 source, with what the route said', async
   assert.deepEqual(JSON.parse(calls[0].init.body), { url: 'https://cdn.example.com/a.png', boardId: BOARD, cardId: 'image-1' });
 });
 
+test('a purpose rides along in the body, and is left out when there is none', async () => {
+  const bodies = [];
+  const fetchImpl = async (_path, init) => { bodies.push(JSON.parse(init.body)); return jsonRes(200, { src: 'r2:ws/previews/link/k.png', bytes: 10 }); };
+  const link = await saveWebImageCopy({ url: 'https://cdn.example.com/og.png', boardId: BOARD, purpose: 'link', getToken, fetchImpl });
+  assert.equal(link.ok, true);
+  assert.equal(link.src, 'r2:ws/previews/link/k.png');
+  assert.deepEqual(bodies[0], { url: 'https://cdn.example.com/og.png', boardId: BOARD, cardId: null, purpose: 'link' });
+  await saveWebImageCopy({ url: 'https://cdn.example.com/og.png', boardId: BOARD, getToken, fetchImpl });
+  assert.ok(!('purpose' in bodies[1]), 'a plain save sends exactly what it always did');
+});
+
 test('a refusal is a code, never a throw — and only http(s) is ever asked about', async () => {
   const refused = await saveWebImageCopy({ url: 'https://a.example/x', boardId: BOARD, getToken, fetchImpl: async () => jsonRes(415, { error: 'not_an_image' }) });
   assert.deepEqual(refused, { ok: false, code: 'not_an_image' });
