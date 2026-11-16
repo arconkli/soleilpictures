@@ -55,6 +55,7 @@ export const SHARE_ASK_MISSES = Object.freeze({
   already_shared: 'The cluster was already shared',
   slot_busy: 'Another ask had the slot',
   not_in_view: 'The cluster wasn’t in view as it passed 10',
+  pace: 'A regular, already asked something this week',
 });
 
 // The four sections of the page, in order.

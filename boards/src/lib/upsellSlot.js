@@ -24,6 +24,7 @@
 
 import { isGalleryActive } from './galleryState.js';
 import { getAppSessionId } from './appSession.js';
+import { getPace, paceRefuses, pastDayOne, dayVisit, noteAsk, ASK_KINDS } from './popupPace.js';
 
 // How long one upsell surface owns the moment. Matches the 60s stacking guard
 // this replaces in ReferralNudge — deliberately NOT that component's
@@ -82,7 +83,13 @@ const ALWAYS_WINS = 'cap-hit';
 // asks nothing, so it is not AMBIENT and spends no visit; it claims so the
 // ambient asks stand down while it is up, and it waits behind anything that
 // already holds the minute, since it lands on a return visit, when they do.
-const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'layout-ask', 'power-reveal', 'cap-toast', 'storage-gate', 'upgrade-reason', 'pricing-intent', 'resume', 'whats-new']);
+// 'depth-dock' is the "add images" dock on the canvas. It is claimed ONLY by
+// people past their first day (lib/popupPace.js depthDockGate): on day one the
+// dock shows as it always did, with no claim. Past day one it is an ambient tip
+// like the others, so it takes its turn in the day and is refused for regulars.
+// It never holds the minute (see claimUpsellSlot): a dock is a hint, and it must
+// not be able to delay the wall, the first-value banner or the share ask.
+const KINDS = new Set([ALWAYS_WINS, 'first-value', 'invite-nudge', 'share-ask', 'mix-prompt', 'return-reason', 'layout-ask', 'power-reveal', 'cap-toast', 'storage-gate', 'upgrade-reason', 'pricing-intent', 'resume', 'whats-new', 'depth-dock']);
 
 // The surfaces that put an offer on screen. Only these may be followed. (The
 // wall is listed last on purpose: upsellPacing.test reads "ALWAYS_WINS then
@@ -121,7 +128,14 @@ const FOLLOWS = Object.freeze({
 // lose exactly the visits it exists for — the second, the uncertain one — and
 // its answers would drift toward the stickiest people. It neither waits on the
 // budget nor spends it; the window above still keeps it off any other surface.
-const AMBIENT = new Set(['invite-nudge', 'share-ask', 'mix-prompt', 'layout-ask', 'power-reveal']);
+//
+// PAST DAY ONE the visit is the UTC day, not the app session (popupPace.js
+// dayVisit): someone who comes back several times a day was being given a fresh
+// turn at every return. There the same kind may not repeat inside the day either
+// -- except the depth dock, which is the same dock on another cluster. The share
+// ask stays PAST_THE_VISIT for everyone; the layout ask is PAST_THE_VISIT only on
+// day one.
+const AMBIENT = new Set(['invite-nudge', 'share-ask', 'mix-prompt', 'layout-ask', 'power-reveal', 'depth-dock']);
 
 // The share ask is the one ambient kind that may take a visit another ambient
 // ask already had (owner's pick #35, 2026-10-29). Since that day it comes only
@@ -139,12 +153,19 @@ const AMBIENT = new Set(['invite-nudge', 'share-ask', 'mix-prompt', 'layout-ask'
 // after any other claim. No other kind gets this.
 const PAST_THE_VISIT = new Set(['share-ask', 'layout-ask']);
 
-let visitAsk = { visit: null, kind: null };
+// `day` is the UTC day the visit was recorded on: when the day count lands
+// mid-session, a holder recorded under the session id earlier the same UTC day
+// still owns the day.
+let visitAsk = { visit: null, kind: null, day: null };
 
-// The live app session id, or null. A missing id never refuses anything: as
-// with a bad clock, suppressing a surface is the more expensive mistake.
-function currentVisit() {
-  try { return getAppSessionId() || null; } catch (_) { return null; }
+// The live visit, or null: the UTC day for someone past their first day, else
+// the app session id. A missing id never refuses anything: as with a bad clock,
+// suppressing a surface is the more expensive mistake.
+function currentVisit(t = Date.now()) {
+  try {
+    if (pastDayOne(getPace().daysBack)) return dayVisit(t);
+    return getAppSessionId() || null;
+  } catch (_) { return null; }
 }
 
 // Module scope = page lifetime, like boardsApi's _capAnnounced. No auth reset
@@ -180,9 +201,12 @@ export function upsellSlotBusy(now = Date.now()) {
 // Which surface is why the moment is taken: the kind holding the minute, else
 // the ambient ask that owns this visit, else null. Non-mutating, for logs that
 // say who won when a surface stood down. `visit` defaults to the live session.
-export function upsellSlotHolder(now = Date.now(), visit = currentVisit()) {
+export function upsellSlotHolder(now = Date.now(), visit) {
+  if (visit === undefined) visit = currentVisit(resolveNow(now));
   if (upsellSlotBusy(now)) return lastClaim.kind;
-  if (visit && visitAsk.visit === visit && visitAsk.kind) return visitAsk.kind;
+  const t = resolveNow(now);
+  const sameVisit = !!visit && (visitAsk.visit === visit || (pastDayOne(getPace().daysBack) && visit === dayVisit(t) && visitAsk.day === visit));
+  if (sameVisit && visitAsk.kind) return visitAsk.kind;
   return null;
 }
 
@@ -196,7 +220,7 @@ export function upsellSlotHolder(now = Date.now(), visit = currentVisit()) {
 //
 // `visit` is the app session the claim belongs to (THE VISIT, above); callers
 // leave it to default. Tests pass their own.
-export function claimUpsellSlot(kind, now = Date.now(), visit = currentVisit()) {
+export function claimUpsellSlot(kind, now = Date.now(), visit) {
   if (!KINDS.has(kind)) return false;            // fail closed on a typo'd kind
 
   // The admin Surface Gallery bypasses the mutex entirely, and records nothing.
@@ -208,6 +232,7 @@ export function claimUpsellSlot(kind, now = Date.now(), visit = currentVisit()) 
   if (isGalleryActive()) return true;
 
   const t = resolveNow(now);
+  if (visit === undefined) visit = currentVisit(t);
 
   // The wall always shows, and still claims — so the ambient surfaces stand
   // down around it rather than stacking on top of the explanation.
@@ -216,16 +241,30 @@ export function claimUpsellSlot(kind, now = Date.now(), visit = currentVisit()) 
     return true;
   }
 
+  // Regulars get no tips and at most one ask a week (popupPace.js). Money kinds
+  // answer null there, so they are untouched.
+  if (paceRefuses(kind, { now: t })) return false;
+
   // One ambient ask per visit, and it belongs to whichever showed first.
   const ambient = AMBIENT.has(kind);
-  if (ambient && visit && visitAsk.visit === visit && visitAsk.kind !== kind && !PAST_THE_VISIT.has(kind)) return false;
+  const past1 = pastDayOne(getPace().daysBack);
+  const pastVisit = kind === 'share-ask' || (kind === 'layout-ask' && !past1);
+  const sameVisit = !!visit && (visitAsk.visit === visit || (past1 && visit === dayVisit(t) && visitAsk.day === visit));
+  if (ambient && sameVisit) {
+    if (visitAsk.kind !== kind && !pastVisit) return false;
+    // Past day one one turn is one turn: only the dock may show twice in a day.
+    if (visitAsk.kind === kind && past1 && !pastVisit && kind !== 'depth-dock') return false;
+  }
 
   if (upsellSlotBusy(t)) {
     const may = FOLLOWS[kind];
     if (!may || !may.has(lastClaim.kind)) return false;
   }
-  lastClaim = { kind, at: t };
-  if (ambient && visit) visitAsk = { visit, kind };
+  // The dock spends the day but never holds the minute, so it can never delay
+  // a money surface or the share ask.
+  if (kind !== 'depth-dock') lastClaim = { kind, at: t };
+  if (ambient && visit) visitAsk = { visit, kind, day: dayVisit(t) };
+  if (ASK_KINDS.includes(kind)) noteAsk(kind, t);
   return true;
 }
 
@@ -233,5 +272,5 @@ export function claimUpsellSlot(kind, now = Date.now(), visit = currentVisit()) 
 // letting a test reach in and mutate the binding.
 export function __resetUpsellSlot() {
   lastClaim = { kind: null, at: 0 };
-  visitAsk = { visit: null, kind: null };
+  visitAsk = { visit: null, kind: null, day: null };
 }

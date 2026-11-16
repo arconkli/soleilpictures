@@ -109,7 +109,7 @@ test('the sign-up box’s strata are frozen as they were on Nov 3', () => {
 });
 
 test('every share-ask miss has plain words', () => {
-  for (const r of ['tour', 'board_stamp', 'weekly_stamp', 'not_editor', 'already_shared', 'slot_busy', 'not_in_view']) {
+  for (const r of ['tour', 'board_stamp', 'weekly_stamp', 'not_editor', 'already_shared', 'slot_busy', 'not_in_view', 'pace']) {
     assert.ok(SHARE_ASK_MISSES[r], `${r} has no words`);
   }
 });

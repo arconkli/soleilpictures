@@ -210,7 +210,7 @@ import { trackRegistration } from './lib/metaPixel.js';
 import { holdReload } from './lib/buildWatch.js';
 import { ownPersonalCount, isWorkspaceLimitError, workspaceCountFromError, WORKSPACE_LIMIT } from './lib/workspaceLimit.js';
 import { rewardCardsBeyondTogether } from './lib/liveTogether.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listPublicLinks, createCollabLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, getMyTogetherStats, syncCardIndex, getProfilesByIds, forgetIndexRefusals } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, fetchMyDaysBack, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listPublicLinks, createCollabLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, getMyTogetherStats, syncCardIndex, getProfilesByIds, forgetIndexRefusals } from './lib/boardsApi.js';
 import { rewardToastMessage } from './lib/inviteRewardWords.js';
 import { undoToast } from './lib/undoToast.js';
 import { failMove } from './lib/moveFailure.js';
@@ -250,6 +250,7 @@ import { useCanvasConnection } from './hooks/useCanvasConnection.js';
 import { uploadFailedWords } from './lib/transferWords.js';
 import { HeldUploadsBar } from './components/HeldUploadsBar.jsx';
 import { claimUpsellSlot, upsellSlotBusy } from './lib/upsellSlot.js';
+import { setPace, bindPaceUser, paceRefuses } from './lib/popupPace.js';
 import { publishOwnWork } from './lib/ownWork.js';
 import { recordSeen, takeReturn } from './lib/returnVisit.js';
 import { shouldAskToShare, shareAskSkipReason, SHARE_ASK_MIN_CARDS } from './lib/shareAsk.js';
@@ -1318,6 +1319,56 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   });
   const defaultsRef = useRef(defaults);
   useEffect(() => { defaultsRef.current = defaults; }, [defaults]);
+
+  // Pop-up pacing (lib/popupPace.js): the pace is bound to the signed-in person
+  // (a different person never inherits the last one's), then how many earlier
+  // days they have been back is fetched once per person. The dock waits on it,
+  // so it is fetched at once; if it is slow the pace is marked ready after 3s
+  // (fail open) and the late answer still applies. The last-ask time rides in
+  // profile settings so phone and computer share it.
+  const asksLastAt = mySettings?.asks_last_at ?? null;
+  const asksLastAtRef = useRef(asksLastAt);
+  asksLastAtRef.current = asksLastAt;
+  const paceFetchedForRef = useRef(null);
+  // Bound during render, not in an effect: a child's effects run before this
+  // component's, so on a cold mount the canvas would read the unbound pace
+  // ("free"), show the depth dock for a frame and log depth_dock_shown before
+  // an effect here made it wait. bindPaceUser is a no-op for the same person,
+  // and nothing subscribes to the pace before this first render.
+  const paceBoundRef = useRef(undefined);
+  if (paceBoundRef.current !== (user?.id || null)) {
+    paceBoundRef.current = user?.id || null;
+    bindPaceUser(paceBoundRef.current);
+  }
+  useEffect(() => {
+    const uid = user?.id || null;
+    if (!uid || !mySettingsLoaded || paceFetchedForRef.current === uid) return undefined;
+    paceFetchedForRef.current = uid;
+    let cancelled = false;
+    let done = false;
+    const timer = setTimeout(() => { if (!cancelled) setPace({ ready: true }); }, 3000);
+    (async () => {
+      const daysBack = await fetchMyDaysBack();
+      if (cancelled) return;
+      done = true;
+      clearTimeout(timer);
+      setPace({
+        daysBack,
+        lastAskAt: asksLastAtRef.current,
+        onAsk: (iso) => { (async () => { try { await updateOwnSettings({ asks_last_at: iso }); } catch (_) {} })(); },
+        ready: true,
+      });
+    })();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      // A teardown before the answer re-arms the fetch for this person.
+      if (!done && paceFetchedForRef.current === uid) paceFetchedForRef.current = null;
+    };
+  }, [user?.id, mySettingsLoaded]);
+  useEffect(() => {
+    if (asksLastAt) setPace({ lastAskAt: asksLastAt });
+  }, [asksLastAt]);
 
   // ── Theme (single source of truth) ─────────────────────────────────────
   // The rendered theme reflects the per-user server setting; themeMode just
@@ -9760,6 +9811,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       // Somebody else owns this moment (the wall, first-value, the invite
       // nudge). Declining leaves the stamp unwritten, so the next card retries.
       // The share ask follows nothing, so a refused claim IS a busy slot.
+      // A regular who was already asked something this week (lib/popupPace.js).
+      if (paceRefuses('share-ask', { now: Date.now() }) === 'pace') { logShareAskSkipped(boardId, cards, 'pace'); return; }
       if (upsellSlotBusy()) logShareAskSkipped(boardId, cards, shareAskSkipReason({ canEdit: true, slotFree: false }));
       if (!claimUpsellSlot('share-ask')) return;
 

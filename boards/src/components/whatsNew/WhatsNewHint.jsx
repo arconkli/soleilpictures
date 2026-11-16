@@ -24,6 +24,7 @@ import { EV } from '../../lib/analyticsEvents.js';
 import { anyModalOpen } from '../../lib/modalGuard.js';
 import { tourShowing, hintUp, claimHint, releaseHint } from '../../lib/hints.js';
 import { claimUpsellSlot } from '../../lib/upsellSlot.js';
+import { hintRefused, paceRefuses } from '../../lib/popupPace.js';
 import { isImportGuideOpen } from '../../lib/importGuide.js';
 import {
   WHATS_NEW_HINT, WHATS_NEW_ANCHORS, CLUSTER_TAB, CHANGELOG_PATH, whatsNewFlagKey as flagKey,
@@ -123,6 +124,8 @@ export default function WhatsNewHint({ userId, createdAt, record, settingsLoaded
   // ── Its turn ──────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!eligible || phase !== 'wait') return undefined;
+    // A regular gets no tips (lib/popupPace.js): never arm.
+    if (hintRefused('whats_new')) return undefined;
     let t = 0;
     const attempt = () => {
       const at = findAnchor(phone, { tab: true });
@@ -130,6 +133,8 @@ export default function WhatsNewHint({ userId, createdAt, record, settingsLoaded
       if (screenBusy() || !claimHint('whats_new')) { t = setTimeout(attempt, WHATS_NEW_RETRY_MS); return; }
       if (!claimUpsellSlot('whats-new')) {
         releaseHint('whats_new');
+        // Refused for pace, not busy: waiting will not change that, so stop.
+        if (paceRefuses('whats-new')) return;
         t = setTimeout(attempt, WHATS_NEW_RETRY_MS);
         return;
       }

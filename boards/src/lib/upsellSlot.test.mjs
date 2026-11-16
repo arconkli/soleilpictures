@@ -6,6 +6,7 @@
 // Plain Node ESM, no test framework — exit code 0 on pass, non-zero on failure
 // (matches upsellEligibility.test.mjs). The module is pure, so no backend/DOM.
 
+import { setPace, __resetPace, ASK_GAP_MS } from './popupPace.js';
 import { claimUpsellSlot, upsellSlotBusy, upsellSlotHolder, __resetUpsellSlot, UPSELL_STACK_WINDOW_MS } from './upsellSlot.js';
 
 let failed = 0;
@@ -335,6 +336,95 @@ assert(claimUpsellSlot('first-value', T, 'h3'), 'a non-ambient claim');
 assertEq(upsellSlotHolder(T, 'h3'), 'first-value', 'its holder is named');
 assertEq(upsellSlotHolder(T + UPSELL_STACK_WINDOW_MS, 'h3'), null, 'non-ambient: free again after the minute');
 assertEq(upsellSlotHolder(null, null), null, 'junk clock and visit do not throw');
+
+// --- pop-up pacing (popupPace.js) ------------------------------------------
+const H = 3_600_000;
+const D = 24 * H;
+const D0 = Date.UTC(2026, 10, 10, 10);   // 10:00 UTC
+const reset = () => { __resetUpsellSlot(); __resetPace(); };
+
+reset(); setPace({ daysBack: 5 });
+for (const k of ['power-reveal', 'mix-prompt', 'depth-dock', 'whats-new']) {
+  assertEq(claimUpsellSlot(k, D0, 'p1'), false, `a regular gets no ${k}`);
+}
+assertEq(upsellSlotBusy(D0), false, 'and a refused tip takes nothing');
+reset(); setPace({ daysBack: 4 });
+assert(claimUpsellSlot('whats-new', D0, 'p1'), 'four days back is not yet a regular');
+
+reset(); setPace({ daysBack: 5 });
+assert(claimUpsellSlot('invite-nudge', D0, 'pa'), 'a regular gets one ask');
+assertEq(claimUpsellSlot('share-ask', D0 + 3 * D, 'pb'), false, 'the next ask three days later waits');
+assertEq(claimUpsellSlot('layout-ask', D0 + ASK_GAP_MS - 1, 'pc'), false, 'until a full week has passed');
+assert(claimUpsellSlot('share-ask', D0 + ASK_GAP_MS, 'pd'), 'and is allowed at seven days');
+
+reset(); setPace({ daysBack: 9 });
+const M = D0 + 1000;
+for (const k of ['first-value', 'cap-toast', 'cap-hit', 'storage-gate', 'pricing-intent', 'return-reason', 'resume']) {
+  __resetUpsellSlot();
+  assert(claimUpsellSlot(k, M, 'pm'), `a regular still gets ${k}`);
+}
+__resetUpsellSlot();
+assert(claimUpsellSlot('first-value', M, 'pm'), 'first-value');
+assert(claimUpsellSlot('upgrade-reason', M + 1, 'pm'), 'upgrade-reason follows its offer for a regular');
+
+// past day one the visit is the UTC day
+reset(); setPace({ daysBack: 2 });
+assert(claimUpsellSlot('power-reveal', D0), 'a reveal at 10:00 UTC');
+assertEq(claimUpsellSlot('power-reveal', D0 + 5 * H), false, 'a second reveal at 15:00 the same day is refused');
+assertEq(claimUpsellSlot('invite-nudge', D0 + 5 * H), false, 'and another ambient kind too');
+assert(claimUpsellSlot('power-reveal', D0 + D), 'the next UTC day is a new turn');
+
+reset(); setPace({ daysBack: 1 });
+assert(claimUpsellSlot('power-reveal', D0), 'a reveal');
+assertEq(claimUpsellSlot('layout-ask', D0 + 2 * H), false, 'past day one the layout ask does not get past the visit');
+reset(); setPace({ daysBack: 0 });
+assert(claimUpsellSlot('power-reveal', D0, 's1'), 'day one: a reveal');
+assert(claimUpsellSlot('layout-ask', D0 + 2 * H, 's1'), 'day one: the layout ask still does');
+reset(); setPace({ daysBack: 2 });
+assert(claimUpsellSlot('power-reveal', D0), 'a reveal owns the day');
+assert(claimUpsellSlot('share-ask', D0 + 2 * H), 'the share ask is past the visit for everyone');
+
+// the depth dock: a claim that never holds the minute
+reset(); setPace({ daysBack: 2 });
+assert(claimUpsellSlot('depth-dock', D0), 'the dock claims past day one');
+assertEq(upsellSlotBusy(D0), false, 'and never holds the minute');
+assert(claimUpsellSlot('first-value', D0 + 1), 'first-value right after it');
+reset(); setPace({ daysBack: 2 });
+assert(claimUpsellSlot('depth-dock', D0), 'the dock');
+assert(claimUpsellSlot('cap-toast', D0 + 1), 'cap-toast right after it');
+reset(); setPace({ daysBack: 2 });
+assert(claimUpsellSlot('depth-dock', D0), 'the dock');
+assert(claimUpsellSlot('depth-dock', D0 + H), 'the same dock on another cluster the same day');
+assertEq(claimUpsellSlot('power-reveal', D0 + 2 * H), false, 'a reveal after it the same day is refused');
+reset(); setPace({ daysBack: 2 });
+assert(claimUpsellSlot('first-value', D0), 'a money surface holds the minute');
+assertEq(claimUpsellSlot('depth-dock', D0 + 1000), false, 'the dock waits behind it');
+assert(claimUpsellSlot('depth-dock', D0 + UPSELL_STACK_WINDOW_MS + 1), 'and takes its turn afterwards');
+
+// onAsk is told about ask kinds only
+reset();
+const seen = [];
+setPace({ onAsk: (iso) => seen.push(iso) });
+claimUpsellSlot('power-reveal', D0, 'o1');
+assertEq(seen.length, 0, 'a tip is not an ask');
+claimUpsellSlot('invite-nudge', D0 + 2 * H, 'o2');
+assertEq(seen, [new Date(D0 + 2 * H).toISOString()], 'an ask is stamped, as an ISO string');
+reset();
+
+// the day count landing mid-session keeps the visit
+reset();
+assert(claimUpsellSlot('power-reveal', D0, 's1'), 'a reveal under the session id');
+setPace({ daysBack: 2 });
+assertEq(claimUpsellSlot('invite-nudge', D0 + 5 * 60000), false, 'the same UTC day, the day count landing does not hand out a fresh turn');
+assertEq(upsellSlotHolder(D0 + 5 * 60000), 'power-reveal', 'and the holder is still the reveal');
+assert(claimUpsellSlot('invite-nudge', D0 + 24 * H + 5 * 60000), 'the next UTC day it is granted');
+
+// explicit visits behave as before past day one
+reset(); setPace({ daysBack: 2 });
+assert(claimUpsellSlot('power-reveal', D0, 's1'), 'a reveal in session s1');
+assertEq(claimUpsellSlot('invite-nudge', D0 + 2 * H, 's1'), false, 'another ask in the same explicit visit is refused');
+assert(claimUpsellSlot('invite-nudge', D0 + 2 * H, 's2'), 'a different explicit visit is a fresh turn');
+reset();
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
