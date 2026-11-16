@@ -9410,7 +9410,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " at its top-right corner. It opens the menu a right-click would, for one card or for every selected card at once. Touch and hold a card to pick it up and move it."
+     "v": " at its top-right corner. It opens the menu a right-click would, for one card or for every selected card at once. Touch and hold a card to pick it up and move it. One selected card also shows a dot above it to turn it and a round grip on its corner to resize it; see "
+    },
+    {
+     "t": "link",
+     "v": "Turning and resizing a card",
+     "href": "/docs/account/mobile#turning-and-resizing-a-card",
+     "children": [
+      {
+       "t": "text",
+       "v": "Turning and resizing a card"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -49946,6 +49961,257 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Menus under a finger",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Menus under a finger"
+    }
+   ],
+   "id": "menus-under-a-finger"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone, a row with a "
+    },
+    {
+     "t": "strong",
+     "v": "›",
+     "children": [
+      {
+       "t": "text",
+       "v": "›"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " ("
+    },
+    {
+     "t": "strong",
+     "v": "Arrange",
+     "children": [
+      {
+       "t": "text",
+       "v": "Arrange"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Edit",
+     "children": [
+      {
+       "t": "text",
+       "v": "Edit"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Background",
+     "children": [
+      {
+       "t": "text",
+       "v": "Background"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Export",
+     "children": [
+      {
+       "t": "text",
+       "v": "Export"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Tidy up",
+     "children": [
+      {
+       "t": "text",
+       "v": "Tidy up"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Move to cluster",
+     "children": [
+      {
+       "t": "text",
+       "v": "Move to cluster"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ") steps into the menu itself instead of opening beside it. The back row at its top goes back a level, and a list inside a list works the same way, one level at a time. A menu taller than the screen stops above the bottom bar and scrolls."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On an iPad held sideways, a tap on a row with a "
+    },
+    {
+     "t": "strong",
+     "v": "›",
+     "children": [
+      {
+       "t": "text",
+       "v": "›"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " opens its list beside the menu and leaves it open. A list's own list, such as a group's "
+    },
+    {
+     "t": "strong",
+     "v": "Outline shape",
+     "children": [
+      {
+       "t": "text",
+       "v": "Outline shape"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", opens beside it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a touch screen, "
+    },
+    {
+     "t": "strong",
+     "v": "Delete",
+     "children": [
+      {
+       "t": "text",
+       "v": "Delete"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " is on the first screen of a card's menu. Selected drawings and arrows have "
+    },
+    {
+     "t": "strong",
+     "v": "Delete",
+     "children": [
+      {
+       "t": "text",
+       "v": "Delete"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the board's menu, and a toast offers "
+    },
+    {
+     "t": "strong",
+     "v": "Undo",
+     "children": [
+      {
+       "t": "text",
+       "v": "Undo"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". A photo's menu has "
+    },
+    {
+     "t": "strong",
+     "v": "View full size",
+     "children": [
+      {
+       "t": "text",
+       "v": "View full size"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". A hold on the title of a link, palette or picture card lifts it or opens its menu, like the rest of the card."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "In a document, a hold on a page in the page list opens its menu: rename, new sub-page, delete."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Turning and resizing a card",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Turning and resizing a card"
+    }
+   ],
+   "id": "turning-and-resizing-a-card"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone or an iPad, the one selected card shows two handles: a finger-sized dot on a short stalk above it turns the card, and a round grip on its corner resizes it. They keep their size whatever the zoom, and turn with the card. On a card that is very small on screen the turn dot gives way; zoom in to turn it. Several selected cards share one grip."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Haptic feedback",
    "inline": [
     {
@@ -50376,7 +50642,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — the phone's gesture or button — closes whatever is open on top, the drawer, a sheet or Settings, instead of leaving the app."
+     "v": " — the phone's gesture or button — closes whatever is open on top, the drawer, a sheet or Settings, instead of leaving the app. Once nothing is open on top, Back returns to the cluster you were on before."
     }
    ]
   },
@@ -50417,7 +50683,77 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", whose menu opens beside the rail."
+     "v": ", whose menu opens beside the rail. A new card lands in free space where you are looking, and a new note or document zooms in so you can read and type in it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "strong",
+     "v": "Comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comments"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " — on a phone or an upright iPad, "
+    },
+    {
+     "t": "strong",
+     "v": "Add comment",
+     "children": [
+      {
+       "t": "text",
+       "v": "Add comment"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " opens a bar above the keyboard with "
+    },
+    {
+     "t": "strong",
+     "v": "Cancel",
+     "children": [
+      {
+       "t": "text",
+       "v": "Cancel"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Post",
+     "children": [
+      {
+       "t": "text",
+       "v": "Post"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and the keyboard's return key sends."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Controls a mouse only sees on hover always show under a finger: a vote's delete, a backlink's pin, a schedule item's remove."
     }
    ]
   },
@@ -50458,6 +50794,47 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Held upright, a tablet gets the phone's layout: the bottom bar, the drawer and the add sheet. On its side, most iPads are wide enough for the desktop layout, with a finger for a pointer. Either way it adds stylus drawing. On iPad, drawing, annotating and reviewing all work properly; long document editing is still better on a laptop."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On an upright iPad, Settings, Share, Search and Notifications open as windows in the middle of the screen instead of across it. A tap outside one closes it."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On the 10.2-inch iPad held sideways, Files start folded under the clusters to give the board room. Tap "
+    },
+    {
+     "t": "strong",
+     "v": "Show",
+     "children": [
+      {
+       "t": "text",
+       "v": "Show"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " to open them; your choice is kept."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Turning an iPad keeps the board where it was."
     }
    ]
   },
@@ -50658,6 +51035,58 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": "Saving into a cluster from another app's share sheet is not available yet."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Going the other way, a photo's "
+    },
+    {
+     "t": "strong",
+     "v": "Download",
+     "children": [
+      {
+       "t": "text",
+       "v": "Download"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " on an iPhone or iPad opens the share sheet, where "
+    },
+    {
+     "t": "strong",
+     "v": "Save Image",
+     "children": [
+      {
+       "t": "text",
+       "v": "Save Image"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " puts it in Photos. See "
+    },
+    {
+     "t": "link",
+     "v": "Images",
+     "href": "/docs/canvas/images",
+     "children": [
+      {
+       "t": "text",
+       "v": "Images"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },

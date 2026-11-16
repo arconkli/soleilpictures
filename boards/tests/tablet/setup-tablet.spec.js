@@ -3,6 +3,7 @@
 // zooms the page onto them; the tips keep clear of the whole sidebar, whose
 // two cards stand side by side here; the re-ask is the centred card.
 import { test, expect } from '@playwright/test';
+import { workspaceSetupOn } from '../../src/lib/setupRule.js';
 
 const T0 = new Date('2026-10-21T10:00:00Z');
 
@@ -67,6 +68,7 @@ test('the tips keep clear of the whole sidebar, and the ring says which card', a
 });
 
 test('the re-ask is the centred card, its field at 16px', async ({ page }) => {
+  test.skip(!workspaceSetupOn(), 'the re-ask shows only while the workspace_setup test is on (src/lib/setupRule.js workspaceSetupOn)');
   await open(page, 'inws=reask&setup=B');
   const dialog = page.getByRole('dialog', { name: /Northlight is taking shape/ });
   await expect(dialog).toBeVisible({ timeout: 10000 });

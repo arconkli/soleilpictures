@@ -1,7 +1,9 @@
 // Public /share viewer on touch viewports — the marketing share links get
-// most of their clicks from social, i.e. phones. Asserts the topbar fits,
-// the signup CTA stays tappable, and the engagement prompt renders as a
-// bottom sheet. Same route-intercepted fixtures as the desktop suite.
+// most of their clicks from social, i.e. phones. Asserts the topbar fits
+// and the signup CTA stays tappable. A /share page shows no engagement
+// prompt (tests/public-share.spec.js); its Join card is in
+// tests/share-join.spec.js. Same route-intercepted fixtures as the desktop
+// suite.
 
 import { expect, test } from '@playwright/test';
 import { TOKEN, routeShareBundle, routeAnalytics } from '../helpers/share-fixture.js';
@@ -27,21 +29,4 @@ test('share page boots on touch viewport: topbar fits, CTA tappable', async ({ p
   if (page.viewportSize().width <= 640) {
     expect(box.height).toBeGreaterThanOrEqual(40); // touch target
   }
-});
-
-test('engagement prompt renders as a bottom sheet on phones', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name === 'desktop-chrome' || testInfo.project.name === 'tablet',
-    'phone-width only (≤640px)');
-  await page.goto(`/share/${TOKEN}?shareqa=1&promptms=200`);
-  const prompt = page.locator('.share-prompt');
-  await expect(prompt).toBeVisible();
-
-  const pb = await prompt.boundingBox();
-  const vp = page.viewportSize();
-  expect(pb.width).toBeGreaterThan(vp.width * 0.8);       // spans the width
-  expect(pb.y + pb.height).toBeGreaterThan(vp.height * 0.6); // anchored low
-
-  // Dismiss works by tap.
-  await prompt.locator('.share-prompt-x').tap();
-  await expect(prompt).toBeHidden();
 });
