@@ -163,3 +163,14 @@ test('magic_link.html is dark, gold-free and carries the token placeholder', () 
   assert.ok(!GOLD.test(magicLink), 'gold in magic_link');
   assert.ok(!EMOJI.test(magicLink), 'emoji in magic_link');
 });
+
+test('quote() avatar initials skip leading punctuation and invisible characters', async () => {
+  const { quote } = await import(new URL('functions/_shared/email/theme.ts', root));
+  const initialsIn = (who) => quote({ who, text: 'hi' }).match(/class="avatar"[^>]*>([^<]*)<\/td>/)[1];
+  const rows = [
+    ['"Bob"', 'B'], ['\u{200F}Maria', 'M'], ['(Studio) Nine', 'SN'],
+    ['\u{AB}\u{41C}\u{430}\u{440}\u{438}\u{44F}\u{BB} \u{418}\u{432}\u{430}\u{43D}\u{43E}\u{432}\u{430}', '\u{41C}\u{418}'],
+    ['Jean - Luc', 'JL'], ['...', ''], ['\u{0301}abc', 'A'], ['\u{5C71}\u{7530} \u{592A}\u{90CE}', '\u{5C71}'], ['maya ortiz', 'MO'],
+  ];
+  for (const [who, want] of rows) assert.equal(initialsIn(who), want, who);
+});

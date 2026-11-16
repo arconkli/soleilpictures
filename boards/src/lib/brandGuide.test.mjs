@@ -22,18 +22,6 @@ const read = (p) => readFileSync(REPO + p, 'utf8');
 const TOKENS = JSON.parse(read('docs/brand/tokens.json'));
 const FIX = 'update docs/brand/tokens.json and the guide pages, or record it in docs/brand/drift.md';
 
-// Production only: the guide describes the email look (8f4aa6c0), which has
-// not shipped to production. Until it does, theme.ts and the files that came
-// with it are absent here, so the email pin and those paths wait for it. Main
-// keeps the strict test; the release that ships the email look takes main's.
-const EMAIL_LOOK_FILES = [
-  'supabase/functions/_shared/email/theme.ts',
-  'boards/scripts/gen-magic-link.mjs',
-  'boards/public/email/mark-dark-84.png',
-  'boards/src/lib/emailLook.test.mjs',
-];
-const EMAIL_LOOK_SHIPPED = existsSync(REPO + EMAIL_LOOK_FILES[0]);
-
 const NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
 const HEX = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/;
 const FN_COLOUR = /^(rgb|rgba|hsl|hsla)\([^()]*\)$/;
@@ -277,7 +265,7 @@ test('pins: section colours and glass equal boardStyle.js and clusterSidebar.css
   }
 });
 
-test('pins: email tokens equal the email theme T', { skip: !EMAIL_LOOK_SHIPPED && 'email look not on production yet' }, () => {
+test('pins: email tokens equal the email theme T', () => {
   const FILE = 'supabase/functions/_shared/email/theme.ts';
   const body = read(FILE).match(/export const T = \{([^}]*)\}/);
   assert.ok(body, `${FILE}: export const T not found`);
@@ -403,7 +391,6 @@ test('paths: every repo path in docs/brand/*.md exists', () => {
     for (const m of text.matchAll(/`([^`\n]+)`/g)) {
       const s = m[1];
       if (!looksLikeRepoPath(s)) continue;
-      if (!EMAIL_LOOK_SHIPPED && EMAIL_LOOK_FILES.includes(s)) continue;
       if (!existsSync(REPO + s)) missing.push(`docs/brand/${page}: ${s}`);
     }
   }
