@@ -270,6 +270,20 @@ export async function updateOwnSettings(patch) {
   return (data && typeof data === 'object') ? data : {};
 }
 
+// How many separate earlier days the caller used the app (0900 my_days_back),
+// for the pop-up pacing in lib/popupPace.js. null means unknown, and unknown
+// changes nothing. try/await, never .catch(): an rpc builder is a thenable.
+export async function fetchMyDaysBack() {
+  try {
+    const { data, error } = await supabase.rpc('my_days_back');
+    if (error || data === null || data === undefined) return null;
+    const n = Number(data);
+    return Number.isFinite(n) && Number.isInteger(n) && n >= 0 ? n : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 // Write the caller's profile. Pass only the fields you want to write.
 //
 // An update, and an insert only when there is no row yet. Not an upsert:

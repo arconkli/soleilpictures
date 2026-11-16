@@ -60,3 +60,16 @@ test('the kinds and the naming delay are what the surfaces expect', () => {
   assert.deepEqual([...HINT_KINDS], ['paste', 'name_cluster', 'studio_bar', 'setup_tips', 'invite_reask', 'whats_new', 'board_more', 'profile_ask']);
   assert.ok(NAME_CLUSTER_AFTER_MS >= 30_000 && NAME_CLUSTER_AFTER_MS <= 120_000, 'a minute, give or take');
 });
+
+test('a regular gets no tip hints; setup, re-ask, board_more and profile_ask stay', () => {
+  const never = () => false;
+  const regular = () => ({ daysBack: 5 });
+  for (const k of ['paste', 'name_cluster', 'studio_bar', 'whats_new']) {
+    assert.equal(canShowHint(k, { seen: never, tour: never, pace: regular }), false, k);
+    assert.equal(canShowHint(k, { seen: never, tour: never, pace: () => ({ daysBack: 4 }) }), true, `${k} at four days`);
+    assert.equal(canShowHint(k, { seen: never, tour: never, pace: () => ({ daysBack: null }) }), true, `${k} unknown`);
+  }
+  for (const k of ['setup_tips', 'invite_reask', 'board_more', 'profile_ask']) {
+    assert.equal(canShowHint(k, { seen: never, tour: never, pace: regular }), true, k);
+  }
+});

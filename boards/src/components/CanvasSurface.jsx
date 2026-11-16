@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment, Suspense } from 'react';
+import { memo, useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, useSyncExternalStore, Fragment, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import * as perf from '../lib/perf.js';
 import { haptic, createSnapTicker } from '../lib/haptics.js';
@@ -199,7 +199,8 @@ import { genuineCards, hasGenuineCard } from '../lib/firstValueTrigger.js';
 import { shouldShowDepthDock } from '../lib/depthDock.js';
 import { firstBoardCopy, FIRST_BOARD_WORDS, FIRST_BOARD_TILE_IDS } from '../lib/firstBoardCopy.js';
 import { shouldPromptMix, MIX_PROMPT_RETIRED } from '../lib/mixPrompt.js';
-import { claimUpsellSlot, UPSELL_STACK_WINDOW_MS } from '../lib/upsellSlot.js';
+import { claimUpsellSlot, upsellSlotBusy, UPSELL_STACK_WINDOW_MS } from '../lib/upsellSlot.js';
+import { getPace, subscribePace, depthDockGate } from '../lib/popupPace.js';
 import { getAppSessionId } from '../lib/appSession.js';
 import {
   dockVisitsKey, dockDismissCountKey, parseVisits, dockVisitAllowed, noteDockVisit,
@@ -2584,12 +2585,43 @@ export function CanvasSurface({
   // Mix wins the dock outright where the two bands overlap: at 3-5 images with
   // no writing both are true, and "add more of the thing that doesn't predict
   // return" is the offer being corrected.
-  const depthDockVisible = !mixPromptVisible && dockAllowed('depth') && shouldShowDepthDock({
+  const depthDockEligible = !mixPromptVisible && dockAllowed('depth') && shouldShowDepthDock({
     genuine: depthGenuineCount,
     dismissed: depthDockDismissed,
     canEdit,
     isPublic,
   });
+
+  // Pop-up pacing (lib/popupPace.js). A regular never sees the dock; someone
+  // past their first day sees it only after winning a claim, so it takes its
+  // turn in the day like the other tips; day one (or unknown) is exactly as
+  // before, with no claim. The claim never holds the minute, so it cannot delay
+  // a money surface. Same ref-not-state shape as the mix prompt above, for the
+  // same reason. Only a busy minute is worth retrying: a taken day or a pace
+  // refusal will not clear by waiting, so no timer is set for those.
+  const pace = useSyncExternalStore(subscribePace, getPace, getPace);
+  const dockGate = depthDockGate(pace);
+  const dockClaimRef = useRef({ boardId: null, held: false });
+  const [dockHeldFor, setDockHeldFor] = useState(null);
+  const [dockSlotRetry, setDockSlotRetry] = useState(0);
+  const dockWantsClaim = depthDockEligible && dockGate === 'claim';
+  useEffect(() => {
+    if (!board?.id) return undefined;
+    if (dockClaimRef.current.boardId !== board.id) {
+      dockClaimRef.current = { boardId: board.id, held: false };
+      setDockHeldFor(null);
+    }
+    if (!dockWantsClaim || dockClaimRef.current.held) return undefined;
+    if (claimUpsellSlot('depth-dock')) {
+      dockClaimRef.current = { boardId: board.id, held: true };
+      setDockHeldFor(board.id);
+      return undefined;
+    }
+    if (!upsellSlotBusy()) return undefined;
+    const t = setTimeout(() => setDockSlotRetry((n) => n + 1), UPSELL_STACK_WINDOW_MS);
+    return () => clearTimeout(t);
+  }, [dockWantsClaim, board?.id, dockSlotRetry]);
+  const depthDockVisible = depthDockEligible && (dockGate === 'free' || (dockGate === 'claim' && dockHeldFor === board?.id));
   useEffect(() => {
     if (!depthDockVisible || !board?.id) return;
     recordDockVisit('depth');

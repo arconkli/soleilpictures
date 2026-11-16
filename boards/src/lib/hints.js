@@ -37,6 +37,8 @@ export const HINT_KINDS = Object.freeze(['paste', 'name_cluster', 'studio_bar', 
 // box, go and collect what goes in it, and name it last.
 export const NAME_CLUSTER_AFTER_MS = 60_000;
 
+import { getPace, hintRefused } from './popupPace.js';
+
 const KEY = 'soleil.hint.';
 
 export function hintSeen(kind) {
@@ -61,8 +63,10 @@ export function isDefaultClusterName(name) {
 }
 
 // Deps are injectable so the gate is testable without a DOM or storage.
-export function canShowHint(kind, { seen = hintSeen, tour = tourShowing } = {}) {
+// A regular (lib/popupPace.js) gets none of the tip hints.
+export function canShowHint(kind, { seen = hintSeen, tour = tourShowing, pace = getPace } = {}) {
   if (!HINT_KINDS.includes(kind)) return false;
+  if (hintRefused(kind, pace())) return false;
   if (seen(kind)) return false;
   if (tour()) return false;
   return true;
