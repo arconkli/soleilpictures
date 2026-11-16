@@ -9,7 +9,7 @@ const kindWord = (kind) => ({ video: t`Video`, audio: t`Audio`, image: t`Image`,
 // The little tile a row shows when it has no picture: the extension, else the kind.
 export function typeTile(item) {
   const ext = String(item?.ext || '').slice(0, 4).toUpperCase();
-  return ext || (kindWord(item?.kind) || t`File`).toUpperCase().slice(0, 4);
+  return ext || (kindWord(item?.kind) || t`File`).toUpperCase().slice(0, 5);
 }
 
 // "Anyone with the link can view · 2 people" for a row of Shared by me.

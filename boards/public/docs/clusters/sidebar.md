@@ -2,7 +2,7 @@
 
 > The sidebar is two cards on the left of the screen. One holds Home, Messages and your clusters. The other is Files — everything in a cluster, on the board or not — with tabs for the cluster, Recent and Starred, search, Quick look, and Upload above your plan's storage. Drag files onto another cluster to move them; hold Option (Ctrl on Windows) to copy. ⌘\ hides Files, and F opens the full Files page.
 
-_Source: https://clusters.soleilpictures.com/docs/clusters/sidebar · Updated 2026-10-21_
+_Source: https://clusters.soleilpictures.com/docs/clusters/sidebar · Updated 2026-11-15_
 
 The sidebar is where everything in a workspace is reachable from: the places
 you go, the clusters you work in, and the files inside them. On a computer it
@@ -20,25 +20,34 @@ The top card:
 - **Home** and **Messages** — [Home](/docs/clusters/home-graph) is where your
   projects are; [Messages](/docs/collaborate/messages) opens over the cluster
   you are in and shows an unread count.
-- **Your clusters** — the cluster tree, with **Shared with me** and your
+- **Your clusters** — the cluster tree, with **Shared with you** and your
   [tags](/docs/organize/tags) below it. Click a cluster to open it; the chevron
   shows the clusters inside it. Right-click a cluster for its menu, which adds
   **Star** and, if you can edit it, **Always open in Files** to the
   [usual cluster actions](/docs/clusters).
 
-### Shared with me
+### Shared with you
 
-**Shared with me** lists the clusters people shared with you on their own,
-grouped by the person who shared them (**From Sam Lee**, with their initial),
-or by their workspace's name when who shared it isn't known. Whoever shared
-with you most recently comes first, and in each group the newest cluster
-does. A person who shared many shows their newest few, with **Show more** for
-the rest; the cluster you have open always stays in view.
+**Shared with you** lists the clusters people shared with you on their own,
+the newest first. Each shows the face of whoever shared it, when Clusters
+knows who did; a dot marks one you haven't opened yet, and **View** one you
+can only look at. The clusters inside one sit under its chevron, and the
+cluster you have open always stays in view, with the way down to it opened.
 
-Once the list grows long, a search field sits at the top of it. It finds a
-cluster by its name, by who shared it, or by their workspace's name, and opens
-every group while you type. `Enter` opens the first match and `Esc` clears the
-search.
+Only the newest few are listed. Below them, **All shared** opens the
+[Shared page](/docs/collaborate/sharing#the-shared-page), with every cluster
+and file shared with you or by you, and counts what you haven't opened yet.
+Once more are shared with you than the list shows, the magnifying glass
+beside **Shared with you** opens that page ready to search.
+
+A cluster's **⋯** menu has **Open**, **Copy link** and **Remove from my
+list**. Removing one takes it off your list, with an undo, and changes nothing
+for the person who shared it. Opening it again, from a link or a search, puts
+it back, and so does their sharing it with you again. When someone stops
+sharing a cluster with you, it leaves the list and a note says so.
+
+Inside a cluster shared with you, the trail at the top of the canvas starts
+with whoever shared it, when Clusters knows who did.
 
 The second card is **Files**.
 

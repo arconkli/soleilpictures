@@ -5,7 +5,7 @@ h1: Sharing and public links
 navLabel: Sharing
 section: collaborate
 order: 1
-updated: 2026-11-01
+updated: 2026-11-15
 answer: A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are view-only, include nested clusters by default and can expire after 7 or 30 days. Anyone who opens one can join to keep the cluster in their Clusters, and ask you to let them edit. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 faq:
   - q: Does someone need an account to open a shared link?
@@ -23,7 +23,7 @@ faq:
   - q: Does the person I share a file with need an account?
     a: Not to view it, or to download it when downloading is allowed, if the file is shared with anyone who has the link. They sign in with a code sent to their email to comment, or to open a file shared only with people you added.
   - q: Where do I find files people have shared with me?
-    a: In the Shared page — the Shared files row under Shared with me in the sidebar. Its With me tab lists every file shared with you, where you can open it in the app, save a copy into one of your clusters when downloading is allowed, or add a live shortcut to it on a cluster.
+    a: On the Shared page — All shared, under Shared with you in the sidebar. Its With you tab lists every cluster and file shared with you, grouped by who shared them, where you can open a file in the app, save a copy into one of your clusters when downloading is allowed, or add a live shortcut to it on a cluster.
   - q: Can I stop someone downloading a shared file?
     a: Turning off Allow downloading removes the Download button and the original file from the page. It cannot stop someone saving what they can see, such as a screenshot or a screen recording.
 related:
@@ -82,7 +82,7 @@ created when they sign in and take it.
 
 Someone who opens a view link sees who sent it and a **Join** button. Joining
 asks them to sign in (a code to their email, nothing else), then puts the
-cluster in their sidebar under Shared with me. They see your changes as they
+cluster in their sidebar under Shared with you. They see your changes as they
 happen, and still cannot change anything. You get a note that they joined, and
 they appear in **Who has access** as a viewer you can remove like anyone else.
 A new account that joins this way counts as your
@@ -518,39 +518,44 @@ were doing, with the same player, viewer or doc as its page. You get there from:
 - its row in the list under the bell at the top right of the board (on a
   phone, in the top bar before **Share**), which keeps every notification until
   you read it; see [Notifications](/docs/collaborate/notifications)
-- the **Shared files** row under **Shared with me** in the sidebar, which
-  appears once anything has been shared with you or by you, with a count of
-  the ones you haven't opened yet
+- **All shared**, under **Shared with you** in the sidebar, which appears once
+  anything has been shared with you or by you, with a count of what you
+  haven't opened yet
 - **Open in Clusters** at the top of a file's page, when you open the link
   while signed in
 
 ### The Shared page
 
-**Shared files** opens the Shared page, with two tabs.
+**All shared** opens the Shared page, with two tabs.
 
-**With me** lists the files and docs people added you to, and the ones you
-opened from a link while signed in. Each row shows who shared it and when; a dot marks one
-you haven't opened yet. Click a row to open the file, or use its **⋯** menu:
+**With you** lists the clusters, files and docs people shared with you, and
+the files you opened from a link while signed in, grouped by who shared them;
+whoever shared with you last comes first. A cluster whose sharer Clusters
+doesn't know sits under its workspace's name, and a file you opened from a
+link under **From links**. Each row shows what it is and when it came; a dot
+marks one you haven't opened yet, and **View** a cluster you can only look
+at. Click a row to open it, or use its **⋯** menu:
 
 | Option | What it does |
 |---|---|
-| **Open** | Opens the file in the app |
-| **Save a copy…** | Copies the file into one of your clusters — only when downloading is allowed |
-| **Add shortcut…** | Puts a live shortcut to the file on one of your clusters |
-| **Remove from Shared with me** | Takes it off your list, with an undo. It changes nothing for the person who shared it |
+| **Open** | Opens the cluster, or the file in the app |
+| **Copy link** | Copies the cluster's link — clusters only |
+| **Save a copy…** | Copies the file into one of your clusters — files only, when downloading is allowed |
+| **Add shortcut…** | Puts a live shortcut to the file on one of your clusters — files only |
+| **Remove from my list** | Takes it off your list, with an undo. It changes nothing for the person who shared it |
 
-**By me** lists what you have shared that is still shared, with the cluster
-each file is in and who can open it. Click a row to open its sharing dialog, or
-use its **⋯** menu: **Manage sharing…**, **Copy link**, or **Stop sharing**,
-which turns the link off and removes everyone you added, at once. Stopping
-has an undo that brings back the link and exactly the people it removed, and
-emails nobody again.
+**By you** lists the clusters and files you have shared that are still
+shared, the newest first, each with who has it and **Link on** while its link
+works. Click a cluster to open it, or a file to open its sharing dialog. A
+cluster's **⋯** menu has **Open**, **Manage sharing…** and **Copy link**; a
+file's has **Manage sharing…**, **Copy link** and **Stop sharing**, which
+turns the link off and removes everyone you added, at once. Stopping has an
+undo that brings back the link and exactly the people it removed, and emails
+nobody again.
 
-When a tab holds more than a handful of files, a search field in the page's
-header narrows it: on **With me** by the file's name or who shared it, on
-**By me** by the file's name or its cluster. While you type it shows how many
-of the tab's files match; `Esc` or **✕** clears it, and switching tabs starts
-afresh.
+The search field at the top finds anything on the open tab by its name, by
+who shared it or who has it, by its workspace or cluster, or by what it is,
+such as *video*. `Esc` or **✕** clears it, and switching tabs starts afresh.
 
 ### Save a copy
 

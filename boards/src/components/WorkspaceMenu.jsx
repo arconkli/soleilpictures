@@ -15,18 +15,20 @@ import { ownPersonalCount, workspaceCountLine } from '../lib/workspaceLimit.js';
 import { teamsAllowed } from '../lib/appHost.js';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { initialOf } from '../lib/graphemes.js';
-import { matchesFind, findHitKind, readOpenedWorkspaces, orderSharedWorkspaces } from '../lib/sharedPeople.js';
-import { isOwnWorkspace, workspaceTitle, workspaceTileName, workspaceOwnerLine } from '../lib/sharedPeopleWords.js';
+import { matchesFind, findHitKind, readOpenedWorkspaces, orderSharedWorkspaces, shortSharedList } from '../lib/sharedPeople.js';
+import { isOwnWorkspace, workspaceTitle, workspaceTileName, workspaceOwnerLine, titleNamesOwner } from '../lib/sharedPeopleWords.js';
 import { useWorkspaceOwners } from '../hooks/useWorkspaceOwners.js';
 import { trackFindUsed } from '../lib/findUsed.js';
 import { coarsePointer } from '../lib/noteTouchTyping.js';
-import { t, ph } from '@lingui/core/macro';
+import { t, ph, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import './workspaceMenuFind.css';
 
 // Show the find field once the menu lists this many workspaces — on
 // tiny lists it's just visual clutter.
 const FILTER_MIN = 5;
+// The id of the "Show all" row in the arrow-key list.
+const SHOW_ALL = '__show_all__';
 
 export function WorkspaceMenu({
   workspaces,
@@ -58,9 +60,12 @@ export function WorkspaceMenu({
   // The keyboard / hover highlight: a workspace id, or null. While the field
   // has text the first match stands in for null (see `hlId`).
   const [hl, setHl] = useState(null);
+  // The short list of shared workspaces shows all of them once opened out; each open starts shut.
+  const [expanded, setExpanded] = useState(false);
   const listId = useId();
   const rowDomId = (id) => `${listId}-ws-${id}`;
   const scrollHl = useRef(false);
+  const findRef = useRef(null);
   // Which shared workspaces you opened last on this device: read once per open.
   const opened = useMemo(() => readOpenedWorkspaces(), []);
   // Per-row mini-menu state — only one open at a time. Stores the
@@ -107,7 +112,7 @@ export function WorkspaceMenu({
       if (b.id === personalWorkspaceId) return 1;
       return (a.created_at || '').localeCompare(b.created_at || '');
     }), [list, selfUserId, personalWorkspaceId, q, team?.ids, owners]);
-  const shared = useMemo(() => orderSharedWorkspaces(
+  const sharedAll = useMemo(() => orderSharedWorkspaces(
     list.filter(w => w.created_by !== selfUserId && matches(w) && !inTeam(w)),
     opened,
     (w) => Date.parse(w._joinedAt),
@@ -116,7 +121,18 @@ export function WorkspaceMenu({
   // come first while nothing is typed, and switch through the team's own path.
   const teamRows = team && !q ? (team.workspaces || []) : [];
   const teamRowIds = new Set(teamRows.map(w => w.id));
-  const visible = [...teamRows, ...mine.filter(w => !teamRowIds.has(w.id)), ...shared.filter(w => !teamRowIds.has(w.id))];
+  const sharedLive = sharedAll.filter(w => !teamRowIds.has(w.id));
+  const { rows: shared, hidden: sharedHidden } = shortSharedList(sharedLive, { activeId: activeWorkspaceId, expanded, searching: !!q });
+  const showAllRow = sharedHidden > 0 ? [{ id: SHOW_ALL }] : [];
+  const visible = [...teamRows, ...mine.filter(w => !teamRowIds.has(w.id)), ...shared, ...showAllRow];
+  const expandAll = () => {
+    // The highlight moves to the first row the list just gained.
+    const first = sharedLive.find(w => !shared.some(x => x.id === w.id));
+    setExpanded(true);
+    // The button unmounts as the list grows; keep focus where the arrows work.
+    findRef.current?.focus();
+    if (first) { scrollHl.current = true; setHl(first.id); }
+  };
   const hlId = q ? (visible.some(w => w.id === hl) ? hl : visible[0]?.id ?? null)
                  : (visible.some(w => w.id === hl) ? hl : null);
   useEffect(() => {
@@ -125,6 +141,7 @@ export function WorkspaceMenu({
     document.getElementById(rowDomId(hlId))?.scrollIntoView?.({ block: 'nearest' });
   }, [hlId]);
   const pick = (w) => {
+    if (w.id === SHOW_ALL) { expandAll(); return; }
     if (teamRowIds.has(w.id)) { team.onPickWorkspace?.(w); onClose?.(); return; }
     if (q) {
       trackFindUsed({
@@ -162,7 +179,7 @@ export function WorkspaceMenu({
   };
   // From 8 of your own (0856): "8 of 10 workspaces"; "of your own" when a team's are in the list too.
   const countLine = workspaceCountLine(ownPersonalCount(list, selfUserId), { teams: teamsAllowed(), mixed: list.some(w => w.org_id) });
-  const noResults = q && mine.length === 0 && shared.length === 0;
+  const noResults = q && mine.length === 0 && sharedAll.length === 0;
 
   // Map online users by id so each workspace row can render a small
   // green-ringed dot for any member who's currently in the workspace.
@@ -180,6 +197,9 @@ export function WorkspaceMenu({
     const canManage = isOwner || isCoowner;
     const owner = owners.get(w.id) || null;
     const title = titleOf(w);
+    const ownerFirst = !isOwner && !isOwnWorkspace(w, selfUserId) && owner?.name
+      && !titleNamesOwner(w, { ownerName: owner.name, isOwn: false })
+      ? owner.name.trim().split(/\s+/)[0] : '';
     const ownerLine = isOwner ? null
       : workspaceOwnerLine(w, { ownerName: owner?.name ?? null, isOwn: isOwnWorkspace(w, selfUserId), role: w._myRole });
     const subtitle = isPersonal ? t`Personal`
@@ -210,15 +230,16 @@ export function WorkspaceMenu({
            // the browser's.
            onContextMenu={hasRowMenu ? (e) => { e.preventDefault(); setOpenMenuId(w.id); } : undefined}>
         <button id={rowDomId(w.id)}
-                className={`ws-menu-row ${isActive ? 'is-active' : ''} ${hlId === w.id ? 'is-kb' : ''}`}
+                title={subtitle}
+                className={`ws-menu-row is-short ${isActive ? 'is-active' : ''} ${hlId === w.id ? 'is-kb' : ''}`}
                 onClick={() => pick(w)}>
           {iconSrc
             ? <span className="ws-menu-avatar ws-menu-avatar-img"><R2Image src={iconSrc} alt="" /></span>
             : <span className="ws-menu-avatar" style={{ background: tint }}>{initial}</span>}
           <span className="ws-menu-text">
             <span className="ws-menu-name">{title}</span>
-            <span className="ws-menu-sub">{subtitle}</span>
           </span>
+          {ownerFirst && <span className="ws-menu-owner">{ownerFirst}</span>}
           {q && hlId === w.id && <span className="ws-menu-enter" aria-hidden="true">↵</span>}
           {isActive && (
             <span className="ws-menu-check"><Icon as={Check} size={14} /></span>
@@ -284,7 +305,7 @@ export function WorkspaceMenu({
       {showFilter && (
         <div className="ws-menu-filter">
           <Icon as={Search} size={12} />
-          <input autoFocus={!coarsePointer()}
+          <input ref={findRef} autoFocus={!coarsePointer()}
                  type="text"
                  placeholder={t`Find a workspace or person…`}
                  aria-label={t`Find a workspace or person…`}
@@ -338,8 +359,22 @@ export function WorkspaceMenu({
         )}
         {shared.length > 0 && (
           <>
-            <div className="ws-menu-section"><Trans>SHARED WITH YOU</Trans></div>
+            <div className="ws-menu-section">
+              {sharedHidden > 0 ? t`SHARED WITH YOU · ${ph({ n: sharedLive.length })}` : <Trans>SHARED WITH YOU</Trans>}
+            </div>
             {shared.map(renderRow)}
+            {sharedHidden > 0 && (
+              <button type="button" id={rowDomId(SHOW_ALL)}
+                      className={`ws-menu-row is-short ws-menu-showall ${hlId === SHOW_ALL ? 'is-kb' : ''}`}
+                      onMouseMove={() => setHl(SHOW_ALL)}
+                      onClick={expandAll}>
+                <span className="ws-menu-text">
+                  <span className="ws-menu-name">
+                    {plural(sharedLive.length, { one: 'Show all #', other: 'Show all #' })}
+                  </span>
+                </span>
+              </button>
+            )}
           </>
         )}
         {noResults && (

@@ -63,17 +63,26 @@ export function mountMembersTab(props) {
   return true;
 }
 
-// The sidebar's "Shared with me" section, opened. Records the ids it was asked
-// to open on window.__sharedProbe.opened. Hosted in a sidebar-width box.
-export function mountSharedWithMe(props) {
-  const calls = { opened: [] };
+// The sidebar's "Shared with you" section. Records the ids it was asked to
+// open, copy and remove on window.__sharedProbe. Hosted in a sidebar-width box.
+// props are SidebarSharedBoards' own (roots, childrenOf, meta, activeBoardId,
+// activeRootId, allShared); `shared` (rows) is shorthand for `roots`, and
+// childrenOf / meta may be plain arrays of entries or objects as well as Maps.
+export function mountSharedWithMe(props = {}) {
+  const calls = { opened: [], copied: [], removed: [] };
   window.__sharedProbe = calls;
-  try { localStorage.setItem('soleil.boards.sb.shared.expanded', JSON.stringify({ root: true, groups: {} })); } catch (_) {}
+  const { shared, roots, childrenOf, meta, ...rest } = props;
+  const asMap = (v) => (v instanceof Map ? v : new Map(Array.isArray(v) ? v : Object.entries(v || {})));
   const el = host();
   el.style.cssText = 'width:260px;padding:8px;background:var(--bg-1, var(--bg-0));position:fixed;top:0;left:0;max-height:100vh;overflow:auto;z-index:9999';
   mountIn(el, React.createElement(SidebarSharedBoards, {
+    roots: roots || shared || [],
+    childrenOf: asMap(childrenOf),
+    meta: asMap(meta),
     onOpenBoard: (id) => calls.opened.push(id),
-    ...props,
+    onCopyLink: (id) => calls.copied.push(id),
+    onRemove: (id) => calls.removed.push(id),
+    ...rest,
   }));
   return true;
 }

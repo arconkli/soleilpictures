@@ -459,7 +459,7 @@ body.sbf-sizing .app,
 .app.sb-files .sb-tags-head:hover .sb-tags-add,
 .app.sb-files .sb-boards-add:focus-visible,
 .app.sb-files .sb-tags-add:focus-visible { opacity: 1; }
-.app.sb-files .sb-boards-count, .app.sb-files .sb-tags-head-count, .app.sb-files .sb-shared-count { display: none; }
+.app.sb-files .sb-boards-count, .app.sb-files .sb-tags-head-count { display: none; }
 
 /* Cluster rows: the name alone (and an upload's ↑ 3), the chevron where the
    text starts, a level 16px in. */
@@ -479,12 +479,6 @@ body.sbf-sizing .app,
 .app.sb-files .sb-row-all { padding-left: 24px; gap: 6px; color: var(--ink-2); }
 .app.sb-files .sb-row-all svg { display: none !important; }
 
-/* Shared with me: names only, as the tree. */
-.app.sb-files .sb-shared-group-head { padding: 4px 8px 4px 24px; font: 400 12px/1.3 var(--font-sans); color: var(--ink-3); }
-.app.sb-files .sb-shared-rows { padding-left: 0; }
-.app.sb-files .sb-shared-row { padding-left: 24px; }
-.app.sb-files .sb-shared-row .sb-dot { display: none; }
-
 /* Tags: the tag's colour where the chevrons are, its name with the clusters'. */
 .app.sb-files .sb-tag-row {
   height: 30px; padding: 0 8px 0 10px; gap: 10px; border-left: 0; border-radius: 6px;
@@ -503,7 +497,7 @@ body.sbf-sizing .app,
 /* A card dragged off the board over a cluster outside it lights the place it
    would go, as a drag from Files does (CanvasSurface sets data-card-drop: the
    drag is the board's, and React doesn't own the attribute). */
-.sb-tree-row.is-files[data-card-drop], .sb-shared-row[data-card-drop] { box-shadow: inset 0 0 0 1.5px var(--soleil); }
+.sb-tree-row.is-files[data-card-drop] { box-shadow: inset 0 0 0 1.5px var(--soleil); }
 .sbf-files[data-card-drop] { box-shadow: inset 0 0 0 2px var(--soleil); }
 .ft[data-card-drop] { border-color: var(--soleil); background: var(--soleil-soft); }
 .list-wrap[data-card-drop] { outline: 1.5px dashed color-mix(in srgb, var(--soleil) 65%, transparent); outline-offset: -6px; }

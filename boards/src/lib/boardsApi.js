@@ -520,6 +520,58 @@ export async function listSharedBoards() {
   return data || [];
 }
 
+// 0901: what's new on your Shared with you list and what you took off it
+// (board_share_seen, private to you), and the clusters you've shared. A
+// database without 0901 (no such function) reads as nothing, once.
+const noSuchFunction = (e) => e?.code === 'PGRST202' || e?.code === '42883';
+let sharedSeenMissing = false;
+let myBoardSharesMissing = false;
+
+// [{ board_id, shared_at, opened_at, hidden_at, via_link }]
+export async function listSharedBoardMeta() {
+  if (sharedSeenMissing) return [];
+  const { data, error } = await supabase.rpc('list_shared_board_meta');
+  if (error) {
+    if (noSuchFunction(error)) { sharedSeenMissing = true; return []; }
+    throw error;
+  }
+  return data || [];
+}
+
+// True when it wrote (the share was new or off your list); opening it again
+// writes nothing.
+export async function markSharedBoardOpened(boardId) {
+  if (sharedSeenMissing || !boardId) return false;
+  const { data, error } = await supabase.rpc('mark_shared_board_opened', { p_board_id: boardId });
+  if (error) {
+    if (noSuchFunction(error)) { sharedSeenMissing = true; return false; }
+    throw error;
+  }
+  return data === true;
+}
+
+// Remove from my list (hidden true) and its Undo (false). False when the
+// cluster isn't shared with you.
+export async function hideSharedBoard(boardId, hidden = true) {
+  if (!boardId) return false;
+  const { data, error } = await supabase.rpc('hide_shared_board', { p_board_id: boardId, p_hidden: !!hidden });
+  if (error) throw error;
+  return data === true;
+}
+
+// [{ board_id, board_name, board_cover, workspace_id, workspace_name,
+//    people: [{ user_id, name, color, role }] (first 8), people_count,
+//    link_on, last_shared_at }]
+export async function listMyBoardShares() {
+  if (myBoardSharesMissing) return [];
+  const { data, error } = await supabase.rpc('list_my_board_shares');
+  if (error) {
+    if (noSuchFunction(error)) { myBoardSharesMissing = true; return []; }
+    throw error;
+  }
+  return data || [];
+}
+
 // ── Public sharable links ────────────────────────────────────────────
 // Owner-only. Generate, list, revoke anonymous read-only share tokens.
 // Public viewers go through the upload party's /share-bundle route

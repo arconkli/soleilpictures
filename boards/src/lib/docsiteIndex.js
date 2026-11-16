@@ -1287,7 +1287,7 @@ export const DOCS_PAGES = [
     "answer": "A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no limit on how many clusters you make, and a cluster costs none of your cards: its card on the parent's canvas is free on every plan, and only what you put inside it counts. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.",
     "section": "clusters",
     "order": 0,
-    "updated": "2026-11-14",
+    "updated": "2026-11-15",
     "navLabel": "Overview",
     "headings": [
       {
@@ -1359,7 +1359,7 @@ export const DOCS_PAGES = [
     "answer": "The sidebar is two cards on the left of the screen. One holds Home, Messages and your clusters. The other is Files — everything in a cluster, on the board or not — with tabs for the cluster, Recent and Starred, search, Quick look, and Upload above your plan's storage. Drag files onto another cluster to move them; hold Option (Ctrl on Windows) to copy. ⌘\\ hides Files, and F opens the full Files page.",
     "section": "clusters",
     "order": 0.5,
-    "updated": "2026-10-21",
+    "updated": "2026-11-15",
     "navLabel": "Sidebar",
     "headings": [
       {
@@ -1541,7 +1541,7 @@ export const DOCS_PAGES = [
     "answer": "Home shows your clusters — the ones you were last in, every cluster at the top of your workspace newest first, and New cluster — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Clusters brings it back.",
     "section": "clusters",
     "order": 2,
-    "updated": "2026-10-07",
+    "updated": "2026-11-15",
     "navLabel": "Home",
     "headings": [
       {
@@ -2113,7 +2113,7 @@ export const DOCS_PAGES = [
     "answer": "Invite people to a cluster as an editor or a viewer, by email or with a link. On Free and Creator, up to 10 people can edit across everything an account owns, at no cost to them, and viewers are unlimited. Cards and storage always count against the cluster owner's quota, not the person who added them.",
     "section": "collaborate",
     "order": 0,
-    "updated": "2026-10-17",
+    "updated": "2026-11-15",
     "navLabel": "Overview",
     "headings": [
       {
@@ -2173,7 +2173,7 @@ export const DOCS_PAGES = [
     "answer": "A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are view-only, include nested clusters by default and can expire after 7 or 30 days. Anyone who opens one can join to keep the cluster in their Clusters, and ask you to let them edit. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.",
     "section": "collaborate",
     "order": 1,
-    "updated": "2026-11-01",
+    "updated": "2026-11-15",
     "navLabel": "Sharing",
     "headings": [
       {
@@ -2257,7 +2257,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Where do I find files people have shared with me?",
-        "a": "In the Shared page — the Shared files row under Shared with me in the sidebar. Its With me tab lists every file shared with you, where you can open it in the app, save a copy into one of your clusters when downloading is allowed, or add a live shortcut to it on a cluster."
+        "a": "On the Shared page — All shared, under Shared with you in the sidebar. Its With you tab lists every cluster and file shared with you, grouped by who shared them, where you can open a file in the app, save a copy into one of your clusters when downloading is allowed, or add a live shortcut to it on a cluster."
       },
       {
         "q": "Can I stop someone downloading a shared file?",
@@ -2450,7 +2450,7 @@ export const DOCS_PAGES = [
     "answer": "Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, and occasional product tips. Each of the six is its own switch in Settings under Notifications, and product tips, mentions and replies carry a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.",
     "section": "collaborate",
     "order": 5,
-    "updated": "2026-10-21",
+    "updated": "2026-11-15",
     "navLabel": "Notifications",
     "headings": [
       {
@@ -2482,7 +2482,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Where do notifications appear in the app?",
-        "a": "Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a file, which opens it in the app, and every one of them is kept in the list under the bell at the top right of the board, after the theme switch (on a phone, in the top bar before Share), whose number counts the ones you haven't read. A file shared with you is emailed to you as well, and listed on the Shared page (Shared files, under Shared with me in the sidebar)."
+        "a": "Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a file, which opens it in the app, and every one of them is kept in the list under the bell at the top right of the board, after the theme switch (on a phone, in the top bar before Share), whose number counts the ones you haven't read. A file shared with you is emailed to you as well, and listed on the Shared page (All shared, under Shared with you in the sidebar)."
       },
       {
         "q": "Do I get browser notifications?",

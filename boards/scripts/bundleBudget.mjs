@@ -472,7 +472,20 @@ export const CEILINGS = {
   // CanvasSurface.jsx, cards/gridCellShared.jsx). A CI-style build read
   // 803,092 B with it on main f2ff9698, against that note's 801,258 B; the
   // ceiling moves by the difference, 1,834 B, rounded up.
-  appJs: 804_000,
+  // 2026-11-15: +4.5 KB for Shared with you, which the sidebar draws as the
+  // app opens: the section's new dots, faces, All shared row, search and each
+  // row's menu (components/SidebarSharedBoards.jsx, lib/sharedList.js); what's
+  // new and what you took off your list, read after boot (hooks/
+  // useSharedBoards.js; the calls load with lib/boardsApi.js in CanvasSurface);
+  // Remove from my list with Undo, the no-longer-shared note and marking a
+  // cluster opened (App.jsx); and the workspace switcher's short list
+  // (components/WorkspaceMenu.jsx). The menu's icons are ones the app already
+  // loads, and the Shared page stays a chunk of its own. CI-style builds read
+  // 804,299 B on main 40837d92 and 808,815 B with it. Main already read 299 B
+  // over its 804,000 ceiling (the fewer pop-ups change, 40837d92, added 1.2 KB
+  // without moving it), so the ceiling moves from main's reading by the
+  // difference, 4,516 B, rounded up.
+  appJs: 808_900,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).
@@ -485,7 +498,12 @@ export const CEILINGS = {
   // (sidebar/clusterSidebar.css; it was in styles.css, which every public page
   // loads, and the entry CSS is 50 B smaller for the move). 23,658 B on main
   // b29a7ed7, 24,397 B with it.
-  appCss: 24_450,
+  // 2026-11-15: +0.1 KB for Shared with you: its rows, dots and menu
+  // (sidebar/sharedWithYou.css, which replaces sidebar/sidebarSharedFind.css)
+  // and the switcher's Show all and wrapping New workspace (workspaceMenuFind.css).
+  // The old section's rules left styles.css, so the entry CSS is 63 B smaller.
+  // 24,397 B on main 40837d92, 24,507 B with it.
+  appCss: 24_600,
 };
 
 // Chunks that must never be in the app's critical closure. Matched against the

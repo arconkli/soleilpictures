@@ -137,6 +137,10 @@ msgstr "“{name}” 삭제됨"
 msgid "“{name}” hit a sync error and was reloaded from the server. If a very recent edit looks missing, it may need to be redone."
 msgstr "“{name}”에서 동기화 오류가 발생해 서버에서 다시 불러왔어요. 아주 최근 편집이 보이지 않으면 다시 해야 할 수 있어요."
 
+#: src/App.jsx
+msgid "“{name}” is no longer shared with you."
+msgstr "“{name}”이(가) 더 이상 나와 공유되지 않아요."
+
 #: src/hooks/useCandidateTagging.js
 msgid "“{name}” is now a {kind}"
 msgstr "{kind}(으)로 지정했어요: “{name}”"
@@ -164,6 +168,11 @@ msgstr "주제로 지정했어요: “{name}”"
 #: src/hooks/useCandidateTagging.js
 msgid "“{name}” is now an organization"
 msgstr "조직으로 지정했어요: “{name}”"
+
+#: src/App.jsx
+#: src/components/shared/SharedPage.jsx
+msgid "“{name}” removed from your list."
+msgstr "“{name}”을(를) 목록에서 제거했어요."
 
 #: src/components/CanvasSurface.jsx
 msgid "“{name}” will appear at /templates for anyone to add. It shares the shape and the labels only — no images, no text, nothing from the board it came from. You can remove it at any time."
@@ -323,6 +332,11 @@ msgstr "{0, plural, other {요금제 한도를 넘은 카드 #장은 제외했�
 #: src/pages/KeepPage.jsx
 msgid "{0, plural, one {# card} other {# cards}}"
 msgstr "{0, plural, other {카드 #장}}"
+
+#. placeholder {0}: ended.length
+#: src/App.jsx
+msgid "{0, plural, one {# cluster is no longer shared with you.} other {# clusters are no longer shared with you.}}"
+msgstr "{0, plural, other {클러스터 #개가 더 이상 나와 공유되지 않아요.}}"
 
 #. placeholder {0}: subBoards.length
 #: src/components/ListSurface.jsx
@@ -568,6 +582,11 @@ msgstr "{0, plural, other {+#명 더}}"
 msgid "{0, plural, one {Added # file to Files — not on the board} other {Added # files to Files — not on the board}}"
 msgstr "{0, plural, other {파일 페이지에 파일 #개를 추가했어요. 캔버스에는 올리지 않았어요}}"
 
+#. placeholder {0}: allShared.count
+#: src/components/SidebarSharedBoards.jsx
+msgid "{0, plural, one {All shared, # new} other {All shared, # new}}"
+msgstr "{0, plural, other {모든 공유 항목, 새 항목 #개}}"
+
 #. placeholder {0}: kids.length - 4
 #: src/components/home/ClustersHome.jsx
 msgid "{0, plural, one {and # more} other {and # more}}"
@@ -704,6 +723,11 @@ msgstr "{0, plural, other {클러스터 #개를 {rewindDate}로 되돌렸어요}
 #: src/components/sidebar/ClusterShelves.jsx
 msgid "{0, plural, one {Show # more} other {Show # more}}"
 msgstr "{0, plural, other {#개 더 보기}}"
+
+#. placeholder {0}: sharedLive.length
+#: src/components/WorkspaceMenu.jsx
+msgid "{0, plural, one {Show all #} other {Show all #}}"
+msgstr "{0, plural, other {모두 표시 #}}"
 
 #. placeholder {0}: chosen.length
 #: src/components/team/TeamSetup.jsx
@@ -1252,6 +1276,7 @@ msgstr "{first} 님이 여기 있어요"
 msgid "{first} is in it"
 msgstr "{first} 포함"
 
+#: src/components/shared/SharedPage.jsx
 #: src/lib/messagesCard.js
 msgid "{first}, {second} and {rest, plural, one {# other} other {# others}}"
 msgstr "{first} 님, {second} 님 외 {rest, plural, other {#명}}"
@@ -1344,10 +1369,6 @@ msgstr "{h}시간 전"
 #: src/auth/PricingSuccess.jsx
 msgid "{heldElsewhere, plural, one {The file you dropped is in your other Clusters tab. Switch back to it to see it go on — you can close this one.} other {The # files you dropped are in your other Clusters tab. Switch back to it to see them go on — you can close this one.}}"
 msgstr "{heldElsewhere, plural, other {놓은 파일 #개가 다른 Clusters 탭에 있어요. 그 탭으로 돌아가면 올라가는 모습을 볼 수 있어요. 이 탭은 닫아도 돼요.}}"
-
-#: src/components/SidebarSharedBoards.jsx
-msgid "{hiddenN, plural, one {Show # more} other {Show # more}}"
-msgstr "{hiddenN, plural, other {#개 더 보기}}"
 
 #: src/components/cards.jsx
 msgid "{hx} — click to edit · drag to reorder"
@@ -1853,6 +1874,10 @@ msgstr "{n, plural, other {#시간 전에 보냄}}"
 msgid "{n, plural, one {Sent # week ago} other {Sent # weeks ago}}"
 msgstr "{n, plural, other {#주 전에 보냄}}"
 
+#: src/components/shared/SharedPage.jsx
+msgid "{n, plural, one {Shared with # person} other {Shared with # people}}"
+msgstr "{n, plural, other {#명과 공유됨}}"
+
 #: src/lib/teamCopy.js
 msgid "{n, plural, one {That needs # more seat.} other {That needs # more seats.}}"
 msgstr "{n, plural, other {시트가 #개 더 필요해요.}}"
@@ -2202,6 +2227,10 @@ msgstr "{notAdded}은(는) 추가할 수 없었어요"
 #: src/lib/liveTogetherWords.js
 msgid "{others, plural, =1 {You and # other person are working together} other {You and # others are working together}}"
 msgstr "{others, plural, =1 {나와 다른 한 명이 함께 작업하고 있어요} other {나와 다른 #명이 함께 작업하고 있어요}}"
+
+#: src/components/shared/SharedPage.jsx
+msgid "{others, plural, one {{names} and # other} other {{names} and # others}}"
+msgstr "{others, plural, other {{names} 외 #명}}"
 
 #: src/lib/teamCopy.js
 msgid "{others, plural, one {You and # other can edit it.} other {You and # others can edit it.}}"
@@ -2589,7 +2618,6 @@ msgid "{shown} of {0, plural, one {# card} other {# cards}} came through"
 msgstr "카드 {0, plural, other {#장}} 중 {shown}장이 도착했어요"
 
 #: src/components/ListSurface.jsx
-#: src/components/shared/SharedPage.jsx
 msgid "{shown} of {total}"
 msgstr "{total}개 중 {shown}개"
 
@@ -2813,10 +2841,6 @@ msgstr "{unplacedCount, plural, other {파일 #개가 파일 페이지에 있고
 #: src/components/ListSurface.jsx
 msgid "{unplacedTotal} not on board"
 msgstr "{unplacedTotal}개가 캔버스에 없음"
-
-#: src/components/SidebarSharedBoards.jsx
-msgid "{unread} new"
-msgstr "새 항목 {unread}"
 
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "{unread} unread"
@@ -4380,6 +4404,10 @@ msgstr "팀의 시트를 모두 사용 중이에요. 보기 권한으로 초대�
 msgid "All pages"
 msgstr "모든 페이지"
 
+#: src/components/SidebarSharedBoards.jsx
+msgid "All shared"
+msgstr "모든 공유 항목"
+
 #: src/components/TagDetailView.jsx
 msgid "All types"
 msgstr "모든 유형"
@@ -4891,6 +4919,7 @@ msgstr "오디오"
 #: src/components/cards/ShortcutCard.jsx
 #: src/components/fileShare/FileSharePage.jsx
 #: src/components/ListSurface.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/ShortcutsOverlay.jsx
 #: src/lib/cardFromUpload.js
 #: src/lib/cardInfo.js
@@ -5380,7 +5409,7 @@ msgid "Bulleted list"
 msgstr "글머리 기호 목록"
 
 #: src/components/shared/SharedPage.jsx
-msgid "By me"
+msgid "By you"
 msgstr "내가 공유"
 
 #: src/components/cards/ScheduleCard.jsx
@@ -5908,6 +5937,7 @@ msgstr "클린 모드"
 #: src/components/clusterBrowser/FilesPageHead.jsx
 #: src/components/CommandPalette.jsx
 #: src/components/EntityPicker.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
 #: src/components/sidebar/ClusterSwitch.jsx
 #: src/components/SketchPadOverlay.jsx
@@ -5968,7 +5998,6 @@ msgstr "아웃 지우기"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
 #: src/components/shared/SharedPage.jsx
-#: src/components/SidebarSharedBoards.jsx
 msgid "Clear search"
 msgstr "검색어 지우기"
 
@@ -6266,6 +6295,7 @@ msgstr "클러스터"
 #: src/components/clusterBrowser/GridContentPreview.jsx
 #: src/components/MessageComposer.jsx
 #: src/components/MessageThings.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/WorkspaceRecoveryModal.jsx
 #: src/lib/cardInfo.js
 #: src/lib/entityKinds.js
@@ -6873,6 +6903,7 @@ msgstr "파일을 이동하지 않고 복사"
 #: src/components/setup/InviteStep.jsx
 #: src/components/shared/SharedPage.jsx
 #: src/components/ShareModal.jsx
+#: src/components/SidebarSharedBoards.jsx
 msgid "Copy link"
 msgstr "링크 복사"
 
@@ -7338,6 +7369,10 @@ msgstr "복사할 수 없었어요. 이 브라우저에서 허용하지 않았�
 msgid "Couldn't copy the link — your browser blocked the clipboard."
 msgstr "링크를 복사할 수 없어요. 브라우저가 클립보드를 차단했어요."
 
+#: src/App.jsx
+msgid "Couldn't copy the link."
+msgstr "링크를 복사할 수 없었어요."
+
 #: src/components/shared/SharedPage.jsx
 msgid "Couldn’t copy the link."
 msgstr "링크를 복사할 수 없었어요."
@@ -7549,6 +7584,14 @@ msgstr "이미지를 준비할 수 없어요."
 msgid "Couldn't process that image."
 msgstr "이미지를 처리할 수 없어요."
 
+#: src/App.jsx
+msgid "Couldn't put “{name}” back on your list."
+msgstr "“{name}”을(를) 목록에 되돌릴 수 없었어요."
+
+#: src/App.jsx
+msgid "Couldn't put it back on your list."
+msgstr "목록에 되돌릴 수 없었어요."
+
 #: src/lib/storageAddon.js
 msgid "Couldn’t reach billing. Check your connection and try again."
 msgstr "결제에 연결할 수 없었어요. 연결을 확인하고 다시 시도해 주세요."
@@ -7597,6 +7640,14 @@ msgstr "이미지를 읽을 수 없어요."
 #: src/components/ThumbnailCropModal.jsx
 msgid "Couldn’t read that image."
 msgstr "이미지를 읽을 수 없어요."
+
+#: src/App.jsx
+msgid "Couldn't remove “{name}” from your list."
+msgstr "“{name}”을(를) 목록에서 제거할 수 없었어요."
+
+#: src/App.jsx
+msgid "Couldn't remove it from your list."
+msgstr "목록에서 제거할 수 없었어요."
 
 #: src/components/shared/SharedPage.jsx
 msgid "Couldn’t remove it. Try again."
@@ -8389,6 +8440,7 @@ msgstr "문서"
 #: src/components/doc/DocBarA.jsx
 #: src/components/EntityBacklinksPanel.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/lib/entityKinds.js
 #: src/lib/graphData.js
 #: src/lib/helpHub.js
@@ -9128,8 +9180,12 @@ msgid "Editor — you can change what new cards start as, but not the name or ic
 msgstr "편집자 — 새 카드의 시작 상태는 바꿀 수 있지만 이름과 아이콘은 바꿀 수 없어요."
 
 #: src/App.jsx
-msgid "Editor access to \"{name}\" was shared with you. Find it in \"Shared with me\"."
-msgstr "“{name}”의 편집 권한이 공유되었어요. “나와 공유됨”에서 찾을 수 있어요."
+msgid "Editor access to “{name}” was shared with you."
+msgstr "“{name}”의 편집 권한이 나와 공유됐어요."
+
+#: src/App.jsx
+msgid "Editor access to a cluster was shared with you."
+msgstr "클러스터의 편집 권한이 나와 공유됐어요."
 
 #: src/lib/editorLimitWords.js
 msgid "Edits {ws}"
@@ -9744,10 +9800,6 @@ msgstr "이제 파일이 캔버스 옆에서 열려요. 파일을 끌어다 놓�
 msgid "Files path"
 msgstr "파일 경로"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Files shared with you, and files you've shared"
-msgstr "나와 공유된 파일과 내가 공유한 파일"
-
 #: src/lib/dropRules.js
 msgid "Files stay in their own workspace"
 msgstr "파일은 자기 워크스페이스 안에 머물러요"
@@ -9830,21 +9882,9 @@ msgstr "찾기"
 msgid "Find a cluster"
 msgstr "클러스터 찾기"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Find a cluster or person…"
-msgstr "클러스터 또는 사람 검색…"
-
 #: src/components/MessagesPanel.jsx
 msgid "Find a conversation"
 msgstr "대화 찾기"
-
-#: src/components/shared/SharedPage.jsx
-msgid "Find a file or cluster…"
-msgstr "파일 또는 클러스터 검색…"
-
-#: src/components/shared/SharedPage.jsx
-msgid "Find a file or person…"
-msgstr "파일 또는 사람 검색…"
 
 #: src/components/WorkspaceMenu.jsx
 msgid "Find a workspace or person…"
@@ -10236,6 +10276,10 @@ msgstr "문서나 메모의 텍스트에서 도구 모음으로 · 다시 텍스
 #: src/pages/MakePage.jsx
 msgid "From a link an AI wrote"
 msgstr "AI가 쓴 링크에서"
+
+#: src/components/shared/SharedPage.jsx
+msgid "From links"
+msgstr "링크로 받음"
 
 #: src/components/settings/ConnectionsTab.jsx
 msgid "from the Scout waitlist"
@@ -11014,6 +11058,7 @@ msgstr "이미지"
 #: src/components/EntityHoverPopover.jsx
 #: src/components/fileShare/FileSharePage.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/TagDetailView.jsx
 #: src/components/TagRangeHoverPopover.jsx
 #: src/lib/entityKinds.js
@@ -12316,6 +12361,7 @@ msgstr "링크 카드"
 msgid "Link cards"
 msgstr "링크 카드"
 
+#: src/App.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/MessageThread.jsx
@@ -12365,6 +12411,11 @@ msgstr "링크를 복사했어요. 소유자의 요금제 시트가 가득 찬 �
 #: src/components/ShareModal.jsx
 msgid "Link copied. While your plan is full, anyone with it joins as a viewer."
 msgstr "링크를 복사했어요. 내 요금제의 시트가 가득 찬 동안에는 링크가 있는 사람이 뷰어로 참여해요."
+
+#: src/components/shared/SharedPage.jsx
+msgctxt "link sharing"
+msgid "Link on"
+msgstr "링크 켜짐"
 
 #: src/components/RichNoteEditor.jsx
 msgid "LINK PREVIEW"
@@ -13131,6 +13182,7 @@ msgstr "무드보드, 시나리오, 샷 리스트 — 모든 에셋을 하나의
 #: src/components/chrome/FloatingChrome.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/doc/DocFrameA.jsx
+#: src/components/SidebarSharedBoards.jsx
 #: src/components/team/TeamPage.jsx
 #: src/components/toolbar/SelectionBarA.jsx
 msgid "More"
@@ -13145,6 +13197,7 @@ msgid "More arrow options"
 msgstr "화살표 옵션 더 보기"
 
 #: src/components/shared/SharedPage.jsx
+#: src/components/SidebarSharedBoards.jsx
 #: src/components/team/TeamPeople.jsx
 #: src/components/team/TeamWorkspaces.jsx
 msgid "More for {name}"
@@ -13561,6 +13614,7 @@ msgid "new"
 msgstr "신규"
 
 #: src/components/MessageThread.jsx
+#: src/components/SidebarSharedBoards.jsx
 msgid "New"
 msgstr "새 메시지"
 
@@ -14397,10 +14451,6 @@ msgstr "삭제된 것은 없어요. 팀이 계속 미결제 상태이면 보기 
 msgid "Nothing has been deleted. If the team stays unpaid, its workspaces are deleted on {date}, and we’ll remind you before then."
 msgstr "삭제된 것은 없어요. 팀이 계속 미결제 상태이면 {date}에 워크스페이스가 삭제되고, 그 전에 다시 알려 드릴게요."
 
-#: src/components/shared/SharedPage.jsx
-msgid "Nothing has been shared with you yet."
-msgstr "아직 나와 공유된 항목이 없어요."
-
 #: src/lib/oauthConsentCopy.js
 msgid "Nothing has been shared."
 msgstr "공유된 것은 없어요."
@@ -14436,10 +14486,6 @@ msgstr "아직 업로드된 것이 없어요. 파일을 삭제하거나 휴지�
 #: src/components/ImportCapDialog.jsx
 msgid "Nothing has been uploaded yet. This cluster is on its owner’s plan, so their plan sets the limit."
 msgstr "아직 업로드된 것이 없어요. 이 클러스터는 소유자의 요금제를 따르므로 한도도 소유자의 요금제에 따라 정해져요."
-
-#: src/components/shared/SharedPage.jsx
-msgid "Nothing here matches “{q}”."
-msgstr "여기에는 “{q}” 검색 결과가 없어요."
 
 #: src/components/ListSurface.jsx
 msgid "Nothing here yet."
@@ -14491,6 +14537,10 @@ msgstr "캔버스에는 아무것도 배치되지 않아요."
 #: src/pages/MakePage.jsx
 msgid "Nothing is saved until you keep it."
 msgstr "보관하기 전까지는 아무것도 저장되지 않아요."
+
+#: src/components/shared/SharedPage.jsx
+msgid "Nothing is shared with you yet."
+msgstr "아직 나와 공유된 항목이 없어요."
 
 #: src/lib/importCopy.js
 msgid "Nothing is uploading. Resume picks up where it left off."
@@ -14553,9 +14603,9 @@ msgstr "아직 해결된 댓글이 없어요"
 msgid "Nothing scheduled"
 msgstr "예정된 일정이 없어요"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Nothing shared with you matches “{q}”."
-msgstr "나와 공유된 항목에서 “{q}” 검색 결과가 없어요."
+#: src/components/shared/SharedPage.jsx
+msgid "Nothing shared matches “{q}”"
+msgstr "“{q}”와(과) 일치하는 공유 항목이 없어요"
 
 #: src/lib/downloadOps.js
 msgid "Nothing there could be downloaded."
@@ -14997,6 +15047,7 @@ msgstr "불투명도"
 #: src/components/ListSurface.jsx
 #: src/components/shared/SharedPage.jsx
 #: src/components/SidebarBoardTree.jsx
+#: src/components/SidebarSharedBoards.jsx
 #: src/components/TagDetailView.jsx
 #: src/components/team/TeamWorkspaces.jsx
 #: src/hooks/useInboxLive.js
@@ -15096,10 +15147,6 @@ msgstr "전체 화면 그리기 캔버스 열기"
 #: src/components/settings/ProfileTab.jsx
 msgid "Open a workspace before uploading a profile picture."
 msgstr "프로필 사진을 업로드하려면 먼저 워크스페이스를 여세요."
-
-#: src/components/shared/SharedPage.jsx
-msgid "Open any file and use Share to send just that file."
-msgstr "파일을 열고 공유를 눌러 그 파일만 보내세요."
 
 #: src/components/cards/SchedulePeek.jsx
 msgid "Open as the card's Day view"
@@ -15386,10 +15433,6 @@ msgstr "Yahoo! Mail 열기"
 #: src/lib/activityTray.js
 msgid "Open: {title}"
 msgstr "열기: {title}"
-
-#: src/components/shared/SharedPage.jsx
-msgid "Opened from a link"
-msgstr "링크로 열림"
 
 #: src/components/CanvasSurface.jsx
 msgid "Opened your new cluster — add images inside it."
@@ -15903,6 +15946,7 @@ msgstr "PDF"
 #: src/components/cards/ShortcutCard.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/fileShare/FileSharePage.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
 #: src/lib/sharedFiles.js
@@ -16981,13 +17025,14 @@ msgstr "그룹에서 제거"
 msgid "Remove from group ({size})"
 msgstr "그룹에서 제거 ({size})"
 
+#: src/components/shared/SharedPage.jsx
+#: src/components/SidebarSharedBoards.jsx
+msgid "Remove from my list"
+msgstr "내 목록에서 제거"
+
 #: src/components/ColorPicker.jsx
 msgid "Remove from Saved"
 msgstr "저장됨에서 제거"
-
-#: src/components/shared/SharedPage.jsx
-msgid "Remove from Shared with me"
-msgstr "나와 공유됨에서 제거"
 
 #: src/components/CanvasSurface.jsx
 msgid "Remove from the store"
@@ -17074,10 +17119,6 @@ msgstr "제거했어요: {label}"
 msgid "Removed {label}."
 msgstr "제거했어요: {label}"
 
-#: src/components/shared/SharedPage.jsx
-msgid "Removed {name} from Shared with me"
-msgstr "“나와 공유됨”에서 제거했어요: {name}"
-
 #: src/App.jsx
 msgid "Removed {title} — its clusters are in the trash."
 msgstr "제거했어요: {title} — 안에 있던 클러스터는 휴지통에 있어요."
@@ -17101,6 +17142,11 @@ msgstr "일정에서 제거됨"
 #: src/components/CanvasSurface.jsx
 msgid "Removed from the store."
 msgstr "스토어에서 제거했어요."
+
+#: src/App.jsx
+#: src/components/shared/SharedPage.jsx
+msgid "Removed from your list."
+msgstr "목록에서 제거했어요."
 
 #: src/lib/teamCopy.js
 msgid "Removed."
@@ -18028,6 +18074,11 @@ msgstr "검색 결과"
 msgid "Search sees cluster, group and tag names, notes, docs, captions, file names and what’s in pictures."
 msgstr "검색은 클러스터·그룹·태그 이름, 메모, 문서, 캡션, 파일 이름, 이미지 속 내용을 살펴봐요."
 
+#: src/components/shared/SharedPage.jsx
+#: src/components/SidebarSharedBoards.jsx
+msgid "Search shared"
+msgstr "공유 항목 검색"
+
 #: src/components/SidebarTags.jsx
 msgid "Search tags…"
 msgstr "태그 검색…"
@@ -18492,6 +18543,10 @@ msgstr "도형 및 그리기"
 msgid "Share"
 msgstr "공유"
 
+#: src/components/shared/SharedPage.jsx
+msgid "Share a cluster, or open any file and use Share to send just that file."
+msgstr "클러스터를 공유하거나, 파일을 열고 공유를 사용해 그 파일만 보낼 수 있어요."
+
 #: src/components/ShareModal.jsx
 msgid "Share a link"
 msgstr "링크 공유"
@@ -18611,8 +18666,9 @@ msgstr "공유한 사람"
 msgid "Shared by {by}"
 msgstr "{by} 님이 공유함"
 
+#: src/App.jsx
 #: src/components/CommandPalette.jsx
-#: src/components/shared/SharedPage.jsx
+#: src/components/SidebarSharedBoards.jsx
 msgid "Shared by {name}"
 msgstr "공유한 사람: {name}"
 
@@ -18637,10 +18693,6 @@ msgstr "공유된 문서"
 msgid "Shared file"
 msgstr "공유된 파일"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Shared files"
-msgstr "공유된 파일"
-
 #: src/components/CanvasSurface.jsx
 msgid "Shared in the store."
 msgstr "스토어에 공유했어요."
@@ -18653,13 +18705,10 @@ msgstr "“{via}”에서 공유됨. 그 클러스터의 공유 패널에서 변
 msgid "Shared with {a}{tail}"
 msgstr "공유했어요: {a}{tail}"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Shared with me"
-msgstr "나와 공유됨"
-
 #: src/components/fileShare/FileSharePage.jsx
 #: src/components/ProjectsHome.jsx
 #: src/components/setup/WorkspaceSetup.jsx
+#: src/components/SidebarSharedBoards.jsx
 #: src/components/WorkspaceMenu.jsx
 #: src/lib/homeMap.js
 #: src/lib/sharedPeopleWords.js
@@ -18669,6 +18718,10 @@ msgstr "나와 공유됨"
 #: src/components/WorkspaceMenu.jsx
 msgid "SHARED WITH YOU"
 msgstr "나와 공유됨"
+
+#: src/components/WorkspaceMenu.jsx
+msgid "SHARED WITH YOU · {n}"
+msgstr "나와 공유됨 · {n}"
 
 #: src/lib/sharedPeopleWords.js
 msgid "Shared with you · you co-own it"
@@ -19337,7 +19390,6 @@ msgstr "편집자 중 일부는 아직 팀에 시트가 없어요."
 msgid "Some of that didn’t go through. Try again."
 msgstr "일부가 처리되지 않았어요. 다시 시도해 주세요."
 
-#: src/components/shared/SharedPage.jsx
 #: src/lib/sidebarWho.js
 msgid "someone"
 msgstr "누군가"
@@ -19366,6 +19418,7 @@ msgstr "누군가"
 
 #: src/components/cards/ShortcutCard.jsx
 #: src/components/fileShare/FileSharePage.jsx
+#: src/components/shared/SharedPage.jsx
 msgid "Someone on Clusters"
 msgstr "Clusters 사용자"
 
@@ -21605,7 +21658,6 @@ msgstr "이 이메일은 너무 커서 여기서 열 수 없어요."
 
 #: src/components/clusterBrowser/FileStages.jsx
 #: src/components/clusterBrowser/QuickLook.jsx
-#: src/components/shared/SharedPage.jsx
 #: src/lib/versionActions.js
 msgid "this file"
 msgstr "이 파일"
@@ -22447,6 +22499,7 @@ msgstr "제목 없는 카드"
 #: src/components/clusterBrowser/PathBar.jsx
 #: src/components/ListSurface.jsx
 #: src/components/ProjectsHome.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/ShareModal.jsx
 #: src/components/TrashModal.jsx
 #: src/hooks/useSidebarFiles.js
@@ -22882,6 +22935,7 @@ msgstr "동영상"
 #: src/components/fileShare/FileSharePage.jsx
 #: src/components/film/FilmPlayer.jsx
 #: src/components/film/PlayerHost.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
@@ -22921,14 +22975,19 @@ msgctxt "noun"
 msgid "View"
 msgstr "보기"
 
+#: src/components/shared/SharedPage.jsx
 #: src/components/SidebarSharedBoards.jsx
 msgctxt "permission"
 msgid "View"
 msgstr "보기 전용"
 
 #: src/App.jsx
-msgid "View access to \"{name}\" was shared with you. Find it in \"Shared with me\"."
-msgstr "“{name}”의 보기 권한이 공유되었어요. “나와 공유됨”에서 찾을 수 있어요."
+msgid "View access to “{name}” was shared with you."
+msgstr "“{name}”의 보기 권한이 나와 공유됐어요."
+
+#: src/App.jsx
+msgid "View access to a cluster was shared with you."
+msgstr "클러스터의 보기 권한이 나와 공유됐어요."
 
 #: src/lib/versionFields.js
 msgid "View changed"
@@ -22941,6 +23000,7 @@ msgstr "원래 크기로 보기"
 #: src/App.jsx
 #: src/components/CommentInlinePopover.jsx
 #: src/components/doc/DocFrameA.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/SidebarSharedBoards.jsx
 #: src/lib/docSaveStatus.js
 msgid "View only"
@@ -23395,8 +23455,8 @@ msgid "When someone replies to a comment you left."
 msgstr "내가 남긴 댓글에 누군가 답글을 달 때."
 
 #: src/components/shared/SharedPage.jsx
-msgid "When someone shares a file with you, it shows up here."
-msgstr "누군가 파일을 공유하면 여기에 표시돼요."
+msgid "When someone shares a cluster or a file with you, it shows up here."
+msgstr "누군가 클러스터나 파일을 공유하면 여기에 표시돼요."
 
 #: src/components/settings/NotificationsTab.jsx
 msgid "When someone you invited opens your link and joins a cluster. Only sent if you're not already in the app."
@@ -23560,13 +23620,13 @@ msgstr "파일 너비"
 msgid "With {group} of you: {cardsText} {when}"
 msgstr "{group}명이 함께하면: {when} {cardsText}"
 
-#: src/components/shared/SharedPage.jsx
-msgid "With me"
-msgstr "나와 공유"
-
 #: src/components/ShareModal.jsx
 msgid "with sub-clusters"
 msgstr "하위 클러스터 포함"
+
+#: src/components/shared/SharedPage.jsx
+msgid "With you"
+msgstr "나와 공유"
 
 #: src/components/ExplorePublishSection.jsx
 msgid "Withdraw"
@@ -23625,6 +23685,7 @@ msgstr "처리 중…"
 
 #: src/components/home/HomeWorkspace.jsx
 #: src/components/ProjectsHome.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/ShareModal.jsx
 #: src/components/team/TeamWorkspaces.jsx
 #: src/lib/boardsApi.js
@@ -23932,8 +23993,8 @@ msgid "You have viewer access — only editors, co-owners and owners can change 
 msgstr "뷰어 권한이라 편집자, 공동 소유자, 소유자만 바꿀 수 있어요."
 
 #: src/components/shared/SharedPage.jsx
-msgid "You haven’t shared any files."
-msgstr "공유한 파일이 없어요."
+msgid "You haven’t shared anything yet."
+msgstr "아직 아무것도 공유하지 않았어요."
 
 #: src/lib/pendingJoinRules.js
 msgid "You joined “{n}”. It stays in your sidebar."

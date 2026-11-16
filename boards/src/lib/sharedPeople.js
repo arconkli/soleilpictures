@@ -119,3 +119,19 @@ export function orderSharedWorkspaces(list, opened, joinedAt = null) {
   });
   return [...a, ...b].map((x) => x.ws);
 }
+
+// The switcher's short list of shared workspaces. `ordered` is
+// orderSharedWorkspaces' order (opened last first). Searching, expanded, or a
+// list no longer than `threshold` shows every row; otherwise the first `cap`,
+// plus the active one appended when it is further down. `hidden` is how many
+// are left out.
+export function shortSharedList(ordered, { activeId = null, expanded = false, searching = false, cap = 4, threshold = 5 } = {}) {
+  const all = ordered || [];
+  if (searching || expanded || all.length <= threshold) return { rows: all, hidden: 0 };
+  const rows = all.slice(0, cap);
+  if (activeId != null && !rows.some((w) => w.id === activeId)) {
+    const active = all.find((w) => w.id === activeId);
+    if (active) rows.push(active);
+  }
+  return { rows, hidden: all.length - rows.length };
+}

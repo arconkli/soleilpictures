@@ -117,6 +117,40 @@ export const FIXTURES = {
       { token: SHARED_TOKENS.link, kind: 'file', name: 'Selects.zip', ext: 'zip', access: 'view',
         allow_download: true, shared_by: SHARED_BY, source: 'link', shared_at: iso(60 * 50), opened_at: iso(60 * 50), activity_at: null, unread: false },
     ],
+    // list_shared_boards roots (shared_by* is 0896), their meta (0901) and
+    // list_my_board_shares rows, for the cluster half of the page.
+    clusters: [
+      { board_id: 'qa-c-1', board_name: 'Opening sequence', role: 'editor', source_workspace_id: 'ws-a', source_workspace_name: 'Okafor Films',
+        parent_board_id: null, board_cover: 'warm', created_at: iso(60 * 3), is_shared_root: true,
+        shared_by: 'u-rae', shared_by_name: 'Rae Okafor', shared_by_color: '#c2603a' },
+      { board_id: 'qa-c-2', board_name: 'Locations scout', role: 'viewer', source_workspace_id: 'ws-a', source_workspace_name: 'Okafor Films',
+        parent_board_id: null, board_cover: 'sea', created_at: iso(60 * 20), is_shared_root: true,
+        shared_by: 'u-rae', shared_by_name: 'Rae Okafor', shared_by_color: '#c2603a' },
+      { board_id: 'qa-c-3', board_name: 'Costume references', role: 'editor', source_workspace_id: 'ws-b', source_workspace_name: 'Studio Park',
+        parent_board_id: null, board_cover: 'dusk', created_at: iso(60 * 40), is_shared_root: true,
+        shared_by: 'u-jun', shared_by_name: 'Jun Park', shared_by_color: '#4f8df8' },
+      { board_id: 'qa-c-4', board_name: 'Grading notes', role: 'editor', source_workspace_id: 'ws-c', source_workspace_name: 'Personal Workspace',
+        parent_board_id: null, board_cover: 'neutral', created_at: iso(60 * 90), is_shared_root: true,
+        shared_by: null, shared_by_name: null, shared_by_color: null },
+    ],
+    meta: [
+      ['qa-c-1', { sharedAt: iso(60 * 3), openedAt: null, hiddenAt: null, viaLink: false }],
+      ['qa-c-2', { sharedAt: iso(60 * 20), openedAt: null, hiddenAt: null, viaLink: false }],
+      ['qa-c-3', { sharedAt: iso(60 * 40), openedAt: iso(60 * 39), hiddenAt: null, viaLink: false }],
+      ['qa-c-4', { sharedAt: iso(60 * 90), openedAt: iso(60 * 80), hiddenAt: null, viaLink: true }],
+    ],
+    byYouClusters: [
+      { board_id: 'qa-m-1', board_name: 'Pitch deck', board_cover: 'sun', workspace_id: 'ws-me', workspace_name: 'My studio',
+        people_count: 5, link_on: true, last_shared_at: iso(60 * 2),
+        people: [
+          { user_id: 'u-maya', name: 'Maya Chen', color: '#8e5cf7', role: 'editor' },
+          { user_id: 'u-leo', name: 'Leo Brandt', color: '#2f9e8f', role: 'viewer' },
+          { user_id: 'u-rae', name: 'Rae Okafor', color: '#c2603a', role: 'editor' },
+        ] },
+      { board_id: 'qa-m-2', board_name: 'Sound design', board_cover: 'cool', workspace_id: 'ws-me', workspace_name: 'My studio',
+        people_count: 1, link_on: false, last_shared_at: iso(60 * 30),
+        people: [{ user_id: 'u-jun', name: 'Jun Park', color: '#4f8df8', role: 'viewer' }] },
+    ],
     byMe: [
       { token: SHARED_TOKENS.mine, board_id: 'qa-board', board_name: 'Opening sequence', card_id: 'vid-qa', kind: 'video',
         name: 'Rough cut', link_access: 'view', allow_download: true, people_count: 2, people: ['a@example.com', 'b@example.com'], comment_count: 1, updated_at: iso(10) },
@@ -528,9 +562,16 @@ function OverlayView({ api }) {
   );
 }
 
-function SharedPageView({ api }) {
+function SharedPageView({ api, fixture }) {
   const feedback = useFeedback();
-  return <SharedPage api={api} feedback={feedback} onClose={() => api.calls.push({ fn: 'onClose', args: [] })}
+  const meta = useMemo(() => new Map(fixture?.meta || []), [fixture]);
+  const call = (fn) => (...args) => { api.calls.push({ fn, args }); };
+  return <SharedPage api={api} feedback={feedback} clusters={fixture?.clusters || []} meta={meta}
+                     byYouClusters={fixture?.byYouClusters || []} byYouLoaded
+                     onRefreshByYou={call('onRefreshByYou')} onOpenBoard={call('onOpenBoard')}
+                     onOpenOwnBoard={call('onOpenOwnBoard')} onRemoveCluster={call('onRemoveCluster')}
+                     onCopyClusterLink={call('onCopyClusterLink')} onManageClusterSharing={call('onManageClusterSharing')}
+                     onClose={() => api.calls.push({ fn: 'onClose', args: [] })}
                      onAddShortcut={async ({ token, res }) => { api.calls.push({ fn: 'onAddShortcut', args: [token, res?.file?.kind || null] }); }}
                      onSaveCopy={async ({ token }) => { api.calls.push({ fn: 'onSaveCopy', args: [token] }); }} />;
 }
@@ -559,7 +600,7 @@ export function FileShareQaHarness() {
     return (
       <FeedbackProvider>
         <div data-fileshareqa-ready="1" data-fixture={name} style={{ height: '100vh', display: 'flex' }}>
-          <SharedPageView api={api} />
+          <SharedPageView api={api} fixture={fixture} />
         </div>
       </FeedbackProvider>
     );
