@@ -70,10 +70,15 @@
 //                   an unreferenced original is headed for the orphan sweep,
 //                   and an xs made for it would only be swept after it.
 //                   An animated original (a multi-page WebP) is skipped.
-//                   RUN IT ONLY AFTER the Worker that knows preview_xs_path
-//                   (the orphan sweep and the mirror that carry it with the
-//                   original) has been deployed: before that, a sweep would
-//                   not know the xs object belongs to its row.
+//                   Best run once the Worker that knows preview_xs_path is
+//                   live (its orphan sweep deletes the xs file with the
+//                   original). Before that, a swept picture leaves its xs
+//                   file behind (a few KB); only pictures in use are
+//                   candidates, so that is rare. Either way, run it again
+//                   after that release: pictures uploaded by older clients
+//                   in between have no xs yet. Each row is stamped as soon
+//                   as its file is up, so a run that stops part way keeps
+//                   what it made and a rerun does the rest.
 //                   Without SUPABASE_SERVICE_ROLE_KEY, make --candidates with:
 //                     select coalesce(json_agg(c), '[]') from (
 //                       select i.id, i.storage_path, i.workspace_id, i.board_id,
@@ -544,15 +549,26 @@ async function runXsPass() {
     console.log(`Dry-run only — rerun with --apply to generate ${work.length} item(s).`);
     return;
   }
-  const results = await mapLimit(work.map((r) => ({ r })), CONCURRENCY, ({ r }) => processXs(r));
-  let ok = 0, skipped = 0;
-  for (const res of results) {
-    if (res.skip) { skipped++; console.log(`  SKIP ${res.row.storage_path} — ${res.skip}`); continue; }
-    ok++;
-    console.log(`  OK   ${res.row.storage_path} → xs ${res.xs.w}×${res.xs.h} (${res.bytes} B, from ${res.from})`);
-    if (db) await stampXsDb(res);
-    else sqlStmts.push(`-- ${res.row.storage_path}`, ...stampXsSql(res));
-  }
+  let ok = 0, skipped = 0, done = 0;
+  const t0 = Date.now();
+  await mapLimit(work.map((r) => ({ r })), CONCURRENCY, async ({ r }) => {
+    let res;
+    try {
+      res = await processXs(r);
+      // Stamped as soon as its file is up (see the --pass=xs note).
+      if (!res.skip) {
+        if (db) await stampXsDb(res);
+        else sqlStmts.push(`-- ${res.row.storage_path}`, ...stampXsSql(res));
+      }
+    } catch (err) { res = { row: r, skip: `ERROR: ${err.message}` }; }
+    done++;
+    if (res.skip) { skipped++; console.log(`  SKIP ${res.row.storage_path} — ${res.skip}`); }
+    else { ok++; console.log(`  OK   ${res.row.storage_path} → xs ${res.xs.w}×${res.xs.h} (${res.bytes} B, from ${res.from})`); }
+    if (done % 500 === 0 || done === work.length) {
+      console.log(`  … ${done}/${work.length}: ${ok} made, ${skipped} skipped, ${((Date.now() - t0) / 60000).toFixed(1)} min`);
+    }
+    return res;
+  });
   if (!db && sqlStmts.length) {
     await writeFile(SQL_OUT, sqlStmts.join('\n') + '\n');
     console.log(`\nWrote ${sqlStmts.length} statements to ${SQL_OUT} — apply them (service role / MCP) to finish.`);
