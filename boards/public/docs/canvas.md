@@ -27,11 +27,10 @@ and it reopens there, not at the origin.
 Come back to a cluster after a break of half an hour or more and it opens on the
 card you last worked on: the whole cluster shows for a moment, then the view
 glides to that card and selects it. Any click, scroll or key stops it where it
-is, and with reduced motion on it goes straight there. Beside the cluster's name
-a quiet count says which working day on it this is (**Day 3**), counting every day
-anyone worked on it, and for a few seconds after you come back it also says when
-you last worked on it, on any of your devices: *last worked Tuesday evening*. On a
-phone those words show under the top bar instead, then go.
+is, and with reduced motion on it goes straight there. For a few seconds after
+you come back, beside the cluster's name it says when you last worked on it, on
+any of your devices: *last worked Tuesday evening*. On a phone those words show
+under the top bar instead, then go.
 
 If scrolling to zoom is the habit you arrived with — it is how PureRef and Miro
 work — **Settings → Appearance → Scroll wheel** swaps the two, so a plain scroll

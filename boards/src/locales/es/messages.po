@@ -8007,11 +8007,6 @@ msgstr "Fecha de modificación"
 msgid "Day"
 msgstr "Día"
 
-#. Beside a cluster’s name in the title bar: which working day on this cluster this is, like the day number on a film slate. It counts every day anyone worked on the cluster. {num} is 2 or more.
-#: src/components/ClusterSlate.jsx
-msgid "Day {num}"
-msgstr "Día {num}"
-
 #: src/components/cards/ScheduleCard.jsx
 msgid "Day tiles"
 msgstr "Mosaicos de días"
@@ -12185,42 +12180,42 @@ msgstr "último uso: {localeDateString}"
 msgid "Last week"
 msgstr "La semana pasada"
 
-#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
+#. Beside a cluster’s name in the title bar, after a dot, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
 #: src/components/ClusterSlate.jsx
 msgid "last worked {weekday} afternoon"
 msgstr "última vez: {weekday} por la tarde"
 
-#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
+#. Beside a cluster’s name in the title bar, after a dot, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
 #: src/components/ClusterSlate.jsx
 msgid "last worked {weekday} evening"
 msgstr "última vez: {weekday} por la noche"
 
-#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
+#. Beside a cluster’s name in the title bar, after a dot, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
 #: src/components/ClusterSlate.jsx
 msgid "last worked {weekday} morning"
 msgstr "última vez: {weekday} por la mañana"
 
-#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
+#. Beside a cluster’s name in the title bar, after a dot, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
 #: src/components/ClusterSlate.jsx
 msgid "last worked late {weekday}"
 msgstr "última vez: {weekday} a altas horas"
 
-#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
+#. Beside a cluster’s name in the title bar, after a dot, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
 #: src/components/ClusterSlate.jsx
 msgid "last worked late yesterday"
 msgstr "última vez: ayer a altas horas"
 
-#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
+#. Beside a cluster’s name in the title bar, after a dot, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
 #: src/components/ClusterSlate.jsx
 msgid "last worked yesterday afternoon"
 msgstr "última vez: ayer por la tarde"
 
-#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
+#. Beside a cluster’s name in the title bar, after a dot, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
 #: src/components/ClusterSlate.jsx
 msgid "last worked yesterday evening"
 msgstr "última vez: ayer por la noche"
 
-#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
+#. Beside a cluster’s name in the title bar, after a dot, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
 #: src/components/ClusterSlate.jsx
 msgid "last worked yesterday morning"
 msgstr "última vez: ayer por la mañana"
