@@ -7,6 +7,7 @@
 // bottom sheet whose field doesn't zoom iOS on focus. Runs on the phone
 // projects and the portrait tablet, which App gives the same drawer.
 import { test, expect } from '@playwright/test';
+import { workspaceSetupOn } from '../../src/lib/setupRule.js';
 
 const T0 = new Date('2026-10-21T10:00:00Z');
 
@@ -120,6 +121,7 @@ test('the menu button itself moves the tips on, and shutting the drawer ends the
 });
 
 test('the re-ask is a bottom sheet: share the link, then Done', async ({ page }) => {
+  test.skip(!workspaceSetupOn(), 'the re-ask shows only while the workspace_setup test is on (src/lib/setupRule.js workspaceSetupOn)');
   const errors = await open(page, 'inws=reask&setup=B');
   const sheet = page.getByRole('dialog', { name: /Northlight is taking shape/ });
   await expect(sheet).toBeVisible({ timeout: 10000 });

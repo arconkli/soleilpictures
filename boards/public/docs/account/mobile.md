@@ -51,6 +51,34 @@ Starting a pinch part-way through a stroke discards that stroke rather than
 smearing it across the board as the canvas moves underneath — the failure that
 makes drawing on touch unusable.
 
+## Menus under a finger
+
+On a phone, a row with a **›** (**Arrange**, **Edit**, **Background**,
+**Export**, **Tidy up**, **Move to cluster**) steps into the menu itself instead
+of opening beside it. The back row at its top goes back a level, and a list
+inside a list works the same way, one level at a time. A menu taller than the
+screen stops above the bottom bar and scrolls.
+
+On an iPad held sideways, a tap on a row with a **›** opens its list beside the
+menu and leaves it open. A list's own list, such as a group's **Outline shape**,
+opens beside it.
+
+On a touch screen, **Delete** is on the first screen of a card's menu. Selected
+drawings and arrows have **Delete** in the board's menu, and a toast offers
+**Undo**. A photo's menu has **View full size**. A hold on the title of a link,
+palette or picture card lifts it or opens its menu, like the rest of the card.
+
+In a document, a hold on a page in the page list opens its menu: rename, new
+sub-page, delete.
+
+## Turning and resizing a card
+
+On a phone or an iPad, the one selected card shows two handles: a finger-sized
+dot on a short stalk above it turns the card, and a round grip on its corner
+resizes it. They keep their size whatever the zoom, and turn with the card. On a
+card that is very small on screen the turn dot gives way; zoom in to turn it.
+Several selected cards share one grip.
+
 ## Haptic feedback
 
 On a phone, Clusters gives a light tap at the moments where your finger needs
@@ -110,11 +138,20 @@ dragged out of Files; putting it on the board or moving it from the bar or the
 menu does that instead.
 
 **Back** — the phone's gesture or button — closes whatever is open on top, the
-drawer, a sheet or Settings, instead of leaving the app.
+drawer, a sheet or Settings, instead of leaving the app. Once nothing is open
+on top, Back returns to the cluster you were on before.
 
 **The add sheet**, behind the **+** in the middle of the bottom bar, lays out
 everything you can add across the screen, sized for thumbs. The tool rail keeps
-its own `+`, whose menu opens beside the rail.
+its own `+`, whose menu opens beside the rail. A new card lands in free space
+where you are looking, and a new note or document zooms in so you can read and
+type in it.
+
+**Comments** — on a phone or an upright iPad, **Add comment** opens a bar above
+the keyboard with **Cancel** and **Post**, and the keyboard's return key sends.
+
+Controls a mouse only sees on hover always show under a finger: a vote's delete,
+a backlink's pin, a schedule item's remove.
 
 **Focus view** — touch only — strips everything back to the board itself, for
 reviewing on a phone without chrome in the way. Open it from the drawer, or from
@@ -127,6 +164,14 @@ the add sheet. On its side, most iPads are wide enough for the desktop layout,
 with a finger for a pointer. Either way it adds stylus drawing. On iPad,
 drawing, annotating and reviewing all work properly; long document editing is
 still better on a laptop.
+
+On an upright iPad, Settings, Share, Search and Notifications open as windows in
+the middle of the screen instead of across it. A tap outside one closes it.
+
+On the 10.2-inch iPad held sideways, Files start folded under the clusters to
+give the board room. Tap **Show** to open them; your choice is kept.
+
+Turning an iPad keeps the board where it was.
 
 **Drawing** is on the rail directly on touch, and in the add sheet, rather than
 behind the `D` shortcut there is no keyboard for. A stylus draws with pressure;
@@ -157,6 +202,9 @@ Two routes today:
 2. **[Soleil Scout](/docs/scout)** — text them, with no app at all. Note that Scout's phone line is not live yet.
 
 Saving into a cluster from another app's share sheet is not available yet.
+
+Going the other way, a photo's **Download** on an iPhone or iPad opens the share
+sheet, where **Save Image** puts it in Photos. See [Images](/docs/canvas/images).
 
 ## What is worse on a small screen
 

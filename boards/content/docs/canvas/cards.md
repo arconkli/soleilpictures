@@ -5,7 +5,7 @@ h1: Cards
 navLabel: Cards
 section: canvas
 order: 1
-updated: 2026-10-21
+updated: 2026-11-15
 answer: A card is one thing on a board. Soleil Clusters has around fourteen kinds — image, note, link, document, PDF, file, video, audio, colour palette, shape, art canvas, grid, vote and nested cluster. Every card shares the same position, size, layer and selection behaviour, so what you learn on one applies to all of them.
 faq:
   - q: How do I change what kind a card is?
@@ -95,7 +95,10 @@ in a message or a doc.
 
 **On a touch screen** the selection carries a gold **⋯** at its top-right
 corner. It opens the menu a right-click would, for one card or for every
-selected card at once. Touch and hold a card to pick it up and move it.
+selected card at once. Touch and hold a card to pick it up and move it. One
+selected card also shows a dot above it to turn it and a round grip on its
+corner to resize it; see
+[Turning and resizing a card](/docs/account/mobile#turning-and-resizing-a-card).
 
 ## Info
 
