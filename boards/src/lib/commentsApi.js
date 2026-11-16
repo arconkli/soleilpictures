@@ -6,6 +6,13 @@
 import { supabase, sessionUserId } from './supabase.js';
 import { logEvent } from './analytics.js';
 import { EV } from './analyticsEvents.js';
+import { createColumnProbe, isUnknownColumnError, withMentions } from './commentColumns.js';
+
+// Which newer columns the table has (mentions, edited_at): learned from the
+// rows read and from a refused write, so this works before and after the
+// migration that adds them (lib/commentColumns.js).
+const columns = createColumnProbe();
+export const commentColumn = (name) => columns.has(name);
 
 // List comments visible on a board. Includes resolved + hidden — let the
 // UI decide what to render. Excludes soft-deleted rows.
@@ -18,6 +25,7 @@ export async function listComments(boardId) {
     .is('deleted_at', null)
     .order('created_at', { ascending: true });
   if (error) throw error;
+  if (data && data.length) columns.learn(data[0]);
   return data || [];
 }
 
@@ -28,8 +36,10 @@ export async function listComments(boardId) {
 //   { kind: 'point',     x: <num>, y: <num> }
 //   { kind: 'board' }
 //   { kind: 'doc_range', cardId: '<docCardId>', pageId, from, to }
+// `mentions` ([{ id, name }] or ids) is who the words "@": stored in
+// comments.mentions when the table has that column.
 export async function addComment({ workspaceId, boardId, author, body, anchor, replyTo = null,
-                                   offsetX = 0, offsetY = 0 }) {
+                                   offsetX = 0, offsetY = 0, mentions = [] }) {
   if (!workspaceId || !boardId || !author || !body || !anchor) {
     throw new Error('addComment: missing required fields');
   }
@@ -60,9 +70,15 @@ export async function addComment({ workspaceId, boardId, author, body, anchor, r
     row.doc_from = (anchor.from ?? null);
     row.doc_to = (anchor.to ?? null);
   }
-  const { data, error } = await supabase
-    .from('comments').insert(row).select('*').single();
+  const send = (r) => supabase.from('comments').insert(r).select('*').single();
+  let { data, error } = await send(withMentions(row, mentions, columns.has('mentions'), { insert: true }));
+  if (error && isUnknownColumnError(error, 'mentions')) {
+    // the table has no mentions column yet: the words go without it
+    columns.missing('mentions');
+    ({ data, error } = await send(row));
+  }
   if (error) throw error;
+  columns.learn(data);
   // Logged here, at the one choke point every comment goes through, rather than
   // at each UI entry (canvas pin, inline popover, doc range) — a new entry point
   // then can't quietly go unmeasured.
@@ -75,7 +91,7 @@ export async function addComment({ workspaceId, boardId, author, body, anchor, r
       board_id: boardId,
       is_reply: !!replyTo,
       anchor_kind: anchor.kind,
-      has_mention: /(^|\s)@\w/.test(String(body)),
+      has_mention: (Array.isArray(mentions) && mentions.length > 0) || /(^|\s)@\w/.test(String(body)),
       len_bucket: lenBucket(String(body).length),
     });
   } catch (_) { /* never let telemetry break posting a comment */ }
@@ -93,19 +109,39 @@ function lenBucket(n) {
 export async function updateComment(id, patch) {
   // body / hidden / resolved are user-editable; offset_x/y come from drag.
   // anchor_x/y are settable so we can reposition point-anchored comments
-  // (card/group keep their anchor_id; only the offset changes).
+  // (card/group keep their anchor_id; only the offset changes). `mentions`
+  // goes with an edit of the words, when the table has that column.
   const allowed = ['body', 'hidden', 'resolved', 'offset_x', 'offset_y', 'anchor_x', 'anchor_y'];
   const row = {};
   for (const k of allowed) if (k in patch) row[k] = patch[k];
-  if (Object.keys(row).length === 0) return;
+  if (Object.keys(row).length === 0) return null;
   // RLS (author, or anyone who can write the board) filters an UPDATE the
   // caller may not make down to zero rows, and PostgREST reports that as
-  // success. Ask for the ids back so a refused Resolve/Hide says so instead
+  // success. Ask for the rows back so a refused Resolve/Hide says so instead
   // of silently doing nothing.
-  const { data, error } = await supabase
-    .from('comments').update(row).eq('id', id).select('id');
+  const send = (r) => supabase.from('comments').update(r).eq('id', id).select('*');
+  let { data, error } = await send(withMentions(row, 'mentions' in patch ? patch.mentions : undefined, columns.has('mentions')));
+  if (error && isUnknownColumnError(error, 'mentions')) {
+    columns.missing('mentions');
+    ({ data, error } = await send(row));
+  }
   if (error) throw error;
   if (!data || data.length === 0) throw notAllowed('change');
+  columns.learn(data[0]);
+  return data[0];
+}
+
+// Whether a conversation is resolved or put away, as the database has it now:
+// its first comment's { id, resolved, hidden }, or null when it is gone.
+export async function getCommentState(id) {
+  if (!id) return null;
+  const { data, error } = await supabase
+    .from('comments')
+    .select('id, resolved, hidden')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
 }
 
 // What a refused write turns into: a zero-row UPDATE, or the RPCs' 42501,
@@ -194,16 +230,19 @@ export async function listMyCommentViews(rootIds) {
   return m;
 }
 
-// Upsert (user, root_comment) → now(). Fire-and-forget from the UI; if
-// it fails the worst case is the dot reappears on next reload.
-export async function markCommentViewed(rootCommentId) {
+// Upsert (user, root_comment) → `atIso`, or now. Fire-and-forget from the
+// UI; if it fails the worst case is the dot reappears on next reload. The
+// caller passes a time no earlier than the thread's newest row
+// (commentPins.js viewedStamp), so a slow device clock can't date the look
+// before what was looked at.
+export async function markCommentViewed(rootCommentId, atIso = null) {
   if (!rootCommentId) return;
   const uid = await sessionUserId();
   if (!uid) return;
   const { error } = await supabase
     .from('comment_views')
     .upsert(
-      { user_id: uid, root_comment_id: rootCommentId, last_viewed_at: new Date().toISOString() },
+      { user_id: uid, root_comment_id: rootCommentId, last_viewed_at: atIso || new Date().toISOString() },
       { onConflict: 'user_id,root_comment_id' }
     );
   if (error) throw error;

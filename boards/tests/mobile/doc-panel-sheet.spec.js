@@ -115,9 +115,15 @@ test('a tap on commented words brings the sheet up on their card, and its quote 
   const id = await comment(page, 'Keep the motel sign lit all night', 'sign', 'Which sign?');
   await modal(page).locator(`.tt-comment[data-comment-id="${id}"]`).tap();
   await expect(sheet(page)).toBeVisible();
-  const card = sheet(page).locator(`.dl-th[data-thread="${id}"]`);
-  await expect(card).toHaveClass(/is-on/);
-  await card.locator('.dl-th-q').tap();
+  const card = sheet(page).locator(`.cmt-thread.is-open[data-thread="${id}"]`);
+  await expect(card).toBeVisible();
+  // A thread opened from the list is read in the sheet…
+  await card.getByRole('button', { name: 'Close' }).tap();
+  await sheet(page).locator(`button.cmt-list-row[data-thread="${id}"]`).tap();
+  await expect(card.locator('.cmt-row .cmt-text')).toHaveText('Which sign?');
+  await expect(sheet(page)).toBeVisible();
+  // …and its title is the way to its words.
+  await card.locator('.cmt-title').tap();
   await expect(sheet(page)).toHaveCount(0);
   await expect(modal(page).locator(`.tt-comment[data-comment-id="${id}"]`)).toBeInViewport();
 });

@@ -425,6 +425,20 @@ Key | Action
 ? | Show these shortcuts
 Esc | Close the player
 
+Comments
+
+In the box of a comment, wherever it is: on the canvas, in a document, in a note or on a shared file.
+
+Key | Action
+Enter | Send — the return key on a phone or tablet keyboard sends too
+⇧Enter | New line
+⌘Enter | Send, on any keyboard
+@ | Mention someone who can see the cluster — not on a shared file
+Esc | Close an empty box. With words in it, ask before discarding them; Esc again keeps writing
+⌘⌥M | Comment on the selected words, in a document or a note
+
+Words you leave unsent are kept, so clicking away never loses them.
+
 Notes
 
 Key | Action
@@ -756,7 +770,7 @@ Group — select several and press ⌘G. See Groups.
 
 Tag — right-click → tag. See Tags.
 
-Comment — right-click → comment, which anchors a bubble to that card. See Comments.
+Comment — right-click → comment, which puts a pin at the corner of that card. See Comments.
 
 Copy link — a deep link that opens the board with that card selected. Useful in a message or a doc.
 
@@ -2910,7 +2924,7 @@ A: Fountain is plain text — it opens anywhere, diffs cleanly in version contro
 ========================================================================
 # Comments, tags and backlinks in documents
 URL: https://clusters.soleilpictures.com/docs/documents/comments-and-tags
-Updated: 2026-10-25
+Updated: 2026-11-15
 
 Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin; clear mentions of your tags are underlined automatically and marked auto. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.
 
@@ -2918,17 +2932,27 @@ Documents carry annotation in the margins, so the text stays clean and the appar
 
 Comments on a range
 
-Select text and add a comment. It anchors to that range, not to a character position, so editing around it keeps it attached to the right passage.
+Select text and add a comment, from the toolbar or with ⌘⌥M. A box opens beside the words; Enter posts it. The comment anchors to that range, not to a character position, so editing around it keeps it attached to the right passage.
 
-Commented text is marked inline, with a gold dot in the right margin. Click the words, or the dot, and the side panel opens on their thread.
+Commented text is tinted, with a dot in the right margin; a darker dot means there is something in the thread you haven't read. Click the words, or the dot, and the side panel opens on their thread, with the words turned gold while it is open.
 
 Every comment in one place
 
-Comments in the document's header opens the side panel on its comments: every thread in the document as a card, in the order they come in the text, with the words it is on and who said what. All, Open and Resolved filter them. A card's quote takes you to its words, opening the page they are on; you can reply on the card, Resolve it (it says who resolved it and when, and Reopen brings it back), or delete the thread, with an Undo in the toast. A resolved thread's words read as plain text again; picking its card still lights them. Esc puts you back in the text.
+Comments in the document's header opens the side panel on its comments: every open thread in the document as a short row, in the order they come in the text, with the words it is on, who started it and how much was said since. Press a row and it opens into the whole conversation, with the box to reply in; its quote takes you to its words, opening the page they are on.
 
-Comments thread, resolve, and support @ mentions that notify the person you name. See Comments for the full model, which is shared with the canvas.
+In the open thread you can:
 
-Because a text comment is part of the document, it follows edit access. A viewer sees the dots and reads every thread in the side panel; adding, replying to, resolving or deleting a comment needs edit access.
+Reply — Enter sends, Shift+Enter starts a new line. Words you typed and didn't send are kept for you in this browser.
+Resolve it. It moves to Resolved at the bottom of the panel, which opens on a press, and says who resolved it. Reopen brings it back, and so does a reply. A resolved thread's words read as plain text again; picking it in the panel still lights them.
+Edit a comment you wrote, from its ⋯ menu. It is marked edited.
+Copy link to a comment: the link opens the document's cluster, the document and this thread.
+Delete a comment or the whole thread.
+
+Resolving and deleting show a toast with Undo. Esc puts you back in the text.
+
+Comments thread, resolve, and support @ mentions that notify the person you name. See Comments for the full model, which is shared with the canvas and with notes, and Notifications for who is told about a new comment, a reply or a resolve.
+
+Because a text comment is part of the document, it follows edit access. A viewer sees the dots and reads every thread, by clicking the words or in the side panel; adding, replying to, resolving or deleting a comment needs edit access. Among people who can edit, only the person who wrote a comment can change its words.
 
 Tags on a range
 
@@ -3457,15 +3481,19 @@ Anyone with Can comment can leave comments beside the file, up to 2,000 characte
 On video and audio, a comment is pinned to the moment the player was at, and pressing its time jumps there. Unpin it for a comment about the whole file.
 On a PDF, a comment is pinned to the page.
 A comment takes replies, one level deep.
-Anyone who can edit the cluster can Resolve or Delete any comment; everyone can delete their own. Deleting has an undo.
+Each conversation is a short row; press one and it opens with the box to reply in. Enter sends, Shift+Enter starts a new line, and words you didn't send are kept for you in this browser. On a phone the box sits right under the player.
+Anyone who can edit the cluster can Resolve or Delete any comment. Everyone can resolve a conversation they started, delete their own comments, and Edit their own words. Deleting has an undo.
+A resolved conversation moves to Resolved at the bottom, which opens on a press. Reopen brings it back, and so does a reply.
+Copy link in a comment's ⋯ menu copies a link that opens the file at that comment.
+There are no @ mentions here: the people on a shared file may be outside your workspace.
 
 One person can post up to 20 comments every 10 minutes on a file.
 
-The person who shared the file is told about every comment — a toast when they are in the app, and an email when they are not: at most one email per file every 30 minutes, and only while Comment replies is on in Notifications. Someone whose comment gets a reply is told in the app too.
+The person who shared the file is told about every comment — a toast when they are in the app, and an email when they are not: at most one email per file every 30 minutes, and only while Comment replies is on in Notifications. A reply is told in the app to everyone else who wrote in that conversation. Each notice in the app opens the file at its comment.
 
 When the file changes
 
-A new version shows on the same link. Comments made on an older version stay, labelled on an earlier version.
+A new version shows on the same link. Comments made on an older version stay, gathered under On an earlier version at the bottom of the comments. Their times and pages are marked as belonging to that version, since they may not line up with what is showing now.
 Moving the file to another cluster in the same workspace keeps the link working; it follows the file.
 Deleting the file, or moving it to another workspace, ends the link.
 
@@ -3518,7 +3546,7 @@ The doc as it looks in its cluster: its name at the top, its pages and images, a
 Someone editing through a link is a guest in the doc, so a few things stay with the people in its cluster:
 
 They cannot add images or files, embed a cluster, or link to anything in the workspace. A paste keeps its text and formatting and drops the rest; a link that is not a web or email address is dropped.
-They can start a comment, reply to any comment, and resolve or reopen one. They can delete only a comment they started, and cannot rewrite one once it is posted.
+They can start a comment, reply to any comment, and resolve or reopen one. They can delete only a comment they started, and cannot rewrite one once it is posted. @ mentions and Copy link are for the people in the cluster.
 Export (formats) is there only when Allow exporting is on. It cannot stop someone copying what they can read, or taking a screenshot.
 Up to 50 people can have one doc open through its link at once. A single change larger than 1 MB is refused, and once a doc is larger than 25 MB the people outside its cluster can read it but not edit it.
 
@@ -3663,9 +3691,9 @@ A: Cursors are capped and culled so a busy board stays readable and fast rather 
 ========================================================================
 # Comments
 URL: https://clusters.soleilpictures.com/docs/collaborate/comments
-Updated: 2026-10-25
+Updated: 2026-11-15
 
-A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. A comments toggle hides all of them when you want to see the board clean.
+A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. On the canvas each conversation is a small pin at the corner of its card, and the comments button lists them all. Comments thread, resolve, and support @ mentions that notify the person named. A switch in the comments list hides the pins, for you alone, when you want to see the board clean.
 
 Comments attach to the thing they are about. This is the whole design: feedback that lives in a sidebar, ordered by time, loses the connection to what it referred to within a day.
 
@@ -3676,39 +3704,90 @@ A card | "this image"
 A group | "this sequence"
 An empty point | "something should go here"
 The board | "the whole thing"
-A text range in a document | "this sentence"
+A text range in a document or a note | "this sentence"
 
-Right-click → Comment, or the rail's + → Annotate → Comment.
+Right-click a card, a group or the empty canvas and choose the comment item (on a phone, touch and hold), or use the rail's + → Annotate → Comment and click what it is about. A box opens right there, beside the spot its pin will sit on.
 
-Threads
+A comment on the board as a whole has no place on the canvas, so it has no pin: it shows in the comments list. Those come from the API or an assistant.
 
-Comments thread with replies. Resolve when the thing is dealt with — resolved comments are archived rather than deleted, so the record of why something changed survives.
+Pins on the canvas
 
-Resolving and hiding a comment is for its author and for people who can edit the board; deleting one is for its author. Someone with view-only access sees those buttons on their own comments only.
+Each open conversation is a small pin with the face of whoever started it, sitting at the top-right corner of its card or group, or on its point. Pins stay the same size however far you zoom. Several conversations on one card line up along its top edge.
 
-Mentions
+A dot on a pin means there is something in it you haven't read.
+Zoomed out, pins that would crowd each other gather into one pin with a number. Click it and the board zooms in until they come apart.
+Point at a pin to read how it begins, who wrote it and when, and how many replies it has.
+Click a pin to open the conversation in a card beside what it is about. The open pin and its card are ringed in gold.
+Drag a pin that sits on a point to move it, if you wrote it or can edit the board. A pin on a card or a group follows what it is on.
 
-Type @ in a comment to mention someone. They are notified. See Notifications.
+On a phone or an iPad, tap a pin and the conversation opens as a sheet from the bottom of the screen. A new comment starts in the same sheet; see Mobile and tablet.
 
-You can also mention clusters, documents and cards, which turns a comment into a navigable link rather than a description of where to look.
+Delete a card and its comments go with it; restore the card and they come back.
+
+The comments list
+
+The comments button at the top left of the board shows how many conversations are open, with a dot when one is unread. Press it for the list:
+
+Tab | Holds
+Open | Every open conversation on the board
+Resolved | The ones that were resolved
+For you | Open ones where you were mentioned or replied to
+
+Each row says what the comment is on, who wrote it, when, how it begins and how much was said since. Point at a row to light its card; click it and the board moves there and opens the conversation.
 
 Hiding them
 
-The comments toggle hides every comment bubble on the board — for you only, not for everyone. Use it when presenting or when the feedback has piled up and you want to see the work.
+At the bottom of the list is Show comments on the canvas. Turn it off and the pins go, for you only: it changes what you see on this board in this browser, and nothing for anyone else. The list keeps working while they are hidden, and starting a new comment turns them back on. Use it when presenting or when the feedback has piled up and you want to see the work.
 
-Bubbles on a crowded board
+Threads
 
-Comment bubbles lay themselves out to avoid covering the content they refer to and to avoid stacking on each other, so a heavily-reviewed board stays readable.
+Open a conversation to read it and reply. Enter sends and Shift+Enter starts a new line; on a phone or tablet keyboard, the return key sends, as the send button does.
+
+Resolve when the thing is dealt with. A resolved conversation leaves the canvas and is kept under Resolved in the list, not deleted, so the record of why something changed survives. It says who resolved it; Reopen brings it back, and so does replying to it.
+
+Each comment's ⋯ menu has:
+
+Copy link — a link that opens the board, goes to the card and opens the conversation at that comment. If the comment has since been deleted, the link opens the board and says the comment isn't there any more.
+Edit — on your own comments. An edited comment is marked edited.
+Delete — a conversation's own ⋯ has Delete conversation, which takes its replies with it.
+
+Resolving and deleting each show a toast with Undo.
+
+Who can do what
+
+ | Who
+Start a comment, reply | Anyone who can open the board
+Edit a comment's words | Only the person who wrote it
+Resolve or reopen | Whoever started the conversation, and anyone who can edit the board
+Delete | The person who wrote it, and anyone who can edit the board
+
+A reply to a resolved conversation reopens it. If it stays resolved, the reply is still sent and a toast says who can reopen it.
+
+Words you haven't sent
+
+Nothing you type is lost by clicking somewhere else. A comment you started and left keeps a pin of its own where you began it, and pressing that pin brings the words back; an unfinished reply waits in its conversation. Drafts are kept in this browser, for you. Esc in a box with words in it asks Discard this comment? first, with Keep writing as the way back; in an empty box it just closes.
+
+Mentions
+
+Type @ in a comment to mention someone. On the canvas, in a document and in a note, it offers the people who can see the board. The person you name is told, under the bell and by toast, and by email when they are not in the app, and the notice opens that comment. A reply tells everyone who has written in the conversation, a new comment tells the person who made the cluster, and resolving tells whoever started the conversation; nobody is told about their own comment. See Notifications.
+
+Comments on a shared file have no @: the people there may be outside your workspace.
+
+On the words of a note or a document
+
+Select words in a note or a document and comment on them. The words are tinted while their conversation is open for discussion, turn gold while you have it open, and read as plain text again once it is resolved. Click commented words to open their conversation.
+
+A note with comments has Comments in its right-click menu, with a number: it lists the note's conversations, Open and Resolved. A document lists its own in its side panel; see comments in documents.
 
 Who can comment
 
 On the canvas, anyone who can open the board, including viewers. Editing a card is a different right from talking about it, and feedback is the point of sharing a board with someone. Public links are the exception: they are anonymous, and comments need an account.
 
-A comment on a text range is different: it lives inside the document's text, so it follows edit access. A viewer can open a document's comment threads and read them, but adding, replying to, resolving or deleting one needs edit access.
+A comment on a text range is different: it lives inside the text of the document or note, so it follows edit access. A viewer can open those conversations and read them, but adding, replying to, resolving or deleting one needs edit access.
 
 From your own code, or an assistant
 
-The Comments API lists a board's threads, the ones inside its documents included, and adds, resolves and deletes comments under the same rules. Connected over MCP, an assistant can read the feedback on a board, act on it, reply, resolve what it dealt with, and comment on the words of a document.
+The Comments API lists a board's threads, the ones inside its documents included, and adds, resolves and deletes comments; its page says who may do each. Connected over MCP, an assistant can read the feedback on a board, act on it, reply, resolve what it dealt with, and comment on the words of a document.
 
 Comments versus votes
 
@@ -3723,10 +3802,13 @@ Q: Can I comment on empty canvas?
 A: Yes. A comment can anchor to a point rather than an object, which is how you leave "something should go here".
 
 Q: How do I hide comments for a presentation?
-A: The comments toggle hides every comment bubble on the board. It affects only your view.
+A: Open the comments list from the comments button at the top left of the board and turn off Show comments on the canvas. It affects only your view, and the list still has every conversation.
 
 Q: Do resolved comments disappear?
-A: They are archived rather than deleted, so the record of a decision survives.
+A: They leave the canvas and are kept under Resolved in the comments list rather than deleted, so the record of a decision survives. Reopen brings one back, and so does a reply.
+
+Q: What happens to a comment I started typing and did not send?
+A: It is kept. Click away and the words wait where you left them, in this browser, and Esc asks before discarding anything you typed.
 
 
 ========================================================================
@@ -3840,7 +3922,7 @@ Where they appear
 
 In the app — unread indicators on the sidebar, and in the browser tab title for messages. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app; for a file, Open opens it in the app. A cluster shared with you shows a toast too, with Open. The share itself also reaches you by email, and everything shared with you is on the Shared page, from All shared in the sidebar.
 
-The bell — at the top right of the board, right after the theme switch; on a phone it is in the top bar, just before Share. Its number counts the notifications you haven't read. Press it and the list opens under it, newest first, with the unread ones marked; Mark all read clears the number. Press a row to go to what it is about: a row for a file shared with you, or a comment on one, opens the file in the app, and a note that you earned an invite reward opens Settings → Invite and earn. Esc, a click outside the list or the bell again closes it; on a phone the list fills the screen and × closes it.
+The bell — at the top right of the board, right after the theme switch; on a phone it is in the top bar, just before Share. Its number counts the notifications you haven't read. Press it and the list opens under it, newest first, with the unread ones marked; Mark all read clears the number. Press a row to go to what it is about: a row for a file shared with you opens the file in the app, a row for a comment opens the conversation at that comment, and a note that you earned an invite reward opens Settings → Invite and earn. Esc, a click outside the list or the bell again closes it; on a phone the list fills the screen and × closes it.
 
 Email only when you are away — an accepted-invite email and an invite-reward email are each sent only if you are not currently in the app. If you are, the in-app notification is the whole story and a second copy in your inbox is just noise.
 
@@ -3860,6 +3942,25 @@ Unsubscribing
 
 Product tips, mentions and replies carry a one-click unsubscribe that works without signing in. Invitation, share and accepted-invite emails are each sent once, for one thing someone did; switch those off in Settings under Notifications. Unsubscribing from email does not turn off in-app notifications; those are separate.
 
+Comments
+
+Comments tell the people they concern, wherever the comment is: on the canvas, on the words of a document or a note, or on a shared file.
+
+What happened | Who is told
+Someone @ mentions you in a comment | You
+Someone replies in a conversation | Everyone who has written in it
+Someone starts a new comment on a cluster, on its canvas or in one of its documents or notes | The person who made the cluster
+Someone resolves a conversation on the canvas, in a document or in a note | The person who started it
+Someone comments on a file you shared | You
+
+You are never told about your own comments, and one comment tells you once: a reply that also mentions you reaches you as the mention.
+
+Each one is a row under the bell, with the writer's initial, the cluster and the comment's first line. Press it and the cluster opens with the conversation open at that comment. Several comments in one conversation while the row is still unread share that one row, which shows the newest and how many more there were, rather than filling the list.
+
+While you are in the app a comment notice is also a toast with Open, and a browser notification if you allowed those. A busy conversation toasts once in a while, not for every reply, and never while you have that conversation open.
+
+Email is narrower, and only for when you are not in the app. A mention is emailed to the person named. A reply on the canvas is emailed to the person whose comment it answers, not to everyone in the conversation. A comment on a file you shared is emailed to you, as Sharing describes. The button in a mention or reply email opens the comment. A reply in a document or a note, a new comment on your cluster and a resolved conversation stay in the bell.
+
 Mentions
 
 The mention notification is the important one. When someone @s you, the notification links to the exact card, comment or passage, not just to the board — see Links and mentions.
@@ -3873,6 +3974,12 @@ A: Yes. The six categories are independent switches. Product tips and check-ins 
 
 Q: Where do notifications appear in the app?
 A: Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a file, which opens it in the app, and every one of them is kept in the list under the bell at the top right of the board, after the theme switch (on a phone, in the top bar before Share), whose number counts the ones you haven't read. A file shared with you is emailed to you as well, and listed on the Shared page (All shared, under Shared with you in the sidebar).
+
+Q: Does a notification about a comment take me to the comment?
+A: Yes. A row under the bell, the Open button on its toast and the button in a mention or reply email each open the cluster and the conversation at that comment, on the canvas, in a document or note, or on a shared file. If the comment has been deleted since, you land on the cluster and are told it isn't there any more.
+
+Q: Who is told when someone comments?
+A: A mention tells the person named. A reply tells everyone who has written in that conversation. A new comment on a cluster tells the person who made the cluster, and resolving a conversation tells the person who started it. You are never told about your own comments, and several comments in one conversation while you are away share one row under the bell.
 
 Q: Do I get browser notifications?
 A: Only if you grant permission. Nothing is requested until there is a reason.
@@ -4214,7 +4321,7 @@ Setting | Where
 Cluster cover / thumbnail | Right-click the cluster
 Canvas background colour | Right-click the canvas
 Public link expiry and indexing | The Share dialog
-Hiding comments | The comments toggle at the top left of the board
+Hiding comments | Show comments on the canvas, at the bottom of the comments list (the comments button at the top left of the board)
 Deleting or leaving a workspace | The workspace switcher's ⋯ menu
 
 On a phone
@@ -4687,7 +4794,7 @@ Tap outside the note you are typing in | Finish; the keyboard goes down
 Touch and hold empty canvas, then drag | A selection box, as dragging one with a mouse draws
 Touch and hold empty canvas, then let go | The board's menu, with Select… in it
 Touch and hold a card | Pick it up to move it (on a cluster you can only view, its menu)
-Touch and hold anything else | Its menu: a group label's, an arrow's, a tag's, the comments button's archive
+Touch and hold anything else | Its menu: a group label's, an arrow's, a tag's
 ⋯ on the selection | The menu for every selected card
 
 While you hold empty canvas, a ring fills under your finger; once it is full, the press is a hold, and moving draws the box instead of panning. The menu opens when you let go, never under a box you were about to draw. A second finger at any point hands it to the pinch: no box, no menu, and the selection as it was.
@@ -4756,7 +4863,7 @@ Back — the phone's gesture or button — closes whatever is open on top, the d
 
 The add sheet, behind the + in the middle of the bottom bar, lays out everything you can add across the screen, sized for thumbs. The tool rail keeps its own +, whose menu opens beside the rail. A new card lands in free space where you are looking, and a new note or document zooms in so you can read and type in it.
 
-Comments — on a phone or an upright iPad, Add comment opens a bar above the keyboard with Cancel and Post, and the keyboard's return key sends.
+Comments — on a phone or an iPad, Add comment opens the conversation's sheet from the bottom edge of the screen, and tapping a pin opens the same sheet. Its box grows as you type, the Close button and the send arrow are sized for a finger, the keyboard's return key sends, and the sheet rides up with the keyboard so the box stays above it.
 
 Controls a mouse only sees on hover always show under a finger: a vote's delete, a backlink's pin, a schedule item's remove.
 
@@ -4821,7 +4928,7 @@ A: Nothing that matters is removed, but dense surfaces like long documents are m
 ========================================================================
 # Data and privacy
 URL: https://clusters.soleilpictures.com/docs/account/data-and-privacy
-Updated: 2026-11-10
+Updated: 2026-11-15
 
 Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 
@@ -4856,7 +4963,7 @@ Thing | Kept
 Deleted cluster | 30 days in the trash, then purged
 Board version snapshots | For rollback and workspace recovery
 Files no longer referenced by any board | Eligible for cleanup after a grace period
-Resolved comments | Archived, not deleted
+Resolved comments | Kept under Resolved, not deleted
 Layout outlines, if you said yes | 400 days, then deleted
 Which first-week outlines are yours, if you said yes | Up to 8 days, then deleted
 
@@ -6591,7 +6698,7 @@ A: A doc is written through the cluster's live room or not at all, and the room 
 ========================================================================
 # Comments API
 URL: https://clusters.soleilpictures.com/docs/api/comments
-Updated: 2026-10-25
+Updated: 2026-11-15
 
 GET /boards/:id/comments lists a board's comment threads in one list, the ones on the canvas and the ones inside its docs and notes, each with its replies and who wrote what. POST adds a comment on a card, a group, a spot, the whole board or words in a doc, or a reply in any thread. PATCH resolves or reopens threads, and DELETE removes your own comment.
 
@@ -6700,7 +6807,7 @@ Their ids start cm_, and their replies' cr_. They live in the doc itself and are
 ## Frequently asked questions
 
 Q: Who can comment, resolve or delete over the API?
-A: The same people as in the app. Anyone who can open a board can comment on it. A thread's author, or anyone who can edit the board, can resolve it. Only a comment's author can delete it.
+A: Anyone who can open a board can comment on it, and a thread's author, or anyone who can edit the board, can resolve it, as in the app. Over the API only a comment's author can delete it; in the app, someone who can edit the board can delete other people's too.
 
 Q: Can I reply to a comment inside a doc?
 A: Yes, if you can edit the board, as in the app. You can also resolve threads there, and start one on words in a doc by quoting them.

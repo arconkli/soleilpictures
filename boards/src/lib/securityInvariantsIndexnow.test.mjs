@@ -11,11 +11,25 @@ const ws = s => s.replace(/\s+/g, ' ').trim();
 
 test('0865 is 0863\'s daily check plus the _indexnow_send token', () => {
   const defs = definitionsOf('check_security_invariants');
-  const cur = defs[defs.length - 1];
-  const prev = defs[defs.length - 2];
-  assert.match(cur.file, /^0865_security_invariants_indexnow\.sql$/);
+  const at = defs.findIndex(d => /^0865_security_invariants_indexnow\.sql$/.test(d.file));
+  assert.ok(at > 0, '0865 defines the check');
+  const cur = defs[at];
+  const prev = defs[at - 1];
   assert.ok(prev.file.startsWith('0863_'), `previous definition is ${prev.file}`);
   const token = /,\s*'_indexnow_send'/;
+  assert.ok(token.test(cur.body));
+  assert.equal(ws(cur.body.replace(token, '')), ws(prev.body));
+});
+
+// 0903: check 2's list (who sends email) gains the comment mention email 0902
+// adds. The newest definition is 0865's plus that one token, nothing else.
+test('0903 is 0865\'s daily check plus the _comment_mention_email token', () => {
+  const defs = definitionsOf('check_security_invariants');
+  const cur = defs[defs.length - 1];
+  const prev = defs[defs.length - 2];
+  assert.match(cur.file, /^0903_security_invariants_comment_mention\.sql$/);
+  assert.ok(prev.file.startsWith('0865_'), `previous definition is ${prev.file}`);
+  const token = /,\s*'_comment_mention_email'/;
   assert.ok(token.test(cur.body));
   assert.equal(ws(cur.body.replace(token, '')), ws(prev.body));
 });

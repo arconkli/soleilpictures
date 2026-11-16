@@ -50,21 +50,6 @@ export function prefetchNoteEditor() {
   // when the connection has gone (NoteEditorBoundary).
   warmFeedbackOverlay();
 }
-// Reading a comment thread on a NON-editing note must not drag in Tiptap — the
-// popover only needs the Yjs thread store, so it's its own lazy chunk. Wrapper
-// component because the popover takes a docState `scope`, which for a note is
-// derived from the card's Y.Map.
-const NoteCommentThread = lazyWithReload(() =>
-  Promise.all([
-    import('./CommentInlinePopover.jsx'),
-    import('../lib/noteDocState.js'),
-  ]).then(([pop, state]) => ({
-    default: function NoteCommentThreadImpl({ ydoc, cardYMap, ...rest }) {
-      const scope = state.noteCommentScope(ydoc, cardYMap);
-      if (!scope) return null;
-      return <pop.CommentInlinePopover ydoc={ydoc} scope={scope} {...rest} />;
-    },
-  })));
 import { ColorPicker } from './ColorPicker.jsx';
 import { BoardThumbnail } from './BoardThumbnail.jsx';
 import { useBoardPreview } from '../hooks/useBoardPreview.js';
@@ -81,13 +66,9 @@ import { relativeTimeShort } from '../lib/relativeTime.js';
 import { useEntityTrie } from '../hooks/useEntityNameTrie.js';
 import { renderHtmlWithAutoLinks } from '../lib/renderHtmlWithAutoLinks.jsx';
 import { EntityLink } from './EntityLink.jsx';
-import {
-  Folder as FolderIcon, Image as ImagePh, StickyNote, Link as LinkPh,
-  Palette as PalettePh, FileText, Calendar as CalendarPh, Square as SquarePh,
-  Circle as CirclePh, FilePdf, Paperclip, Headphones, Clapperboard, Download, ArrowSquareOut,
-  CornersOut, DownloadSimple, Edit,
-} from '../lib/icons.js';
+import { Download, CornersOut, DownloadSimple, Edit } from '../lib/icons.js';
 import { Icon } from './Icon.jsx';
+import { KindIcon } from './KindIcon.jsx';
 import { useFeedback, useOptionalFeedback, warmFeedbackOverlay } from './AppFeedback.jsx';
 import { undoToast } from '../lib/undoToast.js';
 import { detectEmbed, safeEmbed } from '../lib/oembed.js';
@@ -166,31 +147,7 @@ function htmlToText(html, max = 80) {
   const txt = (tmp.textContent || '').replace(/\s+/g, ' ').trim();
   return exceedsGraphemes(txt, max) ? cutGraphemes(txt, max - 1) + '…' : txt;
 }
-// Phosphor-thin glyphs used in list-board rows. Sized to fill a 22px tile by
-// default; the cluster browser passes its own size, and the files sidebar its
-// own weight (regular: thin is a hairline at 16px on its glass).
-//
-// audio/video used to be missing here, so a list-board row drew a generic
-// circle for a loop while the cluster browser drew headphones for the same
-// card — one kind, two glyphs, depending which list you were looking at.
-export function KindIcon({ kind, size = 22, weight }) {
-  if (kind === 'board' || kind === 'list' || kind === 'boardlink') {
-    return <Icon as={FolderIcon} size={size} weight={weight} />;
-  }
-  if (kind === 'image')    return <Icon as={ImagePh} size={size} weight={weight} />;
-  if (kind === 'note')     return <Icon as={StickyNote} size={size} weight={weight} />;
-  if (kind === 'link')     return <Icon as={LinkPh} size={size} weight={weight} />;
-  if (kind === 'palette')  return <Icon as={PalettePh} size={size} weight={weight} />;
-  if (kind === 'doc')      return <Icon as={FileText} size={size} weight={weight} />;
-  if (kind === 'schedule') return <Icon as={CalendarPh} size={size} weight={weight} />;
-  if (kind === 'shape')    return <Icon as={SquarePh} size={size} weight={weight} />;
-  if (kind === 'pdf')      return <Icon as={FilePdf} size={size} weight={weight} />;
-  if (kind === 'audio')    return <Icon as={Headphones} size={size} weight={weight} />;
-  if (kind === 'video')    return <Icon as={Clapperboard} size={size} weight={weight} />;
-  if (kind === 'file')     return <Icon as={Paperclip} size={size} weight={weight} />;
-  if (kind === 'shortcut') return <Icon as={ArrowSquareOut} size={size} weight={weight} />;
-  return <Icon as={CirclePh} size={size} weight={weight} />;
-}
+// A row's glyph is KindIcon (KindIcon.jsx): one kind, one glyph, in every list.
 
 // One row inside a list-board card. Sub-board rows use useBoardPreview to
 // surface a live "{n} cards" count without the parent having to fetch.
@@ -1221,9 +1178,6 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   const [editEntry, setEditEntry] = useState(null);
   // dblclick is a MouseEvent with no pointerType: a pen's is known from its press.
   const lastPointerTypeRef = useRef('mouse');
-  // Reading a comment must not require entering edit mode — a reader with
-  // view-only access has no edit mode at all. { id, anchor } | null.
-  const [openThread, setOpenThread] = useState(null);
   useEffect(() => { onEditingChange?.(editing); }, [editing]);
 
   const ref = useRef(null);
@@ -1369,14 +1323,6 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   // above) is `display` with colors made readable on this surface.
   const startEdit = (e) => { e?.stopPropagation?.(); beginEdit(noteEntryFromEvent(e, lastPointerTypeRef.current)); };
   const onBodyClick = (e) => {
-    // Commented text opens its thread straight from the read-only note.
-    const commentEl = e.target.closest?.('.tt-comment[data-comment-id]');
-    if (commentEl && !isPublic && ydoc && cardYMap) {
-      e.preventDefault();
-      e.stopPropagation();
-      setOpenThread({ id: commentEl.dataset.commentId, anchor: commentEl.getBoundingClientRect() });
-      return;
-    }
     // A link preview's remove (x). The fragment can't hold the old editor's
     // hidden-marker spans, so the dismissal is a card field (hiddenPreviews)
     // that every write-through honours; the cached html drops the block now.
@@ -1455,11 +1401,17 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
   const onPointerUp = (e) => {
     const arm = disarmTap();
     if (!fingerOrPen(e)) return;
-    // Taps in the comment popover (portaled to <body>) bubble through here in React.
+    // Taps in something portaled to <body> bubble through here in React.
     if (!ref.current?.contains(e.target)) return;
     // These keep their own actions: a link, a checkbox, a preview's remove,
-    // commented text (onBodyClick opens its thread), Show all.
-    if (e.target.closest?.('a, .note-preview-remove, .ck-box, .tt-comment[data-comment-id], .note-more-chip')) return;
+    // Show all, and the words of an open comment (comments/NoteCommentsLayer.jsx
+    // opens its thread). Words whose thread is resolved or deleted are plain
+    // text and a tap on them is a tap on the note: only a thread a press
+    // opens has the pointer (lib/commentMarkCss.js; its test holds that no
+    // stylesheet gives a mark the pointer any other way).
+    if (e.target.closest?.('a, .note-preview-remove, .ck-box, .note-more-chip')) return;
+    const mark = e.target.closest?.('.tt-comment[data-comment-id]');
+    if (mark && getComputedStyle(mark).cursor === 'pointer') return;
     const again = !!arm && e.isPrimary && e.pointerId === arm.id
       && e.timeStamp - arm.t < NOTE_TAP_MAX_MS
       && Math.hypot(e.clientX - arm.x, e.clientY - arm.y) <= NOTE_TAP_SLOP_PX;
@@ -1474,16 +1426,6 @@ export function NoteCardCollab({ html, body, bgColor, textColor, fontFamily, fon
          onPointerCancel={disarmTap}
          onDoubleClick={startEdit} onPointerUp={onPointerUp} onClick={onBodyClick}>
       <NoteAutoLinkBody html={safeDisplay} />
-      {openThread && ydoc && cardYMap && (
-        <Suspense fallback={null}>
-          <NoteCommentThread
-            ydoc={ydoc} cardYMap={cardYMap}
-            threadId={openThread.id} anchor={openThread.anchor}
-            currentUser={currentUser}
-            onClose={() => setOpenThread(null)}
-          />
-        </Suspense>
-      )}
       {overflowing && (
         <button type="button" className="note-more-chip"
                 title={tr`Show all text — fit the note to its content`}

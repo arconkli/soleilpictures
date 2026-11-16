@@ -18,7 +18,7 @@ import { R2Image } from '../R2Image.jsx';
 import { getMeta, subscribeMeta } from '../../lib/imageMeta.js';
 import { tileImageSrc } from '../../lib/justifiedGrid.js';
 import { ImagePlaceholder } from '../primitives.jsx';
-import { KindIcon } from '../cards.jsx';
+import { KindIcon } from '../KindIcon.jsx';
 import { Icon } from '../Icon.jsx';
 import { iconForFile, humanSize, useFaces } from '../cards/FileCard.jsx';
 import { formatDuration } from '../../lib/loopMeta.js';

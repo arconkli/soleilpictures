@@ -13,7 +13,7 @@ async function go(page) {
   await page.evaluate(() => { try { localStorage.removeItem('soleil-boards-tweaks'); } catch (_) {} });
   await page.goto('/?local=1&reset=1');
   await page.evaluate(() => window.history.replaceState(null, '', '/?local=1'));
-  await expect(page.locator('.canvas-wrap')).toBeVisible();
+  await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 30000 });
 }
 
 // Same, but with an EMPTY board.
@@ -29,7 +29,17 @@ async function goBlank(page) {
   await page.evaluate(() => { try { localStorage.removeItem('soleil-boards-tweaks'); } catch (_) {} });
   await page.goto('/?local=1&reset=1&blank=1');
   await page.evaluate(() => window.history.replaceState(null, '', '/?local=1&blank=1'));
-  await expect(page.locator('.canvas-wrap')).toBeVisible();
+  await expect(page.locator('.canvas-wrap')).toBeVisible({ timeout: 30000 });
+}
+
+// The canvas's own menu keeps "Comment" under Add (a card's menu says
+// "Add comment"). Opens that submenu and answers with the item.
+async function bgMenuComment(page) {
+  await page.locator('.ctx-menu').first().locator('.ctx-submenu-wrap', { hasText: 'Add' }).hover();
+  return page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Comment', exact: true });
+}
+async function addCommentFromBgMenu(page) {
+  await (await bgMenuComment(page)).click();
 }
 
 // Walks every styleSheet and matches a regex against its selectorText.
@@ -177,59 +187,39 @@ test.describe('Phase 3 — anywhere-comments', () => {
     expect(hasCaveat).toBe(false);
   });
 
-  test('comment card preview shows body text inline (not collapsed)', async ({ page }) => {
+  test('a comment is a pin on its card: the pin CSS ships, the 240px bubble is gone', async ({ page }) => {
     await go(page);
-    // The new design uses .canvas-comment-card (full preview tile) — not
-    // .canvas-comment-pin (the prior single-letter avatar). Assert the
-    // preview class ships and the pin class does NOT.
-    expect(await hasCssRule(page, /\.canvas-comment-card/)).toBe(true);
-    expect(await hasCssRule(page, /\.canvas-comment-body/)).toBe(true);
-    expect(await hasCssRule(page, /\.canvas-comment-pin\b/)).toBe(false);
+    // Comments were 240px preview tiles (.canvas-comment-card, its body
+    // clamped to two lines). Each is a small pin now (.cmt-pin, in the
+    // canvas's own download); what a pin opens is driven for real in
+    // canvas-comment-pins.spec.js.
+    expect(await hasCssRule(page, /\.cmt-pin\b/)).toBe(true);
+    expect(await hasCssRule(page, /\.cmt-pin--count/)).toBe(true);
+    expect(await hasCssRule(page, /\.cmt-pin-at\.is-dragging/)).toBe(true);
+    for (const gone of [/\.canvas-comment-card/, /\.canvas-comment-body/, /\.canvas-comment-pin\b/,
+      /\.canvas-comment-draft/, /canvas-comment\.is-mine/, /canvas-comment\.is-dragging/,
+      /\.canvas-comment\.is-resolved/, /\.canvas-comment-anchor-dot/]) {
+      expect(await hasCssRule(page, gone), String(gone)).toBe(false);
+    }
   });
 
-  test('comment body has line-clamp 2 in collapsed state', async ({ page }) => {
-    await go(page);
-    const lc = await page.evaluate(() => {
-      for (const s of document.styleSheets) {
-        try {
-          for (const r of s.cssRules) {
-            if (r.selectorText === '.canvas-comment-body') {
-              return r.style.webkitLineClamp || r.style['-webkit-line-clamp'] || '';
-            }
-          }
-        } catch { /* cross-origin */ }
-      }
-      return '';
-    });
-    expect(['2', 2]).toContain(lc);
-  });
-
-  test('right-click empty canvas → "Add comment" item appears', async ({ page }) => {
+  test('right-click empty canvas → Add → Comment is offered', async ({ page }) => {
     await goBlank(page);
     // Right-click an empty area of the canvas (away from cards).
     const wrap = page.locator('.canvas-wrap');
     await wrap.click({ button: 'right', position: { x: 80, y: 80 } });
-    const menu = page.locator('.ctx-menu');
-    await expect(menu).toBeVisible();
-    await expect(menu.getByText('Add comment', { exact: true })).toBeVisible();
+    await expect(await bgMenuComment(page)).toBeVisible();
   });
 
-  test('comment-draft input + replica-identity-full CSS ship', async ({ page }) => {
-    await go(page);
-    // Inline draft replaces the old feedback.prompt popup. Class ships
-    // even before any comment is placed.
-    expect(await hasCssRule(page, /\.canvas-comment-draft/)).toBe(true);
-    expect(await hasCssRule(page, /\.canvas-comment-draft-input/)).toBe(true);
-    expect(await hasCssRule(page, /\.canvas-comment-draft-post/)).toBe(true);
-  });
-
-  test('clicking "Add comment" mounts an inline draft (no feedback dialog)', async ({ page }) => {
+  test('clicking "Add comment" opens the comment card on a draft pin (no feedback dialog)', async ({ page }) => {
     await goBlank(page);
     const wrap = page.locator('.canvas-wrap');
     await wrap.click({ button: 'right', position: { x: 200, y: 200 } });
-    await page.locator('.ctx-menu').getByText('Add comment', { exact: true }).click();
-    // The draft input should appear inline; the feedback modal must NOT.
-    await expect(page.locator('.canvas-comment-draft')).toBeVisible();
+    await addCommentFromBgMenu(page);
+    // The new comment's card opens beside its pin; the feedback modal must NOT.
+    await expect(page.locator('.cmt-canvas-card [data-cmt-card="new"]')).toBeVisible();
+    await expect(page.locator('.cmt-canvas-card textarea.cmt-input')).toBeFocused();
+    await expect(page.locator('.cmt-pin--draft.is-open')).toHaveCount(1);
     await expect(page.locator('.feedback-dialog')).toHaveCount(0);
   });
 
@@ -237,16 +227,12 @@ test.describe('Phase 3 — anywhere-comments', () => {
     await goBlank(page);
     const wrap = page.locator('.canvas-wrap');
     await wrap.click({ button: 'right', position: { x: 200, y: 200 } });
-    await page.locator('.ctx-menu').getByText('Add comment', { exact: true }).click();
-    await expect(page.locator('.canvas-comment-draft')).toBeVisible();
+    await addCommentFromBgMenu(page);
+    await expect(page.locator('.cmt-canvas-card')).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.locator('.canvas-comment-draft')).toHaveCount(0);
-  });
-
-  test('drag affordance + dragging visual states ship', async ({ page }) => {
-    await go(page);
-    expect(await hasCssRule(page, /canvas-comment\.is-mine/)).toBe(true);
-    expect(await hasCssRule(page, /canvas-comment\.is-dragging/)).toBe(true);
+    // nothing was typed: the card goes, and so does its pin
+    await expect(page.locator('.cmt-canvas-card')).toHaveCount(0);
+    await expect(page.locator('.cmt-pin--draft')).toHaveCount(0);
   });
 
   test('pickCommentOffset prefers a non-overlapping perimeter spot', async ({ page }) => {
@@ -298,129 +284,35 @@ test.describe('Phase 3 — anywhere-comments', () => {
     expect(out).toEqual({ offsetX: 0, offsetY: 0 });
   });
 
-  test('comment drag glitch fix — committedRef holds the live offset', async ({ page }) => {
-    // After commit, the bubble has to keep showing the dragged-to spot
-    // until the comment prop reflects the new offset; otherwise it
-    // snaps back, then teleports. The fix is a committedRef that
-    // gates dragDelta clearing — assert the bundle still ships it
-    // (and the legacy "setDragDelta(null)" right after updateComment
-    // is gone).
-    await page.goto('/?local=1');
-    const html = await (await page.request.get('/?local=1')).text();
-    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
-    if (!m) return;
-    const bundle = await (await page.request.get(m[1])).text();
-    expect(bundle.includes('committedRef')).toBe(true);
-  });
+  // Gone with the 240px bubble, and not replaced here: its drag (committedRef,
+  // baseRef, the grab cursor on the whole tile), its seam dot, the
+  // display:none on a resolved one, the per-comment Hide's bulk unhide, and
+  // Backspace deleting an open thread. A pin follows its card, a resolved
+  // conversation simply has no pin, the switch is personal, and Backspace
+  // deletes nothing: canvas-comment-pins.spec.js drives each of those.
 
-  test('resolved comments are hidden on the canvas (display:none)', async ({ page }) => {
+  test('the comments island is always there, and opens the list of them all', async ({ page }) => {
     await go(page);
-    const display = await page.evaluate(() => {
-      for (const s of document.styleSheets) {
-        try {
-          for (const r of s.cssRules) {
-            if (r.selectorText === '.canvas-comment.is-resolved') {
-              return r.style.display || '';
-            }
-          }
-        } catch { /* cross-origin */ }
-      }
-      return '';
-    });
-    expect(display).toBe('none');
-  });
-
-  test('comments eye toggle is always visible (no conditional render)', async ({ page }) => {
-    await go(page);
-    // The eye class ships and is-muted variant exists for the OFF state.
-    expect(await hasCssRule(page, /\.cnv-comments-eye/)).toBe(true);
+    const eye = page.locator('.cnv-comments-eye');
+    await expect(eye).toBeVisible();
+    // The island's states ship: muted while my switch is off, on while the
+    // list is open.
     expect(await hasCssRule(page, /\.cnv-comments-eye\.is-muted/)).toBe(true);
-    // Old "is-on" variant (which only fired when reveal-hidden was active)
-    // shouldn't exist anymore.
-    expect(await hasCssRule(page, /\.cnv-comments-eye\.is-on/)).toBe(false);
-  });
-
-  test('comment archive popover CSS ships', async ({ page }) => {
-    await go(page);
-    expect(await hasCssRule(page, /\.comment-archive/)).toBe(true);
-    expect(await hasCssRule(page, /\.comment-archive-row/)).toBe(true);
-    expect(await hasCssRule(page, /\.comment-archive-tag\.is-resolved/)).toBe(true);
-    expect(await hasCssRule(page, /\.comment-archive-tag\.is-hidden/)).toBe(true);
-  });
-
-  test('comments physically attach to anchor — bubbleLayout snap helper ships', async ({ page }) => {
-    // Bubbles snap flush to one of the four sides of the anchored
-    // bbox. The dot sits at the seam where the bubble meets the card,
-    // so the connector line was dropped entirely.
-    await go(page);
-    expect(await hasCssRule(page, /\.canvas-comment-anchor-dot/)).toBe(true);
-    const html = await (await page.request.get('/?local=1')).text();
-    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
-    if (!m) return;
-    const bundle = await (await page.request.get(m[1])).text();
-    expect(bundle.includes('snapBubbleToBox')).toBe(true);
-    expect(bundle.includes('bubbleLayout')).toBe(true);
-  });
-
-  test('whole card is the drag handle (cursor:grab on .canvas-comment-card, not just head)', async ({ page }) => {
-    await go(page);
-    // The grab cursor used to live on the head row only. Now it's on
-    // the entire preview card so users can drag from anywhere.
-    const grabOnCard = await page.evaluate(() => {
-      for (const s of document.styleSheets) {
-        try {
-          for (const r of s.cssRules) {
-            if (r.selectorText === '.canvas-comment.is-mine .canvas-comment-card') {
-              return r.style.cursor === 'grab';
-            }
-          }
-        } catch {}
-      }
-      return false;
-    });
-    expect(grabOnCard).toBe(true);
-  });
-
-  test('keyboard delete is wired when a comment thread is open', async ({ page }) => {
-    await page.goto('/?local=1');
-    const html = await (await page.request.get('/?local=1')).text();
-    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
-    if (!m) return;
-    const bundle = await (await page.request.get(m[1])).text();
-    // The keydown listener strings should still be in the bundle —
-    // guard against regressions that drop the keyboard delete.
-    expect(bundle.includes('Backspace')).toBe(true);
-    // Should NOT just blindly delete on any keydown — must skip when
-    // user is typing in an input/textarea/contenteditable.
-    expect(/INPUT.*TEXTAREA|TEXTAREA.*INPUT/.test(bundle)).toBe(true);
-  });
-
-  test('drag race fix — baseRef chains rapid drags off the latest commit', async ({ page }) => {
-    // Without baseRef, computing patch.offset_x from the (stale) prop
-    // meant a second drag while the first commit's realtime hadn't
-    // landed yet would clobber position. The baseRef is updated
-    // synchronously on commit; the bundle should still ship that
-    // helper. Guard so future refactors don't quietly drop it.
-    await page.goto('/?local=1');
-    const html = await (await page.request.get('/?local=1')).text();
-    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
-    if (!m) return;
-    const bundle = await (await page.request.get(m[1])).text();
-    expect(bundle.includes('baseRef')).toBe(true);
-  });
-
-  test('eye toggle bulk-unhides + right-click is propagation-safe', async ({ page }) => {
-    // Two regression guards in one test:
-    //   1. unhideAllOnBoard is exported by the comments API (the bulk
-    //      action the eye toggle invokes on OFF→ON).
-    //   2. The eye's right-click stops propagation (e.stopPropagation)
-    //      so the canvas bg menu doesn't double-fire.
-    await page.goto('/?local=1');
-    const html = await (await page.request.get('/?local=1')).text();
-    const m = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
-    if (!m) return;
-    const bundle = await (await page.request.get(m[1])).text();
-    expect(bundle.includes('unhideAllOnBoard')).toBe(true);
+    expect(await hasCssRule(page, /\.cnv-comments-eye\.is-on/)).toBe(true);
+    // The old archive popover (right-click on the eye) is gone…
+    expect(await hasCssRule(page, /\.comment-archive/)).toBe(false);
+    // …a press opens the list instead: Open / Resolved / For you, and my own
+    // switch. With no backend there is nothing to list, and it says so.
+    await eye.click();
+    const list = page.locator('.cmt-list');
+    await expect(list).toBeVisible();
+    await expect(eye).toHaveClass(/is-on/);
+    await expect(list.getByRole('tab')).toHaveText([/^Open\s*0$/, /^Resolved\s*0$/, /^For you\s*0$/]);
+    await expect(list.locator('.cmt-list-empty')).toContainText('No open comments');
+    await expect(list.getByRole('switch', { name: 'Show comments on the canvas' })).toHaveAttribute('aria-checked', 'true');
+    await page.keyboard.press('Escape');
+    await expect(list).toHaveCount(0);
+    await expect(eye).toBeFocused();
   });
 });
 

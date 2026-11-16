@@ -15,7 +15,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon } from './Icon.jsx';
-import { X, Check } from '../lib/icons.js';
+import { X, Check, MessageCircle } from '../lib/icons.js';
 import { logEvent } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
 import { escapeClosesPanel } from '../lib/panelEscape.js';
@@ -23,11 +23,13 @@ import { registerModalOpen } from '../lib/modalGuard.js';
 import { swallowNextClick } from '../lib/swallowClick.js';
 import { fileSharesAllowed, sharedFilesAllowed } from '../lib/appHost.js';
 import { openSharedFile } from '../lib/sharedFileBus.js';
-import { notificationTarget, placeUnderIsland, wantsNotificationSheet } from '../lib/notificationsBell.js';
+import {
+  notificationTarget, placeUnderIsland, wantsNotificationSheet, isCommentNotice, noticeMore, fileCommentQuery,
+} from '../lib/notificationsBell.js';
 import { initialOf } from '../lib/graphemes.js';
 import { notificationText } from '../lib/notificationWords.js';
 import './notificationsPanel.css';
-import { t as tr } from '@lingui/core/macro';
+import { t as tr, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { shownError } from '../lib/errorWords.js';
 
@@ -116,6 +118,9 @@ export function NotificationsPanel({
   items = [], unread = 0, loading = false,
   onOpenBoard = null, onOpenSettings = null, onOpenTeam = null, onMarkRead = null, onClose = null,
   onAnswerEdit = null, nameOf = null,
+  // onOpenComment(target): a comment notice opens its conversation.
+  // boardNameOf(id): a cluster's name, for a comment notice's words.
+  onOpenComment = null, boardNameOf = null,
   anchorRef = null, mobileShell = false,
 }) {
   // Escape closes the panel (COMMS-22). The panel takes focus when it opens so
@@ -205,8 +210,14 @@ export function NotificationsPanel({
     if (target.kind === 'file') {
       // Inside the app, over what you were doing; before the Shared page
       // shipped, its page in a new tab.
-      if (target.inApp) openSharedFile({ token: target.token, via: 'bell' });
-      else window.open('/f/' + encodeURIComponent(target.token), '_blank', 'noopener');
+      // A comment's notice opens the file at that comment.
+      if (target.inApp) openSharedFile({ token: target.token, via: 'bell', commentId: target.commentId || null });
+      else window.open('/f/' + encodeURIComponent(target.token) + fileCommentQuery(target.commentId), '_blank', 'noopener');
+      return;
+    }
+    if (target.kind === 'comment') {
+      onOpenComment?.(target);
+      onCloseRef.current?.();
       return;
     }
     if (target.kind === 'settings') {
@@ -261,7 +272,13 @@ export function NotificationsPanel({
         ) : (
           <ul className="ntf-list">
             {items.map((n) => {
-              const words = notificationText(n, { nameOf });
+              const words = notificationText(n, { nameOf, boardNameOf });
+              // A comment's notice: who wrote it (their initial, or a comment
+              // mark when the name is not known), its words on one line, and
+              // how many more its row stands for.
+              const comment = isCommentNotice(n);
+              const face = comment ? initialOf((nameOf?.(n.actor_id) || '').trim(), '') : '';
+              const more = comment ? noticeMore(n) : 0;
               return (
               <li key={n.id}>
                 {n.kind === 'edit_request' && onAnswerEdit ? (
@@ -272,10 +289,18 @@ export function NotificationsPanel({
                   data-kind={n.kind || undefined}
                   onClick={() => open(n)}>
                   <span className="ntf-dot" aria-hidden="true" />
+                  {comment && (
+                    <span className="ntf-av" aria-hidden="true">
+                      {face || <Icon as={MessageCircle} size={13} />}
+                    </span>
+                  )}
                   {n.kind === 'invite.reward' && Number(n.data?.cards) > 0 && <span className="ntf-earn" aria-hidden="true">+{Number(n.data.cards)}</span>}
                   <span className="ntf-row-main">
                     <span className="ntf-row-title">{words.title}</span>
-                    {words.body && <span className="ntf-row-body">{words.body}</span>}
+                    {words.body && <span className={`ntf-row-body${comment ? ' is-line' : ''}`}>{words.body}</span>}
+                    {more > 0 && (
+                      <span className="ntf-row-more">{plural(more, { one: '+# more', other: '+# more' })}</span>
+                    )}
                   </span>
                   <span className="ntf-row-ago">{agoLabel(n.created_at)}</span>
                 </button>

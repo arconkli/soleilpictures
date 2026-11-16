@@ -31,7 +31,8 @@ test('a comment on the canvas: Enter mid-syllable posts nothing; the next Enter 
   await page.mouse.click(cb.x + cb.width - 90, cb.y + 110, { button: 'right' });
   await page.locator('.ctx-menu').first().locator('.ctx-submenu-wrap', { hasText: 'Add' }).hover();
   await page.locator('.ctx-submenu').getByRole('menuitem', { name: 'Comment', exact: true }).click();
-  const input = page.locator('.canvas-comment-draft-input');
+  // the shared comment card, opened beside the new comment's pin
+  const input = page.locator('.cmt-canvas-card textarea.cmt-input');
   await expect(input).toBeFocused();
   const ko = await korean(page);
   await ko.typeThenEnterMidSyllable('컷이 늦다');

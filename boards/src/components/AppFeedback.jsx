@@ -13,10 +13,12 @@ import { t as tr } from '@lingui/core/macro';
 const FeedbackOverlay = lazyWithReload(() => import('./FeedbackOverlay.jsx'));
 // Fetch it ahead of the first toast, so a toast that says the connection
 // dropped (the note editor's) can still be drawn once it has. cards.jsx calls
-// this with the editor's own prefetch, never at boot: main.jsx loads this file
-// on every page, and the signed-out ones never fetch the overlay.
+// this with the editor's own prefetch, and the canvas once it has painted
+// (comments/commentPartsLazy.jsx), never at boot: main.jsx loads this file
+// on every page, and the signed-out ones never fetch the overlay. Resolves
+// true once the overlay is in, false when it could not be fetched.
 export function warmFeedbackOverlay() {
-  FeedbackOverlay.warm();
+  return FeedbackOverlay.warm();
 }
 
 const TOAST_EXIT_MS = 200;

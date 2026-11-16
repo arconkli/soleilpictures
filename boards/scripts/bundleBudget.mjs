@@ -141,7 +141,15 @@ export const CEILINGS = {
   // team, pricing and onboarding screens, and the plural and default-name
   // fixes, read through Lingui. A CI-style build read entryJs 181,057 B with
   // it; the ceiling was 180,043 B.
-  entryJs: 182_100,
+  // 2026-11-15: +0.5 KB for main's own JS since then. The phone and iPad pass
+  // (014c8979 to a18de1d2) landed without moving it; CI's bundle job read
+  // main 72ffb4e4 at 182.5 KB and a CI-style build here at 182,475 B.
+  // 2026-11-15: +0.6 KB for comments that look and work better: an email's
+  // link to one comment, and a shared file's link to one, keep their place
+  // through sign-in (auth/AuthGate.jsx, lib/commentLink.js,
+  // lib/shareReturn.js). CI-style builds read 182,475 B on main 72ffb4e4 and
+  // 183,070 B with it; the ceiling moves by the difference, 595 B, rounded up.
+  entryJs: 183_200,
   // 2026-11-09: +0.2 KB for d2b3c2f0's rules in styles.css, over this
   // ceiling in the same run: 96,166 B on 1c770b58, 96,291 B on d2b3c2f0.
   // 2026-11-09: +0.1 KB for where those words sit and fade in under the sun
@@ -173,7 +181,14 @@ export const CEILINGS = {
   // name (.cluster-slate, its fold, New cluster stepping aside) and the phone's
   // line under the bar. A CI-style build read 97,589 B with it on main
   // 212af73d; the ceiling was 97,400 B.
-  entryCss: 97_600,
+  // 2026-11-15: +2.0 KB for main's own CSS since then. The phone and iPad pass
+  // (014c8979 to a18de1d2) landed without moving it; CI's bundle job read
+  // main 72ffb4e4 at 99.5 KB and a CI-style build here at 99,510 B.
+  // 2026-11-15: −1.3 KB, banked, from comments that look and work better: the
+  // old comment look left styles.css. What a cluster shows at rest is
+  // components/comments/commentPins.css; the rest loads with the comment
+  // parts. CI-style builds read 99,510 B on main 72ffb4e4 and 98,215 B with it.
+  entryCss: 98_300,
   // 2026-10-21: the panels, pages and players only a click opens left the app
   // (LAZY_IN_APP), from 861 KB of JS and 42 KB of CSS; then the icons only
   // they draw (vite.config.js iconSplit), from 687 KB.
@@ -485,7 +500,24 @@ export const CEILINGS = {
   // over its 804,000 ceiling (the fewer pop-ups change, 40837d92, added 1.2 KB
   // without moving it), so the ceiling moves from main's reading by the
   // difference, 4,516 B, rounded up.
-  appJs: 808_900,
+  // 2026-11-15: +7.4 KB for main's own JS since that note. The phone and iPad
+  // pass (014c8979 to a18de1d2) landed without moving it, and CI's bundle job
+  // has read over since: 816.2 KB on main 72ffb4e4, where a CI-style build
+  // here read 816,045 B (CI reads about 0.2 KB above a local build). The
+  // ceiling moves to cover CI's reading.
+  // 2026-11-15: +4.1 KB for comments that look and work better, in what the
+  // app runs before anyone opens a comment: the canvas's comment wiring
+  // (CanvasSurface.jsx, lib/commentCanvas.js, lib/commentOpen.js,
+  // lib/toMs.js), which thread is open (lib/openThreads.js), and comment
+  // notices in the bell, their toast and the comment a notice or an email's
+  // link opens (App.jsx, NotificationsPanel.jsx, lib/notificationWords.js,
+  // lib/notificationsBell.js, hooks/useNotifications.js, lib/commentLink.js).
+  // The pins, the card, the list, the box you write in and the doc and file
+  // threads load when they're needed (components/comments/canvasPartsLazy.jsx,
+  // commentPartsLazy.jsx).
+  // CI-style builds read 816,045 B on main 72ffb4e4 and 820,112 B with it;
+  // the ceiling moves by the difference, 4,067 B, rounded up.
+  appJs: 820_400,
   // 2026-11-09: +1.5 KB of CSS for the same states: the card overlay
   // (cards/cardTransferState.css, one for every kind), the couldn't-load tile
   // (cards/cardCouldntLoad.css) and the slow-wait note (waitNote.css).
@@ -559,6 +591,18 @@ export const LAZY_IN_APP = [
   // AuthGate.jsx: claiming a stashed ?join= link once signed in (the entry
   // keeps only the capture and the stash, lib/pendingJoin.js)
   'pendingJoinClaim',
+  // comments/canvasPartsLazy.jsx: what a press on a comment pin or the
+  // comments island opens (the conversation and its box, the list, the
+  // look-ahead)
+  'commentParts',
+  // comments/canvasPartsLazy.jsx: the comment pins, fetched as the canvas mounts
+  'CanvasCommentPins',
+  // comments/commentPartsLazy.jsx: a shared file's comment rail (/f/<token>
+  // and the app's shared-file view), with no canvas or doc code in it
+  'fileCommentParts',
+  // comments/commentPartsLazy.jsx: what only a comment chunk that failed
+  // needs (whether the page may reload, asking for the pins again, the toast)
+  'commentChunkFail',
 ];
 
 // The compiled catalogs (src/locales/<locale>/messages.mjs): one chunk per

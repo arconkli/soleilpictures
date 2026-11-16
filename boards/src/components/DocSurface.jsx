@@ -11,7 +11,7 @@
 // (per-tab) — picked from the tree by default, restored from sessionStorage
 // per board so a refresh reopens the same page.
 
-import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Selection } from '@tiptap/pm/state';
 import { useDocBoard, usePageSheets } from '../hooks/useDocBoard.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
@@ -40,6 +40,10 @@ import { DocFindReplace } from './DocFindReplace.jsx';
 import { DocOpening } from './DocOpening.jsx';
 import { DocBoardEmbedPicker } from './DocBoardEmbedPicker.jsx';
 import { lazyWithReload } from '../lib/lazyWithReload.js';
+import { commentMarkCss, markable } from '../lib/commentMarkCss.js';
+import { fromDocThread } from '../lib/commentModel.js';
+import { peekOpenComment, takeOpenComment, subscribeOpenComment, openCommentSynced, ackOpenComment } from '../lib/commentOpen.js';
+import { useCommentSeen } from './comments/useCommentSeen.js';
 import { IconWeightContext } from './Icon.jsx';
 import { readDocPanel, writeDocPanel } from '../lib/docFrame.js';
 import { openableUrl } from '../lib/openableUrl.js';
@@ -615,15 +619,13 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   const openFindRef = useRef(openFind);
   openFindRef.current = openFind;
   const openComments = useMemo(() => comments.filter((t) => !t.resolved).length, [comments]);
-  // In the look, a resolved thread's words read as plain text: the panel's
-  // Resolved lists it, and picking its card there lights them. Ids are the
-  // comment keys' (lib/commentKeys.js), so a rule can name them as they are.
-  const resolvedRule = useMemo(() => {
-    const ids = comments.filter((t) => t.resolved && /^[A-Za-z0-9_-]{1,64}$/.test(t.id || ''));
-    return ids.length
-      ? `${ids.map((t) => `.dl-surface .tt-comment[data-comment-id="${t.id}"]`).join(',')}{background:transparent;text-decoration-color:transparent;cursor:text}`
-      : '';
-  }, [comments]);
+  // Something in an open thread that someone else wrote and this person has
+  // not read here (lib/commentSeen.js): the header's Comments button says so.
+  const { unread: threadIsUnread } = useCommentSeen({ userId: currentUser?.id || null, boardId: scope?.boardId || null, cardId: scope?.docCardId || null });
+  const unreadComments = useMemo(
+    () => !isPublic && comments.some((t) => !t.resolved && threadIsUnread(fromDocThread(t))),
+    [comments, threadIsUnread, isPublic],
+  );
   // A phone's ⋯, in the look's header (DocMoreA): open or not, against the
   // header's button, and whether a key opened it.
   const [more, setMore] = useState({ open: false, byKey: false });
@@ -633,10 +635,22 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
   // and the one just jumped to (its words flashed).
   const [panelThread, setPanelThread] = useState(null);
   const [flashThread, setFlashThread] = useState(null);
-  const showThreadInPanel = useCallback((id) => {
+  // …the reply a link pointed at (lit in its thread), and the thread a key
+  // opened (its card takes the caret).
+  const [flashRow, setFlashRow] = useState(null);
+  const [focusThread, setFocusThread] = useState(null);
+  const showThreadInPanel = useCallback((id, how) => {
     setPanel({ open: true, tab: 'comments' });
     setPanelThread(id);
+    setFocusThread(how?.byKey ? id : null);
   }, []);
+  // How the words under a comment look (lib/commentMarkCss.js): an open
+  // thread's wear a quiet tint, the open thread's are the one gold mark, and
+  // a resolved or deleted thread's are plain text.
+  const markCss = useMemo(
+    () => commentMarkCss({ threads: isPublic ? [] : comments, scope: '.dl-surface', openId: panelOpen && panel.tab === 'comments' ? panelThread : null }),
+    [comments, isPublic, panelOpen, panel.tab, panelThread],
+  );
   // A flash is once: gone when it's done, or a span ProseMirror redraws later
   // (typing in those words) would flash again.
   useEffect(() => {
@@ -672,7 +686,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       } catch (_) {}
     };
     frame.publish({
-      railOpen: drawerRail ? mobileRailOpen : railOpen, panelOpen, panelTab: panel.tab, openComments,
+      railOpen: drawerRail ? mobileRailOpen : railOpen, panelOpen, panelTab: panel.tab, openComments, unreadComments,
       moreOpen: more.open, showSave: !guestMode, doc: ydoc, liveRoom,
     });
   });
@@ -1005,6 +1019,47 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
       setFlashThread((f) => ({ id, n: (f?.n || 0) + 1 }));
     });
   };
+
+  // A link to one of this doc's comments was opened (?board=&card=&comment=;
+  // App.jsx leaves it in lib/commentOpen.js and the canvas opens this doc):
+  // its thread opens in the panel, with a reply lit when the link named one
+  // and Resolved unfolded when it is there. A comment that is not here a few
+  // seconds after the cluster's server copy came in says so.
+  const commentLink = useSyncExternalStore(subscribeOpenComment, peekOpenComment, peekOpenComment);
+  const jumpRef = useRef(jumpToThread);
+  jumpRef.current = jumpToThread;
+  const [linkTick, setLinkTick] = useState(0);
+  useEffect(() => {
+    const cardId = scope?.docCardId || null;
+    if (!commentLink || !cardId || commentLink.cardId !== cardId || isPublic) return undefined;
+    const want = commentLink.commentId;
+    let hit = null;
+    for (const t of comments) {
+      if (t.id === want) hit = { thread: t, row: null };
+      else if ((t.replies || []).some((r) => r.id === want)) hit = { thread: t, row: want };
+      if (hit) break;
+    }
+    // this doc has the request: the canvas stops asking its card to open
+    ackOpenComment(cardId);
+    if (!hit) {
+      // Called gone only once the cluster's server copy is in, and a few
+      // seconds after: until then it may simply not have arrived.
+      if (!openCommentSynced(commentLink, ydoc)) {
+        const w = setTimeout(() => setLinkTick((n) => n + 1), 1000);
+        return () => clearTimeout(w);
+      }
+      const w = setTimeout(() => {
+        if (takeOpenComment(commentLink.boardId)) feedback.toast({ type: 'info', message: tr`That comment isn't here any more` });
+      }, 4000);
+      return () => clearTimeout(w);
+    }
+    if (!takeOpenComment(commentLink.boardId)) return undefined;
+    setPanel({ open: true, tab: 'comments' });
+    setPanelThread(hit.thread.id);
+    setFlashRow(hit.row);
+    if (!isPhone) jumpRef.current(hit.thread.id, hit.thread.pageId || null);
+    return undefined;
+  }, [commentLink, comments, scope, isPublic, isPhone, feedback, ydoc, linkTick]);
 
   // The cluster this doc is on, reloading under it: a restore, cards moved
   // into it, a repair (lib/docResets.js). It is told before its old copy goes,
@@ -1377,7 +1432,12 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                      onInsertBoardEmbed={guestMode ? null : pickBoardEmbed}
                      onOpenFind={openFind}
                      onOpenLink={(editor) => openLinkPickerRef.current?.(editor)}
-                     onAddComment={() => openAddCommentRef.current?.()}
+                     onAddComment={() => {
+                       // the editor the caret is in (a doc of several sheets has one each)
+                       if (openAddCommentRef.current?.(editorRef.current) === false) {
+                         feedback.toast({ type: 'info', message: tr`Select some words to comment on` });
+                       }
+                     }}
                      zoom={effectiveZoom}
                      fitEligible={fitEligible}
                      onZoomIn={() => setZoom((z) => z + ZOOM_STEP)}
@@ -1485,7 +1545,7 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
           <DocSidePanel tab={panel.tab} onTab={(tab) => setPanel((p) => ({ ...p, tab }))}
                         sheet={panelSheet} onClose={closePanel}
                         host={panelSheet ? rootRef.current?.closest('.doc-card-modal, .dsv') || null : null}
-                        screenplay={docMode === 'screenplay' && canEdit} openComments={openComments}
+                        screenplay={docMode === 'screenplay' && canEdit} openComments={openComments} unreadComments={unreadComments}
                         onEscape={() => { try { editorRef.current?.commands.focus(); } catch (_) {} }}>
             {{
               elements: (
@@ -1500,7 +1560,8 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
                                 editor={editorRef.current} currentUser={currentUser}
                                 canEdit={canEdit && (!guestMode || !!currentUser?.id)} guest={guestMode}
                                 workspaceId={workspaceId} boardId={scope?.boardId || null} cardId={scope?.docCardId || null}
-                                selectedId={panelThread} onSelect={setPanelThread} onJump={jumpToThread} />
+                                selectedId={panelThread} onSelect={setPanelThread} onJump={jumpToThread}
+                                flashRowId={flashRow} focusId={focusThread} sheet={panelSheet} />
               ),
               find: (active) => (
                 <DocFindTab ydoc={ydoc} scope={scope} canEdit={canEdit}
@@ -1514,16 +1575,13 @@ export function DocSurface({ board, ydoc, ready, workspaceId, userId, boards = {
           </DocSidePanel>
         </Suspense>
       )}
-      {/* The picked thread's words lit in the page, and the one jumped to
-          flashed: a rule on the mark's id, since ProseMirror owns the spans
-          and redraws over a class put on one. Ids are the comment keys'
-          (lib/commentKeys.js), so nothing in one needs escaping. Resolved
-          threads' words first, so a picked one's card still lights them. */}
-      {resolvedRule && <style>{resolvedRule}</style>}
-      {panelOpen && panel.tab === 'comments' && /^[A-Za-z0-9_-]{1,64}$/.test(panelThread || '') && (
-        <style>{`.dl-surface .tt-comment[data-comment-id="${panelThread}"]{background:var(--soleil-soft);text-decoration-color:var(--soleil)}`}</style>
-      )}
-      {flashThread && /^[A-Za-z0-9_-]{1,64}$/.test(flashThread.id) && (
+      {/* How commented words look, and the one jumped to flashed: rules on
+          the mark's id, since ProseMirror owns the spans and redraws over a
+          class put on one. Ids are the comment keys' (lib/commentKeys.js), so
+          nothing in one needs escaping. */}
+      {markCss.rest && <style>{markCss.rest}</style>}
+      {markCss.open && <style>{markCss.open}</style>}
+      {flashThread && markable(flashThread.id) && (
         <style>{`.dl-surface .tt-comment[data-comment-id="${flashThread.id}"]{animation:${flashThread.n % 2 ? 'dl-flash-a' : 'dl-flash-b'} 1.4s ease-out}`}</style>
       )}
       {/* A phone's ⋯, from the look's header. */}

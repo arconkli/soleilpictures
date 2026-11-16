@@ -15,7 +15,7 @@
 import { useEffect, useState } from 'react';
 import { R2Image } from '../R2Image.jsx';
 import { Icon } from '../Icon.jsx';
-import { KindIcon } from '../cards.jsx';
+import { KindIcon } from '../KindIcon.jsx';
 import { ArrowSquareOut } from '../../lib/icons.js';
 import { ensureShare, fsRef, shareEntry, subscribeShares } from '../../lib/fileShareUrls.js';
 import './shortcutCard.css';

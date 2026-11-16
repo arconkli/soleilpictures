@@ -28,6 +28,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase.js';
 import { logEvent, logEventNow } from '../lib/analytics.js';
 import { EV } from '../lib/analyticsEvents.js';
+import { emailCommentKeys } from '../lib/commentLink.js';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { SignInBackdrop } from '../auth/SignInBackdrop.jsx';
 import { t } from '@lingui/core/macro';
@@ -47,10 +48,12 @@ function readParams() {
       token: TOKEN_RE.test(rt) ? rt : '',
       w:  p.get('w')  || '',
       b:  p.get('b')  || '',
+      // an email's link to one comment: carried on to the app
+      comment: emailCommentKeys(p),
       lc: (p.get('lc') || '').replace(/[^A-Za-z0-9._-]/g, '').slice(0, 64),
     };
   } catch (_) {
-    return { token: '', w: '', b: '', lc: '' };
+    return { token: '', w: '', b: '', comment: null, lc: '' };
   }
 }
 
@@ -58,16 +61,20 @@ function readParams() {
 // AuthGate's consumeDeepLink, which is already the mechanism transactional mail
 // uses to land on a specific board. ?lc is deliberately NOT forwarded — this
 // page has already recorded the landing, and passing it on would double-count.
-function appUrl({ w, b }) {
+function appUrl({ w, b, comment }) {
   const qs = new URLSearchParams();
   if (w) qs.set('w', w);
   if (b) qs.set('b', b);
+  if (comment) {
+    if (comment.card) qs.set('card', comment.card);
+    qs.set('comment', comment.comment);
+  }
   const tail = qs.toString();
   return tail ? `/?${tail}` : '/';
 }
 
 export function ResumePage() {
-  const { token, w, b, lc } = readParams();
+  const { token, w, b, comment, lc } = readParams();
   const emailType = lc ? (lc.includes('.') ? lc.slice(0, lc.indexOf('.')) : lc) : null;
   const contentVersion = lc && lc.includes('.') ? lc.slice(lc.indexOf('.') + 1) : null;
 
@@ -140,7 +147,7 @@ export function ResumePage() {
       logEventNow(EV.LIFECYCLE_RESUME, {
         email_type: emailType, content_version: contentVersion,
       });
-      window.location.assign(appUrl({ w, b }));
+      window.location.assign(appUrl({ w, b, comment }));
     } catch (_) {
       setFailed(true);
       setBusy(false);
@@ -161,7 +168,7 @@ export function ResumePage() {
               <Trans>That link has already been used or has expired. Signing in takes a
               moment and gets you to the same place.</Trans>
             </p>
-            <a className="auth-btn" href={appUrl({ w, b })}><Trans>Sign in</Trans></a>
+            <a className="auth-btn" href={appUrl({ w, b, comment })}><Trans>Sign in</Trans></a>
           </div>
         ) : (
           <div className="auth-form">

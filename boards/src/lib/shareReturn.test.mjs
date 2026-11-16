@@ -74,3 +74,28 @@ test('the file stash round-trips, is its own key, and never throws', () => {
   stashFileReturn(T, broken); clearFileReturn(broken);
   assert.equal(readFileReturn(broken), null);
 });
+
+// ---- a link to one comment on the file keeps its comment through sign-in ----
+import { parseFileReturnComment, readFileReturnComment } from './shareReturn.js';
+
+test('a file return carries the comment its address asked for', () => {
+  const C = '2f9a5c3e-1b2d-4e5f-8a9b-0c1d2e3f4a5b';
+  assert.equal(parseFileReturnComment(new URL(`https://x/?back=file&file_token=${T}&comment=${C}`)), C);
+  assert.equal(parseFileReturnComment(new URL(`https://x/?back=file&file_token=${T}`)), null);
+  assert.equal(parseFileReturnComment(new URL(`https://x/?file_token=${T}&comment=${C}`)), null, 'no marker → nothing');
+  assert.equal(parseFileReturnComment(new URL(`https://x/?back=file&file_token=${T}&comment=${encodeURIComponent('a/b?x=1')}`)), null);
+  assert.equal(fileReturnHref(T, C), `/f/${T}?comment=${C}`);
+  assert.equal(fileReturnHref(T, '../x'), `/f/${T}`);
+  assert.equal(fileReturnHref('nope', C), '/');
+  const s = mem();
+  stashFileReturn(T, s, C);
+  assert.equal(readFileReturnComment(s), C);
+  stashFileReturn(T, s);
+  assert.equal(readFileReturnComment(s), null, 'a later return without a comment drops the old one');
+  stashFileReturn(T, s, C);
+  clearFileReturn(s);
+  assert.equal(readFileReturnComment(s), null);
+  stashFileReturn(T, s, C);
+  stashShareReturn(T, s);
+  assert.equal(readFileReturnComment(s), null, 'a share return clears it with the file return');
+});

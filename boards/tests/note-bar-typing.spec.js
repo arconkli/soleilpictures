@@ -47,7 +47,7 @@ test('typing in a note leaves its formatting bar alone', async ({ page }) => {
   await page.keyboard.press('ControlOrMeta+b');
   await expect(bold).toHaveAttribute('aria-pressed', 'true');
   await comment.click();
-  await expect(page.locator('.inline-composer')).toBeVisible();
+  await expect(page.locator('.cmt-float-host .cmt-card')).toBeVisible();
 });
 
 // The canvas hands the bar new palette lists, styles and callbacks on every

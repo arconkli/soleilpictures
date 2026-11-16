@@ -3,6 +3,10 @@
 // (parent_board_id). Each board's cards/arrows live in a Y.Doc whose
 // snapshot is persisted to board_state.
 
+import { readCommentLink, withoutCommentLink } from './lib/commentLink.js';
+import { requestOpenComment, takeOpenComment } from './lib/commentOpen.js';
+import { isThreadOpen } from './lib/openThreads.js';
+import { NOTICE_ID } from './lib/notificationsBell.js';
 import React, { useState, useEffect, useMemo, useRef, useCallback, Profiler, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { pickPresenceColor } from './lib/presenceColor.js';
@@ -914,7 +918,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // A cluster RLS let us read but the boards map doesn't hold yet, waiting
   // for the shared list to be refetched (see openBoardAnywhere).
   const [pendingSharedOpen, setPendingSharedOpen] = useState(null);
-  const openBoardAnywhere = useCallback(async (id, { linkRef = null } = {}) => {
+  // `quiet`: the caller says what could not be opened in its own words.
+  const openBoardAnywhere = useCallback(async (id, { linkRef = null, quiet = false } = {}) => {
     if (!id) return false;
     if (openBoardAt(id)) return 'opened';
     // Read the row WITH deleted_at, so a trashed cluster can be told apart
@@ -946,6 +951,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       setPendingSharedOpen(id);
       return 'opened';
     }
+    if (quiet) return false;
     const notice = unopenableClusterNotice(row, workspace.id);
     feedback.toast({
       type: row?.deleted_at ? 'info' : 'error',
@@ -1011,13 +1017,45 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         setTimeout(() => openPlayer({ boardId: bid, cardId: cid, versionId: vid || null, time: t, playing: false }), 300);
       } else {
         setTimeout(() => document.dispatchEvent(new CustomEvent('soleil-flash-card', { detail: { boardId: bid, cardId: cid } })), 300);
+        // …and a thread on its words (&comment=), for the doc or the note
+        requestOpenComment({ boardId: bid, cardId: cid, commentId: p.get('comment') });
       }
       const url = new URL(window.location.href);
-      url.searchParams.delete('board'); url.searchParams.delete('card'); url.searchParams.delete('cards');
+      url.searchParams.delete('board'); url.searchParams.delete('card'); url.searchParams.delete('cards'); url.searchParams.delete('comment');
       url.searchParams.delete('t'); url.searchParams.delete('v');
       window.history.replaceState(window.history.state, '', url.pathname + (url.search || ''));
     } catch (_) {}
   }, [boardsReady, sharedLoaded, boards, openBoardAt]);
+  // A link to a comment on a cluster (?board=&comment=, lib/commentLink.js;
+  // Copy link in a conversation makes it): open the cluster on its canvas and
+  // leave the request for that canvas, which goes to the conversation once its
+  // comments are in (lib/commentOpen.js). One-shot; the address is cleaned. A
+  // doc's or a note's thread (&card=) is the card link above.
+  const commentLinkDone = useRef(false);
+  useEffect(() => {
+    if (commentLinkDone.current || !boardsReady || !sharedLoaded) return;
+    try {
+      const link = readCommentLink(window.location.href);
+      if (!link || link.surface === 'file') return;
+      commentLinkDone.current = true;
+      const bid = link.boardId;
+      // The address is cleaned first: a cluster in another workspace is
+      // reached by leaving ?to= there (openBoardAnywhere).
+      window.history.replaceState({}, '', withoutCommentLink(window.location.href));
+      setViewOverride(o => (o[bid] === 'canvas' ? o : { ...o, [bid]: 'canvas' }));
+      requestOpenComment({ boardId: bid, commentId: link.commentId });
+      if (boards[bid]) { openBoardAt(bid); return; }
+      // Not among this workspace's clusters nor the shared ones: it may be in
+      // another of the person's workspaces (the link carries no ?w=). The
+      // request is kept in memory across the switch. Only a cluster that
+      // cannot be opened at all means the comment is gone.
+      openBoardAnywhere(bid, { quiet: true }).then((r) => {
+        if (r) return;
+        takeOpenComment(bid);
+        feedback.toast({ type: 'info', message: tr`That comment isn't here any more` });
+      });
+    } catch (_) {}
+  }, [boardsReady, sharedLoaded, boards, openBoardAt, openBoardAnywhere, feedback]);
   // Mirror of the guided-tour `fire` fn (the hook is defined far below, but the
   // card/nav/rename mutators above need to emit tour events). Assigned in render
   // once the hook exists; only ever invoked at runtime, so the ref is populated.
@@ -1573,10 +1611,28 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // panels: Messages stays mounted for its exit after it has closed.
   useBackLayer(notifOpen, () => setNotifOpen(false));
   useBackLayer(!!tweak.showMessages, () => setTweak('showMessages', false));
+  // A comment notice (the bell's row, or its toast's Open) goes to the
+  // conversation: the cluster opens on its canvas and the request waits for
+  // the canvas, the note or the doc that holds it (lib/commentOpen.js), which
+  // says "That comment isn't here any more" when it is gone. `target` is
+  // notificationTarget's: its ids are already checked, its cluster the row's.
+  const openNoticeComment = (target) => {
+    const bid = target?.boardId;
+    if (!bid) return;
+    openBoardAnywhere(bid);
+    setCurrentSurface('board');
+    setViewOverride((o) => (o[bid] === 'canvas' ? o : { ...o, [bid]: 'canvas' }));
+    requestOpenComment(target.surface === 'doc'
+      ? { boardId: bid, cardId: target.cardId, commentId: target.threadId }
+      : { boardId: bid, commentId: target.commentId });
+  };
+  const noticeBoardName = (id) => boards[id]?.name || '';
   const notifications = useNotifications({
     userId: user.id,
     feedback,
     onOpenBoard: (id) => { if (id) { openBoardAnywhere(id); setCurrentSurface('board'); } },
+    onOpenComment: openNoticeComment,
+    boardNameOf: noticeBoardName,
     // An editor-limit notice's "See who can edit" (openNotificationSettings,
     // below, is called only once the toast is pressed).
     onOpenSettings: (tab, wsId) => openNotificationSettings(tab, wsId),
@@ -5956,7 +6012,9 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     };
     const onPage = (e) => {
       const { cardId, pageId } = e.detail || {};
-      setOpenDocs(list => (list.some(d => d.cardId === cardId)
+      // only a real change: the doc says its page again on every render of
+      // its card, and a new list here re-rendered the app, and so the card
+      setOpenDocs(list => (list.some(d => d.cardId === cardId && d.pageId !== (pageId || null))
         ? list.map(d => (d.cardId === cardId ? { ...d, pageId: pageId || null } : d)) : list));
     };
     // Scroll lands in a ref, never in state: this fires every 200ms while a
@@ -6509,6 +6567,30 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     for (const n of (mentionNotifs || [])) {
       if (surfacedMentionsRef.current.has(n.id)) continue;
       surfacedMentionsRef.current.add(n.id);
+      // A mention in a comment on a doc's or a note's words (source_kind
+      // 'comment', written by notify_comment_mention): live or from while you
+      // were away, it says so and opens that thread. Not while the thread is
+      // open on screen. Its ids were written by another person's client, so
+      // they are checked before they are used.
+      if (n.source_kind === 'comment') {
+        const ok = (v) => typeof v === 'string' && NOTICE_ID.test(v);
+        const thread = ok(n.source_thread_id) ? n.source_thread_id : null;
+        if (thread && isThreadOpen(thread)) continue;
+        const who = userProfiles.get(n.mentioned_by)?.name || tr`Someone`;
+        const bid = ok(n.board_id) ? n.board_id : null;
+        const card = ok(n.source_card_id) ? n.source_card_id : null;
+        feedback.toast({
+          type: 'info',
+          message: tr`${who} mentioned you in a comment`,
+          ttl: 8000,
+          action: bid
+            ? { label: tr`Open`, onClick: () => (card && thread
+                ? openNoticeComment({ boardId: bid, surface: 'doc', cardId: card, threadId: thread })
+                : (openBoardAnywhere(bid), setCurrentSurface('board'))) }
+            : undefined,
+        });
+        continue;
+      }
       // A mention that arrives live already has its toast, with an Open
       // button, from the inbox ping; a second one said "a direct message" for
       // groups too and fired even with the thread open (COMMS-14). Only
@@ -11855,8 +11937,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                               glides to the card you last worked on after a real
                               break. Not over the tour or the first-run coachmark,
                               which own the camera then, nor on a page opened by a
-                              link to a card, which frames that card instead. */
-                           placeHeld={isMain && !tourActive && !showCoachmark && !cardLinkDone.current && placeHeldMain?.boardId === board.id ? placeHeldMain : null}
+                              link to a card or to a comment, which frames that
+                              instead (a comment notice: the canvas sees the
+                              waiting request, lib/commentOpen.js). */
+                           placeHeld={isMain && !tourActive && !showCoachmark && !cardLinkDone.current && !commentLinkDone.current && placeHeldMain?.boardId === board.id ? placeHeldMain : null}
                            onPlaceHeld={isMain ? onPlaceHeld : null}
                            defaults={defaults} />
           </Profiler>
@@ -13229,6 +13313,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           onOpenTeam={(tab, orgId) => openTeamPage(tab, orgId)}
           onAnswerEdit={answerEditRequest}
           nameOf={(id) => userProfiles.get(id)?.name || ''}
+          onOpenComment={openNoticeComment}
+          boardNameOf={noticeBoardName}
           onClose={() => setNotifOpen(false)}
           anchorRef={notifBellRef}
           mobileShell={mobileShell}

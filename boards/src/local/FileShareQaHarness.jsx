@@ -106,6 +106,19 @@ const SHARED_TOKENS = {
   mine: '1a2b3c4d-0000-4000-8000-000000000004',
 };
 
+// The rail fixtures' comment ids.
+export const TH = {
+  early: 'aaaa0001-0000-4000-8000-000000000001',
+  earlyReply: 'aaaa0002-0000-4000-8000-000000000002',
+  mine: 'aaaa0003-0000-4000-8000-000000000003',
+  gone: 'aaaa0004-0000-4000-8000-000000000004',
+  goneReply: 'aaaa0005-0000-4000-8000-000000000005',
+  done: 'aaaa0006-0000-4000-8000-000000000006',
+  doneReply: 'aaaa0007-0000-4000-8000-000000000007',
+  old: 'aaaa0008-0000-4000-8000-000000000008',
+  old2: 'aaaa0009-0000-4000-8000-000000000009',
+};
+
 export const FIXTURES = {
   'shared-page': {
     mode: 'shared-page',
@@ -172,6 +185,59 @@ export const FIXTURES = {
       comment('c-reply', 'Agreed, two frames', { reply_to: 'c-early', created_at: iso(20), mine: true, can_delete: true }),
       comment('c-done', 'Fixed the colour', { at_ms: 1000, resolved: true, created_at: iso(60), can_delete: true, can_resolve: true }),
       comment('c-old', 'On the first cut', { at_ms: 200, on_current: false, created_at: iso(70), can_resolve: true }),
+    ],
+  },
+  // Every state the rail has: an open thread with a reply, one of the
+  // viewer's own, a deleted comment that still has a reply, a resolved thread
+  // with a reply (someone else's: a commenter may not reopen it), and two made
+  // on an earlier version. The viewer may comment, not manage. The ids are
+  // uuids, as the database's are, so Copy link and ?comment= work on them.
+  'video-threads': {
+    share: ok({ kind: 'video', name: 'Opening titles v3', mime: 'video/mp4', size: 2304, duration: 2, ext: 'mp4' },
+      { access: 'comment', comment_count: 6, urls: { src: MEDIA.video, download: `${MEDIA.video}#download` } }),
+    comments: [
+      comment(TH.early, 'Title card comes in early', { at_ms: 500, created_at: iso(140), author: author('Jun Park', '#8e5cf7') }),
+      comment(TH.earlyReply, 'Agreed, two frames', { reply_to: TH.early, created_at: iso(120), mine: true, can_delete: true, author: author('You', '#2fb67c') }),
+      comment(TH.mine, 'Hold this frame a beat longer', { at_ms: 1500, created_at: iso(50), mine: true, can_delete: true, author: author('You', '#2fb67c') }),
+      comment(TH.gone, null, { at_ms: 900, created_at: iso(300), deleted: true }),
+      comment(TH.goneReply, 'Still worth a look', { reply_to: TH.gone, created_at: iso(200), author: author('Sam Lee', '#e0a03c') }),
+      comment(TH.done, 'Fixed the colour', { at_ms: 1000, resolved: true, created_at: iso(60 * 26), author: author('Jun Park', '#8e5cf7') }),
+      comment(TH.doneReply, 'Looks right now', { reply_to: TH.done, created_at: iso(60 * 25) }),
+      comment(TH.old, 'On the first cut', { at_ms: 200, on_current: false, created_at: iso(60 * 80), author: author('Sam Lee', '#e0a03c') }),
+      comment(TH.old2, 'Music starts late here', { at_ms: 1200, on_current: false, created_at: iso(60 * 79), mine: true, can_delete: true, author: author('You', '#2fb67c') }),
+    ],
+  },
+  // The same, before the comments migration: edit_file_comment is not there,
+  // and the database refuses an author who resolves their own thread.
+  'video-threads-before': {
+    share: ok({ kind: 'video', name: 'Opening titles v3', mime: 'video/mp4', size: 2304, duration: 2, ext: 'mp4' },
+      { access: 'comment', comment_count: 2, urls: { src: MEDIA.video } }),
+    comments: [
+      comment(TH.early, 'Title card comes in early', { at_ms: 500, created_at: iso(140), author: author('Jun Park', '#8e5cf7') }),
+      comment(TH.mine, 'Hold this frame a beat longer', { at_ms: 1500, created_at: iso(50), mine: true, can_delete: true, author: author('You', '#2fb67c') }),
+    ],
+    errors: {
+      editFileComment: { code: 'PGRST202', message: 'Could not find the function public.edit_file_comment(p_body, p_id) in the schema cache' },
+      resolveFileComment: { code: '42501', message: 'not allowed' },
+    },
+  },
+  'audio-comment': {
+    share: ok({ kind: 'audio', name: 'Loop 120 A minor', mime: 'audio/wav', size: 400000, duration: 2, ext: 'wav' },
+      { access: 'comment', comment_count: 2, urls: { src: MEDIA.audio, download: `${MEDIA.audio}#download` } }),
+    comments: [
+      comment(TH.early, 'The kick is late here', { at_ms: 500, created_at: iso(140), author: author('Jun Park', '#8e5cf7') }),
+      comment(TH.mine, 'Fade starts too soon', { at_ms: 1500, created_at: iso(50), mine: true, can_delete: true, author: author('You', '#2fb67c') }),
+      comment(TH.old, 'On the first mix', { at_ms: 1000, on_current: false, created_at: iso(60 * 80) }),
+    ],
+  },
+  'overlay-comment': {
+    mode: 'overlay',
+    share: ok({ kind: 'video', name: 'Opening titles v3', mime: 'video/mp4', size: 2304, duration: 2, ext: 'mp4' },
+      { access: 'comment', urls: { src: new URL('../../tests/fixtures/media/frames-vp9.mp4', import.meta.url).href } }),
+    comments: [
+      comment(TH.early, 'Title card comes in early', { at_ms: 500, created_at: iso(140), author: author('Jun Park', '#8e5cf7') }),
+      comment(TH.earlyReply, 'Agreed, two frames', { reply_to: TH.early, created_at: iso(120), mine: true, can_delete: true, author: author('You', '#2fb67c') }),
+      comment(TH.mine, 'Hold this frame a beat longer', { at_ms: 1500, created_at: iso(50), mine: true, can_delete: true, author: author('You', '#2fb67c') }),
     ],
   },
   pdf: {
@@ -440,7 +506,10 @@ export function makeFakeApi(fixture, calls = []) {
   let settings = fx.settings ? JSON.parse(JSON.stringify(fx.settings)) : { exists: false };
   const log = (fn, args) => { calls.push({ fn, args }); };
   const res = (data) => Promise.resolve({ data, error: null });
-  const err = (fn) => (fx.errors && fx.errors[fn]) || null;
+  // window.__fileShareQa.api.fail[fn] = true makes that call fail from then
+  // on (a refresh that stops working while a list is on screen).
+  const fail = {};
+  const err = (fn) => (fail[fn] ? { message: 'offline' } : (fx.errors && fx.errors[fn]) || null);
   // A settings write's answer, after fx.delayMs (or its error).
   const later = (fn, make) => {
     const e = err(fn);
@@ -451,6 +520,7 @@ export function makeFakeApi(fixture, calls = []) {
 
   return {
     calls,
+    fail,
     attachDocRoom: fakeDocRoom(fx, log),
     getSessionUserId: async () => QA_USER_ID,
     createDocImageResolver: () => ({ cached: () => null, resolve: async () => null, onAuthError() {} }),
@@ -465,6 +535,7 @@ export function makeFakeApi(fixture, calls = []) {
     },
     listFileComments(token) {
       log('listFileComments', [token]);
+      if (err('listFileComments')) return Promise.resolve({ data: null, error: err('listFileComments') });
       if (share?.status !== 'ok') return res({ status: share?.status || 'gone' });
       const live = comments.filter((c) => !c.deleted || comments.some((r) => r.reply_to === c.id && !r.deleted))
         .map((c) => (c.deleted ? { ...c, body: null } : c));
@@ -483,12 +554,19 @@ export function makeFakeApi(fixture, calls = []) {
     },
     resolveFileComment(id, resolved) {
       log('resolveFileComment', [id, resolved]);
+      if (err('resolveFileComment')) return Promise.resolve({ data: null, error: err('resolveFileComment') });
       comments = comments.map((c) => (c.id === id ? { ...c, resolved: !!resolved } : c));
       return res(null);
     },
     deleteFileComment(id) {
       log('deleteFileComment', [id]);
       comments = comments.map((c) => (c.id === id ? { ...c, deleted: true } : c));
+      return res(null);
+    },
+    editFileComment(id, body) {
+      log('editFileComment', [id, body]);
+      if (err('editFileComment')) return Promise.resolve({ data: null, error: err('editFileComment') });
+      comments = comments.map((c) => (c.id === id ? { ...c, body, edited_at: new Date().toISOString() } : c));
       return res(null);
     },
     restoreFileComment(id) {

@@ -19,7 +19,7 @@ import { useAddCommentFlow } from './AddCommentFlow.jsx';
 import { ImageUploadPlaceholders, uploadImageIntoDoc } from './docExtensions/ImageUpload.js';
 import { CaretCell } from './docExtensions/CaretCell.js';
 import { Icon } from './Icon.jsx';
-import { Bold, HighlighterCircle, Italic, Link, Underline } from '../lib/icons.js';
+import { Bold, ChatCircleText, HighlighterCircle, Italic, Link, Underline } from '../lib/icons.js';
 import { guestPasteSlice } from '../lib/guestPaste.js';
 import { getLink, addLink, updateLinkTargets, listLinks } from '../lib/links.js';
 import { untagDocRange, tagDocRange, restoreDocTagRows, listWorkspaceTags, ensureTag } from '../lib/tagsApi.js';
@@ -92,7 +92,6 @@ import { EntityPicker } from './EntityPicker.jsx';
 import { createNameIndex } from '../lib/entityNameTrie.js';
 import { useEntityNameTrie } from '../hooks/useEntityNameTrie.js';
 import { CommentGutter } from './CommentGutter.jsx';
-import { CommentInlinePopover } from './CommentInlinePopover.jsx';
 import { isComposingKey } from '../lib/composerKeys.js';
 import { t as tt, ph } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
@@ -198,9 +197,8 @@ const ExtraShortcuts = Extension.create({
 });
 
 export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = 'doc', pageless = true, zoom = 1, autofocus: autofocusAllowed = true, takeRefocus = null, onEditorReady, onEditorDestroy, onEditorFocus, onDeleteSheet, workspaceId, userId, activePageId, onStartComment, awareness, onNavigateTarget, registerOpenLinkPicker, registerOpenAddComment, currentUser, boards, editable = true, isPublic = false, guestMode = false,
-  // The doc look shows a thread in its side panel: given, a click on commented
-  // words (or a thread's margin dot) hands it the thread instead of opening
-  // the popover here.
+  // The doc shows a thread in its side panel: a click on an open thread's
+  // words (or its margin dot) hands it the thread (id, { byKey }).
   onShowThread = null }) {
   // Resolve the fragment: an explicit sheetId binds to that sheet, otherwise
   // we fall back to the page's primary content (back-compat with one-sheet
@@ -218,8 +216,6 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
   // linkPicker = { anchor, multi, initialSelected, existingLinkId? } | null
   const [mention, setMention] = useState(null);
   // mention = { range, query, clientRect } | null
-  const [openThread, setOpenThread] = useState(null);
-  // openThread = { id, anchor } | null
 
   const mentionExt = useMemo(() => MentionExtension({
     onStart: (props) => {
@@ -528,11 +524,14 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     return () => registerOpenLinkPicker?.(null);
   }, [registerOpenLinkPicker, openLinkPicker]);
 
-  // Inline comment-add flow — opens an InlineComposer next to the selection,
-  // commits a tt-comment mark + thread record on Post.
+  // A new comment: the shared comment card beside the selected words; on
+  // post, a tt-comment mark + the thread record, and the panel shows it.
   const addComment = useAddCommentFlow({
     ydoc,
     scope,
+    surface: 'doc',
+    guest: guestMode,
+    onPosted: (id) => onShowThread?.(id),
     activePageId,
     currentUser,
     getEditor: () => editorRef.current,
@@ -598,18 +597,18 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     // first: a comment can overlap a link, and the comment is the more
     // specific intent when you click the highlighted run.
     let commentEl = e.target.closest?.('.tt-comment[data-comment-id]');
-    // In the doc look a resolved thread's words read as plain text (its panel
-    // lists it): the click is for an open thread over them, or for the text.
-    if (onShowThread) {
-      while (commentEl && readThread(ydoc, commentEl.dataset.commentId, scope)?.resolved) {
-        commentEl = commentEl.parentElement?.closest('.tt-comment[data-comment-id]') || null;
-      }
+    // Only an open thread's words are pressable: a resolved thread's read as
+    // plain text (the panel's Resolved lists it), and so do words whose
+    // thread is gone. The click is for an open thread over them, or the text.
+    while (commentEl) {
+      const t = readThread(ydoc, commentEl.dataset.commentId, scope);
+      if (t && !t.resolved) break;
+      commentEl = commentEl.parentElement?.closest('.tt-comment[data-comment-id]') || null;
     }
-    if (commentEl && !isPublic) {
+    if (commentEl && !isPublic && onShowThread) {
       e.preventDefault();
       setLinkHover(null);
-      if (onShowThread) onShowThread(commentEl.dataset.commentId);
-      else setOpenThread({ id: commentEl.dataset.commentId, anchor: commentEl.getBoundingClientRect() });
+      onShowThread(commentEl.dataset.commentId);
       return;
     }
     // Manual link spans (rendered with data-link-id by LinkRenderer).
@@ -1070,18 +1069,6 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
     return () => { editor.off('selectionUpdate', update); editor.off('focus', update); editor.off('blur', hide); };
   }, [editor]);
 
-  // When a comment thread is deleted, strip its now-orphaned highlight mark
-  // from this editor's text (no-op if the mark isn't in this sheet).
-  useEffect(() => {
-    if (!editor) return;
-    const onRemove = (e) => {
-      const id = e.detail?.id;
-      if (id != null) { try { editor.commands.removeCommentById(id); } catch (_) {} }
-    };
-    window.addEventListener('soleil-remove-comment-mark', onRemove);
-    return () => window.removeEventListener('soleil-remove-comment-mark', onRemove);
-  }, [editor]);
-
   // With stacked sheets, DocSurface needs to know which editor the user is
   // currently editing so the toolbar / find / link picker target the right
   // instance. Fire onEditorFocus with our editor on every focus.
@@ -1411,7 +1398,8 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
           the canonical tag surface inside the doc body now. */}
       <EditorContent editor={editor} />
       {!isPublic && editable && bubble && (
-        <DocSelectionBubble editor={editor} at={bubble} onLink={() => openLinkPicker(editor)} />
+        <DocSelectionBubble editor={editor} at={bubble} onLink={() => openLinkPicker(editor)}
+                            onComment={!isPublic ? () => addComment.open(editor) : null} />
       )}
       <DocTagGutter
         editor={editor}
@@ -1631,23 +1619,11 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
         scope={scope}
         pageId={activePageId}
         editor={editor}
-        onOpenThread={(id) => {
-          if (onShowThread) { onShowThread(id); return; }
-          const dot = document.querySelector(`.comment-gutter-dot[data-thread="${id}"]`);
-          setOpenThread({ id, anchor: dot?.getBoundingClientRect() });
-        }}
+        currentUser={currentUser}
+        boardId={scope?.boardId || null}
+        cardId={scope?.docCardId || null}
+        onOpenThread={(id, how) => onShowThread?.(id, how)}
       />
-      )}
-      {!isPublic && openThread && (
-        <CommentInlinePopover
-          ydoc={ydoc} scope={scope} threadId={openThread.id}
-          anchor={openThread.anchor} currentUser={currentUser}
-          workspaceId={workspaceId}
-          boardId={scope?.boardId || null}
-          cardId={scope?.docCardId || null}
-          editable={editable}
-          onClose={() => setOpenThread(null)}
-        />
       )}
     </div>
   );
@@ -1658,7 +1634,7 @@ export function DocPageEditor({ ydoc, scope, pageId, sheetId = null, docMode = '
 // on every transaction, and bolding a selection changes no selection to
 // re-render on. Its marks are the doc bar's icons (docLook.css), and it sits
 // clear of the line.
-function DocSelectionBubble({ editor, at, onLink }) {
+function DocSelectionBubble({ editor, at, onLink, onComment = null }) {
   const lit = useEditorState({
     editor,
     selector: () => ({
@@ -1675,7 +1651,7 @@ function DocSelectionBubble({ editor, at, onLink }) {
     <div className="doc-bubble" role="toolbar" aria-label={tt`Selection formatting`}
          ref={barRef} onKeyDown={onBarKeys}
          style={{ position: 'fixed', top: Math.max(8, at.top - 54),
-                  left: Math.max(8, Math.min(at.left, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 220)),
+                  left: Math.max(8, Math.min(at.left, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 264)),
                   zIndex: 2147483647 }}>
       <button className={lit.bold ? 'is-active' : ''} aria-label={tt`Bold`} aria-pressed={lit.bold}
               aria-keyshortcuts={ariaKeys('Mod+B')}
@@ -1696,6 +1672,11 @@ function DocSelectionBubble({ editor, at, onLink }) {
       <button aria-label={tt`Link`} aria-keyshortcuts={ariaKeys('Mod+K')}
               onPointerDown={(e) => e.preventDefault()}
               onClick={onLink}>{mark(Link)}</button>
+      {onComment && (
+        <button aria-label={tt`Comment`} aria-keyshortcuts={ariaKeys('Mod+Alt+M')}
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={onComment}>{mark(ChatCircleText)}</button>
+      )}
     </div>
   );
 }

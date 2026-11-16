@@ -168,94 +168,121 @@
   display: flex; flex-direction: column;
 }
 .fsc { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-.fsc-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 14px 16px 10px; border-bottom: 1px solid var(--fsp-line); }
+.fsc-head { flex: none; display: flex; align-items: baseline; gap: 10px; padding: 14px 16px 10px; border-bottom: 1px solid var(--fsp-line); flex-wrap: wrap; }
 .fsc-title { margin: 0; color: var(--fsp-ink-0); font: 600 14px/1.2 var(--font-sans); }
 .fsc-total { color: var(--fsp-ink-2); font-size: 12px; font-variant-numeric: tabular-nums; }
-.fsc-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px 8px 12px; }
-.fsc-empty { margin: 0; padding: 16px 8px; color: var(--fsp-ink-2); font-size: 13px; }
-.fsc-threads, .fsc-replies { list-style: none; margin: 0; padding: 0; }
-.fsc-thread + .fsc-thread { border-top: 1px solid var(--fsp-line); }
-.fsc-replies { margin-left: 28px; }
-.fsc-row { padding: 10px 8px; border-radius: 10px; border-left: 2px solid transparent; }
-.fsc-row.is-active { background: var(--fsp-hover); border-left-color: var(--soleil); }
-.fsc-row-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* a refresh that failed: quiet and neutral, never the danger colour */
+.fsc-stale { flex: none; margin: 0; padding: 6px 16px; border-bottom: 1px solid var(--fsp-line); color: var(--fsp-ink-2); font-size: 12px; }
 .fsc-avatar {
   flex: none; display: inline-grid; place-items: center; overflow: hidden; border-radius: 999px;
   background: var(--fsp-raise); color: var(--fsp-ink-0); font: 600 11px/1 var(--font-sans);
 }
 .fsc-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.fsc-name { min-width: 0; color: var(--fsp-ink-0); font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fsc-time { margin-left: auto; flex: none; color: var(--fsp-ink-2); font-size: 11.5px; }
-.fsc-meta { display: flex; align-items: center; gap: 8px; margin: 6px 0 0 32px; }
-.fsc-row.is-reply .fsc-meta, .fsc-row.is-reply .fsc-body, .fsc-row.is-reply .fsc-actions { margin-left: 28px; }
-.fsc-chip {
-  height: 22px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--fsp-line-2);
-  background: var(--fsp-raise); color: var(--fsp-ink-0); cursor: pointer;
-  font: 600 11.5px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums;
-}
-.fsc-chip:hover { background: color-mix(in srgb, #fff 10%, var(--fsp-raise)); }
-.fsc-old { color: var(--fsp-ink-2); font-size: 11.5px; }
-.fsc-body {
-  margin: 4px 0 0 32px; color: var(--fsp-ink-1); font-size: 13.5px;
-  white-space: pre-wrap; overflow-wrap: anywhere;
-}
-.fsc-body--deleted { color: var(--fsp-ink-2); font-style: italic; }
-.fsc-actions { display: flex; gap: 12px; margin: 4px 0 0 32px; }
-.fsc-actions:empty { display: none; }
 .fsc-link {
   border: 0; background: none; padding: 2px 0; cursor: pointer;
-  color: var(--fsp-ink-2); font: 500 12px/1.2 var(--font-sans); border-radius: 4px;
+  color: var(--fsp-ink-1); font: 600 12.5px/1.2 var(--font-sans); border-radius: 4px; text-decoration: underline;
 }
 .fsc-link:hover { color: var(--fsp-ink-0); }
-.fsc-resolved { padding: 8px; border-top: 1px solid var(--fsp-line); }
-.fsc-threads.is-resolved { opacity: 0.75; margin-top: 6px; }
-
 .fsc-foot { flex: none; padding: 10px 12px 12px; border-top: 1px solid var(--fsp-line); }
-.fsc-composer { display: flex; flex-direction: column; gap: 8px; }
-.fsc-composer.is-reply { margin: 0 8px 10px 36px; }
-.fsc-input {
-  width: 100%; resize: vertical; min-height: 44px; max-height: 40vh;
-  padding: 9px 11px; border-radius: 10px;
-  border: 1px solid var(--fsp-line-2); background: var(--fsp-bg); color: var(--fsp-ink-0);
-  font: 400 13.5px/1.45 var(--font-sans);
-}
-.fsc-input::placeholder { color: var(--fsp-ink-2); }
-.fsc-input:focus-visible { outline: 2px solid var(--soleil); outline-offset: 0; border-color: transparent; }
-.fsc-composer-row { display: flex; align-items: center; gap: 8px; }
-.fsc-spacer { flex: 1; }
-.fsc-count { color: var(--fsp-ink-2); font-size: 11.5px; font-variant-numeric: tabular-nums; }
-.fsc-pin {
-  height: 26px; padding: 0 10px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--fsp-line-2); background: transparent; color: var(--fsp-ink-2);
-  font: 600 11.5px/1 var(--font-sans); font-variant-numeric: tabular-nums;
-}
-/* A pressed toggle, not focus: neutral, not gold (the house rule). */
-.fsc-pin.is-on { color: var(--fsp-ink-0); border-color: transparent; background: var(--fsp-raise); }
-.fsc-pin:hover { color: var(--fsp-ink-0); }
-.fsc-btn {
-  height: 30px; padding: 0 12px; border-radius: 8px; cursor: pointer;
-  border: 1px solid var(--fsp-line-2); background: transparent; color: var(--fsp-ink-1);
-  font: 600 12.5px/1 var(--font-sans);
-}
-.fsc-btn:hover { color: var(--fsp-ink-0); background: var(--fsp-hover); }
-.fsc-btn--send { background: var(--fsp-ink-0); color: #0b0b0d; border-color: transparent; }
-.fsc-btn--send:hover { background: #fff; color: #0b0b0d; }
-.fsc-btn:disabled { opacity: 0.4; cursor: default; }
-.fsc-err { margin: 0; color: var(--fsp-danger); font-size: 12.5px; }
 .fsc-signin {
-  display: flex; align-items: center; justify-content: center; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; min-height: 38px; padding: 6px 12px; border-radius: 10px;
   border: 1px solid var(--fsp-line-2); background: var(--fsp-raise);
-  color: var(--fsp-ink-0); text-decoration: none; font-weight: 600; font-size: 13px;
+  color: var(--fsp-ink-0); text-decoration: none; font-weight: 600; font-size: 13px; text-align: center;
 }
 .fsc-signin:hover { background: color-mix(in srgb, #fff 10%, var(--fsp-raise)); }
 
+/* The conversations are the shared comment parts (components/comments/
+   FileThreads.jsx, commentsLook.css under .cmt-dark); these are only what a
+   file adds: the chip for a time or a page, and where the box sits. */
+.fsc-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.fsr { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; color: var(--fsp-ink-1); font: 400 13px/1.45 var(--font-sans); }
+.fsr-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 12px; }
+.fsr-note { margin: 0; padding: 16px; color: var(--fsp-ink-2); font-size: 13px; }
+.fsc-foot .fsr-note { padding: 4px; }
+.fsr-row.cmt-list-row { grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; }
+.fsr-row.is-open { box-shadow: inset 2px 0 0 var(--soleil); }
+.fsr-chipcol { min-width: 44px; padding-top: 1px; }
+.fsr-chipcol:empty { min-width: 0; margin-right: -10px; }
+.fsr-rowmain { display: block; min-width: 0; }
+.fsr-gone { color: var(--fsp-ink-2); }
+.fsr-chip {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 40px; height: 22px; padding: 0 7px;
+  border-radius: 6px; border: 1px solid var(--fsp-line-2); background: var(--fsp-raise); color: var(--fsp-ink-0);
+  font: 600 11.5px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+button.fsr-chip { cursor: pointer; }
+button.fsr-chip:hover { background: color-mix(in srgb, #fff 10%, var(--fsp-raise)); }
+/* the one gold chip: the active comment's */
+.fsr-chip.is-active { border-color: var(--soleil); color: var(--soleil); background: transparent; }
+/* the box you write in: the gold ring says the comment will sit at this
+   moment (or page); the words stay ink */
+.fsr-chip.is-at { border-color: var(--soleil); }
+.fsr-chip.is-old { border-style: dashed; background: transparent; color: var(--fsp-ink-2); }
+.fsr-foot { flex: none; padding: 10px 12px 12px; border-top: 1px solid var(--fsp-line); }
+.fsr-new { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.fsr-moment {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-height: 26px;
+  margin: 0; padding: 2px 4px 2px 2px; border: 0; border-radius: 8px; background: none; cursor: pointer;
+  color: var(--fsp-ink-2); font: 500 12.5px/1.3 var(--font-sans); text-align: left;
+}
+.fsr-moment:hover, .fsr-moment.is-on { color: var(--fsp-ink-1); }
+.fsr-moment-words { min-width: 0; overflow-wrap: anywhere; }
+.fsr-new .cmt-composer, .fsr-under .cmt-card { min-width: 0; }
+
+/* Under the player: empty and out of the way at full width. */
+.fsp-compose-slot { display: none; }
+
+/* An audio file's comments along its own line. */
+.fsp-amarks { position: relative; width: min(560px, 100%); height: 4px; margin: 6px 0 10px; border-radius: 2px; background: var(--fsp-line-2); }
+.fsp-amarks-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; background: var(--fsp-ink-2); }
+.fsp-amark {
+  position: absolute; top: -3px; width: 10px; height: 10px; margin-left: -5px; padding: 0;
+  border: 0; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1.5px #000; cursor: pointer;
+}
+.fsp-amark::after { content: ''; position: absolute; inset: -8px; }
+.fsp-amark:hover { scale: 1.35; }
+.fsp-amark.is-active { background: var(--soleil); box-shadow: 0 0 0 2px #000, 0 0 0 3px var(--soleil); }
+/* A video's markers in this room: white at rest, the active one gold. */
+.fsp .ft-marker { background: #fff; }
+.fsp .ft-marker:hover { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px #000; }
+.fsp .ft-marker.is-active { background: var(--soleil); box-shadow: 0 0 0 2px #000, 0 0 0 3px var(--soleil); }
+
+/* Under a finger the rail's own controls are finger-sized: its rows, time
+   chips, "at this moment" and links here; the buttons and the box of a
+   conversation in commentsLook.css (44px to press, a 16px field so an iPhone
+   doesn't zoom the page on focus). */
+@media (pointer: coarse) {
+  .fsr-row.cmt-list-row { min-height: 64px; }
+  .fsr-chip { height: 26px; font-size: 12.5px; }
+  button.fsr-chip, .fsr-moment { min-height: 44px; }
+  button.fsr-chip { min-width: 44px; }
+  .fsc-signin { min-height: 44px; font-size: 14px; }
+  .fsc-link { min-height: 44px; padding: 0 6px; font-size: 14px; display: inline-flex; align-items: center; }
+  .fsp-amarks { margin: 18px 0 22px; }
+  .fsp-amark::after { inset: -17px; }
+}
+
 /* ── Narrow: the rail stacks under the file ──────────────────────────── */
+/* The order is the player, the box you write in (it stays under the bar as
+   the list scrolls), the comments, then the file's facts. */
 @media (max-width: 899px) {
-  .fsp-layout.has-rail { grid-template-columns: minmax(0, 1fr); }
-  .fsp-rail { position: static; height: auto; border-left: 0; border-top: 1px solid var(--fsp-line); }
-  .fsc-list { overflow: visible; }
+  .fsp-layout.has-rail { display: flex; flex-direction: column; }
+  .fsp-layout.has-rail > .fsp-col { display: contents; }
+  .fsp-layout.has-rail .fsp-stage { order: 1; }
+  .fsp-layout.has-rail .fsp-compose-slot { order: 2; }
+  .fsp-layout.has-rail > .fsp-rail { order: 3; }
+  .fsp-layout.has-rail .fsp-info { order: 4; }
+  .fsp-layout.has-rail .fsp-cta { order: 5; }
+  .fsp-compose-slot {
+    display: block; position: sticky; top: var(--fsp-top-h); z-index: 3;
+    padding: 10px 12px 12px; background: var(--fsp-panel); border-bottom: 1px solid var(--fsp-line);
+  }
+  .fsp-compose-slot:empty { display: none; }
+  .fsp-compose-slot .fsr-under { margin: 0 -12px; --cmt-scrollmax: 30vh; }
+  .fsp-rail { position: static; height: auto; border-left: 0; border-top: 0; }
+  .fsr-list { overflow: visible; }
   .fsp-stage { height: clamp(240px, 62vh, 560px); }
-  .fsp-info { padding: 16px 16px 4px; }
+  .fsp-info { padding: 16px 16px 4px; border-top: 1px solid var(--fsp-line); }
   .fsp-cta { margin: 20px 16px 24px; }
 }
 
@@ -276,15 +303,6 @@
 .fsp-menu-item:hover, .fsp-menu-item:focus-visible { background: var(--fsp-hover); }
 .fsp-menu-title { font: 600 13px/1.2 var(--font-sans); }
 .fsp-menu-sub { font: 400 12px/1.3 var(--font-sans); color: var(--fsp-ink-2); }
-
-/* Under a finger the comment controls are finger-sized, and the field is
-   16px so iOS doesn't zoom the page on focus. */
-@media (pointer: coarse) {
-  .fsc-pin, .fsc-btn { min-height: 40px; padding: 0 14px; }
-  .fsc-link { min-height: 40px; padding: 0 6px; display: inline-flex; align-items: center; }
-  .fsc-actions { gap: 4px; }
-  .fsc-input { font-size: 16px; }
-}
 
 /* Under a finger every field is 16px, or iPhone zooms the page on focus and
    leaves it zoomed (the same rule closes styles.css, which this page may load

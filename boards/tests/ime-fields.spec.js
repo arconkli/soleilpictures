@@ -5,8 +5,8 @@
 // src/lib/imeGuard.test.mjs checks every key handler in the app is guarded).
 //
 // Not here, and why: neither surface is reachable in the local QA shell
-// (/?local=1). Its notes have no comment flow, so the comment composer
-// (InlineComposer.jsx) is driven through the existing ?noteqa harness, as
+// (/?local=1). Its notes have no comment flow, so the comment box
+// (comments/CommentComposer.jsx) is driven through the existing ?noteqa harness, as
 // tests/note-comment-composer.spec.js does; and the shell has its own sidebar
 // with no rename, so renaming a cluster in the sidebar (SidebarBoardTree.jsx)
 // has no spec. Both are pinned by src/lib/imeGuard.test.mjs.
@@ -31,9 +31,9 @@ test('a comment on a note\'s text: Enter mid-syllable posts nothing; the next En
     () => window.__soleilNoteTest.getActiveEditor()?.state.selection.empty === false,
   )).toBe(true);
   await page.keyboard.press('ControlOrMeta+Alt+m');
-  const composer = page.locator('.inline-composer');
+  const composer = page.locator('.cmt-float-host .cmt-card');
   await expect(composer).toBeVisible();
-  const input = composer.locator('.inline-composer-input');
+  const input = composer.locator('textarea.cmt-input');
   await expect(input).toBeFocused();
   const ko = await korean(page);
   await ko.typeThenEnterMidSyllable('컷이 늦다');
@@ -42,7 +42,8 @@ test('a comment on a note\'s text: Enter mid-syllable posts nothing; the next En
   await expect(composer).toBeVisible();
   expect(await page.evaluate(() => window.__soleilNoteTest.getFragHtmlA())).not.toMatch(/data-comment-id=/);
   await page.keyboard.press('Enter');
-  await expect(composer).toHaveCount(0);
+  // Posted: the card stays, on the thread it became.
+  await expect(composer.locator('.cmt-row .cmt-text')).toHaveText('컷이 늦다');
   await expect.poll(() => page.evaluate(() => window.__soleilNoteTest.getFragHtmlA()))
     .toMatch(/data-comment-id="[^"]+"/);
 });

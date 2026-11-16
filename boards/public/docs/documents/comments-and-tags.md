@@ -2,37 +2,58 @@
 
 > Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin; clear mentions of your tags are underlined automatically and marked auto. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.
 
-_Source: https://clusters.soleilpictures.com/docs/documents/comments-and-tags · Updated 2026-10-25_
+_Source: https://clusters.soleilpictures.com/docs/documents/comments-and-tags · Updated 2026-11-15_
 
 Documents carry annotation in the margins, so the text stays clean and the
 apparatus stays visible.
 
 ## Comments on a range
 
-Select text and add a comment. It anchors to that **range**, not to a character
-position, so editing around it keeps it attached to the right passage.
+Select text and add a comment, from the toolbar or with `⌘⌥M`. A box opens
+beside the words; `Enter` posts it. The comment anchors to that **range**, not
+to a character position, so editing around it keeps it attached to the right
+passage.
 
-Commented text is marked inline, with a gold dot in the **right margin**.
-Click the words, or the dot, and the side panel opens on their thread.
+Commented text is tinted, with a dot in the **right margin**; a darker dot
+means there is something in the thread you haven't read. Click the words, or
+the dot, and the side panel opens on their thread, with the words turned gold
+while it is open.
 
 ## Every comment in one place
 
 **Comments** in the document's header opens the side panel on its comments:
-every thread in the document as a card, in the order they come in the text,
-with the words it is on and who said what. **All**, **Open** and **Resolved**
-filter them. A card's quote takes you to its words, opening the page they are
-on; you can reply on the card, **Resolve** it (it says who resolved it and
-when, and **Reopen** brings it back), or delete the thread, with an **Undo** in
-the toast. A resolved thread's words read as plain text again; picking its card
-still lights them. `Esc` puts you back in the text.
+every open thread in the document as a short row, in the order they come in
+the text, with the words it is on, who started it and how much was said since.
+Press a row and it opens into the whole conversation, with the box to reply
+in; its quote takes you to its words, opening the page they are on.
+
+In the open thread you can:
+
+- **Reply** — `Enter` sends, `Shift+Enter` starts a new line. Words you typed
+  and didn't send are kept for you in this browser.
+- **Resolve** it. It moves to **Resolved** at the bottom of the panel, which
+  opens on a press, and says who resolved it. **Reopen** brings it back, and so
+  does a reply. A resolved thread's words read as plain text again; picking it
+  in the panel still lights them.
+- **Edit** a comment you wrote, from its **⋯** menu. It is marked *edited*.
+- **Copy link** to a comment: the link opens the document's cluster, the
+  document and this thread.
+- **Delete** a comment or the whole thread.
+
+Resolving and deleting show a toast with **Undo**. `Esc` puts you back in the
+text.
 
 Comments thread, resolve, and support `@` mentions that notify the person you
 name. See [Comments](/docs/collaborate/comments) for the full model, which is
-shared with the canvas.
+shared with the canvas and with notes, and
+[Notifications](/docs/collaborate/notifications) for who is told about a new
+comment, a reply or a resolve.
 
 Because a text comment is part of the document, it follows edit access. A
-viewer sees the dots and reads every thread in the side panel; adding,
-replying to, resolving or deleting a comment needs edit access.
+viewer sees the dots and reads every thread, by clicking the words or in the
+side panel; adding, replying to, resolving or deleting a comment needs edit
+access. Among people who can edit, only the person who wrote a comment can
+change its words.
 
 ## Tags on a range
 

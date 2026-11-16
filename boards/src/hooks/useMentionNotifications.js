@@ -16,12 +16,18 @@ export function useMentionNotifications(userId) {
     if (!userId) { setUnread([]); return; }
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // board_id and the source_* columns say a mention in a comment on a
+      // doc's or a note's words, and which thread (App.jsx opens it). A
+      // database without them answers the second, older read.
+      const read = (cols) => supabase
         .from('mention_notifications')
-        .select('id, message_id, workspace_id, conversation_id, mentioned_by, created_at')
+        .select(cols)
         .eq('user_id', userId)
         .is('dismissed_at', null)
         .order('created_at', { ascending: true });
+      const BASE = 'id, message_id, workspace_id, conversation_id, mentioned_by, created_at';
+      let { data, error } = await read(`${BASE}, board_id, source_kind, source_card_id, source_thread_id, preview`);
+      if (error) ({ data, error } = await read(BASE));
       if (error) throw error;
       setUnread(data || []);
     } catch (e) {

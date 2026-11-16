@@ -73,6 +73,3 @@ body[data-sb-files] .tb-viewonly {
 @media (max-width: 640px) {
   body[data-sb-files] .topbar .tb-viewonly { gap: 4px; padding: 0 2px; font-size: 11px; }
 }
-/* Unread is inverse ink, as the bell's dot and Messages' count are, inside
-   the card's corner rather than astride it. */
-body[data-sb-files] .canvas-comment-unread-dot { top: 10px; right: 10px; width: 6px; height: 6px; background: var(--ink-0); box-shadow: none; }

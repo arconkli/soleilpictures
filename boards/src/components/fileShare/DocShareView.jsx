@@ -228,8 +228,16 @@ export function DocShareView({ token, res, onRefresh, signInHref, api = null }) 
   const scope = useMemo(() => {
     if (!card) return null;
     const s = cardScope(card);
-    return { ...s, comments: s.comments || emptyComments, cardId: cardKey, docCardId: cardKey, boardId: null };
-  }, [card, cardKey, emptyComments]);
+    // noticeBoardId: the cluster the doc is on, which the share tells only
+    // the people who manage it. Comment notices need it (docThreadOps); the
+    // rest of the doc stays without a cluster, as before. Anyone else signed
+    // in who may edit here hands over the share's token (noticeShareToken)
+    // and the database finds the cluster; a guest who is not signed in, or
+    // who can only read, has neither and tells nobody.
+    const noticeBoardId = (signedIn && res.board_id) || null;
+    const noticeShareToken = (signedIn && !noticeBoardId && res.can_edit && token) || null;
+    return { ...s, comments: s.comments || emptyComments, cardId: cardKey, docCardId: cardKey, boardId: null, noticeBoardId, noticeShareToken };
+  }, [card, cardKey, emptyComments, signedIn, res.board_id, res.can_edit, token]);
   const currentUser = useMemo(() => (hello?.me
     ? { id: userId, name: hello.me.name, color: hello.me.color }
     : null), [hello, userId]);

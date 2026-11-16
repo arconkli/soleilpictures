@@ -100,7 +100,9 @@ export function SharedFileHost({ onSaveCopy = null, onAddShortcut = null, api = 
     const on = (e) => {
       const d = e.detail || {};
       if (!FILE_TOKEN_RE.test(String(d.token || ''))) return;
-      setReq({ token: String(d.token).toLowerCase(), via: d.via || null, seq: Date.now() });
+      // commentId: a notice about one comment opens the file at it.
+      const commentId = FILE_TOKEN_RE.test(String(d.commentId || '')) ? String(d.commentId).toLowerCase() : null;
+      setReq({ token: String(d.token).toLowerCase(), via: d.via || null, commentId, seq: Date.now() });
       logEvent(EV.SHARED_FILE_OPEN, { via: d.via || null });
     };
     document.addEventListener(SHARED_FILE_EVENT, on);
@@ -123,6 +125,7 @@ export function SharedFileHost({ onSaveCopy = null, onAddShortcut = null, api = 
   return (
     <Suspense fallback={null}>
       <FileSharePage key={req.seq} token={req.token} variant="overlay" onClose={close}
+                     commentId={req.commentId}
                      {...(api ? { api } : {})}
                      renderActions={(res) => (
                        <AddToCluster token={req.token} res={res} onSaveCopy={onSaveCopy} onAddShortcut={onAddShortcut} />

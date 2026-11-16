@@ -101,6 +101,10 @@ msgstr "· {cards} tarjetas, {arrows} flechas, {strokes} dibujos"
 msgid "· {count} cards"
 msgstr "· {count} tarjetas"
 
+#: src/components/comments/CommentRow.jsx
+msgid "· edited"
+msgstr "· editado"
+
 #: src/lib/oauthTrustWords.js
 msgid "· identified by {host}"
 msgstr "· identificada por {host}"
@@ -177,6 +181,10 @@ msgstr "“{name}” se quitó de tu lista."
 #: src/components/CanvasSurface.jsx
 msgid "“{name}” will appear at /templates for anyone to add. It shares the shape and the labels only — no images, no text, nothing from the board it came from. You can remove it at any time."
 msgstr "“{name}” aparecerá en /templates para que cualquiera la añada. Comparte solo la forma y los rótulos: ninguna imagen, ningún texto, nada del clúster de origen. Puedes quitarla en cualquier momento."
+
+#: src/components/comments/DocThreadsPanel.jsx
+msgid "“{quote}”"
+msgstr "“{quote}”"
 
 #: src/components/VersionHistoryModal.jsx
 msgid "“{shownName}” goes back to how it was {when} ({date}). The current state is snapshotted first, so this restore is itself restorable. Collaborators see the change immediately."
@@ -769,11 +777,6 @@ msgstr "{0, plural, one {# versión: Información las muestra todas} other {# ve
 msgid "{0, plural, other {New cluster from # cards}}"
 msgstr "{0, plural, one {Nuevo clúster con # tarjeta} other {Nuevo clúster con # tarjetas}}"
 
-#. placeholder {0}: groups.resolved.length
-#: src/components/fileShare/FileComments.jsx
-msgid "{0, plural, other {Show # resolved}}"
-msgstr "{0, plural, one {Mostrar # resuelto} other {Mostrar # resueltos}}"
-
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
 msgid "{activeCount, plural, one {View, # filter on} other {View, # filters on}}"
 msgstr "{activeCount, plural, one {Vista, # filtro activo} other {Vista, # filtros activos}}"
@@ -803,12 +806,28 @@ msgid "{asker} asked for room to add an editor"
 msgstr "{asker} pidió espacio para añadir un editor"
 
 #: src/lib/notificationWords.js
+msgid "{author} commented in {cluster}"
+msgstr "{author} comentó en {cluster}"
+
+#: src/lib/notificationWords.js
 msgid "{author} commented on “{file}”"
 msgstr "{author} comentó en “{file}”"
 
 #: src/lib/notificationWords.js
+msgid "{author} mentioned you in {cluster}"
+msgstr "{author} te mencionó en {cluster}"
+
+#: src/lib/notificationWords.js
+msgid "{author} replied in {cluster}"
+msgstr "{author} respondió en {cluster}"
+
+#: src/lib/notificationWords.js
 msgid "{author} replied on “{file}”"
 msgstr "{author} respondió en “{file}”"
+
+#: src/lib/notificationWords.js
+msgid "{author} resolved your comment in {cluster}"
+msgstr "{author} resolvió tu comentario en {cluster}"
 
 #: src/components/WorkspacePresenceStack.jsx
 msgid "{baseLabel} · (away)"
@@ -993,10 +1012,6 @@ msgstr "{count, plural, one {# clúster · {reason}} other {# clústeres · {rea
 msgid "{count, plural, one {# card} other {# cards}}"
 msgstr "{count, plural, one {# tarjeta} other {# tarjetas}}"
 
-#: src/components/CanvasComment.jsx
-msgid "{count, plural, one {# comment} other {# comments}}"
-msgstr "{count, plural, one {# comentario} other {# comentarios}}"
-
 #: src/lib/importCopy.js
 msgid "{count, plural, one {# file is coming in} other {# files are coming in}}"
 msgstr "{count, plural, one {# archivo está llegando} other {# archivos están llegando}}"
@@ -1044,6 +1059,10 @@ msgstr "{count, plural, one {# vídeo está llegando} other {# vídeos están ll
 #: src/lib/importCopy.js
 msgid "{count, plural, one {# video is in Files} other {# videos are in Files}}"
 msgstr "{count, plural, one {# vídeo está en Archivos} other {# vídeos están en Archivos}}"
+
+#: src/components/comments/DocFloatCards.jsx
+msgid "{count, plural, one {All comments on this note (#)} other {All comments on this note (#)}}"
+msgstr "{count, plural, one {Todos los comentarios de esta nota (#)} other {Todos los comentarios de esta nota (#)}}"
 
 #: src/lib/activityWords.js
 msgid "{count, plural, one {Copying # card…} other {Copying # cards…}}"
@@ -1537,6 +1556,10 @@ msgstr "{left, plural, =1 {una persona más} one {# persona más} other {# perso
 msgid "{left, plural, =1 {one person} other {up to # people}}"
 msgstr "{left, plural, =1 {una persona} one {# persona} other {hasta # personas}}"
 
+#: src/components/comments/CommentComposer.jsx
+msgid "{left, plural, one {# left} other {# left}}"
+msgstr "{left, plural, one {Queda #} other {Quedan #}}"
+
 #: src/lib/teamBillingLines.js
 msgid "{left, plural, one {# more before it asks first.} other {# more before it asks first.}}"
 msgstr "{left, plural, one {# más antes de pedir confirmación.} other {# más antes de pedir confirmación.}}"
@@ -1576,6 +1599,10 @@ msgstr "{loose, plural, one {# elemento} other {# elementos}}"
 #: src/components/CanvasSurface.jsx
 msgid "{looseOnStudio, plural, one {# loose card} other {# loose cards}}"
 msgstr "{looseOnStudio, plural, one {# tarjeta suelta} other {# tarjetas sueltas}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{lost, plural, one {Couldn't copy a comment with the cards: {why}} other {Couldn't copy # comments with the cards: {why}}}"
+msgstr "{lost, plural, one {No se pudo copiar un comentario con las tarjetas: {why}} other {No se pudieron copiar # comentarios con las tarjetas: {why}}}"
 
 #: src/App.jsx
 msgid "{lost}You're at your {limit}-card limit. Creator lifts it — free for {CREATOR_TRIAL_DAYS} days, or invite friends to earn more free ones."
@@ -1638,6 +1665,10 @@ msgstr "{more, plural, one {# importación más después de esta} other {# impor
 msgid "{more, plural, one {+ # more target} other {+ # more targets}}"
 msgstr "{more, plural, one {+ # destino más} other {+ # destinos más}}"
 
+#: src/components/NotificationsPanel.jsx
+msgid "{more, plural, one {+# more} other {+# more}}"
+msgstr "{more, plural, one {+# más} other {+# más}}"
+
 #: src/components/HeldUploadsBar.jsx
 msgid "{more} more"
 msgstr "{more} más"
@@ -1683,6 +1714,14 @@ msgstr "{n, plural, =1 {La tarjeta que elegiste se mueve a él. Deshacer la devu
 msgid "{n, plural, =1 {You joined a team you were invited to. Its workspaces are in your workspace menu.} other {You joined # teams you were invited to. Their workspaces are in your workspace menu.}}"
 msgstr "{n, plural, =1 {Te uniste a un equipo al que te invitaron. Sus espacios de trabajo están en tu menú de espacios de trabajo.} one {Te uniste a # equipo al que te invitaron. Sus espacios de trabajo están en tu menú de espacios de trabajo.} other {Te uniste a # equipos a los que te invitaron. Sus espacios de trabajo están en tu menú de espacios de trabajo.}}"
 
+#: src/lib/commentPins.js
+msgid "{n, plural, one {{whose}, # reply, unread} other {{whose}, # replies, unread}}"
+msgstr "{n, plural, one {{whose}, # respuesta, no leído} other {{whose}, # respuestas, no leído}}"
+
+#: src/lib/commentPins.js
+msgid "{n, plural, one {{whose}, # reply} other {{whose}, # replies}}"
+msgstr "{n, plural, one {{whose}, # respuesta} other {{whose}, # respuestas}}"
+
 #: src/components/cards/FamilyFace.jsx
 #: src/components/clusterBrowser/FileStages.jsx
 msgid "{n, plural, one {# attachment} other {# attachments}}"
@@ -1713,6 +1752,22 @@ msgstr "{n, plural, one {# clúster dentro} other {# clústeres dentro}}"
 #: src/lib/cardInfo.js
 msgid "{n, plural, one {# cluster} other {# clusters}}"
 msgstr "{n, plural, one {# clúster} other {# clústeres}}"
+
+#: src/components/comments/CanvasCommentPins.jsx
+msgid "{n, plural, one {# comment here, {unsent} unsent, some unread. Zoom in} other {# comments here, {unsent} unsent, some unread. Zoom in}}"
+msgstr "{n, plural, one {# comentario aquí, {unsent} sin enviar, algunos no leídos. Acercar} other {# comentarios aquí, {unsent} sin enviar, algunos no leídos. Acercar}}"
+
+#: src/components/comments/CanvasCommentPins.jsx
+msgid "{n, plural, one {# comment here, {unsent} unsent. Zoom in} other {# comments here, {unsent} unsent. Zoom in}}"
+msgstr "{n, plural, one {# comentario aquí, {unsent} sin enviar. Acercar} other {# comentarios aquí, {unsent} sin enviar. Acercar}}"
+
+#: src/components/comments/CanvasCommentPins.jsx
+msgid "{n, plural, one {# conversation here, some unread. Zoom in} other {# conversations here, some unread. Zoom in}}"
+msgstr "{n, plural, one {# conversación aquí, algunas no leídas. Acercar} other {# conversaciones aquí, algunas no leídas. Acercar}}"
+
+#: src/components/comments/CanvasCommentPins.jsx
+msgid "{n, plural, one {# conversation here. Zoom in} other {# conversations here. Zoom in}}"
+msgstr "{n, plural, one {# conversación aquí. Acercar} other {# conversaciones aquí. Acercar}}"
 
 #: src/lib/teamModelWords.js
 msgid "{n, plural, one {# day ago} other {# days ago}}"
@@ -1838,6 +1893,10 @@ msgstr "{n, plural, one {Las # tarjetas sueltas se mueven a él. Deshacer las de
 #: src/lib/teamCopy.js
 msgid "{n, plural, one {Ask an admin to add it.} other {Ask an admin to add them.}}"
 msgstr "{n, plural, one {Pide a un administrador que lo añada.} other {Pide a un administrador que los añada.}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Comments (#)} other {Comments (#)}}"
+msgstr "{n, plural, one {Comentarios (#)} other {Comentarios (#)}}"
 
 #: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Copied # card · ⌘Z undoes} other {Copied # cards · ⌘Z undoes}}"
@@ -2263,9 +2322,25 @@ msgstr "{nKept, plural, one {# tarjeta de aquí no cuenta: el propietario de est
 msgid "{nKept, plural, one {# card here isn't counted — you're at your card limit. It stays on the canvas, but won't show in search or tags until there's room.} other {# cards here aren't counted — you're at your card limit. They stay on the canvas, but won't show in search or tags until there's room.}}"
 msgstr "{nKept, plural, one {# tarjeta de aquí no cuenta: has llegado a tu límite de tarjetas. Sigue en el lienzo, pero no aparecerá en la búsqueda ni en las etiquetas hasta que haya espacio.} other {# tarjetas de aquí no cuentan: has llegado a tu límite de tarjetas. Siguen en el lienzo, pero no aparecerán en la búsqueda ni en las etiquetas hasta que haya espacio.}}"
 
+#: src/components/fileShare/FileComments.jsx
+msgid "{nOpen, plural, one {# open} other {# open}}"
+msgstr "{nOpen, plural, one {# abierto} other {# abiertos}}"
+
 #: src/App.jsx
 msgid "{notAdded} could not be added"
 msgstr "no se pudieron añadir {notAdded}"
+
+#: src/components/fileShare/FileComments.jsx
+msgid "{nResolved, plural, one {# resolved} other {# resolved}}"
+msgstr "{nResolved, plural, one {# resuelto} other {# resueltos}}"
+
+#: src/lib/commentCanvas.js
+msgid "{open, plural, one {Comments, # open, some unread} other {Comments, # open, some unread}}"
+msgstr "{open, plural, one {Comentarios, # abierto, algunos no leídos} other {Comentarios, # abiertos, algunos no leídos}}"
+
+#: src/lib/commentCanvas.js
+msgid "{open, plural, one {Comments, # open} other {Comments, # open}}"
+msgstr "{open, plural, one {Comentarios, # abierto} other {Comentarios, # abiertos}}"
 
 #: src/lib/liveTogetherWords.js
 msgid "{others, plural, =1 {You and # other person are working together} other {You and # others are working together}}"
@@ -2496,9 +2571,9 @@ msgstr "{refCount, plural, one {Enlazado desde # lugar} other {Enlazado desde # 
 msgid "{removed, plural, one {# file} other {# files}}"
 msgstr "{removed, plural, one {# archivo} other {# archivos}}"
 
-#: src/components/CanvasComment.jsx
-msgid "{replyCount, plural, one {# reply} other {# replies}}"
-msgstr "{replyCount, plural, one {# respuesta} other {# respuestas}}"
+#: src/lib/commentTime.js
+msgid "{replies, plural, one {# reply} other {# replies}}"
+msgstr "{replies, plural, one {# respuesta} other {# respuestas}}"
 
 #: src/App.jsx
 msgid "{requested, plural, one {Copied {added} of # card — upgrade for the rest.} other {Copied {added} of # cards — upgrade for the rest.}}"
@@ -2527,10 +2602,6 @@ msgstr "{s} · reserva un lugar hasta que se acepte"
 #: src/lib/editorLimitWords.js
 msgid "{s} · sent {when}"
 msgstr "{s} · enviada {when}"
-
-#: src/components/doc/DocCommentsTab.jsx
-msgid "{s} ago"
-msgstr "hace {s}"
 
 #: src/lib/editorLimitWords.js
 msgid "{s}, and {more} more"
@@ -3016,6 +3087,10 @@ msgid "{who} is here"
 msgstr "{who} está aquí"
 
 #: src/App.jsx
+msgid "{who} mentioned you in a comment"
+msgstr "{who} te mencionó en un comentario"
+
+#: src/App.jsx
 msgid "{who} mentioned you while you were away."
 msgstr "{who} te mencionó mientras no estabas."
 
@@ -3038,6 +3113,21 @@ msgstr "{who} envió un adjunto"
 #: src/components/MessagesPanel.jsx
 msgid "{who}: {words}"
 msgstr "{who}: {words}"
+
+#: src/lib/commentPins.js
+msgid "{whose}, unread"
+msgstr "{whose}, no leído"
+
+#: src/components/CommentGutter.jsx
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/components/comments/FileThreads.jsx
+msgid "{whose}: {words}"
+msgstr "{whose}: {words}"
+
+#: src/components/CommentGutter.jsx
+#: src/components/comments/DocThreadsPanel.jsx
+msgid "{whose}: {words} (unread)"
+msgstr "{whose}: {words} (no leído)"
 
 #: src/components/ShareModal.jsx
 msgid "{why} Also failed: {failList}"
@@ -3293,10 +3383,6 @@ msgstr "<p><strong>Te damos la bienvenida a tu clúster.</strong></p><p>Este es 
 msgid "<p><strong>Welcome</strong></p><p>Tap the <strong>＋</strong> at the bottom to add your first card. Everything saves automatically.</p>"
 msgstr "<p><strong>Te damos la bienvenida</strong></p><p>Toca el <strong>＋</strong> de abajo para añadir tu primera tarjeta. Todo se guarda automáticamente.</p>"
 
-#: src/components/InlineComposer.jsx
-msgid "⏎ to post · Esc to cancel"
-msgstr "⏎ para publicar · Esc para cancelar"
-
 #: src/components/ExplorePublishSection.jsx
 msgid "✓ Live"
 msgstr "✓ Publicado"
@@ -3377,6 +3463,10 @@ msgstr "Un lienzo dentro de este. Crea uno por proyecto y luego suelta tarjetas 
 #: src/components/CanvasSurface.jsx
 msgid "A canvas inside this one. Make one per project."
 msgstr "Un lienzo dentro de este. Crea uno por proyecto."
+
+#: src/components/comments/CommentAbout.jsx
+msgid "A card that is gone"
+msgstr "Una tarjeta que ya no está"
 
 #: src/App.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
@@ -3785,14 +3875,14 @@ msgstr "Añadir una tarjeta"
 msgid "Add a cluster"
 msgstr "Añadir un clúster"
 
-#: src/components/fileShare/FileComments.jsx
-msgid "Add a comment"
-msgstr "Añadir un comentario"
-
-#: src/components/CanvasComment.jsx
-#: src/components/fileShare/FileComments.jsx
+#: src/components/comments/FileThreads.jsx
+#: src/lib/commentRules.js
 msgid "Add a comment…"
 msgstr "Añade un comentario…"
+
+#: src/lib/commentRules.js
+msgid "Add a comment… @ to mention"
+msgstr "Añade un comentario… @ para mencionar"
 
 #: src/components/doc/DocBarA.jsx
 #: src/components/toolbar/NoteBarA.jsx
@@ -4399,7 +4489,6 @@ msgstr "Alinear a la derecha"
 msgid "Align: {label}"
 msgstr "Alinear: {label}"
 
-#: src/components/doc/DocCommentsTab.jsx
 #: src/components/TagDetailView.jsx
 #: src/components/team/TeamPeople.jsx
 #: src/lib/sidebarShelves.js
@@ -4510,10 +4599,6 @@ msgstr "Ya se está grabando."
 #: src/App.jsx
 msgid "already there"
 msgstr "ya está ahí"
-
-#: src/components/CanvasComment.jsx
-msgid "Also removes any replies. You can undo this right after."
-msgstr "También elimina las respuestas. Puedes deshacerlo justo después."
 
 #: src/components/ShareModal.jsx
 msgid "Also share sub-clusters"
@@ -4793,10 +4878,6 @@ msgstr "Apps"
 msgid "Archive"
 msgstr "Archivo comprimido"
 
-#: src/components/CanvasComment.jsx
-msgid "Archived comments"
-msgstr "Comentarios archivados"
-
 #: src/components/CanvasSurface.jsx
 msgid "Arrange"
 msgstr "Organizar"
@@ -4926,10 +5007,6 @@ msgstr "Preguntando…"
 #: src/components/CanvasSurface.jsx
 msgid "asset board"
 msgstr "clúster de recursos"
-
-#: src/components/fileShare/FileComments.jsx
-msgid "at {time}"
-msgstr "a las {time}"
 
 #: src/components/team/TeamSetup.jsx
 msgid "At least {TEAM_SEAT_MIN}. Add more any time; seats nobody uses drop at renewal."
@@ -5586,11 +5663,10 @@ msgstr "No se puede guardar: el acceso terminó"
 
 #: src/App.jsx
 #: src/components/AppFeedback.jsx
-#: src/components/CanvasComment.jsx
+#: src/components/comments/CommentComposer.jsx
 #: src/components/docExtensions/ImageUpload.js
 #: src/components/ExplorePublishSection.jsx
 #: src/components/FeedbackButton.jsx
-#: src/components/fileShare/FileComments.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/ImportCapDialog.jsx
 #: src/components/MessageBubble.jsx
@@ -6206,12 +6282,14 @@ msgid "CLIPBOARD"
 msgstr "PORTAPAPELES"
 
 #: src/App.jsx
-#: src/components/CanvasComment.jsx
 #: src/components/cards/SchedulePeek.jsx
 #: src/components/cards/ShootDayRange.jsx
 #: src/components/clusterBrowser/QuickLook.jsx
 #: src/components/ColorPicker.jsx
 #: src/components/CommandPalette.jsx
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/CommentCard.jsx
+#: src/components/comments/DocFloatCards.jsx
 #: src/components/CustomFontsModal.jsx
 #: src/components/DocBoardEmbedPicker.jsx
 #: src/components/DocOpening.jsx
@@ -6590,64 +6668,110 @@ msgid "Coming from Google Drive or Dropbox?"
 msgstr "¿Vienes de Google Drive o Dropbox?"
 
 #: src/components/CanvasSurface.jsx
+#: src/components/comments/CommentComposer.jsx
+#: src/components/comments/DocFloatCards.jsx
 #: src/components/doc/DocBarA.jsx
-#: src/components/fileShare/FileComments.jsx
+#: src/components/DocPageEditor.jsx
 #: src/components/film/FilmTimeline.jsx
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/commentAuthor.js
+#: src/lib/commentPins.js
 msgid "Comment"
 msgstr "Comentario"
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Comment by {by}"
-msgstr "Comentario de {by}"
+#: src/components/comments/CommentMenu.jsx
+msgid "Comment actions"
+msgstr "Acciones del comentario"
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Comment by {by} on “{quote}”"
-msgstr "Comentario de {by} sobre “{quote}”"
+#: src/components/fileShare/FileSharePage.jsx
+msgid "Comment at {time}"
+msgstr "Comentario en {time}"
 
-#: src/components/CanvasComment.jsx
-#: src/components/fileShare/FileComments.jsx
+#: src/components/comments/FileThreads.jsx
+msgid "Comment at this moment"
+msgstr "Comentar este momento"
+
+#: src/lib/commentAuthor.js
+msgid "Comment by {author}"
+msgstr "Comentario de {author}"
+
+#: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CommentRow.jsx
+#: src/components/comments/docThreadOps.js
+#: src/components/comments/FileThreads.jsx
 msgid "Comment deleted"
 msgstr "Comentario eliminado"
-
-#: src/components/CanvasSurface.jsx
-msgid "Comment failed: {reason} — your text is still there."
-msgstr "Error al comentar: {reason}; tu texto sigue ahí."
 
 #: src/components/toolbar/NoteBarA.jsx
 msgid "Comment on the selection"
 msgstr "Comentar la selección"
 
+#: src/components/comments/FileThreads.jsx
+msgid "Comment on the whole file"
+msgstr "Comentar todo el archivo"
+
 #: src/lib/playerKeys.js
 msgid "Comment on this frame"
 msgstr "Comentar este fotograma"
+
+#: src/components/comments/FileThreads.jsx
+msgid "Comment on this page"
+msgstr "Comentar esta página"
 
 #: src/components/settings/NotificationsTab.jsx
 msgid "Comment replies"
 msgstr "Respuestas a comentarios"
 
-#: src/lib/commentThreadDelete.js
-msgid "Comment thread deleted"
-msgstr "Hilo de comentarios eliminado"
+#: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/docThreadOps.js
+#: src/components/comments/FileThreads.jsx
+msgid "Comment resolved"
+msgstr "Comentario resuelto"
 
-#: src/components/AddCommentFlow.jsx
-msgid "Comment, then ⏎ to post"
-msgstr "Comenta y pulsa ⏎ para publicar"
-
+#: src/components/comments/CanvasCommentsIsland.jsx
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/CommentCard.jsx
+#: src/components/comments/DocFloatCards.jsx
 #: src/components/doc/DocBarA.jsx
-#: src/components/doc/DocCommentsTab.jsx
 #: src/components/doc/DocFrameA.jsx
 #: src/components/fileShare/FileComments.jsx
+#: src/lib/commentCanvas.js
 msgid "Comments"
 msgstr "Comentarios"
+
+#: src/components/fileShare/FileSharePage.jsx
+msgid "Comments along the file"
+msgstr "Comentarios a lo largo del archivo"
 
 #: src/components/doc/DocFrameA.jsx
 msgid "Comments and find"
 msgstr "Comentarios y búsqueda"
 
-#: src/components/doc/DocFrameA.jsx
-msgid "Comments, {open} open"
-msgstr "Comentarios, {open} abiertos"
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/commentChunkFail.js
+#: src/components/comments/commentPartsLazy.jsx
+msgid "Comments couldn't load. Check your connection."
+msgstr "No se pudieron cargar los comentarios. Revisa tu conexión."
+
+#: src/components/comments/commentChunkFail.js
+msgid "Comments couldn't open. Try again."
+msgstr "No se pudieron abrir los comentarios. Inténtalo de nuevo."
+
+#: src/components/comments/CommentCard.jsx
+msgid "Comments on {title}"
+msgstr "Comentarios sobre {title}"
+
+#: src/components/comments/FileThreads.jsx
+msgid "Comments on an earlier version"
+msgstr "Comentarios de una versión anterior"
+
+#: src/components/comments/DocThreadsPanel.jsx
+msgid "Comments on this doc show up here."
+msgstr "Los comentarios de este documento aparecen aquí."
+
+#: src/components/comments/DocFloatCards.jsx
+msgid "Comments on this note"
+msgstr "Comentarios de esta nota"
 
 #: src/components/settings/DeleteAccount.jsx
 msgid "Comments, tags and votes you left on other people's clusters stay where they are, with your name removed."
@@ -6824,6 +6948,10 @@ msgstr "Contraste"
 msgid "Control-click the folder you want and choose **Download Now**. Wait until it has finished."
 msgstr "Haz clic con Control pulsado en la carpeta que quieras y elige **Descargar ahora**. Espera a que termine."
 
+#: src/components/comments/CommentCard.jsx
+msgid "Conversation"
+msgstr "Conversación"
+
 #: src/components/MessageThread.jsx
 msgid "Conversation actions"
 msgstr "Acciones de la conversación"
@@ -6831,6 +6959,11 @@ msgstr "Acciones de la conversación"
 #: src/components/MessagesPanel.jsx
 msgid "Conversation hidden"
 msgstr "Conversación oculta"
+
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/DocFloatCards.jsx
+msgid "Conversations you resolve are kept here."
+msgstr "Las conversaciones que resuelves se guardan aquí."
 
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/MessageThread.jsx
@@ -6953,6 +7086,8 @@ msgstr "Copiar archivos en lugar de moverlos"
 
 #: src/App.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
+#: src/components/comments/CommentCard.jsx
+#: src/components/comments/CommentRow.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/ListSurface.jsx
@@ -7089,6 +7224,9 @@ msgstr "No se pudo cambiar el uso compartido: {reason}"
 msgid "Could not change their access: {reason}"
 msgstr "No se pudo cambiar su acceso: {reason}"
 
+#: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/docThreadOps.js
+#: src/components/comments/FileThreads.jsx
 #: src/lib/cardLink.js
 msgid "Could not copy link"
 msgstr "No se pudo copiar el enlace"
@@ -7399,6 +7537,10 @@ msgstr "No se pudo leer desde la carpeta"
 msgid "Couldn’t be uploaded"
 msgstr "No se pudo subir"
 
+#: src/components/comments/CanvasCommentCard.jsx
+msgid "Couldn't bring it back: {why}"
+msgstr "No se pudo recuperar: {why}"
+
 #: src/components/MessagesPanel.jsx
 #: src/components/MessageThread.jsx
 msgid "Couldn't bring the conversation back — try again."
@@ -7423,6 +7565,10 @@ msgstr "No se pudo copiar: tu navegador bloqueó el portapapeles."
 #: src/lib/docResets.js
 msgid "Couldn’t copy it — this browser didn’t allow it."
 msgstr "No se pudo copiar: este navegador no lo permitió."
+
+#: src/components/CanvasSurface.jsx
+msgid "Couldn't copy the comments with the cards: {why}"
+msgstr "No se pudieron copiar los comentarios con las tarjetas: {why}"
 
 #: src/components/MessageThread.jsx
 msgid "Couldn't copy the link — your browser blocked the clipboard."
@@ -7455,6 +7601,10 @@ msgstr "No se pudo crear el grupo: vuelve a intentarlo."
 #: src/lib/messageAccess.js
 msgid "Couldn't create the group. Check your connection and try again."
 msgstr "No se pudo crear el grupo. Comprueba tu conexión y vuelve a intentarlo."
+
+#: src/components/comments/CanvasCommentCard.jsx
+msgid "Couldn't delete: {why}"
+msgstr "No se pudo eliminar: {why}"
 
 #: src/lib/transferWords.js
 msgid "Couldn't download that file. Try again."
@@ -7607,6 +7757,10 @@ msgstr "No se pudo cargar. Reintentar"
 msgid "Couldn’t make “{shown}”. Your cards are still here — try again."
 msgstr "No se pudo crear “{shown}”. Tus tarjetas siguen aquí: vuelve a intentarlo."
 
+#: src/components/comments/CanvasCommentPins.jsx
+msgid "Couldn't move the comment: {why}"
+msgstr "No se pudo mover el comentario: {why}"
+
 #: src/lib/clustersApi.js
 msgid "Couldn’t move those files."
 msgstr "No se pudieron mover esos archivos."
@@ -7700,6 +7854,10 @@ msgstr "No se pudo leer esa imagen."
 msgid "Couldn’t read that image."
 msgstr "No se pudo leer esa imagen."
 
+#: src/components/fileShare/FileComments.jsx
+msgid "Couldn't refresh. Trying again…"
+msgstr "No se pudo actualizar. Reintentando…"
+
 #: src/App.jsx
 msgid "Couldn't remove “{name}” from your list."
 msgstr "No se pudo quitar “{name}” de tu lista."
@@ -7719,6 +7877,14 @@ msgstr "No se pudo quitar esa llave de acceso. Vuelve a intentarlo."
 #: src/lib/clustersApi.js
 msgid "Couldn’t remove those files."
 msgstr "No se pudieron quitar esos archivos."
+
+#: src/components/comments/CanvasCommentCard.jsx
+msgid "Couldn't reopen: {why}"
+msgstr "No se pudo reabrir: {why}"
+
+#: src/components/comments/CanvasCommentCard.jsx
+msgid "Couldn't resolve: {why}"
+msgstr "No se pudo resolver: {why}"
 
 #: src/lib/docSaveStatus.js
 msgid "Couldn't save"
@@ -7748,9 +7914,17 @@ msgstr "No se pudieron guardar esos archivos."
 msgid "Couldn't save your reaction — try again."
 msgstr "No se pudo guardar tu reacción: inténtalo de nuevo."
 
+#: src/components/comments/CommentComposer.jsx
+msgid "Couldn't save. Your words are still here."
+msgstr "No se pudo guardar. Tus palabras siguen aquí."
+
 #: src/components/MessageBubble.jsx
 msgid "Couldn't send"
 msgstr "No se pudo enviar"
+
+#: src/components/comments/CommentComposer.jsx
+msgid "Couldn't send. Your words are still here."
+msgstr "No se pudo enviar. Tus palabras siguen aquí."
 
 #: src/lib/messageAccess.js
 msgid "Couldn't start the chat — try again."
@@ -8059,12 +8233,10 @@ msgctxt "keyboard key"
 msgid "Del"
 msgstr "Supr"
 
-#: src/components/CanvasComment.jsx
 #: src/components/CanvasSurface.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
-#: src/components/CommentInlinePopover.jsx
+#: src/components/comments/CommentRow.jsx
 #: src/components/DocPageTree.jsx
-#: src/components/fileShare/FileComments.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/info/InfoHost.jsx
 #: src/components/ListSurface.jsx
@@ -8169,20 +8341,15 @@ msgstr "¿Eliminar el clúster “{name}” y todo su contenido?\n"
 msgid "Delete column"
 msgstr "Eliminar columna"
 
-#: src/components/CanvasComment.jsx
-msgid "Delete comment?"
-msgstr "¿Eliminar comentario?"
+#: src/components/comments/CommentCard.jsx
+msgid "Delete conversation"
+msgstr "Eliminar conversación"
 
 #: src/components/CanvasSurface.jsx
 msgid "Delete drawing"
 msgstr "Eliminar dibujo"
 
-#: src/components/CanvasComment.jsx
-msgid "Delete failed"
-msgstr "Error al eliminar"
-
 #: src/App.jsx
-#: src/components/CanvasComment.jsx
 #: src/components/CanvasVoteCard.jsx
 #: src/components/SidebarTags.jsx
 #: src/components/TrashModal.jsx
@@ -8208,10 +8375,6 @@ msgstr "Eliminar ahora"
 #: src/components/settings/DeleteAccount.jsx
 msgid "Delete permanently"
 msgstr "Eliminar definitivamente"
-
-#: src/components/CanvasComment.jsx
-msgid "Delete reply"
-msgstr "Eliminar respuesta"
 
 #: src/components/doc/DocTableBar.jsx
 msgid "Delete row"
@@ -8246,10 +8409,6 @@ msgstr "¿Eliminar esta tarjeta?"
 #: src/components/DocPageEditor.jsx
 msgid "Delete this page"
 msgstr "Eliminar esta página"
-
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Delete thread"
-msgstr "Eliminar hilo"
 
 #: src/components/info/VersionsSection.jsx
 msgid "Delete version"
@@ -8423,10 +8582,14 @@ msgstr "Director · Productora · Fecha del borrador"
 msgid "Director’s treatment"
 msgstr "Tratamiento del director"
 
-#: src/components/CommentInlinePopover.jsx
 #: src/components/HeldUploadsBar.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/SketchPadOverlay.jsx
+msgid "Discard"
+msgstr "Descartar"
+
+#: src/components/comments/CommentComposer.jsx
+msgctxt "put away words written in a comment box"
 msgid "Discard"
 msgstr "Descartar"
 
@@ -8434,13 +8597,17 @@ msgstr "Descartar"
 msgid "Discard changes?"
 msgstr "¿Descartar los cambios?"
 
-#: src/components/CommentInlinePopover.jsx
-msgid "Discard reply?"
-msgstr "¿Descartar la respuesta?"
-
 #: src/components/SketchPadOverlay.jsx
 msgid "Discard sketch?"
 msgstr "¿Descartar el boceto?"
+
+#: src/components/comments/CommentComposer.jsx
+msgid "Discard this comment?"
+msgstr "¿Descartar este comentario?"
+
+#: src/components/comments/CommentComposer.jsx
+msgid "Discard your changes?"
+msgstr "¿Descartar tus cambios?"
 
 #: src/components/settings/ConnectionsTab.jsx
 msgid "Disconnect"
@@ -8872,10 +9039,6 @@ msgstr "Arrastra para desplazar"
 msgid "Drag to reposition"
 msgstr "Arrastra para reubicar"
 
-#: src/components/CanvasComment.jsx
-msgid "Drag to reposition · click to open"
-msgstr "Arrastra para reubicar · clic para abrir"
-
 #: src/components/CanvasSurface.jsx
 #: src/components/docExtensions/ImageResizable.js
 msgid "Drag to resize"
@@ -9165,6 +9328,7 @@ msgid "edit"
 msgstr "editar"
 
 #: src/components/CanvasSurface.jsx
+#: src/components/comments/CommentRow.jsx
 #: src/components/MessageActionSheet.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/MessageMenu.jsx
@@ -9183,6 +9347,10 @@ msgstr "Editar una nota o un título"
 #: src/components/CanvasSurface.jsx
 msgid "Edit caption"
 msgstr "Editar pie de foto"
+
+#: src/components/comments/CommentComposer.jsx
+msgid "Edit comment"
+msgstr "Editar comentario"
 
 #: src/components/CanvasSurface.jsx
 msgid "Edit hyperlink"
@@ -9208,8 +9376,7 @@ msgid "Edit photo…"
 msgstr "Editar foto…"
 
 #: src/App.jsx
-#: src/components/CanvasComment.jsx
-#: src/components/CommentInlinePopover.jsx
+#: src/components/comments/CommentFace.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/settings/MembersTab.jsx
 #: src/components/ShareModal.jsx
@@ -9231,6 +9398,10 @@ msgstr "Montaje, música y ritmo"
 #: src/components/MessageBubble.jsx
 msgid "Edited"
 msgstr "Editado"
+
+#: src/components/comments/FileThreads.jsx
+msgid "Editing isn't available yet."
+msgstr "Aún no se puede editar."
 
 #: src/components/team/TeamPage.jsx
 msgid "Editing keeps working for now; updating the card keeps it that way."
@@ -9427,10 +9598,6 @@ msgstr "Introduce el código de 6 dígitos de tu correo."
 msgid "Enter to create"
 msgstr "Enter para crear"
 
-#: src/components/CanvasComment.jsx
-msgid "Enter to post · Esc to cancel"
-msgstr "Enter para publicar · Esc para cancelar"
-
 #: src/components/home/HomeWorkspace.jsx
 msgid "Enter to save · Esc to cancel"
 msgstr "Enter para guardar · Esc para cancelar"
@@ -9513,6 +9680,11 @@ msgstr "Cada clúster que crees se convierte en una estrella aquí."
 #: src/components/team/TeamSetup.jsx
 msgid "Every cluster, file and link stays where it is. Workspaces you leave out stay yours, and you can move one in later."
 msgstr "Cada clúster, archivo y enlace se queda donde está. Los espacios de trabajo que dejes fuera siguen siendo tuyos y puedes incorporar uno más adelante."
+
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/components/comments/FileThreads.jsx
+msgid "Every comment is resolved."
+msgstr "Todos los comentarios están resueltos."
 
 #: src/lib/setupTips.js
 msgid "Every file lands in Files"
@@ -10208,6 +10380,10 @@ msgstr "Fuentes"
 msgid "for {days} days"
 msgstr "durante {days} días"
 
+#: src/components/comments/CanvasCommentsList.jsx
+msgid "For you"
+msgstr "Para ti"
+
 #: src/lib/billingCopyWords.js
 msgid "forever"
 msgstr "para siempre"
@@ -10469,13 +10645,13 @@ msgstr "Volver"
 msgid "Go to"
 msgstr "Ir a"
 
-#: src/components/fileShare/FileComments.jsx
-msgid "Go to {anchor}"
-msgstr "Ir a {anchor}"
-
 #: src/components/MessageBubble.jsx
 msgid "Go to {parentName}'s message"
 msgstr "Ir al mensaje de {parentName}"
+
+#: src/components/comments/FileThreads.jsx
+msgid "Go to {words}"
+msgstr "Ir a {words}"
 
 #: src/components/film/FilmDock.jsx
 msgid "Go to a timecode, frame number or seconds"
@@ -10510,10 +10686,6 @@ msgstr "Ir a la entrada · salida"
 #: src/components/film/FilmPlayer.jsx
 msgid "Go to out"
 msgstr "Ir a la salida"
-
-#: src/components/fileShare/FileComments.jsx
-msgid "Go to page {page}"
-msgstr "Ir a la página {page}"
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Go to the focused file: on its board, or in Files"
@@ -10628,6 +10800,7 @@ msgstr "Cuadrículas"
 msgid "Grids in this family"
 msgstr "Cuadrículas de esta familia"
 
+#: src/components/comments/CommentAbout.jsx
 #: src/components/TagDetailView.jsx
 #: src/lib/cardInfo.js
 #: src/lib/entityKinds.js
@@ -10809,7 +10982,6 @@ msgstr "Oculto"
 msgid "Hidden from search engines — click to let this link rank (for marketing clusters)"
 msgstr "Oculto para los buscadores: haz clic para permitir que este enlace se posicione (para clústeres de marketing)"
 
-#: src/components/CanvasComment.jsx
 #: src/components/capture/CaptureHud.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
@@ -10833,18 +11005,6 @@ msgstr "Ocultar {shelf}"
 msgid "Hide 1h"
 msgstr "Ocultar 1 h"
 
-#: src/components/CanvasSurface.jsx
-msgid "Hide all comments"
-msgstr "Ocultar todos los comentarios"
-
-#: src/components/CanvasSurface.jsx
-msgid "Hide all comments (right-click for archive)"
-msgstr "Ocultar todos los comentarios (clic derecho para el archivo)"
-
-#: src/components/CanvasSurface.jsx
-msgid "Hide all comments, {visibleCommentCount} showing"
-msgstr "Ocultar todos los comentarios, {visibleCommentCount} visibles"
-
 #: src/components/EntityHoverPopover.jsx
 msgid "Hide contents"
 msgstr "Ocultar contenido"
@@ -10856,10 +11016,6 @@ msgstr "Ocultar conversación"
 #: src/components/InviteRewardNote.jsx
 msgid "Hide details"
 msgstr "Ocultar detalles"
-
-#: src/components/CanvasComment.jsx
-msgid "Hide failed: {reason}"
-msgstr "Error al ocultar: {reason}"
 
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "Hide files"
@@ -10924,10 +11080,6 @@ msgstr "Ocultar contorno"
 #: src/components/doc/DocFrameA.jsx
 msgid "Hide pages"
 msgstr "Ocultar páginas"
-
-#: src/components/fileShare/FileComments.jsx
-msgid "Hide resolved"
-msgstr "Ocultar resueltos"
 
 #: src/components/ShareModal.jsx
 msgid "Hide sub-clusters"
@@ -11799,6 +11951,10 @@ msgstr "Sus imágenes se copiaron, así que el clúster las conserva aunque los 
 msgid "Its sound may play, but there is no picture — download it, or upload a version in a common format."
 msgstr "Puede que suene, pero no hay imagen: descárgalo o sube una versión en un formato común."
 
+#: src/components/comments/DocThreadsPanel.jsx
+msgid "Its words were removed"
+msgstr "Sus palabras se eliminaron"
+
 #: src/components/TeamJoinCard.jsx
 msgid "Its workspaces join your workspace menu. Your own workspaces stay yours: the team never sees them."
 msgstr "Sus espacios de trabajo se suman a tu menú de espacios de trabajo. Tus propios espacios de trabajo siguen siendo tuyos: el equipo nunca los ve."
@@ -11950,7 +12106,6 @@ msgstr "Solo explorando"
 msgid "Just me"
 msgstr "Solo yo"
 
-#: src/components/doc/DocCommentsTab.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/NotificationsPanel.jsx
 msgid "just now"
@@ -12057,7 +12212,7 @@ msgstr "Mantén esta pestaña abierta hasta que vuelvas a tener conexión"
 msgid "Keep typing — a word finds cluster, group and tag names, notes, docs, captions, file names and what’s in pictures."
 msgstr "Sigue escribiendo: una palabra encuentra nombres de clústeres, grupos y etiquetas, notas, documentos, pies de foto, nombres de archivo y lo que hay en las imágenes."
 
-#: src/components/CommentInlinePopover.jsx
+#: src/components/comments/CommentComposer.jsx
 msgid "Keep writing"
 msgstr "Seguir escribiendo"
 
@@ -12445,6 +12600,9 @@ msgid "Link cards"
 msgstr "Tarjetas de enlace"
 
 #: src/App.jsx
+#: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/docThreadOps.js
+#: src/components/comments/FileThreads.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/MessageThread.jsx
@@ -13031,13 +13189,13 @@ msgid "Medium tiles"
 msgstr "Mosaicos medianos"
 
 #: src/App.jsx
-#: src/components/CanvasComment.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/MessagePinsPopover.jsx
 #: src/components/MessagesPanel.jsx
 #: src/components/MessageThread.jsx
 #: src/components/NewConversationPicker.jsx
 #: src/components/ShareModal.jsx
+#: src/lib/commentAuthor.js
 #: src/lib/teamModelWords.js
 #: src/lib/userProfiles.js
 msgid "Member"
@@ -13051,6 +13209,10 @@ msgstr "Miembros"
 #: src/components/ShortcutsOverlay.jsx
 msgid "Mention a board, doc, or card"
 msgstr "Mencionar un clúster, documento o tarjeta"
+
+#: src/components/comments/CanvasCommentsList.jsx
+msgid "Mentions and replies to you show up here."
+msgstr "Las menciones y las respuestas para ti aparecen aquí."
 
 #: src/App.jsx
 #: src/components/film/FilmMenu.jsx
@@ -13263,6 +13425,8 @@ msgstr "Moodboards, guiones, listas de planos: todos tus recursos, un solo lienz
 #: src/components/cards/ScheduleRundown.jsx
 #: src/components/chrome/ChromeMoreA.jsx
 #: src/components/chrome/FloatingChrome.jsx
+#: src/components/comments/CommentCard.jsx
+#: src/components/comments/CommentRow.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/doc/DocFrameA.jsx
 #: src/components/SidebarSharedBoards.jsx
@@ -13411,7 +13575,6 @@ msgid "Move cancelled — the destination cluster’s state looked unsafe to ove
 msgstr "Movimiento cancelado: el estado del clúster de destino no parecía seguro para sobrescribirlo."
 
 #: src/App.jsx
-#: src/components/CanvasComment.jsx
 #: src/components/CanvasVoteCard.jsx
 msgid "Move failed: {reason}"
 msgstr "Error al mover: {reason}"
@@ -13745,6 +13908,11 @@ msgstr "Nuevo clúster…"
 msgid "New code sent. Only the newest one works — check Spam or Promotions if it isn't there."
 msgstr "Código nuevo enviado. Solo funciona el más reciente: revisa Spam o Promociones si no aparece."
 
+#: src/components/comments/CommentCard.jsx
+#: src/components/comments/DocFloatCards.jsx
+msgid "New comment"
+msgstr "Nuevo comentario"
+
 #: src/components/MessagesPanel.jsx
 #: src/components/MessageThread.jsx
 msgid "New conversation"
@@ -13983,16 +14151,16 @@ msgstr "No hay comentarios después de este fotograma"
 msgid "No comment before this frame"
 msgstr "No hay comentarios antes de este fotograma"
 
-#: src/components/doc/DocCommentsTab.jsx
+#: src/components/comments/DocThreadsPanel.jsx
 msgid "No comments yet"
 msgstr "Aún no hay comentarios"
 
-#: src/components/fileShare/FileComments.jsx
+#: src/components/comments/FileThreads.jsx
 #: src/components/WorkspacePresenceStack.jsx
 msgid "No comments yet."
 msgstr "Aún no hay comentarios."
 
-#: src/components/fileShare/FileComments.jsx
+#: src/components/comments/FileThreads.jsx
 msgid "No comments yet. Pause anywhere and leave the first one."
 msgstr "Aún no hay comentarios. Haz una pausa donde quieras y deja el primero."
 
@@ -14133,6 +14301,11 @@ msgstr "No hay notas etiquetadas."
 msgid "No one to message yet. Share a board to start collaborating."
 msgstr "Todavía no hay nadie a quien escribir. Comparte un clúster para empezar a colaborar."
 
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/DocFloatCards.jsx
+msgid "No open comments"
+msgstr "No hay comentarios abiertos"
+
 #: src/components/EntityHoverPopover.jsx
 #: src/components/TagRangeHoverPopover.jsx
 msgid "No other items tagged."
@@ -14182,9 +14355,10 @@ msgstr "No queda espacio para personas que editan."
 msgid "No references yet."
 msgstr "Aún no hay referencias."
 
-#: src/components/CanvasComment.jsx
-msgid "No resolved or hidden comments on this board."
-msgstr "No hay comentarios resueltos ni ocultos en este clúster."
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/lib/commentTime.js
+msgid "No replies yet"
+msgstr "Aún no hay respuestas"
 
 #: src/components/CommandPalette.jsx
 msgid "No results for “{q}”."
@@ -14393,10 +14567,6 @@ msgstr "no está en el lienzo"
 msgid "Not paid"
 msgstr "Sin pagar"
 
-#: src/components/fileShare/FileComments.jsx
-msgid "Not pinned"
-msgstr "Sin anclar"
-
 #: src/components/cards/ScheduleRail.jsx
 msgid "Not published yet"
 msgstr "Aún sin publicar"
@@ -14405,6 +14575,7 @@ msgstr "Aún sin publicar"
 msgid "Not saved"
 msgstr "No guardado"
 
+#: src/components/comments/CommentRow.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/setup/InviteStep.jsx
 msgid "Not sent"
@@ -14658,13 +14829,14 @@ msgstr "Aún no hay nada en el calendario."
 msgid "Nothing on the calendar yet. Use “Add days…” below to lay out a block."
 msgstr "Aún no hay nada en el calendario. Usa “Añadir días…” abajo para armar un bloque."
 
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/components/comments/FileThreads.jsx
+msgid "Nothing open"
+msgstr "Nada abierto"
+
 #: src/components/DocSurface.jsx
 msgid "Nothing open yet"
 msgstr "Nada abierto todavía"
-
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Nothing open: every comment is resolved"
-msgstr "Nada abierto: todos los comentarios están resueltos"
 
 #: src/components/CanvasSurface.jsx
 msgid "Nothing picked? Paste an image from any tab (⌘V), or drag one straight in from another window"
@@ -14682,7 +14854,8 @@ msgstr "Aún no hay nada planificado."
 msgid "Nothing planned yet. Add the first item and give it a length — everything after it times itself."
 msgstr "Aún no hay nada planificado. Añade el primer elemento y dale una duración: todo lo que siga se ajusta solo."
 
-#: src/components/doc/DocCommentsTab.jsx
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/DocFloatCards.jsx
 msgid "Nothing resolved yet"
 msgstr "Aún no hay nada resuelto"
 
@@ -14718,6 +14891,10 @@ msgstr "No hay nada que deshacer: esas tarjetas ya no están en este lienzo."
 #: src/lib/errorWords.js
 msgid "Nothing to zip"
 msgstr "Nada que comprimir"
+
+#: src/components/comments/CanvasCommentsList.jsx
+msgid "Nothing waiting on you"
+msgstr "Nada pendiente para ti"
 
 #: src/components/CanvasSurface.jsx
 msgid "Nothing was copied — this board changed before the copy could finish."
@@ -14873,9 +15050,9 @@ msgstr "En **onedrive.com**, abre **Mis archivos** y selecciona las carpetas que
 msgid "On a Mac, iCloud Drive is already a folder."
 msgstr "En un Mac, iCloud Drive ya es una carpeta."
 
-#: src/components/fileShare/FileComments.jsx
-msgid "on an earlier version"
-msgstr "en una versión anterior"
+#: src/components/comments/FileThreads.jsx
+msgid "On an earlier version"
+msgstr "En una versión anterior"
 
 #: src/lib/importGuide.js
 msgid "On an iPhone or iPad, the Files app zips a folder for you."
@@ -14894,9 +15071,9 @@ msgstr "al cerrar"
 msgid "On Creator, anything at all becomes a file card with a download. Free covers images, video, audio and PDFs within size caps."
 msgstr "Con el plan Creator, cualquier cosa se convierte en una tarjeta de archivo con descarga. El plan gratis incluye imágenes, vídeo, audio y PDF dentro de los límites de tamaño."
 
-#: src/components/fileShare/FileComments.jsx
-msgid "on page {page}"
-msgstr "en la página {page}"
+#: src/components/comments/CommentAbout.jsx
+msgid "On the canvas"
+msgstr "En el lienzo"
 
 #: src/auth/WaitlistConfirm.jsx
 msgid "On the waitlist"
@@ -14909,6 +15086,10 @@ msgstr "En estas {total} tarjetas"
 #: src/components/NewConversationPicker.jsx
 msgid "ON THIS BOARD"
 msgstr "EN ESTE CLÚSTER"
+
+#: src/components/comments/CommentAbout.jsx
+msgid "On this cluster"
+msgstr "En este clúster"
 
 #: src/lib/billingCopyWords.js
 msgid "On trial"
@@ -15024,9 +15205,25 @@ msgstr "Solo {ownerFirst} cambia la tarjeta."
 msgid "Only a few folders? In Drive, right-click one and choose **Download**. You get a zip, which comes in the same way."
 msgstr "¿Solo unas pocas carpetas? En Drive, haz clic derecho en una y elige **Descargar**. Obtienes un zip, que entra de la misma forma."
 
+#: src/components/comments/CanvasCommentsList.jsx
+msgid "Only changes what you see"
+msgstr "Solo cambia lo que ves tú"
+
 #: src/lib/oauthTrustWords.js
 msgid "Only continue if you just started this from {name} yourself."
 msgstr "Continúa solo si acabas de iniciar esto tú mismo desde {name}."
+
+#: src/lib/errorWords.js
+msgid "Only its author or an editor of this cluster can change this comment."
+msgstr "Solo su autor o un editor de este clúster puede cambiar este comentario."
+
+#: src/lib/errorWords.js
+msgid "Only its author or an editor of this cluster can delete this comment."
+msgstr "Solo su autor o un editor de este clúster puede eliminar este comentario."
+
+#: src/lib/errorWords.js
+msgid "Only its author or an editor of this cluster can restore this comment."
+msgstr "Solo su autor o un editor de este clúster puede restaurar este comentario."
 
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/lib/sharedFiles.js
@@ -15040,6 +15237,14 @@ msgstr "Solo pueden abrirlo las personas con las que se compartió."
 #: src/components/ShareModal.jsx
 msgid "Only people who can edit this cluster can change who has access. You can still see who does, above."
 msgstr "Solo quienes pueden editar este clúster pueden cambiar quién tiene acceso. Aun así puedes ver arriba quién lo tiene."
+
+#: src/components/comments/docThreadOps.js
+msgid "Only people who can edit this doc can reply."
+msgstr "Solo quienes pueden editar este documento pueden responder."
+
+#: src/components/comments/docThreadOps.js
+msgid "Only people who can edit this note can reply."
+msgstr "Solo quienes pueden editar esta nota pueden responder."
 
 #: src/components/fileShare/FileShareDialog.jsx
 msgid "Only people you add can open it."
@@ -15149,7 +15354,8 @@ msgctxt "invoice status"
 msgid "Open"
 msgstr "Pendiente"
 
-#: src/components/doc/DocCommentsTab.jsx
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/DocFloatCards.jsx
 msgctxt "status"
 msgid "Open"
 msgstr "Abiertos"
@@ -15272,6 +15478,11 @@ msgstr "Abrir Clusters"
 #: src/auth/PricingSuccess.jsx
 msgid "Open Clusters here"
 msgstr "Abrir Clusters aquí"
+
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/components/comments/FileThreads.jsx
+msgid "Open comments"
+msgstr "Comentarios abiertos"
 
 #: src/components/cards/ScheduleCard.jsx
 msgid "Open day"
@@ -15729,6 +15940,10 @@ msgstr "Propietario"
 msgid "Owner — you can rename it, change the icon, and delete it."
 msgstr "Propietario: puedes cambiarle el nombre y el icono, y eliminarlo."
 
+#: src/components/comments/FileThreads.jsx
+msgid "p. {page}"
+msgstr "pág. {page}"
+
 #: src/components/DocTagGutter.jsx
 msgid "page"
 msgstr "página"
@@ -15758,6 +15973,10 @@ msgstr "Página no encontrada"
 #: src/pages/NotFoundPage.jsx
 msgid "Page not found — Soleil Clusters"
 msgstr "Página no encontrada — Soleil Clusters"
+
+#: src/components/comments/FileThreads.jsx
+msgid "Page on an earlier version"
+msgstr "Página de una versión anterior"
 
 #: src/components/doc/DocBarA.jsx
 msgid "Pageless"
@@ -16084,6 +16303,11 @@ msgstr "Sugerencias pendientes"
 msgid "People"
 msgstr "Personas"
 
+#: src/components/comments/CommentComposer.jsx
+msgctxt "who an @ in a comment offers"
+msgid "People"
+msgstr "Personas"
+
 #: src/components/EntityPicker.jsx
 msgid "PEOPLE"
 msgstr "PERSONAS"
@@ -16284,10 +16508,6 @@ msgstr "Anclar un clúster junto a…"
 msgid "Pin alongside…"
 msgstr "Anclar junto a…"
 
-#: src/components/fileShare/FileComments.jsx
-msgid "Pin to this moment"
-msgstr "Anclar a este momento"
-
 #: src/components/cards/ScheduleRundown.jsx
 msgid "Pin to this time"
 msgstr "Anclar a esta hora"
@@ -16444,16 +16664,6 @@ msgstr "Elige un archivo de imagen."
 msgid "PNG image"
 msgstr "Imagen PNG"
 
-#: src/components/AddCommentFlow.jsx
-#: src/components/CanvasComment.jsx
-#: src/components/InlineComposer.jsx
-msgid "Post"
-msgstr "Publicar"
-
-#: src/components/CanvasComment.jsx
-msgid "Posting…"
-msgstr "Publicando…"
-
 #: src/components/FeedbackButton.jsx
 msgid "Prefer email?"
 msgstr "¿Prefieres el correo?"
@@ -16511,6 +16721,10 @@ msgstr "Pulsa {CLIP_MOD}X para cortar."
 #: src/lib/helpHub.js
 msgid "Press A. Arrows anchor to cards and follow them when you move things."
 msgstr "Pulsa A. Las flechas se anclan a las tarjetas y las siguen cuando mueves cosas."
+
+#: src/components/comments/CanvasCommentsList.jsx
+msgid "Press and hold a card or the canvas to add one."
+msgstr "Mantén pulsada una tarjeta o el lienzo para añadir uno."
 
 #: src/components/CanvasSurface.jsx
 msgid "Press and hold a card to pick it up and move it."
@@ -17332,18 +17546,11 @@ msgstr "Nombre cambiado."
 msgid "Renews"
 msgstr "Se renueva"
 
-#: src/components/CanvasComment.jsx
-#: src/components/CommentInlinePopover.jsx
-#: src/components/doc/DocCommentsTab.jsx
+#: src/components/comments/CommentCard.jsx
 #: src/components/DocCard.jsx
 #: src/components/fileShare/DocShareView.jsx
-#: src/components/fileShare/FileComments.jsx
 msgid "Reopen"
 msgstr "Reabrir"
-
-#: src/components/CanvasComment.jsx
-msgid "Reopen failed: {reason}"
-msgstr "Error al reabrir: {reason}"
 
 #: src/components/cards/CardTransferState.jsx
 #: src/components/cards/GridCellMenu.jsx
@@ -17390,35 +17597,29 @@ msgstr "Reemplazar…"
 msgid "Replaces the selected grid’s layout."
 msgstr "Reemplaza la disposición de la cuadrícula seleccionada."
 
-#: src/components/doc/DocCommentsTab.jsx
-#: src/components/fileShare/FileComments.jsx
 #: src/components/MessageActionSheet.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/MessageMenu.jsx
 msgid "Reply"
 msgstr "Responder"
 
-#: src/components/CanvasComment.jsx
+#: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/docThreadOps.js
+#: src/components/comments/FileThreads.jsx
 msgid "Reply deleted"
 msgstr "Respuesta eliminada"
 
-#: src/components/CanvasComment.jsx
-msgid "Reply failed: {reason}"
-msgstr "Error al responder: {reason}"
+#: src/lib/commentRules.js
+msgid "Reply to reopen…"
+msgstr "Responde para reabrir…"
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Reply to {replyTo}"
-msgstr "Responder a {replyTo}"
-
-#: src/components/CanvasComment.jsx
-#: src/components/CommentInlinePopover.jsx
-#: src/components/fileShare/FileComments.jsx
+#: src/lib/commentRules.js
 msgid "Reply…"
 msgstr "Responder…"
 
-#: src/components/CommentInlinePopover.jsx
-msgid "Reply… (@ to mention)"
-msgstr "Responder… (@ para mencionar)"
+#: src/lib/commentRules.js
+msgid "Reply… @ to mention"
+msgstr "Responder… @ para mencionar"
 
 #: src/components/MessageComposer.jsx
 msgid "Replying to {replyToName}"
@@ -17487,33 +17688,46 @@ msgstr "Cambiar tamaño de Archivos"
 msgid "Resolution"
 msgstr "Resolución"
 
-#: src/components/CanvasComment.jsx
-#: src/components/CommentInlinePopover.jsx
-#: src/components/doc/DocCommentsTab.jsx
-#: src/components/fileShare/FileComments.jsx
+#: src/components/comments/CommentCard.jsx
 msgid "Resolve"
 msgstr "Resolver"
 
-#: src/components/CanvasComment.jsx
 #: src/components/WorkspacePresenceStack.jsx
 msgid "resolved"
 msgstr "resuelto"
 
-#: src/components/doc/DocCommentsTab.jsx
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/DocFloatCards.jsx
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/components/comments/FileThreads.jsx
 msgid "Resolved"
 msgstr "Resueltos"
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Resolved by {resolver}"
-msgstr "Resuelto por {resolver}"
+#: src/components/comments/CommentCard.jsx
+msgctxt "this conversation is resolved"
+msgid "Resolved"
+msgstr "Resuelto"
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Resolved comment by {by}"
-msgstr "Comentario resuelto de {by}"
+#: src/components/comments/CommentCard.jsx
+msgid "Resolved by <0>{resolver}</0>"
+msgstr "Resuelto por <0>{resolver}</0>"
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Resolved comment by {by} on “{quote}”"
-msgstr "Comentario resuelto de {by} sobre “{quote}”"
+#: src/components/comments/CommentCard.jsx
+msgid "Resolved by you"
+msgstr "Resuelto por ti"
+
+#: src/lib/commentAuthor.js
+msgid "Resolved comment"
+msgstr "Comentario resuelto"
+
+#: src/lib/commentAuthor.js
+msgid "Resolved comment by {author}"
+msgstr "Comentario resuelto de {author}"
+
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/components/comments/FileThreads.jsx
+msgid "Resolved comments"
+msgstr "Comentarios resueltos"
 
 #: src/components/info/VersionsSection.jsx
 #: src/components/TrashModal.jsx
@@ -17521,7 +17735,6 @@ msgstr "Comentario resuelto de {by} sobre “{quote}”"
 msgid "Restore"
 msgstr "Restaurar"
 
-#: src/components/CanvasComment.jsx
 #: src/components/CanvasSurface.jsx
 #: src/components/CanvasVoteCard.jsx
 #: src/components/DocPageEditor.jsx
@@ -17693,6 +17906,10 @@ msgstr "Derecha"
 msgid "Right-click a card and choose Tag…, or drag this tag onto something."
 msgstr "Haz clic derecho en una tarjeta y elige Etiquetar…, o arrastra esta etiqueta sobre algo."
 
+#: src/components/comments/CanvasCommentsList.jsx
+msgid "Right-click a card or the canvas to add one."
+msgstr "Haz clic derecho en una tarjeta o en el lienzo para añadir uno."
+
 #: src/components/ShortcutsOverlay.jsx
 msgid "Right-click the canvas or any card for more actions."
 msgstr "Haz clic derecho en el lienzo o en cualquier tarjeta para ver más acciones."
@@ -17782,6 +17999,7 @@ msgstr "Saturación"
 
 #: src/components/AppFeedback.jsx
 #: src/components/CanvasSurface.jsx
+#: src/components/comments/CommentComposer.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/SketchPadOverlay.jsx
 #: src/components/ThumbnailCropModal.jsx
@@ -18329,7 +18547,15 @@ msgstr "Seleccionar archivos"
 msgid "Select items"
 msgstr "Seleccionar elementos"
 
-#: src/components/doc/DocCommentsTab.jsx
+#: src/components/comments/DocFloatCards.jsx
+msgid "Select some words in the note to add one."
+msgstr "Selecciona unas palabras de la nota para añadir uno."
+
+#: src/components/DocSurface.jsx
+msgid "Select some words to comment on"
+msgstr "Selecciona unas palabras para comentarlas"
+
+#: src/components/comments/DocThreadsPanel.jsx
 msgid "Select some words, then Comment"
 msgstr "Selecciona unas palabras y pulsa Comentar"
 
@@ -18374,7 +18600,7 @@ msgstr "Selección"
 msgid "Selection formatting"
 msgstr "Formato de la selección"
 
-#: src/components/CanvasComment.jsx
+#: src/components/comments/CommentComposer.jsx
 #: src/components/FeedbackButton.jsx
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/MessageComposer.jsx
@@ -18382,10 +18608,6 @@ msgstr "Formato de la selección"
 #: src/components/UpgradeReasonAsk.jsx
 msgid "Send"
 msgstr "Enviar"
-
-#: src/components/fileShare/FileComments.jsx
-msgid "Send (⌘↵)"
-msgstr "Enviar (⌘↵)"
 
 #: src/components/setup/InviteStep.jsx
 msgid "Send {count} invites"
@@ -18419,10 +18641,6 @@ msgstr "Enviar invitación"
 #: src/components/team/TeamJoining.jsx
 msgid "Send invites"
 msgstr "Enviar invitaciones"
-
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Send reply"
-msgstr "Enviar respuesta"
 
 #: src/components/CanvasSurface.jsx
 msgid "Send to back"
@@ -18501,6 +18719,15 @@ msgstr "Enviado con:"
 #: src/lib/teamModelWords.js
 msgid "Sent yesterday"
 msgstr "Enviado ayer"
+
+#: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/FileThreads.jsx
+msgid "Sent, but it couldn't be reopened. Try again."
+msgstr "Enviado, pero no se pudo reabrir. Inténtalo de nuevo."
+
+#: src/lib/commentRules.js
+msgid "Sent. Only an editor or the person who started this can reopen it."
+msgstr "Enviado. Solo un editor o quien empezó esta conversación puede reabrirla."
 
 #: src/components/DocTagGutter.jsx
 msgid "sentence"
@@ -18853,10 +19080,6 @@ msgctxt "keyboard key"
 msgid "Shift"
 msgstr "Shift"
 
-#: src/components/InlineComposer.jsx
-msgid "Shift+⏎ for newline · ⏎ to post"
-msgstr "Shift+⏎ para nueva línea · ⏎ para publicar"
-
 #: src/components/LinkHoverCard.jsx
 msgid "shortcut"
 msgstr "acceso directo"
@@ -18888,7 +19111,6 @@ msgid "shot list"
 msgstr "lista de planos"
 
 #: src/App.jsx
-#: src/components/doc/DocCommentsTab.jsx
 #: src/components/ListSurface.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
 #: src/components/team/TeamPeople.jsx
@@ -18908,6 +19130,10 @@ msgstr "Mostrar {name}"
 msgid "Show {shelf}"
 msgstr "Mostrar {shelf}"
 
+#: src/components/comments/CommentCard.jsx
+msgid "Show {title} in the text"
+msgstr "Mostrar {title} en el texto"
+
 #: src/components/film/FilmDock.jsx
 msgid "Show A"
 msgstr "Mostrar A"
@@ -18925,18 +19151,6 @@ msgstr "Mostrar los {count}"
 msgid "Show all {folderCount}"
 msgstr "Mostrar todo ({folderCount})"
 
-#: src/components/CanvasSurface.jsx
-msgid "Show all comments"
-msgstr "Mostrar todos los comentarios"
-
-#: src/components/CanvasSurface.jsx
-msgid "Show all comments (right-click for archive)"
-msgstr "Mostrar todos los comentarios (clic derecho para el archivo)"
-
-#: src/components/CanvasSurface.jsx
-msgid "Show all comments, {visibleCommentCount} showing"
-msgstr "Mostrar todos los comentarios, {visibleCommentCount} visibles"
-
 #: src/components/cards.jsx
 #: src/components/RichNoteEditor.jsx
 msgid "Show all text — fit the note to its content"
@@ -18953,6 +19167,10 @@ msgstr "Mostrar elementos automáticos y manuales"
 #: src/components/film/FilmDock.jsx
 msgid "Show B"
 msgstr "Mostrar B"
+
+#: src/components/comments/CanvasCommentsList.jsx
+msgid "Show comments on the canvas"
+msgstr "Mostrar comentarios en el lienzo"
 
 #: src/components/EntityHoverPopover.jsx
 msgid "Show contents"
@@ -19006,10 +19224,6 @@ msgstr "Mostrar en el clúster"
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "Show in Files"
 msgstr "Mostrar en Archivos"
-
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Show it in the doc"
-msgstr "Mostrarlo en el documento"
 
 #: src/components/CanvasSurface.jsx
 msgid "Show label"
@@ -19500,11 +19714,9 @@ msgstr "alguien"
 #: src/components/cards/CardTransferState.jsx
 #: src/components/clusterBrowser/ClusterRow.jsx
 #: src/components/clusterBrowser/FolderTiles.jsx
-#: src/components/doc/DocCommentsTab.jsx
 #: src/components/doc/DocFrameA.jsx
 #: src/components/DocCard.jsx
 #: src/components/DocPageTree.jsx
-#: src/components/fileShare/FileComments.jsx
 #: src/components/fileShare/FileSharePage.jsx
 #: src/components/MessagesPanel.jsx
 #: src/components/MessageThread.jsx
@@ -20687,6 +20899,14 @@ msgstr "Ese código no coincide. Vuelve a intentarlo o solicita uno nuevo."
 msgid "That code expired. Request a new one."
 msgstr "Ese código caducó. Solicita uno nuevo."
 
+#: src/App.jsx
+#: src/components/CanvasSurface.jsx
+#: src/components/comments/FileThreads.jsx
+#: src/components/comments/NoteCommentsLayer.jsx
+#: src/components/DocSurface.jsx
+msgid "That comment isn't here any more"
+msgstr "Ese comentario ya no está aquí"
+
 #: src/lib/oauthConsentCopy.js
 msgid "That could not be approved"
 msgstr "No se pudo aprobar"
@@ -21246,10 +21466,6 @@ msgstr "La versión que restauraste no tenía la página en la que estabas."
 msgid "The whole handbook is at <0>/docs</0>, also readable as plain Markdown at <1>/docs/*.md</1>."
 msgstr "Todo el manual está en <0>/docs</0>, y también se puede leer como Markdown simple en <1>/docs/*.md</1>."
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "The words it was on are gone"
-msgstr "Las palabras a las que se refería ya no están"
-
 #: src/components/WorkspaceAlertBanner.jsx
 msgid "The workspace owner can rewind this."
 msgstr "El propietario del espacio de trabajo puede retroceder esto."
@@ -21507,14 +21723,6 @@ msgstr "Esta cuenta está suspendida."
 msgid "this address"
 msgstr "esta dirección"
 
-#: src/components/CanvasComment.jsx
-msgid "This also removes all replies.\n"
-"\n"
-"You can undo this right after."
-msgstr "También se eliminan todas las respuestas.\n"
-"\n"
-"Puedes deshacerlo justo después."
-
 #: src/pages/OAuthConsentPage.jsx
 msgid "This app"
 msgstr "Esta app"
@@ -21590,6 +21798,7 @@ msgid "this cluster"
 msgstr "este clúster"
 
 #: src/components/chrome/FloatingChrome.jsx
+#: src/components/comments/CommentAbout.jsx
 #: src/components/ShareModal.jsx
 #: src/components/VersionHistoryModal.jsx
 msgid "This cluster"
@@ -21717,9 +21926,12 @@ msgstr "los archivos de este clúster"
 msgid "This cluster's owner is out of storage — nothing more can be uploaded here until they make room."
 msgstr "El propietario de este clúster se quedó sin almacenamiento: no se puede subir nada más aquí hasta que libere espacio."
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "this comment"
-msgstr "este comentario"
+#: src/components/CommentGutter.jsx
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/components/comments/PinPreview.jsx
+msgid "This comment was deleted."
+msgstr "Este comentario se eliminó."
 
 #: src/lib/oauthTrustWords.js
 msgid "this computer (localhost)"
@@ -22015,6 +22227,10 @@ msgstr "Duración"
 #: src/components/CanvasSurface.jsx
 msgid "Time (m:ss)"
 msgstr "Tiempo (m:ss)"
+
+#: src/components/comments/FileThreads.jsx
+msgid "Time on an earlier version"
+msgstr "Tiempo de una versión anterior"
 
 #: src/components/film/FilmTimeline.jsx
 msgid "Timeline"
@@ -22446,14 +22662,6 @@ msgstr "Deshacer cambio del boceto"
 msgid "Ungroup"
 msgstr "Desagrupar"
 
-#: src/components/CanvasComment.jsx
-msgid "Unhide"
-msgstr "Mostrar"
-
-#: src/components/CanvasComment.jsx
-msgid "Unhide failed: {reason}"
-msgstr "Error al mostrar: {reason}"
-
 #: src/App.jsx
 msgid "unknown error"
 msgstr "error desconocido"
@@ -22553,17 +22761,16 @@ msgstr "Sin pagar"
 msgid "Unpin"
 msgstr "Desanclar"
 
-#: src/components/fileShare/FileComments.jsx
-msgid "Unpin from this moment"
-msgstr "Desanclar de este momento"
-
 #: src/components/EntityBacklinksPanel.jsx
 msgid "Unpin from top"
 msgstr "Desanclar de arriba"
 
-#: src/components/CanvasComment.jsx
-msgid "Unread reply"
-msgstr "Respuesta sin leer"
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/CommentRow.jsx
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/components/doc/DocFrameA.jsx
+msgid "Unread"
+msgstr "No leído"
 
 #: src/components/home/ClustersHome.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
@@ -22714,10 +22921,6 @@ msgstr "Hasta {rewards} recompensas en cualquier período de 30 días; las que p
 #: src/lib/billingCopyWords.js
 msgid "Up to {WORKSPACE_LIMIT} of your own on Free and {planName}. Workspaces that belong to a team don't count, and Team has no limit."
 msgstr "Hasta {WORKSPACE_LIMIT} propios en Gratis y en {planName}. Los espacios de trabajo que pertenecen a un equipo no cuentan, y Team no tiene límite."
-
-#: src/components/CanvasComment.jsx
-msgid "Update failed: {reason}"
-msgstr "Error al actualizar: {reason}"
 
 #: src/components/team/TeamPage.jsx
 msgid "Update the card"
@@ -23125,7 +23328,6 @@ msgid "View full size"
 msgstr "Ver a tamaño completo"
 
 #: src/App.jsx
-#: src/components/CommentInlinePopover.jsx
 #: src/components/doc/DocFrameA.jsx
 #: src/components/shared/SharedPage.jsx
 #: src/components/SidebarSharedBoards.jsx
@@ -23637,6 +23839,11 @@ msgstr "donde estaban"
 msgid "Where you are"
 msgstr "Dónde estás"
 
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/DocFloatCards.jsx
+msgid "Which comments"
+msgstr "Qué comentarios"
+
 #: src/components/settings/NotificationsTab.jsx
 msgid "Which emails Clusters should send you. Anything you don't toggle on still shows up in-app."
 msgstr "Qué correos debe enviarte Clusters. Lo que no actives sigue apareciendo en la app."
@@ -23909,7 +24116,6 @@ msgstr "Sí"
 msgid "Yes. On {planName}, add {block} at a time, up to {max} more: {monthly} on the monthly plan or {annual} on the annual one, from Settings → Plan & billing, on the card you already pay with. The first charge covers only the rest of your billing period, and while your plan is active you can remove a block again, as long as your files still fit."
 msgstr "Sí. En {planName}, añade {block} cada vez, hasta {max} más: {monthly} en el plan mensual o {annual} en el anual, desde Configuración → Plan y facturación, en la tarjeta con la que ya pagas. El primer cobro cubre solo el resto de tu período de facturación, y mientras tu plan esté activo puedes quitar un bloque de nuevo, siempre que tus archivos sigan cabiendo."
 
-#: src/components/doc/DocCommentsTab.jsx
 #: src/components/TrashModal.jsx
 #: src/components/VersionHistoryModal.jsx
 msgid "yesterday"
@@ -23920,10 +24126,6 @@ msgstr "ayer"
 msgid "Yesterday"
 msgstr "Ayer"
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "you"
-msgstr "tú"
-
 #: src/components/team/TeamWorkspaces.jsx
 msgctxt "who a workspace moves to"
 msgid "you"
@@ -23931,7 +24133,7 @@ msgstr "ti"
 
 #: src/App.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
-#: src/components/doc/DocCommentsTab.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 #: src/components/info/VersionsSection.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/MessagePinsPopover.jsx
@@ -24093,10 +24295,6 @@ msgstr "Tienes {n} propios; el máximo fuera de un equipo es {WORKSPACE_LIMIT}."
 #: src/lib/workspaceLimitCopy.js
 msgid "You have {WORKSPACE_LIMIT} of your own, the most outside a team."
 msgstr "Tienes {WORKSPACE_LIMIT} propios, el máximo fuera de un equipo."
-
-#: src/components/CommentInlinePopover.jsx
-msgid "You have an unsent reply on this comment."
-msgstr "Tienes una respuesta sin enviar en este comentario."
 
 #: src/components/team/TeamSetup.jsx
 msgid "You have no personal workspaces to move in. The team starts empty, and you can make team workspaces in it."
@@ -24439,6 +24637,10 @@ msgstr "No se pudieron abrir tus clústeres en este momento. No se ha perdido na
 msgid "Your clusters live here"
 msgstr "Tus clústeres viven aquí"
 
+#: src/lib/commentAuthor.js
+msgid "Your comment"
+msgstr "Tu comentario"
+
 #: src/components/team/TeamDomainNote.jsx
 msgid "Your company’s team"
 msgstr "El equipo de tu empresa"
@@ -24630,6 +24832,10 @@ msgstr "Tu plan está configurado para terminar. Reanúdalo en Administrar factu
 msgid "Your plan today"
 msgstr "Tu plan hoy"
 
+#: src/lib/commentAuthor.js
+msgid "Your resolved comment"
+msgstr "Tu comentario resuelto"
+
 #: src/components/settings/ConnectionsTab.jsx
 msgid "Your Scout connect code"
 msgstr "Tu código de conexión de Scout"
@@ -24681,6 +24887,10 @@ msgstr "Tu prueba está empezando: hoy no se cobró nada. Activando tu cuenta…
 #: src/lib/importCopy.js
 msgid "Your trial’s {TRIAL_STORAGE_LABEL} drive is full. Your first payment makes it {CREATOR_STORAGE_LABEL}; drop the {thing, select, zip {zip} zips {zips} folder {folder} folders {folders} other {folder}} again then to bring the rest."
 msgstr "La unidad de {TRIAL_STORAGE_LABEL} de tu prueba está llena. Tu primer pago la convierte en {CREATOR_STORAGE_LABEL}; entonces vuelve a soltar {thing, select, zip {el zip} zips {los zips} folder {la carpeta} folders {las carpetas} other {la carpeta}} para traer el resto."
+
+#: src/components/comments/CanvasCommentPins.jsx
+msgid "Your unsent comment. Open it"
+msgstr "Tu comentario sin enviar. Ábrelo"
 
 #: src/components/PricingModal.jsx
 msgid "Your work outgrew the demo."

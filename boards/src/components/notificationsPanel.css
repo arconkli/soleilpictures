@@ -144,6 +144,10 @@ body[data-doc-overlay='1'] .ntf-shell { z-index: 2147483602; }
   color: var(--ink-2);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
+/* a comment's words: one line, then how many more the row stands for */
+.ntf-row-body.is-line { display: block; white-space: nowrap; text-overflow: ellipsis; }
+.ntf-row-more { font: 500 11px/1.4 var(--font-sans); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.ntf-shell .ntf-row > .ntf-av { margin-top: -2px; }
 .ntf-row-ago {
   flex: none;
   font: 400 11px/18px var(--font-sans);
@@ -180,6 +184,7 @@ body[data-doc-overlay='1'] .ntf-shell.is-sheet { z-index: 2147483602; }
 .ntf-shell.is-sheet .ntf-row-title { font-size: 15px; }
 .ntf-shell.is-sheet .ntf-row-body { font-size: 13px; }
 .ntf-shell.is-sheet .ntf-row-ago { font-size: 12px; line-height: 21px; }
+.ntf-shell.is-sheet .ntf-row-more { font-size: 12px; }
 
 /* ── An ask to edit (0830) ────────────────────────────────────────────────── */
 /* The row carries its own buttons: the asker's initial, the title, then

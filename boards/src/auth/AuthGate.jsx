@@ -37,7 +37,7 @@ import { useOptionalFeedback } from '../components/AppFeedback.jsx';
 import { WSJOIN_PARAM, parseWsJoinParam, stashWsJoin, readWsJoin, clearWsJoin, markJoined } from '../lib/workspaceLink.js';
 import { onPreviewHost, workspaceSetupAllowed, teamsAllowed } from '../lib/appHost.js';
 import { readSetupOverride, setupMayOpenFirst } from '../lib/setupRule.js';
-import { parseShareReturn, stashShareReturn, readShareReturn, clearShareReturn, shareReturnHref, parseFileReturn, stashFileReturn, readFileReturn, clearFileReturn, fileReturnHref } from '../lib/shareReturn.js';
+import { parseShareReturn, stashShareReturn, readShareReturn, clearShareReturn, shareReturnHref, parseFileReturn, parseFileReturnComment, stashFileReturn, readFileReturn, readFileReturnComment, clearFileReturn, fileReturnHref } from '../lib/shareReturn.js';
 import { readScoutPhone, clearScoutPhone } from '../lib/scoutClaim.js';
 import { readCreatorIntent } from '../lib/creatorIntent.js';
 import { intentLabels } from '../lib/creatorIntentWords.js';
@@ -50,6 +50,7 @@ import { usesPassword } from '../lib/passwordSignIn.js';
 import { passkeysMayWork } from '../lib/passkeyGate.js';
 import { mailboxFor, isConsumerAddress } from '../lib/mailboxLink.js';
 import { lpCtaClick } from '../hooks/useLandingEngagement.js';
+import { emailCommentKeys } from '../lib/commentLink.js';
 import { LoadingScreen } from '../components/LoadingScreen.jsx';
 import { SoleilWordmark } from '../components/SoleilWordmark.jsx';
 import { SignInBackdrop } from './SignInBackdrop.jsx';
@@ -135,8 +136,13 @@ function consumeDeepLink(userId) {
       localStorage.setItem(boardKey, JSON.stringify({ ...existing, stack: [boardId] }));
     }
   } catch (_) {}
+  // An email's link to one comment (?w=&b=&comment=, and &card= for a doc's
+  // or a note's thread): the cluster stays in the address as ?board=, which
+  // App.jsx's comment link reads once the clusters are in.
+  const comment = emailCommentKeys(url.searchParams);
   url.searchParams.delete('w');
   url.searchParams.delete('b');
+  if (comment) url.searchParams.set('board', comment.board);
   window.history.replaceState({}, document.title, url.pathname + url.search);
 }
 
@@ -246,17 +252,19 @@ function captureFileReturn() {
   const url = new URL(window.location.href);
   const token = parseFileReturn(url);
   if (!token) return;
-  stashFileReturn(token);
+  stashFileReturn(token, undefined, parseFileReturnComment(url));
   url.searchParams.delete('back');
+  url.searchParams.delete('comment');
   window.history.replaceState({}, document.title, url.pathname + url.search);
 }
 
 function consumeFileReturn() {
   const token = readFileReturn();
   if (!token) return false;
+  const commentId = readFileReturnComment();
   clearFileReturn();
   try { logEventNow(EV.FILE_SHARE_RETURN_LANDED); } catch (_) {}
-  window.location.replace(fileReturnHref(token));
+  window.location.replace(fileReturnHref(token, commentId));
   return true;
 }
 

@@ -261,93 +261,16 @@
 [data-theme='light'] .dl-cnt { background: #e4e4e8; }
 .dl-panel-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 16px; }
 
-/* ── The panel's Comments (AC-comments): a card a thread, in the doc's
-   order ── */
-/* Its cards say where every thread is: the margin's dots step aside. */
+/* ── The panel's Comments: the shared comment parts
+   (components/comments/DocThreadsPanel.jsx, commentsLook.css) ── */
+/* Its rows say where every thread is: the margin's dots step aside. */
 .dl-surface.has-panel-comments .comment-gutter { display: none; }
-.dl-cmts-f { padding: 12px 14px 6px; }
-.dl-ths { list-style: none; margin: 0; padding: 0; }
-.dl-th {
-  margin: 6px 10px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--bg-2);
-  box-shadow: inset 0 0 0 1px var(--line-1);
-  cursor: pointer;
-}
-[data-theme='light'] .dl-th { background: #fff; }
-.dl-th.is-on { background: var(--bg-3); box-shadow: inset 0 0 0 1px var(--line-3); }
-[data-theme='light'] .dl-th.is-on { background: #fff; box-shadow: inset 0 0 0 1px rgba(10, 10, 12, .2); }
-.dl-th.is-res { opacity: .72; }
-.dl-th.is-res:is(.is-on, :hover, :focus-within) { opacity: 1; }
-/* The words it's on, in the page's face: a button to go to them. */
-.dl-th-q {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-  width: 100%;
-  margin: 0 0 8px;
-  padding: 0;
-  border: 0;
-  background: none;
-  text-align: left;
-  font: italic 400 13px/1.4 var(--doc-body-font, Georgia, serif);
-  color: var(--ink-2);
-  cursor: pointer;
-}
-.dl-th-q.is-gone { cursor: inherit; color: var(--ink-3); }
-.dl-th-q:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; border-radius: 4px; }
-.dl-cm { display: flex; gap: 9px; margin-top: 8px; }
-.dl-th-q + .dl-cm { margin-top: 0; }
-.dl-face {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  font: 700 10px/1 var(--font-sans);
-  color: #0a0a0c;
-}
-.dl-cm-b { flex: 1 1 auto; min-width: 0; }
-.dl-cm-h { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; color: var(--ink-2); }
-.dl-cm-h b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--ink-0); }
-.dl-cm-h time { flex-shrink: 0; }
-.dl-cm-t { margin-top: 1px; text-align: start; font-size: 13px; line-height: 1.45; color: var(--ink-1); white-space: pre-wrap; overflow-wrap: anywhere; }
-.dl-th-a { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
-.dl-th-by { flex: 1 1 auto; min-width: 0; font-size: 12px; color: var(--ink-2); }
-.dl-reply { position: relative; flex: 1 1 auto; min-width: 0; }
-.dl-reply input {
-  box-sizing: border-box;
-  width: 100%;
-  height: 28px;
-  padding: 0 30px 0 10px;
-  border: 0;
-  border-radius: 7px;
-  background: var(--bg-1);
-  box-shadow: inset 0 0 0 1px var(--line-2);
-  font: 400 12.5px/1 var(--font-sans);
-  color: var(--ink-0);
-}
-[data-theme='light'] .dl-reply input { background: #f7f7f9; }
-.dl-reply input::placeholder { color: var(--ink-3); }
-.dl-reply input:focus { outline: none; box-shadow: inset 0 0 0 1px var(--line-3), 0 0 0 2px rgba(255, 165, 0, .35); }
-.dl-reply-send {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border: 0;
-  border-radius: 6px;
-  background: var(--ink-0);
-  color: var(--bg-1);
-  cursor: pointer;
-}
-.dl-reply-send:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.dl-cmts { padding-top: 6px; }
+/* The header's Comments button: how many are open, and an ink dot when one
+   holds something unread. */
+.dl-cmtbtn { position: relative; width: auto; min-width: var(--tl-bs, 30px); padding: 0 6px; gap: 4px; }
+.dl-cmtbtn .dl-dot { top: 2px; right: 2px; }
+.dl-new { display: inline-block; width: 6px; height: 6px; margin-left: 5px; border-radius: 50%; background: var(--ink-0); vertical-align: middle; }
 .dl-mini {
   display: inline-flex;
   align-items: center;
@@ -364,35 +287,10 @@
   white-space: nowrap;
   cursor: pointer;
 }
-[data-theme='light'] .dl-th .dl-mini { background: #f7f7f9; }
 @media (hover: hover) {
   .dl-mini:hover { color: var(--ink-0); background: var(--tl-hov); }
-  .dl-th-del:hover { color: var(--ink-0); background: var(--tl-hov); }
 }
 .dl-mini:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
-/* On the first line, at its end; its margins keep the line as tall as
-   the name. */
-.dl-th-del {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  align-self: center;
-  width: 24px;
-  height: 24px;
-  margin: -5px -6px -5px auto;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--ink-2);
-  cursor: pointer;
-  opacity: 0;
-}
-.dl-th:is(:hover, :focus-within, .is-on) .dl-th-del,
-.dl-th-del:focus-visible { opacity: 1; }
-.dl-th-del:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
-.dl-cmts-none { padding: 28px 22px; text-align: center; font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
-.dl-cmts-none p { margin: 0 0 8px; }
-.dl-cmts-none-t { font-size: 13px; color: var(--ink-1); }
 
 /* ── Find (AC-find): the search and its replacement, where to look and how,
    Replace and Replace all, then the hits page by page, which scroll under
@@ -749,16 +647,6 @@ button.dl-drow { cursor: pointer; }
   .dl-seg > button { height: 40px; font-size: 13.5px; }
   .dl-seg.is-sm > button { height: 40px; font-size: 13px; }
   .dl-mini { height: 40px; padding: 0 12px; font-size: 13px; }
-  .dl-reply input { height: 40px; padding-right: 44px; font-size: 16px; }
-  /* 40px to tap; its square, 28px, drawn in the middle. */
-  .dl-reply-send { top: 0; right: 0; width: 40px; height: 40px; padding: 6px; border-radius: 12px; background-clip: content-box; }
-  /* A finger has no keys: the hint doesn't show them. */
-  .dl-cmts-none .tl-keys { display: none; }
-  .dl-th-del { position: relative; z-index: 1; width: 40px; height: 40px; margin: -13px -12px -13px auto; opacity: 1; }
-  /* The quote takes a finger: out to the card's top edge and over the gap
-     under it (a tap anywhere on the card does what the quote does), under
-     Delete's reach. */
-  .dl-th-q { position: relative; padding: 10px 0; margin: -10px 0 -2px; }
   .dl-field { height: 40px; }
   /* Under 16px iOS zooms the page in on focus. */
   .dl-field input { font-size: 16px; }

@@ -1,0 +1,371 @@
+/* The one look for comments, wherever they are: on the canvas, beside a doc
+   or a note, on a shared file. Every class starts with cmt-. Colours come
+   from the app's tokens; gold (--soleil) marks only focus and the picked row.
+
+   This file arrives with the comment parts (commentPartsLazy.jsx). A person's
+   face (.cmt-face) and the two tokens the pins share, --cmt-line and
+   --cmt-onface, are in commentPins.css, which every page already has.
+
+   The glass values match the files sidebar's (--sbf-*, clusterSidebar.css),
+   which are scoped to that sidebar, so they are named again here. */
+:root {
+  --cmt-glass: color-mix(in oklab, var(--bg-1) 88%, transparent);
+  --cmt-solid: color-mix(in oklab, var(--bg-1) 96%, transparent);
+  --cmt-edge: 0 1px 1px rgba(0, 0, 0, .28);
+  --cmt-float: 0 18px 48px rgba(0, 0, 0, .28);
+  --cmt-tipfloat: 0 8px 20px rgba(0, 0, 0, .3);
+  --cmt-hover: color-mix(in srgb, var(--ink-0) 8%, transparent);
+  --cmt-blur: blur(14px) saturate(1.2);
+  --cmt-scrim: rgba(0, 0, 0, .45);
+  --cmt-sheetfloat: 0 -10px 40px rgba(0, 0, 0, .35);
+}
+[data-theme='light'] {
+  --cmt-glass: color-mix(in oklab, #fcfcfd 88%, transparent);
+  --cmt-solid: color-mix(in oklab, #fcfcfd 96%, transparent);
+  --cmt-edge: 0 1px 1px rgba(10, 10, 12, .06);
+  --cmt-float: 0 18px 40px rgba(10, 10, 12, .10);
+  --cmt-tipfloat: 0 8px 20px rgba(10, 10, 12, .12);
+  --cmt-hover: color-mix(in srgb, var(--ink-0) 6%, transparent);
+  --cmt-scrim: rgba(0, 0, 0, .28);
+  --cmt-sheetfloat: 0 -10px 40px rgba(10, 10, 12, .14);
+}
+/* The dark room (a shared file's page): dark whatever the theme. Its own
+   tokens (--fsp-*, fileShare.css) are used where it has them; the value
+   after each is for a layer drawn outside the room (a menu on the page). */
+.cmt-dark {
+  color-scheme: dark;
+  --ink-0: var(--fsp-ink-0, #f5f5f7); --ink-1: var(--fsp-ink-1, #c7c7cc); --ink-2: var(--fsp-ink-2, #8e8e93); --ink-3: #6c6c72;
+  --bg-0: var(--fsp-bg, #0b0b0d); --bg-1: var(--fsp-panel, #111114); --bg-hov: #1a1a1e; --bg-act: #232328;
+  --line-1: var(--fsp-line, rgba(255, 255, 255, .08)); --line-2: var(--fsp-line-2, rgba(255, 255, 255, .14)); --line-3: rgba(255, 255, 255, .22);
+  --danger: var(--fsp-danger, #ff8a80); --ink-error: var(--fsp-danger, #ff8a80);
+  --cmt-glass: var(--fsp-raise, #1b1b1f);
+  --cmt-solid: var(--fsp-raise, #1b1b1f);
+  --cmt-line: var(--line-1);
+  --cmt-edge: 0 1px 1px rgba(0, 0, 0, .28);
+  --cmt-float: 0 18px 48px rgba(0, 0, 0, .28);
+  --cmt-tipfloat: 0 8px 20px rgba(0, 0, 0, .3);
+  --cmt-hover: var(--fsp-hover, rgba(255, 255, 255, .08));
+}
+
+/* ---- the roots --------------------------------------------------------- */
+/* A card, and a row or a box used on its own outside one, each carry the
+   sizes and the type: a part never depends on a card being around it. A row
+   or a box inside a card takes the card's (a sheet's are larger). */
+.cmt-card,
+.cmt-row:not(.cmt-card *),
+.cmt-composer:not(.cmt-card *, .cmt-row *) {
+  box-sizing: border-box;
+  color: var(--ink-1);
+  font: 400 13px/1.45 var(--font-sans);
+  text-align: left;
+  --cmt-ib: 28px;
+  --cmt-send: 28px;
+  --cmt-text: 13.5px;
+  --cmt-input: 13.5px;
+  --cmt-scrollmax: 380px;
+}
+.cmt-card *, .cmt-row *, .cmt-composer *, .cmt-pop * { box-sizing: border-box; }
+
+/* ---- the card ---------------------------------------------------------- */
+.cmt-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  outline: none;
+}
+.cmt-card--float {
+  width: 320px;
+  max-width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--cmt-glass);
+  -webkit-backdrop-filter: var(--cmt-blur);
+  backdrop-filter: var(--cmt-blur);
+  box-shadow: inset 0 0 0 1px var(--cmt-line), var(--cmt-edge), var(--cmt-float);
+}
+.cmt-card--panel, .cmt-card--dark { width: auto; background: none; }
+.cmt-card--sheet {
+  width: 100%;
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+  background: var(--cmt-solid);
+  -webkit-backdrop-filter: var(--cmt-blur);
+  backdrop-filter: var(--cmt-blur);
+  box-shadow: inset 0 1px 0 var(--cmt-line), var(--cmt-sheetfloat);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  --cmt-ib: 40px;
+  --cmt-send: 34px;
+  --cmt-text: 15px;
+  --cmt-input: 16px;
+  --cmt-scrollmax: 46vh;
+}
+/* Lifted onto the keyboard (the host's is-lifted): the home bar is under the
+   keyboard, so no room is kept for it. On the screen's floor the room stays. */
+.cmt-sheet-host.is-lifted .cmt-card--sheet,
+.cmt-sheet-host.is-lifted .cmt-list.cmt-list--insheet { padding-bottom: 0; }
+.cmt-grab { flex: none; width: 36px; height: 5px; margin: 8px auto 4px; border-radius: 3px; background: var(--line-3); }
+
+.cmt-head { flex: none; display: flex; align-items: center; gap: 4px; height: 40px; padding: 0 6px 0 12px; }
+.cmt-card--sheet .cmt-head { height: 48px; padding: 0 8px 0 12px; }
+.cmt-card--panel .cmt-head, .cmt-card--dark .cmt-head { height: auto; min-height: 28px; padding: 0 4px 2px 12px; }
+.cmt-where { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 12px; }
+.cmt-thumb { flex: none; width: 20px; height: 20px; border-radius: 4px; overflow: hidden; background: var(--bg-act); display: grid; place-items: center; color: var(--ink-3); }
+.cmt-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cmt-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmt-title--go {
+  margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left;
+  align-self: stretch; cursor: pointer; border-radius: 4px;
+}
+.cmt-title--go:hover { color: var(--ink-0); }
+.cmt-title--go:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.cmt-headx { flex: 0 1 auto; display: flex; align-items: center; gap: 6px; min-width: 0; }
+
+/* icon buttons: header, row actions */
+.cmt-ib {
+  flex: none; position: relative;
+  display: grid; place-items: center;
+  width: var(--cmt-ib, 28px); height: var(--cmt-ib, 28px);
+  margin: 0; padding: 0; border: 0; border-radius: 7px;
+  background: none; color: var(--ink-2);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background-color .12s, color .12s;
+}
+.cmt-ib:hover, .cmt-ib[aria-expanded='true'] { background: var(--cmt-hover); color: var(--ink-0); }
+.cmt-ib:disabled { cursor: default; opacity: .6; }
+.cmt-when:focus-visible, .cmt-ib:focus-visible, .cmt-btn:focus-visible, .cmt-send:focus-visible, .cmt-go:focus-visible, .cmt-mi:focus-visible {
+  outline: 2px solid var(--soleil); outline-offset: 1px;
+}
+.cmt-spin { animation: cmt-spin .8s linear infinite; }
+@keyframes cmt-spin { to { transform: rotate(360deg); } }
+
+/* ---- rows -------------------------------------------------------------- */
+.cmt-scroll { flex: 0 1 auto; min-height: 0; max-height: var(--cmt-scrollmax, 380px); overflow-y: auto; overscroll-behavior: contain; padding: 0 12px 4px; }
+.cmt-row { position: relative; display: grid; grid-template-columns: 24px minmax(0, 1fr); column-gap: 10px; padding: 6px 0 10px; }
+.cmt-card--sheet .cmt-row { padding: 8px 0 12px; }
+.cmt-row.is-pending { opacity: .6; }
+.cmt-meta { grid-column: 2; min-width: 0; display: flex; align-items: baseline; gap: 6px; line-height: 24px; }
+.cmt-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-0); font-weight: 600; font-size: 13px; }
+.cmt-card--sheet .cmt-who { font-size: 14px; }
+.cmt-when, .cmt-ed { flex: none; color: var(--ink-3); font-size: 12px; white-space: nowrap; }
+.cmt-when { cursor: default; border-radius: 4px; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.cmt-new { flex: none; align-self: center; width: 6px; height: 6px; border-radius: 50%; background: var(--ink-0); }
+.cmt-text { grid-column: 2; min-width: 0; margin: 0; color: var(--ink-1); font-size: var(--cmt-text, 13.5px); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cmt-at { color: var(--ink-0); font-weight: 600; background: color-mix(in srgb, var(--ink-0) 9%, transparent); border-radius: 4px; padding: 0 3px; }
+.cmt-gone { grid-column: 2; align-self: center; color: var(--ink-3); font-size: 13px; line-height: 24px; }
+.cmt-rowextra { grid-column: 2; min-width: 0; }
+.cmt-state { grid-column: 2; color: var(--ink-3); font-size: 12px; }
+.cmt-state.is-failed { color: var(--ink-error); }
+
+.cmt-rowacts {
+  position: absolute; right: -4px; top: 2px;
+  display: flex; padding: 2px; border-radius: 8px;
+  background: var(--cmt-solid);
+  box-shadow: inset 0 0 0 1px var(--cmt-line);
+  opacity: 0; pointer-events: none;
+  transition: opacity .12s;
+}
+.cmt-rowacts .cmt-ib { width: 24px; height: 24px; border-radius: 6px; }
+.cmt-row:hover .cmt-rowacts, .cmt-row:focus-within .cmt-rowacts, .cmt-rowacts.is-open { opacity: 1; pointer-events: auto; }
+
+.cmt-editbtns { grid-column: 2; display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+.cmt-btn {
+  height: 26px; margin: 0; padding: 0 10px; border: 0; border-radius: 7px;
+  background: var(--cmt-hover); color: var(--ink-1);
+  font: 600 12px/1 var(--font-sans); cursor: pointer; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.cmt-btn:hover { color: var(--ink-0); }
+.cmt-btn--ink { padding: 0 12px; border-radius: 8px; background: var(--ink-0); color: var(--bg-0); }
+.cmt-btn--ink:hover { color: var(--bg-0); }
+.cmt-btn:disabled { opacity: .45; cursor: default; }
+
+/* ---- the box you write in ---------------------------------------------- */
+.cmt-composer { min-width: 0; }
+.cmt-foot { flex: none; padding: 0 8px 8px; }
+.cmt-row .cmt-composer { grid-column: 2; margin-top: 2px; }
+.cmt-box {
+  display: flex; align-items: flex-end; gap: 6px;
+  padding: 7px 6px 7px 12px; border-radius: 10px;
+  background: var(--cmt-hover);
+  cursor: text;
+  transition: background-color .12s, box-shadow .12s;
+}
+.cmt-box:focus-within, .cmt-box.is-focus {
+  background: color-mix(in srgb, var(--ink-0) 5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--soleil) 60%, transparent);
+}
+.cmt-box.is-edit { padding: 7px 12px; }
+.cmt-input {
+  flex: 1; min-width: 0; display: block; resize: none;
+  min-height: 20px; margin: 0; padding: 3px 0; border: 0; outline: none; background: none;
+  color: var(--ink-0); caret-color: var(--soleil);
+  font: 400 var(--cmt-input, 13.5px)/1.5 var(--font-sans);
+  overflow-y: auto; overflow-wrap: anywhere;
+}
+.cmt-composer .cmt-input:focus, .cmt-composer .cmt-input:focus-visible { outline: none; box-shadow: none; }
+.cmt-input::placeholder { color: var(--ink-3); opacity: 1; }
+.cmt-send {
+  flex: none; position: relative; display: grid; place-items: center;
+  width: var(--cmt-send, 28px); height: var(--cmt-send, 28px);
+  margin: 0; padding: 0; border: 0; border-radius: 50%;
+  background: none; color: var(--ink-3);
+  cursor: default; -webkit-tap-highlight-color: transparent;
+  transition: background-color .12s, color .12s;
+}
+.cmt-send.is-ready { background: var(--ink-0); color: var(--bg-0); cursor: pointer; }
+.cmt-err { margin: 6px 4px 0; color: var(--ink-error); font-size: 12px; }
+.cmt-left { margin: 4px 4px 0; color: var(--ink-3); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+.cmt-confirm { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 6px 0 0; padding: 0 0 0 4px; color: var(--ink-1); font-size: 12px; }
+.cmt-confirm span { flex: 1; min-width: 0; }
+
+/* ---- resolved ---------------------------------------------------------- */
+.cmt-resolved {
+  flex: none; display: flex; align-items: center; gap: 8px;
+  margin: 0 8px 4px; padding: 7px 8px 7px 10px; border-radius: 9px;
+  background: var(--cmt-hover); color: var(--ink-2); font-size: 12px;
+}
+.cmt-resolved > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmt-resolved b { color: var(--ink-1); font-weight: 600; }
+.cmt-resolved .cmt-when { color: inherit; }
+.cmt-go { flex: none; margin: 0 0 0 auto; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--ink-0); font: 600 12px/1.45 var(--font-sans); cursor: pointer; }
+.cmt-go:disabled { opacity: .5; cursor: default; }
+
+/* ---- things that float over the card (drawn on the page, not inside it) -- */
+/* The app's top popover layer (.size-combo-pop.is-portaled, .cp-pop in
+   styles.css): over the full-screen doc and the shared-file overlay. */
+.cmt-pop { position: fixed; z-index: 2147483647; box-sizing: border-box; color: var(--ink-1); font: 400 13px/1.45 var(--font-sans); text-align: left; }
+.cmt-menu, .cmt-picker {
+  display: flex; flex-direction: column; gap: 1px; padding: 4px; border-radius: 10px;
+  background: var(--cmt-glass);
+  -webkit-backdrop-filter: var(--cmt-blur);
+  backdrop-filter: var(--cmt-blur);
+  box-shadow: inset 0 0 0 1px var(--cmt-line), var(--cmt-edge), var(--cmt-float);
+}
+.cmt-menu { min-width: 184px; }
+.cmt-mi {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  margin: 0; padding: 7px 10px; border: 0; border-radius: 7px;
+  background: none; color: var(--ink-1); font: 400 13px/1.45 var(--font-sans); text-align: left;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.cmt-mi:hover, .cmt-mi:focus { background: var(--bg-hov); color: var(--ink-0); outline: none; }
+.cmt-mi.is-danger, .cmt-mi.is-danger:hover, .cmt-mi.is-danger:focus { color: var(--danger); }
+.cmt-msep { height: 1px; margin: 4px 6px; background: var(--line-1); }
+.cmt-picker { width: 240px; max-width: calc(100vw - 16px); }
+.cmt-pick {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 8px; border-radius: 7px;
+  color: var(--ink-1); font-size: 13px; cursor: pointer;
+}
+.cmt-pick.is-on { background: var(--bg-act); color: var(--ink-0); box-shadow: inset 2px 0 0 var(--soleil); } /* selection: gold per the approved mockup */
+.cmt-pick-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmt-pick-role { flex: none; color: var(--ink-3); font-size: 12px; }
+.cmt-tip {
+  padding: 5px 9px; border-radius: 8px;
+  color: var(--ink-0); font-size: 12px; white-space: nowrap; pointer-events: none;
+  background: var(--cmt-solid);
+  -webkit-backdrop-filter: var(--cmt-blur);
+  backdrop-filter: var(--cmt-blur);
+  box-shadow: inset 0 0 0 1px var(--cmt-line), var(--cmt-edge), var(--cmt-tipfloat);
+}
+
+/* ---- fingers: 44px to press, 16px to type (no zoom on focus) ------------ */
+@media (pointer: coarse) {
+  .cmt-card,
+  .cmt-row:not(.cmt-card *),
+  .cmt-composer:not(.cmt-card *, .cmt-row *) { --cmt-ib: 44px; --cmt-send: 34px; --cmt-input: 16px; }
+  .cmt-card .cmt-head { height: 48px; padding-right: 2px; }
+  .cmt-card--panel .cmt-head, .cmt-card--dark .cmt-head { height: auto; min-height: 44px; }
+  .cmt-send::before, .cmt-go::before { content: ''; position: absolute; inset: 50% auto auto 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+  .cmt-go { position: relative; }
+  /* no hover under a finger: the row's menu is always there, on its top line */
+  .cmt-rowacts { opacity: 1; pointer-events: auto; right: -10px; top: -4px; padding: 0; background: none; box-shadow: none; }
+  .cmt-rowacts .cmt-ib { width: 44px; height: 44px; }
+  .cmt-rowacts .cmt-ib--edit { display: none; }
+  .cmt-row .cmt-meta { padding-right: 30px; }
+  .cmt-btn { height: 44px; padding: 0 16px; font-size: 14px; }
+  .cmt-mi { min-height: 44px; font-size: 15px; }
+  .cmt-pick { min-height: 44px; font-size: 15px; }
+  .cmt-menu { min-width: 208px; }
+  /* the box is the same height; more of it is the field a finger lands on */
+  .cmt-box { padding-top: 2px; padding-bottom: 2px; }
+  .cmt-input { min-height: 40px; padding: 8px 0; }
+  .cmt-send { margin-bottom: 3px; }
+  .cmt-title--go { flex: 1; min-height: 44px; }
+}
+@media (max-width: 640px) {
+  .cmt-card,
+  .cmt-row:not(.cmt-card *),
+  .cmt-composer:not(.cmt-card *, .cmt-row *) { --cmt-input: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cmt-ib, .cmt-box, .cmt-send, .cmt-rowacts { transition: none; }
+  .cmt-spin { animation-duration: 2.4s; }
+}
+
+/* ---- a doc's panel and a note's card ----------------------------------- */
+.cmt-readonly { flex: none; margin: 0; padding: 6px 14px 12px; color: var(--ink-3); font-size: 12px; line-height: 1.45; }
+.cmt-panel { display: flex; flex-direction: column; min-height: 0; color: var(--ink-1); font: 400 13px/1.45 var(--font-sans); }
+.cmt-panel * { box-sizing: border-box; }
+.cmt-threads { list-style: none; margin: 0; padding: 0; }
+.cmt-threads > li { position: relative; }
+.cmt-threads > li + li::before { content: ''; position: absolute; left: 14px; right: 14px; top: 0; height: 1px; background: var(--line-1); }
+/* the open thread: the one gold bar */
+.cmt-thread.is-open { padding: 8px 0 4px; background: var(--cmt-hover); box-shadow: inset 2px 0 0 var(--soleil); }
+.cmt-thread.is-open .cmt-title { font-style: italic; }
+.cmt-fold {
+  display: flex; align-items: center; gap: 6px; width: 100%; margin: 4px 0 0; padding: 10px 14px;
+  border: 0; border-top: 1px solid var(--line-1); background: none; color: var(--ink-2);
+  font: 600 12px/1.4 var(--font-sans); text-align: left; cursor: pointer;
+}
+.cmt-fold:hover { color: var(--ink-0); }
+.cmt-fold:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.cmt-fold svg { transition: transform .12s ease; }
+.cmt-fold[aria-expanded='true'] svg { transform: rotate(90deg); }
+/* ---- one conversation as a row: the canvas's list, a doc's panel, a shared
+   file's rail ------------------------------------------------------------ */
+.cmt-list-row {
+  position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 10px;
+  width: 100%; margin: 0; padding: 10px 14px; border: 0;
+  background: none; color: inherit; font: inherit; text-align: left;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.cmt-list-row:hover, .cmt-list-row.is-open { background: var(--cmt-hover); }
+.cmt-list-row:focus-visible { outline: 2px solid var(--soleil); outline-offset: -2px; }
+.cmt-list-row + .cmt-list-row::before { content: ''; position: absolute; left: 14px; right: 14px; top: 0; height: 1px; background: var(--line-1); }
+.cmt-list-top { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--ink-3); font-size: 12px; }
+.cmt-list-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-0); font-weight: 600; font-size: 13px; }
+.cmt-list-when { flex: none; white-space: nowrap; }
+.cmt-list-new { flex: none; width: 6px; height: 6px; margin-left: auto; border-radius: 50%; background: var(--ink-0); }
+.cmt-list-text {
+  margin-top: 2px; overflow: hidden; overflow-wrap: anywhere;
+  color: var(--ink-1); font-size: 13px;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+}
+.cmt-list-foot { margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-3); font-size: 12px; }
+.cmt-list-empty { padding: 28px 20px 30px; text-align: center; color: var(--ink-2); font-size: 13px; }
+.cmt-list-empty b { display: block; margin: 8px 0 2px; color: var(--ink-0); font-size: 14px; font-weight: 600; }
+.cmt-list-empty svg { color: var(--ink-3); }
+.cmt-list-row--plain { grid-template-columns: minmax(0, 1fr); }
+/* a reply a link pointed at, lit for a moment (neutral ink, never gold) */
+.cmt-row.is-flash { animation: cmt-flash 2s ease-out; border-radius: 8px; }
+@keyframes cmt-flash {
+  0%, 35% { background: var(--cmt-hover); box-shadow: 0 0 0 6px var(--cmt-hover); }
+  100% { background: transparent; box-shadow: 0 0 0 6px transparent; }
+}
+/* beside a note, or the words a new comment is on */
+.cmt-float-host { position: fixed; left: 0; top: 0; z-index: 2147482990; max-width: calc(100vw - 24px); }
+.cmt-float-host .cmt-card--float { --cmt-scrollmax: min(380px, calc(100vh - 260px)); }
+.cmt-list.cmt-list--in { position: static; max-width: 100%; max-height: min(460px, calc(100vh - 120px)); }
+.cmt-list.cmt-list--insheet { width: auto; max-height: min(78vh, 78dvh); border-radius: 16px 16px 0 0; background: var(--cmt-solid); box-shadow: inset 0 1px 0 var(--cmt-line), var(--cmt-sheetfloat); padding-bottom: env(safe-area-inset-bottom, 0px); font-size: 15px; }
+.cmt-list--insheet .cmt-list-row { min-height: 64px; padding: 12px 14px; }
+.cmt-list--insheet .cmt-ib { width: 44px; height: 44px; }
+@media (pointer: coarse) {
+  .cmt-fold { min-height: 44px; font-size: 14px; }
+  .cmt-list-row { padding: 12px 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cmt-fold svg { transition: none; }
+  .cmt-row.is-flash { animation: none; background: var(--cmt-hover); }
+}

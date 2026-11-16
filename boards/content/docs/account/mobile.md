@@ -43,7 +43,7 @@ added to your home screen. They are the same app.
 | Touch and hold empty canvas, then drag | A selection box, as dragging one with a mouse draws |
 | Touch and hold empty canvas, then let go | The board's menu, with **Select…** in it |
 | Touch and hold a card | Pick it up to move it (on a cluster you can only view, its menu) |
-| Touch and hold anything else | Its menu: a group label's, an arrow's, a tag's, the comments button's archive |
+| Touch and hold anything else | Its menu: a group label's, an arrow's, a tag's |
 | **⋯** on the selection | The menu for every selected card |
 
 While you hold empty canvas, a ring fills under your finger; once it is full,
@@ -169,8 +169,12 @@ its own `+`, whose menu opens beside the rail. A new card lands in free space
 where you are looking, and a new note or document zooms in so you can read and
 type in it.
 
-**Comments** — on a phone or an upright iPad, **Add comment** opens a bar above
-the keyboard with **Cancel** and **Post**, and the keyboard's return key sends.
+**Comments** — on a phone or an iPad, **Add comment** opens the conversation's
+sheet from the bottom edge of the screen, and tapping a pin opens the same
+sheet. Its box
+grows as you type, the **Close** button and the send arrow are sized for a
+finger, the keyboard's return key sends, and the sheet rides up with the
+keyboard so the box stays above it.
 
 Controls a mouse only sees on hover always show under a finger: a vote's delete,
 a backlink's pin, a schedule item's remove.

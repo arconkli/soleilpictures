@@ -327,6 +327,9 @@ function commentEntryRefusal(key, prev, next, ctx) {
     if (prev !== undefined) return 'comment_author';
     return byGuest(next, ctx) ? null : 'comment_author';
   }
+  // A change to a comment's words (`~e~`) is a rewrite of what is there: not
+  // a guest's to make (the guest is offered no Edit, docThreadOps.js).
+  if (p.kind === 'edit') return 'comment_author';
   if (!isFiledState(key, next)) return 'comment_shape';
   // The name shown for whoever resolved it ("Resolved by …") is theirs too,
   // as docState.resolveComment files it, or there is none.
@@ -528,7 +531,8 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
   // Deletions: only inside the doc. In docComments, a value this frame put a
   // valid new one in place of may go; otherwise a thread goes only when its
   // author removes it, a reply when its author does or its thread goes in the
-  // same frame (or is gone already), and a resolve with any editor. Taking
+  // same frame (or is gone already), a change to a comment's words only with
+  // its thread, and a resolve with any editor. Taking
   // away what is already gone changes nothing.
   const goneThreads = new Set();
   const repliesOf = [];   // threads whose replies (not the guest's) this frame removes
@@ -555,7 +559,7 @@ export function validateGuestUpdate(roomDoc, update, ctx = {}) {
             if (ck.kind === 'thread') {
               if (!theirs) return fail('comment_author');
               goneThreads.add(ck.threadId);
-            } else if (ck.kind === 'reply' && !theirs) repliesOf.push(ck.threadId);
+            } else if ((ck.kind === 'reply' && !theirs) || ck.kind === 'edit') repliesOf.push(ck.threadId);
           }
         }
         c = next;

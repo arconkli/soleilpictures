@@ -91,11 +91,13 @@ function joinedBody(data) {
 
 // The title and body to show for a notifications row. `nameOf(userId)` is the
 // person's name (userProfiles); an empty answer means the name is not known.
-export function notificationText(n, { nameOf = null } = {}) {
+// `boardNameOf(boardId)` is a cluster's name, likewise.
+export function notificationText(n, { nameOf = null, boardNameOf = null } = {}) {
   const stored = { title: n?.title ?? '', body: n?.body ?? null };
   if (!n || uiLocale() === 'en') return stored;
   const data = n.data && typeof n.data === 'object' ? n.data : {};
   const who = () => text(n.actor_id && nameOf ? nameOf(n.actor_id) : '');
+  const where = () => text(n.board_id && boardNameOf ? boardNameOf(n.board_id) : '');
   let built = null;
   try {
     switch (n.kind) {
@@ -182,6 +184,37 @@ export function notificationText(n, { nameOf = null } = {}) {
             body: t`An admin of ${team} kept you as a viewer for now.`,
           };
         }
+        break;
+      }
+      // The comment notices migration. `body` is the comment's own words. The
+      // SQL names the cluster, which `data` does not carry: it is read from
+      // the clusters the app has (boardNameOf), by the row's own board_id.
+      case 'comment.new':
+      case 'doc.new': {
+        const author = who();
+        const cluster = where();
+        if (author && cluster) built = { title: t`${author} commented in ${cluster}`, body: n.body };
+        break;
+      }
+      case 'comment.reply':
+      case 'doc.reply': {
+        const author = who();
+        const cluster = where();
+        if (author && cluster) built = { title: t`${author} replied in ${cluster}`, body: n.body };
+        break;
+      }
+      case 'comment.mention':
+      case 'doc.mention': {
+        const author = who();
+        const cluster = where();
+        if (author && cluster) built = { title: t`${author} mentioned you in ${cluster}`, body: n.body };
+        break;
+      }
+      case 'comment.resolved':
+      case 'doc.resolved': {
+        const author = who();
+        const cluster = where();
+        if (author && cluster) built = { title: t`${author} resolved your comment in ${cluster}`, body: n.body };
         break;
       }
       case 'schedule.published':

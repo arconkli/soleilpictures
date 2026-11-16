@@ -6,7 +6,7 @@
 // (hooks/useDocFrame.js) and asks the surface through `act`. Without a frame,
 // which is every doc outside the look, the surface is as it was.
 
-const NONE = Object.freeze({ ready: false, railOpen: false, panelOpen: false, panelTab: 'comments', openComments: 0 });
+const NONE = Object.freeze({ ready: false, railOpen: false, panelOpen: false, panelTab: 'comments', openComments: 0, unreadComments: false });
 
 export function createDocFrame() {
   let state = NONE;

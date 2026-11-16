@@ -151,13 +151,16 @@ export default {
   "mention_email.headline": "{name}さんがメンションしました。",
   "mention_email.subject_dm": "{name}さんがメンションしました",
   "mention_email.subject_board": "{name}さんが{context}でメンションしました",
+  "mention_email.subject_comment": "{name}さんが{context}のコメントでメンションしました",
   "mention_email.subject_workspace": "{name}さんが{context}でメンションしました",
   "mention_email.subtitle_dm": "ダイレクトメッセージで。",
   "mention_email.subtitle_board": "{context}で。",
+  "mention_email.subtitle_comment": "{context}のコメントで。",
   "mention_email.subtitle_workspace": "{context}で。",
   "mention_email.preheader": "{name}さん：{preview}",
   "mention_email.preheader_empty": "{name}さん：メンションしました",
   "mention_email.cta": "Clustersで開く",
+  "mention_email.cta_comment": "コメントを開く",
 
   // ── comment_reply_email ──
   "comment_reply_email.subject": "{name}さんがコメントに返信しました",

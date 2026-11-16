@@ -6,7 +6,7 @@ import { startLocale, markLocaleDecided } from './lib/i18nBoot.js';
 import { englishOnlyPath } from './lib/uiLocale.js';
 import { AuthGate, SplashLoading } from './auth/AuthGate.jsx';
 import { FeedbackProvider } from './components/AppFeedback.jsx';
-import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isTogetherQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode, isSidebarQaMode, isFileShareQaMode, isImportQaMode, isUploadQaMode, isLoadQaMode, isMsgQaMode, isSetupQaMode, isToolbarQaMode } from './lib/localMode.js';
+import { isDocQaMode, isNoteQaMode, isAdminPreviewMode, isDndQaMode, isThumbQaMode, isArrowQaMode, isAlignQaMode, isGridQaMode, isSchedQaMode, isPresenceQaMode, isTogetherQaMode, isImageEditQaMode, isTourQaMode, isRevealQaMode, isSidebarQaMode, isFileShareQaMode, isImportQaMode, isUploadQaMode, isLoadQaMode, isMsgQaMode, isSetupQaMode, isToolbarQaMode, isCommentQaMode } from './lib/localMode.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.jsx';
 import { startHeartbeat } from './lib/heartbeat.js';
 import { startBuildWatch } from './lib/buildWatch.js';
@@ -21,6 +21,8 @@ import { installDomMutationGuard } from './lib/domMutationGuard.js';
 import { stopIosFocusZoom } from './lib/iosViewport.js';
 import './styles/breakpoints.css';
 import './styles.css';
+// the comment pins a cluster shows at rest; what a press opens loads later
+import './components/comments/commentPins.css';
 
 // The toolbar look and the doc editor's look, the only ones the bars and the
 // docs have: marked on <html> once, before anything renders, so the CSS has
@@ -519,6 +521,17 @@ if (import.meta.env.DEV && isAdminPreviewMode()) {
     mount(
       <StrictMode>
         <ToolbarQaHarness />
+      </StrictMode>
+    );
+  });
+} else if (import.meta.env.DEV && isCommentQaMode()) {
+  // Comments QA (?commentqa=1). Every state of the shared comment parts, as
+  // the mockup's states sheet and live. No network, no sign-in. DEV guard
+  // drops it from production builds.
+  import('./local/CommentQaHarness.jsx').then(({ CommentQaHarness }) => {
+    mount(
+      <StrictMode>
+        <CommentQaHarness />
       </StrictMode>
     );
   });

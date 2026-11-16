@@ -187,7 +187,8 @@ test('the code step runs the app it preloaded, through the warm that never reloa
   assert.ok(!/import\(['"]\.\.\/AppShell/.test(gate), 'AuthGate never imports AppShell itself');
   assert.ok(!/importWithReload/.test(gate));
   const lazy = readFileSync(resolve(HERE, 'lazyWithReload.js'), 'utf8');
-  assert.match(lazy, /Lazy\.warm = \(\) => \{ factory\(\)\.catch\(\(\) => \{\}\); \};/, 'a failed warm is swallowed');
+  // (it answers false; comments/commentChunkFail.js reads the answer)
+  assert.match(lazy, /Lazy\.warm = \(\) => factory\(\)\.then\(\(\) => true, \(\) => false\);/, 'a failed warm is swallowed');
 });
 
 test('an app run before sign-in keeps the image links a past session signed', () => {

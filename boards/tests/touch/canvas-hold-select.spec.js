@@ -305,16 +305,23 @@ test.describe('a finger on empty canvas', () => {
   });
 });
 
-test('a hold on the comments eye opens its archive, and leaves the comments showing', async ({ page, browserName }) => {
+// The island had a held-press of its own (the archive of hidden comments).
+// That is gone: the list a tap opens holds them now. A hold on it is still
+// not a hold on the canvas, and still switches nothing off: it is a press on
+// the island, slowly, and opens the list as a press does.
+test('a hold on the comments island opens the list, not a canvas menu, and leaves the comments showing', async ({ page, browserName }) => {
   needsHold(test, browserName);
   await open(page, { touchPass: false });
   const eye = page.locator('.cnv-comments-eye');
   await expect(eye).toBeVisible();
   const b = await eye.boundingBox();
   await hold(page, { x: b.x + b.width / 2, y: b.y + b.height / 2 });
-  await expect(page.locator('.comment-archive')).toBeVisible();
-  // The release didn't click it: comments are still on, and no canvas menu.
-  await page.waitForTimeout(300);
+  await expect(page.locator('.comment-archive')).toHaveCount(0);
+  await expect(eye).not.toHaveClass(/is-muted/);
+  await expect(menu(page)).toBeHidden();
+  await expect(page.locator('.cmt-list')).toBeVisible();
+  await expect(eye).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('switch', { name: 'Show comments on the canvas' })).toHaveAttribute('aria-checked', 'true');
   await expect(eye).not.toHaveClass(/is-muted/);
   await expect(menu(page)).toBeHidden();
 });

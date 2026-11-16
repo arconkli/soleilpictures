@@ -17,10 +17,10 @@ test('feedback dialog modal classes are shipped (.feedback-dialog + .btn-primary
   expect(has).toBe(true);
 });
 
-test('inline-composer + entity-picker CSS classes are shipped', async ({ page }) => {
+test('entity-picker CSS classes are shipped', async ({ page }) => {
   await page.goto('/?local=1');
   const has = await page.evaluate(() => {
-    const want = ['.inline-composer', '.entity-picker'];
+    const want = ['.entity-picker'];
     const found = new Set();
     for (const s of document.styleSheets) {
       try {

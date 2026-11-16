@@ -30,7 +30,7 @@ async function emptySpot(page) {
     for (let y = wrap.top + 120; y < wrap.bottom - 40; y += 40) {
       for (let x = wrap.left + 120; x < wrap.right - 40; x += 40) {
         const el = document.elementFromPoint(x, y);
-        if (el && el.closest('.canvas-wrap') && !el.closest('[data-card-id], button, [role="toolbar"], .rail, .canvas-comment-bubble, svg path')) {
+        if (el && el.closest('.canvas-wrap') && !el.closest('[data-card-id], button, [role="toolbar"], .rail, .cmt-pin, .cmt-canvas-card, svg path')) {
           return { x: x - wrap.left, y: y - wrap.top };
         }
       }

@@ -306,6 +306,9 @@ export function PdfViewer({ src, name, onClose, embedded = false, onPageChange =
       // typed inside another modal dialog is that dialog's.
       const inDialog = e.target?.closest?.('[aria-modal="true"]');
       if (inDialog && !inDialog.contains(scrollRef.current)) return;
+      // Embedded beside comments (a shared file's page): a key pressed in
+      // them is theirs, so ↑ ↓ move the caret there and not the page.
+      if (embedded && e.target?.closest?.('[data-keys-own], .cmt-pop')) return;
       if (e.key === 'Escape') { if (embedded) return; e.stopPropagation(); onClose?.(); return; }
       if (status !== 'ready') return;
       if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); e.stopPropagation(); scrollToPage(current + 1); }

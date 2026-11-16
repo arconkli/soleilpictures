@@ -381,7 +381,7 @@ const PAGES = [
         ed.chain().setTextSelection({ from: at, to: at + 5 }).setMark('comment', { id }).setTextSelection(1).run();
       });
       await page.locator('.doc-card-modal .tt-comment').first().tap();
-      await page.locator('.dl-panel .dl-th.is-on .dl-reply').waitFor();
+      await page.locator('.dl-panel .cmt-thread.is-open textarea.cmt-input').waitFor();
       return true;
     }, scope: '.dl-panel' },
   { name: 'doc find', url: '/?docqa=1', ready: '#root',

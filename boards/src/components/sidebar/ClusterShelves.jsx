@@ -17,7 +17,7 @@ import { useLongPress } from '../../hooks/useLongPress.js';
 import { Icon } from '../Icon.jsx';
 import { ArrowClockwise, ArrowsOutSimple, ChevronRight, GridFour, Scribble, Check } from '../../lib/icons.js';
 import { R2Image } from '../R2Image.jsx';
-import { KindIcon } from '../cards.jsx';
+import { KindIcon } from '../KindIcon.jsx';
 import { humanSize, extOf, iconForFile } from '../cards/FileCard.jsx';
 import { contentRows, layoutRows, visibleRange, INDENT } from '../../lib/sidebarRows.js';
 import { uiLocale } from '../../lib/uiLocale.js';

@@ -111,16 +111,20 @@ test('the keyboard on ⋯ before its menu has loaded is on ⋯ when the menu com
   expect(await right(page).evaluate((el) => el.contains(document.activeElement))).toBe(true);
 });
 
-test('the comments toggle is a small island over the rail, named for what it does', async ({ page }) => {
+test('the comments island is a small island over the rail, named for what it does', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/?local=1&reset=1');
   await expect(page.locator('[data-card-id="home-note"]')).toBeVisible({ timeout: 30000 });
-  const eye = page.getByRole('button', { name: /^Hide all comments/ });
+  const eye = page.getByRole('button', { name: /^Comments/ });
   await expect(eye).toHaveClass(/cnv-comments-eye/);
   const [e, rail] = await Promise.all([box(eye), box(page.locator('.cnv-tools'))]);
   expect([e.width, e.height]).toEqual([32, 32]);
   expect(e.left).toBe(rail.left);
   expect(e.bottom).toBeLessThan(rail.top);
+  // A press opens the list of comments; hiding them is the switch at its
+  // foot, and the island then reads as muted.
   await eye.click();
-  await expect(page.getByRole('button', { name: /^Show all comments/ })).toHaveClass(/is-muted/);
+  await expect(eye).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('switch', { name: 'Show comments on the canvas' }).click();
+  await expect(eye).toHaveClass(/is-muted/);
 });

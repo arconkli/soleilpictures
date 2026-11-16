@@ -207,6 +207,19 @@ test('just reloaded for a chunk: the failure reaches the boundary instead of loo
   } finally { b.restore(); }
 });
 
+test('a part that shows unasked (reload: false) never reloads the page, online or not', async () => {
+  const { loadChunk } = await import('./lazyWithReload.js');
+  for (const onLine of [true, false]) {
+    const b = fakeBrowser({ onLine });
+    try {
+      const f = flaky(Infinity);
+      await assert.rejects(loadChunk(f, { reload: false }), /dynamically imported module/);
+      assert.equal(f.calls, 1, 'one try');
+      assert.equal(b.reloads.count, 0, 'a hover is no reason to reload');
+    } finally { b.restore(); }
+  }
+});
+
 test("the note editor's lazy warms with one import and can be reset", async () => {
   const { lazyWithReload } = await import('./lazyWithReload.js');
   const f = flaky(0);

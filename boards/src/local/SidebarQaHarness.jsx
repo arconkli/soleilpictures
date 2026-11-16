@@ -73,8 +73,21 @@ function notifFixture() {
   const reward = import.meta.env.DEV && QS.get('ntf') === 'reward'
     ? [{ id: 'n0', kind: 'invite.reward', title: 'A friend you invited added their first card', body: 'You earned 25 more cards and 0.5GB more storage.', created_at: ago(M), read_at: null, board_id: null, data: { cards: 25, storage_bytes: 536870912, referral_id: 'ref-qa' } }]
     : [];
+  // `&ntf=comments` prepends the comment notices: one on a canvas, a mention on
+  // a doc's words, a reply on a shared file, and a burst folded into one row.
+  const QB = '55555555-5555-4555-8555-555555555555';
+  const comments = import.meta.env.DEV && QS.get('ntf') === 'comments'
+    ? [
+      { id: 'c1', kind: 'comment.reply', actor_id: 'jon', board_id: QB, title: 'Jon Park replied in Night Shift, look', body: 'Agreed, and the practical on the left wall should stay warm through the whole scene.', created_at: ago(M), read_at: null, data: { board_id: QB, thread_id: 'a0000000-0000-4000-8000-000000000001', comment_id: 'a0000000-0000-4000-8000-000000000002', count: 3 } },
+      { id: 'c2', kind: 'doc.mention', actor_id: 'maya', board_id: QB, title: 'Maya Ortiz mentioned you in Feature film', body: '@Tess can you check the page count before Friday?', created_at: ago(9 * M), read_at: null, data: { board_id: QB, card_id: 'film-doc-0', thread_id: 'cm_ab12', comment_id: 'cm_ab12', count: 1 } },
+      { id: 'c3', kind: 'comment.new', actor_id: 'lena', board_id: QB, title: 'Lena Fischer commented in Locations', body: 'Is the barn still free on the 14th?', created_at: ago(40 * M), read_at: null, data: { board_id: QB, thread_id: 'a0000000-0000-4000-8000-000000000003', comment_id: 'a0000000-0000-4000-8000-000000000003', count: 1 } },
+      { id: 'c4', kind: 'file.replied', actor_id: 'sam', board_id: null, title: 'Sam Okafor replied on “Cut v3.mov”', body: 'The cut at 0:42 lands better now.', created_at: ago(2 * H), read_at: ago(H), data: { token: '44444444-4444-4444-8444-444444444444', comment_id: '33333333-3333-4333-8333-333333333333', thread_id: '22222222-2222-4222-8222-222222222222', file_name: 'Cut v3.mov', count: 1 } },
+      { id: 'c5', kind: 'comment.resolved', actor_id: null, board_id: QB, title: 'Someone resolved your comment in Casting', body: 'Second pass on the light here', created_at: ago(3 * H), read_at: ago(2 * H), data: { board_id: QB, thread_id: 'a0000000-0000-4000-8000-000000000004', comment_id: 'a0000000-0000-4000-8000-000000000004', count: 1 } },
+    ]
+    : [];
   return [
     ...reward,
+    ...comments,
     { id: 'n1', kind: 'file.shared', title: 'Maya Ortiz shared “Casting notes.pdf” with you', created_at: ago(4 * M), read_at: null, board_id: null, data: {} },
     { id: 'n2', kind: 'file.commented', title: 'Jon Park commented on “film-still-003.jpg”', created_at: ago(26 * M), read_at: null, board_id: 'film', data: {} },
     { id: 'n3', kind: 'file.replied', title: 'Maya Ortiz replied on “Shot list”', created_at: ago(H), read_at: null, board_id: 'film', data: {} },
@@ -1041,6 +1054,9 @@ export function SidebarQaHarness() {
           (!ids || ids.includes(n.id)) && !n.read_at ? { ...n, read_at: new Date().toISOString() } : n)))}
         onOpenBoard={(id) => { say(`notif board ${id}`); setNotifOpen(false); }}
         onOpenSettings={(tab, ws) => { if (import.meta.env.DEV) window.__sidebarqaSettings = [tab, ws]; say(`notif settings ${tab} ${ws}`); }}
+        onOpenComment={(target) => { if (import.meta.env.DEV) window.__sidebarqaComment = target; say(`notif comment ${target.surface}`); }}
+        nameOf={(id) => PEOPLE.find((x) => x.id === id)?.name || ''}
+        boardNameOf={() => 'Night Shift, look'}
         onClose={() => setNotifOpen(false)}
         anchorRef={notifBellRef}
         mobileShell={mobileShell}

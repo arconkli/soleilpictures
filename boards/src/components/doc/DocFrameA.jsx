@@ -20,6 +20,7 @@ import {
 } from '../../lib/icons.js';
 import './docLook.css';
 import { t as tr, ph, plural } from '@lingui/core/macro';
+import { openCommentsLabel } from '../../lib/commentCanvas.js';
 import { Trans } from '@lingui/react/macro';
 import { shownAuthor } from '../../lib/commentAuthor.js';
 
@@ -166,9 +167,13 @@ export function DocHeadA({
         {children}
         {share}
         {!isPublic && (
-          <Btn icon={ChatCircleText} label={open > 0 ? tr`Comments, ${open} open` : tr`Comments`}
-               toggle on={f.panelOpen} disabled={!f.ready}
-               onClick={() => frame?.act.togglePanel('comments')} />
+          <Btn icon={ChatCircleText} label={openCommentsLabel(open, false)}
+               tip={openCommentsLabel(open, !!f.unreadComments)}
+               toggle on={f.panelOpen} disabled={!f.ready} className="dl-cmtbtn"
+               onClick={() => frame?.act.togglePanel('comments')}>
+            {open > 0 && <span className="dl-cnt" aria-hidden="true">{open}</span>}
+            {f.unreadComments && <span className="dl-dot" aria-hidden="true" />}
+          </Btn>
         )}
         {!isPublic && <MessagesBtn />}
         {/* Hidden on public: the side dock assumes the workspace around it. */}
@@ -232,7 +237,7 @@ function MessagesBtn() {
 // Read at render, so the words follow the person's language.
 const tabName = (tab) => (tab === 'elements' ? tr`Elements` : tab === 'comments' ? tr`Comments` : tr`Find`);
 
-export function DocSidePanel({ tab, onTab, screenplay = false, openComments = 0, onEscape, sheet = false, host = null, onClose, children }) {
+export function DocSidePanel({ tab, onTab, screenplay = false, openComments = 0, unreadComments = false, onEscape, sheet = false, host = null, onClose, children }) {
   const id = useId();
   const tabs = screenplay ? ['elements', 'comments', 'find'] : ['comments', 'find'];
   const current = tabs.includes(tab) ? tab : 'comments';
@@ -284,6 +289,7 @@ export function DocSidePanel({ tab, onTab, screenplay = false, openComments = 0,
                     onClick={() => onTab(t)}>
               {tabName(t)}
               {t === 'comments' && openComments > 0 && <span className="dl-cnt">{openComments}</span>}
+              {t === 'comments' && unreadComments && <span className="dl-new" role="img" aria-label={tr`Unread`} />}
             </button>
           ))}
         </div>

@@ -4790,6 +4790,162 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 2,
+   "text": "Comments",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Comments"
+    }
+   ],
+   "id": "comments"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "In the box of a "
+    },
+    {
+     "t": "link",
+     "v": "comment",
+     "href": "/docs/collaborate/comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "comment"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", wherever it is: on the canvas, in a document, in a note or on a shared file."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Key"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Action"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "code",
+       "v": "Enter"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Send — the return key on a phone or tablet keyboard sends too"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⇧Enter"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "New line"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌘Enter"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Send, on any keyboard"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "@"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Mention someone who can see the cluster — not on a shared file"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "Esc"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Close an empty box. With words in it, ask before discarding them; "
+      },
+      {
+       "t": "code",
+       "v": "Esc"
+      },
+      {
+       "t": "text",
+       "v": " again keeps writing"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "code",
+       "v": "⌘⌥M"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Comment on the selected words, in a document or a note"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Words you leave unsent are kept, so clicking away never loses them."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
    "text": "Notes",
    "inline": [
     {
@@ -9329,7 +9485,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — right-click → comment, which anchors a bubble to that card. See "
+     "v": " — right-click → comment, which puts a pin at the corner of that card. See "
     },
     {
      "t": "link",
@@ -31783,7 +31939,23 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Select text and add a comment. It anchors to that "
+     "v": "Select text and add a comment, from the toolbar or with "
+    },
+    {
+     "t": "code",
+     "v": "⌘⌥M"
+    },
+    {
+     "t": "text",
+     "v": ". A box opens beside the words; "
+    },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " posts it. The comment anchors to that "
     },
     {
      "t": "strong",
@@ -31806,7 +31978,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Commented text is marked inline, with a gold dot in the "
+     "v": "Commented text is tinted, with a dot in the "
     },
     {
      "t": "strong",
@@ -31820,7 +31992,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Click the words, or the dot, and the side panel opens on their thread."
+     "v": "; a darker dot means there is something in the thread you haven't read. Click the words, or the dot, and the side panel opens on their thread, with the words turned gold while it is open."
     }
    ]
   },
@@ -31851,77 +32023,183 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the document's header opens the side panel on its comments: every thread in the document as a card, in the order they come in the text, with the words it is on and who said what. "
-    },
-    {
-     "t": "strong",
-     "v": "All",
-     "children": [
-      {
-       "t": "text",
-       "v": "All"
-      }
-     ]
-    },
+     "v": " in the document's header opens the side panel on its comments: every open thread in the document as a short row, in the order they come in the text, with the words it is on, who started it and how much was said since. Press a row and it opens into the whole conversation, with the box to reply in; its quote takes you to its words, opening the page they are on."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
     {
      "t": "text",
-     "v": ", "
-    },
-    {
-     "t": "strong",
-     "v": "Open",
-     "children": [
-      {
-       "t": "text",
-       "v": "Open"
-      }
-     ]
-    },
+     "v": "In the open thread you can:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Reply",
+      "children": [
+       {
+        "t": "text",
+        "v": "Reply"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — "
+     },
+     {
+      "t": "code",
+      "v": "Enter"
+     },
+     {
+      "t": "text",
+      "v": " sends, "
+     },
+     {
+      "t": "code",
+      "v": "Shift+Enter"
+     },
+     {
+      "t": "text",
+      "v": " starts a new line. Words you typed and didn't send are kept for you in this browser."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Resolve",
+      "children": [
+       {
+        "t": "text",
+        "v": "Resolve"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " it. It moves to "
+     },
+     {
+      "t": "strong",
+      "v": "Resolved",
+      "children": [
+       {
+        "t": "text",
+        "v": "Resolved"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " at the bottom of the panel, which opens on a press, and says who resolved it. "
+     },
+     {
+      "t": "strong",
+      "v": "Reopen",
+      "children": [
+       {
+        "t": "text",
+        "v": "Reopen"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " brings it back, and so does a reply. A resolved thread's words read as plain text again; picking it in the panel still lights them."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Edit",
+      "children": [
+       {
+        "t": "text",
+        "v": "Edit"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " a comment you wrote, from its "
+     },
+     {
+      "t": "strong",
+      "v": "⋯",
+      "children": [
+       {
+        "t": "text",
+        "v": "⋯"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " menu. It is marked "
+     },
+     {
+      "t": "em",
+      "v": "edited",
+      "children": [
+       {
+        "t": "text",
+        "v": "edited"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Copy link",
+      "children": [
+       {
+        "t": "text",
+        "v": "Copy link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " to a comment: the link opens the document's cluster, the document and this thread."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Delete",
+      "children": [
+       {
+        "t": "text",
+        "v": "Delete"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " a comment or the whole thread."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
     {
      "t": "text",
-     "v": " and "
-    },
-    {
-     "t": "strong",
-     "v": "Resolved",
-     "children": [
-      {
-       "t": "text",
-       "v": "Resolved"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " filter them. A card's quote takes you to its words, opening the page they are on; you can reply on the card, "
-    },
-    {
-     "t": "strong",
-     "v": "Resolve",
-     "children": [
-      {
-       "t": "text",
-       "v": "Resolve"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " it (it says who resolved it and when, and "
-    },
-    {
-     "t": "strong",
-     "v": "Reopen",
-     "children": [
-      {
-       "t": "text",
-       "v": "Reopen"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " brings it back), or delete the thread, with an "
+     "v": "Resolving and deleting show a toast with "
     },
     {
      "t": "strong",
@@ -31935,7 +32213,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in the toast. A resolved thread's words read as plain text again; picking its card still lights them. "
+     "v": ". "
     },
     {
      "t": "code",
@@ -31975,7 +32253,22 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " for the full model, which is shared with the canvas."
+     "v": " for the full model, which is shared with the canvas and with notes, and "
+    },
+    {
+     "t": "link",
+     "v": "Notifications",
+     "href": "/docs/collaborate/notifications",
+     "children": [
+      {
+       "t": "text",
+       "v": "Notifications"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " for who is told about a new comment, a reply or a resolve."
     }
    ]
   },
@@ -31984,7 +32277,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Because a text comment is part of the document, it follows edit access. A viewer sees the dots and reads every thread in the side panel; adding, replying to, resolving or deleting a comment needs edit access."
+     "v": "Because a text comment is part of the document, it follows edit access. A viewer sees the dots and reads every thread, by clicking the words or in the side panel; adding, replying to, resolving or deleting a comment needs edit access. Among people who can edit, only the person who wrote a comment can change its words."
     }
    ]
   },
@@ -38068,6 +38361,28 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
+      "v": "Each conversation is a short row; press one and it opens with the box to reply in. "
+     },
+     {
+      "t": "code",
+      "v": "Enter"
+     },
+     {
+      "t": "text",
+      "v": " sends, "
+     },
+     {
+      "t": "code",
+      "v": "Shift+Enter"
+     },
+     {
+      "t": "text",
+      "v": " starts a new line, and words you didn't send are kept for you in this browser. On a phone the box sits right under the player."
+     }
+    ],
+    [
+     {
+      "t": "text",
       "v": "Anyone who can edit the cluster can "
      },
      {
@@ -38096,7 +38411,99 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " any comment; everyone can delete their own. Deleting has an undo."
+      "v": " any comment. Everyone can resolve a conversation they started, delete their own comments, and "
+     },
+     {
+      "t": "strong",
+      "v": "Edit",
+      "children": [
+       {
+        "t": "text",
+        "v": "Edit"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " their own words. Deleting has an undo."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "A resolved conversation moves to "
+     },
+     {
+      "t": "strong",
+      "v": "Resolved",
+      "children": [
+       {
+        "t": "text",
+        "v": "Resolved"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " at the bottom, which opens on a press. "
+     },
+     {
+      "t": "strong",
+      "v": "Reopen",
+      "children": [
+       {
+        "t": "text",
+        "v": "Reopen"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " brings it back, and so does a reply."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Copy link",
+      "children": [
+       {
+        "t": "text",
+        "v": "Copy link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " in a comment's "
+     },
+     {
+      "t": "strong",
+      "v": "⋯",
+      "children": [
+       {
+        "t": "text",
+        "v": "⋯"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " menu copies a link that opens the file at that comment."
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "There are no "
+     },
+     {
+      "t": "code",
+      "v": "@"
+     },
+     {
+      "t": "text",
+      "v": " mentions here: the people on a shared file may be outside your workspace."
      }
     ]
    ]
@@ -38144,7 +38551,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ". Someone whose comment gets a reply is told in the app too."
+     "v": ". A reply is told in the app to everyone else who wrote in that conversation. Each notice in the app opens the file at its comment."
     }
    ]
   },
@@ -38177,21 +38584,21 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "text",
-      "v": " shows on the same link. Comments made on an older version stay, labelled "
+      "v": " shows on the same link. Comments made on an older version stay, gathered under "
      },
      {
       "t": "strong",
-      "v": "on an earlier version",
+      "v": "On an earlier version",
       "children": [
        {
         "t": "text",
-        "v": "on an earlier version"
+        "v": "On an earlier version"
        }
       ]
      },
      {
       "t": "text",
-      "v": "."
+      "v": " at the bottom of the comments. Their times and pages are marked as belonging to that version, since they may not line up with what is showing now."
      }
     ],
     [
@@ -38940,7 +39347,29 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "text",
-      "v": "They can start a comment, reply to any comment, and resolve or reopen one. They can delete only a comment they started, and cannot rewrite one once it is posted."
+      "v": "They can start a comment, reply to any comment, and resolve or reopen one. They can delete only a comment they started, and cannot rewrite one once it is posted. "
+     },
+     {
+      "t": "code",
+      "v": "@"
+     },
+     {
+      "t": "text",
+      "v": " mentions and "
+     },
+     {
+      "t": "strong",
+      "v": "Copy link",
+      "children": [
+       {
+        "t": "text",
+        "v": "Copy link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " are for the people in the cluster."
      }
     ],
     [
@@ -40552,6 +40981,10 @@ export const DOCS_CONTENT = {
          "v": "document"
         }
        ]
+      },
+      {
+       "t": "text",
+       "v": " or a note"
       }
      ],
      [
@@ -40568,21 +41001,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Right-click → "
-    },
-    {
-     "t": "strong",
-     "v": "Comment",
-     "children": [
-      {
-       "t": "text",
-       "v": "Comment"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", or the rail's "
+     "v": "Right-click a card, a group or the empty canvas and choose the comment item (on a phone, touch and hold), or use the rail's "
     },
     {
      "t": "strong",
@@ -40624,7 +41043,315 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
+     "v": " and click what it is about. A box opens right there, beside the spot its pin will sit on."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A comment on the board as a whole has no place on the canvas, so it has no pin: it shows in the comments list. Those come from the "
+    },
+    {
+     "t": "link",
+     "v": "API",
+     "href": "/docs/api/comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "API"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " or an assistant."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Pins on the canvas",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Pins on the canvas"
+    }
+   ],
+   "id": "pins-on-the-canvas"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each open conversation is a small pin with the face of whoever started it, sitting at the top-right corner of its card or group, or on its point. Pins stay the same size however far you zoom. Several conversations on one card line up along its top edge."
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "A dot on a pin",
+      "children": [
+       {
+        "t": "text",
+        "v": "A dot on a pin"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " means there is something in it you haven't read."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Zoomed out",
+      "children": [
+       {
+        "t": "text",
+        "v": "Zoomed out"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", pins that would crowd each other gather into one pin with a number. Click it and the board zooms in until they come apart."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Point at a pin",
+      "children": [
+       {
+        "t": "text",
+        "v": "Point at a pin"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " to read how it begins, who wrote it and when, and how many replies it has."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Click a pin",
+      "children": [
+       {
+        "t": "text",
+        "v": "Click a pin"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " to open the conversation in a card beside what it is about. The open pin and its card are ringed in gold."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Drag a pin that sits on a point",
+      "children": [
+       {
+        "t": "text",
+        "v": "Drag a pin that sits on a point"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " to move it, if you wrote it or can edit the board. A pin on a card or a group follows what it is on."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "On a phone or an iPad, tap a pin and the conversation opens as a sheet from the bottom of the screen. A new comment starts in the same sheet; see "
+    },
+    {
+     "t": "link",
+     "v": "Mobile and tablet",
+     "href": "/docs/account/mobile",
+     "children": [
+      {
+       "t": "text",
+       "v": "Mobile and tablet"
+      }
+     ]
+    },
+    {
+     "t": "text",
      "v": "."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Delete a card and its comments go with it; restore the card and they come back."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "The comments list",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The comments list"
+    }
+   ],
+   "id": "the-comments-list"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "The comments button at the top left of the board shows how many conversations are open, with a dot when one is unread. Press it for the list:"
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "Tab"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Holds"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Open",
+       "children": [
+        {
+         "t": "text",
+         "v": "Open"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Every open conversation on the board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Resolved",
+       "children": [
+        {
+         "t": "text",
+         "v": "Resolved"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The ones that were resolved"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "For you",
+       "children": [
+        {
+         "t": "text",
+         "v": "For you"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Open ones where you were mentioned or replied to"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each row says what the comment is on, who wrote it, when, how it begins and how much was said since. Point at a row to light its card; click it and the board moves there and opens the conversation."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Hiding them",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Hiding them"
+    }
+   ],
+   "id": "hiding-them"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "At the bottom of the list is "
+    },
+    {
+     "t": "strong",
+     "v": "Show comments on the canvas",
+     "children": [
+      {
+       "t": "text",
+       "v": "Show comments on the canvas"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Turn it off and the pins go, for you only: it changes what you see on this board in this browser, and nothing for anyone else. The list keeps working while they are hidden, and starting a new comment turns them back on. Use it when presenting or when the feedback has piled up and you want to see the work."
     }
    ]
   },
@@ -40645,8 +41372,29 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Comments thread with replies. "
+     "v": "Open a conversation to read it and reply. "
     },
+    {
+     "t": "code",
+     "v": "Enter"
+    },
+    {
+     "t": "text",
+     "v": " sends and "
+    },
+    {
+     "t": "code",
+     "v": "Shift+Enter"
+    },
+    {
+     "t": "text",
+     "v": " starts a new line; on a phone or tablet keyboard, the return key sends, as the send button does."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
     {
      "t": "strong",
      "v": "Resolve",
@@ -40659,7 +41407,35 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " when the thing is dealt with — resolved comments are archived rather than deleted, so the record of why something changed survives."
+     "v": " when the thing is dealt with. A resolved conversation leaves the canvas and is kept under "
+    },
+    {
+     "t": "strong",
+     "v": "Resolved",
+     "children": [
+      {
+       "t": "text",
+       "v": "Resolved"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in the list, not deleted, so the record of why something changed survives. It says who resolved it; "
+    },
+    {
+     "t": "strong",
+     "v": "Reopen",
+     "children": [
+      {
+       "t": "text",
+       "v": "Reopen"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " brings it back, and so does replying to it."
     }
    ]
   },
@@ -40668,7 +41444,293 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Resolving and hiding a comment is for its author and for people who can edit the board; deleting one is for its author. Someone with view-only access sees those buttons on their own comments only."
+     "v": "Each comment's "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu has:"
+    }
+   ]
+  },
+  {
+   "type": "list",
+   "ordered": false,
+   "items": [
+    [
+     {
+      "t": "strong",
+      "v": "Copy link",
+      "children": [
+       {
+        "t": "text",
+        "v": "Copy link"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — a link that opens the board, goes to the card and opens the conversation at that comment. If the comment has since been deleted, the link opens the board and says the comment isn't there any more."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Edit",
+      "children": [
+       {
+        "t": "text",
+        "v": "Edit"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — on your own comments. An edited comment is marked "
+     },
+     {
+      "t": "em",
+      "v": "edited",
+      "children": [
+       {
+        "t": "text",
+        "v": "edited"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": "."
+     }
+    ],
+    [
+     {
+      "t": "strong",
+      "v": "Delete",
+      "children": [
+       {
+        "t": "text",
+        "v": "Delete"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " — a conversation's own "
+     },
+     {
+      "t": "strong",
+      "v": "⋯",
+      "children": [
+       {
+        "t": "text",
+        "v": "⋯"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " has "
+     },
+     {
+      "t": "strong",
+      "v": "Delete conversation",
+      "children": [
+       {
+        "t": "text",
+        "v": "Delete conversation"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": ", which takes its replies with it."
+     }
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Resolving and deleting each show a toast with "
+    },
+    {
+     "t": "strong",
+     "v": "Undo",
+     "children": [
+      {
+       "t": "text",
+       "v": "Undo"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Who can do what",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Who can do what"
+    }
+   ],
+   "id": "who-can-do-what"
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": ""
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Who"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "Start a comment, reply"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Anyone who can open the board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Edit a comment's words"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Only the person who wrote it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Resolve or reopen"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Whoever started the conversation, and anyone who can edit the board"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Delete"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The person who wrote it, and anyone who can edit the board"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A reply to a resolved conversation reopens it. If it stays resolved, the reply is still sent and a toast says who can reopen it."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 3,
+   "text": "Words you haven't sent",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Words you haven't sent"
+    }
+   ],
+   "id": "words-you-haven-t-sent"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Nothing you type is lost by clicking somewhere else. A comment you started and left keeps a pin of its own where you began it, and pressing that pin brings the words back; an unfinished reply waits in its conversation. Drafts are kept in this browser, for you. "
+    },
+    {
+     "t": "code",
+     "v": "Esc"
+    },
+    {
+     "t": "text",
+     "v": " in a box with words in it asks "
+    },
+    {
+     "t": "strong",
+     "v": "Discard this comment?",
+     "children": [
+      {
+       "t": "text",
+       "v": "Discard this comment?"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " first, with "
+    },
+    {
+     "t": "strong",
+     "v": "Keep writing",
+     "children": [
+      {
+       "t": "text",
+       "v": "Keep writing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " as the way back; in an empty box it just closes."
     }
    ]
   },
@@ -40697,7 +41759,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " in a comment to mention someone. They are notified. See "
+     "v": " in a comment to mention someone. On the canvas, in a document and in a note, it offers the people who can see the board. The person you name is told, under the bell and by toast, and by email when they are not in the app, and the notice opens that comment. A reply tells everyone who has written in the conversation, a new comment tells the person who made the cluster, and resolving tells whoever started the conversation; nobody is told about their own comment. See "
     },
     {
      "t": "link",
@@ -40721,49 +41783,117 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "You can also mention clusters, documents and cards, which turns a comment into a navigable link rather than a description of where to look."
+     "v": "Comments on a "
+    },
+    {
+     "t": "link",
+     "v": "shared file",
+     "href": "/docs/collaborate/sharing#comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "shared file"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " have no "
+    },
+    {
+     "t": "code",
+     "v": "@"
+    },
+    {
+     "t": "text",
+     "v": ": the people there may be outside your workspace."
     }
    ]
   },
   {
    "type": "heading",
    "depth": 2,
-   "text": "Hiding them",
+   "text": "On the words of a note or a document",
    "inline": [
     {
      "t": "text",
-     "v": "Hiding them"
+     "v": "On the words of a note or a document"
     }
    ],
-   "id": "hiding-them"
+   "id": "on-the-words-of-a-note-or-a-document"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "The comments toggle hides every comment bubble on the board — for you only, not for everyone. Use it when presenting or when the feedback has piled up and you want to see the work."
+     "v": "Select words in a note or a document and comment on them. The words are tinted while their conversation is open for discussion, turn gold while you have it open, and read as plain text again once it is resolved. Click commented words to open their conversation."
     }
    ]
   },
   {
-   "type": "heading",
-   "depth": 2,
-   "text": "Bubbles on a crowded board",
-   "inline": [
-    {
-     "t": "text",
-     "v": "Bubbles on a crowded board"
-    }
-   ],
-   "id": "bubbles-on-a-crowded-board"
-  },
-  {
    "type": "para",
    "inline": [
     {
      "t": "text",
-     "v": "Comment bubbles lay themselves out to avoid covering the content they refer to and to avoid stacking on each other, so a heavily-reviewed board stays readable."
+     "v": "A note with comments has "
+    },
+    {
+     "t": "strong",
+     "v": "Comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comments"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " in its right-click menu, with a number: it lists the note's conversations, "
+    },
+    {
+     "t": "strong",
+     "v": "Open",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Resolved",
+     "children": [
+      {
+       "t": "text",
+       "v": "Resolved"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". A document lists its own in its side panel; see "
+    },
+    {
+     "t": "link",
+     "v": "comments in documents",
+     "href": "/docs/documents/comments-and-tags",
+     "children": [
+      {
+       "t": "text",
+       "v": "comments in documents"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "."
     }
    ]
   },
@@ -40807,7 +41937,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " is different: it lives inside the document's text, so it follows edit access. A viewer can open a document's comment threads and read them, but adding, replying to, resolving or deleting one needs edit access."
+     "v": " is different: it lives inside the text of the document or note, so it follows edit access. A viewer can open those conversations and read them, but adding, replying to, resolving or deleting one needs edit access."
     }
    ]
   },
@@ -40843,7 +41973,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " lists a board's threads, the ones inside its documents included, and adds, resolves and deletes comments under the same rules. Connected over "
+     "v": " lists a board's threads, the ones inside its documents included, and adds, resolves and deletes comments; its page says who may do each. Connected over "
     },
     {
      "t": "link",
@@ -42204,7 +43334,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " clears the number. Press a row to go to what it is about: a row for a file shared with you, or a comment on one, opens the file in the app, and a note that you earned an invite reward opens Settings → Invite and earn. "
+     "v": " clears the number. Press a row to go to what it is about: a row for a file shared with you opens the file in the app, a row for a comment opens the conversation at that comment, and a note that you earned an invite reward opens Settings → Invite and earn. "
     },
     {
      "t": "strong",
@@ -42414,6 +43544,211 @@ export const DOCS_CONTENT = {
     {
      "t": "text",
      "v": " that works without signing in. Invitation, share and accepted-invite emails are each sent once, for one thing someone did; switch those off in Settings under Notifications. Unsubscribing from email does not turn off in-app notifications; those are separate."
+    }
+   ]
+  },
+  {
+   "type": "heading",
+   "depth": 2,
+   "text": "Comments",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Comments"
+    }
+   ],
+   "id": "comments"
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "link",
+     "v": "Comments",
+     "href": "/docs/collaborate/comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "Comments"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " tell the people they concern, wherever the comment is: on the canvas, on the words of a document or a note, or on a shared file."
+    }
+   ]
+  },
+  {
+   "type": "table",
+   "head": [
+    [
+     {
+      "t": "text",
+      "v": "What happened"
+     }
+    ],
+    [
+     {
+      "t": "text",
+      "v": "Who is told"
+     }
+    ]
+   ],
+   "rows": [
+    [
+     [
+      {
+       "t": "text",
+       "v": "Someone "
+      },
+      {
+       "t": "code",
+       "v": "@"
+      },
+      {
+       "t": "text",
+       "v": " mentions you in a comment"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "You"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Someone replies in a conversation"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Everyone who has written in it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Someone starts a new comment on a cluster, on its canvas or in one of its documents or notes"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The person who made the cluster"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Someone resolves a conversation on the canvas, in a document or in a note"
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "The person who started it"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "text",
+       "v": "Someone comments on a "
+      },
+      {
+       "t": "link",
+       "v": "file you shared",
+       "href": "/docs/collaborate/sharing#comments",
+       "children": [
+        {
+         "t": "text",
+         "v": "file you shared"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "You"
+      }
+     ]
+    ]
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "You are never told about your own comments, and one comment tells you once: a reply that also mentions you reaches you as the mention."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Each one is a row under the bell, with the writer's initial, the cluster and the comment's first line. Press it and the cluster opens with the conversation open at that comment. Several comments in one conversation while the row is still unread share that one row, which shows the newest and how many more there were, rather than filling the list."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "While you are in the app a comment notice is also a toast with "
+    },
+    {
+     "t": "strong",
+     "v": "Open",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", and a browser notification if you allowed those. A busy conversation toasts once in a while, not for every reply, and never while you have that conversation open."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Email is narrower, and only for when you are not in the app. A mention is emailed to the person named. A reply on the canvas is emailed to the person whose comment it answers, not to everyone in the conversation. A comment on a file you shared is emailed to you, as "
+    },
+    {
+     "t": "link",
+     "v": "Sharing",
+     "href": "/docs/collaborate/sharing#comments",
+     "children": [
+      {
+       "t": "text",
+       "v": "Sharing"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " describes. The button in a mention or reply email opens the comment. A reply in a document or a note, a new comment on your cluster and a resolved conversation stay in the bell."
     }
    ]
   },
@@ -45907,8 +47242,18 @@ export const DOCS_CONTENT = {
      ],
      [
       {
+       "t": "strong",
+       "v": "Show comments on the canvas",
+       "children": [
+        {
+         "t": "text",
+         "v": "Show comments on the canvas"
+        }
+       ]
+      },
+      {
        "t": "text",
-       "v": "The comments toggle at the top left of the board"
+       "v": ", at the bottom of the comments list (the comments button at the top left of the board)"
       }
      ]
     ],
@@ -49831,7 +51176,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Its menu: a group label's, an arrow's, a tag's, the comments button's archive"
+       "v": "Its menu: a group label's, an arrow's, a tag's"
       }
      ]
     ],
@@ -50688,7 +52033,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " — on a phone or an upright iPad, "
+     "v": " — on a phone or an iPad, "
     },
     {
      "t": "strong",
@@ -50702,35 +52047,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " opens a bar above the keyboard with "
+     "v": " opens the conversation's sheet from the bottom edge of the screen, and tapping a pin opens the same sheet. Its box grows as you type, the "
     },
     {
      "t": "strong",
-     "v": "Cancel",
+     "v": "Close",
      "children": [
       {
        "t": "text",
-       "v": "Cancel"
+       "v": "Close"
       }
      ]
     },
     {
      "t": "text",
-     "v": " and "
-    },
-    {
-     "t": "strong",
-     "v": "Post",
-     "children": [
-      {
-       "t": "text",
-       "v": "Post"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": ", and the keyboard's return key sends."
+     "v": " button and the send arrow are sized for a finger, the keyboard's return key sends, and the sheet rides up with the keyboard so the box stays above it."
     }
    ]
   },
@@ -51521,7 +52852,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Archived, not deleted"
+       "v": "Kept under Resolved, not deleted"
       }
      ]
     ],

@@ -188,13 +188,16 @@ export default {
   "mention_email.headline": "{name} упоминает вас.",
   "mention_email.subject_dm": "{name} упоминает вас",
   "mention_email.subject_board": "{name} упоминает вас в «{context}»",
+  "mention_email.subject_comment": "{name} упоминает вас в комментарии в «{context}»",
   "mention_email.subject_workspace": "{name} упоминает вас в «{context}»",
   "mention_email.subtitle_dm": "В личном сообщении.",
   "mention_email.subtitle_board": "В «{context}».",
+  "mention_email.subtitle_comment": "В комментарии в «{context}».",
   "mention_email.subtitle_workspace": "В «{context}».",
   "mention_email.preheader": "{name}: {preview}",
   "mention_email.preheader_empty": "{name}: упоминает вас",
   "mention_email.cta": "Открыть в Clusters",
+  "mention_email.cta_comment": "Открыть комментарий",
 
   // ── comment_reply_email ──
   "comment_reply_email.subject": "{name} отвечает на ваш комментарий",

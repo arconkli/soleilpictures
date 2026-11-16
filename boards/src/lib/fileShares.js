@@ -147,6 +147,10 @@ export const addFileComment = (token, { body, atMs = null, page = null, replyTo 
 export const resolveFileComment = (id, resolved) => rpc('resolve_file_comment', { p_id: id, p_resolved: !!resolved });
 export const deleteFileComment = (id) => rpc('delete_file_comment', { p_id: id });
 export const restoreFileComment = (id) => rpc('restore_file_comment', { p_id: id });
+// Its author changes the words. The function arrives with the comments
+// migration: until it is applied the call answers PGRST202 (404), which the
+// rail reads as "not available yet".
+export const editFileComment = (id, body) => rpc('edit_file_comment', { p_id: id, p_body: body });
 
 export const getFileShareSettings = (boardId, cardId) =>
   rpc('get_file_share_settings', { p_board: boardId, p_card: cardId });

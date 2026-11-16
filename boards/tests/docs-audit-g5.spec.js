@@ -313,7 +313,7 @@ test('DOCS-14: a comment posted after a collaborator edit still highlights the s
     ed.chain().focus().setTextSelection({ from, to: from + 'brown'.length }).run();
   });
   await commentButton(page.locator('.doc-card-modal')).click();
-  const input = page.locator('.inline-composer-input');
+  const input = page.locator('.cmt-float-host textarea.cmt-input');
   await expect(input).toBeVisible();
   await input.fill('Right animal?');
   // The collaborator: a paragraph typed above, written straight into the Y

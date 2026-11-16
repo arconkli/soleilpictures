@@ -1,28 +1,27 @@
-// The comment rail on a shared file (/f/<token>). Comments come from 0421's
-// get_file_comments; every name and every body is rendered as TEXT (React
-// children, white-space: pre-wrap), never as HTML.
+// The comment rail on a shared file (/f/<token>, and the same view inside
+// the app). Comments come from get_file_comments; every name and every body
+// is rendered as TEXT (React children), never as HTML.
 //
-// Video and audio comments pin to a time, pdf comments to a page: focusing the
-// composer pauses the player and pins where it is, with a toggle to unpin.
-// Delete is a soft delete with the house undo toast (restore_file_comment).
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  FILE_COMMENT_MAX_CHARS, formatAt, groupComments,
-} from '../../lib/fileShares.js';
-import { friendlyShareError } from '../../lib/fileSharesWords.js';
-import { relativeTimeShort } from '../../lib/relativeTime.js';
-import { logEvent, logEventNow } from '../../lib/analytics.js';
+// This file is the rail's frame: it reads the comments (every 15 seconds
+// while the tab is looked at), counts them in its header and says when a
+// read failed. The conversations themselves are the shared comment parts
+// (components/comments/FileThreads.jsx over CommentCard), which arrive as
+// a chunk of their own (fileCommentParts.js: no canvas or doc code) behind
+// the boundary every comment surface uses
+// (commentPartsLazy.jsx). If that chunk cannot be had, the rail says so and
+// offers to try again; the file above it is untouched.
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { readCommentLink, withoutCommentLink } from '../../lib/commentLink.js';
+import { logEventNow } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
 import { useOptionalFeedback } from '../AppFeedback.jsx';
-import { undoToast } from '../../lib/undoToast.js';
-import { isComposingKey } from '../../lib/composerKeys.js';
+import { fileCommentPart, CommentPartsBoundary } from '../comments/commentPartsLazy.jsx';
 import { initialOf } from '../../lib/graphemes.js';
-import { t, ph, plural } from '@lingui/core/macro';
+import { t, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
 const POLL_MS = 15000;
-const COUNTER_FROM = 1800;
-const TIMED = new Set(['video', 'audio']);
+const FileThreads = fileCommentPart('FileThreads');
 
 const safeAvatar = (u) => (typeof u === 'string' && /^https:\/\//i.test(u) ? u : null);
 const safeColor = (c) => (typeof c === 'string' && /^#[0-9a-f]{3,8}$/i.test(c) ? c : null);
@@ -40,178 +39,56 @@ export function Avatar({ name, url, color, size = 24 }) {
   );
 }
 
-function anchorLabel(c) {
-  if (c.at_ms != null) return formatAt(c.at_ms);
-  if (c.page != null) return `p. ${c.page}`;
+// The comment this address asks for (/f/<token>?comment=<id>), or null.
+function linkedComment(token) {
+  if (typeof window === 'undefined') return null;
+  const at = readCommentLink(window.location.href);
+  if (at?.surface === 'file' && at.token === String(token || '').toLowerCase()) return at.commentId;
+  if (import.meta.env.DEV) {
+    // the dev harness shows the page at /?fileshareqa=<fixture>
+    const q = new URLSearchParams(window.location.search);
+    if (q.has('fileshareqa')) return q.get('comment') || null;
+  }
   return null;
 }
 
-// A composer: the main one at the bottom of the rail, or a reply under a comment.
-function Composer({ kind, reply = null, getAnchor, currentPage, onFocusCompose, onSend, onCancel, autoFocus = false, focusRequest = 0 }) {
-  const [body, setBody] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-  const timed = !reply && TIMED.has(kind);
-  const paged = !reply && kind === 'pdf';
-  const [pinned, setPinned] = useState(timed || paged);
-  const [atMs, setAtMs] = useState(null);
-  const ref = useRef(null);
-
-  useEffect(() => { if (autoFocus) ref.current?.focus(); }, [autoFocus]);
-  useEffect(() => { if (focusRequest) ref.current?.focus(); }, [focusRequest]);
-
-  const capture = () => {
-    const a = getAnchor?.();
-    if (a && Number.isFinite(a.atMs)) setAtMs(Math.max(0, Math.round(a.atMs)));
-  };
-  const onFocus = () => {
-    if (timed) { onFocusCompose?.(); if (pinned) capture(); }
-  };
-  const togglePin = () => {
-    setPinned((p) => {
-      const next = !p;
-      if (next && timed) capture();
-      return next;
-    });
-  };
-
-  const trimmed = body.trim();
-  const send = async () => {
-    if (!trimmed || busy) return;
-    setBusy(true); setErr('');
-    const args = { body: trimmed, replyTo: reply || null, atMs: null, page: null };
-    if (timed && pinned && atMs != null) args.atMs = atMs;
-    if (paged && pinned && currentPage) args.page = currentPage;
-    const { error } = await onSend(args);
-    setBusy(false);
-    if (error) { setErr(friendlyShareError(error)); return; }
-    setBody('');
-    logEvent(EV.FILE_COMMENT_ADD, {
-      kind, reply: !!reply,
-      pinned: args.atMs != null ? 'time' : args.page != null ? 'page' : null,
-    });
-    if (reply) onCancel?.();
-  };
-
-  const onKeyDown = (e) => {
-    if (isComposingKey(e)) return;
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); }
-    else if (e.key === 'Escape' && reply) { e.preventDefault(); onCancel?.(); }
-  };
-
-  // A time pin appears once the composer has read the playhead (on focus).
-  const pinText = timed ? (atMs != null ? t`at ${ph({ time: formatAt(atMs) })}` : null)
-    : paged ? t`on page ${ph({ page: currentPage || 1 })}` : null;
-
-  return (
-    <div className={`fsc-composer${reply ? ' is-reply' : ''}`}>
-      <textarea
-        ref={ref}
-        className="fsc-input"
-        dir="auto"
-        value={body}
-        maxLength={FILE_COMMENT_MAX_CHARS}
-        rows={reply ? 2 : 3}
-        placeholder={reply ? t`Reply…` : t`Add a comment…`}
-        aria-label={reply ? t`Reply` : t`Add a comment`}
-        onChange={(e) => { setBody(e.target.value); if (err) setErr(''); }}
-        onFocus={onFocus}
-        onKeyDown={onKeyDown}
-      />
-      {err && <p className="fsc-err" role="alert">{err}</p>}
-      <div className="fsc-composer-row">
-        {pinText && (
-          <button type="button" className={`fsc-pin${pinned ? ' is-on' : ''}`} aria-pressed={pinned}
-                  onClick={togglePin} title={pinned ? t`Unpin from this moment` : t`Pin to this moment`}>
-            {pinned ? pinText : t`Not pinned`}
-          </button>
-        )}
-        <span className="fsc-spacer" />
-        {body.length >= COUNTER_FROM && (
-          <span className="fsc-count" aria-live="polite">{body.length} / {FILE_COMMENT_MAX_CHARS}</span>
-        )}
-        {reply && <button type="button" className="fsc-btn" onClick={onCancel}><Trans>Cancel</Trans></button>}
-        <button type="button" className="fsc-btn fsc-btn--send" disabled={!trimmed || busy} onClick={send}
-                title={t`Send (⌘↵)`}>
-          {reply ? t`Reply` : t`Comment`}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function CommentRow({ c, isReply = false, activeId, canCompose, replying, onReply, onSeek, onResolve, onDelete }) {
-  const ref = useRef(null);
-  const active = activeId && activeId === c.id;
-  useEffect(() => {
-    if (active) ref.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
-  }, [active]);
-  const anchor = anchorLabel(c);
-  const name = c.author?.name || t`Someone`;
-  return (
-    <div ref={ref} className={`fsc-row${isReply ? ' is-reply' : ''}${active ? ' is-active' : ''}${c.deleted ? ' is-deleted' : ''}`}
-         data-comment-id={c.id}>
-      <div className="fsc-row-head">
-        <Avatar name={name} url={c.author?.avatar_url} color={c.author?.color} size={isReply ? 20 : 24} />
-        <span className="fsc-name">{c.deleted ? '' : name}</span>
-        <span className="fsc-time" title={c.created_at || ''}>{relativeTimeShort(c.created_at)}</span>
-      </div>
-      {c.deleted ? (
-        <p className="fsc-body fsc-body--deleted"><Trans>Comment deleted</Trans></p>
-      ) : (
-        <>
-          {(anchor || c.on_current === false) && (
-            <div className="fsc-meta">
-              {anchor && (
-                <button type="button" className="fsc-chip" onClick={() => onSeek(c)}
-                        aria-label={c.at_ms != null ? t`Go to ${anchor}` : t`Go to page ${ph({ page: c.page })}`}>
-                  {anchor}
-                </button>
-              )}
-              {c.on_current === false && <span className="fsc-old"><Trans>on an earlier version</Trans></span>}
-            </div>
-          )}
-          <p className="fsc-body">{c.body}</p>
-          <div className="fsc-actions">
-            {!isReply && canCompose && !replying && (
-              <button type="button" className="fsc-link" onClick={() => onReply(c.id)}><Trans>Reply</Trans></button>
-            )}
-            {!isReply && c.can_resolve && (
-              <button type="button" className="fsc-link" onClick={() => onResolve(c)}>{c.resolved ? t`Reopen` : t`Resolve`}</button>
-            )}
-            {c.can_delete && (
-              <button type="button" className="fsc-link" onClick={() => onDelete(c)}><Trans>Delete</Trans></button>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
+//   composeSlot   an element under the player: at narrow widths the box you
+//                 write in is drawn there (FileThreads.jsx)
+//   holdRef       .current is true while unsent words are in the open card
+//   userId        who is signed in (unsent words are kept under it); undefined
+//                 while that is being read, and the conversations wait for it
 export function FileComments({
-  token, access, signedIn, canComment = signedIn, kind, getAnchor, currentPage = null,
+  token, signedIn, canComment = signedIn, kind, getAnchor, currentPage = null,
   onSeek, onFocusCompose, onComments, activeId = null, onActivate, signInHref,
-  initialCount = null, focusRequest = 0, api,
+  focusRequest = 0, api, composeSlot = null, holdRef = null, userId = null,
+  // the comment a notice asked for, when the file opens over the app (its
+  // address is the app's, so it names none)
+  linked = null,
 }) {
   const feedback = useOptionalFeedback();
   const [list, setList] = useState(null);
   const [loadErr, setLoadErr] = useState(false);
-  const [replyTo, setReplyTo] = useState(null);
-  const [showResolved, setShowResolved] = useState(false);
+  // The conversations could not be drawn: 'chunk' when their download failed,
+  // 'bug' when they threw. `tries` remounts their boundary.
+  const [partFailed, setPartFailed] = useState(null);
+  const [tries, setTries] = useState(0);
+  const [linkedId, setLinkedId] = useState(() => linked || linkedComment(token));
+  const alive = useRef(true);
   const onCommentsRef = useRef(onComments);
   onCommentsRef.current = onComments;
-  const alive = useRef(true);
+
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
+  // → the rows, or null when the read failed
   const load = useCallback(async () => {
     const { data, error } = await api.listFileComments(token);
-    if (!alive.current) return;
-    if (error || !data || data.status !== 'ok') { setLoadErr(true); return; }
+    if (!alive.current) return null;
+    if (error || !data || data.status !== 'ok') { setLoadErr(true); return null; }
     const rows = Array.isArray(data.comments) ? data.comments : [];
     setLoadErr(false);
     setList(rows);
     onCommentsRef.current?.(rows);
+    return rows;
   }, [api, token]);
 
   // Poll while the tab is visible, and catch up the moment it comes back.
@@ -223,98 +100,79 @@ export function FileComments({
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', tick); };
   }, [load]);
 
-  const send = async (args) => {
-    const res = await api.addFileComment(token, args);
-    if (!res?.error) load();
-    return res || {};
-  };
+  const onLinkDone = useCallback(() => {
+    setLinkedId(null);
+    if (linked) return;   // it came from a notice: the address is the app's own
+    try { window.history.replaceState(window.history.state, '', withoutCommentLink(window.location.href)); } catch (_) { /* the address stays */ }
+  }, [linked]);
+  const onPartFail = useCallback((_e, info) => setPartFailed(info?.chunk ? 'chunk' : 'bug'), []);
+  // A browser keeps a download that failed for the page's life and answers
+  // the next ask with the same failure (lib/lazyWithReload.js), so asking for
+  // the chunk again means loading the page again. Unsent words are kept.
+  const retryPart = useCallback(() => {
+    if (partFailed === 'chunk') { window.location.reload(); return; }
+    setPartFailed(null);
+    setTries((n) => n + 1);
+  }, [partFailed]);
 
-  const seek = (c) => { onActivate?.(c.id); onSeek?.(c); };
-
-  const resolve = async (c) => {
-    const { error } = await api.resolveFileComment(c.id, !c.resolved);
-    if (error) feedback?.toast?.({ type: 'error', code: 'file_comment_resolve_failed', message: friendlyShareError(error) });
-    load();
-  };
-
-  const remove = async (c) => {
-    const { error } = await api.deleteFileComment(c.id);
-    if (error) { feedback?.toast?.({ type: 'error', code: 'file_comment_delete_failed', message: friendlyShareError(error) }); return; }
-    load();
-    undoToast(feedback, {
-      message: t`Comment deleted`,
-      onUndo: async () => {
-        const r = await api.restoreFileComment(c.id);
-        if (r?.error) feedback?.toast?.({ type: 'error', code: 'file_comment_restore_failed', message: friendlyShareError(r.error) });
-        load();
-      },
-    });
-  };
-
-  const groups = groupComments(list || []);
-  const total = list ? list.filter((c) => !c.deleted).length : initialCount;
+  // Conversations, not replies; the ones on an earlier version of the file
+  // are counted by their own section.
+  const roots = (list || []).filter((c) => !c.reply_to && c.on_current !== false);
+  const nOpen = roots.filter((c) => !c.resolved).length;
+  const nResolved = roots.length - nOpen;
   const canCompose = signedIn && canComment;
-
-  const renderThread = (c) => (
-    <li key={c.id} className="fsc-thread">
-      <CommentRow c={c} activeId={activeId} canCompose={canCompose} replying={replyTo === c.id}
-                  onReply={setReplyTo} onSeek={seek} onResolve={resolve} onDelete={remove} />
-      {c.replies.length > 0 && (
-        <ul className="fsc-replies">
-          {c.replies.map((r) => (
-            <li key={r.id}>
-              <CommentRow c={r} isReply activeId={activeId} canCompose={canCompose}
-                          onSeek={seek} onResolve={resolve} onDelete={remove} />
-            </li>
-          ))}
-        </ul>
-      )}
-      {replyTo === c.id && canCompose && (
-        <Composer kind={kind} reply={c.id} autoFocus onSend={send} onCancel={() => setReplyTo(null)} />
-      )}
-    </li>
-  );
 
   return (
     <section className="fsc" aria-label={t`Comments`}>
       <header className="fsc-head">
         <h2 className="fsc-title"><Trans>Comments</Trans></h2>
-        {total != null && total > 0 && <span className="fsc-total">{total}</span>}
+        {list && (
+          <span className="fsc-total">
+            {plural(nOpen, { one: '# open', other: '# open' })}
+            {nResolved > 0 && <> · {plural(nResolved, { one: '# resolved', other: '# resolved' })}</>}
+          </span>
+        )}
       </header>
-      <div className="fsc-list" aria-live="polite">
-        {list === null && !loadErr && <p className="fsc-empty"><Trans>Loading comments…</Trans></p>}
+      {/* A refresh failed with a list on screen: said quietly, until the next one works. */}
+      {list && loadErr && <p className="fsc-stale" role="status"><Trans>Couldn't refresh. Trying again…</Trans></p>}
+      <div className="fsc-body cmt-dark" data-keys-own onContextMenu={(e) => e.stopPropagation()}>
+        {list === null && !loadErr && <p className="fsr-note"><Trans>Loading comments…</Trans></p>}
         {loadErr && list === null && (
-          <p className="fsc-empty"><Trans>Couldn't load comments.</Trans> <button type="button" className="fsc-link" onClick={load}><Trans>Try again</Trans></button></p>
+          <p className="fsr-note"><Trans>Couldn't load comments.</Trans> <button type="button" className="fsc-link" onClick={load}><Trans>Try again</Trans></button></p>
         )}
-        {list && groups.open.length === 0 && groups.resolved.length === 0 && (
-          <p className="fsc-empty">{canCompose
-            ? (TIMED.has(kind) ? t`No comments yet. Pause anywhere and leave the first one.` : t`No comments yet.`)
-            : t`No comments yet.`}</p>
+        {list && partFailed && (
+          <p className="fsr-note">
+            <Trans>Couldn't load comments.</Trans>{' '}
+            <button type="button" className="fsc-link" onClick={retryPart}><Trans>Try again</Trans></button>
+          </p>
         )}
-        {groups.open.length > 0 && <ul className="fsc-threads">{groups.open.map(renderThread)}</ul>}
-        {groups.resolved.length > 0 && (
-          <div className="fsc-resolved">
-            <button type="button" className="fsc-link fsc-resolved-toggle" aria-expanded={showResolved}
-                    onClick={() => setShowResolved((v) => !v)}>
-              {showResolved ? t`Hide resolved` : plural(groups.resolved.length, { other: 'Show # resolved' })}
-            </button>
-            {showResolved && <ul className="fsc-threads is-resolved">{groups.resolved.map(renderThread)}</ul>}
-          </div>
+        {list && !partFailed && userId !== undefined && (
+          <CommentPartsBoundary key={tries} onFail={onPartFail}>
+            <Suspense fallback={<p className="fsr-note"><Trans>Loading comments…</Trans></p>}>
+              <FileThreads
+                token={token} rows={list} kind={kind} signedIn={!!signedIn} canComment={!!canComment}
+                api={api} feedback={feedback} reload={load}
+                getAnchor={getAnchor} currentPage={currentPage} onSeek={onSeek} onFocusCompose={onFocusCompose}
+                activeId={activeId} onActivate={onActivate} focusRequest={focusRequest}
+                linkedId={linkedId} onLinkDone={onLinkDone} composeSlot={composeSlot} holdRef={holdRef}
+                userId={userId}
+              />
+            </Suspense>
+          </CommentPartsBoundary>
         )}
       </div>
-      <footer className="fsc-foot">
-        {canCompose ? (
-          <Composer kind={kind} getAnchor={getAnchor} currentPage={currentPage} onFocusCompose={onFocusCompose}
-                    onSend={send} focusRequest={focusRequest} />
-        ) : !signedIn ? (
-          <a className="fsc-signin" href={signInHref}
-             onClick={() => logEventNow(EV.FILE_SHARE_SIGNIN_CLICK, { surface: 'comments' })}>
-            <Trans>Sign in to comment</Trans>
-          </a>
-        ) : (
-          <p className="fsc-empty"><Trans>You can read comments on this file, but not add them.</Trans></p>
-        )}
-      </footer>
+      {!canCompose && (
+        <footer className="fsc-foot">
+          {!signedIn ? (
+            <a className="fsc-signin" href={signInHref}
+               onClick={() => logEventNow(EV.FILE_SHARE_SIGNIN_CLICK, { surface: 'comments' })}>
+              <Trans>Sign in to comment</Trans>
+            </a>
+          ) : (
+            <p className="fsr-note"><Trans>You can read comments on this file, but not add them.</Trans></p>
+          )}
+        </footer>
+      )}
     </section>
   );
 }
