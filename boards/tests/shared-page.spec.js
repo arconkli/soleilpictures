@@ -187,3 +187,23 @@ test.describe('searching the Shared page', () => {
     expect(box).not.toBe('none');
   });
 });
+
+// The real shell: the islands float over a band at the top of main, and the
+// page has to start below them. The tests above render the page alone.
+test.describe('in the app shell', () => {
+  test('the page starts below the floating top bar: title, tabs, search and close are clear of the islands', async ({ page }) => {
+    await page.setViewportSize({ width: 1000, height: 700 });
+    await page.goto('/?sidebarqa=1&look=today&surface=shared');
+    await page.waitForSelector('[data-sidebarqa-ready]');
+    await expect(page.locator('.app.is-floating-chrome > main.main > section.shp')).toBeVisible();
+    await expect(page.locator('.shp-title')).toBeVisible();
+    const islandsBottom = await page.evaluate(() => Math.max(...[...document.querySelectorAll('.chrome-island')]
+      .filter((el) => el.getClientRects().length).map((el) => el.getBoundingClientRect().bottom)));
+    expect(islandsBottom).toBeGreaterThan(0);
+    for (const sel of ['.shp-title', '.shp-tabs', '.shp-find', '.shp-close']) {
+      const box = await page.locator(sel).first().boundingBox();
+      expect(box, sel).not.toBeNull();
+      expect(box.y, `${sel} top (${box.y}) is under the islands (bottom ${islandsBottom})`).toBeGreaterThanOrEqual(islandsBottom);
+    }
+  });
+});

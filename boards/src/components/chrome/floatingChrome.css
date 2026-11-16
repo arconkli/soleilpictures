@@ -4,7 +4,8 @@
    --chrome-band is the strip the islands float in: 8px above, 36px of island,
    6px below. The canvas runs underneath it — only the controls along the
    canvas's own top edge step down by it — and every other surface (full-page
-   Files, Home, a tag) starts below it, so the islands never cover a heading.
+   Files, Home, a tag, the Shared page) starts below it, so the islands never
+   cover a heading.
    Gold stays for focus. */
 
 .app.is-floating-chrome { --chrome-band: 50px; }
@@ -64,10 +65,13 @@
 .app.is-floating-chrome :is(.cnv-comments-eye, .cnv-hint, .cnv-selcount) { top: calc(var(--chrome-band) + 14px); }
 .app.is-floating-chrome :is(.board-tags-strip, .canvas-presence-roster) { top: calc(var(--chrome-band) + 12px); }
 .app.is-floating-chrome .split-close { top: calc(var(--chrome-band) + 10px); }
-/* Every other surface starts below the band. */
+/* Every other surface starts below the band. The Shared page (.shp) is App's
+   own child of main, not in a .surface-wrap, so it is named here; without it
+   its title, tabs, search and close sat under the islands. */
 .app.is-floating-chrome .surface-wrap:not(.is-canvas),
 .app.is-floating-chrome .ph-root,
-.app.is-floating-chrome .tag-detail { padding-top: var(--chrome-band); box-sizing: border-box; }
+.app.is-floating-chrome .tag-detail,
+.app.is-floating-chrome .shp { padding-top: var(--chrome-band); box-sizing: border-box; }
 .app.is-floating-chrome .home-graph-hud { top: calc(var(--chrome-band) + 16px); }
 /* A split pane showing Files: its band is painted as the Files floor below
    it, not as the pane's --bg-1, so the page doesn't start under a lighter
