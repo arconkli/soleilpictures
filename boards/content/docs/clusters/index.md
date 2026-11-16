@@ -5,7 +5,7 @@ h1: Clusters
 navLabel: Overview
 section: clusters
 order: 0
-updated: 2026-11-14
+updated: 2026-11-15
 answer: A cluster is a board, and clusters nest inside each other without limit — which is how a project becomes a folder tree without anyone building one. There is no limit on how many clusters you make, and a cluster costs none of your cards: its card on the parent's canvas is free on every plan, and only what you put inside it counts. Each cluster gets an automatic thumbnail rendered from its actual contents, or a cover image you choose yourself.
 faq:
   - q: Is there a limit on how many clusters I can make?
@@ -257,7 +257,7 @@ clusters open in.
 - **All clusters** at the bottom of the sidebar's list searches every cluster
   and opens the one you pick
 - **[`⌘K`](/docs/organize/search)** searches cluster names alongside everything else
-- **Shared with me** groups clusters other people have invited you to by the person who shared them, with a search field once there are many
+- **Shared with you** lists the clusters other people have invited you to, newest first, and **All shared** below it opens the Shared page with all of them
 
 ## Deleting
 

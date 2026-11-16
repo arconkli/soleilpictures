@@ -5,13 +5,13 @@ h1: Notifications
 navLabel: Notifications
 section: collaborate
 order: 5
-updated: 2026-10-21
+updated: 2026-11-15
 answer: Soleil Clusters notifies you about @ mentions, replies to your comments, workspace invitations, boards shared with you, someone accepting an invite you sent, and occasional product tips. Each of the six is its own switch in Settings under Notifications, and product tips, mentions and replies carry a one-click unsubscribe that works without signing in. The button in a product email opens a resume link that signs you back in without a code.
 faq:
   - q: Can I turn off product emails but keep mentions?
     a: Yes. The six categories are independent switches. Product tips and check-ins are the one to turn off if you only want the ones about your work.
   - q: Where do notifications appear in the app?
-    a: Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a file, which opens it in the app, and every one of them is kept in the list under the bell at the top right of the board, after the theme switch (on a phone, in the top bar before Share), whose number counts the ones you haven't read. A file shared with you is emailed to you as well, and listed on the Shared page (Shared files, under Shared with me in the sidebar).
+    a: Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a file, which opens it in the app, and every one of them is kept in the list under the bell at the top right of the board, after the theme switch (on a phone, in the top bar before Share), whose number counts the ones you haven't read. A file shared with you is emailed to you as well, and listed on the Shared page (All shared, under Shared with you in the sidebar).
   - q: Do I get browser notifications?
     a: Only if you grant permission. Nothing is requested until there is a reason.
   - q: How do I unsubscribe without logging in?
@@ -46,8 +46,9 @@ involves you.
 for [messages](/docs/collaborate/messages). A [file shared with
 you](/docs/collaborate/sharing), a comment on it and notices about your account
 show as a toast when they arrive while you are in the app; for a file, **Open**
-opens it in the app. The share itself also reaches you by email, and every file
-shared with you is listed under **Shared files** in the sidebar.
+opens it in the app. A cluster shared with you shows a toast too, with
+**Open**. The share itself also reaches you by email, and everything shared
+with you is on the Shared page, from **All shared** in the sidebar.
 
 **The bell** — at the top right of the board, right after the theme switch; on
 a phone it is in the top bar, just before **Share**. Its number counts the

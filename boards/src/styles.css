@@ -1025,22 +1025,6 @@ body {
   transition: transform var(--dur-fast) var(--ease);
 }
 .sb-shared-chev.is-open { transform: rotate(90deg); }
-.sb-shared-body { display: flex; flex-direction: column; padding-bottom: 4px; }
-.sb-shared-group { display: flex; flex-direction: column; }
-.sb-shared-group-head {
-  display: flex; align-items: center; gap: 6px;
-  padding: 4px 14px;
-  font: 500 11px/1.3 var(--font-sans);
-  color: var(--ink-3);
-  cursor: pointer;
-  user-select: none;
-}
-.sb-shared-group-head:hover { color: var(--ink-1); }
-.sb-shared-group-name {
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.sb-shared-rows { padding-left: 8px; }
-.sb-shared-row { padding-left: 22px; }
 .sb-shared-ro {
   flex: none; margin-left: 6px; height: 16px; padding: 0 5px;
   display: inline-flex; align-items: center;
@@ -1049,15 +1033,6 @@ body {
   font: 700 10px/1 var(--font-display); letter-spacing: .12em; text-transform: uppercase;
 }
 [data-theme='light'] .sb-shared-ro { color: var(--ink-1); }
-/* The Shared page's row: under the heading, level with the groups. Unread is
-   a plain count, as Messages has it — no gold at rest. */
-.sb-shared-files { padding-left: 14px; }
-.sb-shared-unread {
-  flex: none; margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 999px; background: color-mix(in srgb, var(--ink-0) 10%, transparent);
-  color: var(--ink-0); font: 600 11px/1 var(--font-sans);
-}
 
 /* ─── Sidebar tags section ─────────────────────────────────────────── */
 /* Mirrors .sb-shared visually so the section reads as a sibling of
@@ -3436,13 +3411,6 @@ body {
   .sb-tree-chev { width: 36px; height: 40px; margin: 0 -8px 0 -6px; font-size: 12px; }
 }
 .sb-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.sb-shared-tag {
-  padding: 2px 6px;
-  border-radius: var(--radius);
-  background: var(--bg-3);
-  color: var(--ink-3);
-  letter-spacing: 0.12em;
-}
 
 .sb-foot {
   margin-top: auto;
@@ -3592,6 +3560,15 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.crumb-person { display: inline-flex; align-items: center; gap: 6px; cursor: default; flex-shrink: 1; min-width: 0; }
+/* A person's face at 16px (PersonFace): the shared-with-you trail and sidebar rows. */
+.mini-face {
+  flex: none; display: inline-grid; place-items: center;
+  width: 16px; height: 16px; border-radius: 50%;
+  font: 600 8px/1 var(--font-sans);
+  color: var(--bg-0); background: var(--ink-2);
+  user-select: none; vertical-align: middle;
 }
 .crumb.clk:hover { background: var(--bg-hov); color: var(--ink-0); }
 .crumb.here { color: var(--ink-0); cursor: default; }

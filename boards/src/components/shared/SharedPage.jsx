@@ -1,14 +1,17 @@
-// The Shared page: what happens to a file once it's shared (owner,
-// 2026-10-18). Two tabs:
-//   With me — files people added you to, and files you opened from a link
-//             while signed in (0424 list_shared_with_me). Open one and it
-//             plays over the app (lib/sharedFileBus.js); Save a copy; take it
-//             off the list (with undo; it changes nothing for the sharer).
-//   By me   — what you've shared that is still shared (list_my_file_shares):
-//             Manage (the owner's dialog), Copy link, Stop sharing (with undo,
-//             which brings back exactly who was removed and emails nobody).
-// Rows are plain: a small picture or the file's type, the name, one line of
-// who and when. Unread is a neutral dot; gold stays for focus and selection.
+// The Shared page: everything shared with you or by you, clusters and files
+// together (owner, 2026-11-15; reworked from the files-only page of 2026-10-18).
+// Two tabs:
+//   With you — clusters people shared with you and files they added you to or
+//              you opened from a link, grouped by who shared them (lib/
+//              sharedList.js). A cluster opens in the app; a file plays over it
+//              (lib/sharedFileBus.js). Remove from my list changes nothing for
+//              the sharer, and undoes.
+//   By you   — what you've shared that is still shared, newest first, with who
+//              has it. Clusters: Open, Manage sharing, Copy link. Files: Manage,
+//              Copy link, Stop sharing (with undo, which brings back exactly who
+//              was removed and emails nobody).
+// A search box sits above both. New is a neutral dot; gold stays for focus and
+// selection.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSharedFiles, loadSharedThumbs, refreshSharedFiles } from '../../hooks/useSharedFiles.js';
@@ -19,25 +22,66 @@ import { openFileShare, notifyFileShareChanged } from '../../lib/fileShareBus.js
 import { relativeTimeShort } from '../../lib/relativeTime.js';
 import { composeMenuSections, SECTION } from '../../lib/contextMenuSections.js';
 import { CardContextMenu } from '../CardContextMenu.jsx';
+import { PersonFace } from '../PersonFace.jsx';
+import { COVER_TINTS } from '../primitives.jsx';
 import { logEvent } from '../../lib/analytics.js';
 import { EV } from '../../lib/analyticsEvents.js';
-import { matchesFind, findHitKind, findTokens } from '../../lib/sharedPeople.js';
+import { findTokens, isUnnamedWorkspace } from '../../lib/sharedPeople.js';
+import {
+  withYouItems, groupWithYou, byYouItems, filterGroups, countItems, itemHitKind,
+} from '../../lib/sharedList.js';
 import { trackFindUsed } from '../../lib/findUsed.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
-import { formatNumber } from '../../lib/intlFormat.js';
+import { namesList } from '../../lib/intlFormat.js';
 import { Icon } from '../Icon.jsx';
-import { X, MoreHorizontal } from '../../lib/icons.js';
+import { X, MoreHorizontal, Link, Stack } from '../../lib/icons.js';
 import './sharedPage.css';
-import { t as tr, ph } from '@lingui/core/macro';
+import { t as tr, ph, plural } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
 const SAVEABLE = new Set(['image', 'video', 'audio', 'pdf', 'file']);
 const defaultApi = { hideSharedFile, stopFileShare, undoStopFileShare };
 
+
+// The words a row shows for what it is; also what a typed search can match,
+// in the reader's language. Called at render.
+function kindLabel(item) {
+  if (item.type === 'cluster') return tr`Cluster`;
+  const kind = item.row?.kind;
+  return ({ video: tr`Video`, audio: tr`Audio`, image: tr`Image`, pdf: tr`PDF`, file: tr`File`, doc: tr`Doc` })[kind] || tr`File`;
+}
+
+// Who has it, as one sentence: "Maya, Leo and 3 others". Names the server
+// didn't give leave a count. Two names are two placeholders, so each language
+// sets its own comma: a list join reads "Maya Chen Leo Brandt" in Japanese and
+// Russian and says "and" twice in Spanish.
+function peopleLine(item) {
+  const n = Math.max(0, Number(item.peopleCount) || 0);
+  if (!n) return null;
+  const names = (item.people || []).map((p) => p.name).filter(Boolean).slice(0, 2);
+  if (!names.length) return plural(n, { one: 'Shared with # person', other: 'Shared with # people' });
+  const others = n - names.length;
+  if (others <= 0) return namesList(names);
+  if (names.length === 1) {
+    return plural(others, { one: `${ph({ names: names[0] })} and # other`, other: `${ph({ names: names[0] })} and # others` });
+  }
+  const rest = others;  // named as in lib/messagesCard.js, so both read the same translated words
+  return tr`${ph({ first: names[0] })}, ${ph({ second: names[1] })} and ${plural(rest, { one: '# other', other: '# others' })}`;
+}
+
 function Thumb({ item, url }) {
+  if (item.type === 'cluster') {
+    const tint = COVER_TINTS[item.cover || item.row?.board_cover || 'neutral'] || COVER_TINTS.neutral;
+    return (
+      <span className="shp-thumb shp-thumb-cluster" style={{ '--shp-tint': tint }} aria-hidden="true">
+        <Icon as={Stack} size={18} />
+      </span>
+    );
+  }
+  const tile = typeTile(item.row);
   return (
     <span className="shp-thumb" aria-hidden="true">
-      {url ? <img src={url} alt="" loading="lazy" draggable={false} /> : <span className="shp-thumb-type">{typeTile(item)}</span>}
+      {url ? <img src={url} alt="" loading="lazy" draggable={false} /> : <span className={`shp-thumb-type${tile.length > 4 ? ' is-long' : ''}`}>{tile}</span>}
     </span>
   );
 }
@@ -51,35 +95,84 @@ function RowMenuButton({ label, onOpen }) {
   );
 }
 
-export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = null, feedback = null, initialTab = 'with_me', api = defaultApi }) {
+function GroupHead({ g }) {
+  let face;
+  let name;
+  if (g.kind === 'person') {
+    face = <PersonFace userId={g.personId || undefined} name={g.personName || ''} color={g.personColor || undefined}
+                       url={g.avatarUrl || undefined} size={22} className="shp-face" ariaHidden />;
+    name = g.personName;
+  } else if (g.kind === 'workspace') {
+    face = <span className="shp-gface" aria-hidden="true"><Icon as={Stack} size={13} /></span>;
+    name = isUnnamedWorkspace(g.workspaceName) ? tr`Workspace` : g.workspaceName;
+  } else if (g.kind === 'links') {
+    face = <span className="shp-gface" aria-hidden="true"><Icon as={Link} size={13} /></span>;
+    name = tr`From links`;
+  } else {
+    face = <span className="shp-gface" aria-hidden="true">?</span>;
+    name = tr`Someone on Clusters`;
+  }
+  return (
+    <div className="shp-gh">
+      {face}
+      <span className="shp-gh-name" dir="auto">{name}</span>
+      <span className="shp-gh-n">{g.items.length}</span>
+    </div>
+  );
+}
+
+export function SharedPage({
+  onClose = null, onSaveCopy = null, onAddShortcut = null, feedback = null,
+  initialTab = 'with_me', api = defaultApi,
+  focusSearch = false,
+  clusters = [], meta = null, byYouClusters = [], byYouLoaded = true,
+  onRefreshByYou = null, onOpenBoard = null, onOpenOwnBoard = null,
+  onRemoveCluster = null, onCopyClusterLink = null, onManageClusterSharing = null,
+}) {
   const shared = useSharedFiles({ enabled: true });
   const [tab, setTab] = useState(initialTab === 'by_me' ? 'by_me' : 'with_me');
-  const [hidden, setHidden] = useState(() => new Set());     // optimistic removes
-  const [stopped, setStopped] = useState(() => new Set());   // optimistic stops
+  const [hidden, setHidden] = useState(() => new Set());     // optimistic file removes
+  const [stopped, setStopped] = useState(() => new Set());   // optimistic file stops
   const [menu, setMenu] = useState(null);                     // { x, y, items }
   const [q, setQ] = useState('');
   const loggedRef = useRef(false);
   const findRef = useRef(null);
 
+  useEffect(() => { try { onRefreshByYou?.(); } catch (_) {} }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (focusSearch) findRef.current?.focus(); }, [focusSearch]);
+
   const withMe = useMemo(() => shared.withMe.filter((x) => !hidden.has(x.token)), [shared.withMe, hidden]);
   const byMe = useMemo(() => shared.byMe.filter((x) => !stopped.has(x.token)), [shared.byMe, stopped]);
-  const tabList = tab === 'with_me' ? withMe : byMe;
-  const showFind = tabList.length > 6;
-  const searching = showFind && findTokens(q).length > 0;
-  // With me: the file and who shared it. By me: the file and its cluster
-  // (list_my_file_shares carries a count of people, not their names).
-  const personOf = (item) => (item.source === 'link' ? null : item.shared_by?.name || null);
-  const list = useMemo(() => {
-    if (!searching) return tabList;
-    return tab === 'with_me'
-      ? tabList.filter((x) => matchesFind(q, [x.name, personOf(x)]))
-      : tabList.filter((x) => matchesFind(q, [x.name, x.board_name]));
-  }, [tabList, tab, q, searching]);  // eslint-disable-line react-hooks/exhaustive-deps
-  const hitKind = (row) => (tab === 'with_me'
-    ? findHitKind(q, [row.name], [personOf(row)])
-    : findHitKind(q, [row.name, row.board_name], [])) || 'name';
-  const picked = (row) => {
-    if (searching) trackFindUsed({ surface: 'shared_page', nItems: list.length, by: hitKind(row) });
+
+  const withYouGroups = useMemo(
+    () => groupWithYou(withYouItems({ clusters, files: withMe, meta })),
+    [clusters, withMe, meta],
+  );
+  const byYouList = useMemo(
+    () => byYouItems({ clusters: byYouClusters, files: byMe }),
+    [byYouClusters, byMe],
+  );
+  const byYouGroups = useMemo(
+    () => (byYouList.length ? [{ key: 'by-you', kind: 'by-you', items: byYouList }] : []),
+    [byYouList],
+  );
+  const groups = tab === 'with_me' ? withYouGroups : byYouGroups;
+  const total = countItems(groups);
+  const newCount = useMemo(
+    () => withYouGroups.reduce((n, g) => n + g.items.filter((it) => it.isNew).length, 0),
+    [withYouGroups],
+  );
+
+  const searching = findTokens(q).length > 0;
+  const shownOf = (item) => [kindLabel(item)];
+  const filtered = useMemo(
+    () => (searching ? filterGroups(groups, q, (it) => [kindLabel(it)]) : groups),
+    [searching, groups, q],
+  );
+  const shownN = countItems(filtered);
+
+  const picked = (item) => {
+    if (searching) trackFindUsed({ surface: 'shared_page', nItems: shownN, by: itemHitKind(q, item, shownOf(item)) });
   };
   const switchTab = (id) => { setTab(id); setQ(''); };
 
@@ -89,11 +182,16 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
     try { logEvent(EV.SHARED_PAGE_VIEW, { tab, n: withMe.length, unread: shared.unread }); } catch (_) {}
   }, [shared.loaded]);  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Pictures for the rows on this tab.
+  // Pictures for the file rows on this tab.
   useEffect(() => {
-    const tokens = list.filter((x) => x.kind && x.kind !== 'file' && x.kind !== 'doc').map((x) => x.token).slice(0, 50);
-    if (tokens.length) void loadSharedThumbs(tokens);
-  }, [list]);
+    const tokens = [];
+    for (const g of filtered) {
+      for (const it of g.items) {
+        if (it.type === 'file' && it.row.kind && it.row.kind !== 'file' && it.row.kind !== 'doc') tokens.push(it.row.token);
+      }
+    }
+    if (tokens.length) void loadSharedThumbs(tokens.slice(0, 50));
+  }, [filtered]);
 
   const toast = (t) => { try { feedback?.toast?.(t); } catch (_) {} };
 
@@ -108,7 +206,7 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
     }
     toast({
       type: 'info',
-      message: tr`Removed ${ph({ name: item.name || tr`the file` })} from Shared with me`,
+      message: item.name ? tr`“${ph({ name: item.name })}” removed from your list.` : tr`Removed from your list.`,
       action: {
         label: tr`Undo`,
         onClick: async () => {
@@ -166,7 +264,7 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
     }
   };
 
-  const withMeMenu = (item) => composeMenuSections([
+  const fileWithYouMenu = (item) => composeMenuSections([
     { items: [
       { id: 'open', label: tr`Open`, run: () => openSharedFile({ token: item.token, via: 'shared_page' }) },
       ...(onSaveCopy && item.allow_download && SAVEABLE.has(item.kind)
@@ -179,17 +277,29 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
         : []),
     ] },
     { header: SECTION.EDIT, items: [
-      { id: 'hide', label: tr`Remove from Shared with me`, run: () => removeFromList(item) },
+      { id: 'hide', label: tr`Remove from my list`, run: () => removeFromList(item) },
     ] },
   ]);
 
-  const byMeMenu = (row) => composeMenuSections([
+  const clusterWithYouMenu = (it) => composeMenuSections([
     { items: [
-      { id: 'manage', label: tr`Manage sharing…`, run: () => openFileShare({
-        boardId: row.board_id, cardId: row.card_id,
-        card: { id: row.card_id, kind: row.kind, fileName: row.name },
-        boardName: row.board_name || null, surface: 'shared_page',
-      }) },
+      { id: 'open', label: tr`Open`, run: () => onOpenBoard?.(it.id) },
+      { id: 'link', label: tr`Copy link`, run: () => onCopyClusterLink?.(it.id) },
+    ] },
+    { header: SECTION.EDIT, items: [
+      { id: 'hide', label: tr`Remove from my list`, run: () => onRemoveCluster?.(it.id) },
+    ] },
+  ]);
+
+  const openFileByYou = (row) => openFileShare({
+    boardId: row.board_id, cardId: row.card_id,
+    card: { id: row.card_id, kind: row.kind, fileName: row.name },
+    boardName: row.board_name || null, surface: 'shared_page',
+  });
+
+  const fileByYouMenu = (row) => composeMenuSections([
+    { items: [
+      { id: 'manage', label: tr`Manage sharing…`, run: () => openFileByYou(row) },
       { id: 'link', label: tr`Copy link`, run: () => copyLink(row) },
     ] },
     { header: SECTION.EDIT, items: [
@@ -197,36 +307,97 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
     ] },
   ]);
 
-  const openMenu = (items) => (x, y) => setMenu({ x, y, items });
+  const clusterByYouMenu = (it) => composeMenuSections([
+    { items: [
+      { id: 'open', label: tr`Open`, run: () => onOpenOwnBoard?.(it.id) },
+      { id: 'manage', label: tr`Manage sharing…`, run: () => onManageClusterSharing?.(it.id) },
+      { id: 'link', label: tr`Copy link`, run: () => onCopyClusterLink?.(it.id) },
+    ] },
+  ]);
+
+  const menuOf = (it) => {
+    if (tab === 'with_me') return it.type === 'cluster' ? clusterWithYouMenu(it) : fileWithYouMenu(it.row);
+    return it.type === 'cluster' ? clusterByYouMenu(it) : fileByYouMenu(it.row);
+  };
+  const openItem = (it) => {
+    picked(it);
+    if (tab === 'with_me') {
+      if (it.type === 'cluster') onOpenBoard?.(it.id);
+      else openSharedFile({ token: it.row.token, via: 'shared_page' });
+    } else if (it.type === 'cluster') onOpenOwnBoard?.(it.id);
+    else openFileByYou(it.row);
+  };
+
+  const renderRow = (it) => {
+    const label = it.name || (it.type === 'cluster' ? tr`Untitled cluster` : tr`File`);
+    const withYou = tab === 'with_me';
+    let sub;
+    if (withYou) {
+      sub = [kindLabel(it), it.at ? relativeTimeShort(it.at) : null].filter(Boolean).join(' · ');
+    } else {
+      sub = peopleLine(it) || (it.type === 'file' ? it.boardName || '' : '');
+    }
+    const faces = !withYou ? (it.people || []).slice(0, 3) : [];
+    return (
+      <li key={`${it.type}:${it.id}`} className={`shp-row${it.isNew ? ' is-new' : ''}`}>
+        <button type="button" className="shp-open" onClick={() => openItem(it)}
+                onContextMenu={(e) => { e.preventDefault(); setMenu({ x: e.clientX, y: e.clientY, items: menuOf(it) }); }}>
+          <Thumb item={it} url={it.type === 'file' ? shared.thumbs[it.row.token]?.url || null : null} />
+          <span className="shp-main">
+            <span className="shp-name" dir="auto">{label}</span>
+            <span className="shp-sub">
+              {faces.length > 0 && (
+                <span className="shp-faces" aria-hidden="true">
+                  {faces.map((p, i) => (
+                    <PersonFace key={p.userId || i} userId={p.userId || undefined} name={p.name || ''}
+                                color={p.color || undefined} size={18} className="shp-face" ariaHidden />
+                  ))}
+                </span>
+              )}
+              <span className="shp-sub-t">{sub}</span>
+            </span>
+          </span>
+          {withYou && it.type === 'cluster' && it.role === 'viewer' && (
+            <span className="shp-chip shp-chip-ro" title={tr`View only`}><Trans context="permission">View</Trans></span>
+          )}
+          {!withYou && it.linkOn && <span className="shp-chip"><Trans context="link sharing">Link on</Trans></span>}
+          {it.isNew && <span className="shp-dot" aria-label={tr({ message: 'New', context: 'badge' })} />}
+        </button>
+        <RowMenuButton label={tr`More for ${ph({ name: label })}`} onOpen={(x, y) => setMenu({ x, y, items: menuOf(it) })} />
+      </li>
+    );
+  };
+
+  const loadingFiles = !shared.loaded && shared.loading;
+  const loadingClusters = tab === 'by_me' && !byYouLoaded;
+  const nothing = shared.loaded && !total && !loadingClusters;
+  const placeholder = tr`Search shared`;
 
   return (
     <section className="shp" aria-label={tr`Shared`}>
       <header className="shp-head">
         <h1 className="shp-title"><Trans>Shared</Trans></h1>
         <div className="shp-tabs" role="tablist" aria-label={tr`Shared`}>
-          {[['with_me', tr`With me`, withMe.length], ['by_me', tr`By me`, byMe.length]].map(([id, label, n]) => (
+          {[['with_me', tr`With you`, newCount], ['by_me', tr`By you`, 0]].map(([id, label, n]) => (
             <button key={id} type="button" role="tab" aria-selected={tab === id}
                     className={`shp-tab${tab === id ? ' is-on' : ''}`} onClick={() => switchTab(id)}>
               {label}{n ? <span className="shp-tab-n">{n}</span> : null}
             </button>
           ))}
         </div>
-        {showFind && (
-          <div className="shp-find">
-            <input ref={findRef} type="text" className="shp-find-input" value={q}
-                   placeholder={tab === 'with_me' ? tr`Find a file or person…` : tr`Find a file or cluster…`}
-                   aria-label={tab === 'with_me' ? tr`Find a file or person…` : tr`Find a file or cluster…`}
-                   autoComplete="off" spellCheck={false}
-                   onChange={(e) => setQ(e.target.value)}
-                   onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape' && q) { e.preventDefault(); e.stopPropagation(); setQ(''); } }} />
-            {q && (
-              <button type="button" className="shp-find-x" aria-label={tr`Clear search`} title={tr`Clear search`}
-                      onClick={() => { setQ(''); findRef.current?.focus(); }}>
-                <Icon as={X} size={14} />
-              </button>
-            )}
-          </div>
-        )}
+        <div className="shp-find">
+          <input ref={findRef} type="text" className="shp-find-input" value={q}
+                 placeholder={placeholder} aria-label={placeholder}
+                 autoComplete="off" spellCheck={false}
+                 onChange={(e) => setQ(e.target.value)}
+                 onKeyDown={(e) => { if (isComposingKey(e)) return; if (e.key === 'Escape' && q) { e.preventDefault(); e.stopPropagation(); setQ(''); } }} />
+          {q && (
+            <button type="button" className="shp-find-x" aria-label={tr`Clear search`} title={tr`Clear search`}
+                    onClick={() => { setQ(''); findRef.current?.focus(); }}>
+              <Icon as={X} size={14} />
+            </button>
+          )}
+        </div>
         {onClose && (
           <button type="button" className="shp-close" aria-label={tr`Close`} title={tr`Close`} onClick={onClose}>
             <Icon as={X} size={16} />
@@ -234,24 +405,24 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
         )}
       </header>
       <div className="shp-body" role="tabpanel">
-        {!shared.loaded && shared.loading && <p className="shp-empty"><Trans>Loading…</Trans></p>}
-        {searching && !!list.length && (
-          <p className="shp-count">{tr`${ph({ shown: formatNumber(list.length) })} of ${ph({ total: formatNumber(tabList.length) })}`}</p>
+        {(loadingFiles || loadingClusters) && <p className="shp-empty shp-loading"><Trans>Loading…</Trans></p>}
+        {searching && !shownN && total > 0 && (
+          <div className="shp-empty">
+            <p>{tr`Nothing shared matches “${ph({ q: q.trim() })}”`}</p>
+            <button type="button" className="shp-retry" onClick={() => { setQ(''); findRef.current?.focus(); }}><Trans>Clear</Trans></button>
+          </div>
         )}
-        {searching && !list.length && (
-          <div className="shp-empty"><p>{tr`Nothing here matches “${ph({ q: q.trim() })}”.`}</p></div>
-        )}
-        {shared.loaded && !tabList.length && (
+        {nothing && (
           <div className="shp-empty">
             {tab === 'with_me' ? (
               <>
-                <p className="shp-empty-title"><Trans>Nothing has been shared with you yet.</Trans></p>
-                <p><Trans>When someone shares a file with you, it shows up here.</Trans></p>
+                <p className="shp-empty-title"><Trans>Nothing is shared with you yet.</Trans></p>
+                <p><Trans>When someone shares a cluster or a file with you, it shows up here.</Trans></p>
               </>
             ) : (
               <>
-                <p className="shp-empty-title"><Trans>You haven’t shared any files.</Trans></p>
-                <p><Trans>Open any file and use Share to send just that file.</Trans></p>
+                <p className="shp-empty-title"><Trans>You haven’t shared anything yet.</Trans></p>
+                <p><Trans>Share a cluster, or open any file and use Share to send just that file.</Trans></p>
               </>
             )}
           </div>
@@ -262,48 +433,14 @@ export function SharedPage({ onClose = null, onSaveCopy = null, onAddShortcut = 
             <button type="button" className="shp-retry" onClick={() => refreshSharedFiles({ force: true })}><Trans>Try again</Trans></button>
           </div>
         )}
-        {!!list.length && (
-          <ul className="shp-list">
-            {tab === 'with_me' ? list.map((item) => (
-              <li key={item.token} className={`shp-row${item.unread ? ' is-unread' : ''}`}>
-                <button type="button" className="shp-open"
-                        onClick={() => { picked(item); openSharedFile({ token: item.token, via: 'shared_page' }); }}
-                        onContextMenu={(e) => { e.preventDefault(); openMenu(withMeMenu(item))(e.clientX, e.clientY); }}>
-                  <Thumb item={item} url={shared.thumbs[item.token]?.url || null} />
-                  <span className="shp-main">
-                    <span className="shp-name" dir="auto">{item.name || tr`File`}</span>
-                    <span className="shp-sub">
-                      {item.source === 'link' ? tr`Opened from a link` : tr`Shared by ${ph({ name: item.shared_by?.name || tr`someone` })}`}
-                      {item.shared_at ? ` · ${relativeTimeShort(item.shared_at)}` : ''}
-                    </span>
-                  </span>
-                  {item.unread && <span className="shp-dot" aria-label={tr({ message: 'New', context: 'badge' })} />}
-                </button>
-                <RowMenuButton label={tr`More for ${ph({ name: item.name || tr`this file` })}`} onOpen={openMenu(withMeMenu(item))} />
-              </li>
-            )) : list.map((row) => (
-              <li key={row.token} className="shp-row">
-                <button type="button" className="shp-open"
-                        onClick={() => {
-                          picked(row);
-                          openFileShare({
-                            boardId: row.board_id, cardId: row.card_id,
-                            card: { id: row.card_id, kind: row.kind, fileName: row.name },
-                            boardName: row.board_name || null, surface: 'shared_page',
-                          });
-                        }}
-                        onContextMenu={(e) => { e.preventDefault(); openMenu(byMeMenu(row))(e.clientX, e.clientY); }}>
-                  <Thumb item={row} url={shared.thumbs[row.token]?.url || null} />
-                  <span className="shp-main">
-                    <span className="shp-name" dir="auto">{row.name || tr`File`}</span>
-                    <span className="shp-sub">{[row.board_name, accessSummary(row)].filter(Boolean).join(' · ')}</span>
-                  </span>
-                </button>
-                <RowMenuButton label={tr`More for ${ph({ name: row.name || tr`this file` })}`} onOpen={openMenu(byMeMenu(row))} />
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="shp-in">
+          {filtered.map((g) => (
+            <div key={g.key} className="shp-group">
+              {tab === 'with_me' && <GroupHead g={g} />}
+              <ul className="shp-list">{g.items.map(renderRow)}</ul>
+            </div>
+          ))}
+        </div>
       </div>
       {menu && createPortal(
         <CardContextMenu open x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} card={null} />,

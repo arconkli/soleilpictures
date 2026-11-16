@@ -21897,17 +21897,31 @@ export const DOCS_CONTENT = {
     [
      {
       "t": "strong",
-      "v": "Shared with me",
+      "v": "Shared with you",
       "children": [
        {
         "t": "text",
-        "v": "Shared with me"
+        "v": "Shared with you"
        }
       ]
      },
      {
       "t": "text",
-      "v": " groups clusters other people have invited you to by the person who shared them, with a search field once there are many"
+      "v": " lists the clusters other people have invited you to, newest first, and "
+     },
+     {
+      "t": "strong",
+      "v": "All shared",
+      "children": [
+       {
+        "t": "text",
+        "v": "All shared"
+       }
+      ]
+     },
+     {
+      "t": "text",
+      "v": " below it opens the Shared page with all of them"
      }
     ]
    ]
@@ -22130,11 +22144,11 @@ export const DOCS_CONTENT = {
      },
      {
       "t": "strong",
-      "v": "Shared with me",
+      "v": "Shared with you",
       "children": [
        {
         "t": "text",
-        "v": "Shared with me"
+        "v": "Shared with you"
        }
       ]
      },
@@ -22206,59 +22220,45 @@ export const DOCS_CONTENT = {
   {
    "type": "heading",
    "depth": 3,
-   "text": "Shared with me",
+   "text": "Shared with you",
    "inline": [
     {
      "t": "text",
-     "v": "Shared with me"
+     "v": "Shared with you"
     }
    ],
-   "id": "shared-with-me"
+   "id": "shared-with-you"
   },
   {
    "type": "para",
    "inline": [
     {
      "t": "strong",
-     "v": "Shared with me",
+     "v": "Shared with you",
      "children": [
       {
        "t": "text",
-       "v": "Shared with me"
+       "v": "Shared with you"
       }
      ]
     },
     {
      "t": "text",
-     "v": " lists the clusters people shared with you on their own, grouped by the person who shared them ("
+     "v": " lists the clusters people shared with you on their own, the newest first. Each shows the face of whoever shared it, when Clusters knows who did; a dot marks one you haven't opened yet, and "
     },
     {
      "t": "strong",
-     "v": "From Sam Lee",
+     "v": "View",
      "children": [
       {
        "t": "text",
-       "v": "From Sam Lee"
+       "v": "View"
       }
      ]
     },
     {
      "t": "text",
-     "v": ", with their initial), or by their workspace's name when who shared it isn't known. Whoever shared with you most recently comes first, and in each group the newest cluster does. A person who shared many shows their newest few, with "
-    },
-    {
-     "t": "strong",
-     "v": "Show more",
-     "children": [
-      {
-       "t": "text",
-       "v": "Show more"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " for the rest; the cluster you have open always stays in view."
+     "v": " one you can only look at. The clusters inside one sit under its chevron, and the cluster you have open always stays in view, with the way down to it opened."
     }
    ]
   },
@@ -22267,23 +22267,124 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Once the list grows long, a search field sits at the top of it. It finds a cluster by its name, by who shared it, or by their workspace's name, and opens every group while you type. "
+     "v": "Only the newest few are listed. Below them, "
     },
     {
-     "t": "code",
-     "v": "Enter"
+     "t": "strong",
+     "v": "All shared",
+     "children": [
+      {
+       "t": "text",
+       "v": "All shared"
+      }
+     ]
     },
     {
      "t": "text",
-     "v": " opens the first match and "
+     "v": " opens the "
     },
     {
-     "t": "code",
-     "v": "Esc"
+     "t": "link",
+     "v": "Shared page",
+     "href": "/docs/collaborate/sharing#the-shared-page",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shared page"
+      }
+     ]
     },
     {
      "t": "text",
-     "v": " clears the search."
+     "v": ", with every cluster and file shared with you or by you, and counts what you haven't opened yet. Once more are shared with you than the list shows, the magnifying glass beside "
+    },
+    {
+     "t": "strong",
+     "v": "Shared with you",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shared with you"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " opens that page ready to search."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A cluster's "
+    },
+    {
+     "t": "strong",
+     "v": "⋯",
+     "children": [
+      {
+       "t": "text",
+       "v": "⋯"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " menu has "
+    },
+    {
+     "t": "strong",
+     "v": "Open",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Copy link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Remove from my list",
+     "children": [
+      {
+       "t": "text",
+       "v": "Remove from my list"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Removing one takes it off your list, with an undo, and changes nothing for the person who shared it. Opening it again, from a link or a search, puts it back, and so does their sharing it with you again. When someone stops sharing a cluster with you, it leaves the list and a note says so."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Inside a cluster shared with you, the trail at the top of the canvas starts with whoever shared it, when Clusters knows who did."
     }
    ]
   },
@@ -27052,21 +27153,21 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", with their initial on its tile; one they renamed says "
+     "v": ", with their initial on its tile; one they renamed shows their first name at the end of its row. Among the ones shared with you, the one you opened last on this device comes first. When many are shared with you, the switcher lists the few you opened last and the one you are in, under a count of them all, with "
     },
     {
      "t": "strong",
-     "v": "Owned by Sam Lee",
+     "v": "Show all",
      "children": [
       {
        "t": "text",
-       "v": "Owned by Sam Lee"
+       "v": "Show all"
       }
      ]
     },
     {
      "t": "text",
-     "v": " under its name. Among the ones shared with you, the one you opened last on this device comes first. When you are in several workspaces, a search field at the top of the switcher finds one by its name or by its owner's. The first match is already picked, so "
+     "v": " for the rest. When you are in several workspaces, a search field at the top of the switcher finds one by its name or by its owner's. The first match is already picked, so "
     },
     {
      "t": "code",
@@ -35087,26 +35188,41 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "strong",
-     "v": "Shared with me",
+     "v": "Shared with you",
      "children": [
       {
        "t": "text",
-       "v": "Shared with me"
+       "v": "Shared with you"
       }
      ]
     },
     {
      "t": "text",
-     "v": " in the sidebar, grouped by the person who shared them, newest first; see "
+     "v": " in the sidebar, newest first, with a dot on the ones you haven't opened; see "
     },
     {
      "t": "link",
      "v": "the sidebar",
-     "href": "/docs/clusters/sidebar#shared-with-me",
+     "href": "/docs/clusters/sidebar#shared-with-you",
      "children": [
       {
        "t": "text",
        "v": "the sidebar"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Everything shared with you or by you, clusters and files, is on the "
+    },
+    {
+     "t": "link",
+     "v": "Shared page",
+     "href": "/docs/collaborate/sharing#the-shared-page",
+     "children": [
+      {
+       "t": "text",
+       "v": "Shared page"
       }
      ]
     },
@@ -35856,7 +35972,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " button. Joining asks them to sign in (a code to their email, nothing else), then puts the cluster in their sidebar under Shared with me. They see your changes as they happen, and still cannot change anything. You get a note that they joined, and they appear in "
+     "v": " button. Joining asks them to sign in (a code to their email, nothing else), then puts the cluster in their sidebar under Shared with you. They see your changes as they happen, and still cannot change anything. You get a note that they joined, and they appear in "
     },
     {
      "t": "strong",
@@ -38991,36 +39107,32 @@ export const DOCS_CONTENT = {
     ],
     [
      {
-      "t": "text",
-      "v": "the "
-     },
-     {
       "t": "strong",
-      "v": "Shared files",
+      "v": "All shared",
       "children": [
        {
         "t": "text",
-        "v": "Shared files"
+        "v": "All shared"
        }
       ]
      },
      {
       "t": "text",
-      "v": " row under "
+      "v": ", under "
      },
      {
       "t": "strong",
-      "v": "Shared with me",
+      "v": "Shared with you",
       "children": [
        {
         "t": "text",
-        "v": "Shared with me"
+        "v": "Shared with you"
        }
       ]
      },
      {
       "t": "text",
-      "v": " in the sidebar, which appears once anything has been shared with you or by you, with a count of the ones you haven't opened yet"
+      "v": " in the sidebar, which appears once anything has been shared with you or by you, with a count of what you haven't opened yet"
      }
     ],
     [
@@ -39058,11 +39170,11 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "Shared files",
+     "v": "All shared",
      "children": [
       {
        "t": "text",
-       "v": "Shared files"
+       "v": "All shared"
       }
      ]
     },
@@ -39077,17 +39189,45 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "With me",
+     "v": "With you",
      "children": [
       {
        "t": "text",
-       "v": "With me"
+       "v": "With you"
       }
      ]
     },
     {
      "t": "text",
-     "v": " lists the files and docs people added you to, and the ones you opened from a link while signed in. Each row shows who shared it and when; a dot marks one you haven't opened yet. Click a row to open the file, or use its "
+     "v": " lists the clusters, files and docs people shared with you, and the files you opened from a link while signed in, grouped by who shared them; whoever shared with you last comes first. A cluster whose sharer Clusters doesn't know sits under its workspace's name, and a file you opened from a link under "
+    },
+    {
+     "t": "strong",
+     "v": "From links",
+     "children": [
+      {
+       "t": "text",
+       "v": "From links"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". Each row shows what it is and when it came; a dot marks one you haven't opened yet, and "
+    },
+    {
+     "t": "strong",
+     "v": "View",
+     "children": [
+      {
+       "t": "text",
+       "v": "View"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " a cluster you can only look at. Click a row to open it, or use its "
     },
     {
      "t": "strong",
@@ -39138,7 +39278,27 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Opens the file in the app"
+       "v": "Opens the cluster, or the file in the app"
+      }
+     ]
+    ],
+    [
+     [
+      {
+       "t": "strong",
+       "v": "Copy link",
+       "children": [
+        {
+         "t": "text",
+         "v": "Copy link"
+        }
+       ]
+      }
+     ],
+     [
+      {
+       "t": "text",
+       "v": "Copies the cluster's link — clusters only"
       }
      ]
     ],
@@ -39158,7 +39318,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Copies the file into one of your clusters — only when downloading is allowed"
+       "v": "Copies the file into one of your clusters — files only, when downloading is allowed"
       }
      ]
     ],
@@ -39178,7 +39338,7 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "text",
-       "v": "Puts a live shortcut to the file on one of your clusters"
+       "v": "Puts a live shortcut to the file on one of your clusters — files only"
       }
      ]
     ],
@@ -39186,11 +39346,11 @@ export const DOCS_CONTENT = {
      [
       {
        "t": "strong",
-       "v": "Remove from Shared with me",
+       "v": "Remove from my list",
        "children": [
         {
          "t": "text",
-         "v": "Remove from Shared with me"
+         "v": "Remove from my list"
         }
        ]
       }
@@ -39209,17 +39369,31 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "strong",
-     "v": "By me",
+     "v": "By you",
      "children": [
       {
        "t": "text",
-       "v": "By me"
+       "v": "By you"
       }
      ]
     },
     {
      "t": "text",
-     "v": " lists what you have shared that is still shared, with the cluster each file is in and who can open it. Click a row to open its sharing dialog, or use its "
+     "v": " lists the clusters and files you have shared that are still shared, the newest first, each with who has it and "
+    },
+    {
+     "t": "strong",
+     "v": "Link on",
+     "children": [
+      {
+       "t": "text",
+       "v": "Link on"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " while its link works. Click a cluster to open it, or a file to open its sharing dialog. A cluster's "
     },
     {
      "t": "strong",
@@ -39233,7 +39407,49 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " menu: "
+     "v": " menu has "
+    },
+    {
+     "t": "strong",
+     "v": "Open",
+     "children": [
+      {
+       "t": "text",
+       "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ", "
+    },
+    {
+     "t": "strong",
+     "v": "Manage sharing…",
+     "children": [
+      {
+       "t": "text",
+       "v": "Manage sharing…"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " and "
+    },
+    {
+     "t": "strong",
+     "v": "Copy link",
+     "children": [
+      {
+       "t": "text",
+       "v": "Copy link"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": "; a file's has "
     },
     {
      "t": "strong",
@@ -39261,7 +39477,7 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": ", or "
+     "v": " and "
     },
     {
      "t": "strong",
@@ -39284,35 +39500,21 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "When a tab holds more than a handful of files, a search field in the page's header narrows it: on "
+     "v": "The search field at the top finds anything on the open tab by its name, by who shared it or who has it, by its workspace or cluster, or by what it is, such as "
     },
     {
-     "t": "strong",
-     "v": "With me",
+     "t": "em",
+     "v": "video",
      "children": [
       {
        "t": "text",
-       "v": "With me"
+       "v": "video"
       }
      ]
     },
     {
      "t": "text",
-     "v": " by the file's name or who shared it, on "
-    },
-    {
-     "t": "strong",
-     "v": "By me",
-     "children": [
-      {
-       "t": "text",
-       "v": "By me"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": " by the file's name or its cluster. While you type it shows how many of the tab's files match; "
+     "v": ". "
     },
     {
      "t": "code",
@@ -41875,15 +42077,29 @@ export const DOCS_CONTENT = {
     },
     {
      "t": "text",
-     "v": " opens it in the app. The share itself also reaches you by email, and every file shared with you is listed under "
+     "v": " opens it in the app. A cluster shared with you shows a toast too, with "
     },
     {
      "t": "strong",
-     "v": "Shared files",
+     "v": "Open",
      "children": [
       {
        "t": "text",
-       "v": "Shared files"
+       "v": "Open"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": ". The share itself also reaches you by email, and everything shared with you is on the Shared page, from "
+    },
+    {
+     "t": "strong",
+     "v": "All shared",
+     "children": [
+      {
+       "t": "text",
+       "v": "All shared"
       }
      ]
     },

@@ -319,7 +319,8 @@ The interface says **cluster**; code says board. Translate the interface word.
 | tile (a square or block in a tile layout) | mosaico (m.) | vignette (f.) | bloco (m.) | плитка (ж.) | タイル | 타일 |
 | merge (tags) | combinar | fusionner | mesclar | объединить | 統合 | 병합 |
 | starred / Starred | con estrella | favori | com estrela | помеченные | スター付き | 별표 |
-| Shared with me | compartidos conmigo | partagés avec moi | compartilhados comigo | доступные мне | 共有アイテム | 나와 공유됨 |
+| Shared with you (the sidebar section; once "Shared with me") | compartido contigo | partagé avec vous | compartilhado com você | доступно вам | 共有アイテム | 나와 공유됨 |
+| Shared (the Shared page: what is shared with you and by you) | compartido | partagé | compartilhado | общий доступ | 共有済み | 공유됨 |
 | hash | hash (m.) | hachage (m.) | hash (m.) | хеш (м.) | ハッシュ | 해시 |
 | endpoint | endpoint (m.) | point de terminaison (m.) | endpoint (m.) | эндпоинт (м.) | エンドポイント | 엔드포인트 |
 | Manage billing | gestionar facturación | gérer la facturation | gerenciar cobrança | управление оплатой | お支払いを管理 | 결제 관리 |

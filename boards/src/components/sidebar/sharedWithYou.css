@@ -1,0 +1,45 @@
+/* Shared with you (SidebarSharedBoards): the rows are the tree's own
+   (.sb-tree-row.is-files); this is what they add. Gold stays for the active
+   row; the new dot is ink. */
+.swy-head-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.swy-head-toggle {
+  display: inline-flex; align-items: center; gap: 6px; flex: 1; min-width: 0; cursor: pointer;
+  border-radius: 4px;
+}
+.swy-head-toggle:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+.swy-find {
+  order: 2; margin-left: auto; flex: none; width: 22px; height: 22px; padding: 0;
+  display: grid; place-items: center; border: 0; border-radius: 6px;
+  background: transparent; color: var(--ink-3); cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+}
+.swy-find:hover { color: var(--ink-0); background: var(--bg-hov); }
+.swy-find:focus-visible, .swy-more:focus-visible { outline: 2px solid var(--soleil); outline-offset: 1px; }
+.swy-rows { padding-bottom: 2px; }
+.swy-row { min-width: 0; }
+.swy-row .sb-tree-chev { flex: none; }
+.swy-lead { flex: none; width: 16px; height: 16px; display: grid; place-items: center; }
+.swy-new {
+  flex: none; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ink-0);
+}
+.swy-row .sb-shared-ro { margin-left: 0; }
+.swy-more {
+  flex: none; width: 22px; height: 22px; padding: 0; margin-right: -2px;
+  display: grid; place-items: center; border: 0; border-radius: 6px;
+  background: transparent; color: var(--ink-2); cursor: pointer;
+  opacity: 0; transition: opacity var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+}
+.swy-row:hover .swy-more, .swy-row:focus-within .swy-more, .swy-more.is-open { opacity: 1; }
+.swy-more:hover, .swy-more.is-open { background: var(--bg-3); color: var(--ink-0); }
+@media (hover: none) { .swy-more { opacity: 1; } }
+.swy-menu { z-index: 1300; }
+
+/* All shared: a way to the page, quieter than a cluster. */
+.swy-all { gap: 6px; color: var(--ink-2); }
+.swy-all-icon { flex: none; width: 12px; display: grid; place-items: center; }
+.swy-all .swy-all-icon + .sb-row-label { margin-left: 4px; }
+.swy-all-count {
+  flex: none; margin-left: auto; color: var(--ink-3);
+  font: 400 12px/1 var(--font-sans); font-variant-numeric: tabular-nums;
+}

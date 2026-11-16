@@ -55,7 +55,7 @@ test.describe('a shortcut card', () => {
 });
 
 test.describe('making a shortcut', () => {
-  test('from Shared with me: "Add shortcut…" asks the app for the file', async ({ page }) => {
+  test('from the Shared page: "Add shortcut…" asks the app for the file', async ({ page }) => {
     await open(page, 'shared-page');
     await page.locator('.shp-row').first().getByRole('button', { name: /More for Opening titles v3/ }).click();
     await page.getByRole('menuitem', { name: 'Add shortcut…' }).click();

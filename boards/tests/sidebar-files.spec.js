@@ -1233,11 +1233,10 @@ test.describe('sidebar files: another cluster, and the rules', () => {
   test('over the cluster the file is in, and over a cluster from another workspace, the label says why not', async ({ page }) => {
     await page.goto('/?sidebarqa=1&shared=1');
     await page.waitForSelector('[data-sidebarqa-ready]');
-    await page.locator('.sb-shared-head').click();
-    await expect(page.locator('.sb-shared-row', { hasText: 'Grade' })).toBeVisible();
+    await expect(page.locator('.swy-row', { hasText: 'Grade' })).toBeVisible();
     await holdDrag(page, '[data-sb-item="film:film-img-0"]', treeRowSel('film'));
     await expect(label(page)).toContainText('Already in Feature film');
-    await holdOver(page, '.sb-shared-row[data-drop-board="grade"]');
+    await holdOver(page, '.swy-row[data-drop-board="grade"]');
     await expect(label(page)).toContainText('Grade is in Gradehouse');
     await expect(label(page)).toContainText('Files can only move within Sidebar QA');
     await letGo(page);

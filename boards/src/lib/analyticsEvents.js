@@ -414,6 +414,7 @@ export const EV = Object.freeze({
   FILE_SHARE_CTA_CLICK:    'file_share_cta_click',        // the signed-out "Try Clusters free" footer on /f/<token> {surface:'footer'} (must-land)
   FILE_SHARE_RETURN_LANDED: 'file_share_return_landed',   // {} — a sign-in that began on /f/<token> was sent back to that file once a session existed
   SHARED_PAGE_VIEW:        'shared_page_view',            // the Shared page opened {tab:'with_me'|'by_me',n,unread} — once per open
+  SHARED_CLUSTER_OPEN:     'shared_cluster_open',          // a cluster shared with you opened, once per cluster per session, and again whenever it was new {via:'sidebar'|'page'|'toast'|'link'|'other',is_new}
   SHARED_FILE_OPEN:        'shared_file_open',            // a file shared with you opened inside the app {via:'shared_page'|'bell'|'toast'|'shortcut'|'link'}
   SHARED_FILE_SAVE:        'shared_file_save',            // Save a copy of a file shared with you {kind,ok,reason}
   SHARED_FILE_SHORTCUT:    'shared_file_shortcut',        // a live shortcut to a file shared with you put on a cluster {kind,ok,reason}

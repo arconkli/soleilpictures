@@ -26,7 +26,7 @@ test('rows say who can open what, in words', () => {
   assert.equal(accessSummary({ link_access: 'none', people_count: 1 }), 'Only people added · 1 person');
   assert.equal(accessSummary({ link_access: 'none', people_count: 0 }), '');
   assert.equal(typeTile({ ext: 'zip' }), 'ZIP');
-  assert.equal(typeTile({ kind: 'video' }), 'VIDE');
+  assert.equal(typeTile({ kind: 'video' }), 'VIDEO');
   assert.equal(unreadCount([{ unread: true }, { unread: false }, null, { unread: true }]), 2);
 });
 
@@ -70,8 +70,8 @@ test('the Shared page, the in-app viewer and the sidebar row all answer to share
   assert.match(app, /\{sharedFilesAllowed\(\) && <SharedFileHost onSaveCopy=\{saveSharedCopy\} onAddShortcut=\{addSharedShortcut\} \/>\}/);
   assert.match(app, /\) : currentSurface === 'shared' && sharedFilesAllowed\(\) \? \(/);
   assert.match(app, /const sharedFiles = useSharedFiles\(\{ enabled: sharedFilesAllowed\(\) \}\);/);
-  assert.match(app, /const sharedFilesRow = sharedFilesAllowed\(\) && /);
-  assert.equal(app.match(/filesRow=\{sharedFilesRow\}/g)?.length, 2, 'both sidebars');
+  assert.match(app, /const allSharedRow = sharedFilesAllowed\(\) && /);
+  assert.equal(app.match(/allShared=\{allSharedRow\}/g)?.length, 2, 'both sidebars');
   // Save a copy checks your own card limit first, and a full drive is the storage wall.
   const save = app.slice(app.indexOf('const saveSharedCopy = useCallback('), app.indexOf('const saveSharedCopy = useCallback(') + 3500);
   assert.match(save, /if \(Number\(mt\.demoCardCount\) >= limit\) \{ pitchCapWall\(/);
@@ -81,7 +81,7 @@ test('the Shared page, the in-app viewer and the sidebar row all answer to share
 
 test('the Shared page’s menus and undo are the app’s', () => {
   const page = src('../components/shared/SharedPage.jsx');
-  assert.match(page, /\{ id: 'hide', label: tr`Remove from Shared with me`/);
+  assert.match(page, /\{ id: 'hide', label: tr`Remove from my list`/);
   assert.match(page, /\{ id: 'stop', label: tr`Stop sharing`, danger: true/);
   assert.match(page, /label: tr`Undo`/);
   assert.match(page, /undoStopFileShare\(row\.board_id, row\.card_id,\s+\{ linkAccess: data\.link_access, stoppedAt: data\.stopped_at \}\)/);

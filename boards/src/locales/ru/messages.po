@@ -137,6 +137,10 @@ msgstr "Удалено: «{name}»"
 msgid "“{name}” hit a sync error and was reloaded from the server. If a very recent edit looks missing, it may need to be redone."
 msgstr "«{name}»: ошибка синхронизации, кластер перезагружен с сервера. Если очень недавняя правка пропала, возможно, её нужно повторить."
 
+#: src/App.jsx
+msgid "“{name}” is no longer shared with you."
+msgstr "Доступ к «{name}» для вас закрыт."
+
 #: src/hooks/useCandidateTagging.js
 msgid "“{name}” is now a {kind}"
 msgstr "«{name}» теперь {kind}"
@@ -164,6 +168,11 @@ msgstr "«{name}» теперь тема"
 #: src/hooks/useCandidateTagging.js
 msgid "“{name}” is now an organization"
 msgstr "«{name}» теперь организация"
+
+#: src/App.jsx
+#: src/components/shared/SharedPage.jsx
+msgid "“{name}” removed from your list."
+msgstr "Убрано из вашего списка: «{name}»."
 
 #: src/components/CanvasSurface.jsx
 msgid "“{name}” will appear at /templates for anyone to add. It shares the shape and the labels only — no images, no text, nothing from the board it came from. You can remove it at any time."
@@ -323,6 +332,11 @@ msgstr "{0, plural, one {# карточка, не поместившаяся в 
 #: src/pages/KeepPage.jsx
 msgid "{0, plural, one {# card} other {# cards}}"
 msgstr "{0, plural, one {# карточка} few {# карточки} many {# карточек} other {# карточки}}"
+
+#. placeholder {0}: ended.length
+#: src/App.jsx
+msgid "{0, plural, one {# cluster is no longer shared with you.} other {# clusters are no longer shared with you.}}"
+msgstr "{0, plural, one {# кластер вам больше не доступен.} few {# кластера вам больше не доступны.} many {# кластеров вам больше не доступны.} other {# кластера вам больше не доступны.}}"
 
 #. placeholder {0}: subBoards.length
 #: src/components/ListSurface.jsx
@@ -568,6 +582,11 @@ msgstr "{0, plural, one {+ещё #} few {+ещё #} many {+ещё #} other {+е�
 msgid "{0, plural, one {Added # file to Files — not on the board} other {Added # files to Files — not on the board}}"
 msgstr "{0, plural, one {Добавлен # файл в «Файлы» — не на холсте} few {Добавлено # файла в «Файлы» — не на холсте} many {Добавлено # файлов в «Файлы» — не на холсте} other {Добавлено # файла в «Файлы» — не на холсте}}"
 
+#. placeholder {0}: allShared.count
+#: src/components/SidebarSharedBoards.jsx
+msgid "{0, plural, one {All shared, # new} other {All shared, # new}}"
+msgstr "{0, plural, one {Все доступные, новых: #} few {Все доступные, новых: #} many {Все доступные, новых: #} other {Все доступные, новых: #}}"
+
 #. placeholder {0}: kids.length - 4
 #: src/components/home/ClustersHome.jsx
 msgid "{0, plural, one {and # more} other {and # more}}"
@@ -704,6 +723,11 @@ msgstr "{0, plural, one {Кластеров откачено к {rewindDate}: #}
 #: src/components/sidebar/ClusterShelves.jsx
 msgid "{0, plural, one {Show # more} other {Show # more}}"
 msgstr "{0, plural, one {Показать ещё #} few {Показать ещё #} many {Показать ещё #} other {Показать ещё #}}"
+
+#. placeholder {0}: sharedLive.length
+#: src/components/WorkspaceMenu.jsx
+msgid "{0, plural, one {Show all #} other {Show all #}}"
+msgstr "{0, plural, one {Показать все: #} few {Показать все: #} many {Показать все: #} other {Показать все: #}}"
 
 #. placeholder {0}: chosen.length
 #: src/components/team/TeamSetup.jsx
@@ -1270,6 +1294,7 @@ msgstr "{first} здесь"
 msgid "{first} is in it"
 msgstr "Внутри: {first}"
 
+#: src/components/shared/SharedPage.jsx
 #: src/lib/messagesCard.js
 msgid "{first}, {second} and {rest, plural, one {# other} other {# others}}"
 msgstr "{first}, {second} и ещё {rest, plural, one {# человек} few {# человека} many {# человек} other {# человека}}"
@@ -1362,10 +1387,6 @@ msgstr "{h} ч назад"
 #: src/auth/PricingSuccess.jsx
 msgid "{heldElsewhere, plural, one {The file you dropped is in your other Clusters tab. Switch back to it to see it go on — you can close this one.} other {The # files you dropped are in your other Clusters tab. Switch back to it to see them go on — you can close this one.}}"
 msgstr "{heldElsewhere, plural, one {Файл, который вы перетащили, находится в другой вкладке Clusters. Вернитесь в неё, чтобы увидеть, как он добавится, — эту вкладку можно закрыть.} few {# файла, которые вы перетащили, находятся в другой вкладке Clusters. Вернитесь в неё, чтобы увидеть, как они добавятся, — эту вкладку можно закрыть.} many {# файлов, которые вы перетащили, находятся в другой вкладке Clusters. Вернитесь в неё, чтобы увидеть, как они добавятся, — эту вкладку можно закрыть.} other {# файла, которые вы перетащили, находятся в другой вкладке Clusters. Вернитесь в неё, чтобы увидеть, как они добавятся, — эту вкладку можно закрыть.}}"
-
-#: src/components/SidebarSharedBoards.jsx
-msgid "{hiddenN, plural, one {Show # more} other {Show # more}}"
-msgstr "{hiddenN, plural, one {Показать ещё #} few {Показать ещё #} many {Показать ещё #} other {Показать ещё #}}"
 
 #: src/components/cards.jsx
 msgid "{hx} — click to edit · drag to reorder"
@@ -1871,6 +1892,10 @@ msgstr "{n, plural, one {Отправлено # час назад} few {Отпр
 msgid "{n, plural, one {Sent # week ago} other {Sent # weeks ago}}"
 msgstr "{n, plural, one {Отправлено # неделю назад} few {Отправлено # недели назад} many {Отправлено # недель назад} other {Отправлено # недели назад}}"
 
+#: src/components/shared/SharedPage.jsx
+msgid "{n, plural, one {Shared with # person} other {Shared with # people}}"
+msgstr "{n, plural, one {Доступ у # человека} few {Доступ у # человек} many {Доступ у # человек} other {Доступ у # человека}}"
+
 #: src/lib/teamCopy.js
 msgid "{n, plural, one {That needs # more seat.} other {That needs # more seats.}}"
 msgstr "{n, plural, one {Для этого нужно ещё # место.} few {Для этого нужно ещё # места.} many {Для этого нужно ещё # мест.} other {Для этого нужно ещё # места.}}"
@@ -2220,6 +2245,10 @@ msgstr "не удалось добавить: {notAdded}"
 #: src/lib/liveTogetherWords.js
 msgid "{others, plural, =1 {You and # other person are working together} other {You and # others are working together}}"
 msgstr "{others, plural, =1 {Вы и ещё один человек работаете вместе} one {Вы и ещё # человек работаете вместе} few {Вы и ещё # человека работаете вместе} many {Вы и ещё # человек работаете вместе} other {Вы и ещё # человека работаете вместе}}"
+
+#: src/components/shared/SharedPage.jsx
+msgid "{others, plural, one {{names} and # other} other {{names} and # others}}"
+msgstr "{others, plural, one {{names} и ещё #} few {{names} и ещё #} many {{names} и ещё #} other {{names} и ещё #}}"
 
 #: src/lib/teamCopy.js
 msgid "{others, plural, one {You and # other can edit it.} other {You and # others can edit it.}}"
@@ -2607,7 +2636,6 @@ msgid "{shown} of {0, plural, one {# card} other {# cards}} came through"
 msgstr "Получено {shown} из {0, plural, one {# карточки} few {# карточек} many {# карточек} other {# карточки}}"
 
 #: src/components/ListSurface.jsx
-#: src/components/shared/SharedPage.jsx
 msgid "{shown} of {total}"
 msgstr "{shown} из {total}"
 
@@ -2831,10 +2859,6 @@ msgstr "{unplacedCount, plural, one {# файл лежит в «Файлах», 
 #: src/components/ListSurface.jsx
 msgid "{unplacedTotal} not on board"
 msgstr "Не на холсте: {unplacedTotal}"
-
-#: src/components/SidebarSharedBoards.jsx
-msgid "{unread} new"
-msgstr "{unread} нов."
 
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "{unread} unread"
@@ -4398,6 +4422,10 @@ msgstr "Все места команды заняты. Пригласите их
 msgid "All pages"
 msgstr "Все страницы"
 
+#: src/components/SidebarSharedBoards.jsx
+msgid "All shared"
+msgstr "Все доступные"
+
 #: src/components/TagDetailView.jsx
 msgid "All types"
 msgstr "Все типы"
@@ -4909,6 +4937,7 @@ msgstr "аудио"
 #: src/components/cards/ShortcutCard.jsx
 #: src/components/fileShare/FileSharePage.jsx
 #: src/components/ListSurface.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/ShortcutsOverlay.jsx
 #: src/lib/cardFromUpload.js
 #: src/lib/cardInfo.js
@@ -5398,8 +5427,8 @@ msgid "Bulleted list"
 msgstr "Маркированный список"
 
 #: src/components/shared/SharedPage.jsx
-msgid "By me"
-msgstr "От меня"
+msgid "By you"
+msgstr "От вас"
 
 #: src/components/cards/ScheduleCard.jsx
 msgid "Calendar density"
@@ -5926,6 +5955,7 @@ msgstr "Чистый режим"
 #: src/components/clusterBrowser/FilesPageHead.jsx
 #: src/components/CommandPalette.jsx
 #: src/components/EntityPicker.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
 #: src/components/sidebar/ClusterSwitch.jsx
 #: src/components/SketchPadOverlay.jsx
@@ -5986,7 +6016,6 @@ msgstr "Сбросить выход"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
 #: src/components/shared/SharedPage.jsx
-#: src/components/SidebarSharedBoards.jsx
 msgid "Clear search"
 msgstr "Очистить поиск"
 
@@ -6284,6 +6313,7 @@ msgstr "кластер"
 #: src/components/clusterBrowser/GridContentPreview.jsx
 #: src/components/MessageComposer.jsx
 #: src/components/MessageThings.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/WorkspaceRecoveryModal.jsx
 #: src/lib/cardInfo.js
 #: src/lib/entityKinds.js
@@ -6891,6 +6921,7 @@ msgstr "Копировать файлы вместо перемещения"
 #: src/components/setup/InviteStep.jsx
 #: src/components/shared/SharedPage.jsx
 #: src/components/ShareModal.jsx
+#: src/components/SidebarSharedBoards.jsx
 msgid "Copy link"
 msgstr "Копировать ссылку"
 
@@ -7356,6 +7387,10 @@ msgstr "Не удалось скопировать — браузер не ра�
 msgid "Couldn't copy the link — your browser blocked the clipboard."
 msgstr "Не удалось скопировать ссылку — браузер заблокировал буфер обмена."
 
+#: src/App.jsx
+msgid "Couldn't copy the link."
+msgstr "Не удалось скопировать ссылку."
+
 #: src/components/shared/SharedPage.jsx
 msgid "Couldn’t copy the link."
 msgstr "Не удалось скопировать ссылку."
@@ -7567,6 +7602,14 @@ msgstr "Не удалось подготовить изображение."
 msgid "Couldn't process that image."
 msgstr "Не удалось обработать это изображение."
 
+#: src/App.jsx
+msgid "Couldn't put “{name}” back on your list."
+msgstr "Не удалось вернуть «{name}» в ваш список."
+
+#: src/App.jsx
+msgid "Couldn't put it back on your list."
+msgstr "Не удалось вернуть его в ваш список."
+
 #: src/lib/storageAddon.js
 msgid "Couldn’t reach billing. Check your connection and try again."
 msgstr "Не удалось связаться с оплатой. Проверьте подключение и повторите попытку."
@@ -7615,6 +7658,14 @@ msgstr "Не удалось прочитать это изображение."
 #: src/components/ThumbnailCropModal.jsx
 msgid "Couldn’t read that image."
 msgstr "Не удалось прочитать изображение."
+
+#: src/App.jsx
+msgid "Couldn't remove “{name}” from your list."
+msgstr "Не удалось убрать «{name}» из вашего списка."
+
+#: src/App.jsx
+msgid "Couldn't remove it from your list."
+msgstr "Не удалось убрать его из вашего списка."
 
 #: src/components/shared/SharedPage.jsx
 msgid "Couldn’t remove it. Try again."
@@ -8407,6 +8458,7 @@ msgstr "документ"
 #: src/components/doc/DocBarA.jsx
 #: src/components/EntityBacklinksPanel.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/lib/entityKinds.js
 #: src/lib/graphData.js
 #: src/lib/helpHub.js
@@ -9146,8 +9198,12 @@ msgid "Editor — you can change what new cards start as, but not the name or ic
 msgstr "Редактор — вы можете менять вид новых карточек, но не название и не значок."
 
 #: src/App.jsx
-msgid "Editor access to \"{name}\" was shared with you. Find it in \"Shared with me\"."
-msgstr "Вам открыт доступ редактора к «{name}». Найдите его в разделе «Доступные мне»."
+msgid "Editor access to “{name}” was shared with you."
+msgstr "Вам открыли доступ к редактированию «{name}»."
+
+#: src/App.jsx
+msgid "Editor access to a cluster was shared with you."
+msgstr "Вам открыли доступ к редактированию кластера."
 
 #: src/lib/editorLimitWords.js
 msgid "Edits {ws}"
@@ -9762,10 +9818,6 @@ msgstr "«Файлы» теперь открываются рядом с кла�
 msgid "Files path"
 msgstr "Путь к файлам"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Files shared with you, and files you've shared"
-msgstr "Файлы, которыми поделились с вами, и файлы, которыми поделились вы"
-
 #: src/lib/dropRules.js
 msgid "Files stay in their own workspace"
 msgstr "Файлы остаются в своём рабочем пространстве"
@@ -9848,21 +9900,9 @@ msgstr "Найти"
 msgid "Find a cluster"
 msgstr "Найти кластер"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Find a cluster or person…"
-msgstr "Найти кластер или человека…"
-
 #: src/components/MessagesPanel.jsx
 msgid "Find a conversation"
 msgstr "Найти беседу"
-
-#: src/components/shared/SharedPage.jsx
-msgid "Find a file or cluster…"
-msgstr "Найти файл или кластер…"
-
-#: src/components/shared/SharedPage.jsx
-msgid "Find a file or person…"
-msgstr "Найти файл или человека…"
 
 #: src/components/WorkspaceMenu.jsx
 msgid "Find a workspace or person…"
@@ -10254,6 +10294,10 @@ msgstr "От текста документа или заметки к её па�
 #: src/pages/MakePage.jsx
 msgid "From a link an AI wrote"
 msgstr "Из ссылки, которую написал ИИ"
+
+#: src/components/shared/SharedPage.jsx
+msgid "From links"
+msgstr "По ссылке"
 
 #: src/components/settings/ConnectionsTab.jsx
 msgid "from the Scout waitlist"
@@ -11032,6 +11076,7 @@ msgstr "изображение"
 #: src/components/EntityHoverPopover.jsx
 #: src/components/fileShare/FileSharePage.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/TagDetailView.jsx
 #: src/components/TagRangeHoverPopover.jsx
 #: src/lib/entityKinds.js
@@ -12334,6 +12379,7 @@ msgstr "Карточка-ссылка"
 msgid "Link cards"
 msgstr "Карточки-ссылки"
 
+#: src/App.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/MessageThread.jsx
@@ -12383,6 +12429,11 @@ msgstr "Ссылка скопирована. Пока на тарифе влад
 #: src/components/ShareModal.jsx
 msgid "Link copied. While your plan is full, anyone with it joins as a viewer."
 msgstr "Ссылка скопирована. Пока на вашем тарифе нет свободных мест, все, кто перейдёт по ней, присоединятся как читатели."
+
+#: src/components/shared/SharedPage.jsx
+msgctxt "link sharing"
+msgid "Link on"
+msgstr "Есть ссылка"
 
 #: src/components/RichNoteEditor.jsx
 msgid "LINK PREVIEW"
@@ -13149,6 +13200,7 @@ msgstr "Мудборды, сценарии, шот-листы — все мат�
 #: src/components/chrome/FloatingChrome.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/doc/DocFrameA.jsx
+#: src/components/SidebarSharedBoards.jsx
 #: src/components/team/TeamPage.jsx
 #: src/components/toolbar/SelectionBarA.jsx
 msgid "More"
@@ -13163,6 +13215,7 @@ msgid "More arrow options"
 msgstr "Другие параметры стрелки"
 
 #: src/components/shared/SharedPage.jsx
+#: src/components/SidebarSharedBoards.jsx
 #: src/components/team/TeamPeople.jsx
 #: src/components/team/TeamWorkspaces.jsx
 msgid "More for {name}"
@@ -13579,6 +13632,7 @@ msgid "new"
 msgstr "новый"
 
 #: src/components/MessageThread.jsx
+#: src/components/SidebarSharedBoards.jsx
 msgid "New"
 msgstr "Новые"
 
@@ -14415,10 +14469,6 @@ msgstr "Ничего не удалено. Если команда останет
 msgid "Nothing has been deleted. If the team stays unpaid, its workspaces are deleted on {date}, and we’ll remind you before then."
 msgstr "Ничего не удалено. Если команда останется без оплаты, её рабочие пространства будут удалены {date}; мы напомним об этом заранее."
 
-#: src/components/shared/SharedPage.jsx
-msgid "Nothing has been shared with you yet."
-msgstr "Вам пока ничем не делились."
-
 #: src/lib/oauthConsentCopy.js
 msgid "Nothing has been shared."
 msgstr "Ничем не поделились."
@@ -14454,10 +14504,6 @@ msgstr "Пока ничего не загружено. Освободить ме
 #: src/components/ImportCapDialog.jsx
 msgid "Nothing has been uploaded yet. This cluster is on its owner’s plan, so their plan sets the limit."
 msgstr "Пока ничего не загружено. Этот кластер на тарифе владельца, поэтому лимит задаёт его тариф."
-
-#: src/components/shared/SharedPage.jsx
-msgid "Nothing here matches “{q}”."
-msgstr "Здесь ничего не найдено по запросу «{q}»."
 
 #: src/components/ListSurface.jsx
 msgid "Nothing here yet."
@@ -14509,6 +14555,10 @@ msgstr "Ничего не раскладывается на холсте."
 #: src/pages/MakePage.jsx
 msgid "Nothing is saved until you keep it."
 msgstr "Ничего не сохраняется, пока вы не сохраните это."
+
+#: src/components/shared/SharedPage.jsx
+msgid "Nothing is shared with you yet."
+msgstr "Вам пока ничего не открыли."
 
 #: src/lib/importCopy.js
 msgid "Nothing is uploading. Resume picks up where it left off."
@@ -14571,9 +14621,9 @@ msgstr "Решённых пока нет"
 msgid "Nothing scheduled"
 msgstr "Ничего не запланировано"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Nothing shared with you matches “{q}”."
-msgstr "Среди доступного вам ничего не найдено по запросу «{q}»."
+#: src/components/shared/SharedPage.jsx
+msgid "Nothing shared matches “{q}”"
+msgstr "Ничего не найдено по запросу «{q}»"
 
 #: src/lib/downloadOps.js
 msgid "Nothing there could be downloaded."
@@ -15015,6 +15065,7 @@ msgstr "Непрозрачность"
 #: src/components/ListSurface.jsx
 #: src/components/shared/SharedPage.jsx
 #: src/components/SidebarBoardTree.jsx
+#: src/components/SidebarSharedBoards.jsx
 #: src/components/TagDetailView.jsx
 #: src/components/team/TeamWorkspaces.jsx
 #: src/hooks/useInboxLive.js
@@ -15114,10 +15165,6 @@ msgstr "Открыть холст для рисования на весь экр
 #: src/components/settings/ProfileTab.jsx
 msgid "Open a workspace before uploading a profile picture."
 msgstr "Откройте рабочее пространство, прежде чем загружать фото профиля."
-
-#: src/components/shared/SharedPage.jsx
-msgid "Open any file and use Share to send just that file."
-msgstr "Откройте любой файл и нажмите «Поделиться», чтобы отправить только его."
 
 #: src/components/cards/SchedulePeek.jsx
 msgid "Open as the card's Day view"
@@ -15404,10 +15451,6 @@ msgstr "Открыть Yahoo! Mail"
 #: src/lib/activityTray.js
 msgid "Open: {title}"
 msgstr "Открыть: {title}"
-
-#: src/components/shared/SharedPage.jsx
-msgid "Opened from a link"
-msgstr "Открыто по ссылке"
 
 #: src/components/CanvasSurface.jsx
 msgid "Opened your new cluster — add images inside it."
@@ -15921,6 +15964,7 @@ msgstr "pdf"
 #: src/components/cards/ShortcutCard.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/fileShare/FileSharePage.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
 #: src/lib/sharedFiles.js
@@ -16999,13 +17043,14 @@ msgstr "Убрать из группы"
 msgid "Remove from group ({size})"
 msgstr "Убрать из группы ({size})"
 
+#: src/components/shared/SharedPage.jsx
+#: src/components/SidebarSharedBoards.jsx
+msgid "Remove from my list"
+msgstr "Убрать из моего списка"
+
 #: src/components/ColorPicker.jsx
 msgid "Remove from Saved"
 msgstr "Убрать из сохранённых"
-
-#: src/components/shared/SharedPage.jsx
-msgid "Remove from Shared with me"
-msgstr "Убрать из «Доступные мне»"
 
 #: src/components/CanvasSurface.jsx
 msgid "Remove from the store"
@@ -17092,10 +17137,6 @@ msgstr "Убрано: {label}"
 msgid "Removed {label}."
 msgstr "Участник удалён: {label}."
 
-#: src/components/shared/SharedPage.jsx
-msgid "Removed {name} from Shared with me"
-msgstr "{name} убран из раздела «Доступные мне»"
-
 #: src/App.jsx
 msgid "Removed {title} — its clusters are in the trash."
 msgstr "Убрано: {title}. Его кластеры в корзине."
@@ -17119,6 +17160,11 @@ msgstr "Убрано из расписания"
 #: src/components/CanvasSurface.jsx
 msgid "Removed from the store."
 msgstr "Убрано из магазина."
+
+#: src/App.jsx
+#: src/components/shared/SharedPage.jsx
+msgid "Removed from your list."
+msgstr "Убрано из вашего списка."
 
 #: src/lib/teamCopy.js
 msgid "Removed."
@@ -18046,6 +18092,11 @@ msgstr "результаты поиска"
 msgid "Search sees cluster, group and tag names, notes, docs, captions, file names and what’s in pictures."
 msgstr "Поиск видит названия кластеров, групп и тегов, заметки, документы, подписи, имена файлов и то, что на изображениях."
 
+#: src/components/shared/SharedPage.jsx
+#: src/components/SidebarSharedBoards.jsx
+msgid "Search shared"
+msgstr "Поиск по доступным"
+
 #: src/components/SidebarTags.jsx
 msgid "Search tags…"
 msgstr "Поиск тегов…"
@@ -18510,6 +18561,10 @@ msgstr "Фигуры и рисование"
 msgid "Share"
 msgstr "Поделиться"
 
+#: src/components/shared/SharedPage.jsx
+msgid "Share a cluster, or open any file and use Share to send just that file."
+msgstr "Поделитесь кластером или откройте любой файл и нажмите «Поделиться», чтобы отправить только его."
+
 #: src/components/ShareModal.jsx
 msgid "Share a link"
 msgstr "Поделиться ссылкой"
@@ -18606,7 +18661,7 @@ msgstr "Поделиться…"
 #: src/App.jsx
 #: src/components/shared/SharedPage.jsx
 msgid "Shared"
-msgstr "Доступные мне"
+msgstr "Общий доступ"
 
 #: src/components/fileShare/FileShareButton.jsx
 msgctxt "state"
@@ -18629,8 +18684,9 @@ msgstr "Доступ от"
 msgid "Shared by {by}"
 msgstr "Доступ от {by}"
 
+#: src/App.jsx
 #: src/components/CommandPalette.jsx
-#: src/components/shared/SharedPage.jsx
+#: src/components/SidebarSharedBoards.jsx
 msgid "Shared by {name}"
 msgstr "Доступ от {name}"
 
@@ -18655,10 +18711,6 @@ msgstr "Общий документ"
 msgid "Shared file"
 msgstr "Общий файл"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Shared files"
-msgstr "Общие файлы"
-
 #: src/components/CanvasSurface.jsx
 msgid "Shared in the store."
 msgstr "Опубликовано в магазине."
@@ -18671,13 +18723,10 @@ msgstr "Доступ открыт на «{via}». Измените его в п�
 msgid "Shared with {a}{tail}"
 msgstr "Доступ открыт: {a}{tail}"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Shared with me"
-msgstr "Доступные мне"
-
 #: src/components/fileShare/FileSharePage.jsx
 #: src/components/ProjectsHome.jsx
 #: src/components/setup/WorkspaceSetup.jsx
+#: src/components/SidebarSharedBoards.jsx
 #: src/components/WorkspaceMenu.jsx
 #: src/lib/homeMap.js
 #: src/lib/sharedPeopleWords.js
@@ -18687,6 +18736,10 @@ msgstr "Доступно вам"
 #: src/components/WorkspaceMenu.jsx
 msgid "SHARED WITH YOU"
 msgstr "ДОСТУПНЫЕ ВАМ"
+
+#: src/components/WorkspaceMenu.jsx
+msgid "SHARED WITH YOU · {n}"
+msgstr "ДОСТУПНЫЕ ВАМ · {n}"
 
 #: src/lib/sharedPeopleWords.js
 msgid "Shared with you · you co-own it"
@@ -19355,7 +19408,6 @@ msgstr "У некоторых его редакторов ещё нет мест
 msgid "Some of that didn’t go through. Try again."
 msgstr "Часть не удалось выполнить. Повторите попытку."
 
-#: src/components/shared/SharedPage.jsx
 #: src/lib/sidebarWho.js
 msgid "someone"
 msgstr "кто-то"
@@ -19384,6 +19436,7 @@ msgstr "Кто-то"
 
 #: src/components/cards/ShortcutCard.jsx
 #: src/components/fileShare/FileSharePage.jsx
+#: src/components/shared/SharedPage.jsx
 msgid "Someone on Clusters"
 msgstr "Пользователь Clusters"
 
@@ -21623,7 +21676,6 @@ msgstr "Это письмо слишком большое, чтобы откры
 
 #: src/components/clusterBrowser/FileStages.jsx
 #: src/components/clusterBrowser/QuickLook.jsx
-#: src/components/shared/SharedPage.jsx
 #: src/lib/versionActions.js
 msgid "this file"
 msgstr "этот файл"
@@ -22465,6 +22517,7 @@ msgstr "Карточка без названия"
 #: src/components/clusterBrowser/PathBar.jsx
 #: src/components/ListSurface.jsx
 #: src/components/ProjectsHome.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/ShareModal.jsx
 #: src/components/TrashModal.jsx
 #: src/hooks/useSidebarFiles.js
@@ -22900,6 +22953,7 @@ msgstr "видео"
 #: src/components/fileShare/FileSharePage.jsx
 #: src/components/film/FilmPlayer.jsx
 #: src/components/film/PlayerHost.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
@@ -22939,14 +22993,19 @@ msgctxt "noun"
 msgid "View"
 msgstr "Вид"
 
+#: src/components/shared/SharedPage.jsx
 #: src/components/SidebarSharedBoards.jsx
 msgctxt "permission"
 msgid "View"
 msgstr "Просмотр"
 
 #: src/App.jsx
-msgid "View access to \"{name}\" was shared with you. Find it in \"Shared with me\"."
-msgstr "Вам открыт доступ на просмотр «{name}». Найдите его в разделе «Доступные мне»."
+msgid "View access to “{name}” was shared with you."
+msgstr "Вам открыли доступ к просмотру «{name}»."
+
+#: src/App.jsx
+msgid "View access to a cluster was shared with you."
+msgstr "Вам открыли доступ к просмотру кластера."
 
 #: src/lib/versionFields.js
 msgid "View changed"
@@ -22959,6 +23018,7 @@ msgstr "Показать в полном размере"
 #: src/App.jsx
 #: src/components/CommentInlinePopover.jsx
 #: src/components/doc/DocFrameA.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/SidebarSharedBoards.jsx
 #: src/lib/docSaveStatus.js
 msgid "View only"
@@ -23413,8 +23473,8 @@ msgid "When someone replies to a comment you left."
 msgstr "Когда кто-то отвечает на ваш комментарий."
 
 #: src/components/shared/SharedPage.jsx
-msgid "When someone shares a file with you, it shows up here."
-msgstr "Когда кто-то поделится с вами файлом, он появится здесь."
+msgid "When someone shares a cluster or a file with you, it shows up here."
+msgstr "Когда кто-то откроет вам доступ к кластеру или файлу, он появится здесь."
 
 #: src/components/settings/NotificationsTab.jsx
 msgid "When someone you invited opens your link and joins a cluster. Only sent if you're not already in the app."
@@ -23578,13 +23638,13 @@ msgstr "Ширина файлов"
 msgid "With {group} of you: {cardsText} {when}"
 msgstr "Вас {group}: {cardsText} {when}"
 
-#: src/components/shared/SharedPage.jsx
-msgid "With me"
-msgstr "Мне"
-
 #: src/components/ShareModal.jsx
 msgid "with sub-clusters"
 msgstr "с вложенными кластерами"
+
+#: src/components/shared/SharedPage.jsx
+msgid "With you"
+msgstr "Вам"
 
 #: src/components/ExplorePublishSection.jsx
 msgid "Withdraw"
@@ -23643,6 +23703,7 @@ msgstr "Выполняется…"
 
 #: src/components/home/HomeWorkspace.jsx
 #: src/components/ProjectsHome.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/ShareModal.jsx
 #: src/components/team/TeamWorkspaces.jsx
 #: src/lib/boardsApi.js
@@ -23950,8 +24011,8 @@ msgid "You have viewer access — only editors, co-owners and owners can change 
 msgstr "У вас доступ читателя — менять их могут только редакторы, совладельцы и владельцы."
 
 #: src/components/shared/SharedPage.jsx
-msgid "You haven’t shared any files."
-msgstr "Вы пока не делились файлами."
+msgid "You haven’t shared anything yet."
+msgstr "Вы пока ничем не поделились."
 
 #: src/lib/pendingJoinRules.js
 msgid "You joined “{n}”. It stays in your sidebar."

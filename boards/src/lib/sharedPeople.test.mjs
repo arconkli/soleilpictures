@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   UNNAMED_WORKSPACE, isUnnamedWorkspace, findTokens, matchesFind, findHitKind,
-  groupSharedByPerson, OPENED_KEY, readOpenedWorkspaces, noteWorkspaceOpened, orderSharedWorkspaces,
+  groupSharedByPerson, OPENED_KEY, readOpenedWorkspaces, noteWorkspaceOpened, orderSharedWorkspaces, shortSharedList,
 } from './sharedPeople.js';
 
 const fake = (init) => {
@@ -119,4 +119,24 @@ test('orderSharedWorkspaces', () => {
   const copy = orderSharedWorkspaces(L, {});
   assert.notEqual(copy, L);
   assert.equal(ids(L), 'abcd');
+});
+
+test('shortSharedList', () => {
+  const L = (n) => Array.from({ length: n }, (_, i) => ({ id: 'w' + i }));
+  const ids = (r) => r.rows.map((w) => w.id).join(',');
+  assert.deepEqual(shortSharedList(L(5)), { rows: L(5), hidden: 0 });
+  assert.deepEqual(shortSharedList(null), { rows: [], hidden: 0 });
+  let r = shortSharedList(L(10));
+  assert.equal(ids(r), 'w0,w1,w2,w3');
+  assert.equal(r.hidden, 6);
+  r = shortSharedList(L(10), { activeId: 'w7' });
+  assert.equal(ids(r), 'w0,w1,w2,w3,w7');
+  assert.equal(r.hidden, 5);
+  assert.equal(ids(shortSharedList(L(10), { activeId: 'w2' })), 'w0,w1,w2,w3');
+  assert.equal(ids(shortSharedList(L(10), { activeId: 'nope' })), 'w0,w1,w2,w3');
+  assert.deepEqual(shortSharedList(L(10), { expanded: true }), { rows: L(10), hidden: 0 });
+  assert.deepEqual(shortSharedList(L(10), { searching: true, activeId: 'w7' }), { rows: L(10), hidden: 0 });
+  r = shortSharedList(L(4), { cap: 2, threshold: 3 });
+  assert.equal(ids(r), 'w0,w1');
+  assert.equal(r.hidden, 2);
 });

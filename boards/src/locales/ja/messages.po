@@ -137,6 +137,10 @@ msgstr "「{name}」を削除しました"
 msgid "“{name}” hit a sync error and was reloaded from the server. If a very recent edit looks missing, it may need to be redone."
 msgstr "「{name}」で同期エラーが発生したため、サーバーから再読み込みしました。直前の編集が見当たらない場合は、やり直しが必要かもしれません。"
 
+#: src/App.jsx
+msgid "“{name}” is no longer shared with you."
+msgstr "「{name}」は共有されなくなりました。"
+
 #: src/hooks/useCandidateTagging.js
 msgid "“{name}” is now a {kind}"
 msgstr "「{name}」を{kind}にしました"
@@ -164,6 +168,11 @@ msgstr "「{name}」をトピックにしました"
 #: src/hooks/useCandidateTagging.js
 msgid "“{name}” is now an organization"
 msgstr "「{name}」を組織にしました"
+
+#: src/App.jsx
+#: src/components/shared/SharedPage.jsx
+msgid "“{name}” removed from your list."
+msgstr "「{name}」をリストから外しました。"
 
 #: src/components/CanvasSurface.jsx
 msgid "“{name}” will appear at /templates for anyone to add. It shares the shape and the labels only — no images, no text, nothing from the board it came from. You can remove it at any time."
@@ -323,6 +332,11 @@ msgstr "{0, plural, other {プランの空きを超えた#枚のカードは除�
 #: src/pages/KeepPage.jsx
 msgid "{0, plural, one {# card} other {# cards}}"
 msgstr "{0, plural, other {#枚のカード}}"
+
+#. placeholder {0}: ended.length
+#: src/App.jsx
+msgid "{0, plural, one {# cluster is no longer shared with you.} other {# clusters are no longer shared with you.}}"
+msgstr "{0, plural, other {#件のクラスターが共有されなくなりました。}}"
 
 #. placeholder {0}: subBoards.length
 #: src/components/ListSurface.jsx
@@ -568,6 +582,11 @@ msgstr "{0, plural, other {他#人}}"
 msgid "{0, plural, one {Added # file to Files — not on the board} other {Added # files to Files — not on the board}}"
 msgstr "{0, plural, other {#件のファイルをファイルに追加しました。キャンバスには置かれていません}}"
 
+#. placeholder {0}: allShared.count
+#: src/components/SidebarSharedBoards.jsx
+msgid "{0, plural, one {All shared, # new} other {All shared, # new}}"
+msgstr "{0, plural, other {すべての共有、新着#件}}"
+
 #. placeholder {0}: kids.length - 4
 #: src/components/home/ClustersHome.jsx
 msgid "{0, plural, one {and # more} other {and # more}}"
@@ -704,6 +723,11 @@ msgstr "{0, plural, other {#件のクラスターを{rewindDate}の状態に巻�
 #: src/components/sidebar/ClusterShelves.jsx
 msgid "{0, plural, one {Show # more} other {Show # more}}"
 msgstr "{0, plural, other {さらに#件を表示}}"
+
+#. placeholder {0}: sharedLive.length
+#: src/components/WorkspaceMenu.jsx
+msgid "{0, plural, one {Show all #} other {Show all #}}"
+msgstr "{0, plural, other {すべて表示(#)}}"
 
 #. placeholder {0}: chosen.length
 #: src/components/team/TeamSetup.jsx
@@ -1252,6 +1276,7 @@ msgstr "{first}さんがここにいます"
 msgid "{first} is in it"
 msgstr "{first}が入っています"
 
+#: src/components/shared/SharedPage.jsx
 #: src/lib/messagesCard.js
 msgid "{first}, {second} and {rest, plural, one {# other} other {# others}}"
 msgstr "{first}さん、{second}さん、ほか{rest, plural, other {#人}}"
@@ -1344,10 +1369,6 @@ msgstr "{h}時間前"
 #: src/auth/PricingSuccess.jsx
 msgid "{heldElsewhere, plural, one {The file you dropped is in your other Clusters tab. Switch back to it to see it go on — you can close this one.} other {The # files you dropped are in your other Clusters tab. Switch back to it to see them go on — you can close this one.}}"
 msgstr "{heldElsewhere, plural, other {ドロップした#件のファイルは、もう一方のClustersのタブにあります。そのタブに切り替えると追加される様子を確認できます。このタブは閉じて構いません。}}"
-
-#: src/components/SidebarSharedBoards.jsx
-msgid "{hiddenN, plural, one {Show # more} other {Show # more}}"
-msgstr "{hiddenN, plural, other {さらに#件を表示}}"
 
 #: src/components/cards.jsx
 msgid "{hx} — click to edit · drag to reorder"
@@ -1853,6 +1874,10 @@ msgstr "{n, plural, other {#時間前に送信}}"
 msgid "{n, plural, one {Sent # week ago} other {Sent # weeks ago}}"
 msgstr "{n, plural, other {#週間前に送信}}"
 
+#: src/components/shared/SharedPage.jsx
+msgid "{n, plural, one {Shared with # person} other {Shared with # people}}"
+msgstr "{n, plural, other {#人と共有}}"
+
 #: src/lib/teamCopy.js
 msgid "{n, plural, one {That needs # more seat.} other {That needs # more seats.}}"
 msgstr "{n, plural, other {あと#シート必要です。}}"
@@ -2202,6 +2227,10 @@ msgstr "{notAdded}を追加できませんでした"
 #: src/lib/liveTogetherWords.js
 msgid "{others, plural, =1 {You and # other person are working together} other {You and # others are working together}}"
 msgstr "{others, plural, =1 {あなたとほか#人が一緒に作業中です} other {あなたとほか#人が一緒に作業中です}}"
+
+#: src/components/shared/SharedPage.jsx
+msgid "{others, plural, one {{names} and # other} other {{names} and # others}}"
+msgstr "{others, plural, other {{names}ほか#人}}"
 
 #: src/lib/teamCopy.js
 msgid "{others, plural, one {You and # other can edit it.} other {You and # others can edit it.}}"
@@ -2589,7 +2618,6 @@ msgid "{shown} of {0, plural, one {# card} other {# cards}} came through"
 msgstr "{0, plural, other {#枚のカード}}のうち{shown}枚が届きました"
 
 #: src/components/ListSurface.jsx
-#: src/components/shared/SharedPage.jsx
 msgid "{shown} of {total}"
 msgstr "{total}件中{shown}件"
 
@@ -2813,10 +2841,6 @@ msgstr "{unplacedCount, plural, other {#件のファイルはファイルにあ�
 #: src/components/ListSurface.jsx
 msgid "{unplacedTotal} not on board"
 msgstr "キャンバスに未配置：{unplacedTotal}"
-
-#: src/components/SidebarSharedBoards.jsx
-msgid "{unread} new"
-msgstr "新着{unread}件"
 
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "{unread} unread"
@@ -4380,6 +4404,10 @@ msgstr "チームのシートはすべて使用中です。閲覧者として招
 msgid "All pages"
 msgstr "すべてのページ"
 
+#: src/components/SidebarSharedBoards.jsx
+msgid "All shared"
+msgstr "すべての共有"
+
 #: src/components/TagDetailView.jsx
 msgid "All types"
 msgstr "すべての種類"
@@ -4891,6 +4919,7 @@ msgstr "音声"
 #: src/components/cards/ShortcutCard.jsx
 #: src/components/fileShare/FileSharePage.jsx
 #: src/components/ListSurface.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/ShortcutsOverlay.jsx
 #: src/lib/cardFromUpload.js
 #: src/lib/cardInfo.js
@@ -5380,8 +5409,8 @@ msgid "Bulleted list"
 msgstr "箇条書きリスト"
 
 #: src/components/shared/SharedPage.jsx
-msgid "By me"
-msgstr "共有したもの"
+msgid "By you"
+msgstr "自分から"
 
 #: src/components/cards/ScheduleCard.jsx
 msgid "Calendar density"
@@ -5908,6 +5937,7 @@ msgstr "クリーンモード"
 #: src/components/clusterBrowser/FilesPageHead.jsx
 #: src/components/CommandPalette.jsx
 #: src/components/EntityPicker.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
 #: src/components/sidebar/ClusterSwitch.jsx
 #: src/components/SketchPadOverlay.jsx
@@ -5968,7 +5998,6 @@ msgstr "アウト点をクリア"
 
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
 #: src/components/shared/SharedPage.jsx
-#: src/components/SidebarSharedBoards.jsx
 msgid "Clear search"
 msgstr "検索をクリア"
 
@@ -6266,6 +6295,7 @@ msgstr "クラスター"
 #: src/components/clusterBrowser/GridContentPreview.jsx
 #: src/components/MessageComposer.jsx
 #: src/components/MessageThings.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/WorkspaceRecoveryModal.jsx
 #: src/lib/cardInfo.js
 #: src/lib/entityKinds.js
@@ -6873,6 +6903,7 @@ msgstr "ファイルを移動せずコピー"
 #: src/components/setup/InviteStep.jsx
 #: src/components/shared/SharedPage.jsx
 #: src/components/ShareModal.jsx
+#: src/components/SidebarSharedBoards.jsx
 msgid "Copy link"
 msgstr "リンクをコピー"
 
@@ -7338,6 +7369,10 @@ msgstr "コピーできませんでした。このブラウザでは許可され
 msgid "Couldn't copy the link — your browser blocked the clipboard."
 msgstr "リンクをコピーできませんでした。ブラウザがクリップボードをブロックしました。"
 
+#: src/App.jsx
+msgid "Couldn't copy the link."
+msgstr "リンクをコピーできませんでした。"
+
 #: src/components/shared/SharedPage.jsx
 msgid "Couldn’t copy the link."
 msgstr "リンクをコピーできませんでした。"
@@ -7549,6 +7584,14 @@ msgstr "画像を準備できませんでした。"
 msgid "Couldn't process that image."
 msgstr "その画像を処理できませんでした。"
 
+#: src/App.jsx
+msgid "Couldn't put “{name}” back on your list."
+msgstr "「{name}」をリストに戻せませんでした。"
+
+#: src/App.jsx
+msgid "Couldn't put it back on your list."
+msgstr "リストに戻せませんでした。"
+
 #: src/lib/storageAddon.js
 msgid "Couldn’t reach billing. Check your connection and try again."
 msgstr "お支払いのサーバーに接続できませんでした。接続を確認して、もう一度お試しください。"
@@ -7597,6 +7640,14 @@ msgstr "その画像を読み取れませんでした。"
 #: src/components/ThumbnailCropModal.jsx
 msgid "Couldn’t read that image."
 msgstr "その画像を読み込めませんでした。"
+
+#: src/App.jsx
+msgid "Couldn't remove “{name}” from your list."
+msgstr "「{name}」をリストから外せませんでした。"
+
+#: src/App.jsx
+msgid "Couldn't remove it from your list."
+msgstr "リストから外せませんでした。"
 
 #: src/components/shared/SharedPage.jsx
 msgid "Couldn’t remove it. Try again."
@@ -8389,6 +8440,7 @@ msgstr "ドキュメント"
 #: src/components/doc/DocBarA.jsx
 #: src/components/EntityBacklinksPanel.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/lib/entityKinds.js
 #: src/lib/graphData.js
 #: src/lib/helpHub.js
@@ -9128,8 +9180,12 @@ msgid "Editor — you can change what new cards start as, but not the name or ic
 msgstr "編集者: 新しいカードの初期設定は変更できますが、名前とアイコンは変更できません。"
 
 #: src/App.jsx
-msgid "Editor access to \"{name}\" was shared with you. Find it in \"Shared with me\"."
-msgstr "「{name}」の編集者アクセスが共有されました。「共有アイテム」で確認できます。"
+msgid "Editor access to “{name}” was shared with you."
+msgstr "「{name}」の編集権限が共有されました。"
+
+#: src/App.jsx
+msgid "Editor access to a cluster was shared with you."
+msgstr "クラスターの編集権限が共有されました。"
 
 #: src/lib/editorLimitWords.js
 msgid "Edits {ws}"
@@ -9744,10 +9800,6 @@ msgstr "ファイルがキャンバスの横に開くようになりました。
 msgid "Files path"
 msgstr "ファイルのパス"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Files shared with you, and files you've shared"
-msgstr "共有されたファイルと、共有したファイル"
-
 #: src/lib/dropRules.js
 msgid "Files stay in their own workspace"
 msgstr "ファイルは、それぞれのワークスペース内にとどまります"
@@ -9830,21 +9882,9 @@ msgstr "検索"
 msgid "Find a cluster"
 msgstr "クラスターを探す"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Find a cluster or person…"
-msgstr "クラスターまたは人を検索…"
-
 #: src/components/MessagesPanel.jsx
 msgid "Find a conversation"
 msgstr "会話を検索"
-
-#: src/components/shared/SharedPage.jsx
-msgid "Find a file or cluster…"
-msgstr "ファイルまたはクラスターを検索…"
-
-#: src/components/shared/SharedPage.jsx
-msgid "Find a file or person…"
-msgstr "ファイルまたは人を検索…"
 
 #: src/components/WorkspaceMenu.jsx
 msgid "Find a workspace or person…"
@@ -10236,6 +10276,10 @@ msgstr "ドキュメントやメモのテキストからツールバーへ · �
 #: src/pages/MakePage.jsx
 msgid "From a link an AI wrote"
 msgstr "AIが書いたリンクから"
+
+#: src/components/shared/SharedPage.jsx
+msgid "From links"
+msgstr "リンクから"
 
 #: src/components/settings/ConnectionsTab.jsx
 msgid "from the Scout waitlist"
@@ -11014,6 +11058,7 @@ msgstr "画像"
 #: src/components/EntityHoverPopover.jsx
 #: src/components/fileShare/FileSharePage.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/TagDetailView.jsx
 #: src/components/TagRangeHoverPopover.jsx
 #: src/lib/entityKinds.js
@@ -12316,6 +12361,7 @@ msgstr "リンクカード"
 msgid "Link cards"
 msgstr "リンクカード"
 
+#: src/App.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/MessageThread.jsx
@@ -12365,6 +12411,11 @@ msgstr "リンクをコピーしました。オーナーのプランが満員の
 #: src/components/ShareModal.jsx
 msgid "Link copied. While your plan is full, anyone with it joins as a viewer."
 msgstr "リンクをコピーしました。お使いのプランが満員の間、リンクを使う人は閲覧者として参加します。"
+
+#: src/components/shared/SharedPage.jsx
+msgctxt "link sharing"
+msgid "Link on"
+msgstr "リンク有効"
 
 #: src/components/RichNoteEditor.jsx
 msgid "LINK PREVIEW"
@@ -13131,6 +13182,7 @@ msgstr "ムードボード、脚本、ショットリスト。あらゆる素材
 #: src/components/chrome/FloatingChrome.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/doc/DocFrameA.jsx
+#: src/components/SidebarSharedBoards.jsx
 #: src/components/team/TeamPage.jsx
 #: src/components/toolbar/SelectionBarA.jsx
 msgid "More"
@@ -13145,6 +13197,7 @@ msgid "More arrow options"
 msgstr "矢印のその他のオプション"
 
 #: src/components/shared/SharedPage.jsx
+#: src/components/SidebarSharedBoards.jsx
 #: src/components/team/TeamPeople.jsx
 #: src/components/team/TeamWorkspaces.jsx
 msgid "More for {name}"
@@ -13561,6 +13614,7 @@ msgid "new"
 msgstr "新規"
 
 #: src/components/MessageThread.jsx
+#: src/components/SidebarSharedBoards.jsx
 msgid "New"
 msgstr "新着"
 
@@ -14397,10 +14451,6 @@ msgstr "何も削除されていません。チームが未払いのままの場
 msgid "Nothing has been deleted. If the team stays unpaid, its workspaces are deleted on {date}, and we’ll remind you before then."
 msgstr "何も削除されていません。チームが未払いのままの場合、ワークスペースは{date}に削除されます。その前にお知らせします。"
 
-#: src/components/shared/SharedPage.jsx
-msgid "Nothing has been shared with you yet."
-msgstr "あなたに共有されたものはまだありません。"
-
 #: src/lib/oauthConsentCopy.js
 msgid "Nothing has been shared."
 msgstr "何も共有されていません。"
@@ -14436,10 +14486,6 @@ msgstr "まだ何もアップロードされていません。ファイルを削
 #: src/components/ImportCapDialog.jsx
 msgid "Nothing has been uploaded yet. This cluster is on its owner’s plan, so their plan sets the limit."
 msgstr "まだ何もアップロードされていません。このクラスターはオーナーのプランで運用されているため、上限はオーナーのプランで決まります。"
-
-#: src/components/shared/SharedPage.jsx
-msgid "Nothing here matches “{q}”."
-msgstr "「{q}」に一致するものはありません。"
 
 #: src/components/ListSurface.jsx
 msgid "Nothing here yet."
@@ -14491,6 +14537,10 @@ msgstr "キャンバスには何も配置されません。"
 #: src/pages/MakePage.jsx
 msgid "Nothing is saved until you keep it."
 msgstr "保存するまで、何も保存されません。"
+
+#: src/components/shared/SharedPage.jsx
+msgid "Nothing is shared with you yet."
+msgstr "共有されたものはまだありません。"
 
 #: src/lib/importCopy.js
 msgid "Nothing is uploading. Resume picks up where it left off."
@@ -14553,9 +14603,9 @@ msgstr "解決済みのコメントはまだありません"
 msgid "Nothing scheduled"
 msgstr "予定なし"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Nothing shared with you matches “{q}”."
-msgstr "あなたと共有されたものに「{q}」と一致するものはありません。"
+#: src/components/shared/SharedPage.jsx
+msgid "Nothing shared matches “{q}”"
+msgstr "「{q}」に一致する共有はありません"
 
 #: src/lib/downloadOps.js
 msgid "Nothing there could be downloaded."
@@ -14997,6 +15047,7 @@ msgstr "不透明度"
 #: src/components/ListSurface.jsx
 #: src/components/shared/SharedPage.jsx
 #: src/components/SidebarBoardTree.jsx
+#: src/components/SidebarSharedBoards.jsx
 #: src/components/TagDetailView.jsx
 #: src/components/team/TeamWorkspaces.jsx
 #: src/hooks/useInboxLive.js
@@ -15096,10 +15147,6 @@ msgstr "全画面の描画キャンバスを開く"
 #: src/components/settings/ProfileTab.jsx
 msgid "Open a workspace before uploading a profile picture."
 msgstr "プロフィール画像をアップロードする前に、ワークスペースを開いてください。"
-
-#: src/components/shared/SharedPage.jsx
-msgid "Open any file and use Share to send just that file."
-msgstr "ファイルを開いて「共有」を選ぶと、そのファイルだけを送れます。"
 
 #: src/components/cards/SchedulePeek.jsx
 msgid "Open as the card's Day view"
@@ -15386,10 +15433,6 @@ msgstr "Yahoo! Mailを開く"
 #: src/lib/activityTray.js
 msgid "Open: {title}"
 msgstr "開く: {title}"
-
-#: src/components/shared/SharedPage.jsx
-msgid "Opened from a link"
-msgstr "リンクから開きました"
 
 #: src/components/CanvasSurface.jsx
 msgid "Opened your new cluster — add images inside it."
@@ -15903,6 +15946,7 @@ msgstr "PDF"
 #: src/components/cards/ShortcutCard.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/fileShare/FileSharePage.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
 #: src/lib/sharedFiles.js
@@ -16981,13 +17025,14 @@ msgstr "グループから外す"
 msgid "Remove from group ({size})"
 msgstr "グループから外す（{size}）"
 
+#: src/components/shared/SharedPage.jsx
+#: src/components/SidebarSharedBoards.jsx
+msgid "Remove from my list"
+msgstr "リストから外す"
+
 #: src/components/ColorPicker.jsx
 msgid "Remove from Saved"
 msgstr "保存済みから削除"
-
-#: src/components/shared/SharedPage.jsx
-msgid "Remove from Shared with me"
-msgstr "「共有アイテム」から外す"
 
 #: src/components/CanvasSurface.jsx
 msgid "Remove from the store"
@@ -17074,10 +17119,6 @@ msgstr "{label}を外しました"
 msgid "Removed {label}."
 msgstr "{label}を外しました。"
 
-#: src/components/shared/SharedPage.jsx
-msgid "Removed {name} from Shared with me"
-msgstr "「共有アイテム」から{name}を外しました"
-
 #: src/App.jsx
 msgid "Removed {title} — its clusters are in the trash."
 msgstr "{title}を削除しました。そのクラスターはゴミ箱にあります。"
@@ -17101,6 +17142,11 @@ msgstr "スケジュールから削除しました"
 #: src/components/CanvasSurface.jsx
 msgid "Removed from the store."
 msgstr "ストアから外しました。"
+
+#: src/App.jsx
+#: src/components/shared/SharedPage.jsx
+msgid "Removed from your list."
+msgstr "リストから外しました。"
 
 #: src/lib/teamCopy.js
 msgid "Removed."
@@ -18028,6 +18074,11 @@ msgstr "検索結果"
 msgid "Search sees cluster, group and tag names, notes, docs, captions, file names and what’s in pictures."
 msgstr "検索の対象は、クラスター、グループ、タグの名前、メモ、ドキュメント、キャプション、ファイル名、画像の内容です。"
 
+#: src/components/shared/SharedPage.jsx
+#: src/components/SidebarSharedBoards.jsx
+msgid "Search shared"
+msgstr "共有を検索"
+
 #: src/components/SidebarTags.jsx
 msgid "Search tags…"
 msgstr "タグを検索…"
@@ -18492,6 +18543,10 @@ msgstr "図形と描画"
 msgid "Share"
 msgstr "共有"
 
+#: src/components/shared/SharedPage.jsx
+msgid "Share a cluster, or open any file and use Share to send just that file."
+msgstr "クラスターを共有するか、ファイルを開いて「共有」でそのファイルだけを送れます。"
+
 #: src/components/ShareModal.jsx
 msgid "Share a link"
 msgstr "リンクを共有"
@@ -18611,8 +18666,9 @@ msgstr "共有者"
 msgid "Shared by {by}"
 msgstr "{by}さんが共有"
 
+#: src/App.jsx
 #: src/components/CommandPalette.jsx
-#: src/components/shared/SharedPage.jsx
+#: src/components/SidebarSharedBoards.jsx
 msgid "Shared by {name}"
 msgstr "{name}さんが共有"
 
@@ -18637,10 +18693,6 @@ msgstr "共有ドキュメント"
 msgid "Shared file"
 msgstr "共有ファイル"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Shared files"
-msgstr "共有ファイル"
-
 #: src/components/CanvasSurface.jsx
 msgid "Shared in the store."
 msgstr "ストアで共有しました。"
@@ -18653,13 +18705,10 @@ msgstr "「{via}」で共有されています。そのクラスターの共有�
 msgid "Shared with {a}{tail}"
 msgstr "{a}に共有しました{tail}"
 
-#: src/components/SidebarSharedBoards.jsx
-msgid "Shared with me"
-msgstr "共有アイテム"
-
 #: src/components/fileShare/FileSharePage.jsx
 #: src/components/ProjectsHome.jsx
 #: src/components/setup/WorkspaceSetup.jsx
+#: src/components/SidebarSharedBoards.jsx
 #: src/components/WorkspaceMenu.jsx
 #: src/lib/homeMap.js
 #: src/lib/sharedPeopleWords.js
@@ -18669,6 +18718,10 @@ msgstr "共有アイテム"
 #: src/components/WorkspaceMenu.jsx
 msgid "SHARED WITH YOU"
 msgstr "共有アイテム"
+
+#: src/components/WorkspaceMenu.jsx
+msgid "SHARED WITH YOU · {n}"
+msgstr "共有アイテム · {n}"
 
 #: src/lib/sharedPeopleWords.js
 msgid "Shared with you · you co-own it"
@@ -19337,7 +19390,6 @@ msgstr "編集者の一部は、まだチームのシートを持っていませ
 msgid "Some of that didn’t go through. Try again."
 msgstr "一部が反映されませんでした。もう一度お試しください。"
 
-#: src/components/shared/SharedPage.jsx
 #: src/lib/sidebarWho.js
 msgid "someone"
 msgstr "誰か"
@@ -19366,6 +19418,7 @@ msgstr "誰か"
 
 #: src/components/cards/ShortcutCard.jsx
 #: src/components/fileShare/FileSharePage.jsx
+#: src/components/shared/SharedPage.jsx
 msgid "Someone on Clusters"
 msgstr "Clustersのユーザー"
 
@@ -21605,7 +21658,6 @@ msgstr "このメールは大きすぎて、ここでは開けません。"
 
 #: src/components/clusterBrowser/FileStages.jsx
 #: src/components/clusterBrowser/QuickLook.jsx
-#: src/components/shared/SharedPage.jsx
 #: src/lib/versionActions.js
 msgid "this file"
 msgstr "このファイル"
@@ -22447,6 +22499,7 @@ msgstr "無題のカード"
 #: src/components/clusterBrowser/PathBar.jsx
 #: src/components/ListSurface.jsx
 #: src/components/ProjectsHome.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/ShareModal.jsx
 #: src/components/TrashModal.jsx
 #: src/hooks/useSidebarFiles.js
@@ -22882,6 +22935,7 @@ msgstr "動画"
 #: src/components/fileShare/FileSharePage.jsx
 #: src/components/film/FilmPlayer.jsx
 #: src/components/film/PlayerHost.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
@@ -22921,14 +22975,19 @@ msgctxt "noun"
 msgid "View"
 msgstr "表示"
 
+#: src/components/shared/SharedPage.jsx
 #: src/components/SidebarSharedBoards.jsx
 msgctxt "permission"
 msgid "View"
 msgstr "閲覧のみ"
 
 #: src/App.jsx
-msgid "View access to \"{name}\" was shared with you. Find it in \"Shared with me\"."
-msgstr "「{name}」の閲覧アクセスが共有されました。「共有アイテム」で確認できます。"
+msgid "View access to “{name}” was shared with you."
+msgstr "「{name}」の閲覧権限が共有されました。"
+
+#: src/App.jsx
+msgid "View access to a cluster was shared with you."
+msgstr "クラスターの閲覧権限が共有されました。"
 
 #: src/lib/versionFields.js
 msgid "View changed"
@@ -22941,6 +23000,7 @@ msgstr "フルサイズで表示"
 #: src/App.jsx
 #: src/components/CommentInlinePopover.jsx
 #: src/components/doc/DocFrameA.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/SidebarSharedBoards.jsx
 #: src/lib/docSaveStatus.js
 msgid "View only"
@@ -23395,8 +23455,8 @@ msgid "When someone replies to a comment you left."
 msgstr "あなたが残したコメントに誰かが返信したとき。"
 
 #: src/components/shared/SharedPage.jsx
-msgid "When someone shares a file with you, it shows up here."
-msgstr "誰かがファイルを共有すると、ここに表示されます。"
+msgid "When someone shares a cluster or a file with you, it shows up here."
+msgstr "クラスターやファイルが共有されると、ここに表示されます。"
 
 #: src/components/settings/NotificationsTab.jsx
 msgid "When someone you invited opens your link and joins a cluster. Only sent if you're not already in the app."
@@ -23560,13 +23620,13 @@ msgstr "ファイルの幅"
 msgid "With {group} of you: {cardsText} {when}"
 msgstr "{group}人で: {when}{cardsText}"
 
-#: src/components/shared/SharedPage.jsx
-msgid "With me"
-msgstr "共有アイテム"
-
 #: src/components/ShareModal.jsx
 msgid "with sub-clusters"
 msgstr "サブクラスター込み"
+
+#: src/components/shared/SharedPage.jsx
+msgid "With you"
+msgstr "自分宛て"
 
 #: src/components/ExplorePublishSection.jsx
 msgid "Withdraw"
@@ -23625,6 +23685,7 @@ msgstr "処理中…"
 
 #: src/components/home/HomeWorkspace.jsx
 #: src/components/ProjectsHome.jsx
+#: src/components/shared/SharedPage.jsx
 #: src/components/ShareModal.jsx
 #: src/components/team/TeamWorkspaces.jsx
 #: src/lib/boardsApi.js
@@ -23932,8 +23993,8 @@ msgid "You have viewer access — only editors, co-owners and owners can change 
 msgstr "閲覧者のアクセス権のため、変更できるのは編集者、共同オーナー、オーナーだけです。"
 
 #: src/components/shared/SharedPage.jsx
-msgid "You haven’t shared any files."
-msgstr "共有したファイルはまだありません。"
+msgid "You haven’t shared anything yet."
+msgstr "まだ何も共有していません。"
 
 #: src/lib/pendingJoinRules.js
 msgid "You joined “{n}”. It stays in your sidebar."

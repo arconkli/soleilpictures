@@ -15,6 +15,7 @@ import '../styles.css';
 import { FILE_SHARE_EVENT } from '../lib/fileShareBus.js';
 import { ClusterSidebar } from '../components/sidebar/ClusterSidebar.jsx';
 import { SidebarSharedBoards } from '../components/SidebarSharedBoards.jsx';
+import { sharedChildrenMap } from '../lib/sharedList.js';
 import { KEPT_FITS_QUERY, SIDE_FITS_QUERY, layoutFromOldWidth, readSidebarLayout, sanitizeLayout, sidebarFootprint, writeSidebarLayout, shownLayout, keepStoredFold, withFilesHidden } from '../lib/sidebarLayout.js';
 import { useMatchMedia } from '../hooks/useMatchMedia.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
@@ -54,6 +55,7 @@ import WhatsNewHint from '../components/whatsNew/WhatsNewHint.jsx';
 import { NotificationsBell } from '../components/NotificationsBell.jsx';
 import { NotificationsPanel } from '../components/NotificationsPanel.jsx';
 import { whatsNewFlagKey } from '../lib/whatsNew.js';
+import { putRefusal } from '../lib/putRefusal.js';
 
 const WS = 'ws-qa';
 const T0 = Date.parse('2026-10-01T12:00:00Z');
@@ -298,11 +300,35 @@ const PANE = QS.get('pane') === 'split' ? 'split' : 'main';
 // only look at; &shared=1 adds a cluster shared from another workspace under
 // the tree, where nothing can be dropped.
 const VIEW_ONLY = QS.get('viewonly') || null;
-const SHARED = QS.has('shared') ? [{
-  board_id: 'grade', board_name: 'Grade', role: 'viewer',
-  source_workspace_id: 'ws-gradehouse', source_workspace_name: 'Gradehouse',
-  is_shared_root: true, shared_by: 'priya', shared_by_name: 'Priya Rao', shared_by_color: '#7a5af8',
-}] : [];
+const SHARED = QS.has('shared') ? [
+  { board_id: 'grade', board_name: 'Grade', role: 'viewer', source_workspace_id: 'ws-gradehouse', source_workspace_name: 'Gradehouse',
+    is_shared_root: true, shared_by: 'priya', shared_by_name: 'Priya Rao', shared_by_color: '#7a5af8', created_at: '2026-11-14T10:00:00Z' },
+  { board_id: 'sh-lookbook', board_name: 'Autumn lookbook', role: 'editor', source_workspace_id: 'ws-gradehouse', source_workspace_name: 'Gradehouse',
+    is_shared_root: true, shared_by: 'priya', shared_by_name: 'Priya Rao', shared_by_color: '#7a5af8', created_at: '2026-11-13T10:00:00Z' },
+  { board_id: 'sh-casting', board_name: 'Casting, round two', role: 'editor', source_workspace_id: 'ws-maya', source_workspace_name: 'Ortiz Pictures',
+    is_shared_root: true, shared_by: 'maya', shared_by_name: 'Maya Ortiz', shared_by_color: '#e0603a', created_at: '2026-11-10T10:00:00Z' },
+  { board_id: 'sh-locs', board_name: 'Locations', role: 'editor', source_workspace_id: 'ws-maya', source_workspace_name: 'Ortiz Pictures',
+    is_shared_root: true, shared_by: 'maya', shared_by_name: 'Maya Ortiz', shared_by_color: '#e0603a', created_at: '2026-11-08T10:00:00Z' },
+  { board_id: 'sh-sound', board_name: 'Sound design references with a very long name', role: 'editor', source_workspace_id: 'ws-jon', source_workspace_name: 'Jon Weiss',
+    is_shared_root: true, shared_by: 'jon', shared_by_name: 'Jon Weiss', shared_by_color: '#2f8f6b', created_at: '2026-11-05T10:00:00Z' },
+  { board_id: 'sh-pitch', board_name: 'Pitch deck', role: 'editor', source_workspace_id: 'ws-jon', source_workspace_name: 'Jon Weiss',
+    is_shared_root: true, shared_by: 'jon', shared_by_name: 'Jon Weiss', shared_by_color: '#2f8f6b', created_at: '2026-11-01T10:00:00Z' },
+  // Before 0896: no shared_by*.
+  { board_id: 'sh-old', board_name: 'Old reference', role: 'editor', source_workspace_id: 'ws-old', source_workspace_name: 'Old workspace',
+    is_shared_root: true, created_at: '2026-10-20T10:00:00Z' },
+  { board_id: 'sh-lookbook-w', board_name: 'Womenswear', role: 'editor', parent_board_id: 'sh-lookbook', is_shared_root: false,
+    source_workspace_id: 'ws-gradehouse', source_workspace_name: 'Gradehouse' },
+  { board_id: 'sh-lookbook-m', board_name: 'Menswear', role: 'editor', parent_board_id: 'sh-lookbook', is_shared_root: false,
+    source_workspace_id: 'ws-gradehouse', source_workspace_name: 'Gradehouse' },
+  { board_id: 'sh-lookbook-m2', board_name: 'Outerwear', role: 'editor', parent_board_id: 'sh-lookbook-m', is_shared_root: false,
+    source_workspace_id: 'ws-gradehouse', source_workspace_name: 'Gradehouse' },
+] : [];
+const SHARED_ROOTS = SHARED.filter((r) => r.is_shared_root !== false);
+const SHARED_CHILDREN = sharedChildrenMap(SHARED);
+// Two of the roots are new (not opened since they were shared).
+const SHARED_META = new Map(SHARED_ROOTS.map((r) => [r.board_id, {
+  sharedAt: r.created_at, openedAt: ['grade', 'sh-lookbook'].includes(r.board_id) ? null : '2026-11-14T12:00:00Z', hiddenAt: null, viaLink: false,
+}]));
 // &many=1: a workspace that has been going a while, so the cluster tab's list
 // is longer than its room and scrolls (nothing is filed in the new ones).
 if (QS.has('many')) {
@@ -689,7 +715,14 @@ export function SidebarQaHarness() {
               messages: { pressed: msgsOpen, unread: 2, onClick: () => { say('messages'); if (MSG_QA) setMsgsOpen((o) => !o); } },
             }}
             listRef={listRef}
-            sharedSection={SHARED.length ? <SidebarSharedBoards shared={SHARED} activeBoardId={active} onOpenBoard={(id) => say(`open shared ${id}`)} /> : null}
+            sharedSection={SHARED.length ? (
+              <SidebarSharedBoards roots={SHARED_ROOTS} childrenOf={SHARED_CHILDREN} meta={SHARED_META}
+                                   activeBoardId={active} activeRootId={null}
+                                   onOpenBoard={(id) => say(`open shared ${id}`)}
+                                   onCopyLink={(id) => say(`copy link ${id}`)}
+                                   onRemove={(id) => say(`remove shared ${id}`)}
+                                   allShared={{ count: 3, active: false, onOpen: () => say('open all shared'), onSearch: () => say('search shared') }} />
+            ) : null}
             source={source}
             boardsSectionProps={{
               boards: BOARDS, workspaceId: WS, rootId: 'root', activeBoardId: surface === 'home' ? null : active,
@@ -716,7 +749,7 @@ export function SidebarQaHarness() {
             onPickCluster={async () => BOARDS.mood}
             onPutOnBoard={async (boardId, cardIds) => {
               source.calls.push({ fn: 'putOnBoard', params: { boardId, cardIds } });
-              if (window.__sidebarQa.putFails) throw new Error(window.__sidebarQa.putFails);
+              if (window.__sidebarQa.putFails) throw putRefusal('view_only', window.__sidebarQa.putFails);
               return { placed: cardIds.length, left: 0 };
             }}
             onSetOpensAs={(id, v) => say(`opens-as ${id} ${v}`)}

@@ -5,7 +5,7 @@ h1: Home
 navLabel: Home
 section: clusters
 order: 2
-updated: 2026-10-07
+updated: 2026-11-15
 answer: Home shows your clusters — the ones you were last in, every cluster at the top of your workspace newest first, and New cluster — under the workspace they belong to; the top of the panel switches workspaces or starts a new one. It floats over your workspace drawn as a 3D relationship graph. The graph stays visible and usable around the panel; Explore universe puts the panel away so you can fly through it, and Clusters brings it back.
 faq:
   - q: Which clusters does Home list?
@@ -45,9 +45,11 @@ you straight to the workspace's canvas instead.
 
 Most workspaces keep their first name, so someone else's that still has it is
 called by its owner's name, such as **Sam Lee's workspace**, with their
-initial on its tile; one they renamed says **Owned by Sam Lee** under its
-name. Among the ones shared with you, the one you opened last on this device
-comes first. When you are in several workspaces, a search field at the top of
+initial on its tile; one they renamed shows their first name at the end of
+its row. Among the ones shared with you, the one you opened last on this
+device comes first. When many are shared with you, the switcher lists the few
+you opened last and the one you are in, under a count of them all, with
+**Show all** for the rest. When you are in several workspaces, a search field at the top of
 the switcher finds one by its name or by its owner's. The first match is
 already picked, so `Enter` switches to it; `↑` and `↓` move through the list,
 and `Esc` clears the search, then closes the switcher.

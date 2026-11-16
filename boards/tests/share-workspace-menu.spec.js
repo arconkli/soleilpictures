@@ -36,7 +36,8 @@ test('right-click a workspace → its menu, with Share workspace… for the owne
   expect(await page.evaluate(() => window.__shareProbe.close)).toBeGreaterThan(0);
 
   // Co-owner: can share and rename, and leaves rather than deletes.
-  await expect(rowFor(page, 'Co-owned').locator('.ws-menu-sub')).toHaveText('You co-own this');
+  // The second line is the row's tooltip now.
+  await expect(rowFor(page, 'Co-owned').locator('.ws-menu-row')).toHaveAttribute('title', 'You co-own this');
   await rowFor(page, 'Co-owned').click({ button: 'right' });
   const pop = page.locator('.ws-menu-row-pop');
   await expect(pop.locator('.ws-menu-row-pop-item', { hasText: 'Share workspace' })).toBeVisible();
@@ -191,10 +192,12 @@ test('12 workspaces: titled and searched by person', async ({ page }) => {
   const find = page.getByPlaceholder('Find a workspace or person…');
   await expect(find).toBeVisible();
 
-  // An unnamed shared workspace is its owner's; a renamed one says who owns it.
+  // An unnamed shared workspace is its owner's; a renamed one says who owns it
+  // (the row's tooltip). Nine shared is a short list until Show all.
+  await page.getByRole('button', { name: /Show all 9/ }).click();
   const sam = page.locator('.ws-menu-row-wrap', { has: page.locator('.ws-menu-name', { hasText: "Sam Lee's workspace" }) });
-  await expect(sam.locator('.ws-menu-sub')).toHaveText('Shared with you');
-  await expect(rowFor(page, 'Midnight Diner').locator('.ws-menu-sub')).toHaveText('Owned by Maya Ortiz');
+  await expect(sam.locator('.ws-menu-row')).toHaveAttribute('title', 'Shared with you');
+  await expect(rowFor(page, 'Midnight Diner').locator('.ws-menu-row')).toHaveAttribute('title', 'Owned by Maya Ortiz');
 
   await find.fill('maya');
   const rows = page.locator('.ws-menu-row-wrap');
@@ -226,4 +229,58 @@ test('workspace find: Escape clears the text first, then closes; no match says s
   await find.fill('zzz');
   await expect(page.locator('.ws-menu-empty')).toHaveText('No workspace or person matches “zzz”.');
   await expect(page.locator('.ws-menu-row-wrap')).toHaveCount(0);
+});
+
+// ---- the short list of shared workspaces ------------------------------------
+
+// Yours, and ten shared: six from Maya, two from Sam, one each from Jun and Rae.
+const TEN = [
+  { id: 'ws-mine', name: 'Personal Workspace', created_by: ME, created_at: '2026-01-01' },
+  ...[MAYA, MAYA, MAYA, MAYA, MAYA, MAYA, SAM, SAM, JUN, RAE].map((by, i) => sh(`ws-t${i}`, `Project ${i + 1}`, by, String(20 - i))),
+];
+
+test('10 shared workspaces: 4 and "Show all 10"; Show all lists them all; a search lists every match', async ({ page }) => {
+  await page.route('**/rest/v1/member_profiles**', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify(PROFILES),
+  }));
+  await boot(page);
+  await page.evaluate(async ({ workspaces, me }) => {
+    const { mountWorkspaceMenu } = await import('/src/local/shareWorkspaceProbe.js');
+    mountWorkspaceMenu({ workspaces, activeWorkspaceId: 'ws-mine', personalWorkspaceId: 'ws-mine', selfUserId: me });
+  }, { workspaces: TEN, me: ME });
+
+  const shared = page.locator('.ws-menu-row-wrap', { hasText: 'Project' });
+  await expect(shared).toHaveCount(4);
+  await expect(page.locator('.ws-menu-section', { hasText: 'SHARED WITH YOU' })).toHaveText('SHARED WITH YOU · 10');
+  const showAll = page.getByRole('button', { name: 'Show all 10' });
+  await expect(showAll).toBeVisible();
+
+  // A search lists every match, six of Maya's, with no Show all.
+  const find = page.getByPlaceholder('Find a workspace or person…');
+  await find.fill('maya');
+  await expect(shared).toHaveCount(6);
+  await expect(showAll).toHaveCount(0);
+  await find.fill('');
+
+  await page.getByRole('button', { name: 'Show all 10' }).click();
+  await expect(shared).toHaveCount(10);
+  await expect(page.getByRole('button', { name: /Show all/ })).toHaveCount(0);
+});
+
+test('Show all by keyboard keeps focus in the find field', async ({ page }) => {
+  await page.route('**/rest/v1/member_profiles**', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify(PROFILES),
+  }));
+  await boot(page);
+  await page.evaluate(async ({ workspaces, me }) => {
+    const { mountWorkspaceMenu } = await import('/src/local/shareWorkspaceProbe.js');
+    mountWorkspaceMenu({ workspaces, activeWorkspaceId: 'ws-mine', personalWorkspaceId: 'ws-mine', selfUserId: me });
+  }, { workspaces: TEN, me: ME });
+
+  const shared = page.locator('.ws-menu-row-wrap', { hasText: 'Project' });
+  await expect(shared).toHaveCount(4);
+  await page.getByRole('button', { name: 'Show all 10' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(shared).toHaveCount(10);
+  await expect(page.getByPlaceholder('Find a workspace or person…')).toBeFocused();
 });

@@ -114,7 +114,9 @@ import { isWatchingConversation } from './lib/threadAttention.js';
 import { EntityNavigateContext } from './hooks/useEntityNavigate.js';
 import { OpenDmContext, MessagesUiContext } from './hooks/useOpenDm.js';
 import { useEntityNameTrie, EntityTrieContext } from './hooks/useEntityNameTrie.js';
-import { entityToken, refFromCurrentUrl, stripLinkParamsFromUrl } from './lib/entityUrl.js';
+import { entityToken, entityUrl, refFromCurrentUrl, stripLinkParamsFromUrl } from './lib/entityUrl.js';
+import { sharedChildrenMap, sharedRootOf, sharedPathOf, newSharedCount, isNewShare, isHiddenShare } from './lib/sharedList.js';
+import { PersonFace } from './components/PersonFace.jsx';
 // Side-effect import: registers the v1 entity kinds so any surface
 // that resolves a kind sees the same registry.
 import './lib/entityKinds.js';
@@ -210,7 +212,7 @@ import { trackRegistration } from './lib/metaPixel.js';
 import { holdReload } from './lib/buildWatch.js';
 import { ownPersonalCount, isWorkspaceLimitError, workspaceCountFromError, WORKSPACE_LIMIT } from './lib/workspaceLimit.js';
 import { rewardCardsBeyondTogether } from './lib/liveTogether.js';
-import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, fetchMyDaysBack, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listPublicLinks, createCollabLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, getMyTogetherStats, syncCardIndex, getProfilesByIds, forgetIndexRefusals } from './lib/boardsApi.js';
+import { createBoard, deleteBoard, restoreBoard, renameBoard, getRootBoard, ensureWorkspaceRoot, createWorkspace, deleteWorkspace, leaveWorkspace, renameWorkspace, getOwnProfile, loadBoardSnapshot, saveBoardSnapshot, forceResetBoardRoom, updateBoardMeta, moveBoardsUnder, updateOwnSettings, fetchMyDaysBack, saveBoardVersion, cleanupDocCards, restoreDocLinks, ensurePublicLink, listPublicLinks, createCollabLink, listBoardShares, updateBoardThumb, updateBoardCardCount, isBoardThumbCustom, setBoardSchedule, clearCapAnnounced, notePlacedThroughCap, getMyReferralStats, getMyTogetherStats, syncCardIndex, getProfilesByIds, forgetIndexRefusals, markSharedBoardOpened, hideSharedBoard } from './lib/boardsApi.js';
 import { rewardToastMessage } from './lib/inviteRewardWords.js';
 import { undoToast } from './lib/undoToast.js';
 import { failMove } from './lib/moveFailure.js';
@@ -741,7 +743,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // Boards shared with the user via per-board shares. Fetched here
   // (early) so we can merge them into the boards map below; the shared
   // section in the sidebar reads from the same source.
-  const { shared: sharedBoards, loaded: sharedLoaded, refresh: refreshSharedBoards } = useSharedBoards(user.id);
+  const {
+    shared: sharedBoards, loaded: sharedLoaded, refresh: refreshSharedBoards,
+    meta: sharedMeta, metaLoaded: sharedMetaLoaded, patchMeta: patchSharedMeta,
+    refreshMeta: refreshSharedMeta, settleMeta: settleSharedMeta,
+    byYou: sharedByYou, byYouLoaded: sharedByYouLoaded, refreshByYou: refreshSharedByYou,
+  } = useSharedBoards(user.id);
   // Anything that decides a board id is GONE (the stack and split prunes, the
   // recents prune) must wait for both lists: the shared ones arrive by a
   // separate RPC, and pruning before it lands threw a reload inside a shared
@@ -805,6 +812,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const sharedRoots = useMemo(
     () => (sharedBoards || []).filter((s) => s.is_shared_root !== false),
     [sharedBoards]);
+  // parent id -> the shared clusters directly under it, for the sidebar's tree.
+  const sharedChildren = useMemo(() => sharedChildrenMap(sharedBoards), [sharedBoards]);
 
   // Publish the viewer's own clusters for the upgrade surfaces to show back to
   // them. App is the only place that holds the board list, and the upgrade
@@ -5737,9 +5746,22 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const [activeTag, setActiveTag] = useState(null); // tag row {id,name,color,...} or null
   //   'shared' = the Shared page (files shared with you / by you; held)
   const sharedFiles = useSharedFiles({ enabled: sharedFilesAllowed() });
-  const sharedFilesRow = sharedFilesAllowed() && (sharedFiles.withMe.length || sharedFiles.byMe.length)
-    ? { unread: sharedFiles.unread, active: currentSurface === 'shared',
-        onOpen: () => { setCurrentSurface('shared'); if (mobileShell) setMobileNavOpen(false); } }
+  // The Shared page opens on a tab, optionally with its search focused; n makes
+  // each call a fresh mount (key) so a second "search" press focuses again.
+  const [sharedPageOpts, setSharedPageOpts] = useState({ tab: 'with_me', focusSearch: false, n: 0 });
+  const openSharedPage = useCallback(({ tab = 'with_me', focusSearch = false } = {}) => {
+    setSharedPageOpts((o) => ({ tab, focusSearch, n: o.n + 1 }));
+    setCurrentSurface('shared');
+    if (mobileShell) setMobileNavOpen(false);
+  }, [mobileShell]);
+  // The sidebar's "All shared" row: there when anything is shared with you or by you.
+  const allSharedRow = sharedFilesAllowed() && (sharedRoots.length || sharedFiles.withMe.length || sharedFiles.byMe.length || sharedByYou.length)
+    ? {
+        count: newSharedCount(sharedRoots, sharedMeta) + (sharedFilesAllowed() ? sharedFiles.unread : 0),
+        active: currentSurface === 'shared',
+        onOpen: () => openSharedPage(),
+        onSearch: () => openSharedPage({ focusSearch: true }),
+      }
     : null;
   // Name the tab after what you're looking at. The board shown is the one the
   // BREADCRUMB describes — same rule, so the tab and the topbar never disagree
@@ -6007,6 +6029,114 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     setShareFocusAsks(true);
     setShareOpen(true);
   }, [openBoardAnywhere]);
+  // Shared with you: the handlers the sidebar and the Shared page call.
+  // via says where the open came from, for the one analytics row the
+  // mark-opened effect writes ('sidebar' | 'page' | 'toast' | 'link').
+  const sharedOpenViaRef = useRef(null);
+  const openSharedCluster = useCallback(async (id, via) => {
+    if (!id) return;
+    sharedOpenViaRef.current = { via: via || 'other', at: Date.now() };
+    // A share that just arrived is not in the boards map yet: fetch the list.
+    if (!boardsRef.current[id]) {
+      try { await refreshSharedBoards?.(); } catch (_) {}
+    }
+    const known = boardsRef.current[id];
+    if (!known) { openBoardAnywhere(id); return; }
+    setStack(sharedPathOf(boardsRef.current, id));
+    setCurrentSurface('board');
+    if (mobileShell) setMobileNavOpen(false);
+  }, [refreshSharedBoards, openBoardAnywhere, mobileShell]);
+  const removeSharedCluster = useCallback(async (id) => {
+    if (!id) return;
+    const name = boardsRef.current[id]?.name || sharedRoots.find((r) => r.id === id)?.board_name || '';
+    patchSharedMeta(id, { hiddenAt: new Date().toISOString() });
+    try {
+      await hideSharedBoard(id, true);
+    } catch (_) {
+      patchSharedMeta(id, { hiddenAt: null });
+      feedback.toast({ type: 'error', code: 'shared_cluster_hide_failed', message: name ? tr`Couldn't remove “${name}” from your list.` : tr`Couldn't remove it from your list.` });
+      return;
+    }
+    settleSharedMeta(id);
+    feedback.toast({
+      type: 'info', ttl: 8000,
+      message: name ? tr`“${name}” removed from your list.` : tr`Removed from your list.`,
+      action: { label: tr`Undo`, onClick: async () => {
+        patchSharedMeta(id, { hiddenAt: null });
+        try { await hideSharedBoard(id, false); } catch (_) {
+          patchSharedMeta(id, { hiddenAt: new Date().toISOString() });
+          feedback.toast({ type: 'error', code: 'shared_cluster_unhide_failed', message: name ? tr`Couldn't put “${name}” back on your list.` : tr`Couldn't put it back on your list.` });
+          return;
+        }
+        settleSharedMeta(id);
+      } },
+    });
+  }, [patchSharedMeta, settleSharedMeta, feedback, sharedRoots]);
+  const copyClusterLink = useCallback(async (id) => {
+    if (!id) return;
+    const url = `${window.location.origin}${entityUrl({ kind: 'board', id }, { pathname: '/' })}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      feedback.toast({ type: 'success', message: tr`Link copied` });
+    } catch (_) {
+      feedback.toast({ type: 'error', code: 'cluster_link_copy_failed', message: tr`Couldn't copy the link.` });
+    }
+  }, [feedback]);
+  const manageClusterSharing = useCallback(async (id) => {
+    if (!id) return;
+    const r = await openBoardAnywhere(id);
+    if (!r || r === 'switched') return;
+    setCurrentSurface('board');
+    setShareBoardId(id);
+    setShareInitialSection(null);
+    shareSurfaceRef.current = 'shared_page';
+    setShareOpen(true);
+  }, [openBoardAnywhere]);
+  const openOwnSharedCluster = useCallback((id) => { openBoardAnywhere(id); }, [openBoardAnywhere]);
+  // Access ended: a cluster that was on the list and is in no row now. Silent
+  // on the first load; skips ones that became your own, ones you had removed,
+  // and ones you can still open (you joined their workspace somewhere this
+  // tab's workspace list hasn't heard about yet).
+  const prevSharedRef = useRef(null);
+  useEffect(() => {
+    if (!sharedLoaded) return;
+    const rows = sharedBoards || [];
+    const prev = prevSharedRef.current;
+    const next = new Map();
+    for (const r of rows) {
+      if (r.is_shared_root !== false) next.set(r.board_id, { name: r.board_name, source_workspace_id: r.source_workspace_id });
+    }
+    prevSharedRef.current = next;
+    if (!prev) return;
+    const nowIn = new Set(rows.map((r) => r.board_id));
+    const gone = [];
+    for (const [id, v] of prev) {
+      if (nowIn.has(id)) continue;
+      if ((workspaces || []).some((w) => w.id === v.source_workspace_id)) continue;
+      if (isHiddenShare(sharedMeta?.get?.(id))) continue;
+      gone.push({ id, ...v });
+    }
+    if (!gone.length) return;
+    (async () => {
+      let still = new Set();
+      if (supabase) {
+        try {
+          const { data, error } = await supabase.from('boards').select('id')
+            .in('id', gone.map((g) => g.id)).is('deleted_at', null);
+          if (!error) still = new Set((data || []).map((r) => r.id));
+        } catch (_) {}
+      }
+      const ended = gone.filter((g) => !still.has(g.id));
+      if (!ended.length) return;
+      feedback.toast({
+        type: 'info', ttl: 8000,
+        message: ended.length === 1
+          ? tr`“${ph({ name: ended[0].name })}” is no longer shared with you.`
+          : plural(ended.length, { one: '# cluster is no longer shared with you.', other: '# clusters are no longer shared with you.' }),
+      });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharedBoards, sharedLoaded]);
   // A primary overlay opening closes the phone drawer. The drawer (and its
   // backdrop) stack above the modal layer, so "Share workspace" from the
   // drawer's workspace menu opened the Share panel UNDER the still-open
@@ -6236,6 +6366,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     const needsBoards = resolvable && ref.kind !== 'message' && ref.kind !== 'url';
     if (needsBoards && (!boardsReady || !sharedLoaded)) return;
     linkResolvedRef.current = true;
+    sharedOpenViaRef.current = { via: 'link', at: Date.now() };
     (async () => {
       // Defer one tick so the EntityNavigate provider is mounted.
       await new Promise(r => setTimeout(r, 0));
@@ -6387,13 +6518,21 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         continue;
       }
       const board = boards[n.board_id];
-      const name = board?.name || tr`a cluster`;
+      // Just shared: the list may not have it yet, so the name can be unknown.
+      const name = board?.name || null;
+      const editor = n.role === 'editor';
       feedback.toast({
         type: 'info',
-        message: n.role === 'editor'
-          ? tr`Editor access to "${name}" was shared with you. Find it in "Shared with me".`
-          : tr`View access to "${name}" was shared with you. Find it in "Shared with me".`,
+        message: name
+          ? (editor ? tr`Editor access to “${name}” was shared with you.` : tr`View access to “${name}” was shared with you.`)
+          : (editor ? tr`Editor access to a cluster was shared with you.` : tr`View access to a cluster was shared with you.`),
+        action: n.board_id ? { label: tr`Open`, onClick: () => openSharedCluster(n.board_id, 'toast') } : undefined,
       });
+      // board_shares isn't in realtime: fetch the list so the sidebar shows it.
+      refreshSharedBoards?.();
+      // A share that came back after an unshare leaves the list as it was:
+      // read what's new as well, so its dot and its place on the list return.
+      refreshSharedMeta?.();
     }
     // After the user has seen the batch (small delay so the toast renders),
     // mark all as dismissed so they don't re-pop on next reload.
@@ -11236,8 +11375,56 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const toolbarPane = (focusedPane === 'split' && !splitDoc) ? 'split' : 'main';
   const activeCrumbs = toolbarPane === 'split' ? splitCrumbs : crumbs;
   const onActiveCrumb = toolbarPane === 'split' ? goToSplit : goTo;
+  // First crumb on a cluster shared with you, when we know who shared it: a
+  // quiet, non-clickable "who" before the trail.
+  const sharedFirst = activeCrumbs[0] ? boards[activeCrumbs[0].id] : null;
+  const sharedByCrumb = sharedFirst?._shared && sharedFirst._sharedByName ? (
+    <>
+      <span className="crumb crumb-person" title={tr`Shared by ${ph({ name: sharedFirst._sharedByName })}`}>
+        <PersonFace className="mini-face" name={sharedFirst._sharedByName} color={sharedFirst._sharedByColor} ariaHidden /> {sharedFirst._sharedByName}
+      </span>
+      <span className="crumb-sep" aria-hidden="true">›</span>
+    </>
+  ) : null;
   const activeNavCaps = navCaps[toolbarPane] || { back: false, fwd: false };
   const activeBoardId = toolbarPane === 'split' ? splitId : currentId;
+  // The shared root the open cluster sits under (null for your own clusters).
+  const activeSharedRootId = useMemo(
+    () => (currentSurface === 'board' ? sharedRootOf(boards, activeBoardId) : null),
+    [currentSurface, boards, activeBoardId]);
+  // Opening a cluster shared with you, from outside it, clears its "new" dot
+  // and puts it back on your list if you had removed it. Moving around inside
+  // it does neither, so removing the one you're in keeps it removed. The open
+  // is counted once per cluster per session, and again whenever it was new.
+  const sharedOpenLoggedRef = useRef(new Set());
+  const prevSharedRootRef = useRef(null);
+  useEffect(() => {
+    if (!sharedMetaLoaded) return;
+    const root = activeSharedRootId;
+    const entered = !!root && root !== prevSharedRootRef.current;
+    prevSharedRootRef.current = root;
+    // Where the open came from. Any move spends it, so a link to one of your
+    // own clusters isn't credited to the next shared one you open.
+    const hint = sharedOpenViaRef.current;
+    sharedOpenViaRef.current = null;
+    if (!entered) return;
+    const m = sharedMeta.get(root);
+    const wasNew = isNewShare(m);
+    if (!m || wasNew || isHiddenShare(m)) {
+      patchSharedMeta(root, { openedAt: new Date().toISOString(), hiddenAt: null });
+      (async () => {
+        try {
+          await markSharedBoardOpened(root);
+          settleSharedMeta(root);
+        } catch (e) { console.warn('markSharedBoardOpened failed', e); }
+      })();
+    }
+    if (sharedOpenLoggedRef.current.has(root) && !wasNew) return;
+    sharedOpenLoggedRef.current.add(root);
+    const via = hint && Date.now() - hint.at < 15000 ? hint.via : 'other';
+    try { logEvent(EV.SHARED_CLUSTER_OPEN, { via, is_new: wasNew }); } catch (_) {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSharedRootId, activeBoardId, sharedMetaLoaded]);
   // Undo/Redo, Version history and Share in the topbar act on the same pane
   // the breadcrumb beside them describes. They used to act on the main pane
   // always: with the split focused, Undo reverted the LEFT cluster's last edit
@@ -12043,10 +12230,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               }}
               sharedSection={(
                 <SidebarSharedBoards
-                  shared={sharedRoots}
-                  activeBoardId={currentSurface === 'board' ? activeBoardId : null}
-                  onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); if (mobileShell) setMobileNavOpen(false); }}
-                  filesRow={sharedFilesRow}
+                  roots={sharedRoots} childrenOf={sharedChildren} meta={sharedMeta}
+                  activeBoardId={currentSurface === 'board' ? activeBoardId : null} activeRootId={activeSharedRootId}
+                  onOpenBoard={(id) => openSharedCluster(id, 'sidebar')} onCopyLink={copyClusterLink} onRemove={removeSharedCluster}
+                  allShared={allSharedRow}
                 />
               )}
               tagsSection={(
@@ -12100,10 +12287,10 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
           ) : (
           <div className="sb-list" ref={sidebarScrollRef}>
           <SidebarSharedBoards
-            shared={sharedRoots}
-            activeBoardId={currentSurface === 'board' ? activeBoardId : null}
-            onOpenBoard={(id) => { setStack([id]); setCurrentSurface('board'); }}
-            filesRow={sharedFilesRow}
+            roots={sharedRoots} childrenOf={sharedChildren} meta={sharedMeta}
+            activeBoardId={currentSurface === 'board' ? activeBoardId : null} activeRootId={activeSharedRootId}
+            onOpenBoard={(id) => openSharedCluster(id, 'sidebar')} onCopyLink={copyClusterLink} onRemove={removeSharedCluster}
+            allShared={allSharedRow}
           />
 
           {/* This workspace's own clusters only. The tree already filtered to
@@ -12234,6 +12421,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 </button>
                 <div className={`crumbs${toolbarPane === 'split' ? ' is-split-pane' : ''}`} data-tour="nav"
                      data-pane={toolbarPane}>
+                  {sharedByCrumb}
                   {activeCrumbs.map((c, i) => (
                     <React.Fragment key={`${c.id}-${i}`}>
                       {i > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
@@ -12367,6 +12555,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             {/* The trail for whichever pane you last touched — see toolbarPane. */}
             <div className={`crumbs${toolbarPane === 'split' ? ' is-split-pane' : ''}`} data-tour="nav"
                  data-pane={toolbarPane}>
+              {sharedByCrumb}
               {activeCrumbs.map((c, i) => (
                 <React.Fragment key={`${c.id}-${i}`}>
                   {i > 0 && <span className="crumb-sep" aria-hidden="true">›</span>}
@@ -12656,7 +12845,11 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         ) : currentSurface === 'shared' && sharedFilesAllowed() ? (
           <Suspense fallback={<div className="shp" />}>
             <SharedPage onClose={() => setCurrentSurface('board')} onSaveCopy={saveSharedCopy}
-                        onAddShortcut={addSharedShortcut} feedback={feedback} />
+                        onAddShortcut={addSharedShortcut} feedback={feedback}
+                        key={sharedPageOpts.n} initialTab={sharedPageOpts.tab} focusSearch={sharedPageOpts.focusSearch}
+                        clusters={sharedRoots} meta={sharedMeta} byYouClusters={sharedByYou} byYouLoaded={sharedByYouLoaded} onRefreshByYou={refreshSharedByYou}
+                        onOpenBoard={(id) => openSharedCluster(id, 'page')} onOpenOwnBoard={openOwnSharedCluster}
+                        onRemoveCluster={removeSharedCluster} onCopyClusterLink={copyClusterLink} onManageClusterSharing={manageClusterSharing} />
           </Suspense>
         ) : currentSurface === 'tag' && activeTag ? (
           // Keyed by tag: switching tags must start from empty state, not

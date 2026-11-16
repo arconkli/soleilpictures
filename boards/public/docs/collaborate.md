@@ -2,7 +2,7 @@
 
 > Invite people to a cluster as an editor or a viewer, by email or with a link. On Free and Creator, up to 10 people can edit across everything an account owns, at no cost to them, and viewers are unlimited. Cards and storage always count against the cluster owner's quota, not the person who added them.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate · Updated 2026-10-17_
+_Source: https://clusters.soleilpictures.com/docs/collaborate · Updated 2026-11-15_
 
 Collaboration is free on Free and Creator: up to 10 people can
 edit across everything an account owns, and anyone can view. Inviting people is
@@ -87,9 +87,11 @@ or a co-owner makes someone a co-owner from **Settings → Members**. Co-owners
 share the running of the workspace; deleting it and handing it to someone else
 stay with the owner.
 
-Clusters shared with you appear under **Shared with me** in the sidebar, grouped
-by the person who shared them, newest first; see
-[the sidebar](/docs/clusters/sidebar#shared-with-me).
+Clusters shared with you appear under **Shared with you** in the sidebar,
+newest first, with a dot on the ones you haven't opened; see
+[the sidebar](/docs/clusters/sidebar#shared-with-you). Everything shared with
+you or by you, clusters and files, is on the
+[Shared page](/docs/collaborate/sharing#the-shared-page).
 
 ## What collaboration looks like in use
 
