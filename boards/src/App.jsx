@@ -286,7 +286,7 @@ import { ClusterSidebar } from './components/sidebar/ClusterSidebar.jsx';
 import { BackgroundDrop } from './components/sidebar/BackgroundDrop.jsx';
 import { FloatingChrome } from './components/chrome/FloatingChrome.jsx';
 import { repointCardRefs } from './lib/moveFromCluster.js';
-import { readSidebarLayout, writeSidebarLayout, sidebarFootprint, withFilesHidden, shownLayout, keepStoredFold, SIDE_FITS_QUERY, KEPT_FITS_QUERY } from './lib/sidebarLayout.js';
+import { readSidebarLayout, writeSidebarLayout, sidebarFootprint, withFilesHidden, filesFolded, shownLayout, keepStoredFold, SIDE_FITS_QUERY, KEPT_FITS_QUERY, TOUCH_FILES_QUERY } from './lib/sidebarLayout.js';
 import { whoLine } from './lib/sidebarWho.js';
 import { SidebarWho } from './components/sidebar/SidebarWho.jsx';
 import { useMatchMedia } from './hooks/useMatchMedia.js';
@@ -6680,6 +6680,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // by side the button keeps).
   const sidebarRoomy = useMatchMedia(SIDE_FITS_QUERY);
   const sidebarSnug = useMatchMedia(KEPT_FITS_QUERY);
+  // A touch screen narrower than an iPad mini held sideways (a 10.2-inch
+  // iPad) starts with the files folded, until their heading is tapped.
+  const sidebarTouchWide = useMatchMedia(TOUCH_FILES_QUERY);
+  const sidebarFit = useMemo(
+    () => ({ coarse: isTouch, roomy: sidebarRoomy, snug: sidebarSnug, tight: isTouch && !sidebarTouchWide }),
+    [isTouch, sidebarRoomy, sidebarSnug, sidebarTouchWide]);
   const onSidebarLayout = useCallback((next, { commit = false } = {}) => {
     setSidebarLayout(next);
     if (commit) writeSidebarLayout(next);
@@ -6696,7 +6702,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // board, and the files back in the sidebar even if they were hidden.
   const shrinkPageToSidebar = (via) => {
     applyFilesEvent('board', via);
-    if (sidebarLayout.filesHidden) onSidebarLayout(withFilesHidden(sidebarLayout, false), { commit: true });
+    if (filesFolded(sidebarLayout, sidebarFit)) onSidebarLayout(withFilesHidden(sidebarLayout, false, sidebarFit), { commit: true });
   };
   const shrinkPageRef = useRef(shrinkPageToSidebar);
   shrinkPageRef.current = shrinkPageToSidebar;
@@ -11269,17 +11275,17 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => toggleSidebarNow() },
     // The files sidebar's files card: hidden, it folds to its
     // heading under the clusters; ⌘\ does the same (ClusterSidebar).
-    { id: 'sidebar-files', label: pageFilesId || sidebarLayout.filesHidden ? tr`Show files in the sidebar` : tr`Hide files in the sidebar`,
+    { id: 'sidebar-files', label: pageFilesId || filesFolded(sidebarLayout, sidebarFit) ? tr`Show files in the sidebar` : tr`Hide files in the sidebar`,
       icon: FilesIcon, keywords: searchWords(['files', 'sidebar', 'hide', 'show', 'panel'],
         tr({ message: 'files, sidebar, hide, show, panel', context: 'command search words',
           comment: 'Words people might type to find this command, comma-separated.' })),
       // Hiding needs the sidebar open to mean anything; Show opens it too.
       // While the full Files page folds the card, Show shrinks the page back.
-      available: filesSidebar && !mobileShell && (sidebarShownNow || !!sidebarLayout.filesHidden || !!pageFilesId),
+      available: filesSidebar && !mobileShell && (sidebarShownNow || filesFolded(sidebarLayout, sidebarFit) || !!pageFilesId),
       run: () => {
         if (pageFilesId) { shrinkPageRef.current('palette'); showSidebarNow(); return; }
-        const hide = !sidebarLayout.filesHidden;
-        onSidebarLayout(withFilesHidden(sidebarLayout, hide), { commit: true });
+        const hide = !filesFolded(sidebarLayout, sidebarFit);
+        onSidebarLayout(withFilesHidden(sidebarLayout, hide, sidebarFit), { commit: true });
         if (!hide) showSidebarNow();
       } },
     // Keyworded for what people will actually type when the canvas isn't doing
@@ -11349,7 +11355,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
       run: () => signOut?.() },
   ], [canEditCurrent, canEditBoard, rootBoard.id, view, currentSurface, themeMode, wheelModeState, tweak.showMessages, sidebarOpen,
       twoDocs, sidebarAskedBack,
-      sidebarLayout, onSidebarLayout, filesSidebar, mobileShell, pageFilesId,
+      sidebarLayout, sidebarFit, onSidebarLayout, filesSidebar, mobileShell, pageFilesId,
       captureAllowed, capture.on, switchMode, switchInSplit, switchView, switchBoardId,
       setTheme, setWheelMode, setSidebarOpen, setTweak, mainMutators, openSettings, openInviteFriends, signOut, feedback]);
 
@@ -12234,7 +12240,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
         it: a preference set on the desktop (it is saved to the account) left
         the phone drawer with no Home, no Messages and no clusters. */}
     <div className={`app ${sidebarShownNow || mobileShell ? '' : 'sb-collapsed'}${filesSidebar ? ' sb-files' : ''}${floatingChrome ? ' is-floating-chrome' : ''}${filesSidebar && currentSurface === 'home' ? ' is-home' : ''}${pageFilesId ? ' is-files-page' : ''}`}
-         style={filesSidebar && !mobileShell && sidebarShownNow ? { '--sb-w': `${sidebarFootprint(shownSidebarLayout, { coarse: isTouch, roomy: sidebarRoomy, snug: sidebarSnug })}px` } : undefined}
+         style={filesSidebar && !mobileShell && sidebarShownNow ? { '--sb-w': `${sidebarFootprint(shownSidebarLayout, sidebarFit)}px` } : undefined}
          data-screen-label={`Board · ${currentBoard.name}`}>
       {/* Exit affordance for BOTH the persisted desktop clean mode and the
           ephemeral touch focus mode. CSS shows it only while one of the two
@@ -12293,6 +12299,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
               floating={!mobileShell}
               roomy={sidebarRoomy}
               snug={sidebarSnug}
+              tight={sidebarFit.tight}
               sizable={!mobileShell && sidebarShownNow}
               workspaceId={workspace.id}
               workspaceName={workspace.name || ''}

@@ -72,7 +72,7 @@ import { canStore } from '../../lib/placement.js';
 import { isStillUploading } from '../../lib/abandonedUploads.js';
 import { FILTER_CHIPS, SHELF_IDS } from '../../lib/sidebarShelves.js';
 import { SORTS, filterItems } from '../../lib/sidebarSort.js';
-import { arrangementOf, frameVars, toggledLayout, withFilesHidden } from '../../lib/sidebarLayout.js';
+import { arrangementOf, filesFolded, frameVars, toggledLayout, withFilesHidden } from '../../lib/sidebarLayout.js';
 import { initialExpandState, expandReducer, isExpanded, persistManual, shelfKey, toggleShelf } from '../../lib/sidebarExpand.js';
 import { cardFromItem } from '../../lib/indexRowCard.js';
 import { toListItem } from '../../lib/listItem.js';
@@ -150,6 +150,7 @@ export function ClusterSidebar({
   floating = false,       // the desktop's two floating cards; false in the phone drawer
   roomy = true,           // the window has the room for side by side (SIDE_FITS_QUERY)
   snug = true,            // ... for side by side the button keeps (KEPT_FITS_QUERY)
+  tight = false,          // a touch screen too narrow to start with the files shown (TOUCH_FILES_QUERY)
   sizable = false,        // the handles show (floating, and the sidebar open)
   top = null,             // App's top of the sidebar (the workspace), on the clusters' card
   foot = null,            // App's foot (help, settings, you), on the files' card
@@ -346,11 +347,12 @@ export function ClusterSidebar({
   // screen keeps its own: side by side, full height, until its button stacks
   // them (lib/sidebarLayout.js).
   // Hidden, the files fold to their heading under the clusters, in either.
-  const folded = floating && !!onLayout && !!layout?.filesHidden;
+  const fit = { coarse, roomy, snug, tight };
+  const folded = floating && !!onLayout && filesFolded(layout, fit);
   // Folded by the full Files page (⤢, F; direction A): its bar says where
   // the files are and is the way back.
   const pageFold = folded && foldedFor === 'page';
-  const side = floating && !folded && arrangementOf(layout, { coarse, roomy, snug }) === 'side';
+  const side = floating && !folded && arrangementOf(layout, fit) === 'side';
   const kept = side && !coarse && !!layout?.pinned;
   const frameRef = useRef(null);
   const treeCardRef = useRef(null);
@@ -367,13 +369,13 @@ export function ClusterSidebar({
   const focusAfter = useRef(null);      // 'show' | 'hide' | null
   const focusInFiles = useRef(false);
   const live = useRef(null);
-  live.current = { layout, onLayout, pageFold, onShrinkPage };
+  live.current = { layout, onLayout, pageFold, onShrinkPage, fit };
   const setFilesHidden = useCallback((hidden, focus = null) => {
-    const { layout: l, onLayout: set } = live.current;
-    if (!set || !!l?.filesHidden === hidden) return;
+    const { layout: l, onLayout: set, fit: f } = live.current;
+    if (!set || filesFolded(l, f) === hidden) return;
     focusAfter.current = focus;
     sizeAtOnce(frameRef.current);
-    set(withFilesHidden(l, hidden), { commit: true });
+    set(withFilesHidden(l, hidden, f), { commit: true });
   }, []);
   useLayoutEffect(() => {
     const want = focusAfter.current;
@@ -394,7 +396,7 @@ export function ClusterSidebar({
       e.preventDefault();
       // Folded by the page: ⌘\ is its way back (the card opens with it).
       if (live.current.pageFold) { live.current.onShrinkPage?.('sidebar_key'); return; }
-      setFilesHidden(!live.current.layout?.filesHidden);
+      setFilesHidden(!filesFolded(live.current.layout, live.current.fit));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -1030,7 +1032,7 @@ export function ClusterSidebar({
 
   return (
     <>
-      <div className={`sbf-frame${side ? ' is-side' : ''}${folded ? ' is-files-hidden' : ''}`} ref={frameRef} style={floating ? frameVars(layout, { coarse, roomy, snug }) : undefined}>
+      <div className={`sbf-frame${side ? ' is-side' : ''}${folded ? ' is-files-hidden' : ''}`} ref={frameRef} style={floating ? frameVars(layout, fit) : undefined}>
       <div className="sbf-card is-tree" ref={treeCardRef}>
       {top}
       <nav className="sbf-quick" aria-label={tr`Go to`}>
@@ -1244,7 +1246,7 @@ export function ClusterSidebar({
       </div>
       </div>
       {floating && sizable && onLayout && (
-        <SidebarHandles layout={layout} coarse={coarse} roomy={roomy} snug={snug} onLayout={onLayout}
+        <SidebarHandles layout={layout} coarse={coarse} roomy={roomy} snug={snug} tight={tight} onLayout={onLayout}
                         frameRef={frameRef} treeRef={treeCardRef} filesRef={filesCardRef} navRef={navRef} />
       )}
 

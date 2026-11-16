@@ -24487,3 +24487,88 @@ button.pb-here:focus-visible { outline: 2px solid var(--soleil); outline-offset:
   :where(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]),
     textarea, select):not(.cards-layer *):not(.auth-code-input, .sgb-input.is-code, .ch-ws-rename input, .tp-title-input, .doc-card-title-input) { font-size: 16px !important; }
 }
+
+/* ── An upright tablet's Settings, Share, Search and Notifications ────────────
+   In the phone shell on a tablet (641–1024px under a finger: an upright iPad,
+   an iPad mini, an Android tablet) these four were the phone's full-screen
+   sheets, each a column of controls across 800px and more (owner, 2026-11-15).
+   Here they are centred windows: about 600px wide, 85% of the window's height
+   at most, with the desktop dialogs' corners and shadow over a scrim, and what
+   is in them scrolls inside. A tap on the scrim closes one, as its × does. A
+   phone keeps the sheets (the block above), and a computer its dialogs. */
+@media (min-width: 641px) and (max-width: 1024px) and (min-height: 600px) and (hover: none) and (pointer: coarse) {
+  /* The scrims. iOS sends a tap on a bare <div> no click, hence the pointer. */
+  .cmdk-bg,
+  .settings-bg,
+  .modal-shell-bg:has(> .share-modal),
+  body .ntf-shell.is-sheet {
+    padding: 16px;
+    cursor: pointer;
+  }
+  /* Search starts where a window of the full height would, and grows down:
+     centred, it would move with every letter. */
+  .cmdk-bg {
+    grid-template-rows: auto;
+    place-items: start center;
+    padding-top: 7.5vh;
+    padding-top: 7.5dvh;
+  }
+  body .ntf-shell.is-sheet {
+    display: grid;
+    place-items: center;
+    background: rgba(0,0,0,.45);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    animation: pickerFade var(--dur-fast) var(--ease);
+  }
+  [data-theme='light'] body .ntf-shell.is-sheet { background: rgba(28,28,31,.32); }
+
+  /* The windows. */
+  .cmdk,
+  .share-modal,
+  .settings-modal,
+  body .ntf-shell.is-sheet .ntf-panel {
+    width: min(600px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+    height: auto;
+    max-height: 85vh;
+    max-height: 85dvh;
+    margin: auto;
+    border-radius: var(--radius-lg);
+    cursor: auto;
+  }
+  .share-modal { border-left: 1px solid var(--line-2); border-right: 1px solid var(--line-2); }
+  .cmdk {
+    margin: 0;
+    border-left: 1px solid var(--line-2);
+    border-right: 1px solid var(--line-2);
+    /* Above the keyboard: --kb-inset is what it covers (CommandPalette). */
+    max-height: min(85vh, calc(100vh - 7.5vh - 16px - var(--kb-inset, 0px)));
+    max-height: min(85dvh, calc(100dvh - 7.5dvh - 16px - var(--kb-inset, 0px)));
+  }
+  /* A fixed height, as on a computer: sized by its tab, it would jump. */
+  .settings-modal {
+    height: min(820px, 85vh);
+    height: min(820px, 85dvh);
+    padding-top: 0;
+    padding-bottom: 0;
+    border-left: 1px solid rgba(255,255,255,.06);
+    border-right: 1px solid rgba(255,255,255,.06);
+  }
+  [data-theme='light'] .settings-modal { border-color: rgba(0,0,0,.08); }
+  body .ntf-shell.is-sheet .ntf-panel {
+    flex: none;
+    min-height: min(320px, 85vh);
+    padding-top: 0;
+    padding-bottom: 0;
+    border: 1px solid var(--line-2);
+    box-shadow: 0 24px 56px rgba(0,0,0,.5);
+    overflow: hidden;
+  }
+  [data-theme='light'] body .ntf-shell.is-sheet .ntf-panel { box-shadow: var(--shadow-3); }
+  /* Share's toast sat above the sheet's footer; the window leaves it the room
+     under itself. */
+  body:has(.modal-shell-bg > .share-modal) .toast-stack.toast-stack {
+    bottom: calc(12px + var(--safe-bottom, 0px));
+  }
+}

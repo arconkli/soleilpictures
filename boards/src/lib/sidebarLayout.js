@@ -31,6 +31,12 @@
 // in either arrangement, and the clusters' card keeps its width. The board
 // gets the files' room, and their sizes wait for Show.
 //
+// A touch screen narrower than TOUCH_FILES_MIN_W (a 10.2-inch iPad held
+// sideways, 1080px) starts with the files folded (owner, 2026-11-15: the two
+// cards took 472px of it), until a tap on their heading shows them. What is
+// chosen there is kept apart (`tightShown`), so a wider screen and a mouse
+// show what they did.
+//
 // Sizes are CSS px, heights measured down from the top of the sidebar. A
 // height is a number, or 'full' (down to the window's bottom margin), or for
 // the clusters' card 'hug' (as tall as what's in it). Each arrangement keeps
@@ -66,6 +72,7 @@ export const LAYOUT_DEFAULT = Object.freeze({
   arr: 'stack',
   pinned: false,
   filesHidden: false,
+  tightShown: false,
   stack: Object.freeze({ tw: 312, fw: 312, th: 'hug', bottom: 'full' }),
   side: Object.freeze({ tw: 240, fw: 384, tBottom: 'hug', fBottom: 'full' }),
   // A tablet: about 470px of a 1133–1366px screen, both cards full height.
@@ -82,7 +89,7 @@ const bottom = (v, tokens, lowest, d) => (tokens.includes(v) ? v : num(v) == nul
 
 export function defaultLayout() {
   return {
-    arr: 'stack', pinned: false, filesHidden: false, stack: { ...LAYOUT_DEFAULT.stack }, side: { ...LAYOUT_DEFAULT.side },
+    arr: 'stack', pinned: false, filesHidden: false, tightShown: false, stack: { ...LAYOUT_DEFAULT.stack }, side: { ...LAYOUT_DEFAULT.side },
     touchArr: LAYOUT_DEFAULT.touchArr, touchSide: { ...LAYOUT_DEFAULT.touchSide },
   };
 }
@@ -98,6 +105,7 @@ export function sanitizeLayout(raw) {
     arr: raw.arr === 'side' ? 'side' : 'stack',
     pinned: raw.arr === 'side' && raw.pinned === true,
     filesHidden: raw.filesHidden === true,
+    tightShown: raw.tightShown === true,
     stack: {
       tw: width(st.tw, SIZES.treeMinW, SIZES.stackMaxW, d.stack.tw),
       fw: width(st.fw, SIZES.filesMinW, SIZES.stackMaxW, d.stack.fw),
@@ -161,9 +169,16 @@ export const SIDE_LEAST = EDGE + SIZES.treeMinW + EDGE + SIZES.filesMinW;
 export const SIDE_FITS_QUERY = `(min-width: ${SIZES.room + SIZES.sideMinFootprint}px)`;
 export const KEPT_FITS_QUERY = `(min-width: ${SIZES.room + SIDE_LEAST}px)`;
 
+// A touch screen at least this wide shows the files from the start: an iPad
+// mini held sideways (1133px) and every 11-inch iPad. Narrower, they start
+// folded.
+export const TOUCH_FILES_MIN_W = 1133;
+export const TOUCH_FILES_QUERY = `(min-width: ${TOUCH_FILES_MIN_W}px)`;
+
 // The arrangement in force. `fit`: { coarse (a touch screen: its own
 // arrangement and side-by-side sizes, touchArr and touchSide), roomy
-// (SIDE_FITS_QUERY matches), snug (KEPT_FITS_QUERY matches) }.
+// (SIDE_FITS_QUERY matches), snug (KEPT_FITS_QUERY matches), tight (a touch
+// screen TOUCH_FILES_QUERY doesn't match: the files folded until shown) }.
 export const arrangementOf = (layout, { coarse = false, roomy = true, snug = true } = {}) => (coarse
   ? (roomy && layout?.touchArr !== 'stack' ? 'side' : 'stack')
   : (layout?.arr === 'side' && (roomy || (snug && !!layout.pinned)) ? 'side' : 'stack'));
@@ -173,16 +188,25 @@ const sideSizes = (l, fit) => l[sideKey(fit)] || LAYOUT_DEFAULT[sideKey(fit)];
 // What the cards show: the arrangement in force, or 'hidden' while the files'
 // card is folded to its heading under the clusters' card (which keeps the
 // width it has in the arrangement in force).
-export const shownArrangement = (layout, fit) => (layout?.filesHidden ? 'hidden' : arrangementOf(layout, fit));
-// The files hidden (Hide, ⌘\) or back (Show); every size stays as it was.
-export const withFilesHidden = (layout, hidden) => ({ ...sanitizeLayout(layout), filesHidden: !!hidden });
+export const shownArrangement = (layout, fit) => (filesFolded(layout, fit) ? 'hidden' : arrangementOf(layout, fit));
+// Whether the files' card is folded: hidden by choice, or, on a tight touch
+// screen, not yet shown by choice.
+const isTight = (fit) => !!fit?.coarse && !!fit?.tight;
+export function filesFolded(layout, fit) {
+  return isTight(fit) ? !layout?.tightShown : !!layout?.filesHidden;
+}
+// The files hidden (Hide, ⌘\) or back (Show); every size stays as it was. A
+// tight touch screen keeps its own choice.
+export const withFilesHidden = (layout, hidden, fit) => (isTight(fit)
+  ? { ...sanitizeLayout(layout), tightShown: !hidden }
+  : { ...sanitizeLayout(layout), filesHidden: !!hidden });
 // The full Files page in the files sidebar's look (direction A) folds the
 // files card to its bar while it's open, so the files are listed once. The
 // fold is shown, never kept: the sidebar is handed the stored layout folded,
 // and a handle dragged meanwhile keeps the stored layout's own filesHidden, so
 // closing the page brings the card back as it was.
-export const shownLayout = (stored, { pageOpen = false } = {}) => (pageOpen ? withFilesHidden(stored, true) : stored);
-export const keepStoredFold = (stored, next) => ({ ...sanitizeLayout(next), filesHidden: !!stored?.filesHidden });
+export const shownLayout = (stored, { pageOpen = false } = {}) => (pageOpen ? { ...sanitizeLayout(stored), filesHidden: true, tightShown: false } : stored);
+export const keepStoredFold = (stored, next) => ({ ...sanitizeLayout(next), filesHidden: !!stored?.filesHidden, tightShown: !!stored?.tightShown });
 
 // The sidebar's column: the cards and their margin. The window may cut it
 // shorter (clusterSidebar.css keeps SIZES.room for the board).
@@ -190,7 +214,7 @@ export function sidebarFootprint(layout, fit = {}) {
   const l = layout || LAYOUT_DEFAULT;
   const arr = arrangementOf(l, fit);
   const sd = sideSizes(l, fit);
-  if (l.filesHidden) return EDGE + (arr === 'side' ? sd : l.stack).tw;
+  if (filesFolded(l, fit)) return EDGE + (arr === 'side' ? sd : l.stack).tw;
   if (arr === 'side') return EDGE + sd.tw + EDGE + sd.fw;
   return EDGE + Math.max(l.stack.tw, l.stack.fw);
 }
@@ -199,7 +223,7 @@ export function sidebarFootprint(layout, fit = {}) {
 // .sbf-frame.
 export function frameVars(layout, fit = {}) {
   const l = layout || LAYOUT_DEFAULT;
-  if (l.filesHidden) {
+  if (filesFolded(l, fit)) {
     // The clusters' card as tall as its list (as much of the window as that
     // takes), the folded files under it at its width.
     const tw = `${(arrangementOf(l, fit) === 'side' ? sideSizes(l, fit) : l.stack).tw}px`;
