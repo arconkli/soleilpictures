@@ -21,6 +21,7 @@ import { buildImgStyle } from '../../lib/imageAdjust.js';
 import { R2Image } from '../R2Image.jsx';
 import { FileCard } from './FileCard.jsx';
 import { safeExternalHref } from '../../lib/safeExternalHref.js';
+import { keptPicture } from '../../lib/linkPictureKeep.js';
 import { ensureFontForCss } from '../../lib/googleFonts.js';
 import { t } from '@lingui/core/macro';
 
@@ -117,6 +118,45 @@ export function CellVideo({ src }) {
   );
 }
 
+// Mounted by R2Image when it has given up on a picture (its 'none' state), to
+// hand the card back to the site's own copy of it.
+function PictureGone({ onGone }) {
+  useEffect(() => { onGone(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+
+// A link's picture (link cards and link cells). Drawn from our own copy when
+// there is one and it is the picture the card shows (lib/linkPictureKeep.js),
+// through the same progressive path as an image card; `fallback` — the site's
+// own picture, exactly as it was drawn before copies — is what shows when there
+// is no copy yet, and when the copy cannot be drawn (the browser refuses it, or
+// the copy cannot be signed for this viewer: a share bundle made before it
+// existed, a card copied into a workspace that cannot read it).
+export function LinkPicture({ image, imageKey, imageKeyOf, w, h, cardId, boardId = null, backfillEnabled = false, className, fallback }) {
+  const kept = keptPicture({ image, imageKey, imageKeyOf });
+  // The copy that failed, so a fresh copy of a changed picture is tried again.
+  const [broken, setBroken] = useState(null);
+  if (!kept || broken === kept) return fallback;
+  return (
+    <R2Image
+      progressive
+      src={kept}
+      w={w}
+      h={h}
+      fit="cover"
+      cardId={cardId}
+      boardId={boardId}
+      backfillEnabled={backfillEnabled}
+      draggable="false"
+      className={className}
+      onError={() => setBroken(kept)}
+      placeholder={(state) => (state === 'none'
+        ? <PictureGone onGone={() => setBroken(kept)} />
+        : <div className="r2p-layer r2-img-loading" />)}
+    />
+  );
+}
+
 export function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoard, textStyle, effBg = null, cardId, cellId, compare = false }) {
   // A cell or family style can name a Google font; load it for every viewer,
   // not only the author who picked it (audit NOTES-10, grid cells).
@@ -159,11 +199,24 @@ export function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoa
       ...(base.filter ? { filter: base.filter } : {}),
       ...(transform ? { transform, transformOrigin: objPos } : {}),
     };
+    // The progressive path, like a standalone image card: a quick xs paint,
+    // then the rung the cell's drawn size needs (tierScale counts the crop
+    // zoom), climbed by the image-tier scheduler. The .r2p wrapper takes
+    // gc-img and the whole style; its transform scales the same 100%×100% box
+    // the old <img> was, and .gridc-cell-body still clips it. object-fit and
+    // object-position go on the picture layers themselves (imgStyle).
     return (
       <R2Image
+        progressive
         src={cell.src}
         w={Math.round(rect.w)}
         h={Math.round(rect.h)}
+        fit={cell.fit === 'contain' ? 'contain' : 'cover'}
+        tierScale={z || 1}
+        imgStyle={{ objectFit: style.objectFit, objectPosition: style.objectPosition }}
+        // A preview with no card (the cluster browser's mini grid) stays off
+        // the scheduler: it mounts on the rung its size needs and stays there.
+        cardId={cardId && cellId ? `${cardId}:${cellId}` : undefined}
         draggable="false"
         className="gc-img"
         style={style}
@@ -174,7 +227,19 @@ export function CellContent({ cell, rect, seqIndex, seqFormat, boards, onOpenBoa
   if (type === 'link') {
     return (
       <a className="gc-link" href={safeExternalHref(cell.source || cell.link) || '#'} target="_blank" rel="noreferrer" onClick={stop}>
-        {cell.image ? <img className="gc-link-img" src={cell.image} alt="" draggable="false" /> : null}
+        {cell.image ? (
+          <LinkPicture
+            image={cell.image}
+            imageKey={cell.imageKey}
+            imageKeyOf={cell.imageKeyOf}
+            w={Math.round(rect.w)}
+            h={Math.round(rect.h)}
+            // As the image cell above: a preview with no card stays off the scheduler.
+            cardId={cardId && cellId ? `${cardId}:${cellId}` : undefined}
+            className="gc-link-img"
+            fallback={<img className="gc-link-img" src={cell.image} alt="" draggable="false" />}
+          />
+        ) : null}
         <span className="gc-link-meta">
           {cell.favicon ? <img className="gc-link-fav" src={cell.favicon} alt="" /> : null}
           <span className="gc-link-title">{cell.title || cell.source || cell.link}</span>

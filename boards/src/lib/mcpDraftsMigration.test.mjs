@@ -55,7 +55,10 @@ for (const [fn, [from, to]] of Object.entries(SWAPS)) {
 const madeIn = (text) => [...text.matchAll(/create\s+(?:or\s+replace\s+)?function\s+public\.([a-z0-9_]+)\s*\(/gi)]
   .map((m) => m[1]).sort();
 const FILE_0856 = '0856_workspace_limit.sql';
-const RESTATED_LATER = { mcp_draft_keep_view: FILE_0708, keep_mcp_draft: FILE_0856 };
+// 0898 restates the keep view once more to hand out the quick picture key
+// (quickTierMigration.test.mjs holds that body).
+const FILE_0898 = '0898_quick_picture_tier.sql';
+const RESTATED_LATER = { mcp_draft_keep_view: FILE_0898, keep_mcp_draft: FILE_0856 };
 
 test('0706 makes these four functions, and they are the ones that run (or a later restatement)', () => {
   const made = madeIn(src);
@@ -104,7 +107,7 @@ test("0856's keep_mcp_draft is 0706's with only the workspace limit added", () =
 // link's; shareCaptureMigration.test.mjs holds it to 0708's plus that arm.
 // 0888 restates it again with the mail and invite arms
 // (acquisitionInviteEmail.test.mjs).
-const RESTATED_AFTER_0708 = { derive_acquisition_channel: '0888_channel_email_and_invite.sql' };
+const RESTATED_AFTER_0708 = { derive_acquisition_channel: '0888_channel_email_and_invite.sql', mcp_draft_keep_view: FILE_0898 };
 
 test('0708 makes these three functions, and they are the ones that run (or a later restatement)', () => {
   const made = madeIn(src0708);

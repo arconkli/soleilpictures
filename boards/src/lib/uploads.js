@@ -18,7 +18,7 @@ import {
 import { analyzeAudioFile, analyzable } from './audioAnalysis.js';
 import { readEmbeddedCover } from './audioTags.js';
 import { lowMemoryDevice } from './device.js';
-import { setMetaLocal } from './imageMeta.js';
+import { getMeta, setMetaLocal } from './imageMeta.js';
 import { getSignedUrl } from './r2.js';
 import { rgbaToThumbHash } from 'thumbhash';
 import * as perf from './perf.js';
@@ -48,6 +48,13 @@ const PREVIEW_QUALITY = 0.72;
 // while it's in the preview tier).
 const PREVIEW_SM_LONGEST_EDGE = 640;
 const PREVIEW_SM_QUALITY = 0.72;
+
+// Quick tier: ~256px, the smallest rung, so a big board's first paint is a few
+// KB per card (~6-9 KB for a photo) and the sharpening climbs from it. Not made
+// for sources that barely exceed it: a 384px original is its own quick picture.
+const PREVIEW_XS_LONGEST_EDGE = 256;
+const PREVIEW_XS_QUALITY = 0.65;
+const XS_MIN_SOURCE_EDGE = 384;
 // Native-size webp re-encode for ≤1280px byte-heavy sources: only when the
 // source is bigger than this floor AND the webp saves ≥20% of the bytes.
 const NATIVE_WEBP_MIN_EDGE = 320;
@@ -318,10 +325,55 @@ function u8ToBase64(u8) {
   return btoa(s);
 }
 
+// Safari cannot encode WebP: canvas.toBlob(cb, 'image/webp') hands back a PNG,
+// several times heavier than the WebP it was asked for. Learn that once per
+// page: after the first PNG answer WebP is not tried again. A null answer (an
+// encode that failed under memory pressure) teaches nothing and is not held
+// against WebP.
+let _webpEncodes = null;
+
+function toBlobSafe(canvas, type, quality) {
+  return new Promise((resolve) => {
+    try { canvas.toBlob((b) => resolve(b || null), type, quality); }
+    catch (_) { resolve(null); }
+  });
+}
+
+// True when any pixel is not fully opaque. A canvas that cannot be read counts
+// as transparent, the conservative answer (it keeps the PNG).
+function canvasHasTransparency(canvas) {
+  try {
+    const ctx = canvas.getContext('2d');
+    const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    for (let i = 3; i < data.length; i += 4) if (data[i] < 255) return true;
+    return false;
+  } catch (_) { return true; }
+}
+
+// Encode a canvas for a preview: WebP where the browser makes one, else JPEG
+// for an opaque picture, else (a transparent one) the PNG, unless allowPng is
+// false, which returns null so the caller skips the rung. Never throws.
+async function encodePreviewBlob(canvas, quality, { allowPng = true } = {}) {
+  let pngFallback = null;
+  if (_webpEncodes !== false) {
+    const blob = await toBlobSafe(canvas, 'image/webp', quality);
+    if (blob && blob.type === 'image/webp') { _webpEncodes = true; return blob; }
+    if (blob) _webpEncodes = false;
+    if (blob && blob.type === 'image/png') pngFallback = blob;
+  }
+  if (!canvasHasTransparency(canvas)) {
+    const jpeg = await toBlobSafe(canvas, 'image/jpeg', Math.min(0.9, quality + 0.1));
+    return jpeg && jpeg.type === 'image/jpeg' ? jpeg : null;
+  }
+  if (!allowPng) return null;
+  return pngFallback || toBlobSafe(canvas, 'image/png');
+}
+
 // Downscale a drawable to a WebP blob with longest edge <= maxEdge. Returns
 // null (no upscale) when the source is already small enough — the original
-// then serves as Tier-1 directly.
-function downscaleDrawableToWebp({ drawable, w, h }, maxEdge, quality) {
+// then serves as Tier-1 directly. With keepCanvas the result also carries the
+// canvas (the caller releases it) so a smaller rung can be drawn from it.
+async function downscaleDrawableToWebp({ drawable, w, h }, maxEdge, quality, { keepCanvas = false, allowPng = true } = {}) {
   const maxSide = Math.max(w, h);
   if (maxSide <= maxEdge) return null;
   const scale = maxEdge / maxSide;
@@ -329,31 +381,41 @@ function downscaleDrawableToWebp({ drawable, w, h }, maxEdge, quality) {
   const th = Math.max(1, Math.round(h * scale));
   const canvas = document.createElement('canvas');
   canvas.width = tw; canvas.height = th;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-  ctx.drawImage(drawable, 0, 0, tw, th);
-  return new Promise((resolve) => {
-    try {
-      canvas.toBlob((blob) => resolve(blob ? { blob, w: tw, h: th } : null), 'image/webp', quality);
-    } catch (_) { resolve(null); }
-  });
+  let keep = false;
+  try {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(drawable, 0, 0, tw, th);
+    const blob = await encodePreviewBlob(canvas, quality, { allowPng });
+    if (!blob) return null;
+    keep = keepCanvas;
+    return keepCanvas ? { blob, w: tw, h: th, canvas } : { blob, w: tw, h: th };
+  } finally {
+    if (!keep) canvas.width = canvas.height = 0;
+  }
 }
 
 // Encode a drawable to WebP at NATIVE size (no resize). For ≤PREVIEW_LONGEST_EDGE
 // sources that are still byte-heavy (screenshot PNGs etc.): the webp re-encode
 // is ~5-10x smaller at identical pixels, and having a real preview row unlocks
 // the 640px sm sibling + srcset for small/zoomed-out cards.
-function drawableToWebpNative({ drawable, w, h }, quality) {
+async function drawableToWebpNative({ drawable, w, h }, quality, { keepCanvas = false } = {}) {
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-  ctx.drawImage(drawable, 0, 0, w, h);
-  return new Promise((resolve) => {
-    try {
-      canvas.toBlob((blob) => resolve(blob ? { blob, w, h } : null), 'image/webp', quality);
-    } catch (_) { resolve(null); }
-  });
+  let keep = false;
+  try {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(drawable, 0, 0, w, h);
+    const blob = await encodePreviewBlob(canvas, quality);
+    if (!blob) return null;
+    keep = keepCanvas;
+    return keepCanvas ? { blob, w, h, canvas } : { blob, w, h };
+  } finally {
+    if (!keep) canvas.width = canvas.height = 0;
+  }
 }
 
 // Decode `file` ONCE at bounded resolution for an optimistic on-canvas preview,
@@ -421,6 +483,9 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
   perf.bump('image.backfill.run');
   const d = await getDrawable(imageSource);
   if (!d) return false;   // undecodable — the variantQueue drain counts a retry
+  // Canvases kept so a smaller rung is drawn from a smaller source; all are
+  // released in the finally (a 1280px canvas is ~4 MB of backing store).
+  const canvases = [];
   try {
     let blur = null;
     try { blur = computeThumbHashBase64(d); }
@@ -428,12 +493,14 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
 
     let previewKey = null, previewW = null, previewH = null;
     let previewSmKey = null, previewSmW = null, previewSmH = null;
+    let previewXsKey = null, previewXsW = null, previewXsH = null;
+    let smCanvas = null;
     // An animated image gets the blur only: a preview is its first frame, and
     // a card that prefers the preview would show that still for good.
     const animated = await sourceIsAnimated(storagePath, imageSource);
     let dn = null;
     if (!animated) {
-      try { dn = await downscaleDrawableToWebp(d, PREVIEW_LONGEST_EDGE, PREVIEW_QUALITY); }
+      try { dn = await downscaleDrawableToWebp(d, PREVIEW_LONGEST_EDGE, PREVIEW_QUALITY, { keepCanvas: true }); }
       catch (_) { dn = null; }
     }
     // ≤1280px sources used to get NO preview ("the original serves as
@@ -450,11 +517,13 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
           && Math.max(d.w, d.h) > NATIVE_WEBP_MIN_EDGE
           && sourceBytes / (d.w * d.h) > NATIVE_WEBP_MIN_BYTES_PER_PX) {
         try {
-          const native = await drawableToWebpNative(d, PREVIEW_QUALITY);
+          const native = await drawableToWebpNative(d, PREVIEW_QUALITY, { keepCanvas: true });
+          if (native?.canvas) canvases.push(native.canvas);
           if (native?.blob && native.blob.size < sourceBytes * NATIVE_WEBP_MAX_RATIO) dn = native;
         } catch (_) { /* keep dn = null — exact prior behavior */ }
       }
     }
+    if (dn?.canvas && !canvases.includes(dn.canvas)) canvases.push(dn.canvas);
     if (dn && dn.blob) {
       const requestedKey = `${workspaceId}/previews/${crypto.randomUUID()}.webp`;
       // Use the key the server actually assigns. A party that honors the
@@ -473,7 +542,8 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
       // exact prior behavior, no regression. Generated only because we just
       // produced the lg preview, so "preview_sm implies preview" holds.
       try {
-        const dnSm = await downscaleDrawableToWebp(d, PREVIEW_SM_LONGEST_EDGE, PREVIEW_SM_QUALITY);
+        const dnSm = await downscaleDrawableToWebp(d, PREVIEW_SM_LONGEST_EDGE, PREVIEW_SM_QUALITY, { keepCanvas: true });
+        if (dnSm?.canvas) { canvases.push(dnSm.canvas); smCanvas = dnSm.canvas; }
         if (dnSm && dnSm.blob) {
           const requestedSmKey = `${workspaceId}/previews/${crypto.randomUUID()}.webp`;
           const presignedSm = await presignPreview({ workspaceId, boardId, previewKey: requestedSmKey, bytes: dnSm.blob.size });
@@ -484,9 +554,35 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
       } catch (_) { previewSmKey = null; previewSmW = null; previewSmH = null; }
     }
 
+    // Quick tier (~256px), the smallest rung. Drawn from the smallest canvas
+    // already made; a small original that is its own preview gets one too.
+    // Best-effort like sm: any failure leaves it null. Never for animated
+    // sources, which keep the blur only. Not again for an image that already
+    // has one: a run that finds the image unsettled would otherwise mint a new
+    // retention-locked xs object every session and orphan the last.
+    const knownXsKey = getMeta(storagePath)?.previewXsKey || null;
+    if (!animated && !knownXsKey) {
+      try {
+        const srcCanvas = smCanvas || dn?.canvas || null;
+        const xsSource = srcCanvas
+          ? { drawable: srcCanvas, w: srcCanvas.width, h: srcCanvas.height }
+          : (Math.max(d.w, d.h) > XS_MIN_SOURCE_EDGE ? d : null);
+        const dnXs = xsSource
+          ? await downscaleDrawableToWebp(xsSource, PREVIEW_XS_LONGEST_EDGE, PREVIEW_XS_QUALITY, { allowPng: false })
+          : null;
+        if (dnXs && dnXs.blob) {
+          const requestedXsKey = `${workspaceId}/previews/${crypto.randomUUID()}.webp`;
+          const presignedXs = await presignPreview({ workspaceId, boardId, previewKey: requestedXsKey, bytes: dnXs.blob.size });
+          const xsKey = presignedXs.key || requestedXsKey;
+          await putWithProgress(presignedXs.uploadUrl, dnXs.blob, {});
+          previewXsKey = xsKey; previewXsW = dnXs.w; previewXsH = dnXs.h;
+        }
+      } catch (_) { previewXsKey = null; previewXsW = null; previewXsH = null; }
+    }
+
     // Nothing to record? (small image with no blur computed.) Skip the RPC —
     // there's genuinely nothing to generate, so the queue can drop it as done.
-    if (!blur && !previewKey) return true;
+    if (!blur && !previewKey && !previewXsKey) return true;
 
     const { error } = await supabase.rpc('set_image_variant', {
       p_storage_path: storagePath,
@@ -497,19 +593,27 @@ export async function generateAndUploadVariants({ workspaceId, boardId, storageP
       p_preview_sm_path: previewSmKey,
       p_preview_sm_w: previewSmW,
       p_preview_sm_h: previewSmH,
+      p_preview_xs_path: previewXsKey,
+      p_preview_xs_w: previewXsW,
+      p_preview_xs_h: previewXsH,
     });
     if (error) return false;  // viewer 403 / RLS — stay quiet, retry later
 
-    setMetaLocal(storagePath, { blur, previewKey, previewW, previewH, previewSmKey, previewSmW, previewSmH });
+    // A skipped quick tier leaves the cached xs fields alone (null here would blank them).
+    const localPatch = { blur, previewKey, previewW, previewH, previewSmKey, previewSmW, previewSmH };
+    if (!knownXsKey) Object.assign(localPatch, { previewXsKey, previewXsW, previewXsH });
+    setMetaLocal(storagePath, localPatch);
     // Warm the new preview's signed URL now (batched presign, zero image
     // bytes) so a culled card that later remounts can resolve it
     // synchronously instead of paying a presign round-trip mid-pan. Lives
     // here — not in the sweep — because all three variant producers funnel
     // through this function (board sweep, R2Image on-view backfill, upload).
     if (previewKey) { getSignedUrl(previewKey); if (previewSmKey) getSignedUrl(previewSmKey); }
+    if (previewXsKey) getSignedUrl(previewXsKey);
     if (_t0) perf.mark('image.backfill.ms', performance.now() - _t0);
     return true;
   } finally {
+    for (const c of canvases) c.width = c.height = 0;
     d.release?.();
   }
 }

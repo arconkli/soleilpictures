@@ -14,6 +14,13 @@
 //
 // Records are tagged with the owner user id and ignored on read for a different
 // user, so a shared device never serves one user's board content to another.
+//
+// The record also carries the board's picture info (`pics`: blur hash, preview
+// keys and sizes per storage path — imageMeta.exportImageMeta). Without it the
+// instant paint has cards but no preview keys, so each one would pick its
+// multi-MB original until the network prime (two queries) lands. yboard seeds
+// imageMeta from `pics` before applying the snapshot; the network prime then
+// replaces it. A record can hold `pics` with no snapshot yet (b64 null).
 
 const DB_NAME = 'soleil-boards';
 const STORE = 'snapshots';
@@ -62,7 +69,8 @@ function tx(db, mode) {
 }
 
 // Get the cached snapshot for a board, only if it belongs to `uid`.
-// Returns { b64, updatedAt } or null.
+// Returns { b64, updatedAt, pics } or null. b64 is null for a record that so
+// far holds only picture info; pics is null for one that has none.
 export async function getSnapshot(boardId, uid) {
   try {
     const db = await openDb();
@@ -70,21 +78,61 @@ export async function getSnapshot(boardId, uid) {
     const { store } = tx(db, 'readonly');
     const rec = await reqToPromise(store.get(boardId));
     if (!rec || (uid && rec.uid && rec.uid !== uid)) return null;
-    return { b64: rec.b64, updatedAt: rec.updatedAt || null };
+    return { b64: rec.b64, updatedAt: rec.updatedAt || null, pics: rec.pics || null };
   } catch (_) { return null; }
 }
 
+// The record to write when `next` replaces `prev`: `next` as is, plus the
+// picture info `prev` already held when `next` brings none of its own. Another
+// user's pictures never carry over (null === null counts as the same user).
+export function mergeSnapshotRecord(prev, next) {
+  if (!next || next.pics || !prev || !prev.pics) return next;
+  if ((prev.uid || null) !== (next.uid || null)) return next;
+  const out = { ...next, pics: prev.pics };
+  if (prev.picsAt != null) out.picsAt = prev.picsAt;
+  return out;
+}
+
 // Store a board snapshot. Fire-and-forget; prunes the oldest beyond MAX_ENTRIES.
+// The existing record's picture info is kept: the get and the put share one
+// readwrite transaction, and the put runs in the get's callback (no await in
+// between) so the transaction can't auto-commit before it.
 export async function putSnapshot(boardId, uid, b64, updatedAt = null) {
   if (!boardId || !b64) return;
   try {
     const db = await openDb();
     if (!db) return;
     const { store, done } = tx(db, 'readwrite');
-    store.put({ boardId, uid: uid || null, b64, updatedAt, cachedAt: Date.now() });
+    const next = { boardId, uid: uid || null, b64, updatedAt, cachedAt: Date.now() };
+    const get = store.get(boardId);
+    get.onsuccess = () => { store.put(mergeSnapshotRecord(get.result, next)); };
     await done;
     void pruneOld(db);
   } catch (_) { /* quota / disabled — board still loads from the network */ }
+}
+
+// Store a board's picture info (imageMeta.exportImageMeta) on its record,
+// creating a snapshot-less record when the snapshot write hasn't landed yet
+// (putSnapshot keeps the pictures either way). Another user's record is left
+// alone. Fire-and-forget, same transaction pattern as putSnapshot.
+export async function putSnapshotPics(boardId, uid, pics) {
+  if (!boardId || !pics || typeof pics !== 'object' || Object.keys(pics).length === 0) return;
+  try {
+    const db = await openDb();
+    if (!db) return;
+    const { store, done } = tx(db, 'readwrite');
+    const get = store.get(boardId);
+    get.onsuccess = () => {
+      const existing = get.result;
+      if (existing && (existing.uid || null) !== (uid || null)) return;
+      store.put({
+        ...(existing || { boardId, uid: uid || null, b64: null, updatedAt: null, cachedAt: Date.now() }),
+        pics,
+        picsAt: Date.now(),
+      });
+    };
+    await done;
+  } catch (_) { /* quota / disabled — pictures just wait for the network prime */ }
 }
 
 async function pruneOld(db) {

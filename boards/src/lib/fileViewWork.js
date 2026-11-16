@@ -30,7 +30,7 @@ function applyView(row) {
   return !!meta;
 }
 
-const META_COLS = 'storage_path,preview_path,preview_w,preview_h,preview_sm_path,preview_sm_w,preview_sm_h,width,height';
+const META_COLS = 'storage_path,preview_path,preview_w,preview_h,preview_sm_path,preview_sm_w,preview_sm_h,preview_xs_path,preview_xs_w,preview_xs_h,width,height';
 
 // A file a browser made a preview of since its meta was read ('has_preview'):
 // read the preview in. True when one is there.
@@ -41,6 +41,7 @@ async function refreshMeta(key) {
     setMetaLocal(key, {
       previewKey: data.preview_path, previewW: data.preview_w ?? null, previewH: data.preview_h ?? null,
       previewSmKey: data.preview_sm_path || null, previewSmW: data.preview_sm_w ?? null, previewSmH: data.preview_sm_h ?? null,
+      previewXsKey: data.preview_xs_path || null, previewXsW: data.preview_xs_w ?? null, previewXsH: data.preview_xs_h ?? null,
       ...(data.width > 0 && data.height > 0 ? { w: data.width, h: data.height } : {}),
       checked: true,
     });

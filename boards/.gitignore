@@ -19,3 +19,6 @@ playwright-report/
 
 # English snapshots and pseudo sweeps (tests/i18n-english.spec.js).
 .i18n-snapshot/
+
+# Generated bench fixtures (tests/bench/make-bench-images.mjs).
+tests/bench/.fixtures/

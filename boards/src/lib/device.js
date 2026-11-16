@@ -80,6 +80,19 @@ export function lowMemoryDevice() {
   } catch (_) { return false; }
 }
 
+// True when the person asked to save data, or the connection is 2G-class
+// (effectiveType 'slow-2g' / '2g'). Canvas pictures then skip the quick-rung
+// detour and the original, and the tier scheduler fetches fewer at once.
+// navigator.connection is Chromium-only; anywhere it is absent this is false.
+export function constrainedConnection() {
+  try {
+    const c = typeof navigator !== 'undefined' ? navigator.connection : null;
+    if (!c) return false;
+    if (c.saveData === true) return true;
+    return typeof c.effectiveType === 'string' && /(^|-)2g$/.test(c.effectiveType);
+  } catch (_) { return false; }
+}
+
 export function getDeviceInfo() {
   if (cached) return cached;
   if (typeof navigator === 'undefined') {

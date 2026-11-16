@@ -35,7 +35,7 @@ const STUBS = {
   '/src/lib/renderThumbnail.js': [fn('renderThumbnail', 'renderThumbnailBlob'), fn('renderThumbnail', 'quickVisualHash'), 'export const RENDER_VERSION = 1;'].join('\n'),
   '/src/lib/uploads.js': fn('uploads', 'uploadBoardThumbnail'),
   '/src/lib/prefetchKinds.js': [fn('prefetchKinds', 'peekBoardSnapshot'), fn('prefetchKinds', 'prefetchBoard')].join('\n'),
-  '/src/lib/snapshotCache.js': ['getSnapshot', 'putSnapshot', 'deleteSnapshot'].map((n) => fn('snapshotCache', n)).join('\n'),
+  '/src/lib/snapshotCache.js': ['getSnapshot', 'putSnapshot', 'putSnapshotPics', 'deleteSnapshot'].map((n) => fn('snapshotCache', n)).join('\n'),
   '/src/lib/prefetch.js': fn('prefetch', 'invalidate'),
   '/src/lib/perf.js': 'export const isEnabled = () => false; export const bump = () => {}; export const mark = () => {}; export const gauge = () => {};',
   '/src/lib/errorReporting.js': 'export const logClientError = () => {};',
@@ -44,7 +44,7 @@ const STUBS = {
   '/src/lib/ySupabase.js': fn('realtime', 'attachRealtime'),
   '/src/lib/supabase.js': 'export const supabase = { rpc: (...a) => globalThis.__yb.call("supabase", "rpc", a) };',
   '/src/lib/restoreSignal.js': fn('restoreSignal', 'watchBoardRestores'),
-  '/src/lib/imageMeta.js': [fn('imageMeta', 'primeImageMeta'), fn('imageMeta', 'primeImageMetaForBoard')].join('\n'),
+  '/src/lib/imageMeta.js': ['primeImageMeta', 'primeImageMetaForBoard', 'seedImageMeta', 'exportImageMeta', 'whenBoardMetaPrimed'].map((n) => fn('imageMeta', n)).join('\n'),
 };
 const REACT_STUB = ['useEffect', 'useRef', 'useState'].map((n) => `export const ${n} = (...a) => globalThis.__fakeReact.${n}(...a);`).join('\n');
 const hooks = `
@@ -150,6 +150,7 @@ const impl = {
   snapshotCache: {
     getSnapshot: async (id) => (env.idb.has(id) ? { b64: env.idb.get(id) } : null),
     putSnapshot: async (id, _uid, v) => { env.idb.set(id, v); },
+    putSnapshotPics: async () => {},
     deleteSnapshot: async (id) => { env.idb.delete(id); },
   },
   prefetch: { invalidate: (key) => { env.prefetch.delete(String(key).replace(/^board:/, '')); } },
@@ -167,7 +168,10 @@ const impl = {
     },
   },
   restoreSignal: { watchBoardRestores: (boardId, cb) => { env.restoreWatchers.push({ boardId, cb }); return () => {}; } },
-  imageMeta: { primeImageMeta: () => {}, primeImageMetaForBoard: () => {} },
+  imageMeta: {
+    primeImageMeta: () => {}, primeImageMetaForBoard: () => {},
+    seedImageMeta: () => {}, exportImageMeta: () => ({}), whenBoardMetaPrimed: () => null,
+  },
 };
 globalThis.__yb = { call: (mod, name, args) => impl[mod][name](...args) };
 

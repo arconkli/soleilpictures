@@ -92,7 +92,35 @@ test('a tile loads the smallest stored picture that covers it', () => {
   assert.equal(tileImageSrc('r2:orig', meta, 2000), 'r2:orig');
   assert.equal(tileImageSrc('r2:orig', { previewKey: 'lg' }, 300), 'r2:lg');
   assert.equal(tileImageSrc('r2:orig', null, 300), 'r2:orig');
+  // The quick picture is used only once the pick rule knows the rung; before
+  // that the tile falls through to the small one.
+  const xs = { ...meta, previewXsKey: 'xs', previewXsW: 256, previewXsH: 192 };
+  assert.ok(['r2:xs', 'r2:sm'].includes(tileImageSrc('r2:orig', xs, 200)));
+  assert.equal(tileImageSrc('r2:orig', xs, 900), 'r2:lg');
   assert.equal(tileImageSrc('https://x/y.png', meta, 300), 'https://x/y.png');
+});
+
+test('the quick picture is taken only when it covers the picture\'s long side in the tile box', () => {
+  // A 9:16 portrait in a wide box is drawn 240 × 16/9 ≈ 427px tall: its 256px
+  // quick picture would be stretched.
+  const portrait = {
+    previewXsKey: 'xs', previewXsW: 144, previewXsH: 256,
+    previewSmKey: 'sm', previewSmW: 360, previewSmH: 640,
+    previewKey: 'lg', previewW: 720, previewH: 1280, w: 2160, h: 3840,
+  };
+  assert.equal(tileImageSrc('r2:orig', portrait, 240), 'r2:sm');
+  assert.equal(tileImageSrc('r2:orig', portrait, 140), 'r2:xs', '140 × 16/9 ≈ 249 fits the 256px edge');
+  // A square picture has no long side to outgrow the box.
+  const square = {
+    previewXsKey: 'xs', previewXsW: 256, previewXsH: 256,
+    previewSmKey: 'sm', previewSmW: 640, previewSmH: 640,
+    previewKey: 'lg', previewW: 1280, previewH: 1280, w: 3000, h: 3000,
+  };
+  assert.equal(tileImageSrc('r2:orig', square, 200), 'r2:xs');
+  // No original size on record: the preview's shape stands in for it.
+  assert.equal(tileImageSrc('r2:orig', { ...portrait, w: null, h: null }, 240), 'r2:sm');
+  // No shape anywhere reads as square.
+  assert.equal(tileImageSrc('r2:orig', { previewXsKey: 'xs', previewXsW: 256, previewXsH: 192, previewSmKey: 'sm' }, 200), 'r2:xs');
 });
 
 test('tile size is remembered on the device, and junk reads as the default', () => {

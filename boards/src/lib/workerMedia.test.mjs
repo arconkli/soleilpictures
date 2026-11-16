@@ -273,6 +273,114 @@ test('readCapped returns exactly the bytes under the ceiling, into one buffer wh
   await assert.rejects(readCapped(liar, 1000), (e) => e.code === 'too_large');
 });
 
+// ── purpose: 'link' — the copy a link card keeps of its site's picture ──────
+
+// The world, with every RPC logged by name, so what link mode skips is read
+// off the calls rather than assumed.
+function linkWorld(opts) {
+  const w = world(opts);
+  const rpcs = [];
+  const inner = w.deps.userRpc;
+  w.deps.userRpc = (env, token, fn, params) => { rpcs.push(fn); return inner(env, token, fn, params); };
+  return Object.assign(w, { rpcs });
+}
+const LINK = { url: 'https://cdn.example.com/og/hero.png', boardId: BOARD, purpose: 'link' };
+
+test('link mode: stored under previews/link/ in the board\'s workspace, with no card on its row', async () => {
+  const w = linkWorld();
+  const res = await call(w, { ...LINK, cardId: 'link-1', workspaceId: 'ws-evil' });
+  assert.equal(res.status, 200);
+  const out = await res.json();
+  assert.equal(out.src, 'r2:ws-1/previews/link/fixed-uuid.png', 'the key is under previews/link/, in the board\'s workspace');
+  assert.equal(out.key, 'ws-1/previews/link/fixed-uuid.png');
+  assert.equal(w.bucket.get('ws-1/previews/link/fixed-uuid.png').o.httpMetadata.contentType, 'image/png');
+  assert.equal(w.inserted.length, 1);
+  const row = w.inserted[0];
+  assert.equal(row.table, 'images');
+  assert.equal(row.storage_path, 'ws-1/previews/link/fixed-uuid.png');
+  assert.equal(row.workspace_id, 'ws-1');
+  assert.equal(row.board_id, BOARD, 'the same board');
+  assert.equal(row.card_id, null, 'a link picture belongs to no image card, whatever the request said');
+  assert.equal(row.uploaded_by, 'user-1');
+  assert.equal(row.size_bytes, PNG.length);
+});
+
+test('link mode skips the storage count and the space reservation — and nothing else', async () => {
+  const w = linkWorld({ quota: { allow: false, reason: 'over_quota' }, reserve: false });
+  const res = await call(w, LINK);
+  assert.equal(res.status, 200, 'over quota and no space to reserve: a link picture is nobody\'s upload');
+  assert.deepEqual(w.rpcs, ['can_write_board'], 'only the write check is asked; authorize_image_upload and record_upload_intent are not');
+  assert.deepEqual(w.reserved, []);
+  // Without the purpose the same world refuses, so the skip is the mode's, not the harness's.
+  const plain = linkWorld({ quota: { allow: false, reason: 'over_quota' } });
+  assert.equal((await call(plain, { url: LINK.url, boardId: BOARD })).status, 402);
+  assert.deepEqual(plain.rpcs, ['can_write_board', 'authorize_image_upload']);
+});
+
+test('link mode still asks whether the caller can write the board, and fails closed', async () => {
+  const w = linkWorld({ canWrite: false });
+  assert.equal((await call(w, LINK)).status, 403);
+  assert.deepEqual(w.fetched, [], 'nothing is fetched for a reader');
+  const down = linkWorld();
+  const inner = down.deps.userRpc;
+  down.deps.userRpc = (e, t, fn, p) => (fn === 'can_write_board' ? Promise.reject(new Error('down')) : inner(e, t, fn, p));
+  assert.equal((await call(down, LINK)).status, 403);
+  assert.equal((await call(linkWorld(), { ...LINK, boardId: '99999999-2222-4333-8444-555555555555' })).status, 404);
+  assert.equal((await call(linkWorld(), LINK, { token: 'bad' })).status, 401);
+});
+
+test('link mode keeps the byte checks: the sniff, the internal-address refusal, and the delete on a failed row', async () => {
+  for (const bytes of [HTML, SVG]) {
+    const w = linkWorld({ serve: () => new Response(bytes, { headers: { 'content-type': 'image/png' } }) });
+    assert.equal((await call(w, LINK)).status, 415);
+    assert.equal(w.bucket.size, 0);
+    assert.equal(w.inserted.length, 0);
+  }
+  const internal = linkWorld();
+  assert.equal((await call(internal, { ...LINK, url: 'http://169.254.169.254/latest/meta-data' })).status, 422);
+  assert.deepEqual(internal.fetched, []);
+  const failing = linkWorld({ insertFails: true });
+  assert.equal((await call(failing, LINK)).status, 500);
+  assert.equal(failing.bucket.size, 0, 'the object goes back with the row that failed');
+});
+
+test('link mode holds a picture to 8 MiB, declared or streamed, where a drag-in may have 25', async () => {
+  const EIGHT = 8 * 1024 * 1024;
+  assert.ok(WEB_IMAGE.maxBytes > EIGHT, 'the cap is tighter than a drag-in\'s');
+  const declared = linkWorld({ serve: () => new Response(PNG, { headers: { 'content-length': String(EIGHT + 1) } }) });
+  const r = await call(declared, LINK);
+  assert.equal(r.status, 413);
+  assert.equal((await r.json()).error, 'too_large');
+  const big = new Uint8Array(EIGHT + 10);
+  big.set(PNG);
+  const streamed = linkWorld({ serve: () => new Response(new ReadableStream({
+    start(c) { for (let o = 0; o < big.length; o += 1 << 20) c.enqueue(big.subarray(o, o + (1 << 20))); c.close(); },
+  })) });
+  assert.equal((await call(streamed, LINK)).status, 413);
+  assert.equal(streamed.bucket.size, 0);
+  // The same bytes, declared and saved without the purpose, fit a drag-in.
+  const at = new Uint8Array(EIGHT + 10);
+  at.set(PNG);
+  const dragIn = linkWorld({ serve: () => new Response(at, { headers: { 'content-length': String(at.length) } }) });
+  assert.equal((await call(dragIn, { url: LINK.url, boardId: BOARD })).status, 200);
+  // Exactly 8 MiB is allowed.
+  const exact = new Uint8Array(EIGHT);
+  exact.set(PNG);
+  const ok = linkWorld({ serve: () => new Response(exact, { headers: { 'content-length': String(EIGHT) } }) });
+  assert.equal((await call(ok, LINK)).status, 200);
+});
+
+test('any other purpose, or none, is a drag-in exactly as before', async () => {
+  for (const purpose of [undefined, null, '', 'LINK', 'link ', 'avatar', 1, {}]) {
+    const w = linkWorld();
+    const res = await call(w, { url: LINK.url, boardId: BOARD, cardId: 'image-1', purpose });
+    assert.equal(res.status, 200, `purpose=${JSON.stringify(purpose)}`);
+    assert.equal((await res.json()).src, 'r2:ws-1/fixed-uuid.png', 'the plain key, not previews/link/');
+    assert.deepEqual(w.rpcs, ['can_write_board', 'authorize_image_upload', 'record_upload_intent'], 'counted and reserved');
+    assert.equal(w.inserted[0].card_id, 'image-1');
+  }
+});
+
 test('the Worker routes /api/media/* to it', () => {
   const worker = readFileSync(resolve(SRC, 'worker.js'), 'utf8');
   assert.match(worker, /if \(url\.pathname\.startsWith\('\/api\/media\/'\)\) return await handleMediaRoute\(url, request, env\);/);

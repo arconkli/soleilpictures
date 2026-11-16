@@ -13,7 +13,7 @@ export const TOKEN   = '11111111-2222-3333-4444-555555555555';
 export const ROOT_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
 export const SUB_ID  = 'aaaaaaaa-0000-0000-0000-000000000002';
 
-function snapshotB64(cards, strokes = []) {
+export function snapshotB64(cards, strokes = []) {
   const doc = new Y.Doc();
   const map = doc.getMap('cards');
   for (const [id, card] of Object.entries(cards)) {

@@ -10398,6 +10398,30 @@ export const DOCS_CONTENT = {
    ]
   },
   {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "A "
+    },
+    {
+     "t": "link",
+     "v": "link card",
+     "href": "/docs/canvas/cards",
+     "children": [
+      {
+       "t": "text",
+       "v": "link card"
+      }
+     ]
+    },
+    {
+     "t": "text",
+     "v": " keeps its picture the same way. The first times someone who can edit the cluster has it open, Clusters keeps its own copy of each link's picture, a few at a time, and the card draws from that: it loads like any image on the board and stays when the page changes it. These copies don't count against storage."
+    }
+   ]
+  },
+  {
    "type": "heading",
    "depth": 2,
    "text": "Progressive loading",
@@ -10414,7 +10438,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "An image appears in three stages: a tiny blurred placeholder that arrives almost instantly, then a preview, then the full file. On a board with hundreds of images this is the difference between usable and not."
+     "v": "An image appears in stages. A tiny blurred placeholder arrives almost instantly, then a small quick picture, so a board with hundreds of images fills in at once. Once those have landed and you stay where you are, each card sharpens, a few at a time, to the size it is drawn at on your screen."
     }
    ]
   },
@@ -10423,7 +10447,16 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Full resolution is fetched as you zoom in, and released again as you zoom out, so a board stays responsive no matter how much is on it."
+     "v": "The full file is fetched only when you zoom in far enough to see its extra detail, and released again as you zoom out, so a board stays responsive no matter how much is on it. On a slow connection, or a phone short on memory, cards keep the sharp preview instead of the full file."
+    }
+   ]
+  },
+  {
+   "type": "para",
+   "inline": [
+    {
+     "t": "text",
+     "v": "Coming back to a board is quicker still. Your browser remembers which pictures it already has, and each card starts on the sharpest of those."
     }
    ]
   },
@@ -69181,7 +69214,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Lists what is already stored, so an interrupted bulk upload can be resumed without re-sending everything."
+     "v": "Lists what is already stored, so an interrupted bulk upload can be resumed without re-sending everything. Only the files people uploaded are listed: the smaller copies Clusters makes for display, cluster thumbnails and the copies it keeps of link cards' pictures are left out."
     }
    ]
   },

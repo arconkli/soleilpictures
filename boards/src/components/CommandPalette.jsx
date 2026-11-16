@@ -11,6 +11,7 @@ import { queryLanguage, translateQuery, pictureWords } from '../lib/searchTransl
 import { readWorkspaceAiEnabled } from '../hooks/useWorkspaceAiEnabled.js';
 import { foundOnlyInPicture } from '../lib/entitySearchFilter.js';
 import { getMeta, subscribeMeta, primeImageMeta } from '../lib/imageMeta.js';
+import { pickVariantKey } from '../lib/imageVariantPick.js';
 import { R2Image } from './R2Image.jsx';
 import { supabase } from '../lib/supabase.js';
 import { tagFallbackColor } from '../lib/tagColor.js';
@@ -63,7 +64,9 @@ function PictureThumb({ src }) {
   const [, bump] = useState(0);
   useEffect(() => subscribeMeta(key, () => bump((n) => n + 1)), [key]);
   const meta = getMeta(key);
-  const small = meta?.previewSmKey || meta?.previewKey || null;
+  const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+  const picked = meta ? pickVariantKey(key, meta, 32 * dpr) : null;
+  const small = picked && picked !== key ? picked : null;
   if (!small) return <span className="cmdk-row-icon"><Icon as={ImageIcon} size={16} /></span>;
   return <span className="cmdk-row-pic"><R2Image src={`r2:${small}`} alt="" w={32} h={32} draggable="false" /></span>;
 }

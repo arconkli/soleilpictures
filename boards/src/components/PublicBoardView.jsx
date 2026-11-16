@@ -346,6 +346,11 @@ export function PublicBoardView({ token, slug }) {
         previewSmKey: m.preview_sm || null,
         previewSmW:   m.preview_sm_w ?? null,
         previewSmH:   m.preview_sm_h ?? null,
+        previewXsKey: m.preview_xs || null,
+        previewXsW: m.preview_xs_w ?? null,
+        previewXsH: m.preview_xs_h ?? null,
+        w: m.w ?? null,
+        h: m.h ?? null,
       } : null;
     });
     return () => {

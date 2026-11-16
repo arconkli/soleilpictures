@@ -62,6 +62,41 @@ const LS_MAX_ENTRIES = 1500;          // cap so we never blow the ~5MB localStor
 let _ownerUid = null;                 // uid the in-memory cache currently belongs to
 let _persistTimer = null;
 
+// ── Warm URLs ─────────────────────────────────────────────────────────────
+// Which signed URL each key's bytes actually LOADED under (an <img> load or a
+// probe decode). A URL that is merely signed costs a full download on first
+// use; one that loaded is near-certainly in the browser disk cache. The public
+// viewer's bundle map makes cachedUrl non-null for every key, so "signed"
+// alone can't tell a canvas card what is cheap to show. A re-signed key gets a
+// new URL string, which is a cache miss again, so it is not warm until it loads.
+const _loaded = new Map();            // key → url that loaded
+const _LOADED_MAX = LS_MAX_ENTRIES * 2;
+
+function warmKeyOf(srcOrKey) {
+  if (typeof srcOrKey !== 'string' || !srcOrKey) return null;
+  if (srcOrKey.startsWith('r2:')) return srcOrKey.slice(3) || null;
+  // A full URL (https, data:, blob:) is not an R2 key.
+  if (/^(?:https?|data|blob):/i.test(srcOrKey)) return null;
+  return srcOrKey;
+}
+export function markLoaded(srcOrKey, url) {
+  const key = warmKeyOf(srcOrKey);
+  if (!key || typeof url !== 'string' || !url) return;
+  if (_loaded.get(key) === url) return;
+  _loaded.delete(key);                // re-insert so the oldest is evicted first
+  _loaded.set(key, url);
+  if (_loaded.size > _LOADED_MAX) _loaded.delete(_loaded.keys().next().value);
+  // Only URLs from our own signing are persisted (the public viewer's override
+  // URLs never enter `cache`), so the flag rides on rows that already exist.
+  if (cache.get(key)?.url === url) schedulePersist();
+}
+export function isWarm(srcOrKey) {
+  const key = warmKeyOf(srcOrKey);
+  if (!key) return false;
+  const u = cachedUrl(`r2:${key}`);
+  return !!u && _loaded.get(key) === u;
+}
+
 function schedulePersist() {
   if (_persistTimer || typeof localStorage === 'undefined' || !_ownerUid) return;
   _persistTimer = setTimeout(persist, 1500);
@@ -72,7 +107,12 @@ function persist() {
     if (!_ownerUid) return;
     const now = Date.now();
     const rows = [];
-    for (const [k, v] of cache) if (v.expiresAt > now) rows.push([k, v.url, v.expiresAt]);
+    // A 4th element 1 marks a URL whose bytes loaded (isWarm), so a reload
+    // can mount straight on what the disk cache already holds.
+    for (const [k, v] of cache) {
+      if (v.expiresAt <= now) continue;
+      rows.push(_loaded.get(k) === v.url ? [k, v.url, v.expiresAt, 1] : [k, v.url, v.expiresAt]);
+    }
     rows.sort((a, b) => b[2] - a[2]);                 // keep the most-recently-valid
     localStorage.setItem(LS_KEY, JSON.stringify({ uid: _ownerUid, v: rows.slice(0, LS_MAX_ENTRIES) }));
   } catch (_) { /* quota / disabled storage — caching just stays in-memory */ }
@@ -88,17 +128,22 @@ function hydrate(uid) {
     const parsed = JSON.parse(raw);
     if (!parsed || parsed.uid !== uid) { localStorage.removeItem(LS_KEY); return; }
     const now = Date.now();
-    for (const [k, url, expiresAt] of (parsed.v || [])) {
+    for (const [k, url, expiresAt, warm] of (parsed.v || [])) {
       // Re-derive the safe lifetime from the URL's real signature, so a stale
       // persisted expiresAt can never resurrect a dead URL.
       const real = parseSigExpiryMs(url);
       const liveUntil = real == null ? expiresAt : Math.min(expiresAt, real - SIG_REFRESH_MARGIN_MS);
-      if (liveUntil > now && !cache.has(k)) cache.set(k, { url, expiresAt: liveUntil });
+      if (liveUntil > now && !cache.has(k)) {
+        cache.set(k, { url, expiresAt: liveUntil });
+        // Rows written before the warm flag existed have 3 elements: not warm.
+        if (warm === 1 && !_loaded.has(k)) _loaded.set(k, url);
+      }
     }
   } catch (_) { /* malformed — ignore */ }
 }
 function clearPersisted() {
   cache.clear();
+  _loaded.clear();
   _ownerUid = null;
   if (_persistTimer) { clearTimeout(_persistTimer); _persistTimer = null; }
   try { if (typeof localStorage !== 'undefined') localStorage.removeItem(LS_KEY); } catch (_) {}

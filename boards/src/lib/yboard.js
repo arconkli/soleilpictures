@@ -23,7 +23,8 @@ import { renderThumbnailBlob, quickVisualHash, RENDER_VERSION } from './renderTh
 import { hasCoverContent } from './coverMosaic.js';
 import { uploadBoardThumbnail } from './uploads.js';
 import { peekBoardSnapshot, prefetchBoard } from './prefetchKinds.js';
-import { getSnapshot, putSnapshot, deleteSnapshot } from './snapshotCache.js';
+import { getSnapshot, putSnapshot, putSnapshotPics, deleteSnapshot } from './snapshotCache.js';
+import { seedImageMeta, exportImageMeta, whenBoardMetaPrimed } from './imageMeta.js';
 import { invalidate as invalidatePrefetch } from './prefetch.js';
 import * as perf from './perf.js';
 import { logClientError } from './errorReporting.js';
@@ -664,6 +665,11 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
       if (!localDraft?.doc && !fresh) {
         try {
           const cached = await getSnapshot(boardId, userId);
+          // The pictures' blur and preview keys first, before any card exists:
+          // each one then picks its preview on this paint instead of the
+          // original, without waiting for the network prime (which replaces
+          // these with fresh rows). Even a record with no snapshot has them.
+          if (cached?.pics) { try { seedImageMeta(cached.pics); } catch (_) {} }
           if (cached?.b64 && !destroyed) {
             Y.applyUpdate(ydoc, b64ToBytes(cached.b64), 'snapshot');
             paintedEarly = true;
@@ -716,7 +722,15 @@ export function loadYBoard(boardId, { userId = null, user = null, workspaceId = 
           if (ms > 100) console.warn('[perf] slow yboard.applySnapshot', `${ms.toFixed(0)}ms`, `${(bytes.length/1024).toFixed(1)}KB`, boardId);
         }
         // Refresh the instant-reopen cache with the authoritative server state.
-        if (!destroyed) putSnapshot(boardId, userId, b64);
+        if (!destroyed) {
+          putSnapshot(boardId, userId, b64);
+          // And, once this open's picture prime has landed, the pictures' blur
+          // and preview keys beside it, for the next open to seed. Only here —
+          // the close-time putSnapshot below keeps them through its merge.
+          whenBoardMetaPrimed(boardId)?.then((keys) => {
+            if (!destroyed && keys && keys.length) putSnapshotPics(boardId, userId, exportImageMeta(keys));
+          }).catch(() => {});
+        }
       }
       // Reached only when the fetch AND the apply succeeded (null = a board
       // with no board_state yet, which is merged by definition).

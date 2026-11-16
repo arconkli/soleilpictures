@@ -2935,7 +2935,13 @@ async function dispatch(url, request, env, ctx) {
     const boardFilter = url.searchParams.get('board');
     if (boardFilter && !isUuid(boardFilter)) throw fail(400, 'bad_request', 'board must be a uuid');
 
+    // Only what a caller uploaded. Previews and thumbnails are derived rows of
+    // ours (set_image_variant), and the copies of link pictures kept for link
+    // cards (worker-media.js, purpose 'link') live under previews/link/: none of
+    // them is something to migrate, and listing them made a caller's count
+    // disagree with what they sent.
     let q = 'deleted_at=is.null'
+      + '&storage_path=not.like.*/previews/*&storage_path=not.like.*/thumbs/*'
       + '&select=id,storage_path,size_bytes,width,height,board_id,workspace_id,created_at,original_name'
       + `&order=created_at.asc,id.asc&limit=${limit + 1}`;
     if (ws) q += `&workspace_id=eq.${ws}`;

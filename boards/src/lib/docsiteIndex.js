@@ -520,7 +520,7 @@ export const DOCS_PAGES = [
     "answer": "Drag images onto a canvas and they upload and arrange themselves. Every image carries non-destructive adjustments — exposure, contrast, saturation and the rest — that never touch the original file. Click an image to open it full screen, and download it either as shot or with your adjustments baked in.",
     "section": "canvas",
     "order": 2,
-    "updated": "2026-10-27",
+    "updated": "2026-11-15",
     "navLabel": "Images",
     "headings": [
       {
@@ -568,7 +568,7 @@ export const DOCS_PAGES = [
       },
       {
         "q": "Why does an image look blurry for a moment?",
-        "a": "Images load in tiers — a tiny blurred placeholder first, then a preview, then full resolution. On a board with hundreds of images this is what keeps it usable."
+        "a": "Images load in stages — a tiny blurred placeholder first, then a small quick picture, then sharper ones as you stay, and the full file only when you zoom in close enough to see it. On a board with hundreds of images this is what keeps it usable."
       },
       {
         "q": "Does it handle photos straight off an iPhone?",

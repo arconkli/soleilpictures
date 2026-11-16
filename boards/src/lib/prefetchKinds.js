@@ -148,7 +148,10 @@ async function warmTopImagesFromSnapshot(b64) {
   const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
   for (const c of picks) {
     const key = c.src.slice(3);
-    const variant = pickVariantKey(key, getMeta(key), (Number(c.w) || 320) * dpr);
+    const meta = getMeta(key);
+    // A cold card's first paint is the quick picture when one exists, so warm
+    // that; else the tier its drawn size picks.
+    const variant = meta?.previewXsKey || pickVariantKey(key, meta, (Number(c.w) || 320) * dpr);
     // No preview (a GIF, a row not yet backfilled): leave it to the canvas.
     if (!variant || variant === key) continue;
     prefetchImage(`r2:${variant}`, { lane: 'normal' });

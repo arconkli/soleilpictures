@@ -1397,12 +1397,12 @@ async function runR2Sweep(env) {
         continue;
       }
       try {
-        // An image owns up to THREE R2 objects: the original plus the two WebP
+        // An image owns up to FOUR R2 objects: the original plus the three WebP
         // previews written by generateAndUploadVariants. This used to delete
         // only storage_path, so every swept orphan left its previews behind
         // forever — a leak on the success path, not the failure path. R2's
-        // delete() takes an array, so all three go in one call.
-        const keys = [row.storage_path, row.preview_path, row.preview_sm_path].filter(Boolean);
+        // delete() takes an array, so all four go in one call.
+        const keys = [row.storage_path, row.preview_path, row.preview_sm_path, row.preview_xs_path].filter(Boolean);
         if (keys.length) await env.IMAGES.delete(keys);
         deletedIds.push(row.id);
         if (mediaKindOfKey(row.storage_path) || viewKindOfKey(row.storage_path)) sweptMedia.push(row.storage_path);
@@ -4032,11 +4032,11 @@ async function runR2Mirror(env) {
   try {
     const since = new Date(Date.parse(imagesWM) - OVERLAP_MS).toISOString();
     const rows = await sbGet(
-      `images?select=created_at,storage_path,preview_path,preview_sm_path` +
+      `images?select=created_at,storage_path,preview_path,preview_sm_path,preview_xs_path` +
       `&created_at=gte.${encodeURIComponent(since)}&order=created_at.asc&limit=${ROW_LIMIT}`,
     );
     for (const row of rows) {
-      const keys = [row.storage_path, row.preview_path, row.preview_sm_path].filter(Boolean);
+      const keys = [row.storage_path, row.preview_path, row.preview_sm_path, row.preview_xs_path].filter(Boolean);
       if (!budgetLeft(keys.length * 3)) { stoppedBy = whyStopped(); break; }
       for (const k of keys) tally(await copyKey(k));
       stats.rows++;

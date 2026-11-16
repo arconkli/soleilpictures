@@ -1,7 +1,8 @@
 // Unit tests for the image-tier scheduler policy (lib/imageTierScheduler.js)
 // — the module is pure and dependency-injected, so it runs straight in the
 // Playwright Node process with a fake clock/timers + fake card handles: no
-// page, no DOM, no real images.
+// page, no DOM, no real images. The paint wave, the worker pool and 'step'
+// climbs are covered in src/lib/imageTierScheduler.test.mjs.
 
 import { expect, test } from '@playwright/test';
 import { createImageTierScheduler } from '../src/lib/imageTierScheduler.js';
@@ -16,10 +17,10 @@ function makeHarness(overrides = {}) {
   };
   h.advance = async (ms) => {
     // Step the fake clock and fire due timers, then let detached async drain
-    // chains (Promise.all over handle.run()) settle. Several ticks because a
-    // drain awaits its batch then awaits the next batch's gap timer.
+    // chains (the pool's handle.run() workers) settle. Several ticks because a
+    // worker awaits its run then awaits its slot's gap timer.
     const target = h.t + ms;
-    // Fire timers in due order so a batch-gap timer set during this advance
+    // Fire timers in due order so a slot-gap timer set during this advance
     // also fires if it lands within the window.
     let guard = 0;
     while (guard++ < 10000) {
@@ -59,30 +60,45 @@ function fakeCard({ kind = 'promote', area = 100, inViewport = true, commit = tr
   return c;
 }
 
-test('promote drain commits at most maxConcurrent swaps per batch tick', async () => {
+test('promote drain keeps at most maxConcurrent swaps in flight', async () => {
   const h = makeHarness({ maxConcurrent: 3, promoteDelayMs: 150, batchGapMs: 16 });
   const cards = Array.from({ length: 7 }, (_, i) => fakeCard({ area: i }));
   cards.forEach((c, i) => h.scheduler.register(`c${i}`, c.handle));
 
   h.scheduler.onSettle(0.5);
-  await h.advance(150);                       // promote timer fires → first batch
+  await h.advance(150);                       // promote timer fires → three workers start
   expect(cards.reduce((n, c) => n + c.runs, 0)).toBe(3);
-  await h.advance(16);                        // batch gap → second batch
+  await h.advance(16);                        // each slot frees a frame after its swap
   expect(cards.reduce((n, c) => n + c.runs, 0)).toBe(6);
-  await h.advance(16);                        // last batch
+  await h.advance(16);                        // the last one
   expect(cards.reduce((n, c) => n + c.runs, 0)).toBe(7);
 });
 
-test('promotes are ordered largest on-screen area first', async () => {
+test('promotes are ordered nearest the viewport centre first', async () => {
   const order = [];
   const h = makeHarness({ maxConcurrent: 1, promoteDelayMs: 150, batchGapMs: 16 });
-  const areas = [10, 90, 50];
-  areas.forEach((a, i) => {
-    const handle = { evaluate: () => ({ kind: 'promote', area: a, inViewport: true, run: async () => { order.push(a); } }) };
+  const dists = [400, 10, 120];
+  dists.forEach((d, i) => {
+    const handle = { evaluate: () => ({ kind: 'promote', area: 100 - i, dist: d, inViewport: true, run: async () => { order.push(d); return true; } }) };
     h.scheduler.register(`c${i}`, handle);
   });
   h.scheduler.onSettle(0.5);
   await h.advance(150);
+  await h.advance(16);
+  await h.advance(16);
+  expect(order).toEqual([10, 120, 400]);
+});
+
+test('demotes are ordered largest on-screen area first', async () => {
+  const order = [];
+  const h = makeHarness({ maxConcurrent: 1, promoteDelayMs: 150, demoteIdleMs: 1500, batchGapMs: 16 });
+  const areas = [10, 90, 50];
+  areas.forEach((a, i) => {
+    const handle = { evaluate: () => ({ kind: 'demote', area: a, dist: i, inViewport: true, run: async () => { order.push(a); return true; } }) };
+    h.scheduler.register(`c${i}`, handle);
+  });
+  h.scheduler.onSettle(0.5);
+  await h.advance(1500);
   await h.advance(16);
   await h.advance(16);
   expect(order).toEqual([90, 50, 10]);
@@ -209,7 +225,7 @@ test('an unregistered card mid-drain is not run', async () => {
   h.scheduler.onSettle(0.5);
   await h.advance(150);                  // a (larger area) runs first
   expect(a.runs).toBe(1);
-  unregB();                              // b unmounts before its batch
+  unregB();                              // b unmounts before its slot frees
   await h.advance(16);
   expect(b.runs).toBe(0);
 });

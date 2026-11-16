@@ -157,7 +157,9 @@ capability, so nothing relies on a check made three calls earlier.
 ## `GET /images`
 
 Lists what is already stored, so an interrupted bulk upload can be resumed
-without re-sending everything.
+without re-sending everything. Only the files people uploaded are listed: the
+smaller copies Clusters makes for display, cluster thumbnails and the copies it
+keeps of link cards' pictures are left out.
 
 ```sh
 curl "$SOLEIL_API/images?workspace=$WS&limit=500" -H "Authorization: Bearer $SOLEIL_TOKEN"

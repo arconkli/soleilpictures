@@ -18,8 +18,10 @@ const COOLDOWN_MS = 60_000;
 const ABOUT_ONE_REQUEST = new Set(['source_unavailable', 'busy']);
 let cooldownUntil = 0;
 
+// `purpose: 'link'` keeps a link card's picture instead of a dragged-in image:
+// the Worker stores it as an uncounted preview of its own (worker-media.js).
 export async function saveWebImageCopy({
-  url, boardId, cardId = null, getToken = null, fetchImpl = (...a) => fetch(...a), now = () => Date.now(),
+  url, boardId, cardId = null, purpose = null, getToken = null, fetchImpl = (...a) => fetch(...a), now = () => Date.now(),
 } = {}) {
   if (!/^https?:\/\//i.test(String(url || '')) || !boardId) return { ok: false, code: 'skipped' };
   if (now() < cooldownUntil) return { ok: false, code: 'cooldown' };
@@ -29,7 +31,7 @@ export async function saveWebImageCopy({
     const r = await fetchImpl(PATH, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ url, boardId, cardId }),
+      body: JSON.stringify({ url, boardId, cardId, ...(purpose ? { purpose } : {}) }),
     });
     const isJson = /application\/json/i.test(r.headers.get('content-type') || '');
     const data = isJson ? await r.json().catch(() => null) : null;
