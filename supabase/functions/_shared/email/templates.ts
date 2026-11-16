@@ -112,13 +112,34 @@ const RESUME_URL  = "https://clusters.soleilpictures.com/resume";
 // their last sign-in, so for those types the plain APP_URL risked being a link
 // to a login form — how often it actually was is what lifecycle_land{signed_in}
 // now measures (migration 0235).
+//
+// `comment` (and `card`, for a thread on a doc's or a note's words) name one
+// comment in the cluster `b`: the sign-in gate carries them over as it strips
+// ?w/?b, and the app opens that conversation (boards/src/lib/commentLink.js
+// emailCommentKeys). Both are ids someone else's client may have written, so
+// only letters, digits, _ and - go into the link; anything else is left out
+// and the link opens the cluster.
+// The same rule, 80 characters, as the app's (boards/src/lib/commentLink.js
+// LOOSE_ID, which lib/notificationsBell.js and lib/commentNotices.js import):
+// a longer id would be written here and then refused there. This runtime
+// cannot import it; commentLink.test.mjs compares the two literals.
+const LINK_ID = /^[A-Za-z0-9_-]{1,80}$/;
+function linkIdOf(v: unknown): string | undefined {
+  const t = v != null ? String(v) : "";
+  return LINK_ID.test(t) ? t : undefined;
+}
 function deepLink(
-  params: { w?: string; b?: string; rt?: string } = {}, utm: Record<string, string> = {},
+  params: { w?: string; b?: string; rt?: string; card?: string; comment?: string } = {},
+  utm: Record<string, string> = {},
 ): string {
   const qs = new URLSearchParams();
   if (params.rt) qs.set("rt", params.rt);
   if (params.w) qs.set("w", params.w);
   if (params.b) qs.set("b", params.b);
+  const comment = params.b ? linkIdOf(params.comment) : undefined;
+  const card = comment ? linkIdOf(params.card) : undefined;
+  if (card) qs.set("card", card);
+  if (comment) qs.set("comment", comment);
   for (const [k, v] of Object.entries(utm)) if (v) qs.set(k, v);
   const tail = qs.toString();
   const base = params.rt ? RESUME_URL : APP_URL;
@@ -918,11 +939,17 @@ function teamInvite(d: TeamInviteData, s: EmailStrings): RenderedEmail {
 
 interface MentionEmailData {
   mentionerName: string;
-  surface: "dm" | "board" | "workspace";
+  // "canvas": a comment on a cluster's canvas (the comment notices
+  // migration). "board" with a cardId and a threadId: a comment on a doc's or
+  // a note's words. "board" alone: a message in a cluster's chat.
+  surface: "dm" | "board" | "workspace" | "canvas";
   surfaceContext: string;
   messagePreview: string;
   workspaceId?: string;
   boardId?: string;
+  cardId?: string;
+  threadId?: string;
+  commentId?: string;
   unsubscribeToken?: string;
 }
 
@@ -944,20 +971,32 @@ function mentionEmailTpl(d: MentionEmailData, s: EmailStrings): RenderedEmail {
   const vars = { name: d.mentionerName, context: d.surfaceContext };
   const subject = d.surface === "dm"
     ? s.t("mention_email.subject_dm", vars)
-    : d.surface === "board"
-      ? s.t("mention_email.subject_board", vars)
-      : s.t("mention_email.subject_workspace", vars);
+    : d.surface === "canvas"
+      ? s.t("mention_email.subject_comment", vars)
+      : d.surface === "board"
+        ? s.t("mention_email.subject_board", vars)
+        : s.t("mention_email.subject_workspace", vars);
   const subtitle = d.surface === "dm"
     ? s.t("mention_email.subtitle_dm")
-    : d.surface === "board"
-      ? s.t("mention_email.subtitle_board", vars)
-      : s.t("mention_email.subtitle_workspace", vars);
+    : d.surface === "canvas"
+      ? s.t("mention_email.subtitle_comment", vars)
+      : d.surface === "board"
+        ? s.t("mention_email.subtitle_board", vars)
+        : s.t("mention_email.subtitle_workspace", vars);
   const headline = s.t("mention_email.headline", vars);
-  // Board mention → land directly on the board. DM/workspace mention →
-  // just open the workspace; the user picks the conversation themselves.
-  const url = d.surface === "board"
-    ? deepLink({ w: d.workspaceId, b: d.boardId })
-    : deepLink({ w: d.workspaceId });
+  // A comment on the canvas → that comment. A comment on a doc's or a note's
+  // words → its thread on that card. Board mention → land directly on the
+  // board. DM/workspace mention → just open the workspace; the user picks the
+  // conversation themselves.
+  const url = d.surface === "canvas"
+    ? deepLink({ w: d.workspaceId, b: d.boardId, comment: d.commentId })
+    : d.surface === "board"
+      ? (d.cardId && d.threadId
+        ? deepLink({ w: d.workspaceId, b: d.boardId, card: d.cardId, comment: d.threadId })
+        : deepLink({ w: d.workspaceId, b: d.boardId }))
+      : deepLink({ w: d.workspaceId });
+  // The button names the comment when the link goes to one.
+  const cta = /[?&]comment=/.test(url) ? s.t("mention_email.cta_comment") : s.t("mention_email.cta");
   // 0369: one click turns mention emails off, as the notifications page says.
   const unsub = d.unsubscribeToken ? unsubUrl(d.unsubscribeToken, "email_mentions") : undefined;
   return {
@@ -971,7 +1010,7 @@ function mentionEmailTpl(d: MentionEmailData, s: EmailStrings): RenderedEmail {
       headline,
       subtitle,
       bodyHtml: quoteBlock(d.messagePreview, d.mentionerName),
-      cta: { label: s.t("mention_email.cta"), url },
+      cta: { label: cta, url },
       unsubscribeUrl: unsub,
     }),
     text: plain([
@@ -981,7 +1020,7 @@ function mentionEmailTpl(d: MentionEmailData, s: EmailStrings): RenderedEmail {
       subtitle,
       quotedLine(s, d.messagePreview),
       "",
-      ctaLine(s, s.t("mention_email.cta"), url),
+      ctaLine(s, cta, url),
       "",
       "© Soleil Pictures · clusters.soleilpictures.com",
       turnOffLine(s, unsub),
@@ -996,13 +1035,15 @@ interface CommentReplyEmailData {
   replyPreview: string;
   workspaceId?: string;
   boardId?: string;
+  commentId?: string;
   unsubscribeToken?: string;
 }
 
 function commentReplyEmailTpl(d: CommentReplyEmailData, s: EmailStrings): RenderedEmail {
   const subtitle = s.t("comment_reply_email.subtitle", { board: d.boardName, workspace: d.workspaceName });
   const headline = s.t("comment_reply_email.headline", { name: d.replierName });
-  const url = deepLink({ w: d.workspaceId, b: d.boardId });
+  // To the reply itself, in its conversation.
+  const url = deepLink({ w: d.workspaceId, b: d.boardId, comment: d.commentId });
   // 0369: one click turns reply emails off.
   const unsub = d.unsubscribeToken ? unsubUrl(d.unsubscribeToken, "email_comment_replies") : undefined;
   return {
@@ -2093,7 +2134,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
       }, s);
     case "mention_email": {
       const surfaceRaw = String(data.surface ?? "workspace");
-      const surface = (surfaceRaw === "dm" || surfaceRaw === "board" || surfaceRaw === "workspace")
+      const surface = (surfaceRaw === "dm" || surfaceRaw === "board" || surfaceRaw === "workspace" || surfaceRaw === "canvas")
         ? surfaceRaw : "workspace";
       return mentionEmailTpl({
         mentionerName:  safePerson(data.mentionerName, 60, s.t("common.fallback_person")),
@@ -2104,6 +2145,10 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         messagePreview: safeLabel(data.messagePreview, 280),
         workspaceId:    data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:        data.boardId != null ? String(data.boardId) : undefined,
+        // Ids another person's client may have written: an id, or left out.
+        cardId:         linkIdOf(data.cardId),
+        threadId:       linkIdOf(data.threadId),
+        commentId:      linkIdOf(data.commentId),
         unsubscribeToken: unsubTokenOf(data.unsubscribeToken),
       }, s);
     }
@@ -2129,6 +2174,7 @@ export function renderTemplate(name: TemplateName, data: Record<string, unknown>
         replyPreview:  safeLabel(data.replyPreview, 280),
         workspaceId:   data.workspaceId != null ? String(data.workspaceId) : undefined,
         boardId:       data.boardId != null ? String(data.boardId) : undefined,
+        commentId:     linkIdOf(data.commentId),
         unsubscribeToken: unsubTokenOf(data.unsubscribeToken),
       }, s);
     case "file_shared": {

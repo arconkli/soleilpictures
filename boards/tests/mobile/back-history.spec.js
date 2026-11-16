@@ -314,6 +314,61 @@ test('Back cancels a delete question: nothing is deleted and the cluster stays; 
   await expectInApp(page);
 });
 
+// A comment's sheet lies over the whole screen on a phone and an iPad
+// (comments/CanvasCommentCard.jsx): Back closes it and the cluster stays, the
+// words written in it are kept for next time, and Back again goes to where
+// you were.
+test('Back closes a comment sheet, keeps what was written and stays on the cluster; Back again goes to where you were', async ({ page }) => {
+  await boot(page);
+  await openAlphaFromHome(page);
+  const sheet = page.locator('.cmt-sheet-host');
+  const addComment = async () => {
+    await openCardMenu(page);
+    await menu(page).getByRole('menuitem', { name: 'Add comment', exact: true }).tap();
+    await expect(menu(page)).toHaveCount(0);
+    await expect(sheet).toBeVisible();
+  };
+  await addComment();
+  await sheet.locator('textarea.cmt-input').fill('Hold this a beat longer');
+  await expectInApp(page);
+  await back(page);
+  await expect(sheet).toHaveCount(0);
+  await expect(page.locator('.cmt-sheet-scrim')).toHaveCount(0);
+  await expectCluster(page, 'Alpha');
+  await expectInApp(page);
+
+  // Unsent words are kept, as when the sheet is closed any other way.
+  await addComment();
+  await expect(sheet.locator('textarea.cmt-input')).toHaveValue('Hold this a beat longer');
+  // Closed by its own button it leaves nothing behind: one Back is the place before.
+  await sheet.getByRole('button', { name: 'Close', exact: true }).tap();
+  await expect(sheet).toHaveCount(0);
+  await expectCluster(page, 'Alpha');
+  await back(page);
+  await expectHome(page);
+  await expectInApp(page);
+});
+
+// The list of a cluster's comments is a sheet on a phone
+// (comments/CanvasCommentsList.jsx): Back closes it and the cluster stays.
+test('Back closes the comments list sheet and stays on the cluster; Back again goes to where you were', async ({ page }) => {
+  test.skip(test.info().project.name === 'tablet', 'the list is a sheet on a phone (≤640px)');
+  await boot(page);
+  await openAlphaFromHome(page);
+  await page.locator('.cnv-comments-eye').tap();
+  const list = page.locator('.cmt-list--sheet');
+  await expect(list).toBeVisible();
+  await expectInApp(page);
+  await back(page);
+  await expect(list).toHaveCount(0);
+  await expect(page.locator('.cmt-list-scrim')).toHaveCount(0);
+  await expectCluster(page, 'Alpha');
+  await expectInApp(page);
+  await back(page);
+  await expectHome(page);
+  await expectInApp(page);
+});
+
 // The tag picker is a popover of its own, not a Modal or a Sheet: Back closes
 // it and the cluster stays; Back again goes to where you were.
 test('Back closes the tag picker and stays on the cluster; Back again goes to where you were', async ({ page }) => {

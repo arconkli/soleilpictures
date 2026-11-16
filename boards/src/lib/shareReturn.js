@@ -70,14 +70,37 @@ export function parseFileReturn(url) {
   return UUID_RE.test(t) ? t : null;
 }
 
-export function fileReturnHref(token) {
-  return UUID_RE.test(String(token || '')) ? `/f/${token}` : '/';
+// A link to one comment on the file (/f/<token>?comment=<id>) keeps its
+// comment through sign-in: the sign-in link carries comment=<id> too.
+const FILE_COMMENT_KEY = 'soleil.boards.pending.file.return.comment';
+const COMMENT_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
+
+export function parseFileReturnComment(url) {
+  if (!parseFileReturn(url)) return null;
+  const c = (url.searchParams.get('comment') || '').trim();
+  return COMMENT_ID_RE.test(c) ? c : null;
 }
 
-export function stashFileReturn(token, storage = defaultStorage()) {
+export function fileReturnHref(token, commentId = null) {
+  if (!UUID_RE.test(String(token || ''))) return '/';
+  return COMMENT_ID_RE.test(String(commentId || '')) ? `/f/${token}?comment=${commentId}` : `/f/${token}`;
+}
+
+export function stashFileReturn(token, storage = defaultStorage(), commentId = null) {
   if (!UUID_RE.test(String(token || ''))) return;
-  try { storage?.setItem(FILE_KEY, token); } catch (_) {}
+  try {
+    storage?.setItem(FILE_KEY, token);
+    if (COMMENT_ID_RE.test(String(commentId || ''))) storage?.setItem(FILE_COMMENT_KEY, commentId);
+    else storage?.removeItem(FILE_COMMENT_KEY);
+  } catch (_) {}
   clearShareReturn(storage);
+}
+
+export function readFileReturnComment(storage = defaultStorage()) {
+  try {
+    const v = storage?.getItem(FILE_COMMENT_KEY);
+    return COMMENT_ID_RE.test(String(v || '')) ? v : null;
+  } catch (_) { return null; }
 }
 
 export function readFileReturn(storage = defaultStorage()) {
@@ -88,5 +111,5 @@ export function readFileReturn(storage = defaultStorage()) {
 }
 
 export function clearFileReturn(storage = defaultStorage()) {
-  try { storage?.removeItem(FILE_KEY); } catch (_) {}
+  try { storage?.removeItem(FILE_KEY); storage?.removeItem(FILE_COMMENT_KEY); } catch (_) {}
 }

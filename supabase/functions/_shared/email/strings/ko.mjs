@@ -151,13 +151,16 @@ export default {
   "mention_email.headline": "{name}님이 멘션했어요.",
   "mention_email.subject_dm": "{name}님이 멘션했어요",
   "mention_email.subject_board": "{name}님이 {context}에서 멘션했어요",
+  "mention_email.subject_comment": "{name}님이 {context}의 댓글에서 멘션했어요",
   "mention_email.subject_workspace": "{name}님이 {context}에서 멘션했어요",
   "mention_email.subtitle_dm": "다이렉트 메시지에서요.",
   "mention_email.subtitle_board": "{context}에서요.",
+  "mention_email.subtitle_comment": "{context}의 댓글에서요.",
   "mention_email.subtitle_workspace": "{context}에서요.",
   "mention_email.preheader": "{name}님: {preview}",
   "mention_email.preheader_empty": "{name}님: 멘션했어요",
   "mention_email.cta": "Clusters에서 열기",
+  "mention_email.cta_comment": "댓글 열기",
 
   // ── comment_reply_email ──
   "comment_reply_email.subject": "{name}님이 내 댓글에 답글을 남겼어요",

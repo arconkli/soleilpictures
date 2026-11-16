@@ -18,7 +18,7 @@ import {
   mergePageEntries, holdsWholePage, pageStamp, pageOrder, byPageOrder, placeStrays,
 } from './docPageEntries.js';
 import {
-  commentReplyKey, commentStateKey, parseCommentKey, isPlainEntry, isFiledReply, isFiledState,
+  commentReplyKey, commentStateKey, commentEditKey, parseCommentKey, isPlainEntry, isFiledReply, isFiledState, isFiledEdit,
 } from './commentKeys.js';
 import { convertFragmentDocMode } from '../components/docExtensions/screenplay/screenplayModeSwitch.js';
 import { cutGraphemes, exceedsGraphemes } from './graphemes.js';
@@ -373,6 +373,7 @@ function gatherThreads(map, only = null) {
   const heads = new Map();
   const replies = new Map();
   const states = new Map();
+  const edits = new Map();
   map.forEach((v, k) => {
     const p = parseCommentKey(k);
     if (!p || (only && p.threadId !== only)) return;
@@ -382,15 +383,35 @@ function gatherThreads(map, only = null) {
         if (!replies.has(p.threadId)) replies.set(p.threadId, []);
         replies.get(p.threadId).push(v);
       }
+    } else if (p.kind === 'edit') {
+      if (isFiledEdit(k, v)) {
+        if (!edits.has(p.threadId)) edits.set(p.threadId, new Map());
+        edits.get(p.threadId).set(p.rowId, v);
+      }
     } else if (isFiledState(k, v)) states.set(p.threadId, v);
   });
   const out = [];
-  heads.forEach((head, id) => out.push(composeThread(id, head, replies.get(id) || [], states.get(id) || null)));
+  heads.forEach((head, id) => out.push(composeThread(id, head, replies.get(id) || [], states.get(id) || null, edits.get(id) || null)));
   return out;
 }
 
-function composeThread(id, head, filed, state) {
-  const { replies: written, resolved: headResolved, ...rest } = head;
+// A comment as it reads now: as written, with the change filed beside it
+// (lib/commentKeys.js `~e~`). Its words are only its author's to change, so a
+// change in anyone else's name is not read; taking the first comment's words
+// out (`deleted`) is anyone's who may delete it.
+function withEdit(row, e) {
+  if (!e) return row;
+  if (e.deleted) return { ...row, body: '', mentions: [], deleted: true };
+  if (e.by && row.authorId && e.by !== row.authorId) return row;
+  return {
+    ...row, body: e.body,
+    mentions: Array.isArray(e.mentions) ? e.mentions : (Array.isArray(row.mentions) ? row.mentions : []),
+    edited: true, editedAt: e.editedAt,
+  };
+}
+
+function composeThread(id, head, filed, state, edits) {
+  const { replies: written, resolved: headResolved, ...rest } = withEdit(head, edits?.get(id));
   const seen = new Set();
   const replies = [];
   for (const r of [...(Array.isArray(written) ? written : []), ...filed]) {
@@ -400,7 +421,7 @@ function composeThread(id, head, filed, state) {
       seen.add(r.id);
     }
     const { kind, threadId, ...reply } = r;
-    replies.push(reply);
+    replies.push(withEdit(reply, r.id ? edits?.get(r.id) : null));
   }
   const order = (x, y) => (x < y ? -1 : x > y ? 1 : 0);
   replies.sort((a, b) => (a.ts || 0) - (b.ts || 0) || order(String(a.id || ''), String(b.id || '')));
@@ -853,6 +874,117 @@ export function restoreThread(ydoc, snapshot, scope) {
   ydoc.transact(() => {
     for (const [k, v] of snapshot.entries) if (!map.has(k)) map.set(k, v);
   }, DOC_ORIGIN);
+}
+
+// Undo of one thing done to a thread, from what was kept just before it
+// (`before`) and just after (`after`, both snapshotThread's). Only what the
+// undone action did is taken back, and only where nobody has written since:
+//   an entry it removed   is put back if it is still gone
+//   an entry it added     goes if it still holds what the action wrote
+//   an entry it changed   is as before if it still holds what the action wrote
+// So a reply, an edit or a resolve someone else made while the Undo toast was
+// up stays.
+export function undoThreadChange(ydoc, before, after, scope) {
+  const map = commentsMap(ydoc, scope);
+  if (!map || !before || !after) return;
+  const was = new Map(before.entries);
+  const wrote = new Map(after.entries);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  ydoc.transact(() => {
+    for (const k of new Set([...was.keys(), ...wrote.keys()])) {
+      if (!wrote.has(k)) { if (!map.has(k)) map.set(k, was.get(k)); continue; }
+      if (!map.has(k) || !same(map.get(k), wrote.get(k))) continue;
+      if (!was.has(k)) map.delete(k);
+      else if (!same(was.get(k), wrote.get(k))) map.set(k, was.get(k));
+    }
+  }, DOC_ORIGIN);
+}
+
+// A reply written into the thread itself (builds from before 2026-10-20), by id.
+const writtenReplyAt = (head, rowId) => (Array.isArray(head.replies) ? head.replies : [])
+  .findIndex((r) => isPlainEntry(r) && r.id === rowId);
+
+// The first comment's words were taken out (its replies kept its place).
+const headDeleted = (map, threadId, head) => {
+  const k = commentEditKey(threadId, threadId);
+  const e = map.get(k);
+  return !!head.deleted || (isFiledEdit(k, e) && !!e.deleted);
+};
+
+// Its author changes a comment's words: the thread's first comment (rowId is
+// the thread's id) or one reply. The change is filed beside the thread
+// (lib/commentKeys.js `~e~`): neither the thread nor the reply is rewritten.
+// `by` is who changed it (their auth.users id). False when there is no such
+// comment.
+export function editComment(ydoc, threadId, rowId, { body, mentions, by = null } = {}, scope) {
+  const map = commentsMap(ydoc, scope);
+  if (!map || !threadId) return false;
+  const text = String(body || '').slice(0, 4000);
+  if (!text.trim()) return false;
+  let done = false;
+  ydoc.transact(() => {
+    const head = map.get(threadId);
+    if (!isPlainEntry(head)) return;
+    const id = !rowId || rowId === threadId ? threadId : rowId;
+    let row = head;
+    if (id === threadId) {
+      if (headDeleted(map, threadId, head)) return;
+    } else {
+      const key = commentReplyKey(threadId, id);
+      const filed = map.get(key);
+      row = isFiledReply(key, filed) ? filed : head.replies?.[writtenReplyAt(head, id)];
+      if (!isPlainEntry(row)) return;
+    }
+    const key = commentEditKey(threadId, id);
+    const prev = map.get(key);
+    const kept = isFiledEdit(key, prev) && Array.isArray(prev.mentions) ? prev.mentions : row.mentions;
+    map.set(key, {
+      kind: 'edit', threadId, rowId: id, body: text,
+      mentions: Array.isArray(mentions) ? mentions : (Array.isArray(kept) ? kept : []),
+      editedAt: Date.now(), by: by || row.authorId || null,
+    });
+    done = true;
+  }, DOC_ORIGIN);
+  return done;
+}
+
+// One comment out of a thread. A reply goes. The first comment goes with the
+// thread when nothing else is in it; with replies under it, its words go and
+// it stays as "This comment was deleted." so the replies keep their place.
+// When the last reply under such a first comment goes, so does the thread.
+// → 'reply' | 'emptied' | 'thread', or null when there is no such comment.
+export function deleteCommentReply(ydoc, threadId, rowId, scope) {
+  const map = commentsMap(ydoc, scope);
+  if (!map || !threadId) return null;
+  let did = null;
+  ydoc.transact(() => {
+    const head = map.get(threadId);
+    if (!isPlainEntry(head)) return;
+    const keys = threadKeys(map, threadId);
+    const filed = keys.filter((k) => isFiledReply(k, map.get(k)));
+    const written = (Array.isArray(head.replies) ? head.replies : []).filter(isPlainEntry);
+    const dropThread = () => { for (const k of keys) map.delete(k); did = 'thread'; };
+    const emptied = headDeleted(map, threadId, head);
+    if (!rowId || rowId === threadId) {
+      if (!filed.length && !written.length) { dropThread(); return; }
+      if (emptied) return;
+      // filed beside the thread, which is not rewritten (lib/commentKeys.js)
+      map.set(commentEditKey(threadId, threadId), { kind: 'edit', threadId, rowId: threadId, body: '', mentions: [], deleted: true, editedAt: Date.now() });
+      did = 'emptied';
+      return;
+    }
+    const key = commentReplyKey(threadId, rowId);
+    if (filed.includes(key)) { map.delete(key); did = 'reply'; }
+    const i = writtenReplyAt(head, rowId);
+    if (i >= 0) { map.set(threadId, { ...head, replies: head.replies.filter((_, j) => j !== i) }); did = 'reply'; }
+    // a change to its words goes with it
+    if (did) map.delete(commentEditKey(threadId, rowId));
+    if (!did || !emptied) return;
+    const now = threadKeys(map, threadId);
+    const left = now.filter((k) => isFiledReply(k, map.get(k))).length + (i >= 0 ? written.length - 1 : written.length);
+    if (left <= 0) { for (const k of now) map.delete(k); did = 'thread'; }
+  }, DOC_ORIGIN);
+  return did;
 }
 
 // Bookmarks ─────────────────────────────────────────────────────────────────

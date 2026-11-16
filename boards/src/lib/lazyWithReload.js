@@ -96,8 +96,11 @@ export function isCssPreloadError(err) {
 // never-resolving promise so the caller's pending UI (a <Suspense> fallback, or
 // just nothing) stays put during the imminent reload instead of flashing an
 // error boundary. Throws to bubble; never returns a rejected promise.
-function recoverFromChunkError(err, { reloadWhenOffline = true } = {}) {
+function recoverFromChunkError(err, { reloadWhenOffline = true, reload = true } = {}) {
   if (typeof window === 'undefined' || !isChunkLoadError(err)) throw err;
+  // A part nobody pressed for (a look-ahead on hover) never reloads the page:
+  // its caller's boundary shows nothing, and the press that follows recovers.
+  if (reload === false) throw err;
   // Offline, a reload can't fetch the chunk either: it only swaps the open
   // board for the browser's offline page. A caller that opts out gets the
   // error instead, for its own boundary to handle.
@@ -138,6 +141,9 @@ export function loadChunk(factory, opts = {}) {
 // open goes through the recovery again: React.lazy keeps a rejected import
 // for good and would only throw it again, never reaching the reload that,
 // back online, is the one way to fetch the chunk.
+// lazyWithReload(factory, { reload: false }) — for a part that shows without
+// being asked for (a look-ahead on hover): it never reloads the page, online
+// or not. The failure goes to the caller's boundary, which calls `.reset()`.
 export function lazyWithReload(factory, opts = null) {
   if (opts) {
     let failed = false;
@@ -151,8 +157,8 @@ export function lazyWithReload(factory, opts = null) {
   const Lazy = lazy(() => factory().catch(recoverFromChunkError));
   // Fetch the chunk ahead of its first render (App does after the board has
   // settled), so that render seldom waits. A failure here is left for the
-  // render, which recovers from it.
-  Lazy.warm = () => { factory().catch(() => {}); };
+  // render, which recovers from it. Answers whether the chunk is in.
+  Lazy.warm = () => factory().then(() => true, () => false);
   return Lazy;
 }
 

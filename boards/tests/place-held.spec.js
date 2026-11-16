@@ -18,7 +18,7 @@ import { expect, test } from '@playwright/test';
 import * as Y from 'yjs';
 import fs from 'node:fs';
 import path from 'node:path';
-import { bootSignedIn, USER_ID, ROOT_ID } from './helpers/signedInStub.js';
+import { bootSignedIn, USER_ID, ROOT_ID, WS_ID } from './helpers/signedInStub.js';
 import { cardToYMap, bytesToB64 } from '../src/lib/yhelpers.js';
 
 const SHOTS = process.env.PLACE_HELD_SHOTS || '/tmp/place-held-shots';
@@ -30,9 +30,12 @@ const LAST_ID = 'card-last';
 const EN = PFX === 'en';
 
 // Local-time stamp on a day `daysAgo` back at hh:mm. Hours before 05:00 count as
-// the previous day for the slate, so every seed hour is well after it.
+// the previous day for the slate, so every seed hour is well after it, and a run
+// before 05:00 counts back from that day too (lib/placeHeld.js effectiveDay):
+// otherwise "yesterday evening" would be today's and the slate would say nothing.
 const at = (daysAgo, h, m = 0) => {
   const d = new Date();
+  if (d.getHours() < 5) d.setDate(d.getDate() - 1);
   d.setDate(d.getDate() - daysAgo);
   d.setHours(h, m, 0, 0);
   return d.toISOString();
@@ -72,13 +75,27 @@ const quiet = (page) => page.addInitScript(() => {
   } catch (_) {}
 });
 
-async function boot(page, { phone = false } = {}) {
+// A conversation on a point of the canvas, far from the last card (a comment
+// link's target: lib/commentLink.js).
+const COMMENT_ID = 'c0000000-0000-4000-8000-000000000001';
+const COMMENT_AT = { x: 300, y: 420 };
+const commentRow = () => ({
+  id: COMMENT_ID, workspace_id: WS_ID, board_id: ROOT_ID, author: USER_ID, body: 'Hold this corner for the title',
+  anchor_kind: 'point', anchor_id: null, anchor_x: COMMENT_AT.x, anchor_y: COMMENT_AT.y,
+  doc_page_id: null, doc_from: null, doc_to: null, reply_to: null, hidden: false, resolved: false,
+  offset_x: 0, offset_y: 0, deleted_at: null, mentions: [], edited_at: null,
+  created_at: at(1, 12), updated_at: at(1, 12),
+});
+
+async function boot(page, { phone = false, query = '', comments = [] } = {}) {
   await quiet(page);
+  const qs = [LANG && LANG !== 'en' ? `lang=${LANG}` : '', query].filter(Boolean).join('&');
   await bootSignedIn(page, {
-    path: LANG && LANG !== 'en' ? `/?lang=${LANG}` : '/',
+    path: qs ? `/?${qs}` : '/',
     rpc: { get_my_tier: () => [{ tier: 'admin', demo_card_count: 0, onboarding: { done: true } }] },
     rest: {
       profiles: (url, method) => (method === 'GET' ? { user_id: USER_ID, settings: { setup_tips: { v: 1, done: true } } } : []),
+      comments: (url, method) => (method === 'GET' ? comments : []),
       board_state: (url, method) => {
         if (method !== 'GET') return [];
         const id = (url.searchParams.get('board_id') || '').replace(/^eq\./, '');
@@ -146,6 +163,30 @@ test.describe('your place is held', () => {
     await boot(page);
     await expect(last(page)).toHaveClass(/is-selected/, { timeout: 3000 });
     await expect.poll(() => isCentred(page), { timeout: 2000 }).toBe(true);
+  });
+
+  // A comment link (an email's, Copy link) after the same break: the camera
+  // belongs to the comment. No hold, no glide to the last card afterwards.
+  test('a comment link after a break lands on the comment: its conversation opens and nothing glides', async ({ page }) => {
+    await boot(page, { query: `board=${ROOT_ID}&comment=${COMMENT_ID}`, comments: [commentRow()] });
+    const card = page.locator(`.cmt-canvas-card [data-cmt-card="${COMMENT_ID}"]`);
+    await expect(card).toBeVisible({ timeout: 30000 });
+    // well past the hold and the glide
+    await page.waitForTimeout(2500);
+    await expect(card).toBeVisible();
+    expect(await selectedCount(page)).toBe(0);
+    expect(await isCentred(page)).toBe(false);
+    // the conversation's pin is on the canvas, in view
+    const pin = await page.evaluate((id) => {
+      const el = document.querySelector(`[data-cmt-pin="${id}"]`);
+      const w = document.querySelector('.canvas-wrap').getBoundingClientRect();
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return r.left >= w.left && r.right <= w.right && r.top >= w.top && r.bottom <= w.bottom;
+    }, COMMENT_ID);
+    expect(pin).toBe(true);
+    await expect.poll(() => new URL(page.url()).searchParams.get('comment')).toBe(null);
+    await shot(page, '1280-comment-link', { x: 0, y: 0, width: 1000, height: 800 });
   });
 
   test('a quick return does not glide: nothing selected, the view is where it was left', async ({ page }) => {

@@ -5,6 +5,7 @@
 // phone sheet replaces it, and where a row leads.
 
 import { t, plural } from '@lingui/core/macro';
+import { LOOSE_ID } from './commentLink.js';
 
 export const PANEL_WIDTH = 340;
 export const PANEL_GUTTER = 16;   // the panel never comes closer to a viewport edge
@@ -52,8 +53,106 @@ export function wantsNotificationSheet({ mobileShell = false, viewportWidth = In
 const TEAM_BILLING_KINDS = new Set(['team.seats_full', 'team.payment_failed', 'team.view_only', 'team.active_again']);
 const TEAM_ANSWER_KINDS = new Set(['team.request_approved', 'team.kept_viewer', 'team.joined_as_viewer']);
 
+// ── Comment notices ─────────────────────────────────────────────────────────
+// comment.* is a comment on a cluster's canvas, doc.* one on a doc's or a
+// note's words (the client that wrote it says so: lib/commentNotices.js), and
+// file.commented / file.replied one on a shared file. Each of new, reply,
+// mention and resolved.
+const COMMENT_KIND = /^(comment|doc)\.(new|reply|mention|resolved)$/;
+const FILE_COMMENT_KIND = /^file\.(commented|replied)$/;
+// An id out of `data`. A doc notice's ids were written by another person's
+// client, so they are data: letters, digits, _ and - only (the same rule as
+// lib/commentNotices.js NOTICE_ID), or the id is not used. The one id rule,
+// 80 characters, is lib/commentLink.js LOOSE_ID; the emails keep the same
+// literal (supabase/functions/_shared/email/templates.ts LINK_ID).
+export const NOTICE_ID = LOOSE_ID;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const safeId = (v) => (typeof v === 'string' && NOTICE_ID.test(v) ? v : null);
+
+export function isCommentNotice(n) {
+  const kind = String(n?.kind || '');
+  return COMMENT_KIND.test(kind) || FILE_COMMENT_KIND.test(kind);
+}
+
+// The conversation a comment notice is about, or null (a file notice written
+// before the comment notices migration names none).
+export function noticeThreadId(n) {
+  if (!isCommentNotice(n)) return null;
+  return safeId(n.data?.thread_id);
+}
+
+// How many comments a row stands for: a burst on one thread folds into the
+// person's unread row (data.count), so 3 reads as the newest "+2 more".
+export function noticeMore(n) {
+  if (!isCommentNotice(n)) return 0;
+  const c = Math.floor(Number(n?.data?.count));
+  return Number.isFinite(c) && c > 1 ? Math.min(c - 1, 99) : 0;
+}
+
+// A live notice into the list. One rule for every kind:
+//   a new id          goes to the top, unread unless the payload itself
+//                     carries a read_at
+//   an id listed      REPLACES that row (the payload's fields over the row's)
+//                     and goes to the top, KEEPING the row's read_at unless
+//                     the payload itself carries one (a read made elsewhere)
+// What arrives here, all on 'schedule-ping' and none with a read_at today:
+//   an insert's ping (0242 notifications_broadcast); realtime can deliver it
+//     twice, and the second must not turn a row the person read unread
+//   team.joined counting up (0897): the same id, new words, count and time
+//   a comment notice folding (_notify_comment): the same id, newer words, a
+//     higher count
+// Both folds are made only into a row the database holds as unread, so a row
+// this list holds as read was read here a moment ago (markRead is optimistic)
+// and stays read.
+export function mergeNotice(list, payload, max = 50) {
+  const prev = Array.isArray(list) ? list : [];
+  if (!payload || payload.id == null) return prev;
+  const had = prev.find((x) => x.id === payload.id);
+  const readAt = payload.read_at || had?.read_at || null;
+  const row = { ...(had || {}), ...payload, read_at: readAt };
+  return [row, ...prev.filter((x) => x.id !== payload.id)].slice(0, max);
+}
+
+export const NOTICE_TOAST_GAP_MS = 2 * 60 * 1000;
+
+// Does a live notice get a toast (and a browser notice)? `toastedIds` (a Set)
+// and `lastByThread` (a Map of thread → when it last toasted) are the page's
+// memory; the caller records a yes with noteNoticeToast.
+//   any notice         once per id (realtime can deliver a ping twice)
+//   a comment notice   once per conversation every two minutes, however many
+//                      times its row folds; never while that conversation is
+//                      open on screen
+//   doc.mention        never: its toast is the mention's own (App.jsx, from
+//                      mention_notifications)
+export function shouldToastNotice(n, { toastedIds, lastByThread, now = Date.now(), threadOpen = null } = {}) {
+  if (!n || n.id == null) return false;
+  if (n.kind === 'doc.mention') return false;
+  const thread = noticeThreadId(n);
+  if (!thread) return !toastedIds?.has(n.id);
+  if (threadOpen?.(thread)) return false;
+  const last = lastByThread?.get(thread);
+  return !(Number.isFinite(last) && now - last < NOTICE_TOAST_GAP_MS);
+}
+export function noteNoticeToast(n, { toastedIds, lastByThread, now = Date.now() } = {}) {
+  if (!n || n.id == null) return;
+  toastedIds?.add(n.id);
+  const thread = noticeThreadId(n);
+  if (thread) lastByThread?.set(thread, now);
+}
+
+// What a shared file's own page (/f/<token>) takes to open at one comment.
+export function fileCommentQuery(commentId) {
+  return typeof commentId === 'string' && UUID.test(commentId) ? '?comment=' + encodeURIComponent(commentId) : '';
+}
+
 // Where a row leads:
-//   { kind: 'file', token, inApp }            a file.* row with a link token
+//   { kind: 'comment', surface: 'canvas', boardId, threadId, commentId }
+//                                             a comment.* row: that conversation
+//   { kind: 'comment', surface: 'doc', boardId, cardId, threadId, commentId }
+//                                             a doc.* row: the thread on that
+//                                             doc's or note's words
+//   { kind: 'file', token, inApp, commentId } a file.* row with a link token;
+//                                             commentId when it names a comment
 //   { kind: 'settings', tab, workspaceId }    an editor-limit row: Members; an
 //                                             invite reward: Invite & earn
 //   { kind: 'team', tab, orgId }              a team.* row: the Team page on
@@ -63,12 +162,28 @@ const TEAM_ANSWER_KINDS = new Set(['team.request_approved', 'team.kept_viewer', 
 //                                             (null when it names none)
 //   { kind: 'board', boardId }                anything else with a board
 //   null                                      nothing to open
+// A comment row whose ids are missing or are not ids opens its cluster. The
+// cluster is always the row's own board_id, never one out of `data`.
 // fileShares / sharedFiles are the appHost holds, passed in so this stays pure.
 export function notificationTarget(n, { fileShares = true, sharedFiles = true } = {}) {
   if (!n) return null;
   const kind = String(n.kind || '');
   if (kind.startsWith('file.') && n.data?.token && fileShares) {
-    return { kind: 'file', token: n.data.token, inApp: !!sharedFiles };
+    const c = n.data.comment_id;
+    const commentId = typeof c === 'string' && UUID.test(c) ? c.toLowerCase() : null;
+    return { kind: 'file', token: n.data.token, inApp: !!sharedFiles, ...(commentId ? { commentId } : {}) };
+  }
+  if (COMMENT_KIND.test(kind) && typeof n.board_id === 'string' && UUID.test(n.board_id)) {
+    const boardId = n.board_id;
+    const threadId = safeId(n.data?.thread_id);
+    const commentId = safeId(n.data?.comment_id);
+    if (kind.startsWith('comment.')) {
+      if (threadId || commentId) return { kind: 'comment', surface: 'canvas', boardId, threadId: threadId || commentId, commentId: commentId || threadId };
+    } else {
+      const cardId = safeId(n.data?.card_id);
+      if (cardId && threadId) return { kind: 'comment', surface: 'doc', boardId, cardId, threadId, commentId: commentId || threadId };
+    }
+    return { kind: 'board', boardId };
   }
   if (kind === 'editors.limit_reached') {
     // public.notifications.workspace_id (0242) first, then the payload's.

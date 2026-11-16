@@ -2,7 +2,7 @@
 
 > Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.
 
-_Source: https://clusters.soleilpictures.com/docs/account/data-and-privacy · Updated 2026-11-10_
+_Source: https://clusters.soleilpictures.com/docs/account/data-and-privacy · Updated 2026-11-15_
 
 ## Who can see a board
 
@@ -58,7 +58,7 @@ yourself, through the API or MCP, still reads what you ask it to.
 | Deleted cluster | 30 days in the [trash](/docs/clusters/trash-and-recovery), then purged |
 | Board version snapshots | For rollback and workspace recovery |
 | Files no longer referenced by any board | Eligible for cleanup after a grace period |
-| Resolved [comments](/docs/collaborate/comments) | Archived, not deleted |
+| Resolved [comments](/docs/collaborate/comments) | Kept under Resolved, not deleted |
 | [Layout outlines](#layout-outlines), if you said yes | 400 days, then deleted |
 | [Which first-week outlines are yours](#layout-outlines), if you said yes | Up to 8 days, then deleted |
 

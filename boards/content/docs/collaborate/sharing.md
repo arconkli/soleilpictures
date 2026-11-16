@@ -384,8 +384,19 @@ Anyone with **Can comment** can leave comments beside the file, up to
   and pressing its time jumps there. Unpin it for a comment about the whole file.
 - On a **PDF**, a comment is pinned to the page.
 - A comment takes **replies**, one level deep.
-- Anyone who can edit the cluster can **Resolve** or **Delete** any comment;
-  everyone can delete their own. Deleting has an undo.
+- Each conversation is a short row; press one and it opens with the box to
+  reply in. `Enter` sends, `Shift+Enter` starts a new line, and words you
+  didn't send are kept for you in this browser. On a phone the box sits right
+  under the player.
+- Anyone who can edit the cluster can **Resolve** or **Delete** any comment.
+  Everyone can resolve a conversation they started, delete their own
+  comments, and **Edit** their own words. Deleting has an undo.
+- A resolved conversation moves to **Resolved** at the bottom, which opens on a
+  press. **Reopen** brings it back, and so does a reply.
+- **Copy link** in a comment's **⋯** menu copies a link that opens the file at
+  that comment.
+- There are no `@` mentions here: the people on a shared file may be outside
+  your workspace.
 
 One person can post up to {{fact:fileCommentBurst}} comments every
 {{fact:fileCommentBurstMinutes}} minutes on a file.
@@ -393,13 +404,16 @@ One person can post up to {{fact:fileCommentBurst}} comments every
 The person who shared the file is told about every comment — a toast when they
 are in the app, and an email when they are not: at most one email per file every
 {{fact:fileCommentEmailMinutes}} minutes, and only while **Comment replies** is
-on in [Notifications](/docs/collaborate/notifications). Someone whose comment gets a
-reply is told in the app too.
+on in [Notifications](/docs/collaborate/notifications). A reply is told in the
+app to everyone else who wrote in that conversation. Each notice in the app
+opens the file at its comment.
 
 ### When the file changes
 
 - **A new version** shows on the same link. Comments made on an older version
-  stay, labelled **on an earlier version**.
+  stay, gathered under **On an earlier version** at the bottom of the
+  comments. Their times and pages are marked as belonging to that version,
+  since they may not line up with what is showing now.
 - **Moving the file** to another cluster in the same workspace keeps the link
   working; it follows the file.
 - **Deleting the file**, or moving it to another workspace, ends the link.
@@ -486,7 +500,8 @@ with the people in its cluster:
   that is not a web or email address is dropped.
 - They can start a comment, reply to any comment, and resolve or reopen one.
   They can delete only a comment they started, and cannot rewrite one once
-  it is posted.
+  it is posted. `@` mentions and **Copy link** are for the people in the
+  cluster.
 - **Export** ([formats](/docs/documents/export)) is there only when **Allow
   exporting** is on. It cannot stop someone copying what they can read,
   or taking a screenshot.

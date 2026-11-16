@@ -1,0 +1,141 @@
+/* Comments, the part every cluster shows at rest: the pins on the canvas, the
+   ring on the card a conversation is about, a person's face, and the comments
+   island's own marks. It loads with the app's first styles (main.jsx), as
+   the island's button does (styles.css). Everything a press opens (the
+   conversation, the list, the look-ahead) is commentsLook.css and
+   canvasComments.css, which arrive with those parts
+   (components/comments/commentPartsLazy.jsx). Gold marks the open
+   conversation only. */
+
+/* The two comment tokens the pins need; the rest are in commentsLook.css. */
+:root {
+  --cmt-line: #232328;
+  --cmt-onface: #0a0a0c;   /* an initial on a person's colour: dark in both themes */
+}
+[data-theme='light'] { --cmt-line: rgba(10, 10, 12, .08); }
+/* the words under an open comment: a quiet ink tint, never gold (gold is the
+   one that is open: lib/commentMarkCss.js) */
+:root { --cmt-mark: color-mix(in srgb, var(--ink-0) 13%, transparent); }
+/* the words a comment is being written on */
+.cmt-pending { background: var(--cmt-mark); border-radius: 2px; }
+
+/* ---- a person's face --------------------------------------------------- */
+.cmt-face {
+  flex: none; display: grid; place-items: center; overflow: hidden;
+  width: var(--cmt-face, 24px); height: var(--cmt-face, 24px); border-radius: 50%;
+  background: var(--bg-act); color: var(--ink-1);
+  font: 600 11px/1 var(--font-sans); user-select: none;
+}
+.cmt-face.has-color { color: var(--cmt-onface); }
+.cmt-face.is-small { font-size: 10px; }
+.cmt-face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cmt-face--gone { color: var(--ink-3); }
+
+/* ---- the pins layer (inside the canvas transform) ---------------------- */
+.cmt-pins {
+  position: absolute; left: 0; top: 0; width: 0; height: 0;
+  z-index: 999990;
+  pointer-events: none;
+  --cmt-inv: 1;
+  --cmt-pin-shadow: 0 1px 1px rgba(0, 0, 0, .28), 0 6px 16px rgba(0, 0, 0, .34);
+}
+[data-theme='light'] .cmt-pins { --cmt-pin-shadow: 0 1px 1px rgba(10, 10, 12, .06), 0 6px 16px rgba(10, 10, 12, .14); }
+/* A point in the world that undoes the canvas zoom, so what hangs from it is
+   in screen px at every zoom (as .sel-menu does). */
+.cmt-pin-at {
+  position: absolute; width: 0; height: 0;
+  transform: scale(var(--cmt-inv));
+  transform-origin: 0 0;
+}
+.cmt-pin-at.is-open, .cmt-pin-at.is-hover { z-index: 2; }
+/* An empty cluster on a phone: the first-card tiles (.cnv-empty-tiles, z 5)
+   fill the middle of the screen, over the canvas and so over any comment
+   left on it. A pin cannot rise out of the canvas on its own (the canvas's
+   transform makes it one layer), so while the canvas shows no card it is
+   lifted just above the tiles (still under the rail, every menu, sheet,
+   popover and toast), and only its own empty box lets a tap through to the
+   tile under it: what it holds besides the pins (a vote card, a group's
+   label, a selection's handles) still answers a finger, as it would have
+   had the canvas not been lifted. With a card in view (the first-card
+   prompt on a seeded cluster) nothing is lifted, and nothing is switched
+   off. The second rule has no specificity, so anything that sets its own
+   pointer-events (inline, or by a class: the pins layer, the vote and group
+   layers) keeps it; the SVG layers (arrows, strokes) say theirs in
+   attributes, which a rule here would override, and are left alone. */
+@media (max-width: 640px) {
+  :has(> .cnv-empty-tiles) .canvas:has(.cmt-pin-at):has(> .cards-layer:empty) { z-index: 6; pointer-events: none; }
+  :where(:has(> .cnv-empty-tiles) .canvas:has(.cmt-pin-at):has(> .cards-layer:empty)) > :where(:not(.cards-layer, svg)) { pointer-events: auto; }
+}
+.canvas.is-smooth .cmt-pin-at { transition: transform var(--dur-base) var(--ease); }
+.cmt-pin {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center;
+  min-width: 30px; height: 30px; margin: 0; padding: 3px; border: 0;
+  border-radius: 15px 15px 15px 4px;
+  background: var(--bg-3);
+  box-shadow: inset 0 0 0 1px var(--cmt-line), var(--cmt-pin-shadow);
+  color: var(--ink-0);
+  font: 700 12.5px/1 var(--font-sans);
+  cursor: pointer; pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.cmt-pin:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+.cmt-pin.is-open { box-shadow: 0 0 0 2px var(--soleil), var(--cmt-pin-shadow); }
+.cmt-pin--count { padding: 3px 4px; }
+.cmt-pin-n {
+  display: grid; place-items: center;
+  min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px;
+  background: var(--bg-act); color: var(--ink-0);
+  font-variant-numeric: tabular-nums;
+}
+.cmt-pin-dot {
+  position: absolute; top: -2px; right: -2px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ink-0);
+  box-shadow: 0 0 0 2px var(--bg-3);
+}
+/* A comment being written, or left with words in it: the same pin with a
+   small pencil. */
+.cmt-pin--draft { color: var(--ink-0); }
+.cmt-pin-pencil {
+  position: absolute; right: -4px; bottom: -4px;
+  display: grid; place-items: center;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--ink-0); color: var(--bg-0);
+  box-shadow: 0 0 0 2px var(--bg-3);
+}
+/* a point comment being carried somewhere else */
+.cmt-pin-at.is-dragging { z-index: 3; }
+.cmt-pin-at.is-dragging .cmt-pin { cursor: grabbing; }
+/* a finger gets 44px to press without the pin growing */
+@media (pointer: coarse) {
+  .cmt-pin::before { content: ''; position: absolute; inset: -7px; }
+}
+
+/* The card a conversation is on: a soft gold ring while it is open, a plain
+   one while the list points at it. Drawn here because a card clips its own. */
+.cmt-hl {
+  position: absolute; box-sizing: border-box;
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 0 0 calc(1.5px * var(--cmt-inv)) color-mix(in srgb, var(--soleil) 70%, transparent);
+  pointer-events: none;
+}
+.cmt-hl.is-look { box-shadow: 0 0 0 calc(1.5px * var(--cmt-inv)) color-mix(in srgb, var(--ink-0) 55%, transparent); }
+
+/* ---- the island -------------------------------------------------------- */
+.cnv-comments-eye.is-on, :root[data-tb='a'] .cnv-comments-eye.is-on { background: var(--bg-act); color: var(--ink-0); }
+.cnv-comments-eye-dot {
+  position: absolute; top: 3px; right: 3px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ink-0);
+  box-shadow: 0 0 0 2px var(--bg-1);
+}
+
+
+/* The app's reduced-motion rule clears every transform; a pin still has to
+   undo the canvas zoom, or it would grow and shrink with it. */
+@media (prefers-reduced-motion: reduce) {
+  .cmt-pin-at { transform: scale(var(--cmt-inv)) !important; transition: none !important; }
+}

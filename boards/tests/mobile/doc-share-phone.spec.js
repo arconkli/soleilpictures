@@ -41,7 +41,7 @@ test('Comments is the sheet over the whole doc, header too', async ({ page }) =>
   await menu(page).getByRole('menuitem', { name: /^Comments/ }).tap();
   await expect(sheet(page)).toBeVisible();
   await expect(sheet(page)).toHaveClass(/is-sheet/);
-  await expect(sheet(page).locator('.dl-th')).toContainText('Is it dawn already?');
+  await expect(sheet(page).locator('[data-thread]')).toContainText('Is it dawn already?');
   await sheet(page).evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
   // It lies in the shared doc's window, over its header (what's under the
   // sheet's top is the sheet).

@@ -169,13 +169,16 @@ export default {
   "mention_email.headline": "{name} vous mentionne.",
   "mention_email.subject_dm": "{name} vous mentionne",
   "mention_email.subject_board": "{name} vous mentionne dans {context}",
+  "mention_email.subject_comment": "{name} vous mentionne dans un commentaire dans {context}",
   "mention_email.subject_workspace": "{name} vous mentionne dans {context}",
   "mention_email.subtitle_dm": "Dans un message direct.",
   "mention_email.subtitle_board": "Dans {context}.",
+  "mention_email.subtitle_comment": "Dans un commentaire dans {context}.",
   "mention_email.subtitle_workspace": "Dans {context}.",
   "mention_email.preheader": "{name}\u00a0: {preview}",
   "mention_email.preheader_empty": "{name}\u00a0: vous mentionne",
   "mention_email.cta": "Ouvrir dans Clusters",
+  "mention_email.cta_comment": "Ouvrir le commentaire",
 
   // ── comment_reply_email ──
   "comment_reply_email.subject": "{name} a répondu à votre commentaire",

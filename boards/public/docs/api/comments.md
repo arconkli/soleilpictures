@@ -2,7 +2,7 @@
 
 > GET /boards/:id/comments lists a board's comment threads in one list, the ones on the canvas and the ones inside its docs and notes, each with its replies and who wrote what. POST adds a comment on a card, a group, a spot, the whole board or words in a doc, or a reply in any thread. PATCH resolves or reopens threads, and DELETE removes your own comment.
 
-_Source: https://clusters.soleilpictures.com/docs/api/comments · Updated 2026-10-25_
+_Source: https://clusters.soleilpictures.com/docs/api/comments · Updated 2026-11-15_
 
 A board's [comments](/docs/collaborate/comments) are read and written here: the
 bubbles on its canvas, and the threads inside its docs and notes. Everything

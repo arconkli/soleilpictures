@@ -91,6 +91,28 @@ test('schedule kinds without a day label (the SQL used the cluster\'s name), and
   assert.equal(es(row('schedule.day_updated', { data: { date: '2026-06-05', day_label: 'Day 3', day_place: 'Pier' } })).title, 'STORED TITLE');
 });
 
+test('comment notices: the SQL’s wording, the cluster’s name from the app', () => {
+  const ctx = { nameOf, boardNameOf: (id) => ({ b1: 'Moodboard', b2: ' ' }[id] || '') };
+  const words = {
+    new: 'Ana commented in Moodboard', reply: 'Ana replied in Moodboard',
+    mention: 'Ana mentioned you in Moodboard', resolved: 'Ana resolved your comment in Moodboard',
+  };
+  for (const family of ['comment', 'doc']) {
+    for (const [what, title] of Object.entries(words)) {
+      const n = row(`${family}.${what}`, { board_id: 'b1', body: 'the words', data: { thread_id: 't', count: 2 } });
+      assert.deepEqual(es(n, ctx), { title, body: 'the words' }, n.kind);
+      // English is what the database wrote
+      setUiLocale('en');
+      assert.deepEqual(notificationText(n, ctx), { title: 'STORED TITLE', body: 'the words' });
+    }
+  }
+  // no name for the person or the cluster: the stored English
+  assert.deepEqual(es(row('comment.reply', { board_id: 'b1', actor_id: 'u2' }), ctx), STORED);
+  assert.deepEqual(es(row('comment.reply', { board_id: 'b2' }), ctx), STORED);
+  assert.deepEqual(es(row('doc.new', { board_id: 'gone' }), ctx), STORED);
+  assert.deepEqual(es(row('doc.new', { board_id: 'b1' })), STORED, 'no cluster names handed in');
+});
+
 test('kinds whose words name a cluster, workspace, team or plan owner stay stored', () => {
   for (const kind of ['edit_request', 'edit_granted', 'editors.joined_as_viewer', 'workspace.ownership_received',
     'team.join_request', 'team.joined_as_viewer', 'team.seats_full', 'team.closed', 'team.workspace_moved_out',

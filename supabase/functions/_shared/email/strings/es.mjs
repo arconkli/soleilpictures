@@ -133,13 +133,16 @@ export default {
   "mention_email.headline": "{name} te mencionó.",
   "mention_email.subject_dm": "{name} te mencionó",
   "mention_email.subject_board": "{name} te mencionó en {context}",
+  "mention_email.subject_comment": "{name} te mencionó en un comentario en {context}",
   "mention_email.subject_workspace": "{name} te mencionó en {context}",
   "mention_email.subtitle_dm": "En un mensaje directo.",
   "mention_email.subtitle_board": "En {context}.",
+  "mention_email.subtitle_comment": "En un comentario en {context}.",
   "mention_email.subtitle_workspace": "En {context}.",
   "mention_email.preheader": "{name}: {preview}",
   "mention_email.preheader_empty": "{name}: te mencionó",
   "mention_email.cta": "Abrir en Clusters",
+  "mention_email.cta_comment": "Abrir el comentario",
 
   // ── comment_reply_email: someone replied to the reader's comment on a cluster ──
   "comment_reply_email.subject": "{name} respondió a tu comentario",

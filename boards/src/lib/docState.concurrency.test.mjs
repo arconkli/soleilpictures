@@ -61,7 +61,7 @@ const resolve = (d, id, resolved, who, extra = {}) => ds.resolveComment(d, id, r
 const LOG = { log: true };
 
 // The comment helpers and readers as tabs built before this change run them
-// (docState.js, CommentGutter.jsx and CommentInlinePopover.jsx at 2cf313a1).
+// (docState.js, CommentGutter.jsx and the thread popover of the time, at 2cf313a1).
 const old = {
   reply(ydoc, id, { body, author, authorId }) {
     const map = mapOf(ydoc);

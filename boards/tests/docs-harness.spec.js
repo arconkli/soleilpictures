@@ -239,30 +239,35 @@ test('comment add creates a tt-comment mark', async ({ page }) => {
   await openDoc(page);
   await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('comment target').selectAll().run());
   await commentButton(page.locator('.doc-card-modal')).click();
-  // The add-comment flow renders an InlineComposer; post a comment (Enter posts).
-  const composer = page.locator('.inline-composer-input');
+  // The new comment is written in the shared comment card, beside its words (Enter posts).
+  const composer = page.locator('.cmt-float-host textarea.cmt-input');
   await expect(composer).toBeVisible();
   await composer.fill('Looks good');
   await composer.press('Enter');
-  // A thread is stored in the data layer (the inline popover reads from here).
+  // A thread is stored in the data layer (the side panel reads from here).
   const count = await page.evaluate(() =>
     window.__soleilDocTest.readComments(window.__soleilDocTest.ydoc, window.__soleilDocTest.getScope()).length);
   expect(count).toBeGreaterThan(0);
 });
 
-test('deleting a comment thread strips its highlight mark (no dead underline)', async ({ page }) => {
+test('deleting a comment thread leaves its words reading as plain text (no dead highlight)', async ({ page }) => {
   await openDoc(page);
   await page.evaluate(() => window.__soleilDocTest.editor.chain().focus().insertContent('mark me').selectAll().run());
   await commentButton(page.locator('.doc-card-modal')).click();
-  const composer = page.locator('.inline-composer-input');
+  const composer = page.locator('.cmt-float-host textarea.cmt-input');
   await expect(composer).toBeVisible();
   await composer.fill('temp');
   await composer.press('Enter');
   await expect(page.locator('.doc-card-modal .tt-comment')).toHaveCount(1);
-  // Simulate the thread-delete cleanup signal (the popover dispatches this).
+  const tint = () => page.locator('.doc-card-modal .tt-comment').evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(await tint()).not.toBe('rgba(0, 0, 0, 0)');
+  // The thread goes; its span stays in the text (Undo brings the thread back
+  // to it) and stops reading as a comment.
   await page.evaluate(() => {
-    const id = window.__soleilDocTest.readComments(window.__soleilDocTest.ydoc, window.__soleilDocTest.getScope())[0].id;
-    window.dispatchEvent(new CustomEvent('soleil-remove-comment-mark', { detail: { id } }));
+    const T = window.__soleilDocTest;
+    const id = T.readComments(T.ydoc, T.getScope())[0].id;
+    T.deleteCommentThread(T.ydoc, id, T.getScope());
   });
-  await expect(page.locator('.doc-card-modal .tt-comment')).toHaveCount(0);
+  await expect(page.locator('.doc-card-modal .tt-comment')).toHaveCount(1);
+  await expect.poll(tint).toBe('rgba(0, 0, 0, 0)');
 });

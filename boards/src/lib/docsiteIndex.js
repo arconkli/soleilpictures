@@ -285,6 +285,10 @@ export const DOCS_PAGES = [
         "text": "Player"
       },
       {
+        "id": "comments",
+        "text": "Comments"
+      },
+      {
         "id": "notes",
         "text": "Notes"
       },
@@ -1885,7 +1889,7 @@ export const DOCS_PAGES = [
     "answer": "Select text in a document and comment on it — the comment attaches to that range and shows as a dot in the right margin. Tags applied to a range underline the text and show in the left margin; clear mentions of your tags are underlined automatically and marked auto. The app also suggests entity names it notices, which you confirm or dismiss with a tick or a cross, and backlinks show everywhere the document is referenced from.",
     "section": "documents",
     "order": 3,
-    "updated": "2026-10-25",
+    "updated": "2026-11-15",
     "navLabel": "Comments and tags",
     "headings": [
       {
@@ -2326,15 +2330,27 @@ export const DOCS_PAGES = [
     "title": "Comments — Soleil Clusters",
     "metaDescription": "Comment anywhere in Soleil Clusters — on a card, a group, an empty point on the canvas, a whole board, or a range of text in a document.",
     "h1": "Comments",
-    "answer": "A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. Comments thread, resolve, and support @ mentions that notify the person named. A comments toggle hides all of them when you want to see the board clean.",
+    "answer": "A comment anchors to whatever it is about — a card, a group, an empty point on the canvas, the board as a whole, or a range of text inside a document. On the canvas each conversation is a small pin at the corner of its card, and the comments button lists them all. Comments thread, resolve, and support @ mentions that notify the person named. A switch in the comments list hides the pins, for you alone, when you want to see the board clean.",
     "section": "collaborate",
     "order": 3,
-    "updated": "2026-10-25",
+    "updated": "2026-11-15",
     "navLabel": "Comments",
     "headings": [
       {
         "id": "what-you-can-comment-on",
         "text": "What you can comment on"
+      },
+      {
+        "id": "pins-on-the-canvas",
+        "text": "Pins on the canvas"
+      },
+      {
+        "id": "the-comments-list",
+        "text": "The comments list"
+      },
+      {
+        "id": "hiding-them",
+        "text": "Hiding them"
       },
       {
         "id": "threads",
@@ -2345,12 +2361,8 @@ export const DOCS_PAGES = [
         "text": "Mentions"
       },
       {
-        "id": "hiding-them",
-        "text": "Hiding them"
-      },
-      {
-        "id": "bubbles-on-a-crowded-board",
-        "text": "Bubbles on a crowded board"
+        "id": "on-the-words-of-a-note-or-a-document",
+        "text": "On the words of a note or a document"
       },
       {
         "id": "who-can-comment",
@@ -2378,11 +2390,15 @@ export const DOCS_PAGES = [
       },
       {
         "q": "How do I hide comments for a presentation?",
-        "a": "The comments toggle hides every comment bubble on the board. It affects only your view."
+        "a": "Open the comments list from the comments button at the top left of the board and turn off Show comments on the canvas. It affects only your view, and the list still has every conversation."
       },
       {
         "q": "Do resolved comments disappear?",
-        "a": "They are archived rather than deleted, so the record of a decision survives."
+        "a": "They leave the canvas and are kept under Resolved in the comments list rather than deleted, so the record of a decision survives. Reopen brings one back, and so does a reply."
+      },
+      {
+        "q": "What happens to a comment I started typing and did not send?",
+        "a": "It is kept. Click away and the words wait where you left them, in this browser, and Esc asks before discarding anything you typed."
       }
     ]
   },
@@ -2466,6 +2482,10 @@ export const DOCS_PAGES = [
         "text": "Unsubscribing"
       },
       {
+        "id": "comments",
+        "text": "Comments"
+      },
+      {
         "id": "mentions",
         "text": "Mentions"
       }
@@ -2483,6 +2503,14 @@ export const DOCS_PAGES = [
       {
         "q": "Where do notifications appear in the app?",
         "a": "Messages show an unread count on Messages in the sidebar and in the browser tab title. A file shared with you, a comment on it and notices about your account show as a toast when they arrive while you are in the app, with Open for a file, which opens it in the app, and every one of them is kept in the list under the bell at the top right of the board, after the theme switch (on a phone, in the top bar before Share), whose number counts the ones you haven't read. A file shared with you is emailed to you as well, and listed on the Shared page (All shared, under Shared with you in the sidebar)."
+      },
+      {
+        "q": "Does a notification about a comment take me to the comment?",
+        "a": "Yes. A row under the bell, the Open button on its toast and the button in a mention or reply email each open the cluster and the conversation at that comment, on the canvas, in a document or note, or on a shared file. If the comment has been deleted since, you land on the cluster and are told it isn't there any more."
+      },
+      {
+        "q": "Who is told when someone comments?",
+        "a": "A mention tells the person named. A reply tells everyone who has written in that conversation. A new comment on a cluster tells the person who made the cluster, and resolving a conversation tells the person who started it. You are never told about your own comments, and several comments in one conversation while you are away share one row under the bell."
       },
       {
         "q": "Do I get browser notifications?",
@@ -3115,7 +3143,7 @@ export const DOCS_PAGES = [
     "answer": "Boards are private by default and only reachable by people you invite. Files live in private storage and are served through signed URLs that expire, never from a public bucket. Deleted clusters are recoverable for 30 days, then purged. Everything you put in can be exported or read back out through the API.",
     "section": "account",
     "order": 5,
-    "updated": "2026-11-10",
+    "updated": "2026-11-15",
     "navLabel": "Data and privacy",
     "headings": [
       {
@@ -3875,7 +3903,7 @@ export const DOCS_PAGES = [
     "answer": "GET /boards/:id/comments lists a board's comment threads in one list, the ones on the canvas and the ones inside its docs and notes, each with its replies and who wrote what. POST adds a comment on a card, a group, a spot, the whole board or words in a doc, or a reply in any thread. PATCH resolves or reopens threads, and DELETE removes your own comment.",
     "section": "developers",
     "order": 4.6,
-    "updated": "2026-10-25",
+    "updated": "2026-11-15",
     "navLabel": "Comments",
     "headings": [
       {
@@ -3919,7 +3947,7 @@ export const DOCS_PAGES = [
     "faq": [
       {
         "q": "Who can comment, resolve or delete over the API?",
-        "a": "The same people as in the app. Anyone who can open a board can comment on it. A thread's author, or anyone who can edit the board, can resolve it. Only a comment's author can delete it."
+        "a": "Anyone who can open a board can comment on it, and a thread's author, or anyone who can edit the board, can resolve it, as in the app. Over the API only a comment's author can delete it; in the app, someone who can edit the board can delete other people's too."
       },
       {
         "q": "Can I reply to a comment inside a doc?",

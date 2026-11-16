@@ -225,6 +225,22 @@ the player for this list.
 | `?` | Show these shortcuts |
 | `Esc` | Close the player |
 
+## Comments
+
+In the box of a [comment](/docs/collaborate/comments), wherever it is: on the
+canvas, in a document, in a note or on a shared file.
+
+| Key | Action |
+|---|---|
+| `Enter` | Send — the return key on a phone or tablet keyboard sends too |
+| `⇧Enter` | New line |
+| `⌘Enter` | Send, on any keyboard |
+| `@` | Mention someone who can see the cluster — not on a shared file |
+| `Esc` | Close an empty box. With words in it, ask before discarding them; `Esc` again keeps writing |
+| `⌘⌥M` | Comment on the selected words, in a document or a note |
+
+Words you leave unsent are kept, so clicking away never loses them.
+
 ## Notes
 
 | Key | Action |

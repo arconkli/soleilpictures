@@ -72,3 +72,46 @@ test('the invite reward row and its mark fit the phone without sideways overflow
   expect(await row.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });
+
+// Comment notices on the phone sheet: a face or the comment mark, the words on
+// one line, the fold's count, nothing wider than the screen. I18N_LANG=ru|ja
+// reads the same row in a longer language; STEP6_SHOTS=<dir> writes shots.
+test('comment notices fit the phone sheet, and a row opens its conversation', async ({ page }) => {
+  const lang = (process.env.I18N_LANG || '').trim();
+  const shots = process.env.STEP6_SHOTS || '';
+  await page.goto(`/?sidebarqa=1&surface=files&drawer=0&ntf=comments${lang ? `&lang=${lang}` : ''}`);
+  await page.waitForSelector('[data-sidebarqa-ready]');
+  await page.locator('.topbar .tb-right .nb-bell').tap();
+  const sheet = page.locator('.ntf-shell.is-sheet');
+  await expect(sheet).toBeVisible();
+  const first = sheet.locator('.ntf-row').first();
+  await expect(first).toHaveAttribute('data-kind', 'comment.reply');
+  await expect(first.locator('.ntf-av')).toHaveText('J');
+  await expect(first.locator('.ntf-row-more')).toContainText('2');
+  await expect(sheet.locator('.ntf-row[data-kind="comment.resolved"] .ntf-av svg')).toBeVisible();
+  const vw = page.viewportSize().width;
+  for (const r of await sheet.locator('.ntf-row').all()) {
+    const b = await rect(r);
+    expect(b.height).toBeGreaterThanOrEqual(44);
+    expect(b.right).toBeLessThanOrEqual(vw + 0.5);
+  }
+  const spill = await sheet.evaluate((el) => [...el.querySelectorAll('.ntf-row *')].filter((x) => x.getBoundingClientRect().right > window.innerWidth + 0.5).length);
+  expect(spill).toBe(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  // the words under the title stay on one line
+  const body = await first.locator('.ntf-row-body').evaluate((el) => ({ h: el.getBoundingClientRect().height, lh: parseFloat(getComputedStyle(el).lineHeight) }));
+  expect(body.h).toBeLessThanOrEqual(body.lh + 1);
+  if (shots) {
+    const name = `05-phone-sheet${lang ? `-${lang}` : ''}`;
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${shots}/${name}-dark.png` });
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: `${shots}/${name}-light.png` });
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  }
+  await first.tap();
+  await expect(page.locator('.ntf-shell')).toHaveCount(0);
+  const target = await page.evaluate(() => window.__sidebarqaComment);
+  expect(target).toMatchObject({ kind: 'comment', surface: 'canvas', commentId: 'a0000000-0000-4000-8000-000000000002' });
+});

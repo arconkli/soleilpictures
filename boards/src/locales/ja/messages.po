@@ -101,6 +101,10 @@ msgstr "· カード{cards}枚、矢印{arrows}本、描画{strokes}件"
 msgid "· {count} cards"
 msgstr "· {count}枚のカード"
 
+#: src/components/comments/CommentRow.jsx
+msgid "· edited"
+msgstr "· 編集済み"
+
 #: src/lib/oauthTrustWords.js
 msgid "· identified by {host}"
 msgstr "・{host}が確認"
@@ -177,6 +181,10 @@ msgstr "「{name}」をリストから外しました。"
 #: src/components/CanvasSurface.jsx
 msgid "“{name}” will appear at /templates for anyone to add. It shares the shape and the labels only — no images, no text, nothing from the board it came from. You can remove it at any time."
 msgstr "「{name}」は/templatesに表示され、誰でも追加できるようになります。共有されるのは形とラベルだけで、画像やテキスト、元のクラスターの内容は含まれません。いつでも削除できます。"
+
+#: src/components/comments/DocThreadsPanel.jsx
+msgid "“{quote}”"
+msgstr "「{quote}」"
 
 #: src/components/VersionHistoryModal.jsx
 msgid "“{shownName}” goes back to how it was {when} ({date}). The current state is snapshotted first, so this restore is itself restorable. Collaborators see the change immediately."
@@ -769,11 +777,6 @@ msgstr "{0, plural, other {#件のバージョン。情報ですべて確認で�
 msgid "{0, plural, other {New cluster from # cards}}"
 msgstr "{0, plural, other {#枚のカードから新規クラスター}}"
 
-#. placeholder {0}: groups.resolved.length
-#: src/components/fileShare/FileComments.jsx
-msgid "{0, plural, other {Show # resolved}}"
-msgstr "{0, plural, other {解決済み#件を表示}}"
-
 #: src/components/clusterBrowser/ClusterBrowserToolbar.jsx
 msgid "{activeCount, plural, one {View, # filter on} other {View, # filters on}}"
 msgstr "{activeCount, plural, other {ビュー・フィルター#件を適用中}}"
@@ -803,12 +806,28 @@ msgid "{asker} asked for room to add an editor"
 msgstr "{asker}さんが、編集者を追加するための空きをリクエストしました"
 
 #: src/lib/notificationWords.js
+msgid "{author} commented in {cluster}"
+msgstr "{author}さんが{cluster}にコメントしました"
+
+#: src/lib/notificationWords.js
 msgid "{author} commented on “{file}”"
 msgstr "{author}さんが「{file}」にコメントしました"
 
 #: src/lib/notificationWords.js
+msgid "{author} mentioned you in {cluster}"
+msgstr "{author}さんが{cluster}であなたをメンションしました"
+
+#: src/lib/notificationWords.js
+msgid "{author} replied in {cluster}"
+msgstr "{author}さんが{cluster}で返信しました"
+
+#: src/lib/notificationWords.js
 msgid "{author} replied on “{file}”"
 msgstr "{author}さんが「{file}」に返信しました"
+
+#: src/lib/notificationWords.js
+msgid "{author} resolved your comment in {cluster}"
+msgstr "{author}さんが{cluster}のあなたのコメントを解決済みにしました"
 
 #: src/components/WorkspacePresenceStack.jsx
 msgid "{baseLabel} · (away)"
@@ -987,10 +1006,6 @@ msgstr "{count, plural, other {#件のクラスター · {reason}}}"
 msgid "{count, plural, one {# card} other {# cards}}"
 msgstr "{count, plural, other {#枚のカード}}"
 
-#: src/components/CanvasComment.jsx
-msgid "{count, plural, one {# comment} other {# comments}}"
-msgstr "{count, plural, other {#件のコメント}}"
-
 #: src/lib/importCopy.js
 msgid "{count, plural, one {# file is coming in} other {# files are coming in}}"
 msgstr "{count, plural, other {ファイル#件を取り込み中です}}"
@@ -1036,6 +1051,10 @@ msgstr "{count, plural, other {動画#件を取り込み中です}}"
 #: src/lib/importCopy.js
 msgid "{count, plural, one {# video is in Files} other {# videos are in Files}}"
 msgstr "{count, plural, other {動画#件がファイルにあります}}"
+
+#: src/components/comments/DocFloatCards.jsx
+msgid "{count, plural, one {All comments on this note (#)} other {All comments on this note (#)}}"
+msgstr "{count, plural, other {このメモへのすべてのコメント（#）}}"
 
 #: src/lib/activityWords.js
 msgid "{count, plural, one {Copying # card…} other {Copying # cards…}}"
@@ -1529,6 +1548,10 @@ msgstr "{left, plural, =1 {あと1人} other {あと#人}}"
 msgid "{left, plural, =1 {one person} other {up to # people}}"
 msgstr "{left, plural, =1 {1人} other {最大#人}}"
 
+#: src/components/comments/CommentComposer.jsx
+msgid "{left, plural, one {# left} other {# left}}"
+msgstr "{left, plural, other {残り#文字}}"
+
 #: src/lib/teamBillingLines.js
 msgid "{left, plural, one {# more before it asks first.} other {# more before it asks first.}}"
 msgstr "{left, plural, other {あと#つで、先に確認が入ります。}}"
@@ -1568,6 +1591,10 @@ msgstr "{loose, plural, other {#件}}"
 #: src/components/CanvasSurface.jsx
 msgid "{looseOnStudio, plural, one {# loose card} other {# loose cards}}"
 msgstr "{looseOnStudio, plural, other {バラバラのカード#枚}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{lost, plural, one {Couldn't copy a comment with the cards: {why}} other {Couldn't copy # comments with the cards: {why}}}"
+msgstr "{lost, plural, other {#件のコメントをカードと一緒にコピーできませんでした：{why}}}"
 
 #: src/App.jsx
 msgid "{lost}You're at your {limit}-card limit. Creator lifts it — free for {CREATOR_TRIAL_DAYS} days, or invite friends to earn more free ones."
@@ -1630,6 +1657,10 @@ msgstr "{more, plural, other {この後にインポートがあと#件}}"
 msgid "{more, plural, one {+ # more target} other {+ # more targets}}"
 msgstr "{more, plural, other {+他#件のリンク先}}"
 
+#: src/components/NotificationsPanel.jsx
+msgid "{more, plural, one {+# more} other {+# more}}"
+msgstr "{more, plural, other {ほか#件}}"
+
 #: src/components/HeldUploadsBar.jsx
 msgid "{more} more"
 msgstr "他{more}件"
@@ -1675,6 +1706,14 @@ msgstr "{n, plural, =1 {選んだカードがその中に移動します。元�
 msgid "{n, plural, =1 {You joined a team you were invited to. Its workspaces are in your workspace menu.} other {You joined # teams you were invited to. Their workspaces are in your workspace menu.}}"
 msgstr "{n, plural, =1 {招待されたチームに参加しました。そのワークスペースは、ワークスペースメニューにあります。} other {招待された#個のチームに参加しました。それらのワークスペースは、ワークスペースメニューにあります。}}"
 
+#: src/lib/commentPins.js
+msgid "{n, plural, one {{whose}, # reply, unread} other {{whose}, # replies, unread}}"
+msgstr "{n, plural, other {{whose}、返信#件、未読}}"
+
+#: src/lib/commentPins.js
+msgid "{n, plural, one {{whose}, # reply} other {{whose}, # replies}}"
+msgstr "{n, plural, other {{whose}、返信#件}}"
+
 #: src/components/cards/FamilyFace.jsx
 #: src/components/clusterBrowser/FileStages.jsx
 msgid "{n, plural, one {# attachment} other {# attachments}}"
@@ -1705,6 +1744,22 @@ msgstr "{n, plural, other {内側に#件のクラスター}}"
 #: src/lib/cardInfo.js
 msgid "{n, plural, one {# cluster} other {# clusters}}"
 msgstr "{n, plural, other {#件のクラスター}}"
+
+#: src/components/comments/CanvasCommentPins.jsx
+msgid "{n, plural, one {# comment here, {unsent} unsent, some unread. Zoom in} other {# comments here, {unsent} unsent, some unread. Zoom in}}"
+msgstr "{n, plural, other {ここにコメント#件、未送信{unsent}件、未読あり。拡大}}"
+
+#: src/components/comments/CanvasCommentPins.jsx
+msgid "{n, plural, one {# comment here, {unsent} unsent. Zoom in} other {# comments here, {unsent} unsent. Zoom in}}"
+msgstr "{n, plural, other {ここにコメント#件、未送信{unsent}件。拡大}}"
+
+#: src/components/comments/CanvasCommentPins.jsx
+msgid "{n, plural, one {# conversation here, some unread. Zoom in} other {# conversations here, some unread. Zoom in}}"
+msgstr "{n, plural, other {ここに会話#件、未読あり。拡大}}"
+
+#: src/components/comments/CanvasCommentPins.jsx
+msgid "{n, plural, one {# conversation here. Zoom in} other {# conversations here. Zoom in}}"
+msgstr "{n, plural, other {ここに会話#件。拡大}}"
 
 #: src/lib/teamModelWords.js
 msgid "{n, plural, one {# day ago} other {# days ago}}"
@@ -1830,6 +1885,10 @@ msgstr "{n, plural, other {バラバラの#枚のカードがすべてその中�
 #: src/lib/teamCopy.js
 msgid "{n, plural, one {Ask an admin to add it.} other {Ask an admin to add them.}}"
 msgstr "{n, plural, other {管理者に追加してもらってください。}}"
+
+#: src/components/CanvasSurface.jsx
+msgid "{n, plural, one {Comments (#)} other {Comments (#)}}"
+msgstr "{n, plural, other {コメント（#）}}"
 
 #: src/components/CanvasSurface.jsx
 msgid "{n, plural, one {Copied # card · ⌘Z undoes} other {Copied # cards · ⌘Z undoes}}"
@@ -2255,9 +2314,25 @@ msgstr "{nKept, plural, other {ここの#枚のカードはカウントされて
 msgid "{nKept, plural, one {# card here isn't counted — you're at your card limit. It stays on the canvas, but won't show in search or tags until there's room.} other {# cards here aren't counted — you're at your card limit. They stay on the canvas, but won't show in search or tags until there's room.}}"
 msgstr "{nKept, plural, other {ここの#枚のカードはカウントされていません。カードの上限に達しているためです。キャンバスには残りますが、空きができるまで検索やタグには表示されません。}}"
 
+#: src/components/fileShare/FileComments.jsx
+msgid "{nOpen, plural, one {# open} other {# open}}"
+msgstr "{nOpen, plural, other {未解決#件}}"
+
 #: src/App.jsx
 msgid "{notAdded} could not be added"
 msgstr "{notAdded}を追加できませんでした"
+
+#: src/components/fileShare/FileComments.jsx
+msgid "{nResolved, plural, one {# resolved} other {# resolved}}"
+msgstr "{nResolved, plural, other {解決済み#件}}"
+
+#: src/lib/commentCanvas.js
+msgid "{open, plural, one {Comments, # open, some unread} other {Comments, # open, some unread}}"
+msgstr "{open, plural, other {コメント、未解決#件、未読あり}}"
+
+#: src/lib/commentCanvas.js
+msgid "{open, plural, one {Comments, # open} other {Comments, # open}}"
+msgstr "{open, plural, other {コメント、未解決#件}}"
 
 #: src/lib/liveTogetherWords.js
 msgid "{others, plural, =1 {You and # other person are working together} other {You and # others are working together}}"
@@ -2488,9 +2563,9 @@ msgstr "{refCount, plural, other {#か所からリンクされています}}"
 msgid "{removed, plural, one {# file} other {# files}}"
 msgstr "{removed, plural, other {#件のファイル}}"
 
-#: src/components/CanvasComment.jsx
-msgid "{replyCount, plural, one {# reply} other {# replies}}"
-msgstr "{replyCount, plural, other {#件の返信}}"
+#: src/lib/commentTime.js
+msgid "{replies, plural, one {# reply} other {# replies}}"
+msgstr "{replies, plural, other {返信#件}}"
 
 #: src/App.jsx
 msgid "{requested, plural, one {Copied {added} of # card — upgrade for the rest.} other {Copied {added} of # cards — upgrade for the rest.}}"
@@ -2519,10 +2594,6 @@ msgstr "{s}・承諾されるまでシートを確保"
 #: src/lib/editorLimitWords.js
 msgid "{s} · sent {when}"
 msgstr "{s}・{when}に送信"
-
-#: src/components/doc/DocCommentsTab.jsx
-msgid "{s} ago"
-msgstr "{s}前"
 
 #: src/lib/editorLimitWords.js
 msgid "{s}, and {more} more"
@@ -3008,6 +3079,10 @@ msgid "{who} is here"
 msgstr "{who}がここにいます"
 
 #: src/App.jsx
+msgid "{who} mentioned you in a comment"
+msgstr "{who}さんがコメントであなたをメンションしました"
+
+#: src/App.jsx
 msgid "{who} mentioned you while you were away."
 msgstr "不在中に{who}があなたにメンションしました。"
 
@@ -3030,6 +3105,21 @@ msgstr "{who}が添付ファイルを送信しました"
 #: src/components/MessagesPanel.jsx
 msgid "{who}: {words}"
 msgstr "{who}：{words}"
+
+#: src/lib/commentPins.js
+msgid "{whose}, unread"
+msgstr "{whose}、未読"
+
+#: src/components/CommentGutter.jsx
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/components/comments/FileThreads.jsx
+msgid "{whose}: {words}"
+msgstr "{whose}：{words}"
+
+#: src/components/CommentGutter.jsx
+#: src/components/comments/DocThreadsPanel.jsx
+msgid "{whose}: {words} (unread)"
+msgstr "{whose}：{words}（未読）"
 
 #: src/components/ShareModal.jsx
 msgid "{why} Also failed: {failList}"
@@ -3285,10 +3375,6 @@ msgstr "<p><strong>あなたのキャンバスへようこそ。</strong></p><p>
 msgid "<p><strong>Welcome</strong></p><p>Tap the <strong>＋</strong> at the bottom to add your first card. Everything saves automatically.</p>"
 msgstr "<p><strong>ようこそ</strong></p><p>下の<strong>＋</strong>をタップして、最初のカードを追加しましょう。すべて自動で保存されます。</p>"
 
-#: src/components/InlineComposer.jsx
-msgid "⏎ to post · Esc to cancel"
-msgstr "⏎で投稿 · Escでキャンセル"
-
 #: src/components/ExplorePublishSection.jsx
 msgid "✓ Live"
 msgstr "✓ 公開中"
@@ -3369,6 +3455,10 @@ msgstr "このキャンバスの中にあるキャンバスです。プロジェ
 #: src/components/CanvasSurface.jsx
 msgid "A canvas inside this one. Make one per project."
 msgstr "このキャンバスの中にあるキャンバスです。プロジェクトごとに1つ作ります。"
+
+#: src/components/comments/CommentAbout.jsx
+msgid "A card that is gone"
+msgstr "なくなったカード"
 
 #: src/App.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
@@ -3777,14 +3867,14 @@ msgstr "カードを追加"
 msgid "Add a cluster"
 msgstr "クラスターを追加"
 
-#: src/components/fileShare/FileComments.jsx
-msgid "Add a comment"
-msgstr "コメントを追加"
-
-#: src/components/CanvasComment.jsx
-#: src/components/fileShare/FileComments.jsx
+#: src/components/comments/FileThreads.jsx
+#: src/lib/commentRules.js
 msgid "Add a comment…"
 msgstr "コメントを追加…"
+
+#: src/lib/commentRules.js
+msgid "Add a comment… @ to mention"
+msgstr "コメントを追加… @でメンション"
 
 #: src/components/doc/DocBarA.jsx
 #: src/components/toolbar/NoteBarA.jsx
@@ -4391,7 +4481,6 @@ msgstr "右揃え"
 msgid "Align: {label}"
 msgstr "配置: {label}"
 
-#: src/components/doc/DocCommentsTab.jsx
 #: src/components/TagDetailView.jsx
 #: src/components/team/TeamPeople.jsx
 #: src/lib/sidebarShelves.js
@@ -4502,10 +4591,6 @@ msgstr "すでに録画中です。"
 #: src/App.jsx
 msgid "already there"
 msgstr "すでにそこにあります"
-
-#: src/components/CanvasComment.jsx
-msgid "Also removes any replies. You can undo this right after."
-msgstr "返信もすべて削除されます。削除直後なら元に戻せます。"
 
 #: src/components/ShareModal.jsx
 msgid "Also share sub-clusters"
@@ -4785,10 +4870,6 @@ msgstr "アプリ"
 msgid "Archive"
 msgstr "アーカイブ"
 
-#: src/components/CanvasComment.jsx
-msgid "Archived comments"
-msgstr "アーカイブしたコメント"
-
 #: src/components/CanvasSurface.jsx
 msgid "Arrange"
 msgstr "配置"
@@ -4918,10 +4999,6 @@ msgstr "リクエスト中…"
 #: src/components/CanvasSurface.jsx
 msgid "asset board"
 msgstr "アセットクラスター"
-
-#: src/components/fileShare/FileComments.jsx
-msgid "at {time}"
-msgstr "{time}時点"
 
 #: src/components/team/TeamSetup.jsx
 msgid "At least {TEAM_SEAT_MIN}. Add more any time; seats nobody uses drop at renewal."
@@ -5578,11 +5655,10 @@ msgstr "保存できません・アクセス権が終了しました"
 
 #: src/App.jsx
 #: src/components/AppFeedback.jsx
-#: src/components/CanvasComment.jsx
+#: src/components/comments/CommentComposer.jsx
 #: src/components/docExtensions/ImageUpload.js
 #: src/components/ExplorePublishSection.jsx
 #: src/components/FeedbackButton.jsx
-#: src/components/fileShare/FileComments.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/ImportCapDialog.jsx
 #: src/components/MessageBubble.jsx
@@ -6198,12 +6274,14 @@ msgid "CLIPBOARD"
 msgstr "クリップボード"
 
 #: src/App.jsx
-#: src/components/CanvasComment.jsx
 #: src/components/cards/SchedulePeek.jsx
 #: src/components/cards/ShootDayRange.jsx
 #: src/components/clusterBrowser/QuickLook.jsx
 #: src/components/ColorPicker.jsx
 #: src/components/CommandPalette.jsx
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/CommentCard.jsx
+#: src/components/comments/DocFloatCards.jsx
 #: src/components/CustomFontsModal.jsx
 #: src/components/DocBoardEmbedPicker.jsx
 #: src/components/DocOpening.jsx
@@ -6582,64 +6660,110 @@ msgid "Coming from Google Drive or Dropbox?"
 msgstr "Google DriveやDropboxから移行しますか？"
 
 #: src/components/CanvasSurface.jsx
+#: src/components/comments/CommentComposer.jsx
+#: src/components/comments/DocFloatCards.jsx
 #: src/components/doc/DocBarA.jsx
-#: src/components/fileShare/FileComments.jsx
+#: src/components/DocPageEditor.jsx
 #: src/components/film/FilmTimeline.jsx
 #: src/components/toolbar/NoteBarA.jsx
+#: src/lib/commentAuthor.js
+#: src/lib/commentPins.js
 msgid "Comment"
 msgstr "コメント"
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Comment by {by}"
-msgstr "{by}さんのコメント"
+#: src/components/comments/CommentMenu.jsx
+msgid "Comment actions"
+msgstr "コメントの操作"
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Comment by {by} on “{quote}”"
-msgstr "{by}さんのコメント(「{quote}」について)"
+#: src/components/fileShare/FileSharePage.jsx
+msgid "Comment at {time}"
+msgstr "{time}のコメント"
 
-#: src/components/CanvasComment.jsx
-#: src/components/fileShare/FileComments.jsx
+#: src/components/comments/FileThreads.jsx
+msgid "Comment at this moment"
+msgstr "この時点にコメント"
+
+#: src/lib/commentAuthor.js
+msgid "Comment by {author}"
+msgstr "{author}さんのコメント"
+
+#: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/CommentRow.jsx
+#: src/components/comments/docThreadOps.js
+#: src/components/comments/FileThreads.jsx
 msgid "Comment deleted"
 msgstr "コメントを削除しました"
-
-#: src/components/CanvasSurface.jsx
-msgid "Comment failed: {reason} — your text is still there."
-msgstr "コメントに失敗しました：{reason}。入力したテキストはそのまま残っています。"
 
 #: src/components/toolbar/NoteBarA.jsx
 msgid "Comment on the selection"
 msgstr "選択範囲にコメント"
 
+#: src/components/comments/FileThreads.jsx
+msgid "Comment on the whole file"
+msgstr "ファイル全体にコメント"
+
 #: src/lib/playerKeys.js
 msgid "Comment on this frame"
 msgstr "このフレームにコメント"
+
+#: src/components/comments/FileThreads.jsx
+msgid "Comment on this page"
+msgstr "このページにコメント"
 
 #: src/components/settings/NotificationsTab.jsx
 msgid "Comment replies"
 msgstr "コメントへの返信"
 
-#: src/lib/commentThreadDelete.js
-msgid "Comment thread deleted"
-msgstr "コメントのスレッドを削除しました"
+#: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/docThreadOps.js
+#: src/components/comments/FileThreads.jsx
+msgid "Comment resolved"
+msgstr "コメントを解決しました"
 
-#: src/components/AddCommentFlow.jsx
-msgid "Comment, then ⏎ to post"
-msgstr "コメントを入力して⏎で投稿"
-
+#: src/components/comments/CanvasCommentsIsland.jsx
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/CommentCard.jsx
+#: src/components/comments/DocFloatCards.jsx
 #: src/components/doc/DocBarA.jsx
-#: src/components/doc/DocCommentsTab.jsx
 #: src/components/doc/DocFrameA.jsx
 #: src/components/fileShare/FileComments.jsx
+#: src/lib/commentCanvas.js
 msgid "Comments"
 msgstr "コメント"
+
+#: src/components/fileShare/FileSharePage.jsx
+msgid "Comments along the file"
+msgstr "ファイルに沿ったコメント"
 
 #: src/components/doc/DocFrameA.jsx
 msgid "Comments and find"
 msgstr "コメントと検索"
 
-#: src/components/doc/DocFrameA.jsx
-msgid "Comments, {open} open"
-msgstr "コメント、未解決{open}件"
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/commentChunkFail.js
+#: src/components/comments/commentPartsLazy.jsx
+msgid "Comments couldn't load. Check your connection."
+msgstr "コメントを読み込めませんでした。接続を確認してください。"
+
+#: src/components/comments/commentChunkFail.js
+msgid "Comments couldn't open. Try again."
+msgstr "コメントを開けませんでした。もう一度お試しください。"
+
+#: src/components/comments/CommentCard.jsx
+msgid "Comments on {title}"
+msgstr "{title}へのコメント"
+
+#: src/components/comments/FileThreads.jsx
+msgid "Comments on an earlier version"
+msgstr "以前のバージョンへのコメント"
+
+#: src/components/comments/DocThreadsPanel.jsx
+msgid "Comments on this doc show up here."
+msgstr "このドキュメントへのコメントがここに表示されます。"
+
+#: src/components/comments/DocFloatCards.jsx
+msgid "Comments on this note"
+msgstr "このメモへのコメント"
 
 #: src/components/settings/DeleteAccount.jsx
 msgid "Comments, tags and votes you left on other people's clusters stay where they are, with your name removed."
@@ -6816,6 +6940,10 @@ msgstr "コントラスト"
 msgid "Control-click the folder you want and choose **Download Now**. Wait until it has finished."
 msgstr "取り込みたいフォルダをControlキーを押しながらクリックして、**今すぐダウンロード**を選びます。完了するまで待ってください。"
 
+#: src/components/comments/CommentCard.jsx
+msgid "Conversation"
+msgstr "会話"
+
 #: src/components/MessageThread.jsx
 msgid "Conversation actions"
 msgstr "会話の操作"
@@ -6823,6 +6951,11 @@ msgstr "会話の操作"
 #: src/components/MessagesPanel.jsx
 msgid "Conversation hidden"
 msgstr "会話を非表示にしました"
+
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/DocFloatCards.jsx
+msgid "Conversations you resolve are kept here."
+msgstr "解決した会話はここに残ります。"
 
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/MessageThread.jsx
@@ -6945,6 +7078,8 @@ msgstr "ファイルを移動せずコピー"
 
 #: src/App.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
+#: src/components/comments/CommentCard.jsx
+#: src/components/comments/CommentRow.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/ListSurface.jsx
@@ -7081,6 +7216,9 @@ msgstr "共有を変更できませんでした：{reason}"
 msgid "Could not change their access: {reason}"
 msgstr "アクセス権を変更できませんでした：{reason}"
 
+#: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/docThreadOps.js
+#: src/components/comments/FileThreads.jsx
 #: src/lib/cardLink.js
 msgid "Could not copy link"
 msgstr "リンクをコピーできませんでした"
@@ -7391,6 +7529,10 @@ msgstr "フォルダから読み取れませんでした"
 msgid "Couldn’t be uploaded"
 msgstr "アップロードできませんでした"
 
+#: src/components/comments/CanvasCommentCard.jsx
+msgid "Couldn't bring it back: {why}"
+msgstr "元に戻せませんでした：{why}"
+
 #: src/components/MessagesPanel.jsx
 #: src/components/MessageThread.jsx
 msgid "Couldn't bring the conversation back — try again."
@@ -7415,6 +7557,10 @@ msgstr "コピーできませんでした。ブラウザがクリップボード
 #: src/lib/docResets.js
 msgid "Couldn’t copy it — this browser didn’t allow it."
 msgstr "コピーできませんでした。このブラウザでは許可されていません。"
+
+#: src/components/CanvasSurface.jsx
+msgid "Couldn't copy the comments with the cards: {why}"
+msgstr "コメントをカードと一緒にコピーできませんでした：{why}"
 
 #: src/components/MessageThread.jsx
 msgid "Couldn't copy the link — your browser blocked the clipboard."
@@ -7447,6 +7593,10 @@ msgstr "グループを作成できませんでした。もう一度お試しく
 #: src/lib/messageAccess.js
 msgid "Couldn't create the group. Check your connection and try again."
 msgstr "グループを作成できませんでした。接続を確認して、もう一度お試しください。"
+
+#: src/components/comments/CanvasCommentCard.jsx
+msgid "Couldn't delete: {why}"
+msgstr "削除できませんでした：{why}"
 
 #: src/lib/transferWords.js
 msgid "Couldn't download that file. Try again."
@@ -7599,6 +7749,10 @@ msgstr "読み込めませんでした。再試行"
 msgid "Couldn’t make “{shown}”. Your cards are still here — try again."
 msgstr "「{shown}」を作成できませんでした。カードはそのままです。もう一度お試しください。"
 
+#: src/components/comments/CanvasCommentPins.jsx
+msgid "Couldn't move the comment: {why}"
+msgstr "コメントを移動できませんでした：{why}"
+
 #: src/lib/clustersApi.js
 msgid "Couldn’t move those files."
 msgstr "そのファイルを移動できませんでした。"
@@ -7692,6 +7846,10 @@ msgstr "その画像を読み取れませんでした。"
 msgid "Couldn’t read that image."
 msgstr "その画像を読み込めませんでした。"
 
+#: src/components/fileShare/FileComments.jsx
+msgid "Couldn't refresh. Trying again…"
+msgstr "更新できませんでした。再試行しています…"
+
 #: src/App.jsx
 msgid "Couldn't remove “{name}” from your list."
 msgstr "「{name}」をリストから外せませんでした。"
@@ -7711,6 +7869,14 @@ msgstr "そのパスキーを削除できませんでした。もう一度お試
 #: src/lib/clustersApi.js
 msgid "Couldn’t remove those files."
 msgstr "そのファイルを削除できませんでした。"
+
+#: src/components/comments/CanvasCommentCard.jsx
+msgid "Couldn't reopen: {why}"
+msgstr "再開できませんでした：{why}"
+
+#: src/components/comments/CanvasCommentCard.jsx
+msgid "Couldn't resolve: {why}"
+msgstr "解決できませんでした：{why}"
 
 #: src/lib/docSaveStatus.js
 msgid "Couldn't save"
@@ -7740,9 +7906,17 @@ msgstr "そのファイルを保存できませんでした。"
 msgid "Couldn't save your reaction — try again."
 msgstr "リアクションを保存できませんでした。もう一度お試しください。"
 
+#: src/components/comments/CommentComposer.jsx
+msgid "Couldn't save. Your words are still here."
+msgstr "保存できませんでした。書いた言葉はここに残っています。"
+
 #: src/components/MessageBubble.jsx
 msgid "Couldn't send"
 msgstr "送信できませんでした"
+
+#: src/components/comments/CommentComposer.jsx
+msgid "Couldn't send. Your words are still here."
+msgstr "送信できませんでした。書いた言葉はここに残っています。"
 
 #: src/lib/messageAccess.js
 msgid "Couldn't start the chat — try again."
@@ -8051,12 +8225,10 @@ msgctxt "keyboard key"
 msgid "Del"
 msgstr "Delete"
 
-#: src/components/CanvasComment.jsx
 #: src/components/CanvasSurface.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
-#: src/components/CommentInlinePopover.jsx
+#: src/components/comments/CommentRow.jsx
 #: src/components/DocPageTree.jsx
-#: src/components/fileShare/FileComments.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/info/InfoHost.jsx
 #: src/components/ListSurface.jsx
@@ -8161,20 +8333,15 @@ msgstr "クラスター「{name}」とその内容をすべて削除しますか
 msgid "Delete column"
 msgstr "列を削除"
 
-#: src/components/CanvasComment.jsx
-msgid "Delete comment?"
-msgstr "コメントを削除しますか？"
+#: src/components/comments/CommentCard.jsx
+msgid "Delete conversation"
+msgstr "会話を削除"
 
 #: src/components/CanvasSurface.jsx
 msgid "Delete drawing"
 msgstr "描画を削除"
 
-#: src/components/CanvasComment.jsx
-msgid "Delete failed"
-msgstr "削除に失敗しました"
-
 #: src/App.jsx
-#: src/components/CanvasComment.jsx
 #: src/components/CanvasVoteCard.jsx
 #: src/components/SidebarTags.jsx
 #: src/components/TrashModal.jsx
@@ -8200,10 +8367,6 @@ msgstr "今すぐ削除"
 #: src/components/settings/DeleteAccount.jsx
 msgid "Delete permanently"
 msgstr "完全に削除"
-
-#: src/components/CanvasComment.jsx
-msgid "Delete reply"
-msgstr "返信を削除"
 
 #: src/components/doc/DocTableBar.jsx
 msgid "Delete row"
@@ -8238,10 +8401,6 @@ msgstr "このカードを削除しますか？"
 #: src/components/DocPageEditor.jsx
 msgid "Delete this page"
 msgstr "このページを削除"
-
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Delete thread"
-msgstr "スレッドを削除"
 
 #: src/components/info/VersionsSection.jsx
 msgid "Delete version"
@@ -8415,10 +8574,14 @@ msgstr "監督・制作会社・下書きの日付"
 msgid "Director’s treatment"
 msgstr "監督のトリートメント"
 
-#: src/components/CommentInlinePopover.jsx
 #: src/components/HeldUploadsBar.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/SketchPadOverlay.jsx
+msgid "Discard"
+msgstr "破棄"
+
+#: src/components/comments/CommentComposer.jsx
+msgctxt "put away words written in a comment box"
 msgid "Discard"
 msgstr "破棄"
 
@@ -8426,13 +8589,17 @@ msgstr "破棄"
 msgid "Discard changes?"
 msgstr "変更を破棄しますか？"
 
-#: src/components/CommentInlinePopover.jsx
-msgid "Discard reply?"
-msgstr "返信を破棄しますか？"
-
 #: src/components/SketchPadOverlay.jsx
 msgid "Discard sketch?"
 msgstr "スケッチを破棄しますか？"
+
+#: src/components/comments/CommentComposer.jsx
+msgid "Discard this comment?"
+msgstr "このコメントを破棄しますか？"
+
+#: src/components/comments/CommentComposer.jsx
+msgid "Discard your changes?"
+msgstr "変更を破棄しますか？"
 
 #: src/components/settings/ConnectionsTab.jsx
 msgid "Disconnect"
@@ -8864,10 +9031,6 @@ msgstr "ドラッグでパン"
 msgid "Drag to reposition"
 msgstr "ドラッグで移動"
 
-#: src/components/CanvasComment.jsx
-msgid "Drag to reposition · click to open"
-msgstr "ドラッグで移動 · クリックで開く"
-
 #: src/components/CanvasSurface.jsx
 #: src/components/docExtensions/ImageResizable.js
 msgid "Drag to resize"
@@ -9157,6 +9320,7 @@ msgid "edit"
 msgstr "編集"
 
 #: src/components/CanvasSurface.jsx
+#: src/components/comments/CommentRow.jsx
 #: src/components/MessageActionSheet.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/MessageMenu.jsx
@@ -9175,6 +9339,10 @@ msgstr "メモまたはタイトルを編集"
 #: src/components/CanvasSurface.jsx
 msgid "Edit caption"
 msgstr "キャプションを編集"
+
+#: src/components/comments/CommentComposer.jsx
+msgid "Edit comment"
+msgstr "コメントを編集"
 
 #: src/components/CanvasSurface.jsx
 msgid "Edit hyperlink"
@@ -9200,8 +9368,7 @@ msgid "Edit photo…"
 msgstr "写真を編集…"
 
 #: src/App.jsx
-#: src/components/CanvasComment.jsx
-#: src/components/CommentInlinePopover.jsx
+#: src/components/comments/CommentFace.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/settings/MembersTab.jsx
 #: src/components/ShareModal.jsx
@@ -9223,6 +9390,10 @@ msgstr "編集、音楽、テンポ"
 #: src/components/MessageBubble.jsx
 msgid "Edited"
 msgstr "編集済み"
+
+#: src/components/comments/FileThreads.jsx
+msgid "Editing isn't available yet."
+msgstr "編集はまだ利用できません。"
 
 #: src/components/team/TeamPage.jsx
 msgid "Editing keeps working for now; updating the card keeps it that way."
@@ -9419,10 +9590,6 @@ msgstr "メールに届いた6桁のコードを入力してください。"
 msgid "Enter to create"
 msgstr "Enterで作成"
 
-#: src/components/CanvasComment.jsx
-msgid "Enter to post · Esc to cancel"
-msgstr "Enterで投稿 · Escでキャンセル"
-
 #: src/components/home/HomeWorkspace.jsx
 msgid "Enter to save · Esc to cancel"
 msgstr "Enterキーで保存・Escキーでキャンセル"
@@ -9505,6 +9672,11 @@ msgstr "作成したクラスターは、すべてここでスターになりま
 #: src/components/team/TeamSetup.jsx
 msgid "Every cluster, file and link stays where it is. Workspaces you leave out stay yours, and you can move one in later."
 msgstr "クラスター、ファイル、リンクはすべてそのままです。移さなかったワークスペースはあなたのもので、あとから移すこともできます。"
+
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/components/comments/FileThreads.jsx
+msgid "Every comment is resolved."
+msgstr "すべてのコメントが解決済みです。"
 
 #: src/lib/setupTips.js
 msgid "Every file lands in Files"
@@ -10200,6 +10372,10 @@ msgstr "フォント"
 msgid "for {days} days"
 msgstr "{days}日間"
 
+#: src/components/comments/CanvasCommentsList.jsx
+msgid "For you"
+msgstr "自分宛て"
+
 #: src/lib/billingCopyWords.js
 msgid "forever"
 msgstr "ずっと"
@@ -10461,13 +10637,13 @@ msgstr "戻る"
 msgid "Go to"
 msgstr "移動"
 
-#: src/components/fileShare/FileComments.jsx
-msgid "Go to {anchor}"
-msgstr "{anchor}へ移動"
-
 #: src/components/MessageBubble.jsx
 msgid "Go to {parentName}'s message"
 msgstr "{parentName}のメッセージへ移動"
+
+#: src/components/comments/FileThreads.jsx
+msgid "Go to {words}"
+msgstr "{words}へ移動"
 
 #: src/components/film/FilmDock.jsx
 msgid "Go to a timecode, frame number or seconds"
@@ -10502,10 +10678,6 @@ msgstr "イン · アウトへ移動"
 #: src/components/film/FilmPlayer.jsx
 msgid "Go to out"
 msgstr "アウト点へ移動"
-
-#: src/components/fileShare/FileComments.jsx
-msgid "Go to page {page}"
-msgstr "{page}ページへ移動"
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Go to the focused file: on its board, or in Files"
@@ -10620,6 +10792,7 @@ msgstr "グリッド"
 msgid "Grids in this family"
 msgstr "このファミリーのグリッド"
 
+#: src/components/comments/CommentAbout.jsx
 #: src/components/TagDetailView.jsx
 #: src/lib/cardInfo.js
 #: src/lib/entityKinds.js
@@ -10801,7 +10974,6 @@ msgstr "非表示"
 msgid "Hidden from search engines — click to let this link rank (for marketing clusters)"
 msgstr "検索エンジンからは非表示です。クリックしてこのリンクを検索に表示させます（マーケティング用クラスター向け）"
 
-#: src/components/CanvasComment.jsx
 #: src/components/capture/CaptureHud.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
@@ -10825,18 +10997,6 @@ msgstr "{shelf}を非表示"
 msgid "Hide 1h"
 msgstr "1時間非表示"
 
-#: src/components/CanvasSurface.jsx
-msgid "Hide all comments"
-msgstr "すべてのコメントを非表示"
-
-#: src/components/CanvasSurface.jsx
-msgid "Hide all comments (right-click for archive)"
-msgstr "すべてのコメントを非表示（右クリックでアーカイブ）"
-
-#: src/components/CanvasSurface.jsx
-msgid "Hide all comments, {visibleCommentCount} showing"
-msgstr "すべてのコメントを非表示（{visibleCommentCount}件表示中）"
-
 #: src/components/EntityHoverPopover.jsx
 msgid "Hide contents"
 msgstr "内容を非表示"
@@ -10848,10 +11008,6 @@ msgstr "会話を非表示"
 #: src/components/InviteRewardNote.jsx
 msgid "Hide details"
 msgstr "詳細を非表示"
-
-#: src/components/CanvasComment.jsx
-msgid "Hide failed: {reason}"
-msgstr "非表示に失敗しました：{reason}"
 
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "Hide files"
@@ -10916,10 +11072,6 @@ msgstr "枠を非表示"
 #: src/components/doc/DocFrameA.jsx
 msgid "Hide pages"
 msgstr "ページを非表示"
-
-#: src/components/fileShare/FileComments.jsx
-msgid "Hide resolved"
-msgstr "解決済みを非表示"
 
 #: src/components/ShareModal.jsx
 msgid "Hide sub-clusters"
@@ -11791,6 +11943,10 @@ msgstr "画像はコピーされているため、元のサイトから削除さ
 msgid "Its sound may play, but there is no picture — download it, or upload a version in a common format."
 msgstr "音は再生される場合がありますが、映像は表示されません。ダウンロードするか、一般的な形式のバージョンをアップロードしてください。"
 
+#: src/components/comments/DocThreadsPanel.jsx
+msgid "Its words were removed"
+msgstr "元の言葉は削除されました"
+
 #: src/components/TeamJoinCard.jsx
 msgid "Its workspaces join your workspace menu. Your own workspaces stay yours: the team never sees them."
 msgstr "そのワークスペースがワークスペースメニューに加わります。あなた自身のワークスペースはあなたのものです。チームには表示されません。"
@@ -11942,7 +12098,6 @@ msgstr "見てみるだけ"
 msgid "Just me"
 msgstr "自分だけ"
 
-#: src/components/doc/DocCommentsTab.jsx
 #: src/components/home/ClustersHome.jsx
 #: src/components/NotificationsPanel.jsx
 msgid "just now"
@@ -12049,7 +12204,7 @@ msgstr "オンラインに戻るまで、このタブを開いたままにして
 msgid "Keep typing — a word finds cluster, group and tag names, notes, docs, captions, file names and what’s in pictures."
 msgstr "入力を続けてください。単語で、クラスター、グループ、タグの名前、メモ、ドキュメント、キャプション、ファイル名、画像の内容が見つかります。"
 
-#: src/components/CommentInlinePopover.jsx
+#: src/components/comments/CommentComposer.jsx
 msgid "Keep writing"
 msgstr "書き続ける"
 
@@ -12437,6 +12592,9 @@ msgid "Link cards"
 msgstr "リンクカード"
 
 #: src/App.jsx
+#: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/docThreadOps.js
+#: src/components/comments/FileThreads.jsx
 #: src/components/EntityHoverPopover.jsx
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/MessageThread.jsx
@@ -13023,13 +13181,13 @@ msgid "Medium tiles"
 msgstr "中タイル"
 
 #: src/App.jsx
-#: src/components/CanvasComment.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/MessagePinsPopover.jsx
 #: src/components/MessagesPanel.jsx
 #: src/components/MessageThread.jsx
 #: src/components/NewConversationPicker.jsx
 #: src/components/ShareModal.jsx
+#: src/lib/commentAuthor.js
 #: src/lib/teamModelWords.js
 #: src/lib/userProfiles.js
 msgid "Member"
@@ -13043,6 +13201,10 @@ msgstr "メンバー"
 #: src/components/ShortcutsOverlay.jsx
 msgid "Mention a board, doc, or card"
 msgstr "クラスター、ドキュメント、カードをメンション"
+
+#: src/components/comments/CanvasCommentsList.jsx
+msgid "Mentions and replies to you show up here."
+msgstr "自分へのメンションと返信がここに表示されます。"
 
 #: src/App.jsx
 #: src/components/film/FilmMenu.jsx
@@ -13255,6 +13417,8 @@ msgstr "ムードボード、脚本、ショットリスト。あらゆる素材
 #: src/components/cards/ScheduleRundown.jsx
 #: src/components/chrome/ChromeMoreA.jsx
 #: src/components/chrome/FloatingChrome.jsx
+#: src/components/comments/CommentCard.jsx
+#: src/components/comments/CommentRow.jsx
 #: src/components/doc/DocBarA.jsx
 #: src/components/doc/DocFrameA.jsx
 #: src/components/SidebarSharedBoards.jsx
@@ -13403,7 +13567,6 @@ msgid "Move cancelled — the destination cluster’s state looked unsafe to ove
 msgstr "移動をキャンセルしました。移動先クラスターの状態は、上書きすると危険な状態でした。"
 
 #: src/App.jsx
-#: src/components/CanvasComment.jsx
 #: src/components/CanvasVoteCard.jsx
 msgid "Move failed: {reason}"
 msgstr "移動に失敗しました：{reason}"
@@ -13737,6 +13900,11 @@ msgstr "新規クラスター…"
 msgid "New code sent. Only the newest one works — check Spam or Promotions if it isn't there."
 msgstr "新しいコードを送信しました。有効なのは最新のコードだけです。届いていない場合は、迷惑メールやプロモーションを確認してください。"
 
+#: src/components/comments/CommentCard.jsx
+#: src/components/comments/DocFloatCards.jsx
+msgid "New comment"
+msgstr "新しいコメント"
+
 #: src/components/MessagesPanel.jsx
 #: src/components/MessageThread.jsx
 msgid "New conversation"
@@ -13975,16 +14143,16 @@ msgstr "このフレームより後にコメントはありません"
 msgid "No comment before this frame"
 msgstr "このフレームより前にコメントはありません"
 
-#: src/components/doc/DocCommentsTab.jsx
+#: src/components/comments/DocThreadsPanel.jsx
 msgid "No comments yet"
 msgstr "コメントはまだありません"
 
-#: src/components/fileShare/FileComments.jsx
+#: src/components/comments/FileThreads.jsx
 #: src/components/WorkspacePresenceStack.jsx
 msgid "No comments yet."
 msgstr "コメントはまだありません。"
 
-#: src/components/fileShare/FileComments.jsx
+#: src/components/comments/FileThreads.jsx
 msgid "No comments yet. Pause anywhere and leave the first one."
 msgstr "コメントはまだありません。どこかで一時停止して、最初のコメントを残しましょう。"
 
@@ -14125,6 +14293,11 @@ msgstr "タグ付きのメモはありません。"
 msgid "No one to message yet. Share a board to start collaborating."
 msgstr "メッセージを送れる相手がまだいません。クラスターを共有して、共同作業を始めましょう。"
 
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/DocFloatCards.jsx
+msgid "No open comments"
+msgstr "未解決のコメントはありません"
+
 #: src/components/EntityHoverPopover.jsx
 #: src/components/TagRangeHoverPopover.jsx
 msgid "No other items tagged."
@@ -14174,9 +14347,10 @@ msgstr "編集できる人の空きシートはありません。"
 msgid "No references yet."
 msgstr "参照はまだありません。"
 
-#: src/components/CanvasComment.jsx
-msgid "No resolved or hidden comments on this board."
-msgstr "このクラスターには、解決済みまたは非表示のコメントはありません。"
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/lib/commentTime.js
+msgid "No replies yet"
+msgstr "返信はまだありません"
 
 #: src/components/CommandPalette.jsx
 msgid "No results for “{q}”."
@@ -14385,10 +14559,6 @@ msgstr "キャンバスにありません"
 msgid "Not paid"
 msgstr "未払い"
 
-#: src/components/fileShare/FileComments.jsx
-msgid "Not pinned"
-msgstr "ピンなし"
-
 #: src/components/cards/ScheduleRail.jsx
 msgid "Not published yet"
 msgstr "未公開"
@@ -14397,6 +14567,7 @@ msgstr "未公開"
 msgid "Not saved"
 msgstr "未保存"
 
+#: src/components/comments/CommentRow.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/setup/InviteStep.jsx
 msgid "Not sent"
@@ -14650,13 +14821,14 @@ msgstr "カレンダーにはまだ何もありません。"
 msgid "Nothing on the calendar yet. Use “Add days…” below to lay out a block."
 msgstr "カレンダーにはまだ何もありません。下の「日をまとめて追加…」でまとめて作成できます。"
 
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/components/comments/FileThreads.jsx
+msgid "Nothing open"
+msgstr "未解決なし"
+
 #: src/components/DocSurface.jsx
 msgid "Nothing open yet"
 msgstr "開いているものはありません"
-
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Nothing open: every comment is resolved"
-msgstr "未解決のコメントはありません。すべて解決済みです"
 
 #: src/components/CanvasSurface.jsx
 msgid "Nothing picked? Paste an image from any tab (⌘V), or drag one straight in from another window"
@@ -14674,7 +14846,8 @@ msgstr "まだ予定はありません。"
 msgid "Nothing planned yet. Add the first item and give it a length — everything after it times itself."
 msgstr "まだ予定はありません。最初の項目を追加して長さを設定すると、以降の時刻は自動で決まります。"
 
-#: src/components/doc/DocCommentsTab.jsx
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/DocFloatCards.jsx
 msgid "Nothing resolved yet"
 msgstr "解決済みのコメントはまだありません"
 
@@ -14710,6 +14883,10 @@ msgstr "元に戻すものがありません。それらのカードはもうこ
 #: src/lib/errorWords.js
 msgid "Nothing to zip"
 msgstr "zipにするものがありません"
+
+#: src/components/comments/CanvasCommentsList.jsx
+msgid "Nothing waiting on you"
+msgstr "対応待ちのものはありません"
 
 #: src/components/CanvasSurface.jsx
 msgid "Nothing was copied — this board changed before the copy could finish."
@@ -14865,9 +15042,9 @@ msgstr "**onedrive.com**で**マイファイル**を開き、取り込みたい�
 msgid "On a Mac, iCloud Drive is already a folder."
 msgstr "Macでは、iCloud Driveはすでにフォルダになっています。"
 
-#: src/components/fileShare/FileComments.jsx
-msgid "on an earlier version"
-msgstr "以前のバージョンへのコメント"
+#: src/components/comments/FileThreads.jsx
+msgid "On an earlier version"
+msgstr "以前のバージョン"
 
 #: src/lib/importGuide.js
 msgid "On an iPhone or iPad, the Files app zips a folder for you."
@@ -14886,9 +15063,9 @@ msgstr "閉じたとき"
 msgid "On Creator, anything at all becomes a file card with a download. Free covers images, video, audio and PDFs within size caps."
 msgstr "Creatorなら、どんなものでもダウンロード付きのファイルカードになります。無料プランでは、サイズ上限内の画像、動画、音声、PDFが使えます。"
 
-#: src/components/fileShare/FileComments.jsx
-msgid "on page {page}"
-msgstr "{page}ページ"
+#: src/components/comments/CommentAbout.jsx
+msgid "On the canvas"
+msgstr "キャンバス上"
 
 #: src/auth/WaitlistConfirm.jsx
 msgid "On the waitlist"
@@ -14901,6 +15078,10 @@ msgstr "この{total}枚のカードにあるもの"
 #: src/components/NewConversationPicker.jsx
 msgid "ON THIS BOARD"
 msgstr "このクラスターの人"
+
+#: src/components/comments/CommentAbout.jsx
+msgid "On this cluster"
+msgstr "このクラスター上"
 
 #: src/lib/billingCopyWords.js
 msgid "On trial"
@@ -15016,9 +15197,25 @@ msgstr "カードを変更できるのは{ownerFirst}さんだけです。"
 msgid "Only a few folders? In Drive, right-click one and choose **Download**. You get a zip, which comes in the same way."
 msgstr "フォルダが少しだけですか？ Driveでフォルダを右クリックして**ダウンロード**を選びます。zipが保存され、同じ方法で取り込めます。"
 
+#: src/components/comments/CanvasCommentsList.jsx
+msgid "Only changes what you see"
+msgstr "自分の表示だけが変わります"
+
 #: src/lib/oauthTrustWords.js
 msgid "Only continue if you just started this from {name} yourself."
 msgstr "{name}から自分で開始した場合のみ、続行してください。"
+
+#: src/lib/errorWords.js
+msgid "Only its author or an editor of this cluster can change this comment."
+msgstr "このコメントを変更できるのは、投稿者かこのクラスターの編集者だけです。"
+
+#: src/lib/errorWords.js
+msgid "Only its author or an editor of this cluster can delete this comment."
+msgstr "このコメントを削除できるのは、投稿者かこのクラスターの編集者だけです。"
+
+#: src/lib/errorWords.js
+msgid "Only its author or an editor of this cluster can restore this comment."
+msgstr "このコメントを復元できるのは、投稿者かこのクラスターの編集者だけです。"
 
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/lib/sharedFiles.js
@@ -15032,6 +15229,14 @@ msgstr "共有された人だけが開けます。"
 #: src/components/ShareModal.jsx
 msgid "Only people who can edit this cluster can change who has access. You can still see who does, above."
 msgstr "アクセスできる人を変更できるのは、このクラスターを編集できる人だけです。誰がアクセスできるかは、上で確認できます。"
+
+#: src/components/comments/docThreadOps.js
+msgid "Only people who can edit this doc can reply."
+msgstr "返信できるのは、このドキュメントを編集できる人だけです。"
+
+#: src/components/comments/docThreadOps.js
+msgid "Only people who can edit this note can reply."
+msgstr "返信できるのは、このメモを編集できる人だけです。"
 
 #: src/components/fileShare/FileShareDialog.jsx
 msgid "Only people you add can open it."
@@ -15141,7 +15346,8 @@ msgctxt "invoice status"
 msgid "Open"
 msgstr "支払い待ち"
 
-#: src/components/doc/DocCommentsTab.jsx
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/DocFloatCards.jsx
 msgctxt "status"
 msgid "Open"
 msgstr "未解決"
@@ -15264,6 +15470,11 @@ msgstr "Clustersを開く"
 #: src/auth/PricingSuccess.jsx
 msgid "Open Clusters here"
 msgstr "ここでClustersを開く"
+
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/components/comments/FileThreads.jsx
+msgid "Open comments"
+msgstr "未解決のコメント"
 
 #: src/components/cards/ScheduleCard.jsx
 msgid "Open day"
@@ -15721,6 +15932,10 @@ msgstr "オーナー"
 msgid "Owner — you can rename it, change the icon, and delete it."
 msgstr "オーナー: 名前の変更、アイコンの変更、削除ができます。"
 
+#: src/components/comments/FileThreads.jsx
+msgid "p. {page}"
+msgstr "{page}ページ"
+
 #: src/components/DocTagGutter.jsx
 msgid "page"
 msgstr "ページ"
@@ -15750,6 +15965,10 @@ msgstr "ページが見つかりません"
 #: src/pages/NotFoundPage.jsx
 msgid "Page not found — Soleil Clusters"
 msgstr "ページが見つかりません — Soleil Clusters"
+
+#: src/components/comments/FileThreads.jsx
+msgid "Page on an earlier version"
+msgstr "以前のバージョンでのページ"
 
 #: src/components/doc/DocBarA.jsx
 msgid "Pageless"
@@ -16076,6 +16295,11 @@ msgstr "保留中の提案"
 msgid "People"
 msgstr "メンバー"
 
+#: src/components/comments/CommentComposer.jsx
+msgctxt "who an @ in a comment offers"
+msgid "People"
+msgstr "ユーザー"
+
 #: src/components/EntityPicker.jsx
 msgid "PEOPLE"
 msgstr "人"
@@ -16276,10 +16500,6 @@ msgstr "クラスターを並べて固定…"
 msgid "Pin alongside…"
 msgstr "並べて固定…"
 
-#: src/components/fileShare/FileComments.jsx
-msgid "Pin to this moment"
-msgstr "この瞬間にピン留め"
-
 #: src/components/cards/ScheduleRundown.jsx
 msgid "Pin to this time"
 msgstr "この時刻に固定"
@@ -16436,16 +16656,6 @@ msgstr "画像ファイルを選択してください。"
 msgid "PNG image"
 msgstr "PNG画像"
 
-#: src/components/AddCommentFlow.jsx
-#: src/components/CanvasComment.jsx
-#: src/components/InlineComposer.jsx
-msgid "Post"
-msgstr "投稿"
-
-#: src/components/CanvasComment.jsx
-msgid "Posting…"
-msgstr "投稿中…"
-
 #: src/components/FeedbackButton.jsx
 msgid "Prefer email?"
 msgstr "メールがよいですか？"
@@ -16503,6 +16713,10 @@ msgstr "{CLIP_MOD}Xで切り取ります。"
 #: src/lib/helpHub.js
 msgid "Press A. Arrows anchor to cards and follow them when you move things."
 msgstr "Aキーを押します。矢印はカードに固定され、動かすと一緒に動きます。"
+
+#: src/components/comments/CanvasCommentsList.jsx
+msgid "Press and hold a card or the canvas to add one."
+msgstr "カードかキャンバスを長押しすると追加できます。"
 
 #: src/components/CanvasSurface.jsx
 msgid "Press and hold a card to pick it up and move it."
@@ -17324,18 +17538,11 @@ msgstr "名前を変更しました。"
 msgid "Renews"
 msgstr "更新日"
 
-#: src/components/CanvasComment.jsx
-#: src/components/CommentInlinePopover.jsx
-#: src/components/doc/DocCommentsTab.jsx
+#: src/components/comments/CommentCard.jsx
 #: src/components/DocCard.jsx
 #: src/components/fileShare/DocShareView.jsx
-#: src/components/fileShare/FileComments.jsx
 msgid "Reopen"
 msgstr "再開"
-
-#: src/components/CanvasComment.jsx
-msgid "Reopen failed: {reason}"
-msgstr "再開に失敗しました：{reason}"
 
 #: src/components/cards/CardTransferState.jsx
 #: src/components/cards/GridCellMenu.jsx
@@ -17382,35 +17589,29 @@ msgstr "置き換え…"
 msgid "Replaces the selected grid’s layout."
 msgstr "選択中のグリッドのレイアウトを置き換えます。"
 
-#: src/components/doc/DocCommentsTab.jsx
-#: src/components/fileShare/FileComments.jsx
 #: src/components/MessageActionSheet.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/MessageMenu.jsx
 msgid "Reply"
 msgstr "返信"
 
-#: src/components/CanvasComment.jsx
+#: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/docThreadOps.js
+#: src/components/comments/FileThreads.jsx
 msgid "Reply deleted"
 msgstr "返信を削除しました"
 
-#: src/components/CanvasComment.jsx
-msgid "Reply failed: {reason}"
-msgstr "返信に失敗しました：{reason}"
+#: src/lib/commentRules.js
+msgid "Reply to reopen…"
+msgstr "返信して再開…"
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Reply to {replyTo}"
-msgstr "{replyTo}に返信"
-
-#: src/components/CanvasComment.jsx
-#: src/components/CommentInlinePopover.jsx
-#: src/components/fileShare/FileComments.jsx
+#: src/lib/commentRules.js
 msgid "Reply…"
 msgstr "返信…"
 
-#: src/components/CommentInlinePopover.jsx
-msgid "Reply… (@ to mention)"
-msgstr "返信…（@でメンション）"
+#: src/lib/commentRules.js
+msgid "Reply… @ to mention"
+msgstr "返信… @でメンション"
 
 #: src/components/MessageComposer.jsx
 msgid "Replying to {replyToName}"
@@ -17479,33 +17680,46 @@ msgstr "ファイルパネルのサイズを変更"
 msgid "Resolution"
 msgstr "解像度"
 
-#: src/components/CanvasComment.jsx
-#: src/components/CommentInlinePopover.jsx
-#: src/components/doc/DocCommentsTab.jsx
-#: src/components/fileShare/FileComments.jsx
+#: src/components/comments/CommentCard.jsx
 msgid "Resolve"
 msgstr "解決"
 
-#: src/components/CanvasComment.jsx
 #: src/components/WorkspacePresenceStack.jsx
 msgid "resolved"
 msgstr "解決済み"
 
-#: src/components/doc/DocCommentsTab.jsx
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/DocFloatCards.jsx
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/components/comments/FileThreads.jsx
 msgid "Resolved"
 msgstr "解決済み"
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Resolved by {resolver}"
-msgstr "{resolver}さんが解決"
+#: src/components/comments/CommentCard.jsx
+msgctxt "this conversation is resolved"
+msgid "Resolved"
+msgstr "解決済み"
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Resolved comment by {by}"
-msgstr "{by}さんの解決済みコメント"
+#: src/components/comments/CommentCard.jsx
+msgid "Resolved by <0>{resolver}</0>"
+msgstr "<0>{resolver}</0>さんが解決"
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Resolved comment by {by} on “{quote}”"
-msgstr "{by}さんの解決済みコメント(「{quote}」について)"
+#: src/components/comments/CommentCard.jsx
+msgid "Resolved by you"
+msgstr "自分が解決"
+
+#: src/lib/commentAuthor.js
+msgid "Resolved comment"
+msgstr "解決済みコメント"
+
+#: src/lib/commentAuthor.js
+msgid "Resolved comment by {author}"
+msgstr "{author}さんの解決済みコメント"
+
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/components/comments/FileThreads.jsx
+msgid "Resolved comments"
+msgstr "解決済みのコメント"
 
 #: src/components/info/VersionsSection.jsx
 #: src/components/TrashModal.jsx
@@ -17513,7 +17727,6 @@ msgstr "{by}さんの解決済みコメント(「{quote}」について)"
 msgid "Restore"
 msgstr "復元"
 
-#: src/components/CanvasComment.jsx
 #: src/components/CanvasSurface.jsx
 #: src/components/CanvasVoteCard.jsx
 #: src/components/DocPageEditor.jsx
@@ -17685,6 +17898,10 @@ msgstr "右"
 msgid "Right-click a card and choose Tag…, or drag this tag onto something."
 msgstr "カードを右クリックして「タグ…」を選ぶか、このタグを何かにドラッグしてください。"
 
+#: src/components/comments/CanvasCommentsList.jsx
+msgid "Right-click a card or the canvas to add one."
+msgstr "カードかキャンバスを右クリックすると追加できます。"
+
 #: src/components/ShortcutsOverlay.jsx
 msgid "Right-click the canvas or any card for more actions."
 msgstr "キャンバスまたはカードを右クリックすると、さらに操作できます。"
@@ -17774,6 +17991,7 @@ msgstr "彩度"
 
 #: src/components/AppFeedback.jsx
 #: src/components/CanvasSurface.jsx
+#: src/components/comments/CommentComposer.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/SketchPadOverlay.jsx
 #: src/components/ThumbnailCropModal.jsx
@@ -18321,7 +18539,15 @@ msgstr "ファイルを選択"
 msgid "Select items"
 msgstr "項目を選択"
 
-#: src/components/doc/DocCommentsTab.jsx
+#: src/components/comments/DocFloatCards.jsx
+msgid "Select some words in the note to add one."
+msgstr "メモの言葉を選択すると追加できます。"
+
+#: src/components/DocSurface.jsx
+msgid "Select some words to comment on"
+msgstr "コメントしたい言葉を選択してください"
+
+#: src/components/comments/DocThreadsPanel.jsx
 msgid "Select some words, then Comment"
 msgstr "言葉を選択して、コメントを選んでください"
 
@@ -18366,7 +18592,7 @@ msgstr "選択"
 msgid "Selection formatting"
 msgstr "選択範囲の書式"
 
-#: src/components/CanvasComment.jsx
+#: src/components/comments/CommentComposer.jsx
 #: src/components/FeedbackButton.jsx
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/MessageComposer.jsx
@@ -18374,10 +18600,6 @@ msgstr "選択範囲の書式"
 #: src/components/UpgradeReasonAsk.jsx
 msgid "Send"
 msgstr "送信"
-
-#: src/components/fileShare/FileComments.jsx
-msgid "Send (⌘↵)"
-msgstr "送信(⌘↵)"
 
 #: src/components/setup/InviteStep.jsx
 msgid "Send {count} invites"
@@ -18411,10 +18633,6 @@ msgstr "招待を送信"
 #: src/components/team/TeamJoining.jsx
 msgid "Send invites"
 msgstr "招待を送信"
-
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Send reply"
-msgstr "返信を送信"
 
 #: src/components/CanvasSurface.jsx
 msgid "Send to back"
@@ -18493,6 +18711,15 @@ msgstr "送信内容："
 #: src/lib/teamModelWords.js
 msgid "Sent yesterday"
 msgstr "昨日送信"
+
+#: src/components/comments/CanvasCommentCard.jsx
+#: src/components/comments/FileThreads.jsx
+msgid "Sent, but it couldn't be reopened. Try again."
+msgstr "送信しましたが、再開できませんでした。もう一度お試しください。"
+
+#: src/lib/commentRules.js
+msgid "Sent. Only an editor or the person who started this can reopen it."
+msgstr "送信しました。再開できるのは、編集者かこの会話を始めた人だけです。"
 
 #: src/components/DocTagGutter.jsx
 msgid "sentence"
@@ -18845,10 +19072,6 @@ msgctxt "keyboard key"
 msgid "Shift"
 msgstr "Shift"
 
-#: src/components/InlineComposer.jsx
-msgid "Shift+⏎ for newline · ⏎ to post"
-msgstr "Shift+⏎で改行 · ⏎で投稿"
-
 #: src/components/LinkHoverCard.jsx
 msgid "shortcut"
 msgstr "ショートカット"
@@ -18880,7 +19103,6 @@ msgid "shot list"
 msgstr "ショットリスト"
 
 #: src/App.jsx
-#: src/components/doc/DocCommentsTab.jsx
 #: src/components/ListSurface.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
 #: src/components/team/TeamPeople.jsx
@@ -18900,6 +19122,10 @@ msgstr "{name}を表示"
 msgid "Show {shelf}"
 msgstr "{shelf}を表示"
 
+#: src/components/comments/CommentCard.jsx
+msgid "Show {title} in the text"
+msgstr "{title}を本文で表示"
+
 #: src/components/film/FilmDock.jsx
 msgid "Show A"
 msgstr "Aを表示"
@@ -18917,18 +19143,6 @@ msgstr "{count}件すべてを表示"
 msgid "Show all {folderCount}"
 msgstr "{folderCount}件すべて表示"
 
-#: src/components/CanvasSurface.jsx
-msgid "Show all comments"
-msgstr "すべてのコメントを表示"
-
-#: src/components/CanvasSurface.jsx
-msgid "Show all comments (right-click for archive)"
-msgstr "すべてのコメントを表示（右クリックでアーカイブ）"
-
-#: src/components/CanvasSurface.jsx
-msgid "Show all comments, {visibleCommentCount} showing"
-msgstr "すべてのコメントを表示（{visibleCommentCount}件表示中）"
-
 #: src/components/cards.jsx
 #: src/components/RichNoteEditor.jsx
 msgid "Show all text — fit the note to its content"
@@ -18945,6 +19159,10 @@ msgstr "自動適用と手動のアイテムを表示"
 #: src/components/film/FilmDock.jsx
 msgid "Show B"
 msgstr "Bを表示"
+
+#: src/components/comments/CanvasCommentsList.jsx
+msgid "Show comments on the canvas"
+msgstr "キャンバスにコメントを表示"
 
 #: src/components/EntityHoverPopover.jsx
 msgid "Show contents"
@@ -18998,10 +19216,6 @@ msgstr "クラスターで表示"
 #: src/components/sidebar/ClusterSidebar.jsx
 msgid "Show in Files"
 msgstr "ファイルで表示"
-
-#: src/components/doc/DocCommentsTab.jsx
-msgid "Show it in the doc"
-msgstr "ドキュメント内で表示"
 
 #: src/components/CanvasSurface.jsx
 msgid "Show label"
@@ -19492,11 +19706,9 @@ msgstr "誰か"
 #: src/components/cards/CardTransferState.jsx
 #: src/components/clusterBrowser/ClusterRow.jsx
 #: src/components/clusterBrowser/FolderTiles.jsx
-#: src/components/doc/DocCommentsTab.jsx
 #: src/components/doc/DocFrameA.jsx
 #: src/components/DocCard.jsx
 #: src/components/DocPageTree.jsx
-#: src/components/fileShare/FileComments.jsx
 #: src/components/fileShare/FileSharePage.jsx
 #: src/components/MessagesPanel.jsx
 #: src/components/MessageThread.jsx
@@ -20679,6 +20891,14 @@ msgstr "コードが一致しません。もう一度試すか、新しいコー
 msgid "That code expired. Request a new one."
 msgstr "コードの有効期限が切れました。新しいコードをリクエストしてください。"
 
+#: src/App.jsx
+#: src/components/CanvasSurface.jsx
+#: src/components/comments/FileThreads.jsx
+#: src/components/comments/NoteCommentsLayer.jsx
+#: src/components/DocSurface.jsx
+msgid "That comment isn't here any more"
+msgstr "そのコメントはもうここにありません"
+
 #: src/lib/oauthConsentCopy.js
 msgid "That could not be approved"
 msgstr "承認できませんでした"
@@ -21238,10 +21458,6 @@ msgstr "復元したバージョンには、開いていたページがありま
 msgid "The whole handbook is at <0>/docs</0>, also readable as plain Markdown at <1>/docs/*.md</1>."
 msgstr "ハンドブック全体は<0>/docs</0>にあります。プレーンなMarkdownとして<1>/docs/*.md</1>でも読めます。"
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "The words it was on are gone"
-msgstr "コメントの対象だった言葉は削除されました"
-
 #: src/components/WorkspaceAlertBanner.jsx
 msgid "The workspace owner can rewind this."
 msgstr "ワークスペースのオーナーが巻き戻せます。"
@@ -21499,14 +21715,6 @@ msgstr "このアカウントは停止されています。"
 msgid "this address"
 msgstr "このアドレス"
 
-#: src/components/CanvasComment.jsx
-msgid "This also removes all replies.\n"
-"\n"
-"You can undo this right after."
-msgstr "すべての返信も削除されます。\n"
-"\n"
-"削除直後なら元に戻せます。"
-
 #: src/pages/OAuthConsentPage.jsx
 msgid "This app"
 msgstr "このアプリ"
@@ -21582,6 +21790,7 @@ msgid "this cluster"
 msgstr "このクラスター"
 
 #: src/components/chrome/FloatingChrome.jsx
+#: src/components/comments/CommentAbout.jsx
 #: src/components/ShareModal.jsx
 #: src/components/VersionHistoryModal.jsx
 msgid "This cluster"
@@ -21709,9 +21918,12 @@ msgstr "このクラスターのファイル"
 msgid "This cluster's owner is out of storage — nothing more can be uploaded here until they make room."
 msgstr "このクラスターのオーナーのストレージがいっぱいです。空きができるまで、ここにはこれ以上アップロードできません。"
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "this comment"
-msgstr "このコメント"
+#: src/components/CommentGutter.jsx
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/components/comments/PinPreview.jsx
+msgid "This comment was deleted."
+msgstr "このコメントは削除されました。"
 
 #: src/lib/oauthTrustWords.js
 msgid "this computer (localhost)"
@@ -22007,6 +22219,10 @@ msgstr "時間"
 #: src/components/CanvasSurface.jsx
 msgid "Time (m:ss)"
 msgstr "時間（m:ss）"
+
+#: src/components/comments/FileThreads.jsx
+msgid "Time on an earlier version"
+msgstr "以前のバージョンでの時間"
 
 #: src/components/film/FilmTimeline.jsx
 msgid "Timeline"
@@ -22438,14 +22654,6 @@ msgstr "スケッチの変更を元に戻す"
 msgid "Ungroup"
 msgstr "グループ解除"
 
-#: src/components/CanvasComment.jsx
-msgid "Unhide"
-msgstr "再表示"
-
-#: src/components/CanvasComment.jsx
-msgid "Unhide failed: {reason}"
-msgstr "再表示に失敗しました：{reason}"
-
 #: src/App.jsx
 msgid "unknown error"
 msgstr "不明なエラー"
@@ -22545,17 +22753,16 @@ msgstr "未払い"
 msgid "Unpin"
 msgstr "固定を解除"
 
-#: src/components/fileShare/FileComments.jsx
-msgid "Unpin from this moment"
-msgstr "この瞬間からピンを外す"
-
 #: src/components/EntityBacklinksPanel.jsx
 msgid "Unpin from top"
 msgstr "先頭の固定を解除"
 
-#: src/components/CanvasComment.jsx
-msgid "Unread reply"
-msgstr "未読の返信"
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/CommentRow.jsx
+#: src/components/comments/DocThreadsPanel.jsx
+#: src/components/doc/DocFrameA.jsx
+msgid "Unread"
+msgstr "未読"
 
 #: src/components/home/ClustersHome.jsx
 #: src/components/sidebar/ClusterSidebar.jsx
@@ -22706,10 +22913,6 @@ msgstr "30日間で最大{rewards}件の特典まで。それを超える分は�
 #: src/lib/billingCopyWords.js
 msgid "Up to {WORKSPACE_LIMIT} of your own on Free and {planName}. Workspaces that belong to a team don't count, and Team has no limit."
 msgstr "無料プランでも{planName}でも、ご自身のものを最大{WORKSPACE_LIMIT}個まで作れます。チームに属するワークスペースは数に含まれず、Teamには上限がありません。"
-
-#: src/components/CanvasComment.jsx
-msgid "Update failed: {reason}"
-msgstr "更新に失敗しました：{reason}"
 
 #: src/components/team/TeamPage.jsx
 msgid "Update the card"
@@ -23117,7 +23320,6 @@ msgid "View full size"
 msgstr "フルサイズで表示"
 
 #: src/App.jsx
-#: src/components/CommentInlinePopover.jsx
 #: src/components/doc/DocFrameA.jsx
 #: src/components/shared/SharedPage.jsx
 #: src/components/SidebarSharedBoards.jsx
@@ -23629,6 +23831,11 @@ msgstr "元の場所"
 msgid "Where you are"
 msgstr "現在地"
 
+#: src/components/comments/CanvasCommentsList.jsx
+#: src/components/comments/DocFloatCards.jsx
+msgid "Which comments"
+msgstr "表示するコメント"
+
 #: src/components/settings/NotificationsTab.jsx
 msgid "Which emails Clusters should send you. Anything you don't toggle on still shows up in-app."
 msgstr "Clustersから送信するメールを選択します。オンにしていないものも、アプリ内には表示されます。"
@@ -23901,7 +24108,6 @@ msgstr "あり"
 msgid "Yes. On {planName}, add {block} at a time, up to {max} more: {monthly} on the monthly plan or {annual} on the annual one, from Settings → Plan & billing, on the card you already pay with. The first charge covers only the rest of your billing period, and while your plan is active you can remove a block again, as long as your files still fit."
 msgstr "はい。{planName}では、{block}ずつ最大{max}まで追加できます。月額プランは{monthly}、年額プランは{annual}で、「設定」→「プランとお支払い」から、すでにお支払いに使っているカードで追加します。最初の請求は、現在の請求期間の残り分だけです。プランが有効な間は、ファイルが収まる限り、追加した分をいつでも削除できます。"
 
-#: src/components/doc/DocCommentsTab.jsx
 #: src/components/TrashModal.jsx
 #: src/components/VersionHistoryModal.jsx
 msgid "yesterday"
@@ -23912,10 +24118,6 @@ msgstr "昨日"
 msgid "Yesterday"
 msgstr "昨日"
 
-#: src/components/doc/DocCommentsTab.jsx
-msgid "you"
-msgstr "あなた"
-
 #: src/components/team/TeamWorkspaces.jsx
 msgctxt "who a workspace moves to"
 msgid "you"
@@ -23923,7 +24125,7 @@ msgstr "あなた"
 
 #: src/App.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
-#: src/components/doc/DocCommentsTab.jsx
+#: src/components/comments/CanvasCommentPins.jsx
 #: src/components/info/VersionsSection.jsx
 #: src/components/MessageBubble.jsx
 #: src/components/MessagePinsPopover.jsx
@@ -24085,10 +24287,6 @@ msgstr "ご自身のワークスペースが{n}個あります。チーム外の
 #: src/lib/workspaceLimitCopy.js
 msgid "You have {WORKSPACE_LIMIT} of your own, the most outside a team."
 msgstr "ご自身のワークスペースが{WORKSPACE_LIMIT}個あり、チーム外の上限に達しています。"
-
-#: src/components/CommentInlinePopover.jsx
-msgid "You have an unsent reply on this comment."
-msgstr "このコメントに未送信の返信があります。"
 
 #: src/components/team/TeamSetup.jsx
 msgid "You have no personal workspaces to move in. The team starts empty, and you can make team workspaces in it."
@@ -24431,6 +24629,10 @@ msgstr "クラスターを今は開けませんでした。データは失われ
 msgid "Your clusters live here"
 msgstr "クラスターはここにあります"
 
+#: src/lib/commentAuthor.js
+msgid "Your comment"
+msgstr "自分のコメント"
+
 #: src/components/team/TeamDomainNote.jsx
 msgid "Your company’s team"
 msgstr "あなたの会社のチーム"
@@ -24622,6 +24824,10 @@ msgstr "プランは終了する設定になっています。「お支払いを
 msgid "Your plan today"
 msgstr "現在のプラン"
 
+#: src/lib/commentAuthor.js
+msgid "Your resolved comment"
+msgstr "自分の解決済みコメント"
+
 #: src/components/settings/ConnectionsTab.jsx
 msgid "Your Scout connect code"
 msgstr "Scoutの接続コード"
@@ -24673,6 +24879,10 @@ msgstr "トライアルを開始しています。本日の請求はありませ
 #: src/lib/importCopy.js
 msgid "Your trial’s {TRIAL_STORAGE_LABEL} drive is full. Your first payment makes it {CREATOR_STORAGE_LABEL}; drop the {thing, select, zip {zip} zips {zips} folder {folder} folders {folders} other {folder}} again then to bring the rest."
 msgstr "トライアルの{TRIAL_STORAGE_LABEL}のドライブがいっぱいです。最初のお支払いで{CREATOR_STORAGE_LABEL}になります。その後、もう一度{thing, select, zip {zip} zips {zip} folder {フォルダ} folders {フォルダ} other {フォルダ}}をドロップして、残りを取り込んでください。"
+
+#: src/components/comments/CanvasCommentPins.jsx
+msgid "Your unsent comment. Open it"
+msgstr "未送信のコメントです。開く"
 
 #: src/components/PricingModal.jsx
 msgid "Your work outgrew the demo."

@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 // Word-level comments, Google-Docs style: select text → comment → the
-// highlighted run is CLICKABLE and opens its thread, which in the doc look is
-// its card in the side panel (doc-panel-comments.spec.js: the click, a reply
-// and a resolve, each filed beside the thread).
+// highlighted run is CLICKABLE and opens its thread, which in a doc is its
+// conversation in the side panel (doc-panel-comments.spec.js: the click, a
+// reply and a resolve, each filed beside the thread).
 //
 // The clickable part is the regression this guards. The mark, the thread store
 // and the margin dot all shipped earlier, but nothing was ever wired to the
@@ -58,21 +58,24 @@ test('the mark reads as clickable, not decorative', async ({ page }) => {
   expect(style.background).not.toBe('transparent');
 });
 
-test('deleting a thread strips its highlight', async ({ page }) => {
+test('deleting a thread leaves its words in place, reading as plain text', async ({ page }) => {
   await openDoc(page);
   const id = await commentOnWord(page, 'Delete me please now', 'Delete', 'gone soon');
   await expect(page.locator(`.tt-comment[data-comment-id="${id}"]`)).toHaveCount(1);
 
-  // The popover portals to <body>, so it signals the editor by window event
-  // rather than calling it directly — same path the delete button uses.
+  const mark = page.locator(`.tt-comment[data-comment-id="${id}"]`);
+  const looks = () => mark.evaluate((el) => { const cs = getComputedStyle(el); return [cs.backgroundColor, cs.cursor === 'pointer']; });
+  expect((await looks())[1]).toBe(true);
   await page.evaluate((id) => {
     const T = window.__soleilDocTest;
     T.deleteCommentThread(T.ydoc, id, T.getScope());
-    window.dispatchEvent(new CustomEvent('soleil-remove-comment-mark', { detail: { id } }));
   }, id);
 
-  await expect(page.locator(`.tt-comment[data-comment-id="${id}"]`)).toHaveCount(0);
-  // The text itself must survive — only the mark is removed.
+  // The span is kept (an Undo of the delete has its words to come back to),
+  // with no tint and no hand: a deleted thread's words are just words.
+  await expect(mark).toHaveCount(1);
+  await expect.poll(looks).toEqual(['rgba(0, 0, 0, 0)', false]);
+  // The text itself is untouched.
   await expect(page.locator('.ProseMirror').first()).toContainText('Delete me please now');
 });
 

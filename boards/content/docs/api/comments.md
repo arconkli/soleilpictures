@@ -5,11 +5,11 @@ h1: Comments API
 navLabel: Comments
 section: developers
 order: 4.6
-updated: 2026-10-25
+updated: 2026-11-15
 answer: GET /boards/:id/comments lists a board's comment threads in one list, the ones on the canvas and the ones inside its docs and notes, each with its replies and who wrote what. POST adds a comment on a card, a group, a spot, the whole board or words in a doc, or a reply in any thread. PATCH resolves or reopens threads, and DELETE removes your own comment.
 faq:
   - q: Who can comment, resolve or delete over the API?
-    a: The same people as in the app. Anyone who can open a board can comment on it. A thread's author, or anyone who can edit the board, can resolve it. Only a comment's author can delete it.
+    a: Anyone who can open a board can comment on it, and a thread's author, or anyone who can edit the board, can resolve it, as in the app. Over the API only a comment's author can delete it; in the app, someone who can edit the board can delete other people's too.
   - q: Can I reply to a comment inside a doc?
     a: Yes, if you can edit the board, as in the app. You can also resolve threads there, and start one on words in a doc by quoting them.
   - q: Is the person I reply to told?

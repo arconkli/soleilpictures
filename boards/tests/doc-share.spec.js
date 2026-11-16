@@ -121,7 +121,7 @@ test.describe('a doc shared on its own', () => {
     // A comment, as this guest (the room checks who and what name).
     await ed.locator('p', { hasText: 'A quiet street' }).getByText('quiet', { exact: false }).first().dblclick();
     await bar(page).getByRole('button', { name: 'Comment', exact: true }).click();
-    await page.getByPlaceholder('Comment, then ⏎ to post').fill('Too quiet?');
+    await page.locator('.cmt-float-host textarea.cmt-input').fill('Too quiet?');
     await page.keyboard.press('Enter');
     await page.waitForTimeout(500);
     expect(await refusals(page)).toEqual([]);
@@ -137,27 +137,35 @@ test.describe('a doc shared on its own', () => {
     await expect(head(page).getByRole('button', { name: 'Comments, 1 open', exact: true })).toBeVisible();
     await head(page).getByRole('button', { name: 'Comments, 1 open', exact: true }).click();
     await expect(panel(page)).toBeVisible();
-    const card = panel(page).locator('.dl-th').first();
-    await expect(card).toContainText('“before dawn”');
-    await expect(card).toContainText('Rae Okafor');
-    // Someone else's thread: no Delete.
-    await expect(card.getByRole('button', { name: 'Delete thread' })).toHaveCount(0);
-    await card.getByRole('textbox', { name: /^Reply to/ }).fill('Not yet. Ten minutes.');
+    const row = panel(page).locator('button.cmt-list-row').first();
+    await expect(row).toContainText('“before dawn”');
+    await expect(row).toContainText('Rae Okafor');
+    await row.click();
+    const card = panel(page).locator('.cmt-thread.is-open');
+    // Someone else's thread: no Delete (a guest has no link to copy either,
+    // so there is no menu at all), and no Edit on their words.
+    await expect(card.getByRole('button', { name: 'Resolve' })).toBeVisible();
+    await expect(card.locator('.cmt-head').getByRole('button', { name: 'More' })).toHaveCount(0);
+    await expect(card.getByRole('button', { name: 'Edit' })).toHaveCount(0);
+    await card.locator('textarea.cmt-input').fill('Not yet. Ten minutes.');
     await page.keyboard.press('Enter');
-    await expect(card).toContainText('Not yet. Ten minutes.');
-    await expect(card.locator('.dl-cm').last()).toContainText('You');
+    await expect(card.locator('.cmt-row')).toHaveCount(2);
+    await expect(card.locator('.cmt-row').last()).toContainText('Not yet. Ten minutes.');
     await card.getByRole('button', { name: 'Resolve' }).click();
-    await expect(card).toContainText('Resolved by you');
+    await expect(card.locator('.cmt-resolved')).toContainText('Resolved by');
     await card.getByRole('button', { name: 'Reopen' }).click();
     await expect(card.getByRole('button', { name: 'Resolve' })).toBeVisible();
     // A thread of their own has its Delete.
     await editor(page).locator('p', { hasText: 'MARA checks' }).getByText('mirror', { exact: false }).first().dblclick();
     await bar(page).getByRole('button', { name: 'Comment', exact: true }).click();
-    await page.getByPlaceholder('Comment, then ⏎ to post').fill('Which mirror?');
+    await page.locator('.cmt-float-host textarea.cmt-input').fill('Which mirror?');
     await page.keyboard.press('Enter');
-    const mine = panel(page).locator('.dl-th', { hasText: 'Which mirror?' });
+    // It opens as a thread in the panel.
+    const mine = panel(page).locator('.cmt-thread.is-open', { hasText: 'Which mirror?' });
     await expect(mine).toBeVisible();
-    await expect(mine.getByRole('button', { name: 'Delete thread' })).toBeVisible();
+    await mine.locator('.cmt-head').getByRole('button', { name: 'More' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Delete conversation' })).toBeVisible();
+    await page.keyboard.press('Escape');
     await page.waitForTimeout(400);
     expect(await refusals(page)).toEqual([]);
     await expect(page.locator('.dsv-notice')).toHaveCount(0);

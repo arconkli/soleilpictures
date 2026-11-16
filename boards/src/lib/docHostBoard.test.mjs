@@ -40,7 +40,7 @@ test('the canvas and the docked pane pass the board they render', () => {
 test('the comment flows read the board from that scope', () => {
   const ed = read('../components/DocPageEditor.jsx');
   assert.ok((ed.match(/boardId: scope\?\.boardId \|\| null/g) || []).length >= 2, 'tagging + add-comment');
-  assert.match(ed, /<CommentInlinePopover[\s\S]*?boardId=\{scope\?\.boardId \|\| null\}/, 'replies');
+  assert.match(ed, /<CommentGutter[\s\S]*?boardId=\{scope\?\.boardId \|\| null\}/, 'the margin dots (what is unread)');
 });
 
 test('the save footer listens for the host board, and doc edits count as my saves', () => {

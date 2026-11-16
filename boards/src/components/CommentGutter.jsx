@@ -1,17 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { commentsMap, readComments } from '../lib/docState.js';
-import { shownAuthor } from '../lib/commentAuthor.js';
+import { fromDocThread } from '../lib/commentModel.js';
+import { commentBy } from '../lib/commentAuthor.js';
+import { useCommentSeen } from './comments/useCommentSeen.js';
+import { t as tr } from '@lingui/core/macro';
 
-// Right-margin layer that draws a soleil-gold dot per unresolved comment
-// thread on the active page. Click → opens the inline thread popover via
-// the parent's onOpenThread callback.
+// Right-margin layer that draws a dot per open comment thread on the active
+// page: neutral ink at rest, solid ink when there is something unread in it.
+// Each is a real button with a 24px hit area; pressing one (or Enter on it)
+// opens its thread through the parent's onOpenThread (id, { byKey }).
 //
 // Positioning: the gutter is absolute-positioned inside .doc-editor-wrap;
 // each dot's `top` is computed from editor.view.coordsAtPos() of the
 // comment mark's first occurrence on the page.
-export function CommentGutter({ ydoc, scope, pageId, editor, onOpenThread }) {
+export function CommentGutter({ ydoc, scope, pageId, editor, onOpenThread, currentUser = null, boardId = null, cardId = null }) {
   const [threads, setThreads] = useState([]);
   const [positions, setPositions] = useState({});
+  // On a page with no margin to spare (a phone, a narrow pane) the dots would
+  // fall off the side: there are none then, and the words themselves, which
+  // are tinted and open their thread, are the way in.
+  const gutterRef = useRef(null);
+  const [fits, setFits] = useState(true);
+  const { unread } = useCommentSeen({ userId: currentUser?.id || null, boardId, cardId });
+  const shaped = useMemo(() => new Map(threads.map((t) => [t.id, fromDocThread(t)])), [threads]);
 
   // Subscribe to comment-map changes.
   useEffect(() => {
@@ -48,6 +59,10 @@ export function CommentGutter({ ydoc, scope, pageId, editor, onOpenThread }) {
       // already scaled by the zoom. Divide it back out or every dot lands at
       // top×zoom² (visibly wrong at any zoom other than 100%).
       const z = wrap.offsetWidth ? wrapRect.width / wrap.offsetWidth : 1;
+      const g = gutterRef.current?.getBoundingClientRect();
+      const host = wrap.closest('.doc-surface')?.getBoundingClientRect();
+      // (the dot is the middle 8px of its 24px button)
+      if (g) setFits(g.right - 8 * z <= Math.min(window.innerWidth, host ? host.right : Infinity) + 0.5);
       const next = {};
       editor.state.doc.descendants((node, pos) => {
         if (!node.isText) return;
@@ -57,7 +72,7 @@ export function CommentGutter({ ydoc, scope, pageId, editor, onOpenThread }) {
           if (!ids.has(id) || next[id]) continue; // first occurrence per thread
           try {
             const coords = editor.view.coordsAtPos(pos);
-            next[id] = { top: (coords.top - wrapRect.top) / (z || 1) + 6 };
+            next[id] = { top: (coords.top - wrapRect.top) / (z || 1) - 2 };
           } catch {}
         }
         return true;
@@ -86,17 +101,28 @@ export function CommentGutter({ ydoc, scope, pageId, editor, onOpenThread }) {
   }, [editor, threads]);
 
   return (
-    <div className="comment-gutter">
-      {threads.map(t => (
-        <button
-          key={t.id}
-          data-thread={t.id}
-          className="comment-gutter-dot"
-          style={{ top: ((positions[t.id]?.top) ?? -9999) + 'px' }}
-          onClick={() => onOpenThread?.(t.id)}
-          title={`${shownAuthor(t.author) || ''} · ${(t.body || '').slice(0, 60)}`}
-        />
-      ))}
+    <div ref={gutterRef} className="comment-gutter">
+      {fits && threads.map((t) => {
+        const m = shaped.get(t.id);
+        const isNew = unread(m);
+        const mine = !!m?.root.authorId && m.root.authorId === currentUser?.id;
+        const words = String(m?.root.deleted ? tr`This comment was deleted.` : t.body || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+        // whose it is, as a phrase of its own (lib/commentAuthor.js), then
+        // one message around it
+        const whose = commentBy(m?.root.authorName, mine);
+        const label = isNew ? tr`${whose}: ${words} (unread)` : tr`${whose}: ${words}`;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            data-thread={t.id}
+            className={`comment-gutter-dot${isNew ? ' is-unread' : ''}`}
+            style={{ top: ((positions[t.id]?.top) ?? -9999) + 'px' }}
+            aria-label={label}
+            onClick={(e) => onOpenThread?.(t.id, { byKey: e.detail === 0 })}
+          />
+        );
+      })}
     </div>
   );
 }

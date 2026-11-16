@@ -42,7 +42,6 @@ import {
 } from '../lib/noteDocState.js';
 import { bodyHasText, htmlHasContent, htmlHasText } from '../lib/noteBody.js';
 import { useAddCommentFlow } from './AddCommentFlow.jsx';
-import { CommentInlinePopover } from './CommentInlinePopover.jsx';
 import { linkifyNoteHtml } from '../lib/noteLinkify.js';
 import { cardHeightForBody, cardHeightForContent } from '../lib/noteMeasure.js';
 import { ySyncPluginKey } from 'y-prosemirror';
@@ -79,7 +78,7 @@ const REMOTE_CACHE_DEBOUNCE_MS = 400;
 // vanished within a frame (NOTES-04). Modal hands focus back to the note when
 // it closes. The toolbar's own menus (.tob-menu, and its size presets'
 // .size-combo-tl) are portaled out of .tob, so they are named too.
-const EDIT_SESSION_UI = '.tob, .tob-menu, .size-combo-tl, .cp-pop, .ctx-menu, .entity-picker, .cand-pop, .inline-composer, .comment-inline-pop, .cfont';
+const EDIT_SESSION_UI = '.tob, .tob-menu, .size-combo-tl, .cp-pop, .ctx-menu, .entity-picker, .cand-pop, .cmt-float-host, .cmt-sheet-host, .cmt-sheet-scrim, .cmt-pop, .cfont';
 const inEditSessionUi = (el) => !!el?.closest?.(EDIT_SESSION_UI);
 
 // Card height the READ-ONLY note needs when its html carries link previews.
@@ -283,12 +282,13 @@ function NoteTiptapEditing({
   // Word-level comments, same stack as the doc editor: the CommentMark carries
   // the anchor (inside the fragment, so the range survives concurrent edits)
   // and the thread bodies live in a Y.Map on this card. Notes have no pages and
-  // no margin gutter — the highlighted text itself is the affordance.
+  // no margin gutter — the highlighted text itself is the affordance. Reading
+  // a thread is not this editor's: the canvas's one layer shows it for a note
+  // being read and a note being edited alike (comments/NoteCommentsLayer.jsx).
   const commentScope = useMemo(
     () => (ydoc && cardYMap ? noteCommentScope(ydoc, cardYMap) : null),
     [ydoc, cardYMap],
   );
-  const [openThread, setOpenThread] = useState(null); // { id, anchor } | null
 
   // Preview cards under the editor, from the live html cache (the write-through
   // below refreshes card.html, and the parent passes it back down).
@@ -331,7 +331,10 @@ function NoteTiptapEditing({
   const addComment = useAddCommentFlow({
     ydoc,
     scope: commentScope,
+    surface: 'note',
     activePageId: null,          // notes have no pages
+    // the new thread opens beside the note
+    onPosted: (id) => document.dispatchEvent(new CustomEvent('soleil-note-comments', { detail: { cardId, threadId: id } })),
     currentUser,
     getEditor: () => editorRef.current,
     workspaceId,
@@ -339,17 +342,8 @@ function NoteTiptapEditing({
     cardId,
   });
 
-  const onEditorClick = (e) => {
-    // Commented text opens its thread — the Google-Docs gesture, and the only
-    // affordance notes have (no margin gutter: a note card is small and rides
-    // the canvas zoom, so a fixed-size dot in the margin doesn't work).
-    const commentEl = e.target?.closest?.('.tt-comment[data-comment-id]');
-    if (commentEl) {
-      setOpenThread({ id: commentEl.dataset.commentId, anchor: commentEl.getBoundingClientRect() });
-      return;
-    }
-    onCandidateClick(e);
-  };
+  // (A press on commented words opens their thread: NoteCommentsLayer.)
+  const onEditorClick = (e) => onCandidateClick(e);
 
   const onCandidateClick = (e) => {
     const candEl = e.target?.closest?.('.tt-candidate[data-name]');
@@ -716,19 +710,6 @@ function NoteTiptapEditing({
     };
   }, [editor]);
 
-  // Deleting a thread must also strip its highlight, or the note keeps a dead
-  // underline pointing at nothing. CommentInlinePopover portals to <body>, so
-  // it can't call the editor directly — same window event the doc editor uses.
-  useEffect(() => {
-    if (!editor) return undefined;
-    const onRemove = (e) => {
-      const id = e.detail?.id;
-      if (id != null) { try { editor.commands.removeCommentById(id); } catch (_) {} }
-    };
-    window.addEventListener('soleil-remove-comment-mark', onRemove);
-    return () => window.removeEventListener('soleil-remove-comment-mark', onRemove);
-  }, [editor]);
-
   // Write-through card.html (+ auto-size) after real changes only. Nothing is
   // written on open: the open-time measure cut every "Show all" note back to
   // 480 and rewrote html nobody had edited.
@@ -785,12 +766,11 @@ function NoteTiptapEditing({
   // a popover, or the @-mention picker is open (clicking a row blurs the editor).
   const mentionOpenRef = useRef(false);
   mentionOpenRef.current = !!mention;
-  // The comment composer and the thread popover belong to this editing
-  // session: both portal to <body>, and both take focus (the composer focuses
-  // its textarea on mount). Treating that as "left the note" unmounted this
-  // surface and the composer with it, so a note comment could never be
-  // written (NOTES-03). While either is open, a blur never exits.
-  const commentUiOpen = !!addComment.node || !!openThread;
+  // The card a new comment is written in belongs to this editing session: it
+  // is portaled to <body> and takes focus. Treating that as "left the note"
+  // unmounted this surface and the card with it, so a note comment could
+  // never be written (NOTES-03). While it is open, a blur never exits.
+  const commentUiOpen = !!addComment.node;
   const commentUiOpenRef = useRef(false);
   commentUiOpenRef.current = commentUiOpen;
   // Leaving re-derives the text cache only when there is a reason: a change
@@ -873,7 +853,7 @@ function NoteTiptapEditing({
     const onDown = (e) => {
       const t = e.target;
       clickedAwayRef.current = !(
-        t?.closest?.('.inline-composer') || t?.closest?.('.comment-inline-pop')
+        t?.closest?.('.cmt-float-host, .cmt-sheet-host, .cmt-sheet-scrim, .cmt-pop')
         || t?.closest?.('.entity-picker') || t?.closest?.('.feedback-bg')
         || (editor?.view?.dom && editor.view.dom.contains(t))
       );
@@ -992,14 +972,6 @@ function NoteTiptapEditing({
         )}
       </div>
       {addComment.node}
-      {openThread && commentScope && (
-        <CommentInlinePopover
-          ydoc={ydoc} scope={commentScope} threadId={openThread.id}
-          anchor={openThread.anchor} currentUser={currentUser}
-          workspaceId={workspaceId} boardId={boardId} cardId={cardId}
-          onClose={() => setOpenThread(null)}
-        />
-      )}
       {candidatePrompt && (
         <CandidatePromptPopover
           anchor={candidatePrompt.anchor}

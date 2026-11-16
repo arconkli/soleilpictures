@@ -5,7 +5,8 @@
 // isn't beauty — it's that every row is identifiable "from its little mark"
 // instead of falling to a generic glyph.
 import { useMemo, useState } from 'react';
-import { ShapeGlyph, KindIcon } from '../cards.jsx';
+import { ShapeGlyph } from '../cards.jsx';
+import { KindIcon } from '../KindIcon.jsx';
 import { Icon } from '../Icon.jsx';
 import { Link as LinkIcon, StickyNote as NoteIcon } from '../../lib/icons.js';
 import { contrastRatio, parseColor } from '../../lib/readableColor.js';

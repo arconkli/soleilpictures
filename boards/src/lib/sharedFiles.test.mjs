@@ -52,7 +52,8 @@ test('the /f/ page reads its media through the scoped resolver, not a page-wide 
   // Inside the app: a dialog over the app that stands down under anything above it.
   assert.match(page, /role="dialog" aria-modal="true" aria-label=\{label\}/);
   assert.match(page, /modalGuard\.isTopModal && !modalGuard\.isTopModal\(modalRef\.current\)/);
-  assert.match(page, /else if \(name === 'escape' && overlay\) onCloseRef\.current\?\.\(\);/, 'the player hands Escape on');
+  // Escape puts the active comment away first; with none, the player hands it on.
+  assert.match(page, /else if \(name === 'escape'\) \{\s+if \(activeIdRef\.current\) setActiveId\(null\);\s+else if \(overlay\) onCloseRef\.current\?\.\(\);/, 'the player hands Escape on');
   // A signed-in open is marked, once.
   assert.match(page, /if \(r\.signed_in && !markedRef\.current\) \{\s+markedRef\.current = true;\s+Promise\.resolve\(api\.markFileShareOpened\?\.\(token\)\)/);
   // The page offers the app only behind the Shared page's hold.
@@ -98,5 +99,5 @@ test('the in-app viewer hands its player the dialog’s modal handle', () => {
   const page = readFileSync(new URL('../components/fileShare/FileSharePage.jsx', import.meta.url), 'utf8');
   assert.match(page, /const modalRef = hostRef \|\| ownRef;/);
   assert.match(page, /modalHandle=\{overlay \? hostModalRef : undefined\}/);
-  assert.match(page, /wide=\{showRail\} action=\{headerActions\}\s+hostRef=\{hostModalRef\}>/);
+  assert.match(page, /wide=\{showRail\} action=\{headerActions\}\s+hostRef=\{hostModalRef\} escFirst=\{escFirst\}>/);
 });

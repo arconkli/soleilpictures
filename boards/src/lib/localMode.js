@@ -201,6 +201,14 @@ export function isToolbarQaMode() {
   return new URLSearchParams(window.location.search).get('toolbarqa') === '1';
 }
 
+// Comments QA (?commentqa=1): every state of the shared comment parts
+// (components/comments/), as the mockup's states sheet and live
+// (local/CommentQaHarness.jsx). &theme=light|dark, &part=sheet.
+export function isCommentQaMode() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('commentqa') === '1';
+}
+
 // First-run setup QA (?setupqa=1): the real AuthGate, TierRouter and setup
 // steps, and the workspace link's banner and join card, over an in-memory fake
 // of the Supabase client (local/SetupQaHarness.jsx).
@@ -290,7 +298,7 @@ const QA_MODE_PARAMS = [
   'local', 'adminpreview', 'docqa', 'noteqa', 'thumbqa', 'dndqa', 'arrowqa',
   'alignqa', 'gridqa', 'schedqa', 'tourqa', 'revealqa', 'imgeditqa',
   'presenceqa', 'shareqa', 'roqa', 'msgqa', 'setupqa', 'sidebarqa', 'importqa',
-  'uploadqa', 'toolbarqa', 'togetherqa', 'loadqa',
+  'uploadqa', 'toolbarqa', 'togetherqa', 'loadqa', 'commentqa',
 ];
 export function isAnyQaMode() {
   if (!import.meta.env.DEV || typeof window === 'undefined') return false;

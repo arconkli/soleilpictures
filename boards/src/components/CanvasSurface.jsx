@@ -108,7 +108,7 @@ import { endActiveNoteEdit, getActiveNoteActions } from '../lib/noteEditorRegist
 import { ColorPicker } from './ColorPicker.jsx';
 import { useFeedback } from './AppFeedback.jsx';
 import {
-  MessageCircle, MessageCircleOff,
+  MessageCircle,
   MousePointer2, Hand, NotePencil, Image as ImageIcon, Scribble, ArrowRight, Plus, Question,
   Paperclip, FileText, Square, Palette, Link, ListChecks, Upload, Clapperboard, GridFour, GridNine, Browsers, ArrowSquareOut, Folder, FolderOpen,
   Calendar as CalendarPh, X, Minus, Eye, Check, Sparkle,
@@ -228,14 +228,21 @@ import { detectEmbed } from '../lib/oembed.js';
 import { relativeTimeShort } from '../lib/relativeTime.js';
 import { exportBoardAsPng, exportBoardAsPdf } from '../lib/exportBoard.js';
 import { safeFileName } from '../lib/safeFileName.js';
-import { CanvasCommentLayer, CommentArchivePopover } from './CanvasComment.jsx';
+import { CanvasCommentsIsland } from './comments/CanvasCommentsIsland.jsx';
+// The pins, the open conversation, and asking for each ahead of its moment:
+// the pins are a chunk fetched as the canvas mounts, the parts a press opens
+// another (comments/canvasPartsLazy.jsx). What the canvas needs of comments
+// at once is lib/commentCanvas.js.
+import { CanvasCommentCard, CanvasCommentPins, preloadCommentParts, preloadCommentPins } from './comments/canvasPartsLazy.jsx';
+import { inCommentSurface, COMMENT_SURFACE_SELECTOR, createCommentUi, readShowComments, writeShowComments, findCommentThread, threadAnchor, draftThread, panToAnchor } from '../lib/commentCanvas.js';
+import { copiedMentions } from '../lib/commentColumns.js';
+import { commentColumn } from '../lib/commentsApi.js';
+import { peekOpenComment, takeOpenComment, subscribeOpenComment, setCommentBoardSynced } from '../lib/commentOpen.js';
 import { useCanvasComments } from '../hooks/useCanvasComments.js';
 import { CanvasVoteLayer } from './CanvasVoteCard.jsx';
 import { useVoteCards } from '../hooks/useVoteCards.js';
 import { addVoteCard } from '../lib/voteCardsApi.js';
 import * as userProfiles from '../lib/userProfiles.js';
-import { addComment, updateComment, unhideAllOnBoard } from '../lib/commentsApi.js';
-import { pickCommentOffset, pickCommentOffsetForGroup } from '../lib/commentPlacement.js';
 import { TagPicker } from './TagPicker.jsx';
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags.js';
 import { useTagSuggestions, acceptCardSuggestion, dismissCardSuggestion } from '../hooks/useTagSuggestions.js';
@@ -755,6 +762,15 @@ function latticeOf(tree) {
   return null;
 }
 
+// A note with comments on its words lists them from its menu: "Comments (n)"
+// (the list is comments/NoteCommentsLayer.jsx's).
+function noteWordComments(ydoc, c, items) {
+  let n = 0;
+  if (c.kind === 'note') ydoc?.getMap('cards').get(c.id)?.get('docComments')?.forEach?.((v, k) => { if (!k.includes('~')) n += 1; });
+  if (n) items.push({ id: 'note-comments', label: plural(n, { one: 'Comments (#)', other: 'Comments (#)' }),
+    run: () => document.dispatchEvent(new CustomEvent('soleil-note-comments', { detail: { cardId: c.id, list: true } })) });
+}
+
 export function CanvasSurface({
   board, boards, boardsReady = true, cards, arrows, strokes, groups = [],
   gridTemplates = {},      // id → { id, name, layout }  — shared Grid layouts
@@ -1017,6 +1033,10 @@ export function CanvasSurface({
   // the pair's last anchor and the wrapper's rect, whether a gesture is live,
   // and a glide back off a zoom limit in flight.
   const touchCamRef = useRef({ pts: new Map(), claimed: new Set(), anchor: null, rect: null, live: false, springing: null, kind: null, z0: 1, p0: { x: 0, y: 0 } });
+  // Who follows the camera without a render: the open comment card and the
+  // pins' size (components/comments/). Told from applyCanvasTransform.
+  const cameraSubsRef = useRef(new Set());
+  const tellCameraSubs = () => { cameraSubsRef.current.forEach((f) => { try { f(); } catch (_) { /* a follower never stops the camera */ } }); };
   // Publish the canvas scale DURING render (idempotent module write), before
   // any image card renders, so first-paint tier selection (R2Image
   // pickInitialTier) sees the real zoom instead of the default 1.0. The
@@ -1203,6 +1223,7 @@ export function CanvasSurface({
       }
     }
     if (inFrame) drawGroundNow(); else scheduleGroundDraw();
+    tellCameraSubs();
   };
   // ── Viewport culling state (D1) ──────────────────────────────────────────
   // visibleIds = Set of mounted card ids: everything inside the ADD band
@@ -1462,6 +1483,7 @@ export function CanvasSurface({
         const r = e.contentRect;
         wrapWHRef.current = { w: r.width, h: r.height };
       }
+      tellCameraSubs();
       holdBoardStill();
       scheduleVisibleRecompute();
       measureGround();
@@ -3121,9 +3143,13 @@ export function CanvasSurface({
     if (!deepLink) {
       try {
         const q = new URLSearchParams(window.location.search);
-        deepLink = q.has('card') || q.has('cards');
+        // (?comment= is a comment link App has not read yet)
+        deepLink = q.has('card') || q.has('cards') || q.has('comment');
       } catch (_) {}
     }
+    // A comment link or a comment notice waiting for this cluster
+    // (lib/commentOpen.js) is a deep link too: the camera goes to the comment.
+    if (!deepLink) deepLink = peekOpenComment()?.boardId === board.id;
     const plan = planHeldOpen({
       uid: placeHeldRef.current?.uid,
       cards,
@@ -6314,7 +6340,7 @@ export function CanvasSurface({
   useEffect(() => {
     const onDown = (e) => {
       if (e.code !== 'Space') return;
-      if (isEditorTarget(e)) return;
+      if (isEditorTarget(e) || inCommentSurface(e.target)) return;   // Space presses a comment's own button
       e.preventDefault();
       setSpaceDown(true);
     };
@@ -6404,6 +6430,7 @@ export function CanvasSurface({
       if (boardKeysBlocked()) return;
       if (hasSplit && getActivePane() !== paneId) return;
       if (isEditorTarget(e) || inInfoDrawer(e)) return;
+      if (inCommentSurface(e.target)) return;   // keys typed in a comment part are its own
       // The Messages panel's keys are its own: E edits your focused message.
       if (e.target?.closest?.('.msg-panel')) return;
       e.preventDefault();
@@ -6885,7 +6912,7 @@ export function CanvasSurface({
   useEffect(() => {
     const t = touchCamRef.current;
     // Controls that float over the board keep their own touches.
-    const SKIP = '.cnv-tools, .cnv-tool, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .modal-bg, .tob, .sel-menu';
+    const SKIP = '.cnv-tools, .cnv-tool, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .modal-bg, .tob, .sel-menu, .cnv-comments-eye, .cmt-list, .cmt-canvas-card';
     const pairAnchor = () => {
       const r = t.rect || { left: 0, top: 0 };
       const pts = [];
@@ -7197,12 +7224,16 @@ export function CanvasSurface({
     (x, y, e) => {
       // Two fingers down is a pinch; a still pair must not open a menu (or buzz).
       if (touchCamRef.current.live) return false;
-      // What keeps its own menu on a right-click: the comments eye's archive,
-      // a group's label, an arrow, a tag chip. A hold there is that
-      // right-click. Android raises the contextmenu itself on a hold; iOS
-      // never does, so there the canvas menu used to open instead. Letting go
-      // then must not also click it (the eye would hide every comment).
-      const own = e.target.closest?.('.cnv-comments-eye, .group-label, .card-tag-chip, [data-arrow-idx] path');
+      // A hold on a comment part (a pin, the island, the list, the open
+      // conversation) is not a hold on the canvas: no menu, and the tap that
+      // follows is still the pin's own. A hold is also how a point comment's
+      // pin starts to be dragged.
+      if (e.target.closest?.(COMMENT_SURFACE_SELECTOR)) return false;   // and no buzz: nothing opened
+      // What keeps its own menu on a right-click: a group's label, an arrow,
+      // a tag chip. A hold there is that right-click. Android raises the
+      // contextmenu itself on a hold; iOS never does, so there the canvas
+      // menu used to open instead. Letting go then must not also click it.
+      const own = e.target.closest?.('.group-label, .card-tag-chip, [data-arrow-idx] path');
       if (own) {
         touchPressRef.current?.abort();
         swallowNextClick({ held: true });
@@ -7497,14 +7528,18 @@ export function CanvasSurface({
       if (anchorIds.length && workspaceId && currentUser?.id) {
         // From the board the cards were COPIED from — for a cross-cluster
         // paste that isn't this one, and querying this one found nothing.
-        const { data: srcComments } = await supabase
+        const { data: srcComments, error: srcErr } = await supabase
           .from('comments')
           .select('*')
           .eq('board_id', clipboardOrigin() || board.id)
           .is('deleted_at', null)
           .in('anchor_kind', ['card', 'group'])
           .in('anchor_id', anchorIds);
+        if (srcErr) throw srcErr;
         if (srcComments?.length) {
+          // A copy that could not be written is counted and said once below.
+          let lost = 0; let lostWhy = null;
+          const hasMentions = commentColumn('mentions');
           // Build new rows. Replies need a new reply_to that points
           // at the cloned parent — collect the parent map.
           const cmtIdMap = {};
@@ -7519,7 +7554,7 @@ export function CanvasSurface({
           for (const c of tops) {
             const newAnchorId = idMap[c.anchor_id] || groupMap[c.anchor_id];
             if (!newAnchorId) continue;
-            const { data: ins } = await supabase.from('comments').insert({
+            const { data: ins, error: insErr } = await supabase.from('comments').insert({
               workspace_id: c.workspace_id,
               board_id: board.id,
               author: currentUser.id,
@@ -7530,7 +7565,13 @@ export function CanvasSurface({
               anchor_y: c.anchor_y,
               offset_x: c.offset_x || 0,
               offset_y: c.offset_y || 0,
+              // A copy keeps the time its original was written, so the
+              // database reads it as old: no notices for it, no reopening.
+              created_at: c.created_at,
+              // …and who its words "@" (where the table has that column)
+              ...copiedMentions(c, hasMentions),
             }).select('id').single();
+            if (insErr) { lost += 1 + replies.filter(r => r.reply_to === c.id).length; lostWhy = lostWhy || insErr; }
             if (ins?.id) cmtIdMap[c.id] = ins.id;
           }
           // Second pass: replies — only insert if their parent was
@@ -7540,7 +7581,7 @@ export function CanvasSurface({
             if (!newParentId) continue;
             const newAnchorId = idMap[r.anchor_id] || groupMap[r.anchor_id];
             if (!newAnchorId) continue;
-            await supabase.from('comments').insert({
+            const { error: repErr } = await supabase.from('comments').insert({
               workspace_id: r.workspace_id,
               board_id: board.id,
               author: currentUser.id,
@@ -7552,12 +7593,24 @@ export function CanvasSurface({
               anchor_y: r.anchor_y,
               offset_x: r.offset_x || 0,
               offset_y: r.offset_y || 0,
+              created_at: r.created_at,   // as above: a copy, not a new reply
+              ...copiedMentions(r, hasMentions),
+            });
+            if (repErr) { lost += 1; lostWhy = lostWhy || repErr; }
+          }
+          if (lost) {
+            console.warn('paste comments failed', lostWhy);
+            const why = String(shownError(lostWhy));
+            feedback.toast({
+              type: 'error', code: 'comment_copy_failed',
+              message: plural(lost, { one: `Couldn't copy a comment with the cards: ${why}`, other: `Couldn't copy # comments with the cards: ${why}` }),
             });
           }
         }
       }
     } catch (cmtErr) {
       console.warn('paste comments failed', cmtErr);
+      { const why = String(shownError(cmtErr)); feedback.toast({ type: 'error', code: 'comment_copy_failed', message: tr`Couldn't copy the comments with the cards: ${why}` }); }
     }
   }, [mutators, ydoc, board.id, workspaceId, currentUser?.id]);
 
@@ -7650,6 +7703,9 @@ export function CanvasSurface({
       // Same pane arbitration as the keydown listener — a split view must not
       // paste the clipboard onto both boards.
       if (hasSplit && getActivePane() !== paneId) return;
+      // The caret is in a comment part (the open conversation, the list, a
+      // pin): a paste there is not one onto the canvas.
+      if (inCommentSurface(e.target) || inCommentSurface(document.activeElement)) return;
       // 0) A grid cell is focused → paste anything INTO that cell (auto-formatted:
       //    image/file → upload, URL → link, text → text). This runs BEFORE the
       //    isEditorTarget guard on purpose: clicking a cell sets focus STATE but not
@@ -7817,6 +7873,12 @@ export function CanvasSurface({
       // BOTH boards (see lib/activePane.js).
       if (hasSplit && getActivePane() !== paneId) return;
       if (isEditorTarget(e)) return;
+      // A comment part has the caret (the open conversation or its sheet, the
+      // list, a pin, one of their menus): its keys are its own. A focused
+      // button there is not an editable target, so Backspace on Resolve or on
+      // a list row deleted the selected cards behind it, the arrows nudged
+      // them and the letters switched tools.
+      if (inCommentSurface(e.target)) return;
       const cmd = e.metaKey || e.ctrlKey;
 
       if (cmd && e.key === 'z' && !e.shiftKey) {
@@ -7927,9 +7989,7 @@ export function CanvasSurface({
       if (!cmd && !e.altKey && e.key !== 'Escape' && boxKeyRef.current?.(e)) return;
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        // Already consumed: an open comment thread deletes ITSELF on Delete
-        // (CanvasComment's document listener runs before this window one).
-        // Acting too deleted the selected cards with it.
+        // Already consumed by something nearer the key.
         if (e.defaultPrevented) return;
         if (selected.size > 0 || selectedStrokes.size > 0 || selectedArrows.size > 0) {
           e.preventDefault();
@@ -8588,6 +8648,15 @@ export function CanvasSurface({
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onCancel);
       startPan(e);
+      return;
+    }
+    // A view-only person placing a comment (armed from the + menu): the card
+    // they press is what it is about. Editors reach the same branch below.
+    if (!canEdit && annotPlacing === 'comment' && canComment) {
+      e.stopPropagation();
+      e.preventDefault();
+      promptComment({ kind: 'card', id: c.id });
+      setAnnotPlacing(null);
       return;
     }
     // View-only board: kill the drag before it starts so the card doesn't
@@ -10115,8 +10184,15 @@ export function CanvasSurface({
           });
         }
       }
+      // People who can only view may still comment.
+      if (!multi && canComment) {
+        annotateItems.push({ id: 'comment', label: tr`Add comment`,
+          run: () => promptComment({ kind: 'card', id: c.id }) });
+      }
+      if (!multi && !isPublic) noteWordComments(ydoc, c, annotateItems);
       return composeMenuSections([
         { items: openItems },
+        { header: SECTION.ANNOTATE, items: annotateItems },
         { items: copyItems },
         { items: metaItems },
       ]);
@@ -10543,6 +10619,7 @@ export function CanvasSurface({
     if (!multi) {
       annotateItems.push({ id: 'comment', label: tr`Add comment`,
         run: () => promptComment({ kind: 'card', id: c.id }) });
+      if (!isPublic) noteWordComments(ydoc, c, annotateItems);
       annotateItems.push({ id: 'vote', label: tr`Add vote to card`,
         run: () => addVoteCardAt({ kind: 'card', id: c.id }) });
       annotateItems.push({ id: 'tag', label: tr`Tag…`,
@@ -10857,7 +10934,7 @@ export function CanvasSurface({
     if (document.body.dataset.tourActive === '1' || document.body.dataset.tourVariant) return;
     if (selectedTool !== 'select') return;   // a place tool handles its own click
     // Clicks on UI chrome / cards are not a "make a card here" gesture.
-    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .canvas-comment, .comment-archive-pop, .cnv-comments-eye, .board-tags-strip, .card-tags-strip, .readonly-banner')) return;
+    if (e.target.closest('.card, .cnv-tool, .cnv-tools, .cnv-add-menu, .cnv-tpl-panel, .cnv-zoom, .inbox, .ctx-menu, .cnv-hint, .cnv-empty-tiles, .cnv-quick-add, .modal-bg, .tob, .cmt-pin, .cmt-canvas-card, .cmt-list, .cnv-comments-eye, .board-tags-strip, .card-tags-strip, .readonly-banner')) return;
     // A read-only viewer's double-click to create dies here — surface it (the
     // toast self-silences for public/share viewers) and record the block.
     if (!canEdit) { showEditBlockedToast(); noteCreateBlocked('read_only', 'dblclick'); return; }
@@ -11638,7 +11715,7 @@ export function CanvasSurface({
     // (Cut / Copy / Paste, spellcheck). Notes already got this in
     // onCardContextMenu; these got Add / Paste / Select all instead.
     if (isEditorPointerTarget(e)) return;
-    if (e.target.closest('.card, .cnv-tool, .cnv-add-menu, .cnv-zoom, .inbox, .tob')) return;
+    if (e.target.closest('.card, .cnv-tool, .cnv-add-menu, .cnv-zoom, .cnv-comments-eye, .inbox, .tob')) return;
     e.preventDefault();
     // A finger's press-and-hold already opened this menu through
     // useLongPress; Android's contextmenu would open it a second time.
@@ -11750,11 +11827,14 @@ export function CanvasSurface({
     if (bgCtx.groupMenu) {
       const { id: gid, name: gname } = bgCtx.groupMenu;
       const g = groupById?.[gid];
-      const items = [
+      const items = canComment ? [
         { id: 'group-comment', label: tr`Add comment to group`,
           run: () => promptComment({ kind: 'group', id: gid }) },
-      ];
-      if (g) {
+      ] : [];
+      // someone who can only view gets the comment and the group's info
+      if (g && !canEdit) {
+        items.push({ id: 'group-info', label: tr`Group info`, run: () => openInfo({ boardId: board.id, groupId: gid }) });
+      } else if (g) {
         items.push({ id: 'group-tag', label: tr`Tag group…`,
           run: () => {
             const r = { left: bgCtx.x, top: bgCtx.y, bottom: bgCtx.y + 4, right: bgCtx.x + 4 };
@@ -11835,7 +11915,13 @@ export function CanvasSurface({
         } }]
       : [];
     if (!canEdit) {
+      // People who can only view may still comment, here where they pressed.
+      const at = (bgCtx.open && Number.isFinite(bgCtx.x) && Number.isFinite(bgCtx.y))
+        ? clientToCanvas(bgCtx.x, bgCtx.y)
+        : (bgCtx.canvasPos || lastMouseCanvasRef.current);
       return [
+        ...(canComment && at ? [{ id: 'comment', label: tr`Add comment`, icon: MessageCircle,
+          run: () => promptComment({ kind: 'point', x: at.x, y: at.y }) }] : []),
         { id: 'selectall', label: tr`Select all`, shortcut: modShortcut('A'), run: selectAll },
         ...selectSome,
         clusterInfo,
@@ -12370,19 +12456,24 @@ export function CanvasSurface({
   useEffect(() => () => clearTimeout(autotagTimerRef.current), []);
 
   // ── Comments ───────────────────────────────────────────────────────────
+  // Live anywhere-comments, drawn as pins on what they are about
+  // (components/comments/CanvasCommentPins.jsx). The open conversation and
+  // the list behind the comments island sit over the canvas.
+  // The pins are a chunk of their own: asked for here, as the canvas mounts
+  // and alongside the comments themselves, so both are in by the time there
+  // is a pin to draw; and, at the next idle moment, the overlay a toast is
+  // drawn in, so "Comments couldn't load" can be said when the connection has
+  // gone by the first press. A public view has no comments and asks for none.
+  useEffect(() => { if (!isPublic) preloadCommentPins(); }, [isPublic]);
   // Live anywhere-comments. Bubbles render anchored to cards / groups /
   // empty-canvas points; a right-click menu item shows an inline draft
   // input (no popup) at the click position.
   const { comments, removeLocally: removeCommentLocally, removeByAnchorIds: removeCommentsByAnchorIds,
-          upsertLocally: upsertCommentLocally,
+          upsertLocally: upsertCommentLocally, loaded: commentsLoaded, failed: commentsFailed,
           viewsByRootId: commentViewsByRootId, markViewed: markCommentViewed } = useCanvasComments(board?.id, { enabled: !isPublic });
   // Live vote cards — a separate annotation type sharing the comment
-  // anchoring/drag/hide machinery. They hide with the comments eye toggle
-  // (CanvasVoteLayer gets layerVisible={commentsVisible}).
+  // anchoring/drag machinery. The comments switch does not hide them.
   const { voteCards, removeLocally: removeVoteLocally } = useVoteCards(board?.id, { enabled: !isPublic });
-  // Inline-draft state. When the user picks "Add comment" from a
-  // right-click menu, we set commentDraft to the anchor + viewport
-  // position; CanvasCommentLayer renders an inline draft input there.
   // A comment pinned to a card that's waiting in Files (lib/placement.js) has
   // nothing on the canvas to sit by — it isn't drawn until the card is placed.
   const commentsOnBoard = useMemo(() => {
@@ -12397,43 +12488,34 @@ export function CanvasSurface({
     const off = new Set((everyCard || []).filter(isUnplaced).map((c) => c.id));
     return voteCards.filter((v) => !(v?.anchor_kind === 'card' && off.has(v.anchor_id)));
   }, [voteCards, everyCard, unplacedCount]);
-  const [commentDraft, setCommentDraft] = useState(null);
-  // Master comments-visibility toggle. Default ON — when the user
-  // turns it off, the entire comment layer disappears from the canvas.
-  // Persists per-tab via sessionStorage. Right-clicking the toggle
-  // opens an "archive" popover listing both resolved and hidden
-  // comments with reopen/unhide actions, so users have a direct
-  // surface to recover comments without leaving the board view.
-  const [commentsVisible, setCommentsVisible] = useState(() => {
-    try { return sessionStorage.getItem('soleil.boards.commentsVisible') !== '0'; }
-    catch (_) { return true; }
-  });
-  const toggleCommentsVisible = () => {
-    setCommentsVisible(v => {
-      const next = !v;
-      try { sessionStorage.setItem('soleil.boards.commentsVisible', next ? '1' : '0'); }
-      catch (_) {}
-      // Going OFF → ON is "show all" — also un-hide any comments
-      // dismissed via the per-bubble Hide action so they actually
-      // come back, not just the layer's visibility. Best-effort:
-      // log but don't toast on failure (RLS may filter some rows).
-      if (next && board?.id) {
-        unhideAllOnBoard(board.id).catch(err => {
-          console.warn('[comments] unhideAllOnBoard failed', err);
-        });
+  // Which conversation is open, which row the list points at, a comment being
+  // started: a small store of its own (lib/commentCanvas.js), so opening a pin
+  // never re-renders the canvas. A new one per cluster.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const commentUi = useMemo(() => createCommentUi(), [board?.id]);
+  // Who is reading, for unread and "For you": the signed-in person, by id alone
+  // where the surface was given no profile for them.
+  const commentMe = useMemo(() => (currentUser?.id ? currentUser : (userId ? { id: userId } : null)), [currentUser, userId]);
+  // The camera as the comment parts read it: live, in the canvas view's px.
+  const commentView = useMemo(() => ({
+    get: () => {
+      let { w, h } = wrapWHRef.current;
+      if (!w || !h) {
+        const r = wrapRef.current?.getBoundingClientRect?.();
+        w = r?.width || 0; h = r?.height || 0;
       }
-      return next;
-    });
-  };
-  const [commentArchive, setCommentArchive] = useState(null); // { x, y } when open
-  // Counts for the eye-button badge / popover header.
-  const visibleCommentCount  = (comments || []).filter(c => !c.resolved && !c.hidden && !c.reply_to).length;
-  const resolvedCommentCount = (comments || []).filter(c => c.resolved && !c.reply_to).length;
-  const hiddenCommentCount   = (comments || []).filter(c => c.hidden && !c.resolved && !c.reply_to).length;
-  // Open the inline draft. The viewport position is computed from the
-  // anchor's canvas coords so the draft input sits exactly where the
-  // resulting comment bubble will appear. No popup modal — type
-  // directly on the canvas, Enter to post, Escape to cancel.
+      return { pan: panRef.current, zoom: zoomRef.current, w, h };
+    },
+    subscribe: (f) => { cameraSubsRef.current.add(f); return () => cameraSubsRef.current.delete(f); },
+  }), []);
+  // "Show comments on the canvas": this person's own switch, kept by their
+  // browser per cluster. It changes what they see and writes nothing shared.
+  const [commentsVisible, setCommentsVisibleState] = useState(() => readShowComments(userId, board?.id));
+  useEffect(() => { setCommentsVisibleState(readShowComments(userId, board?.id)); }, [userId, board?.id]);
+  const setCommentsVisible = useCallback((on) => {
+    setCommentsVisibleState(!!on);
+    writeShowComments(userId, board?.id, !!on);
+  }, [userId, board?.id]);
   // Drop a vote card immediately at the given anchor (no draft — a vote's
   // question label is optional and editable on the card afterward). Same
   // anchor descriptor shape as promptComment.
@@ -12445,94 +12527,23 @@ export function CanvasSurface({
       feedback.toast({ type: 'error', code: 'vote_add_failed', message: tr`Add vote failed: ${ph({ reason: String(shownError(err)) })}` });
     }
   };
+  // Anyone signed in who can see the cluster may comment on it, view-only
+  // people included (the database lets them: can_comment_board is
+  // can_read_board). The signed-out public page has no comments.
+  const canComment = !isPublic && !!userId && !!board?.id && !!(board?.workspace_id || workspaceId);
+  // Start a comment on a card, a group, a point or the cluster: its pin lands
+  // there and the comment card opens beside it with an empty box
+  // (CanvasCommentCard writes the row). Comments this person had switched off
+  // come back on: they are about to write one.
   const promptComment = (anchor) => {
-    if (!workspaceId || !board?.id || !userId) return;
-    let cx, cy;
-    if (anchor.kind === 'card') {
-      const b = resolveCardBBox?.(anchor.id);
-      if (b) { cx = b.x + b.w + 8; cy = b.y - 8; }
-      else   { cx = 100; cy = 100; }
-    } else if (anchor.kind === 'group') {
-      const b = resolveGroupBBox?.(anchor.id);
-      if (b) { cx = b.x + b.w + 8; cy = b.y - 8; }
-      else   { cx = 100; cy = 100; }
-    } else if (anchor.kind === 'point') {
-      cx = anchor.x; cy = anchor.y;
-    } else {
-      cx = 100; cy = 100;
-    }
-    setCommentDraft({ anchor, canvasPos: { x: cx, y: cy } });
+    if (!canComment) return;
+    if (!commentsVisible) setCommentsVisible(true);
+    commentUi.set({ draft: { anchor }, openId: null, hoverId: null, flashRowId: null });
   };
-  const submitCommentDraft = async (body) => {
-    if (!commentDraft) return;
-    const trimmed = (body || '').trim();
-    if (!trimmed) { setCommentDraft(null); return; }
-    // For card / group anchors, find a perimeter spot that doesn't
-    // collide with neighbouring cards or already-placed comments.
-    let offset = { offsetX: 0, offsetY: 0 };
-    try {
-      const a = commentDraft.anchor;
-      if (a.kind === 'card') {
-        const target = resolveCardBBox(a.id);
-        if (target) {
-          const others = (cards || []).filter(c => c.id !== a.id)
-            .map(c => ({ x: c.x, y: c.y, w: c.w, h: c.h }));
-          const placed = (comments || [])
-            .filter(c => !c.hidden && !c.reply_to)
-            .map(c => commentRectFor(c, resolveCardBBox, resolveGroupBBox))
-            .filter(Boolean);
-          offset = pickCommentOffset({ target, others, placed });
-        }
-      } else if (a.kind === 'group') {
-        const target = resolveGroupBBox(a.id);
-        if (target) {
-          const others = (cards || []).map(c => ({ x: c.x, y: c.y, w: c.w, h: c.h }));
-          const placed = (comments || [])
-            .filter(c => !c.hidden && !c.reply_to)
-            .map(c => commentRectFor(c, resolveCardBBox, resolveGroupBBox))
-            .filter(Boolean);
-          offset = pickCommentOffsetForGroup({ groupBBox: target, others, placed });
-        }
-      }
-    } catch (_) { /* fall through with zero offset */ }
-    try {
-      const row = await addComment({
-        workspaceId, boardId: board.id, author: userId,
-        body: trimmed, anchor: commentDraft.anchor,
-        offsetX: offset.offsetX, offsetY: offset.offsetY,
-      });
-      upsertCommentLocally(row);   // shown now, not after the realtime refetch
-      setCommentDraft(null);
-    } catch (err) {
-      // The draft stays open with its text so a retry is one press; clearing
-      // it here (in a finally) threw away what was typed (SHARE-11).
-      feedback.toast({ type: 'error', code: 'comment_post_failed', message: tr`Comment failed: ${ph({ reason: String(shownError(err)) })} — your text is still there.` });
-    }
-  };
-  // Helper: compute a comment's canvas-space rect for collision-avoidance.
-  const commentRectFor = (c, resolveCard, resolveGroup) => {
-    const W = 240, H = 76;
-    if (c.anchor_kind === 'card') {
-      const b = resolveCard?.(c.anchor_id);
-      if (!b) return null;
-      const x = b.x + b.w + 8 + (c.offset_x || 0);
-      const y = b.y - 8 + (c.offset_y || 0);
-      return { x, y, w: W, h: H };
-    }
-    if (c.anchor_kind === 'group') {
-      const b = resolveGroup?.(c.anchor_id);
-      if (!b) return null;
-      const x = b.x + b.w + 8 + (c.offset_x || 0);
-      const y = b.y - 8 + (c.offset_y || 0);
-      return { x, y, w: W, h: H };
-    }
-    if (c.anchor_kind === 'point') {
-      return { x: (c.anchor_x || 0) + (c.offset_x || 0),
-               y: (c.anchor_y || 0) + (c.offset_y || 0),
-               w: W, h: H };
-    }
-    return null;
-  };
+  // The comment card is fetched ahead of its press: when a menu that offers
+  // "Add comment" opens, and when the comment tool is picked.
+  const commentIntent = canComment && (ctx.open || bgCtx.open || addMenuOpen || annotPlacing === 'comment');
+  useEffect(() => { if (commentIntent) preloadCommentParts(); }, [commentIntent]);
   const resolveCardBBox = useCallback((cardId) => {
     const c = (cards || []).find(c => c.id === cardId);
     if (!c) return null;
@@ -12552,6 +12563,101 @@ export function CanvasSurface({
     }
     return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
   }, [cards, groupById]);
+  // A count pin was pressed: zoom in until what it gathered comes apart.
+  // false when the camera is already as close as this goes (the list opens).
+  const zoomToCommentBox = useCallback((box) => {
+    const r = wrapRef.current?.getBoundingClientRect?.();
+    if (!box || !r || r.width < 50 || r.height < 50) return false;
+    const cam = solveFit(box, { w: r.width, h: r.height },
+      { margin: SELECTION_FIT_MARGIN, zoomMin: ZOOM_MIN, zoomMax: Math.max(zoomRef.current, 2) });
+    if (!(cam.zoom > zoomRef.current * 1.05)) return false;
+    enableSmoothTransform();
+    applyCamera(cam);
+    return true;
+  }, [enableSmoothTransform, applyCamera]);
+  // A row in the comments list was pressed: bring what it is about into view
+  // at this zoom, with room beside it for the conversation. Left alone when
+  // its pin is already comfortably in view.
+  const goToComment = useCallback((anchor) => {
+    const r = wrapRef.current?.getBoundingClientRect?.();
+    if (!r) return;
+    // (lib/commentCanvas.js panToAnchor: a turned card's pin is at its turned corner)
+    const next = panToAnchor(anchor, { pan: panRef.current, zoom: zoomRef.current, w: r.width, h: r.height });
+    if (!next) return;
+    enableSmoothTransform();
+    setPan(next);
+  }, [enableSmoothTransform]);
+  // A comment link was opened (?board=&comment=; App.jsx leaves the request in
+  // lib/commentOpen.js): once this cluster's comments and cards are in, go to
+  // the conversation and open it. A reply's link opens its conversation with
+  // that reply lit. A comment that is gone (deleted, or its card is) says so.
+  const commentLink = useSyncExternalStore(subscribeOpenComment, peekOpenComment, peekOpenComment);
+  // The cluster's server copy is in: a link to a comment on a note's or a
+  // doc's words may now call one it cannot find gone (lib/commentOpen.js).
+  useEffect(() => {
+    const bid = board?.id;
+    if (!bid || !boardSynced || isPublic) return undefined;
+    setCommentBoardSynced(bid, true);
+    return () => setCommentBoardSynced(bid, false);
+  }, [board?.id, boardSynced, isPublic]);
+  // …and its card is fetched while the cluster's comments are on their way
+  useEffect(() => { if (commentLink && !isPublic) preloadCommentParts(); }, [commentLink, isPublic]);
+  // `commentsLoaded` is a list that really came back: while the comments
+  // cannot be fetched the link waits (useCanvasComments tries again), and is
+  // never called gone. The short wait before it opens is counted once per
+  // comment, in a ref: cards that keep changing (a cluster still syncing,
+  // someone else editing) do not start it over; they only change where it goes.
+  // ({ id: the comment waited for, t: its timer, open: what the wait ends in })
+  const commentLinkWait = useRef({});
+  useEffect(() => () => { const w = commentLinkWait.current; clearTimeout(w.t); w.id = null; }, []);
+  useEffect(() => {
+    const bid = board?.id;
+    const wait = commentLinkWait.current;
+    wait.open = null;   // until this run finds where it goes
+    if (!commentLink || commentLink.cardId || !bid || commentLink.boardId !== bid || isPublic || !commentsLoaded) return undefined;
+    const gone = () => {
+      if (takeOpenComment(bid)) feedback.toast({ type: 'info', message: tr`That comment isn't here any more` });
+    };
+    const hit = findCommentThread(commentsOnBoard, commentLink.commentId);
+    if (!hit) { gone(); return undefined; }
+    const root = commentsOnBoard.find((r) => r.id === hit.rootId);
+    const anchor = threadAnchor(
+      draftThread({ kind: root.anchor_kind, id: root.anchor_id, x: root.anchor_x, y: root.anchor_y }),
+      // with the card's turn, so the pin is looked for where it is drawn
+      {
+        cardBox: (id) => {
+          const c = (cards || []).find((k) => k.id === id);
+          return c ? { x: c.x, y: c.y, w: c.w, h: c.h, rot: c.rotation || 0 } : null;
+        },
+        groupBox: resolveGroupBBox,
+      },
+    );
+    if (!anchor) {
+      // its card may simply not have arrived yet: wait for the cluster (and,
+      // where nothing says it has arrived, a few seconds)
+      if (boardSynced) { gone(); return undefined; }
+      const w = setTimeout(gone, 4000);
+      return () => clearTimeout(w);
+    }
+    // after the cluster's own first framing has settled
+    wait.open = () => {
+      if (!takeOpenComment(bid)) return;
+      // The comment outranks a held open (lib/placeHeld.js): one still waiting
+      // for its cards is dropped, one already running stops where it is. The
+      // stop commits its pose in a microtask, so the move to the comment is
+      // queued behind it and is the last word on the camera.
+      heldPendingRef.current = null;
+      cancelHeldRef.current?.(true);
+      queueMicrotask(() => goToComment(anchor));
+      commentUi.set({ openId: hit.rootId, draft: null, hoverId: null, listOpen: false, flashRowId: hit.rowId });
+    };
+    if (wait.id !== commentLink.commentId) {
+      wait.id = commentLink.commentId;
+      clearTimeout(wait.t);
+      wait.t = setTimeout(() => { wait.id = null; wait.open?.(); }, 350);
+    }
+    return undefined;
+  }, [commentLink, board?.id, isPublic, commentsLoaded, commentsOnBoard, cards, resolveGroupBBox, boardSynced, goToComment, commentUi, feedback]);
 
   // ── Card double-click ─────────────────────────────────────────────────────
   // For images we let the card itself handle dbl-click (focus title editor).
@@ -14695,7 +14801,11 @@ export function CanvasSurface({
     const pos = coarse ? freeAddAnchor() : resolvePastePos().pos;
     return buildAddActions(pos, 'add_menu').find(a => a.id === id)?.run();
   };
-  const addGroups = [
+  const addGroups = !canEdit ? (canComment ? [
+    { title: tr`Annotate`, items: [
+      { id: 'comment', label: tr`Comment`, icon: MessageCircle, tip: tr`Place a comment — click a card or the canvas`, action: () => setAnnotPlacing('comment') },
+    ]},
+  ] : []) : [
     { title: tr`Tools`, items: [
       // On touch Draw sits on the rail itself, so listing it here too would put
       // the same tool two taps apart in the same strip.
@@ -16144,34 +16254,31 @@ export function CanvasSurface({
           })()}
         </svg>
 
-        {/* Anywhere-comment bubbles. Mounted INSIDE the canvas transform
-            so they scale with zoom and feel like part of the board
-            content; the connector line + anchor dot show users exactly
-            which card / group / point each comment is attached to. */}
-        <CanvasCommentLayer
-          comments={commentsOnBoard}
+        {/* Comment pins. Inside the canvas transform at each one's world
+            anchor, scaled back so a pin is the same size at every zoom. The
+            open conversation and the list are outside it, below. */}
+        {!isPublic && <CanvasCommentPins
           boardId={board?.id}
-          workspaceId={workspaceId}
-          userId={userId}
-          wsPeers={wsPeers}
-          currentUser={currentUser}
-          zoom={zoom}
-          resolveCardBBox={resolveCardBBox}
-          resolveGroupBBox={resolveGroupBBox}
-          draft={commentDraft}
-          draftAsBar={mobileShell}
-          onSubmitDraft={submitCommentDraft}
-          onCancelDraft={() => setCommentDraft(null)}
-          onLocallyRemoved={removeCommentLocally}
-          layerVisible={commentsVisible}
+          comments={commentsOnBoard}
+          currentUser={commentMe}
           viewsByRootId={commentViewsByRootId}
-          onMarkViewed={markCommentViewed}
+          ui={commentUi}
+          zoom={zoom}
+          cards={cards}
+          groupBox={resolveGroupBBox}
+          visible={commentsVisible}
+          view={commentView}
+          onZoomTo={zoomToCommentBox}
           canEdit={canEdit}
-        />
+          upsertLocally={upsertCommentLocally}
+          ydoc={ydoc}
+          workspaceId={board?.workspace_id || workspaceId}
+        />}
 
-        {/* Vote cards — same canvas-transform layer + the SAME visibility
-            toggle as comments (layerVisible={commentsVisible}), so they
-            hide when you hide comments. */}
+        {/* Vote cards: same canvas-transform layer. They do NOT follow the
+            "Show comments on the canvas" switch: that one is about comments
+            and is remembered per person and cluster, so vote cards would
+            stay gone with nothing saying why. */}
         <CanvasVoteLayer
           voteCards={votesOnBoard}
           userId={userId}
@@ -16180,7 +16287,6 @@ export function CanvasSurface({
           resolveCardBBox={resolveCardBBox}
           resolveGroupBBox={resolveGroupBBox}
           onLocallyRemoved={removeVoteLocally}
-          layerVisible={commentsVisible}
         />
 
       </div>
@@ -16246,7 +16352,7 @@ export function CanvasSurface({
           lives inside `.canvas-wrap { touch-action: none }`, so the browser
           will not finger-scroll it. Drive it ourselves. Tapping a tool still
           works — the gesture only engages past the movement threshold. */}
-      <div className={`cnv-tools ${canEdit ? '' : 'is-readonly'}`} data-tour="rail"
+      <div className={`cnv-tools ${canEdit ? '' : `is-readonly${canComment ? ' can-comment' : ''}`}`} data-tour="rail"
            ref={railRef} role="toolbar" aria-label={tr`Tools`} aria-orientation="vertical"
            onKeyDown={railKeys}
            onPointerDown={(e) => {
@@ -16815,50 +16921,47 @@ export function CanvasSurface({
         </button>
       </div>
 
-      {/* Master comments-visibility toggle. Always rendered — left-click
-          shows/hides every comment bubble on the canvas; right-click
-          opens the archive popover with resolved + hidden comments and
-          one-click reopen / unhide actions. The badge shows the count
-          of currently-visible comments (or the archived count when
-          comments are muted, so the user still feels there's
-          something to bring back). */}
-      {/* A small island of its own (toolbarLook.css), its tooltip the glass
-          one. */}
-      <button className={`cnv-comments-eye ${commentsVisible ? '' : 'is-muted'}`}
-              {...tlTip(commentsVisible
-                ? tr`Hide all comments (right-click for archive)`
-                : tr`Show all comments (right-click for archive)`)}
-              aria-label={commentsVisible
-                ? (visibleCommentCount > 0 ? tr`Hide all comments, ${visibleCommentCount} showing` : tr`Hide all comments`)
-                : (visibleCommentCount > 0 ? tr`Show all comments, ${visibleCommentCount} showing` : tr`Show all comments`)}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={toggleCommentsVisible}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const r = e.currentTarget.getBoundingClientRect();
-                setCommentArchive({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
-              }}>
-        <Icon as={commentsVisible ? MessageCircle : MessageCircleOff} size={16} weight="regular" />
-        {/* Badge counts only currently-visible (open, non-archived)
-            comments — resolved and hidden don't count, since they're
-            archived and live in the popover instead. */}
-        {visibleCommentCount > 0 && (
-          <span className="cnv-comments-eye-count">{visibleCommentCount}</span>
-        )}
-      </button>
-      {commentArchive && (
-        <CommentArchivePopover
-          comments={comments}
-          anchorRect={commentArchive}
-          userId={userId}
-          wsPeers={wsPeers}
-          currentUser={currentUser}
-          canEdit={canEdit}
-          onLocallyRemoved={removeCommentLocally}
-          onClose={() => setCommentArchive(null)}
-        />
-      )}
+      {/* The comments island and its list (Open / Resolved / For you, and
+          this person's own "Show comments on the canvas" switch), then the
+          open conversation beside its card. Both read the same rows and the
+          same small store as the pins. */}
+      <CanvasCommentsIsland
+        comments={commentsOnBoard}
+        currentUser={commentMe}
+        viewsByRootId={commentViewsByRootId}
+        ui={commentUi}
+        cards={cards}
+        groupBox={resolveGroupBBox}
+        groupById={groupById}
+        boards={boards}
+        boardId={board?.id}
+        workspaceId={workspaceId}
+        visible={commentsVisible}
+        onVisibleChange={setCommentsVisible}
+        onGoTo={goToComment}
+        sheet={isPhone}
+        failed={commentsFailed}
+      />
+      <CanvasCommentCard
+        comments={commentsOnBoard}
+        currentUser={commentMe}
+        viewsByRootId={commentViewsByRootId}
+        ui={commentUi}
+        cards={cards}
+        groupBox={resolveGroupBBox}
+        groupById={groupById}
+        boards={boards}
+        view={commentView}
+        boardId={board?.id}
+        workspaceId={board?.workspace_id || workspaceId}
+        userId={userId}
+        canEdit={canEdit}
+        sheet={isPhone || isTouch}
+        upsertLocally={upsertCommentLocally}
+        removeLocally={removeCommentLocally}
+        markViewed={markCommentViewed}
+        loaded={commentsLoaded}
+      />
 
       <CardContextMenu
         open={ctx.open}

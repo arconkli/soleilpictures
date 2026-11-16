@@ -228,6 +228,8 @@ test('every database email asks the outbound gate first, and only the known trig
 
   const senders = liveFunctionsMatching(/perform\s+(?:public\.)?_notify_email\(\s*'([a-z_]+)'/g);
   assert.deepEqual([...senders.keys()].sort(), [
+    // 0902: a canvas comment's @mention, the 'mention_email' template; on the live list since 0903.
+    '_comment_mention_email',
     '_team_invite_email', '_tg_comment_reply_email', '_tg_file_comment_notify', '_tg_file_share_person_email',
     '_tg_mention_notification_email', '_tg_pending_invite_email', '_tg_referral_reward_notice',
     '_tg_schedule_notification_email', '_tg_share_notification_email', '_tg_workspace_member_email',

@@ -38,6 +38,10 @@ const TABLE = {
   'Could not finish saving the video — please try again.': () => tr`Could not finish saving the video — please try again.`,
   'Could not finish saving the file — please try again.': () => tr`Could not finish saving the file — please try again.`,
   'Could not read the video length — re-export and try again.': () => tr`Could not read the video length — re-export and try again.`,
+  // lib/commentsApi.js notAllowed(): one whole sentence for each thing refused
+  'Only its author or an editor of this cluster can change this comment.': () => tr`Only its author or an editor of this cluster can change this comment.`,
+  'Only its author or an editor of this cluster can delete this comment.': () => tr`Only its author or an editor of this cluster can delete this comment.`,
+  'Only its author or an editor of this cluster can restore this comment.': () => tr`Only its author or an editor of this cluster can restore this comment.`,
   'Already recording.': () => tr`Already recording.`,
   'Could not read a frame.': () => tr`Could not read a frame.`,
   'The captured surface had no size.': () => tr`The captured surface had no size.`,

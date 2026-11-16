@@ -71,7 +71,7 @@ once. Moving cards doesn't change how many you have.
 
 **Tag** — right-click → tag. See [Tags](/docs/organize/tags).
 
-**Comment** — right-click → comment, which anchors a bubble to that card. See
+**Comment** — right-click → comment, which puts a pin at the corner of that card. See
 [Comments](/docs/collaborate/comments).
 
 **Copy link** — a deep link that opens the board with that card selected. Useful

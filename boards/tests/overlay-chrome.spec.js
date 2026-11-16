@@ -109,18 +109,30 @@ test('text fields are at least 16px on a touch device', async ({ browser }) => {
   await page.goto('/?local=1&reset=1&blank=1');
   await expect(page.locator('.app')).toBeAttached({ timeout: 30000 }); // cold Vite compile
   expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches), 'the context must report a coarse pointer').toBe(true);
+  // The comment box's styles arrive with the comment parts, the first time
+  // one is wanted: focusing the comments island asks for them.
+  await page.locator('.cnv-comments-eye').focus();
+  await page.waitForFunction(() => [...document.styleSheets].some((s) => {
+    try { return [...s.cssRules].some((r) => /\.cmt-input\b/.test(r.selectorText || '')); } catch (_) { return false; }
+  }));
   const sizes = await page.evaluate(() => {
     const out = {};
-    for (const [tag, cls] of [['textarea', 'msg-composer-input'], ['input', 'share-input'],
-      ['textarea', 'canvas-comment-draft-input'], ['input', 'canvas-comment-reply-input'], ['input', 'cmdk-input']]) {
+    // [tag, class, the class of what it sits in]: a comment's box (new
+    // comment, reply and edit alike) takes its size from the card it is in.
+    for (const [tag, cls, within] of [['textarea', 'msg-composer-input'], ['input', 'share-input'],
+      ['textarea', 'cmt-input', 'cmt-card cmt-card--sheet'], ['textarea', 'cmt-input', 'cmt-card cmt-card--float'], ['input', 'cmdk-input']]) {
+      const host = document.createElement('div');
+      if (within) host.className = within;
       const el = document.createElement(tag);
       el.className = cls;
-      document.body.appendChild(el);
-      out[cls] = parseFloat(getComputedStyle(el).fontSize);
-      el.remove();
+      host.appendChild(el);
+      document.body.appendChild(host);
+      out[within ? `${within.split(' ').pop()} .${cls}` : cls] = parseFloat(getComputedStyle(el).fontSize);
+      host.remove();
     }
     return out;
   });
+  expect(Object.keys(sizes)).toHaveLength(5);
   for (const [cls, px] of Object.entries(sizes)) expect(px, `.${cls}`).toBeGreaterThanOrEqual(16);
   await ctx.close();
 });

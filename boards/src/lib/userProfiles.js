@@ -147,7 +147,7 @@ export function resolve(userId) {
 
 async function flushPending() {
   flushTimer = null;
-  if (pendingIds.size === 0) return;
+  if (!supabase || pendingIds.size === 0) return;
   const ids = [...pendingIds];
   pendingIds = new Set();
   for (const id of ids) inflight.add(id);

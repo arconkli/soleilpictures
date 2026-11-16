@@ -222,14 +222,17 @@ export default {
   // The subject and the line under the headline: in a direct message, in a cluster, in a workspace.
   "mention_email.subject_dm": "{name} mentioned you",
   "mention_email.subject_board": "{name} mentioned you in {context}",
+  "mention_email.subject_comment": "{name} mentioned you in a comment in {context}",
   "mention_email.subject_workspace": "{name} mentioned you in {context}",
   "mention_email.subtitle_dm": "In a direct message.",
   "mention_email.subtitle_board": "In {context}.",
+  "mention_email.subtitle_comment": "In a comment in {context}.",
   "mention_email.subtitle_workspace": "In {context}.",
   // The preview line an inbox shows beside the subject. The second is for a mention with no text.
   "mention_email.preheader": "{name}: {preview}",
   "mention_email.preheader_empty": "{name}: mentioned you",
   "mention_email.cta": "Open in Clusters",
+  "mention_email.cta_comment": "Open the comment",
 
   // ── comment_reply_email: someone replied to the reader's comment on a cluster ──
   // {name} is who replied. {board} and {workspace} are names. {preview} is the start of the reply.

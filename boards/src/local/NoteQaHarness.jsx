@@ -20,6 +20,7 @@ import { ToolOptionsBar } from '../components/ToolOptionsBar.jsx';
 import { EntityTrieContext } from '../hooks/useEntityNameTrie.js';
 import { createNameIndex } from '../lib/entityNameTrie.js';
 import { holdNoteTypeAhead } from '../lib/noteTypeAhead.js';
+import { NoteCommentsLayer } from '../components/comments/NoteCommentsLayer.jsx';
 
 const CARD_ID = 'noteqa-card';
 
@@ -119,6 +120,7 @@ function ClientCard({ label, ydoc, cardYMap, awareness, withToolbar = false }) {
       <div style={{ font: '11px monospace', opacity: 0.6, marginBottom: 6 }}>{label}</div>
       <div
         data-client={label}
+        data-card-id={CARD_ID}
         style={{ position: 'relative', width: 320, height: Math.max(80, card.h || 120), border: '1px solid #333' }}
       >
         <NoteCardCollab
@@ -221,6 +223,11 @@ export function NoteQaHarness() {
         <ClientCard label="A" ydoc={docA} cardYMap={cardA} awareness={awA} withToolbar={withToolbar} />
         <ClientCard label="B" ydoc={docB} cardYMap={cardB} awareness={awB} />
       </div>
+      {/* The canvas's layer for comments on a note's words, for client A
+          (&reader=1: as someone who can only view the note). */}
+      <NoteCommentsLayer ydoc={docA} boardId="noteqa-board" within={'[data-client="A"]'}
+                         currentUser={{ id: 'user-A', name: 'Alice' }}
+                         canEdit={new URLSearchParams(window.location.search).get('reader') !== '1'} />
       <div style={{ marginTop: 24 }}>
         <div style={{ font: '11px monospace', opacity: 0.6, marginBottom: 6 }}>read-only</div>
         <ReadOnlyCard ro={ro} />

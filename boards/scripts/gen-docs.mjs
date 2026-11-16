@@ -292,9 +292,10 @@ if (webhookIdSlices.some((s) => !s.length) || new Set(webhookIdSlices.flat()).si
 // emails the person who shared the file (_tg_file_comment_notify — the bell row
 // is never throttled), and how old the account that opened a link to anyone
 // has to be before a program or script file opens through it
-// (_file_share_access).
+// (_file_share_access). 0902 counts a reply's notice (file.replied) in the
+// same half hour, so the kind test reads either form.
 const fileCommentEmailMinutes = latestSqlDefining('_tg_file_comment_notify')
-  ?.match(/_tg_file_comment_notify\(\)[\s\S]*?kind = 'file\.commented'[\s\S]*?emailed_at > now\(\) - interval '(\d+) minutes'/);
+  ?.match(/_tg_file_comment_notify\(\)[\s\S]*?kind (?:= 'file\.commented'|in \('file\.commented', 'file\.replied'\))[\s\S]*?emailed_at > now\(\) - interval '(\d+) minutes'/);
 const fileShareRiskyNewAccountHours = latestSqlDefining('_file_share_access')
   ?.match(/_file_share_access\([\s\S]*?link_set_by and u\.created_at > now\(\) - interval '(\d+) hours'/);
 if (!fileCommentEmailMinutes || !fileShareRiskyNewAccountHours) {

@@ -1,67 +1,31 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useEditorState } from '@tiptap/react';
-import { Icon } from '../Icon.jsx';
-import { EntityPicker } from '../EntityPicker.jsx';
-import { useFeedback } from '../AppFeedback.jsx';
 import { Caps } from '../toolbar/Toolbar.jsx';
-import { DocSeg } from './DocSeg.jsx';
-import {
-  addCommentReply, resolveComment, pageContentMap, sheetContentMap, pagesArray,
-} from '../../lib/docState.js';
+import { pageContentMap, sheetContentMap, pagesArray } from '../../lib/docState.js';
 import { commentAnchors } from '../../lib/docCommentAnchors.js';
-import { deleteCommentThreadUndoably } from '../../lib/commentThreadDelete.js';
-import { detectMentionToken, matchMentions } from '../../lib/commentMentionText.js';
-import { notifyCommentMentions } from '../../lib/commentMentions.js';
-import { pickPresenceColor } from '../../lib/presenceColor.js';
-import { relativeTimeCompact, relativeTimeKind } from '../../lib/relativeTime.js';
-import { caretRect } from '../../lib/caretRect.js';
-import { isComposingKey } from '../../lib/composerKeys.js';
-import { ArrowUp, Check, Trash2 } from '../../lib/icons.js';
-import { initialOf as initialOfName } from '../../lib/graphemes.js';
-import { t as tr } from '@lingui/core/macro';
-import { formatDate } from '../../lib/intlFormat.js';
-import { shownAuthor } from '../../lib/commentAuthor.js';
-import { Trans } from '@lingui/react/macro';
+import { CommentPartHost, DocThreadsPanelPart } from '../comments/commentPartHost.jsx';
 
-// The side panel's Comments (the owner's pick of 2026-10-21, mockup dx
-// AC-comments): every thread of the doc, open and resolved, in the doc's
-// order, each a card with the words it's on, who said what and when, a reply
-// and Resolve, or who resolved it with Reopen. A card takes you to its words
-// (DocSurface's onJump: the page opened, the words shown and lit); the caret
-// in commented words picks their card.
+// The side panel's Comments: every thread of the doc in the doc's order. The
+// threads themselves are the shared comment parts (comments/DocThreadsPanel.jsx:
+// short rows, the open one the whole conversation with its one gold bar,
+// resolved ones folded away at the bottom), which arrive the first time the
+// tab is shown; this file is what the doc knows that they don't: where each
+// thread's words are, and which thread the caret is in.
+//
+// A card takes you to its words (DocSurface's onJump: the page opened, the
+// words shown and lit); the caret in commented words picks their thread.
 //
 // A guest in a doc shared on its own (`guest`) replies, resolves and reopens
 // in their own name, as anyone who can edit it does, but deletes only a
 // thread they started: the doc's room refuses the rest (lib/docRoomBridge.js).
-
-// Read at render, so the words follow the person's language.
-const filters = () => [['all', tr`All`], ['open', tr({ message: 'Open', context: 'status' })], ['resolved', tr`Resolved`]];
-
-// What's typed in a card's reply and not sent, kept while the doc's open
-// elsewhere (another tab of the panel, the panel shut) for this session.
-const drafts = new Map();
-
 export function DocCommentsTab({
   ydoc, scope, threads = [], editor = null, currentUser = null, canEdit = true, guest = false,
   workspaceId = null, boardId = null, cardId = null,
-  selectedId = null, onSelect, onJump,
+  selectedId = null, onSelect, onJump, flashRowId = null, focusId = null, sheet = false,
 }) {
   const anchors = useCommentAnchors(ydoc, scope);
-  const [filter, setFilter] = useState('all');
-  const listRef = useRef(null);
-
-  // In the doc's order; a thread whose words are gone after, newest first.
-  const ordered = useMemo(() => {
-    const placed = threads.filter((t) => anchors.has(t.id))
-      .sort((a, b) => anchors.get(a.id).order - anchors.get(b.id).order);
-    return [...placed, ...threads.filter((t) => !anchors.has(t.id))];
-  }, [threads, anchors]);
-  const open = ordered.filter((t) => !t.resolved);
-  const counts = { all: ordered.length, open: open.length, resolved: ordered.length - open.length };
-  const shown = filter === 'open' ? open : filter === 'resolved' ? ordered.filter((t) => t.resolved) : ordered;
-
-  // The caret in an open thread's words picks its card (a resolved one's
-  // words read as plain text: DocSurface).
+  // The caret in an open thread's words picks it (a resolved one's words
+  // read as plain text).
   const resolvedIds = useMemo(() => new Set(threads.filter((t) => t.resolved).map((t) => t.id)), [threads]);
   const atCaret = useEditorState({
     editor,
@@ -69,45 +33,17 @@ export function DocCommentsTab({
   });
   useEffect(() => { if (atCaret) onSelect?.(atCaret); }, [atCaret]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // A card picked from outside the list (its words clicked, the caret moved
-  // into them) is shown, under All if the filter would hide it.
-  useEffect(() => {
-    if (!selectedId) return;
-    if (!shown.some((t) => t.id === selectedId) && ordered.some((t) => t.id === selectedId)) setFilter('all');
-    requestAnimationFrame(() => {
-      listRef.current?.querySelector(`[data-thread="${CSS.escape(selectedId)}"]`)?.scrollIntoView?.({ block: 'nearest' });
-    });
-  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const ctx = { ydoc, scope, currentUser, canEdit, guest, workspaceId, boardId, cardId, onSelect, onJump };
   return (
     <div className="dl-cmts">
-      <div className="dl-cmts-f">
-        <DocSeg label={tr`Show`} value={filter} onChange={setFilter}
-                options={filters().map(([value, label]) => ({ value, label, count: counts[value] }))} />
-      </div>
-      {shown.length ? (
-        <ul ref={listRef} className="dl-ths" aria-label={tr`Comments`}>
-          {shown.map((t) => (
-            <li key={t.id}>
-              <ThreadCard thread={t} anchor={anchors.get(t.id) || null} selected={t.id === selectedId} ctx={ctx} />
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <div className="dl-cmts-none">
-          {counts.all === 0 ? (
-            <>
-              <p className="dl-cmts-none-t"><Trans>No comments yet</Trans></p>
-              {canEdit && <p><Trans>Select some words, then Comment</Trans> <Caps keys="Mod+Alt+M" /></p>}
-            </>
-          ) : filter === 'open' ? (
-            <p className="dl-cmts-none-t"><Trans>Nothing open: every comment is resolved</Trans></p>
-          ) : (
-            <p className="dl-cmts-none-t"><Trans>Nothing resolved yet</Trans></p>
-          )}
-        </div>
-      )}
+      <CommentPartHost
+        part={DocThreadsPanelPart}
+        ydoc={ydoc} scope={scope} entries={threads} anchors={anchors}
+        currentUser={currentUser} canEdit={canEdit} guest={guest}
+        workspaceId={workspaceId} boardId={boardId} cardId={cardId}
+        selectedId={selectedId} onSelect={onSelect} onJump={onJump}
+        flashRowId={flashRowId} focusId={focusId} sheet={sheet}
+        shortcut={<Caps keys="Mod+Alt+M" />}
+      />
     </div>
   );
 }
@@ -140,170 +76,4 @@ function useCommentAnchors(ydoc, scope) {
     };
   }, [ydoc, scope]);
   return anchors;
-}
-
-// A face's colour: the one they comment in, unless that's the gold that marks
-// what's yours on, or there isn't one.
-const faceColor = (color, who) => (!color || /soleil|#ffa500/i.test(color) ? pickPresenceColor(who || '') : color);
-
-const when = (ts) => {
-  const s = relativeTimeCompact(ts);
-  const kind = relativeTimeKind(ts);
-  return kind === 'now' ? tr`just now` : kind === 'yesterday' ? tr`yesterday` : (kind === 'minutes' || kind === 'hours') ? tr`${s} ago` : s;
-};
-const fullDate = (ts) => {
-  try { return formatDate(new Date(ts), { dateStyle: 'medium', timeStyle: 'short' }); } catch (_) { return ''; }
-};
-
-function ThreadCard({ thread, anchor, selected, ctx }) {
-  const { ydoc, scope, currentUser, canEdit, guest, onSelect, onJump } = ctx;
-  const feedback = useFeedback();
-  const me = currentUser?.id || null;
-  const canDelete = canEdit && (!guest || (!!me && thread.authorId === me));
-  const items = [
-    { id: thread.id, author: thread.author, authorId: thread.authorId, authorColor: thread.authorColor, ts: thread.ts, body: thread.body },
-    ...(thread.replies || []),
-  ];
-  const nameOf = (who) => (who.authorId && who.authorId === me ? tr`You` : shownAuthor(who.author) || tr`Someone`);
-  // A face is the person's own initial, yours too.
-  const initialOf = (who) => initialOfName(String(shownAuthor(who.author) || '').trim() || nameOf(who));
-  const resolver = !thread.resolved ? null
-    : thread.resolvedBy && thread.resolvedBy === me ? tr`you`
-      : thread.resolvedByName
-        || (thread.resolvedBy && shownAuthor(items.find((i) => i.authorId === thread.resolvedBy)?.author))
-        || null;
-  const go = () => { onSelect?.(thread.id); onJump?.(thread.id, anchor?.pageId || thread.pageId || null); };
-  const quote = anchor?.quote || '';
-  const by = nameOf(thread);
-  const ariaLabel = thread.resolved
-    ? (quote ? tr`Resolved comment by ${by} on “${quote}”` : tr`Resolved comment by ${by}`)
-    : (quote ? tr`Comment by ${by} on “${quote}”` : tr`Comment by ${by}`);
-  const cls = `dl-th${selected ? ' is-on' : ''}${thread.resolved ? ' is-res' : ''}`;
-  return (
-    <article className={cls} data-thread={thread.id}
-             aria-label={ariaLabel}
-             onClick={(e) => {
-               // Not from a control, nor from the mention picker (portaled
-               // out, but its clicks still come up through here).
-               if (e.currentTarget.contains(e.target) && !e.target.closest('button, input, a')) go();
-             }}>
-      {quote ? (
-        <button type="button" className="dl-th-q" onClick={go} title={tr`Show it in the doc`}>“{quote}”</button>
-      ) : (
-        <p className="dl-th-q is-gone"><Trans>The words it was on are gone</Trans></p>
-      )}
-      {items.map((it, i) => (
-        <div key={it.id || i} className="dl-cm">
-          <span className="dl-face" aria-hidden="true" style={{ background: faceColor(it.authorColor, it.authorId || it.author) }}>
-            {initialOf(it)}
-          </span>
-          <div className="dl-cm-b">
-            <div className="dl-cm-h">
-              <b>{nameOf(it)}</b>
-              {it.ts ? <time dateTime={new Date(it.ts).toISOString()} title={fullDate(it.ts)}>{relativeTimeCompact(it.ts)}</time> : null}
-              {/* The thread's delete, at the end of its first line, so the
-                  words it's on keep the card's width. */}
-              {i === 0 && canDelete && (
-                <button type="button" className="dl-th-del" aria-label={tr`Delete thread`} title={tr`Delete thread`}
-                        onClick={() => deleteCommentThreadUndoably(ydoc, scope, thread.id, feedback)}>
-                  <Icon as={Trash2} size={14} />
-                </button>
-              )}
-            </div>
-            <div className="dl-cm-t" dir="auto">{it.body}</div>
-          </div>
-        </div>
-      ))}
-      {thread.resolved ? (
-        <div className="dl-th-a">
-          <span className="dl-th-by">
-            {resolver ? tr`Resolved by ${resolver}` : tr`Resolved`}
-            {thread.resolvedAt ? <> · <time dateTime={new Date(thread.resolvedAt).toISOString()} title={fullDate(thread.resolvedAt)}>{when(thread.resolvedAt)}</time></> : null}
-          </span>
-          {canEdit && (
-            <button type="button" className="dl-mini"
-                    onClick={() => resolveComment(ydoc, thread.id, false, scope, { by: me, byName: currentUser?.name || null })}>
-              <Trans>Reopen</Trans>
-            </button>
-          )}
-        </div>
-      ) : canEdit ? (
-        <ReplyRow thread={thread} ctx={ctx} />
-      ) : null}
-    </article>
-  );
-}
-
-// A reply, with @ to mention someone in the workspace, and Resolve.
-function ReplyRow({ thread, ctx }) {
-  const { ydoc, scope, currentUser, workspaceId, boardId, cardId } = ctx;
-  const [text, setText] = useState(() => drafts.get(thread.id) || '');
-  const [mention, setMention] = useState(null);   // { tokenStart, query, anchor }
-  const pickedRef = useRef([]);                    // [{ id, name }]
-  const inputRef = useRef(null);
-  const put = (v) => {
-    setText(v);
-    if (v) drafts.set(thread.id, v); else drafts.delete(thread.id);
-  };
-  const replyTo = shownAuthor(thread.author) || tr`this comment`;
-  const send = () => {
-    const body = text.trim();
-    if (!body) return;
-    const mentions = matchMentions(body, pickedRef.current);
-    addCommentReply(ydoc, thread.id, {
-      body,
-      author: currentUser?.name || currentUser?.email || 'You',
-      authorId: currentUser?.id || null,
-      authorColor: currentUser?.color || null,
-      mentions,
-      scope,
-    });
-    notifyCommentMentions({ workspaceId, boardId, cardId, threadId: thread.id, userIds: mentions, preview: body });
-    pickedRef.current = [];
-    put('');
-  };
-  const resolve = () => resolveComment(ydoc, thread.id, true, scope, { by: currentUser?.id || null, byName: currentUser?.name || null });
-  return (
-    <div className="dl-th-a">
-      <div className="dl-reply">
-        <input ref={inputRef} value={text} placeholder={tr`Reply`} aria-label={tr`Reply to ${replyTo}`}
-               onChange={(e) => {
-                 const v = e.target.value;
-                 put(v);
-                 if (!workspaceId) return;
-                 const tok = detectMentionToken(v, e.target.selectionStart ?? v.length);
-                 setMention(tok ? { ...tok, anchor: caretRect(e.target) } : null);
-               }}
-               onKeyDown={(e) => {
-                 if (isComposingKey(e)) return;
-                 if (e.key === 'Enter' && !mention) { e.preventDefault(); send(); }
-                 else if (e.key === 'Enter') e.preventDefault();
-               }} />
-        {text.trim() && (
-          <button type="button" className="dl-reply-send" aria-label={tr`Send reply`} title={tr`Send reply`} onClick={send}>
-            <Icon as={ArrowUp} size={13} />
-          </button>
-        )}
-      </div>
-      <button type="button" className="dl-mini" onClick={resolve}><Icon as={Check} size={13} /><Trans>Resolve</Trans></button>
-      {mention && workspaceId && (
-        <EntityPicker
-          workspaceId={workspaceId}
-          anchor={mention.anchor}
-          initialQuery={mention.query}
-          filter={['user']}
-          onCommit={(targets) => {
-            const t = targets?.[0];
-            if (!t) { setMention(null); return; }
-            const name = t.title || t.name || 'someone';
-            put(text.slice(0, mention.tokenStart) + '@' + name + ' ' + text.slice(mention.tokenStart + 1 + mention.query.length));
-            pickedRef.current = [...pickedRef.current, { id: t.id, name }];
-            setMention(null);
-            requestAnimationFrame(() => inputRef.current?.focus());
-          }}
-          onCancel={() => setMention(null)}
-        />
-      )}
-    </div>
-  );
 }

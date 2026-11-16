@@ -71,7 +71,8 @@ test('the shared doc is a guest: nothing brought in, the room’s word on writin
   assert.match(v, /workspaceId=\{null\}/);
   assert.match(v, /isPublic=\{!canEdit\}\s+guestMode/);
   assert.match(v, /allowExport=\{canEdit && !!res\.allow_download\}/, 'Export is for the people who can edit it');
-  assert.match(v, /return \{ \.\.\.s, comments: s\.comments \|\| emptyComments, cardId: cardKey, docCardId: cardKey, boardId: null \};/);
+  assert.match(v, /return \{ \.\.\.s, comments: s\.comments \|\| emptyComments, cardId: cardKey, docCardId: cardKey, boardId: null, noticeBoardId, noticeShareToken \};/,
+    'no cluster for the doc itself; comment notices alone learn it, from a signed-in manager’s share, or are handed the share’s token for a signed-in editor');
   assert.match(v, /const c = cards\.get\(cardKey\);/, 'the card is the one the share named');
   assert.doesNotMatch(v, /initCardDocStore/, 'a guest never backfills the card (a write outside the doc)');
   assert.match(v, /for \(const k of r2KeysIn\(update\)\) \{[\s\S]{0,120}setKeyResolver\(k, resolver\);/);
@@ -106,8 +107,10 @@ test('a guest comments in the side panel in their own name, and deletes only the
   assert.match(s, /canEdit=\{canEdit && \(!guestMode \|\| !!currentUser\?\.id\)\} guest=\{guestMode\}/);
   assert.match(s, /<DocFindTab ydoc=\{ydoc\} scope=\{scope\} canEdit=\{canEdit\}/, 'a replace is typing');
   const tab = src('../components/doc/DocCommentsTab.jsx');
-  assert.match(tab, /const canDelete = canEdit && \(!guest \|\| \(!!me && thread\.authorId === me\)\);/);
-  assert.match(tab, /\{i === 0 && canDelete && \(/);
+  assert.match(tab, /canEdit=\{canEdit\} guest=\{guest\}/, 'the shared comment parts are told');
+  const ops = src('../components/comments/docThreadOps.js');
+  assert.match(ops, /delete: p\.delete && filed && \(!guest \|\| \(isRoot && ownThread && !\(thread\.replies \|\| \[\]\)\.length\)\),/);
+  assert.match(ops, /edit: p\.edit && filed && !guest,/);
 });
 
 // Inside the app a shared doc's Escape is the doc's first (DocCard.jsx's

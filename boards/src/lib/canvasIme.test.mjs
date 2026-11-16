@@ -17,7 +17,7 @@ const GUARD = /if \(isComposingKey\(e\)\) return;/g;
 const FIELDS = {
   '../components/TagPicker.jsx': 1,
   '../components/CanvasSurface.jsx': 2,        // a project's name; a grid's columns × rows
-  '../components/CanvasComment.jsx': 1,
+  '../components/comments/CommentComposer.jsx': 1, // a comment or a reply (canvas, docs, files)
   '../components/CanvasVoteCard.jsx': 1,       // the question
   '../hooks/useArrowPopover.js': 1,            // a picked arrow's label
   '../components/SizeInput.jsx': 1,
@@ -25,7 +25,6 @@ const FIELDS = {
   '../components/SketchPadOverlay.jsx': 1,     // a layer's name
   '../components/GridTemplatePanel.jsx': 1,    // the search
   '../components/film/FilmDock.jsx': 1,        // go to a timecode
-  '../components/CommentInlinePopover.jsx': 1, // a doc comment's reply
   '../components/RichNoteEditor.jsx': 1,
 };
 

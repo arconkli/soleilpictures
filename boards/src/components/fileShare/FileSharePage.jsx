@@ -39,12 +39,13 @@ import { lazyWithReload } from '../../lib/lazyWithReload.js';
 import { createPortal } from 'react-dom';
 import {
   fetchFileShare, listFileComments, addFileComment, resolveFileComment, deleteFileComment, restoreFileComment,
-  markFileShareOpened, formatAt,
+  editFileComment, markFileShareOpened, formatAt,
 } from '../../lib/fileShares.js';
 import { rememberShare } from '../../lib/fileShareUrls.js';
 import { FILE_SHARE_URL_TTL_SECONDS, fsRef } from '../../lib/fileShareBundle.js';
 import * as modalGuard from '../../lib/modalGuard.js';
 import { isEditableTarget } from '../../lib/isEditableTarget.js';
+import { readCommentLink, withoutCommentLink } from '../../lib/commentLink.js';
 import { isComposingKey } from '../../lib/composerKeys.js';
 import { docSharesAllowed, sharedFilesAllowed } from '../../lib/appHost.js';
 import { Icon } from '../Icon.jsx';
@@ -71,6 +72,17 @@ const REFRESH_MS = 5 * 60 * 1000;
 export const STALE_URLS_MS = (FILE_SHARE_URL_TTL_SECONDS - 60 * 60) * 1000;
 // The answers that mean something; anything else is a failure to read.
 const KNOWN_STATUS = new Set(['ok', 'gone', 'sign_in', 'no_access']);
+// Where the comments are (the rail, the box under the player, their menus):
+// a key pressed there is theirs, never the player's or the page's.
+const OWN_KEYS = '[data-keys-own], .cmt-pop';
+// Where Escape is the comments' own: an open conversation, the box you write
+// in, a comment menu or popover (and any field being typed in). On a row of
+// the list, a section's fold or the "at this moment" button it is the page's.
+const ESC_OWN = '.cmt-card, .cmt-composer, .cmt-pop';
+const TIMED_KINDS = new Set(['video', 'audio']);
+// How long a seek asked of a video waits: for the player to arrive, and then
+// for the film to say how long it is (seekVideo).
+const SEEK_WAIT_MS = 20000;
 
 async function getSupabase() {
   return (await import('../../lib/supabase.js')).supabase;
@@ -78,7 +90,16 @@ async function getSupabase() {
 
 export const defaultApi = {
   fetchFileShare, listFileComments, addFileComment, resolveFileComment, deleteFileComment, restoreFileComment,
-  markFileShareOpened,
+  editFileComment, markFileShareOpened,
+  // Who is signed in on this browser, or null. Read from the session kept
+  // here: nothing is asked of the server.
+  async getSessionUserId() {
+    try {
+      const sb = await getSupabase();
+      const { data } = await sb.auth.getSession();
+      return data?.session?.user?.id || null;
+    } catch (_) { return null; }
+  },
   async signOut() {
     const sb = await getSupabase();
     if (!sb) return;
@@ -86,9 +107,22 @@ export const defaultApi = {
   },
 };
 
-export function signInHrefFor(token, medium = 'signin') {
+// commentId: the comment the address asked for, carried through sign-in so
+// the way back is /f/<token>?comment=<id> (lib/shareReturn.js).
+export function signInHrefFor(token, medium = 'signin', commentId = null) {
+  const href = fileSignInHref(token, medium);
+  return commentId ? `${href}&comment=${encodeURIComponent(commentId)}` : href;
+}
+function fileSignInHref(token, medium) {
   const t = encodeURIComponent(token);
   return `/?back=file&file_token=${t}&utm_source=file_share&utm_medium=${medium}&utm_campaign=${t}`;
+}
+
+// The comment this page's address asks for (/f/<token>?comment=<id>), or null.
+function linkedCommentAt(token) {
+  if (typeof window === 'undefined') return null;
+  const at = readCommentLink(window.location.href);
+  return at?.surface === 'file' && at.token === String(token || '').toLowerCase() ? at.commentId : null;
 }
 
 function formatBytes(n) {
@@ -119,6 +153,8 @@ function factsLine(file) {
 // A doc's page is not the dark screening room: the doc keeps the reader's own
 // theme, as it has in the app, under the same dark bar (fileShare.css .fsp--doc).
 function Shell({ children, signedOut, token, wide = false, doc = false, action = null }) {
+  // the comment the address asked for, kept through sign-in
+  const [linked] = useState(() => linkedCommentAt(token));
   return (
     <div className={doc ? 'fsp fsp--doc' : 'fsp public-dark'}>
       <header className="fsp-top">
@@ -128,7 +164,7 @@ function Shell({ children, signedOut, token, wide = false, doc = false, action =
         </a>
         {action}
         {signedOut && (
-          <a className="fsp-top-link" href={signInHrefFor(token)}
+          <a className="fsp-top-link" href={signInHrefFor(token, 'signin', linked)}
              onClick={() => logEventNow(EV.FILE_SHARE_SIGNIN_CLICK, { surface: 'topbar' })}><Trans>Sign in</Trans></a>
         )}
       </header>
@@ -145,10 +181,16 @@ function Shell({ children, signedOut, token, wide = false, doc = false, action =
 // A doc's Escape is the doc's first, as in its cluster (DocCard.jsx): while
 // typing it's the text's, and a layer in the doc (its side panel, the find
 // bar, a menu) takes its own. Only one nothing in the doc took closes this.
-function OverlayShell({ children, wide = false, doc = false, action = null, onClose, label = tr`Shared file`, hostRef = null }) {
+//
+// escFirst(e) (optional) is asked before an Escape closes the dialog: 'theirs'
+// leaves the key to what has the caret (a comment part closes itself first),
+// 'done' means it was used (the active comment was put away).
+function OverlayShell({ children, wide = false, doc = false, action = null, onClose, label = tr`Shared file`, hostRef = null, escFirst = null }) {
   const ownRef = useRef(null);
   const modalRef = hostRef || ownRef;
   const rootRef = useRef(null);
+  const escFirstRef = useRef(escFirst);
+  escFirstRef.current = escFirst;
   useEffect(() => {
     const unregister = modalGuard.registerModalOpen();
     modalRef.current = unregister;
@@ -165,7 +207,10 @@ function OverlayShell({ children, wide = false, doc = false, action = null, onCl
       if (e.key !== 'Escape') return;
       if (modalGuard.isTopModal && !modalGuard.isTopModal(modalRef.current)) return;
       if (doc && (e.defaultPrevented || isComposingKey(e) || isEditableTarget(e))) return;
+      const took = escFirstRef.current?.(e);
+      if (took === 'theirs') return;
       e.preventDefault(); e.stopPropagation();
+      if (took === 'done') return;
       onClose?.();
     };
     // A doc's on the way back up, once its own layers have had it.
@@ -190,8 +235,8 @@ function OverlayShell({ children, wide = false, doc = false, action = null, onCl
 
 // The page's frame, or the dialog's: one stable component, so a player inside
 // never remounts because the host re-rendered.
-function Frame({ overlay = false, onClose = null, ...props }) {
-  return overlay ? <OverlayShell {...props} onClose={onClose} /> : <Shell {...props} />;
+function Frame({ overlay = false, onClose = null, escFirst = null, ...props }) {
+  return overlay ? <OverlayShell {...props} onClose={onClose} escFirst={escFirst} /> : <Shell {...props} />;
 }
 
 function StatePanel({ title, body, children }) {
@@ -220,6 +265,9 @@ export function FileSharePage({
   variant = 'page', onClose = null,
   // (res) => node: the in-app host's own header actions (Save a copy, Add shortcut).
   renderActions = null,
+  // Over the app: the comment a notice asked for (the page reads its own
+  // from the address).
+  commentId = null,
 }) {
   const [res, setRes] = useState({ status: 'loading' });
   const okRef = useRef(false);
@@ -280,7 +328,11 @@ export function FileSharePage({
   }, [load]);
 
   const status = res.status;
-  const signInHref = signInHrefFor(token);
+  // Read once, as the page opens: the rail takes the comment out of the
+  // address once it has shown it, and signing in after that still comes back
+  // to it.
+  const [linkedAtOpen] = useState(() => (overlay ? null : linkedCommentAt(token)));
+  const signInHref = signInHrefFor(token, 'signin', linkedAtOpen);
 
   if (status === 'loading') {
     if (overlay) {
@@ -332,13 +384,53 @@ export function FileSharePage({
     );
   }
   return (
-    <FileShareView token={token} res={res} api={api} signInHref={signInHref} overlay={overlay} onClose={onClose}
+    <FileShareView token={token} res={res} commentId={commentId} api={api} signInHref={signInHref} overlay={overlay} onClose={onClose}
                    extraActions={renderActions ? renderActions(res) : null}
                    staleAfterMs={staleAfterMs} onRefresh={() => load({ refresh: true })} />
   );
 }
 
-function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, overlay = false, onClose = null, extraActions = null }) {
+// An audio file's comments on a line under its player: where each one sits
+// along the file, and how far it has played. A dot makes its comment the
+// active one and moves the player there.
+function AudioMarks({ audioRef, marks, duration = 0, onPick }) {
+  const [length, setLength] = useState(duration > 0 ? duration : 0);
+  const [at, setAt] = useState(0);
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return undefined;
+    const size = () => { if (Number.isFinite(el.duration) && el.duration > 0) setLength(el.duration); };
+    const tick = () => setAt(el.currentTime || 0);
+    size();
+    el.addEventListener('durationchange', size);
+    el.addEventListener('loadedmetadata', size);
+    el.addEventListener('timeupdate', tick);
+    el.addEventListener('seeked', tick);
+    return () => {
+      el.removeEventListener('durationchange', size);
+      el.removeEventListener('loadedmetadata', size);
+      el.removeEventListener('timeupdate', tick);
+      el.removeEventListener('seeked', tick);
+    };
+  }, [audioRef]);
+  if (!(length > 0) || !marks.length) return null;
+  const pct = (s) => `${Math.max(0, Math.min(100, (s / length) * 100))}%`;
+  return (
+    <div className="fsp-amarks" role="group" aria-label={tr`Comments along the file`}>
+      <span className="fsp-amarks-fill" style={{ width: pct(at) }} />
+      {marks.map((m) => {
+        const time = m.label;
+        return (
+          <button key={m.id} type="button" className={`fsp-amark${m.active ? ' is-active' : ''}`} style={{ left: pct(m.at) }}
+                  data-mark={m.id} aria-label={tr`Comment at ${time}`} aria-current={m.active || undefined} title={time}
+                  onClick={() => onPick(m)} />
+        );
+      })}
+    </div>
+  );
+}
+
+function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, overlay = false, onClose = null, extraActions = null, commentId = null }) {
   const SRC = fsRef(token, 'src');
   const POSTER = fsRef(token, 'poster');
   const file = res.file || {};
@@ -360,6 +452,36 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
   const [pageRequest, setPageRequest] = useState(null);
   const [fps, setFps] = useState(null);
   const [focusReq, setFocusReq] = useState(0);
+  // Under the player: at narrow widths the box you write in is drawn here.
+  const [composeSlot, setComposeSlot] = useState(null);
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
+  const holdRef = useRef(false);        // unsent words in the open conversation
+  // Who is signed in: unsent words are kept under their id. undefined while
+  // it is read (the conversations wait for it), null when it cannot be had.
+  const [viewerId, setViewerId] = useState(signedIn ? undefined : null);
+  useEffect(() => {
+    if (!signedIn) { setViewerId(null); return undefined; }
+    let off = false;
+    Promise.resolve(typeof api.getSessionUserId === 'function' ? api.getSessionUserId() : null)
+      .then((id) => { if (!off) setViewerId(id || null); }, () => { if (!off) setViewerId(null); });
+    return () => { off = true; };
+  }, [signedIn, api]);
+  // A share nobody may comment on has no rail to open a linked comment in:
+  // the address drops it quietly.
+  useEffect(() => {
+    if (showRail || overlay || !linkedCommentAt(token)) return;
+    try { window.history.replaceState(window.history.state, '', withoutCommentLink(window.location.href)); } catch (_) { /* the address stays */ }
+  }, [showRail, overlay, token]);
+  // The caret is in the comments: the player's and the page's keys stand down.
+  const [inComments, setInComments] = useState(false);
+  useEffect(() => {
+    const read = () => setInComments(!!document.activeElement?.closest?.(OWN_KEYS));
+    const later = () => requestAnimationFrame(read);
+    document.addEventListener('focusin', read);
+    document.addEventListener('focusout', later);
+    return () => { document.removeEventListener('focusin', read); document.removeEventListener('focusout', later); };
+  }, []);
 
   // ---- the owner's dialog, on the page ---------------------------------
   const canManage = res.access === 'manage' && !!res.board_id && !!res.card_id;
@@ -517,7 +639,7 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
     const rate = fps || [24, 1];
     const t0 = playerRef.current?.getT0?.() || 0;
     return comments
-      .filter((c) => !c.deleted && !c.reply_to && c.at_ms != null && !c.resolved)
+      .filter((c) => !c.deleted && !c.reply_to && c.at_ms != null && !c.resolved && c.on_current !== false)
       .map((c) => ({
         id: c.id,
         frame: timeToFrame(c.at_ms / 1000, rate, t0),
@@ -528,15 +650,44 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
       }));
   }, [kind, comments, fps, activeId]);
 
-  // The player takes Escape for itself and hands it on as an action: inside
-  // the app, that closes the viewer like Escape anywhere else on it.
+  // An audio file's comments along its own line, as a video's are on its timeline.
+  const audioMarks = useMemo(() => {
+    if (kind !== 'audio') return [];
+    return comments
+      .filter((c) => !c.deleted && !c.reply_to && c.at_ms != null && !c.resolved && c.on_current !== false)
+      .map((c) => ({ id: c.id, at: c.at_ms / 1000, label: formatAt(c.at_ms), active: c.id === activeId }));
+  }, [kind, comments, activeId]);
+
+  // The player takes Escape for itself and hands it on as an action: it puts
+  // the active comment away first, and inside the app the next one closes the
+  // viewer like Escape anywhere else on it.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const onPlayerAction = useCallback((name, payload) => {
     if (name === 'marker' && payload?.id) setActiveId(payload.id);
     else if (name === 'comment') { playerRef.current?.pause?.(); setFocusReq((n) => n + 1); }
-    else if (name === 'escape' && overlay) onCloseRef.current?.();
+    else if (name === 'escape') {
+      if (activeIdRef.current) setActiveId(null);
+      else if (overlay) onCloseRef.current?.();
+    }
   }, [overlay]);
+
+  // Escape, asked by the dialog before it closes (OverlayShell escFirst), and
+  // on the page by the listener below.
+  const escFirst = useCallback((e) => {
+    if (e.target?.closest?.(ESC_OWN) || isEditableTarget(e)) return 'theirs';
+    if (activeIdRef.current) { setActiveId(null); return 'done'; }
+    return null;
+  }, []);
+  useEffect(() => {
+    if (overlay) return undefined;
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || isComposingKey(e) || isEditableTarget(e)) return;
+      if (escFirst(e) === 'done') e.preventDefault();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [overlay, escFirst]);
 
   const getAnchor = useCallback(() => {
     if (kind === 'video') {
@@ -556,14 +707,103 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
     else if (kind === 'audio') audioRef.current?.pause?.();
   }, [kind]);
 
+  // A time asked of the video before it can take one (a link to a comment
+  // opens the page cold: the player is a download of its own, and then the
+  // film has to say how long it is) is kept and applied once it can. → a
+  // promise: true once the player is at the time, false when another seek
+  // took its place, the player never came, or the film would not load: on
+  // its error, or SEEK_WAIT_MS after the player was found with nothing known
+  // of its length. Either way the wait ends, so a link's ?comment= is cleaned
+  // from the address and nothing is left to jump the film later.
+  const wantSeek = useRef(null);
+  const seekVideo = useCallback((sec) => new Promise((resolve) => {
+    wantSeek.current?.cancel();
+    let off = false;
+    let el = null;
+    let tries = 0;
+    let timer = null;
+    const done = (ok) => {
+      if (off) return;
+      off = true;
+      clearTimeout(timer);
+      el?.removeEventListener('loadedmetadata', go);
+      el?.removeEventListener('error', fail, true);
+      if (wantSeek.current === mine) wantSeek.current = null;
+      resolve(ok);
+    };
+    function go() {
+      if (off) return;
+      playerRef.current?.pause?.();
+      playerRef.current?.seekTime?.(sec);
+      done(true);
+    }
+    function fail() { done(false); }
+    const find = () => {
+      if (off) return;
+      el = playerRef.current?.element?.() || null;
+      if (!el) { if (tries++ < SEEK_WAIT_MS / 50) timer = setTimeout(find, 50); else done(false); return; }
+      if (el.readyState >= 1) { go(); return; }
+      if (el.error) { done(false); return; }
+      el.addEventListener('loadedmetadata', go);
+      // capture: a <source> that fails says so on itself, and that does not bubble
+      el.addEventListener('error', fail, true);
+      timer = setTimeout(fail, SEEK_WAIT_MS);
+    };
+    const mine = { cancel: () => done(false) };
+    wantSeek.current = mine;
+    find();
+  }), []);
+  useEffect(() => () => wantSeek.current?.cancel(), []);
+
   const onSeek = useCallback((c) => {
     if (c.at_ms != null) {
-      if (kind === 'video') { playerRef.current?.pause?.(); playerRef.current?.seekTime?.(c.at_ms / 1000); }
-      else if (kind === 'audio' && audioRef.current) { audioRef.current.currentTime = c.at_ms / 1000; }
+      if (kind === 'video') return seekVideo(c.at_ms / 1000);
+      if (kind === 'audio' && audioRef.current) { audioRef.current.currentTime = c.at_ms / 1000; }
     } else if (c.page != null && kind === 'pdf') {
       setPageRequest({ page: c.page, nonce: Date.now() });
     }
-  }, [kind]);
+    return undefined;
+  }, [kind, seekVideo]);
+
+  // The active comment stays the active one while the file is at its moment.
+  // Once the playhead has been there, leaving puts it away: playing 2 s past
+  // it, or a seek elsewhere (while paused, any move more than a few frames
+  // from it). Not while its words are being written.
+  const getAnchorRef = useRef(getAnchor);
+  getAnchorRef.current = getAnchor;
+  const activeAt = useMemo(() => {
+    if (!activeId || !TIMED_KINDS.has(kind)) return null;
+    const c = comments.find((x) => x.id === activeId);
+    return c && c.at_ms != null && c.on_current !== false ? c.at_ms / 1000 : null;
+  }, [activeId, comments, kind]);
+  useEffect(() => {
+    if (activeAt == null) return undefined;
+    const id = activeId;
+    let been = false;
+    let prev = null;
+    const read = () => {
+      const a = getAnchorRef.current?.();
+      if (!a || !Number.isFinite(a.atMs)) return;
+      const now = a.atMs / 1000;
+      const playing = kind === 'video' ? !!playerRef.current?.getState?.()?.playing : !!(audioRef.current && !audioRef.current.paused);
+      const was = prev;
+      prev = { now, playing };
+      if (now >= activeAt - 0.5 && now <= activeAt + 2) {
+        const moved = was && !was.playing && !playing && Math.abs(now - was.now) > 0.001;
+        if (!(been && moved && Math.abs(now - activeAt) > 0.3)) { been = true; return; }
+      }
+      if (!been || holdRef.current || document.activeElement?.closest?.('.cmt-card')) return;
+      setActiveId((cur) => (cur === id ? null : cur));
+    };
+    read();   // whatever made it the active one has already moved the file there
+    const timer = setInterval(read, 250);
+    return () => clearInterval(timer);
+  }, [activeId, activeAt, kind]);
+
+  const onAudioMark = useCallback((m) => {
+    setActiveId(m.id);
+    if (audioRef.current) { try { audioRef.current.currentTime = m.at; } catch (_) { /* not loaded yet */ } }
+  }, []);
 
   const sharedBy = (res.shared_by?.name && res.shared_by.name !== 'Someone on Clusters') ? res.shared_by.name : tr`Someone on Clusters`;
 
@@ -615,7 +855,7 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
     viewer = <FileCardView file={file} />;
   } else if (kind === 'video') {
     viewer = (
-      <FilmPlayer key={`v${gen}`} ref={playerRef} mode="full" keyboard={!manageOpen} src={SRC} poster={urls.poster ? POSTER : null}
+      <FilmPlayer key={`v${gen}`} ref={playerRef} mode="full" keyboard={!manageOpen && !inComments} src={SRC} poster={urls.poster ? POSTER : null}
                   modalHandle={overlay ? hostModalRef : undefined} surface={overlay ? 'shared_file' : 'file_share'}
                   title={file.name || ''} markers={markers} onAction={onPlayerAction} onFrameChange={onFrameChange}
                   probe={() => import('../../hooks/useMediaFacts.js').then((m) => m.probeCardVideo({ kind: 'video', src: SRC }))} />
@@ -626,6 +866,7 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
         {urls.poster && <img className="fsp-audio-art" src={urls.poster} alt="" />}
         <audio ref={audioRef} className="fsp-audio-el" controls preload="metadata" src={audioSrc || undefined}
                onError={onAudioError} aria-label={file.name || tr`Audio`} />
+        <AudioMarks audioRef={audioRef} marks={audioMarks} duration={Number(file.duration) || 0} onPick={onAudioMark} />
       </div>
     );
   } else if (kind === 'pdf') {
@@ -638,13 +879,17 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
 
   return (
     <Frame overlay={overlay} onClose={onClose} signedOut={!signedIn} token={token} wide={showRail} action={headerActions}
-           hostRef={hostModalRef}>
+           hostRef={hostModalRef} escFirst={escFirst}>
       {manageDialog}
       <div className={`fsp-layout${showRail ? ' has-rail' : ''}`}>
         <div className="fsp-col">
           <div ref={stageRef} className={`fsp-stage fsp-stage--${inline ? kind : 'file'}`}>
             <Suspense fallback={<span className="fsp-spinner" aria-label={tr`Loading`} />}>{viewer}</Suspense>
           </div>
+          {showRail && (
+            <div ref={setComposeSlot} className="fsp-compose-slot cmt-dark" data-keys-own
+                 onContextMenu={(e) => e.stopPropagation()} />
+          )}
           <div className="fsp-info">
             <h1 className="fsp-name">{file.name || tr`File`}</h1>
             <p className="fsp-facts">{factsLine(file)}</p>
@@ -676,11 +921,12 @@ function FileShareView({ token, res, api, signInHref, staleAfterMs, onRefresh, o
         </div>
         {showRail && (
           <aside className="fsp-rail">
-            <FileComments token={token} access={res.access} signedIn={signedIn} canComment={!!res.can_comment}
+            <FileComments token={token} signedIn={signedIn} canComment={!!res.can_comment}
                           kind={kind} getAnchor={getAnchor} currentPage={kind === 'pdf' ? page : null}
                           onSeek={onSeek} onFocusCompose={onFocusCompose} onComments={setComments}
                           activeId={activeId} onActivate={setActiveId} signInHref={signInHref}
-                          initialCount={res.comment_count ?? null} focusRequest={focusReq} api={api} />
+                          focusRequest={focusReq} api={api} composeSlot={composeSlot} holdRef={holdRef}
+                          userId={viewerId} linked={overlay ? commentId : null} />
           </aside>
         )}
       </div>

@@ -287,7 +287,7 @@ test('Link opens the link picker, and Comment the comment box, whose comment mar
   await expect(modal(page)).toBeVisible();
   await editorDo(page, 'ed.commands.focus(); ed.commands.selectAll();');
   await btn(page, 'Comment').click();
-  const composer = page.locator('.inline-composer-input');
+  const composer = page.locator('.cmt-float-host textarea.cmt-input');
   await expect(composer).toBeVisible();
   await composer.fill('Looks good');
   await composer.press('Enter');
