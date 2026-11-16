@@ -44,7 +44,10 @@ import { MessagesPanel } from '../components/MessagesPanel.jsx';
 import { MessagesLookContext } from '../components/messagesLook.js';
 import { FilesLookContext } from '../components/clusterBrowser/filesLook.js';
 import { MessagesFixtureContext } from '../lib/messagesFixture.js';
-import { FeedbackProvider } from '../components/AppFeedback.jsx';
+import { FeedbackProvider, useFeedback } from '../components/AppFeedback.jsx';
+import { SharedPage } from '../components/shared/SharedPage.jsx';
+import { setSharedFilesSource } from '../hooks/useSharedFiles.js';
+import { FIXTURES as FILE_SHARE_FIXTURES, makeFakeApi as makeFileShareApi } from './FileShareQaHarness.jsx';
 import * as userProfiles from '../lib/userProfiles.js';
 import { pickPresenceColor } from '../lib/presenceColor.js';
 import { HomeGraph } from '../components/HomeGraph.jsx';
@@ -272,8 +275,9 @@ const QA_STYLE = `
 // What the URL asks for: Home instead of the board (&surface=home), the full
 // Files page (&surface=files), Messages open (&messages=1; &conv=<id> opens a
 // conversation, &readonly=1 as a viewer), and the line under the workspace
-// (&who=here|shared|none).
-const SURFACE = ['home', 'files'].includes(QS.get('surface')) ? QS.get('surface') : 'board';
+// (&who=here|shared|none), the Shared page (&surface=shared, the real page
+// over FileShareQaHarness's fixture, a direct child of main as App mounts it).
+const SURFACE = ['home', 'files', 'shared'].includes(QS.get('surface')) ? QS.get('surface') : 'board';
 // The Files page wears direction A's look, as App gives it once its hold is
 // open (clusterBrowser/filesLook.js); &look=today shows the page production
 // has (tests/sidebar-files-page.spec.js runs on it).
@@ -389,6 +393,27 @@ const FAKE_AWARENESS = {
 };
 // Stable, as App's handle.getAwareness is: usePeerSelections re-subscribes when it changes.
 const GET_AWARENESS = () => FAKE_AWARENESS;
+
+// The Shared page as App mounts it: a direct child of main.main, which
+// floatingChrome.css has to name to make room for the islands. The store
+// reads the file-share harness's fake instead of the RPCs.
+function SharedPageQa({ onClose, say }) {
+  const feedback = useFeedback();
+  const fixture = FILE_SHARE_FIXTURES['shared-page'];
+  const api = useMemo(() => {
+    const a = makeFileShareApi(fixture);
+    setSharedFilesSource(a);
+    return a;
+  }, [fixture]);
+  const meta = useMemo(() => new Map(fixture.meta || []), [fixture]);
+  return <SharedPage api={api} feedback={feedback} clusters={fixture.clusters || []} meta={meta}
+                     byYouClusters={fixture.byYouClusters || []} byYouLoaded
+                     onRefreshByYou={() => say('refresh by you')} onOpenBoard={() => say('open board')}
+                     onOpenOwnBoard={() => say('open own board')} onRemoveCluster={() => say('remove cluster')}
+                     onCopyClusterLink={() => say('copy cluster link')} onManageClusterSharing={() => say('manage sharing')}
+                     onClose={onClose}
+                     onAddShortcut={async () => say('add shortcut')} onSaveCopy={async () => say('save copy')} />;
+}
 
 // The full Files page as App mounts it in the main pane: the split wrap and
 // pane, a surface that isn't a canvas (floatingChrome.css makes room for the
@@ -881,6 +906,10 @@ export function SidebarQaHarness() {
             </GraphFixtureContext.Provider>
             <div className="sbqa-readout sbqa-home-readout"><div data-testid="sbqa-log">{log.join(' | ')}</div></div>
           </>
+        ) : surface === 'shared' ? (
+          <FeedbackProvider>
+            <SharedPageQa onClose={() => setSurface('board')} say={say} />
+          </FeedbackProvider>
         ) : surface === 'files' ? (
           <>
             {/* A phone keeps App's topbar over the page (the islands are a
