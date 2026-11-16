@@ -195,6 +195,9 @@ test.describe('the board', () => {
       await expectFinger(page, ['.upgrade-chip']);
       await page.locator('.cnv-tools [aria-label="Free-draw tool"]').tap();
       await expect(page.locator('.cnv-hint-btn')).toBeVisible();
+      // A toast passing over the chip (the stack sits there on a phone) is not
+      // Done: wait it out, as above. Done lying on the chip would never clear.
+      await expect.poll(async () => (await hitBox(page.locator('.upgrade-chip'))).covered, { timeout: 10000 }).toBe(false);
       await expectFinger(page, ['.cnv-hint-btn', '.upgrade-chip']);
     });
   }
