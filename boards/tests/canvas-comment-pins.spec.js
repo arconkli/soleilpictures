@@ -878,7 +878,7 @@ test.describe('a link to a comment', () => {
       const url = req.url();
       const m = req.method();
       if (url.startsWith(baseURL)) return route.continue();
-      if (!url.startsWith('https://example.supabase.co')) return route.abort();
+      if (!url.startsWith('https://example.supabase.co/')) return route.abort();
       const json = (b, status = 200) => route.fulfill({ status, contentType: 'application/json', headers: cors, body: JSON.stringify(b) });
       if (m === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
       const one = (req.headers().accept || '').includes('vnd.pgrst.object');
