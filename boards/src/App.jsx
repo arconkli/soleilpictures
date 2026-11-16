@@ -9789,9 +9789,8 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   // ── Your place is held (lib/placeHeld.js) ──────────────────────────────────
   // Back at a cluster after a real break, the canvas glides to the card you last
   // worked on (CanvasSurface, handed `placeHeld` below) and a quiet slate beside the
-  // cluster's name says which working day this is: "· Day 3", and for a few seconds
-  // "· Day 3 · last worked Tuesday evening". The canvas owns the camera; this owns
-  // the visit stamps, the day count, the words and when they quiet. Main pane only.
+  // cluster's name says, for a few seconds, "· last worked Tuesday evening". The canvas owns the camera; this owns
+  // the visit stamps, the day count (recorded, not shown), the words and when they quiet. Main pane only.
   //
   // Read in render, before the visit effect below writes this open: the canvas needs
   // when the cluster was last seen to judge whether this is a break.
@@ -9843,7 +9842,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
     }, ms);
   }, []);
   // The long form: recomputed now, and only when there are last-worked words to say;
-  // with none the slate stays short and just takes the day number up to date.
+  // with none the slate stays folded and just takes the day count up to date.
   // `via` is 'held' (the canvas is gliding) or 'tab' (back to the tab after a break,
   // which only counts where the slate is on show). Returns what it read.
   const showSlateLong = useCallback((via) => {
@@ -11544,12 +11543,12 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
   const tbCanEdit = toolbarPane === 'split' ? splitBoardPerm.canEdit : canEditCurrent;
   const showNewCluster = clusterNudgesAllowed() && !mobileShell && currentSurface === 'board'
     && !!activeBoardId && tbCanEdit;
-  // The slate beside the name ("· Day 3 · last worked Tuesday evening", ClusterSlate):
-  // the main pane's canvas, from its second working day. A phone's bar has no room
+  // The slate beside the name ("· last worked Tuesday evening", ClusterSlate):
+  // the main pane's canvas, for the few seconds the words show. A phone's bar has no room
   // beside the name, so the long words come as a line under it, from `slate.label`.
   const slateOnCanvas = toolbarPane === 'main' && currentSurface === 'board' && view === 'canvas'
     && !!slate && slate.boardId === activeBoardId;
-  const slateShown = !mobileShell && slateOnCanvas && slate.n >= 2;
+  const slateShown = !mobileShell && slateOnCanvas && !!slate.label;
   const slatePhoneLine = mobileShell && slateOnCanvas && !!slate.label;
   // Nothing in the pane took it (still loading): make it in the cluster the
   // trail shows, and step inside.
@@ -12546,7 +12545,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                     </React.Fragment>
                   ))}
                 </div>
-                {slateShown && <ClusterSlate n={slate.n} label={slate.long ? slate.label : null} />}
+                {slateShown && <ClusterSlate label={slate.long ? slate.label : null} />}
                 {showNewCluster && (
                   <NewClusterButton boardId={activeBoardId} paneId={toolbarPane}
                                     boardName={activeCrumbs[activeCrumbs.length - 1]?.name}
@@ -12680,7 +12679,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
                 </React.Fragment>
               ))}
             </div>
-            {slateShown && <ClusterSlate n={slate.n} label={slate.long ? slate.label : null} />}
+            {slateShown && <ClusterSlate label={slate.long ? slate.label : null} />}
             {showNewCluster && (
               <NewClusterButton boardId={activeBoardId} paneId={toolbarPane}
                                 boardName={activeCrumbs[activeCrumbs.length - 1]?.name}
@@ -12807,7 +12806,7 @@ function Workspace({ user, signOut, workspace, rootBoard, workspaces, onSwitchWo
             kept mounted so it fades, and out of the reading order while it is off. */}
         {slatePhoneLine && (
           <div className="cluster-slate-wrap" aria-hidden={slate.long ? undefined : 'true'}>
-            <div className={`cluster-slate-line${slate.long ? ' is-on' : ''}`} role="status">{slateWords(slate.n, slate.label)}</div>
+            <div className={`cluster-slate-line${slate.long ? ' is-on' : ''}`} role="status">{slateWords(slate.label)}</div>
           </div>
         )}
         {altSessionId && (

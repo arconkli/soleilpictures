@@ -3575,8 +3575,8 @@ body {
 .crumb.here:hover { background: transparent; }
 .crumb-sep { color: var(--ink-3); font: 400 14px/1 var(--font-sans); flex-shrink: 0; padding: 0 4px; }
 
-/* The slate beside a cluster's name (ClusterSlate.jsx): "· Day 3", and for a few
-   seconds after you come back "· last worked Tuesday evening" too. Ink, never gold:
+/* The slate beside a cluster's name (ClusterSlate.jsx): for a few seconds after you
+   come back, "· last worked Tuesday evening". Ink, never gold:
    nothing here is active or selected. The last-worked words fade out and then fold
    away, and show at once; New cluster steps aside while they are there, so the bar
    makes room for one thing at a time. .is-clipped is the long form that did not fit:
@@ -3595,6 +3595,10 @@ body {
   overflow: hidden; max-width: 0; opacity: 0;
   transition: opacity .45s ease, max-width .35s ease .45s;
 }
+/* Once folded (ClusterSlate sets .is-gone after the fold above has run), the slate
+   leaves the row's flow, so the row's gap (it differs between the toolbar looks) has
+   nothing to count and New cluster sits where it would without a slate. */
+.cluster-slate.is-gone { position: absolute; visibility: hidden; pointer-events: none; }
 .cluster-slate.is-long .cs-last { max-width: 360px; opacity: 1; transition: none; }
 .cluster-slate.is-clipped .cs-last { transition: none; }
 .cluster-slate + .ncl-wrap { transition: opacity .3s ease .8s; }

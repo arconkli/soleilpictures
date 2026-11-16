@@ -7263,21 +7263,7 @@ export const DOCS_CONTENT = {
    "inline": [
     {
      "t": "text",
-     "v": "Come back to a cluster after a break of half an hour or more and it opens on the card you last worked on: the whole cluster shows for a moment, then the view glides to that card and selects it. Any click, scroll or key stops it where it is, and with reduced motion on it goes straight there. Beside the cluster's name a quiet count says which working day on it this is ("
-    },
-    {
-     "t": "strong",
-     "v": "Day 3",
-     "children": [
-      {
-       "t": "text",
-       "v": "Day 3"
-      }
-     ]
-    },
-    {
-     "t": "text",
-     "v": "), counting every day anyone worked on it, and for a few seconds after you come back it also says when you last worked on it, on any of your devices: "
+     "v": "Come back to a cluster after a break of half an hour or more and it opens on the card you last worked on: the whole cluster shows for a moment, then the view glides to that card and selects it. Any click, scroll or key stops it where it is, and with reduced motion on it goes straight there. For a few seconds after you come back, beside the cluster's name it says when you last worked on it, on any of your devices: "
     },
     {
      "t": "em",

@@ -4,8 +4,8 @@
 // Coming back to a cluster after a real break (30 min since this device last saw
 // it and since the person's own last card touch), the canvas shows the whole
 // cluster, holds ~650 ms, glides to the card they touched last and selects it; a
-// slate beside the cluster's name says "Day N" and, for a few seconds, "last
-// worked yesterday evening". A press, wheel, touch or key during the hold stops it.
+// slate beside the cluster's name says, for a few seconds, "last worked yesterday
+// evening", then folds away to nothing. A press, wheel, touch or key during the hold stops it.
 //
 // The seed is six notes far apart (so the fit view and the card view differ
 // clearly), all stamped with the stub's user. Stamps are computed from Date.now()
@@ -171,14 +171,11 @@ test.describe('your place is held', () => {
     expect(Math.abs(after.dy - before.dy)).toBeLessThan(40);
   });
 
-  test('the slate says the day and when you last worked, then settles; New cluster hides meanwhile', async ({ page }) => {
+  test('the slate says when you last worked, then folds away; New cluster hides meanwhile', async ({ page }) => {
     await boot(page);
     const slate = page.locator('.cluster-slate');
     await expect(slate).toBeVisible({ timeout: 15000 });
-    if (EN) {
-      await expect(slate).toContainText('Day');
-      await expect(slate).toContainText('last worked yesterday evening');
-    }
+    if (EN) await expect(slate).toContainText('last worked yesterday evening');
     // A longer language may not fit beside the name on this bar: then it shows the
     // short form at once (.is-clipped) rather than cut the cluster's name down.
     await expect(slate).toHaveClass(EN ? /is-long/ : /is-long|is-clipped/);
@@ -187,11 +184,32 @@ test.describe('your place is held', () => {
     if (/is-long/.test(await slate.getAttribute('class'))) await expect(page.locator('.ncl-wrap')).toBeHidden();
     await shot(page, '1280-long', { x: 0, y: 0, width: 1000, height: 120 });
 
-    // ~4.5 s of long form, then the short one; New cluster comes back.
+    // ~4.5 s of long form, then the words fold away; New cluster comes back.
+    const wasLong = /is-long/.test(await slate.getAttribute('class'));
+    const leftWhileLong = await slate.evaluate((el) => el.getBoundingClientRect().left);
     await expect(slate).not.toHaveClass(/is-long/, { timeout: 8000 });
+    if (wasLong) {
+      // While they fade the words stay where they were: the slate leaves the row
+      // only once they have folded (.is-gone).
+      const fading = await slate.evaluate((el) => ({ gone: el.classList.contains('is-gone'), left: el.getBoundingClientRect().left }));
+      expect(fading.gone, 'the slate stays in the row while its words fade').toBe(false);
+      expect(Math.abs(fading.left - leftWhileLong), 'the fading words do not jump').toBeLessThan(1);
+    }
     await page.waitForTimeout(1500);
-    if (EN) await expect(slate).toContainText('Day');
+    await expect(slate).toHaveClass(/is-gone/);
     await expect(page.locator('.ncl-wrap')).toBeVisible();
+    // Folded, the slate shows no text and takes no room: New cluster sits exactly
+    // where it would with no slate in the bar.
+    const folded = await slate.evaluate((el) => ({
+      w: el.getBoundingClientRect().width,
+      last: [...el.querySelectorAll('.cs-last')].map((n) => n.getBoundingClientRect().width),
+    }));
+    expect(folded.w, 'the folded slate is empty').toBeLessThan(2);
+    for (const w of folded.last) expect(w).toBeLessThan(2);
+    const nclLeft = () => page.locator('.ncl-wrap').evaluate((el) => el.getBoundingClientRect().left);
+    const withSlate = await nclLeft();
+    await page.evaluate(() => document.querySelector('.cluster-slate')?.remove());
+    expect(Math.abs((await nclLeft()) - withSlate), 'the folded slate moves nothing').toBeLessThan(1);
     await shot(page, '1280-short', { x: 0, y: 0, width: 1000, height: 120 });
   });
 });

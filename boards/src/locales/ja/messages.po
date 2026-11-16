@@ -7999,11 +7999,6 @@ msgstr "更新日"
 msgid "Day"
 msgstr "日"
 
-#. Beside a cluster’s name in the title bar: which working day on this cluster this is, like the day number on a film slate. It counts every day anyone worked on the cluster. {num} is 2 or more.
-#: src/components/ClusterSlate.jsx
-msgid "Day {num}"
-msgstr "{num}日目"
-
 #: src/components/cards/ScheduleCard.jsx
 msgid "Day tiles"
 msgstr "日タイル"
@@ -12177,42 +12172,42 @@ msgstr "最終使用: {localeDateString}"
 msgid "Last week"
 msgstr "先週"
 
-#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
+#. Beside a cluster’s name in the title bar, after a dot, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
 #: src/components/ClusterSlate.jsx
 msgid "last worked {weekday} afternoon"
 msgstr "前回の作業：{weekday}の午後"
 
-#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
+#. Beside a cluster’s name in the title bar, after a dot, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
 #: src/components/ClusterSlate.jsx
 msgid "last worked {weekday} evening"
 msgstr "前回の作業：{weekday}の夜"
 
-#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
+#. Beside a cluster’s name in the title bar, after a dot, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
 #: src/components/ClusterSlate.jsx
 msgid "last worked {weekday} morning"
 msgstr "前回の作業：{weekday}の朝"
 
-#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
+#. Beside a cluster’s name in the title bar, after a dot, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am. {weekday} is the day’s name in the nominative (Tuesday, вторник, mardi, 火曜日). Phrase it so a nominative day name reads correctly, as a label would (Russian: «последняя работа: вторник, вечер»).
 #: src/components/ClusterSlate.jsx
 msgid "last worked late {weekday}"
 msgstr "前回の作業：{weekday}の深夜"
 
-#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
+#. Beside a cluster’s name in the title bar, after a dot, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
 #: src/components/ClusterSlate.jsx
 msgid "last worked late yesterday"
 msgstr "前回の作業：昨日の深夜"
 
-#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
+#. Beside a cluster’s name in the title bar, after a dot, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
 #: src/components/ClusterSlate.jsx
 msgid "last worked yesterday afternoon"
 msgstr "前回の作業：昨日の午後"
 
-#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
+#. Beside a cluster’s name in the title bar, after a dot, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
 #: src/components/ClusterSlate.jsx
 msgid "last worked yesterday evening"
 msgstr "前回の作業：昨日の夜"
 
-#. Beside a cluster’s name, after “Day 3 ·”, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
+#. Beside a cluster’s name in the title bar, after a dot, for a few seconds when you come back: when YOU last worked on this cluster, on any of your devices. Lower case: it continues the line. Late means 10pm to 5am.
 #: src/components/ClusterSlate.jsx
 msgid "last worked yesterday morning"
 msgstr "前回の作業：昨日の朝"
