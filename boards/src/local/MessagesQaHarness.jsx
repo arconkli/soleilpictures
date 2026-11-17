@@ -32,6 +32,7 @@ import { OpenDmContext } from '../hooks/useOpenDm.js';
 import { useEntityNameTrie, EntityTrieContext } from '../hooks/useEntityNameTrie.js';
 import { useInboxLive } from '../hooks/useInboxLive.js';
 import { installSupabaseForQa } from '../lib/supabase.js';
+import { setReadUrlResolver } from '../lib/r2.js';
 import { installAttachmentResolverForQa } from '../lib/messageAttachmentUrls.js';
 import { messagingAccess } from '../lib/messageAccess.js';
 import { createFakeSupabase } from './msgqa/fakeSupabase.js';
@@ -51,6 +52,9 @@ const PHOTO_LIST = Object.values(PHOTOS);
 
 const db = buildMsgQaDb();
 const fake = createFakeSupabase({ db, selfId: SELF_ID, latency: Number(QS.get('latency')) || 0 });
+
+// Sent-card pictures ask for r2:qa/<photo>; the read-URL override serves the local photographs.
+setReadUrlResolver((key) => { const hit = /^qa\/([^/.]+)(?:\.jpg)?$/.exec(String(key || '')); return hit && PHOTOS[hit[1]] ? PHOTOS[hit[1]] : null; });
 
 // qa/<photo>.jpg serves the local photo; an upload made in this session serves
 // its own bytes; anything else (a pdf) is a link that goes nowhere.

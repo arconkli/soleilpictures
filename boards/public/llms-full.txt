@@ -613,7 +613,7 @@ A: Files, and screenplays. Everything else is a rebuild — which is why this pa
 ========================================================================
 # The canvas
 URL: https://clusters.soleilpictures.com/docs/canvas
-Updated: 2026-11-15
+Updated: 2026-11-17
 
 A cluster's Board view is an infinite canvas. You pan with Space or H, zoom with Cmd and plus or minus, and place cards anywhere. A tool rail runs down the left edge, right-clicking gives you a full menu wherever you clicked, and your zoom and pan position are remembered per cluster so reopening resumes where you left off. After a break of half an hour or more, a cluster opens on the card you last worked on.
 
@@ -663,7 +663,7 @@ Right-clicking is the fastest path to almost everything, and the menu differs by
 
 On empty canvas: Add (Cards / Visual / Web / Annotate), Paste, Select all, Background colour, Reset zoom, Export to PNG or PDF, and Clear all drawings.
 
-On a card: everything specific to that card kind, plus the universal operations — duplicate, delete, layer order, tag, comment, copy link.
+On a card: everything specific to that card kind, plus the universal operations — duplicate, delete, layer order, tag, comment, copy link, and Send to….
 
 On a group: rename, outline shape and colour, add to group, ungroup, group comment, group tag.
 
@@ -3313,7 +3313,7 @@ A: Yes, on the canvas. Viewers can read, comment and vote; they cannot add, move
 ========================================================================
 # Sharing and public links
 URL: https://clusters.soleilpictures.com/docs/collaborate/sharing
-Updated: 2026-11-15
+Updated: 2026-11-17
 
 A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are view-only, include nested clusters by default and can expire after 7 or 30 days. Anyone who opens one can join to keep the cluster in their Clusters, and ask you to let them edit. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 
@@ -3430,6 +3430,10 @@ Getting a link fast
 Two presses, and the second one is already under your cursor: Share opens the panel focused on Copy link (it reads Create link & copy until the cluster has a link), so Share then Enter puts a view-only link on your clipboard. Creating it also refreshes the preview image the link will unfurl with.
 
 Boards you are viewing without edit rights show a clear VIEW ONLY badge, so there is never ambiguity about whether your changes will stick. You cannot mint a link on one, but you can still open Share to see who has access.
+
+Sending it in Messages
+
+To send a cluster, or a card in it, to particular people, right-click it and choose Send to…. It arrives in their Messages as a preview card that opens the cluster, and anyone who can't open it yet gets view access: the same access, and the same daily limit, as inviting them here. See Sending a card or cluster.
 
 Link previews
 
@@ -3814,9 +3818,9 @@ A: It is kept. Click away and the words wait where you left them, in this browse
 ========================================================================
 # Messages
 URL: https://clusters.soleilpictures.com/docs/collaborate/messages
-Updated: 2026-10-21
+Updated: 2026-11-17
 
-Messages holds your direct and group conversations with anyone you share a board with. Threads support attachments you can drag straight onto a canvas, @ mentions that link to real boards and cards, per-thread drafts, and unread counts that show in the browser tab title.
+Messages holds your direct and group conversations with anyone you share a board with. Threads support attachments you can drag straight onto a canvas, @ mentions that link to real boards and cards, per-thread drafts, and unread counts that show in the browser tab title. Right-click any card or cluster and choose Send to… to send it as a preview card that opens it in the app.
 
 Messaging exists so that the conversation about a board can happen next to the board.
 
@@ -3827,6 +3831,8 @@ Who you can message
 Anyone you share at least one board with. Sharing is the address book — there is no separate contact list to maintain, and no way to message someone you have no working relationship with.
 
 Click any collaborator's avatar to start a direct message with them.
+
+Sending a card or cluster to an email address shares that cluster with them first; see Sending a card or cluster.
 
 Threads
 
@@ -3853,6 +3859,31 @@ The box grows as you write, then scrolls once it's tall
 Attach files with the + at the start of the box, by pasting, or by dropping them on the box. Each shows as its own chip while it uploads, and you can keep typing; Send waits until they're all in, and one that fails says so, with Retry
 Edit opens your message in this same box, under an Editing your message line, and the same keys apply: Enter saves (on a phone or tablet, the ✓ does) and Esc cancels. Whatever you'd started writing waits until you're done
 A message that can't be sent stays in the conversation marked Not sent, with Try again and Delete
+
+Sending a card or cluster
+
+Right-click a card or a cluster and choose Send to… to send it to people in Messages. It's on any card on the canvas, on several selected cards at once (Send 3 cards to…, up to 50), on a cluster's card, and on a cluster in the sidebar. On a phone or tablet, use a card's ⋯ menu, or hold a cluster in the sidebar.
+
+Who's listed — your recent conversations first, groups included, then everyone you can message. Search by name, or type a whole email address to send it to someone who isn't listed
+Picking — up to 25 at once: people, groups and email addresses together. Each person gets it in your direct conversation with them, and a group gets one message
+A message — anything you write goes with it, as the message's words
+Access — anyone you picked who can't open the cluster yet gets view access when you press Send, and the line beside Send names them before you do. Someone without an account gets an email invitation, and the cluster is waiting for them when they sign up. In a group, each member who needs it gets view access
+If you can only view it — you can still send it, but you can't let anyone in: the line beside Send names whoever won't be able to open it, and only people who can edit the cluster can send it to a new email address
+
+Giving someone access counts toward your daily invitations, as it does from the share panel. Past the limit, the people you picked still get the message but can't open the cluster yet, an email address gets nothing, and the notice after Send says so.
+
+With a keyboard, ↑ and ↓ move through the list, Enter or Space picks, ⌘/Ctrl+Enter sends and Esc closes.
+
+What arrives
+
+A preview card, the same whoever sent it:
+
+On top, what it is: the picture, the start of a note, a palette's colours, the first few of several cards, or four of a cluster's pictures and how many cards it holds
+Below, its name and where it lives — "Card · Night shoot", "3 cards · Night shoot", "Cluster in Soleil" — and Open
+Open goes straight to the cluster in the app with the card, or the cards, centred and selected, even when the cluster was shared with you a moment ago or lives in another of your workspaces
+No access — someone who can't open the cluster, or whose cluster is in the Trash, sees "You can't open Night shoot." in place of its pictures, and no Open
+
+A message with no words reads "Sent a card: Alley, neon" in the list of conversations, and in the notice and the notification that announce it.
 
 Keyboard
 
@@ -3889,13 +3920,16 @@ Feedback on a specific image belongs in a comment, where whoever opens that boar
 ## Frequently asked questions
 
 Q: Who can I message?
-A: Anyone you share at least one board with. There is no separate contact list to maintain and no way to message a stranger.
+A: Anyone you share at least one board with. There is no separate contact list to maintain. The one exception is Send to…: type an email address there and the card or cluster is shared with that person. An existing account gets it in Messages; anyone else gets an email invite.
 
 Q: Can I get a link to one specific message?
 A: Yes. Every message has a permalink that opens the thread scrolled to it.
 
 Q: What do the numbers in the tab title mean?
 A: Unread count. An @ prefix means at least one of them mentions you directly.
+
+Q: How do I send a card or cluster to someone?
+A: Right-click it and choose Send to…, pick people or type an email address, and press Send. It arrives in Messages as a preview card that opens the cluster with the card selected. If you can edit the cluster, anyone who could not open it yet gets view access.
 
 
 ========================================================================

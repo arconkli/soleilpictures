@@ -330,10 +330,11 @@ msgid "{0, plural, one {# card past your plan’s room were left out.} other {# 
 msgstr "{0, plural, other {요금제 한도를 넘은 카드 #장은 제외했어요.}}"
 
 #. placeholder {0}: boost + 1
+#. placeholder {0}: cards.length
 #. placeholder {0}: cardsOf(b)
-#. placeholder {0}: ctx.cards
 #: src/auth/AuthGate.jsx
 #: src/components/home/ClustersHome.jsx
+#: src/components/MessageSharedCard.jsx
 #: src/components/MessageThings.jsx
 #: src/lib/feedbackContext.js
 #: src/lib/liveTogetherWords.js
@@ -727,6 +728,11 @@ msgstr "{0, plural, other {선택한 클러스터 #개 되돌리기}}"
 msgid "{0, plural, one {Rewound # cluster to {rewindDate}} other {Rewound # clusters to {rewindDate}}}"
 msgstr "{0, plural, other {클러스터 #개를 {rewindDate}로 되돌렸어요}}"
 
+#. placeholder {0}: picked.length
+#: src/components/CanvasSurface.jsx
+msgid "{0, plural, one {Send to…} other {Send # cards to…}}"
+msgstr "{0, plural, other {카드 #장 보내기…}}"
+
 #. placeholder {0}: row.count
 #: src/components/sidebar/ClusterShelves.jsx
 msgid "{0, plural, one {Show # more} other {Show # more}}"
@@ -1002,7 +1008,13 @@ msgstr "{count, plural, other {결제가 완료되는 즉시 업로드돼요: **
 msgid "{count, plural, one {# boards · {reason}} other {# boards · {reason}}}"
 msgstr "{count, plural, other {클러스터 #개 · {reason}}}"
 
+#: src/lib/messageThing.js
+msgid "{count, plural, one {# card · {board}} other {# cards · {board}}}"
+msgstr "{count, plural, other {카드 #장 · {board}}}"
+
 #: src/components/entityPreviews/GroupPreview.jsx
+#: src/components/MessageSharedCard.jsx
+#: src/lib/messageThing.js
 msgid "{count, plural, one {# card} other {# cards}}"
 msgstr "{count, plural, other {카드 #장}}"
 
@@ -1572,6 +1584,46 @@ msgstr "{limit, plural, other {이 무료 클러스터에 더 담을 수 있는 
 msgid "{limit, plural, one {Your plan has # person who can edit, the most it allows.} other {Your plan has # people who can edit, the most it allows.}}"
 msgstr "{limit, plural, other {현재 요금제에서는 편집할 수 있는 사람이 #명이며, 허용되는 최대치예요.}}"
 
+#: src/lib/sendTo.js
+msgid "{list} can't open it yet: only editors can let people in."
+msgstr "아직 열 수 없음: {list}. 편집자만 액세스 권한을 줄 수 있어요."
+
+#: src/lib/sendTo.js
+msgid "{list} can't open it yet: today's sharing limit is reached."
+msgstr "아직 열 수 없음: {list}. 오늘의 공유 한도에 도달했어요."
+
+#: src/lib/sendTo.js
+msgid "{list} can't open it yet."
+msgstr "아직 열 수 없음: {list}."
+
+#: src/lib/sendTo.js
+msgid "{list} didn't get it: check the address."
+msgstr "받지 못함: {list}. 주소를 확인해 주세요."
+
+#: src/lib/sendTo.js
+msgid "{list} didn't get it: only editors can invite by email."
+msgstr "받지 못함: {list}. 편집자만 이메일로 초대할 수 있어요."
+
+#: src/lib/sendTo.js
+msgid "{list} didn't get it: today's sharing limit is reached."
+msgstr "받지 못함: {list}. 오늘의 공유 한도에 도달했어요."
+
+#: src/lib/sendTo.js
+msgid "{list} didn't get it."
+msgstr "받지 못함: {list}."
+
+#: src/lib/sendTo.js
+msgid "{list} will be able to view {title}."
+msgstr "{title}을(를) 볼 수 있게 돼요: {list}."
+
+#: src/lib/sendTo.js
+msgid "{list} will get an email invite."
+msgstr "이메일 초대를 받을 사람: {list}."
+
+#: src/lib/sendTo.js
+msgid "{list} won't be able to open it: only its editors can let people in."
+msgstr "열 수 없음: {list}. 편집자만 액세스 권한을 줄 수 있어요."
+
 #: src/components/cards/ScheduleTiles.jsx
 msgid "{live, plural, one {# day} other {# days}}"
 msgstr "{live, plural, other {#일}}"
@@ -1724,6 +1776,10 @@ msgstr "{n, plural, other {첨부 파일 #개}}"
 msgid "{n, plural, one {# audio file} other {# audio files}}"
 msgstr "{n, plural, other {오디오 파일 #개}}"
 
+#: src/components/SendSheet.jsx
+msgid "{n, plural, one {# can't open it yet} other {# can't open it yet}}"
+msgstr "{n, plural, other {#명은 아직 열 수 없어요}}"
+
 #: src/lib/demoCardCapWords.js
 msgid "{n, plural, one {# card couldn't be added.} other {# cards couldn't be added.}}"
 msgstr "{n, plural, other {카드 #장을 추가할 수 없었어요.}}"
@@ -1832,6 +1888,14 @@ msgstr "{n, plural, other {팔레트 #개}}"
 #: src/lib/dropRules.js
 msgid "{n, plural, one {# PDF} other {# PDFs}}"
 msgstr "{n, plural, other {PDF #개}}"
+
+#: src/lib/sendTo.js
+msgid "{n, plural, one {# person will be able to view {title}.} other {# people will be able to view {title}.}}"
+msgstr "{n, plural, other {#명이 {title}을(를) 볼 수 있게 돼요.}}"
+
+#: src/lib/sendTo.js
+msgid "{n, plural, one {# person won't be able to open it: only its editors can let people in.} other {# people won't be able to open it: only its editors can let people in.}}"
+msgstr "{n, plural, other {#명은 열 수 없어요. 편집자만 액세스 권한을 줄 수 있어요.}}"
 
 #: src/lib/sharedFiles.js
 msgid "{n, plural, one {# person} other {# people}}"
@@ -1956,6 +2020,10 @@ msgstr "{n, plural, other {{pages}페이지에서 일치 항목 #건을 바꿨�
 msgid "{n, plural, one {Replaced # match} other {Replaced # matches}}"
 msgstr "{n, plural, other {일치 항목 #개를 바꿨어요}}"
 
+#: src/components/SendSheet.jsx
+msgid "{n, plural, one {Send} other {Send to #}}"
+msgstr "{n, plural, other {보내기 (#)}}"
+
 #: src/lib/teamModelWords.js
 msgid "{n, plural, one {Sent # day ago} other {Sent # days ago}}"
 msgstr "{n, plural, other {#일 전에 보냄}}"
@@ -1967,6 +2035,10 @@ msgstr "{n, plural, other {#시간 전에 보냄}}"
 #: src/lib/teamModelWords.js
 msgid "{n, plural, one {Sent # week ago} other {Sent # weeks ago}}"
 msgstr "{n, plural, other {#주 전에 보냄}}"
+
+#: src/lib/sendTo.js
+msgid "{n, plural, one {Sent to # person} other {Sent to # people}}"
+msgstr "{n, plural, other {#명에게 보냄}}"
 
 #: src/components/shared/SharedPage.jsx
 msgid "{n, plural, one {Shared with # person} other {Shared with # people}}"
@@ -2678,6 +2750,10 @@ msgstr "시트 {seatsUsed}개"
 msgid "{selAllKey} selects all · {cmdKey}-click adds · {shiftKey}-click selects a range"
 msgstr "{selAllKey}: 모두 선택 · {cmdKey}+클릭: 추가 · {shiftKey}+클릭: 범위 선택"
 
+#: src/components/CanvasSurface.jsx
+msgid "{SEND_MAX_CARDS, plural, one {Send to… (up to # card)} other {Send to… (up to # cards)}}"
+msgstr "{SEND_MAX_CARDS, plural, other {보내기… (최대 #장)}}"
+
 #: src/components/MessagesPanel.jsx
 msgid "{senderFirst}: {preview}"
 msgstr "{senderFirst}: {preview}"
@@ -3097,6 +3173,26 @@ msgstr "{who} 님을 팀에서 제거했어요."
 #: src/lib/teamCopy.js
 msgid "{who} removed from the team’s domains."
 msgstr "팀 도메인에서 {who}을(를) 제거했어요."
+
+#: src/lib/messageThing.js
+msgid "{who} sent {count, plural, one {# card} other {# cards}}"
+msgstr "{who} 님이 {count, plural, other {카드 #장}}을 보냈어요"
+
+#: src/lib/messageThing.js
+msgid "{who} sent {title}"
+msgstr "{who} 님이 보냄: {title}"
+
+#: src/lib/messageThing.js
+msgid "{who} sent a card"
+msgstr "{who} 님이 카드를 보냈어요"
+
+#: src/lib/messageThing.js
+msgid "{who} sent a card: {title}"
+msgstr "{who} 님이 카드를 보냈어요: {title}"
+
+#: src/lib/messageThing.js
+msgid "{who} sent a cluster"
+msgstr "{who} 님이 클러스터를 보냈어요"
 
 #: src/components/MessagesPanel.jsx
 msgid "{who} sent an attachment"
@@ -3922,6 +4018,10 @@ msgstr "링크 카드 추가"
 #: src/lib/boardMore.js
 msgid "Add a note"
 msgstr "메모 추가"
+
+#: src/components/SendSheet.jsx
+msgid "Add a note (optional)"
+msgstr "메모 추가 (선택 사항)"
 
 #: src/components/settings/PasskeysSection.jsx
 msgid "Add a passkey"
@@ -5637,6 +5737,10 @@ msgstr "보고 참여할 수 있음"
 msgid "can't drop a board onto itself"
 msgstr "클러스터를 자기 자신에게 놓을 수 없음"
 
+#: src/components/SendSheet.jsx
+msgid "Can't open {boardTitle} yet"
+msgstr "아직 {boardTitle}을(를) 열 수 없어요"
+
 #: src/components/cards.jsx
 msgid "Can’t play here: download it"
 msgstr "여기서는 재생할 수 없어요: 다운로드하세요"
@@ -5782,6 +5886,7 @@ msgstr "캡처, 스크린샷, 녹화, 데모, 마케팅, 깔끔하게"
 #: src/lib/entityKinds.js
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
+#: src/lib/messageThing.js
 msgid "Card"
 msgstr "카드"
 
@@ -5789,6 +5894,10 @@ msgstr "카드"
 msgctxt "payment card"
 msgid "Card"
 msgstr "결제 카드"
+
+#: src/lib/messageThing.js
+msgid "Card · {board}"
+msgstr "카드 · {board}"
 
 #: src/components/toolbar/NoteBarA.jsx
 msgid "Card background"
@@ -6305,6 +6414,7 @@ msgstr "클립보드"
 #: src/components/PanelWait.jsx
 #: src/components/PdfViewer.jsx
 #: src/components/PricingModal.jsx
+#: src/components/SendSheet.jsx
 #: src/components/SettingsPanel.jsx
 #: src/components/setup/InviteReask.jsx
 #: src/components/shared/SharedPage.jsx
@@ -6423,6 +6533,7 @@ msgstr "클러스터"
 #: src/components/clusterBrowser/FolderTiles.jsx
 #: src/components/clusterBrowser/GridContentPreview.jsx
 #: src/components/MessageComposer.jsx
+#: src/components/MessageSharedCard.jsx
 #: src/components/MessageThings.jsx
 #: src/components/shared/SharedPage.jsx
 #: src/components/WorkspaceRecoveryModal.jsx
@@ -6430,6 +6541,7 @@ msgstr "클러스터"
 #: src/lib/entityKinds.js
 #: src/lib/helpHub.js
 #: src/lib/listItemWords.js
+#: src/lib/messageThing.js
 #: src/pages/KeepPage.jsx
 msgid "Cluster"
 msgstr "클러스터"
@@ -6441,6 +6553,10 @@ msgstr "클러스터"
 #: src/components/MessageThings.jsx
 msgid "Cluster in {parent}"
 msgstr "{parent} 안의 클러스터"
+
+#: src/lib/messageThing.js
+msgid "Cluster in {ws}"
+msgstr "{ws}의 클러스터"
 
 #: src/components/CanvasSurface.jsx
 msgid "Cluster info"
@@ -7913,6 +8029,15 @@ msgstr "저장할 수 없어요. 쓴 내용은 그대로 있어요."
 #: src/components/MessageBubble.jsx
 msgid "Couldn't send"
 msgstr "보낼 수 없어요"
+
+#: src/components/SendSheet.jsx
+#: src/lib/sendTo.js
+msgid "Couldn't send to {list}. Try again."
+msgstr "보내지 못함: {list}. 다시 시도해 주세요."
+
+#: src/components/SendSheet.jsx
+msgid "Couldn't send. Try again."
+msgstr "보내지 못했어요. 다시 시도해 주세요."
 
 #: src/components/comments/CommentComposer.jsx
 msgid "Couldn't send. Your words are still here."
@@ -10616,6 +10741,10 @@ msgstr "Creator 시작하기"
 msgid "Get info"
 msgstr "정보 보기"
 
+#: src/components/SendSheet.jsx
+msgid "Gets it in Messages, or an email invite if they're new"
+msgstr "메시지로 받아요. 처음이면 이메일 초대를 받아요"
+
 #: src/components/ShareModal.jsx
 msgid "Give {email} the whole workspace?"
 msgstr "{email}에게 워크스페이스 전체를 줄까요?"
@@ -11716,6 +11845,10 @@ msgstr "{count}명을 초대했고, 가입 대기 중인 {count2}명이 더 있�
 msgid "Invited {email} — access is waiting for them when they sign up."
 msgstr "초대했어요: {email} — 가입하면 바로 액세스할 수 있어요."
 
+#: src/components/SendSheet.jsx
+msgid "Invited {list}"
+msgstr "초대함: {list}"
+
 #: src/components/ShareModal.jsx
 msgid "Invited {okCount} ({pending} pending signup), failed {failed}: {list}"
 msgstr "{okCount}명을 초대했어요(가입 대기 {pending}명). {failed}명은 실패했어요: {list}"
@@ -12564,8 +12697,13 @@ msgstr "링크"
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/messageThing.js
 msgid "Link"
 msgstr "링크"
+
+#: src/lib/messageThing.js
+msgid "Link · {host}"
+msgstr "링크 · {host}"
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Link · comment"
@@ -12840,6 +12978,7 @@ msgstr "워크스페이스를 불러오는 중"
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/HelpHub.jsx
 #: src/components/NotificationsPanel.jsx
+#: src/components/SendSheet.jsx
 #: src/components/settings/BillingTab.jsx
 #: src/components/settings/ConnectionsTab.jsx
 #: src/components/settings/DocsTab.jsx
@@ -13186,8 +13325,10 @@ msgstr "중간 타일"
 #: src/components/MessagesPanel.jsx
 #: src/components/MessageThread.jsx
 #: src/components/NewConversationPicker.jsx
+#: src/components/SendSheet.jsx
 #: src/components/ShareModal.jsx
 #: src/lib/commentAuthor.js
+#: src/lib/sendTo.js
 #: src/lib/teamModelWords.js
 #: src/lib/userProfiles.js
 msgid "Member"
@@ -13774,6 +13915,10 @@ msgstr "이름 정하기 (선택 사항)"
 msgid "Name it, e.g. Short film"
 msgstr "이름을 입력하세요. 예: 단편 영화"
 
+#: src/components/SendSheet.jsx
+msgid "Name or email"
+msgstr "이름 또는 이메일"
+
 #: src/lib/versionFields.js
 msgid "Name restored."
 msgstr "이름을 복원했어요."
@@ -13907,6 +14052,7 @@ msgstr "새 댓글"
 
 #: src/components/MessagesPanel.jsx
 #: src/components/MessageThread.jsx
+#: src/lib/sendTo.js
 msgid "New conversation"
 msgstr "새 대화"
 
@@ -14289,6 +14435,10 @@ msgstr "초대할 새 주소가 없어요."
 msgid "No notes tagged."
 msgstr "태그된 메모가 없어요."
 
+#: src/components/SendSheet.jsx
+msgid "No one matches. Type a full email address to send it by email."
+msgstr "일치하는 사람이 없어요. 이메일로 보내려면 전체 이메일 주소를 입력해 주세요."
+
 #: src/components/NewConversationPicker.jsx
 msgid "No one to message yet. Share a board to start collaborating."
 msgstr "아직 메시지를 보낼 사람이 없어요. 클러스터를 공유해 협업을 시작하세요."
@@ -14627,8 +14777,13 @@ msgstr "메모"
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/messageThing.js
 msgid "Note"
 msgstr "메모"
+
+#: src/lib/messageThing.js
+msgid "Note · {board}"
+msgstr "메모 · {board}"
 
 #. Words people might type to find this command, comma-separated.
 #: src/App.jsx
@@ -15226,6 +15381,10 @@ msgstr "추가한 사람만"
 msgid "Only people it was shared with can open it."
 msgstr "공유받은 사람만 열 수 있어요."
 
+#: src/components/SendSheet.jsx
+msgid "Only people who can edit {boardTitle} can send it to a new email."
+msgstr "{boardTitle}을(를) 편집할 수 있는 사람만 새 이메일로 보낼 수 있어요."
+
 #: src/components/ShareModal.jsx
 msgid "Only people who can edit this cluster can change who has access. You can still see who does, above."
 msgstr "이 클러스터를 편집할 수 있는 사람만 액세스 권한을 변경할 수 있어요. 누가 액세스 권한이 있는지는 위에서 볼 수 있어요."
@@ -15330,6 +15489,7 @@ msgstr "불투명도"
 #: src/components/home/ClustersHome.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
 #: src/components/ListSurface.jsx
+#: src/components/MessageSharedCard.jsx
 #: src/components/shared/SharedPage.jsx
 #: src/components/SidebarBoardTree.jsx
 #: src/components/SidebarSharedBoards.jsx
@@ -15372,6 +15532,7 @@ msgstr "파일을 추가하려면 {boardOrThis} 열기"
 #: src/components/cards/ScheduleCard.jsx
 #: src/components/HeldUploadsBar.jsx
 #: src/components/MessageBubble.jsx
+#: src/components/MessageSharedCard.jsx
 #: src/components/MessageThings.jsx
 #: src/components/MoreLikeThis.jsx
 #: src/components/setup/WorkspaceSetup.jsx
@@ -15457,6 +15618,10 @@ msgstr "클러스터 열기"
 #: src/components/capture/CaptureHud.jsx
 msgid "Open capture controls"
 msgstr "캡처 컨트롤 열기"
+
+#: src/components/SendSheet.jsx
+msgid "Open chat"
+msgstr "채팅 열기"
 
 #: src/components/CanvasSurface.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
@@ -16014,8 +16179,13 @@ msgstr "팔레트"
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/messageThing.js
 msgid "Palette"
 msgstr "팔레트"
+
+#: src/lib/messageThing.js
+msgid "Palette · {board}"
+msgstr "팔레트 · {board}"
 
 #: src/components/CanvasSurface.jsx
 msgid "Palette {number}"
@@ -16290,6 +16460,7 @@ msgstr "검토 대기 중"
 msgid "Pending suggestions"
 msgstr "대기 중인 제안"
 
+#: src/components/SendSheet.jsx
 #: src/components/team/TeamPage.jsx
 #: src/components/team/TeamPeople.jsx
 msgid "People"
@@ -16468,6 +16639,10 @@ msgstr "카메라 롤에서 여러 장을 한 번에 고르세요."
 #: src/components/ReturnReasonAsk.jsx
 msgid "Picking up where I left off"
 msgstr "하던 작업을 이어서 해요"
+
+#: src/lib/messageThing.js
+msgid "Picture"
+msgstr "이미지"
 
 #: src/lib/versionActions.js
 msgid "Picture lock, Director’s cut…"
@@ -17090,6 +17265,7 @@ msgstr "영수증"
 
 #: src/components/ColorPicker.jsx
 #: src/components/doc/DocBarA.jsx
+#: src/components/SendSheet.jsx
 #: src/components/toolbar/NoteBarA.jsx
 msgid "Recent"
 msgstr "최근"
@@ -18597,6 +18773,7 @@ msgstr "선택 서식"
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/MessageComposer.jsx
 #: src/components/ReturnReasonAsk.jsx
+#: src/components/SendSheet.jsx
 #: src/components/UpgradeReasonAsk.jsx
 msgid "Send"
 msgstr "보내기"
@@ -18638,6 +18815,12 @@ msgstr "초대 보내기"
 msgid "Send to back"
 msgstr "맨 뒤로 보내기"
 
+#: src/components/CanvasSurface.jsx
+#: src/components/SendSheet.jsx
+#: src/components/SidebarBoardTree.jsx
+msgid "Send to…"
+msgstr "보내기…"
+
 #: src/components/MessageComposer.jsx
 msgid "Send, once the uploads finish"
 msgstr "업로드가 끝나면 보내기"
@@ -18667,6 +18850,10 @@ msgstr "코드를 보내는 중…"
 msgid "Sending…"
 msgstr "보내는 중…"
 
+#: src/lib/messageThing.js
+msgid "Sent {count, plural, one {# card} other {# cards}}"
+msgstr "보냄: {count, plural, other {카드 #장}}"
+
 #: src/lib/teamModelWords.js
 msgid "Sent {n} min ago"
 msgstr "{n}분 전에 보냄"
@@ -18687,6 +18874,22 @@ msgstr "{sent} 보냄, {count} 보내지 못함. {why}"
 msgid "Sent {sent}; {count} not sent. {why} Also failed: {failList}"
 msgstr "{sent} 보냄, {count} 보내지 못함. {why} 이 항목도 실패: {failList}"
 
+#: src/lib/messageThing.js
+msgid "Sent {title}"
+msgstr "보냄: {title}"
+
+#: src/lib/messageThing.js
+msgid "Sent a card"
+msgstr "카드 보냄"
+
+#: src/lib/messageThing.js
+msgid "Sent a card: {title}"
+msgstr "카드 보냄: {title}"
+
+#: src/lib/messageThing.js
+msgid "Sent a cluster"
+msgstr "클러스터 보냄"
+
 #: src/lib/teamModelWords.js
 msgid "Sent a while ago"
 msgstr "한참 전에 보냄"
@@ -18694,6 +18897,10 @@ msgstr "한참 전에 보냄"
 #: src/lib/teamModelWords.js
 msgid "Sent last week"
 msgstr "지난주에 보냄"
+
+#: src/lib/sendTo.js
+msgid "Sent to {list}"
+msgstr "보냄: {list}"
 
 #: src/lib/teamModelWords.js
 msgid "Sent today"
@@ -24197,6 +24404,10 @@ msgstr "이 대화를 읽을 수 있어요. 계정이 대기자 명단에서 나
 msgid "You can see everything in it"
 msgstr "그 안의 모든 것을 볼 수 있어요"
 
+#: src/components/SendSheet.jsx
+msgid "You can send to up to {max} at a time."
+msgstr "받는 사람은 한 번에 최대 {max}까지 선택할 수 있어요."
+
 #: src/App.jsx
 msgid "You can view {shown} but not add to it."
 msgstr "{shown}은(는) 볼 수만 있고 추가할 수는 없어요."
@@ -24236,6 +24447,14 @@ msgstr "이 워크스페이스에서는 해당 사람들 중 한 명 이상에�
 #: src/lib/messageAccess.js
 msgid "You can't message this person from this workspace."
 msgstr "이 워크스페이스에서는 이 사람에게 메시지를 보낼 수 없어요."
+
+#: src/components/MessageSharedCard.jsx
+msgid "You can't open {name}."
+msgstr "{name}을(를) 열 수 없어요."
+
+#: src/lib/sendTo.js
+msgid "You can't send it to yourself."
+msgstr "자신에게는 보낼 수 없어요."
 
 #: src/components/fileShare/FileShareDialog.jsx
 msgid "You can't share docs in this cluster."
@@ -24373,6 +24592,26 @@ msgstr "토큰이 필요하지 않을 수 있어요. 이 엔드포인트를 지�
 #: src/components/NotificationsPanel.jsx
 msgid "You said yes"
 msgstr "수락했어요"
+
+#: src/lib/messageThing.js
+msgid "You sent {count, plural, one {# card} other {# cards}}"
+msgstr "{count, plural, other {카드 #장}}을 보냈어요"
+
+#: src/lib/messageThing.js
+msgid "You sent {title}"
+msgstr "{title}을(를) 보냈어요"
+
+#: src/lib/messageThing.js
+msgid "You sent a card"
+msgstr "카드를 보냈어요"
+
+#: src/lib/messageThing.js
+msgid "You sent a card: {title}"
+msgstr "카드를 보냈어요: {title}"
+
+#: src/lib/messageThing.js
+msgid "You sent a cluster"
+msgstr "클러스터를 보냈어요"
 
 #: src/lib/liveTogetherWords.js
 msgid "You, {first} and {second} are working together"

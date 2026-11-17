@@ -1,0 +1,89 @@
+/* The preview card a sent card or cluster makes in Messages (look B). It sits
+   in both message looks, so every token has a fallback: --mc-* and --sbf-* are
+   the files sidebar look's, the plain drawer look has only the ink and
+   background tokens. Flat rules only. No gold at rest. */
+
+.msg-sc {
+  position: relative; width: 264px; max-width: 100%; box-sizing: border-box;
+  border-radius: 12px; overflow: hidden;
+  background: var(--mc-their, var(--bg-2));
+  box-shadow: var(--mc-their-sh, none), var(--mc-card-sh, 0 1px 2px rgba(0, 0, 0, .3));
+}
+.msg-sc.is-open { cursor: pointer; }
+.msg-sc::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 0 1px var(--mc-card-edge, var(--line-2));
+}
+
+.msg-sc-md { position: relative; height: 168px; overflow: hidden; background: var(--bg-2); }
+.msg-sc-md.is-pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.msg-sc-md.is-panel, .msg-sc-md.is-mosaic:not([class*='has-']) {
+  display: flex; align-items: center; justify-content: center; color: var(--ink-2);
+}
+.msg-sc-panel-icon { display: flex; color: var(--ink-2); }
+
+.msg-sc-md.is-note {
+  height: auto; min-height: 92px; max-height: 168px; box-sizing: border-box; padding: 14px 16px;
+  background: color-mix(in srgb, var(--ink-0) 4%, var(--bg-3));
+  font: 400 12.5px/1.5 var(--font-sans); color: var(--ink-1);
+}
+.msg-sc-md.is-note h4 {
+  margin: 0 0 4px; font: 700 13.5px/1.3 var(--font-sans); color: var(--ink-0);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.msg-sc-md.is-note p {
+  margin: 0; white-space: pre-line; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+.msg-sc-md.is-pal { display: flex; height: 92px; }
+.msg-sc-md.is-pal i { flex: 1; }
+
+.msg-sc-md.is-mosaic, .msg-sc-md.is-strip { display: grid; gap: 2px; background: var(--bg-0); }
+.msg-sc-md.is-mosaic.has-1 { grid-template-columns: 1fr; }
+.msg-sc-md.is-mosaic.has-2 { grid-template-columns: 1fr 1fr; }
+.msg-sc-md.is-mosaic.has-3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.msg-sc-md.is-mosaic.has-3 .msg-sc-tile:first-child { grid-column: 1 / -1; }
+.msg-sc-md.is-mosaic.has-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.msg-sc-md.is-strip { grid-template-columns: 1.3fr 1fr 1fr; }
+.msg-sc-tile { position: relative; display: block; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg-2); }
+.msg-sc-tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.msg-sc-tile-kind { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; color: var(--ink-2); }
+
+.msg-sc-n {
+  position: absolute; right: 8px; bottom: 8px; height: 22px; padding: 0 8px; border-radius: 11px;
+  background: rgba(10, 10, 12, .62); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  color: #f5f5f7; font: 600 11.5px/22px var(--font-sans); white-space: nowrap;
+}
+.msg-sc-tile .msg-sc-n { right: 6px; bottom: 6px; }
+
+.msg-sc-lock {
+  height: 120px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 0 24px; text-align: center;
+  background: var(--sbf-hover, color-mix(in srgb, var(--ink-0) 8%, transparent)); color: var(--ink-2);
+  font: 400 12px/1.4 var(--font-sans);
+}
+
+.msg-sc-ft { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; }
+.msg-sc-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.msg-sc-t1 {
+  font: 600 13px/1.3 var(--font-sans); color: var(--ink-0);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.msg-sc-t2 {
+  display: flex; align-items: center; gap: 5px; min-width: 0;
+  font: 400 11.5px/1.3 var(--font-sans); color: var(--mc-quiet, var(--ink-2));
+}
+.msg-sc-t2-text { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msg-sc.is-locked .msg-sc-t2-text { white-space: normal; }
+.msg-sc-cv { flex: none; width: 12px; height: 12px; border-radius: 3px; overflow: hidden; background: var(--bg-2); }
+.msg-sc-cv img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+.msg-sc-open {
+  flex: none; height: 28px; padding: 0 11px; border: 0; border-radius: 8px; cursor: pointer;
+  background: var(--sbf-hover, color-mix(in srgb, var(--ink-0) 8%, transparent)); color: var(--ink-0);
+  font: 600 12px/28px var(--font-sans);
+  box-shadow: inset 0 0 0 1px var(--mc-card-edge, var(--line-2));
+}
+.msg-sc-open:hover { background: color-mix(in srgb, var(--ink-0) 14%, transparent); }
+.msg-sc-open:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }

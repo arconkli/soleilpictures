@@ -330,10 +330,11 @@ msgid "{0, plural, one {# card past your plan’s room were left out.} other {# 
 msgstr "{0, plural, one {# card past your plan’s room were left out.} other {# cards past your plan’s room were left out.}}"
 
 #. placeholder {0}: boost + 1
+#. placeholder {0}: cards.length
 #. placeholder {0}: cardsOf(b)
-#. placeholder {0}: ctx.cards
 #: src/auth/AuthGate.jsx
 #: src/components/home/ClustersHome.jsx
+#: src/components/MessageSharedCard.jsx
 #: src/components/MessageThings.jsx
 #: src/lib/feedbackContext.js
 #: src/lib/liveTogetherWords.js
@@ -727,6 +728,11 @@ msgstr "{0, plural, one {Rewind # selected board} other {Rewind # selected board
 msgid "{0, plural, one {Rewound # cluster to {rewindDate}} other {Rewound # clusters to {rewindDate}}}"
 msgstr "{0, plural, one {Rewound # cluster to {rewindDate}} other {Rewound # clusters to {rewindDate}}}"
 
+#. placeholder {0}: picked.length
+#: src/components/CanvasSurface.jsx
+msgid "{0, plural, one {Send to…} other {Send # cards to…}}"
+msgstr "{0, plural, one {Send to…} other {Send # cards to…}}"
+
 #. placeholder {0}: row.count
 #: src/components/sidebar/ClusterShelves.jsx
 msgid "{0, plural, one {Show # more} other {Show # more}}"
@@ -1008,7 +1014,13 @@ msgstr "{count, plural, one {**# file** will upload as soon as your payment goes
 msgid "{count, plural, one {# boards · {reason}} other {# boards · {reason}}}"
 msgstr "{count, plural, one {# boards · {reason}} other {# boards · {reason}}}"
 
+#: src/lib/messageThing.js
+msgid "{count, plural, one {# card · {board}} other {# cards · {board}}}"
+msgstr "{count, plural, one {# card · {board}} other {# cards · {board}}}"
+
 #: src/components/entityPreviews/GroupPreview.jsx
+#: src/components/MessageSharedCard.jsx
+#: src/lib/messageThing.js
 msgid "{count, plural, one {# card} other {# cards}}"
 msgstr "{count, plural, one {# card} other {# cards}}"
 
@@ -1580,6 +1592,46 @@ msgstr "{limit, plural, one {This free cluster holds **{take}** more — you’r
 msgid "{limit, plural, one {Your plan has # person who can edit, the most it allows.} other {Your plan has # people who can edit, the most it allows.}}"
 msgstr "{limit, plural, one {Your plan has # person who can edit, the most it allows.} other {Your plan has # people who can edit, the most it allows.}}"
 
+#: src/lib/sendTo.js
+msgid "{list} can't open it yet: only editors can let people in."
+msgstr "{list} can't open it yet: only editors can let people in."
+
+#: src/lib/sendTo.js
+msgid "{list} can't open it yet: today's sharing limit is reached."
+msgstr "{list} can't open it yet: today's sharing limit is reached."
+
+#: src/lib/sendTo.js
+msgid "{list} can't open it yet."
+msgstr "{list} can't open it yet."
+
+#: src/lib/sendTo.js
+msgid "{list} didn't get it: check the address."
+msgstr "{list} didn't get it: check the address."
+
+#: src/lib/sendTo.js
+msgid "{list} didn't get it: only editors can invite by email."
+msgstr "{list} didn't get it: only editors can invite by email."
+
+#: src/lib/sendTo.js
+msgid "{list} didn't get it: today's sharing limit is reached."
+msgstr "{list} didn't get it: today's sharing limit is reached."
+
+#: src/lib/sendTo.js
+msgid "{list} didn't get it."
+msgstr "{list} didn't get it."
+
+#: src/lib/sendTo.js
+msgid "{list} will be able to view {title}."
+msgstr "{list} will be able to view {title}."
+
+#: src/lib/sendTo.js
+msgid "{list} will get an email invite."
+msgstr "{list} will get an email invite."
+
+#: src/lib/sendTo.js
+msgid "{list} won't be able to open it: only its editors can let people in."
+msgstr "{list} won't be able to open it: only its editors can let people in."
+
 #: src/components/cards/ScheduleTiles.jsx
 msgid "{live, plural, one {# day} other {# days}}"
 msgstr "{live, plural, one {# day} other {# days}}"
@@ -1732,6 +1784,10 @@ msgstr "{n, plural, one {# attachment} other {# attachments}}"
 msgid "{n, plural, one {# audio file} other {# audio files}}"
 msgstr "{n, plural, one {# audio file} other {# audio files}}"
 
+#: src/components/SendSheet.jsx
+msgid "{n, plural, one {# can't open it yet} other {# can't open it yet}}"
+msgstr "{n, plural, one {# can't open it yet} other {# can't open it yet}}"
+
 #: src/lib/demoCardCapWords.js
 msgid "{n, plural, one {# card couldn't be added.} other {# cards couldn't be added.}}"
 msgstr "{n, plural, one {# card couldn't be added.} other {# cards couldn't be added.}}"
@@ -1840,6 +1896,14 @@ msgstr "{n, plural, one {# palette} other {# palettes}}"
 #: src/lib/dropRules.js
 msgid "{n, plural, one {# PDF} other {# PDFs}}"
 msgstr "{n, plural, one {# PDF} other {# PDFs}}"
+
+#: src/lib/sendTo.js
+msgid "{n, plural, one {# person will be able to view {title}.} other {# people will be able to view {title}.}}"
+msgstr "{n, plural, one {# person will be able to view {title}.} other {# people will be able to view {title}.}}"
+
+#: src/lib/sendTo.js
+msgid "{n, plural, one {# person won't be able to open it: only its editors can let people in.} other {# people won't be able to open it: only its editors can let people in.}}"
+msgstr "{n, plural, one {# person won't be able to open it: only its editors can let people in.} other {# people won't be able to open it: only its editors can let people in.}}"
 
 #: src/lib/sharedFiles.js
 msgid "{n, plural, one {# person} other {# people}}"
@@ -1964,6 +2028,10 @@ msgstr "{n, plural, one {Replaced # match on {pages} pages} other {Replaced # ma
 msgid "{n, plural, one {Replaced # match} other {Replaced # matches}}"
 msgstr "{n, plural, one {Replaced # match} other {Replaced # matches}}"
 
+#: src/components/SendSheet.jsx
+msgid "{n, plural, one {Send} other {Send to #}}"
+msgstr "{n, plural, one {Send} other {Send to #}}"
+
 #: src/lib/teamModelWords.js
 msgid "{n, plural, one {Sent # day ago} other {Sent # days ago}}"
 msgstr "{n, plural, one {Sent # day ago} other {Sent # days ago}}"
@@ -1975,6 +2043,10 @@ msgstr "{n, plural, one {Sent # hour ago} other {Sent # hours ago}}"
 #: src/lib/teamModelWords.js
 msgid "{n, plural, one {Sent # week ago} other {Sent # weeks ago}}"
 msgstr "{n, plural, one {Sent # week ago} other {Sent # weeks ago}}"
+
+#: src/lib/sendTo.js
+msgid "{n, plural, one {Sent to # person} other {Sent to # people}}"
+msgstr "{n, plural, one {Sent to # person} other {Sent to # people}}"
 
 #: src/components/shared/SharedPage.jsx
 msgid "{n, plural, one {Shared with # person} other {Shared with # people}}"
@@ -2686,6 +2758,10 @@ msgstr "{seatsUsed} seats"
 msgid "{selAllKey} selects all · {cmdKey}-click adds · {shiftKey}-click selects a range"
 msgstr "{selAllKey} selects all · {cmdKey}-click adds · {shiftKey}-click selects a range"
 
+#: src/components/CanvasSurface.jsx
+msgid "{SEND_MAX_CARDS, plural, one {Send to… (up to # card)} other {Send to… (up to # cards)}}"
+msgstr "{SEND_MAX_CARDS, plural, one {Send to… (up to # card)} other {Send to… (up to # cards)}}"
+
 #: src/components/MessagesPanel.jsx
 msgid "{senderFirst}: {preview}"
 msgstr "{senderFirst}: {preview}"
@@ -3105,6 +3181,26 @@ msgstr "{who} removed from the team."
 #: src/lib/teamCopy.js
 msgid "{who} removed from the team’s domains."
 msgstr "{who} removed from the team’s domains."
+
+#: src/lib/messageThing.js
+msgid "{who} sent {count, plural, one {# card} other {# cards}}"
+msgstr "{who} sent {count, plural, one {# card} other {# cards}}"
+
+#: src/lib/messageThing.js
+msgid "{who} sent {title}"
+msgstr "{who} sent {title}"
+
+#: src/lib/messageThing.js
+msgid "{who} sent a card"
+msgstr "{who} sent a card"
+
+#: src/lib/messageThing.js
+msgid "{who} sent a card: {title}"
+msgstr "{who} sent a card: {title}"
+
+#: src/lib/messageThing.js
+msgid "{who} sent a cluster"
+msgstr "{who} sent a cluster"
 
 #: src/components/MessagesPanel.jsx
 msgid "{who} sent an attachment"
@@ -3930,6 +4026,10 @@ msgstr "Add a link card"
 #: src/lib/boardMore.js
 msgid "Add a note"
 msgstr "Add a note"
+
+#: src/components/SendSheet.jsx
+msgid "Add a note (optional)"
+msgstr "Add a note (optional)"
 
 #: src/components/settings/PasskeysSection.jsx
 msgid "Add a passkey"
@@ -5645,6 +5745,10 @@ msgstr "Can view and join"
 msgid "can't drop a board onto itself"
 msgstr "can't drop a board onto itself"
 
+#: src/components/SendSheet.jsx
+msgid "Can't open {boardTitle} yet"
+msgstr "Can't open {boardTitle} yet"
+
 #: src/components/cards.jsx
 msgid "Can’t play here: download it"
 msgstr "Can’t play here: download it"
@@ -5790,6 +5894,7 @@ msgstr "capture, screenshot, record, demo, marketing, clean"
 #: src/lib/entityKinds.js
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
+#: src/lib/messageThing.js
 msgid "Card"
 msgstr "Card"
 
@@ -5797,6 +5902,10 @@ msgstr "Card"
 msgctxt "payment card"
 msgid "Card"
 msgstr "Card"
+
+#: src/lib/messageThing.js
+msgid "Card · {board}"
+msgstr "Card · {board}"
 
 #: src/components/toolbar/NoteBarA.jsx
 msgid "Card background"
@@ -6313,6 +6422,7 @@ msgstr "CLIPBOARD"
 #: src/components/PanelWait.jsx
 #: src/components/PdfViewer.jsx
 #: src/components/PricingModal.jsx
+#: src/components/SendSheet.jsx
 #: src/components/SettingsPanel.jsx
 #: src/components/setup/InviteReask.jsx
 #: src/components/shared/SharedPage.jsx
@@ -6431,6 +6541,7 @@ msgstr "cluster"
 #: src/components/clusterBrowser/FolderTiles.jsx
 #: src/components/clusterBrowser/GridContentPreview.jsx
 #: src/components/MessageComposer.jsx
+#: src/components/MessageSharedCard.jsx
 #: src/components/MessageThings.jsx
 #: src/components/shared/SharedPage.jsx
 #: src/components/WorkspaceRecoveryModal.jsx
@@ -6438,6 +6549,7 @@ msgstr "cluster"
 #: src/lib/entityKinds.js
 #: src/lib/helpHub.js
 #: src/lib/listItemWords.js
+#: src/lib/messageThing.js
 #: src/pages/KeepPage.jsx
 msgid "Cluster"
 msgstr "Cluster"
@@ -6449,6 +6561,10 @@ msgstr "CLUSTER"
 #: src/components/MessageThings.jsx
 msgid "Cluster in {parent}"
 msgstr "Cluster in {parent}"
+
+#: src/lib/messageThing.js
+msgid "Cluster in {ws}"
+msgstr "Cluster in {ws}"
 
 #: src/components/CanvasSurface.jsx
 msgid "Cluster info"
@@ -7921,6 +8037,15 @@ msgstr "Couldn't save. Your words are still here."
 #: src/components/MessageBubble.jsx
 msgid "Couldn't send"
 msgstr "Couldn't send"
+
+#: src/components/SendSheet.jsx
+#: src/lib/sendTo.js
+msgid "Couldn't send to {list}. Try again."
+msgstr "Couldn't send to {list}. Try again."
+
+#: src/components/SendSheet.jsx
+msgid "Couldn't send. Try again."
+msgstr "Couldn't send. Try again."
 
 #: src/components/comments/CommentComposer.jsx
 msgid "Couldn't send. Your words are still here."
@@ -10624,6 +10749,10 @@ msgstr "Get Creator"
 msgid "Get info"
 msgstr "Get info"
 
+#: src/components/SendSheet.jsx
+msgid "Gets it in Messages, or an email invite if they're new"
+msgstr "Gets it in Messages, or an email invite if they're new"
+
 #: src/components/ShareModal.jsx
 msgid "Give {email} the whole workspace?"
 msgstr "Give {email} the whole workspace?"
@@ -11724,6 +11853,10 @@ msgstr "Invited {count}, plus {count2} pending signup."
 msgid "Invited {email} — access is waiting for them when they sign up."
 msgstr "Invited {email} — access is waiting for them when they sign up."
 
+#: src/components/SendSheet.jsx
+msgid "Invited {list}"
+msgstr "Invited {list}"
+
 #: src/components/ShareModal.jsx
 msgid "Invited {okCount} ({pending} pending signup), failed {failed}: {list}"
 msgstr "Invited {okCount} ({pending} pending signup), failed {failed}: {list}"
@@ -12572,8 +12705,13 @@ msgstr "link"
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/messageThing.js
 msgid "Link"
 msgstr "Link"
+
+#: src/lib/messageThing.js
+msgid "Link · {host}"
+msgstr "Link · {host}"
 
 #: src/components/ShortcutsOverlay.jsx
 msgid "Link · comment"
@@ -12848,6 +12986,7 @@ msgstr "Loading your workspace"
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/HelpHub.jsx
 #: src/components/NotificationsPanel.jsx
+#: src/components/SendSheet.jsx
 #: src/components/settings/BillingTab.jsx
 #: src/components/settings/ConnectionsTab.jsx
 #: src/components/settings/DocsTab.jsx
@@ -13194,8 +13333,10 @@ msgstr "Medium tiles"
 #: src/components/MessagesPanel.jsx
 #: src/components/MessageThread.jsx
 #: src/components/NewConversationPicker.jsx
+#: src/components/SendSheet.jsx
 #: src/components/ShareModal.jsx
 #: src/lib/commentAuthor.js
+#: src/lib/sendTo.js
 #: src/lib/teamModelWords.js
 #: src/lib/userProfiles.js
 msgid "Member"
@@ -13782,6 +13923,10 @@ msgstr "Name it (optional)"
 msgid "Name it, e.g. Short film"
 msgstr "Name it, e.g. Short film"
 
+#: src/components/SendSheet.jsx
+msgid "Name or email"
+msgstr "Name or email"
+
 #: src/lib/versionFields.js
 msgid "Name restored."
 msgstr "Name restored."
@@ -13915,6 +14060,7 @@ msgstr "New comment"
 
 #: src/components/MessagesPanel.jsx
 #: src/components/MessageThread.jsx
+#: src/lib/sendTo.js
 msgid "New conversation"
 msgstr "New conversation"
 
@@ -14297,6 +14443,10 @@ msgstr "No new addresses to invite."
 msgid "No notes tagged."
 msgstr "No notes tagged."
 
+#: src/components/SendSheet.jsx
+msgid "No one matches. Type a full email address to send it by email."
+msgstr "No one matches. Type a full email address to send it by email."
+
 #: src/components/NewConversationPicker.jsx
 msgid "No one to message yet. Share a board to start collaborating."
 msgstr "No one to message yet. Share a board to start collaborating."
@@ -14635,8 +14785,13 @@ msgstr "note"
 #: src/lib/helpHub.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/messageThing.js
 msgid "Note"
 msgstr "Note"
+
+#: src/lib/messageThing.js
+msgid "Note · {board}"
+msgstr "Note · {board}"
 
 #. Words people might type to find this command, comma-separated.
 #: src/App.jsx
@@ -15234,6 +15389,10 @@ msgstr "Only people added"
 msgid "Only people it was shared with can open it."
 msgstr "Only people it was shared with can open it."
 
+#: src/components/SendSheet.jsx
+msgid "Only people who can edit {boardTitle} can send it to a new email."
+msgstr "Only people who can edit {boardTitle} can send it to a new email."
+
 #: src/components/ShareModal.jsx
 msgid "Only people who can edit this cluster can change who has access. You can still see who does, above."
 msgstr "Only people who can edit this cluster can change who has access. You can still see who does, above."
@@ -15338,6 +15497,7 @@ msgstr "Opacity"
 #: src/components/home/ClustersHome.jsx
 #: src/components/HomeGraphDetailDrawer.jsx
 #: src/components/ListSurface.jsx
+#: src/components/MessageSharedCard.jsx
 #: src/components/shared/SharedPage.jsx
 #: src/components/SidebarBoardTree.jsx
 #: src/components/SidebarSharedBoards.jsx
@@ -15380,6 +15540,7 @@ msgstr "Open {boardOrThis} to add files"
 #: src/components/cards/ScheduleCard.jsx
 #: src/components/HeldUploadsBar.jsx
 #: src/components/MessageBubble.jsx
+#: src/components/MessageSharedCard.jsx
 #: src/components/MessageThings.jsx
 #: src/components/MoreLikeThis.jsx
 #: src/components/setup/WorkspaceSetup.jsx
@@ -15465,6 +15626,10 @@ msgstr "Open board"
 #: src/components/capture/CaptureHud.jsx
 msgid "Open capture controls"
 msgstr "Open capture controls"
+
+#: src/components/SendSheet.jsx
+msgid "Open chat"
+msgstr "Open chat"
 
 #: src/components/CanvasSurface.jsx
 #: src/components/clusterBrowser/DetailPanel.jsx
@@ -16022,8 +16187,13 @@ msgstr "palette"
 #: src/lib/graphData.js
 #: src/lib/indexRowCard.js
 #: src/lib/listItemWords.js
+#: src/lib/messageThing.js
 msgid "Palette"
 msgstr "Palette"
+
+#: src/lib/messageThing.js
+msgid "Palette · {board}"
+msgstr "Palette · {board}"
 
 #: src/components/CanvasSurface.jsx
 msgid "Palette {number}"
@@ -16298,6 +16468,7 @@ msgstr "Pending review"
 msgid "Pending suggestions"
 msgstr "Pending suggestions"
 
+#: src/components/SendSheet.jsx
 #: src/components/team/TeamPage.jsx
 #: src/components/team/TeamPeople.jsx
 msgid "People"
@@ -16476,6 +16647,10 @@ msgstr "Pick several from your camera roll at once."
 #: src/components/ReturnReasonAsk.jsx
 msgid "Picking up where I left off"
 msgstr "Picking up where I left off"
+
+#: src/lib/messageThing.js
+msgid "Picture"
+msgstr "Picture"
 
 #: src/lib/versionActions.js
 msgid "Picture lock, Director’s cut…"
@@ -17098,6 +17273,7 @@ msgstr "Receipts"
 
 #: src/components/ColorPicker.jsx
 #: src/components/doc/DocBarA.jsx
+#: src/components/SendSheet.jsx
 #: src/components/toolbar/NoteBarA.jsx
 msgid "Recent"
 msgstr "Recent"
@@ -18605,6 +18781,7 @@ msgstr "Selection formatting"
 #: src/components/fileShare/FileShareDialog.jsx
 #: src/components/MessageComposer.jsx
 #: src/components/ReturnReasonAsk.jsx
+#: src/components/SendSheet.jsx
 #: src/components/UpgradeReasonAsk.jsx
 msgid "Send"
 msgstr "Send"
@@ -18646,6 +18823,12 @@ msgstr "Send invites"
 msgid "Send to back"
 msgstr "Send to back"
 
+#: src/components/CanvasSurface.jsx
+#: src/components/SendSheet.jsx
+#: src/components/SidebarBoardTree.jsx
+msgid "Send to…"
+msgstr "Send to…"
+
 #: src/components/MessageComposer.jsx
 msgid "Send, once the uploads finish"
 msgstr "Send, once the uploads finish"
@@ -18675,6 +18858,10 @@ msgstr "Sending your code…"
 msgid "Sending…"
 msgstr "Sending…"
 
+#: src/lib/messageThing.js
+msgid "Sent {count, plural, one {# card} other {# cards}}"
+msgstr "Sent {count, plural, one {# card} other {# cards}}"
+
 #: src/lib/teamModelWords.js
 msgid "Sent {n} min ago"
 msgstr "Sent {n} min ago"
@@ -18695,6 +18882,22 @@ msgstr "Sent {sent}; {count} not sent. {why}"
 msgid "Sent {sent}; {count} not sent. {why} Also failed: {failList}"
 msgstr "Sent {sent}; {count} not sent. {why} Also failed: {failList}"
 
+#: src/lib/messageThing.js
+msgid "Sent {title}"
+msgstr "Sent {title}"
+
+#: src/lib/messageThing.js
+msgid "Sent a card"
+msgstr "Sent a card"
+
+#: src/lib/messageThing.js
+msgid "Sent a card: {title}"
+msgstr "Sent a card: {title}"
+
+#: src/lib/messageThing.js
+msgid "Sent a cluster"
+msgstr "Sent a cluster"
+
 #: src/lib/teamModelWords.js
 msgid "Sent a while ago"
 msgstr "Sent a while ago"
@@ -18702,6 +18905,10 @@ msgstr "Sent a while ago"
 #: src/lib/teamModelWords.js
 msgid "Sent last week"
 msgstr "Sent last week"
+
+#: src/lib/sendTo.js
+msgid "Sent to {list}"
+msgstr "Sent to {list}"
 
 #: src/lib/teamModelWords.js
 msgid "Sent today"
@@ -24205,6 +24412,10 @@ msgstr "You can read this conversation. Sending messages opens once your account
 msgid "You can see everything in it"
 msgstr "You can see everything in it"
 
+#: src/components/SendSheet.jsx
+msgid "You can send to up to {max} at a time."
+msgstr "You can send to up to {max} at a time."
+
 #: src/App.jsx
 msgid "You can view {shown} but not add to it."
 msgstr "You can view {shown} but not add to it."
@@ -24244,6 +24455,14 @@ msgstr "You can't message one or more of those people from this workspace."
 #: src/lib/messageAccess.js
 msgid "You can't message this person from this workspace."
 msgstr "You can't message this person from this workspace."
+
+#: src/components/MessageSharedCard.jsx
+msgid "You can't open {name}."
+msgstr "You can't open {name}."
+
+#: src/lib/sendTo.js
+msgid "You can't send it to yourself."
+msgstr "You can't send it to yourself."
 
 #: src/components/fileShare/FileShareDialog.jsx
 msgid "You can't share docs in this cluster."
@@ -24381,6 +24600,26 @@ msgstr "You probably do not need a token. Point it at this endpoint and approve 
 #: src/components/NotificationsPanel.jsx
 msgid "You said yes"
 msgstr "You said yes"
+
+#: src/lib/messageThing.js
+msgid "You sent {count, plural, one {# card} other {# cards}}"
+msgstr "You sent {count, plural, one {# card} other {# cards}}"
+
+#: src/lib/messageThing.js
+msgid "You sent {title}"
+msgstr "You sent {title}"
+
+#: src/lib/messageThing.js
+msgid "You sent a card"
+msgstr "You sent a card"
+
+#: src/lib/messageThing.js
+msgid "You sent a card: {title}"
+msgstr "You sent a card: {title}"
+
+#: src/lib/messageThing.js
+msgid "You sent a cluster"
+msgstr "You sent a cluster"
 
 #: src/lib/liveTogetherWords.js
 msgid "You, {first} and {second} are working together"

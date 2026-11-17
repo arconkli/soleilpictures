@@ -18,6 +18,7 @@ import { publishNotification } from '../lib/notificationBus.js';
 import { maybeShowNotification } from '../lib/browserNotifications.js';
 import * as userProfiles from '../lib/userProfiles.js';
 import { isWatchingConversation } from '../lib/threadAttention.js';
+import { thingLine } from '../lib/messageThing.js';
 import { t } from '@lingui/core/macro';
 
 // openConversationId is no longer read: App's copy outlives the panel (it is
@@ -52,8 +53,10 @@ export function useInboxLive({ userId, onOpenConversation, feedback }) {
       const mentionsMe = Array.isArray(payload.mentions) && payload.mentions.includes(userId);
       const preview = payload.body_preview
         || (payload.has_attachments ? t`Attachment` : '');
+      const thing = !payload.body_preview && payload.thing && typeof payload.thing === 'object' ? payload.thing : null;
       const message = mentionsMe
         ? (preview ? t`${senderName} mentioned you: ${preview}` : t`${senderName} mentioned you`)
+        : thing ? thingLine(thing, { who: senderName })
         : (preview ? t`${senderName}: ${preview}` : senderName);
 
       const openIt = () => {
@@ -71,7 +74,7 @@ export function useInboxLive({ userId, onOpenConversation, feedback }) {
 
       maybeShowNotification({
         title: mentionsMe ? t`${senderName} mentioned you` : senderName,
-        body: preview,
+        body: (!mentionsMe && thing) ? thingLine(thing, {}) : preview,
         tag: payload.conversation_id,
         onClick: openIt,
       });

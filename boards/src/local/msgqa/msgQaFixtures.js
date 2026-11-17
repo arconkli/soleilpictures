@@ -16,6 +16,9 @@ export const SELF_ID = 'qa-me';
 export const PEOPLE = SIDEBAR_PEOPLE.map((p) => ({ user_id: p.id, email: p.email, name: p.name, color: p.color }));
 
 export const CONVERSATION_IDS = ['c-maya', 'c-cast', 'c-long', 'c-empty', 'c-left'];
+// Send to…: every preview-card unit kind. Kept out of CONVERSATION_IDS (the
+// conversations the existing specs walk); open it with ?conv=c-sent.
+export const SENT_CONVERSATION_ID = 'c-sent';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -138,6 +141,28 @@ export function buildMsgQaDb(now = Date.now()) {
   L('3', SELF_ID, 'Count me in. I will bring the playlist.', ago(3 * 1440 + 10));
   L('4', 'priya', 'Great, see everyone there.', ago(2 * 1440 + 5));
 
+  // ── c-sent: cards and clusters sent with Send to… ─────────────────
+  // Snapshot keys are bare storage keys "qa/<photo>": the harness serves the
+  // local photographs for them (r2.js read-URL override). board-night is readable; board-locked is not in `boards`
+  // (the reader can't open it) and board-trashed is in the Trash.
+  const S = (id, from, body, at, attachments) => msg(SENT_CONVERSATION_ID, `sent-${id}`, from, body, at, { attachments });
+  const snapCard = (boardId, cardId, title, boardTitle, snap) => ({ kind: 'card', boardId, cardId, title, boardTitle, snap: { v: 1, cover: 'qa/interior', ...snap } });
+  const at0 = now - 8 * DAY;
+  S('01', 'lena', '', at0, [snapCard('board-night', 'cd-1', 'Alley, neon', 'Night shoot', { k: 'image', key: 'qa/neon', w: 1200, h: 800 })]);
+  S('02', SELF_ID, 'For tomorrow.', at0 + MIN, [snapCard('board-night', 'cd-2', 'Call time', 'Night shoot', { k: 'note', heading: 'Call time', text: 'Crew call 18:30 at the alley. Bring the rain covers and the long lens; permits are in the van.' })]);
+  S('03', 'lena', '', at0 + 2 * MIN, [snapCard('board-night', 'cd-3', 'Neon palette', 'Night shoot', { k: 'palette', swatches: ['#1b1b3a', '#693668', '#a74482', '#f84aa7', '#ff3562'] })]);
+  S('04', SELF_ID, '', at0 + 3 * MIN, [snapCard('board-night', 'cd-4', 'Reference reel', 'Night shoot', { k: 'link', url: 'https://vimeo.com/123', host: 'vimeo.com' })]);
+  S('05', 'lena', '', at0 + 4 * MIN, [
+    snapCard('board-night', 'cd-5', 'Alley, neon', 'Night shoot', { k: 'image', key: 'qa/neon' }),
+    snapCard('board-night', 'cd-6', 'Face, close', 'Night shoot', { k: 'image', key: 'qa/face' }),
+    snapCard('board-night', 'cd-7', 'Fog test', 'Night shoot', { k: 'image', key: 'qa/fog' }),
+    { kind: 'card', boardId: 'board-night', cardId: 'cd-8', title: 'Haze', boardTitle: 'Night shoot' },
+    { kind: 'card', boardId: 'board-night', cardId: 'cd-9', title: 'Eye', boardTitle: 'Night shoot' },
+  ]);
+  S('06', SELF_ID, '', at0 + 5 * MIN, [{ kind: 'board', id: 'board-night', boardId: 'board-night', title: 'Night shoot', snap: { v: 1, k: 'cluster', keys: ['qa/alley', 'qa/neon', 'qa/face', 'qa/fog'], count: 12, ws: 'Soleil', cover: 'qa/interior' } }]);
+  S('07', 'lena', '', at0 + 6 * MIN, [{ kind: 'board', id: 'board-locked', boardId: 'board-locked', title: 'Reshoots', snap: { v: 1, k: 'cluster', keys: ['qa/haze'], count: 30, ws: 'Soleil', cover: 'qa/interior' } }]);
+  S('08', 'lena', '', at0 + 7 * MIN, [snapCard('board-trashed', 'cd-10', 'Night frame', 'Old plans', { k: 'image', key: 'qa/portrait' })]);
+
   // ── conversations and who is in them ──────────────────────────────
   const lastUserAt = (id) => {
     let best = null;
@@ -153,6 +178,7 @@ export function buildMsgQaDb(now = Date.now()) {
     conv('c-long', null, 6 * 1440),
     conv('c-empty', null, 1440),
     conv('c-left', 'Wrap party', 5 * 1440),
+    conv(SENT_CONVERSATION_ID, 'Sent things', 9 * 1440),
   ];
   const part = (conversation_id, user_id, extra = {}) => ({
     conversation_id, user_id, joined_at: iso(ago(5 * 1440)), left_at: null, last_read_at: iso(now), ...extra,
@@ -167,7 +193,17 @@ export function buildMsgQaDb(now = Date.now()) {
     part('c-empty', SELF_ID), part('c-empty', 'priya'),
     part('c-left', SELF_ID, { left_at: iso(ago(2 * 1440)), last_read_at: iso(ago(2 * 1440 + 1)) }),
     part('c-left', 'sam'), part('c-left', 'priya'),
+    part(SENT_CONVERSATION_ID, SELF_ID), part(SENT_CONVERSATION_ID, 'lena'), part(SENT_CONVERSATION_ID, 'jon'),
   ];
 
-  return { messages, conversations, conversation_participants, people: PEOPLE.map((p) => ({ ...p })) };
+  // What the Messages cards ask `boards` about (id, deleted_at) under RLS: a
+  // cluster the reader can't open simply isn't there.
+  const boards = [
+    { id: 'board-locations', deleted_at: null },
+    { id: 'board-casting', deleted_at: null },
+    { id: 'board-night', deleted_at: null },
+    { id: 'board-trashed', deleted_at: iso(ago(1440)) },
+  ];
+
+  return { messages, conversations, conversation_participants, boards, people: PEOPLE.map((p) => ({ ...p })) };
 }

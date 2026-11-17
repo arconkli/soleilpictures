@@ -19,6 +19,7 @@ import { ColorPicker } from './ColorPicker.jsx';
 import { ThumbnailCropModal } from './ThumbnailCropModal.jsx';
 import { boardClipboardSize } from '../lib/boardClipboard.js';
 import { openInfo } from '../lib/infoBus.js';
+import { openSend, sendAvailable } from '../lib/sendBus.js';
 import { composeMenuSections, SECTION } from '../lib/contextMenuSections.js';
 import { INDENT } from '../lib/sidebarRows.js';
 import { Icon } from './Icon.jsx';
@@ -217,6 +218,8 @@ export function SidebarBoardTree({
     // the modal itself renders read-only for viewers.
     const openItems = [
       { id: 'open', label: tr`Open`, run: () => onOpenBoard?.(board.id) },
+      ...(sendAvailable() ? [{ id: 'send-to', label: tr`Send to…`,
+        run: () => openSend({ boardId: board.id, boardTitle: board.name, surface: 'sidebar_menu' }) }] : []),
       { id: 'share', label: tr`Share…`, run: () => onShareBoard?.(board.id) },
       // The files sidebar's own: Star, and "Always open in Files".
       ...(filesView?.menuItems?.(board, canEdit) || []),

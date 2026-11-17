@@ -1,8 +1,8 @@
 # Messages
 
-> Messages holds your direct and group conversations with anyone you share a board with. Threads support attachments you can drag straight onto a canvas, @ mentions that link to real boards and cards, per-thread drafts, and unread counts that show in the browser tab title.
+> Messages holds your direct and group conversations with anyone you share a board with. Threads support attachments you can drag straight onto a canvas, @ mentions that link to real boards and cards, per-thread drafts, and unread counts that show in the browser tab title. Right-click any card or cluster and choose Send to… to send it as a preview card that opens it in the app.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/messages · Updated 2026-10-21_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/messages · Updated 2026-11-17_
 
 Messaging exists so that the conversation about a board can happen next to the
 board.
@@ -16,6 +16,9 @@ there is no separate contact list to maintain, and no way to message someone you
 have no working relationship with.
 
 Click any collaborator's avatar to start a direct message with them.
+
+Sending a card or cluster to an email address shares that cluster with them
+first; see [Sending a card or cluster](#sending-a-card-or-cluster).
 
 ## Threads
 
@@ -42,6 +45,40 @@ Direct and group conversations in one list, ordered by recency.
 - Attach files with the **+** at the start of the box, by pasting, or by dropping them on the box. Each shows as its own chip while it uploads, and you can keep typing; **Send** waits until they're all in, and one that fails says so, with **Retry**
 - **Edit** opens your message in this same box, under an **Editing your message** line, and the same keys apply: **Enter** saves (on a phone or tablet, the ✓ does) and **Esc** cancels. Whatever you'd started writing waits until you're done
 - A message that can't be sent stays in the conversation marked **Not sent**, with **Try again** and **Delete**
+
+## Sending a card or cluster
+
+Right-click a card or a cluster and choose **Send to…** to send it to people in
+Messages. It's on any card on the canvas, on several selected cards at once
+(**Send 3 cards to…**, up to 50), on a cluster's card, and on
+a cluster in the sidebar. On a phone or tablet, use a card's **⋯** menu, or hold
+a cluster in the sidebar.
+
+- **Who's listed** — your recent conversations first, groups included, then everyone you can message. Search by name, or type a whole email address to send it to someone who isn't listed
+- **Picking** — up to 25 at once: people, groups and email addresses together. Each person gets it in your direct conversation with them, and a group gets one message
+- **A message** — anything you write goes with it, as the message's words
+- **Access** — anyone you picked who can't open the cluster yet gets view access when you press **Send**, and the line beside **Send** names them before you do. Someone without an account gets an email invitation, and the cluster is waiting for them when they sign up. In a group, each member who needs it gets view access
+- **If you can only view it** — you can still send it, but you can't let anyone in: the line beside **Send** names whoever won't be able to open it, and only people who can edit the cluster can send it to a new email address
+
+Giving someone access counts toward your daily invitations, as it does from the
+[share panel](/docs/collaborate/sharing#inviting-people). Past the limit, the
+people you picked still get the message but can't open the cluster yet, an email
+address gets nothing, and the notice after **Send** says so.
+
+With a keyboard, `↑` and `↓` move through the list, `Enter` or `Space` picks,
+`⌘/Ctrl+Enter` sends and `Esc` closes.
+
+### What arrives
+
+A preview card, the same whoever sent it:
+
+- **On top**, what it is: the picture, the start of a note, a palette's colours, the first few of several cards, or four of a cluster's pictures and how many cards it holds
+- **Below**, its name and where it lives — "Card · Night shoot", "3 cards · Night shoot", "Cluster in Soleil" — and **Open**
+- **Open** goes straight to the cluster in the app with the card, or the cards, centred and selected, even when the cluster was shared with you a moment ago or lives in another of your workspaces
+- **No access** — someone who can't open the cluster, or whose cluster is in the Trash, sees "You can't open Night shoot." in place of its pictures, and no **Open**
+
+A message with no words reads "Sent a card: Alley, neon" in the list of
+conversations, and in the notice and the notification that announce it.
 
 ## Keyboard
 

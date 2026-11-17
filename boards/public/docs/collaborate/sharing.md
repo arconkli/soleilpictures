@@ -2,7 +2,7 @@
 
 > A public link makes a cluster viewable by anyone with the URL, with no account and no sign-in. Links are view-only, include nested clusters by default and can expire after 7 or 30 days. Anyone who opens one can join to keep the cluster in their Clusters, and ask you to let them edit. Granting edit access is a separate choice — either an invite link that asks the recipient to sign in, or an emailed invitation to a named person.
 
-_Source: https://clusters.soleilpictures.com/docs/collaborate/sharing · Updated 2026-11-15_
+_Source: https://clusters.soleilpictures.com/docs/collaborate/sharing · Updated 2026-11-17_
 
 The **Share** panel answers one question — who can open this cluster? — in the
 order you decide it: the link first, under **Share a link**, then **Invite
@@ -281,6 +281,14 @@ with.
 Boards you are viewing without edit rights show a clear VIEW ONLY badge, so
 there is never ambiguity about whether your changes will stick. You cannot mint
 a link on one, but you can still open **Share** to see who has access.
+
+## Sending it in Messages
+
+To send a cluster, or a card in it, to particular people, right-click it and
+choose **Send to…**. It arrives in their Messages as a preview card that opens
+the cluster, and anyone who can't open it yet gets view access: the same access,
+and the same daily limit, as inviting them here. See
+[Sending a card or cluster](/docs/collaborate/messages#sending-a-card-or-cluster).
 
 ## Link previews
 

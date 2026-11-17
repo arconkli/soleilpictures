@@ -48,6 +48,7 @@ export function createFakeSupabase({ db, selfId, latency = 0, onCall } = {}) {
   db.people ||= [];
   db.storage ||= new Map();
   db.analytics_events ||= [];
+  db.boards ||= [];
 
   let latencyCfg = latency;
   const failures = []; // { target, times, error }
@@ -97,6 +98,13 @@ export function createFakeSupabase({ db, selfId, latency = 0, onCall } = {}) {
   const convIdsOf = (uid) => new Set(db.conversation_participants.filter((p) => p.user_id === uid).map((p) => p.conversation_id));
   const isActive = (conversationId, uid) => { const p = myPart(conversationId, uid); return !!p && !p.left_at; };
 
+  // message_thing() (0904): the first card or cluster, and how many cards.
+  function thingOfAttachments(atts) {
+    const list = (Array.isArray(atts) ? atts : []).filter((a) => a && (a.kind === 'card' || a.kind === 'board'));
+    if (!list.length) return null;
+    return { kind: list[0].kind, title: String(list[0].title || '').trim().slice(0, 80), count: list.filter((a) => a.kind === 'card').length };
+  }
+
   function summaryRows(uid) {
     const mine = convIdsOf(uid);
     return db.conversations.filter((c) => mine.has(c.id)).map((c) => {
@@ -116,6 +124,7 @@ export function createFakeSupabase({ db, selfId, latency = 0, onCall } = {}) {
         last_message_sender_id: lm ? lm.sender_id : null,
         last_message_sender_email: lm ? lm.sender_email : null,
         last_message_kind: lm ? lm.kind : null,
+        last_message_thing: lm ? thingOfAttachments(lm.attachments) : null,
         active_participant_count: db.conversation_participants.filter((p) => p.conversation_id === c.id && !p.left_at).length,
       };
     });
@@ -128,6 +137,8 @@ export function createFakeSupabase({ db, selfId, latency = 0, onCall } = {}) {
       case 'conversation_participants': return db.conversation_participants.filter((p) => mine.has(p.conversation_id));
       case 'conversations': return db.conversations.filter((c) => mine.has(c.id));
       case 'conversation_summary': return summaryRows(uid);
+      // Only the clusters the reader can open come back (RLS).
+      case 'boards': return db.boards || [];
       case 'member_profiles':
       case 'profiles':
         return db.people.map((p) => ({ user_id: p.user_id, display_name: p.name, color: p.color || null, avatar_url: null }));
